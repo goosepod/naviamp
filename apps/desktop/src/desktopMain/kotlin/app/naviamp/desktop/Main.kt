@@ -124,8 +124,15 @@ fun NaviampApp() {
                 NowPlayingPanel(
                     appColors = appColors,
                     playbackEngineName = playbackEngine.name,
+                    supportsPause = playbackEngine.supportsPause,
                     nowPlayingTrack = nowPlayingTrack,
                     playbackState = playbackState,
+                    onPause = {
+                        playbackEngine.pause()
+                    },
+                    onResume = {
+                        playbackEngine.resume()
+                    },
                     onStop = {
                         playbackEngine.stop()
                         playbackState = PlaybackState.Stopped
@@ -357,8 +364,11 @@ private fun ConnectionPanel(
 private fun NowPlayingPanel(
     appColors: AppColors,
     playbackEngineName: String,
+    supportsPause: Boolean,
     nowPlayingTrack: Track?,
     playbackState: PlaybackState,
+    onPause: () -> Unit,
+    onResume: () -> Unit,
     onStop: () -> Unit,
 ) {
     var progress by remember { mutableFloatStateOf(0.35f) }
@@ -394,8 +404,22 @@ private fun NowPlayingPanel(
         )
 
         if (nowPlayingTrack != null) {
-            Button(onClick = onStop) {
-                Text("Stop")
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (supportsPause && playbackState == PlaybackState.Playing) {
+                    Button(onClick = onPause) {
+                        Text("Pause")
+                    }
+                }
+
+                if (supportsPause && playbackState == PlaybackState.Paused) {
+                    Button(onClick = onResume) {
+                        Text("Resume")
+                    }
+                }
+
+                Button(onClick = onStop) {
+                    Text("Stop")
+                }
             }
         }
     }

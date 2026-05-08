@@ -4,12 +4,17 @@ import kotlinx.coroutines.CoroutineScope
 
 interface PlaybackEngine {
     val name: String
+    val supportsPause: Boolean
 
     fun play(
         scope: CoroutineScope,
         request: PlaybackRequest,
         onStateChanged: (PlaybackState) -> Unit,
     )
+
+    fun pause()
+
+    fun resume()
 
     fun stop()
 }
@@ -22,6 +27,7 @@ sealed interface PlaybackState {
     data object Idle : PlaybackState
     data object Loading : PlaybackState
     data object Playing : PlaybackState
+    data object Paused : PlaybackState
     data object Stopped : PlaybackState
     data object Finished : PlaybackState
 
@@ -35,6 +41,7 @@ fun PlaybackState.label(): String =
         PlaybackState.Idle -> "Nothing Playing"
         PlaybackState.Loading -> "Loading"
         PlaybackState.Playing -> "Playing"
+        PlaybackState.Paused -> "Paused"
         PlaybackState.Stopped -> "Stopped"
         PlaybackState.Finished -> "Finished"
         is PlaybackState.Error -> message

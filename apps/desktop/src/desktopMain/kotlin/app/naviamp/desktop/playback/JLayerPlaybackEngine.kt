@@ -10,6 +10,7 @@ import java.net.URI
 
 class JLayerPlaybackEngine : PlaybackEngine {
     override val name: String = "JLayer"
+    override val supportsPause: Boolean = false
 
     private var job: Job? = null
     private var stream: InputStream? = null
@@ -46,6 +47,10 @@ class JLayerPlaybackEngine : PlaybackEngine {
         job?.cancel()
         closeCurrent()
     }
+
+    override fun pause() = Unit
+
+    override fun resume() = Unit
 
     private fun closeCurrent() {
         player?.close()
