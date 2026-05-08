@@ -8,9 +8,10 @@ import app.naviamp.domain.Track
 
 interface MediaProvider {
     val id: ProviderId
-    val displayName: String
+    val displayName: StringNa
     val capabilities: ProviderCapabilities
 
+    suspend fun validateConnection(): ConnectionValidation
     suspend fun recentlyAddedAlbums(limit: Int = 20): List<Album>
     suspend fun artists(limit: Int = 50): List<Artist>
     suspend fun tracks(limit: Int = 50): List<Track>
@@ -24,3 +25,7 @@ data class ProviderCapabilities(
     val supportsTrackRadio: Boolean,
 )
 
+data class ConnectionValidation(
+    val serverVersion: String?,
+    val apiVersion: String?,
+)

@@ -11,16 +11,19 @@ import kotlin.test.assertEquals
 class NavidromeProviderTest {
     @Test
     fun streamUrlUsesNormalizedBaseUrl() = runTest {
-        val provider = NavidromeProvider(NavidromeConnection("https://music.example.test/", "demo"))
+        val provider = NavidromeProvider(connection("https://music.example.test/"))
 
         val url = provider.streamUrl(StreamRequest(TrackId("abc123"), StreamQuality.Original))
 
-        assertEquals("https://music.example.test/rest/stream.view?id=abc123", url)
+        assertEquals(
+            "https://music.example.test/rest/stream.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=abc123",
+            url,
+        )
     }
 
     @Test
     fun transcodedStreamUrlIncludesCodecAndBitrate() = runTest {
-        val provider = NavidromeProvider(NavidromeConnection("https://music.example.test", "demo"))
+        val provider = NavidromeProvider(connection("https://music.example.test"))
 
         val url = provider.streamUrl(
             StreamRequest(
@@ -29,7 +32,78 @@ class NavidromeProviderTest {
             ),
         )
 
-        assertEquals("https://music.example.test/rest/stream.view?id=abc123&format=opus&maxBitRate=128", url)
+        assertEquals(
+            "https://music.example.test/rest/stream.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=abc123&format=opus&maxBitRate=128",
+            url,
+        )
+    }
+
+    @Test
+    fun validateConnectionReturnsServerDetails() = runTest {
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = FakeHttpClient(
+                """
+                {
+                  "subsonic-response": {
+                    "status": "ok",
+                    "version": "1.16.1",
+                    "serverVersion": "0.55.0"
+                  }
+                }
+                """.trimIndent(),
+            ),
+        )
+
+        val validation = provider.validateConnection()
+
+        assertEquals("0.55.0", validation.serverVersion)
+        assertEquals("1.16.1", validation.apiVersion)
+    }
+
+    @Test
+    fun recentlyAddedAlbumsMapsSubsonicAlbums() = runTest {
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = FakeHttpClient(
+                """
+                {
+                  "subsonic-response": {
+                    "status": "ok",
+                    "albumList2": {
+                      "album": [
+                        {
+                          "id": "album-1",
+                          "name": "Low-Life",
+                          "artist": "New Order",
+                          "coverArt": "cover-1",
+                          "created": "2026-05-08T12:00:00Z"
+                        }
+                      ]
+                    }
+                  }
+                }
+                """.trimIndent(),
+            ),
+        )
+
+        val albums = provider.recentlyAddedAlbums()
+
+        assertEquals(1, albums.size)
+        assertEquals("album-1", albums.first().id.value)
+        assertEquals("Low-Life", albums.first().title)
+        assertEquals("New Order", albums.first().artistName)
+    }
+
+    private fun connection(baseUrl: String): NavidromeConnection =
+        NavidromeConnection(
+            baseUrl = baseUrl,
+            username = "demo",
+            token = "token",
+            salt = "salt",
+        )
+
+    private class FakeHttpClient(private val response: String) : NavidromeHttpClient {
+        override suspend fun get(url: String): String = response
     }
 }
-

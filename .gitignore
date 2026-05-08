@@ -2,6 +2,7 @@
 build/
 out/
 .idea/
+.vscode/
 *.iml
 .DS_Store
 local.properties

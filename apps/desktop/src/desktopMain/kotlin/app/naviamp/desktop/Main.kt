@@ -28,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,6 +38,10 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
+import app.naviamp.domain.Album
+import app.naviamp.provider.navidrome.NavidromeConnection
+import app.naviamp.provider.navidrome.NavidromeProvider
+import kotlinx.coroutines.launch
 
 fun main() {
     configureDesktopAppearance()
@@ -85,6 +90,9 @@ private fun ConnectionPanel(appColors: AppColors) {
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var connectionStatus by remember { mutableStateOf<String?>(null) }
+    var isConnecting by remember { mutableStateOf(false) }
+    var recentlyAddedAlbums by remember { mutableStateOf<List<Album>>(emptyList()) }
+    val coroutineScope = rememberCoroutineScope()
     val textFieldColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = appColors.primaryText,
         unfocusedTextColor = appColors.primaryText,
@@ -129,19 +137,55 @@ private fun ConnectionPanel(appColors: AppColors) {
         }
 
         Button(
+            enabled = !isConnecting,
             onClick = {
-                connectionStatus = if (serverUrl.isBlank() || username.isBlank() || password.isBlank()) {
-                    "Enter a server URL, username, and password."
-                } else {
-                    "Connection form works. Navidrome login is the next MVP step."
+                if (serverUrl.isBlank() || username.isBlank() || password.isBlank()) {
+                    connectionStatus = "Enter a server URL, username, and password."
+                    return@Button
+                }
+
+                isConnecting = true
+                connectionStatus = "Connecting to Navidrome..."
+                recentlyAddedAlbums = emptyList()
+
+                coroutineScope.launch {
+                    try {
+                        val provider = NavidromeProvider(
+                            NavidromeConnection.fromPassword(
+                                baseUrl = serverUrl,
+                                username = username,
+                                password = password,
+                            ),
+                        )
+                        val validation = provider.validateConnection()
+                        recentlyAddedAlbums = provider.recentlyAddedAlbums(limit = 5)
+                        connectionStatus = buildString {
+                            append("Connected")
+                            validation.serverVersion?.let { append(" to Navidrome $it") }
+                            append(".")
+                        }
+                    } catch (exception: Exception) {
+                        connectionStatus = exception.message ?: "Could not connect to Navidrome."
+                    } finally {
+                        isConnecting = false
+                    }
                 }
             },
         ) {
-            Text("Connect")
+            Text(if (isConnecting) "Connecting" else "Connect")
         }
 
         connectionStatus?.let {
             Text(it, color = appColors.secondaryText)
+        }
+
+        if (recentlyAddedAlbums.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Recently Added", color = appColors.primaryText, fontWeight = FontWeight.SemiBold)
+                recentlyAddedAlbums.forEach { album ->
+                    Text("${album.title} - ${album.artistName}", color = appColors.secondaryText)
+                }
+            }
         }
     }
 }
