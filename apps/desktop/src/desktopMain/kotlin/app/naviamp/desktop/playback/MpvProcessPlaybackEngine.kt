@@ -228,23 +228,3 @@ private fun SocketChannel.readLine(): String {
 
 private fun JsonElement.doubleValue(): Double? =
     runCatching { jsonPrimitive.doubleOrNull }.getOrNull()
-
-object PlaybackEngineFactory {
-    fun createDefault(): PlaybackEngine {
-        val mpv = findExecutable("mpv")
-        return if (mpv != null) {
-            MpvProcessPlaybackEngine(mpv)
-        } else {
-            JLayerPlaybackEngine()
-        }
-    }
-
-    private fun findExecutable(name: String): String? {
-        val path = System.getenv("PATH") ?: return null
-        return path
-            .split(File.pathSeparator)
-            .map { File(it, name) }
-            .firstOrNull { it.canExecute() }
-            ?.absolutePath
-    }
-}
