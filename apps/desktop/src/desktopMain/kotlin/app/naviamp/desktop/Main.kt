@@ -157,11 +157,6 @@ fun NaviampApp(
                     onNext = {
                         playlistEngine.next(coroutineScope)
                     },
-                    onStop = {
-                        playlistEngine.clear()
-                        playbackState = PlaybackState.Stopped
-                        playbackProgress = PlaybackProgress.Unknown
-                    },
                 )
             }
         }

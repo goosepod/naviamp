@@ -12,7 +12,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -58,7 +59,6 @@ fun NowPlayingPanel(
     onSeek: (Double) -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
-    onStop: () -> Unit,
 ) {
     var scrubberValue by remember { mutableFloatStateOf(0f) }
     var isScrubbing by remember { mutableStateOf(false) }
@@ -66,6 +66,8 @@ fun NowPlayingPanel(
         ?: playbackProgress.durationSeconds
     val effectiveProgressFraction = playbackProgress.fraction(effectiveDurationSeconds)
     val canSeek = supportsSeek && effectiveDurationSeconds != null && nowPlayingTrack != null
+    val canTogglePause = supportsPause &&
+        (playbackState == PlaybackState.Playing || playbackState == PlaybackState.Paused)
 
     LaunchedEffect(effectiveProgressFraction) {
         if (!isScrubbing) {
@@ -120,34 +122,47 @@ fun NowPlayingPanel(
 
         if (nowPlayingTrack != null) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Button(
+                IconButton(
                     enabled = hasPrevious,
                     onClick = onPrevious,
                 ) {
-                    Text("Previous")
+                    Icon(
+                        imageVector = TransportIcons.Previous,
+                        contentDescription = "Previous",
+                        tint = appColors.primaryText,
+                    )
                 }
 
-                if (supportsPause && playbackState == PlaybackState.Playing) {
-                    Button(onClick = onPause) {
-                        Text("Pause")
-                    }
+                IconButton(
+                    enabled = canTogglePause,
+                    onClick = {
+                        if (playbackState == PlaybackState.Playing) {
+                            onPause()
+                        } else {
+                            onResume()
+                        }
+                    },
+                ) {
+                    Icon(
+                        imageVector = if (playbackState == PlaybackState.Playing) {
+                            TransportIcons.Pause
+                        } else {
+                            TransportIcons.Play
+                        },
+                        contentDescription = if (playbackState == PlaybackState.Playing) "Pause" else "Play",
+                        tint = appColors.primaryText,
+                    )
                 }
 
-                if (supportsPause && playbackState == PlaybackState.Paused) {
-                    Button(onClick = onResume) {
-                        Text("Resume")
-                    }
-                }
-
-                Button(onClick = onStop) {
-                    Text("Stop")
-                }
-
-                Button(
+                IconButton(
                     enabled = hasNext,
                     onClick = onNext,
                 ) {
-                    Text("Next")
+                    Icon(
+                        imageVector = TransportIcons.Next,
+                        contentDescription = "Next",
+                        tint = appColors.primaryText,
+                    )
                 }
             }
         }
