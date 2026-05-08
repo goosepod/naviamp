@@ -3,6 +3,8 @@ package app.naviamp.desktop.playback
 import kotlinx.coroutines.CoroutineScope
 
 interface PlaybackEngine {
+    val name: String
+
     fun play(
         scope: CoroutineScope,
         request: PlaybackRequest,
@@ -37,4 +39,3 @@ fun PlaybackState.label(): String =
         PlaybackState.Finished -> "Finished"
         is PlaybackState.Error -> message
     }
-

@@ -52,8 +52,8 @@ import app.naviamp.domain.AudioCodec
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
-import app.naviamp.desktop.playback.JLayerPlaybackEngine
 import app.naviamp.desktop.playback.PlaybackEngine
+import app.naviamp.desktop.playback.PlaybackEngineFactory
 import app.naviamp.desktop.playback.PlaybackRequest
 import app.naviamp.desktop.playback.PlaybackState
 import app.naviamp.desktop.playback.label
@@ -86,7 +86,7 @@ fun NaviampApp() {
     val isDark = isSystemInDarkTheme()
     val appColors = if (isDark) AppColors.Dark else AppColors.Light
     val colorScheme = if (isDark) darkColorScheme() else lightColorScheme()
-    val playbackEngine = remember { JLayerPlaybackEngine() }
+    val playbackEngine = remember { PlaybackEngineFactory.createDefault() }
     var nowPlayingTrack by remember { mutableStateOf<Track?>(null) }
     var playbackState by remember { mutableStateOf<PlaybackState>(PlaybackState.Idle) }
 
@@ -123,6 +123,7 @@ fun NaviampApp() {
                 }
                 NowPlayingPanel(
                     appColors = appColors,
+                    playbackEngineName = playbackEngine.name,
                     nowPlayingTrack = nowPlayingTrack,
                     playbackState = playbackState,
                     onStop = {
@@ -355,6 +356,7 @@ private fun ConnectionPanel(
 @Composable
 private fun NowPlayingPanel(
     appColors: AppColors,
+    playbackEngineName: String,
     nowPlayingTrack: Track?,
     playbackState: PlaybackState,
     onStop: () -> Unit,
@@ -379,7 +381,7 @@ private fun NowPlayingPanel(
                 )
                 Text(nowPlayingTrack?.artistName ?: "Queue will appear here after connection", color = appColors.secondaryText)
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(playbackState.label(), color = appColors.mutedText)
+                Text("${playbackState.label()} via $playbackEngineName", color = appColors.mutedText)
             }
         }
 

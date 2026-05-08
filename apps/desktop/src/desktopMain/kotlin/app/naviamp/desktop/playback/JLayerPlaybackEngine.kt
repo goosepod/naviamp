@@ -9,6 +9,8 @@ import java.io.InputStream
 import java.net.URI
 
 class JLayerPlaybackEngine : PlaybackEngine {
+    override val name: String = "JLayer"
+
     private var job: Job? = null
     private var stream: InputStream? = null
     private var player: Player? = null
