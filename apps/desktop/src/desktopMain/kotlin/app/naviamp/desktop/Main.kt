@@ -25,6 +25,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -45,6 +46,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import app.naviamp.domain.Album
+import app.naviamp.domain.AudioCodec
+import app.naviamp.domain.StreamQuality
+import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
@@ -75,6 +79,15 @@ fun NaviampApp() {
     val isDark = isSystemInDarkTheme()
     val appColors = if (isDark) AppColors.Dark else AppColors.Light
     val colorScheme = if (isDark) darkColorScheme() else lightColorScheme()
+    val audioPlayer = remember { DesktopAudioPlayer() }
+    var nowPlayingTrack by remember { mutableStateOf<Track?>(null) }
+    var playbackStatus by remember { mutableStateOf("Nothing Playing") }
+
+    DisposableEffect(audioPlayer) {
+        onDispose {
+            audioPlayer.stop()
+        }
+    }
 
     MaterialTheme(colorScheme = colorScheme) {
         Surface(modifier = Modifier.fillMaxSize(), color = appColors.background) {
@@ -84,15 +97,38 @@ fun NaviampApp() {
                     .padding(20.dp),
                 verticalArrangement = Arrangement.SpaceBetween,
             ) {
-                ConnectionPanel(appColors)
-                NowPlayingPanel(appColors)
+                ConnectionPanel(
+                    appColors = appColors,
+                    audioPlayer = audioPlayer,
+                    onPlaybackStarted = { track ->
+                        nowPlayingTrack = track
+                        playbackStatus = "Playing"
+                    },
+                    onPlaybackStatusChanged = { status ->
+                        playbackStatus = status
+                    },
+                )
+                NowPlayingPanel(
+                    appColors = appColors,
+                    nowPlayingTrack = nowPlayingTrack,
+                    playbackStatus = playbackStatus,
+                    onStop = {
+                        audioPlayer.stop()
+                        playbackStatus = "Stopped"
+                    },
+                )
             }
         }
     }
 }
 
 @Composable
-private fun ConnectionPanel(appColors: AppColors) {
+private fun ConnectionPanel(
+    appColors: AppColors,
+    audioPlayer: DesktopAudioPlayer,
+    onPlaybackStarted: (Track) -> Unit,
+    onPlaybackStatusChanged: (String) -> Unit,
+) {
     var serverUrl by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -256,10 +292,53 @@ private fun ConnectionPanel(appColors: AppColors) {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(selectedAlbumTitle ?: "Album Tracks", color = appColors.primaryText, fontWeight = FontWeight.SemiBold)
                 selectedTracks.forEachIndexed { index, track ->
-                    Text(
-                        "${index + 1}. ${track.title} (${track.durationLabel()})",
-                        color = appColors.secondaryText,
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(
+                            onClick = {
+                                val provider = connectedProvider ?: return@TextButton
+
+                                coroutineScope.launch {
+                                    try {
+                                        onPlaybackStatusChanged("Starting ${track.title}...")
+                                        val streamUrl = provider.streamUrl(
+                                            StreamRequest(
+                                                trackId = track.id,
+                                                quality = StreamQuality.Transcoded(
+                                                    codec = AudioCodec.Mp3,
+                                                    bitrateKbps = 192,
+                                                ),
+                                            ),
+                                        )
+                                        onPlaybackStarted(track)
+                                        audioPlayer.play(
+                                            scope = coroutineScope,
+                                            url = streamUrl,
+                                            onFinished = {
+                                                coroutineScope.launch {
+                                                    onPlaybackStatusChanged("Finished")
+                                                }
+                                            },
+                                            onError = { exception ->
+                                                coroutineScope.launch {
+                                                    onPlaybackStatusChanged(
+                                                        exception.message ?: "Playback failed.",
+                                                    )
+                                                }
+                                            },
+                                        )
+                                    } catch (exception: Exception) {
+                                        onPlaybackStatusChanged(exception.message ?: "Playback failed.")
+                                    }
+                                }
+                            },
+                        ) {
+                            Text("Play")
+                        }
+                        Text(
+                            "${index + 1}. ${track.title} (${track.durationLabel()})",
+                            color = appColors.secondaryText,
+                        )
+                    }
                 }
             }
         }
@@ -267,7 +346,12 @@ private fun ConnectionPanel(appColors: AppColors) {
 }
 
 @Composable
-private fun NowPlayingPanel(appColors: AppColors) {
+private fun NowPlayingPanel(
+    appColors: AppColors,
+    nowPlayingTrack: Track?,
+    playbackStatus: String,
+    onStop: () -> Unit,
+) {
     var progress by remember { mutableFloatStateOf(0.35f) }
 
     Column {
@@ -281,10 +365,14 @@ private fun NowPlayingPanel(appColors: AppColors) {
             Spacer(modifier = Modifier.width(16.dp))
 
             Column {
-                Text("Nothing Playing", color = appColors.primaryText, fontWeight = FontWeight.SemiBold)
-                Text("Queue will appear here after connection", color = appColors.secondaryText)
+                Text(
+                    nowPlayingTrack?.title ?: "Nothing Playing",
+                    color = appColors.primaryText,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(nowPlayingTrack?.artistName ?: "Queue will appear here after connection", color = appColors.secondaryText)
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("ReplayGain: planned | Gapless: planned | Crossfade: planned", color = appColors.mutedText)
+                Text(playbackStatus, color = appColors.mutedText)
             }
         }
 
@@ -295,6 +383,12 @@ private fun NowPlayingPanel(appColors: AppColors) {
             onValueChange = { progress = it },
             modifier = Modifier.fillMaxWidth(),
         )
+
+        if (nowPlayingTrack != null) {
+            Button(onClick = onStop) {
+                Text("Stop")
+            }
+        }
     }
 }
 
