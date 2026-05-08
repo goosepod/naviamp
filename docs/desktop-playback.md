@@ -37,6 +37,34 @@ playback/mpv/linux-x64/mpv
 
 The resolver also checks common native app bundle layouts around the launched application directory.
 
+## Bundling mpv
+
+For local packaging, place the platform mpv executable in:
+
+```text
+apps/desktop/vendor/mpv/<platform>/mpv
+```
+
+or on Windows:
+
+```text
+apps/desktop/vendor/mpv/windows-x64/mpv.exe
+```
+
+The desktop Gradle build copies the current platform executable into generated resources at:
+
+```text
+playback/mpv/<platform>/<executable>
+```
+
+If no vendor executable exists, the copy task skips cleanly and development builds continue to use `PATH`.
+
+If Gradle is running under a JVM whose architecture does not match the package you want to build, override the platform:
+
+```shell
+./gradlew -Pnaviamp.mpv.platform=macos-arm64 :apps:desktop:packageDmg
+```
+
 ## Direction
 
 The production desktop target is bundled mpv/libmpv so users do not need a separate install. The process engine keeps development moving, but the crossfade path likely requires a richer engine implementation, either libmpv integration or a controlled two-player strategy.
