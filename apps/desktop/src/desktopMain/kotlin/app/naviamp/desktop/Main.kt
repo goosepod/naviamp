@@ -2,6 +2,7 @@ package app.naviamp.desktop
 
 import androidx.compose.desktop.ui.tooling.preview.Preview
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -35,52 +38,66 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 
-fun main() = application {
-    Window(
-        onCloseRequest = ::exitApplication,
-        title = "Naviamp",
-    ) {
-        NaviampApp()
+fun main() {
+    configureDesktopAppearance()
+
+    application {
+        Window(
+            onCloseRequest = ::exitApplication,
+            title = "Naviamp",
+        ) {
+            NaviampApp()
+        }
+    }
+}
+
+private fun configureDesktopAppearance() {
+    if (System.getProperty("os.name").contains("Mac", ignoreCase = true)) {
+        System.setProperty("apple.awt.application.appearance", "system")
     }
 }
 
 @Composable
 @Preview
 fun NaviampApp() {
-    MaterialTheme {
-        Surface(modifier = Modifier.fillMaxSize(), color = Color(0xFF101114)) {
+    val isDark = isSystemInDarkTheme()
+    val appColors = if (isDark) AppColors.Dark else AppColors.Light
+    val colorScheme = if (isDark) darkColorScheme() else lightColorScheme()
+
+    MaterialTheme(colorScheme = colorScheme) {
+        Surface(modifier = Modifier.fillMaxSize(), color = appColors.background) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(20.dp),
                 verticalArrangement = Arrangement.SpaceBetween,
             ) {
-                ConnectionPanel()
-                NowPlayingPanel()
+                ConnectionPanel(appColors)
+                NowPlayingPanel(appColors)
             }
         }
     }
 }
 
 @Composable
-private fun ConnectionPanel() {
+private fun ConnectionPanel(appColors: AppColors) {
     var serverUrl by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var connectionStatus by remember { mutableStateOf<String?>(null) }
     val textFieldColors = OutlinedTextFieldDefaults.colors(
-        focusedTextColor = Color.White,
-        unfocusedTextColor = Color.White,
-        focusedLabelColor = Color(0xFFE3E7EF),
-        unfocusedLabelColor = Color(0xFFB9BDC7),
-        cursorColor = Color.White,
-        focusedBorderColor = Color(0xFF8EA7D8),
-        unfocusedBorderColor = Color(0xFF59606D),
+        focusedTextColor = appColors.primaryText,
+        unfocusedTextColor = appColors.primaryText,
+        focusedLabelColor = appColors.primaryText,
+        unfocusedLabelColor = appColors.secondaryText,
+        cursorColor = appColors.primaryText,
+        focusedBorderColor = appColors.accent,
+        unfocusedBorderColor = appColors.border,
     )
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Naviamp", color = Color.White, style = MaterialTheme.typography.headlineMedium)
-        Text("Connect to Navidrome", color = Color(0xFFB9BDC7))
+        Text("Naviamp", color = appColors.primaryText, style = MaterialTheme.typography.headlineMedium)
+        Text("Connect to Navidrome", color = appColors.secondaryText)
 
         OutlinedTextField(
             value = serverUrl,
@@ -124,13 +141,13 @@ private fun ConnectionPanel() {
         }
 
         connectionStatus?.let {
-            Text(it, color = Color(0xFFB9BDC7))
+            Text(it, color = appColors.secondaryText)
         }
     }
 }
 
 @Composable
-private fun NowPlayingPanel() {
+private fun NowPlayingPanel(appColors: AppColors) {
     var progress by remember { mutableFloatStateOf(0.35f) }
 
     Column {
@@ -138,16 +155,16 @@ private fun NowPlayingPanel() {
             Box(
                 modifier = Modifier
                     .size(96.dp)
-                    .background(Color(0xFF43536B)),
+                    .background(appColors.albumArtPlaceholder),
             )
 
             Spacer(modifier = Modifier.width(16.dp))
 
             Column {
-                Text("Nothing Playing", color = Color.White, fontWeight = FontWeight.SemiBold)
-                Text("Queue will appear here after connection", color = Color(0xFFB9BDC7))
+                Text("Nothing Playing", color = appColors.primaryText, fontWeight = FontWeight.SemiBold)
+                Text("Queue will appear here after connection", color = appColors.secondaryText)
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("ReplayGain: planned | Gapless: planned | Crossfade: planned", color = Color(0xFF8F96A3))
+                Text("ReplayGain: planned | Gapless: planned | Crossfade: planned", color = appColors.mutedText)
             }
         }
 
@@ -157,6 +174,38 @@ private fun NowPlayingPanel() {
             value = progress,
             onValueChange = { progress = it },
             modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+private data class AppColors(
+    val background: Color,
+    val primaryText: Color,
+    val secondaryText: Color,
+    val mutedText: Color,
+    val border: Color,
+    val accent: Color,
+    val albumArtPlaceholder: Color,
+) {
+    companion object {
+        val Dark = AppColors(
+            background = Color(0xFF101114),
+            primaryText = Color.White,
+            secondaryText = Color(0xFFB9BDC7),
+            mutedText = Color(0xFF8F96A3),
+            border = Color(0xFF59606D),
+            accent = Color(0xFF8EA7D8),
+            albumArtPlaceholder = Color(0xFF43536B),
+        )
+
+        val Light = AppColors(
+            background = Color(0xFFF8F9FB),
+            primaryText = Color(0xFF171A21),
+            secondaryText = Color(0xFF4F5663),
+            mutedText = Color(0xFF727A86),
+            border = Color(0xFFBAC1CC),
+            accent = Color(0xFF315D9E),
+            albumArtPlaceholder = Color(0xFFD3DBE8),
         )
     }
 }
