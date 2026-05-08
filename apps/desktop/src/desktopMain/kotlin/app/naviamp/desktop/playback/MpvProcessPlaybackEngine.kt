@@ -26,6 +26,7 @@ class MpvProcessPlaybackEngine(
     override val supportsSeek: Boolean = true
     override val supportsGapless: Boolean = true
     override val supportsCrossfade: Boolean = false
+    override val supportsReplayGain: Boolean = true
     override val prefersOriginalStream: Boolean = true
 
     private var job: Job? = null
@@ -69,6 +70,7 @@ class MpvProcessPlaybackEngine(
                     "--no-video",
                     "--really-quiet",
                     "--gapless-audio=yes",
+                    "--replaygain=${request.replayGainMode.mpvValue()}",
                     "--input-ipc-server=${socket.absolutePath}",
                     request.url,
                 )
@@ -228,3 +230,10 @@ private fun SocketChannel.readLine(): String {
 
 private fun JsonElement.doubleValue(): Double? =
     runCatching { jsonPrimitive.doubleOrNull }.getOrNull()
+
+private fun ReplayGainMode.mpvValue(): String =
+    when (this) {
+        ReplayGainMode.Off -> "no"
+        ReplayGainMode.Track -> "track"
+        ReplayGainMode.Album -> "album"
+    }

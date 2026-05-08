@@ -32,8 +32,10 @@ import app.naviamp.desktop.playback.PlaybackProgress
 import app.naviamp.desktop.playback.PlaybackQueue
 import app.naviamp.desktop.playback.PlaybackState
 import app.naviamp.desktop.playback.PlaylistEngine
+import app.naviamp.desktop.playback.ReplayGainMode
 import app.naviamp.desktop.playback.mergeWith
 import app.naviamp.desktop.settings.DesktopSettingsStore
+import app.naviamp.desktop.settings.PlaybackSettings
 
 fun main() {
     configureDesktopAppearance()
@@ -74,6 +76,7 @@ fun NaviampApp(
     var playbackState by remember { mutableStateOf<PlaybackState>(PlaybackState.Idle) }
     var playbackProgress by remember { mutableStateOf(PlaybackProgress.Unknown) }
     var playbackQueue by remember { mutableStateOf(PlaybackQueue()) }
+    var playbackSettings by remember { mutableStateOf(settingsStore.loadPlaybackSettings()) }
 
     DisposableEffect(playbackEngine) {
         onDispose {
@@ -100,6 +103,7 @@ fun NaviampApp(
                         settingsStore = settingsStore,
                         playbackEngine = playbackEngine,
                         playlistEngine = playlistEngine,
+                        playbackSettings = playbackSettings,
                         onPlaybackStarted = { track, coverArtUrl ->
                             nowPlayingTrack = track
                             nowPlayingCoverArtUrl = coverArtUrl
@@ -115,6 +119,15 @@ fun NaviampApp(
                         },
                     )
                 }
+                PlaybackSettingsPanel(
+                    appColors = appColors,
+                    playbackSettings = playbackSettings,
+                    supportsReplayGain = playbackEngine.supportsReplayGain,
+                    onPlaybackSettingsChanged = { settings ->
+                        playbackSettings = settings.forEngine(playbackEngine)
+                        settingsStore.savePlaybackSettings(playbackSettings)
+                    },
+                )
                 NowPlayingPanel(
                     appColors = appColors,
                     playbackEngineName = playbackEngine.name,
@@ -154,3 +167,10 @@ fun NaviampApp(
         }
     }
 }
+
+private fun PlaybackSettings.forEngine(playbackEngine: PlaybackEngine): PlaybackSettings =
+    if (playbackEngine.supportsReplayGain) {
+        this
+    } else {
+        copy(replayGainMode = ReplayGainMode.Off)
+    }

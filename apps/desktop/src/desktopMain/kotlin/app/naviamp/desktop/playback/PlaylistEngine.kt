@@ -12,6 +12,7 @@ class PlaylistEngine(
 ) {
     private var provider: MediaProvider? = null
     private var streamQuality: StreamQuality? = null
+    private var replayGainMode: ReplayGainMode = ReplayGainMode.Off
     private var callbacks: PlaylistCallbacks? = null
     private var crossfadeSettings = CrossfadeSettings()
     private var preparedNextIndex: Int? = null
@@ -26,10 +27,12 @@ class PlaylistEngine(
         tracks: List<Track>,
         index: Int,
         quality: StreamQuality,
+        replayGainMode: ReplayGainMode,
         callbacks: PlaylistCallbacks,
     ) {
         this.provider = provider
         this.streamQuality = quality
+        this.replayGainMode = replayGainMode
         this.callbacks = callbacks
         sessionId += 1
 
@@ -88,7 +91,10 @@ class PlaylistEngine(
                 currentCallbacks.onTrackStarted(track, coverArtUrl)
                 playbackEngine.play(
                     scope = scope,
-                    request = PlaybackRequest(streamUrl),
+                    request = PlaybackRequest(
+                        url = streamUrl,
+                        replayGainMode = replayGainMode.forEngine(playbackEngine),
+                    ),
                     onStateChanged = { state ->
                         scope.launch {
                             handlePlaybackState(scope, state, activeSessionId)
@@ -155,7 +161,12 @@ class PlaylistEngine(
                     ),
                 )
                 if (activeSessionId == sessionId) {
-                    queueAwareEngine.prepareNext(PlaybackRequest(streamUrl))
+                    queueAwareEngine.prepareNext(
+                        PlaybackRequest(
+                            url = streamUrl,
+                            replayGainMode = replayGainMode.forEngine(playbackEngine),
+                        ),
+                    )
                 }
             } catch (_: Exception) {
                 preparedNextIndex = null
@@ -184,3 +195,6 @@ data class PlaybackQueue(
     fun hasPrevious(): Boolean =
         currentIndex > 0
 }
+
+private fun ReplayGainMode.forEngine(playbackEngine: PlaybackEngine): ReplayGainMode =
+    if (playbackEngine.supportsReplayGain) this else ReplayGainMode.Off

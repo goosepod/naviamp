@@ -8,6 +8,7 @@ interface PlaybackEngine {
     val supportsSeek: Boolean
     val supportsGapless: Boolean
     val supportsCrossfade: Boolean
+    val supportsReplayGain: Boolean
     val prefersOriginalStream: Boolean
 
     fun play(
@@ -34,7 +35,16 @@ interface QueueAwarePlaybackEngine : PlaybackEngine {
 
 data class PlaybackRequest(
     val url: String,
+    val replayGainMode: ReplayGainMode = ReplayGainMode.Off,
 )
+
+enum class ReplayGainMode(
+    val displayName: String,
+) {
+    Off("Off"),
+    Track("Track"),
+    Album("Album"),
+}
 
 data class CrossfadeSettings(
     val enabled: Boolean = false,

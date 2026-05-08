@@ -35,6 +35,7 @@ import app.naviamp.desktop.playback.PlaybackState
 import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.PlaylistEngine
 import app.naviamp.desktop.settings.DesktopSettingsStore
+import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.desktop.settings.SavedConnection
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
@@ -46,6 +47,7 @@ fun ConnectionPanel(
     settingsStore: DesktopSettingsStore,
     playbackEngine: PlaybackEngine,
     playlistEngine: PlaylistEngine,
+    playbackSettings: PlaybackSettings,
     onPlaybackStarted: (Track, String?) -> Unit,
     onQueueChanged: (PlaybackQueue) -> Unit,
     onPlaybackStateChanged: (PlaybackState) -> Unit,
@@ -261,6 +263,7 @@ fun ConnectionPanel(
                                 tracks = selectedTracks,
                                 index = 0,
                                 quality = playbackEngine.streamQuality(),
+                                replayGainMode = playbackSettings.replayGainMode,
                                 callbacks = playlistCallbacks,
                             )
                         },
@@ -278,6 +281,7 @@ fun ConnectionPanel(
                                 tracks = selectedTracks.shuffled(),
                                 index = 0,
                                 quality = playbackEngine.streamQuality(),
+                                replayGainMode = playbackSettings.replayGainMode,
                                 callbacks = playlistCallbacks,
                             )
                         },
@@ -297,6 +301,7 @@ fun ConnectionPanel(
                                     tracks = selectedTracks,
                                     index = index,
                                     quality = playbackEngine.streamQuality(),
+                                    replayGainMode = playbackSettings.replayGainMode,
                                     callbacks = playlistCallbacks,
                                 )
                             },
