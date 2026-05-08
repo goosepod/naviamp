@@ -17,6 +17,7 @@ class JLayerPlaybackEngine : PlaybackEngine {
     private var job: Job? = null
     private var stream: InputStream? = null
     private var player: Player? = null
+    private var playbackId = 0
 
     override fun play(
         scope: CoroutineScope,
@@ -25,29 +26,36 @@ class JLayerPlaybackEngine : PlaybackEngine {
         onProgressChanged: (PlaybackProgress) -> Unit,
     ) {
         stop()
+        val currentPlaybackId = nextPlaybackId()
         onStateChanged(PlaybackState.Loading)
         onProgressChanged(PlaybackProgress.Unknown)
 
         job = scope.launch(Dispatchers.IO) {
+            var currentStream: InputStream? = null
+            var currentPlayer: Player? = null
             try {
                 val inputStream = URI.create(request.url).toURL().openStream().buffered()
+                currentStream = inputStream
                 stream = inputStream
-                val currentPlayer = Player(inputStream)
+                currentPlayer = Player(inputStream)
                 player = currentPlayer
                 onStateChanged(PlaybackState.Playing)
                 currentPlayer.play()
-                onStateChanged(PlaybackState.Finished)
+                if (isCurrentPlayback(currentPlaybackId)) {
+                    onStateChanged(PlaybackState.Finished)
+                }
             } catch (exception: Throwable) {
-                if (job?.isCancelled != true) {
+                if (isCurrentPlayback(currentPlaybackId) && job?.isCancelled != true) {
                     onStateChanged(PlaybackState.Error(exception.message ?: "Playback failed."))
                 }
             } finally {
-                closeCurrent()
+                closePlayback(currentPlayer, currentStream)
             }
         }
     }
 
     override fun stop() {
+        playbackId += 1
         job?.cancel()
         closeCurrent()
     }
@@ -59,9 +67,25 @@ class JLayerPlaybackEngine : PlaybackEngine {
     override fun seek(positionSeconds: Double) = Unit
 
     private fun closeCurrent() {
-        player?.close()
-        player = null
-        stream?.close()
-        stream = null
+        closePlayback(player, stream)
     }
+
+    private fun closePlayback(currentPlayer: Player?, currentStream: InputStream?) {
+        currentPlayer?.close()
+        currentStream?.close()
+        if (player == currentPlayer) {
+            player = null
+        }
+        if (stream == currentStream) {
+            stream = null
+        }
+    }
+
+    private fun nextPlaybackId(): Int {
+        playbackId += 1
+        return playbackId
+    }
+
+    private fun isCurrentPlayback(id: Int): Boolean =
+        playbackId == id
 }

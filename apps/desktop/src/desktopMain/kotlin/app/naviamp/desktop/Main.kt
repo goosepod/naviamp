@@ -56,13 +56,14 @@ import app.naviamp.domain.Album
 import app.naviamp.domain.AudioCodec
 import app.naviamp.domain.AudioInfo
 import app.naviamp.domain.StreamQuality
-import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
 import app.naviamp.desktop.playback.PlaybackEngine
 import app.naviamp.desktop.playback.PlaybackEngineFactory
 import app.naviamp.desktop.playback.PlaybackProgress
-import app.naviamp.desktop.playback.PlaybackRequest
+import app.naviamp.desktop.playback.PlaybackQueue
 import app.naviamp.desktop.playback.PlaybackState
+import app.naviamp.desktop.playback.PlaylistCallbacks
+import app.naviamp.desktop.playback.PlaylistEngine
 import app.naviamp.desktop.playback.label
 import app.naviamp.desktop.playback.mergeWith
 import app.naviamp.desktop.settings.DesktopSettingsStore
@@ -107,10 +108,12 @@ fun NaviampApp(
     val appColors = if (isDark) AppColors.Dark else AppColors.Light
     val colorScheme = if (isDark) darkColorScheme() else lightColorScheme()
     val settingsStore = remember { DesktopSettingsStore() }
+    val playlistEngine = remember(playbackEngine) { PlaylistEngine(playbackEngine) }
     var nowPlayingTrack by remember { mutableStateOf<Track?>(null) }
     var nowPlayingCoverArtUrl by remember { mutableStateOf<String?>(null) }
     var playbackState by remember { mutableStateOf<PlaybackState>(PlaybackState.Idle) }
     var playbackProgress by remember { mutableStateOf(PlaybackProgress.Unknown) }
+    var playbackQueue by remember { mutableStateOf(PlaybackQueue()) }
 
     DisposableEffect(playbackEngine) {
         onDispose {
@@ -136,9 +139,13 @@ fun NaviampApp(
                         appColors = appColors,
                         settingsStore = settingsStore,
                         playbackEngine = playbackEngine,
+                        playlistEngine = playlistEngine,
                         onPlaybackStarted = { track, coverArtUrl ->
                             nowPlayingTrack = track
                             nowPlayingCoverArtUrl = coverArtUrl
+                        },
+                        onQueueChanged = { queue ->
+                            playbackQueue = queue
                         },
                         onPlaybackStateChanged = { state ->
                             playbackState = state
@@ -155,6 +162,7 @@ fun NaviampApp(
                     supportsSeek = playbackEngine.supportsSeek,
                     nowPlayingTrack = nowPlayingTrack,
                     coverArtUrl = nowPlayingCoverArtUrl,
+                    upNext = playbackQueue.upNext(),
                     playbackState = playbackState,
                     playbackProgress = playbackProgress,
                     onPause = {
@@ -182,7 +190,9 @@ private fun ConnectionPanel(
     appColors: AppColors,
     settingsStore: DesktopSettingsStore,
     playbackEngine: PlaybackEngine,
+    playlistEngine: PlaylistEngine,
     onPlaybackStarted: (Track, String?) -> Unit,
+    onQueueChanged: (PlaybackQueue) -> Unit,
     onPlaybackStateChanged: (PlaybackState) -> Unit,
     onPlaybackProgressChanged: (PlaybackProgress) -> Unit,
 ) {
@@ -222,6 +232,7 @@ private fun ConnectionPanel(
                 recentlyAddedAlbums = emptyList()
                 selectedAlbumTitle = null
                 selectedTracks = emptyList()
+                playlistEngine.clear()
                 albumStatus = null
 
                 coroutineScope.launch {
@@ -264,42 +275,23 @@ private fun ConnectionPanel(
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Naviamp", color = appColors.primaryText, style = MaterialTheme.typography.headlineMedium)
-        Text("Connect to Navidrome", color = appColors.secondaryText)
-        if (savedConnectionForLogin != null) {
-            Text("Saved connection loaded. Leave password blank to reuse it.", color = appColors.mutedText)
-        }
+        if (connectedProvider == null) {
+            Text("Connect to Navidrome", color = appColors.secondaryText)
+            if (savedConnectionForLogin != null) {
+                Text("Saved connection loaded. Leave password blank to reuse it.", color = appColors.mutedText)
+            }
 
-        OutlinedTextField(
-            value = serverUrl,
-            onValueChange = {
-                serverUrl = it
-                if (savedConnectionForLogin?.baseUrl != it) {
-                    savedConnectionForLogin = null
-                }
-            },
-            label = { Text("Server URL") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-            keyboardActions = KeyboardActions(
-                onNext = { focusManager.moveFocus(FocusDirection.Next) },
-                onDone = { connect() },
-            ),
-            colors = textFieldColors,
-        )
-
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
             OutlinedTextField(
-                value = username,
+                value = serverUrl,
                 onValueChange = {
-                    username = it
-                    if (savedConnectionForLogin?.username != it) {
+                    serverUrl = it
+                    if (savedConnectionForLogin?.baseUrl != it) {
                         savedConnectionForLogin = null
                     }
                 },
-                label = { Text("Username") },
+                label = { Text("Server URL") },
                 singleLine = true,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                 keyboardActions = KeyboardActions(
                     onNext = { focusManager.moveFocus(FocusDirection.Next) },
@@ -307,28 +299,51 @@ private fun ConnectionPanel(
                 ),
                 colors = textFieldColors,
             )
-            OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text(if (savedConnectionForLogin == null) "Password" else "Password (optional)") },
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                modifier = Modifier.weight(1f),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { connect() }),
-                colors = textFieldColors,
-            )
-        }
 
-        Button(
-            enabled = !isConnecting,
-            onClick = { connect() },
-        ) {
-            Text(if (isConnecting) "Connecting" else "Connect")
-        }
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = username,
+                    onValueChange = {
+                        username = it
+                        if (savedConnectionForLogin?.username != it) {
+                            savedConnectionForLogin = null
+                        }
+                    },
+                    label = { Text("Username") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(
+                        onNext = { focusManager.moveFocus(FocusDirection.Next) },
+                        onDone = { connect() },
+                    ),
+                    colors = textFieldColors,
+                )
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text(if (savedConnectionForLogin == null) "Password" else "Password (optional)") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.weight(1f),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { connect() }),
+                    colors = textFieldColors,
+                )
+            }
 
-        connectionStatus?.let {
-            Text(it, color = appColors.secondaryText)
+            Button(
+                enabled = !isConnecting,
+                onClick = { connect() },
+            ) {
+                Text(if (isConnecting) "Connecting" else "Connect")
+            }
+
+            connectionStatus?.let {
+                Text(it, color = appColors.secondaryText)
+            }
+        } else {
+            Text("Connected as $username", color = appColors.secondaryText)
         }
 
         if (recentlyAddedAlbums.isNotEmpty()) {
@@ -380,37 +395,19 @@ private fun ConnectionPanel(
                         TextButton(
                             onClick = {
                                 val provider = connectedProvider ?: return@TextButton
-
-                                coroutineScope.launch {
-                                    try {
-                                        val streamUrl = provider.streamUrl(
-                                            StreamRequest(
-                                                trackId = track.id,
-                                                quality = playbackEngine.streamQuality(),
-                                            ),
-                                        )
-                                        val coverArtUrl = track.coverArtId?.let { provider.coverArtUrl(it) }
-                                        onPlaybackStarted(track, coverArtUrl)
-                                        playbackEngine.play(
-                                            scope = coroutineScope,
-                                            request = PlaybackRequest(streamUrl),
-                                            onStateChanged = { state ->
-                                                coroutineScope.launch {
-                                                    onPlaybackStateChanged(state)
-                                                }
-                                            },
-                                            onProgressChanged = { progress ->
-                                                coroutineScope.launch {
-                                                    onPlaybackProgressChanged(progress)
-                                                }
-                                            },
-                                        )
-                                    } catch (exception: Exception) {
-                                        onPlaybackStateChanged(
-                                            PlaybackState.Error(exception.message ?: "Playback failed."),
-                                        )
-                                    }
-                                }
+                                playlistEngine.playFrom(
+                                    scope = coroutineScope,
+                                    provider = provider,
+                                    tracks = selectedTracks,
+                                    index = index,
+                                    quality = playbackEngine.streamQuality(),
+                                    callbacks = PlaylistCallbacks(
+                                        onTrackStarted = onPlaybackStarted,
+                                        onQueueChanged = onQueueChanged,
+                                        onPlaybackStateChanged = onPlaybackStateChanged,
+                                        onPlaybackProgressChanged = onPlaybackProgressChanged,
+                                    ),
+                                )
                             },
                         ) {
                             Text("Play")
@@ -434,6 +431,7 @@ private fun NowPlayingPanel(
     supportsSeek: Boolean,
     nowPlayingTrack: Track?,
     coverArtUrl: String?,
+    upNext: List<Track>,
     playbackState: PlaybackState,
     playbackProgress: PlaybackProgress,
     onPause: () -> Unit,
@@ -515,6 +513,18 @@ private fun NowPlayingPanel(
                 Button(onClick = onStop) {
                     Text("Stop")
                 }
+            }
+        }
+
+        if (upNext.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("Up Next", color = appColors.primaryText, fontWeight = FontWeight.SemiBold)
+            Spacer(modifier = Modifier.height(6.dp))
+            upNext.take(5).forEachIndexed { index, track ->
+                Text(
+                    "${index + 1}. ${track.title} - ${track.artistName}",
+                    color = appColors.secondaryText,
+                )
             }
         }
     }

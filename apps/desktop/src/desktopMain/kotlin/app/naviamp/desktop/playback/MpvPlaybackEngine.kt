@@ -31,6 +31,7 @@ class MpvPlaybackEngine(
     private var process: Process? = null
     private var ipcSocket: File? = null
     private var onStateChanged: ((PlaybackState) -> Unit)? = null
+    private var playbackId = 0
     private val json = Json { ignoreUnknownKeys = true }
 
     init {
@@ -48,14 +49,18 @@ class MpvPlaybackEngine(
         onProgressChanged: (PlaybackProgress) -> Unit,
     ) {
         stop()
+        val currentPlaybackId = nextPlaybackId()
         this.onStateChanged = onStateChanged
         onStateChanged(PlaybackState.Loading)
         onProgressChanged(PlaybackProgress.Unknown)
 
         job = scope.launch(Dispatchers.IO) {
             var currentProcess: Process? = null
+            var currentSocket: File? = null
+            var currentProgressJob: Job? = null
             try {
                 val socket = createIpcSocketFile()
+                currentSocket = socket
                 ipcSocket = socket
                 currentProcess = ProcessBuilder(
                     executable,
@@ -68,7 +73,7 @@ class MpvPlaybackEngine(
                     .start()
                 process = currentProcess
                 onStateChanged(PlaybackState.Playing)
-                progressJob = scope.launch(Dispatchers.IO) {
+                currentProgressJob = scope.launch(Dispatchers.IO) {
                     waitForSocket(socket)
                     while (currentProcess.isAlive) {
                         onProgressChanged(
@@ -80,27 +85,37 @@ class MpvPlaybackEngine(
                         delay(500)
                     }
                 }
+                progressJob = currentProgressJob
 
                 val exitCode = currentProcess.waitFor()
+                if (!isCurrentPlayback(currentPlaybackId)) {
+                    return@launch
+                }
                 if (exitCode == 0) {
                     onStateChanged(PlaybackState.Finished)
                 } else if (job?.isCancelled != true) {
                     onStateChanged(PlaybackState.Error("mpv exited with code $exitCode."))
                 }
             } catch (exception: Throwable) {
-                if (job?.isCancelled != true) {
+                if (isCurrentPlayback(currentPlaybackId) && job?.isCancelled != true) {
                     onStateChanged(PlaybackState.Error(exception.message ?: "mpv playback failed."))
                 }
             } finally {
-                progressJob?.cancel()
-                progressJob = null
-                onProgressChanged(PlaybackProgress.Unknown)
-                ipcSocket?.delete()
-                ipcSocket = null
-                if (process == currentProcess) {
-                    process = null
+                currentProgressJob?.cancel()
+                if (progressJob == currentProgressJob) {
+                    progressJob = null
                 }
-                this@MpvPlaybackEngine.onStateChanged = null
+                if (isCurrentPlayback(currentPlaybackId)) {
+                    onProgressChanged(PlaybackProgress.Unknown)
+                }
+                currentSocket?.delete()
+                if (ipcSocket == currentSocket) {
+                    ipcSocket = null
+                }
+                if (isCurrentPlayback(currentPlaybackId) && process == currentProcess) {
+                    process = null
+                    this@MpvPlaybackEngine.onStateChanged = null
+                }
             }
         }
     }
@@ -122,6 +137,7 @@ class MpvPlaybackEngine(
     }
 
     override fun stop() {
+        playbackId += 1
         val currentProcess = process
         if (currentProcess != null && currentProcess.isAlive) {
             sendIpcCommand("""{"command":["quit"]}""", reportErrors = false)
@@ -141,6 +157,14 @@ class MpvPlaybackEngine(
         ipcSocket = null
         onStateChanged = null
     }
+
+    private fun nextPlaybackId(): Int {
+        playbackId += 1
+        return playbackId
+    }
+
+    private fun isCurrentPlayback(id: Int): Boolean =
+        playbackId == id
 
     private fun queryDouble(property: String): Double? {
         val response = sendIpcCommand("""{"command":["get_property","$property"]}""") ?: return null
