@@ -119,4 +119,16 @@ class DesktopSettingsStoreTest {
         assertEquals("FLAC", session?.currentTrack()?.audioInfo?.codec)
         assertEquals(2, session?.toTracks()?.size)
     }
+
+    @Test
+    fun saveNavigationSettingsPreservesPlaybackSession() {
+        val path = createTempDirectory().resolve("settings.json")
+        val store = DesktopSettingsStore(path)
+        store.savePlaybackSettings(PlaybackSettings(replayGainMode = ReplayGainMode.Track))
+
+        store.saveNavigationSettings(NavigationSettings(route = "Player"))
+
+        assertEquals("Player", store.loadNavigationSettings().route)
+        assertEquals(ReplayGainMode.Track, store.loadPlaybackSettings().replayGainMode)
+    }
 }

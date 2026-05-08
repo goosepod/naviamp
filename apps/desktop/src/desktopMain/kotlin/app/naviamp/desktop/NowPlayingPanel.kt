@@ -2,7 +2,7 @@ package app.naviamp.desktop
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -33,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
@@ -79,6 +80,7 @@ fun NowPlayingPanel(
     onSeek: (Double) -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
+    onCollapseToHome: () -> Unit,
 ) {
     val coverArtState = rememberCoverArtState(coverArtUrl, appColors)
     val playerColors = remember(coverArtState.palette, appColors) {
@@ -132,6 +134,7 @@ fun NowPlayingPanel(
                     onSeek = onSeek,
                     onPrevious = onPrevious,
                     onNext = onNext,
+                    onCollapseToHome = onCollapseToHome,
                     modifier = Modifier.weight(0.9f),
                 )
                 UpNextPanel(
@@ -174,6 +177,7 @@ fun NowPlayingPanel(
                     onSeek = onSeek,
                     onPrevious = onPrevious,
                     onNext = onNext,
+                    onCollapseToHome = onCollapseToHome,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 UpNextPanel(
@@ -204,6 +208,7 @@ fun MiniPlayerPanel(
     onPlayCurrent: () -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
+    onOpenPlayer: () -> Unit,
 ) {
     val coverArtState = rememberCoverArtState(coverArtUrl, appColors)
     val playerColors = remember(coverArtState.palette, appColors) {
@@ -222,6 +227,7 @@ fun MiniPlayerPanel(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(onClick = onOpenPlayer)
             .background(Color.Black.copy(alpha = 0.22f))
             .padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
@@ -304,6 +310,7 @@ private fun PlayerDetails(
     onSeek: (Double) -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
+    onCollapseToHome: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var scrubberValue by remember { mutableFloatStateOf(0f) }
@@ -445,6 +452,13 @@ private fun PlayerDetails(
             textAlign = TextAlign.Center,
             fontSize = 12.sp,
         )
+        IconButton(onClick = onCollapseToHome) {
+            Icon(
+                imageVector = NavigationIcons.ChevronDown,
+                contentDescription = "Home",
+                tint = appColors.secondaryText,
+            )
+        }
     }
 }
 
@@ -571,13 +585,13 @@ private fun CoverArt(
     Box(
         modifier = Modifier
             .size(size)
-            .clip(RoundedCornerShape(if (elevated) 7.dp else 4.dp))
-            .background(appColors.albumArtPlaceholder)
-            .border(
-                width = if (elevated) 3.dp else 0.dp,
-                color = Color.White.copy(alpha = if (elevated) 0.65f else 0f),
+            .shadow(
+                elevation = if (elevated) 30.dp else 0.dp,
                 shape = RoundedCornerShape(if (elevated) 7.dp else 4.dp),
-            ),
+                clip = false,
+            )
+            .clip(RoundedCornerShape(if (elevated) 7.dp else 4.dp))
+            .background(appColors.albumArtPlaceholder),
     ) {
         coverArtState.image?.let {
             Image(

@@ -8,16 +8,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -41,6 +38,7 @@ import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import app.naviamp.domain.Album
+import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Track
 import app.naviamp.desktop.playback.PlaybackEngine
 import app.naviamp.desktop.playback.PlaybackEngineFactory
@@ -52,6 +50,7 @@ import app.naviamp.desktop.playback.PlaylistEngine
 import app.naviamp.desktop.playback.ReplayGainMode
 import app.naviamp.desktop.playback.mergeWith
 import app.naviamp.desktop.settings.DesktopSettingsStore
+import app.naviamp.desktop.settings.NavigationSettings
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.desktop.settings.PlaybackSessionSettings
 import app.naviamp.desktop.settings.SavedConnection
@@ -114,6 +113,7 @@ fun NaviampApp(
     val colorScheme = if (isDark) darkColorScheme() else lightColorScheme()
     val savedConnection = remember { settingsStore.loadConnection() }
     val savedPlaybackSession = remember { settingsStore.loadPlaybackSession() }
+    val savedNavigation = remember { settingsStore.loadNavigationSettings() }
     val playlistEngine = remember(playbackEngine) { PlaylistEngine(playbackEngine) }
     val coroutineScope = rememberCoroutineScope()
     val restoredTracks = remember(savedPlaybackSession) { savedPlaybackSession?.toTracks().orEmpty() }
@@ -126,7 +126,18 @@ fun NaviampApp(
     var connectionStatus by remember { mutableStateOf<String?>(null) }
     var connectedProvider by remember { mutableStateOf<NavidromeProvider?>(null) }
     var recentlyAddedAlbums by remember { mutableStateOf<List<Album>>(emptyList()) }
-    var showSettings by remember { mutableStateOf(savedConnection == null) }
+    var selectedAlbum by remember { mutableStateOf<Album?>(null) }
+    var selectedAlbumDetails by remember { mutableStateOf<AlbumDetails?>(null) }
+    var selectedAlbumStatus by remember { mutableStateOf<String?>(null) }
+    var appRoute by remember {
+        mutableStateOf(
+            restoredRoute(
+                savedRouteName = savedNavigation.route,
+                hasConnection = savedConnection != null,
+                hasRestoredTrack = restoredTrack != null,
+            ),
+        )
+    }
     var nowPlayingTrack by remember { mutableStateOf(restoredTrack) }
     var nowPlayingCoverArtUrl by remember { mutableStateOf<String?>(null) }
     var playbackState by remember { mutableStateOf<PlaybackState>(PlaybackState.Idle) }
@@ -166,6 +177,10 @@ fun NaviampApp(
         }
     }
 
+    LaunchedEffect(appRoute) {
+        settingsStore.saveNavigationSettings(NavigationSettings(route = appRoute.name))
+    }
+
     fun savePlaybackSession(queue: PlaybackQueue) {
         settingsStore.savePlaybackSession(
             PlaybackSessionSettings.fromTracks(
@@ -179,6 +194,7 @@ fun NaviampApp(
         onTrackStarted = { track, coverArtUrl ->
             nowPlayingTrack = track
             nowPlayingCoverArtUrl = coverArtUrl
+            appRoute = AppRoute.Player
         },
         onQueueChanged = { queue ->
             playbackQueue = queue
@@ -196,12 +212,12 @@ fun NaviampApp(
         if (isConnecting) return
         if (serverUrl.isBlank() || username.isBlank()) {
             connectionStatus = "Enter a server URL and username."
-            showSettings = true
+            appRoute = AppRoute.Settings
             return
         }
         if (password.isBlank() && savedConnectionForLogin == null) {
             connectionStatus = "Enter a password for first-time setup."
-            showSettings = true
+            appRoute = AppRoute.Settings
             return
         }
 
@@ -258,7 +274,9 @@ fun NaviampApp(
                     salt = connection.salt,
                 )
                 password = ""
-                showSettings = false
+                if (appRoute == AppRoute.Settings) {
+                    appRoute = AppRoute.Home
+                }
                 connectionStatus = buildString {
                     append("Connected")
                     validation.serverVersion?.let { append(" to Navidrome $it") }
@@ -266,12 +284,43 @@ fun NaviampApp(
                 }
             } catch (exception: Exception) {
                 connectedProvider = null
-                showSettings = true
+                appRoute = AppRoute.Settings
                 connectionStatus = exception.message ?: "Could not connect to Navidrome."
             } finally {
                 isConnecting = false
             }
         }
+    }
+
+    fun openAlbumDetails(album: Album) {
+        val provider = connectedProvider ?: return
+        selectedAlbum = album
+        selectedAlbumDetails = null
+        selectedAlbumStatus = "Loading..."
+        appRoute = AppRoute.AlbumDetail
+        coroutineScope.launch {
+            try {
+                selectedAlbumDetails = provider.album(album.id)
+                selectedAlbumStatus = null
+            } catch (exception: Exception) {
+                selectedAlbumStatus = exception.message ?: "Could not load album."
+            }
+        }
+    }
+
+    fun playAlbumDetails(shuffle: Boolean = false, index: Int = 0) {
+        val provider = connectedProvider ?: return
+        val tracks = selectedAlbumDetails?.tracks.orEmpty()
+        if (tracks.isEmpty()) return
+        playlistEngine.playFrom(
+            scope = coroutineScope,
+            provider = provider,
+            tracks = if (shuffle) tracks.shuffled() else tracks,
+            index = if (shuffle) 0 else index,
+            quality = playbackEngine.streamQuality(),
+            replayGainMode = playbackSettings.replayGainMode,
+            callbacks = playlistCallbacks,
+        )
     }
 
     LaunchedEffect(Unit) {
@@ -313,99 +362,12 @@ fun NaviampApp(
                         .padding(12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .verticalScroll(rememberScrollState()),
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            if (showSettings) {
-                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    Button(
-                                        enabled = connectedProvider != null,
-                                        onClick = { showSettings = false },
-                                    ) {
-                                        Text("Back")
-                                    }
-                                }
-                                SettingsPanel(
-                                    appColors = appColors,
-                                    serverUrl = serverUrl,
-                                    username = username,
-                                    password = password,
-                                    hasSavedConnection = savedConnectionForLogin != null,
-                                    isConnecting = isConnecting,
-                                    connectionStatus = connectionStatus,
-                                    playbackSettings = playbackSettings,
-                                    supportsReplayGain = playbackEngine.supportsReplayGain,
-                                    onServerUrlChanged = {
-                                        serverUrl = it
-                                        if (savedConnectionForLogin?.baseUrl != it) {
-                                            savedConnectionForLogin = null
-                                        }
-                                    },
-                                    onUsernameChanged = {
-                                        username = it
-                                        if (savedConnectionForLogin?.username != it) {
-                                            savedConnectionForLogin = null
-                                        }
-                                    },
-                                    onPasswordChanged = { password = it },
-                                    onConnect = { connectToServer() },
-                                    onPlaybackSettingsChanged = { settings ->
-                                        playbackSettings = settings.forEngine(playbackEngine)
-                                        settingsStore.savePlaybackSettings(playbackSettings)
-                                    },
-                                )
-                            } else {
-                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    Button(onClick = { showSettings = true }) {
-                                        Text("Settings")
-                                    }
-                                }
-                                ConnectionPanel(
-                                    appColors = appColors,
-                                    connectedProvider = connectedProvider,
-                                    connectionStatus = connectionStatus,
-                                    recentlyAddedAlbums = recentlyAddedAlbums,
-                                    playbackEngine = playbackEngine,
-                                    playlistEngine = playlistEngine,
-                                    playbackSettings = playbackSettings,
-                                    playlistCallbacks = playlistCallbacks,
-                                )
-                            }
-                        }
-                    }
-                    if (nowPlayingTrack != null) {
-                        if (showSettings) {
-                            MiniPlayerPanel(
-                                appColors = appColors,
-                                nowPlayingTrack = nowPlayingTrack,
-                                coverArtUrl = nowPlayingCoverArtUrl,
-                                hasPrevious = playbackQueue.hasPrevious(),
-                                hasNext = playbackQueue.hasNext(),
-                                playbackState = playbackState,
-                                onPlayerColorsChanged = { colors ->
-                                    targetPlayerColors = colors
-                                },
-                                onPause = {
-                                    playbackEngine.pause()
-                                },
-                                onResume = {
-                                    playbackEngine.resume()
-                                },
-                                onPlayCurrent = {
-                                    playlistEngine.playCurrent(coroutineScope)
-                                },
-                                onPrevious = {
-                                    playlistEngine.previous(coroutineScope)
-                                },
-                                onNext = {
-                                    playlistEngine.next(coroutineScope)
-                                },
-                            )
-                        } else {
+                    if (appRoute == AppRoute.Player && nowPlayingTrack != null) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth(),
+                        ) {
                             NowPlayingPanel(
                                 appColors = appColors,
                                 playbackEngineName = playbackEngine.name,
@@ -441,8 +403,134 @@ fun NaviampApp(
                                 onNext = {
                                     playlistEngine.next(coroutineScope)
                                 },
+                                onCollapseToHome = {
+                                    appRoute = AppRoute.Home
+                                },
                             )
                         }
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                                .verticalScroll(rememberScrollState()),
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                when (appRoute) {
+                                    AppRoute.Player -> Unit
+                                AppRoute.Home -> HomePanel(
+                                    appColors = appColors,
+                                    connectionStatus = connectionStatus,
+                                    recentlyAddedAlbums = recentlyAddedAlbums,
+                                    coverArtUrl = { album ->
+                                        album.coverArtId?.let { connectedProvider?.coverArtUrl(it) }
+                                    },
+                                    onAlbumSelected = { album ->
+                                        openAlbumDetails(album)
+                                    },
+                                )
+                                AppRoute.AlbumDetail -> AlbumDetailPanel(
+                                    appColors = appColors,
+                                    album = selectedAlbum,
+                                    albumDetails = selectedAlbumDetails,
+                                    status = selectedAlbumStatus,
+                                    coverArtUrl = selectedAlbum?.coverArtId?.let { connectedProvider?.coverArtUrl(it) },
+                                    onBack = { appRoute = AppRoute.Home },
+                                    onPlayAlbum = { playAlbumDetails() },
+                                    onShuffleAlbum = { playAlbumDetails(shuffle = true) },
+                                    onPlayTrack = { index -> playAlbumDetails(index = index) },
+                                )
+                                    AppRoute.Library -> ConnectionPanel(
+                                        appColors = appColors,
+                                        connectedProvider = connectedProvider,
+                                        connectionStatus = connectionStatus,
+                                        recentlyAddedAlbums = recentlyAddedAlbums,
+                                        playbackEngine = playbackEngine,
+                                        playlistEngine = playlistEngine,
+                                        playbackSettings = playbackSettings,
+                                        playlistCallbacks = playlistCallbacks,
+                                    )
+                                    AppRoute.Search -> PlaceholderRoutePanel(
+                                        appColors = appColors,
+                                        title = "Search",
+                                        message = "Search will live here next.",
+                                    )
+                                    AppRoute.Downloads -> PlaceholderRoutePanel(
+                                        appColors = appColors,
+                                        title = "Downloads",
+                                        message = "Offline music will live here next.",
+                                    )
+                                    AppRoute.Settings -> SettingsPanel(
+                                        appColors = appColors,
+                                        serverUrl = serverUrl,
+                                        username = username,
+                                        password = password,
+                                        hasSavedConnection = savedConnectionForLogin != null,
+                                        isConnecting = isConnecting,
+                                        connectionStatus = connectionStatus,
+                                        playbackSettings = playbackSettings,
+                                        supportsReplayGain = playbackEngine.supportsReplayGain,
+                                        onServerUrlChanged = {
+                                            serverUrl = it
+                                            if (savedConnectionForLogin?.baseUrl != it) {
+                                                savedConnectionForLogin = null
+                                            }
+                                        },
+                                        onUsernameChanged = {
+                                            username = it
+                                            if (savedConnectionForLogin?.username != it) {
+                                                savedConnectionForLogin = null
+                                            }
+                                        },
+                                        onPasswordChanged = { password = it },
+                                        onConnect = { connectToServer() },
+                                        onPlaybackSettingsChanged = { settings ->
+                                            playbackSettings = settings.forEngine(playbackEngine)
+                                            settingsStore.savePlaybackSettings(playbackSettings)
+                                        },
+                                    )
+                                }
+                            }
+                        }
+                        if (nowPlayingTrack != null) {
+                            MiniPlayerPanel(
+                                appColors = appColors,
+                                nowPlayingTrack = nowPlayingTrack,
+                                coverArtUrl = nowPlayingCoverArtUrl,
+                                hasPrevious = playbackQueue.hasPrevious(),
+                                hasNext = playbackQueue.hasNext(),
+                                playbackState = playbackState,
+                                onPlayerColorsChanged = { colors ->
+                                    targetPlayerColors = colors
+                                },
+                                onPause = {
+                                    playbackEngine.pause()
+                                },
+                                onResume = {
+                                    playbackEngine.resume()
+                                },
+                                onPlayCurrent = {
+                                    appRoute = AppRoute.Player
+                                    playlistEngine.playCurrent(coroutineScope)
+                                },
+                                onPrevious = {
+                                    playlistEngine.previous(coroutineScope)
+                                },
+                                onNext = {
+                                    playlistEngine.next(coroutineScope)
+                                },
+                                onOpenPlayer = {
+                                    appRoute = AppRoute.Player
+                                },
+                            )
+                        }
+                        BottomNavigationBar(
+                            appColors = appColors,
+                            selectedRoute = if (appRoute == AppRoute.AlbumDetail) AppRoute.Home else appRoute,
+                            onRouteSelected = { route ->
+                                appRoute = route
+                            },
+                        )
                     }
                 }
                 }
@@ -457,6 +545,19 @@ private fun PlaybackSettings.forEngine(playbackEngine: PlaybackEngine): Playback
     } else {
         copy(replayGainMode = ReplayGainMode.Off)
     }
+
+private fun restoredRoute(
+    savedRouteName: String?,
+    hasConnection: Boolean,
+    hasRestoredTrack: Boolean,
+): AppRoute {
+    if (!hasConnection) return AppRoute.Settings
+    return when (val route = AppRoute.fromStoredName(savedRouteName)) {
+        AppRoute.Player -> if (hasRestoredTrack) AppRoute.Player else AppRoute.Home
+        AppRoute.AlbumDetail -> AppRoute.Home
+        else -> route
+    }
+}
 
 private fun WindowState.toWindowSettings(): WindowSettings =
     WindowSettings(
