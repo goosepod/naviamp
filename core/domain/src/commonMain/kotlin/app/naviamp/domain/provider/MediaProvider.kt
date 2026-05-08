@@ -19,6 +19,7 @@ interface MediaProvider {
     suspend fun artists(limit: Int = 50): List<Artist>
     suspend fun tracks(limit: Int = 50): List<Track>
     suspend fun streamUrl(request: StreamRequest): String
+    fun coverArtUrl(coverArtId: String): String
 }
 
 data class ProviderCapabilities(

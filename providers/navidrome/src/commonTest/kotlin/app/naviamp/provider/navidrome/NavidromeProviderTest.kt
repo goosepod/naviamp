@@ -40,6 +40,18 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun coverArtUrlIncludesAuthentication() {
+        val provider = NavidromeProvider(connection("https://music.example.test"))
+
+        val url = provider.coverArtUrl("cover-1")
+
+        assertEquals(
+            "https://music.example.test/rest/getCoverArt.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=cover-1",
+            url,
+        )
+    }
+
+    @Test
     fun validateConnectionReturnsServerDetails() = runTest {
         val provider = NavidromeProvider(
             connection = connection("https://music.example.test"),

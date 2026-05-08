@@ -1,6 +1,7 @@
 package app.naviamp.desktop
 
 import androidx.compose.desktop.ui.tooling.preview.Preview
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.rememberScrollState
@@ -39,6 +40,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.toComposeImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.text.KeyboardActions
@@ -63,7 +67,11 @@ import app.naviamp.desktop.playback.label
 import app.naviamp.desktop.playback.mergeWith
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.jetbrains.skia.Image as SkiaImage
+import java.net.URI
 
 fun main() {
     configureDesktopAppearance()
@@ -92,6 +100,7 @@ fun NaviampApp() {
     val colorScheme = if (isDark) darkColorScheme() else lightColorScheme()
     val playbackEngine = remember { PlaybackEngineFactory.createDefault() }
     var nowPlayingTrack by remember { mutableStateOf<Track?>(null) }
+    var nowPlayingCoverArtUrl by remember { mutableStateOf<String?>(null) }
     var playbackState by remember { mutableStateOf<PlaybackState>(PlaybackState.Idle) }
     var playbackProgress by remember { mutableStateOf(PlaybackProgress.Unknown) }
 
@@ -118,8 +127,9 @@ fun NaviampApp() {
                     ConnectionPanel(
                         appColors = appColors,
                         playbackEngine = playbackEngine,
-                        onPlaybackStarted = { track ->
+                        onPlaybackStarted = { track, coverArtUrl ->
                             nowPlayingTrack = track
+                            nowPlayingCoverArtUrl = coverArtUrl
                         },
                         onPlaybackStateChanged = { state ->
                             playbackState = state
@@ -135,6 +145,7 @@ fun NaviampApp() {
                     supportsPause = playbackEngine.supportsPause,
                     supportsSeek = playbackEngine.supportsSeek,
                     nowPlayingTrack = nowPlayingTrack,
+                    coverArtUrl = nowPlayingCoverArtUrl,
                     playbackState = playbackState,
                     playbackProgress = playbackProgress,
                     onPause = {
@@ -161,7 +172,7 @@ fun NaviampApp() {
 private fun ConnectionPanel(
     appColors: AppColors,
     playbackEngine: PlaybackEngine,
-    onPlaybackStarted: (Track) -> Unit,
+    onPlaybackStarted: (Track, String?) -> Unit,
     onPlaybackStateChanged: (PlaybackState) -> Unit,
     onPlaybackProgressChanged: (PlaybackProgress) -> Unit,
 ) {
@@ -341,7 +352,8 @@ private fun ConnectionPanel(
                                                 quality = playbackEngine.streamQuality(),
                                             ),
                                         )
-                                        onPlaybackStarted(track)
+                                        val coverArtUrl = track.coverArtId?.let { provider.coverArtUrl(it) }
+                                        onPlaybackStarted(track, coverArtUrl)
                                         playbackEngine.play(
                                             scope = coroutineScope,
                                             request = PlaybackRequest(streamUrl),
@@ -384,6 +396,7 @@ private fun NowPlayingPanel(
     supportsPause: Boolean,
     supportsSeek: Boolean,
     nowPlayingTrack: Track?,
+    coverArtUrl: String?,
     playbackState: PlaybackState,
     playbackProgress: PlaybackProgress,
     onPause: () -> Unit,
@@ -406,10 +419,9 @@ private fun NowPlayingPanel(
 
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(96.dp)
-                    .background(appColors.albumArtPlaceholder),
+            CoverArt(
+                coverArtUrl = coverArtUrl,
+                appColors = appColors,
             )
 
             Spacer(modifier = Modifier.width(16.dp))
@@ -467,6 +479,42 @@ private fun NowPlayingPanel(
                     Text("Stop")
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun CoverArt(
+    coverArtUrl: String?,
+    appColors: AppColors,
+) {
+    var image by remember(coverArtUrl) { mutableStateOf<ImageBitmap?>(null) }
+
+    LaunchedEffect(coverArtUrl) {
+        image = if (coverArtUrl == null) {
+            null
+        } else {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val bytes = URI.create(coverArtUrl).toURL().openStream().use { it.readBytes() }
+                    SkiaImage.makeFromEncoded(bytes).toComposeImageBitmap()
+                }
+            }.getOrNull()
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .size(96.dp)
+            .background(appColors.albumArtPlaceholder),
+    ) {
+        image?.let {
+            Image(
+                bitmap = it,
+                contentDescription = "Album art",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
         }
     }
 }

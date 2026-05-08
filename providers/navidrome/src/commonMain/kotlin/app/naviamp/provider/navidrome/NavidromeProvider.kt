@@ -109,6 +109,9 @@ class NavidromeProvider(
         return url("stream.view", params)
     }
 
+    override fun coverArtUrl(coverArtId: String): String =
+        url("getCoverArt.view", mapOf("id" to coverArtId))
+
     private suspend fun get(
         endpoint: String,
         params: Map<String, String> = emptyMap(),
