@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
@@ -59,9 +60,12 @@ import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import java.awt.Taskbar
+import javax.imageio.ImageIO
 
 fun main() {
     configureDesktopAppearance()
+    configureDesktopIcon()
 
     application {
         val settingsStore = remember { DesktopSettingsStore() }
@@ -70,6 +74,7 @@ fun main() {
             size = DpSize(windowSettings.widthDp.dp, windowSettings.heightDp.dp),
         )
         val playbackEngine = remember { PlaybackEngineFactory.createDefault() }
+        val appIcon = painterResource("icons/naviamp.png")
         LaunchedEffect(windowState) {
             snapshotFlow { windowState.size }
                 .distinctUntilChanged()
@@ -81,6 +86,7 @@ fun main() {
         }
         Window(
             state = windowState,
+            icon = appIcon,
             onCloseRequest = {
                 settingsStore.saveWindowSettings(windowState.toWindowSettings())
                 playbackEngine.stop()
@@ -93,6 +99,16 @@ fun main() {
                 settingsStore = settingsStore,
             )
         }
+    }
+}
+
+private fun configureDesktopIcon() {
+    runCatching {
+        if (!Taskbar.isTaskbarSupported()) return
+        val taskbar = Taskbar.getTaskbar()
+        if (!taskbar.isSupported(Taskbar.Feature.ICON_IMAGE)) return
+        val iconUrl = Thread.currentThread().contextClassLoader.getResource("icons/naviamp.png") ?: return
+        taskbar.iconImage = ImageIO.read(iconUrl)
     }
 }
 
