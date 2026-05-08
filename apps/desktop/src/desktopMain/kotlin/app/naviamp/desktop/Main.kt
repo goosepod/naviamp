@@ -23,6 +23,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -32,13 +33,19 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import app.naviamp.domain.Album
+import app.naviamp.domain.Track
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
 import kotlinx.coroutines.launch
@@ -91,8 +98,14 @@ private fun ConnectionPanel(appColors: AppColors) {
     var password by remember { mutableStateOf("") }
     var connectionStatus by remember { mutableStateOf<String?>(null) }
     var isConnecting by remember { mutableStateOf(false) }
+    var isLoadingAlbum by remember { mutableStateOf(false) }
+    var connectedProvider by remember { mutableStateOf<NavidromeProvider?>(null) }
     var recentlyAddedAlbums by remember { mutableStateOf<List<Album>>(emptyList()) }
+    var selectedAlbumTitle by remember { mutableStateOf<String?>(null) }
+    var selectedTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
+    var albumStatus by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
+    val focusManager = LocalFocusManager.current
     val textFieldColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = appColors.primaryText,
         unfocusedTextColor = appColors.primaryText,
@@ -102,51 +115,17 @@ private fun ConnectionPanel(appColors: AppColors) {
         focusedBorderColor = appColors.accent,
         unfocusedBorderColor = appColors.border,
     )
-
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Naviamp", color = appColors.primaryText, style = MaterialTheme.typography.headlineMedium)
-        Text("Connect to Navidrome", color = appColors.secondaryText)
-
-        OutlinedTextField(
-            value = serverUrl,
-            onValueChange = { serverUrl = it },
-            label = { Text("Server URL") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-            colors = textFieldColors,
-        )
-
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-            OutlinedTextField(
-                value = username,
-                onValueChange = { username = it },
-                label = { Text("Username") },
-                singleLine = true,
-                modifier = Modifier.weight(1f),
-                colors = textFieldColors,
-            )
-            OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text("Password") },
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                modifier = Modifier.weight(1f),
-                colors = textFieldColors,
-            )
-        }
-
-        Button(
-            enabled = !isConnecting,
-            onClick = {
-                if (serverUrl.isBlank() || username.isBlank() || password.isBlank()) {
-                    connectionStatus = "Enter a server URL, username, and password."
-                    return@Button
-                }
-
+    val connect = {
+        if (!isConnecting) {
+            if (serverUrl.isBlank() || username.isBlank() || password.isBlank()) {
+                connectionStatus = "Enter a server URL, username, and password."
+            } else {
                 isConnecting = true
                 connectionStatus = "Connecting to Navidrome..."
                 recentlyAddedAlbums = emptyList()
+                selectedAlbumTitle = null
+                selectedTracks = emptyList()
+                albumStatus = null
 
                 coroutineScope.launch {
                     try {
@@ -159,18 +138,71 @@ private fun ConnectionPanel(appColors: AppColors) {
                         )
                         val validation = provider.validateConnection()
                         recentlyAddedAlbums = provider.recentlyAddedAlbums(limit = 5)
+                        connectedProvider = provider
                         connectionStatus = buildString {
                             append("Connected")
                             validation.serverVersion?.let { append(" to Navidrome $it") }
                             append(".")
                         }
                     } catch (exception: Exception) {
+                        connectedProvider = null
                         connectionStatus = exception.message ?: "Could not connect to Navidrome."
                     } finally {
                         isConnecting = false
                     }
                 }
-            },
+            }
+        }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text("Naviamp", color = appColors.primaryText, style = MaterialTheme.typography.headlineMedium)
+        Text("Connect to Navidrome", color = appColors.secondaryText)
+
+        OutlinedTextField(
+            value = serverUrl,
+            onValueChange = { serverUrl = it },
+            label = { Text("Server URL") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+            keyboardActions = KeyboardActions(
+                onNext = { focusManager.moveFocus(FocusDirection.Next) },
+                onDone = { connect() },
+            ),
+            colors = textFieldColors,
+        )
+
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+            OutlinedTextField(
+                value = username,
+                onValueChange = { username = it },
+                label = { Text("Username") },
+                singleLine = true,
+                modifier = Modifier.weight(1f),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                keyboardActions = KeyboardActions(
+                    onNext = { focusManager.moveFocus(FocusDirection.Next) },
+                    onDone = { connect() },
+                ),
+                colors = textFieldColors,
+            )
+            OutlinedTextField(
+                value = password,
+                onValueChange = { password = it },
+                label = { Text("Password") },
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                modifier = Modifier.weight(1f),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { connect() }),
+                colors = textFieldColors,
+            )
+        }
+
+        Button(
+            enabled = !isConnecting,
+            onClick = { connect() },
         ) {
             Text(if (isConnecting) "Connecting" else "Connect")
         }
@@ -183,7 +215,51 @@ private fun ConnectionPanel(appColors: AppColors) {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("Recently Added", color = appColors.primaryText, fontWeight = FontWeight.SemiBold)
                 recentlyAddedAlbums.forEach { album ->
-                    Text("${album.title} - ${album.artistName}", color = appColors.secondaryText)
+                    TextButton(
+                        enabled = !isLoadingAlbum,
+                        onClick = {
+                            val provider = connectedProvider ?: return@TextButton
+                            isLoadingAlbum = true
+                            selectedAlbumTitle = album.title
+                            selectedTracks = emptyList()
+                            albumStatus = "Loading ${album.title}..."
+
+                            coroutineScope.launch {
+                                try {
+                                    val details = provider.album(album.id)
+                                    selectedAlbumTitle = "${details.album.title} - ${details.album.artistName}"
+                                    selectedTracks = details.tracks
+                                    albumStatus = if (details.tracks.isEmpty()) {
+                                        "No tracks found for ${details.album.title}."
+                                    } else {
+                                        null
+                                    }
+                                } catch (exception: Exception) {
+                                    albumStatus = exception.message ?: "Could not load album."
+                                } finally {
+                                    isLoadingAlbum = false
+                                }
+                            }
+                        },
+                    ) {
+                        Text("${album.title} - ${album.artistName}")
+                    }
+                }
+            }
+        }
+
+        albumStatus?.let {
+            Text(it, color = appColors.secondaryText)
+        }
+
+        if (selectedTracks.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(selectedAlbumTitle ?: "Album Tracks", color = appColors.primaryText, fontWeight = FontWeight.SemiBold)
+                selectedTracks.forEachIndexed { index, track ->
+                    Text(
+                        "${index + 1}. ${track.title} (${track.durationLabel()})",
+                        color = appColors.secondaryText,
+                    )
                 }
             }
         }
@@ -252,4 +328,11 @@ private data class AppColors(
             albumArtPlaceholder = Color(0xFFD3DBE8),
         )
     }
+}
+
+private fun Track.durationLabel(): String {
+    val duration = durationSeconds ?: return "--:--"
+    val minutes = duration / 60
+    val seconds = duration % 60
+    return "$minutes:${seconds.toString().padStart(2, '0')}"
 }

@@ -25,6 +25,11 @@ data class Album(
     val recentlyAddedAtIso8601: String?,
 )
 
+data class AlbumDetails(
+    val album: Album,
+    val tracks: List<Track>,
+)
+
 data class Track(
     val id: TrackId,
     val title: String,

@@ -1,15 +1,17 @@
 package app.naviamp.provider.navidrome
 
 import app.naviamp.domain.Album
+import app.naviamp.domain.AlbumDetails
+import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Artist
 import app.naviamp.domain.AudioCodec
 import app.naviamp.domain.ProviderId
-import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.StreamRequest
+import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
-import app.naviamp.domain.AlbumId
-import app.naviamp.domain.provider.MediaProvider
+import app.naviamp.domain.TrackId
 import app.naviamp.domain.provider.ConnectionValidation
+import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.ProviderCapabilities
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -65,14 +67,25 @@ class NavidromeProvider(
 
         return albums.mapNotNull { album ->
             val obj = album as? JsonObject ?: return@mapNotNull null
-            Album(
-                id = AlbumId(obj.stringValue("id") ?: return@mapNotNull null),
-                title = obj.stringValue("name") ?: obj.stringValue("title") ?: "Unknown Album",
-                artistName = obj.stringValue("artist") ?: "Unknown Artist",
-                coverArtId = obj.stringValue("coverArt"),
-                recentlyAddedAtIso8601 = obj.stringValue("created"),
-            )
+            obj.toAlbum()
         }
+    }
+
+    override suspend fun album(albumId: AlbumId): AlbumDetails {
+        val response = get(
+            endpoint = "getAlbum.view",
+            params = mapOf("id" to albumId.value),
+        )
+        val album = response.subsonicResponse()["album"]?.jsonObject
+            ?: throw NavidromeException("Album was not found.")
+        val songs = album["song"] as? JsonArray ?: JsonArray(emptyList())
+
+        return AlbumDetails(
+            album = album.toAlbum(),
+            tracks = songs.mapNotNull { song ->
+                (song as? JsonObject)?.toTrack()
+            },
+        )
     }
 
     override suspend fun artists(limit: Int): List<Artist> = emptyList()
@@ -142,6 +155,26 @@ class NavidromeProvider(
             AudioCodec.Mp3 -> "mp3"
             AudioCodec.Aac -> "aac"
         }
+
+    private fun JsonObject.toAlbum(): Album =
+        Album(
+            id = AlbumId(stringValue("id") ?: throw NavidromeException("Album is missing an id.")),
+            title = stringValue("name") ?: stringValue("title") ?: "Unknown Album",
+            artistName = stringValue("artist") ?: "Unknown Artist",
+            coverArtId = stringValue("coverArt"),
+            recentlyAddedAtIso8601 = stringValue("created"),
+        )
+
+    private fun JsonObject.toTrack(): Track =
+        Track(
+            id = TrackId(stringValue("id") ?: throw NavidromeException("Track is missing an id.")),
+            title = stringValue("title") ?: "Unknown Track",
+            artistName = stringValue("artist") ?: "Unknown Artist",
+            albumTitle = stringValue("album"),
+            durationSeconds = intValue("duration"),
+            coverArtId = stringValue("coverArt"),
+            replayGain = null,
+        )
 }
 
 interface NavidromeHttpClient {
@@ -178,3 +211,6 @@ private fun String.urlEncode(): String =
 
 private fun JsonObject.stringValue(key: String): String? =
     (this[key] as? JsonElement)?.jsonPrimitive?.content
+
+private fun JsonObject.intValue(key: String): Int? =
+    stringValue(key)?.toIntOrNull()

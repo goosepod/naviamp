@@ -1,5 +1,6 @@
 package app.naviamp.provider.navidrome
 
+import app.naviamp.domain.AlbumId
 import app.naviamp.domain.AudioCodec
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.StreamRequest
@@ -93,6 +94,55 @@ class NavidromeProviderTest {
         assertEquals("album-1", albums.first().id.value)
         assertEquals("Low-Life", albums.first().title)
         assertEquals("New Order", albums.first().artistName)
+    }
+
+    @Test
+    fun albumMapsTracks() = runTest {
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = FakeHttpClient(
+                """
+                {
+                  "subsonic-response": {
+                    "status": "ok",
+                    "album": {
+                      "id": "album-1",
+                      "name": "Low-Life",
+                      "artist": "New Order",
+                      "coverArt": "cover-1",
+                      "created": "2026-05-08T12:00:00Z",
+                      "song": [
+                        {
+                          "id": "track-1",
+                          "title": "Love Vigilantes",
+                          "artist": "New Order",
+                          "album": "Low-Life",
+                          "duration": 259,
+                          "coverArt": "cover-1"
+                        },
+                        {
+                          "id": "track-2",
+                          "title": "The Perfect Kiss",
+                          "artist": "New Order",
+                          "album": "Low-Life",
+                          "duration": 288,
+                          "coverArt": "cover-1"
+                        }
+                      ]
+                    }
+                  }
+                }
+                """.trimIndent(),
+            ),
+        )
+
+        val details = provider.album(AlbumId("album-1"))
+
+        assertEquals("Low-Life", details.album.title)
+        assertEquals(2, details.tracks.size)
+        assertEquals("track-1", details.tracks.first().id.value)
+        assertEquals("Love Vigilantes", details.tracks.first().title)
+        assertEquals(259, details.tracks.first().durationSeconds)
     }
 
     private fun connection(baseUrl: String): NavidromeConnection =
