@@ -1,6 +1,8 @@
 package app.naviamp.desktop
 
 import androidx.compose.desktop.ui.tooling.preview.Preview
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,6 +24,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
@@ -77,6 +81,17 @@ fun NaviampApp(
     var playbackProgress by remember { mutableStateOf(PlaybackProgress.Unknown) }
     var playbackQueue by remember { mutableStateOf(PlaybackQueue()) }
     var playbackSettings by remember { mutableStateOf(settingsStore.loadPlaybackSettings()) }
+    var targetPlayerColors by remember {
+        mutableStateOf(PlayerColors.from(AlbumPalette.fallback(appColors.albumArtPlaceholder), appColors))
+    }
+    val backgroundStart by animateColorAsState(
+        targetValue = if (nowPlayingTrack != null) targetPlayerColors.backgroundStart else appColors.background,
+        label = "backgroundStart",
+    )
+    val backgroundEnd by animateColorAsState(
+        targetValue = if (nowPlayingTrack != null) targetPlayerColors.backgroundEnd else appColors.background,
+        label = "backgroundEnd",
+    )
 
     DisposableEffect(playbackEngine) {
         onDispose {
@@ -85,12 +100,17 @@ fun NaviampApp(
     }
 
     MaterialTheme(colorScheme = colorScheme) {
-        Surface(modifier = Modifier.fillMaxSize(), color = appColors.background) {
+        Surface(modifier = Modifier.fillMaxSize(), color = Color.Transparent) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Brush.linearGradient(listOf(backgroundStart, backgroundEnd))),
+            ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp),
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Box(
                     modifier = Modifier
@@ -128,36 +148,42 @@ fun NaviampApp(
                         settingsStore.savePlaybackSettings(playbackSettings)
                     },
                 )
-                NowPlayingPanel(
-                    appColors = appColors,
-                    playbackEngineName = playbackEngine.name,
-                    supportsPause = playbackEngine.supportsPause,
-                    supportsSeek = playbackEngine.supportsSeek,
-                    supportsGapless = playbackEngine.supportsGapless,
-                    supportsCrossfade = playbackEngine.supportsCrossfade,
-                    nowPlayingTrack = nowPlayingTrack,
-                    coverArtUrl = nowPlayingCoverArtUrl,
-                    upNext = playbackQueue.upNext(),
-                    hasPrevious = playbackQueue.hasPrevious(),
-                    hasNext = playbackQueue.hasNext(),
-                    playbackState = playbackState,
-                    playbackProgress = playbackProgress,
-                    onPause = {
-                        playbackEngine.pause()
-                    },
-                    onResume = {
-                        playbackEngine.resume()
-                    },
-                    onSeek = { positionSeconds ->
-                        playbackEngine.seek(positionSeconds)
-                    },
-                    onPrevious = {
-                        playlistEngine.previous(coroutineScope)
-                    },
-                    onNext = {
-                        playlistEngine.next(coroutineScope)
-                    },
-                )
+                if (nowPlayingTrack != null) {
+                    NowPlayingPanel(
+                        appColors = appColors,
+                        playbackEngineName = playbackEngine.name,
+                        supportsPause = playbackEngine.supportsPause,
+                        supportsSeek = playbackEngine.supportsSeek,
+                        supportsGapless = playbackEngine.supportsGapless,
+                        supportsCrossfade = playbackEngine.supportsCrossfade,
+                        nowPlayingTrack = nowPlayingTrack,
+                        coverArtUrl = nowPlayingCoverArtUrl,
+                        upNext = playbackQueue.upNext(),
+                        hasPrevious = playbackQueue.hasPrevious(),
+                        hasNext = playbackQueue.hasNext(),
+                        playbackState = playbackState,
+                        playbackProgress = playbackProgress,
+                        onPlayerColorsChanged = { colors ->
+                            targetPlayerColors = colors
+                        },
+                        onPause = {
+                            playbackEngine.pause()
+                        },
+                        onResume = {
+                            playbackEngine.resume()
+                        },
+                        onSeek = { positionSeconds ->
+                            playbackEngine.seek(positionSeconds)
+                        },
+                        onPrevious = {
+                            playlistEngine.previous(coroutineScope)
+                        },
+                        onNext = {
+                            playlistEngine.next(coroutineScope)
+                        },
+                    )
+                }
+            }
             }
         }
     }
