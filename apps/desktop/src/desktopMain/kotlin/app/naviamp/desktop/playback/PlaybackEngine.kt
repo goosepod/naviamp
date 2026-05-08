@@ -6,6 +6,8 @@ interface PlaybackEngine {
     val name: String
     val supportsPause: Boolean
     val supportsSeek: Boolean
+    val supportsGapless: Boolean
+    val supportsCrossfade: Boolean
     val prefersOriginalStream: Boolean
 
     fun play(
@@ -24,9 +26,27 @@ interface PlaybackEngine {
     fun stop()
 }
 
+interface QueueAwarePlaybackEngine : PlaybackEngine {
+    fun setCrossfadeDuration(seconds: Int)
+
+    fun prepareNext(request: PlaybackRequest)
+}
+
 data class PlaybackRequest(
     val url: String,
 )
+
+data class CrossfadeSettings(
+    val enabled: Boolean = false,
+    val durationSeconds: Int = 0,
+) {
+    init {
+        require(durationSeconds >= 0) { "Crossfade duration cannot be negative." }
+    }
+
+    val isActive: Boolean
+        get() = enabled && durationSeconds > 0
+}
 
 data class PlaybackProgress(
     val positionSeconds: Double?,

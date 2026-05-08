@@ -120,6 +120,8 @@ fun NaviampApp(
                     playbackEngineName = playbackEngine.name,
                     supportsPause = playbackEngine.supportsPause,
                     supportsSeek = playbackEngine.supportsSeek,
+                    supportsGapless = playbackEngine.supportsGapless,
+                    supportsCrossfade = playbackEngine.supportsCrossfade,
                     nowPlayingTrack = nowPlayingTrack,
                     coverArtUrl = nowPlayingCoverArtUrl,
                     upNext = playbackQueue.upNext(),

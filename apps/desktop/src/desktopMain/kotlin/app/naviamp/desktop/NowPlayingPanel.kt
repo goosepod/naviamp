@@ -44,6 +44,8 @@ fun NowPlayingPanel(
     playbackEngineName: String,
     supportsPause: Boolean,
     supportsSeek: Boolean,
+    supportsGapless: Boolean,
+    supportsCrossfade: Boolean,
     nowPlayingTrack: Track?,
     coverArtUrl: String?,
     upNext: List<Track>,
@@ -92,6 +94,7 @@ fun NowPlayingPanel(
                     Text(it, color = appColors.mutedText)
                 }
                 Text("${playbackState.label()} via $playbackEngineName", color = appColors.mutedText)
+                Text(playbackCapabilityLabel(supportsGapless, supportsCrossfade), color = appColors.mutedText)
             }
         }
 
@@ -161,6 +164,15 @@ fun NowPlayingPanel(
             }
         }
     }
+}
+
+private fun playbackCapabilityLabel(
+    supportsGapless: Boolean,
+    supportsCrossfade: Boolean,
+): String {
+    val gapless = if (supportsGapless) "Gapless" else "No gapless"
+    val crossfade = if (supportsCrossfade) "Crossfade" else "No crossfade"
+    return "$gapless • $crossfade"
 }
 
 @Composable

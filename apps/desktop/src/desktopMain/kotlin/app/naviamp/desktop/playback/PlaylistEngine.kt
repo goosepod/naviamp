@@ -13,6 +13,8 @@ class PlaylistEngine(
     private var provider: MediaProvider? = null
     private var streamQuality: StreamQuality? = null
     private var callbacks: PlaylistCallbacks? = null
+    private var crossfadeSettings = CrossfadeSettings()
+    private var preparedNextIndex: Int? = null
     private var sessionId = 0
 
     var queue: PlaybackQueue = PlaybackQueue()
@@ -41,6 +43,11 @@ class PlaylistEngine(
         callbacks?.onQueueChanged(queue)
     }
 
+    fun setCrossfadeSettings(settings: CrossfadeSettings) {
+        crossfadeSettings = settings
+        (playbackEngine as? QueueAwarePlaybackEngine)?.setCrossfadeDuration(settings.durationSeconds)
+    }
+
     fun next(scope: CoroutineScope) {
         if (!queue.hasNext()) return
         sessionId += 1
@@ -65,6 +72,7 @@ class PlaylistEngine(
         val currentCallbacks = callbacks ?: return
 
         queue = PlaybackQueue(tracks = tracks, currentIndex = index)
+        preparedNextIndex = null
         currentCallbacks.onQueueChanged(queue)
         currentCallbacks.onPlaybackProgressChanged(PlaybackProgress.Unknown)
 
@@ -90,6 +98,7 @@ class PlaylistEngine(
                         scope.launch {
                             if (activeSessionId == sessionId) {
                                 callbacks?.onPlaybackProgressChanged(progress)
+                                prepareNextIfNeeded(scope, progress, activeSessionId)
                             }
                         }
                     },
@@ -115,6 +124,42 @@ class PlaylistEngine(
             playQueueIndex(scope, queue.tracks, queue.currentIndex + 1, activeSessionId)
         } else {
             callbacks?.onPlaybackStateChanged(state)
+        }
+    }
+
+    private fun prepareNextIfNeeded(
+        scope: CoroutineScope,
+        progress: PlaybackProgress,
+        activeSessionId: Int,
+    ) {
+        val queueAwareEngine = playbackEngine as? QueueAwarePlaybackEngine ?: return
+        if (!crossfadeSettings.isActive || !playbackEngine.supportsCrossfade || !queue.hasNext()) return
+        val position = progress.positionSeconds ?: return
+        val duration = progress.durationSeconds ?: return
+        if (duration - position > crossfadeSettings.durationSeconds + 1.0) return
+
+        val currentProvider = provider ?: return
+        val currentQuality = streamQuality ?: return
+        val nextIndex = queue.currentIndex + 1
+        if (preparedNextIndex == nextIndex) return
+        preparedNextIndex = nextIndex
+        val nextTrack = queue.tracks.getOrNull(nextIndex) ?: return
+
+        scope.launch {
+            if (activeSessionId != sessionId) return@launch
+            try {
+                val streamUrl = currentProvider.streamUrl(
+                    StreamRequest(
+                        trackId = nextTrack.id,
+                        quality = currentQuality,
+                    ),
+                )
+                if (activeSessionId == sessionId) {
+                    queueAwareEngine.prepareNext(PlaybackRequest(streamUrl))
+                }
+            } catch (_: Exception) {
+                preparedNextIndex = null
+            }
         }
     }
 }

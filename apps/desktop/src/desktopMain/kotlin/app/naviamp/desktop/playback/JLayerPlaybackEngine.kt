@@ -12,6 +12,8 @@ class JLayerPlaybackEngine : PlaybackEngine {
     override val name: String = "JLayer"
     override val supportsPause: Boolean = false
     override val supportsSeek: Boolean = false
+    override val supportsGapless: Boolean = false
+    override val supportsCrossfade: Boolean = false
     override val prefersOriginalStream: Boolean = false
 
     private var job: Job? = null

@@ -18,12 +18,14 @@ import java.nio.channels.SocketChannel
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
 
-class MpvPlaybackEngine(
+class MpvProcessPlaybackEngine(
     private val executable: String,
 ) : PlaybackEngine {
     override val name: String = "mpv"
     override val supportsPause: Boolean = true
     override val supportsSeek: Boolean = true
+    override val supportsGapless: Boolean = true
+    override val supportsCrossfade: Boolean = false
     override val prefersOriginalStream: Boolean = true
 
     private var job: Job? = null
@@ -66,6 +68,7 @@ class MpvPlaybackEngine(
                     executable,
                     "--no-video",
                     "--really-quiet",
+                    "--gapless-audio=yes",
                     "--input-ipc-server=${socket.absolutePath}",
                     request.url,
                 )
@@ -114,7 +117,7 @@ class MpvPlaybackEngine(
                 }
                 if (isCurrentPlayback(currentPlaybackId) && process == currentProcess) {
                     process = null
-                    this@MpvPlaybackEngine.onStateChanged = null
+                    this@MpvProcessPlaybackEngine.onStateChanged = null
                 }
             }
         }
@@ -230,7 +233,7 @@ object PlaybackEngineFactory {
     fun createDefault(): PlaybackEngine {
         val mpv = findExecutable("mpv")
         return if (mpv != null) {
-            MpvPlaybackEngine(mpv)
+            MpvProcessPlaybackEngine(mpv)
         } else {
             JLayerPlaybackEngine()
         }
