@@ -75,6 +75,7 @@ fun NowPlayingPanel(
     onPlayerColorsChanged: (PlayerColors) -> Unit,
     onPause: () -> Unit,
     onResume: () -> Unit,
+    onPlayCurrent: () -> Unit,
     onSeek: (Double) -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
@@ -127,6 +128,7 @@ fun NowPlayingPanel(
                     hasNext = hasNext,
                     onPause = onPause,
                     onResume = onResume,
+                    onPlayCurrent = onPlayCurrent,
                     onSeek = onSeek,
                     onPrevious = onPrevious,
                     onNext = onNext,
@@ -168,6 +170,7 @@ fun NowPlayingPanel(
                     hasNext = hasNext,
                     onPause = onPause,
                     onResume = onResume,
+                    onPlayCurrent = onPlayCurrent,
                     onSeek = onSeek,
                     onPrevious = onPrevious,
                     onNext = onNext,
@@ -198,6 +201,7 @@ fun MiniPlayerPanel(
     onPlayerColorsChanged: (PlayerColors) -> Unit,
     onPause: () -> Unit,
     onResume: () -> Unit,
+    onPlayCurrent: () -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
 ) {
@@ -205,7 +209,9 @@ fun MiniPlayerPanel(
     val playerColors = remember(coverArtState.palette, appColors) {
         PlayerColors.from(coverArtState.palette, appColors)
     }
-    val canTogglePause = playbackState == PlaybackState.Playing || playbackState == PlaybackState.Paused
+    val canTogglePause = nowPlayingTrack != null &&
+        playbackState != PlaybackState.Loading &&
+        playbackState !is PlaybackState.Error
 
     LaunchedEffect(coverArtState.palette) {
         onPlayerColorsChanged(playerColors)
@@ -261,8 +267,10 @@ fun MiniPlayerPanel(
             onClick = {
                 if (playbackState == PlaybackState.Playing) {
                     onPause()
-                } else {
+                } else if (playbackState == PlaybackState.Paused) {
                     onResume()
+                } else {
+                    onPlayCurrent()
                 }
             },
         )
@@ -292,6 +300,7 @@ private fun PlayerDetails(
     hasNext: Boolean,
     onPause: () -> Unit,
     onResume: () -> Unit,
+    onPlayCurrent: () -> Unit,
     onSeek: (Double) -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
@@ -303,8 +312,10 @@ private fun PlayerDetails(
         ?: playbackProgress.durationSeconds
     val effectiveProgressFraction = playbackProgress.fraction(effectiveDurationSeconds)
     val canSeek = supportsSeek && effectiveDurationSeconds != null && nowPlayingTrack != null
-    val canTogglePause = supportsPause &&
-        (playbackState == PlaybackState.Playing || playbackState == PlaybackState.Paused)
+    val canTogglePause = nowPlayingTrack != null &&
+        playbackState != PlaybackState.Loading &&
+        playbackState !is PlaybackState.Error &&
+        (supportsPause || playbackState != PlaybackState.Playing)
 
     LaunchedEffect(effectiveProgressFraction) {
         if (!isScrubbing) {
@@ -412,8 +423,10 @@ private fun PlayerDetails(
                 onClick = {
                     if (playbackState == PlaybackState.Playing) {
                         onPause()
-                    } else {
+                    } else if (playbackState == PlaybackState.Paused) {
                         onResume()
+                    } else {
+                        onPlayCurrent()
                     }
                 },
             )
@@ -584,25 +597,26 @@ private fun rememberCoverArtState(
     coverArtUrl: String?,
     appColors: AppColors,
 ): CoverArtState {
-    var coverArtState by remember(coverArtUrl) {
+    var coverArtState by remember {
         mutableStateOf(CoverArtState(image = null, palette = AlbumPalette.fallback(appColors.albumArtPlaceholder)))
     }
 
     LaunchedEffect(coverArtUrl) {
-        coverArtState = if (coverArtUrl == null) {
-            CoverArtState(image = null, palette = AlbumPalette.fallback(appColors.albumArtPlaceholder))
-        } else {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    val bytes = URI.create(coverArtUrl).toURL().openStream().use { it.readBytes() }
-                    CoverArtState(
-                        image = SkiaImage.makeFromEncoded(bytes).toComposeImageBitmap(),
-                        palette = albumPalette(bytes) ?: AlbumPalette.fallback(appColors.albumArtPlaceholder),
-                    )
-                }
-            }.getOrElse {
-                CoverArtState(image = null, palette = AlbumPalette.fallback(appColors.albumArtPlaceholder))
+        if (coverArtUrl == null) {
+            coverArtState = CoverArtState(image = null, palette = AlbumPalette.fallback(appColors.albumArtPlaceholder))
+            return@LaunchedEffect
+        }
+
+        runCatching {
+            withContext(Dispatchers.IO) {
+                val bytes = URI.create(coverArtUrl).toURL().openStream().use { it.readBytes() }
+                CoverArtState(
+                    image = SkiaImage.makeFromEncoded(bytes).toComposeImageBitmap(),
+                    palette = albumPalette(bytes) ?: AlbumPalette.fallback(appColors.albumArtPlaceholder),
+                )
             }
+        }.onSuccess {
+            coverArtState = it
         }
     }
 

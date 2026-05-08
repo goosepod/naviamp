@@ -28,14 +28,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.application
+import androidx.compose.ui.window.rememberWindowState
 import app.naviamp.domain.Album
 import app.naviamp.domain.Track
 import app.naviamp.desktop.playback.PlaybackEngine
@@ -43,29 +47,52 @@ import app.naviamp.desktop.playback.PlaybackEngineFactory
 import app.naviamp.desktop.playback.PlaybackProgress
 import app.naviamp.desktop.playback.PlaybackQueue
 import app.naviamp.desktop.playback.PlaybackState
+import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.PlaylistEngine
 import app.naviamp.desktop.playback.ReplayGainMode
 import app.naviamp.desktop.playback.mergeWith
 import app.naviamp.desktop.settings.DesktopSettingsStore
 import app.naviamp.desktop.settings.PlaybackSettings
+import app.naviamp.desktop.settings.PlaybackSessionSettings
 import app.naviamp.desktop.settings.SavedConnection
+import app.naviamp.desktop.settings.WindowSettings
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 fun main() {
     configureDesktopAppearance()
 
     application {
+        val settingsStore = remember { DesktopSettingsStore() }
+        val windowSettings = remember { settingsStore.loadWindowSettings() }
+        val windowState = rememberWindowState(
+            size = DpSize(windowSettings.widthDp.dp, windowSettings.heightDp.dp),
+        )
         val playbackEngine = remember { PlaybackEngineFactory.createDefault() }
+        LaunchedEffect(windowState) {
+            snapshotFlow { windowState.size }
+                .distinctUntilChanged()
+                .collect { size ->
+                    if (size.width.value >= 320f && size.height.value >= 420f) {
+                        settingsStore.saveWindowSettings(windowState.toWindowSettings())
+                    }
+                }
+        }
         Window(
+            state = windowState,
             onCloseRequest = {
+                settingsStore.saveWindowSettings(windowState.toWindowSettings())
                 playbackEngine.stop()
                 exitApplication()
             },
             title = "Naviamp",
         ) {
-            NaviampApp(playbackEngine)
+            NaviampApp(
+                playbackEngine = playbackEngine,
+                settingsStore = settingsStore,
+            )
         }
     }
 }
@@ -80,14 +107,17 @@ private fun configureDesktopAppearance() {
 @Preview
 fun NaviampApp(
     playbackEngine: PlaybackEngine = remember { PlaybackEngineFactory.createDefault() },
+    settingsStore: DesktopSettingsStore = remember { DesktopSettingsStore() },
 ) {
     val isDark = isSystemInDarkTheme()
     val appColors = if (isDark) AppColors.Dark else AppColors.Light
     val colorScheme = if (isDark) darkColorScheme() else lightColorScheme()
-    val settingsStore = remember { DesktopSettingsStore() }
     val savedConnection = remember { settingsStore.loadConnection() }
+    val savedPlaybackSession = remember { settingsStore.loadPlaybackSession() }
     val playlistEngine = remember(playbackEngine) { PlaylistEngine(playbackEngine) }
     val coroutineScope = rememberCoroutineScope()
+    val restoredTracks = remember(savedPlaybackSession) { savedPlaybackSession?.toTracks().orEmpty() }
+    val restoredTrack = remember(savedPlaybackSession) { savedPlaybackSession?.currentTrack() }
     var serverUrl by remember { mutableStateOf(savedConnection?.baseUrl.orEmpty()) }
     var username by remember { mutableStateOf(savedConnection?.username.orEmpty()) }
     var password by remember { mutableStateOf("") }
@@ -97,11 +127,22 @@ fun NaviampApp(
     var connectedProvider by remember { mutableStateOf<NavidromeProvider?>(null) }
     var recentlyAddedAlbums by remember { mutableStateOf<List<Album>>(emptyList()) }
     var showSettings by remember { mutableStateOf(savedConnection == null) }
-    var nowPlayingTrack by remember { mutableStateOf<Track?>(null) }
+    var nowPlayingTrack by remember { mutableStateOf(restoredTrack) }
     var nowPlayingCoverArtUrl by remember { mutableStateOf<String?>(null) }
     var playbackState by remember { mutableStateOf<PlaybackState>(PlaybackState.Idle) }
     var playbackProgress by remember { mutableStateOf(PlaybackProgress.Unknown) }
-    var playbackQueue by remember { mutableStateOf(PlaybackQueue()) }
+    var playbackQueue by remember {
+        mutableStateOf(
+            if (savedPlaybackSession != null && savedPlaybackSession.currentIndex in restoredTracks.indices) {
+                PlaybackQueue(
+                    tracks = restoredTracks,
+                    currentIndex = savedPlaybackSession.currentIndex,
+                )
+            } else {
+                PlaybackQueue()
+            },
+        )
+    }
     var playbackSettings by remember { mutableStateOf(settingsStore.loadPlaybackSettings()) }
     var targetPlayerColors by remember {
         mutableStateOf(PlayerColors.from(AlbumPalette.fallback(appColors.albumArtPlaceholder), appColors))
@@ -125,7 +166,33 @@ fun NaviampApp(
         }
     }
 
-    fun connectToServer() {
+    fun savePlaybackSession(queue: PlaybackQueue) {
+        settingsStore.savePlaybackSession(
+            PlaybackSessionSettings.fromTracks(
+                tracks = queue.tracks,
+                currentIndex = queue.currentIndex,
+            ),
+        )
+    }
+
+    val playlistCallbacks = PlaylistCallbacks(
+        onTrackStarted = { track, coverArtUrl ->
+            nowPlayingTrack = track
+            nowPlayingCoverArtUrl = coverArtUrl
+        },
+        onQueueChanged = { queue ->
+            playbackQueue = queue
+            savePlaybackSession(queue)
+        },
+        onPlaybackStateChanged = { state ->
+            playbackState = state
+        },
+        onPlaybackProgressChanged = { progress ->
+            playbackProgress = progress.mergeWith(playbackProgress)
+        },
+    )
+
+    fun connectToServer(restoreSavedSession: Boolean = false) {
         if (isConnecting) return
         if (serverUrl.isBlank() || username.isBlank()) {
             connectionStatus = "Enter a server URL and username."
@@ -140,14 +207,17 @@ fun NaviampApp(
 
         isConnecting = true
         connectionStatus = "Connecting to Navidrome..."
-        recentlyAddedAlbums = emptyList()
-        playlistEngine.clear()
-        playbackEngine.stop()
-        nowPlayingTrack = null
-        nowPlayingCoverArtUrl = null
-        playbackState = PlaybackState.Idle
-        playbackProgress = PlaybackProgress.Unknown
-        playbackQueue = PlaybackQueue()
+        if (!restoreSavedSession) {
+            recentlyAddedAlbums = emptyList()
+            playlistEngine.clear()
+            playbackEngine.stop()
+            nowPlayingTrack = null
+            nowPlayingCoverArtUrl = null
+            playbackState = PlaybackState.Idle
+            playbackProgress = PlaybackProgress.Unknown
+            playbackQueue = PlaybackQueue()
+            settingsStore.savePlaybackSession(null)
+        }
 
         coroutineScope.launch {
             try {
@@ -163,6 +233,23 @@ fun NaviampApp(
                 val validation = provider.validateConnection()
                 recentlyAddedAlbums = provider.recentlyAddedAlbums(limit = 5)
                 connectedProvider = provider
+                if (restoreSavedSession && savedPlaybackSession != null) {
+                    val tracks = savedPlaybackSession.toTracks()
+                    val currentTrack = savedPlaybackSession.currentTrack()
+                    if (tracks.isNotEmpty() && currentTrack != null) {
+                        playlistEngine.restore(
+                            provider = provider,
+                            tracks = tracks,
+                            index = savedPlaybackSession.currentIndex,
+                            quality = playbackEngine.streamQuality(),
+                            replayGainMode = playbackSettings.replayGainMode,
+                            callbacks = playlistCallbacks,
+                        )
+                        nowPlayingTrack = currentTrack
+                        nowPlayingCoverArtUrl = currentTrack.coverArtId?.let { provider.coverArtUrl(it) }
+                        playbackState = PlaybackState.Idle
+                    }
+                }
                 settingsStore.saveConnection(connection)
                 savedConnectionForLogin = SavedConnection(
                     baseUrl = connection.baseUrl,
@@ -189,7 +276,7 @@ fun NaviampApp(
 
     LaunchedEffect(Unit) {
         if (savedConnection != null) {
-            connectToServer()
+            connectToServer(restoreSavedSession = true)
         }
     }
 
@@ -285,19 +372,7 @@ fun NaviampApp(
                                     playbackEngine = playbackEngine,
                                     playlistEngine = playlistEngine,
                                     playbackSettings = playbackSettings,
-                                    onPlaybackStarted = { track, coverArtUrl ->
-                                        nowPlayingTrack = track
-                                        nowPlayingCoverArtUrl = coverArtUrl
-                                    },
-                                    onQueueChanged = { queue ->
-                                        playbackQueue = queue
-                                    },
-                                    onPlaybackStateChanged = { state ->
-                                        playbackState = state
-                                    },
-                                    onPlaybackProgressChanged = { progress ->
-                                        playbackProgress = progress.mergeWith(playbackProgress)
-                                    },
+                                    playlistCallbacks = playlistCallbacks,
                                 )
                             }
                         }
@@ -319,6 +394,9 @@ fun NaviampApp(
                                 },
                                 onResume = {
                                     playbackEngine.resume()
+                                },
+                                onPlayCurrent = {
+                                    playlistEngine.playCurrent(coroutineScope)
                                 },
                                 onPrevious = {
                                     playlistEngine.previous(coroutineScope)
@@ -351,6 +429,9 @@ fun NaviampApp(
                                 onResume = {
                                     playbackEngine.resume()
                                 },
+                                onPlayCurrent = {
+                                    playlistEngine.playCurrent(coroutineScope)
+                                },
                                 onSeek = { positionSeconds ->
                                     playbackEngine.seek(positionSeconds)
                                 },
@@ -376,3 +457,9 @@ private fun PlaybackSettings.forEngine(playbackEngine: PlaybackEngine): Playback
     } else {
         copy(replayGainMode = ReplayGainMode.Off)
     }
+
+private fun WindowState.toWindowSettings(): WindowSettings =
+    WindowSettings(
+        widthDp = size.width.value.coerceAtLeast(320f),
+        heightDp = size.height.value.coerceAtLeast(420f),
+    )

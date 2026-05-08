@@ -1,6 +1,9 @@
 package app.naviamp.desktop.settings
 
 import app.naviamp.desktop.playback.ReplayGainMode
+import app.naviamp.domain.AudioInfo
+import app.naviamp.domain.Track
+import app.naviamp.domain.TrackId
 import app.naviamp.provider.navidrome.NavidromeConnection
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -43,6 +46,20 @@ class DesktopSettingsStore(
         saveSettings(loadSettings().copy(playback = playbackSettings))
     }
 
+    fun loadWindowSettings(): WindowSettings =
+        loadSettings().window
+
+    fun saveWindowSettings(windowSettings: WindowSettings) {
+        saveSettings(loadSettings().copy(window = windowSettings))
+    }
+
+    fun loadPlaybackSession(): PlaybackSessionSettings? =
+        loadSettings().session
+
+    fun savePlaybackSession(session: PlaybackSessionSettings?) {
+        saveSettings(loadSettings().copy(session = session))
+    }
+
     private fun loadSettings(): DesktopSettings {
         if (!settingsPath.exists()) return DesktopSettings()
         val text = settingsPath.readText()
@@ -70,12 +87,101 @@ class DesktopSettingsStore(
 data class DesktopSettings(
     val connection: SavedConnection? = null,
     val playback: PlaybackSettings = PlaybackSettings(),
+    val window: WindowSettings = WindowSettings(),
+    val session: PlaybackSessionSettings? = null,
 )
 
 @Serializable
 data class PlaybackSettings(
     val replayGainMode: ReplayGainMode = ReplayGainMode.Off,
 )
+
+@Serializable
+data class WindowSettings(
+    val widthDp: Float = 950f,
+    val heightDp: Float = 640f,
+)
+
+@Serializable
+data class PlaybackSessionSettings(
+    val tracks: List<SavedTrack> = emptyList(),
+    val currentIndex: Int = -1,
+) {
+    fun currentTrack(): Track? =
+        tracks.getOrNull(currentIndex)?.toTrack()
+
+    fun toTracks(): List<Track> =
+        tracks.map { it.toTrack() }
+
+    companion object {
+        fun fromTracks(tracks: List<Track>, currentIndex: Int): PlaybackSessionSettings? {
+            if (tracks.isEmpty() || currentIndex !in tracks.indices) return null
+            return PlaybackSessionSettings(
+                tracks = tracks.map { SavedTrack.fromTrack(it) },
+                currentIndex = currentIndex,
+            )
+        }
+    }
+}
+
+@Serializable
+data class SavedTrack(
+    val id: String,
+    val title: String,
+    val artistName: String,
+    val albumTitle: String? = null,
+    val durationSeconds: Int? = null,
+    val coverArtId: String? = null,
+    val audioInfo: SavedAudioInfo? = null,
+) {
+    fun toTrack(): Track =
+        Track(
+            id = TrackId(id),
+            title = title,
+            artistName = artistName,
+            albumTitle = albumTitle,
+            durationSeconds = durationSeconds,
+            coverArtId = coverArtId,
+            audioInfo = audioInfo?.toAudioInfo(),
+            replayGain = null,
+        )
+
+    companion object {
+        fun fromTrack(track: Track): SavedTrack =
+            SavedTrack(
+                id = track.id.value,
+                title = track.title,
+                artistName = track.artistName,
+                albumTitle = track.albumTitle,
+                durationSeconds = track.durationSeconds,
+                coverArtId = track.coverArtId,
+                audioInfo = track.audioInfo?.let { SavedAudioInfo.fromAudioInfo(it) },
+            )
+    }
+}
+
+@Serializable
+data class SavedAudioInfo(
+    val codec: String? = null,
+    val bitrateKbps: Int? = null,
+    val contentType: String? = null,
+) {
+    fun toAudioInfo(): AudioInfo =
+        AudioInfo(
+            codec = codec,
+            bitrateKbps = bitrateKbps,
+            contentType = contentType,
+        )
+
+    companion object {
+        fun fromAudioInfo(audioInfo: AudioInfo): SavedAudioInfo =
+            SavedAudioInfo(
+                codec = audioInfo.codec,
+                bitrateKbps = audioInfo.bitrateKbps,
+                contentType = audioInfo.contentType,
+            )
+    }
+}
 
 @Serializable
 data class SavedConnection(
@@ -111,5 +217,5 @@ private fun defaultSettingsPath(): Path {
 private fun String.looksLikeDesktopSettings(): Boolean =
     runCatching {
         val keys = Json.parseToJsonElement(this).jsonObject.keys
-        "connection" in keys || "playback" in keys
+        "connection" in keys || "playback" in keys || "window" in keys || "session" in keys
     }.getOrDefault(false)

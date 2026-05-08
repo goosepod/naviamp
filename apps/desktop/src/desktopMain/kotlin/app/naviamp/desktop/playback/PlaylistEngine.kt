@@ -39,6 +39,27 @@ class PlaylistEngine(
         playQueueIndex(scope, tracks, index, sessionId)
     }
 
+    fun restore(
+        provider: MediaProvider,
+        tracks: List<Track>,
+        index: Int,
+        quality: StreamQuality,
+        replayGainMode: ReplayGainMode,
+        callbacks: PlaylistCallbacks,
+    ) {
+        if (tracks.isEmpty() || index !in tracks.indices) return
+        this.provider = provider
+        this.streamQuality = quality
+        this.replayGainMode = replayGainMode
+        this.callbacks = callbacks
+        sessionId += 1
+        queue = PlaybackQueue(tracks = tracks, currentIndex = index)
+        preparedNextIndex = null
+        callbacks.onQueueChanged(queue)
+        callbacks.onPlaybackProgressChanged(PlaybackProgress.Unknown)
+        callbacks.onPlaybackStateChanged(PlaybackState.Idle)
+    }
+
     fun clear() {
         sessionId += 1
         queue = PlaybackQueue()
@@ -55,6 +76,12 @@ class PlaylistEngine(
         if (!queue.hasNext()) return
         sessionId += 1
         playQueueIndex(scope, queue.tracks, queue.currentIndex + 1, sessionId)
+    }
+
+    fun playCurrent(scope: CoroutineScope) {
+        if (queue.currentIndex !in queue.tracks.indices) return
+        sessionId += 1
+        playQueueIndex(scope, queue.tracks, queue.currentIndex, sessionId)
     }
 
     fun previous(scope: CoroutineScope) {

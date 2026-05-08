@@ -19,9 +19,6 @@ import androidx.compose.ui.unit.dp
 import app.naviamp.domain.Album
 import app.naviamp.domain.Track
 import app.naviamp.desktop.playback.PlaybackEngine
-import app.naviamp.desktop.playback.PlaybackProgress
-import app.naviamp.desktop.playback.PlaybackQueue
-import app.naviamp.desktop.playback.PlaybackState
 import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.PlaylistEngine
 import app.naviamp.desktop.settings.PlaybackSettings
@@ -37,22 +34,13 @@ fun ConnectionPanel(
     playbackEngine: PlaybackEngine,
     playlistEngine: PlaylistEngine,
     playbackSettings: PlaybackSettings,
-    onPlaybackStarted: (Track, String?) -> Unit,
-    onQueueChanged: (PlaybackQueue) -> Unit,
-    onPlaybackStateChanged: (PlaybackState) -> Unit,
-    onPlaybackProgressChanged: (PlaybackProgress) -> Unit,
+    playlistCallbacks: PlaylistCallbacks,
 ) {
     var isLoadingAlbum by remember { mutableStateOf(false) }
     var selectedAlbumTitle by remember { mutableStateOf<String?>(null) }
     var selectedTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
     var albumStatus by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
-    val playlistCallbacks = PlaylistCallbacks(
-        onTrackStarted = onPlaybackStarted,
-        onQueueChanged = onQueueChanged,
-        onPlaybackStateChanged = onPlaybackStateChanged,
-        onPlaybackProgressChanged = onPlaybackProgressChanged,
-    )
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Naviamp", color = appColors.primaryText, style = MaterialTheme.typography.headlineMedium)
