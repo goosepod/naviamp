@@ -4,6 +4,7 @@ import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Artist
+import app.naviamp.domain.AudioInfo
 import app.naviamp.domain.AudioCodec
 import app.naviamp.domain.ProviderId
 import app.naviamp.domain.StreamRequest
@@ -173,6 +174,11 @@ class NavidromeProvider(
             albumTitle = stringValue("album"),
             durationSeconds = intValue("duration"),
             coverArtId = stringValue("coverArt"),
+            audioInfo = AudioInfo(
+                codec = stringValue("suffix")?.uppercase(),
+                bitrateKbps = intValue("bitRate"),
+                contentType = stringValue("contentType"),
+            ),
             replayGain = null,
         )
 }

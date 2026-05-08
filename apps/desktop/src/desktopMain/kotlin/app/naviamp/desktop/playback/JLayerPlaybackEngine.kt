@@ -11,6 +11,8 @@ import java.net.URI
 class JLayerPlaybackEngine : PlaybackEngine {
     override val name: String = "JLayer"
     override val supportsPause: Boolean = false
+    override val supportsSeek: Boolean = false
+    override val prefersOriginalStream: Boolean = false
 
     private var job: Job? = null
     private var stream: InputStream? = null
@@ -20,9 +22,11 @@ class JLayerPlaybackEngine : PlaybackEngine {
         scope: CoroutineScope,
         request: PlaybackRequest,
         onStateChanged: (PlaybackState) -> Unit,
+        onProgressChanged: (PlaybackProgress) -> Unit,
     ) {
         stop()
         onStateChanged(PlaybackState.Loading)
+        onProgressChanged(PlaybackProgress.Unknown)
 
         job = scope.launch(Dispatchers.IO) {
             try {
@@ -51,6 +55,8 @@ class JLayerPlaybackEngine : PlaybackEngine {
     override fun pause() = Unit
 
     override fun resume() = Unit
+
+    override fun seek(positionSeconds: Double) = Unit
 
     private fun closeCurrent() {
         player?.close()

@@ -30,7 +30,7 @@ class PlayQueueTest {
             albumTitle = "Test Album",
             durationSeconds = 180,
             coverArtId = null,
+            audioInfo = null,
             replayGain = null,
         )
 }
-

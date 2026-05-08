@@ -28,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -49,14 +50,17 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import app.naviamp.domain.Album
 import app.naviamp.domain.AudioCodec
+import app.naviamp.domain.AudioInfo
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
 import app.naviamp.desktop.playback.PlaybackEngine
 import app.naviamp.desktop.playback.PlaybackEngineFactory
+import app.naviamp.desktop.playback.PlaybackProgress
 import app.naviamp.desktop.playback.PlaybackRequest
 import app.naviamp.desktop.playback.PlaybackState
 import app.naviamp.desktop.playback.label
+import app.naviamp.desktop.playback.mergeWith
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
 import kotlinx.coroutines.launch
@@ -89,6 +93,7 @@ fun NaviampApp() {
     val playbackEngine = remember { PlaybackEngineFactory.createDefault() }
     var nowPlayingTrack by remember { mutableStateOf<Track?>(null) }
     var playbackState by remember { mutableStateOf<PlaybackState>(PlaybackState.Idle) }
+    var playbackProgress by remember { mutableStateOf(PlaybackProgress.Unknown) }
 
     DisposableEffect(playbackEngine) {
         onDispose {
@@ -119,23 +124,32 @@ fun NaviampApp() {
                         onPlaybackStateChanged = { state ->
                             playbackState = state
                         },
+                        onPlaybackProgressChanged = { progress ->
+                            playbackProgress = progress.mergeWith(playbackProgress)
+                        },
                     )
                 }
                 NowPlayingPanel(
                     appColors = appColors,
                     playbackEngineName = playbackEngine.name,
                     supportsPause = playbackEngine.supportsPause,
+                    supportsSeek = playbackEngine.supportsSeek,
                     nowPlayingTrack = nowPlayingTrack,
                     playbackState = playbackState,
+                    playbackProgress = playbackProgress,
                     onPause = {
                         playbackEngine.pause()
                     },
                     onResume = {
                         playbackEngine.resume()
                     },
+                    onSeek = { positionSeconds ->
+                        playbackEngine.seek(positionSeconds)
+                    },
                     onStop = {
                         playbackEngine.stop()
                         playbackState = PlaybackState.Stopped
+                        playbackProgress = PlaybackProgress.Unknown
                     },
                 )
             }
@@ -149,6 +163,7 @@ private fun ConnectionPanel(
     playbackEngine: PlaybackEngine,
     onPlaybackStarted: (Track) -> Unit,
     onPlaybackStateChanged: (PlaybackState) -> Unit,
+    onPlaybackProgressChanged: (PlaybackProgress) -> Unit,
 ) {
     var serverUrl by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
@@ -323,10 +338,7 @@ private fun ConnectionPanel(
                                         val streamUrl = provider.streamUrl(
                                             StreamRequest(
                                                 trackId = track.id,
-                                                quality = StreamQuality.Transcoded(
-                                                    codec = AudioCodec.Mp3,
-                                                    bitrateKbps = 192,
-                                                ),
+                                                quality = playbackEngine.streamQuality(),
                                             ),
                                         )
                                         onPlaybackStarted(track)
@@ -336,6 +348,11 @@ private fun ConnectionPanel(
                                             onStateChanged = { state ->
                                                 coroutineScope.launch {
                                                     onPlaybackStateChanged(state)
+                                                }
+                                            },
+                                            onProgressChanged = { progress ->
+                                                coroutineScope.launch {
+                                                    onPlaybackProgressChanged(progress)
                                                 }
                                             },
                                         )
@@ -365,13 +382,27 @@ private fun NowPlayingPanel(
     appColors: AppColors,
     playbackEngineName: String,
     supportsPause: Boolean,
+    supportsSeek: Boolean,
     nowPlayingTrack: Track?,
     playbackState: PlaybackState,
+    playbackProgress: PlaybackProgress,
     onPause: () -> Unit,
     onResume: () -> Unit,
+    onSeek: (Double) -> Unit,
     onStop: () -> Unit,
 ) {
-    var progress by remember { mutableFloatStateOf(0.35f) }
+    var scrubberValue by remember { mutableFloatStateOf(0f) }
+    var isScrubbing by remember { mutableStateOf(false) }
+    val effectiveDurationSeconds = nowPlayingTrack?.durationSeconds?.toDouble()
+        ?: playbackProgress.durationSeconds
+    val effectiveProgressFraction = playbackProgress.fraction(effectiveDurationSeconds)
+    val canSeek = supportsSeek && effectiveDurationSeconds != null && nowPlayingTrack != null
+
+    LaunchedEffect(effectiveProgressFraction) {
+        if (!isScrubbing) {
+            scrubberValue = effectiveProgressFraction.toFloat()
+        }
+    }
 
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -391,6 +422,9 @@ private fun NowPlayingPanel(
                 )
                 Text(nowPlayingTrack?.artistName ?: "Queue will appear here after connection", color = appColors.secondaryText)
                 Spacer(modifier = Modifier.height(8.dp))
+                nowPlayingTrack?.playbackAudioLabel(playbackEngineName)?.let {
+                    Text(it, color = appColors.mutedText)
+                }
                 Text("${playbackState.label()} via $playbackEngineName", color = appColors.mutedText)
             }
         }
@@ -398,10 +432,22 @@ private fun NowPlayingPanel(
         Spacer(modifier = Modifier.height(16.dp))
 
         Slider(
-            value = progress,
-            onValueChange = { progress = it },
+            value = scrubberValue,
+            onValueChange = {
+                isScrubbing = true
+                scrubberValue = it
+            },
+            onValueChangeFinished = {
+                effectiveDurationSeconds?.let { duration ->
+                    onSeek(scrubberValue * duration)
+                }
+                isScrubbing = false
+            },
+            enabled = canSeek,
             modifier = Modifier.fillMaxWidth(),
         )
+
+        Text(playbackProgress.label(effectiveDurationSeconds), color = appColors.mutedText)
 
         if (nowPlayingTrack != null) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -461,5 +507,50 @@ private fun Track.durationLabel(): String {
     val duration = durationSeconds ?: return "--:--"
     val minutes = duration / 60
     val seconds = duration % 60
+    return "$minutes:${seconds.toString().padStart(2, '0')}"
+}
+
+private fun PlaybackProgress.label(effectiveDurationSeconds: Double?): String {
+    val position = positionSeconds?.toTimeLabel() ?: "--:--"
+    val duration = effectiveDurationSeconds?.toTimeLabel() ?: "--:--"
+    return "$position / $duration"
+}
+
+private fun PlaybackProgress.fraction(effectiveDurationSeconds: Double?): Double {
+    val position = positionSeconds ?: return 0.0
+    val duration = effectiveDurationSeconds ?: return 0.0
+    if (duration <= 0.0) return 0.0
+    return (position / duration).coerceIn(0.0, 1.0)
+}
+
+private fun PlaybackEngine.streamQuality(): StreamQuality =
+    if (prefersOriginalStream) {
+        StreamQuality.Original
+    } else {
+        StreamQuality.Transcoded(
+            codec = AudioCodec.Mp3,
+            bitrateKbps = 192,
+        )
+    }
+
+private fun Track.playbackAudioLabel(playbackEngineName: String): String? =
+    if (playbackEngineName == "JLayer") {
+        "MP3 transcode • 192 kbps"
+    } else {
+        audioInfo?.label()
+    }
+
+private fun AudioInfo.label(): String? {
+    val parts = listOfNotNull(
+        codec,
+        bitrateKbps?.let { "$it kbps" },
+    )
+    return parts.takeIf { it.isNotEmpty() }?.joinToString(" • ")
+}
+
+private fun Double.toTimeLabel(): String {
+    val totalSeconds = toInt().coerceAtLeast(0)
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
     return "$minutes:${seconds.toString().padStart(2, '0')}"
 }

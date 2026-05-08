@@ -37,7 +37,14 @@ data class Track(
     val albumTitle: String?,
     val durationSeconds: Int?,
     val coverArtId: String?,
+    val audioInfo: AudioInfo?,
     val replayGain: ReplayGain?,
+)
+
+data class AudioInfo(
+    val codec: String?,
+    val bitrateKbps: Int?,
+    val contentType: String?,
 )
 
 data class ReplayGain(

@@ -3,7 +3,14 @@ package app.naviamp.desktop.playback
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import java.io.File
 import java.net.UnixDomainSocketAddress
 import java.nio.ByteBuffer
@@ -16,20 +23,26 @@ class MpvPlaybackEngine(
 ) : PlaybackEngine {
     override val name: String = "mpv"
     override val supportsPause: Boolean = true
+    override val supportsSeek: Boolean = true
+    override val prefersOriginalStream: Boolean = true
 
     private var job: Job? = null
+    private var progressJob: Job? = null
     private var process: Process? = null
     private var ipcSocket: File? = null
     private var onStateChanged: ((PlaybackState) -> Unit)? = null
+    private val json = Json { ignoreUnknownKeys = true }
 
     override fun play(
         scope: CoroutineScope,
         request: PlaybackRequest,
         onStateChanged: (PlaybackState) -> Unit,
+        onProgressChanged: (PlaybackProgress) -> Unit,
     ) {
         stop()
         this.onStateChanged = onStateChanged
         onStateChanged(PlaybackState.Loading)
+        onProgressChanged(PlaybackProgress.Unknown)
 
         job = scope.launch(Dispatchers.IO) {
             try {
@@ -46,6 +59,18 @@ class MpvPlaybackEngine(
                     .start()
                 process = currentProcess
                 onStateChanged(PlaybackState.Playing)
+                progressJob = scope.launch(Dispatchers.IO) {
+                    waitForSocket(socket)
+                    while (currentProcess.isAlive) {
+                        onProgressChanged(
+                            PlaybackProgress(
+                                positionSeconds = queryDouble("time-pos"),
+                                durationSeconds = queryDouble("duration"),
+                            ),
+                        )
+                        delay(500)
+                    }
+                }
 
                 val exitCode = currentProcess.waitFor()
                 if (exitCode == 0) {
@@ -58,6 +83,9 @@ class MpvPlaybackEngine(
                     onStateChanged(PlaybackState.Error(exception.message ?: "mpv playback failed."))
                 }
             } finally {
+                progressJob?.cancel()
+                progressJob = null
+                onProgressChanged(PlaybackProgress.Unknown)
                 ipcSocket?.delete()
                 ipcSocket = null
                 process = null
@@ -67,19 +95,25 @@ class MpvPlaybackEngine(
     }
 
     override fun pause() {
-        if (command("""{"command":["set_property","pause",true]}""")) {
+        if (sendIpcCommand("""{"command":["set_property","pause",true]}""") != null) {
             onStateChanged?.invoke(PlaybackState.Paused)
         }
     }
 
     override fun resume() {
-        if (command("""{"command":["set_property","pause",false]}""")) {
+        if (sendIpcCommand("""{"command":["set_property","pause",false]}""") != null) {
             onStateChanged?.invoke(PlaybackState.Playing)
         }
     }
 
+    override fun seek(positionSeconds: Double) {
+        sendIpcCommand("""{"command":["seek",$positionSeconds,"absolute+exact"]}""")
+    }
+
     override fun stop() {
         job?.cancel()
+        progressJob?.cancel()
+        progressJob = null
         process?.stop()
         process = null
         ipcSocket?.delete()
@@ -87,17 +121,26 @@ class MpvPlaybackEngine(
         onStateChanged = null
     }
 
-    private fun command(command: String): Boolean {
-        val socket = ipcSocket ?: return false
+    private fun queryDouble(property: String): Double? {
+        val response = sendIpcCommand("""{"command":["get_property","$property"]}""") ?: return null
+        val data = json.parseToJsonElement(response)
+            .jsonObject["data"]
+            ?: return null
+
+        return data.doubleValue()
+    }
+
+    private fun sendIpcCommand(command: String): String? {
+        val socket = ipcSocket ?: return null
         return try {
             waitForSocket(socket)
             SocketChannel.open(UnixDomainSocketAddress.of(socket.toPath())).use { channel ->
                 channel.write(ByteBuffer.wrap("$command\n".toByteArray(StandardCharsets.UTF_8)))
+                channel.readLine()
             }
-            true
         } catch (exception: Throwable) {
             onStateChanged?.invoke(PlaybackState.Error(exception.message ?: "mpv command failed."))
-            false
+            null
         }
     }
 
@@ -124,6 +167,23 @@ class MpvPlaybackEngine(
         }
     }
 }
+
+private fun SocketChannel.readLine(): String {
+    val buffer = ByteBuffer.allocate(4096)
+    val builder = StringBuilder()
+
+    while (read(buffer) > 0) {
+        buffer.flip()
+        builder.append(StandardCharsets.UTF_8.decode(buffer).toString())
+        if (builder.contains('\n')) break
+        buffer.clear()
+    }
+
+    return builder.toString().lineSequence().firstOrNull().orEmpty()
+}
+
+private fun JsonElement.doubleValue(): Double? =
+    runCatching { jsonPrimitive.doubleOrNull }.getOrNull()
 
 object PlaybackEngineFactory {
     fun createDefault(): PlaybackEngine {

@@ -118,7 +118,10 @@ class NavidromeProviderTest {
                           "artist": "New Order",
                           "album": "Low-Life",
                           "duration": 259,
-                          "coverArt": "cover-1"
+                          "coverArt": "cover-1",
+                          "suffix": "flac",
+                          "bitRate": 921,
+                          "contentType": "audio/flac"
                         },
                         {
                           "id": "track-2",
@@ -143,6 +146,8 @@ class NavidromeProviderTest {
         assertEquals("track-1", details.tracks.first().id.value)
         assertEquals("Love Vigilantes", details.tracks.first().title)
         assertEquals(259, details.tracks.first().durationSeconds)
+        assertEquals("FLAC", details.tracks.first().audioInfo?.codec)
+        assertEquals(921, details.tracks.first().audioInfo?.bitrateKbps)
     }
 
     private fun connection(baseUrl: String): NavidromeConnection =
