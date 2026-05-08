@@ -16,6 +16,7 @@ The project is private while it is being shaped, but should be ready to open sou
 - Future support for offline downloads, either original files or transcoded copies.
 - Gapless playback and configurable crossfade.
 - ReplayGain support.
+- Lyric support, preferring lyrics embedded in file tags and falling back to online lookup when needed.
 - Compact now-playing experience with queue access, album art, track/file details, volume, scrubbing, and visualizers.
 - Color theming based on album art.
 
@@ -35,10 +36,10 @@ This repo is being built as a Kotlin learning project. Code should be clear, doc
 Planned local commands:
 
 ```shell
-./gradlew test
+./gradlew check
 ./gradlew :apps:desktop:run
 ```
 
-The Gradle wrapper still needs to be generated once JDK 21 and Gradle are available locally.
+The Gradle wrapper is committed to the repo. Use `./gradlew` instead of a system Gradle install for project commands.
 
 See [docs/setup.md](docs/setup.md), [docs/architecture.md](docs/architecture.md), [docs/roadmap.md](docs/roadmap.md), and [docs/learning-kotlin.md](docs/learning-kotlin.md).

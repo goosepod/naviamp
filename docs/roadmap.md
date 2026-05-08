@@ -19,6 +19,7 @@
 - Direct stream playback.
 - Now-playing view with album art, track info, file info, volume, scrubber, and queue.
 - ReplayGain preference where supported by the playback path.
+- Basic lyrics panel using embedded lyrics when exposed by the provider.
 
 ## Milestone 2: Playback Polish
 
@@ -38,7 +39,16 @@
 - Tunable similarity rules.
 - Tests for selection behavior.
 
-## Milestone 4: Android
+## Milestone 4: Lyrics
+
+- Embedded lyrics from tagged files.
+- Unsynced lyric display.
+- Synced lyric display when timestamped lyrics are available.
+- LRCLIB fallback lookup when embedded lyrics are missing.
+- Source indication and refresh behavior.
+- Tests for lookup matching and fallback order.
+
+## Milestone 5: Android
 
 - Shared core reused from desktop.
 - Android playback service.
@@ -46,7 +56,7 @@
 - Android Auto investigation and implementation.
 - Mobile-appropriate now-playing and queue views.
 
-## Milestone 5: Offline
+## Milestone 6: Offline
 
 - Download manager.
 - Download original files.
@@ -54,4 +64,3 @@
 - Codec and bitrate selection.
 - Offline library view.
 - Sync status and storage controls.
-

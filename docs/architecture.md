@@ -21,6 +21,7 @@ naviamp/
     playback/
     queue/
     radio/
+    lyrics/
     settings/
     theme/
   providers/
@@ -46,6 +47,7 @@ The shared domain layer owns app concepts that should not belong to any one serv
 - playback state
 - radio seed
 - replay gain mode
+- lyrics
 - stream quality preference
 - download quality preference
 
@@ -66,6 +68,7 @@ Example responsibilities:
 - fetch album art
 - produce stream URLs
 - produce transcode stream URLs when supported
+- expose track lyrics when the provider can read or serve embedded lyrics
 - create radio candidates from an artist or track seed
 - expose provider-specific capabilities
 
@@ -124,6 +127,25 @@ Likely first implementation:
 
 If Navidrome exposes better similarity data later, the Navidrome provider can feed richer candidates into the same radio service.
 
+## Lyrics
+
+Lyrics should be handled as a separate service with multiple sources.
+
+Initial priority:
+
+- read lyrics embedded in the user's tagged media files through Navidrome or provider metadata when available
+- support unsynced lyrics
+- support synced/timestamped lyrics if present
+- fall back to online lookup only when embedded lyrics are missing
+
+Likely provider shape:
+
+- embedded lyrics source from the active media provider
+- online lyrics source such as LRCLIB
+- lyrics resolver that chooses the best result based on track title, artist, album, duration, and whether synced lyrics are requested
+
+The UI should not know where lyrics came from. It should receive a domain lyrics model with source metadata, sync type, and text/timestamp lines.
+
 ## Theming
 
 Album-art-based theming should be handled as a separate service:
@@ -141,7 +163,8 @@ Required test areas:
 - domain model mapping tests
 - queue behavior tests
 - radio selection tests
+- lyrics source fallback tests
+- synced lyric parsing tests
 - settings serialization tests
 - playback state tests
 - UI smoke tests once desktop shell exists
-
