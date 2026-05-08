@@ -1,4 +1,4 @@
-package app.naviamp.desktop
+package app.naviamp.desktop.playback
 
 import javazoom.jl.player.Player
 import kotlinx.coroutines.CoroutineScope
@@ -8,30 +8,31 @@ import kotlinx.coroutines.launch
 import java.io.InputStream
 import java.net.URI
 
-class DesktopAudioPlayer {
+class JLayerPlaybackEngine : PlaybackEngine {
     private var job: Job? = null
     private var stream: InputStream? = null
     private var player: Player? = null
 
-    fun play(
+    override fun play(
         scope: CoroutineScope,
-        url: String,
-        onFinished: () -> Unit,
-        onError: (Throwable) -> Unit,
+        request: PlaybackRequest,
+        onStateChanged: (PlaybackState) -> Unit,
     ) {
         stop()
+        onStateChanged(PlaybackState.Loading)
 
         job = scope.launch(Dispatchers.IO) {
             try {
-                val inputStream = URI.create(url).toURL().openStream().buffered()
+                val inputStream = URI.create(request.url).toURL().openStream().buffered()
                 stream = inputStream
                 val currentPlayer = Player(inputStream)
                 player = currentPlayer
+                onStateChanged(PlaybackState.Playing)
                 currentPlayer.play()
-                onFinished()
+                onStateChanged(PlaybackState.Finished)
             } catch (exception: Throwable) {
                 if (job?.isCancelled != true) {
-                    onError(exception)
+                    onStateChanged(PlaybackState.Error(exception.message ?: "Playback failed."))
                 }
             } finally {
                 closeCurrent()
@@ -39,7 +40,7 @@ class DesktopAudioPlayer {
         }
     }
 
-    fun stop() {
+    override fun stop() {
         job?.cancel()
         closeCurrent()
     }

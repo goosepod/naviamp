@@ -52,6 +52,11 @@ import app.naviamp.domain.AudioCodec
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
+import app.naviamp.desktop.playback.JLayerPlaybackEngine
+import app.naviamp.desktop.playback.PlaybackEngine
+import app.naviamp.desktop.playback.PlaybackRequest
+import app.naviamp.desktop.playback.PlaybackState
+import app.naviamp.desktop.playback.label
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
 import kotlinx.coroutines.launch
@@ -81,13 +86,13 @@ fun NaviampApp() {
     val isDark = isSystemInDarkTheme()
     val appColors = if (isDark) AppColors.Dark else AppColors.Light
     val colorScheme = if (isDark) darkColorScheme() else lightColorScheme()
-    val audioPlayer = remember { DesktopAudioPlayer() }
+    val playbackEngine = remember { JLayerPlaybackEngine() }
     var nowPlayingTrack by remember { mutableStateOf<Track?>(null) }
-    var playbackStatus by remember { mutableStateOf("Nothing Playing") }
+    var playbackState by remember { mutableStateOf<PlaybackState>(PlaybackState.Idle) }
 
-    DisposableEffect(audioPlayer) {
+    DisposableEffect(playbackEngine) {
         onDispose {
-            audioPlayer.stop()
+            playbackEngine.stop()
         }
     }
 
@@ -107,23 +112,22 @@ fun NaviampApp() {
                 ) {
                     ConnectionPanel(
                         appColors = appColors,
-                        audioPlayer = audioPlayer,
+                        playbackEngine = playbackEngine,
                         onPlaybackStarted = { track ->
                             nowPlayingTrack = track
-                            playbackStatus = "Playing"
                         },
-                        onPlaybackStatusChanged = { status ->
-                            playbackStatus = status
+                        onPlaybackStateChanged = { state ->
+                            playbackState = state
                         },
                     )
                 }
                 NowPlayingPanel(
                     appColors = appColors,
                     nowPlayingTrack = nowPlayingTrack,
-                    playbackStatus = playbackStatus,
+                    playbackState = playbackState,
                     onStop = {
-                        audioPlayer.stop()
-                        playbackStatus = "Stopped"
+                        playbackEngine.stop()
+                        playbackState = PlaybackState.Stopped
                     },
                 )
             }
@@ -134,9 +138,9 @@ fun NaviampApp() {
 @Composable
 private fun ConnectionPanel(
     appColors: AppColors,
-    audioPlayer: DesktopAudioPlayer,
+    playbackEngine: PlaybackEngine,
     onPlaybackStarted: (Track) -> Unit,
-    onPlaybackStatusChanged: (String) -> Unit,
+    onPlaybackStateChanged: (PlaybackState) -> Unit,
 ) {
     var serverUrl by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
@@ -308,7 +312,6 @@ private fun ConnectionPanel(
 
                                 coroutineScope.launch {
                                     try {
-                                        onPlaybackStatusChanged("Starting ${track.title}...")
                                         val streamUrl = provider.streamUrl(
                                             StreamRequest(
                                                 trackId = track.id,
@@ -319,24 +322,19 @@ private fun ConnectionPanel(
                                             ),
                                         )
                                         onPlaybackStarted(track)
-                                        audioPlayer.play(
+                                        playbackEngine.play(
                                             scope = coroutineScope,
-                                            url = streamUrl,
-                                            onFinished = {
+                                            request = PlaybackRequest(streamUrl),
+                                            onStateChanged = { state ->
                                                 coroutineScope.launch {
-                                                    onPlaybackStatusChanged("Finished")
-                                                }
-                                            },
-                                            onError = { exception ->
-                                                coroutineScope.launch {
-                                                    onPlaybackStatusChanged(
-                                                        exception.message ?: "Playback failed.",
-                                                    )
+                                                    onPlaybackStateChanged(state)
                                                 }
                                             },
                                         )
                                     } catch (exception: Exception) {
-                                        onPlaybackStatusChanged(exception.message ?: "Playback failed.")
+                                        onPlaybackStateChanged(
+                                            PlaybackState.Error(exception.message ?: "Playback failed."),
+                                        )
                                     }
                                 }
                             },
@@ -358,7 +356,7 @@ private fun ConnectionPanel(
 private fun NowPlayingPanel(
     appColors: AppColors,
     nowPlayingTrack: Track?,
-    playbackStatus: String,
+    playbackState: PlaybackState,
     onStop: () -> Unit,
 ) {
     var progress by remember { mutableFloatStateOf(0.35f) }
@@ -381,7 +379,7 @@ private fun NowPlayingPanel(
                 )
                 Text(nowPlayingTrack?.artistName ?: "Queue will appear here after connection", color = appColors.secondaryText)
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(playbackStatus, color = appColors.mutedText)
+                Text(playbackState.label(), color = appColors.mutedText)
             }
         }
 
