@@ -41,6 +41,18 @@ class PlaylistEngine(
         callbacks?.onQueueChanged(queue)
     }
 
+    fun next(scope: CoroutineScope) {
+        if (!queue.hasNext()) return
+        sessionId += 1
+        playQueueIndex(scope, queue.tracks, queue.currentIndex + 1, sessionId)
+    }
+
+    fun previous(scope: CoroutineScope) {
+        if (!queue.hasPrevious()) return
+        sessionId += 1
+        playQueueIndex(scope, queue.tracks, queue.currentIndex - 1, sessionId)
+    }
+
     private fun playQueueIndex(
         scope: CoroutineScope,
         tracks: List<Track>,
@@ -123,4 +135,7 @@ data class PlaybackQueue(
 
     fun hasNext(): Boolean =
         currentIndex + 1 < tracks.size
+
+    fun hasPrevious(): Boolean =
+        currentIndex > 0
 }

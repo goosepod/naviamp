@@ -109,6 +109,7 @@ fun NaviampApp(
     val colorScheme = if (isDark) darkColorScheme() else lightColorScheme()
     val settingsStore = remember { DesktopSettingsStore() }
     val playlistEngine = remember(playbackEngine) { PlaylistEngine(playbackEngine) }
+    val coroutineScope = rememberCoroutineScope()
     var nowPlayingTrack by remember { mutableStateOf<Track?>(null) }
     var nowPlayingCoverArtUrl by remember { mutableStateOf<String?>(null) }
     var playbackState by remember { mutableStateOf<PlaybackState>(PlaybackState.Idle) }
@@ -163,6 +164,8 @@ fun NaviampApp(
                     nowPlayingTrack = nowPlayingTrack,
                     coverArtUrl = nowPlayingCoverArtUrl,
                     upNext = playbackQueue.upNext(),
+                    hasPrevious = playbackQueue.hasPrevious(),
+                    hasNext = playbackQueue.hasNext(),
                     playbackState = playbackState,
                     playbackProgress = playbackProgress,
                     onPause = {
@@ -174,8 +177,14 @@ fun NaviampApp(
                     onSeek = { positionSeconds ->
                         playbackEngine.seek(positionSeconds)
                     },
+                    onPrevious = {
+                        playlistEngine.previous(coroutineScope)
+                    },
+                    onNext = {
+                        playlistEngine.next(coroutineScope)
+                    },
                     onStop = {
-                        playbackEngine.stop()
+                        playlistEngine.clear()
                         playbackState = PlaybackState.Stopped
                         playbackProgress = PlaybackProgress.Unknown
                     },
@@ -432,11 +441,15 @@ private fun NowPlayingPanel(
     nowPlayingTrack: Track?,
     coverArtUrl: String?,
     upNext: List<Track>,
+    hasPrevious: Boolean,
+    hasNext: Boolean,
     playbackState: PlaybackState,
     playbackProgress: PlaybackProgress,
     onPause: () -> Unit,
     onResume: () -> Unit,
     onSeek: (Double) -> Unit,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
     onStop: () -> Unit,
 ) {
     var scrubberValue by remember { mutableFloatStateOf(0f) }
@@ -498,6 +511,13 @@ private fun NowPlayingPanel(
 
         if (nowPlayingTrack != null) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Button(
+                    enabled = hasPrevious,
+                    onClick = onPrevious,
+                ) {
+                    Text("Previous")
+                }
+
                 if (supportsPause && playbackState == PlaybackState.Playing) {
                     Button(onClick = onPause) {
                         Text("Pause")
@@ -512,6 +532,13 @@ private fun NowPlayingPanel(
 
                 Button(onClick = onStop) {
                     Text("Stop")
+                }
+
+                Button(
+                    enabled = hasNext,
+                    onClick = onNext,
+                ) {
+                    Text("Next")
                 }
             }
         }
