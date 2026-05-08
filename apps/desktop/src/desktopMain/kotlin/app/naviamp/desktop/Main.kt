@@ -3,6 +3,8 @@ package app.naviamp.desktop
 import androidx.compose.desktop.ui.tooling.preview.Preview
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -95,19 +97,26 @@ fun NaviampApp() {
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(20.dp),
-                verticalArrangement = Arrangement.SpaceBetween,
+                verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
-                ConnectionPanel(
-                    appColors = appColors,
-                    audioPlayer = audioPlayer,
-                    onPlaybackStarted = { track ->
-                        nowPlayingTrack = track
-                        playbackStatus = "Playing"
-                    },
-                    onPlaybackStatusChanged = { status ->
-                        playbackStatus = status
-                    },
-                )
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    ConnectionPanel(
+                        appColors = appColors,
+                        audioPlayer = audioPlayer,
+                        onPlaybackStarted = { track ->
+                            nowPlayingTrack = track
+                            playbackStatus = "Playing"
+                        },
+                        onPlaybackStatusChanged = { status ->
+                            playbackStatus = status
+                        },
+                    )
+                }
                 NowPlayingPanel(
                     appColors = appColors,
                     nowPlayingTrack = nowPlayingTrack,
