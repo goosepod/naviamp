@@ -172,10 +172,15 @@ class MpvProcessPlaybackEngine(
         playbackId == id
 
     private fun queryDouble(property: String): Double? {
-        val response = sendIpcCommand("""{"command":["get_property","$property"]}""") ?: return null
-        val data = json.parseToJsonElement(response)
-            .jsonObject["data"]
-            ?: return null
+        val response = sendIpcCommand(
+            command = """{"command":["get_property","$property"]}""",
+            reportErrors = false,
+        ) ?: return null
+        if (response.isBlank()) return null
+
+        val data = runCatching {
+            json.parseToJsonElement(response).jsonObject["data"]
+        }.getOrNull() ?: return null
 
         return data.doubleValue()
     }

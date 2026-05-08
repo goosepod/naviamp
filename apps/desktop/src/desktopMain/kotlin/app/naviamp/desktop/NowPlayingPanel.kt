@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -90,6 +91,7 @@ fun NowPlayingPanel(
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
+            .heightIn(min = 300.dp)
             .padding(12.dp),
     ) {
         val wideLayout = maxWidth >= 780.dp
@@ -135,7 +137,9 @@ fun NowPlayingPanel(
                     upNext = upNext,
                     coverArtState = coverArtState,
                     maxItems = 8,
-                    modifier = Modifier.weight(1.1f),
+                    modifier = Modifier
+                        .weight(1.1f)
+                        .heightIn(min = 300.dp),
                 )
             }
         } else {
@@ -174,10 +178,101 @@ fun NowPlayingPanel(
                     upNext = upNext,
                     coverArtState = coverArtState,
                     maxItems = 4,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 230.dp),
                 )
             }
         }
+    }
+}
+
+@Composable
+fun MiniPlayerPanel(
+    appColors: AppColors,
+    nowPlayingTrack: Track?,
+    coverArtUrl: String?,
+    hasPrevious: Boolean,
+    hasNext: Boolean,
+    playbackState: PlaybackState,
+    onPlayerColorsChanged: (PlayerColors) -> Unit,
+    onPause: () -> Unit,
+    onResume: () -> Unit,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+) {
+    val coverArtState = rememberCoverArtState(coverArtUrl, appColors)
+    val playerColors = remember(coverArtState.palette, appColors) {
+        PlayerColors.from(coverArtState.palette, appColors)
+    }
+    val canTogglePause = playbackState == PlaybackState.Playing || playbackState == PlaybackState.Paused
+
+    LaunchedEffect(coverArtState.palette) {
+        onPlayerColorsChanged(playerColors)
+    }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.Black.copy(alpha = 0.22f))
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+    ) {
+        CoverArt(
+            coverArtState = coverArtState,
+            appColors = appColors,
+            size = 46.dp,
+            elevated = false,
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                nowPlayingTrack?.artistName ?: "Nothing Playing",
+                color = appColors.secondaryText,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                fontSize = 12.sp,
+            )
+            Text(
+                nowPlayingTrack?.title ?: "Queue is empty",
+                color = appColors.primaryText,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+            )
+        }
+        TransportIconButton(
+            enabled = hasPrevious,
+            icon = TransportIcons.Previous,
+            contentDescription = "Previous",
+            appColors = appColors,
+            onClick = onPrevious,
+        )
+        TransportIconButton(
+            enabled = canTogglePause,
+            icon = if (playbackState == PlaybackState.Playing) {
+                TransportIcons.Pause
+            } else {
+                TransportIcons.Play
+            },
+            contentDescription = if (playbackState == PlaybackState.Playing) "Pause" else "Play",
+            appColors = appColors,
+            onClick = {
+                if (playbackState == PlaybackState.Playing) {
+                    onPause()
+                } else {
+                    onResume()
+                }
+            },
+        )
+        TransportIconButton(
+            enabled = hasNext,
+            icon = TransportIcons.Next,
+            contentDescription = "Next",
+            appColors = appColors,
+            onClick = onNext,
+        )
     }
 }
 
@@ -385,8 +480,6 @@ private fun UpNextPanel(
     maxItems: Int,
     modifier: Modifier = Modifier,
 ) {
-    if (upNext.isEmpty()) return
-
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier,
@@ -405,35 +498,42 @@ private fun UpNextPanel(
                 .fillMaxWidth()
                 .background(Color.White.copy(alpha = 0.18f)),
         )
-        upNext.take(maxItems).forEach { track ->
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                CoverArt(
-                    coverArtState = coverArtState,
-                    appColors = appColors,
-                    size = 40.dp,
-                    elevated = false,
-                )
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        track.title,
-                        color = appColors.primaryText,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        fontSize = 13.sp,
+        repeat(maxItems) { index ->
+            val track = upNext.getOrNull(index)
+            if (track == null) {
+                Spacer(modifier = Modifier.height(40.dp))
+            } else {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(40.dp),
+                ) {
+                    CoverArt(
+                        coverArtState = coverArtState,
+                        appColors = appColors,
+                        size = 40.dp,
+                        elevated = false,
                     )
-                    Text(
-                        track.artistName,
-                        color = appColors.secondaryText,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        fontSize = 12.sp,
-                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            track.title,
+                            color = appColors.primaryText,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            fontSize = 13.sp,
+                        )
+                        Text(
+                            track.artistName,
+                            color = appColors.secondaryText,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            fontSize = 12.sp,
+                        )
+                    }
+                    Text("⋮", color = appColors.mutedText)
                 }
-                Text("⋮", color = appColors.mutedText)
             }
         }
     }
@@ -516,18 +616,33 @@ private data class CoverArtState(
 
 data class PlayerColors(
     val backgroundStart: Color,
+    val backgroundMid: Color,
     val backgroundEnd: Color,
     val accent: Color,
 ) {
     val backgroundBrush: Brush
-        get() = Brush.linearGradient(colors = listOf(backgroundStart, backgroundEnd))
+        get() = Brush.linearGradient(colors = listOf(backgroundStart, backgroundMid, backgroundEnd))
 
     companion object {
         fun from(palette: AlbumPalette, appColors: AppColors): PlayerColors {
-            val left = palette.primary.mix(Color.Black, 0.38f).mix(appColors.background, 0.12f)
-            val right = palette.secondary.mix(Color.Black, 0.42f).mix(appColors.background, 0.08f)
+            val secondary = if (palette.primary.hueDistance(palette.secondary) < 0.08f) {
+                palette.secondary.shiftHue(0.09f)
+            } else {
+                palette.secondary
+            }
+            val left = palette.primary
+                .mix(Color.White, 0.05f)
+                .mix(Color.Black, 0.24f)
+                .mix(appColors.background, 0.04f)
+            val middle = palette.accent
+                .mix(palette.primary, 0.22f)
+                .mix(Color.Black, 0.32f)
+            val right = secondary
+                .mix(Color.Black, 0.58f)
+                .mix(appColors.background, 0.05f)
             return PlayerColors(
                 backgroundStart = left,
+                backgroundMid = middle,
                 backgroundEnd = right,
                 accent = palette.accent.mix(Color.White, 0.08f),
             )
@@ -570,7 +685,7 @@ private fun albumPalette(bytes: ByteArray): AlbumPalette? {
                 java.awt.Color.RGBtoHSB(red, green, blue, hsb)
                 val saturation = hsb[1]
                 val brightness = hsb[2]
-                if (saturation > 0.18f && brightness in 0.16f..0.94f) {
+                if (saturation > 0.06f && brightness in 0.12f..0.96f) {
                     val key = ((red / 32) shl 10) or ((green / 32) shl 5) or (blue / 32)
                     buckets.getOrPut(key) { ColorBucket() }.add(red, green, blue, saturation, brightness)
                 }
@@ -585,10 +700,13 @@ private fun albumPalette(bytes: ByteArray): AlbumPalette? {
         .sortedByDescending { it.score() }
 
     val primary = candidates.firstOrNull() ?: return null
-    val secondary = candidates.firstOrNull { primary.hueDistance(it) > 0.13f }
+    val secondary = candidates.firstOrNull { primary.colorDistance(it) > 0.045f }
+        ?: candidates.firstOrNull { primary.hueDistance(it) > 0.08f }
         ?: candidates.getOrNull(1)
         ?: primary
-    val accent = candidates.firstOrNull { it.saturationAverage() > primary.saturationAverage() + 0.08f }
+    val accent = candidates
+        .filter { primary.colorDistance(it) > 0.025f || primary.hueDistance(it) > 0.06f }
+        .maxByOrNull { it.accentScore(primary) }
         ?: primary
 
     return AlbumPalette(
@@ -626,8 +744,11 @@ private class ColorBucket {
         val saturationAverage = saturationAverage().toDouble()
         val brightnessAverage = brightnessAverage().toDouble()
         val brightnessScore = 1.0 - abs(brightnessAverage - 0.58).coerceAtMost(0.58) / 0.58
-        return count.toDouble().pow(0.58) * (saturationAverage + 0.25) * (brightnessScore + 0.35)
+        return count.toDouble().pow(0.55) * (saturationAverage + 0.12) * (brightnessScore + 0.55)
     }
+
+    fun accentScore(primary: ColorBucket): Double =
+        score() * (1.0 + saturationAverage()) * (1.0 + colorDistance(primary))
 
     fun saturationAverage(): Float =
         (saturation / count).toFloat()
@@ -655,6 +776,9 @@ private class ColorBucket {
         val distance = abs(hsb[0] - otherHsb[0])
         return minOf(distance, 1f - distance)
     }
+
+    fun colorDistance(other: ColorBucket): Float =
+        color().colorDistance(other.color())
 }
 
 fun Color.mix(other: Color, amount: Float): Color {
@@ -665,4 +789,52 @@ fun Color.mix(other: Color, amount: Float): Color {
         blue = blue + (other.blue - blue) * clamped,
         alpha = alpha + (other.alpha - alpha) * clamped,
     )
+}
+
+private fun Color.shiftHue(amount: Float): Color {
+    val hsb = FloatArray(3)
+    java.awt.Color.RGBtoHSB(
+        (red * 255).toInt(),
+        (green * 255).toInt(),
+        (blue * 255).toInt(),
+        hsb,
+    )
+    val hue = ((hsb[0] + amount) % 1f + 1f) % 1f
+    val rgb = java.awt.Color.HSBtoRGB(
+        hue,
+        (hsb[1] * 1.08f).coerceIn(0f, 1f),
+        (hsb[2] * 0.9f).coerceIn(0f, 1f),
+    )
+    return Color(
+        red = (rgb shr 16) and 0xFF,
+        green = (rgb shr 8) and 0xFF,
+        blue = rgb and 0xFF,
+        alpha = (alpha * 255).toInt(),
+    )
+}
+
+private fun Color.hueDistance(other: Color): Float {
+    val hsb = FloatArray(3)
+    val otherHsb = FloatArray(3)
+    java.awt.Color.RGBtoHSB(
+        (red * 255).toInt(),
+        (green * 255).toInt(),
+        (blue * 255).toInt(),
+        hsb,
+    )
+    java.awt.Color.RGBtoHSB(
+        (other.red * 255).toInt(),
+        (other.green * 255).toInt(),
+        (other.blue * 255).toInt(),
+        otherHsb,
+    )
+    val distance = abs(hsb[0] - otherHsb[0])
+    return minOf(distance, 1f - distance)
+}
+
+private fun Color.colorDistance(other: Color): Float {
+    val redDistance = red - other.red
+    val greenDistance = green - other.green
+    val blueDistance = blue - other.blue
+    return (redDistance * redDistance + greenDistance * greenDistance + blueDistance * blueDistance).toFloat()
 }
