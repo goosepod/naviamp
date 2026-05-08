@@ -229,6 +229,12 @@ private fun ConnectionPanel(
         focusedBorderColor = appColors.accent,
         unfocusedBorderColor = appColors.border,
     )
+    val playlistCallbacks = PlaylistCallbacks(
+        onTrackStarted = onPlaybackStarted,
+        onQueueChanged = onQueueChanged,
+        onPlaybackStateChanged = onPlaybackStateChanged,
+        onPlaybackProgressChanged = onPlaybackProgressChanged,
+    )
     val connect = {
         if (!isConnecting) {
             if (serverUrl.isBlank() || username.isBlank()) {
@@ -399,6 +405,41 @@ private fun ConnectionPanel(
         if (selectedTracks.isNotEmpty()) {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(selectedAlbumTitle ?: "Album Tracks", color = appColors.primaryText, fontWeight = FontWeight.SemiBold)
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Button(
+                        onClick = {
+                            val provider = connectedProvider ?: return@Button
+                            playlistEngine.playFrom(
+                                scope = coroutineScope,
+                                provider = provider,
+                                tracks = selectedTracks,
+                                index = 0,
+                                quality = playbackEngine.streamQuality(),
+                                callbacks = playlistCallbacks,
+                            )
+                        },
+                    ) {
+                        Text("Play Album")
+                    }
+
+                    Button(
+                        enabled = selectedTracks.size > 1,
+                        onClick = {
+                            val provider = connectedProvider ?: return@Button
+                            playlistEngine.playFrom(
+                                scope = coroutineScope,
+                                provider = provider,
+                                tracks = selectedTracks.shuffled(),
+                                index = 0,
+                                quality = playbackEngine.streamQuality(),
+                                callbacks = playlistCallbacks,
+                            )
+                        },
+                    ) {
+                        Text("Shuffle Album")
+                    }
+                }
+
                 selectedTracks.forEachIndexed { index, track ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         TextButton(
@@ -410,12 +451,7 @@ private fun ConnectionPanel(
                                     tracks = selectedTracks,
                                     index = index,
                                     quality = playbackEngine.streamQuality(),
-                                    callbacks = PlaylistCallbacks(
-                                        onTrackStarted = onPlaybackStarted,
-                                        onQueueChanged = onQueueChanged,
-                                        onPlaybackStateChanged = onPlaybackStateChanged,
-                                        onPlaybackProgressChanged = onPlaybackProgressChanged,
-                                    ),
+                                    callbacks = playlistCallbacks,
                                 )
                             },
                         ) {
