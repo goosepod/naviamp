@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -29,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
@@ -65,6 +67,16 @@ private fun ConnectionPanel() {
     var serverUrl by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var connectionStatus by remember { mutableStateOf<String?>(null) }
+    val textFieldColors = OutlinedTextFieldDefaults.colors(
+        focusedTextColor = Color.White,
+        unfocusedTextColor = Color.White,
+        focusedLabelColor = Color(0xFFE3E7EF),
+        unfocusedLabelColor = Color(0xFFB9BDC7),
+        cursorColor = Color.White,
+        focusedBorderColor = Color(0xFF8EA7D8),
+        unfocusedBorderColor = Color(0xFF59606D),
+    )
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Naviamp", color = Color.White, style = MaterialTheme.typography.headlineMedium)
@@ -76,6 +88,7 @@ private fun ConnectionPanel() {
             label = { Text("Server URL") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
+            colors = textFieldColors,
         )
 
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
@@ -85,18 +98,33 @@ private fun ConnectionPanel() {
                 label = { Text("Username") },
                 singleLine = true,
                 modifier = Modifier.weight(1f),
+                colors = textFieldColors,
             )
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
                 label = { Text("Password") },
                 singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier.weight(1f),
+                colors = textFieldColors,
             )
         }
 
-        Button(onClick = {}) {
+        Button(
+            onClick = {
+                connectionStatus = if (serverUrl.isBlank() || username.isBlank() || password.isBlank()) {
+                    "Enter a server URL, username, and password."
+                } else {
+                    "Connection form works. Navidrome login is the next MVP step."
+                }
+            },
+        ) {
             Text("Connect")
+        }
+
+        connectionStatus?.let {
+            Text(it, color = Color(0xFFB9BDC7))
         }
     }
 }
@@ -132,4 +160,3 @@ private fun NowPlayingPanel() {
         )
     }
 }
-

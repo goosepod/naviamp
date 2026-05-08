@@ -1,7 +1,5 @@
 package app.naviamp.domain
 
-import kotlinx.datetime.Instant
-
 @JvmInline
 value class ProviderId(val value: String)
 
@@ -24,7 +22,7 @@ data class Album(
     val title: String,
     val artistName: String,
     val coverArtId: String?,
-    val recentlyAddedAt: Instant?,
+    val recentlyAddedAtIso8601: String?,
 )
 
 data class Track(
@@ -69,4 +67,3 @@ enum class AudioCodec {
     Mp3,
     Aac,
 }
-
