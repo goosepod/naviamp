@@ -65,6 +65,8 @@ import app.naviamp.desktop.playback.PlaybackRequest
 import app.naviamp.desktop.playback.PlaybackState
 import app.naviamp.desktop.playback.label
 import app.naviamp.desktop.playback.mergeWith
+import app.naviamp.desktop.settings.DesktopSettingsStore
+import app.naviamp.desktop.settings.SavedConnection
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
 import kotlinx.coroutines.Dispatchers
@@ -77,11 +79,15 @@ fun main() {
     configureDesktopAppearance()
 
     application {
+        val playbackEngine = remember { PlaybackEngineFactory.createDefault() }
         Window(
-            onCloseRequest = ::exitApplication,
+            onCloseRequest = {
+                playbackEngine.stop()
+                exitApplication()
+            },
             title = "Naviamp",
         ) {
-            NaviampApp()
+            NaviampApp(playbackEngine)
         }
     }
 }
@@ -94,11 +100,13 @@ private fun configureDesktopAppearance() {
 
 @Composable
 @Preview
-fun NaviampApp() {
+fun NaviampApp(
+    playbackEngine: PlaybackEngine = remember { PlaybackEngineFactory.createDefault() },
+) {
     val isDark = isSystemInDarkTheme()
     val appColors = if (isDark) AppColors.Dark else AppColors.Light
     val colorScheme = if (isDark) darkColorScheme() else lightColorScheme()
-    val playbackEngine = remember { PlaybackEngineFactory.createDefault() }
+    val settingsStore = remember { DesktopSettingsStore() }
     var nowPlayingTrack by remember { mutableStateOf<Track?>(null) }
     var nowPlayingCoverArtUrl by remember { mutableStateOf<String?>(null) }
     var playbackState by remember { mutableStateOf<PlaybackState>(PlaybackState.Idle) }
@@ -126,6 +134,7 @@ fun NaviampApp() {
                 ) {
                     ConnectionPanel(
                         appColors = appColors,
+                        settingsStore = settingsStore,
                         playbackEngine = playbackEngine,
                         onPlaybackStarted = { track, coverArtUrl ->
                             nowPlayingTrack = track
@@ -171,15 +180,18 @@ fun NaviampApp() {
 @Composable
 private fun ConnectionPanel(
     appColors: AppColors,
+    settingsStore: DesktopSettingsStore,
     playbackEngine: PlaybackEngine,
     onPlaybackStarted: (Track, String?) -> Unit,
     onPlaybackStateChanged: (PlaybackState) -> Unit,
     onPlaybackProgressChanged: (PlaybackProgress) -> Unit,
 ) {
-    var serverUrl by remember { mutableStateOf("") }
-    var username by remember { mutableStateOf("") }
+    val savedConnection = remember { settingsStore.loadConnection() }
+    var serverUrl by remember { mutableStateOf(savedConnection?.baseUrl.orEmpty()) }
+    var username by remember { mutableStateOf(savedConnection?.username.orEmpty()) }
     var password by remember { mutableStateOf("") }
     var connectionStatus by remember { mutableStateOf<String?>(null) }
+    var savedConnectionForLogin by remember { mutableStateOf(savedConnection) }
     var isConnecting by remember { mutableStateOf(false) }
     var isLoadingAlbum by remember { mutableStateOf(false) }
     var connectedProvider by remember { mutableStateOf<NavidromeProvider?>(null) }
@@ -200,8 +212,10 @@ private fun ConnectionPanel(
     )
     val connect = {
         if (!isConnecting) {
-            if (serverUrl.isBlank() || username.isBlank() || password.isBlank()) {
-                connectionStatus = "Enter a server URL, username, and password."
+            if (serverUrl.isBlank() || username.isBlank()) {
+                connectionStatus = "Enter a server URL and username."
+            } else if (password.isBlank() && savedConnectionForLogin == null) {
+                connectionStatus = "Enter a password for first-time setup."
             } else {
                 isConnecting = true
                 connectionStatus = "Connecting to Navidrome..."
@@ -212,16 +226,26 @@ private fun ConnectionPanel(
 
                 coroutineScope.launch {
                     try {
-                        val provider = NavidromeProvider(
-                            NavidromeConnection.fromPassword(
+                        val connection = savedConnectionForLogin
+                            ?.takeIf { it.baseUrl == serverUrl && it.username == username && password.isBlank() }
+                            ?.toConnection()
+                            ?: NavidromeConnection.fromPassword(
                                 baseUrl = serverUrl,
                                 username = username,
                                 password = password,
-                            ),
-                        )
+                            )
+                        val provider = NavidromeProvider(connection)
                         val validation = provider.validateConnection()
                         recentlyAddedAlbums = provider.recentlyAddedAlbums(limit = 5)
                         connectedProvider = provider
+                        settingsStore.saveConnection(connection)
+                        savedConnectionForLogin = SavedConnection(
+                            baseUrl = connection.baseUrl,
+                            username = connection.username,
+                            token = connection.token,
+                            salt = connection.salt,
+                        )
+                        password = ""
                         connectionStatus = buildString {
                             append("Connected")
                             validation.serverVersion?.let { append(" to Navidrome $it") }
@@ -241,10 +265,18 @@ private fun ConnectionPanel(
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Naviamp", color = appColors.primaryText, style = MaterialTheme.typography.headlineMedium)
         Text("Connect to Navidrome", color = appColors.secondaryText)
+        if (savedConnectionForLogin != null) {
+            Text("Saved connection loaded. Leave password blank to reuse it.", color = appColors.mutedText)
+        }
 
         OutlinedTextField(
             value = serverUrl,
-            onValueChange = { serverUrl = it },
+            onValueChange = {
+                serverUrl = it
+                if (savedConnectionForLogin?.baseUrl != it) {
+                    savedConnectionForLogin = null
+                }
+            },
             label = { Text("Server URL") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
@@ -259,7 +291,12 @@ private fun ConnectionPanel(
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
             OutlinedTextField(
                 value = username,
-                onValueChange = { username = it },
+                onValueChange = {
+                    username = it
+                    if (savedConnectionForLogin?.username != it) {
+                        savedConnectionForLogin = null
+                    }
+                },
                 label = { Text("Username") },
                 singleLine = true,
                 modifier = Modifier.weight(1f),
@@ -273,7 +310,7 @@ private fun ConnectionPanel(
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
-                label = { Text("Password") },
+                label = { Text(if (savedConnectionForLogin == null) "Password" else "Password (optional)") },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier.weight(1f),

@@ -33,6 +33,14 @@ class MpvPlaybackEngine(
     private var onStateChanged: ((PlaybackState) -> Unit)? = null
     private val json = Json { ignoreUnknownKeys = true }
 
+    init {
+        Runtime.getRuntime().addShutdownHook(
+            Thread {
+                stop()
+            },
+        )
+    }
+
     override fun play(
         scope: CoroutineScope,
         request: PlaybackRequest,
@@ -45,10 +53,11 @@ class MpvPlaybackEngine(
         onProgressChanged(PlaybackProgress.Unknown)
 
         job = scope.launch(Dispatchers.IO) {
+            var currentProcess: Process? = null
             try {
                 val socket = createIpcSocketFile()
                 ipcSocket = socket
-                val currentProcess = ProcessBuilder(
+                currentProcess = ProcessBuilder(
                     executable,
                     "--no-video",
                     "--really-quiet",
@@ -88,7 +97,9 @@ class MpvPlaybackEngine(
                 onProgressChanged(PlaybackProgress.Unknown)
                 ipcSocket?.delete()
                 ipcSocket = null
-                process = null
+                if (process == currentProcess) {
+                    process = null
+                }
                 this@MpvPlaybackEngine.onStateChanged = null
             }
         }
@@ -111,10 +122,20 @@ class MpvPlaybackEngine(
     }
 
     override fun stop() {
+        val currentProcess = process
+        if (currentProcess != null && currentProcess.isAlive) {
+            sendIpcCommand("""{"command":["quit"]}""", reportErrors = false)
+            if (!currentProcess.waitFor(1, TimeUnit.SECONDS)) {
+                currentProcess.destroy()
+            }
+            if (!currentProcess.waitFor(1, TimeUnit.SECONDS)) {
+                currentProcess.destroyForcibly()
+            }
+        }
+
         job?.cancel()
         progressJob?.cancel()
         progressJob = null
-        process?.stop()
         process = null
         ipcSocket?.delete()
         ipcSocket = null
@@ -130,7 +151,7 @@ class MpvPlaybackEngine(
         return data.doubleValue()
     }
 
-    private fun sendIpcCommand(command: String): String? {
+    private fun sendIpcCommand(command: String, reportErrors: Boolean = true): String? {
         val socket = ipcSocket ?: return null
         return try {
             waitForSocket(socket)
@@ -139,7 +160,9 @@ class MpvPlaybackEngine(
                 channel.readLine()
             }
         } catch (exception: Throwable) {
-            onStateChanged?.invoke(PlaybackState.Error(exception.message ?: "mpv command failed."))
+            if (reportErrors) {
+                onStateChanged?.invoke(PlaybackState.Error(exception.message ?: "mpv command failed."))
+            }
             null
         }
     }
@@ -160,12 +183,6 @@ class MpvPlaybackEngine(
         }
     }
 
-    private fun Process.stop() {
-        destroy()
-        if (!waitFor(1, TimeUnit.SECONDS)) {
-            destroyForcibly()
-        }
-    }
 }
 
 private fun SocketChannel.readLine(): String {
