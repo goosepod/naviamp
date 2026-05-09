@@ -12,6 +12,7 @@ import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.io.File
+import java.io.RandomAccessFile
 import java.net.UnixDomainSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.SocketChannel
@@ -20,6 +21,7 @@ import java.util.concurrent.TimeUnit
 
 class MpvProcessPlaybackEngine(
     private val executable: String,
+    private val platform: MpvIpcPlatform = MpvIpcPlatform.current(),
 ) : PlaybackEngine {
     override val name: String = "mpv"
     override val supportsPause: Boolean = true
@@ -32,7 +34,7 @@ class MpvProcessPlaybackEngine(
     private var job: Job? = null
     private var progressJob: Job? = null
     private var process: Process? = null
-    private var ipcSocket: File? = null
+    private var ipcEndpoint: MpvIpcEndpoint? = null
     private var onStateChanged: ((PlaybackState) -> Unit)? = null
     private var playbackId = 0
     private val json = Json { ignoreUnknownKeys = true }
@@ -59,19 +61,19 @@ class MpvProcessPlaybackEngine(
 
         job = scope.launch(Dispatchers.IO) {
             var currentProcess: Process? = null
-            var currentSocket: File? = null
+            var currentEndpoint: MpvIpcEndpoint? = null
             var currentProgressJob: Job? = null
             try {
-                val socket = createIpcSocketFile()
-                currentSocket = socket
-                ipcSocket = socket
+                val endpoint = createIpcEndpoint()
+                currentEndpoint = endpoint
+                ipcEndpoint = endpoint
                 currentProcess = ProcessBuilder(
                     executable,
                     "--no-video",
                     "--really-quiet",
                     "--gapless-audio=yes",
                     "--replaygain=${request.replayGainMode.mpvValue()}",
-                    "--input-ipc-server=${socket.absolutePath}",
+                    "--input-ipc-server=${endpoint.mpvPath}",
                     request.url,
                 )
                     .redirectErrorStream(true)
@@ -79,7 +81,7 @@ class MpvProcessPlaybackEngine(
                 process = currentProcess
                 onStateChanged(PlaybackState.Playing)
                 currentProgressJob = scope.launch(Dispatchers.IO) {
-                    waitForSocket(socket)
+                    endpoint.waitUntilReady()
                     while (currentProcess.isAlive) {
                         onProgressChanged(
                             PlaybackProgress(
@@ -113,9 +115,9 @@ class MpvProcessPlaybackEngine(
                 if (isCurrentPlayback(currentPlaybackId)) {
                     onProgressChanged(PlaybackProgress.Unknown)
                 }
-                currentSocket?.delete()
-                if (ipcSocket == currentSocket) {
-                    ipcSocket = null
+                currentEndpoint?.delete()
+                if (ipcEndpoint == currentEndpoint) {
+                    ipcEndpoint = null
                 }
                 if (isCurrentPlayback(currentPlaybackId) && process == currentProcess) {
                     process = null
@@ -158,8 +160,8 @@ class MpvProcessPlaybackEngine(
         progressJob?.cancel()
         progressJob = null
         process = null
-        ipcSocket?.delete()
-        ipcSocket = null
+        ipcEndpoint?.delete()
+        ipcEndpoint = null
         onStateChanged = null
     }
 
@@ -186,13 +188,9 @@ class MpvProcessPlaybackEngine(
     }
 
     private fun sendIpcCommand(command: String, reportErrors: Boolean = true): String? {
-        val socket = ipcSocket ?: return null
+        val endpoint = ipcEndpoint ?: return null
         return try {
-            waitForSocket(socket)
-            SocketChannel.open(UnixDomainSocketAddress.of(socket.toPath())).use { channel ->
-                channel.write(ByteBuffer.wrap("$command\n".toByteArray(StandardCharsets.UTF_8)))
-                channel.readLine()
-            }
+            endpoint.send("$command\n")
         } catch (exception: Throwable) {
             if (reportErrors) {
                 onStateChanged?.invoke(PlaybackState.Error(exception.message ?: "mpv command failed."))
@@ -201,22 +199,21 @@ class MpvProcessPlaybackEngine(
         }
     }
 
-    private fun createIpcSocketFile(): File {
-        val socket = File(
-            System.getProperty("java.io.tmpdir"),
-            "naviamp-mpv-${System.nanoTime()}.sock",
-        )
-        socket.delete()
-        return socket
-    }
-
-    private fun waitForSocket(socket: File) {
-        repeat(20) {
-            if (socket.exists()) return
-            Thread.sleep(25)
+    private fun createIpcEndpoint(): MpvIpcEndpoint =
+        when (platform) {
+            MpvIpcPlatform.Windows -> {
+                val pipeName = "naviamp-mpv-${System.nanoTime()}"
+                MpvIpcEndpoint.WindowsNamedPipe("\\\\.\\pipe\\$pipeName")
+            }
+            MpvIpcPlatform.Unix -> {
+                val socket = File(
+                    System.getProperty("java.io.tmpdir"),
+                    "naviamp-mpv-${System.nanoTime()}.sock",
+                )
+                socket.delete()
+                MpvIpcEndpoint.UnixSocket(socket)
+            }
         }
-    }
-
 }
 
 private fun SocketChannel.readLine(): String {
@@ -231,6 +228,91 @@ private fun SocketChannel.readLine(): String {
     }
 
     return builder.toString().lineSequence().firstOrNull().orEmpty()
+}
+
+enum class MpvIpcPlatform {
+    Windows,
+    Unix,
+    ;
+
+    companion object {
+        fun current(): MpvIpcPlatform =
+            if (System.getProperty("os.name").contains("win", ignoreCase = true)) {
+                Windows
+            } else {
+                Unix
+            }
+    }
+}
+
+sealed interface MpvIpcEndpoint {
+    val mpvPath: String
+
+    fun waitUntilReady()
+
+    fun send(command: String): String
+
+    fun delete()
+
+    data class UnixSocket(
+        val socket: File,
+    ) : MpvIpcEndpoint {
+        override val mpvPath: String = socket.absolutePath
+
+        override fun waitUntilReady() {
+            repeat(40) {
+                if (socket.exists()) return
+                Thread.sleep(25)
+            }
+        }
+
+        override fun send(command: String): String {
+            waitUntilReady()
+            return SocketChannel.open(UnixDomainSocketAddress.of(socket.toPath())).use { channel ->
+                channel.write(ByteBuffer.wrap(command.toByteArray(StandardCharsets.UTF_8)))
+                channel.readLine()
+            }
+        }
+
+        override fun delete() {
+            socket.delete()
+        }
+    }
+
+    data class WindowsNamedPipe(
+        override val mpvPath: String,
+    ) : MpvIpcEndpoint {
+        override fun waitUntilReady() {
+            repeat(40) {
+                runCatching {
+                    RandomAccessFile(mpvPath, "rw").use { }
+                }.onSuccess {
+                    return
+                }
+                Thread.sleep(25)
+            }
+        }
+
+        override fun send(command: String): String {
+            waitUntilReady()
+            return RandomAccessFile(mpvPath, "rw").use { pipe ->
+                pipe.write(command.toByteArray(StandardCharsets.UTF_8))
+                pipe.readUtf8Line()
+            }
+        }
+
+        override fun delete() = Unit
+    }
+}
+
+private fun RandomAccessFile.readUtf8Line(): String {
+    val bytes = mutableListOf<Byte>()
+    while (true) {
+        val value = read()
+        if (value == -1 || value == '\n'.code) break
+        bytes.add(value.toByte())
+    }
+    return bytes.toByteArray().toString(StandardCharsets.UTF_8)
 }
 
 private fun JsonElement.doubleValue(): Double? =

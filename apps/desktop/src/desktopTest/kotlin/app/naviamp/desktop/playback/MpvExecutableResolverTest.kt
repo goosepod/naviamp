@@ -18,6 +18,7 @@ class MpvExecutableResolverTest {
             environmentPath = null,
             pathEnvironment = null,
             searchRoots = listOf(bundledRoot),
+            installedExecutableCandidates = emptyList(),
         ).resolve()
 
         assertEquals(override.absoluteFile, resolved)
@@ -35,6 +36,7 @@ class MpvExecutableResolverTest {
             environmentPath = null,
             pathEnvironment = null,
             searchRoots = listOf(root),
+            installedExecutableCandidates = emptyList(),
         ).resolve()
 
         assertEquals(bundled.absoluteFile, resolved)
@@ -51,9 +53,26 @@ class MpvExecutableResolverTest {
             environmentPath = null,
             pathEnvironment = pathRoot.absolutePath,
             searchRoots = emptyList(),
+            installedExecutableCandidates = emptyList(),
         ).resolve()
 
         assertEquals(pathMpv.absoluteFile, resolved)
+    }
+
+    @Test
+    fun resolveFindsInstalledWindowsExecutableCandidate() {
+        val installedMpv = createTempDirectory().toFile().executable("MPV Player/mpv.exe")
+
+        val resolved = MpvExecutableResolver(
+            platform = MpvPlatform(os = "windows", arch = "x64"),
+            systemPropertyPath = null,
+            environmentPath = null,
+            pathEnvironment = null,
+            searchRoots = emptyList(),
+            installedExecutableCandidates = listOf(installedMpv),
+        ).resolve()
+
+        assertEquals(installedMpv.absoluteFile, resolved)
     }
 
     @Test
@@ -64,6 +83,7 @@ class MpvExecutableResolverTest {
             environmentPath = null,
             pathEnvironment = null,
             searchRoots = listOf(createTempDirectory().toFile()),
+            installedExecutableCandidates = emptyList(),
         ).resolve()
 
         assertNull(resolved)

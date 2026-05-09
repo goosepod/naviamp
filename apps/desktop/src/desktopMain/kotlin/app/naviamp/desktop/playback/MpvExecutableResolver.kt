@@ -8,11 +8,15 @@ class MpvExecutableResolver(
     private val environmentPath: String? = System.getenv("NAVIAMP_MPV_PATH"),
     private val pathEnvironment: String? = System.getenv("PATH"),
     private val searchRoots: List<File> = defaultSearchRoots(),
+    private val installedExecutableCandidates: List<File> = defaultInstalledExecutableCandidates(),
 ) {
     fun resolve(): File? =
         sequence {
             systemPropertyPath?.let { yield(File(it)) }
             environmentPath?.let { yield(File(it)) }
+            installedExecutableCandidates
+                .filter { it.name.equals(platform.executableName, ignoreCase = true) }
+                .forEach { yield(it) }
             searchRoots.forEach { root ->
                 bundledRelativePaths().forEach { relativePath ->
                     yield(File(root, relativePath))
@@ -48,6 +52,17 @@ class MpvExecutableResolver(
                 codeSourceRoot?.ancestors(limit = 6)?.let(::addAll)
                 add(File(System.getProperty("user.dir")))
             }.distinctBy { it.absolutePath }
+        }
+
+        private fun defaultInstalledExecutableCandidates(): List<File> {
+            val programFiles = listOfNotNull(
+                System.getenv("ProgramFiles"),
+                System.getenv("ProgramFiles(x86)"),
+            )
+
+            return programFiles.map { root ->
+                File(root, "MPV Player/mpv.exe")
+            }
         }
     }
 }
