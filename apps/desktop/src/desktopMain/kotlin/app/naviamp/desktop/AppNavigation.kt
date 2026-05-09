@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -61,15 +62,19 @@ fun BottomNavigationBar(
         modifier = Modifier
             .fillMaxWidth()
             .background(Color.Black.copy(alpha = 0.28f))
-            .padding(vertical = 4.dp),
+            .padding(vertical = 0.dp),
     ) {
         BottomNavigationItems.forEach { item ->
             val selected = item.route == selectedRoute
-            IconButton(onClick = { onRouteSelected(item.route) }) {
+            IconButton(
+                onClick = { onRouteSelected(item.route) },
+                modifier = Modifier.size(36.dp),
+            ) {
                 Icon(
                     imageVector = item.icon,
                     contentDescription = item.label,
                     tint = if (selected) appColors.primaryText else appColors.mutedText,
+                    modifier = Modifier.size(20.dp),
                 )
             }
         }
@@ -83,23 +88,24 @@ fun PlaceholderRoutePanel(
     message: String,
 ) {
     Column(
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 40.dp),
+            .padding(top = 12.dp),
     ) {
         Text(
             title,
             color = appColors.primaryText,
             fontWeight = FontWeight.Bold,
-            fontSize = 18.sp,
+            fontSize = 16.sp,
         )
         Text(
             message,
             color = appColors.secondaryText,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 24.dp),
+            fontSize = 12.sp,
+            modifier = Modifier.padding(horizontal = 12.dp),
         )
     }
 }

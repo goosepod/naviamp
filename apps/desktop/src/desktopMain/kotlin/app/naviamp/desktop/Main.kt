@@ -375,8 +375,8 @@ fun NaviampApp(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                        .padding(2.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
                     if (appRoute == AppRoute.Player && nowPlayingTrack != null) {
                         Box(
@@ -431,7 +431,7 @@ fun NaviampApp(
                                 .fillMaxWidth()
                                 .verticalScroll(rememberScrollState()),
                         ) {
-                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                                 when (appRoute) {
                                     AppRoute.Player -> Unit
                                 AppRoute.Home -> HomePanel(

@@ -26,11 +26,11 @@ fun HomePanel(
     coverArtUrl: (Album) -> String?,
     onAlbumSelected: (Album) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text("Music", color = appColors.primaryText, style = MaterialTheme.typography.titleLarge)
+            Text("Music", color = appColors.primaryText, style = MaterialTheme.typography.titleMedium)
             connectionStatus?.let {
-                Text(it, color = appColors.secondaryText, fontSize = 12.sp)
+                Text(it, color = appColors.secondaryText, fontSize = 11.sp)
             }
         }
 
@@ -60,14 +60,14 @@ private fun HomeSection(
     appColors: AppColors,
     content: @Composable () -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(
             title.uppercase(),
             color = appColors.primaryText,
             fontWeight = FontWeight.Bold,
-            fontSize = 13.sp,
+            fontSize = 12.sp,
         )
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             content()
         }
     }
@@ -81,17 +81,17 @@ private fun AlbumSummaryRow(
     onClick: () -> Unit,
 ) {
     Row(
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .background(ColorOverlay, RoundedCornerShape(8.dp))
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .background(ColorOverlay, RoundedCornerShape(5.dp))
+            .padding(horizontal = 6.dp, vertical = 2.dp),
     ) {
         CoverArtThumb(
             appColors = appColors,
             coverArtUrl = coverArtUrl,
-            size = 48.dp,
+            size = 40.dp,
         )
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -106,10 +106,10 @@ private fun AlbumSummaryRow(
                 color = appColors.secondaryText,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                fontSize = 12.sp,
+                fontSize = 11.sp,
             )
         }
-        Text("Album", color = appColors.mutedText, fontSize = 12.sp)
+        Text("Album", color = appColors.mutedText, fontSize = 11.sp)
     }
 }
 

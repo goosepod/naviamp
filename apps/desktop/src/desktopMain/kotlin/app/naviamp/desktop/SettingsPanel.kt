@@ -2,8 +2,10 @@ package app.naviamp.desktop
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
@@ -20,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.naviamp.desktop.playback.ReplayGainMode
 import app.naviamp.desktop.settings.PlaybackSettings
 
@@ -51,13 +54,17 @@ fun SettingsPanel(
         unfocusedBorderColor = appColors.border,
     )
 
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Settings", color = appColors.primaryText, style = MaterialTheme.typography.titleMedium)
+    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Text("Settings", color = appColors.primaryText, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
 
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Server", color = appColors.primaryText, fontWeight = FontWeight.SemiBold)
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text("Server", color = appColors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
             if (hasSavedConnection) {
-                Text("Saved connection loaded. Leave password blank to reuse it.", color = appColors.mutedText)
+                Text(
+                    "Saved connection loaded. Leave password blank to reuse it.",
+                    color = appColors.mutedText,
+                    fontSize = 12.sp,
+                )
             }
 
             OutlinedTextField(
@@ -65,6 +72,7 @@ fun SettingsPanel(
                 onValueChange = onServerUrlChanged,
                 label = { Text("Server URL") },
                 singleLine = true,
+                textStyle = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                 keyboardActions = KeyboardActions(
@@ -74,12 +82,13 @@ fun SettingsPanel(
                 colors = textFieldColors,
             )
 
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
                 OutlinedTextField(
                     value = username,
                     onValueChange = onUsernameChanged,
                     label = { Text("Username") },
                     singleLine = true,
+                    textStyle = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.weight(1f),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                     keyboardActions = KeyboardActions(
@@ -94,6 +103,7 @@ fun SettingsPanel(
                     label = { Text(if (hasSavedConnection) "Password (optional)" else "Password") },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
+                    textStyle = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.weight(1f),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = { onConnect() }),
@@ -104,17 +114,19 @@ fun SettingsPanel(
             Button(
                 enabled = !isConnecting,
                 onClick = onConnect,
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                modifier = Modifier.height(30.dp),
             ) {
                 Text(if (isConnecting) "Connecting" else "Connect")
             }
 
             connectionStatus?.let {
-                Text(it, color = appColors.secondaryText)
+                Text(it, color = appColors.secondaryText, fontSize = 12.sp)
             }
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Playback", color = appColors.primaryText, fontWeight = FontWeight.SemiBold)
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text("Playback", color = appColors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
             Text(
                 if (supportsReplayGain) {
                     "ReplayGain"
@@ -122,8 +134,9 @@ fun SettingsPanel(
                     "ReplayGain unavailable with this playback engine"
                 },
                 color = appColors.secondaryText,
+                fontSize = 12.sp,
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 ReplayGainMode.entries.forEach { mode ->
                     FilterChip(
                         selected = playbackSettings.replayGainMode == mode,
@@ -131,7 +144,8 @@ fun SettingsPanel(
                         onClick = {
                             onPlaybackSettingsChanged(playbackSettings.copy(replayGainMode = mode))
                         },
-                        label = { Text(mode.displayName) },
+                        label = { Text(mode.displayName, fontSize = 12.sp) },
+                        modifier = Modifier.height(28.dp),
                     )
                 }
             }

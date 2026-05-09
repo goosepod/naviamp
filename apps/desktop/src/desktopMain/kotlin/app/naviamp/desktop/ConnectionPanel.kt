@@ -2,7 +2,9 @@ package app.naviamp.desktop
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -14,8 +16,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.naviamp.domain.Album
 import app.naviamp.domain.Track
 import app.naviamp.desktop.playback.PlaybackEngine
@@ -42,8 +46,8 @@ fun ConnectionPanel(
     var albumStatus by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
 
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Naviamp", color = appColors.primaryText, style = MaterialTheme.typography.headlineMedium)
+    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Text("Naviamp", color = appColors.primaryText, style = MaterialTheme.typography.titleMedium)
 
         if (connectedProvider == null) {
             Text(
@@ -58,11 +62,13 @@ fun ConnectionPanel(
         }
 
         if (recentlyAddedAlbums.isNotEmpty()) {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Recently Added", color = appColors.primaryText, fontWeight = FontWeight.SemiBold)
+            Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text("Recently Added", color = appColors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 recentlyAddedAlbums.forEach { album ->
                     TextButton(
                         enabled = !isLoadingAlbum,
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+                        modifier = Modifier.height(28.dp),
                         onClick = {
                             val provider = connectedProvider
                             isLoadingAlbum = true
@@ -99,10 +105,17 @@ fun ConnectionPanel(
         }
 
         if (selectedTracks.isNotEmpty()) {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(selectedAlbumTitle ?: "Album Tracks", color = appColors.primaryText, fontWeight = FontWeight.SemiBold)
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text(
+                    selectedAlbumTitle ?: "Album Tracks",
+                    color = appColors.primaryText,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Button(
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                        modifier = Modifier.height(30.dp),
                         onClick = {
                             playlistEngine.playFrom(
                                 scope = coroutineScope,
@@ -120,6 +133,8 @@ fun ConnectionPanel(
 
                     Button(
                         enabled = selectedTracks.size > 1,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                        modifier = Modifier.height(30.dp),
                         onClick = {
                             playlistEngine.playFrom(
                                 scope = coroutineScope,
@@ -139,6 +154,8 @@ fun ConnectionPanel(
                 selectedTracks.forEachIndexed { index, track ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         TextButton(
+                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+                            modifier = Modifier.height(28.dp),
                             onClick = {
                                 playlistEngine.playFrom(
                                     scope = coroutineScope,

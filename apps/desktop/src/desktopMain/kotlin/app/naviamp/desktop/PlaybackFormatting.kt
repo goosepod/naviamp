@@ -20,6 +20,12 @@ fun PlaybackProgress.label(effectiveDurationSeconds: Double?): String {
     return "$position / $duration"
 }
 
+fun PlaybackProgress.positionLabel(): String =
+    positionSeconds?.toTimeLabel() ?: "--:--"
+
+fun Double?.durationLabel(): String =
+    this?.toTimeLabel() ?: "--:--"
+
 fun PlaybackProgress.fraction(effectiveDurationSeconds: Double?): Double {
     val position = positionSeconds ?: return 0.0
     val duration = effectiveDurationSeconds ?: return 0.0

@@ -39,6 +39,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -95,18 +96,18 @@ fun NowPlayingPanel(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 300.dp)
-            .padding(12.dp),
+            .padding(0.dp),
     ) {
         val wideLayout = maxWidth >= 780.dp
         val artSize = when {
-            wideLayout -> 250.dp
-            maxWidth < 380.dp -> 178.dp
-            else -> 215.dp
+            wideLayout -> 350.dp
+            maxWidth < 380.dp -> 238.dp
+            else -> 286.dp
         }
 
         if (wideLayout) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(22.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth(),
             ) {
@@ -150,7 +151,7 @@ fun NowPlayingPanel(
         } else {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp),
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 CoverArt(
@@ -187,7 +188,7 @@ fun NowPlayingPanel(
                     maxItems = 4,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 230.dp),
+                        .heightIn(min = 180.dp),
                 )
             }
         }
@@ -224,17 +225,17 @@ fun MiniPlayerPanel(
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onOpenPlayer)
             .background(Color.Black.copy(alpha = 0.22f))
-            .padding(horizontal = 10.dp, vertical = 8.dp),
+            .padding(horizontal = 6.dp, vertical = 4.dp),
     ) {
         CoverArt(
             coverArtState = coverArtState,
             appColors = appColors,
-            size = 46.dp,
+            size = 40.dp,
             elevated = false,
         )
         Column(modifier = Modifier.weight(1f)) {
@@ -243,7 +244,7 @@ fun MiniPlayerPanel(
                 color = appColors.secondaryText,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                fontSize = 12.sp,
+                fontSize = 11.sp,
             )
             Text(
                 nowPlayingTrack?.title ?: "Queue is empty",
@@ -251,7 +252,7 @@ fun MiniPlayerPanel(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 fontWeight = FontWeight.Bold,
-                fontSize = 13.sp,
+                fontSize = 12.sp,
             )
         }
         TransportIconButton(
@@ -323,6 +324,10 @@ private fun PlayerDetails(
         playbackState != PlaybackState.Loading &&
         playbackState !is PlaybackState.Error &&
         (supportsPause || playbackState != PlaybackState.Playing)
+    val metadataTextStyle = TextStyle(
+        fontSize = 14.sp,
+        lineHeight = 14.sp,
+    )
 
     LaunchedEffect(effectiveProgressFraction) {
         if (!isScrubbing) {
@@ -332,46 +337,66 @@ private fun PlayerDetails(
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(7.dp),
+        verticalArrangement = Arrangement.spacedBy(1.dp),
         modifier = modifier,
     ) {
-        Text(
-            nowPlayingTrack?.artistName ?: "Nothing Playing",
-            color = appColors.primaryText,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-            fontSize = 13.sp,
-        )
-        Text(
-            nowPlayingTrack?.title ?: "Queue will appear here after connection",
-            color = appColors.primaryText,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-            fontSize = 14.sp,
-        )
-        Text(
-            nowPlayingTrack?.albumTitle ?: playbackState.label(),
-            color = appColors.secondaryText,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-            fontSize = 13.sp,
-        )
-
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(0.dp),
+            modifier = Modifier.padding(bottom = 8.dp),
         ) {
-            nowPlayingTrack?.playbackAudioLabel(playbackEngineName)?.let {
-                Text(it, color = appColors.mutedText)
-            }
-            Text("☆☆☆☆☆", color = appColors.mutedText, fontSize = 13.sp)
+            Text(
+                nowPlayingTrack?.artistName ?: "Nothing Playing",
+                color = appColors.primaryText,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                style = metadataTextStyle,
+            )
+            Text(
+                nowPlayingTrack?.title ?: "Queue will appear here after connection",
+                color = appColors.primaryText,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                style = metadataTextStyle,
+            )
+            Text(
+                nowPlayingTrack?.albumTitle ?: playbackState.label(),
+                color = appColors.primaryText,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                style = metadataTextStyle,
+            )
         }
 
-        Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("♡", color = Color.White, fontSize = 12.sp)
+            nowPlayingTrack?.playbackAudioLabel(playbackEngineName)?.let {
+                Text(it, color = appColors.primaryText, fontSize = 11.sp)
+            }
+            Text("☆☆☆☆☆", color = Color.White, fontSize = 11.sp)
+        }
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+        ) {
+            Text(
+                playbackProgress.positionLabel(),
+                color = appColors.primaryText,
+                fontSize = 11.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.width(52.dp),
+            )
             Slider(
                 value = scrubberValue,
                 onValueChange = {
@@ -394,20 +419,20 @@ private fun PlayerDetails(
                     disabledInactiveTrackColor = Color.White.copy(alpha = 0.12f),
                 ),
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(30.dp),
+                    .weight(1f)
+                    .height(22.dp),
             )
             Text(
-                playbackProgress.label(effectiveDurationSeconds),
-                color = appColors.secondaryText,
+                effectiveDurationSeconds.durationLabel(),
+                color = appColors.primaryText,
                 textAlign = TextAlign.Center,
-                fontSize = 12.sp,
-                modifier = Modifier.fillMaxWidth(),
+                fontSize = 11.sp,
+                modifier = Modifier.width(52.dp),
             )
         }
 
         Row(
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             TransportIconButton(
@@ -450,13 +475,17 @@ private fun PlayerDetails(
             playbackCapabilityLabel(supportsGapless, supportsCrossfade),
             color = appColors.mutedText,
             textAlign = TextAlign.Center,
-            fontSize = 12.sp,
+            fontSize = 11.sp,
         )
-        IconButton(onClick = onCollapseToHome) {
+        IconButton(
+            onClick = onCollapseToHome,
+            modifier = Modifier.size(32.dp),
+        ) {
             Icon(
                 imageVector = NavigationIcons.ChevronDown,
                 contentDescription = "Home",
                 tint = appColors.secondaryText,
+                modifier = Modifier.size(18.dp),
             )
         }
     }
@@ -474,7 +503,7 @@ private fun TransportIconButton(
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
-            .size(if (prominent) 48.dp else 38.dp)
+            .size(if (prominent) 44.dp else 34.dp)
             .clip(RoundedCornerShape(999.dp))
             .background(
                 if (prominent) {
@@ -493,7 +522,7 @@ private fun TransportIconButton(
                 imageVector = icon,
                 contentDescription = contentDescription,
                 tint = if (enabled) appColors.primaryText else appColors.mutedText.copy(alpha = 0.55f),
-                modifier = Modifier.size(if (prominent) 26.dp else 22.dp),
+                modifier = Modifier.size(if (prominent) 24.dp else 20.dp),
             )
         }
     }
@@ -507,17 +536,26 @@ private fun UpNextPanel(
     maxItems: Int,
     modifier: Modifier = Modifier,
 ) {
+    val trackTitleStyle = TextStyle(
+        fontSize = 12.sp,
+        lineHeight = 12.sp,
+    )
+    val trackArtistStyle = TextStyle(
+        fontSize = 11.sp,
+        lineHeight = 11.sp,
+    )
+
     Column(
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = modifier,
     ) {
         Row(
             horizontalArrangement = Arrangement.SpaceEvenly,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("BACK TO", color = appColors.mutedText, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
-            Text("UP NEXT", color = appColors.primaryText, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-            Text("RELATED", color = appColors.mutedText, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+            Text("BACK TO", color = appColors.mutedText, fontWeight = FontWeight.SemiBold, fontSize = 11.sp)
+            Text("UP NEXT", color = appColors.primaryText, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+            Text("RELATED", color = appColors.mutedText, fontWeight = FontWeight.SemiBold, fontSize = 11.sp)
         }
         Box(
             modifier = Modifier
@@ -528,35 +566,38 @@ private fun UpNextPanel(
         repeat(maxItems) { index ->
             val track = upNext.getOrNull(index)
             if (track == null) {
-                Spacer(modifier = Modifier.height(40.dp))
+                Spacer(modifier = Modifier.height(42.dp))
             } else {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(40.dp),
+                        .height(42.dp),
                 ) {
                     CoverArt(
                         coverArtState = coverArtState,
                         appColors = appColors,
-                        size = 40.dp,
+                        size = 36.dp,
                         elevated = false,
                     )
-                    Column(modifier = Modifier.weight(1f)) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(1.dp),
+                        modifier = Modifier.weight(1f),
+                    ) {
                         Text(
                             track.title,
                             color = appColors.primaryText,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            fontSize = 13.sp,
+                            style = trackTitleStyle,
                         )
                         Text(
                             track.artistName,
                             color = appColors.secondaryText,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            fontSize = 12.sp,
+                            style = trackArtistStyle,
                         )
                     }
                     Text("⋮", color = appColors.mutedText)
@@ -582,26 +623,37 @@ private fun CoverArt(
     size: Dp,
     elevated: Boolean = true,
 ) {
+    val shadowMargin = if (elevated) 12.dp else 0.dp
     Box(
+        contentAlignment = Alignment.Center,
         modifier = Modifier
-            .size(size)
-            .shadow(
-                elevation = if (elevated) 30.dp else 0.dp,
-                shape = RoundedCornerShape(if (elevated) 7.dp else 4.dp),
-                clip = false,
-            )
-            .clip(RoundedCornerShape(if (elevated) 7.dp else 4.dp))
-            .background(appColors.albumArtPlaceholder),
+            .size(size + shadowMargin * 2),
     ) {
-        coverArtState.image?.let {
-            Image(
-                bitmap = it,
-                contentDescription = "Album art",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .aspectRatio(1f),
-            )
+        Box(
+            modifier = Modifier
+                .size(size)
+                .then(
+                    if (elevated) {
+                        Modifier
+                            .shadow(24.dp, RoundedCornerShape(8.dp), clip = false)
+                            .shadow(7.dp, RoundedCornerShape(7.dp), clip = false)
+                    } else {
+                        Modifier
+                    },
+                )
+                .clip(RoundedCornerShape(if (elevated) 7.dp else 4.dp))
+                .background(appColors.albumArtPlaceholder),
+        ) {
+            coverArtState.image?.let {
+                Image(
+                    bitmap = it,
+                    contentDescription = "Album art",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .aspectRatio(1f),
+                )
+            }
         }
     }
 }
