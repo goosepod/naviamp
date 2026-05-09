@@ -162,6 +162,57 @@ class NavidromeProviderTest {
         assertEquals(921, details.tracks.first().audioInfo?.bitrateKbps)
     }
 
+    @Test
+    fun searchMapsArtistsAlbumsAndTracks() = runTest {
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = FakeHttpClient(
+                """
+                {
+                  "subsonic-response": {
+                    "status": "ok",
+                    "searchResult3": {
+                      "artist": [
+                        {
+                          "id": "artist-1",
+                          "name": "New Order"
+                        }
+                      ],
+                      "album": [
+                        {
+                          "id": "album-1",
+                          "name": "Low-Life",
+                          "artist": "New Order",
+                          "coverArt": "cover-1"
+                        }
+                      ],
+                      "song": [
+                        {
+                          "id": "track-1",
+                          "title": "Love Vigilantes",
+                          "artist": "New Order",
+                          "album": "Low-Life",
+                          "duration": 259,
+                          "coverArt": "cover-1",
+                          "suffix": "flac",
+                          "bitRate": 921
+                        }
+                      ]
+                    }
+                  }
+                }
+                """.trimIndent(),
+            ),
+        )
+
+        val results = provider.search("new order")
+
+        assertEquals("New Order", results.artists.first().name)
+        assertEquals("Low-Life", results.albums.first().title)
+        assertEquals("Love Vigilantes", results.tracks.first().title)
+        assertEquals(921, results.tracks.first().audioInfo?.bitrateKbps)
+    }
+
     private fun connection(baseUrl: String): NavidromeConnection =
         NavidromeConnection(
             baseUrl = baseUrl,

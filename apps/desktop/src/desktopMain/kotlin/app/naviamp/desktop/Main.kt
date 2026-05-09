@@ -55,9 +55,12 @@ import app.naviamp.desktop.settings.NavigationSettings
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.desktop.settings.PlaybackSessionSettings
 import app.naviamp.desktop.settings.SavedConnection
+import app.naviamp.desktop.settings.SearchSettings
 import app.naviamp.desktop.settings.WindowSettings
+import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import java.awt.Taskbar
@@ -130,6 +133,7 @@ fun NaviampApp(
     val savedConnection = remember { settingsStore.loadConnection() }
     val savedPlaybackSession = remember { settingsStore.loadPlaybackSession() }
     val savedNavigation = remember { settingsStore.loadNavigationSettings() }
+    val savedSearch = remember { settingsStore.loadSearchSettings() }
     val playlistEngine = remember(playbackEngine) { PlaylistEngine(playbackEngine) }
     val coroutineScope = rememberCoroutineScope()
     val restoredTracks = remember(savedPlaybackSession) { savedPlaybackSession?.toTracks().orEmpty() }
@@ -145,6 +149,10 @@ fun NaviampApp(
     var selectedAlbum by remember { mutableStateOf<Album?>(null) }
     var selectedAlbumDetails by remember { mutableStateOf<AlbumDetails?>(null) }
     var selectedAlbumStatus by remember { mutableStateOf<String?>(null) }
+    var searchQuery by remember { mutableStateOf(savedSearch.query) }
+    var searchResults by remember { mutableStateOf(MediaSearchResults()) }
+    var searchStatus by remember { mutableStateOf<String?>(null) }
+    var isSearching by remember { mutableStateOf(false) }
     var appRoute by remember {
         mutableStateOf(
             restoredRoute(
@@ -153,6 +161,9 @@ fun NaviampApp(
                 hasRestoredTrack = restoredTrack != null,
             ),
         )
+    }
+    var lastContentRoute by remember {
+        mutableStateOf(restoredLastContentRoute(savedNavigation.lastContentRoute))
     }
     var nowPlayingTrack by remember { mutableStateOf(restoredTrack) }
     var nowPlayingCoverArtUrl by remember { mutableStateOf<String?>(null) }
@@ -194,7 +205,22 @@ fun NaviampApp(
     }
 
     LaunchedEffect(appRoute) {
-        settingsStore.saveNavigationSettings(NavigationSettings(route = appRoute.name))
+        if (appRoute == AppRoute.Player) {
+            settingsStore.saveNavigationSettings(
+                NavigationSettings(
+                    route = appRoute.name,
+                    lastContentRoute = lastContentRoute.name,
+                ),
+            )
+        } else {
+            lastContentRoute = appRoute
+            settingsStore.saveNavigationSettings(
+                NavigationSettings(
+                    route = appRoute.name,
+                    lastContentRoute = appRoute.name,
+                ),
+            )
+        }
     }
 
     fun savePlaybackSession(queue: PlaybackQueue) {
@@ -210,6 +236,7 @@ fun NaviampApp(
         onTrackStarted = { track, coverArtUrl ->
             nowPlayingTrack = track
             nowPlayingCoverArtUrl = coverArtUrl
+            playbackProgress = PlaybackProgress.Unknown
             appRoute = AppRoute.Player
         },
         onQueueChanged = { queue ->
@@ -339,9 +366,53 @@ fun NaviampApp(
         )
     }
 
+    fun playSearchTrack(index: Int) {
+        val provider = connectedProvider ?: return
+        val tracks = searchResults.tracks
+        if (tracks.isEmpty() || index !in tracks.indices) return
+        playlistEngine.playFrom(
+            scope = coroutineScope,
+            provider = provider,
+            tracks = tracks,
+            index = index,
+            quality = playbackEngine.streamQuality(),
+            replayGainMode = playbackSettings.replayGainMode,
+            callbacks = playlistCallbacks,
+        )
+    }
+
     LaunchedEffect(Unit) {
         if (savedConnection != null) {
             connectToServer(restoreSavedSession = true)
+        }
+    }
+
+    LaunchedEffect(searchQuery, connectedProvider) {
+        val provider = connectedProvider
+        val query = searchQuery.trim()
+        if (query.isEmpty()) {
+            searchResults = MediaSearchResults()
+            searchStatus = if (provider == null) "Connect to Navidrome to search." else null
+            isSearching = false
+            return@LaunchedEffect
+        }
+        if (provider == null) {
+            searchResults = MediaSearchResults()
+            searchStatus = "Connect to Navidrome to search."
+            isSearching = false
+            return@LaunchedEffect
+        }
+
+        delay(250)
+        isSearching = true
+        searchStatus = null
+        try {
+            searchResults = provider.search(query, limit = 12)
+        } catch (exception: Exception) {
+            searchResults = MediaSearchResults()
+            searchStatus = exception.message ?: "Search failed."
+        } finally {
+            isSearching = false
         }
     }
 
@@ -420,7 +491,7 @@ fun NaviampApp(
                                     playlistEngine.next(coroutineScope)
                                 },
                                 onCollapseToHome = {
-                                    appRoute = AppRoute.Home
+                                    appRoute = lastContentRoute
                                 },
                             )
                         }
@@ -466,10 +537,21 @@ fun NaviampApp(
                                         playbackSettings = playbackSettings,
                                         playlistCallbacks = playlistCallbacks,
                                     )
-                                    AppRoute.Search -> PlaceholderRoutePanel(
+                                    AppRoute.Search -> SearchPanel(
                                         appColors = appColors,
-                                        title = "Search",
-                                        message = "Search will live here next.",
+                                        query = searchQuery,
+                                        results = searchResults,
+                                        status = searchStatus,
+                                        isSearching = isSearching,
+                                        coverArtUrl = { coverArtId ->
+                                            coverArtId?.let { connectedProvider?.coverArtUrl(it) }
+                                        },
+                                        onQueryChanged = {
+                                            searchQuery = it
+                                            settingsStore.saveSearchSettings(SearchSettings(query = it))
+                                        },
+                                        onAlbumSelected = { album -> openAlbumDetails(album) },
+                                        onTrackSelected = { index -> playSearchTrack(index) },
                                     )
                                     AppRoute.Downloads -> PlaceholderRoutePanel(
                                         appColors = appColors,
@@ -574,6 +656,14 @@ private fun restoredRoute(
         else -> route
     }
 }
+
+private fun restoredLastContentRoute(savedRouteName: String?): AppRoute =
+    when (val route = AppRoute.fromStoredName(savedRouteName)) {
+        AppRoute.Player,
+        AppRoute.AlbumDetail
+        -> AppRoute.Home
+        else -> route
+    }
 
 private fun WindowState.toWindowSettings(): WindowSettings =
     WindowSettings(

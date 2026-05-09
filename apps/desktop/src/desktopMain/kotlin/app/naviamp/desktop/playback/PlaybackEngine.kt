@@ -79,10 +79,19 @@ data class PlaybackProgress(
 }
 
 fun PlaybackProgress.mergeWith(previous: PlaybackProgress): PlaybackProgress {
+    val previousPosition = previous.positionSeconds
+    val currentPosition = positionSeconds
     val previousDuration = previous.durationSeconds
     val currentDuration = durationSeconds
 
     return copy(
+        positionSeconds = when {
+            currentPosition == null -> previousPosition
+            previousPosition == null -> currentPosition
+            currentPosition >= previousPosition -> currentPosition
+            previousPosition - currentPosition <= 1.0 -> currentPosition
+            else -> previousPosition
+        },
         durationSeconds = when {
             currentDuration == null -> previousDuration
             previousDuration == null -> currentDuration

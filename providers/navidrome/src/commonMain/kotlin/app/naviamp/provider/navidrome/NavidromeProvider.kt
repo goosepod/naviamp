@@ -13,6 +13,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaProvider
+import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.ProviderCapabilities
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -93,6 +94,35 @@ class NavidromeProvider(
 
     override suspend fun tracks(limit: Int): List<Track> = emptyList()
 
+    override suspend fun search(query: String, limit: Int): MediaSearchResults {
+        val trimmedQuery = query.trim()
+        if (trimmedQuery.isEmpty()) return MediaSearchResults()
+
+        val response = get(
+            endpoint = "search3.view",
+            params = mapOf(
+                "query" to trimmedQuery,
+                "artistCount" to limit.toString(),
+                "albumCount" to limit.toString(),
+                "songCount" to limit.toString(),
+            ),
+        )
+        val searchResult = response.subsonicResponse()["searchResult3"]?.jsonObject
+            ?: return MediaSearchResults()
+
+        return MediaSearchResults(
+            artists = searchResult.arrayValue("artist").mapNotNull { artist ->
+                (artist as? JsonObject)?.toArtist()
+            },
+            albums = searchResult.arrayValue("album").mapNotNull { album ->
+                (album as? JsonObject)?.toAlbum()
+            },
+            tracks = searchResult.arrayValue("song").mapNotNull { song ->
+                (song as? JsonObject)?.toTrack()
+            },
+        )
+    }
+
     override suspend fun streamUrl(request: StreamRequest): String {
         val params = when (val quality = request.quality) {
             StreamQuality.Original -> mapOf("id" to request.trackId.value)
@@ -169,6 +199,14 @@ class NavidromeProvider(
             recentlyAddedAtIso8601 = stringValue("created"),
         )
 
+    private fun JsonObject.toArtist(): Artist =
+        Artist(
+            id = app.naviamp.domain.ArtistId(
+                stringValue("id") ?: throw NavidromeException("Artist is missing an id."),
+            ),
+            name = stringValue("name") ?: "Unknown Artist",
+        )
+
     private fun JsonObject.toTrack(): Track =
         Track(
             id = TrackId(stringValue("id") ?: throw NavidromeException("Track is missing an id.")),
@@ -223,3 +261,6 @@ private fun JsonObject.stringValue(key: String): String? =
 
 private fun JsonObject.intValue(key: String): Int? =
     stringValue(key)?.toIntOrNull()
+
+private fun JsonObject.arrayValue(key: String): JsonArray =
+    this[key] as? JsonArray ?: JsonArray(emptyList())

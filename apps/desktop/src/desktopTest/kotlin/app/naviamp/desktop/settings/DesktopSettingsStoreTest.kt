@@ -126,9 +126,22 @@ class DesktopSettingsStoreTest {
         val store = DesktopSettingsStore(path)
         store.savePlaybackSettings(PlaybackSettings(replayGainMode = ReplayGainMode.Track))
 
-        store.saveNavigationSettings(NavigationSettings(route = "Player"))
+        store.saveNavigationSettings(NavigationSettings(route = "Player", lastContentRoute = "Search"))
 
         assertEquals("Player", store.loadNavigationSettings().route)
+        assertEquals("Search", store.loadNavigationSettings().lastContentRoute)
         assertEquals(ReplayGainMode.Track, store.loadPlaybackSettings().replayGainMode)
+    }
+
+    @Test
+    fun saveSearchSettingsPreservesNavigation() {
+        val path = createTempDirectory().resolve("settings.json")
+        val store = DesktopSettingsStore(path)
+        store.saveNavigationSettings(NavigationSettings(route = "Search"))
+
+        store.saveSearchSettings(SearchSettings(query = "new order"))
+
+        assertEquals("new order", store.loadSearchSettings().query)
+        assertEquals("Search", store.loadNavigationSettings().route)
     }
 }

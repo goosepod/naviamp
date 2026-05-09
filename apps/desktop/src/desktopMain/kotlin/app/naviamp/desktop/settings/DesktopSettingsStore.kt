@@ -67,6 +67,13 @@ class DesktopSettingsStore(
         saveSettings(loadSettings().copy(navigation = navigationSettings))
     }
 
+    fun loadSearchSettings(): SearchSettings =
+        loadSettings().search
+
+    fun saveSearchSettings(searchSettings: SearchSettings) {
+        saveSettings(loadSettings().copy(search = searchSettings))
+    }
+
     private fun loadSettings(): DesktopSettings {
         if (!settingsPath.exists()) return DesktopSettings()
         val text = settingsPath.readText()
@@ -97,6 +104,7 @@ data class DesktopSettings(
     val window: WindowSettings = WindowSettings(),
     val session: PlaybackSessionSettings? = null,
     val navigation: NavigationSettings = NavigationSettings(),
+    val search: SearchSettings = SearchSettings(),
 )
 
 @Serializable
@@ -113,6 +121,12 @@ data class WindowSettings(
 @Serializable
 data class NavigationSettings(
     val route: String = "Home",
+    val lastContentRoute: String = "Home",
+)
+
+@Serializable
+data class SearchSettings(
+    val query: String = "",
 )
 
 @Serializable
@@ -230,5 +244,10 @@ private fun defaultSettingsPath(): Path {
 private fun String.looksLikeDesktopSettings(): Boolean =
     runCatching {
         val keys = Json.parseToJsonElement(this).jsonObject.keys
-        "connection" in keys || "playback" in keys || "window" in keys || "session" in keys || "navigation" in keys
+        "connection" in keys ||
+            "playback" in keys ||
+            "window" in keys ||
+            "session" in keys ||
+            "navigation" in keys ||
+            "search" in keys
     }.getOrDefault(false)
