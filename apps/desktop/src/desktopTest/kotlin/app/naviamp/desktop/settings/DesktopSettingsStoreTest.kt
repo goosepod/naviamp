@@ -44,6 +44,7 @@ class DesktopSettingsStoreTest {
             PlaybackSettings(
                 replayGainMode = ReplayGainMode.Album,
                 crossfadeDurationSeconds = 5,
+                volumePercent = 72,
                 debugLoggingEnabled = true,
             ),
         )
@@ -59,6 +60,7 @@ class DesktopSettingsStoreTest {
 
         assertEquals(ReplayGainMode.Album, store.loadPlaybackSettings().replayGainMode)
         assertEquals(5, store.loadPlaybackSettings().crossfadeDurationSeconds)
+        assertEquals(72, store.loadPlaybackSettings().volumePercent)
         assertEquals(true, store.loadPlaybackSettings().debugLoggingEnabled)
         assertEquals("user", store.loadConnection()?.username)
     }
@@ -72,15 +74,18 @@ class DesktopSettingsStoreTest {
             PlaybackSettings(
                 replayGainMode = ReplayGainMode.Track,
                 crossfadeDurationSeconds = 8,
+                volumePercent = 64,
                 debugLoggingEnabled = true,
             ),
         )
 
         assertEquals(ReplayGainMode.Track, store.loadPlaybackSettings().replayGainMode)
         assertEquals(8, store.loadPlaybackSettings().crossfadeDurationSeconds)
+        assertEquals(64, store.loadPlaybackSettings().volumePercent)
         assertEquals(true, store.loadPlaybackSettings().debugLoggingEnabled)
         assertEquals(true, path.readText().contains("replayGainMode"))
         assertEquals(true, path.readText().contains("crossfadeDurationSeconds"))
+        assertEquals(true, path.readText().contains("volumePercent"))
         assertEquals(true, path.readText().contains("debugLoggingEnabled"))
     }
 
@@ -122,6 +127,8 @@ class DesktopSettingsStoreTest {
                 codec = "FLAC",
                 bitrateKbps = 1000,
                 contentType = "audio/flac",
+                bitDepth = 16,
+                samplingRateHz = 44100,
             ),
             replayGain = null,
             favoritedAtIso8601 = "2026-05-09T13:45:00Z",
@@ -145,6 +152,8 @@ class DesktopSettingsStoreTest {
         assertEquals("album-1", session?.currentTrack()?.albumId?.value)
         assertEquals(1986, session?.currentTrack()?.albumReleaseYear)
         assertEquals("FLAC", session?.currentTrack()?.audioInfo?.codec)
+        assertEquals(16, session?.currentTrack()?.audioInfo?.bitDepth)
+        assertEquals(44100, session?.currentTrack()?.audioInfo?.samplingRateHz)
         assertEquals("2026-05-09T13:45:00Z", session?.currentTrack()?.favoritedAtIso8601)
         assertEquals(4, session?.currentTrack()?.userRating)
         assertEquals(2, session?.toTracks()?.size)

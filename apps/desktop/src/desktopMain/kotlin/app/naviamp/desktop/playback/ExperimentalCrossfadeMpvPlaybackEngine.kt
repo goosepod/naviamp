@@ -33,6 +33,7 @@ class ExperimentalCrossfadeMpvPlaybackEngine(
     override val supportsGapless: Boolean = true
     override val supportsCrossfade: Boolean = true
     override val supportsReplayGain: Boolean = true
+    override val supportsSoftwareVolume: Boolean = true
     override val prefersOriginalStream: Boolean = true
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -47,7 +48,9 @@ class ExperimentalCrossfadeMpvPlaybackEngine(
     private var onProgressChanged: ((PlaybackProgress) -> Unit)? = null
     private var playbackId = 0
     private var crossfadeDurationSeconds = 0
+    private var volumePercent = MaxVolume
     private var isTransitioning = false
+    private var transitionProgress = 0.0
 
     init {
         Runtime.getRuntime().addShutdownHook(Thread { stop() })
@@ -68,7 +71,7 @@ class ExperimentalCrossfadeMpvPlaybackEngine(
         if (active?.matches(request) == true) {
             trace.log("play adopts active slot=${active.id}")
             if (!isTransitioning) {
-                active.setVolume(MaxVolume)
+                active.setVolume(volumePercent)
             }
             active.resume()
             onStateChanged(PlaybackState.Playing)
@@ -98,7 +101,7 @@ class ExperimentalCrossfadeMpvPlaybackEngine(
 
         scope.launch(Dispatchers.IO) {
             try {
-                val slot = startSlot(scope, request, startPaused = false, volume = MaxVolume)
+                val slot = startSlot(scope, request, startPaused = false, volume = volumePercent)
                 if (!isCurrentPlayback(currentPlaybackId)) {
                     slot.stop()
                     return@launch
@@ -137,10 +140,37 @@ class ExperimentalCrossfadeMpvPlaybackEngine(
         activeSlot?.seek(positionSeconds)
     }
 
+    override fun setVolume(percent: Int) {
+        volumePercent = percent.coerceIn(0, MaxVolume)
+        trace.log("setVolume $volumePercent")
+        if (isTransitioning) {
+            fadingOutSlot?.setVolume((equalPowerFadeOut(transitionProgress) * volumePercent).toInt())
+            fadingInSlot?.setVolume((equalPowerFadeIn(transitionProgress) * volumePercent).toInt())
+        } else {
+            activeSlot?.setVolume(volumePercent)
+            nextSlot?.setVolume(0)
+        }
+    }
+
     override fun stop() {
         trace.log("stop")
         playbackId += 1
-        stopSlots(clearCallbacks = true)
+        runCatching {
+            stopSlots(clearCallbacks = true)
+        }.onFailure { exception ->
+            trace.log("stop failed: ${exception.message}")
+            activeSlot = null
+            nextSlot = null
+            fadingOutSlot = null
+            fadingInSlot = null
+            isTransitioning = false
+            transitionProgress = 0.0
+            fadeJob = null
+            progressJob = null
+            scope = null
+            onStateChanged = null
+            onProgressChanged = null
+        }
     }
 
     override fun setCrossfadeDuration(seconds: Int) {
@@ -229,12 +259,13 @@ class ExperimentalCrossfadeMpvPlaybackEngine(
         repeat(steps + 1) { step ->
             if (!isTransitioning || fadingOutSlot != fadingOut) return
             val progress = step.toDouble() / steps.toDouble()
+            transitionProgress = progress
             val fadeIn = equalPowerFadeIn(progress)
             val fadeOut = equalPowerFadeOut(progress)
             if (fadingOut.isAlive()) {
-                fadingOut.setVolume((fadeOut * MaxVolume).toInt())
+                fadingOut.setVolume((fadeOut * volumePercent).toInt())
             }
-            fadingIn.setVolume((fadeIn * MaxVolume).toInt())
+            fadingIn.setVolume((fadeIn * volumePercent).toInt())
             delay(FadeTickMillis)
         }
 
@@ -251,12 +282,13 @@ class ExperimentalCrossfadeMpvPlaybackEngine(
         trace.log("fade handoff active=${fadingOut.id} next=${fadingIn.id}")
         fadeJob?.cancel()
         fadeJob = null
-        fadingIn.setVolume(MaxVolume)
+        fadingIn.setVolume(volumePercent)
         fadingIn.resume()
         activeSlot = fadingIn
         fadingOutSlot = null
         fadingInSlot = null
         isTransitioning = false
+        transitionProgress = 0.0
         onProgressChanged?.let { startProgressPolling(scope, fadingIn, it) }
         onStateChanged?.invoke(PlaybackState.Finished)
         stopAsync(fadingOut)
@@ -272,7 +304,7 @@ class ExperimentalCrossfadeMpvPlaybackEngine(
         val previous = activeSlot
         nextSlot = null
         activeSlot = prepared
-        prepared.setVolume(MaxVolume)
+        prepared.setVolume(volumePercent)
         prepared.resume()
         if (previous != null && previous != prepared) {
             stopAsync(previous)
@@ -296,7 +328,8 @@ class ExperimentalCrossfadeMpvPlaybackEngine(
         nextSlot = null
         activeSlot = fadingIn
         isTransitioning = false
-        fadingIn.setVolume(MaxVolume)
+        transitionProgress = 0.0
+        fadingIn.setVolume(volumePercent)
         fadingIn.resume()
         stopAsync(fadingOut)
         onStateChanged(PlaybackState.Playing)
@@ -308,11 +341,12 @@ class ExperimentalCrossfadeMpvPlaybackEngine(
         trace.log("transition reset")
         fadeJob?.cancel()
         fadeJob = null
-        fadingOutSlot?.setVolume(MaxVolume)
+        fadingOutSlot?.setVolume(volumePercent)
         stopAsync(fadingInSlot)
         fadingOutSlot = null
         fadingInSlot = null
         isTransitioning = false
+        transitionProgress = 0.0
     }
 
     private fun handleSlotExit(slot: Slot, exitCode: Int) {
@@ -353,6 +387,7 @@ class ExperimentalCrossfadeMpvPlaybackEngine(
         fadingOutSlot = null
         fadingInSlot = null
         isTransitioning = false
+        transitionProgress = 0.0
         fadeJob = null
         progressJob = null
         if (clearCallbacks) {

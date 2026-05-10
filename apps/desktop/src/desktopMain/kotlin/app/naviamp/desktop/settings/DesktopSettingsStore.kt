@@ -117,6 +117,7 @@ data class DesktopSettings(
 data class PlaybackSettings(
     val replayGainMode: ReplayGainMode = ReplayGainMode.Off,
     val crossfadeDurationSeconds: Int = 0,
+    val volumePercent: Int = 100,
     val debugLoggingEnabled: Boolean = false,
 )
 
@@ -215,12 +216,16 @@ data class SavedAudioInfo(
     val codec: String? = null,
     val bitrateKbps: Int? = null,
     val contentType: String? = null,
+    val bitDepth: Int? = null,
+    val samplingRateHz: Int? = null,
 ) {
     fun toAudioInfo(): AudioInfo =
         AudioInfo(
             codec = codec,
             bitrateKbps = bitrateKbps,
             contentType = contentType,
+            bitDepth = bitDepth,
+            samplingRateHz = samplingRateHz,
         )
 
     companion object {
@@ -229,6 +234,8 @@ data class SavedAudioInfo(
                 codec = audioInfo.codec,
                 bitrateKbps = audioInfo.bitrateKbps,
                 contentType = audioInfo.contentType,
+                bitDepth = audioInfo.bitDepth,
+                samplingRateHz = audioInfo.samplingRateHz,
             )
     }
 }

@@ -78,6 +78,7 @@ import java.util.concurrent.TimeUnit
 import javax.imageio.ImageIO
 
 fun main() {
+    configureDesktopApplicationName()
     configureDesktopAppearance()
     configureDesktopIcon()
 
@@ -103,7 +104,9 @@ fun main() {
             icon = appIcon,
             onCloseRequest = {
                 settingsStore.saveWindowSettings(windowState.toWindowSettings())
-                playbackEngine.stop()
+                runCatching {
+                    playbackEngine.stop()
+                }
                 exitApplication()
             },
             title = "Naviamp",
@@ -114,6 +117,12 @@ fun main() {
             )
         }
     }
+}
+
+private fun configureDesktopApplicationName() {
+    System.setProperty("compose.application.name", "Naviamp")
+    System.setProperty("apple.awt.application.name", "Naviamp")
+    System.setProperty("sun.awt.application.name", "Naviamp")
 }
 
 private fun configureDesktopIcon() {
@@ -245,6 +254,10 @@ fun NaviampApp(
                 durationSeconds = crossfadeDurationSeconds,
             ),
         )
+    }
+
+    LaunchedEffect(playbackEngine, playbackSettings.volumePercent) {
+        playbackEngine.setVolume(playbackSettings.volumePercent.coerceIn(0, 100))
     }
 
     LaunchedEffect(playbackSettings.debugLoggingEnabled) {
@@ -786,6 +799,7 @@ fun NaviampApp(
                                 supportsSeek = playbackEngine.supportsSeek,
                                 supportsGapless = playbackEngine.supportsGapless,
                                 supportsCrossfade = playbackEngine.supportsCrossfade,
+                                supportsSoftwareVolume = playbackEngine.supportsSoftwareVolume,
                                 supportsTrackFavorites = connectedProvider?.capabilities?.supportsTrackFavorites == true,
                                 supportsTrackRatings = connectedProvider?.capabilities?.supportsTrackRatings == true,
                                 nowPlayingTrack = nowPlayingTrack,
@@ -796,6 +810,7 @@ fun NaviampApp(
                                 hasNext = playbackQueue.hasNext(),
                                 playbackState = playbackState,
                                 playbackProgress = playbackProgress,
+                                volumePercent = playbackSettings.volumePercent,
                                 onPlayerColorsChanged = { colors ->
                                     targetPlayerColors = colors
                                 },
@@ -818,6 +833,12 @@ fun NaviampApp(
                                 onNext = {
                                     openPlayerOnTrackStart = false
                                     playlistEngine.next(coroutineScope)
+                                },
+                                onVolumeChanged = { volumePercent ->
+                                    playbackSettings = playbackSettings
+                                        .copy(volumePercent = volumePercent)
+                                        .forEngine(playbackEngine)
+                                    settingsStore.savePlaybackSettings(playbackSettings)
                                 },
                                 onToggleTrackFavorite = { track ->
                                     toggleTrackFavorite(track)
@@ -1063,6 +1084,11 @@ private fun PlaybackSettings.forEngine(playbackEngine: PlaybackEngine): Playback
         } else {
             0
         },
+        volumePercent = if (playbackEngine.supportsSoftwareVolume) {
+            volumePercent.coerceIn(0, 100)
+        } else {
+            100
+        },
         debugLoggingEnabled = debugLoggingEnabled,
     )
 
@@ -1089,6 +1115,7 @@ private fun PlaybackEngine.capabilitiesLabel(): String =
         "gapless" to supportsGapless,
         "crossfade" to supportsCrossfade,
         "ReplayGain" to supportsReplayGain,
+        "volume" to supportsSoftwareVolume,
     ).joinToString(", ") { (label, supported) ->
         if (supported) label else "no $label"
     }

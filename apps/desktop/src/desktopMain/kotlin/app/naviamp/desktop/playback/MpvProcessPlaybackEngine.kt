@@ -29,6 +29,7 @@ class MpvProcessPlaybackEngine(
     override val supportsGapless: Boolean = true
     override val supportsCrossfade: Boolean = false
     override val supportsReplayGain: Boolean = true
+    override val supportsSoftwareVolume: Boolean = true
     override val prefersOriginalStream: Boolean = true
 
     private var job: Job? = null
@@ -37,6 +38,7 @@ class MpvProcessPlaybackEngine(
     private var ipcEndpoint: MpvIpcEndpoint? = null
     private var onStateChanged: ((PlaybackState) -> Unit)? = null
     private var playbackId = 0
+    private var volumePercent = 100
     private val json = Json { ignoreUnknownKeys = true }
 
     init {
@@ -73,6 +75,7 @@ class MpvProcessPlaybackEngine(
                     "--really-quiet",
                     "--gapless-audio=yes",
                     "--replaygain=${request.replayGainMode.mpvValue()}",
+                    "--volume=$volumePercent",
                     "--input-ipc-server=${endpoint.mpvPath}",
                     request.url,
                 )
@@ -141,6 +144,11 @@ class MpvProcessPlaybackEngine(
 
     override fun seek(positionSeconds: Double) {
         sendIpcCommand("""{"command":["seek",$positionSeconds,"absolute+exact"]}""")
+    }
+
+    override fun setVolume(percent: Int) {
+        volumePercent = percent.coerceIn(0, 100)
+        sendIpcCommand("""{"command":["set_property","volume",$volumePercent]}""", reportErrors = false)
     }
 
     override fun stop() {

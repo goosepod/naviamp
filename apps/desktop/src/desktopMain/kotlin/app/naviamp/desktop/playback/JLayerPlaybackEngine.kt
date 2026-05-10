@@ -15,6 +15,7 @@ class JLayerPlaybackEngine : PlaybackEngine {
     override val supportsGapless: Boolean = false
     override val supportsCrossfade: Boolean = false
     override val supportsReplayGain: Boolean = false
+    override val supportsSoftwareVolume: Boolean = false
     override val prefersOriginalStream: Boolean = false
 
     private var job: Job? = null
@@ -68,6 +69,8 @@ class JLayerPlaybackEngine : PlaybackEngine {
     override fun resume() = Unit
 
     override fun seek(positionSeconds: Double) = Unit
+
+    override fun setVolume(percent: Int) = Unit
 
     private fun closeCurrent() {
         closePlayback(player, stream)

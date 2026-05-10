@@ -63,6 +63,11 @@ sqldelight {
 compose.desktop {
     application {
         mainClass = "app.naviamp.desktop.MainKt"
+        jvmArgs += listOf(
+            "-Dcompose.application.name=Naviamp",
+            "-Dapple.awt.application.name=Naviamp",
+            "-Dsun.awt.application.name=Naviamp",
+        )
 
         nativeDistributions {
             packageName = "Naviamp"

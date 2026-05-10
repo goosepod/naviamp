@@ -9,6 +9,7 @@ interface PlaybackEngine {
     val supportsGapless: Boolean
     val supportsCrossfade: Boolean
     val supportsReplayGain: Boolean
+    val supportsSoftwareVolume: Boolean
     val prefersOriginalStream: Boolean
 
     fun play(
@@ -23,6 +24,8 @@ interface PlaybackEngine {
     fun resume()
 
     fun seek(positionSeconds: Double)
+
+    fun setVolume(percent: Int)
 
     fun stop()
 }

@@ -883,12 +883,16 @@ private data class AudioInfoDto(
     val codec: String? = null,
     val bitrateKbps: Int? = null,
     val contentType: String? = null,
+    val bitDepth: Int? = null,
+    val samplingRateHz: Int? = null,
 ) {
     fun toAudioInfo(): AudioInfo =
         AudioInfo(
             codec = codec,
             bitrateKbps = bitrateKbps,
             contentType = contentType,
+            bitDepth = bitDepth,
+            samplingRateHz = samplingRateHz,
         )
 
     companion object {
@@ -897,6 +901,8 @@ private data class AudioInfoDto(
                 codec = audioInfo.codec,
                 bitrateKbps = audioInfo.bitrateKbps,
                 contentType = audioInfo.contentType,
+                bitDepth = audioInfo.bitDepth,
+                samplingRateHz = audioInfo.samplingRateHz,
             )
     }
 }

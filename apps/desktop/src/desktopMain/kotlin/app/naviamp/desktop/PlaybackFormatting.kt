@@ -64,19 +64,44 @@ fun PlaybackEngine.streamQuality(): StreamQuality =
         )
     }
 
-fun Track.playbackAudioLabel(playbackEngineName: String): String? =
+fun Track.playbackAudioInfo(playbackEngineName: String): PlaybackAudioInfo? =
     if (playbackEngineName == "JLayer") {
-        "MP3 transcode • 192 kbps"
+        PlaybackAudioInfo(codec = "MP3", quality = "192")
     } else {
-        audioInfo?.label()
+        audioInfo?.displayInfo()
     }
 
-private fun AudioInfo.label(): String? {
-    val parts = listOfNotNull(
-        codec,
-        bitrateKbps?.let { "$it kbps" },
-    )
-    return parts.takeIf { it.isNotEmpty() }?.joinToString(" • ")
+data class PlaybackAudioInfo(
+    val codec: String?,
+    val quality: String?,
+)
+
+private fun AudioInfo.displayInfo(): PlaybackAudioInfo? {
+    val normalizedCodec = codec?.uppercase()
+    val sampleRate = samplingRateHz
+    val depth = bitDepth
+    val qualityLabel = when {
+        normalizedCodec in LosslessCodecs && sampleRate != null && depth != null ->
+            "${sampleRate.sampleRateKhzLabel()} / $depth"
+        normalizedCodec in LosslessCodecs && bitrateKbps != null -> "$bitrateKbps"
+        bitrateKbps != null -> "$bitrateKbps"
+        else -> null
+    }
+    return PlaybackAudioInfo(
+        codec = normalizedCodec,
+        quality = qualityLabel,
+    ).takeIf { it.codec != null || it.quality != null }
+}
+
+private val LosslessCodecs = setOf("FLAC", "ALAC", "WAV", "AIFF", "AIF", "APE", "DSF", "DFF")
+
+private fun Int.sampleRateKhzLabel(): String {
+    val khz = this / 1000.0
+    return if (this % 1000 == 0) {
+        khz.toInt().toString()
+    } else {
+        "%.1f".format(java.util.Locale.US, khz)
+    }
 }
 
 private fun Double.toTimeLabel(): String {

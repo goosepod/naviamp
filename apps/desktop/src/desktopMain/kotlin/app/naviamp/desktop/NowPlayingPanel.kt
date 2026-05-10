@@ -68,6 +68,7 @@ fun NowPlayingPanel(
     supportsSeek: Boolean,
     supportsGapless: Boolean,
     supportsCrossfade: Boolean,
+    supportsSoftwareVolume: Boolean,
     supportsTrackFavorites: Boolean,
     supportsTrackRatings: Boolean,
     nowPlayingTrack: Track?,
@@ -78,6 +79,7 @@ fun NowPlayingPanel(
     hasNext: Boolean,
     playbackState: PlaybackState,
     playbackProgress: PlaybackProgress,
+    volumePercent: Int,
     onPlayerColorsChanged: (PlayerColors) -> Unit,
     onPause: () -> Unit,
     onResume: () -> Unit,
@@ -85,6 +87,7 @@ fun NowPlayingPanel(
     onSeek: (Double) -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
+    onVolumeChanged: (Int) -> Unit,
     onToggleTrackFavorite: (Track) -> Unit,
     onTrackRatingSelected: (Track, Int?) -> Unit,
     onArtistSelected: (Track) -> Unit,
@@ -131,9 +134,11 @@ fun NowPlayingPanel(
                     playbackEngineName = playbackEngineName,
                     supportsGapless = supportsGapless,
                     supportsCrossfade = supportsCrossfade,
+                    supportsSoftwareVolume = supportsSoftwareVolume,
                     nowPlayingTrack = nowPlayingTrack,
                     playbackState = playbackState,
                     playbackProgress = playbackProgress,
+                    volumePercent = volumePercent,
                     supportsPause = supportsPause,
                     supportsSeek = supportsSeek,
                     supportsTrackFavorites = supportsTrackFavorites,
@@ -146,6 +151,7 @@ fun NowPlayingPanel(
                     onSeek = onSeek,
                     onPrevious = onPrevious,
                     onNext = onNext,
+                    onVolumeChanged = onVolumeChanged,
                     onToggleTrackFavorite = onToggleTrackFavorite,
                     onTrackRatingSelected = onTrackRatingSelected,
                     onArtistSelected = onArtistSelected,
@@ -181,9 +187,11 @@ fun NowPlayingPanel(
                     playbackEngineName = playbackEngineName,
                     supportsGapless = supportsGapless,
                     supportsCrossfade = supportsCrossfade,
+                    supportsSoftwareVolume = supportsSoftwareVolume,
                     nowPlayingTrack = nowPlayingTrack,
                     playbackState = playbackState,
                     playbackProgress = playbackProgress,
+                    volumePercent = volumePercent,
                     supportsPause = supportsPause,
                     supportsSeek = supportsSeek,
                     supportsTrackFavorites = supportsTrackFavorites,
@@ -196,6 +204,7 @@ fun NowPlayingPanel(
                     onSeek = onSeek,
                     onPrevious = onPrevious,
                     onNext = onNext,
+                    onVolumeChanged = onVolumeChanged,
                     onToggleTrackFavorite = onToggleTrackFavorite,
                     onTrackRatingSelected = onTrackRatingSelected,
                     onArtistSelected = onArtistSelected,
@@ -321,9 +330,11 @@ private fun PlayerDetails(
     playbackEngineName: String,
     supportsGapless: Boolean,
     supportsCrossfade: Boolean,
+    supportsSoftwareVolume: Boolean,
     nowPlayingTrack: Track?,
     playbackState: PlaybackState,
     playbackProgress: PlaybackProgress,
+    volumePercent: Int,
     supportsPause: Boolean,
     supportsSeek: Boolean,
     supportsTrackFavorites: Boolean,
@@ -336,6 +347,7 @@ private fun PlayerDetails(
     onSeek: (Double) -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
+    onVolumeChanged: (Int) -> Unit,
     onToggleTrackFavorite: (Track) -> Unit,
     onTrackRatingSelected: (Track, Int?) -> Unit,
     onArtistSelected: (Track) -> Unit,
@@ -345,6 +357,8 @@ private fun PlayerDetails(
 ) {
     var scrubberValue by remember { mutableFloatStateOf(0f) }
     var isScrubbing by remember { mutableStateOf(false) }
+    var volumeValue by remember { mutableFloatStateOf(volumePercent.coerceIn(0, 100) / 100f) }
+    var isChangingVolume by remember { mutableStateOf(false) }
     val effectiveDurationSeconds = nowPlayingTrack?.durationSeconds?.toDouble()
         ?: playbackProgress.durationSeconds
     val effectiveProgressFraction = playbackProgress.fraction(effectiveDurationSeconds)
@@ -364,19 +378,64 @@ private fun PlayerDetails(
         }
     }
 
+    LaunchedEffect(volumePercent) {
+        if (!isChangingVolume) {
+            volumeValue = volumePercent.coerceIn(0, 100) / 100f
+        }
+    }
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(1.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
         modifier = modifier,
     ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(
+                playbackProgress.positionLabel(),
+                color = appColors.primaryText,
+                fontSize = 11.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.width(42.dp),
+            )
+            Slider(
+                value = scrubberValue,
+                onValueChange = {
+                    isScrubbing = true
+                    scrubberValue = it
+                },
+                onValueChangeFinished = {
+                    effectiveDurationSeconds?.let { duration ->
+                        onSeek(scrubberValue * duration)
+                    }
+                    isScrubbing = false
+                },
+                enabled = canSeek,
+                colors = playerSliderColors(playerColors, appColors),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(22.dp),
+            )
+            Text(
+                effectiveDurationSeconds.durationLabel(),
+                color = appColors.primaryText,
+                textAlign = TextAlign.Center,
+                fontSize = 11.sp,
+                modifier = Modifier.width(42.dp),
+            )
+        }
+
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(0.dp),
-            modifier = Modifier.padding(bottom = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(1.dp),
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Text(
                 nowPlayingTrack?.artistName ?: "Nothing Playing",
-                color = appColors.primaryText,
+                color = appColors.secondaryText,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
@@ -396,7 +455,7 @@ private fun PlayerDetails(
             )
             Text(
                 nowPlayingTrack?.albumTitleWithYear() ?: playbackState.label(),
-                color = appColors.primaryText,
+                color = appColors.secondaryText,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
@@ -408,85 +467,65 @@ private fun PlayerDetails(
         }
 
         Row(
-            horizontalArrangement = Arrangement.spacedBy(7.dp),
+            horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
-        ) {
-            val canSetFavorite = nowPlayingTrack != null && supportsTrackFavorites
-            Text(
-                nowPlayingTrack?.favoriteGlyph() ?: "♡",
-                color = if (nowPlayingTrack?.favoritedAtIso8601 != null) {
-                    playerColors.accent
-                } else {
-                    Color.White.copy(alpha = 0.72f)
-                },
-                fontSize = 12.sp,
-                modifier = Modifier.clickable(enabled = canSetFavorite) {
-                    nowPlayingTrack?.let(onToggleTrackFavorite)
-                },
-            )
-            nowPlayingTrack?.playbackAudioLabel(playbackEngineName)?.let {
-                Text(it, color = appColors.primaryText, fontSize = 11.sp)
-            }
-            TrackRatingControl(
-                track = nowPlayingTrack,
-                enabled = supportsTrackRatings,
-                activeColor = playerColors.accent,
-                inactiveColor = Color.White.copy(alpha = 0.72f),
-                onRatingSelected = onTrackRatingSelected,
-            )
-        }
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 8.dp),
+                .padding(vertical = 2.dp),
         ) {
+            val canSetFavorite = nowPlayingTrack != null && supportsTrackFavorites
+            val audioInfo = nowPlayingTrack?.playbackAudioInfo(playbackEngineName)
             Text(
-                playbackProgress.positionLabel(),
-                color = appColors.primaryText,
+                audioInfo?.codec.orEmpty(),
+                color = appColors.secondaryText,
                 fontSize = 11.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.width(52.dp),
+                textAlign = TextAlign.End,
+                maxLines = 1,
+                modifier = Modifier.width(44.dp),
             )
-            Slider(
-                value = scrubberValue,
-                onValueChange = {
-                    isScrubbing = true
-                    scrubberValue = it
-                },
-                onValueChangeFinished = {
-                    effectiveDurationSeconds?.let { duration ->
-                        onSeek(scrubberValue * duration)
-                    }
-                    isScrubbing = false
-                },
-                enabled = canSeek,
-                colors = SliderDefaults.colors(
-                    thumbColor = Color.White,
-                    activeTrackColor = playerColors.accent,
-                    inactiveTrackColor = Color.White.copy(alpha = 0.22f),
-                    disabledThumbColor = appColors.mutedText,
-                    disabledActiveTrackColor = Color.White.copy(alpha = 0.18f),
-                    disabledInactiveTrackColor = Color.White.copy(alpha = 0.12f),
-                ),
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
-                    .weight(1f)
-                    .height(22.dp),
-            )
+                    .width(82.dp)
+                    .padding(horizontal = 8.dp),
+            ) {
+                Text(
+                    nowPlayingTrack?.favoriteGlyph() ?: "♡",
+                    color = if (nowPlayingTrack?.favoritedAtIso8601 != null) {
+                        playerColors.accent
+                    } else {
+                        Color.White.copy(alpha = 0.72f)
+                    },
+                    fontSize = 12.sp,
+                    modifier = Modifier.clickable(enabled = canSetFavorite) {
+                        nowPlayingTrack?.let(onToggleTrackFavorite)
+                    },
+                )
+                TrackRatingControl(
+                    track = nowPlayingTrack,
+                    enabled = supportsTrackRatings,
+                    activeColor = playerColors.accent,
+                    inactiveColor = Color.White.copy(alpha = 0.72f),
+                    onRatingSelected = onTrackRatingSelected,
+                )
+            }
             Text(
-                effectiveDurationSeconds.durationLabel(),
-                color = appColors.primaryText,
-                textAlign = TextAlign.Center,
+                audioInfo?.quality.orEmpty(),
+                color = appColors.secondaryText,
                 fontSize = 11.sp,
-                modifier = Modifier.width(52.dp),
+                textAlign = TextAlign.Start,
+                maxLines = 1,
+                modifier = Modifier
+                    .width(72.dp)
+                    .padding(start = 6.dp),
             )
         }
 
         Row(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(top = 8.dp, bottom = 8.dp),
         ) {
             TransportIconButton(
                 enabled = hasPrevious,
@@ -524,25 +563,82 @@ private fun PlayerDetails(
             )
         }
 
-        Text(
-            playbackCapabilityLabel(supportsGapless, supportsCrossfade),
-            color = appColors.mutedText,
-            textAlign = TextAlign.Center,
-            fontSize = 11.sp,
-        )
-        IconButton(
-            onClick = onCollapseToHome,
-            modifier = Modifier.size(32.dp),
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 42.dp),
         ) {
-            Icon(
-                imageVector = NavigationIcons.ChevronDown,
-                contentDescription = "Home",
-                tint = appColors.secondaryText,
-                modifier = Modifier.size(18.dp),
+            Text(
+                "VOL",
+                color = appColors.secondaryText,
+                fontSize = 10.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.width(22.dp),
             )
+            Slider(
+                value = volumeValue,
+                onValueChange = {
+                    isChangingVolume = true
+                    volumeValue = it
+                    onVolumeChanged((it * 100).toInt().coerceIn(0, 100))
+                },
+                onValueChangeFinished = {
+                    isChangingVolume = false
+                },
+                enabled = supportsSoftwareVolume,
+                colors = playerSliderColors(playerColors, appColors),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(16.dp),
+            )
+            Text(
+                "${(volumeValue * 100).toInt().coerceIn(0, 100)}%",
+                color = appColors.secondaryText,
+                fontSize = 11.sp,
+                textAlign = TextAlign.End,
+                modifier = Modifier.width(34.dp),
+            )
+        }
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Text(
+                playbackCapabilityLabel(supportsGapless, supportsCrossfade),
+                color = appColors.mutedText,
+                textAlign = TextAlign.Center,
+                fontSize = 10.sp,
+            )
+            IconButton(
+                onClick = onCollapseToHome,
+                modifier = Modifier.size(28.dp),
+            ) {
+                Icon(
+                    imageVector = NavigationIcons.ChevronDown,
+                    contentDescription = "Home",
+                    tint = appColors.secondaryText,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
         }
     }
 }
+
+@Composable
+private fun playerSliderColors(
+    playerColors: PlayerColors,
+    appColors: AppColors,
+) = SliderDefaults.colors(
+    thumbColor = Color.White,
+    activeTrackColor = playerColors.accent,
+    inactiveTrackColor = Color.White.copy(alpha = 0.22f),
+    disabledThumbColor = appColors.mutedText,
+    disabledActiveTrackColor = Color.White.copy(alpha = 0.18f),
+    disabledInactiveTrackColor = Color.White.copy(alpha = 0.12f),
+)
 
 @Composable
 private fun TransportIconButton(

@@ -315,6 +315,8 @@ class NavidromeProvider(
                 codec = stringValue("suffix")?.uppercase(),
                 bitrateKbps = intValue("bitRate"),
                 contentType = stringValue("contentType"),
+                bitDepth = intValue("bitDepth"),
+                samplingRateHz = intValue("samplingRate"),
             ),
             replayGain = null,
             favoritedAtIso8601 = stringValue("starred"),

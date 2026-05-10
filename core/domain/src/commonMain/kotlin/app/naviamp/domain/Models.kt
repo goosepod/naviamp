@@ -64,6 +64,8 @@ data class AudioInfo(
     val codec: String?,
     val bitrateKbps: Int?,
     val contentType: String?,
+    val bitDepth: Int? = null,
+    val samplingRateHz: Int? = null,
 )
 
 data class ReplayGain(
