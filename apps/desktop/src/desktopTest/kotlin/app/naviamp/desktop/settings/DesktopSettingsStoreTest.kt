@@ -1,6 +1,8 @@
 package app.naviamp.desktop.settings
 
 import app.naviamp.desktop.playback.ReplayGainMode
+import app.naviamp.domain.AlbumId
+import app.naviamp.domain.ArtistId
 import app.naviamp.domain.AudioInfo
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
@@ -91,8 +93,11 @@ class DesktopSettingsStoreTest {
         val first = Track(
             id = TrackId("first"),
             title = "First Track",
+            artistId = ArtistId("artist-1"),
             artistName = "Artist",
+            albumId = AlbumId("album-1"),
             albumTitle = "Album",
+            albumReleaseYear = 1986,
             durationSeconds = 180,
             coverArtId = "cover-1",
             audioInfo = AudioInfo(
@@ -118,6 +123,9 @@ class DesktopSettingsStoreTest {
 
         val session = store.loadPlaybackSession()
         assertEquals("Second Track", session?.currentTrack()?.title)
+        assertEquals("artist-1", session?.currentTrack()?.artistId?.value)
+        assertEquals("album-1", session?.currentTrack()?.albumId?.value)
+        assertEquals(1986, session?.currentTrack()?.albumReleaseYear)
         assertEquals("FLAC", session?.currentTrack()?.audioInfo?.codec)
         assertEquals("2026-05-09T13:45:00Z", session?.currentTrack()?.favoritedAtIso8601)
         assertEquals(4, session?.currentTrack()?.userRating)

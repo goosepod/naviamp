@@ -17,12 +17,26 @@ data class Artist(
     val name: String,
 )
 
+data class ArtistDetails(
+    val artist: Artist,
+    val albums: List<Album>,
+    val info: ArtistInfo? = null,
+)
+
+data class ArtistInfo(
+    val biography: String?,
+    val smallImageUrl: String?,
+    val mediumImageUrl: String?,
+    val largeImageUrl: String?,
+)
+
 data class Album(
     val id: AlbumId,
     val title: String,
     val artistName: String,
     val coverArtId: String?,
     val recentlyAddedAtIso8601: String?,
+    val releaseYear: Int? = null,
 )
 
 data class AlbumDetails(
@@ -33,8 +47,11 @@ data class AlbumDetails(
 data class Track(
     val id: TrackId,
     val title: String,
+    val artistId: ArtistId? = null,
     val artistName: String,
+    val albumId: AlbumId? = null,
     val albumTitle: String?,
+    val albumReleaseYear: Int? = null,
     val durationSeconds: Int?,
     val coverArtId: String?,
     val audioInfo: AudioInfo?,

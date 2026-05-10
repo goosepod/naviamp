@@ -40,6 +40,8 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
+import app.naviamp.domain.Artist
+import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.Track
 import app.naviamp.desktop.playback.PlaybackEngine
 import app.naviamp.desktop.playback.PlaybackEngineFactory
@@ -150,6 +152,11 @@ fun NaviampApp(
     var selectedAlbum by remember { mutableStateOf<Album?>(null) }
     var selectedAlbumDetails by remember { mutableStateOf<AlbumDetails?>(null) }
     var selectedAlbumStatus by remember { mutableStateOf<String?>(null) }
+    var albumDetailBackRoute by remember { mutableStateOf(AppRoute.Home) }
+    var selectedArtist by remember { mutableStateOf<Artist?>(null) }
+    var selectedArtistDetails by remember { mutableStateOf<ArtistDetails?>(null) }
+    var selectedArtistStatus by remember { mutableStateOf<String?>(null) }
+    var artistDetailBackRoute by remember { mutableStateOf(AppRoute.Search) }
     var searchQuery by remember { mutableStateOf(savedSearch.query) }
     var searchResults by remember { mutableStateOf(MediaSearchResults()) }
     var searchStatus by remember { mutableStateOf<String?>(null) }
@@ -205,12 +212,18 @@ fun NaviampApp(
         }
     }
 
-    LaunchedEffect(appRoute) {
-        if (appRoute == AppRoute.Player) {
+    LaunchedEffect(appRoute, albumDetailBackRoute, artistDetailBackRoute) {
+        if (appRoute == AppRoute.Player || appRoute == AppRoute.AlbumDetail || appRoute == AppRoute.ArtistDetail) {
             settingsStore.saveNavigationSettings(
                 NavigationSettings(
                     route = appRoute.name,
-                    lastContentRoute = lastContentRoute.name,
+                    lastContentRoute = if (appRoute == AppRoute.AlbumDetail) {
+                        albumDetailBackRoute.name
+                    } else if (appRoute == AppRoute.ArtistDetail) {
+                        artistDetailBackRoute.name
+                    } else {
+                        lastContentRoute.name
+                    },
                 ),
             )
         } else {
@@ -336,8 +349,14 @@ fun NaviampApp(
         }
     }
 
-    fun openAlbumDetails(album: Album) {
+    fun openAlbumDetails(album: Album, backRouteOverride: AppRoute? = null) {
         val provider = connectedProvider ?: return
+        albumDetailBackRoute = backRouteOverride ?: when (appRoute) {
+            AppRoute.AlbumDetail -> albumDetailBackRoute
+            AppRoute.ArtistDetail -> AppRoute.ArtistDetail
+            AppRoute.Player -> lastContentRoute
+            else -> appRoute
+        }
         selectedAlbum = album
         selectedAlbumDetails = null
         selectedAlbumStatus = "Loading..."
@@ -418,6 +437,53 @@ fun NaviampApp(
                 connectionStatus = exception.message ?: "Could not update favorite."
             }
         }
+    }
+
+    fun openArtistDetails(artist: Artist, backRouteOverride: AppRoute? = null) {
+        val provider = connectedProvider ?: return
+        artistDetailBackRoute = backRouteOverride ?: when (appRoute) {
+            AppRoute.ArtistDetail -> artistDetailBackRoute
+            AppRoute.Player -> lastContentRoute
+            else -> appRoute
+        }
+        selectedArtist = artist
+        selectedArtistDetails = null
+        selectedArtistStatus = "Loading..."
+        appRoute = AppRoute.ArtistDetail
+        coroutineScope.launch {
+            try {
+                selectedArtistDetails = provider.artist(artist.id)
+                selectedArtistStatus = null
+            } catch (exception: Exception) {
+                selectedArtistStatus = exception.message ?: "Could not load artist."
+            }
+        }
+    }
+
+    fun openTrackArtistDetails(track: Track) {
+        val artistId = track.artistId ?: return
+        openArtistDetails(
+            artist = Artist(
+                id = artistId,
+                name = track.artistName,
+            ),
+            backRouteOverride = AppRoute.Player,
+        )
+    }
+
+    fun openTrackAlbumDetails(track: Track) {
+        val albumId = track.albumId ?: return
+        openAlbumDetails(
+            album = Album(
+                id = albumId,
+                title = track.albumTitle ?: "Album",
+                artistName = track.artistName,
+                coverArtId = track.coverArtId,
+                recentlyAddedAtIso8601 = null,
+                releaseYear = track.albumReleaseYear,
+            ),
+            backRouteOverride = AppRoute.Player,
+        )
     }
 
     fun setTrackRating(track: Track, rating: Int?) {
@@ -552,6 +618,12 @@ fun NaviampApp(
                                 onTrackRatingSelected = { track, rating ->
                                     setTrackRating(track, rating)
                                 },
+                                onArtistSelected = { track ->
+                                    openTrackArtistDetails(track)
+                                },
+                                onAlbumSelected = { track ->
+                                    openTrackAlbumDetails(track)
+                                },
                                 onCollapseToHome = {
                                     appRoute = lastContentRoute
                                 },
@@ -583,11 +655,24 @@ fun NaviampApp(
                                     album = selectedAlbum,
                                     albumDetails = selectedAlbumDetails,
                                     status = selectedAlbumStatus,
-                                    coverArtUrl = selectedAlbum?.coverArtId?.let { connectedProvider?.coverArtUrl(it) },
-                                    onBack = { appRoute = AppRoute.Home },
+                                    coverArtUrl = (
+                                        selectedAlbumDetails?.album?.coverArtId ?: selectedAlbum?.coverArtId
+                                        )?.let { connectedProvider?.coverArtUrl(it) },
+                                    onBack = { appRoute = albumDetailBackRoute },
                                     onPlayAlbum = { playAlbumDetails() },
                                     onShuffleAlbum = { playAlbumDetails(shuffle = true) },
                                     onPlayTrack = { index -> playAlbumDetails(index = index) },
+                                )
+                                AppRoute.ArtistDetail -> ArtistDetailPanel(
+                                    appColors = appColors,
+                                    artist = selectedArtist,
+                                    artistDetails = selectedArtistDetails,
+                                    status = selectedArtistStatus,
+                                    coverArtUrl = { coverArtId ->
+                                        coverArtId?.let { connectedProvider?.coverArtUrl(it) }
+                                    },
+                                    onBack = { appRoute = artistDetailBackRoute },
+                                    onAlbumSelected = { album -> openAlbumDetails(album) },
                                 )
                                     AppRoute.Library -> ConnectionPanel(
                                         appColors = appColors,
@@ -612,6 +697,7 @@ fun NaviampApp(
                                             searchQuery = it
                                             settingsStore.saveSearchSettings(SearchSettings(query = it))
                                         },
+                                        onArtistSelected = { artist -> openArtistDetails(artist) },
                                         onAlbumSelected = { album -> openAlbumDetails(album) },
                                         onTrackSelected = { index -> playSearchTrack(index) },
                                     )
@@ -686,7 +772,15 @@ fun NaviampApp(
                         }
                         BottomNavigationBar(
                             appColors = appColors,
-                            selectedRoute = if (appRoute == AppRoute.AlbumDetail) AppRoute.Home else appRoute,
+                            selectedRoute = when (appRoute) {
+                                AppRoute.AlbumDetail -> if (albumDetailBackRoute == AppRoute.ArtistDetail) {
+                                    artistDetailBackRoute
+                                } else {
+                                    albumDetailBackRoute
+                                }
+                                AppRoute.ArtistDetail -> artistDetailBackRoute
+                                else -> appRoute
+                            },
                             onRouteSelected = { route ->
                                 appRoute = route
                             },
@@ -715,6 +809,7 @@ private fun restoredRoute(
     return when (val route = AppRoute.fromStoredName(savedRouteName)) {
         AppRoute.Player -> if (hasRestoredTrack) AppRoute.Player else AppRoute.Home
         AppRoute.AlbumDetail -> AppRoute.Home
+        AppRoute.ArtistDetail -> AppRoute.Search
         else -> route
     }
 }
@@ -722,7 +817,8 @@ private fun restoredRoute(
 private fun restoredLastContentRoute(savedRouteName: String?): AppRoute =
     when (val route = AppRoute.fromStoredName(savedRouteName)) {
         AppRoute.Player,
-        AppRoute.AlbumDetail
+        AppRoute.AlbumDetail,
+        AppRoute.ArtistDetail
         -> AppRoute.Home
         else -> route
     }

@@ -1,6 +1,5 @@
 package app.naviamp.desktop
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -76,12 +75,16 @@ fun AlbumDetailPanel(
                 verticalArrangement = Arrangement.spacedBy(2.dp),
                 modifier = Modifier.weight(1f),
             ) {
+                val releaseYear = albumDetails?.album?.releaseYear ?: album?.releaseYear
                 Text(
                     albumDetails?.album?.artistName ?: album?.artistName ?: "",
                     color = appColors.primaryText,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                releaseYear?.let {
+                    Text(it.toString(), color = appColors.secondaryText, fontSize = 12.sp)
+                }
                 status?.let {
                     Text(it, color = appColors.secondaryText, fontSize = 11.sp)
                 }
@@ -108,39 +111,28 @@ fun AlbumDetailPanel(
 
         albumDetails?.let { details ->
             Text(
-                "${details.tracks.size} tracks - ${details.tracks.totalDurationLabel()}",
+                listOfNotNull(
+                    "${details.tracks.size} tracks",
+                    details.album.releaseYear?.toString(),
+                    details.tracks.totalDurationLabel(),
+                ).joinToString(" - "),
                 color = appColors.secondaryText,
                 modifier = Modifier.fillMaxWidth(),
             )
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 details.tracks.forEachIndexed { index, track ->
-                    Row(
+                    TrackRow(
+                        appColors = appColors,
+                        track = track,
+                        index = index + 1,
+                        subtitle = track.artistName,
+                        background = false,
+                        horizontalPadding = 0.dp,
+                        verticalPadding = 0.dp,
                         verticalAlignment = Alignment.Top,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onPlayTrack(index) }
-                            .padding(vertical = 0.dp),
-                    ) {
-                        Text("${index + 1}", color = appColors.mutedText, modifier = Modifier.padding(top = 1.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                track.title,
-                                color = appColors.primaryText,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            Text(
-                                "${track.artistName}\n${track.durationLabel()}",
-                                color = appColors.secondaryText,
-                                fontSize = 11.sp,
-                            )
-                        }
-                        track.compactFavoriteRatingLabel()?.let {
-                            Text(it, color = appColors.primaryText, fontSize = 11.sp)
-                        }
-                        Text("⋮", color = appColors.mutedText)
-                    }
+                        showMenu = true,
+                        onClick = { onPlayTrack(index) },
+                    )
                 }
             }
         }

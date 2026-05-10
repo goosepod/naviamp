@@ -87,6 +87,8 @@ fun NowPlayingPanel(
     onNext: () -> Unit,
     onToggleTrackFavorite: (Track) -> Unit,
     onTrackRatingSelected: (Track, Int?) -> Unit,
+    onArtistSelected: (Track) -> Unit,
+    onAlbumSelected: (Track) -> Unit,
     onCollapseToHome: () -> Unit,
 ) {
     val coverArtState = rememberCoverArtState(coverArtUrl, appColors)
@@ -145,6 +147,8 @@ fun NowPlayingPanel(
                     onNext = onNext,
                     onToggleTrackFavorite = onToggleTrackFavorite,
                     onTrackRatingSelected = onTrackRatingSelected,
+                    onArtistSelected = onArtistSelected,
+                    onAlbumSelected = onAlbumSelected,
                     onCollapseToHome = onCollapseToHome,
                     modifier = Modifier.weight(0.9f),
                 )
@@ -191,6 +195,8 @@ fun NowPlayingPanel(
                     onNext = onNext,
                     onToggleTrackFavorite = onToggleTrackFavorite,
                     onTrackRatingSelected = onTrackRatingSelected,
+                    onArtistSelected = onArtistSelected,
+                    onAlbumSelected = onAlbumSelected,
                     onCollapseToHome = onCollapseToHome,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -327,6 +333,8 @@ private fun PlayerDetails(
     onNext: () -> Unit,
     onToggleTrackFavorite: (Track) -> Unit,
     onTrackRatingSelected: (Track, Int?) -> Unit,
+    onArtistSelected: (Track) -> Unit,
+    onAlbumSelected: (Track) -> Unit,
     onCollapseToHome: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -368,6 +376,9 @@ private fun PlayerDetails(
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
                 style = metadataTextStyle,
+                modifier = Modifier.clickable(enabled = nowPlayingTrack?.artistId != null) {
+                    nowPlayingTrack?.let(onArtistSelected)
+                },
             )
             Text(
                 nowPlayingTrack?.title ?: "Queue will appear here after connection",
@@ -379,12 +390,15 @@ private fun PlayerDetails(
                 style = metadataTextStyle,
             )
             Text(
-                nowPlayingTrack?.albumTitle ?: playbackState.label(),
+                nowPlayingTrack?.albumTitleWithYear() ?: playbackState.label(),
                 color = appColors.primaryText,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
                 style = metadataTextStyle,
+                modifier = Modifier.clickable(enabled = nowPlayingTrack?.albumId != null) {
+                    nowPlayingTrack?.let(onAlbumSelected)
+                },
             )
         }
 
@@ -595,14 +609,6 @@ private fun UpNextPanel(
     modifier: Modifier = Modifier,
 ) {
     val scrollState = rememberScrollState()
-    val trackTitleStyle = TextStyle(
-        fontSize = 12.sp,
-        lineHeight = 12.sp,
-    )
-    val trackArtistStyle = TextStyle(
-        fontSize = 11.sp,
-        lineHeight = 11.sp,
-    )
 
     Column(
         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -632,43 +638,35 @@ private fun UpNextPanel(
                     .verticalScroll(scrollState),
             ) {
                 upNext.forEach { track ->
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    TrackRow(
+                        appColors = appColors,
+                        track = track,
+                        subtitle = track.artistName,
+                        background = false,
+                        horizontalPadding = 0.dp,
+                        verticalPadding = 0.dp,
+                        showDuration = false,
+                        showMenu = true,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(38.dp),
-                    ) {
-                        CoverArt(
-                            coverArtState = coverArtState,
-                            appColors = appColors,
-                            size = 32.dp,
-                            elevated = false,
-                        )
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(1.dp),
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Text(
-                                track.title,
-                                color = appColors.primaryText,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                style = trackTitleStyle,
+                        titleStyle = TextStyle(
+                            fontSize = 12.sp,
+                            lineHeight = 12.sp,
+                        ),
+                        subtitleStyle = TextStyle(
+                            fontSize = 11.sp,
+                            lineHeight = 11.sp,
+                        ),
+                        leadingContent = {
+                            CoverArt(
+                                coverArtState = coverArtState,
+                                appColors = appColors,
+                                size = 32.dp,
+                                elevated = false,
                             )
-                            Text(
-                                track.artistName,
-                                color = appColors.secondaryText,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                style = trackArtistStyle,
-                            )
-                        }
-                        track.compactFavoriteRatingLabel()?.let {
-                            Text(it, color = appColors.primaryText, fontSize = 11.sp)
-                        }
-                        Text("⋮", color = appColors.mutedText)
-                    }
+                        },
+                    )
                 }
             }
         }

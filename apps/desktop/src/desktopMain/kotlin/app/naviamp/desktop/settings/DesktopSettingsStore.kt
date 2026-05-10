@@ -1,6 +1,8 @@
 package app.naviamp.desktop.settings
 
 import app.naviamp.desktop.playback.ReplayGainMode
+import app.naviamp.domain.AlbumId
+import app.naviamp.domain.ArtistId
 import app.naviamp.domain.AudioInfo
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
@@ -155,8 +157,11 @@ data class PlaybackSessionSettings(
 data class SavedTrack(
     val id: String,
     val title: String,
+    val artistId: String? = null,
     val artistName: String,
+    val albumId: String? = null,
     val albumTitle: String? = null,
+    val albumReleaseYear: Int? = null,
     val durationSeconds: Int? = null,
     val coverArtId: String? = null,
     val audioInfo: SavedAudioInfo? = null,
@@ -167,8 +172,11 @@ data class SavedTrack(
         Track(
             id = TrackId(id),
             title = title,
+            artistId = artistId?.let { ArtistId(it) },
             artistName = artistName,
+            albumId = albumId?.let { AlbumId(it) },
             albumTitle = albumTitle,
+            albumReleaseYear = albumReleaseYear,
             durationSeconds = durationSeconds,
             coverArtId = coverArtId,
             audioInfo = audioInfo?.toAudioInfo(),
@@ -182,8 +190,11 @@ data class SavedTrack(
             SavedTrack(
                 id = track.id.value,
                 title = track.title,
+                artistId = track.artistId?.value,
                 artistName = track.artistName,
+                albumId = track.albumId?.value,
                 albumTitle = track.albumTitle,
+                albumReleaseYear = track.albumReleaseYear,
                 durationSeconds = track.durationSeconds,
                 coverArtId = track.coverArtId,
                 audioInfo = track.audioInfo?.let { SavedAudioInfo.fromAudioInfo(it) },

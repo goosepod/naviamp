@@ -4,6 +4,8 @@ import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Artist
+import app.naviamp.domain.ArtistDetails
+import app.naviamp.domain.ArtistId
 import app.naviamp.domain.ProviderId
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
@@ -17,6 +19,7 @@ interface MediaProvider {
     suspend fun validateConnection(): ConnectionValidation
     suspend fun recentlyAddedAlbums(limit: Int = 20): List<Album>
     suspend fun album(albumId: AlbumId): AlbumDetails
+    suspend fun artist(artistId: ArtistId): ArtistDetails
     suspend fun artists(limit: Int = 50): List<Artist>
     suspend fun tracks(limit: Int = 50): List<Track>
     suspend fun search(query: String, limit: Int = 20): MediaSearchResults

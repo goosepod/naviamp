@@ -4,6 +4,9 @@ import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Artist
+import app.naviamp.domain.ArtistDetails
+import app.naviamp.domain.ArtistId
+import app.naviamp.domain.ArtistInfo
 import app.naviamp.domain.AudioInfo
 import app.naviamp.domain.AudioCodec
 import app.naviamp.domain.ProviderId
@@ -91,6 +94,25 @@ class NavidromeProvider(
         )
     }
 
+    override suspend fun artist(artistId: ArtistId): ArtistDetails {
+        val response = get(
+            endpoint = "getArtist.view",
+            params = mapOf("id" to artistId.value),
+        )
+        val artist = response.subsonicResponse()["artist"]?.jsonObject
+            ?: throw NavidromeException("Artist was not found.")
+        val albums = artist["album"] as? JsonArray ?: JsonArray(emptyList())
+        val info = runCatching { artistInfo(artistId) }.getOrNull()
+
+        return ArtistDetails(
+            artist = artist.toArtist(),
+            albums = albums.mapNotNull { album ->
+                (album as? JsonObject)?.toAlbum()
+            },
+            info = info,
+        )
+    }
+
     override suspend fun artists(limit: Int): List<Artist> = emptyList()
 
     override suspend fun tracks(limit: Int): List<Track> = emptyList()
@@ -161,6 +183,25 @@ class NavidromeProvider(
     override fun coverArtUrl(coverArtId: String): String =
         url("getCoverArt.view", mapOf("id" to coverArtId))
 
+    private suspend fun artistInfo(artistId: ArtistId): ArtistInfo? {
+        val response = get(
+            endpoint = "getArtistInfo2.view",
+            params = mapOf(
+                "id" to artistId.value,
+                "count" to "0",
+            ),
+        )
+        val info = response.subsonicResponse()["artistInfo2"]?.jsonObject
+            ?: return null
+
+        return ArtistInfo(
+            biography = info.stringValue("biography"),
+            smallImageUrl = info.stringValue("smallImageUrl"),
+            mediumImageUrl = info.stringValue("mediumImageUrl"),
+            largeImageUrl = info.stringValue("largeImageUrl"),
+        )
+    }
+
     private suspend fun get(
         endpoint: String,
         params: Map<String, String> = emptyMap(),
@@ -216,6 +257,7 @@ class NavidromeProvider(
             artistName = stringValue("artist") ?: "Unknown Artist",
             coverArtId = stringValue("coverArt"),
             recentlyAddedAtIso8601 = stringValue("created"),
+            releaseYear = intValue("year"),
         )
 
     private fun JsonObject.toArtist(): Artist =
@@ -230,8 +272,11 @@ class NavidromeProvider(
         Track(
             id = TrackId(stringValue("id") ?: throw NavidromeException("Track is missing an id.")),
             title = stringValue("title") ?: "Unknown Track",
+            artistId = stringValue("artistId")?.let { ArtistId(it) },
             artistName = stringValue("artist") ?: "Unknown Artist",
+            albumId = stringValue("albumId")?.let { AlbumId(it) },
             albumTitle = stringValue("album"),
+            albumReleaseYear = intValue("year"),
             durationSeconds = intValue("duration"),
             coverArtId = stringValue("coverArt"),
             audioInfo = AudioInfo(

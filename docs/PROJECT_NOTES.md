@@ -66,10 +66,26 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - Resets progress when a new track starts so the next track does not inherit the old position.
 - Navigation memory:
   - The player down arrow returns to the last non-player screen instead of always going Home.
+  - Album detail tracks the route that opened it, so Back returns to Search when opened from search results.
 - Track favorite/rating metadata:
   - Navidrome `starred` and `userRating` fields map into provider-neutral track metadata.
   - The player can toggle track favorites and set/clear 1-5 ratings through Navidrome.
   - Search, album detail, and queue state are patched locally after successful changes.
+- Reusable desktop media rows:
+  - Shared `MediaRow`, `AlbumRow`, `ArtistRow`, and `TrackRow` components back search, home, album detail, and up-next rows.
+- Artist detail:
+  - Search artist results open an artist page.
+  - Navidrome `getArtist` supplies the artist album list; `getArtistInfo2` may supply biography and artist image URLs.
+  - Artist pages currently show returned albums together; release-type grouping can come later if provider metadata supports it.
+- Player metadata navigation:
+  - Navidrome song `artistId` and `albumId` map onto tracks and are persisted in the saved playback session.
+  - The player artist and album text open their detail pages when those IDs are available.
+- Album release years:
+  - Navidrome album/song `year` maps onto albums and tracks.
+  - Album rows, album detail, and the player album line show release years when available.
+- Caching need:
+  - Artist pages and repeated navigation currently re-fetch image/data payloads, which can make returning to search/artist pages feel slow.
+  - Future work should add a provider-aware cache for cover art/artist images and common data responses such as artist details, album details, and search results.
 - Kotlin/IDE housekeeping:
   - Kotlin version catalog bumped to `2.3.0`.
   - Generated `apps/desktop/bin/` output is ignored.
@@ -95,6 +111,7 @@ Top-of-mind work the user wants:
 - Improve the upcoming queue further as needed.
 - Build out the library view for browsing artists, albums, and genres.
 - Add quick radio playback from Home, seeded by genres, decades, and artists.
+- Add caching for images and provider data so repeated search/detail navigation is instant or near-instant.
 
 ## Design Preferences
 

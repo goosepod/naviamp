@@ -1,6 +1,7 @@
 package app.naviamp.provider.navidrome
 
 import app.naviamp.domain.AlbumId
+import app.naviamp.domain.ArtistId
 import app.naviamp.domain.AudioCodec
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.StreamRequest
@@ -154,6 +155,7 @@ class NavidromeProviderTest {
                           "name": "Low-Life",
                           "artist": "New Order",
                           "coverArt": "cover-1",
+                          "year": 1985,
                           "created": "2026-05-08T12:00:00Z"
                         }
                       ]
@@ -170,6 +172,7 @@ class NavidromeProviderTest {
         assertEquals("album-1", albums.first().id.value)
         assertEquals("Low-Life", albums.first().title)
         assertEquals("New Order", albums.first().artistName)
+        assertEquals(1985, albums.first().releaseYear)
     }
 
     @Test
@@ -186,13 +189,17 @@ class NavidromeProviderTest {
                       "name": "Low-Life",
                       "artist": "New Order",
                       "coverArt": "cover-1",
+                      "year": 1985,
                       "created": "2026-05-08T12:00:00Z",
                       "song": [
                         {
                           "id": "track-1",
                           "title": "Love Vigilantes",
+                          "artistId": "artist-1",
                           "artist": "New Order",
+                          "albumId": "album-1",
                           "album": "Low-Life",
+                          "year": 1985,
                           "duration": 259,
                           "coverArt": "cover-1",
                           "suffix": "flac",
@@ -223,11 +230,75 @@ class NavidromeProviderTest {
         assertEquals(2, details.tracks.size)
         assertEquals("track-1", details.tracks.first().id.value)
         assertEquals("Love Vigilantes", details.tracks.first().title)
+        assertEquals("artist-1", details.tracks.first().artistId?.value)
+        assertEquals("album-1", details.tracks.first().albumId?.value)
+        assertEquals(1985, details.album.releaseYear)
+        assertEquals(1985, details.tracks.first().albumReleaseYear)
         assertEquals(259, details.tracks.first().durationSeconds)
         assertEquals("FLAC", details.tracks.first().audioInfo?.codec)
         assertEquals(921, details.tracks.first().audioInfo?.bitrateKbps)
         assertEquals("2026-05-09T13:45:00Z", details.tracks.first().favoritedAtIso8601)
         assertEquals(4, details.tracks.first().userRating)
+    }
+
+    @Test
+    fun artistMapsAlbumsAndInfo() = runTest {
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = SequencedHttpClient(
+                listOf(
+                    """
+                    {
+                      "subsonic-response": {
+                        "status": "ok",
+                        "artist": {
+                          "id": "artist-1",
+                          "name": "Metallica",
+                          "album": [
+                            {
+                              "id": "album-1",
+                              "name": "Master of Puppets",
+                              "artist": "Metallica",
+                              "year": 1986,
+                              "coverArt": "cover-1"
+                            },
+                            {
+                              "id": "album-2",
+                              "name": "Garage Days Re-Revisited",
+                              "artist": "Metallica",
+                              "coverArt": "cover-2"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                    """.trimIndent(),
+                    """
+                    {
+                      "subsonic-response": {
+                        "status": "ok",
+                        "artistInfo2": {
+                          "biography": "Thrash metal band.",
+                          "smallImageUrl": "https://images.example.test/small.jpg",
+                          "mediumImageUrl": "https://images.example.test/medium.jpg",
+                          "largeImageUrl": "https://images.example.test/large.jpg"
+                        }
+                      }
+                    }
+                    """.trimIndent(),
+                ),
+            ),
+        )
+
+        val details = provider.artist(ArtistId("artist-1"))
+
+        assertEquals("Metallica", details.artist.name)
+        assertEquals(2, details.albums.size)
+        assertEquals("Master of Puppets", details.albums.first().title)
+        assertEquals(1986, details.albums.first().releaseYear)
+        assertEquals("Garage Days Re-Revisited", details.albums.last().title)
+        assertEquals("Thrash metal band.", details.info?.biography)
+        assertEquals("https://images.example.test/large.jpg", details.info?.largeImageUrl)
     }
 
     @Test
@@ -251,6 +322,7 @@ class NavidromeProviderTest {
                           "id": "album-1",
                           "name": "Low-Life",
                           "artist": "New Order",
+                          "year": 1985,
                           "coverArt": "cover-1"
                         }
                       ],
@@ -258,8 +330,11 @@ class NavidromeProviderTest {
                         {
                           "id": "track-1",
                           "title": "Love Vigilantes",
+                          "artistId": "artist-1",
                           "artist": "New Order",
+                          "albumId": "album-1",
                           "album": "Low-Life",
+                          "year": 1985,
                           "duration": 259,
                           "coverArt": "cover-1",
                           "suffix": "flac",
@@ -280,6 +355,10 @@ class NavidromeProviderTest {
         assertEquals("New Order", results.artists.first().name)
         assertEquals("Low-Life", results.albums.first().title)
         assertEquals("Love Vigilantes", results.tracks.first().title)
+        assertEquals("artist-1", results.tracks.first().artistId?.value)
+        assertEquals("album-1", results.tracks.first().albumId?.value)
+        assertEquals(1985, results.albums.first().releaseYear)
+        assertEquals(1985, results.tracks.first().albumReleaseYear)
         assertEquals(921, results.tracks.first().audioInfo?.bitrateKbps)
         assertEquals("2026-05-09T13:45:00Z", results.tracks.first().favoritedAtIso8601)
         assertEquals(5, results.tracks.first().userRating)
@@ -295,6 +374,13 @@ class NavidromeProviderTest {
 
     private class FakeHttpClient(private val response: String) : NavidromeHttpClient {
         override suspend fun get(url: String): String = response
+    }
+
+    private class SequencedHttpClient(private val responses: List<String>) : NavidromeHttpClient {
+        private var index = 0
+
+        override suspend fun get(url: String): String =
+            responses[index++]
     }
 
     private class RecordingHttpClient : NavidromeHttpClient {

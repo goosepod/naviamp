@@ -30,6 +30,11 @@ fun Track.compactFavoriteRatingLabel(): String? {
     return parts.takeIf { it.isNotEmpty() }?.joinToString(" ")
 }
 
+fun Track.albumTitleWithYear(): String? =
+    albumTitle?.let { title ->
+        albumReleaseYear?.let { "$title ($it)" } ?: title
+    }
+
 fun PlaybackProgress.label(effectiveDurationSeconds: Double?): String {
     val position = positionSeconds?.toTimeLabel() ?: "--:--"
     val duration = effectiveDurationSeconds?.toTimeLabel() ?: "--:--"

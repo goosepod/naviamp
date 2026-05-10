@@ -24,6 +24,7 @@ enum class AppRoute {
     Player,
     Home,
     AlbumDetail,
+    ArtistDetail,
     Library,
     Search,
     Downloads,
