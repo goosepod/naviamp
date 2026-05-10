@@ -56,6 +56,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 - Windows mpv playback controls: play, pause, seek, progress polling, and executable resolution.
 - Desktop player visual polish: larger floating album art, denser typography, codec/bitrate line, heart/star placeholders, centered scrub times.
 - Scrollable player queue: `UP NEXT` can show the full upcoming queue, and the player screen scrolls vertically in short windows.
+  - Up-next rows are clickable and jump playback directly to the selected queue item.
 - Search screen:
   - Freeform Navidrome `search3` integration.
   - Results grouped into artists, albums, and tracks.
@@ -91,7 +92,11 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - Connected media sources are now represented in SQLite so future library rows can reference a stable source/server/user.
   - The schema includes a slim source-scoped artist/album/track library index intended for local browse/search. Store provider IDs and display/search metadata here, not full authenticated stream URLs.
   - Navidrome library import starts in the background after connection/restore. It indexes artists, paged alphabetical albums, then album tracks by crawling album details. Settings also has a manual Refresh library action.
+  - Restored startup uses the local index instead of reimporting when a source already has indexed rows and the last completed sync is recent. Manual Refresh library still forces a sync.
+  - Library import runs on `Dispatchers.IO`; UI status updates hop back to the Compose coroutine context instead of `Dispatchers.Main`, because the desktop app does not install a coroutines Main dispatcher.
   - The Library tab reads from the local SQLite index and can locally search indexed artists/albums/tracks while sync is running.
+  - Library browsing currently exposes Artists and Albums tabs only. Track rows remain indexed for search/supporting flows but are not a top-level Library tab.
+  - Library lists use `LazyColumn`, load more rows as the list nears the bottom, and include an independently scrollable right-side `#`/`A-Z` jump rail for artists/albums.
   - Settings exposes separate local-data actions: clear image/API cache, clear local artist/album/track index, and a guarded full database reset that removes saved servers too.
   - Future Android/iOS work should reuse SQLDelight with platform drivers rather than introducing a separate storage stack.
 - Settings easter egg:
@@ -110,6 +115,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 - Search state lives in `Main.kt` and query persistence lives in `DesktopSettingsStore`.
 - Album detail navigation currently falls back Home in some paths; future screen-state work should preserve deeper route state more deliberately.
 - Track heart/star mutations currently update Navidrome from the player screen; shared row controls can broaden this later.
+- Library page scroll/search state is still mostly in-memory in `Main.kt`; future route-state work should preserve the selected Library tab, search query, and scroll/jump position if needed.
 
 ## Roadmap Items From The User
 
@@ -122,7 +128,7 @@ Top-of-mind work the user wants:
 - Add a music visualization on the player screen, activated by clicking album art.
 - Add lyrics support.
 - Improve the upcoming queue further as needed.
-- Build out the library view for browsing artists, albums, and genres.
+- Continue refining Library browsing, including genres and richer artist/album grouping.
 - Add quick radio playback from Home, seeded by genres, decades, and artists.
 - Add Settings controls to delete image/data cache or reset the local database so the app starts a fresh server scan.
 
@@ -141,6 +147,6 @@ Good next slices:
 
 - Wire Navidrome starred/favorite fields into domain models and player/search/album rows.
 - Extract reusable `TrackRow`, `AlbumCard`, and `ArtistRow` components from existing screens.
-- Start library browsing with artists/albums/genres tabs.
+- Add Library genres and richer artist/album grouping.
 - Add lyrics domain model and Navidrome/provider capability shape before building the UI.
 - Investigate mpv crossfade options or a two-player strategy for desktop crossfade.
