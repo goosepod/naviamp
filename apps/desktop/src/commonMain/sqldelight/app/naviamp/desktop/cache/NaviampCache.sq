@@ -294,6 +294,18 @@ AND (search_title LIKE ? OR search_artist_name LIKE ? OR search_album_title LIKE
 ORDER BY search_title
 LIMIT ? OFFSET ?;
 
+libraryArtistOffsetForLetter:
+SELECT COUNT(*)
+FROM library_artist
+WHERE source_id = ?
+AND search_name < ?;
+
+libraryAlbumOffsetForLetter:
+SELECT COUNT(*)
+FROM library_album
+WHERE source_id = ?
+AND search_title < ?;
+
 libraryArtistCount:
 SELECT COUNT(*)
 FROM library_artist;

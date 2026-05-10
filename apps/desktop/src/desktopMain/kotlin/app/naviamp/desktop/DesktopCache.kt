@@ -287,6 +287,14 @@ class DesktopCache(
             trackCount = queries.libraryTrackCountForSource(sourceId).executeAsOne(),
         )
 
+    fun libraryOffsetForLetter(sourceId: String, tab: LibraryTab, letter: Char): Long {
+        val boundary = letter.librarySearchBoundary()
+        return when (tab) {
+            LibraryTab.Artists -> queries.libraryArtistOffsetForLetter(sourceId, boundary).executeAsOne()
+            LibraryTab.Albums -> queries.libraryAlbumOffsetForLetter(sourceId, boundary).executeAsOne()
+        }
+    }
+
     fun updateTrack(updatedTrack: Track) {
         queries.transaction {
             val albumRows = queries.selectResponsesByType("album").executeAsList()
@@ -657,6 +665,9 @@ private fun nowMillis(): Long =
 
 private fun String.searchText(): String =
     trim().lowercase()
+
+private fun Char.librarySearchBoundary(): String =
+    if (this == '#') "" else lowercaseChar().toString()
 
 private fun stableSourceId(cacheNamespace: String): String {
     val digest = MessageDigest.getInstance("SHA-256")

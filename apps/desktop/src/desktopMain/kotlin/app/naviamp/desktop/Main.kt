@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -148,6 +149,7 @@ fun NaviampApp(
     val savedSearch = remember { settingsStore.loadSearchSettings() }
     val playlistEngine = remember(playbackEngine) { PlaylistEngine(playbackEngine) }
     val librarySync = remember(sessionCache) { LibrarySync(sessionCache) }
+    val libraryListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val restoredTracks = remember(savedPlaybackSession) { savedPlaybackSession?.toTracks().orEmpty() }
     val restoredTrack = remember(savedPlaybackSession) { savedPlaybackSession?.currentTrack() }
@@ -308,6 +310,17 @@ fun NaviampApp(
         if (visibleCount < libraryLimit) return
         libraryLimit += LibraryPageSize
         refreshLibrarySnapshot()
+    }
+
+    fun jumpLibraryToLetter(letter: Char) {
+        val sourceId = connectedSourceId ?: return
+        if (libraryQuery.isNotBlank()) return
+        val offset = sessionCache.libraryOffsetForLetter(sourceId, libraryTab, letter).toInt()
+        libraryLimit = ((offset / LibraryPageSize) + 1) * LibraryPageSize
+        refreshLibrarySnapshot()
+        coroutineScope.launch {
+            libraryListState.scrollToItem((offset + 1).coerceAtLeast(0))
+        }
     }
 
     fun startLibrarySync(force: Boolean = false) {
@@ -654,6 +667,7 @@ fun NaviampApp(
     LaunchedEffect(libraryQuery, connectedSourceId) {
         libraryLimit = LibraryPageSize
         refreshLibrarySnapshot()
+        libraryListState.scrollToItem(0)
     }
 
     val statsMediaSource = connectedSourceId?.let { sessionCache.mediaSource(it) } ?: sessionCache.latestMediaSource()
@@ -813,27 +827,22 @@ fun NaviampApp(
                         }
                     } else {
                         val contentScrollState = rememberScrollState()
-                        LaunchedEffect(
-                            appRoute,
-                            libraryTab,
-                            libraryQuery,
-                            contentScrollState.value,
-                            contentScrollState.maxValue,
-                        ) {
-                            if (appRoute == AppRoute.Library &&
-                                contentScrollState.maxValue > 0 &&
-                                contentScrollState.maxValue - contentScrollState.value < 320
-                            ) {
-                                loadMoreLibraryRows()
-                            }
-                        }
                         Box(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxWidth()
-                                .verticalScroll(contentScrollState),
+                                .then(
+                                    if (appRoute == AppRoute.Library) {
+                                        Modifier
+                                    } else {
+                                        Modifier.verticalScroll(contentScrollState)
+                                    },
+                                ),
                         ) {
-                            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(3.dp),
+                                modifier = Modifier.fillMaxSize(),
+                            ) {
                                 when (appRoute) {
                                     AppRoute.Player -> Unit
                                 AppRoute.Home -> HomePanel(
@@ -874,25 +883,39 @@ fun NaviampApp(
                                     onBack = { appRoute = artistDetailBackRoute },
                                     onAlbumSelected = { album -> openAlbumDetails(album) },
                                 )
-                                    AppRoute.Library -> LibraryPanel(
-                                        appColors = appColors,
-                                        snapshot = librarySnapshot,
-                                        query = libraryQuery,
-                                        selectedTab = libraryTab,
-                                        status = libraryStatus ?: connectionStatus,
-                                        isSyncing = isLibrarySyncing,
-                                        coverArtUrl = { coverArtId ->
-                                            coverArtId?.let { connectedProvider?.coverArtUrl(it) }
-                                        },
-                                        onQueryChanged = { libraryQuery = it },
-                                        onTabSelected = {
-                                            libraryTab = it
-                                            libraryLimit = LibraryPageSize
-                                            refreshLibrarySnapshot()
-                                        },
-                                        onArtistSelected = { artist -> openArtistDetails(artist) },
-                                        onAlbumSelected = { album -> openAlbumDetails(album) },
-                                    )
+                                    AppRoute.Library -> {
+                                        LibraryListLoadMoreEffect(
+                                            selectedTab = libraryTab,
+                                            snapshot = librarySnapshot,
+                                            listState = libraryListState,
+                                            onLoadMore = { loadMoreLibraryRows() },
+                                        )
+                                        LibraryPanel(
+                                            appColors = appColors,
+                                            snapshot = librarySnapshot,
+                                            query = libraryQuery,
+                                            selectedTab = libraryTab,
+                                            status = libraryStatus ?: connectionStatus,
+                                            isSyncing = isLibrarySyncing,
+                                            listState = libraryListState,
+                                            coverArtUrl = { coverArtId ->
+                                                coverArtId?.let { connectedProvider?.coverArtUrl(it) }
+                                            },
+                                            onQueryChanged = { libraryQuery = it },
+                                            onTabSelected = {
+                                                libraryTab = it
+                                                libraryLimit = LibraryPageSize
+                                                refreshLibrarySnapshot()
+                                                coroutineScope.launch {
+                                                    libraryListState.scrollToItem(0)
+                                                }
+                                            },
+                                            onLoadMore = { loadMoreLibraryRows() },
+                                            onJumpToLetter = { letter -> jumpLibraryToLetter(letter) },
+                                            onArtistSelected = { artist -> openArtistDetails(artist) },
+                                            onAlbumSelected = { album -> openAlbumDetails(album) },
+                                        )
+                                    }
                                     AppRoute.Search -> SearchPanel(
                                         appColors = appColors,
                                         query = searchQuery,

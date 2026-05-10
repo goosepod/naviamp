@@ -1,10 +1,20 @@
 package app.naviamp.desktop
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.FilterChip
@@ -29,9 +39,12 @@ fun LibraryPanel(
     selectedTab: LibraryTab,
     status: String?,
     isSyncing: Boolean,
+    listState: LazyListState,
     coverArtUrl: (String?) -> String?,
     onQueryChanged: (String) -> Unit,
     onTabSelected: (LibraryTab) -> Unit,
+    onLoadMore: () -> Unit,
+    onJumpToLetter: (Char) -> Unit,
     onArtistSelected: (Artist) -> Unit,
     onAlbumSelected: (Album) -> Unit,
 ) {
@@ -45,7 +58,10 @@ fun LibraryPanel(
         unfocusedBorderColor = appColors.border,
     )
 
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier.fillMaxSize(),
+    ) {
         Text("Library", color = appColors.primaryText, style = MaterialTheme.typography.titleMedium)
 
         status?.let {
@@ -64,7 +80,10 @@ fun LibraryPanel(
             colors = textFieldColors,
         )
 
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.weight(1f),
+        ) {
             LibraryTab.entries.forEach { tab ->
                 FilterChip(
                     selected = selectedTab == tab,
@@ -75,43 +94,106 @@ fun LibraryPanel(
             }
         }
 
-        when (selectedTab) {
-            LibraryTab.Artists -> LibrarySection(appColors = appColors, title = "Artists", empty = snapshot.artists.isEmpty()) {
-                snapshot.artists.forEach { artist ->
-                    ArtistRow(
-                        appColors = appColors,
-                        artist = artist,
-                        onClick = { onArtistSelected(artist) },
-                    )
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            LazyColumn(
+                state = listState,
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+                modifier = Modifier.weight(1f),
+            ) {
+                item {
+                    val title = when (selectedTab) {
+                        LibraryTab.Artists -> "Artists"
+                        LibraryTab.Albums -> "Albums"
+                    }
+                    Text(title, color = appColors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                }
+                if (selectedTab == LibraryTab.Artists && snapshot.artists.isEmpty()) {
+                    item {
+                        Text("Nothing here yet.", color = appColors.secondaryText, fontSize = 12.sp)
+                    }
+                }
+                if (selectedTab == LibraryTab.Albums && snapshot.albums.isEmpty()) {
+                    item {
+                        Text("Nothing here yet.", color = appColors.secondaryText, fontSize = 12.sp)
+                    }
+                }
+                when (selectedTab) {
+                    LibraryTab.Artists -> items(snapshot.artists, key = { it.id.value }) { artist ->
+                        ArtistRow(
+                            appColors = appColors,
+                            artist = artist,
+                            onClick = { onArtistSelected(artist) },
+                        )
+                    }
+                    LibraryTab.Albums -> items(snapshot.albums, key = { it.id.value }) { album ->
+                        AlbumRow(
+                            appColors = appColors,
+                            album = album,
+                            coverArtUrl = coverArtUrl(album.coverArtId),
+                            onClick = { onAlbumSelected(album) },
+                        )
+                    }
+                }
+                item {
+                    Box(Modifier.height(24.dp))
                 }
             }
-            LibraryTab.Albums -> LibrarySection(appColors = appColors, title = "Albums", empty = snapshot.albums.isEmpty()) {
-                snapshot.albums.forEach { album ->
-                    AlbumRow(
-                        appColors = appColors,
-                        album = album,
-                        coverArtUrl = coverArtUrl(album.coverArtId),
-                        onClick = { onAlbumSelected(album) },
-                    )
-                }
-            }
+            LetterRail(
+                appColors = appColors,
+                enabled = query.isBlank(),
+                onJumpToLetter = onJumpToLetter,
+            )
         }
     }
 }
 
 @Composable
-private fun LibrarySection(
-    appColors: AppColors,
-    title: String,
-    empty: Boolean,
-    content: @Composable () -> Unit,
+fun LibraryListLoadMoreEffect(
+    selectedTab: LibraryTab,
+    snapshot: LibrarySnapshot,
+    listState: LazyListState,
+    onLoadMore: () -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(title, color = appColors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-        if (empty) {
-            Text("Nothing here yet.", color = appColors.secondaryText, fontSize = 12.sp)
-        } else {
-            content()
+    androidx.compose.runtime.LaunchedEffect(
+        selectedTab,
+        snapshot.artists.size,
+        snapshot.albums.size,
+        listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index,
+    ) {
+        val visibleCount = when (selectedTab) {
+            LibraryTab.Artists -> snapshot.artists.size
+            LibraryTab.Albums -> snapshot.albums.size
+        }
+        val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: return@LaunchedEffect
+        if (visibleCount > 0 && lastVisible >= visibleCount - 8) {
+            onLoadMore()
+        }
+    }
+}
+
+@Composable
+private fun LetterRail(
+    appColors: AppColors,
+    enabled: Boolean,
+    onJumpToLetter: (Char) -> Unit,
+) {
+    val scrollState = rememberScrollState()
+    Column(
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+        modifier = Modifier
+            .width(18.dp)
+            .padding(top = 2.dp)
+            .verticalScroll(scrollState),
+    ) {
+        LibraryJumpLetters.forEach { letter ->
+            Text(
+                letter.toString(),
+                color = if (enabled) appColors.secondaryText else appColors.mutedText.copy(alpha = 0.45f),
+                fontSize = 10.sp,
+                modifier = Modifier.clickable(enabled = enabled) {
+                    onJumpToLetter(letter)
+                },
+            )
         }
     }
 }
@@ -120,3 +202,5 @@ enum class LibraryTab(val label: String) {
     Artists("Artists"),
     Albums("Albums"),
 }
+
+val LibraryJumpLetters: List<Char> = listOf('#') + ('A'..'Z')
