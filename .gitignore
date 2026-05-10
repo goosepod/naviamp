@@ -9,3 +9,4 @@ local.properties
 /.kotlin/
 apps/desktop/vendor/mpv/*/mpv
 apps/desktop/vendor/mpv/*/mpv.exe
+apps/desktop/bin/
