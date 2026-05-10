@@ -64,11 +64,14 @@ import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.provider.navidrome.NavidromeApiCallHistory
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.awt.Taskbar
 import java.time.Instant
+import java.util.concurrent.TimeUnit
 import javax.imageio.ImageIO
 
 fun main() {
@@ -172,6 +175,7 @@ fun NaviampApp(
     var libraryQuery by remember { mutableStateOf("") }
     var librarySnapshot by remember { mutableStateOf(LibrarySnapshot()) }
     var libraryTab by remember { mutableStateOf(LibraryTab.Artists) }
+    var libraryLimit by remember { mutableStateOf(LibraryPageSize) }
     var libraryStatus by remember { mutableStateOf<String?>(null) }
     var isLibrarySyncing by remember { mutableStateOf(false) }
     var appRoute by remember {
@@ -290,29 +294,48 @@ fun NaviampApp(
             return
         }
         librarySnapshot = if (libraryQuery.isBlank()) {
-            sessionCache.librarySnapshot(sourceId)
+            sessionCache.librarySnapshot(sourceId, limit = libraryLimit.toLong())
         } else {
-            sessionCache.searchLibrary(sourceId, libraryQuery)
+            sessionCache.searchLibrary(sourceId, libraryQuery, limit = libraryLimit.toLong())
         }
     }
 
-    fun startLibrarySync() {
+    fun loadMoreLibraryRows() {
+        val visibleCount = when (libraryTab) {
+            LibraryTab.Artists -> librarySnapshot.artists.size
+            LibraryTab.Albums -> librarySnapshot.albums.size
+        }
+        if (visibleCount < libraryLimit) return
+        libraryLimit += LibraryPageSize
+        refreshLibrarySnapshot()
+    }
+
+    fun startLibrarySync(force: Boolean = false) {
         val provider = connectedProvider ?: return
         val sourceId = connectedSourceId ?: return
         if (isLibrarySyncing) return
+        if (!force && !shouldAutoSyncLibrary(sourceId, sessionCache)) {
+            libraryStatus = null
+            return
+        }
         isLibrarySyncing = true
         libraryStatus = "Starting library import..."
         coroutineScope.launch {
+            val uiContext = coroutineContext
             try {
-                librarySync.sync(
-                    sourceId = sourceId,
-                    provider = provider,
-                    onProgress = { progress ->
-                        libraryStatus = progress.label()
-                        refreshLibrarySnapshot()
-                    },
-                )
+                withContext(Dispatchers.IO) {
+                    librarySync.sync(
+                        sourceId = sourceId,
+                        provider = provider,
+                        onProgress = { progress ->
+                            withContext(uiContext) {
+                                libraryStatus = progress.label()
+                            }
+                        },
+                    )
+                }
                 refreshLibrarySnapshot()
+                libraryStatus = null
             } catch (exception: Exception) {
                 libraryStatus = exception.message ?: "Could not import library."
             } finally {
@@ -394,7 +417,7 @@ fun NaviampApp(
                     append(".")
                 }
                 refreshLibrarySnapshot()
-                startLibrarySync()
+                startLibrarySync(force = !restoreSavedSession)
             } catch (exception: Exception) {
                 connectedProvider = null
                 appRoute = AppRoute.Settings
@@ -446,22 +469,6 @@ fun NaviampApp(
     fun playSearchTrack(index: Int) {
         val provider = connectedProvider ?: return
         val tracks = searchResults.tracks
-        if (tracks.isEmpty() || index !in tracks.indices) return
-        openPlayerOnTrackStart = true
-        playlistEngine.playFrom(
-            scope = coroutineScope,
-            provider = provider,
-            tracks = tracks,
-            index = index,
-            quality = playbackEngine.streamQuality(),
-            replayGainMode = playbackSettings.replayGainMode,
-            callbacks = playlistCallbacks,
-        )
-    }
-
-    fun playLibraryTrack(index: Int) {
-        val provider = connectedProvider ?: return
-        val tracks = librarySnapshot.tracks
         if (tracks.isEmpty() || index !in tracks.indices) return
         openPlayerOnTrackStart = true
         playlistEngine.playFrom(
@@ -645,6 +652,7 @@ fun NaviampApp(
     }
 
     LaunchedEffect(libraryQuery, connectedSourceId) {
+        libraryLimit = LibraryPageSize
         refreshLibrarySnapshot()
     }
 
@@ -751,6 +759,7 @@ fun NaviampApp(
                                 nowPlayingTrack = nowPlayingTrack,
                                 coverArtUrl = nowPlayingCoverArtUrl,
                                 upNext = playbackQueue.upNext(),
+                                firstUpNextQueueIndex = playbackQueue.currentIndex + 1,
                                 hasPrevious = playbackQueue.hasPrevious(),
                                 hasNext = playbackQueue.hasNext(),
                                 playbackState = playbackState,
@@ -790,17 +799,39 @@ fun NaviampApp(
                                 onAlbumSelected = { track ->
                                     openTrackAlbumDetails(track)
                                 },
+                                onQueueIndexSelected = { queueIndex ->
+                                    openPlayerOnTrackStart = false
+                                    playlistEngine.jumpTo(
+                                        scope = coroutineScope,
+                                        index = queueIndex,
+                                    )
+                                },
                                 onCollapseToHome = {
                                     appRoute = lastContentRoute
                                 },
                             )
                         }
                     } else {
+                        val contentScrollState = rememberScrollState()
+                        LaunchedEffect(
+                            appRoute,
+                            libraryTab,
+                            libraryQuery,
+                            contentScrollState.value,
+                            contentScrollState.maxValue,
+                        ) {
+                            if (appRoute == AppRoute.Library &&
+                                contentScrollState.maxValue > 0 &&
+                                contentScrollState.maxValue - contentScrollState.value < 320
+                            ) {
+                                loadMoreLibraryRows()
+                            }
+                        }
                         Box(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxWidth()
-                                .verticalScroll(rememberScrollState()),
+                                .verticalScroll(contentScrollState),
                         ) {
                             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                                 when (appRoute) {
@@ -854,10 +885,13 @@ fun NaviampApp(
                                             coverArtId?.let { connectedProvider?.coverArtUrl(it) }
                                         },
                                         onQueryChanged = { libraryQuery = it },
-                                        onTabSelected = { libraryTab = it },
+                                        onTabSelected = {
+                                            libraryTab = it
+                                            libraryLimit = LibraryPageSize
+                                            refreshLibrarySnapshot()
+                                        },
                                         onArtistSelected = { artist -> openArtistDetails(artist) },
                                         onAlbumSelected = { album -> openAlbumDetails(album) },
-                                        onTrackSelected = { index -> playLibraryTrack(index) },
                                     )
                                     AppRoute.Search -> SearchPanel(
                                         appColors = appColors,
@@ -912,7 +946,7 @@ fun NaviampApp(
                                         onOpenStatsForNerds = { showStatsForNerds = true },
                                         onClearCache = { clearCacheData() },
                                         onClearLibrary = { clearLibraryData() },
-                                        onRefreshLibrary = { startLibrarySync() },
+                                        onRefreshLibrary = { startLibrarySync(force = true) },
                                         onResetDatabase = { resetDatabase() },
                                     )
                                 }
@@ -981,6 +1015,22 @@ private fun PlaybackSettings.forEngine(playbackEngine: PlaybackEngine): Playback
     } else {
         copy(replayGainMode = ReplayGainMode.Off)
     }
+
+private fun shouldAutoSyncLibrary(
+    sourceId: String,
+    cache: DesktopCache,
+    nowEpochMillis: Long = System.currentTimeMillis(),
+): Boolean {
+    val indexStats = cache.libraryIndexStats(sourceId)
+    if (!indexStats.hasUsableIndex) return true
+
+    val source = cache.mediaSource(sourceId) ?: return false
+    val lastCompleted = source.lastSyncCompletedAtEpochMillis ?: return true
+    return nowEpochMillis - lastCompleted > LibraryAutoSyncIntervalMillis
+}
+
+private val LibraryAutoSyncIntervalMillis = TimeUnit.HOURS.toMillis(24)
+private const val LibraryPageSize = 50
 
 private fun PlaybackEngine.capabilitiesLabel(): String =
     listOf(

@@ -93,6 +93,12 @@ class PlaylistEngine(
         playQueueIndex(scope, queue.tracks, queue.currentIndex, sessionId)
     }
 
+    fun jumpTo(scope: CoroutineScope, index: Int) {
+        if (index !in queue.tracks.indices || index == queue.currentIndex) return
+        sessionId += 1
+        playQueueIndex(scope, queue.tracks, index, sessionId)
+    }
+
     fun previous(scope: CoroutineScope) {
         if (!queue.hasPrevious()) return
         sessionId += 1

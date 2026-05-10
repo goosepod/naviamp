@@ -20,7 +20,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
-import app.naviamp.domain.Track
 
 @Composable
 fun LibraryPanel(
@@ -35,7 +34,6 @@ fun LibraryPanel(
     onTabSelected: (LibraryTab) -> Unit,
     onArtistSelected: (Artist) -> Unit,
     onAlbumSelected: (Album) -> Unit,
-    onTrackSelected: (Int) -> Unit,
 ) {
     val textFieldColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = appColors.primaryText,
@@ -57,7 +55,7 @@ fun LibraryPanel(
         OutlinedTextField(
             value = query,
             onValueChange = onQueryChanged,
-            label = { Text(if (isSyncing) "Search indexed library" else "Search library") },
+            label = { Text("Search") },
             singleLine = true,
             textStyle = MaterialTheme.typography.bodySmall,
             modifier = Modifier.fillMaxWidth(),
@@ -97,17 +95,6 @@ fun LibraryPanel(
                     )
                 }
             }
-            LibraryTab.Tracks -> LibrarySection(appColors = appColors, title = "Tracks", empty = snapshot.tracks.isEmpty()) {
-                snapshot.tracks.forEachIndexed { index, track ->
-                    TrackRow(
-                        appColors = appColors,
-                        track = track,
-                        coverArtUrl = coverArtUrl(track.coverArtId),
-                        showCoverArt = true,
-                        onClick = { onTrackSelected(index) },
-                    )
-                }
-            }
         }
     }
 }
@@ -122,7 +109,7 @@ private fun LibrarySection(
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(title, color = appColors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
         if (empty) {
-            Text("No indexed items yet.", color = appColors.secondaryText, fontSize = 12.sp)
+            Text("Nothing here yet.", color = appColors.secondaryText, fontSize = 12.sp)
         } else {
             content()
         }
@@ -132,5 +119,4 @@ private fun LibrarySection(
 enum class LibraryTab(val label: String) {
     Artists("Artists"),
     Albums("Albums"),
-    Tracks("Tracks"),
 }

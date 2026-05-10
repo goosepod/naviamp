@@ -73,6 +73,7 @@ fun NowPlayingPanel(
     nowPlayingTrack: Track?,
     coverArtUrl: String?,
     upNext: List<Track>,
+    firstUpNextQueueIndex: Int,
     hasPrevious: Boolean,
     hasNext: Boolean,
     playbackState: PlaybackState,
@@ -88,6 +89,7 @@ fun NowPlayingPanel(
     onTrackRatingSelected: (Track, Int?) -> Unit,
     onArtistSelected: (Track) -> Unit,
     onAlbumSelected: (Track) -> Unit,
+    onQueueIndexSelected: (Int) -> Unit,
     onCollapseToHome: () -> Unit,
 ) {
     val coverArtState = rememberCoverArtState(coverArtUrl, appColors)
@@ -154,10 +156,12 @@ fun NowPlayingPanel(
                 UpNextPanel(
                     appColors = appColors,
                     upNext = upNext,
+                    firstQueueIndex = firstUpNextQueueIndex,
                     coverArtState = coverArtState,
+                    onQueueIndexSelected = onQueueIndexSelected,
                     modifier = Modifier
                         .weight(1.1f)
-                        .heightIn(min = 300.dp, max = 420.dp),
+                        .height(420.dp),
                 )
             }
         } else {
@@ -202,10 +206,12 @@ fun NowPlayingPanel(
                 UpNextPanel(
                     appColors = appColors,
                     upNext = upNext,
+                    firstQueueIndex = firstUpNextQueueIndex,
                     coverArtState = coverArtState,
+                    onQueueIndexSelected = onQueueIndexSelected,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 220.dp, max = 320.dp),
+                        .height(280.dp),
                 )
             }
         }
@@ -604,7 +610,9 @@ private fun TrackRatingControl(
 private fun UpNextPanel(
     appColors: AppColors,
     upNext: List<Track>,
+    firstQueueIndex: Int,
     coverArtState: CoverArtState,
+    onQueueIndexSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scrollState = rememberScrollState()
@@ -636,7 +644,7 @@ private fun UpNextPanel(
                     .weight(1f)
                     .verticalScroll(scrollState),
             ) {
-                upNext.forEach { track ->
+                upNext.forEachIndexed { index, track ->
                     TrackRow(
                         appColors = appColors,
                         track = track,
@@ -649,6 +657,7 @@ private fun UpNextPanel(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(38.dp),
+                        onClick = { onQueueIndexSelected(firstQueueIndex + index) },
                         titleStyle = TextStyle(
                             fontSize = 12.sp,
                             lineHeight = 12.sp,

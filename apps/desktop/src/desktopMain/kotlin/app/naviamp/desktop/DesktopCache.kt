@@ -232,15 +232,15 @@ class DesktopCache(
         }
     }
 
-    fun librarySnapshot(sourceId: String, limit: Long = 50): LibrarySnapshot =
+    fun librarySnapshot(sourceId: String, limit: Long = 50, offset: Long = 0): LibrarySnapshot =
         LibrarySnapshot(
-            artists = queries.selectLibraryArtists(sourceId, limit).executeAsList().map {
+            artists = queries.selectLibraryArtists(sourceId, limit, offset).executeAsList().map {
                 Artist(
                     id = ArtistId(it.remote_artist_id),
                     name = it.name,
                 )
             },
-            albums = queries.selectLibraryAlbums(sourceId, limit).executeAsList().map {
+            albums = queries.selectLibraryAlbums(sourceId, limit, offset).executeAsList().map {
                 Album(
                     id = AlbumId(it.remote_album_id),
                     title = it.title,
@@ -250,21 +250,21 @@ class DesktopCache(
                     releaseYear = it.release_year?.toInt(),
                 )
             },
-            tracks = queries.selectLibraryTracks(sourceId, limit).executeAsList().map {
+            tracks = queries.selectLibraryTracks(sourceId, limit, offset).executeAsList().map {
                 it.toTrack()
             },
         )
 
-    fun searchLibrary(sourceId: String, query: String, limit: Long = 50): LibrarySnapshot {
+    fun searchLibrary(sourceId: String, query: String, limit: Long = 50, offset: Long = 0): LibrarySnapshot {
         val pattern = "%${query.searchText()}%"
         return LibrarySnapshot(
-            artists = queries.searchLibraryArtists(sourceId, pattern, limit).executeAsList().map {
+            artists = queries.searchLibraryArtists(sourceId, pattern, limit, offset).executeAsList().map {
                 Artist(
                     id = ArtistId(it.remote_artist_id),
                     name = it.name,
                 )
             },
-            albums = queries.searchLibraryAlbums(sourceId, pattern, pattern, limit).executeAsList().map {
+            albums = queries.searchLibraryAlbums(sourceId, pattern, pattern, limit, offset).executeAsList().map {
                 Album(
                     id = AlbumId(it.remote_album_id),
                     title = it.title,
@@ -274,11 +274,18 @@ class DesktopCache(
                     releaseYear = it.release_year?.toInt(),
                 )
             },
-            tracks = queries.searchLibraryTracks(sourceId, pattern, pattern, pattern, limit).executeAsList().map {
+            tracks = queries.searchLibraryTracks(sourceId, pattern, pattern, pattern, limit, offset).executeAsList().map {
                 it.toTrack()
             },
         )
     }
+
+    fun libraryIndexStats(sourceId: String): LibraryIndexStats =
+        LibraryIndexStats(
+            artistCount = queries.libraryArtistCountForSource(sourceId).executeAsOne(),
+            albumCount = queries.libraryAlbumCountForSource(sourceId).executeAsOne(),
+            trackCount = queries.libraryTrackCountForSource(sourceId).executeAsOne(),
+        )
 
     fun updateTrack(updatedTrack: Track) {
         queries.transaction {
@@ -500,6 +507,15 @@ data class LibrarySnapshot(
 ) {
     val isEmpty: Boolean
         get() = artists.isEmpty() && albums.isEmpty() && tracks.isEmpty()
+}
+
+data class LibraryIndexStats(
+    val artistCount: Long,
+    val albumCount: Long,
+    val trackCount: Long,
+) {
+    val hasUsableIndex: Boolean
+        get() = artistCount > 0L || albumCount > 0L || trackCount > 0L
 }
 
 private fun app.naviamp.desktop.cache.Library_track.toTrack(): Track =

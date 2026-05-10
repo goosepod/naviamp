@@ -254,21 +254,21 @@ SELECT *
 FROM library_artist
 WHERE source_id = ?
 ORDER BY search_name
-LIMIT ?;
+LIMIT ? OFFSET ?;
 
 selectLibraryAlbums:
 SELECT *
 FROM library_album
 WHERE source_id = ?
 ORDER BY search_title
-LIMIT ?;
+LIMIT ? OFFSET ?;
 
 selectLibraryTracks:
 SELECT *
 FROM library_track
 WHERE source_id = ?
 ORDER BY search_title
-LIMIT ?;
+LIMIT ? OFFSET ?;
 
 searchLibraryArtists:
 SELECT *
@@ -276,7 +276,7 @@ FROM library_artist
 WHERE source_id = ?
 AND search_name LIKE ?
 ORDER BY search_name
-LIMIT ?;
+LIMIT ? OFFSET ?;
 
 searchLibraryAlbums:
 SELECT *
@@ -284,7 +284,7 @@ FROM library_album
 WHERE source_id = ?
 AND (search_title LIKE ? OR search_artist_name LIKE ?)
 ORDER BY search_title
-LIMIT ?;
+LIMIT ? OFFSET ?;
 
 searchLibraryTracks:
 SELECT *
@@ -292,7 +292,7 @@ FROM library_track
 WHERE source_id = ?
 AND (search_title LIKE ? OR search_artist_name LIKE ? OR search_album_title LIKE ?)
 ORDER BY search_title
-LIMIT ?;
+LIMIT ? OFFSET ?;
 
 libraryArtistCount:
 SELECT COUNT(*)
@@ -305,6 +305,21 @@ FROM library_album;
 libraryTrackCount:
 SELECT COUNT(*)
 FROM library_track;
+
+libraryArtistCountForSource:
+SELECT COUNT(*)
+FROM library_artist
+WHERE source_id = ?;
+
+libraryAlbumCountForSource:
+SELECT COUNT(*)
+FROM library_album
+WHERE source_id = ?;
+
+libraryTrackCountForSource:
+SELECT COUNT(*)
+FROM library_track
+WHERE source_id = ?;
 
 mediaSourceCount:
 SELECT COUNT(*)

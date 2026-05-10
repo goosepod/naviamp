@@ -8,7 +8,7 @@ class LibrarySync(
     suspend fun sync(
         sourceId: String,
         provider: MediaProvider,
-        onProgress: (LibrarySyncProgress) -> Unit = {},
+        onProgress: suspend (LibrarySyncProgress) -> Unit = {},
     ) {
         cache.markLibrarySyncStarted(sourceId)
         onProgress(LibrarySyncProgress("Loading artists", 0, null))
