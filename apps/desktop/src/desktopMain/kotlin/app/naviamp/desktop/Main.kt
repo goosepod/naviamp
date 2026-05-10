@@ -58,7 +58,6 @@ import app.naviamp.desktop.settings.DesktopSettingsStore
 import app.naviamp.desktop.settings.NavigationSettings
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.desktop.settings.PlaybackSessionSettings
-import app.naviamp.desktop.settings.SavedConnection
 import app.naviamp.desktop.settings.SearchSettings
 import app.naviamp.desktop.settings.WindowSettings
 import app.naviamp.domain.provider.MediaSearchResults
@@ -136,12 +135,16 @@ fun NaviampApp(
     val isDark = isSystemInDarkTheme()
     val appColors = if (isDark) AppColors.Dark else AppColors.Light
     val colorScheme = if (isDark) darkColorScheme() else lightColorScheme()
-    val savedConnection = remember { settingsStore.loadConnection() }
+    val sessionCache = remember { DesktopCaches.session }
+    val savedMediaSource = remember { sessionCache.latestMediaSource() }
+    val savedConnection = remember {
+        savedMediaSource?.toNavidromeConnection() ?: settingsStore.loadConnection()?.toConnection()
+    }
     val savedPlaybackSession = remember { settingsStore.loadPlaybackSession() }
     val savedNavigation = remember { settingsStore.loadNavigationSettings() }
     val savedSearch = remember { settingsStore.loadSearchSettings() }
     val playlistEngine = remember(playbackEngine) { PlaylistEngine(playbackEngine) }
-    val sessionCache = remember { DesktopCaches.session }
+    val librarySync = remember(sessionCache) { LibrarySync(sessionCache) }
     val coroutineScope = rememberCoroutineScope()
     val restoredTracks = remember(savedPlaybackSession) { savedPlaybackSession?.toTracks().orEmpty() }
     val restoredTrack = remember(savedPlaybackSession) { savedPlaybackSession?.currentTrack() }
@@ -152,6 +155,7 @@ fun NaviampApp(
     var isConnecting by remember { mutableStateOf(false) }
     var connectionStatus by remember { mutableStateOf<String?>(null) }
     var connectedProvider by remember { mutableStateOf<NavidromeProvider?>(null) }
+    var connectedSourceId by remember { mutableStateOf(savedMediaSource?.id) }
     var recentlyAddedAlbums by remember { mutableStateOf<List<Album>>(emptyList()) }
     var selectedAlbum by remember { mutableStateOf<Album?>(null) }
     var selectedAlbumDetails by remember { mutableStateOf<AlbumDetails?>(null) }
@@ -165,6 +169,11 @@ fun NaviampApp(
     var searchResults by remember { mutableStateOf(MediaSearchResults()) }
     var searchStatus by remember { mutableStateOf<String?>(null) }
     var isSearching by remember { mutableStateOf(false) }
+    var libraryQuery by remember { mutableStateOf("") }
+    var librarySnapshot by remember { mutableStateOf(LibrarySnapshot()) }
+    var libraryTab by remember { mutableStateOf(LibraryTab.Artists) }
+    var libraryStatus by remember { mutableStateOf<String?>(null) }
+    var isLibrarySyncing by remember { mutableStateOf(false) }
     var appRoute by remember {
         mutableStateOf(
             restoredRoute(
@@ -273,6 +282,45 @@ fun NaviampApp(
         },
     )
 
+    fun refreshLibrarySnapshot() {
+        val sourceId = connectedSourceId
+        if (sourceId == null) {
+            librarySnapshot = LibrarySnapshot()
+            libraryStatus = "Connect to Navidrome to import your library."
+            return
+        }
+        librarySnapshot = if (libraryQuery.isBlank()) {
+            sessionCache.librarySnapshot(sourceId)
+        } else {
+            sessionCache.searchLibrary(sourceId, libraryQuery)
+        }
+    }
+
+    fun startLibrarySync() {
+        val provider = connectedProvider ?: return
+        val sourceId = connectedSourceId ?: return
+        if (isLibrarySyncing) return
+        isLibrarySyncing = true
+        libraryStatus = "Starting library import..."
+        coroutineScope.launch {
+            try {
+                librarySync.sync(
+                    sourceId = sourceId,
+                    provider = provider,
+                    onProgress = { progress ->
+                        libraryStatus = progress.label()
+                        refreshLibrarySnapshot()
+                    },
+                )
+                refreshLibrarySnapshot()
+            } catch (exception: Exception) {
+                libraryStatus = exception.message ?: "Could not import library."
+            } finally {
+                isLibrarySyncing = false
+            }
+        }
+    }
+
     fun connectToServer(restoreSavedSession: Boolean = false) {
         if (isConnecting) return
         if (serverUrl.isBlank() || username.isBlank()) {
@@ -304,7 +352,6 @@ fun NaviampApp(
             try {
                 val connection = savedConnectionForLogin
                     ?.takeIf { it.baseUrl == serverUrl && it.username == username && password.isBlank() }
-                    ?.toConnection()
                     ?: NavidromeConnection.fromPassword(
                         baseUrl = serverUrl,
                         username = username,
@@ -334,13 +381,9 @@ fun NaviampApp(
                         playbackState = PlaybackState.Idle
                     }
                 }
-                settingsStore.saveConnection(connection)
-                savedConnectionForLogin = SavedConnection(
-                    baseUrl = connection.baseUrl,
-                    username = connection.username,
-                    token = connection.token,
-                    salt = connection.salt,
-                )
+                connectedSourceId = sessionCache.upsertNavidromeSource(connection, provider).id
+                settingsStore.clearConnection()
+                savedConnectionForLogin = connection
                 password = ""
                 if (appRoute == AppRoute.Settings) {
                     appRoute = AppRoute.Home
@@ -350,6 +393,8 @@ fun NaviampApp(
                     validation.serverVersion?.let { append(" to Navidrome $it") }
                     append(".")
                 }
+                refreshLibrarySnapshot()
+                startLibrarySync()
             } catch (exception: Exception) {
                 connectedProvider = null
                 appRoute = AppRoute.Settings
@@ -414,6 +459,22 @@ fun NaviampApp(
         )
     }
 
+    fun playLibraryTrack(index: Int) {
+        val provider = connectedProvider ?: return
+        val tracks = librarySnapshot.tracks
+        if (tracks.isEmpty() || index !in tracks.indices) return
+        openPlayerOnTrackStart = true
+        playlistEngine.playFrom(
+            scope = coroutineScope,
+            provider = provider,
+            tracks = tracks,
+            index = index,
+            quality = playbackEngine.streamQuality(),
+            replayGainMode = playbackSettings.replayGainMode,
+            callbacks = playlistCallbacks,
+        )
+    }
+
     fun applyTrackMetadataUpdate(updatedTrack: Track) {
         nowPlayingTrack = nowPlayingTrack?.let { track ->
             if (track.id == updatedTrack.id) updatedTrack else track
@@ -451,6 +512,40 @@ fun NaviampApp(
                 connectionStatus = exception.message ?: "Could not update favorite."
             }
         }
+    }
+
+    fun clearCacheData() {
+        sessionCache.clearCacheData()
+        connectionStatus = "Image and provider response cache cleared."
+    }
+
+    fun clearLibraryData() {
+        connectedSourceId?.let { sourceId ->
+            sessionCache.clearLibraryData(sourceId)
+        } ?: sessionCache.clearLibraryData()
+        librarySnapshot = LibrarySnapshot()
+        connectionStatus = "Local artist, album, and track index cleared."
+    }
+
+    fun resetDatabase() {
+        sessionCache.clearAll()
+        settingsStore.clearConnection()
+        savedConnectionForLogin = null
+        connectedProvider = null
+        connectedSourceId = null
+        librarySnapshot = LibrarySnapshot()
+        libraryStatus = null
+        recentlyAddedAlbums = emptyList()
+        playlistEngine.clear()
+        playbackEngine.stop()
+        nowPlayingTrack = null
+        nowPlayingCoverArtUrl = null
+        playbackState = PlaybackState.Idle
+        playbackProgress = PlaybackProgress.Unknown
+        playbackQueue = PlaybackQueue()
+        settingsStore.savePlaybackSession(null)
+        connectionStatus = "Database reset. Saved servers were removed."
+        appRoute = AppRoute.Settings
     }
 
     fun openArtistDetails(artist: Artist, backRouteOverride: AppRoute? = null) {
@@ -549,6 +644,11 @@ fun NaviampApp(
         }
     }
 
+    LaunchedEffect(libraryQuery, connectedSourceId) {
+        refreshLibrarySnapshot()
+    }
+
+    val statsMediaSource = connectedSourceId?.let { sessionCache.mediaSource(it) } ?: sessionCache.latestMediaSource()
     val statsForNerdsInfo = StatsForNerdsInfo(
         route = appRoute.name,
         os = "${System.getProperty("os.name")} ${System.getProperty("os.version")} (${System.getProperty("os.arch")})",
@@ -558,7 +658,17 @@ fun NaviampApp(
         username = username,
         providerName = connectedProvider?.displayName ?: "Not connected",
         providerCacheNamespace = connectedProvider?.cacheNamespace ?: "Not connected",
+        mediaSource = statsMediaSource?.toStats(),
         connectionStatus = connectionStatus,
+        librarySync = LibrarySyncStats(
+            isSyncing = isLibrarySyncing,
+            status = libraryStatus ?: "Idle",
+            selectedTab = libraryTab.label,
+            query = libraryQuery,
+            visibleArtists = librarySnapshot.artists.size,
+            visibleAlbums = librarySnapshot.albums.size,
+            visibleTracks = librarySnapshot.tracks.size,
+        ),
         playbackEngineName = playbackEngine.name,
         playbackCapabilities = playbackEngine.capabilitiesLabel(),
         queueSize = playbackQueue.tracks.size,
@@ -733,19 +843,21 @@ fun NaviampApp(
                                     onBack = { appRoute = artistDetailBackRoute },
                                     onAlbumSelected = { album -> openAlbumDetails(album) },
                                 )
-                                    AppRoute.Library -> ConnectionPanel(
+                                    AppRoute.Library -> LibraryPanel(
                                         appColors = appColors,
-                                        connectedProvider = connectedProvider,
-                                        connectionStatus = connectionStatus,
-                                        recentlyAddedAlbums = recentlyAddedAlbums,
-                                        playbackEngine = playbackEngine,
-                                        playlistEngine = playlistEngine,
-                                        playbackSettings = playbackSettings,
-                                        playlistCallbacks = playlistCallbacks,
-                                        sessionCache = sessionCache,
-                                        onPlaybackShouldOpenPlayer = {
-                                            openPlayerOnTrackStart = true
+                                        snapshot = librarySnapshot,
+                                        query = libraryQuery,
+                                        selectedTab = libraryTab,
+                                        status = libraryStatus ?: connectionStatus,
+                                        isSyncing = isLibrarySyncing,
+                                        coverArtUrl = { coverArtId ->
+                                            coverArtId?.let { connectedProvider?.coverArtUrl(it) }
                                         },
+                                        onQueryChanged = { libraryQuery = it },
+                                        onTabSelected = { libraryTab = it },
+                                        onArtistSelected = { artist -> openArtistDetails(artist) },
+                                        onAlbumSelected = { album -> openAlbumDetails(album) },
+                                        onTrackSelected = { index -> playLibraryTrack(index) },
                                     )
                                     AppRoute.Search -> SearchPanel(
                                         appColors = appColors,
@@ -798,6 +910,10 @@ fun NaviampApp(
                                             settingsStore.savePlaybackSettings(playbackSettings)
                                         },
                                         onOpenStatsForNerds = { showStatsForNerds = true },
+                                        onClearCache = { clearCacheData() },
+                                        onClearLibrary = { clearLibraryData() },
+                                        onRefreshLibrary = { startLibrarySync() },
+                                        onResetDatabase = { resetDatabase() },
                                     )
                                 }
                             }

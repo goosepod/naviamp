@@ -15,12 +15,14 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
+import app.naviamp.provider.navidrome.NavidromeConnection
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.net.URI
+import java.security.MessageDigest
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.exists
@@ -119,6 +121,165 @@ class DesktopCache(
             fetch = { provider.search(query, limit) },
         )
 
+    fun latestMediaSource(): SavedMediaSource? =
+        queries.selectLatestMediaSource().executeAsOneOrNull()?.toSavedMediaSource()
+
+    fun mediaSource(sourceId: String): SavedMediaSource? =
+        queries.selectMediaSourceById(sourceId).executeAsOneOrNull()?.toSavedMediaSource()
+
+    fun upsertNavidromeSource(
+        connection: NavidromeConnection,
+        provider: MediaProvider,
+    ): SavedMediaSource {
+        val now = nowMillis()
+        val existing = queries.selectMediaSourceByCacheNamespace(provider.cacheNamespace).executeAsOneOrNull()
+        val id = existing?.id ?: stableSourceId(provider.cacheNamespace)
+        queries.upsertMediaSource(
+            id = id,
+            provider_id = provider.id.value,
+            cache_namespace = provider.cacheNamespace,
+            display_name = provider.displayName,
+            base_url = connection.baseUrl,
+            username = connection.username,
+            token = connection.token,
+            salt = connection.salt,
+            created_at_epoch_millis = existing?.created_at_epoch_millis ?: now,
+            last_connected_at_epoch_millis = now,
+            last_sync_started_at_epoch_millis = existing?.last_sync_started_at_epoch_millis,
+            last_sync_completed_at_epoch_millis = existing?.last_sync_completed_at_epoch_millis,
+        )
+        return SavedMediaSource(
+            id = id,
+            providerId = provider.id.value,
+            cacheNamespace = provider.cacheNamespace,
+            displayName = provider.displayName,
+            baseUrl = connection.baseUrl,
+            username = connection.username,
+            token = connection.token,
+            salt = connection.salt,
+            createdAtEpochMillis = existing?.created_at_epoch_millis ?: now,
+            lastConnectedAtEpochMillis = now,
+            lastSyncStartedAtEpochMillis = existing?.last_sync_started_at_epoch_millis,
+            lastSyncCompletedAtEpochMillis = existing?.last_sync_completed_at_epoch_millis,
+        )
+    }
+
+    fun markLibrarySyncStarted(sourceId: String) {
+        queries.markMediaSourceSyncStarted(nowMillis(), sourceId)
+    }
+
+    fun markLibrarySyncCompleted(sourceId: String) {
+        queries.markMediaSourceSyncCompleted(nowMillis(), sourceId)
+    }
+
+    fun upsertLibraryArtists(sourceId: String, artists: List<Artist>) {
+        val now = nowMillis()
+        queries.transaction {
+            artists.forEach { artist ->
+                queries.upsertLibraryArtist(
+                    source_id = sourceId,
+                    remote_artist_id = artist.id.value,
+                    name = artist.name,
+                    search_name = artist.name.searchText(),
+                    updated_at_epoch_millis = now,
+                )
+            }
+        }
+    }
+
+    fun upsertLibraryAlbums(sourceId: String, albums: List<Album>) {
+        val now = nowMillis()
+        queries.transaction {
+            albums.forEach { album ->
+                queries.upsertLibraryAlbum(
+                    source_id = sourceId,
+                    remote_album_id = album.id.value,
+                    remote_artist_id = null,
+                    title = album.title,
+                    artist_name = album.artistName,
+                    search_title = album.title.searchText(),
+                    search_artist_name = album.artistName.searchText(),
+                    cover_art_id = album.coverArtId,
+                    release_year = album.releaseYear?.toLong(),
+                    updated_at_epoch_millis = now,
+                )
+            }
+        }
+    }
+
+    fun upsertLibraryTracks(sourceId: String, tracks: List<Track>) {
+        val now = nowMillis()
+        queries.transaction {
+            tracks.forEach { track ->
+                queries.upsertLibraryTrack(
+                    source_id = sourceId,
+                    remote_track_id = track.id.value,
+                    remote_album_id = track.albumId?.value,
+                    remote_artist_id = track.artistId?.value,
+                    title = track.title,
+                    artist_name = track.artistName,
+                    album_title = track.albumTitle,
+                    search_title = track.title.searchText(),
+                    search_artist_name = track.artistName.searchText(),
+                    search_album_title = track.albumTitle?.searchText(),
+                    duration_seconds = track.durationSeconds?.toLong(),
+                    cover_art_id = track.coverArtId,
+                    favorited_at_iso8601 = track.favoritedAtIso8601,
+                    user_rating = track.userRating?.toLong(),
+                    updated_at_epoch_millis = now,
+                )
+            }
+        }
+    }
+
+    fun librarySnapshot(sourceId: String, limit: Long = 50): LibrarySnapshot =
+        LibrarySnapshot(
+            artists = queries.selectLibraryArtists(sourceId, limit).executeAsList().map {
+                Artist(
+                    id = ArtistId(it.remote_artist_id),
+                    name = it.name,
+                )
+            },
+            albums = queries.selectLibraryAlbums(sourceId, limit).executeAsList().map {
+                Album(
+                    id = AlbumId(it.remote_album_id),
+                    title = it.title,
+                    artistName = it.artist_name,
+                    coverArtId = it.cover_art_id,
+                    recentlyAddedAtIso8601 = null,
+                    releaseYear = it.release_year?.toInt(),
+                )
+            },
+            tracks = queries.selectLibraryTracks(sourceId, limit).executeAsList().map {
+                it.toTrack()
+            },
+        )
+
+    fun searchLibrary(sourceId: String, query: String, limit: Long = 50): LibrarySnapshot {
+        val pattern = "%${query.searchText()}%"
+        return LibrarySnapshot(
+            artists = queries.searchLibraryArtists(sourceId, pattern, limit).executeAsList().map {
+                Artist(
+                    id = ArtistId(it.remote_artist_id),
+                    name = it.name,
+                )
+            },
+            albums = queries.searchLibraryAlbums(sourceId, pattern, pattern, limit).executeAsList().map {
+                Album(
+                    id = AlbumId(it.remote_album_id),
+                    title = it.title,
+                    artistName = it.artist_name,
+                    coverArtId = it.cover_art_id,
+                    recentlyAddedAtIso8601 = null,
+                    releaseYear = it.release_year?.toInt(),
+                )
+            },
+            tracks = queries.searchLibraryTracks(sourceId, pattern, pattern, pattern, limit).executeAsList().map {
+                it.toTrack()
+            },
+        )
+    }
+
     fun updateTrack(updatedTrack: Track) {
         queries.transaction {
             val albumRows = queries.selectResponsesByType("album").executeAsList()
@@ -159,7 +320,7 @@ class DesktopCache(
         queries.clearResponses()
     }
 
-    fun clearAll() {
+    fun clearCacheData() {
         synchronized(hotImages) {
             hotImages.clear()
             hotImageBytes = 0
@@ -170,12 +331,37 @@ class DesktopCache(
         }
     }
 
+    fun clearLibraryData(sourceId: String? = null) {
+        queries.transaction {
+            if (sourceId == null) {
+                queries.clearLibraryTracks()
+                queries.clearLibraryAlbums()
+                queries.clearLibraryArtists()
+            } else {
+                queries.clearLibraryForSource(sourceId)
+                queries.clearLibraryAlbumsForSource(sourceId)
+                queries.clearLibraryArtistsForSource(sourceId)
+            }
+        }
+    }
+
+    fun clearAll() {
+        clearCacheData()
+        clearLibraryData()
+        queries.clearMediaSources()
+    }
+
     fun stats(): CacheStats =
         CacheStats(
             databasePath = databasePath.toAbsolutePath().toString(),
+            databaseBytes = databasePath.sizeOrZero(),
             imageCount = queries.imageCacheCount().executeAsOne(),
             imageBytes = queries.imageCacheSize().executeAsOne(),
             responseCount = queries.responseCacheCount().executeAsOne(),
+            mediaSourceCount = queries.mediaSourceCount().executeAsOne(),
+            libraryArtistCount = queries.libraryArtistCount().executeAsOne(),
+            libraryAlbumCount = queries.libraryAlbumCount().executeAsOne(),
+            libraryTrackCount = queries.libraryTrackCount().executeAsOne(),
             hotImageCount = synchronized(hotImages) { hotImages.size },
             hotImageBytes = synchronized(hotImages) { hotImageBytes },
             maxImageBytes = maxImageCacheBytes,
@@ -254,14 +440,84 @@ object DesktopCaches {
 
 data class CacheStats(
     val databasePath: String,
+    val databaseBytes: Long,
     val imageCount: Long,
     val imageBytes: Long,
     val responseCount: Long,
+    val mediaSourceCount: Long,
+    val libraryArtistCount: Long,
+    val libraryAlbumCount: Long,
+    val libraryTrackCount: Long,
     val hotImageCount: Int,
     val hotImageBytes: Long,
     val maxImageBytes: Long,
     val maxHotImageBytes: Long,
 )
+
+data class SavedMediaSource(
+    val id: String,
+    val providerId: String,
+    val cacheNamespace: String,
+    val displayName: String,
+    val baseUrl: String,
+    val username: String,
+    val token: String,
+    val salt: String,
+    val createdAtEpochMillis: Long,
+    val lastConnectedAtEpochMillis: Long?,
+    val lastSyncStartedAtEpochMillis: Long?,
+    val lastSyncCompletedAtEpochMillis: Long?,
+) {
+    fun toNavidromeConnection(): NavidromeConnection =
+        NavidromeConnection(
+            baseUrl = baseUrl,
+            username = username,
+            token = token,
+            salt = salt,
+        )
+}
+
+private fun app.naviamp.desktop.cache.Media_source.toSavedMediaSource(): SavedMediaSource =
+    SavedMediaSource(
+        id = id,
+        providerId = provider_id,
+        cacheNamespace = cache_namespace,
+        displayName = display_name,
+        baseUrl = base_url,
+        username = username,
+        token = token,
+        salt = salt,
+        createdAtEpochMillis = created_at_epoch_millis,
+        lastConnectedAtEpochMillis = last_connected_at_epoch_millis,
+        lastSyncStartedAtEpochMillis = last_sync_started_at_epoch_millis,
+        lastSyncCompletedAtEpochMillis = last_sync_completed_at_epoch_millis,
+    )
+
+data class LibrarySnapshot(
+    val artists: List<Artist> = emptyList(),
+    val albums: List<Album> = emptyList(),
+    val tracks: List<Track> = emptyList(),
+) {
+    val isEmpty: Boolean
+        get() = artists.isEmpty() && albums.isEmpty() && tracks.isEmpty()
+}
+
+private fun app.naviamp.desktop.cache.Library_track.toTrack(): Track =
+    Track(
+        id = TrackId(remote_track_id),
+        title = title,
+        artistId = remote_artist_id?.let { ArtistId(it) },
+        artistName = artist_name,
+        albumId = remote_album_id?.let { AlbumId(it) },
+        albumTitle = album_title,
+        albumReleaseYear = null,
+        durationSeconds = duration_seconds?.toInt(),
+        coverArtId = cover_art_id,
+        audioInfo = null,
+        replayGain = null,
+        favoritedAtIso8601 = favorited_at_iso8601,
+        userRating = user_rating?.toInt(),
+    )
 
 private fun createDatabase(path: Path): NaviampCacheDatabase {
     Files.createDirectories(path.parent)
@@ -270,7 +526,98 @@ private fun createDatabase(path: Path): NaviampCacheDatabase {
     if (!exists) {
         NaviampCacheDatabase.Schema.create(driver)
     }
+    driver.execute(null, "PRAGMA foreign_keys=ON", 0)
+    ensureCurrentTables(driver)
     return NaviampCacheDatabase(driver)
+}
+
+private fun ensureCurrentTables(driver: JdbcSqliteDriver) {
+    driver.execute(
+        null,
+        """
+        CREATE TABLE IF NOT EXISTS media_source (
+          id TEXT NOT NULL PRIMARY KEY,
+          provider_id TEXT NOT NULL,
+          cache_namespace TEXT NOT NULL UNIQUE,
+          display_name TEXT NOT NULL,
+          base_url TEXT NOT NULL,
+          username TEXT NOT NULL,
+          token TEXT NOT NULL,
+          salt TEXT NOT NULL,
+          created_at_epoch_millis INTEGER NOT NULL,
+          last_connected_at_epoch_millis INTEGER,
+          last_sync_started_at_epoch_millis INTEGER,
+          last_sync_completed_at_epoch_millis INTEGER
+        )
+        """.trimIndent(),
+        0,
+    )
+    driver.execute(
+        null,
+        """
+        CREATE TABLE IF NOT EXISTS library_artist (
+          source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+          remote_artist_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          search_name TEXT NOT NULL,
+          updated_at_epoch_millis INTEGER NOT NULL,
+          PRIMARY KEY(source_id, remote_artist_id)
+        )
+        """.trimIndent(),
+        0,
+    )
+    driver.execute(
+        null,
+        """
+        CREATE TABLE IF NOT EXISTS library_album (
+          source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+          remote_album_id TEXT NOT NULL,
+          remote_artist_id TEXT,
+          title TEXT NOT NULL,
+          artist_name TEXT NOT NULL,
+          search_title TEXT NOT NULL,
+          search_artist_name TEXT NOT NULL,
+          cover_art_id TEXT,
+          release_year INTEGER,
+          updated_at_epoch_millis INTEGER NOT NULL,
+          PRIMARY KEY(source_id, remote_album_id)
+        )
+        """.trimIndent(),
+        0,
+    )
+    driver.execute(
+        null,
+        """
+        CREATE TABLE IF NOT EXISTS library_track (
+          source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+          remote_track_id TEXT NOT NULL,
+          remote_album_id TEXT,
+          remote_artist_id TEXT,
+          title TEXT NOT NULL,
+          artist_name TEXT NOT NULL,
+          album_title TEXT,
+          search_title TEXT NOT NULL,
+          search_artist_name TEXT NOT NULL,
+          search_album_title TEXT,
+          duration_seconds INTEGER,
+          cover_art_id TEXT,
+          favorited_at_iso8601 TEXT,
+          user_rating INTEGER,
+          updated_at_epoch_millis INTEGER NOT NULL,
+          PRIMARY KEY(source_id, remote_track_id)
+        )
+        """.trimIndent(),
+        0,
+    )
+    listOf(
+        "CREATE INDEX IF NOT EXISTS library_artist_source_name ON library_artist(source_id, search_name)",
+        "CREATE INDEX IF NOT EXISTS library_album_source_title ON library_album(source_id, search_title)",
+        "CREATE INDEX IF NOT EXISTS library_album_source_artist ON library_album(source_id, search_artist_name)",
+        "CREATE INDEX IF NOT EXISTS library_track_source_title ON library_track(source_id, search_title)",
+        "CREATE INDEX IF NOT EXISTS library_track_source_artist ON library_track(source_id, search_artist_name)",
+    ).forEach { sql ->
+        driver.execute(null, sql, 0)
+    }
 }
 
 private fun defaultCacheDatabasePath(): Path =
@@ -291,6 +638,21 @@ private fun defaultAppDataDirectory(): Path {
 
 private fun nowMillis(): Long =
     System.currentTimeMillis()
+
+private fun String.searchText(): String =
+    trim().lowercase()
+
+private fun stableSourceId(cacheNamespace: String): String {
+    val digest = MessageDigest.getInstance("SHA-256")
+        .digest(cacheNamespace.toByteArray(Charsets.UTF_8))
+        .joinToString("") { "%02x".format(it) }
+    return "source_${digest.take(24)}"
+}
+
+private fun Path.sizeOrZero(): Long =
+    runCatching {
+        if (exists()) Files.size(this) else 0L
+    }.getOrDefault(0L)
 
 @Serializable
 private data class MediaSearchResultsDto(

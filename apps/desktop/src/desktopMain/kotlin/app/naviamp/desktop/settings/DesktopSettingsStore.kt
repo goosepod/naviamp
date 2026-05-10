@@ -41,6 +41,10 @@ class DesktopSettingsStore(
         )
     }
 
+    fun clearConnection() {
+        saveSettings(loadSettings().copy(connection = null))
+    }
+
     fun loadPlaybackSettings(): PlaybackSettings =
         loadSettings().playback
 

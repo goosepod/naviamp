@@ -23,6 +23,7 @@ interface MediaProvider {
     suspend fun album(albumId: AlbumId): AlbumDetails
     suspend fun artist(artistId: ArtistId): ArtistDetails
     suspend fun artists(limit: Int = 50): List<Artist>
+    suspend fun albums(limit: Int = 50, offset: Int = 0): List<Album> = emptyList()
     suspend fun tracks(limit: Int = 50): List<Track>
     suspend fun search(query: String, limit: Int = 20): MediaSearchResults
     suspend fun streamUrl(request: StreamRequest): String

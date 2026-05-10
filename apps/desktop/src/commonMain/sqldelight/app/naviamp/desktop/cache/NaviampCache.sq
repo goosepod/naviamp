@@ -16,6 +16,78 @@ CREATE TABLE cached_response (
   last_accessed_epoch_millis INTEGER NOT NULL
 );
 
+CREATE TABLE media_source (
+  id TEXT NOT NULL PRIMARY KEY,
+  provider_id TEXT NOT NULL,
+  cache_namespace TEXT NOT NULL UNIQUE,
+  display_name TEXT NOT NULL,
+  base_url TEXT NOT NULL,
+  username TEXT NOT NULL,
+  token TEXT NOT NULL,
+  salt TEXT NOT NULL,
+  created_at_epoch_millis INTEGER NOT NULL,
+  last_connected_at_epoch_millis INTEGER,
+  last_sync_started_at_epoch_millis INTEGER,
+  last_sync_completed_at_epoch_millis INTEGER
+);
+
+CREATE TABLE library_artist (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  remote_artist_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  search_name TEXT NOT NULL,
+  updated_at_epoch_millis INTEGER NOT NULL,
+  PRIMARY KEY(source_id, remote_artist_id)
+);
+
+CREATE TABLE library_album (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  remote_album_id TEXT NOT NULL,
+  remote_artist_id TEXT,
+  title TEXT NOT NULL,
+  artist_name TEXT NOT NULL,
+  search_title TEXT NOT NULL,
+  search_artist_name TEXT NOT NULL,
+  cover_art_id TEXT,
+  release_year INTEGER,
+  updated_at_epoch_millis INTEGER NOT NULL,
+  PRIMARY KEY(source_id, remote_album_id)
+);
+
+CREATE TABLE library_track (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  remote_track_id TEXT NOT NULL,
+  remote_album_id TEXT,
+  remote_artist_id TEXT,
+  title TEXT NOT NULL,
+  artist_name TEXT NOT NULL,
+  album_title TEXT,
+  search_title TEXT NOT NULL,
+  search_artist_name TEXT NOT NULL,
+  search_album_title TEXT,
+  duration_seconds INTEGER,
+  cover_art_id TEXT,
+  favorited_at_iso8601 TEXT,
+  user_rating INTEGER,
+  updated_at_epoch_millis INTEGER NOT NULL,
+  PRIMARY KEY(source_id, remote_track_id)
+);
+
+CREATE INDEX library_artist_source_name
+ON library_artist(source_id, search_name);
+
+CREATE INDEX library_album_source_title
+ON library_album(source_id, search_title);
+
+CREATE INDEX library_album_source_artist
+ON library_album(source_id, search_artist_name);
+
+CREATE INDEX library_track_source_title
+ON library_track(source_id, search_title);
+
+CREATE INDEX library_track_source_artist
+ON library_track(source_id, search_artist_name);
+
 selectImage:
 SELECT bytes
 FROM cached_image
@@ -88,8 +160,182 @@ UPDATE cached_response
 SET payload = ?
 WHERE cache_key = ?;
 
+selectLatestMediaSource:
+SELECT *
+FROM media_source
+ORDER BY COALESCE(last_connected_at_epoch_millis, created_at_epoch_millis) DESC
+LIMIT 1;
+
+selectMediaSourceByCacheNamespace:
+SELECT *
+FROM media_source
+WHERE cache_namespace = ?;
+
+selectMediaSourceById:
+SELECT *
+FROM media_source
+WHERE id = ?;
+
+upsertMediaSource:
+INSERT OR REPLACE INTO media_source(
+  id,
+  provider_id,
+  cache_namespace,
+  display_name,
+  base_url,
+  username,
+  token,
+  salt,
+  created_at_epoch_millis,
+  last_connected_at_epoch_millis,
+  last_sync_started_at_epoch_millis,
+  last_sync_completed_at_epoch_millis
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+touchMediaSourceConnected:
+UPDATE media_source
+SET last_connected_at_epoch_millis = ?
+WHERE id = ?;
+
+markMediaSourceSyncStarted:
+UPDATE media_source
+SET last_sync_started_at_epoch_millis = ?
+WHERE id = ?;
+
+markMediaSourceSyncCompleted:
+UPDATE media_source
+SET last_sync_completed_at_epoch_millis = ?
+WHERE id = ?;
+
+upsertLibraryArtist:
+INSERT OR REPLACE INTO library_artist(
+  source_id,
+  remote_artist_id,
+  name,
+  search_name,
+  updated_at_epoch_millis
+) VALUES (?, ?, ?, ?, ?);
+
+upsertLibraryAlbum:
+INSERT OR REPLACE INTO library_album(
+  source_id,
+  remote_album_id,
+  remote_artist_id,
+  title,
+  artist_name,
+  search_title,
+  search_artist_name,
+  cover_art_id,
+  release_year,
+  updated_at_epoch_millis
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+upsertLibraryTrack:
+INSERT OR REPLACE INTO library_track(
+  source_id,
+  remote_track_id,
+  remote_album_id,
+  remote_artist_id,
+  title,
+  artist_name,
+  album_title,
+  search_title,
+  search_artist_name,
+  search_album_title,
+  duration_seconds,
+  cover_art_id,
+  favorited_at_iso8601,
+  user_rating,
+  updated_at_epoch_millis
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+selectLibraryArtists:
+SELECT *
+FROM library_artist
+WHERE source_id = ?
+ORDER BY search_name
+LIMIT ?;
+
+selectLibraryAlbums:
+SELECT *
+FROM library_album
+WHERE source_id = ?
+ORDER BY search_title
+LIMIT ?;
+
+selectLibraryTracks:
+SELECT *
+FROM library_track
+WHERE source_id = ?
+ORDER BY search_title
+LIMIT ?;
+
+searchLibraryArtists:
+SELECT *
+FROM library_artist
+WHERE source_id = ?
+AND search_name LIKE ?
+ORDER BY search_name
+LIMIT ?;
+
+searchLibraryAlbums:
+SELECT *
+FROM library_album
+WHERE source_id = ?
+AND (search_title LIKE ? OR search_artist_name LIKE ?)
+ORDER BY search_title
+LIMIT ?;
+
+searchLibraryTracks:
+SELECT *
+FROM library_track
+WHERE source_id = ?
+AND (search_title LIKE ? OR search_artist_name LIKE ? OR search_album_title LIKE ?)
+ORDER BY search_title
+LIMIT ?;
+
+libraryArtistCount:
+SELECT COUNT(*)
+FROM library_artist;
+
+libraryAlbumCount:
+SELECT COUNT(*)
+FROM library_album;
+
+libraryTrackCount:
+SELECT COUNT(*)
+FROM library_track;
+
+mediaSourceCount:
+SELECT COUNT(*)
+FROM media_source;
+
+clearLibraryForSource:
+DELETE FROM library_track
+WHERE source_id = ?;
+
+clearLibraryAlbumsForSource:
+DELETE FROM library_album
+WHERE source_id = ?;
+
+clearLibraryArtistsForSource:
+DELETE FROM library_artist
+WHERE source_id = ?;
+
 clearResponses:
 DELETE FROM cached_response;
 
 clearImages:
 DELETE FROM cached_image;
+
+clearLibraryTracks:
+DELETE FROM library_track;
+
+clearLibraryAlbums:
+DELETE FROM library_album;
+
+clearLibraryArtists:
+DELETE FROM library_artist;
+
+clearMediaSources:
+DELETE FROM media_source;

@@ -88,10 +88,15 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - Cached provider responses currently include recently added albums, album details, artist details, and search results.
   - A small bounded in-memory hot-image cache sits above SQLite for decoded/recent image bytes.
   - Cache keys include provider namespace details so different servers/users do not mix cached data.
+  - Connected media sources are now represented in SQLite so future library rows can reference a stable source/server/user.
+  - The schema includes a slim source-scoped artist/album/track library index intended for local browse/search. Store provider IDs and display/search metadata here, not full authenticated stream URLs.
+  - Navidrome library import starts in the background after connection/restore. It indexes artists, paged alphabetical albums, then album tracks by crawling album details. Settings also has a manual Refresh library action.
+  - The Library tab reads from the local SQLite index and can locally search indexed artists/albums/tracks while sync is running.
+  - Settings exposes separate local-data actions: clear image/API cache, clear local artist/album/track index, and a guarded full database reset that removes saved servers too.
   - Future Android/iOS work should reuse SQLDelight with platform drivers rather than introducing a separate storage stack.
 - Settings easter egg:
   - Triple-click the Settings connection-status line to open a separate "Stats for nerds" window.
-  - It shows app/runtime details, connection/provider info, playback capabilities, queue state, stream metadata for the current track, cache stats, and a redacted recent Navidrome API call history.
+  - It shows app/runtime details, connection/provider info, saved media source details, library import status, DB/cache counts, playback capabilities, queue state, stream metadata for the current track, and a redacted recent Navidrome API call history.
 - Mini player behavior:
   - Tapping the mini-player row opens the full player, but its transport buttons should only control playback and should not navigate away from the current screen.
 - Kotlin/IDE housekeeping:

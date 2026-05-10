@@ -26,6 +26,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.rememberWindowState
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 @Composable
 fun StatsForNerdsWindow(
@@ -94,6 +97,16 @@ fun StatsForNerdsWindow(
                         )
                         StatsSection(
                             appColors = appColors,
+                            title = "Media Source",
+                            rows = info.mediaSource?.rows() ?: listOf("Source" to "None saved"),
+                        )
+                        StatsSection(
+                            appColors = appColors,
+                            title = "Library Import",
+                            rows = info.librarySync.rows(info.cacheStats),
+                        )
+                        StatsSection(
+                            appColors = appColors,
                             title = "Playback",
                             rows = listOf(
                                 "Engine" to info.playbackEngineName,
@@ -109,9 +122,20 @@ fun StatsForNerdsWindow(
                         )
                         StatsSection(
                             appColors = appColors,
-                            title = "Cache",
+                            title = "Database",
                             rows = listOf(
                                 "Database" to info.cacheStats.databasePath,
+                                "File size" to info.cacheStats.databaseBytes.bytesLabel(),
+                                "Saved sources" to info.cacheStats.mediaSourceCount.toString(),
+                                "Library index" to "${info.cacheStats.libraryArtistCount} artists, " +
+                                    "${info.cacheStats.libraryAlbumCount} albums, " +
+                                    "${info.cacheStats.libraryTrackCount} tracks",
+                            ),
+                        )
+                        StatsSection(
+                            appColors = appColors,
+                            title = "Cache",
+                            rows = listOf(
                                 "Images" to "${info.cacheStats.imageCount} (${info.cacheStats.imageBytes.bytesLabel()})",
                                 "Provider responses" to info.cacheStats.responseCount.toString(),
                                 "Hot images" to "${info.cacheStats.hotImageCount} (${info.cacheStats.hotImageBytes.bytesLabel()})",
@@ -236,7 +260,9 @@ data class StatsForNerdsInfo(
     val username: String,
     val providerName: String,
     val providerCacheNamespace: String,
+    val mediaSource: MediaSourceStats?,
     val connectionStatus: String?,
+    val librarySync: LibrarySyncStats,
     val playbackEngineName: String,
     val playbackCapabilities: String,
     val queueSize: Int,
@@ -246,6 +272,55 @@ data class StatsForNerdsInfo(
     val providerCapabilities: Map<String, Boolean>,
     val apiCalls: List<ApiCallStats>,
 )
+
+data class MediaSourceStats(
+    val id: String,
+    val providerId: String,
+    val displayName: String,
+    val baseUrl: String,
+    val username: String,
+    val cacheNamespace: String,
+    val createdAtEpochMillis: Long,
+    val lastConnectedAtEpochMillis: Long?,
+    val lastSyncStartedAtEpochMillis: Long?,
+    val lastSyncCompletedAtEpochMillis: Long?,
+) {
+    fun rows(): List<Pair<String, String>> =
+        listOf(
+            "ID" to id,
+            "Provider ID" to providerId,
+            "Display name" to displayName,
+            "Base URL" to baseUrl,
+            "Username" to username,
+            "Cache namespace" to cacheNamespace,
+            "Created" to createdAtEpochMillis.dateTimeLabel(),
+            "Last connected" to lastConnectedAtEpochMillis.dateTimeLabel(),
+            "Last sync started" to lastSyncStartedAtEpochMillis.dateTimeLabel(),
+            "Last sync completed" to lastSyncCompletedAtEpochMillis.dateTimeLabel(),
+        )
+}
+
+data class LibrarySyncStats(
+    val isSyncing: Boolean,
+    val status: String,
+    val selectedTab: String,
+    val query: String,
+    val visibleArtists: Int,
+    val visibleAlbums: Int,
+    val visibleTracks: Int,
+) {
+    fun rows(cacheStats: CacheStats): List<Pair<String, String>> =
+        listOf(
+            "Running" to isSyncing.toString(),
+            "Status" to status,
+            "Selected tab" to selectedTab,
+            "Search query" to query.ifBlank { "None" },
+            "Visible results" to "$visibleArtists artists, $visibleAlbums albums, $visibleTracks tracks",
+            "Indexed artists" to cacheStats.libraryArtistCount.toString(),
+            "Indexed albums" to cacheStats.libraryAlbumCount.toString(),
+            "Indexed tracks" to cacheStats.libraryTrackCount.toString(),
+        )
+}
 
 data class StreamStats(
     val state: String,
@@ -280,6 +355,20 @@ data class StreamStats(
         )
 }
 
+fun SavedMediaSource.toStats(): MediaSourceStats =
+    MediaSourceStats(
+        id = id,
+        providerId = providerId,
+        displayName = displayName,
+        baseUrl = baseUrl,
+        username = username,
+        cacheNamespace = cacheNamespace,
+        createdAtEpochMillis = createdAtEpochMillis,
+        lastConnectedAtEpochMillis = lastConnectedAtEpochMillis,
+        lastSyncStartedAtEpochMillis = lastSyncStartedAtEpochMillis,
+        lastSyncCompletedAtEpochMillis = lastSyncCompletedAtEpochMillis,
+    )
+
 data class ApiCallStats(
     val endpoint: String,
     val sanitizedUrl: String,
@@ -302,3 +391,10 @@ private fun Long.bytesLabel(): String {
         else -> "$this B"
     }
 }
+
+private fun Long?.dateTimeLabel(): String =
+    this?.let {
+        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z")
+            .withZone(ZoneId.systemDefault())
+            .format(Instant.ofEpochMilli(it))
+    } ?: "Never"

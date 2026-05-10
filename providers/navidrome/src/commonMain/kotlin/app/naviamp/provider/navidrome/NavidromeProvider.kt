@@ -115,7 +115,37 @@ class NavidromeProvider(
         )
     }
 
-    override suspend fun artists(limit: Int): List<Artist> = emptyList()
+    override suspend fun artists(limit: Int): List<Artist> {
+        val response = get("getArtists.view")
+        val artistsRoot = response.subsonicResponse()["artists"]?.jsonObject
+            ?: return emptyList()
+        val indexes = artistsRoot.arrayValue("index")
+        return indexes
+            .flatMap { index ->
+                (index as? JsonObject)?.arrayValue("artist").orEmpty()
+            }
+            .mapNotNull { artist ->
+                (artist as? JsonObject)?.toArtist()
+            }
+            .take(limit)
+    }
+
+    override suspend fun albums(limit: Int, offset: Int): List<Album> {
+        val response = get(
+            endpoint = "getAlbumList2.view",
+            params = mapOf(
+                "type" to "alphabeticalByName",
+                "size" to limit.toString(),
+                "offset" to offset.toString(),
+            ),
+        )
+        val albumList = response.subsonicResponse()["albumList2"]?.jsonObject
+        val albums = albumList?.get("album") as? JsonArray ?: return emptyList()
+
+        return albums.mapNotNull { album ->
+            (album as? JsonObject)?.toAlbum()
+        }
+    }
 
     override suspend fun tracks(limit: Int): List<Track> = emptyList()
 
