@@ -101,6 +101,8 @@ class DesktopSettingsStoreTest {
                 contentType = "audio/flac",
             ),
             replayGain = null,
+            favoritedAtIso8601 = "2026-05-09T13:45:00Z",
+            userRating = 4,
         )
         val second = first.copy(
             id = TrackId("second"),
@@ -117,6 +119,8 @@ class DesktopSettingsStoreTest {
         val session = store.loadPlaybackSession()
         assertEquals("Second Track", session?.currentTrack()?.title)
         assertEquals("FLAC", session?.currentTrack()?.audioInfo?.codec)
+        assertEquals("2026-05-09T13:45:00Z", session?.currentTrack()?.favoritedAtIso8601)
+        assertEquals(4, session?.currentTrack()?.userRating)
         assertEquals(2, session?.toTracks()?.size)
     }
 

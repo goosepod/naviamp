@@ -39,6 +39,8 @@ data class Track(
     val coverArtId: String?,
     val audioInfo: AudioInfo?,
     val replayGain: ReplayGain?,
+    val favoritedAtIso8601: String? = null,
+    val userRating: Int? = null,
 )
 
 data class AudioInfo(

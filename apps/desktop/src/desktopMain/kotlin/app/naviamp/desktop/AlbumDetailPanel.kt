@@ -136,6 +136,9 @@ fun AlbumDetailPanel(
                                 fontSize = 11.sp,
                             )
                         }
+                        track.compactFavoriteRatingLabel()?.let {
+                            Text(it, color = appColors.primaryText, fontSize = 11.sp)
+                        }
                         Text("⋮", color = appColors.mutedText)
                     }
                 }

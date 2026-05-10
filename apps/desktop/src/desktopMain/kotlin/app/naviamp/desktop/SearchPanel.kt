@@ -199,7 +199,12 @@ private fun TrackResultRow(
                 fontSize = 11.sp,
             )
         }
-        Text(track.durationLabel(), color = appColors.mutedText, fontSize = 11.sp)
+        Column(horizontalAlignment = Alignment.End) {
+            track.compactFavoriteRatingLabel()?.let {
+                Text(it, color = appColors.primaryText, fontSize = 11.sp)
+            }
+            Text(track.durationLabel(), color = appColors.mutedText, fontSize = 11.sp)
+        }
     }
 }
 

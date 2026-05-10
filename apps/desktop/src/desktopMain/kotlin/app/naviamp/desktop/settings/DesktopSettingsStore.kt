@@ -160,6 +160,8 @@ data class SavedTrack(
     val durationSeconds: Int? = null,
     val coverArtId: String? = null,
     val audioInfo: SavedAudioInfo? = null,
+    val favoritedAtIso8601: String? = null,
+    val userRating: Int? = null,
 ) {
     fun toTrack(): Track =
         Track(
@@ -171,6 +173,8 @@ data class SavedTrack(
             coverArtId = coverArtId,
             audioInfo = audioInfo?.toAudioInfo(),
             replayGain = null,
+            favoritedAtIso8601 = favoritedAtIso8601,
+            userRating = userRating,
         )
 
     companion object {
@@ -183,6 +187,8 @@ data class SavedTrack(
                 durationSeconds = track.durationSeconds,
                 coverArtId = track.coverArtId,
                 audioInfo = track.audioInfo?.let { SavedAudioInfo.fromAudioInfo(it) },
+                favoritedAtIso8601 = track.favoritedAtIso8601,
+                userRating = track.userRating,
             )
     }
 }

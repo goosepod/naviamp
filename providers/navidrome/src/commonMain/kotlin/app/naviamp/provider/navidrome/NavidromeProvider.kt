@@ -19,7 +19,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -42,6 +41,8 @@ class NavidromeProvider(
             supportsDownloadTranscode = true,
             supportsArtistRadio = false,
             supportsTrackRadio = false,
+            supportsTrackFavorites = true,
+            supportsTrackRatings = true,
         )
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -139,6 +140,24 @@ class NavidromeProvider(
         return url("stream.view", params)
     }
 
+    override suspend fun setTrackFavorite(trackId: TrackId, favorite: Boolean) {
+        get(
+            endpoint = if (favorite) "star.view" else "unstar.view",
+            params = mapOf("id" to trackId.value),
+        )
+    }
+
+    override suspend fun setTrackRating(trackId: TrackId, rating: Int?) {
+        val normalizedRating = rating?.coerceIn(1, 5) ?: 0
+        get(
+            endpoint = "setRating.view",
+            params = mapOf(
+                "id" to trackId.value,
+                "rating" to normalizedRating.toString(),
+            ),
+        )
+    }
+
     override fun coverArtUrl(coverArtId: String): String =
         url("getCoverArt.view", mapOf("id" to coverArtId))
 
@@ -221,6 +240,8 @@ class NavidromeProvider(
                 contentType = stringValue("contentType"),
             ),
             replayGain = null,
+            favoritedAtIso8601 = stringValue("starred"),
+            userRating = intValue("userRating")?.takeIf { it in 1..5 },
         )
 }
 
@@ -257,7 +278,7 @@ private fun String.urlEncode(): String =
     URLEncoder.encode(this, StandardCharsets.UTF_8)
 
 private fun JsonObject.stringValue(key: String): String? =
-    (this[key] as? JsonElement)?.jsonPrimitive?.content
+    this[key]?.jsonPrimitive?.content
 
 private fun JsonObject.intValue(key: String): Int? =
     stringValue(key)?.toIntOrNull()

@@ -67,6 +67,15 @@ class PlaylistEngine(
         callbacks?.onQueueChanged(queue)
     }
 
+    fun updateTrack(updatedTrack: Track) {
+        val updatedTracks = queue.tracks.map { track ->
+            if (track.id == updatedTrack.id) updatedTrack else track
+        }
+        if (updatedTracks == queue.tracks) return
+        queue = queue.copy(tracks = updatedTracks)
+        callbacks?.onQueueChanged(queue)
+    }
+
     fun setCrossfadeSettings(settings: CrossfadeSettings) {
         crossfadeSettings = settings
         (playbackEngine as? QueueAwarePlaybackEngine)?.setCrossfadeDuration(settings.durationSeconds)

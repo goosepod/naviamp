@@ -64,6 +64,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import java.awt.Taskbar
+import java.time.Instant
 import javax.imageio.ImageIO
 
 fun main() {
@@ -381,6 +382,58 @@ fun NaviampApp(
         )
     }
 
+    fun applyTrackMetadataUpdate(updatedTrack: Track) {
+        nowPlayingTrack = nowPlayingTrack?.let { track ->
+            if (track.id == updatedTrack.id) updatedTrack else track
+        }
+        searchResults = searchResults.copy(
+            tracks = searchResults.tracks.map { track ->
+                if (track.id == updatedTrack.id) updatedTrack else track
+            },
+        )
+        selectedAlbumDetails = selectedAlbumDetails?.let { details ->
+            details.copy(
+                tracks = details.tracks.map { track ->
+                    if (track.id == updatedTrack.id) updatedTrack else track
+                },
+            )
+        }
+        playlistEngine.updateTrack(updatedTrack)
+    }
+
+    fun toggleTrackFavorite(track: Track) {
+        val provider = connectedProvider ?: return
+        if (!provider.capabilities.supportsTrackFavorites) return
+
+        coroutineScope.launch {
+            try {
+                val favorite = track.favoritedAtIso8601 == null
+                provider.setTrackFavorite(track.id, favorite)
+                applyTrackMetadataUpdate(
+                    track.copy(
+                        favoritedAtIso8601 = if (favorite) Instant.now().toString() else null,
+                    ),
+                )
+            } catch (exception: Exception) {
+                connectionStatus = exception.message ?: "Could not update favorite."
+            }
+        }
+    }
+
+    fun setTrackRating(track: Track, rating: Int?) {
+        val provider = connectedProvider ?: return
+        if (!provider.capabilities.supportsTrackRatings) return
+
+        coroutineScope.launch {
+            try {
+                provider.setTrackRating(track.id, rating)
+                applyTrackMetadataUpdate(track.copy(userRating = rating))
+            } catch (exception: Exception) {
+                connectionStatus = exception.message ?: "Could not update rating."
+            }
+        }
+    }
+
     LaunchedEffect(Unit) {
         if (savedConnection != null) {
             connectToServer(restoreSavedSession = true)
@@ -463,6 +516,8 @@ fun NaviampApp(
                                 supportsSeek = playbackEngine.supportsSeek,
                                 supportsGapless = playbackEngine.supportsGapless,
                                 supportsCrossfade = playbackEngine.supportsCrossfade,
+                                supportsTrackFavorites = connectedProvider?.capabilities?.supportsTrackFavorites == true,
+                                supportsTrackRatings = connectedProvider?.capabilities?.supportsTrackRatings == true,
                                 nowPlayingTrack = nowPlayingTrack,
                                 coverArtUrl = nowPlayingCoverArtUrl,
                                 upNext = playbackQueue.upNext(),
@@ -490,6 +545,12 @@ fun NaviampApp(
                                 },
                                 onNext = {
                                     playlistEngine.next(coroutineScope)
+                                },
+                                onToggleTrackFavorite = { track ->
+                                    toggleTrackFavorite(track)
+                                },
+                                onTrackRatingSelected = { track, rating ->
+                                    setTrackRating(track, rating)
                                 },
                                 onCollapseToHome = {
                                     appRoute = lastContentRoute

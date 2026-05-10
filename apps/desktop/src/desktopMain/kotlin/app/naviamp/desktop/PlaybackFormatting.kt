@@ -14,6 +14,22 @@ fun Track.durationLabel(): String {
     return "$minutes:${seconds.toString().padStart(2, '0')}"
 }
 
+fun Track.favoriteGlyph(): String =
+    if (favoritedAtIso8601 != null) "♥" else "♡"
+
+fun Track.ratingGlyphs(): String {
+    val rating = userRating?.coerceIn(0, 5) ?: 0
+    return "★".repeat(rating) + "☆".repeat(5 - rating)
+}
+
+fun Track.compactFavoriteRatingLabel(): String? {
+    val parts = listOfNotNull(
+        favoritedAtIso8601?.let { "♥" },
+        userRating?.takeIf { it in 1..5 }?.let { "$it★" },
+    )
+    return parts.takeIf { it.isNotEmpty() }?.joinToString(" ")
+}
+
 fun PlaybackProgress.label(effectiveDurationSeconds: Double?): String {
     val position = positionSeconds?.toTimeLabel() ?: "--:--"
     val duration = effectiveDurationSeconds?.toTimeLabel() ?: "--:--"

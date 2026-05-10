@@ -69,6 +69,8 @@ fun NowPlayingPanel(
     supportsSeek: Boolean,
     supportsGapless: Boolean,
     supportsCrossfade: Boolean,
+    supportsTrackFavorites: Boolean,
+    supportsTrackRatings: Boolean,
     nowPlayingTrack: Track?,
     coverArtUrl: String?,
     upNext: List<Track>,
@@ -83,6 +85,8 @@ fun NowPlayingPanel(
     onSeek: (Double) -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
+    onToggleTrackFavorite: (Track) -> Unit,
+    onTrackRatingSelected: (Track, Int?) -> Unit,
     onCollapseToHome: () -> Unit,
 ) {
     val coverArtState = rememberCoverArtState(coverArtUrl, appColors)
@@ -129,6 +133,8 @@ fun NowPlayingPanel(
                     playbackProgress = playbackProgress,
                     supportsPause = supportsPause,
                     supportsSeek = supportsSeek,
+                    supportsTrackFavorites = supportsTrackFavorites,
+                    supportsTrackRatings = supportsTrackRatings,
                     hasPrevious = hasPrevious,
                     hasNext = hasNext,
                     onPause = onPause,
@@ -137,6 +143,8 @@ fun NowPlayingPanel(
                     onSeek = onSeek,
                     onPrevious = onPrevious,
                     onNext = onNext,
+                    onToggleTrackFavorite = onToggleTrackFavorite,
+                    onTrackRatingSelected = onTrackRatingSelected,
                     onCollapseToHome = onCollapseToHome,
                     modifier = Modifier.weight(0.9f),
                 )
@@ -171,6 +179,8 @@ fun NowPlayingPanel(
                     playbackProgress = playbackProgress,
                     supportsPause = supportsPause,
                     supportsSeek = supportsSeek,
+                    supportsTrackFavorites = supportsTrackFavorites,
+                    supportsTrackRatings = supportsTrackRatings,
                     hasPrevious = hasPrevious,
                     hasNext = hasNext,
                     onPause = onPause,
@@ -179,6 +189,8 @@ fun NowPlayingPanel(
                     onSeek = onSeek,
                     onPrevious = onPrevious,
                     onNext = onNext,
+                    onToggleTrackFavorite = onToggleTrackFavorite,
+                    onTrackRatingSelected = onTrackRatingSelected,
                     onCollapseToHome = onCollapseToHome,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -303,6 +315,8 @@ private fun PlayerDetails(
     playbackProgress: PlaybackProgress,
     supportsPause: Boolean,
     supportsSeek: Boolean,
+    supportsTrackFavorites: Boolean,
+    supportsTrackRatings: Boolean,
     hasPrevious: Boolean,
     hasNext: Boolean,
     onPause: () -> Unit,
@@ -311,6 +325,8 @@ private fun PlayerDetails(
     onSeek: (Double) -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
+    onToggleTrackFavorite: (Track) -> Unit,
+    onTrackRatingSelected: (Track, Int?) -> Unit,
     onCollapseToHome: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -376,11 +392,29 @@ private fun PlayerDetails(
             horizontalArrangement = Arrangement.spacedBy(7.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("♡", color = Color.White, fontSize = 12.sp)
+            val canSetFavorite = nowPlayingTrack != null && supportsTrackFavorites
+            Text(
+                nowPlayingTrack?.favoriteGlyph() ?: "♡",
+                color = if (nowPlayingTrack?.favoritedAtIso8601 != null) {
+                    playerColors.accent
+                } else {
+                    Color.White.copy(alpha = 0.72f)
+                },
+                fontSize = 12.sp,
+                modifier = Modifier.clickable(enabled = canSetFavorite) {
+                    nowPlayingTrack?.let(onToggleTrackFavorite)
+                },
+            )
             nowPlayingTrack?.playbackAudioLabel(playbackEngineName)?.let {
                 Text(it, color = appColors.primaryText, fontSize = 11.sp)
             }
-            Text("☆☆☆☆☆", color = Color.White, fontSize = 11.sp)
+            TrackRatingControl(
+                track = nowPlayingTrack,
+                enabled = supportsTrackRatings,
+                activeColor = playerColors.accent,
+                inactiveColor = Color.White.copy(alpha = 0.72f),
+                onRatingSelected = onTrackRatingSelected,
+            )
         }
 
         Row(
@@ -529,6 +563,31 @@ private fun TransportIconButton(
 }
 
 @Composable
+private fun TrackRatingControl(
+    track: Track?,
+    enabled: Boolean,
+    activeColor: Color,
+    inactiveColor: Color,
+    onRatingSelected: (Track, Int?) -> Unit,
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
+        (1..5).forEach { rating ->
+            val selected = (track?.userRating ?: 0) >= rating
+            Text(
+                if (selected) "★" else "☆",
+                color = if (selected) activeColor else inactiveColor,
+                fontSize = 11.sp,
+                modifier = Modifier.clickable(enabled = track != null && enabled) {
+                    track?.let {
+                        onRatingSelected(it, if (it.userRating == rating) null else rating)
+                    }
+                },
+            )
+        }
+    }
+}
+
+@Composable
 private fun UpNextPanel(
     appColors: AppColors,
     upNext: List<Track>,
@@ -604,6 +663,9 @@ private fun UpNextPanel(
                                 overflow = TextOverflow.Ellipsis,
                                 style = trackArtistStyle,
                             )
+                        }
+                        track.compactFavoriteRatingLabel()?.let {
+                            Text(it, color = appColors.primaryText, fontSize = 11.sp)
                         }
                         Text("⋮", color = appColors.mutedText)
                     }
@@ -922,5 +984,5 @@ private fun Color.colorDistance(other: Color): Float {
     val redDistance = red - other.red
     val greenDistance = green - other.green
     val blueDistance = blue - other.blue
-    return (redDistance * redDistance + greenDistance * greenDistance + blueDistance * blueDistance).toFloat()
+    return redDistance * redDistance + greenDistance * greenDistance + blueDistance * blueDistance
 }

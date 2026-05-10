@@ -52,6 +52,70 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun setTrackFavoriteCallsStarEndpoint() = runTest {
+        val httpClient = RecordingHttpClient()
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        provider.setTrackFavorite(TrackId("track-1"), favorite = true)
+
+        assertEquals(
+            "https://music.example.test/rest/star.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=track-1",
+            httpClient.urls.single(),
+        )
+    }
+
+    @Test
+    fun setTrackFavoriteCallsUnstarEndpoint() = runTest {
+        val httpClient = RecordingHttpClient()
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        provider.setTrackFavorite(TrackId("track-1"), favorite = false)
+
+        assertEquals(
+            "https://music.example.test/rest/unstar.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=track-1",
+            httpClient.urls.single(),
+        )
+    }
+
+    @Test
+    fun setTrackRatingCallsRatingEndpoint() = runTest {
+        val httpClient = RecordingHttpClient()
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        provider.setTrackRating(TrackId("track-1"), rating = 4)
+
+        assertEquals(
+            "https://music.example.test/rest/setRating.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=track-1&rating=4",
+            httpClient.urls.single(),
+        )
+    }
+
+    @Test
+    fun setTrackRatingWithNullClearsRating() = runTest {
+        val httpClient = RecordingHttpClient()
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        provider.setTrackRating(TrackId("track-1"), rating = null)
+
+        assertEquals(
+            "https://music.example.test/rest/setRating.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=track-1&rating=0",
+            httpClient.urls.single(),
+        )
+    }
+
+    @Test
     fun validateConnectionReturnsServerDetails() = runTest {
         val provider = NavidromeProvider(
             connection = connection("https://music.example.test"),
@@ -133,7 +197,9 @@ class NavidromeProviderTest {
                           "coverArt": "cover-1",
                           "suffix": "flac",
                           "bitRate": 921,
-                          "contentType": "audio/flac"
+                          "contentType": "audio/flac",
+                          "starred": "2026-05-09T13:45:00Z",
+                          "userRating": 4
                         },
                         {
                           "id": "track-2",
@@ -160,6 +226,8 @@ class NavidromeProviderTest {
         assertEquals(259, details.tracks.first().durationSeconds)
         assertEquals("FLAC", details.tracks.first().audioInfo?.codec)
         assertEquals(921, details.tracks.first().audioInfo?.bitrateKbps)
+        assertEquals("2026-05-09T13:45:00Z", details.tracks.first().favoritedAtIso8601)
+        assertEquals(4, details.tracks.first().userRating)
     }
 
     @Test
@@ -195,7 +263,9 @@ class NavidromeProviderTest {
                           "duration": 259,
                           "coverArt": "cover-1",
                           "suffix": "flac",
-                          "bitRate": 921
+                          "bitRate": 921,
+                          "starred": "2026-05-09T13:45:00Z",
+                          "userRating": 5
                         }
                       ]
                     }
@@ -211,6 +281,8 @@ class NavidromeProviderTest {
         assertEquals("Low-Life", results.albums.first().title)
         assertEquals("Love Vigilantes", results.tracks.first().title)
         assertEquals(921, results.tracks.first().audioInfo?.bitrateKbps)
+        assertEquals("2026-05-09T13:45:00Z", results.tracks.first().favoritedAtIso8601)
+        assertEquals(5, results.tracks.first().userRating)
     }
 
     private fun connection(baseUrl: String): NavidromeConnection =
@@ -223,5 +295,20 @@ class NavidromeProviderTest {
 
     private class FakeHttpClient(private val response: String) : NavidromeHttpClient {
         override suspend fun get(url: String): String = response
+    }
+
+    private class RecordingHttpClient : NavidromeHttpClient {
+        val urls = mutableListOf<String>()
+
+        override suspend fun get(url: String): String {
+            urls += url
+            return """
+                {
+                  "subsonic-response": {
+                    "status": "ok"
+                  }
+                }
+            """.trimIndent()
+        }
     }
 }

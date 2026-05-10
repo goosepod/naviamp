@@ -66,6 +66,10 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - Resets progress when a new track starts so the next track does not inherit the old position.
 - Navigation memory:
   - The player down arrow returns to the last non-player screen instead of always going Home.
+- Track favorite/rating metadata:
+  - Navidrome `starred` and `userRating` fields map into provider-neutral track metadata.
+  - The player can toggle track favorites and set/clear 1-5 ratings through Navidrome.
+  - Search, album detail, and queue state are patched locally after successful changes.
 - Kotlin/IDE housekeeping:
   - Kotlin version catalog bumped to `2.3.0`.
   - Generated `apps/desktop/bin/` output is ignored.
@@ -76,7 +80,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 - `playlistCallbacks.onTrackStarted` resets `playbackProgress` to `PlaybackProgress.Unknown` before entering the player.
 - Search state lives in `Main.kt` and query persistence lives in `DesktopSettingsStore`.
 - Album detail navigation currently falls back Home in some paths; future screen-state work should preserve deeper route state more deliberately.
-- The player currently shows a heart and star rating as UI placeholders, but those are not wired to provider data yet.
+- Track heart/star mutations currently update Navidrome from the player screen; shared row controls can broaden this later.
 
 ## Roadmap Items From The User
 
@@ -84,7 +88,7 @@ Top-of-mind work the user wants:
 
 - Add crossfading to the player.
 - Modularize reusable UI pieces such as track cards, artist cards, album cards, and similar provider-neutral components.
-- Add starring and favoriting tracks, including pulling that information from Navidrome and later other providers.
+- Broaden starring and favoriting controls beyond the player, including reusable row-level controls.
 - Continue refining the scrub bar.
 - Add a music visualization on the player screen, activated by clicking album art.
 - Add lyrics support.
