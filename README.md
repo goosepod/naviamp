@@ -42,4 +42,4 @@ Planned local commands:
 
 The Gradle wrapper is committed to the repo. Use `./gradlew` instead of a system Gradle install for project commands.
 
-See [docs/setup.md](docs/setup.md), [docs/architecture.md](docs/architecture.md), [docs/roadmap.md](docs/roadmap.md), and [docs/learning-kotlin.md](docs/learning-kotlin.md).
+See [docs/PROJECT_NOTES.md](docs/PROJECT_NOTES.md), [docs/setup.md](docs/setup.md), [docs/architecture.md](docs/architecture.md), [docs/roadmap.md](docs/roadmap.md), and [docs/learning-kotlin.md](docs/learning-kotlin.md).

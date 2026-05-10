@@ -1,0 +1,112 @@
+# Project Notes
+
+This file is the durable handoff for future chats. Start here when opening a new issue-focused conversation.
+
+## How To Use This With Codex
+
+For a new chat, say something like:
+
+```text
+We are working in the Naviamp repo. Please read docs/PROJECT_NOTES.md, CONTRIBUTING.md, and recent git history first. Today's issue is: <short issue>.
+```
+
+Keep each chat focused on one issue or feature. Commit when the issue is working. Update this file when a decision, quirk, or roadmap item should survive into future chats.
+
+## Project Shape
+
+Naviamp is a Kotlin Multiplatform / Compose Multiplatform music client inspired by Plexamp, currently focused on desktop and Navidrome.
+
+Current priorities:
+
+- Windows desktop works and is the main live test path right now.
+- Navidrome is the first provider, but the app should stay provider-oriented.
+- Playback uses mpv on desktop when available.
+- The app should remember state across screens where it feels natural: search query/results, navigation, session queue, window size, and similar context.
+
+Main source areas:
+
+- `core/domain`: provider contracts and provider-neutral domain models.
+- `providers/navidrome`: Navidrome/Subsonic API implementation and mapping.
+- `apps/desktop`: Compose desktop UI, settings, playback engine integration, and desktop tests.
+
+Useful docs:
+
+- `docs/architecture.md`
+- `docs/desktop-playback.md`
+- `docs/roadmap.md`
+- `docs/setup.md`
+
+## Current Build Notes
+
+- Use the Gradle wrapper, not a system Gradle install.
+- On Windows, set `JAVA_HOME` to the installed JDK before running Gradle if needed.
+- The project Kotlin version is aligned to `2.3.0` because resolved dependencies already pull `kotlin-stdlib:2.3.0`.
+- The old VS Code `fwcd.kotlin` language server may report false Kotlin metadata errors. This workspace disables that language server locally in `.vscode/settings.json`, which is gitignored.
+
+Common check command on this Windows machine:
+
+```powershell
+$env:JAVA_HOME=[Environment]::GetEnvironmentVariable('JAVA_HOME','Machine')
+$env:Path="$env:JAVA_HOME\bin;$env:Path"
+.\gradlew.bat check
+```
+
+## Recently Landed
+
+- Windows mpv playback controls: play, pause, seek, progress polling, and executable resolution.
+- Desktop player visual polish: larger floating album art, denser typography, codec/bitrate line, heart/star placeholders, centered scrub times.
+- Scrollable player queue: `UP NEXT` can show the full upcoming queue, and the player screen scrolls vertically in short windows.
+- Search screen:
+  - Freeform Navidrome `search3` integration.
+  - Results grouped into artists, albums, and tracks.
+  - Clicking a track starts playback from the search result queue.
+  - Search query is persisted and restored.
+- Scrub bar stability:
+  - Protects against transient unknown progress reads.
+  - Resets progress when a new track starts so the next track does not inherit the old position.
+- Navigation memory:
+  - The player down arrow returns to the last non-player screen instead of always going Home.
+- Kotlin/IDE housekeeping:
+  - Kotlin version catalog bumped to `2.3.0`.
+  - Generated `apps/desktop/bin/` output is ignored.
+
+## Important Current Behavior
+
+- `PlaybackProgress.mergeWith(previous)` intentionally preserves known position/duration through brief unknown reads from mpv and ignores large backward jumps that are likely polling glitches.
+- `playlistCallbacks.onTrackStarted` resets `playbackProgress` to `PlaybackProgress.Unknown` before entering the player.
+- Search state lives in `Main.kt` and query persistence lives in `DesktopSettingsStore`.
+- Album detail navigation currently falls back Home in some paths; future screen-state work should preserve deeper route state more deliberately.
+- The player currently shows a heart and star rating as UI placeholders, but those are not wired to provider data yet.
+
+## Roadmap Items From The User
+
+Top-of-mind work the user wants:
+
+- Add crossfading to the player.
+- Modularize reusable UI pieces such as track cards, artist cards, album cards, and similar provider-neutral components.
+- Add starring and favoriting tracks, including pulling that information from Navidrome and later other providers.
+- Continue refining the scrub bar.
+- Add a music visualization on the player screen, activated by clicking album art.
+- Add lyrics support.
+- Improve the upcoming queue further as needed.
+- Build out the library view for browsing artists, albums, and genres.
+- Add quick radio playback from Home, seeded by genres, decades, and artists.
+
+## Design Preferences
+
+- Compact, playback-focused, Plexamp-inspired.
+- Dense UI is preferred over roomy whitespace.
+- Keep text readable; avoid muted grey for important secondary metadata.
+- Keep provider-specific logic behind provider modules.
+- Prefer small, focused changes and tests where behavior is nontrivial.
+- Future UI should preserve screen state and scroll/search position when possible.
+
+## Suggested Next Issues
+
+Good next slices:
+
+- Wire Navidrome starred/favorite fields into domain models and player/search/album rows.
+- Extract reusable `TrackRow`, `AlbumCard`, and `ArtistRow` components from existing screens.
+- Start library browsing with artists/albums/genres tabs.
+- Add lyrics domain model and Navidrome/provider capability shape before building the UI.
+- Investigate mpv crossfade options or a two-player strategy for desktop crossfade.
