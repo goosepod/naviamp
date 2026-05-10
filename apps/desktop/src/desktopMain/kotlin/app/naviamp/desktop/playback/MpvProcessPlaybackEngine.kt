@@ -79,9 +79,9 @@ class MpvProcessPlaybackEngine(
                     .redirectErrorStream(true)
                     .start()
                 process = currentProcess
+                endpoint.waitUntilReady()
                 onStateChanged(PlaybackState.Playing)
                 currentProgressJob = scope.launch(Dispatchers.IO) {
-                    endpoint.waitUntilReady()
                     while (currentProcess.isAlive) {
                         onProgressChanged(
                             PlaybackProgress(
@@ -128,13 +128,13 @@ class MpvProcessPlaybackEngine(
     }
 
     override fun pause() {
-        if (sendIpcCommand("""{"command":["set_property","pause",true]}""") != null) {
+        if (sendIpcCommand("""{"command":["set_property","pause",true]}""", reportErrors = false) != null) {
             onStateChanged?.invoke(PlaybackState.Paused)
         }
     }
 
     override fun resume() {
-        if (sendIpcCommand("""{"command":["set_property","pause",false]}""") != null) {
+        if (sendIpcCommand("""{"command":["set_property","pause",false]}""", reportErrors = false) != null) {
             onStateChanged?.invoke(PlaybackState.Playing)
         }
     }
@@ -260,7 +260,7 @@ sealed interface MpvIpcEndpoint {
         override val mpvPath: String = socket.absolutePath
 
         override fun waitUntilReady() {
-            repeat(40) {
+            repeat(160) {
                 if (socket.exists()) return
                 Thread.sleep(25)
             }
@@ -283,7 +283,7 @@ sealed interface MpvIpcEndpoint {
         override val mpvPath: String,
     ) : MpvIpcEndpoint {
         override fun waitUntilReady() {
-            repeat(40) {
+            repeat(160) {
                 runCatching {
                     RandomAccessFile(mpvPath, "rw").use { }
                 }.onSuccess {

@@ -38,6 +38,8 @@ class NavidromeProvider(
 ) : MediaProvider {
     override val id: ProviderId = ProviderId("navidrome")
     override val displayName: String = "Navidrome"
+    override val cacheNamespace: String =
+        "${id.value}:${connection.normalizedBaseUrl}:${connection.username}"
     override val capabilities: ProviderCapabilities =
         ProviderCapabilities(
             supportsStreamingTranscode = true,
@@ -294,25 +296,117 @@ interface NavidromeHttpClient {
     suspend fun get(url: String): String
 }
 
+data class NavidromeApiCall(
+    val endpoint: String,
+    val sanitizedUrl: String,
+    val startedAtEpochMillis: Long,
+    val durationMillis: Long,
+    val success: Boolean,
+    val errorMessage: String?,
+)
+
+object NavidromeApiCallHistory {
+    private const val MaxCalls = 150
+    private val lock = Any()
+    private val calls = ArrayDeque<NavidromeApiCall>()
+
+    fun record(call: NavidromeApiCall) {
+        synchronized(lock) {
+            calls.addLast(call)
+            while (calls.size > MaxCalls) {
+                calls.removeFirst()
+            }
+        }
+    }
+
+    fun recent(limit: Int = 50): List<NavidromeApiCall> =
+        synchronized(lock) {
+            calls.takeLast(limit.coerceAtLeast(0)).asReversed()
+        }
+}
+
 class JavaNavidromeHttpClient : NavidromeHttpClient {
     private val client = HttpClient.newHttpClient()
 
     override suspend fun get(url: String): String =
         withContext(Dispatchers.IO) {
+            val startedAt = System.currentTimeMillis()
             val request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .GET()
                 .build()
 
-            val response = client.send(request, HttpResponse.BodyHandlers.ofString())
-            if (response.statusCode() !in 200..299) {
-                throw NavidromeException("Navidrome returned HTTP ${response.statusCode()}.")
+            try {
+                val response = client.send(request, HttpResponse.BodyHandlers.ofString())
+                if (response.statusCode() !in 200..299) {
+                    throw NavidromeException("Navidrome returned HTTP ${response.statusCode()}.")
+                }
+                response.body().also {
+                    recordApiCall(
+                        url = url,
+                        startedAt = startedAt,
+                        success = true,
+                        errorMessage = null,
+                    )
+                }
+            } catch (exception: Exception) {
+                recordApiCall(
+                    url = url,
+                    startedAt = startedAt,
+                    success = false,
+                    errorMessage = exception.message ?: exception::class.simpleName,
+                )
+                throw exception
             }
-            response.body()
         }
+
+    private fun recordApiCall(
+        url: String,
+        startedAt: Long,
+        success: Boolean,
+        errorMessage: String?,
+    ) {
+        NavidromeApiCallHistory.record(
+            NavidromeApiCall(
+                endpoint = url.navidromeEndpoint(),
+                sanitizedUrl = url.sanitizedNavidromeUrl(),
+                startedAtEpochMillis = startedAt,
+                durationMillis = (System.currentTimeMillis() - startedAt).coerceAtLeast(0),
+                success = success,
+                errorMessage = errorMessage,
+            ),
+        )
+    }
 }
 
 class NavidromeException(message: String) : RuntimeException(message)
+
+private fun String.navidromeEndpoint(): String =
+    runCatching {
+        URI.create(this).path.substringAfterLast('/')
+    }.getOrDefault("unknown")
+
+private fun String.sanitizedNavidromeUrl(): String =
+    runCatching {
+        val uri = URI.create(this)
+        buildString {
+            append(uri.path)
+            val query = uri.rawQuery
+                ?.split("&")
+                ?.joinToString("&") { rawParam ->
+                    val key = rawParam.substringBefore("=")
+                    if (key in setOf("u", "t", "s")) {
+                        "$key=<redacted>"
+                    } else {
+                        rawParam
+                    }
+                }
+            if (!query.isNullOrBlank()) {
+                append("?")
+                append(query)
+            }
+        }
+    }.getOrDefault("<unparseable url>")
 
 private fun Map<String, String>.toQueryString(): String =
     entries.joinToString("&") { (key, value) ->

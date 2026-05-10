@@ -56,7 +56,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jetbrains.skia.Image as SkiaImage
 import java.io.ByteArrayInputStream
-import java.net.URI
 import javax.imageio.ImageIO
 import kotlin.math.abs
 import kotlin.math.pow
@@ -741,7 +740,7 @@ private fun rememberCoverArtState(
 
         runCatching {
             withContext(Dispatchers.IO) {
-                val bytes = URI.create(coverArtUrl).toURL().openStream().use { it.readBytes() }
+                val bytes = DesktopCaches.session.imageBytes(coverArtUrl)
                 CoverArtState(
                     image = SkiaImage.makeFromEncoded(bytes).toComposeImageBitmap(),
                     palette = albumPalette(bytes) ?: AlbumPalette.fallback(appColors.albumArtPlaceholder),

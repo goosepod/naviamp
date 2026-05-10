@@ -1,0 +1,304 @@
+package app.naviamp.desktop
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.rememberWindowState
+
+@Composable
+fun StatsForNerdsWindow(
+    appColors: AppColors,
+    info: StatsForNerdsInfo,
+    onClose: () -> Unit,
+) {
+    val windowState = rememberWindowState(size = DpSize(720.dp, 760.dp))
+
+    Window(
+        state = windowState,
+        title = "Naviamp - Stats for nerds",
+        onCloseRequest = onClose,
+    ) {
+        MaterialTheme {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = appColors.background,
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            "Stats for nerds",
+                            color = appColors.primaryText,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Button(onClick = onClose) {
+                            Text("Close")
+                        }
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        StatsSection(
+                            appColors = appColors,
+                            title = "App",
+                            rows = listOf(
+                                "Route" to info.route,
+                                "OS" to info.os,
+                                "Java" to info.javaVersion,
+                                "Working dir" to info.workingDirectory,
+                            ),
+                        )
+                        StatsSection(
+                            appColors = appColors,
+                            title = "Connection",
+                            rows = listOf(
+                                "Server" to info.serverUrl.ifBlank { "Not set" },
+                                "Username" to info.username.ifBlank { "Not set" },
+                                "Provider" to info.providerName,
+                                "Provider cache namespace" to info.providerCacheNamespace,
+                                "Status" to (info.connectionStatus ?: "None"),
+                            ),
+                        )
+                        StatsSection(
+                            appColors = appColors,
+                            title = "Playback",
+                            rows = listOf(
+                                "Engine" to info.playbackEngineName,
+                                "Queue" to "${info.queueSize} tracks",
+                                "Current index" to info.currentQueueIndex.toString(),
+                                "Capabilities" to info.playbackCapabilities,
+                            ),
+                        )
+                        StatsSection(
+                            appColors = appColors,
+                            title = "Stream",
+                            rows = info.stream?.rows() ?: listOf("Now playing" to "Nothing"),
+                        )
+                        StatsSection(
+                            appColors = appColors,
+                            title = "Cache",
+                            rows = listOf(
+                                "Database" to info.cacheStats.databasePath,
+                                "Images" to "${info.cacheStats.imageCount} (${info.cacheStats.imageBytes.bytesLabel()})",
+                                "Provider responses" to info.cacheStats.responseCount.toString(),
+                                "Hot images" to "${info.cacheStats.hotImageCount} (${info.cacheStats.hotImageBytes.bytesLabel()})",
+                                "Image budget" to info.cacheStats.maxImageBytes.bytesLabel(),
+                                "Hot image budget" to info.cacheStats.maxHotImageBytes.bytesLabel(),
+                            ),
+                        )
+                        StatsSection(
+                            appColors = appColors,
+                            title = "Provider Features",
+                            rows = info.providerCapabilities.mapValues { it.value.toString() }.toList(),
+                        )
+                        ApiHistorySection(
+                            appColors = appColors,
+                            calls = info.apiCalls,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatsSection(
+    appColors: AppColors,
+    title: String,
+    rows: List<Pair<String, String>>,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(appColors.albumArtPlaceholder.copy(alpha = 0.16f))
+            .padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        Text(title, color = appColors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+        rows.forEach { (label, value) ->
+            Text(
+                "$label: $value",
+                color = appColors.secondaryText,
+                fontSize = 11.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ApiHistorySection(
+    appColors: AppColors,
+    calls: List<ApiCallStats>,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(appColors.albumArtPlaceholder.copy(alpha = 0.16f))
+            .padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(5.dp),
+    ) {
+        Text("Navidrome API Calls", color = appColors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+        if (calls.isEmpty()) {
+            Text("No calls recorded yet.", color = appColors.secondaryText, fontSize = 11.sp)
+            return@Column
+        }
+
+        calls.take(50).forEachIndexed { index, call ->
+            if (index > 0) {
+                HorizontalDivider(color = appColors.border.copy(alpha = 0.45f), thickness = 0.5.dp)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    call.statusLabel,
+                    color = if (call.success) appColors.secondaryText else MaterialTheme.colorScheme.error,
+                    fontSize = 11.sp,
+                    modifier = Modifier.width(46.dp),
+                )
+                Text(
+                    "${call.durationMillis} ms",
+                    color = appColors.secondaryText,
+                    fontSize = 11.sp,
+                    modifier = Modifier.width(68.dp),
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        call.endpoint,
+                        color = appColors.primaryText,
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        call.sanitizedUrl,
+                        color = appColors.mutedText,
+                        fontSize = 10.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    call.errorMessage?.let { error ->
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            error,
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 10.sp,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+data class StatsForNerdsInfo(
+    val route: String,
+    val os: String,
+    val javaVersion: String,
+    val workingDirectory: String,
+    val serverUrl: String,
+    val username: String,
+    val providerName: String,
+    val providerCacheNamespace: String,
+    val connectionStatus: String?,
+    val playbackEngineName: String,
+    val playbackCapabilities: String,
+    val queueSize: Int,
+    val currentQueueIndex: Int,
+    val stream: StreamStats?,
+    val cacheStats: CacheStats,
+    val providerCapabilities: Map<String, Boolean>,
+    val apiCalls: List<ApiCallStats>,
+)
+
+data class StreamStats(
+    val state: String,
+    val trackId: String,
+    val title: String,
+    val artist: String,
+    val album: String,
+    val duration: String,
+    val progress: String,
+    val streamQuality: String,
+    val replayGainMode: String,
+    val codec: String,
+    val bitrate: String,
+    val contentType: String,
+    val coverArtId: String,
+) {
+    fun rows(): List<Pair<String, String>> =
+        listOf(
+            "State" to state,
+            "Track ID" to trackId,
+            "Title" to title,
+            "Artist" to artist,
+            "Album" to album,
+            "Duration" to duration,
+            "Progress" to progress,
+            "Stream quality" to streamQuality,
+            "ReplayGain" to replayGainMode,
+            "Codec" to codec,
+            "Bitrate" to bitrate,
+            "Content type" to contentType,
+            "Cover art ID" to coverArtId,
+        )
+}
+
+data class ApiCallStats(
+    val endpoint: String,
+    val sanitizedUrl: String,
+    val durationMillis: Long,
+    val success: Boolean,
+    val errorMessage: String?,
+) {
+    val statusLabel: String
+        get() = if (success) "OK" else "ERROR"
+}
+
+private fun Long.bytesLabel(): String {
+    val kib = 1024.0
+    val mib = kib * 1024.0
+    val gib = mib * 1024.0
+    return when {
+        this >= gib -> "%.1f GB".format(this / gib)
+        this >= mib -> "%.1f MB".format(this / mib)
+        this >= kib -> "%.1f KB".format(this / kib)
+        else -> "$this B"
+    }
+}

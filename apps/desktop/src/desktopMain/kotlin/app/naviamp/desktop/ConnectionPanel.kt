@@ -39,6 +39,8 @@ fun ConnectionPanel(
     playlistEngine: PlaylistEngine,
     playbackSettings: PlaybackSettings,
     playlistCallbacks: PlaylistCallbacks,
+    sessionCache: DesktopCache = DesktopCaches.session,
+    onPlaybackShouldOpenPlayer: () -> Unit,
 ) {
     var isLoadingAlbum by remember { mutableStateOf(false) }
     var selectedAlbumTitle by remember { mutableStateOf<String?>(null) }
@@ -78,7 +80,7 @@ fun ConnectionPanel(
 
                             coroutineScope.launch {
                                 try {
-                                    val details = provider.album(album.id)
+                                    val details = sessionCache.album(provider, album.id)
                                     selectedAlbumTitle = "${details.album.title} - ${details.album.artistName}"
                                     selectedTracks = details.tracks
                                     albumStatus = if (details.tracks.isEmpty()) {
@@ -117,6 +119,7 @@ fun ConnectionPanel(
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                         modifier = Modifier.height(30.dp),
                         onClick = {
+                            onPlaybackShouldOpenPlayer()
                             playlistEngine.playFrom(
                                 scope = coroutineScope,
                                 provider = connectedProvider,
@@ -136,6 +139,7 @@ fun ConnectionPanel(
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                         modifier = Modifier.height(30.dp),
                         onClick = {
+                            onPlaybackShouldOpenPlayer()
                             playlistEngine.playFrom(
                                 scope = coroutineScope,
                                 provider = connectedProvider,
@@ -157,6 +161,7 @@ fun ConnectionPanel(
                             contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
                             modifier = Modifier.height(28.dp),
                             onClick = {
+                                onPlaybackShouldOpenPlayer()
                                 playlistEngine.playFrom(
                                     scope = coroutineScope,
                                     provider = connectedProvider,

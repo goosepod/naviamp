@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.compose.multiplatform)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.sqldelight)
 }
 
 val desktopMpvPlatform = providers.gradleProperty("naviamp.mpv.platform")
@@ -39,6 +40,7 @@ kotlin {
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.serialization.json)
                 implementation(libs.jlayer)
+                implementation(libs.sqldelight.sqlite.driver)
             }
         }
 
@@ -46,6 +48,14 @@ kotlin {
             dependencies {
                 implementation(libs.kotlin.test)
             }
+        }
+    }
+}
+
+sqldelight {
+    databases {
+        create("NaviampCacheDatabase") {
+            packageName.set("app.naviamp.desktop.cache")
         }
     }
 }

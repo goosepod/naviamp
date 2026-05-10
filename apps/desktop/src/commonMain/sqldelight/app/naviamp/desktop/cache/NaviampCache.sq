@@ -1,0 +1,95 @@
+CREATE TABLE cached_image (
+  url TEXT NOT NULL PRIMARY KEY,
+  bytes BLOB NOT NULL,
+  size_bytes INTEGER NOT NULL,
+  created_at_epoch_millis INTEGER NOT NULL,
+  last_accessed_epoch_millis INTEGER NOT NULL
+);
+
+CREATE TABLE cached_response (
+  cache_key TEXT NOT NULL PRIMARY KEY,
+  provider_id TEXT NOT NULL,
+  resource_type TEXT NOT NULL,
+  resource_id TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  created_at_epoch_millis INTEGER NOT NULL,
+  last_accessed_epoch_millis INTEGER NOT NULL
+);
+
+selectImage:
+SELECT bytes
+FROM cached_image
+WHERE url = ?;
+
+upsertImage:
+INSERT OR REPLACE INTO cached_image(
+  url,
+  bytes,
+  size_bytes,
+  created_at_epoch_millis,
+  last_accessed_epoch_millis
+) VALUES (?, ?, ?, ?, ?);
+
+touchImage:
+UPDATE cached_image
+SET last_accessed_epoch_millis = ?
+WHERE url = ?;
+
+imageCacheSize:
+SELECT COALESCE(SUM(size_bytes), 0)
+FROM cached_image;
+
+imageCacheCount:
+SELECT COUNT(*)
+FROM cached_image;
+
+oldestImages:
+SELECT url, size_bytes
+FROM cached_image
+ORDER BY last_accessed_epoch_millis ASC
+LIMIT ?;
+
+deleteImage:
+DELETE FROM cached_image
+WHERE url = ?;
+
+selectResponse:
+SELECT payload
+FROM cached_response
+WHERE cache_key = ?;
+
+selectResponsesByType:
+SELECT cache_key, payload
+FROM cached_response
+WHERE resource_type = ?;
+
+upsertResponse:
+INSERT OR REPLACE INTO cached_response(
+  cache_key,
+  provider_id,
+  resource_type,
+  resource_id,
+  payload,
+  created_at_epoch_millis,
+  last_accessed_epoch_millis
+) VALUES (?, ?, ?, ?, ?, ?, ?);
+
+touchResponse:
+UPDATE cached_response
+SET last_accessed_epoch_millis = ?
+WHERE cache_key = ?;
+
+responseCacheCount:
+SELECT COUNT(*)
+FROM cached_response;
+
+updateResponsePayload:
+UPDATE cached_response
+SET payload = ?
+WHERE cache_key = ?;
+
+clearResponses:
+DELETE FROM cached_response;
+
+clearImages:
+DELETE FROM cached_image;

@@ -42,6 +42,7 @@ import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
+import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.desktop.playback.PlaybackEngine
 import app.naviamp.desktop.playback.PlaybackEngineFactory
@@ -51,6 +52,7 @@ import app.naviamp.desktop.playback.PlaybackState
 import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.PlaylistEngine
 import app.naviamp.desktop.playback.ReplayGainMode
+import app.naviamp.desktop.playback.label
 import app.naviamp.desktop.playback.mergeWith
 import app.naviamp.desktop.settings.DesktopSettingsStore
 import app.naviamp.desktop.settings.NavigationSettings
@@ -60,6 +62,7 @@ import app.naviamp.desktop.settings.SavedConnection
 import app.naviamp.desktop.settings.SearchSettings
 import app.naviamp.desktop.settings.WindowSettings
 import app.naviamp.domain.provider.MediaSearchResults
+import app.naviamp.provider.navidrome.NavidromeApiCallHistory
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
 import kotlinx.coroutines.delay
@@ -138,6 +141,7 @@ fun NaviampApp(
     val savedNavigation = remember { settingsStore.loadNavigationSettings() }
     val savedSearch = remember { settingsStore.loadSearchSettings() }
     val playlistEngine = remember(playbackEngine) { PlaylistEngine(playbackEngine) }
+    val sessionCache = remember { DesktopCaches.session }
     val coroutineScope = rememberCoroutineScope()
     val restoredTracks = remember(savedPlaybackSession) { savedPlaybackSession?.toTracks().orEmpty() }
     val restoredTrack = remember(savedPlaybackSession) { savedPlaybackSession?.currentTrack() }
@@ -190,6 +194,8 @@ fun NaviampApp(
         )
     }
     var playbackSettings by remember { mutableStateOf(settingsStore.loadPlaybackSettings()) }
+    var showStatsForNerds by remember { mutableStateOf(false) }
+    var openPlayerOnTrackStart by remember { mutableStateOf(false) }
     var targetPlayerColors by remember {
         mutableStateOf(PlayerColors.from(AlbumPalette.fallback(appColors.albumArtPlaceholder), appColors))
     }
@@ -251,7 +257,9 @@ fun NaviampApp(
             nowPlayingTrack = track
             nowPlayingCoverArtUrl = coverArtUrl
             playbackProgress = PlaybackProgress.Unknown
-            appRoute = AppRoute.Player
+            if (openPlayerOnTrackStart) {
+                appRoute = AppRoute.Player
+            }
         },
         onQueueChanged = { queue ->
             playbackQueue = queue
@@ -304,7 +312,10 @@ fun NaviampApp(
                     )
                 val provider = NavidromeProvider(connection)
                 val validation = provider.validateConnection()
-                recentlyAddedAlbums = provider.recentlyAddedAlbums(limit = 5)
+                if (!restoreSavedSession) {
+                    sessionCache.clearProviderData()
+                }
+                recentlyAddedAlbums = sessionCache.recentlyAddedAlbums(provider, limit = 5)
                 connectedProvider = provider
                 if (restoreSavedSession && savedPlaybackSession != null) {
                     val tracks = savedPlaybackSession.toTracks()
@@ -363,7 +374,7 @@ fun NaviampApp(
         appRoute = AppRoute.AlbumDetail
         coroutineScope.launch {
             try {
-                selectedAlbumDetails = provider.album(album.id)
+                selectedAlbumDetails = sessionCache.album(provider, album.id)
                 selectedAlbumStatus = null
             } catch (exception: Exception) {
                 selectedAlbumStatus = exception.message ?: "Could not load album."
@@ -375,6 +386,7 @@ fun NaviampApp(
         val provider = connectedProvider ?: return
         val tracks = selectedAlbumDetails?.tracks.orEmpty()
         if (tracks.isEmpty()) return
+        openPlayerOnTrackStart = true
         playlistEngine.playFrom(
             scope = coroutineScope,
             provider = provider,
@@ -390,6 +402,7 @@ fun NaviampApp(
         val provider = connectedProvider ?: return
         val tracks = searchResults.tracks
         if (tracks.isEmpty() || index !in tracks.indices) return
+        openPlayerOnTrackStart = true
         playlistEngine.playFrom(
             scope = coroutineScope,
             provider = provider,
@@ -418,6 +431,7 @@ fun NaviampApp(
             )
         }
         playlistEngine.updateTrack(updatedTrack)
+        sessionCache.updateTrack(updatedTrack)
     }
 
     fun toggleTrackFavorite(track: Track) {
@@ -452,7 +466,7 @@ fun NaviampApp(
         appRoute = AppRoute.ArtistDetail
         coroutineScope.launch {
             try {
-                selectedArtistDetails = provider.artist(artist.id)
+                selectedArtistDetails = sessionCache.artist(provider, artist.id)
                 selectedArtistStatus = null
             } catch (exception: Exception) {
                 selectedArtistStatus = exception.message ?: "Could not load artist."
@@ -460,14 +474,14 @@ fun NaviampApp(
         }
     }
 
-    fun openTrackArtistDetails(track: Track) {
+    fun openTrackArtistDetails(track: Track, backRouteOverride: AppRoute = AppRoute.Player) {
         val artistId = track.artistId ?: return
         openArtistDetails(
             artist = Artist(
                 id = artistId,
                 name = track.artistName,
             ),
-            backRouteOverride = AppRoute.Player,
+            backRouteOverride = backRouteOverride,
         )
     }
 
@@ -526,7 +540,7 @@ fun NaviampApp(
         isSearching = true
         searchStatus = null
         try {
-            searchResults = provider.search(query, limit = 12)
+            searchResults = sessionCache.search(provider, query, limit = 12)
         } catch (exception: Exception) {
             searchResults = MediaSearchResults()
             searchStatus = exception.message ?: "Search failed."
@@ -535,7 +549,47 @@ fun NaviampApp(
         }
     }
 
+    val statsForNerdsInfo = StatsForNerdsInfo(
+        route = appRoute.name,
+        os = "${System.getProperty("os.name")} ${System.getProperty("os.version")} (${System.getProperty("os.arch")})",
+        javaVersion = System.getProperty("java.version"),
+        workingDirectory = System.getProperty("user.dir"),
+        serverUrl = serverUrl,
+        username = username,
+        providerName = connectedProvider?.displayName ?: "Not connected",
+        providerCacheNamespace = connectedProvider?.cacheNamespace ?: "Not connected",
+        connectionStatus = connectionStatus,
+        playbackEngineName = playbackEngine.name,
+        playbackCapabilities = playbackEngine.capabilitiesLabel(),
+        queueSize = playbackQueue.tracks.size,
+        currentQueueIndex = playbackQueue.currentIndex,
+        stream = nowPlayingTrack?.toStreamStats(
+            playbackState = playbackState,
+            playbackProgress = playbackProgress,
+            playbackSettings = playbackSettings,
+            streamQuality = playbackEngine.streamQuality(),
+        ),
+        cacheStats = sessionCache.stats(),
+        providerCapabilities = connectedProvider?.capabilities?.asStatsMap().orEmpty(),
+        apiCalls = NavidromeApiCallHistory.recent(50).map { call ->
+            ApiCallStats(
+                endpoint = call.endpoint,
+                sanitizedUrl = call.sanitizedUrl,
+                durationMillis = call.durationMillis,
+                success = call.success,
+                errorMessage = call.errorMessage,
+            )
+        },
+    )
+
     MaterialTheme(colorScheme = colorScheme) {
+        if (showStatsForNerds) {
+            StatsForNerdsWindow(
+                appColors = appColors,
+                info = statsForNerdsInfo,
+                onClose = { showStatsForNerds = false },
+            )
+        }
         Surface(modifier = Modifier.fillMaxSize(), color = Color.Transparent) {
             BoxWithConstraints(
                 modifier = Modifier
@@ -607,9 +661,11 @@ fun NaviampApp(
                                     playbackEngine.seek(positionSeconds)
                                 },
                                 onPrevious = {
+                                    openPlayerOnTrackStart = false
                                     playlistEngine.previous(coroutineScope)
                                 },
                                 onNext = {
+                                    openPlayerOnTrackStart = false
                                     playlistEngine.next(coroutineScope)
                                 },
                                 onToggleTrackFavorite = { track ->
@@ -662,6 +718,9 @@ fun NaviampApp(
                                     onPlayAlbum = { playAlbumDetails() },
                                     onShuffleAlbum = { playAlbumDetails(shuffle = true) },
                                     onPlayTrack = { index -> playAlbumDetails(index = index) },
+                                    onArtistSelected = { track ->
+                                        openTrackArtistDetails(track, backRouteOverride = AppRoute.AlbumDetail)
+                                    },
                                 )
                                 AppRoute.ArtistDetail -> ArtistDetailPanel(
                                     appColors = appColors,
@@ -683,6 +742,10 @@ fun NaviampApp(
                                         playlistEngine = playlistEngine,
                                         playbackSettings = playbackSettings,
                                         playlistCallbacks = playlistCallbacks,
+                                        sessionCache = sessionCache,
+                                        onPlaybackShouldOpenPlayer = {
+                                            openPlayerOnTrackStart = true
+                                        },
                                     )
                                     AppRoute.Search -> SearchPanel(
                                         appColors = appColors,
@@ -734,6 +797,7 @@ fun NaviampApp(
                                             playbackSettings = settings.forEngine(playbackEngine)
                                             settingsStore.savePlaybackSettings(playbackSettings)
                                         },
+                                        onOpenStatsForNerds = { showStatsForNerds = true },
                                     )
                                 }
                             }
@@ -756,13 +820,15 @@ fun NaviampApp(
                                     playbackEngine.resume()
                                 },
                                 onPlayCurrent = {
-                                    appRoute = AppRoute.Player
+                                    openPlayerOnTrackStart = false
                                     playlistEngine.playCurrent(coroutineScope)
                                 },
                                 onPrevious = {
+                                    openPlayerOnTrackStart = false
                                     playlistEngine.previous(coroutineScope)
                                 },
                                 onNext = {
+                                    openPlayerOnTrackStart = false
                                     playlistEngine.next(coroutineScope)
                                 },
                                 onOpenPlayer = {
@@ -799,6 +865,58 @@ private fun PlaybackSettings.forEngine(playbackEngine: PlaybackEngine): Playback
     } else {
         copy(replayGainMode = ReplayGainMode.Off)
     }
+
+private fun PlaybackEngine.capabilitiesLabel(): String =
+    listOf(
+        "pause" to supportsPause,
+        "seek" to supportsSeek,
+        "gapless" to supportsGapless,
+        "crossfade" to supportsCrossfade,
+        "ReplayGain" to supportsReplayGain,
+    ).joinToString(", ") { (label, supported) ->
+        if (supported) label else "no $label"
+    }
+
+private fun Track.toStreamStats(
+    playbackState: PlaybackState,
+    playbackProgress: PlaybackProgress,
+    playbackSettings: PlaybackSettings,
+    streamQuality: StreamQuality,
+): StreamStats {
+    val effectiveDurationSeconds = durationSeconds?.toDouble() ?: playbackProgress.durationSeconds
+    val audio = audioInfo
+    return StreamStats(
+        state = playbackState.label(),
+        trackId = id.value,
+        title = title,
+        artist = artistName,
+        album = albumTitleWithYear() ?: "Unknown album",
+        duration = durationLabel(),
+        progress = playbackProgress.label(effectiveDurationSeconds),
+        streamQuality = streamQuality.statsLabel(),
+        replayGainMode = playbackSettings.replayGainMode.displayName,
+        codec = audio?.codec ?: "Unknown",
+        bitrate = audio?.bitrateKbps?.let { "$it kbps" } ?: "Unknown",
+        contentType = audio?.contentType ?: "Unknown",
+        coverArtId = coverArtId ?: "None",
+    )
+}
+
+private fun StreamQuality.statsLabel(): String =
+    when (this) {
+        StreamQuality.Original -> "Original"
+        is StreamQuality.Transcoded -> "${codec.name.uppercase()} transcode at $bitrateKbps kbps"
+    }
+
+private fun app.naviamp.domain.provider.ProviderCapabilities.asStatsMap(): Map<String, Boolean> =
+    mapOf(
+        "Streaming transcode" to supportsStreamingTranscode,
+        "Download transcode" to supportsDownloadTranscode,
+        "Artist radio" to supportsArtistRadio,
+        "Track radio" to supportsTrackRadio,
+        "Track favorites" to supportsTrackFavorites,
+        "Track ratings" to supportsTrackRatings,
+    )
 
 private fun restoredRoute(
     savedRouteName: String?,

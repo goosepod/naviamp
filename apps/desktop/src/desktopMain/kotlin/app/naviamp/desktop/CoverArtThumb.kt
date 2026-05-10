@@ -22,7 +22,6 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jetbrains.skia.Image as SkiaImage
-import java.net.URI
 
 @Composable
 fun CoverArtThumb(
@@ -37,7 +36,7 @@ fun CoverArtThumb(
         image = coverArtUrl?.let { url ->
             runCatching {
                 withContext(Dispatchers.IO) {
-                    val bytes = URI.create(url).toURL().openStream().use { it.readBytes() }
+                    val bytes = DesktopCaches.session.imageBytes(url)
                     SkiaImage.makeFromEncoded(bytes).toComposeImageBitmap()
                 }
             }.getOrNull()

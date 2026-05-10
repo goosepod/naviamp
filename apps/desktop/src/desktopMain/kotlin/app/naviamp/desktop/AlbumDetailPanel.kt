@@ -12,6 +12,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
+import app.naviamp.domain.Track
 
 @Composable
 fun AlbumDetailPanel(
@@ -33,6 +35,7 @@ fun AlbumDetailPanel(
     onPlayAlbum: () -> Unit,
     onShuffleAlbum: () -> Unit,
     onPlayTrack: (Int) -> Unit,
+    onArtistSelected: (Track) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
         Row(
@@ -76,12 +79,31 @@ fun AlbumDetailPanel(
                 modifier = Modifier.weight(1f),
             ) {
                 val releaseYear = albumDetails?.album?.releaseYear ?: album?.releaseYear
-                Text(
-                    albumDetails?.album?.artistName ?: album?.artistName ?: "",
-                    color = appColors.primaryText,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                val artistName = albumDetails?.album?.artistName ?: album?.artistName ?: ""
+                val artistTrack = albumDetails?.tracks
+                    ?.firstOrNull { it.artistId != null && it.artistName == artistName }
+                    ?: albumDetails?.tracks?.firstOrNull { it.artistId != null }
+                if (artistTrack != null) {
+                    TextButton(
+                        onClick = { onArtistSelected(artistTrack) },
+                        contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
+                        modifier = Modifier.height(24.dp),
+                    ) {
+                        Text(
+                            artistName,
+                            color = appColors.primaryText,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                } else {
+                    Text(
+                        artistName,
+                        color = appColors.primaryText,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
                 releaseYear?.let {
                     Text(it.toString(), color = appColors.secondaryText, fontSize = 12.sp)
                 }

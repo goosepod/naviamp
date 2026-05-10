@@ -15,6 +15,8 @@ interface MediaProvider {
     val id: ProviderId
     val displayName: String
     val capabilities: ProviderCapabilities
+    val cacheNamespace: String
+        get() = id.value
 
     suspend fun validateConnection(): ConnectionValidation
     suspend fun recentlyAddedAlbums(limit: Int = 20): List<Album>

@@ -83,9 +83,17 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 - Album release years:
   - Navidrome album/song `year` maps onto albums and tracks.
   - Album rows, album detail, and the player album line show release years when available.
-- Caching need:
-  - Artist pages and repeated navigation currently re-fetch image/data payloads, which can make returning to search/artist pages feel slow.
-  - Future work should add a provider-aware cache for cover art/artist images and common data responses such as artist details, album details, and search results.
+- SQLite-backed caching:
+  - Desktop uses SQLDelight with SQLite for cover art/artist image bytes and common provider responses.
+  - Cached provider responses currently include recently added albums, album details, artist details, and search results.
+  - A small bounded in-memory hot-image cache sits above SQLite for decoded/recent image bytes.
+  - Cache keys include provider namespace details so different servers/users do not mix cached data.
+  - Future Android/iOS work should reuse SQLDelight with platform drivers rather than introducing a separate storage stack.
+- Settings easter egg:
+  - Triple-click the Settings connection-status line to open a separate "Stats for nerds" window.
+  - It shows app/runtime details, connection/provider info, playback capabilities, queue state, stream metadata for the current track, cache stats, and a redacted recent Navidrome API call history.
+- Mini player behavior:
+  - Tapping the mini-player row opens the full player, but its transport buttons should only control playback and should not navigate away from the current screen.
 - Kotlin/IDE housekeeping:
   - Kotlin version catalog bumped to `2.3.0`.
   - Generated `apps/desktop/bin/` output is ignored.
@@ -111,7 +119,7 @@ Top-of-mind work the user wants:
 - Improve the upcoming queue further as needed.
 - Build out the library view for browsing artists, albums, and genres.
 - Add quick radio playback from Home, seeded by genres, decades, and artists.
-- Add caching for images and provider data so repeated search/detail navigation is instant or near-instant.
+- Add Settings controls to delete image/data cache or reset the local database so the app starts a fresh server scan.
 
 ## Design Preferences
 
