@@ -47,6 +47,7 @@ fun SettingsPanel(
     connectionStatus: String?,
     playbackSettings: PlaybackSettings,
     supportsReplayGain: Boolean,
+    supportsCrossfade: Boolean,
     onServerUrlChanged: (String) -> Unit,
     onUsernameChanged: (String) -> Unit,
     onPasswordChanged: (String) -> Unit,
@@ -188,6 +189,44 @@ fun SettingsPanel(
                         modifier = Modifier.height(28.dp),
                     )
                 }
+            }
+            Text(
+                if (supportsCrossfade) {
+                    "Crossfade"
+                } else {
+                    "Crossfade unavailable with this playback engine"
+                },
+                color = appColors.secondaryText,
+                fontSize = 12.sp,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                listOf(0, 3, 5, 8, 12).forEach { seconds ->
+                    FilterChip(
+                        selected = playbackSettings.crossfadeDurationSeconds == seconds,
+                        enabled = supportsCrossfade || seconds == 0,
+                        onClick = {
+                            onPlaybackSettingsChanged(
+                                playbackSettings.copy(crossfadeDurationSeconds = seconds),
+                            )
+                        },
+                        label = {
+                            Text(
+                                if (seconds == 0) "Off" else "${seconds}s",
+                                fontSize = 12.sp,
+                            )
+                        },
+                        modifier = Modifier.height(28.dp),
+                    )
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                Checkbox(
+                    checked = playbackSettings.debugLoggingEnabled,
+                    onCheckedChange = { enabled ->
+                        onPlaybackSettingsChanged(playbackSettings.copy(debugLoggingEnabled = enabled))
+                    },
+                )
+                Text("Debug logging", color = appColors.secondaryText, fontSize = 12.sp)
             }
         }
 

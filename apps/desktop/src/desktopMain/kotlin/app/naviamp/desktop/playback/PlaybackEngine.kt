@@ -35,6 +35,7 @@ interface QueueAwarePlaybackEngine : PlaybackEngine {
 
 data class PlaybackRequest(
     val url: String,
+    val mediaId: String? = null,
     val replayGainMode: ReplayGainMode = ReplayGainMode.Off,
 )
 

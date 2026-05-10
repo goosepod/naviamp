@@ -282,6 +282,8 @@ sealed interface MpvIpcEndpoint {
     data class WindowsNamedPipe(
         override val mpvPath: String,
     ) : MpvIpcEndpoint {
+        private val lock = Any()
+
         override fun waitUntilReady() {
             repeat(160) {
                 runCatching {
@@ -294,16 +296,33 @@ sealed interface MpvIpcEndpoint {
         }
 
         override fun send(command: String): String {
-            waitUntilReady()
-            return RandomAccessFile(mpvPath, "rw").use { pipe ->
-                pipe.write(command.toByteArray(StandardCharsets.UTF_8))
-                pipe.readUtf8Line()
+            synchronized(lock) {
+                waitUntilReady()
+                var lastException: Throwable? = null
+                repeat(20) {
+                    try {
+                        return RandomAccessFile(mpvPath, "rw").use { pipe ->
+                            pipe.write(command.toByteArray(StandardCharsets.UTF_8))
+                            pipe.readUtf8Line()
+                        }
+                    } catch (exception: Throwable) {
+                        lastException = exception
+                        if (!exception.isWindowsPipeBusy()) {
+                            throw exception
+                        }
+                        Thread.sleep(25)
+                    }
+                }
+                throw lastException ?: IllegalStateException("mpv pipe was busy.")
             }
         }
 
         override fun delete() = Unit
     }
 }
+
+private fun Throwable.isWindowsPipeBusy(): Boolean =
+    message?.contains("pipe instances are busy", ignoreCase = true) == true
 
 private fun RandomAccessFile.readUtf8Line(): String {
     val bytes = mutableListOf<Byte>()

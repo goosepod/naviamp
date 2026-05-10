@@ -45,11 +45,13 @@ import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
+import app.naviamp.desktop.playback.CrossfadeSettings
 import app.naviamp.desktop.playback.PlaybackEngine
 import app.naviamp.desktop.playback.PlaybackEngineFactory
 import app.naviamp.desktop.playback.PlaybackProgress
 import app.naviamp.desktop.playback.PlaybackQueue
 import app.naviamp.desktop.playback.PlaybackState
+import app.naviamp.desktop.playback.PlaybackTrace
 import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.PlaylistEngine
 import app.naviamp.desktop.playback.ReplayGainMode
@@ -208,7 +210,9 @@ fun NaviampApp(
             },
         )
     }
-    var playbackSettings by remember { mutableStateOf(settingsStore.loadPlaybackSettings()) }
+    var playbackSettings by remember {
+        mutableStateOf(settingsStore.loadPlaybackSettings().forEngine(playbackEngine))
+    }
     var showStatsForNerds by remember { mutableStateOf(false) }
     var openPlayerOnTrackStart by remember { mutableStateOf(false) }
     var targetPlayerColors by remember {
@@ -231,6 +235,20 @@ fun NaviampApp(
         onDispose {
             playbackEngine.stop()
         }
+    }
+
+    LaunchedEffect(playbackEngine, playbackSettings.crossfadeDurationSeconds) {
+        val crossfadeDurationSeconds = playbackSettings.crossfadeDurationSeconds.coerceIn(0, 12)
+        playlistEngine.setCrossfadeSettings(
+            CrossfadeSettings(
+                enabled = crossfadeDurationSeconds > 0,
+                durationSeconds = crossfadeDurationSeconds,
+            ),
+        )
+    }
+
+    LaunchedEffect(playbackSettings.debugLoggingEnabled) {
+        PlaybackTrace.setDefaultEnabled(playbackSettings.debugLoggingEnabled)
     }
 
     LaunchedEffect(appRoute, albumDetailBackRoute, artistDetailBackRoute) {
@@ -948,6 +966,7 @@ fun NaviampApp(
                                         connectionStatus = connectionStatus,
                                         playbackSettings = playbackSettings,
                                         supportsReplayGain = playbackEngine.supportsReplayGain,
+                                        supportsCrossfade = playbackEngine.supportsCrossfade,
                                         onServerUrlChanged = {
                                             serverUrl = it
                                             if (savedConnectionForLogin?.baseUrl != it) {
@@ -1033,11 +1052,19 @@ fun NaviampApp(
 }
 
 private fun PlaybackSettings.forEngine(playbackEngine: PlaybackEngine): PlaybackSettings =
-    if (playbackEngine.supportsReplayGain) {
-        this
-    } else {
-        copy(replayGainMode = ReplayGainMode.Off)
-    }
+    copy(
+        replayGainMode = if (playbackEngine.supportsReplayGain) {
+            replayGainMode
+        } else {
+            ReplayGainMode.Off
+        },
+        crossfadeDurationSeconds = if (playbackEngine.supportsCrossfade) {
+            crossfadeDurationSeconds.coerceIn(0, 12)
+        } else {
+            0
+        },
+        debugLoggingEnabled = debugLoggingEnabled,
+    )
 
 private fun shouldAutoSyncLibrary(
     sourceId: String,

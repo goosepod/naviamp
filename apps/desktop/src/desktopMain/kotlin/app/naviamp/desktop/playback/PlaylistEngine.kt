@@ -135,6 +135,7 @@ class PlaylistEngine(
                     scope = scope,
                     request = PlaybackRequest(
                         url = streamUrl,
+                        mediaId = track.id.value,
                         replayGainMode = replayGainMode.forEngine(playbackEngine),
                     ),
                     onStateChanged = { state ->
@@ -184,7 +185,11 @@ class PlaylistEngine(
         if (!crossfadeSettings.isActive || !playbackEngine.supportsCrossfade || !queue.hasNext()) return
         val position = progress.positionSeconds ?: return
         val duration = progress.durationSeconds ?: return
-        if (duration - position > crossfadeSettings.durationSeconds + 1.0) return
+        val prepareWindowSeconds = maxOf(
+            crossfadeSettings.durationSeconds + 1.0,
+            CrossfadePrepareWindowSeconds,
+        )
+        if (duration - position > prepareWindowSeconds) return
 
         val currentProvider = provider ?: return
         val currentQuality = streamQuality ?: return
@@ -206,6 +211,7 @@ class PlaylistEngine(
                     queueAwareEngine.prepareNext(
                         PlaybackRequest(
                             url = streamUrl,
+                            mediaId = nextTrack.id.value,
                             replayGainMode = replayGainMode.forEngine(playbackEngine),
                         ),
                     )
@@ -240,3 +246,5 @@ data class PlaybackQueue(
 
 private fun ReplayGainMode.forEngine(playbackEngine: PlaybackEngine): ReplayGainMode =
     if (playbackEngine.supportsReplayGain) this else ReplayGainMode.Off
+
+private const val CrossfadePrepareWindowSeconds = 30.0

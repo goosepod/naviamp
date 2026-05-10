@@ -116,6 +116,8 @@ data class DesktopSettings(
 @Serializable
 data class PlaybackSettings(
     val replayGainMode: ReplayGainMode = ReplayGainMode.Off,
+    val crossfadeDurationSeconds: Int = 0,
+    val debugLoggingEnabled: Boolean = false,
 )
 
 @Serializable

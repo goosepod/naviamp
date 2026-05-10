@@ -16,6 +16,35 @@ The process engine supports:
 
 It does not claim crossfade support yet. The `PlaylistEngine` has prepare-next hooks for crossfade-capable engines, but the current process engine does not overlap two streams.
 
+## Crossfade Prototype
+
+An isolated opt-in engine exists for crossfade testing:
+
+```powershell
+$env:NAVIAMP_PLAYBACK_ENGINE="mpv-crossfade-prototype"
+.\gradlew.bat :apps:desktop:run
+```
+
+or with JVM properties:
+
+```shell
+./gradlew :apps:desktop:run -Dnaviamp.playback.engine=mpv-crossfade-prototype
+```
+
+This uses `ExperimentalCrossfadeMpvPlaybackEngine`, not the stable `MpvProcessPlaybackEngine`. The stable engine remains the default and reports no crossfade support.
+
+The prototype follows the shape Feishin uses for its web-player crossfade path: keep two players, prepare the next player muted, start it near the end of the active track, use an equal-power fade curve, reset the transition on pause/seek, and advance app state only after the overlap has resolved. Feishin's mpv path uses mpv playlist prefetch/gapless behavior, while its crossfade path is implemented with two web players.
+
+Debug logging can be toggled from Settings > Playback > Debug logging. The legacy `NAVIAMP_PLAYBACK_TRACE=true` and `-Dnaviamp.playback.trace=true` switches still enable trace logging before saved settings are applied.
+
+When trace is enabled, logs are written to:
+
+```text
+%TEMP%/naviamp/mpv-crossfade-prototype.log
+```
+
+on Windows, or the platform temp directory equivalent elsewhere.
+
 ## Engine Resolution
 
 `PlaybackEngineFactory` asks `MpvExecutableResolver` for an mpv executable. Resolution order is:

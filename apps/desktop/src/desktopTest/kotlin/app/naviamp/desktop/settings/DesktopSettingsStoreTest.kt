@@ -40,7 +40,13 @@ class DesktopSettingsStoreTest {
     fun saveConnectionPreservesPlaybackSettings() {
         val path = createTempDirectory().resolve("settings.json")
         val store = DesktopSettingsStore(path)
-        store.savePlaybackSettings(PlaybackSettings(replayGainMode = ReplayGainMode.Album))
+        store.savePlaybackSettings(
+            PlaybackSettings(
+                replayGainMode = ReplayGainMode.Album,
+                crossfadeDurationSeconds = 5,
+                debugLoggingEnabled = true,
+            ),
+        )
 
         store.saveConnection(
             NavidromeConnection(
@@ -52,6 +58,8 @@ class DesktopSettingsStoreTest {
         )
 
         assertEquals(ReplayGainMode.Album, store.loadPlaybackSettings().replayGainMode)
+        assertEquals(5, store.loadPlaybackSettings().crossfadeDurationSeconds)
+        assertEquals(true, store.loadPlaybackSettings().debugLoggingEnabled)
         assertEquals("user", store.loadConnection()?.username)
     }
 
@@ -60,10 +68,20 @@ class DesktopSettingsStoreTest {
         val path = createTempDirectory().resolve("settings.json")
         val store = DesktopSettingsStore(path)
 
-        store.savePlaybackSettings(PlaybackSettings(replayGainMode = ReplayGainMode.Track))
+        store.savePlaybackSettings(
+            PlaybackSettings(
+                replayGainMode = ReplayGainMode.Track,
+                crossfadeDurationSeconds = 8,
+                debugLoggingEnabled = true,
+            ),
+        )
 
         assertEquals(ReplayGainMode.Track, store.loadPlaybackSettings().replayGainMode)
+        assertEquals(8, store.loadPlaybackSettings().crossfadeDurationSeconds)
+        assertEquals(true, store.loadPlaybackSettings().debugLoggingEnabled)
         assertEquals(true, path.readText().contains("replayGainMode"))
+        assertEquals(true, path.readText().contains("crossfadeDurationSeconds"))
+        assertEquals(true, path.readText().contains("debugLoggingEnabled"))
     }
 
     @Test
@@ -136,13 +154,19 @@ class DesktopSettingsStoreTest {
     fun saveNavigationSettingsPreservesPlaybackSession() {
         val path = createTempDirectory().resolve("settings.json")
         val store = DesktopSettingsStore(path)
-        store.savePlaybackSettings(PlaybackSettings(replayGainMode = ReplayGainMode.Track))
+        store.savePlaybackSettings(
+            PlaybackSettings(
+                replayGainMode = ReplayGainMode.Track,
+                crossfadeDurationSeconds = 3,
+            ),
+        )
 
         store.saveNavigationSettings(NavigationSettings(route = "Player", lastContentRoute = "Search"))
 
         assertEquals("Player", store.loadNavigationSettings().route)
         assertEquals("Search", store.loadNavigationSettings().lastContentRoute)
         assertEquals(ReplayGainMode.Track, store.loadPlaybackSettings().replayGainMode)
+        assertEquals(3, store.loadPlaybackSettings().crossfadeDurationSeconds)
     }
 
     @Test

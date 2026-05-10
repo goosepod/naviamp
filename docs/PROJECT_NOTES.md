@@ -104,6 +104,13 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - It shows app/runtime details, connection/provider info, saved media source details, library import status, DB/cache counts, playback capabilities, queue state, stream metadata for the current track, and a redacted recent Navidrome API call history.
 - Mini player behavior:
   - Tapping the mini-player row opens the full player, but its transport buttons should only control playback and should not navigate away from the current screen.
+- Desktop mpv crossfade attempt:
+  - A dual-mpv-process crossfade attempt caused regressions in seek, pause, progress polling, and track advancement.
+  - `MpvProcessPlaybackEngine` was restored to the stable single-process mpv path and reports `supportsCrossfade = false` again.
+  - Settings still has a persisted crossfade duration shape, but capability filtering forces it off for the current mpv process engine.
+  - `ExperimentalCrossfadeMpvPlaybackEngine` is now available as an isolated opt-in prototype via `NAVIAMP_PLAYBACK_ENGINE=mpv-crossfade-prototype` or `-Dnaviamp.playback.engine=mpv-crossfade-prototype`.
+  - Enable Settings > Playback > Debug logging to write prototype logs to `%TEMP%/naviamp/mpv-crossfade-prototype.log`. `NAVIAMP_PLAYBACK_TRACE=true` and `-Dnaviamp.playback.trace=true` still work as startup defaults.
+  - The prototype follows Feishin's web-player crossfade shape: two players, muted prepared next player, equal-power fade, reset transition on pause/seek, and queue advancement after overlap resolution.
 - Kotlin/IDE housekeeping:
   - Kotlin version catalog bumped to `2.3.0`.
   - Generated `apps/desktop/bin/` output is ignored.
@@ -121,7 +128,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 
 Top-of-mind work the user wants:
 
-- Add crossfading to the player.
+- Add crossfading to the player without regressing basic mpv transport behavior.
 - Modularize reusable UI pieces such as track cards, artist cards, album cards, and similar provider-neutral components.
 - Broaden starring and favoriting controls beyond the player, including reusable row-level controls.
 - Continue refining the scrub bar.
@@ -149,4 +156,4 @@ Good next slices:
 - Extract reusable `TrackRow`, `AlbumCard`, and `ArtistRow` components from existing screens.
 - Add Library genres and richer artist/album grouping.
 - Add lyrics domain model and Navidrome/provider capability shape before building the UI.
-- Investigate mpv crossfade options or a two-player strategy for desktop crossfade.
+- Re-approach crossfade with an isolated engine/prototype and explicit playback debug tracing.
