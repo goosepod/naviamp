@@ -3,6 +3,8 @@ package app.naviamp.desktop
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -142,10 +144,9 @@ fun NowPlayingPanel(
                     appColors = appColors,
                     upNext = upNext,
                     coverArtState = coverArtState,
-                    maxItems = 8,
                     modifier = Modifier
                         .weight(1.1f)
-                        .heightIn(min = 300.dp),
+                        .heightIn(min = 300.dp, max = 420.dp),
                 )
             }
         } else {
@@ -185,10 +186,9 @@ fun NowPlayingPanel(
                     appColors = appColors,
                     upNext = upNext,
                     coverArtState = coverArtState,
-                    maxItems = 4,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 180.dp),
+                        .heightIn(min = 220.dp, max = 320.dp),
                 )
             }
         }
@@ -533,9 +533,9 @@ private fun UpNextPanel(
     appColors: AppColors,
     upNext: List<Track>,
     coverArtState: CoverArtState,
-    maxItems: Int,
     modifier: Modifier = Modifier,
 ) {
+    val scrollState = rememberScrollState()
     val trackTitleStyle = TextStyle(
         fontSize = 12.sp,
         lineHeight = 12.sp,
@@ -563,44 +563,50 @@ private fun UpNextPanel(
                 .fillMaxWidth()
                 .background(Color.White.copy(alpha = 0.18f)),
         )
-        repeat(maxItems) { index ->
-            val track = upNext.getOrNull(index)
-            if (track == null) {
-                Spacer(modifier = Modifier.height(42.dp))
-            } else {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(42.dp),
-                ) {
-                    CoverArt(
-                        coverArtState = coverArtState,
-                        appColors = appColors,
-                        size = 36.dp,
-                        elevated = false,
-                    )
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(1.dp),
-                        modifier = Modifier.weight(1f),
+        if (upNext.isEmpty()) {
+            Spacer(modifier = Modifier.height(42.dp))
+        } else {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(scrollState),
+            ) {
+                upNext.forEach { track ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(38.dp),
                     ) {
-                        Text(
-                            track.title,
-                            color = appColors.primaryText,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            style = trackTitleStyle,
+                        CoverArt(
+                            coverArtState = coverArtState,
+                            appColors = appColors,
+                            size = 32.dp,
+                            elevated = false,
                         )
-                        Text(
-                            track.artistName,
-                            color = appColors.secondaryText,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            style = trackArtistStyle,
-                        )
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(1.dp),
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text(
+                                track.title,
+                                color = appColors.primaryText,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                style = trackTitleStyle,
+                            )
+                            Text(
+                                track.artistName,
+                                color = appColors.secondaryText,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                style = trackArtistStyle,
+                            )
+                        }
+                        Text("⋮", color = appColors.mutedText)
                     }
-                    Text("⋮", color = appColors.mutedText)
                 }
             }
         }

@@ -453,7 +453,8 @@ fun NaviampApp(
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .fillMaxWidth(),
+                                .fillMaxWidth()
+                                .verticalScroll(rememberScrollState()),
                         ) {
                             NowPlayingPanel(
                                 appColors = appColors,
