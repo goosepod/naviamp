@@ -219,6 +219,7 @@ fun NaviampApp(
     var nowPlayingCoverArtUrl by remember { mutableStateOf<String?>(null) }
     var nowPlayingWaveform by remember { mutableStateOf<AudioWaveform?>(null) }
     var nowPlayingWaveformReloadToken by remember { mutableStateOf(0) }
+    var nowPlayingAudioTags by remember { mutableStateOf<List<AudioTag>?>(null) }
     var relatedTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
     var playbackState by remember { mutableStateOf<PlaybackState>(PlaybackState.Idle) }
     var playbackProgress by remember { mutableStateOf(PlaybackProgress.Unknown) }
@@ -394,6 +395,7 @@ fun NaviampApp(
             nowPlayingCoverArtUrl = coverArtUrl
             if (trackChanged) {
                 nowPlayingWaveform = null
+                nowPlayingAudioTags = null
                 nowPlayingWaveformReloadToken += 1
             }
             playbackProgress = PlaybackProgress.Unknown
@@ -437,22 +439,25 @@ fun NaviampApp(
         }
         val quality = playbackEngine.streamQuality()
 
-        val waveform = withContext(Dispatchers.IO) {
+        val waveformAndTags = withContext(Dispatchers.IO) {
             runCatching {
-                sessionCache.cacheAudioTrack(
+                val audioFile = sessionCache.cacheAudioTrack(
                     sourceId = sourceId,
                     provider = provider,
                     track = track,
                     quality = quality,
                 )
-                sessionCache.ensureAudioWaveform(
+                val waveform = sessionCache.ensureAudioWaveform(
                     sourceId = sourceId,
                     trackId = track.id,
                     quality = quality,
                 )
+                val tags = AudioTagReader().read(audioFile.path)
+                waveform to tags
             }.getOrNull()
         }
-        nowPlayingWaveform = waveform
+        nowPlayingWaveform = waveformAndTags?.first
+        nowPlayingAudioTags = waveformAndTags?.second
     }
 
     LaunchedEffect(nowPlayingTrack?.id, connectedSourceId) {
@@ -1319,6 +1324,7 @@ fun NaviampApp(
                                 supportsTrackRatings = connectedProvider?.capabilities?.supportsTrackRatings == true,
                                 nowPlayingTrack = nowPlayingTrack,
                                 nowPlayingWaveform = nowPlayingWaveform,
+                                nowPlayingAudioTags = nowPlayingAudioTags,
                                 coverArtUrl = nowPlayingCoverArtUrl,
                                 upNext = playbackQueue.upNext(),
                                 firstUpNextQueueIndex = playbackQueue.currentIndex + 1,

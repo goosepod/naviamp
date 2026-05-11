@@ -87,7 +87,10 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - The player volume control is a custom line control with no percent label.
   - The old `Gapless / No crossfade` capability label is removed from the player screen.
   - The collapse arrow is centered in the bottom action row, with a dedicated current-track radio icon on the left and a current-track overflow menu on the right.
-  - The current overflow menu starts with Start track radio, Go to artist, and Go to album. Track details, lyrics, visualizer, and playlist actions can extend this menu later.
+  - The current overflow menu includes Start track radio, Track details, Go to artist, and Go to album. Lyrics, visualizer, and playlist actions can extend this menu later.
+  - Track details opens a modal with song metadata, provider IDs, favorite/rating state, audio codec/bitrate/sample/depth/content type, and replay-gain fields when available.
+  - Track details also reads embedded tags from the cached audio file when available. Common tags are ordered first (`Title`, `Artist`, `Album Artist`, `Album`, track/disc/date/genre/etc.), and extra tags are shown alphabetically below them.
+  - Embedded tag parsing currently covers ID3v2 text/comment frames for MP3-like files and FLAC Vorbis comments. Add MP4/M4A atom parsing later if needed.
   - Starting track radio from the player screen does not restart the current track; it preserves playback and replaces the upcoming queue with radio recommendations.
   - Popup menus use a shared dark Feishin-inspired treatment through `NaviampDropdownMenu` / `NaviampDropdownMenuItem`.
   - The `RELATED` tab is active. It loads same-album and same-artist tracks from the local source-scoped library index, excluding the current track and deduplicating by provider track ID.

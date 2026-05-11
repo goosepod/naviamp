@@ -22,11 +22,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -77,6 +79,7 @@ fun NowPlayingPanel(
     supportsTrackRatings: Boolean,
     nowPlayingTrack: Track?,
     nowPlayingWaveform: AudioWaveform?,
+    nowPlayingAudioTags: List<AudioTag>?,
     coverArtUrl: String?,
     upNext: List<Track>,
     firstUpNextQueueIndex: Int,
@@ -146,6 +149,7 @@ fun NowPlayingPanel(
                     supportsSoftwareVolume = supportsSoftwareVolume,
                     nowPlayingTrack = nowPlayingTrack,
                     nowPlayingWaveform = nowPlayingWaveform,
+                    nowPlayingAudioTags = nowPlayingAudioTags,
                     playbackState = playbackState,
                     playbackProgress = playbackProgress,
                     volumePercent = volumePercent,
@@ -203,6 +207,7 @@ fun NowPlayingPanel(
                     supportsSoftwareVolume = supportsSoftwareVolume,
                     nowPlayingTrack = nowPlayingTrack,
                     nowPlayingWaveform = nowPlayingWaveform,
+                    nowPlayingAudioTags = nowPlayingAudioTags,
                     playbackState = playbackState,
                     playbackProgress = playbackProgress,
                     volumePercent = volumePercent,
@@ -350,6 +355,7 @@ private fun PlayerDetails(
     supportsSoftwareVolume: Boolean,
     nowPlayingTrack: Track?,
     nowPlayingWaveform: AudioWaveform?,
+    nowPlayingAudioTags: List<AudioTag>?,
     playbackState: PlaybackState,
     playbackProgress: PlaybackProgress,
     volumePercent: Int,
@@ -392,6 +398,7 @@ private fun PlayerDetails(
     )
     val audioInfo = nowPlayingTrack?.playbackAudioInfo(playbackEngineName)
     var actionMenuExpanded by remember { mutableStateOf(false) }
+    var trackDetailsOpen by remember { mutableStateOf(false) }
 
     LaunchedEffect(effectiveProgressFraction) {
         if (!isScrubbing) {
@@ -679,6 +686,13 @@ private fun PlayerDetails(
                         },
                     )
                     NaviampDropdownMenuItem(
+                        label = "Track details",
+                        onClick = {
+                            actionMenuExpanded = false
+                            trackDetailsOpen = true
+                        },
+                    )
+                    NaviampDropdownMenuItem(
                         label = "Go to artist",
                         enabled = nowPlayingTrack?.artistId != null,
                         onClick = {
@@ -698,7 +712,149 @@ private fun PlayerDetails(
             }
         }
     }
+
+    val detailsTrack = nowPlayingTrack
+    if (trackDetailsOpen && detailsTrack != null) {
+        TrackDetailsDialog(
+            track = detailsTrack,
+            audioTags = nowPlayingAudioTags,
+            onDismissRequest = { trackDetailsOpen = false },
+        )
+    }
 }
+
+@Composable
+private fun TrackDetailsDialog(
+    track: Track,
+    audioTags: List<AudioTag>?,
+    onDismissRequest: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        title = {
+            Text(
+                text = "Track details",
+                fontWeight = FontWeight.Bold,
+            )
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .width(420.dp)
+                    .heightIn(max = 520.dp)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                TrackDetailSection(
+                    title = "Song",
+                    rows = listOfNotNull(
+                        "Title" to track.title,
+                        "Artist" to track.artistName,
+                        "Album" to track.albumTitle.orUnknown(),
+                        track.albumReleaseYear?.let { "Year" to it.toString() },
+                        "Duration" to track.durationLabel(),
+                    ),
+                )
+                TrackTagSection(audioTags)
+                TrackDetailSection(
+                    title = "File",
+                    rows = listOfNotNull(
+                        "Codec" to track.audioInfo?.codec.orUnknown(),
+                        track.audioInfo?.bitrateKbps?.let { "Bitrate" to "$it kbps" },
+                        track.audioInfo?.samplingRateHz?.let { "Sample rate" to "$it Hz" },
+                        track.audioInfo?.bitDepth?.let { "Bit depth" to "$it bit" },
+                        "Content type" to track.audioInfo?.contentType.orUnknown(),
+                    ),
+                )
+                TrackDetailSection(
+                    title = "Library",
+                    rows = listOfNotNull(
+                        "Track ID" to track.id.value,
+                        track.artistId?.let { "Artist ID" to it.value },
+                        track.albumId?.let { "Album ID" to it.value },
+                        "Favorite" to if (track.favoritedAtIso8601 != null) "Yes" else "No",
+                        track.userRating?.let { "Rating" to "$it / 5" },
+                    ),
+                )
+                track.replayGain?.let { replayGain ->
+                    TrackDetailSection(
+                        title = "Replay gain",
+                        rows = listOfNotNull(
+                            replayGain.trackGainDb?.let { "Track gain" to "%.2f dB".format(java.util.Locale.US, it) },
+                            replayGain.albumGainDb?.let { "Album gain" to "%.2f dB".format(java.util.Locale.US, it) },
+                            replayGain.trackPeak?.let { "Track peak" to "%.6f".format(java.util.Locale.US, it) },
+                            replayGain.albumPeak?.let { "Album peak" to "%.6f".format(java.util.Locale.US, it) },
+                        ),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismissRequest) {
+                Text("Close")
+            }
+        },
+    )
+}
+
+@Composable
+private fun TrackTagSection(audioTags: List<AudioTag>?) {
+    val rows = audioTags?.map { it.key to it.value }
+    when {
+        rows == null -> TrackDetailSection(
+            title = "Embedded tags",
+            rows = listOf("Status" to "Loading from cached audio"),
+        )
+        rows.isEmpty() -> TrackDetailSection(
+            title = "Embedded tags",
+            rows = listOf("Status" to "No readable ID3/Vorbis tags found"),
+        )
+        else -> TrackDetailSection(
+            title = "Embedded tags",
+            rows = rows,
+        )
+    }
+}
+
+@Composable
+private fun TrackDetailSection(
+    title: String,
+    rows: List<Pair<String, String>>,
+) {
+    if (rows.isEmpty()) return
+
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(
+            text = title,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        rows.forEach { (label, value) ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.Top,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text = label,
+                    color = Color.White.copy(alpha = 0.68f),
+                    fontSize = 12.sp,
+                    modifier = Modifier.width(96.dp),
+                )
+                Text(
+                    text = value,
+                    color = Color.White.copy(alpha = 0.9f),
+                    fontSize = 12.sp,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+    }
+}
+
+private fun String?.orUnknown(): String =
+    this?.takeIf { it.isNotBlank() } ?: "Unknown"
 
 @Composable
 private fun playerSliderColors(
