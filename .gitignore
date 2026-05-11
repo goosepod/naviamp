@@ -1,4 +1,5 @@
 .gradle/
+.codex/
 build/
 out/
 .idea/
