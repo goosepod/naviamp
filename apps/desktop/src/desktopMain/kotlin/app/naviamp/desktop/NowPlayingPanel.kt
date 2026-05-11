@@ -733,8 +733,8 @@ private fun WaveformScrubber(
             val x = index * step + step / 2f
             val color = when {
                 !enabled -> appColors.mutedText.copy(alpha = 0.28f)
-                ratio <= value -> playerColors.accent
-                else -> appColors.secondaryText.copy(alpha = 0.38f)
+                ratio <= value -> waveformActiveColor(playerColors.backgroundMid)
+                else -> waveformInactiveColor(playerColors.backgroundMid)
             }
 
             drawLine(
@@ -747,6 +747,23 @@ private fun WaveformScrubber(
         }
     }
 }
+
+private fun waveformActiveColor(background: Color): Color =
+    if (background.luminance() < 0.42f) {
+        Color.White.copy(alpha = 0.92f)
+    } else {
+        Color.Black.copy(alpha = 0.72f)
+    }
+
+private fun waveformInactiveColor(background: Color): Color =
+    if (background.luminance() < 0.42f) {
+        Color.White.copy(alpha = 0.30f)
+    } else {
+        Color.Black.copy(alpha = 0.24f)
+    }
+
+private fun Color.luminance(): Float =
+    0.2126f * red + 0.7152f * green + 0.0722f * blue
 
 @Composable
 private fun TransportIconButton(

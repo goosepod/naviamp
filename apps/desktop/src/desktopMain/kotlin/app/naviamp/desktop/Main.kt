@@ -719,6 +719,56 @@ fun NaviampApp(
         }
     }
 
+    fun startSeededRadio(
+        label: String,
+        provider: NavidromeProvider,
+        seedTrack: Track,
+        loadRest: suspend (NavidromeProvider) -> List<Track>,
+    ) {
+        connectionStatus = null
+        radioSessionId += 1
+        val activeRadioSessionId = radioSessionId
+        radioQueueActive = true
+        isRadioRefilling = true
+        lastRadioRefillSeedId = seedTrack.id.value
+        openPlayerOnTrackStart = true
+        playlistEngine.playFrom(
+            scope = coroutineScope,
+            provider = provider,
+            tracks = listOf(seedTrack),
+            index = 0,
+            quality = playbackEngine.streamQuality(),
+            replayGainMode = playbackSettings.replayGainMode,
+            callbacks = playlistCallbacks,
+        )
+
+        coroutineScope.launch {
+            try {
+                val fetchedTracks = withContext(Dispatchers.IO) {
+                    loadRest(provider)
+                }
+                val existingTrackIds = playlistEngine.queue.tracks.map { it.id }.toSet()
+                val newTracks = fetchedTracks.filterNot { track ->
+                    track.id in existingTrackIds
+                }
+                if (radioQueueActive && activeRadioSessionId == radioSessionId && newTracks.isNotEmpty()) {
+                    playlistEngine.appendTracks(
+                        tracks = newTracks,
+                        maxHistory = RadioQueueHistoryLimit,
+                    )
+                }
+            } catch (exception: Exception) {
+                if (activeRadioSessionId == radioSessionId) {
+                    connectionStatus = exception.message ?: "Could not build $label."
+                }
+            } finally {
+                if (activeRadioSessionId == radioSessionId) {
+                    isRadioRefilling = false
+                }
+            }
+        }
+    }
+
     fun playPlaylist(playlist: Playlist) {
         val provider = connectedProvider ?: return
         connectionStatus = "Loading ${playlist.name}..."
@@ -767,54 +817,124 @@ fun NaviampApp(
         }
     }
 
-    suspend fun artistRadioSeedTrack(provider: NavidromeProvider, artist: Artist): Track? =
+    suspend fun artistRadioSeedTrack(
+        provider: NavidromeProvider,
+        artist: Artist,
+        sourceId: String?,
+    ): Track? =
         runCatching {
+            sourceId?.let { localSourceId ->
+                sessionCache.randomLibraryTrackForArtist(localSourceId, artist.id)?.let { return@runCatching it }
+            }
             val details = sessionCache.artist(provider, artist.id)
-            details.albums.forEach { album ->
+            details.albums.shuffled().forEach { album ->
                 val tracks = sessionCache.album(provider, album.id).tracks
-                tracks.firstOrNull { it.artistId == artist.id }?.let { return@runCatching it }
-                tracks.firstOrNull { it.artistName.equals(artist.name, ignoreCase = true) }
+                tracks.filter { it.artistId == artist.id }
+                    .randomOrNull()
+                    ?.let { return@runCatching it }
+                tracks.filter { it.artistName.equals(artist.name, ignoreCase = true) }
+                    .randomOrNull()
                     ?.let { return@runCatching it }
             }
             null
         }.getOrNull()
 
-    suspend fun albumRadioSeedTrack(provider: NavidromeProvider, album: Album): Track? =
+    suspend fun albumRadioSeedTrack(
+        provider: NavidromeProvider,
+        album: Album,
+        sourceId: String?,
+        loadedAlbumTracks: List<Track> = emptyList(),
+    ): Track? =
         runCatching {
-            sessionCache.album(provider, album.id).tracks.firstOrNull()
+            loadedAlbumTracks.randomOrNull()?.let { return@runCatching it }
+            sourceId?.let { localSourceId ->
+                sessionCache.randomLibraryTrackForAlbum(localSourceId, album.id)?.let { return@runCatching it }
+            }
+            sessionCache.album(provider, album.id).tracks.randomOrNull()
         }.getOrNull()
 
     fun playRandomAlbumRadio() {
-        playRadio("Random album radio") { provider ->
-            val album = provider.albumList(AlbumListType.Random, limit = 1).firstOrNull()
-                ?: return@playRadio emptyList()
-            val seedTrack = albumRadioSeedTrack(provider, album)
-            val recommendations = provider.albumRadio(album.id).ifEmpty {
-                provider.album(album.id).tracks.shuffled()
+        val provider = connectedProvider ?: return
+        connectionStatus = "Starting random album radio..."
+        coroutineScope.launch {
+            try {
+                val album = withContext(Dispatchers.IO) {
+                    provider.albumList(AlbumListType.Random, limit = 1).firstOrNull()
+                } ?: run {
+                    connectionStatus = "Random album radio did not find an album."
+                    return@launch
+                }
+                val sourceId = connectedSourceId
+                val seedTrack = withContext(Dispatchers.IO) {
+                    albumRadioSeedTrack(provider, album, sourceId)
+                } ?: run {
+                    connectionStatus = "${album.title} did not return any tracks."
+                    return@launch
+                }
+                startSeededRadio("${album.title} radio", provider, seedTrack) { radioProvider ->
+                    radioProvider.albumRadio(album.id).ifEmpty {
+                        radioProvider.album(album.id).tracks.shuffled()
+                    }
+                }
+            } catch (exception: Exception) {
+                connectionStatus = exception.message ?: "Could not start random album radio."
             }
-            listOfNotNull(seedTrack) + recommendations.filterNot { it.id == seedTrack?.id }
         }
     }
 
     fun playArtistRadio(artist: Artist) {
-        playRadio("${artist.name} radio") { provider ->
-            val seedTrack = artistRadioSeedTrack(provider, artist)
-            val recommendations = provider.artistRadio(artist.id)
-            listOfNotNull(seedTrack) + recommendations.filterNot { it.id == seedTrack?.id }
+        val provider = connectedProvider ?: return
+        val sourceId = connectedSourceId
+        connectionStatus = "Starting ${artist.name} radio..."
+        coroutineScope.launch {
+            try {
+                val seedTrack = withContext(Dispatchers.IO) {
+                    artistRadioSeedTrack(provider, artist, sourceId)
+                } ?: run {
+                    connectionStatus = "${artist.name} radio did not find a seed track."
+                    return@launch
+                }
+                startSeededRadio("${artist.name} radio", provider, seedTrack) { radioProvider ->
+                    radioProvider.artistRadio(artist.id)
+                }
+            } catch (exception: Exception) {
+                connectionStatus = exception.message ?: "Could not start ${artist.name} radio."
+            }
         }
     }
 
     fun playAlbumRadio(album: Album) {
-        playRadio("${album.title} radio") { provider ->
-            val seedTrack = albumRadioSeedTrack(provider, album)
-            val recommendations = provider.albumRadio(album.id)
-            listOfNotNull(seedTrack) + recommendations.filterNot { it.id == seedTrack?.id }
+        val provider = connectedProvider ?: return
+        val sourceId = connectedSourceId
+        val loadedAlbumTracks = if (selectedAlbum?.id == album.id || selectedAlbumDetails?.album?.id == album.id) {
+            selectedAlbumDetails?.tracks.orEmpty()
+        } else {
+            emptyList()
+        }
+        connectionStatus = "Starting ${album.title} radio..."
+        coroutineScope.launch {
+            try {
+                val seedTrack = withContext(Dispatchers.IO) {
+                    albumRadioSeedTrack(provider, album, sourceId, loadedAlbumTracks)
+                } ?: run {
+                    connectionStatus = "${album.title} did not return any tracks."
+                    return@launch
+                }
+                startSeededRadio("${album.title} radio", provider, seedTrack) { radioProvider ->
+                    radioProvider.albumRadio(album.id).ifEmpty {
+                        radioProvider.album(album.id).tracks.shuffled()
+                    }
+                }
+            } catch (exception: Exception) {
+                connectionStatus = exception.message ?: "Could not start ${album.title} radio."
+            }
         }
     }
 
     fun playTrackRadio(track: Track) {
-        playRadio("${track.title} radio") { provider ->
-            listOf(track) + provider.trackRadio(track.id).filterNot { it.id == track.id }
+        val provider = connectedProvider ?: return
+        startSeededRadio("${track.title} radio", provider, track) { radioProvider ->
+            radioProvider.trackRadio(track.id, count = RadioRefillCount)
         }
     }
 

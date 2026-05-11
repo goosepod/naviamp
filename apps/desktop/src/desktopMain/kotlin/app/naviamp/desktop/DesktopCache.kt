@@ -350,6 +350,11 @@ class DesktopCache(
                     search_album_title = track.albumTitle?.searchText(),
                     duration_seconds = track.durationSeconds?.toLong(),
                     cover_art_id = track.coverArtId,
+                    audio_codec = track.audioInfo?.codec,
+                    audio_bitrate_kbps = track.audioInfo?.bitrateKbps?.toLong(),
+                    audio_content_type = track.audioInfo?.contentType,
+                    audio_bit_depth = track.audioInfo?.bitDepth?.toLong(),
+                    audio_sampling_rate_hz = track.audioInfo?.samplingRateHz?.toLong(),
                     favorited_at_iso8601 = track.favoritedAtIso8601,
                     user_rating = track.userRating?.toLong(),
                     updated_at_epoch_millis = now,
@@ -405,6 +410,16 @@ class DesktopCache(
             },
         )
     }
+
+    fun randomLibraryTrackForAlbum(sourceId: String, albumId: AlbumId): Track? =
+        queries.selectRandomLibraryTrackForAlbum(sourceId, albumId.value)
+            .executeAsOneOrNull()
+            ?.toTrack()
+
+    fun randomLibraryTrackForArtist(sourceId: String, artistId: ArtistId): Track? =
+        queries.selectRandomLibraryTrackForArtist(sourceId, artistId.value)
+            .executeAsOneOrNull()
+            ?.toTrack()
 
     fun libraryIndexStats(sourceId: String): LibraryIndexStats =
         LibraryIndexStats(
@@ -728,7 +743,19 @@ private fun app.naviamp.desktop.cache.Library_track.toTrack(): Track =
         albumReleaseYear = null,
         durationSeconds = duration_seconds?.toInt(),
         coverArtId = cover_art_id,
-        audioInfo = null,
+        audioInfo = AudioInfo(
+            codec = audio_codec,
+            bitrateKbps = audio_bitrate_kbps?.toInt(),
+            contentType = audio_content_type,
+            bitDepth = audio_bit_depth?.toInt(),
+            samplingRateHz = audio_sampling_rate_hz?.toInt(),
+        ).takeIf {
+            it.codec != null ||
+                it.bitrateKbps != null ||
+                it.contentType != null ||
+                it.bitDepth != null ||
+                it.samplingRateHz != null
+        },
         replayGain = null,
         favoritedAtIso8601 = favorited_at_iso8601,
         userRating = user_rating?.toInt(),
@@ -862,6 +889,11 @@ private fun ensureCurrentTables(driver: JdbcSqliteDriver) {
           search_album_title TEXT,
           duration_seconds INTEGER,
           cover_art_id TEXT,
+          audio_codec TEXT,
+          audio_bitrate_kbps INTEGER,
+          audio_content_type TEXT,
+          audio_bit_depth INTEGER,
+          audio_sampling_rate_hz INTEGER,
           favorited_at_iso8601 TEXT,
           user_rating INTEGER,
           updated_at_epoch_millis INTEGER NOT NULL,
@@ -870,6 +902,15 @@ private fun ensureCurrentTables(driver: JdbcSqliteDriver) {
         """.trimIndent(),
         0,
     )
+    listOf(
+        "ALTER TABLE library_track ADD COLUMN audio_codec TEXT",
+        "ALTER TABLE library_track ADD COLUMN audio_bitrate_kbps INTEGER",
+        "ALTER TABLE library_track ADD COLUMN audio_content_type TEXT",
+        "ALTER TABLE library_track ADD COLUMN audio_bit_depth INTEGER",
+        "ALTER TABLE library_track ADD COLUMN audio_sampling_rate_hz INTEGER",
+    ).forEach { sql ->
+        runCatching { driver.execute(null, sql, 0) }
+    }
     driver.execute(
         null,
         """

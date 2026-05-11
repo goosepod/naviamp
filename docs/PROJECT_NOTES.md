@@ -97,6 +97,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - Library import runs on `Dispatchers.IO`; UI status updates hop back to the Compose coroutine context instead of `Dispatchers.Main`, because the desktop app does not install a coroutines Main dispatcher.
   - The Library tab reads from the local SQLite index and can locally search indexed artists/albums/tracks while sync is running.
   - Library browsing currently exposes Artists and Albums tabs only. Track rows remain indexed for search/supporting flows but are not a top-level Library tab.
+  - Indexed track rows store enough audio metadata for player codec/bitrate display when playback starts from local-index-backed flows such as instant radio seeds.
   - Library lists use `LazyColumn`, load more rows as the list nears the bottom, and include an independently scrollable right-side `#`/`A-Z` jump rail for artists/albums.
   - Settings exposes separate local-data actions: clear image/API cache, clear local artist/album/track index, and a guarded full database reset that removes saved servers too.
   - Future Android/iOS work should reuse SQLDelight with platform drivers rather than introducing a separate storage stack.
@@ -109,7 +110,10 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - Tapping the mini-player row opens the full player, but its transport buttons should only control playback and should not navigate away from the current screen.
 - Radio:
   - Artist, album, and track rows expose "Start radio" menu actions where those rows appear.
-  - Artist and album radio queues start with a real seed track from that artist/album before appending recommendation results.
+  - Track radio starts playback immediately from the selected track, then appends recommendation results in the background.
+  - Album radio starts playback from a random track from that album, then appends recommendation results in the background.
+  - Artist radio starts playback from a random track from that artist, then appends recommendation results in the background.
+  - Album/artist seed selection prefers the local library index for speed and falls back to provider details if needed.
   - Navidrome radio uses Subsonic/OpenSubsonic recommendation endpoints first: `getSimilarSongs2` for artist radio and `getSimilarSongs` for album/track radio.
   - If the server returns no recommendations, Naviamp falls back to local seed-adjacent queues from the artist/album details it can fetch.
   - Active radio queues auto-refill when 10 or fewer upcoming tracks remain by asking for track radio from the currently playing track, filtering duplicates, and appending fresh tracks.
@@ -184,10 +188,6 @@ Top-of-mind work the user wants:
 - Add a music visualization on the player screen, activated by clicking album art.
 - Add lyrics support.
 - Improve the upcoming queue further as needed.
-- Make radio startup instant:
-  - Track radio should immediately start the selected seed track, then build/append the recommendation queue in the background so playback is not delayed.
-  - Album radio should immediately start a random track from the selected album, then build/append the recommendation queue in the background.
-  - Artist radio should immediately start a random track from the selected artist, then build/append the recommendation queue in the background.
 - Add row menus for `UP NEXT` queue items. First action can be Start track radio; future actions can extend the same menu.
 - Redesign the full player layout again:
   - Order should be album art, waveform/scrub bar, track title, artist, album/year, rating controls, codec/bitrate/quality, then volume.
@@ -239,7 +239,6 @@ Good next slices:
 - Phase 2C follow-up: harden audio cache behavior for mobile/offline use, including expiry rules, partial download cleanup, and provider-specific refresh hooks if Android needs them.
 - Waveform follow-up: add cache-hit/status reporting for waveform generation in Stats for nerds.
 - Waveform follow-up: consider queue-aware/background waveform analysis for likely-upcoming tracks after measuring CPU impact.
-- Radio startup follow-up: split radio playback into instant seed playback plus background queue expansion for track, album, and artist radio.
 - Queue actions follow-up: add per-row overflow menus in `UP NEXT`, starting with Start track radio.
 - Player actions follow-up: replace the bottom capability label with centered collapse control plus track-radio and overflow action icons.
 - Player layout follow-up: reorder the metadata/ratings/quality/volume stack and tighten the visual hierarchy.
