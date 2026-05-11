@@ -101,6 +101,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
     - Seek handling updates playback progress immediately and ignores short-lived stale mpv progress after a deliberate seek so scrub bar and lyric state can jump backward cleanly.
   - Starting track radio from the player screen does not restart the current track; it preserves playback and replaces the upcoming queue with radio recommendations.
   - `UP NEXT` rows have the shared overflow menu treatment. The first action starts track radio from that queued song.
+  - The player hamburger menu includes lyrics toggle, track details, track radio, go to album, and go to artist. Visualizer and add-to-playlist are present as disabled placeholders until those flows exist.
   - Popup menus use a shared dark Feishin-inspired treatment through `NaviampDropdownMenu` / `NaviampDropdownMenuItem`.
   - The `RELATED` tab is active. It loads same-album and same-artist tracks from the local source-scoped library index, excluding the current track and deduplicating by provider track ID.
   - Related rows can start playback immediately from the related list, and their row menu can start track radio.

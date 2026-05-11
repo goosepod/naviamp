@@ -755,10 +755,10 @@ private fun PlayerDetails(
                         onDismissRequest = { actionMenuExpanded = false },
                     ) {
                         NaviampDropdownMenuItem(
-                            label = "Start track radio",
+                            label = if (lyricsVisible) "Hide lyrics" else "Show lyrics",
                             onClick = {
                                 actionMenuExpanded = false
-                                nowPlayingTrack?.let(onTrackRadioSelected)
+                                onToggleLyrics()
                             },
                         )
                         NaviampDropdownMenuItem(
@@ -766,6 +766,21 @@ private fun PlayerDetails(
                             onClick = {
                                 actionMenuExpanded = false
                                 trackDetailsOpen = true
+                            },
+                        )
+                        NaviampDropdownMenuItem(
+                            label = "Start track radio",
+                            onClick = {
+                                actionMenuExpanded = false
+                                nowPlayingTrack?.let(onTrackRadioSelected)
+                            },
+                        )
+                        NaviampDropdownMenuItem(
+                            label = "Go to album",
+                            enabled = nowPlayingTrack?.albumId != null,
+                            onClick = {
+                                actionMenuExpanded = false
+                                nowPlayingTrack?.let(onAlbumSelected)
                             },
                         )
                         NaviampDropdownMenuItem(
@@ -777,12 +792,14 @@ private fun PlayerDetails(
                             },
                         )
                         NaviampDropdownMenuItem(
-                            label = "Go to album",
-                            enabled = nowPlayingTrack?.albumId != null,
-                            onClick = {
-                                actionMenuExpanded = false
-                                nowPlayingTrack?.let(onAlbumSelected)
-                            },
+                            label = "Show visualizer",
+                            enabled = false,
+                            onClick = { },
+                        )
+                        NaviampDropdownMenuItem(
+                            label = "Add to playlist",
+                            enabled = false,
+                            onClick = { },
                         )
                     }
                 }
