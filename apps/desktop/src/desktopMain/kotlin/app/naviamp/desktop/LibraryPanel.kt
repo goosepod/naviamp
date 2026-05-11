@@ -46,7 +46,9 @@ fun LibraryPanel(
     onLoadMore: () -> Unit,
     onJumpToLetter: (Char) -> Unit,
     onArtistSelected: (Artist) -> Unit,
+    onArtistRadioSelected: (Artist) -> Unit,
     onAlbumSelected: (Album) -> Unit,
+    onAlbumRadioSelected: (Album) -> Unit,
 ) {
     val textFieldColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = appColors.primaryText,
@@ -123,6 +125,7 @@ fun LibraryPanel(
                             appColors = appColors,
                             artist = artist,
                             onClick = { onArtistSelected(artist) },
+                            onStartRadio = { onArtistRadioSelected(artist) },
                         )
                     }
                     LibraryTab.Albums -> items(snapshot.albums, key = { it.id.value }) { album ->
@@ -131,6 +134,7 @@ fun LibraryPanel(
                             album = album,
                             coverArtUrl = coverArtUrl(album.coverArtId),
                             onClick = { onAlbumSelected(album) },
+                            onStartRadio = { onAlbumRadioSelected(album) },
                         )
                     }
                 }

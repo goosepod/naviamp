@@ -26,8 +26,11 @@ fun SearchPanel(
     coverArtUrl: (String?) -> String?,
     onQueryChanged: (String) -> Unit,
     onArtistSelected: (Artist) -> Unit,
+    onArtistRadioSelected: (Artist) -> Unit,
     onAlbumSelected: (Album) -> Unit,
+    onAlbumRadioSelected: (Album) -> Unit,
     onTrackSelected: (Int) -> Unit,
+    onTrackRadioSelected: (Int) -> Unit,
 ) {
     val textFieldColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = appColors.primaryText,
@@ -67,6 +70,7 @@ fun SearchPanel(
                         appColors = appColors,
                         artist = artist,
                         onClick = { onArtistSelected(artist) },
+                        onStartRadio = { onArtistRadioSelected(artist) },
                     )
                 }
             }
@@ -80,6 +84,7 @@ fun SearchPanel(
                         album = album,
                         coverArtUrl = coverArtUrl(album.coverArtId),
                         onClick = { onAlbumSelected(album) },
+                        onStartRadio = { onAlbumRadioSelected(album) },
                     )
                 }
             }
@@ -94,6 +99,7 @@ fun SearchPanel(
                         coverArtUrl = coverArtUrl(track.coverArtId),
                         showCoverArt = true,
                         onClick = { onTrackSelected(index) },
+                        onStartRadio = { onTrackRadioSelected(index) },
                     )
                 }
             }

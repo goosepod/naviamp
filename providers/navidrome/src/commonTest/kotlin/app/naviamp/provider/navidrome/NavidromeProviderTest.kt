@@ -364,6 +364,81 @@ class NavidromeProviderTest {
         assertEquals(5, results.tracks.first().userRating)
     }
 
+    @Test
+    fun artistRadioUsesSimilarSongs2() = runTest {
+        val httpClient = RecordingResponseHttpClient(radioResponse("similarSongs2", "track-1", "Ceremony"))
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        val tracks = provider.artistRadio(ArtistId("artist-1"), count = 25)
+
+        assertEquals(
+            "https://music.example.test/rest/getSimilarSongs2.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=artist-1&count=25",
+            httpClient.urls.single(),
+        )
+        assertEquals("track-1", tracks.single().id.value)
+        assertEquals("Ceremony", tracks.single().title)
+    }
+
+    @Test
+    fun albumRadioUsesSimilarSongs() = runTest {
+        val httpClient = RecordingResponseHttpClient(radioResponse("similarSongs", "track-2", "Age of Consent"))
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        val tracks = provider.albumRadio(AlbumId("album-1"), count = 30)
+
+        assertEquals(
+            "https://music.example.test/rest/getSimilarSongs.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=album-1&count=30",
+            httpClient.urls.single(),
+        )
+        assertEquals("track-2", tracks.single().id.value)
+        assertEquals("Age of Consent", tracks.single().title)
+    }
+
+    @Test
+    fun trackRadioUsesSimilarSongsAndFiltersSeedTrack() = runTest {
+        val httpClient = RecordingResponseHttpClient(
+            """
+            {
+              "subsonic-response": {
+                "status": "ok",
+                "similarSongs": {
+                  "song": [
+                    {
+                      "id": "seed-track",
+                      "title": "Seed",
+                      "artist": "New Order"
+                    },
+                    {
+                      "id": "track-3",
+                      "title": "Dreams Never End",
+                      "artist": "New Order"
+                    }
+                  ]
+                }
+              }
+            }
+            """.trimIndent(),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        val tracks = provider.trackRadio(TrackId("seed-track"), count = 20)
+
+        assertEquals(
+            "https://music.example.test/rest/getSimilarSongs.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=seed-track&count=20",
+            httpClient.urls.single(),
+        )
+        assertEquals(listOf("track-3"), tracks.map { it.id.value })
+    }
+
     private fun connection(baseUrl: String): NavidromeConnection =
         NavidromeConnection(
             baseUrl = baseUrl,
@@ -374,6 +449,15 @@ class NavidromeProviderTest {
 
     private class FakeHttpClient(private val response: String) : NavidromeHttpClient {
         override suspend fun get(url: String): String = response
+    }
+
+    private class RecordingResponseHttpClient(private val response: String) : NavidromeHttpClient {
+        val urls = mutableListOf<String>()
+
+        override suspend fun get(url: String): String {
+            urls += url
+            return response
+        }
     }
 
     private class SequencedHttpClient(private val responses: List<String>) : NavidromeHttpClient {
@@ -397,4 +481,27 @@ class NavidromeProviderTest {
             """.trimIndent()
         }
     }
+
+    private fun radioResponse(responseKey: String, trackId: String, title: String): String =
+        """
+        {
+          "subsonic-response": {
+            "status": "ok",
+            "$responseKey": {
+              "song": [
+                {
+                  "id": "$trackId",
+                  "title": "$title",
+                  "artistId": "artist-1",
+                  "artist": "New Order",
+                  "albumId": "album-1",
+                  "album": "Substance",
+                  "duration": 271,
+                  "coverArt": "cover-1"
+                }
+              ]
+            }
+          }
+        }
+        """.trimIndent()
 }

@@ -6,6 +6,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -33,7 +36,9 @@ fun ArtistDetailPanel(
     status: String?,
     coverArtUrl: (String?) -> String?,
     onBack: () -> Unit,
+    onArtistRadio: (Artist) -> Unit,
     onAlbumSelected: (Album) -> Unit,
+    onAlbumRadioSelected: (Album) -> Unit,
 ) {
     val effectiveArtist = artistDetails?.artist ?: artist
     val imageUrl = artistDetails?.info?.largeImageUrl
@@ -98,6 +103,14 @@ fun ArtistDetailPanel(
                         color = appColors.secondaryText,
                         fontSize = 12.sp,
                     )
+                    Button(
+                        enabled = details.albums.isNotEmpty(),
+                        onClick = { effectiveArtist?.let(onArtistRadio) },
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                        modifier = Modifier.height(30.dp),
+                    ) {
+                        Text("Radio")
+                    }
                     details.info?.biography
                         ?.takeIf { it.isNotBlank() }
                         ?.let { biography ->
@@ -143,6 +156,7 @@ fun ArtistDetailPanel(
                         album = album,
                         coverArtUrl = coverArtUrl(album.coverArtId),
                         onClick = { onAlbumSelected(album) },
+                        onStartRadio = { onAlbumRadioSelected(album) },
                     )
                 }
             }

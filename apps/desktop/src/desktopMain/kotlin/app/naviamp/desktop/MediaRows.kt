@@ -3,14 +3,23 @@ package app.naviamp.desktop
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextStyle
@@ -63,6 +72,7 @@ fun ArtistRow(
     artist: Artist,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
+    onStartRadio: (() -> Unit)? = null,
 ) {
     MediaRow(appColors = appColors, modifier = modifier, onClick = onClick) {
         MediaTextBlock(
@@ -71,6 +81,12 @@ fun ArtistRow(
             subtitle = "Artist",
             titleStyle = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
             modifier = Modifier.weight(1f),
+        )
+        RowOverflowMenu(
+            appColors = appColors,
+            items = listOfNotNull(
+                onStartRadio?.let { RowMenuItem("Start artist radio", it) },
+            ),
         )
     }
 }
@@ -84,6 +100,7 @@ fun AlbumRow(
     coverArtSize: Dp = 34.dp,
     verticalPadding: Dp = 3.dp,
     onClick: (() -> Unit)? = null,
+    onStartRadio: (() -> Unit)? = null,
 ) {
     MediaRow(
         appColors = appColors,
@@ -108,6 +125,12 @@ fun AlbumRow(
         album.releaseYear?.let {
             Text(it.toString(), color = appColors.mutedText, fontSize = 11.sp)
         }
+        RowOverflowMenu(
+            appColors = appColors,
+            items = listOfNotNull(
+                onStartRadio?.let { RowMenuItem("Start album radio", it) },
+            ),
+        )
     }
 }
 
@@ -130,6 +153,7 @@ fun TrackRow(
     leadingContent: (@Composable RowScope.() -> Unit)? = null,
     showDuration: Boolean = true,
     showMenu: Boolean = false,
+    onStartRadio: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
 ) {
     MediaRow(
@@ -170,11 +194,53 @@ fun TrackRow(
             track = track,
             showDuration = showDuration,
         )
-        if (showMenu) {
-            Text("⋮", color = appColors.mutedText)
+        if (showMenu || onStartRadio != null) {
+            RowOverflowMenu(
+                appColors = appColors,
+                items = listOfNotNull(
+                    onStartRadio?.let { RowMenuItem("Start track radio", it) },
+                ),
+            )
         }
     }
 }
+
+@Composable
+private fun RowOverflowMenu(
+    appColors: AppColors,
+    items: List<RowMenuItem>,
+) {
+    if (items.isEmpty()) return
+
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(
+            onClick = { expanded = true },
+            modifier = Modifier.size(28.dp),
+        ) {
+            Text("⋮", color = appColors.mutedText, fontSize = 15.sp)
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            items.forEach { item ->
+                DropdownMenuItem(
+                    text = { Text(item.label) },
+                    onClick = {
+                        expanded = false
+                        item.onClick()
+                    },
+                )
+            }
+        }
+    }
+}
+
+private data class RowMenuItem(
+    val label: String,
+    val onClick: () -> Unit,
+)
 
 @Composable
 fun TrackMetadataTrailing(

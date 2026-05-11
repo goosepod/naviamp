@@ -34,7 +34,9 @@ fun AlbumDetailPanel(
     onBack: () -> Unit,
     onPlayAlbum: () -> Unit,
     onShuffleAlbum: () -> Unit,
+    onAlbumRadio: () -> Unit,
     onPlayTrack: (Int) -> Unit,
+    onTrackRadio: (Track) -> Unit,
     onArtistSelected: (Track) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -127,6 +129,14 @@ fun AlbumDetailPanel(
                     ) {
                         Text("Shuffle")
                     }
+                    Button(
+                        enabled = albumDetails?.tracks?.isNotEmpty() == true,
+                        onClick = onAlbumRadio,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                        modifier = Modifier.height(30.dp),
+                    ) {
+                        Text("Radio")
+                    }
                 }
             }
         }
@@ -154,6 +164,7 @@ fun AlbumDetailPanel(
                         verticalAlignment = Alignment.Top,
                         showMenu = true,
                         onClick = { onPlayTrack(index) },
+                        onStartRadio = { onTrackRadio(track) },
                     )
                 }
             }

@@ -44,8 +44,9 @@ class NavidromeProvider(
         ProviderCapabilities(
             supportsStreamingTranscode = true,
             supportsDownloadTranscode = true,
-            supportsArtistRadio = false,
-            supportsTrackRadio = false,
+            supportsArtistRadio = true,
+            supportsAlbumRadio = true,
+            supportsTrackRadio = true,
             supportsTrackFavorites = true,
             supportsTrackRatings = true,
         )
@@ -178,6 +179,38 @@ class NavidromeProvider(
         )
     }
 
+    override suspend fun artistRadio(artistId: ArtistId, count: Int): List<Track> =
+        similarSongs(
+            endpoint = "getSimilarSongs2.view",
+            responseKey = "similarSongs2",
+            id = artistId.value,
+            count = count,
+        ).ifEmpty {
+            artistRadioFallback(artistId, count)
+        }
+
+    override suspend fun albumRadio(albumId: AlbumId, count: Int): List<Track> =
+        similarSongs(
+            endpoint = "getSimilarSongs.view",
+            responseKey = "similarSongs",
+            id = albumId.value,
+            count = count,
+        ).ifEmpty {
+            albumRadioFallback(albumId, count)
+        }
+
+    override suspend fun trackRadio(trackId: TrackId, count: Int): List<Track> =
+        similarSongs(
+            endpoint = "getSimilarSongs.view",
+            responseKey = "similarSongs",
+            id = trackId.value,
+            count = count,
+        )
+            .filterNot { it.id == trackId }
+            .ifEmpty {
+                trackRadioFallback(trackId, count)
+            }
+
     override suspend fun streamUrl(request: StreamRequest): String {
         val params = when (val quality = request.quality) {
             StreamQuality.Original -> mapOf("id" to request.trackId.value)
@@ -214,6 +247,71 @@ class NavidromeProvider(
 
     override fun coverArtUrl(coverArtId: String): String =
         url("getCoverArt.view", mapOf("id" to coverArtId))
+
+    private suspend fun similarSongs(
+        endpoint: String,
+        responseKey: String,
+        id: String,
+        count: Int,
+    ): List<Track> =
+        runCatching {
+            val response = get(
+                endpoint = endpoint,
+                params = mapOf(
+                    "id" to id,
+                    "count" to count.coerceAtLeast(1).toString(),
+                ),
+            )
+            response.subsonicResponse()[responseKey]
+                ?.jsonObject
+                ?.arrayValue("song")
+                .orEmpty()
+                .mapNotNull { song ->
+                    (song as? JsonObject)?.toTrack()
+                }
+        }.getOrDefault(emptyList())
+
+    private suspend fun artistRadioFallback(artistId: ArtistId, count: Int): List<Track> =
+        runCatching {
+            artist(artistId).albums
+                .flatMap { album -> album(album.id).tracks }
+                .distinctBy { it.id }
+                .shuffled()
+                .take(count.coerceAtLeast(1))
+        }.getOrDefault(emptyList())
+
+    private suspend fun albumRadioFallback(albumId: AlbumId, count: Int): List<Track> =
+        runCatching {
+            album(albumId).tracks
+                .shuffled()
+                .take(count.coerceAtLeast(1))
+        }.getOrDefault(emptyList())
+
+    private suspend fun trackRadioFallback(trackId: TrackId, count: Int): List<Track> {
+        val seed = runCatching { song(trackId) }.getOrNull() ?: return emptyList()
+        val albumTracks = seed.albumId?.let { albumId ->
+            runCatching { album(albumId).tracks }.getOrDefault(emptyList())
+        }.orEmpty()
+        val artistTracks = seed.artistId?.let { artistId ->
+            runCatching {
+                artist(artistId).albums.flatMap { album -> album(album.id).tracks }
+            }.getOrDefault(emptyList())
+        }.orEmpty()
+
+        return (albumTracks + artistTracks)
+            .distinctBy { it.id }
+            .filterNot { it.id == trackId }
+            .shuffled()
+            .take(count.coerceAtLeast(1))
+    }
+
+    private suspend fun song(trackId: TrackId): Track? {
+        val response = get(
+            endpoint = "getSong.view",
+            params = mapOf("id" to trackId.value),
+        )
+        return response.subsonicResponse()["song"]?.jsonObject?.toTrack()
+    }
 
     private suspend fun artistInfo(artistId: ArtistId): ArtistInfo? {
         val response = get(

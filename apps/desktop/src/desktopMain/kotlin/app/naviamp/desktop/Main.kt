@@ -2,6 +2,8 @@ package app.naviamp.desktop
 
 import androidx.compose.desktop.ui.tooling.preview.Preview
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -28,7 +30,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalDensity
@@ -224,19 +225,31 @@ fun NaviampApp(
     }
     var showStatsForNerds by remember { mutableStateOf(false) }
     var openPlayerOnTrackStart by remember { mutableStateOf(false) }
+    var radioQueueActive by remember { mutableStateOf(false) }
+    var isRadioRefilling by remember { mutableStateOf(false) }
+    var lastRadioRefillSeedId by remember { mutableStateOf<String?>(null) }
+    var radioSessionId by remember { mutableStateOf(0) }
     var targetPlayerColors by remember {
         mutableStateOf(PlayerColors.from(AlbumPalette.fallback(appColors.albumArtPlaceholder), appColors))
     }
+    val targetBackgroundColors = if (nowPlayingTrack != null) {
+        targetPlayerColors
+    } else {
+        PlayerColors.solid(appColors.background)
+    }
     val backgroundStart by animateColorAsState(
-        targetValue = if (nowPlayingTrack != null) targetPlayerColors.backgroundStart else appColors.background,
+        targetValue = targetBackgroundColors.backgroundStart,
+        animationSpec = tween(durationMillis = 180, easing = LinearEasing),
         label = "backgroundStart",
     )
     val backgroundMid by animateColorAsState(
-        targetValue = if (nowPlayingTrack != null) targetPlayerColors.backgroundMid else appColors.background,
+        targetValue = targetBackgroundColors.backgroundMid,
+        animationSpec = tween(durationMillis = 180, easing = LinearEasing),
         label = "backgroundMid",
     )
     val backgroundEnd by animateColorAsState(
-        targetValue = if (nowPlayingTrack != null) targetPlayerColors.backgroundEnd else appColors.background,
+        targetValue = targetBackgroundColors.backgroundEnd,
+        animationSpec = tween(durationMillis = 180, easing = LinearEasing),
         label = "backgroundEnd",
     )
 
@@ -298,11 +311,55 @@ fun NaviampApp(
         )
     }
 
+    fun stopRadioContinuation() {
+        radioSessionId += 1
+        radioQueueActive = false
+        isRadioRefilling = false
+        lastRadioRefillSeedId = null
+    }
+
+    fun refillRadioIfNeeded(queue: PlaybackQueue) {
+        if (!radioQueueActive || isRadioRefilling) return
+        val remaining = queue.tracks.size - queue.currentIndex - 1
+        if (remaining > RadioRefillThreshold) return
+        val seedTrack = queue.tracks.getOrNull(queue.currentIndex) ?: return
+        if (lastRadioRefillSeedId == seedTrack.id.value) return
+        val provider = connectedProvider ?: return
+
+        isRadioRefilling = true
+        lastRadioRefillSeedId = seedTrack.id.value
+        val activeRadioSessionId = radioSessionId
+        coroutineScope.launch {
+            try {
+                val fetchedTracks = withContext(Dispatchers.IO) {
+                    provider.trackRadio(seedTrack.id, count = RadioRefillCount)
+                }
+                val existingTrackIds = playlistEngine.queue.tracks.map { it.id }.toSet()
+                val newTracks = fetchedTracks.filterNot { track ->
+                    track.id in existingTrackIds
+                }
+                if (radioQueueActive && activeRadioSessionId == radioSessionId && newTracks.isNotEmpty()) {
+                    playlistEngine.appendTracks(
+                        tracks = newTracks,
+                        maxHistory = RadioQueueHistoryLimit,
+                    )
+                }
+            } catch (exception: Exception) {
+                connectionStatus = exception.message ?: "Could not extend radio."
+            } finally {
+                if (activeRadioSessionId == radioSessionId) {
+                    isRadioRefilling = false
+                }
+            }
+        }
+    }
+
     val playlistCallbacks = PlaylistCallbacks(
         onTrackStarted = { track, coverArtUrl ->
             nowPlayingTrack = track
             nowPlayingCoverArtUrl = coverArtUrl
             playbackProgress = PlaybackProgress.Unknown
+            refillRadioIfNeeded(playlistEngine.queue)
             if (openPlayerOnTrackStart) {
                 appRoute = AppRoute.Player
             }
@@ -405,6 +462,7 @@ fun NaviampApp(
         connectionStatus = "Connecting to Navidrome..."
         if (!restoreSavedSession) {
             recentlyAddedAlbums = emptyList()
+            stopRadioContinuation()
             playlistEngine.clear()
             playbackEngine.stop()
             nowPlayingTrack = null
@@ -498,6 +556,7 @@ fun NaviampApp(
         val provider = connectedProvider ?: return
         val tracks = selectedAlbumDetails?.tracks.orEmpty()
         if (tracks.isEmpty()) return
+        stopRadioContinuation()
         openPlayerOnTrackStart = true
         playlistEngine.playFrom(
             scope = coroutineScope,
@@ -514,6 +573,7 @@ fun NaviampApp(
         val provider = connectedProvider ?: return
         val tracks = searchResults.tracks
         if (tracks.isEmpty() || index !in tracks.indices) return
+        stopRadioContinuation()
         openPlayerOnTrackStart = true
         playlistEngine.playFrom(
             scope = coroutineScope,
@@ -524,6 +584,60 @@ fun NaviampApp(
             replayGainMode = playbackSettings.replayGainMode,
             callbacks = playlistCallbacks,
         )
+    }
+
+    fun playRadio(
+        label: String,
+        loadTracks: suspend (NavidromeProvider) -> List<Track>,
+    ) {
+        val provider = connectedProvider ?: return
+        connectionStatus = "Loading $label..."
+        coroutineScope.launch {
+            try {
+                val tracks = withContext(Dispatchers.IO) {
+                    loadTracks(provider)
+                }
+                if (tracks.isEmpty()) {
+                    connectionStatus = "$label did not return any tracks."
+                    return@launch
+                }
+                connectionStatus = null
+                radioSessionId += 1
+                radioQueueActive = true
+                isRadioRefilling = false
+                lastRadioRefillSeedId = null
+                openPlayerOnTrackStart = true
+                playlistEngine.playFrom(
+                    scope = coroutineScope,
+                    provider = provider,
+                    tracks = tracks,
+                    index = 0,
+                    quality = playbackEngine.streamQuality(),
+                    replayGainMode = playbackSettings.replayGainMode,
+                    callbacks = playlistCallbacks,
+                )
+            } catch (exception: Exception) {
+                connectionStatus = exception.message ?: "Could not start $label."
+            }
+        }
+    }
+
+    fun playArtistRadio(artist: Artist) {
+        playRadio("${artist.name} radio") { provider ->
+            provider.artistRadio(artist.id)
+        }
+    }
+
+    fun playAlbumRadio(album: Album) {
+        playRadio("${album.title} radio") { provider ->
+            provider.albumRadio(album.id)
+        }
+    }
+
+    fun playTrackRadio(track: Track) {
+        playRadio("${track.title} radio") { provider ->
+            listOf(track) + provider.trackRadio(track.id).filterNot { it.id == track.id }
+        }
     }
 
     fun applyTrackMetadataUpdate(updatedTrack: Track) {
@@ -584,6 +698,7 @@ fun NaviampApp(
         savedConnectionForLogin = null
         connectedProvider = null
         connectedSourceId = null
+        stopRadioContinuation()
         librarySnapshot = LibrarySnapshot()
         libraryStatus = null
         recentlyAddedAlbums = emptyList()
@@ -772,11 +887,12 @@ fun NaviampApp(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(
-                            Brush.linearGradient(
-                                colors = listOf(backgroundStart, backgroundMid, backgroundEnd),
-                                start = Offset.Zero,
-                                end = gradientEnd,
-                            ),
+                            PlayerColors(
+                                backgroundStart = backgroundStart,
+                                backgroundMid = backgroundMid,
+                                backgroundEnd = backgroundEnd,
+                                accent = targetBackgroundColors.accent,
+                            ).backgroundBrush(gradientEnd),
                         ),
                 ) {
                 Column(
@@ -806,6 +922,9 @@ fun NaviampApp(
                                 coverArtUrl = nowPlayingCoverArtUrl,
                                 upNext = playbackQueue.upNext(),
                                 firstUpNextQueueIndex = playbackQueue.currentIndex + 1,
+                                upNextCoverArtUrl = { track ->
+                                    track.coverArtId?.let { connectedProvider?.coverArtUrl(it) }
+                                },
                                 hasPrevious = playbackQueue.hasPrevious(),
                                 hasNext = playbackQueue.hasNext(),
                                 playbackState = playbackState,
@@ -894,6 +1013,9 @@ fun NaviampApp(
                                     onAlbumSelected = { album ->
                                         openAlbumDetails(album)
                                     },
+                                    onAlbumRadioSelected = { album ->
+                                        playAlbumRadio(album)
+                                    },
                                 )
                                 AppRoute.AlbumDetail -> AlbumDetailPanel(
                                     appColors = appColors,
@@ -906,7 +1028,12 @@ fun NaviampApp(
                                     onBack = { appRoute = albumDetailBackRoute },
                                     onPlayAlbum = { playAlbumDetails() },
                                     onShuffleAlbum = { playAlbumDetails(shuffle = true) },
+                                    onAlbumRadio = {
+                                        selectedAlbumDetails?.album?.let { playAlbumRadio(it) }
+                                            ?: selectedAlbum?.let { playAlbumRadio(it) }
+                                    },
                                     onPlayTrack = { index -> playAlbumDetails(index = index) },
+                                    onTrackRadio = { track -> playTrackRadio(track) },
                                     onArtistSelected = { track ->
                                         openTrackArtistDetails(track, backRouteOverride = AppRoute.AlbumDetail)
                                     },
@@ -920,7 +1047,9 @@ fun NaviampApp(
                                         coverArtId?.let { connectedProvider?.coverArtUrl(it) }
                                     },
                                     onBack = { appRoute = artistDetailBackRoute },
+                                    onArtistRadio = { artist -> playArtistRadio(artist) },
                                     onAlbumSelected = { album -> openAlbumDetails(album) },
+                                    onAlbumRadioSelected = { album -> playAlbumRadio(album) },
                                 )
                                     AppRoute.Library -> {
                                         LibraryListLoadMoreEffect(
@@ -952,7 +1081,9 @@ fun NaviampApp(
                                             onLoadMore = { loadMoreLibraryRows() },
                                             onJumpToLetter = { letter -> jumpLibraryToLetter(letter) },
                                             onArtistSelected = { artist -> openArtistDetails(artist) },
+                                            onArtistRadioSelected = { artist -> playArtistRadio(artist) },
                                             onAlbumSelected = { album -> openAlbumDetails(album) },
+                                            onAlbumRadioSelected = { album -> playAlbumRadio(album) },
                                         )
                                     }
                                     AppRoute.Search -> SearchPanel(
@@ -969,8 +1100,13 @@ fun NaviampApp(
                                             settingsStore.saveSearchSettings(SearchSettings(query = it))
                                         },
                                         onArtistSelected = { artist -> openArtistDetails(artist) },
+                                        onArtistRadioSelected = { artist -> playArtistRadio(artist) },
                                         onAlbumSelected = { album -> openAlbumDetails(album) },
+                                        onAlbumRadioSelected = { album -> playAlbumRadio(album) },
                                         onTrackSelected = { index -> playSearchTrack(index) },
+                                        onTrackRadioSelected = { index ->
+                                            searchResults.tracks.getOrNull(index)?.let { playTrackRadio(it) }
+                                        },
                                     )
                                     AppRoute.Downloads -> PlaceholderRoutePanel(
                                         appColors = appColors,
@@ -1107,6 +1243,9 @@ private fun shouldAutoSyncLibrary(
 
 private val LibraryAutoSyncIntervalMillis = TimeUnit.HOURS.toMillis(24)
 private const val LibraryPageSize = 50
+private const val RadioRefillThreshold = 10
+private const val RadioRefillCount = 50
+private const val RadioQueueHistoryLimit = 25
 
 private fun PlaybackEngine.capabilitiesLabel(): String =
     listOf(
@@ -1156,6 +1295,7 @@ private fun app.naviamp.domain.provider.ProviderCapabilities.asStatsMap(): Map<S
         "Streaming transcode" to supportsStreamingTranscode,
         "Download transcode" to supportsDownloadTranscode,
         "Artist radio" to supportsArtistRadio,
+        "Album radio" to supportsAlbumRadio,
         "Track radio" to supportsTrackRadio,
         "Track favorites" to supportsTrackFavorites,
         "Track ratings" to supportsTrackRatings,

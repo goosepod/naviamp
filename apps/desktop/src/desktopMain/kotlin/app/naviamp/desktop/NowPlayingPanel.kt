@@ -75,6 +75,7 @@ fun NowPlayingPanel(
     coverArtUrl: String?,
     upNext: List<Track>,
     firstUpNextQueueIndex: Int,
+    upNextCoverArtUrl: (Track) -> String?,
     hasPrevious: Boolean,
     hasNext: Boolean,
     playbackState: PlaybackState,
@@ -163,7 +164,7 @@ fun NowPlayingPanel(
                     appColors = appColors,
                     upNext = upNext,
                     firstQueueIndex = firstUpNextQueueIndex,
-                    coverArtState = coverArtState,
+                    coverArtUrl = upNextCoverArtUrl,
                     onQueueIndexSelected = onQueueIndexSelected,
                     modifier = Modifier
                         .weight(1.1f)
@@ -216,7 +217,7 @@ fun NowPlayingPanel(
                     appColors = appColors,
                     upNext = upNext,
                     firstQueueIndex = firstUpNextQueueIndex,
-                    coverArtState = coverArtState,
+                    coverArtUrl = upNextCoverArtUrl,
                     onQueueIndexSelected = onQueueIndexSelected,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -467,7 +468,7 @@ private fun PlayerDetails(
         }
 
         Row(
-            horizontalArrangement = Arrangement.Center,
+            horizontalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
@@ -476,49 +477,43 @@ private fun PlayerDetails(
             val canSetFavorite = nowPlayingTrack != null && supportsTrackFavorites
             val audioInfo = nowPlayingTrack?.playbackAudioInfo(playbackEngineName)
             Text(
+                nowPlayingTrack?.favoriteGlyph() ?: "♡",
+                color = if (nowPlayingTrack?.favoritedAtIso8601 != null) {
+                    playerColors.accent
+                } else {
+                    Color.White.copy(alpha = 0.72f)
+                },
+                fontSize = 16.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .width(24.dp)
+                    .clickable(enabled = canSetFavorite) {
+                        nowPlayingTrack?.let(onToggleTrackFavorite)
+                    },
+            )
+            Text(
                 audioInfo?.codec.orEmpty(),
                 color = appColors.secondaryText,
                 fontSize = 11.sp,
-                textAlign = TextAlign.End,
+                textAlign = TextAlign.Center,
                 maxLines = 1,
-                modifier = Modifier.width(44.dp),
+                modifier = Modifier.width(40.dp),
             )
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(5.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .width(82.dp)
-                    .padding(horizontal = 8.dp),
-            ) {
-                Text(
-                    nowPlayingTrack?.favoriteGlyph() ?: "♡",
-                    color = if (nowPlayingTrack?.favoritedAtIso8601 != null) {
-                        playerColors.accent
-                    } else {
-                        Color.White.copy(alpha = 0.72f)
-                    },
-                    fontSize = 12.sp,
-                    modifier = Modifier.clickable(enabled = canSetFavorite) {
-                        nowPlayingTrack?.let(onToggleTrackFavorite)
-                    },
-                )
-                TrackRatingControl(
-                    track = nowPlayingTrack,
-                    enabled = supportsTrackRatings,
-                    activeColor = playerColors.accent,
-                    inactiveColor = Color.White.copy(alpha = 0.72f),
-                    onRatingSelected = onTrackRatingSelected,
-                )
-            }
+            TrackRatingControl(
+                track = nowPlayingTrack,
+                enabled = supportsTrackRatings,
+                activeColor = playerColors.accent,
+                inactiveColor = Color.White.copy(alpha = 0.72f),
+                onRatingSelected = onTrackRatingSelected,
+                modifier = Modifier.width(82.dp),
+            )
             Text(
                 audioInfo?.quality.orEmpty(),
                 color = appColors.secondaryText,
                 fontSize = 11.sp,
-                textAlign = TextAlign.Start,
+                textAlign = TextAlign.Center,
                 maxLines = 1,
-                modifier = Modifier
-                    .width(72.dp)
-                    .padding(start = 6.dp),
+                modifier = Modifier.width(54.dp),
             )
         }
 
@@ -684,19 +679,26 @@ private fun TrackRatingControl(
     activeColor: Color,
     inactiveColor: Color,
     onRatingSelected: (Track, Int?) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
+    Row(
+        horizontalArrangement = Arrangement.Center,
+        modifier = modifier,
+    ) {
         (1..5).forEach { rating ->
             val selected = (track?.userRating ?: 0) >= rating
             Text(
                 if (selected) "★" else "☆",
                 color = if (selected) activeColor else inactiveColor,
-                fontSize = 11.sp,
-                modifier = Modifier.clickable(enabled = track != null && enabled) {
-                    track?.let {
-                        onRatingSelected(it, if (it.userRating == rating) null else rating)
-                    }
-                },
+                fontSize = 16.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .width(16.dp)
+                    .clickable(enabled = track != null && enabled) {
+                        track?.let {
+                            onRatingSelected(it, if (it.userRating == rating) null else rating)
+                        }
+                    },
             )
         }
     }
@@ -707,7 +709,7 @@ private fun UpNextPanel(
     appColors: AppColors,
     upNext: List<Track>,
     firstQueueIndex: Int,
-    coverArtState: CoverArtState,
+    coverArtUrl: (Track) -> String?,
     onQueueIndexSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -741,6 +743,7 @@ private fun UpNextPanel(
                     .verticalScroll(scrollState),
             ) {
                 upNext.forEachIndexed { index, track ->
+                    val trackCoverArtState = rememberCoverArtState(coverArtUrl(track), appColors)
                     TrackRow(
                         appColors = appColors,
                         track = track,
@@ -764,7 +767,7 @@ private fun UpNextPanel(
                         ),
                         leadingContent = {
                             CoverArt(
-                                coverArtState = coverArtState,
+                                coverArtState = trackCoverArtState,
                                 appColors = appColors,
                                 size = 32.dp,
                                 elevated = false,
@@ -873,7 +876,22 @@ data class PlayerColors(
     val backgroundBrush: Brush
         get() = Brush.linearGradient(colors = listOf(backgroundStart, backgroundMid, backgroundEnd))
 
+    fun backgroundBrush(end: androidx.compose.ui.geometry.Offset): Brush =
+        Brush.linearGradient(
+            colors = listOf(backgroundStart, backgroundMid, backgroundEnd),
+            start = androidx.compose.ui.geometry.Offset.Zero,
+            end = end,
+        )
+
     companion object {
+        fun solid(color: Color): PlayerColors =
+            PlayerColors(
+                backgroundStart = color,
+                backgroundMid = color,
+                backgroundEnd = color,
+                accent = color,
+            )
+
         fun from(palette: AlbumPalette, appColors: AppColors): PlayerColors {
             val secondary = if (palette.primary.hueDistance(palette.secondary) < 0.08f) {
                 palette.secondary.shiftHue(0.09f)
@@ -881,15 +899,16 @@ data class PlayerColors(
                 palette.secondary
             }
             val left = palette.primary
-                .mix(Color.White, 0.05f)
-                .mix(Color.Black, 0.24f)
-                .mix(appColors.background, 0.04f)
+                .mix(Color.White, 0.03f)
+                .mix(Color.Black, 0.34f)
+                .mix(appColors.background, 0.16f)
             val middle = palette.accent
-                .mix(palette.primary, 0.22f)
-                .mix(Color.Black, 0.32f)
+                .mix(palette.primary, 0.28f)
+                .mix(Color.Black, 0.42f)
+                .mix(appColors.background, 0.10f)
             val right = secondary
-                .mix(Color.Black, 0.58f)
-                .mix(appColors.background, 0.05f)
+                .mix(Color.Black, 0.66f)
+                .mix(appColors.background, 0.12f)
             return PlayerColors(
                 backgroundStart = left,
                 backgroundMid = middle,

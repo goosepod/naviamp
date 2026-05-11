@@ -26,6 +26,9 @@ interface MediaProvider {
     suspend fun albums(limit: Int = 50, offset: Int = 0): List<Album> = emptyList()
     suspend fun tracks(limit: Int = 50): List<Track>
     suspend fun search(query: String, limit: Int = 20): MediaSearchResults
+    suspend fun artistRadio(artistId: ArtistId, count: Int = 50): List<Track> = emptyList()
+    suspend fun albumRadio(albumId: AlbumId, count: Int = 50): List<Track> = emptyList()
+    suspend fun trackRadio(trackId: TrackId, count: Int = 50): List<Track> = emptyList()
     suspend fun streamUrl(request: StreamRequest): String
     suspend fun setTrackFavorite(trackId: TrackId, favorite: Boolean) {
         throw UnsupportedOperationException("Track favorites are not supported by $displayName.")
@@ -49,6 +52,7 @@ data class ProviderCapabilities(
     val supportsStreamingTranscode: Boolean,
     val supportsDownloadTranscode: Boolean,
     val supportsArtistRadio: Boolean,
+    val supportsAlbumRadio: Boolean,
     val supportsTrackRadio: Boolean,
     val supportsTrackFavorites: Boolean = false,
     val supportsTrackRatings: Boolean = false,

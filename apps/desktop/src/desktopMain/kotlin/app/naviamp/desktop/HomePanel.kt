@@ -17,6 +17,7 @@ fun HomePanel(
     recentlyAddedAlbums: List<Album>,
     coverArtUrl: (Album) -> String?,
     onAlbumSelected: (Album) -> Unit,
+    onAlbumRadioSelected: (Album) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -41,6 +42,7 @@ fun HomePanel(
                         coverArtSize = 40.dp,
                         verticalPadding = 2.dp,
                         onClick = { onAlbumSelected(album) },
+                        onStartRadio = { onAlbumRadioSelected(album) },
                     )
                 }
             }

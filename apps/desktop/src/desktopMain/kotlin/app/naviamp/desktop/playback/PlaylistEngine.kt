@@ -76,6 +76,22 @@ class PlaylistEngine(
         callbacks?.onQueueChanged(queue)
     }
 
+    fun appendTracks(
+        tracks: List<Track>,
+        maxHistory: Int? = null,
+    ) {
+        if (tracks.isEmpty()) return
+
+        val prunedTrackCount = maxHistory
+            ?.let { (queue.currentIndex - it.coerceAtLeast(0)).coerceAtLeast(0) }
+            ?: 0
+        queue = PlaybackQueue(
+            tracks = (queue.tracks + tracks).drop(prunedTrackCount),
+            currentIndex = queue.currentIndex - prunedTrackCount,
+        )
+        callbacks?.onQueueChanged(queue)
+    }
+
     fun setCrossfadeSettings(settings: CrossfadeSettings) {
         crossfadeSettings = settings
         (playbackEngine as? QueueAwarePlaybackEngine)?.setCrossfadeDuration(settings.durationSeconds)
