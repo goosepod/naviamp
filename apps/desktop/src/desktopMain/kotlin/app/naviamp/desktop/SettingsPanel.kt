@@ -272,7 +272,7 @@ fun SettingsPanel(
         AlertDialog(
             onDismissRequest = { clearCacheDialogOpen = false },
             title = { Text("Clear Cache") },
-            text = { Text("This removes cached images and provider responses. Saved servers and the local library index stay intact.") },
+            text = { Text("This removes cached images, provider responses, and prefetched audio. Saved servers and the local library index stay intact.") },
             confirmButton = {
                 TextButton(
                     onClick = {

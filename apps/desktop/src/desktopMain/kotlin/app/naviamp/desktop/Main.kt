@@ -162,7 +162,14 @@ fun NaviampApp(
     val savedPlaybackSession = remember { settingsStore.loadPlaybackSession() }
     val savedNavigation = remember { settingsStore.loadNavigationSettings() }
     val savedSearch = remember { settingsStore.loadSearchSettings() }
-    val playlistEngine = remember(playbackEngine) { PlaylistEngine(playbackEngine) }
+    var connectedSourceId by remember { mutableStateOf(savedMediaSource?.id) }
+    val playlistEngine = remember(playbackEngine, sessionCache) {
+        PlaylistEngine(
+            playbackEngine = playbackEngine,
+            cache = sessionCache,
+            sourceIdProvider = { connectedSourceId },
+        )
+    }
     val librarySync = remember(sessionCache) { LibrarySync(sessionCache) }
     val libraryListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -175,7 +182,6 @@ fun NaviampApp(
     var isConnecting by remember { mutableStateOf(false) }
     var connectionStatus by remember { mutableStateOf<String?>(null) }
     var connectedProvider by remember { mutableStateOf<NavidromeProvider?>(null) }
-    var connectedSourceId by remember { mutableStateOf(savedMediaSource?.id) }
     var homeContent by remember { mutableStateOf(HomeContent()) }
     var homeStatus by remember { mutableStateOf<String?>(null) }
     var selectedAlbum by remember { mutableStateOf<Album?>(null) }
@@ -544,6 +550,7 @@ fun NaviampApp(
                     sessionCache.clearProviderData()
                 }
                 connectedProvider = provider
+                connectedSourceId = sessionCache.upsertNavidromeSource(connection, provider).id
                 if (restoreSavedSession && savedPlaybackSession != null) {
                     val tracks = savedPlaybackSession.toTracks()
                     val currentTrack = savedPlaybackSession.currentTrack()
@@ -561,7 +568,6 @@ fun NaviampApp(
                         playbackState = PlaybackState.Idle
                     }
                 }
-                connectedSourceId = sessionCache.upsertNavidromeSource(connection, provider).id
                 settingsStore.clearConnection()
                 savedConnectionForLogin = connection
                 password = ""
@@ -795,7 +801,7 @@ fun NaviampApp(
 
     fun clearCacheData() {
         sessionCache.clearCacheData()
-        connectionStatus = "Image and provider response cache cleared."
+        connectionStatus = "Image, provider response, and audio cache cleared."
     }
 
     fun clearLibraryData() {

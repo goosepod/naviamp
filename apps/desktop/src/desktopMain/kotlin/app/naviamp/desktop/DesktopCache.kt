@@ -11,6 +11,8 @@ import app.naviamp.domain.ArtistId
 import app.naviamp.domain.ArtistInfo
 import app.naviamp.domain.AudioInfo
 import app.naviamp.domain.ReplayGain
+import app.naviamp.domain.StreamQuality
+import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.provider.MediaProvider
@@ -22,15 +24,18 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.net.URI
-import java.security.MessageDigest
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardCopyOption
+import java.security.MessageDigest
 import kotlin.io.path.exists
 
 class DesktopCache(
     private val databasePath: Path = defaultCacheDatabasePath(),
     private val maxImageCacheBytes: Long = 500L * 1024L * 1024L,
+    private val maxAudioCacheBytes: Long = 2L * 1024L * 1024L * 1024L,
     private val maxHotImageBytes: Long = 32L * 1024L * 1024L,
+    private val audioCacheDirectory: Path = defaultAudioCacheDirectory(),
 ) {
     private val json = Json {
         ignoreUnknownKeys = true
@@ -126,6 +131,79 @@ class DesktopCache(
 
     fun mediaSource(sourceId: String): SavedMediaSource? =
         queries.selectMediaSourceById(sourceId).executeAsOneOrNull()?.toSavedMediaSource()
+
+    suspend fun cachedAudioFile(
+        sourceId: String,
+        trackId: TrackId,
+        quality: StreamQuality,
+    ): CachedAudioFile? =
+        withContext(Dispatchers.IO) {
+            val qualityKey = quality.cacheKey()
+            val row = queries.selectCachedAudio(
+                source_id = sourceId,
+                remote_track_id = trackId.value,
+                quality_key = qualityKey,
+            ).executeAsOneOrNull() ?: return@withContext null
+
+            val path = Path.of(row.file_path)
+            if (!path.exists()) {
+                queries.deleteCachedAudio(sourceId, trackId.value, qualityKey)
+                return@withContext null
+            }
+
+            queries.touchCachedAudio(nowMillis(), sourceId, trackId.value, qualityKey)
+            CachedAudioFile(
+                path = path,
+                sizeBytes = row.size_bytes,
+                contentType = row.content_type,
+            )
+        }
+
+    suspend fun cacheAudioTrack(
+        sourceId: String,
+        provider: MediaProvider,
+        track: Track,
+        quality: StreamQuality,
+    ): CachedAudioFile =
+        withContext(Dispatchers.IO) {
+            cachedAudioFile(sourceId, track.id, quality)?.let { return@withContext it }
+
+            Files.createDirectories(audioCacheDirectory)
+            val qualityKey = quality.cacheKey()
+            val target = audioCacheDirectory.resolve(
+                "${stableAudioFileName(sourceId, track.id.value, qualityKey)}${track.audioInfo?.contentType.audioExtension()}",
+            )
+            val temp = audioCacheDirectory.resolve("${target.fileName}.tmp")
+            val streamUrl = provider.streamUrl(
+                StreamRequest(
+                    trackId = track.id,
+                    quality = quality,
+                ),
+            )
+            URI.create(streamUrl).toURL().openStream().use { input ->
+                Files.copy(input, temp, StandardCopyOption.REPLACE_EXISTING)
+            }
+            moveDownloadedAudio(temp, target)
+
+            val now = nowMillis()
+            val size = Files.size(target)
+            queries.upsertCachedAudio(
+                source_id = sourceId,
+                remote_track_id = track.id.value,
+                quality_key = qualityKey,
+                file_path = target.toAbsolutePath().toString(),
+                size_bytes = size,
+                content_type = track.audioInfo?.contentType,
+                created_at_epoch_millis = now,
+                last_accessed_epoch_millis = now,
+            )
+            trimAudioStore()
+            CachedAudioFile(
+                path = target,
+                sizeBytes = size,
+                contentType = track.audioInfo?.contentType,
+            )
+        }
 
     fun upsertNavidromeSource(
         connection: NavidromeConnection,
@@ -343,7 +421,9 @@ class DesktopCache(
         queries.transaction {
             queries.clearResponses()
             queries.clearImages()
+            queries.clearAudio()
         }
+        clearAudioFiles()
     }
 
     fun clearLibraryData(sourceId: String? = null) {
@@ -373,6 +453,8 @@ class DesktopCache(
             imageCount = queries.imageCacheCount().executeAsOne(),
             imageBytes = queries.imageCacheSize().executeAsOne(),
             responseCount = queries.responseCacheCount().executeAsOne(),
+            audioCount = queries.audioCacheCount().executeAsOne(),
+            audioBytes = queries.audioCacheSize().executeAsOne(),
             mediaSourceCount = queries.mediaSourceCount().executeAsOne(),
             libraryArtistCount = queries.libraryArtistCount().executeAsOne(),
             libraryAlbumCount = queries.libraryAlbumCount().executeAsOne(),
@@ -380,6 +462,7 @@ class DesktopCache(
             hotImageCount = synchronized(hotImages) { hotImages.size },
             hotImageBytes = synchronized(hotImages) { hotImageBytes },
             maxImageBytes = maxImageCacheBytes,
+            maxAudioBytes = maxAudioCacheBytes,
             maxHotImageBytes = maxHotImageBytes,
         )
 
@@ -447,6 +530,31 @@ class DesktopCache(
             cacheSize -= image.size_bytes
         }
     }
+
+    private fun trimAudioStore() {
+        var cacheSize = queries.audioCacheSize().executeAsOne()
+        if (cacheSize <= maxAudioCacheBytes) return
+
+        queries.oldestCachedAudio(100).executeAsList().forEach { audio ->
+            if (cacheSize <= maxAudioCacheBytes) return
+            queries.deleteCachedAudio(audio.source_id, audio.remote_track_id, audio.quality_key)
+            Files.deleteIfExists(Path.of(audio.file_path))
+            cacheSize -= audio.size_bytes
+        }
+    }
+
+    private fun clearAudioFiles() {
+        runCatching {
+            if (!audioCacheDirectory.exists()) return@runCatching
+            Files.walk(audioCacheDirectory).use { paths ->
+                paths.sorted(Comparator.reverseOrder()).forEach { path ->
+                    if (path != audioCacheDirectory) {
+                        Files.deleteIfExists(path)
+                    }
+                }
+            }
+        }
+    }
 }
 
 object DesktopCaches {
@@ -459,6 +567,8 @@ data class CacheStats(
     val imageCount: Long,
     val imageBytes: Long,
     val responseCount: Long,
+    val audioCount: Long,
+    val audioBytes: Long,
     val mediaSourceCount: Long,
     val libraryArtistCount: Long,
     val libraryAlbumCount: Long,
@@ -466,7 +576,14 @@ data class CacheStats(
     val hotImageCount: Int,
     val hotImageBytes: Long,
     val maxImageBytes: Long,
+    val maxAudioBytes: Long,
     val maxHotImageBytes: Long,
+)
+
+data class CachedAudioFile(
+    val path: Path,
+    val sizeBytes: Long,
+    val contentType: String?,
 )
 
 data class SavedMediaSource(
@@ -633,12 +750,30 @@ private fun ensureCurrentTables(driver: JdbcSqliteDriver) {
         """.trimIndent(),
         0,
     )
+    driver.execute(
+        null,
+        """
+        CREATE TABLE IF NOT EXISTS cached_audio (
+          source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+          remote_track_id TEXT NOT NULL,
+          quality_key TEXT NOT NULL,
+          file_path TEXT NOT NULL,
+          size_bytes INTEGER NOT NULL,
+          content_type TEXT,
+          created_at_epoch_millis INTEGER NOT NULL,
+          last_accessed_epoch_millis INTEGER NOT NULL,
+          PRIMARY KEY(source_id, remote_track_id, quality_key)
+        )
+        """.trimIndent(),
+        0,
+    )
     listOf(
         "CREATE INDEX IF NOT EXISTS library_artist_source_name ON library_artist(source_id, search_name)",
         "CREATE INDEX IF NOT EXISTS library_album_source_title ON library_album(source_id, search_title)",
         "CREATE INDEX IF NOT EXISTS library_album_source_artist ON library_album(source_id, search_artist_name)",
         "CREATE INDEX IF NOT EXISTS library_track_source_title ON library_track(source_id, search_title)",
         "CREATE INDEX IF NOT EXISTS library_track_source_artist ON library_track(source_id, search_artist_name)",
+        "CREATE INDEX IF NOT EXISTS cached_audio_source_access ON cached_audio(source_id, last_accessed_epoch_millis)",
     ).forEach { sql ->
         driver.execute(null, sql, 0)
     }
@@ -646,6 +781,9 @@ private fun ensureCurrentTables(driver: JdbcSqliteDriver) {
 
 private fun defaultCacheDatabasePath(): Path =
     defaultAppDataDirectory().resolve("cache.db")
+
+private fun defaultAudioCacheDirectory(): Path =
+    defaultAppDataDirectory().resolve("audio-cache")
 
 private fun defaultAppDataDirectory(): Path {
     val os = System.getProperty("os.name").lowercase()
@@ -674,6 +812,39 @@ private fun stableSourceId(cacheNamespace: String): String {
         .digest(cacheNamespace.toByteArray(Charsets.UTF_8))
         .joinToString("") { "%02x".format(it) }
     return "source_${digest.take(24)}"
+}
+
+private fun stableAudioFileName(sourceId: String, trackId: String, qualityKey: String): String {
+    val digest = MessageDigest.getInstance("SHA-256")
+        .digest("$sourceId:$trackId:$qualityKey".toByteArray(Charsets.UTF_8))
+        .joinToString("") { "%02x".format(it) }
+    return digest.take(32)
+}
+
+private fun StreamQuality.cacheKey(): String =
+    when (this) {
+        StreamQuality.Original -> "original"
+        is StreamQuality.Transcoded -> "transcoded:${codec.name.lowercase()}:$bitrateKbps"
+    }
+
+private fun String?.audioExtension(): String =
+    when (this?.lowercase()?.substringBefore(";")?.trim()) {
+        "audio/mpeg", "audio/mp3" -> ".mp3"
+        "audio/aac", "audio/aacp" -> ".aac"
+        "audio/flac", "audio/x-flac" -> ".flac"
+        "audio/ogg", "application/ogg" -> ".ogg"
+        "audio/opus" -> ".opus"
+        "audio/mp4", "audio/m4a" -> ".m4a"
+        "audio/wav", "audio/wave", "audio/x-wav" -> ".wav"
+        else -> ".audio"
+    }
+
+private fun moveDownloadedAudio(temp: Path, target: Path) {
+    runCatching {
+        Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+    }.getOrElse {
+        Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING)
+    }
 }
 
 private fun Path.sizeOrZero(): Long =

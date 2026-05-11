@@ -137,9 +137,11 @@ fun StatsForNerdsWindow(
                             title = "Cache",
                             rows = listOf(
                                 "Images" to "${info.cacheStats.imageCount} (${info.cacheStats.imageBytes.bytesLabel()})",
+                                "Audio files" to "${info.cacheStats.audioCount} (${info.cacheStats.audioBytes.bytesLabel()})",
                                 "Provider responses" to info.cacheStats.responseCount.toString(),
                                 "Hot images" to "${info.cacheStats.hotImageCount} (${info.cacheStats.hotImageBytes.bytesLabel()})",
                                 "Image budget" to info.cacheStats.maxImageBytes.bytesLabel(),
+                                "Audio budget" to info.cacheStats.maxAudioBytes.bytesLabel(),
                                 "Hot image budget" to info.cacheStats.maxHotImageBytes.bytesLabel(),
                             ),
                         )

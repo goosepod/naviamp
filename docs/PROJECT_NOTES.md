@@ -21,6 +21,7 @@ Current priorities:
 - Windows desktop works and is the main live test path right now.
 - Navidrome is the first provider, but the app should stay provider-oriented.
 - Playback uses mpv on desktop when available.
+- Audio/track caching is now a priority because it will matter for fast desktop skips, network handoff, and the future Android app.
 - The app should remember state across screens where it feels natural: search query/results, navigation, session queue, window size, and similar context.
 
 Main source areas:
@@ -102,6 +103,8 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 - Settings easter egg:
   - Triple-click the Settings connection-status line to open a separate "Stats for nerds" window.
   - It shows app/runtime details, connection/provider info, saved media source details, library import status, DB/cache counts, playback capabilities, queue state, stream metadata for the current track, and a redacted recent Navidrome API call history.
+- Local data controls:
+  - Settings can clear image/API cache, clear the local artist/album/track index, or run a guarded full database reset that removes saved servers too.
 - Mini player behavior:
   - Tapping the mini-player row opens the full player, but its transport buttons should only control playback and should not navigate away from the current screen.
 - Radio:
@@ -113,6 +116,12 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - Home now loads a richer provider-backed dashboard from Navidrome/Subsonic: mixes, recently added albums, recent/frequent/random album sections, playlists, genre spotlight, and a fixed 2000s decade spotlight.
   - Home station rows can start Library Radio, Random Album Radio, Genre Radio, and Decade Radio. Artist/Album Mix Builder rows jump into the matching Library tab for seed selection.
   - Provider contracts now include album lists, playlists, genres, playlist tracks, and random-song queries so other providers can implement the same Home surface.
+- Audio cache V1:
+  - Desktop now has a source-scoped file-backed audio cache with SQLite metadata for source, remote track ID, stream quality, local file path, byte count, content type, created time, and last access time.
+  - `PlaylistEngine` prefers cached local files when present and otherwise resolves a fresh provider stream URL.
+  - Playback starts background prefetch for up to 10 upcoming queue items and cancels that work when the queue/session changes.
+  - Clear cache removes prefetched audio files in addition to images and provider responses.
+  - The cache stores provider IDs and local paths, not long-lived authenticated stream URLs.
 - Desktop mpv crossfade attempt:
   - A dual-mpv-process crossfade attempt caused regressions in seek, pause, progress polling, and track advancement.
   - `MpvProcessPlaybackEngine` was restored to the stable single-process mpv path and reports `supportsCrossfade = false` again.
@@ -132,13 +141,14 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 - Album detail navigation currently falls back Home in some paths; future screen-state work should preserve deeper route state more deliberately.
 - Track heart/star mutations currently update Navidrome from the player screen; shared row controls can broaden this later.
 - Library page scroll/search state is still mostly in-memory in `Main.kt`; future route-state work should preserve the selected Library tab, search query, and scroll/jump position if needed.
+- Authenticated stream URLs should be treated as short-lived secrets. Cache/provider tables should persist provider IDs and display metadata, then refresh stream URLs only when playback or prefetch needs them.
 
 ## Roadmap Items From The User
 
 Top-of-mind work the user wants:
 
 - Add crossfading to the player without regressing basic mpv transport behavior.
-- Modularize reusable UI pieces such as track cards, artist cards, album cards, and similar provider-neutral components.
+- Continue modularizing reusable UI pieces where screens still carry one-off media UI.
 - Broaden starring and favoriting controls beyond the player, including reusable row-level controls.
 - Continue refining the scrub bar.
 - Add a music visualization on the player screen, activated by clicking album art.
@@ -146,7 +156,6 @@ Top-of-mind work the user wants:
 - Improve the upcoming queue further as needed.
 - Continue refining Library browsing, including genres and richer artist/album grouping.
 - Improve Home radio seeds with richer picker/detail flows for artists, albums, genres, and decades.
-- Add Settings controls to delete image/data cache or reset the local database so the app starts a fresh server scan.
 - Improve packaged app startup speed. The generated Windows executable opens noticeably slowly; profile cold start, runtime image startup, settings/database initialization, restored connection work, and first Home/library loading so the shell appears quickly and background work stays backgrounded.
 - Phase 2 Home/personalization:
   - Add local playback history so Home can support Recent Plays, History, Most Played This Month, and better personalized mixes without depending on server-specific smart playlists.
@@ -175,12 +184,13 @@ Top-of-mind work the user wants:
 
 Good next slices:
 
-- Wire Navidrome starred/favorite fields into domain models and player/search/album rows.
-- Extract reusable `TrackRow`, `AlbumCard`, and `ArtistRow` components from existing screens.
+- Phase 2C follow-up: expose Settings controls for audio cache depth and disk limit once the core cache behavior is stable.
+- Phase 2C follow-up: add visible/debuggable prefetch status and cache-hit reporting in Stats for nerds.
+- Phase 2C follow-up: harden audio cache behavior for mobile/offline use, including expiry rules, partial download cleanup, and provider-specific refresh hooks if Android needs them.
+- Broaden reusable row-level favorite/rating controls beyond the player.
 - Add Library genres and richer artist/album grouping.
 - Add lyrics domain model and Navidrome/provider capability shape before building the UI.
 - Re-approach crossfade with an isolated engine/prototype and explicit playback debug tracing.
 - Profile and improve packaged Windows startup time so the app window appears quickly before connection/library work continues.
 - Phase 2A: add a SQLite playback-history table and record play/skip/completion events from the desktop player.
 - Phase 2B: build Home sections from local history: Recent Plays, History, Most Played This Month, and dynamic decade/year modules.
-- Phase 2C: add a bounded audio prefetch cache for the next 5-10 queue items, then wire mpv playback to prefer cached files when available.

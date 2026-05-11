@@ -1,14 +1,18 @@
 package app.naviamp.desktop.playback
 
+import app.naviamp.desktop.DesktopCache
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
 import app.naviamp.domain.provider.MediaProvider
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class PlaylistEngine(
     private val playbackEngine: PlaybackEngine,
+    private val cache: DesktopCache? = null,
+    private val sourceIdProvider: () -> String? = { null },
 ) {
     private var provider: MediaProvider? = null
     private var streamQuality: StreamQuality? = null
@@ -16,6 +20,7 @@ class PlaylistEngine(
     private var callbacks: PlaylistCallbacks? = null
     private var crossfadeSettings = CrossfadeSettings()
     private var preparedNextIndex: Int? = null
+    private var audioPrefetchJob: Job? = null
     private var sessionId = 0
 
     var queue: PlaybackQueue = PlaybackQueue()
@@ -35,6 +40,8 @@ class PlaylistEngine(
         this.replayGainMode = replayGainMode
         this.callbacks = callbacks
         sessionId += 1
+        audioPrefetchJob?.cancel()
+        audioPrefetchJob = null
 
         playQueueIndex(scope, tracks, index, sessionId)
     }
@@ -53,6 +60,8 @@ class PlaylistEngine(
         this.replayGainMode = replayGainMode
         this.callbacks = callbacks
         sessionId += 1
+        audioPrefetchJob?.cancel()
+        audioPrefetchJob = null
         queue = PlaybackQueue(tracks = tracks, currentIndex = index)
         preparedNextIndex = null
         callbacks.onQueueChanged(queue)
@@ -62,6 +71,8 @@ class PlaylistEngine(
 
     fun clear() {
         sessionId += 1
+        audioPrefetchJob?.cancel()
+        audioPrefetchJob = null
         queue = PlaybackQueue()
         playbackEngine.stop()
         callbacks?.onQueueChanged(queue)
@@ -131,6 +142,8 @@ class PlaylistEngine(
         val currentProvider = provider ?: return
         val currentQuality = streamQuality ?: return
         val currentCallbacks = callbacks ?: return
+        audioPrefetchJob?.cancel()
+        audioPrefetchJob = null
 
         queue = PlaybackQueue(tracks = tracks, currentIndex = index)
         preparedNextIndex = null
@@ -139,18 +152,14 @@ class PlaylistEngine(
 
         scope.launch {
             try {
-                val streamUrl = currentProvider.streamUrl(
-                    StreamRequest(
-                        trackId = track.id,
-                        quality = currentQuality,
-                    ),
-                )
+                val playbackUrl = playbackUrl(currentProvider, track, currentQuality)
                 val coverArtUrl = track.coverArtId?.let { currentProvider.coverArtUrl(it) }
                 currentCallbacks.onTrackStarted(track, coverArtUrl)
+                startAudioPrefetch(scope, activeSessionId)
                 playbackEngine.play(
                     scope = scope,
                     request = PlaybackRequest(
-                        url = streamUrl,
+                        url = playbackUrl,
                         mediaId = track.id.value,
                         replayGainMode = replayGainMode.forEngine(playbackEngine),
                     ),
@@ -172,6 +181,50 @@ class PlaylistEngine(
                 if (activeSessionId == sessionId) {
                     currentCallbacks.onPlaybackStateChanged(
                         PlaybackState.Error(exception.message ?: "Playback failed."),
+                    )
+                }
+            }
+        }
+    }
+
+    private suspend fun playbackUrl(
+        provider: MediaProvider,
+        track: Track,
+        quality: StreamQuality,
+    ): String {
+        val sourceId = sourceIdProvider()
+        val cached = if (sourceId != null) {
+            cache?.cachedAudioFile(sourceId, track.id, quality)
+        } else {
+            null
+        }
+        return cached?.path?.toUri()?.toString()
+            ?: provider.streamUrl(
+                StreamRequest(
+                    trackId = track.id,
+                    quality = quality,
+                ),
+            )
+    }
+
+    private fun startAudioPrefetch(scope: CoroutineScope, activeSessionId: Int) {
+        val audioCache = cache ?: return
+        val sourceId = sourceIdProvider() ?: return
+        val currentProvider = provider ?: return
+        val currentQuality = streamQuality ?: return
+        val upcoming = queue.upNext().take(AudioPrefetchDepth)
+        if (upcoming.isEmpty()) return
+
+        audioPrefetchJob?.cancel()
+        audioPrefetchJob = scope.launch {
+            upcoming.forEach { track ->
+                if (activeSessionId != sessionId) return@launch
+                runCatching {
+                    audioCache.cacheAudioTrack(
+                        sourceId = sourceId,
+                        provider = currentProvider,
+                        track = track,
+                        quality = currentQuality,
                     )
                 }
             }
@@ -217,12 +270,7 @@ class PlaylistEngine(
         scope.launch {
             if (activeSessionId != sessionId) return@launch
             try {
-                val streamUrl = currentProvider.streamUrl(
-                    StreamRequest(
-                        trackId = nextTrack.id,
-                        quality = currentQuality,
-                    ),
-                )
+                val streamUrl = playbackUrl(currentProvider, nextTrack, currentQuality)
                 if (activeSessionId == sessionId) {
                     queueAwareEngine.prepareNext(
                         PlaybackRequest(
@@ -264,3 +312,4 @@ private fun ReplayGainMode.forEngine(playbackEngine: PlaybackEngine): ReplayGain
     if (playbackEngine.supportsReplayGain) this else ReplayGainMode.Off
 
 private const val CrossfadePrepareWindowSeconds = 30.0
+private const val AudioPrefetchDepth = 10
