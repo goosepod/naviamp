@@ -319,6 +319,14 @@ AND remote_album_id = ?
 ORDER BY RANDOM()
 LIMIT 1;
 
+selectLibraryTracksForAlbum:
+SELECT *
+FROM library_track
+WHERE source_id = ?
+AND remote_album_id = ?
+ORDER BY search_title
+LIMIT ?;
+
 selectRandomLibraryTrackForArtist:
 SELECT *
 FROM library_track
@@ -326,6 +334,14 @@ WHERE source_id = ?
 AND remote_artist_id = ?
 ORDER BY RANDOM()
 LIMIT 1;
+
+selectLibraryTracksForArtist:
+SELECT *
+FROM library_track
+WHERE source_id = ?
+AND remote_artist_id = ?
+ORDER BY search_album_title, search_title
+LIMIT ?;
 
 searchLibraryArtists:
 SELECT *

@@ -219,6 +219,7 @@ fun NaviampApp(
     var nowPlayingCoverArtUrl by remember { mutableStateOf<String?>(null) }
     var nowPlayingWaveform by remember { mutableStateOf<AudioWaveform?>(null) }
     var nowPlayingWaveformReloadToken by remember { mutableStateOf(0) }
+    var relatedTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
     var playbackState by remember { mutableStateOf<PlaybackState>(PlaybackState.Idle) }
     var playbackProgress by remember { mutableStateOf(PlaybackProgress.Unknown) }
     var playbackQueue by remember {
@@ -452,6 +453,18 @@ fun NaviampApp(
             }.getOrNull()
         }
         nowPlayingWaveform = waveform
+    }
+
+    LaunchedEffect(nowPlayingTrack?.id, connectedSourceId) {
+        val track = nowPlayingTrack
+        val sourceId = connectedSourceId
+        if (track == null || sourceId == null) {
+            relatedTracks = emptyList()
+            return@LaunchedEffect
+        }
+        relatedTracks = withContext(Dispatchers.IO) {
+            sessionCache.relatedLibraryTracks(sourceId, track)
+        }
     }
 
     fun refreshLibrarySnapshot() {
@@ -702,6 +715,23 @@ fun NaviampApp(
     fun playSearchTrack(index: Int) {
         val provider = connectedProvider ?: return
         val tracks = searchResults.tracks
+        if (tracks.isEmpty() || index !in tracks.indices) return
+        stopRadioContinuation()
+        openPlayerOnTrackStart = true
+        playlistEngine.playFrom(
+            scope = coroutineScope,
+            provider = provider,
+            tracks = tracks,
+            index = index,
+            quality = playbackEngine.streamQuality(),
+            replayGainMode = playbackSettings.replayGainMode,
+            callbacks = playlistCallbacks,
+        )
+    }
+
+    fun playRelatedTrack(index: Int) {
+        val provider = connectedProvider ?: return
+        val tracks = relatedTracks
         if (tracks.isEmpty() || index !in tracks.indices) return
         stopRadioContinuation()
         openPlayerOnTrackStart = true
@@ -1295,6 +1325,10 @@ fun NaviampApp(
                                 upNextCoverArtUrl = { track ->
                                     track.coverArtId?.let { connectedProvider?.coverArtUrl(it) }
                                 },
+                                relatedTracks = relatedTracks,
+                                relatedCoverArtUrl = { track ->
+                                    track.coverArtId?.let { connectedProvider?.coverArtUrl(it) }
+                                },
                                 hasPrevious = playbackQueue.hasPrevious(),
                                 hasNext = playbackQueue.hasNext(),
                                 playbackState = playbackState,
@@ -1352,6 +1386,12 @@ fun NaviampApp(
                                         scope = coroutineScope,
                                         index = queueIndex,
                                     )
+                                },
+                                onRelatedTrackSelected = { index ->
+                                    playRelatedTrack(index)
+                                },
+                                onRelatedTrackRadioSelected = { track ->
+                                    playTrackRadio(track)
                                 },
                                 onCollapseToHome = {
                                     appRoute = lastContentRoute

@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -82,6 +81,8 @@ fun NowPlayingPanel(
     upNext: List<Track>,
     firstUpNextQueueIndex: Int,
     upNextCoverArtUrl: (Track) -> String?,
+    relatedTracks: List<Track>,
+    relatedCoverArtUrl: (Track) -> String?,
     hasPrevious: Boolean,
     hasNext: Boolean,
     playbackState: PlaybackState,
@@ -101,6 +102,8 @@ fun NowPlayingPanel(
     onAlbumSelected: (Track) -> Unit,
     onTrackRadioSelected: (Track) -> Unit,
     onQueueIndexSelected: (Int) -> Unit,
+    onRelatedTrackSelected: (Int) -> Unit,
+    onRelatedTrackRadioSelected: (Track) -> Unit,
     onCollapseToHome: () -> Unit,
 ) {
     val coverArtState = rememberCoverArtState(coverArtUrl, appColors)
@@ -172,7 +175,11 @@ fun NowPlayingPanel(
                     upNext = upNext,
                     firstQueueIndex = firstUpNextQueueIndex,
                     coverArtUrl = upNextCoverArtUrl,
+                    relatedTracks = relatedTracks,
+                    relatedCoverArtUrl = relatedCoverArtUrl,
                     onQueueIndexSelected = onQueueIndexSelected,
+                    onRelatedTrackSelected = onRelatedTrackSelected,
+                    onRelatedTrackRadioSelected = onRelatedTrackRadioSelected,
                     modifier = Modifier
                         .weight(1.1f)
                         .height(420.dp),
@@ -225,7 +232,11 @@ fun NowPlayingPanel(
                     upNext = upNext,
                     firstQueueIndex = firstUpNextQueueIndex,
                     coverArtUrl = upNextCoverArtUrl,
+                    relatedTracks = relatedTracks,
+                    relatedCoverArtUrl = relatedCoverArtUrl,
                     onQueueIndexSelected = onQueueIndexSelected,
+                    onRelatedTrackSelected = onRelatedTrackSelected,
+                    onRelatedTrackRadioSelected = onRelatedTrackRadioSelected,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(280.dp),
@@ -924,10 +935,26 @@ private fun UpNextPanel(
     upNext: List<Track>,
     firstQueueIndex: Int,
     coverArtUrl: (Track) -> String?,
+    relatedTracks: List<Track>,
+    relatedCoverArtUrl: (Track) -> String?,
     onQueueIndexSelected: (Int) -> Unit,
+    onRelatedTrackSelected: (Int) -> Unit,
+    onRelatedTrackRadioSelected: (Track) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scrollState = rememberScrollState()
+    var selectedTab by remember { mutableStateOf(PlayerListTab.UpNext) }
+    val visibleTracks = when (selectedTab) {
+        PlayerListTab.UpNext -> upNext
+        PlayerListTab.Related -> relatedTracks
+    }
+    val activeCoverArtUrl = when (selectedTab) {
+        PlayerListTab.UpNext -> coverArtUrl
+        PlayerListTab.Related -> relatedCoverArtUrl
+    }
+    LaunchedEffect(selectedTab) {
+        scrollState.scrollTo(0)
+    }
 
     Column(
         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -938,8 +965,18 @@ private fun UpNextPanel(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text("BACK TO", color = appColors.mutedText, fontWeight = FontWeight.SemiBold, fontSize = 11.sp)
-            Text("UP NEXT", color = appColors.primaryText, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-            Text("RELATED", color = appColors.mutedText, fontWeight = FontWeight.SemiBold, fontSize = 11.sp)
+            PlayerListTabLabel(
+                label = "UP NEXT",
+                selected = selectedTab == PlayerListTab.UpNext,
+                appColors = appColors,
+                onClick = { selectedTab = PlayerListTab.UpNext },
+            )
+            PlayerListTabLabel(
+                label = "RELATED",
+                selected = selectedTab == PlayerListTab.Related,
+                appColors = appColors,
+                onClick = { selectedTab = PlayerListTab.Related },
+            )
         }
         Box(
             modifier = Modifier
@@ -947,8 +984,19 @@ private fun UpNextPanel(
                 .fillMaxWidth()
                 .background(Color.White.copy(alpha = 0.18f)),
         )
-        if (upNext.isEmpty()) {
-            Spacer(modifier = Modifier.height(42.dp))
+        if (visibleTracks.isEmpty()) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(42.dp),
+            ) {
+                Text(
+                    text = if (selectedTab == PlayerListTab.Related) "No related tracks" else "Queue is empty",
+                    color = appColors.mutedText,
+                    fontSize = 11.sp,
+                )
+            }
         } else {
             Column(
                 verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -956,8 +1004,8 @@ private fun UpNextPanel(
                     .weight(1f)
                     .verticalScroll(scrollState),
             ) {
-                upNext.forEachIndexed { index, track ->
-                    val trackCoverArtState = rememberCoverArtState(coverArtUrl(track), appColors)
+                visibleTracks.forEachIndexed { index, track ->
+                    val trackCoverArtState = rememberCoverArtState(activeCoverArtUrl(track), appColors)
                     TrackRow(
                         appColors = appColors,
                         track = track,
@@ -970,7 +1018,17 @@ private fun UpNextPanel(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(38.dp),
-                        onClick = { onQueueIndexSelected(firstQueueIndex + index) },
+                        onClick = {
+                            when (selectedTab) {
+                                PlayerListTab.UpNext -> onQueueIndexSelected(firstQueueIndex + index)
+                                PlayerListTab.Related -> onRelatedTrackSelected(index)
+                            }
+                        },
+                        onStartRadio = if (selectedTab == PlayerListTab.Related) {
+                            { onRelatedTrackRadioSelected(track) }
+                        } else {
+                            null
+                        },
                         titleStyle = TextStyle(
                             fontSize = 12.sp,
                             lineHeight = 12.sp,
@@ -992,6 +1050,27 @@ private fun UpNextPanel(
             }
         }
     }
+}
+
+private enum class PlayerListTab {
+    UpNext,
+    Related,
+}
+
+@Composable
+private fun PlayerListTabLabel(
+    label: String,
+    selected: Boolean,
+    appColors: AppColors,
+    onClick: () -> Unit,
+) {
+    Text(
+        text = label,
+        color = if (selected) appColors.primaryText else appColors.mutedText,
+        fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
+        fontSize = 11.sp,
+        modifier = Modifier.clickable(onClick = onClick),
+    )
 }
 
 @Composable

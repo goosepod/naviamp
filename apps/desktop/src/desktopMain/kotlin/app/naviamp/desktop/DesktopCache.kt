@@ -416,10 +416,36 @@ class DesktopCache(
             .executeAsOneOrNull()
             ?.toTrack()
 
+    fun libraryTracksForAlbum(sourceId: String, albumId: AlbumId, limit: Long = 50): List<Track> =
+        queries.selectLibraryTracksForAlbum(sourceId, albumId.value, limit)
+            .executeAsList()
+            .map { it.toTrack() }
+
     fun randomLibraryTrackForArtist(sourceId: String, artistId: ArtistId): Track? =
         queries.selectRandomLibraryTrackForArtist(sourceId, artistId.value)
             .executeAsOneOrNull()
             ?.toTrack()
+
+    fun libraryTracksForArtist(sourceId: String, artistId: ArtistId, limit: Long = 50): List<Track> =
+        queries.selectLibraryTracksForArtist(sourceId, artistId.value, limit)
+            .executeAsList()
+            .map { it.toTrack() }
+
+    fun relatedLibraryTracks(sourceId: String, track: Track, limit: Long = 40): List<Track> {
+        val albumTracks = track.albumId
+            ?.let { libraryTracksForAlbum(sourceId, it, limit) }
+            .orEmpty()
+        val artistLimit = (limit - albumTracks.size).coerceAtLeast(12)
+        val artistTracks = track.artistId
+            ?.let { libraryTracksForArtist(sourceId, it, artistLimit) }
+            .orEmpty()
+        return (albumTracks + artistTracks)
+            .asSequence()
+            .filterNot { it.id == track.id }
+            .distinctBy { it.id }
+            .take(limit.toInt())
+            .toList()
+    }
 
     fun libraryIndexStats(sourceId: String): LibraryIndexStats =
         LibraryIndexStats(
