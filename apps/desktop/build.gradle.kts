@@ -72,6 +72,11 @@ compose.desktop {
         nativeDistributions {
             packageName = "Naviamp"
             packageVersion = "0.1.0"
+            modules("java.net.http", "java.sql")
+
+            windows {
+                iconFile.set(project.file("src/desktopMain/resources/icons/naviamp.ico"))
+            }
         }
     }
 }

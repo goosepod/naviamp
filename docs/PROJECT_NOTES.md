@@ -147,6 +147,7 @@ Top-of-mind work the user wants:
 - Continue refining Library browsing, including genres and richer artist/album grouping.
 - Improve Home radio seeds with richer picker/detail flows for artists, albums, genres, and decades.
 - Add Settings controls to delete image/data cache or reset the local database so the app starts a fresh server scan.
+- Improve packaged app startup speed. The generated Windows executable opens noticeably slowly; profile cold start, runtime image startup, settings/database initialization, restored connection work, and first Home/library loading so the shell appears quickly and background work stays backgrounded.
 - Phase 2 Home/personalization:
   - Add local playback history so Home can support Recent Plays, History, Most Played This Month, and better personalized mixes without depending on server-specific smart playlists.
   - Record enough play context to build useful Home sections later: source/server, track ID, album ID, artist ID, started timestamp, completed/skip signal, duration/position, and radio/playlist context when available.
@@ -179,6 +180,7 @@ Good next slices:
 - Add Library genres and richer artist/album grouping.
 - Add lyrics domain model and Navidrome/provider capability shape before building the UI.
 - Re-approach crossfade with an isolated engine/prototype and explicit playback debug tracing.
+- Profile and improve packaged Windows startup time so the app window appears quickly before connection/library work continues.
 - Phase 2A: add a SQLite playback-history table and record play/skip/completion events from the desktop player.
 - Phase 2B: build Home sections from local history: Recent Plays, History, Most Played This Month, and dynamic decade/year modules.
 - Phase 2C: add a bounded audio prefetch cache for the next 5-10 queue items, then wire mpv playback to prefer cached files when available.
