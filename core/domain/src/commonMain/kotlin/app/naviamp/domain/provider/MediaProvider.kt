@@ -6,6 +6,8 @@ import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.ArtistId
+import app.naviamp.domain.Genre
+import app.naviamp.domain.Playlist
 import app.naviamp.domain.ProviderId
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
@@ -24,8 +26,20 @@ interface MediaProvider {
     suspend fun artist(artistId: ArtistId): ArtistDetails
     suspend fun artists(limit: Int = 50): List<Artist>
     suspend fun albums(limit: Int = 50, offset: Int = 0): List<Album> = emptyList()
+    suspend fun albumList(type: AlbumListType, limit: Int = 20): List<Album> = emptyList()
+    suspend fun albumsByGenre(genre: String, limit: Int = 20): List<Album> = emptyList()
+    suspend fun albumsByYear(fromYear: Int, toYear: Int, limit: Int = 20): List<Album> = emptyList()
     suspend fun tracks(limit: Int = 50): List<Track>
     suspend fun search(query: String, limit: Int = 20): MediaSearchResults
+    suspend fun playlists(limit: Int = 20): List<Playlist> = emptyList()
+    suspend fun playlistTracks(playlistId: String): List<Track> = emptyList()
+    suspend fun genres(limit: Int = 50): List<Genre> = emptyList()
+    suspend fun randomSongs(
+        limit: Int = 50,
+        genre: String? = null,
+        fromYear: Int? = null,
+        toYear: Int? = null,
+    ): List<Track> = emptyList()
     suspend fun artistRadio(artistId: ArtistId, count: Int = 50): List<Track> = emptyList()
     suspend fun albumRadio(albumId: AlbumId, count: Int = 50): List<Track> = emptyList()
     suspend fun trackRadio(trackId: TrackId, count: Int = 50): List<Track> = emptyList()
@@ -46,6 +60,14 @@ data class MediaSearchResults(
 ) {
     val isEmpty: Boolean
         get() = artists.isEmpty() && albums.isEmpty() && tracks.isEmpty()
+}
+
+enum class AlbumListType(val providerValue: String) {
+    Newest("newest"),
+    Random("random"),
+    Frequent("frequent"),
+    Recent("recent"),
+    Starred("starred"),
 }
 
 data class ProviderCapabilities(

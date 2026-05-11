@@ -9,11 +9,14 @@ import app.naviamp.domain.ArtistId
 import app.naviamp.domain.ArtistInfo
 import app.naviamp.domain.AudioInfo
 import app.naviamp.domain.AudioCodec
+import app.naviamp.domain.Genre
+import app.naviamp.domain.Playlist
 import app.naviamp.domain.ProviderId
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
@@ -63,13 +66,43 @@ class NavidromeProvider(
         )
     }
 
-    override suspend fun recentlyAddedAlbums(limit: Int): List<Album> {
+    override suspend fun recentlyAddedAlbums(limit: Int): List<Album> =
+        albumList(AlbumListType.Newest, limit)
+
+    override suspend fun albumList(type: AlbumListType, limit: Int): List<Album> =
+        albumList(
+            type = type.providerValue,
+            limit = limit,
+        )
+
+    override suspend fun albumsByGenre(genre: String, limit: Int): List<Album> =
+        albumList(
+            type = "byGenre",
+            limit = limit,
+            extraParams = mapOf("genre" to genre),
+        )
+
+    override suspend fun albumsByYear(fromYear: Int, toYear: Int, limit: Int): List<Album> =
+        albumList(
+            type = "byYear",
+            limit = limit,
+            extraParams = mapOf(
+                "fromYear" to fromYear.toString(),
+                "toYear" to toYear.toString(),
+            ),
+        )
+
+    private suspend fun albumList(
+        type: String,
+        limit: Int,
+        extraParams: Map<String, String> = emptyMap(),
+    ): List<Album> {
         val response = get(
             endpoint = "getAlbumList2.view",
             params = mapOf(
-                "type" to "newest",
+                "type" to type,
                 "size" to limit.toString(),
-            ),
+            ) + extraParams,
         )
         val albumList = response.subsonicResponse()["albumList2"]?.jsonObject
         val albums = albumList?.get("album") as? JsonArray ?: return emptyList()
@@ -177,6 +210,85 @@ class NavidromeProvider(
                 (song as? JsonObject)?.toTrack()
             },
         )
+    }
+
+    override suspend fun playlists(limit: Int): List<Playlist> {
+        val response = get("getPlaylists.view")
+        val playlists = response.subsonicResponse()["playlists"]
+            ?.jsonObject
+            ?.arrayValue("playlist")
+            .orEmpty()
+
+        return playlists
+            .mapNotNull { playlist ->
+                (playlist as? JsonObject)?.toPlaylist()
+            }
+            .take(limit)
+    }
+
+    override suspend fun playlistTracks(playlistId: String): List<Track> {
+        val response = get(
+            endpoint = "getPlaylist.view",
+            params = mapOf("id" to playlistId),
+        )
+        val playlist = response.subsonicResponse()["playlist"]?.jsonObject
+            ?: return emptyList()
+        return playlist.arrayValue("entry").mapNotNull { entry ->
+            (entry as? JsonObject)?.toTrack()
+        }
+    }
+
+    override suspend fun genres(limit: Int): List<Genre> {
+        val response = get("getGenres.view")
+        val genres = response.subsonicResponse()["genres"]
+            ?.jsonObject
+            ?.arrayValue("genre")
+            .orEmpty()
+
+        return genres
+            .mapNotNull { genre ->
+                val primitiveName = runCatching { genre.jsonPrimitive.content }.getOrNull()
+                val obj = genre as? JsonObject
+                if (obj == null) {
+                    primitiveName?.let { Genre(name = it) } ?: return@mapNotNull null
+                } else {
+                    Genre(
+                        name = obj.stringValue("value")
+                            ?: obj.stringValue("name")
+                            ?: primitiveName
+                            ?: return@mapNotNull null,
+                        albumCount = obj.intValue("albumCount"),
+                        trackCount = obj.intValue("songCount"),
+                    )
+                }
+            }
+            .sortedWith(compareByDescending<Genre> { it.albumCount ?: 0 }.thenBy { it.name.lowercase() })
+            .take(limit)
+    }
+
+    override suspend fun randomSongs(
+        limit: Int,
+        genre: String?,
+        fromYear: Int?,
+        toYear: Int?,
+    ): List<Track> {
+        val params = buildMap {
+            put("size", limit.coerceAtLeast(1).toString())
+            genre?.takeIf { it.isNotBlank() }?.let { put("genre", it) }
+            fromYear?.let { put("fromYear", it.toString()) }
+            toYear?.let { put("toYear", it.toString()) }
+        }
+        val response = get(
+            endpoint = "getRandomSongs.view",
+            params = params,
+        )
+        val songs = response.subsonicResponse()["randomSongs"]
+            ?.jsonObject
+            ?.arrayValue("song")
+            .orEmpty()
+        return songs.mapNotNull { song ->
+            (song as? JsonObject)?.toTrack()
+        }
     }
 
     override suspend fun artistRadio(artistId: ArtistId, count: Int): List<Track> =
@@ -396,6 +508,15 @@ class NavidromeProvider(
                 stringValue("id") ?: throw NavidromeException("Artist is missing an id."),
             ),
             name = stringValue("name") ?: "Unknown Artist",
+        )
+
+    private fun JsonObject.toPlaylist(): Playlist =
+        Playlist(
+            id = stringValue("id") ?: throw NavidromeException("Playlist is missing an id."),
+            name = stringValue("name") ?: "Playlist",
+            trackCount = intValue("songCount") ?: 0,
+            durationSeconds = intValue("duration"),
+            coverArtId = stringValue("coverArt"),
         )
 
     private fun JsonObject.toTrack(): Track =

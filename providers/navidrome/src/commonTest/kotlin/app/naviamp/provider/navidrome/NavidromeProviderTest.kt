@@ -6,6 +6,7 @@ import app.naviamp.domain.AudioCodec
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.provider.AlbumListType
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -362,6 +363,141 @@ class NavidromeProviderTest {
         assertEquals(921, results.tracks.first().audioInfo?.bitrateKbps)
         assertEquals("2026-05-09T13:45:00Z", results.tracks.first().favoritedAtIso8601)
         assertEquals(5, results.tracks.first().userRating)
+    }
+
+    @Test
+    fun albumListUsesRequestedType() = runTest {
+        val httpClient = RecordingResponseHttpClient(
+            """
+            {
+              "subsonic-response": {
+                "status": "ok",
+                "albumList2": {
+                  "album": [
+                    {
+                      "id": "album-1",
+                      "name": "Technique",
+                      "artist": "New Order",
+                      "year": 1989
+                    }
+                  ]
+                }
+              }
+            }
+            """.trimIndent(),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        val albums = provider.albumList(AlbumListType.Random, limit = 8)
+
+        assertEquals(
+            "https://music.example.test/rest/getAlbumList2.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&type=random&size=8",
+            httpClient.urls.single(),
+        )
+        assertEquals("Technique", albums.single().title)
+    }
+
+    @Test
+    fun playlistsMapSubsonicPlaylists() = runTest {
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = FakeHttpClient(
+                """
+                {
+                  "subsonic-response": {
+                    "status": "ok",
+                    "playlists": {
+                      "playlist": [
+                        {
+                          "id": "playlist-1",
+                          "name": "April 2026 Playlist",
+                          "songCount": 34,
+                          "duration": 25440,
+                          "coverArt": "playlist-cover"
+                        }
+                      ]
+                    }
+                  }
+                }
+                """.trimIndent(),
+            ),
+        )
+
+        val playlists = provider.playlists()
+
+        assertEquals("playlist-1", playlists.single().id)
+        assertEquals("April 2026 Playlist", playlists.single().name)
+        assertEquals(34, playlists.single().trackCount)
+        assertEquals(25440, playlists.single().durationSeconds)
+        assertEquals("playlist-cover", playlists.single().coverArtId)
+    }
+
+    @Test
+    fun randomSongsIncludesGenreAndYearFilters() = runTest {
+        val httpClient = RecordingResponseHttpClient(
+            """
+            {
+              "subsonic-response": {
+                "status": "ok",
+                "randomSongs": {
+                  "song": [
+                    {
+                      "id": "track-1",
+                      "title": "House Track",
+                      "artist": "Someone"
+                    }
+                  ]
+                }
+              }
+            }
+            """.trimIndent(),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        val tracks = provider.randomSongs(limit = 12, genre = "House", fromYear = 2000, toYear = 2009)
+
+        assertEquals(
+            "https://music.example.test/rest/getRandomSongs.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&size=12&genre=House&fromYear=2000&toYear=2009",
+            httpClient.urls.single(),
+        )
+        assertEquals("House Track", tracks.single().title)
+    }
+
+    @Test
+    fun genresMapCounts() = runTest {
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = FakeHttpClient(
+                """
+                {
+                  "subsonic-response": {
+                    "status": "ok",
+                    "genres": {
+                      "genre": [
+                        {
+                          "value": "House",
+                          "songCount": 120,
+                          "albumCount": 18
+                        }
+                      ]
+                    }
+                  }
+                }
+                """.trimIndent(),
+            ),
+        )
+
+        val genres = provider.genres()
+
+        assertEquals("House", genres.single().name)
+        assertEquals(18, genres.single().albumCount)
+        assertEquals(120, genres.single().trackCount)
     }
 
     @Test

@@ -79,6 +79,14 @@ data class Playlist(
     val id: String,
     val name: String,
     val trackCount: Int,
+    val durationSeconds: Int? = null,
+    val coverArtId: String? = null,
+)
+
+data class Genre(
+    val name: String,
+    val albumCount: Int? = null,
+    val trackCount: Int? = null,
 )
 
 data class StreamRequest(

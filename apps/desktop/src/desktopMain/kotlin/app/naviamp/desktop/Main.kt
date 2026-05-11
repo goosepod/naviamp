@@ -44,6 +44,8 @@ import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
+import app.naviamp.domain.Genre
+import app.naviamp.domain.Playlist
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.desktop.playback.CrossfadeSettings
@@ -64,6 +66,7 @@ import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.desktop.settings.PlaybackSessionSettings
 import app.naviamp.desktop.settings.SearchSettings
 import app.naviamp.desktop.settings.WindowSettings
+import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.provider.navidrome.NavidromeApiCallHistory
 import app.naviamp.provider.navidrome.NavidromeConnection
@@ -173,7 +176,8 @@ fun NaviampApp(
     var connectionStatus by remember { mutableStateOf<String?>(null) }
     var connectedProvider by remember { mutableStateOf<NavidromeProvider?>(null) }
     var connectedSourceId by remember { mutableStateOf(savedMediaSource?.id) }
-    var recentlyAddedAlbums by remember { mutableStateOf<List<Album>>(emptyList()) }
+    var homeContent by remember { mutableStateOf(HomeContent()) }
+    var homeStatus by remember { mutableStateOf<String?>(null) }
     var selectedAlbum by remember { mutableStateOf<Album?>(null) }
     var selectedAlbumDetails by remember { mutableStateOf<AlbumDetails?>(null) }
     var selectedAlbumStatus by remember { mutableStateOf<String?>(null) }
@@ -411,6 +415,57 @@ fun NaviampApp(
         }
     }
 
+    fun loadHomeContent(provider: NavidromeProvider) {
+        homeStatus = "Loading home..."
+        coroutineScope.launch {
+            try {
+                val content = withContext(Dispatchers.IO) {
+                    val genres = runCatching { provider.genres(limit = 12) }.getOrDefault(emptyList())
+                    val genreSpotlight = genres.firstOrNull()
+                    val decadeFromYear = HomeDecadeFromYear
+                    val decadeToYear = HomeDecadeToYear
+                    HomeContent(
+                        recentlyAddedAlbums = runCatching {
+                            provider.albumList(AlbumListType.Newest, limit = 8)
+                        }.getOrDefault(emptyList()),
+                        mixAlbums = runCatching {
+                            provider.albumList(AlbumListType.Random, limit = 8)
+                        }.getOrDefault(emptyList()),
+                        recentAlbums = runCatching {
+                            provider.albumList(AlbumListType.Recent, limit = 6)
+                        }.getOrDefault(emptyList()),
+                        frequentAlbums = runCatching {
+                            provider.albumList(AlbumListType.Frequent, limit = 6)
+                        }.getOrDefault(emptyList()),
+                        randomAlbums = runCatching {
+                            provider.albumList(AlbumListType.Random, limit = 6)
+                        }.getOrDefault(emptyList()),
+                        playlists = runCatching {
+                            provider.playlists(limit = 6)
+                        }.getOrDefault(emptyList()),
+                        genres = genres,
+                        genreSpotlight = genreSpotlight,
+                        genreSpotlightAlbums = genreSpotlight?.let { genre ->
+                            runCatching {
+                                provider.albumsByGenre(genre.name, limit = 6)
+                            }.getOrDefault(emptyList())
+                        }.orEmpty(),
+                        decadeLabel = HomeDecadeLabel,
+                        decadeFromYear = decadeFromYear,
+                        decadeToYear = decadeToYear,
+                        decadeAlbums = runCatching {
+                            provider.albumsByYear(decadeFromYear, decadeToYear, limit = 6)
+                        }.getOrDefault(emptyList()),
+                    )
+                }
+                homeContent = content
+                homeStatus = null
+            } catch (exception: Exception) {
+                homeStatus = exception.message ?: "Could not load home."
+            }
+        }
+    }
+
     fun startLibrarySync(force: Boolean = false) {
         val provider = connectedProvider ?: return
         val sourceId = connectedSourceId ?: return
@@ -461,7 +516,8 @@ fun NaviampApp(
         isConnecting = true
         connectionStatus = "Connecting to Navidrome..."
         if (!restoreSavedSession) {
-            recentlyAddedAlbums = emptyList()
+            homeContent = HomeContent()
+            homeStatus = null
             stopRadioContinuation()
             playlistEngine.clear()
             playbackEngine.stop()
@@ -487,7 +543,6 @@ fun NaviampApp(
                 if (!restoreSavedSession) {
                     sessionCache.clearProviderData()
                 }
-                recentlyAddedAlbums = sessionCache.recentlyAddedAlbums(provider, limit = 5)
                 connectedProvider = provider
                 if (restoreSavedSession && savedPlaybackSession != null) {
                     val tracks = savedPlaybackSession.toTracks()
@@ -519,6 +574,7 @@ fun NaviampApp(
                     append(".")
                 }
                 refreshLibrarySnapshot()
+                loadHomeContent(provider)
                 startLibrarySync(force = !restoreSavedSession)
             } catch (exception: Exception) {
                 connectedProvider = null
@@ -622,6 +678,64 @@ fun NaviampApp(
         }
     }
 
+    fun playPlaylist(playlist: Playlist) {
+        val provider = connectedProvider ?: return
+        connectionStatus = "Loading ${playlist.name}..."
+        coroutineScope.launch {
+            try {
+                val tracks = withContext(Dispatchers.IO) {
+                    provider.playlistTracks(playlist.id)
+                }
+                if (tracks.isEmpty()) {
+                    connectionStatus = "${playlist.name} did not return any tracks."
+                    return@launch
+                }
+                connectionStatus = null
+                stopRadioContinuation()
+                openPlayerOnTrackStart = true
+                playlistEngine.playFrom(
+                    scope = coroutineScope,
+                    provider = provider,
+                    tracks = tracks,
+                    index = 0,
+                    quality = playbackEngine.streamQuality(),
+                    replayGainMode = playbackSettings.replayGainMode,
+                    callbacks = playlistCallbacks,
+                )
+            } catch (exception: Exception) {
+                connectionStatus = exception.message ?: "Could not play ${playlist.name}."
+            }
+        }
+    }
+
+    fun playLibraryRadio() {
+        playRadio("Library radio") { provider ->
+            provider.randomSongs(limit = 50)
+        }
+    }
+
+    fun playGenreRadio(genre: Genre) {
+        playRadio("${genre.name} radio") { provider ->
+            provider.randomSongs(limit = 50, genre = genre.name)
+        }
+    }
+
+    fun playDecadeRadio(fromYear: Int, toYear: Int) {
+        playRadio("$fromYear-$toYear radio") { provider ->
+            provider.randomSongs(limit = 50, fromYear = fromYear, toYear = toYear)
+        }
+    }
+
+    fun playRandomAlbumRadio() {
+        playRadio("Random album radio") { provider ->
+            val album = provider.albumList(AlbumListType.Random, limit = 1).firstOrNull()
+                ?: return@playRadio emptyList()
+            provider.albumRadio(album.id).ifEmpty {
+                provider.album(album.id).tracks.shuffled()
+            }
+        }
+    }
+
     fun playArtistRadio(artist: Artist) {
         playRadio("${artist.name} radio") { provider ->
             provider.artistRadio(artist.id)
@@ -701,7 +815,8 @@ fun NaviampApp(
         stopRadioContinuation()
         librarySnapshot = LibrarySnapshot()
         libraryStatus = null
-        recentlyAddedAlbums = emptyList()
+        homeContent = HomeContent()
+        homeStatus = null
         playlistEngine.clear()
         playbackEngine.stop()
         nowPlayingTrack = null
@@ -1005,16 +1120,39 @@ fun NaviampApp(
                                     AppRoute.Player -> Unit
                                 AppRoute.Home -> HomePanel(
                                     appColors = appColors,
-                                    connectionStatus = connectionStatus,
-                                    recentlyAddedAlbums = recentlyAddedAlbums,
-                                    coverArtUrl = { album ->
-                                        album.coverArtId?.let { connectedProvider?.coverArtUrl(it) }
+                                    connectionStatus = homeStatus ?: connectionStatus,
+                                    homeContent = homeContent,
+                                    coverArtUrl = { coverArtId ->
+                                        coverArtId?.let { connectedProvider?.coverArtUrl(it) }
                                     },
                                     onAlbumSelected = { album ->
                                         openAlbumDetails(album)
                                     },
                                     onAlbumRadioSelected = { album ->
                                         playAlbumRadio(album)
+                                    },
+                                    onPlaylistSelected = { playlist ->
+                                        playPlaylist(playlist)
+                                    },
+                                    onLibraryRadioSelected = {
+                                        playLibraryRadio()
+                                    },
+                                    onRandomAlbumRadioSelected = {
+                                        playRandomAlbumRadio()
+                                    },
+                                    onGenreRadioSelected = { genre ->
+                                        playGenreRadio(genre)
+                                    },
+                                    onDecadeRadioSelected = { fromYear, toYear ->
+                                        playDecadeRadio(fromYear, toYear)
+                                    },
+                                    onOpenArtistMixBuilder = {
+                                        libraryTab = LibraryTab.Artists
+                                        appRoute = AppRoute.Library
+                                    },
+                                    onOpenAlbumMixBuilder = {
+                                        libraryTab = LibraryTab.Albums
+                                        appRoute = AppRoute.Library
                                     },
                                 )
                                 AppRoute.AlbumDetail -> AlbumDetailPanel(
@@ -1246,6 +1384,9 @@ private const val LibraryPageSize = 50
 private const val RadioRefillThreshold = 10
 private const val RadioRefillCount = 50
 private const val RadioQueueHistoryLimit = 25
+private const val HomeDecadeFromYear = 2000
+private const val HomeDecadeToYear = 2009
+private const val HomeDecadeLabel = "The 2000s"
 
 private fun PlaybackEngine.capabilitiesLabel(): String =
     listOf(

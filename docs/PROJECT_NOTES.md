@@ -109,6 +109,10 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - Navidrome radio uses Subsonic/OpenSubsonic recommendation endpoints first: `getSimilarSongs2` for artist radio and `getSimilarSongs` for album/track radio.
   - If the server returns no recommendations, Naviamp falls back to local seed-adjacent queues from the artist/album details it can fetch.
   - Active radio queues auto-refill when 10 or fewer upcoming tracks remain by asking for track radio from the currently playing track, filtering duplicates, and appending fresh tracks.
+- Home V1:
+  - Home now loads a richer provider-backed dashboard from Navidrome/Subsonic: mixes, recently added albums, recent/frequent/random album sections, playlists, genre spotlight, and a fixed 2000s decade spotlight.
+  - Home station rows can start Library Radio, Random Album Radio, Genre Radio, and Decade Radio. Artist/Album Mix Builder rows jump into the matching Library tab for seed selection.
+  - Provider contracts now include album lists, playlists, genres, playlist tracks, and random-song queries so other providers can implement the same Home surface.
 - Desktop mpv crossfade attempt:
   - A dual-mpv-process crossfade attempt caused regressions in seek, pause, progress polling, and track advancement.
   - `MpvProcessPlaybackEngine` was restored to the stable single-process mpv path and reports `supportsCrossfade = false` again.
@@ -141,8 +145,21 @@ Top-of-mind work the user wants:
 - Add lyrics support.
 - Improve the upcoming queue further as needed.
 - Continue refining Library browsing, including genres and richer artist/album grouping.
-- Add quick radio playback from Home, seeded by genres, decades, and artists.
+- Improve Home radio seeds with richer picker/detail flows for artists, albums, genres, and decades.
 - Add Settings controls to delete image/data cache or reset the local database so the app starts a fresh server scan.
+- Phase 2 Home/personalization:
+  - Add local playback history so Home can support Recent Plays, History, Most Played This Month, and better personalized mixes without depending on server-specific smart playlists.
+  - Record enough play context to build useful Home sections later: source/server, track ID, album ID, artist ID, started timestamp, completed/skip signal, duration/position, and radio/playlist context when available.
+  - Add richer Home detail pages or carousels for playlists, genres, decades, generated stations, and history sections.
+  - Replace the fixed 2000s decade spotlight with dynamic decade/year picks from the indexed library.
+  - Use local history plus indexed library metadata for Mixes For You, On This Day, More From recently played artists/labels/genres, and dynamic decade/year modules.
+- Add configurable audio/track caching for faster and more resilient playback:
+  - Keep a small ahead-of-play cache, likely 5-10 upcoming songs by default, with a Settings control for cache depth and maybe max disk size.
+  - Cache audio bytes/files plus the track metadata needed to play and render the queue instantly.
+  - Prefetch from the current queue/radio queue so skipping forward starts immediately instead of waiting for Navidrome/network setup.
+  - Use the cache as a short offline/network-handoff buffer when the user moves between networks.
+  - Treat authenticated stream URLs as short-lived; persist provider IDs and metadata, and refresh stream URLs when needed rather than storing secrets in long-lived rows.
+  - Add cache eviction by queue distance, last access time, disk cap, and source/user namespace so different servers/users do not mix data.
 
 ## Design Preferences
 
@@ -162,3 +179,6 @@ Good next slices:
 - Add Library genres and richer artist/album grouping.
 - Add lyrics domain model and Navidrome/provider capability shape before building the UI.
 - Re-approach crossfade with an isolated engine/prototype and explicit playback debug tracing.
+- Phase 2A: add a SQLite playback-history table and record play/skip/completion events from the desktop player.
+- Phase 2B: build Home sections from local history: Recent Plays, History, Most Played This Month, and dynamic decade/year modules.
+- Phase 2C: add a bounded audio prefetch cache for the next 5-10 queue items, then wire mpv playback to prefer cached files when available.
