@@ -34,6 +34,7 @@ class DesktopCache(
     private val databasePath: Path = defaultCacheDatabasePath(),
     private val maxImageCacheBytes: Long = 500L * 1024L * 1024L,
     private val maxAudioCacheBytes: Long = 2L * 1024L * 1024L * 1024L,
+    private val maxAudioWaveformCacheBytes: Long = 32L * 1024L * 1024L,
     private val maxHotImageBytes: Long = 32L * 1024L * 1024L,
     private val audioCacheDirectory: Path = defaultAudioCacheDirectory(),
 ) {
@@ -157,6 +158,53 @@ class DesktopCache(
                 sizeBytes = row.size_bytes,
                 contentType = row.content_type,
             )
+        }
+
+    suspend fun cachedAudioWaveform(
+        sourceId: String,
+        trackId: TrackId,
+        quality: StreamQuality,
+    ): AudioWaveform? =
+        withContext(Dispatchers.IO) {
+            val qualityKey = quality.cacheKey()
+            val row = queries.selectCachedAudioWaveform(
+                source_id = sourceId,
+                remote_track_id = trackId.value,
+                quality_key = qualityKey,
+            ).executeAsOneOrNull() ?: return@withContext null
+
+            queries.touchCachedAudioWaveform(nowMillis(), sourceId, trackId.value, qualityKey)
+            AudioWaveform(
+                amplitudes = json.decodeFromString<List<Float>>(row.amplitudes_json),
+            )
+        }
+
+    suspend fun ensureAudioWaveform(
+        sourceId: String,
+        trackId: TrackId,
+        quality: StreamQuality,
+        analyzer: AudioWaveformAnalyzer = AudioWaveformAnalyzer(),
+    ): AudioWaveform? =
+        withContext(Dispatchers.IO) {
+            cachedAudioWaveform(sourceId, trackId, quality)?.let { return@withContext it }
+            val audio = cachedAudioFile(sourceId, trackId, quality) ?: return@withContext null
+            val waveform = analyzer.analyze(audio.path) ?: return@withContext null
+            val qualityKey = quality.cacheKey()
+            val amplitudesJson = json.encodeToString(waveform.amplitudes)
+            val now = nowMillis()
+            queries.upsertCachedAudioWaveform(
+                source_id = sourceId,
+                remote_track_id = trackId.value,
+                quality_key = qualityKey,
+                audio_file_path = audio.path.toAbsolutePath().toString(),
+                bucket_count = waveform.amplitudes.size.toLong(),
+                amplitudes_json = amplitudesJson,
+                size_bytes = amplitudesJson.toByteArray(Charsets.UTF_8).size.toLong(),
+                created_at_epoch_millis = now,
+                last_accessed_epoch_millis = now,
+            )
+            trimAudioWaveformStore()
+            waveform
         }
 
     suspend fun cacheAudioTrack(
@@ -421,6 +469,7 @@ class DesktopCache(
         queries.transaction {
             queries.clearResponses()
             queries.clearImages()
+            queries.clearAudioWaveforms()
             queries.clearAudio()
         }
         clearAudioFiles()
@@ -455,6 +504,8 @@ class DesktopCache(
             responseCount = queries.responseCacheCount().executeAsOne(),
             audioCount = queries.audioCacheCount().executeAsOne(),
             audioBytes = queries.audioCacheSize().executeAsOne(),
+            audioWaveformCount = queries.audioWaveformCacheCount().executeAsOne(),
+            audioWaveformBytes = queries.audioWaveformCacheSize().executeAsOne(),
             mediaSourceCount = queries.mediaSourceCount().executeAsOne(),
             libraryArtistCount = queries.libraryArtistCount().executeAsOne(),
             libraryAlbumCount = queries.libraryAlbumCount().executeAsOne(),
@@ -463,6 +514,7 @@ class DesktopCache(
             hotImageBytes = synchronized(hotImages) { hotImageBytes },
             maxImageBytes = maxImageCacheBytes,
             maxAudioBytes = maxAudioCacheBytes,
+            maxAudioWaveformBytes = maxAudioWaveformCacheBytes,
             maxHotImageBytes = maxHotImageBytes,
         )
 
@@ -543,6 +595,21 @@ class DesktopCache(
         }
     }
 
+    private fun trimAudioWaveformStore() {
+        var cacheSize = queries.audioWaveformCacheSize().executeAsOne()
+        if (cacheSize <= maxAudioWaveformCacheBytes) return
+
+        queries.oldestCachedAudioWaveforms(100).executeAsList().forEach { waveform ->
+            if (cacheSize <= maxAudioWaveformCacheBytes) return
+            queries.deleteCachedAudioWaveform(
+                waveform.source_id,
+                waveform.remote_track_id,
+                waveform.quality_key,
+            )
+            cacheSize -= waveform.size_bytes
+        }
+    }
+
     private fun clearAudioFiles() {
         runCatching {
             if (!audioCacheDirectory.exists()) return@runCatching
@@ -569,6 +636,8 @@ data class CacheStats(
     val responseCount: Long,
     val audioCount: Long,
     val audioBytes: Long,
+    val audioWaveformCount: Long,
+    val audioWaveformBytes: Long,
     val mediaSourceCount: Long,
     val libraryArtistCount: Long,
     val libraryAlbumCount: Long,
@@ -577,6 +646,7 @@ data class CacheStats(
     val hotImageBytes: Long,
     val maxImageBytes: Long,
     val maxAudioBytes: Long,
+    val maxAudioWaveformBytes: Long,
     val maxHotImageBytes: Long,
 )
 
@@ -584,6 +654,10 @@ data class CachedAudioFile(
     val path: Path,
     val sizeBytes: Long,
     val contentType: String?,
+)
+
+data class AudioWaveform(
+    val amplitudes: List<Float>,
 )
 
 data class SavedMediaSource(
@@ -696,6 +770,52 @@ private fun ensureCurrentTables(driver: JdbcSqliteDriver) {
     driver.execute(
         null,
         """
+        CREATE TABLE IF NOT EXISTS cached_audio_waveform (
+          source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+          remote_track_id TEXT NOT NULL,
+          quality_key TEXT NOT NULL,
+          audio_file_path TEXT NOT NULL,
+          bucket_count INTEGER NOT NULL,
+          amplitudes_json TEXT NOT NULL,
+          size_bytes INTEGER NOT NULL DEFAULT 0,
+          created_at_epoch_millis INTEGER NOT NULL,
+          last_accessed_epoch_millis INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY(source_id, remote_track_id, quality_key)
+        )
+        """.trimIndent(),
+        0,
+    )
+    runCatching {
+        driver.execute(
+            null,
+            "ALTER TABLE cached_audio_waveform ADD COLUMN size_bytes INTEGER NOT NULL DEFAULT 0",
+            0,
+        )
+    }
+    runCatching {
+        driver.execute(
+            null,
+            "ALTER TABLE cached_audio_waveform ADD COLUMN last_accessed_epoch_millis INTEGER NOT NULL DEFAULT 0",
+            0,
+        )
+    }
+    driver.execute(
+        null,
+        "UPDATE cached_audio_waveform SET size_bytes = LENGTH(amplitudes_json) WHERE size_bytes = 0",
+        0,
+    )
+    driver.execute(
+        null,
+        """
+        UPDATE cached_audio_waveform
+        SET last_accessed_epoch_millis = created_at_epoch_millis
+        WHERE last_accessed_epoch_millis = 0
+        """.trimIndent(),
+        0,
+    )
+    driver.execute(
+        null,
+        """
         CREATE TABLE IF NOT EXISTS library_artist (
           source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
           remote_artist_id TEXT NOT NULL,
@@ -774,6 +894,7 @@ private fun ensureCurrentTables(driver: JdbcSqliteDriver) {
         "CREATE INDEX IF NOT EXISTS library_track_source_title ON library_track(source_id, search_title)",
         "CREATE INDEX IF NOT EXISTS library_track_source_artist ON library_track(source_id, search_artist_name)",
         "CREATE INDEX IF NOT EXISTS cached_audio_source_access ON cached_audio(source_id, last_accessed_epoch_millis)",
+        "CREATE INDEX IF NOT EXISTS cached_audio_waveform_access ON cached_audio_waveform(last_accessed_epoch_millis)",
     ).forEach { sql ->
         driver.execute(null, sql, 0)
     }

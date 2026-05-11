@@ -85,6 +85,19 @@ CREATE TABLE cached_audio (
   PRIMARY KEY(source_id, remote_track_id, quality_key)
 );
 
+CREATE TABLE cached_audio_waveform (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  remote_track_id TEXT NOT NULL,
+  quality_key TEXT NOT NULL,
+  audio_file_path TEXT NOT NULL,
+  bucket_count INTEGER NOT NULL,
+  amplitudes_json TEXT NOT NULL,
+  size_bytes INTEGER NOT NULL,
+  created_at_epoch_millis INTEGER NOT NULL,
+  last_accessed_epoch_millis INTEGER NOT NULL,
+  PRIMARY KEY(source_id, remote_track_id, quality_key)
+);
+
 CREATE INDEX library_artist_source_name
 ON library_artist(source_id, search_name);
 
@@ -102,6 +115,9 @@ ON library_track(source_id, search_artist_name);
 
 CREATE INDEX cached_audio_source_access
 ON cached_audio(source_id, last_accessed_epoch_millis);
+
+CREATE INDEX cached_audio_waveform_access
+ON cached_audio_waveform(last_accessed_epoch_millis);
 
 selectImage:
 SELECT bytes
@@ -394,6 +410,53 @@ WHERE source_id = ?
 AND remote_track_id = ?
 AND quality_key = ?;
 
+selectCachedAudioWaveform:
+SELECT *
+FROM cached_audio_waveform
+WHERE source_id = ?
+AND remote_track_id = ?
+AND quality_key = ?;
+
+touchCachedAudioWaveform:
+UPDATE cached_audio_waveform
+SET last_accessed_epoch_millis = ?
+WHERE source_id = ?
+AND remote_track_id = ?
+AND quality_key = ?;
+
+upsertCachedAudioWaveform:
+INSERT OR REPLACE INTO cached_audio_waveform(
+  source_id,
+  remote_track_id,
+  quality_key,
+  audio_file_path,
+  bucket_count,
+  amplitudes_json,
+  size_bytes,
+  created_at_epoch_millis,
+  last_accessed_epoch_millis
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+audioWaveformCacheSize:
+SELECT COALESCE(SUM(size_bytes), 0)
+FROM cached_audio_waveform;
+
+audioWaveformCacheCount:
+SELECT COUNT(*)
+FROM cached_audio_waveform;
+
+oldestCachedAudioWaveforms:
+SELECT *
+FROM cached_audio_waveform
+ORDER BY last_accessed_epoch_millis ASC
+LIMIT ?;
+
+deleteCachedAudioWaveform:
+DELETE FROM cached_audio_waveform
+WHERE source_id = ?
+AND remote_track_id = ?
+AND quality_key = ?;
+
 mediaSourceCount:
 SELECT COUNT(*)
 FROM media_source;
@@ -418,6 +481,9 @@ DELETE FROM cached_image;
 
 clearAudio:
 DELETE FROM cached_audio;
+
+clearAudioWaveforms:
+DELETE FROM cached_audio_waveform;
 
 clearLibraryTracks:
 DELETE FROM library_track;

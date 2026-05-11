@@ -216,6 +216,7 @@ fun NaviampApp(
     }
     var nowPlayingTrack by remember { mutableStateOf(restoredTrack) }
     var nowPlayingCoverArtUrl by remember { mutableStateOf<String?>(null) }
+    var nowPlayingWaveform by remember { mutableStateOf<AudioWaveform?>(null) }
     var playbackState by remember { mutableStateOf<PlaybackState>(PlaybackState.Idle) }
     var playbackProgress by remember { mutableStateOf(PlaybackProgress.Unknown) }
     var playbackQueue by remember {
@@ -368,6 +369,7 @@ fun NaviampApp(
         onTrackStarted = { track, coverArtUrl ->
             nowPlayingTrack = track
             nowPlayingCoverArtUrl = coverArtUrl
+            nowPlayingWaveform = null
             playbackProgress = PlaybackProgress.Unknown
             refillRadioIfNeeded(playlistEngine.queue)
             if (openPlayerOnTrackStart) {
@@ -385,6 +387,39 @@ fun NaviampApp(
             playbackProgress = progress.mergeWith(playbackProgress)
         },
     )
+
+    LaunchedEffect(nowPlayingTrack?.id, connectedSourceId, connectedProvider, playbackEngine) {
+        val track = nowPlayingTrack ?: run {
+            nowPlayingWaveform = null
+            return@LaunchedEffect
+        }
+        val sourceId = connectedSourceId ?: run {
+            nowPlayingWaveform = null
+            return@LaunchedEffect
+        }
+        val provider = connectedProvider ?: run {
+            nowPlayingWaveform = null
+            return@LaunchedEffect
+        }
+        val quality = playbackEngine.streamQuality()
+
+        val waveform = withContext(Dispatchers.IO) {
+            runCatching {
+                sessionCache.cacheAudioTrack(
+                    sourceId = sourceId,
+                    provider = provider,
+                    track = track,
+                    quality = quality,
+                )
+                sessionCache.ensureAudioWaveform(
+                    sourceId = sourceId,
+                    trackId = track.id,
+                    quality = quality,
+                )
+            }.getOrNull()
+        }
+        nowPlayingWaveform = waveform
+    }
 
     fun refreshLibrarySnapshot() {
         val sourceId = connectedSourceId
@@ -732,25 +767,48 @@ fun NaviampApp(
         }
     }
 
+    suspend fun artistRadioSeedTrack(provider: NavidromeProvider, artist: Artist): Track? =
+        runCatching {
+            val details = sessionCache.artist(provider, artist.id)
+            details.albums.forEach { album ->
+                val tracks = sessionCache.album(provider, album.id).tracks
+                tracks.firstOrNull { it.artistId == artist.id }?.let { return@runCatching it }
+                tracks.firstOrNull { it.artistName.equals(artist.name, ignoreCase = true) }
+                    ?.let { return@runCatching it }
+            }
+            null
+        }.getOrNull()
+
+    suspend fun albumRadioSeedTrack(provider: NavidromeProvider, album: Album): Track? =
+        runCatching {
+            sessionCache.album(provider, album.id).tracks.firstOrNull()
+        }.getOrNull()
+
     fun playRandomAlbumRadio() {
         playRadio("Random album radio") { provider ->
             val album = provider.albumList(AlbumListType.Random, limit = 1).firstOrNull()
                 ?: return@playRadio emptyList()
-            provider.albumRadio(album.id).ifEmpty {
+            val seedTrack = albumRadioSeedTrack(provider, album)
+            val recommendations = provider.albumRadio(album.id).ifEmpty {
                 provider.album(album.id).tracks.shuffled()
             }
+            listOfNotNull(seedTrack) + recommendations.filterNot { it.id == seedTrack?.id }
         }
     }
 
     fun playArtistRadio(artist: Artist) {
         playRadio("${artist.name} radio") { provider ->
-            provider.artistRadio(artist.id)
+            val seedTrack = artistRadioSeedTrack(provider, artist)
+            val recommendations = provider.artistRadio(artist.id)
+            listOfNotNull(seedTrack) + recommendations.filterNot { it.id == seedTrack?.id }
         }
     }
 
     fun playAlbumRadio(album: Album) {
         playRadio("${album.title} radio") { provider ->
-            provider.albumRadio(album.id)
+            val seedTrack = albumRadioSeedTrack(provider, album)
+            val recommendations = provider.albumRadio(album.id)
+            listOfNotNull(seedTrack) + recommendations.filterNot { it.id == seedTrack?.id }
         }
     }
 
@@ -801,7 +859,7 @@ fun NaviampApp(
 
     fun clearCacheData() {
         sessionCache.clearCacheData()
-        connectionStatus = "Image, provider response, and audio cache cleared."
+        connectionStatus = "Image, provider response, audio, and waveform cache cleared."
     }
 
     fun clearLibraryData() {
@@ -1040,6 +1098,7 @@ fun NaviampApp(
                                 supportsTrackFavorites = connectedProvider?.capabilities?.supportsTrackFavorites == true,
                                 supportsTrackRatings = connectedProvider?.capabilities?.supportsTrackRatings == true,
                                 nowPlayingTrack = nowPlayingTrack,
+                                nowPlayingWaveform = nowPlayingWaveform,
                                 coverArtUrl = nowPlayingCoverArtUrl,
                                 upNext = playbackQueue.upNext(),
                                 firstUpNextQueueIndex = playbackQueue.currentIndex + 1,

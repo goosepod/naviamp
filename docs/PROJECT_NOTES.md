@@ -109,6 +109,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - Tapping the mini-player row opens the full player, but its transport buttons should only control playback and should not navigate away from the current screen.
 - Radio:
   - Artist, album, and track rows expose "Start radio" menu actions where those rows appear.
+  - Artist and album radio queues start with a real seed track from that artist/album before appending recommendation results.
   - Navidrome radio uses Subsonic/OpenSubsonic recommendation endpoints first: `getSimilarSongs2` for artist radio and `getSimilarSongs` for album/track radio.
   - If the server returns no recommendations, Naviamp falls back to local seed-adjacent queues from the artist/album details it can fetch.
   - Active radio queues auto-refill when 10 or fewer upcoming tracks remain by asking for track radio from the currently playing track, filtering duplicates, and appending fresh tracks.
@@ -122,6 +123,17 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - Playback starts background prefetch for up to 10 upcoming queue items and cancels that work when the queue/session changes.
   - Clear cache removes prefetched audio files in addition to images and provider responses.
   - The cache stores provider IDs and local paths, not long-lived authenticated stream URLs.
+  - This opens a practical path to precomputed per-track analysis: waveform scrubber buckets, silence/intro/outro detection, loudness hints, beat/energy markers, cache-hit reporting, and better future offline/network-handoff behavior.
+- Waveform scrubber V1:
+  - Desktop now has `cached_audio_waveform` metadata keyed by source, remote track ID, and stream quality.
+  - `AudioWaveformAnalyzer` uses resolved/bundled mpv as a decoder, writes a temporary mono 8 kHz WAV, parses 16-bit PCM amplitude peaks, normalizes them into compact buckets, then removes the temp file.
+  - The current-track waveform is generated only after a cached audio file exists; the UI keeps the normal Material slider until analysis is available.
+  - The current-track waveform path actively caches/analyzes the now-playing file; it does not depend on the upcoming-track prefetch job finishing.
+  - The Now Playing scrubber draws a compact Compose waveform with played/unplayed coloring and supports click/drag seeking through the same `onSeek` path as the old slider.
+  - Waveform generation is intentionally current-track only for now so upcoming prefetch does not become a CPU-heavy analysis queue.
+  - Waveform rows are a separate cache from audio files. Audio eviction should not delete waveform analysis, because the waveform is small and can make repeat plays render instantly.
+  - The waveform cache is size-capped at 32 MiB as a rough budget for about 10,000 analyzed tracks, with least-recently-used eviction based on waveform access time.
+  - Stats for nerds reports waveform count, size, and budget. The Settings clear image/provider/audio cache action also clears waveform rows.
 - Desktop mpv crossfade attempt:
   - A dual-mpv-process crossfade attempt caused regressions in seek, pause, progress polling, and track advancement.
   - `MpvProcessPlaybackEngine` was restored to the stable single-process mpv path and reports `supportsCrossfade = false` again.
@@ -132,6 +144,23 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 - Kotlin/IDE housekeeping:
   - Kotlin version catalog bumped to `2.3.0`.
   - Generated `apps/desktop/bin/` output is ignored.
+
+## Reference Research
+
+- Feishin waveform scrubber:
+  - Feishin's `playerbar-waveform.tsx` uses `@wavesurfer/react`/`wavesurfer.js` to render a compact waveform in the player bar.
+  - The waveform path resolves a stream URL with `useSongUrl`, delays loading briefly, loads the URL into a separate muted audio element, and uses WaveSurfer as visualization-only UI.
+  - It keeps normal seek behavior outside the waveform engine: mouse/touch drag calculates a ratio from pointer position, seeks WaveSurfer for preview, then calls the player seek action with the target timestamp.
+  - For Naviamp, do not copy the web implementation directly. Prefer a native/cache-first design: analyze cached audio files into compact amplitude buckets, store the analysis by source/track/quality, then draw the waveform in Compose as the scrub bar. Fall back to the normal scrub bar while analysis is missing.
+- Feishin stream URL/cache behavior:
+  - `use-stream-url.tsx` resolves stream URLs through React Query and remembers the current track URL briefly to avoid restarting playback when transcode settings change.
+  - Feishin's visible cache settings clear React Query and Electron/browser cache. The inspected code did not show a source-scoped ahead-of-play audio-file cache like Naviamp's `cached_audio` table.
+  - Naviamp's current file-backed cache is therefore a stronger base for Android/offline work than Feishin's browser-cache clearing path.
+- Feishin crossfade/gapless behavior:
+  - Feishin's web and WaveSurfer players use two player instances, track which player is active, start the next player near the end of the current duration, and crossfade volumes from progress callbacks.
+  - Their newer web player includes multiple fade curves: linear, equal-power, exponential, and S-curve.
+  - They explicitly reset transition state on seek, pause, current-song changes, and queue-clear paths. This is the main lesson for Naviamp's experimental mpv crossfade class.
+  - Naviamp's audio cache helps crossfade by making the next local file available early, but it does not by itself solve dual-player state, seek/pause reset, queue advancement, or volume curve correctness.
 
 ## Important Current Behavior
 
@@ -151,9 +180,30 @@ Top-of-mind work the user wants:
 - Continue modularizing reusable UI pieces where screens still carry one-off media UI.
 - Broaden starring and favoriting controls beyond the player, including reusable row-level controls.
 - Continue refining the scrub bar.
+- Add a Plexamp/Feishin-style waveform scrubber backed by cached-track analysis, not a second live stream where possible.
 - Add a music visualization on the player screen, activated by clicking album art.
 - Add lyrics support.
 - Improve the upcoming queue further as needed.
+- Make radio startup instant:
+  - Track radio should immediately start the selected seed track, then build/append the recommendation queue in the background so playback is not delayed.
+  - Album radio should immediately start a random track from the selected album, then build/append the recommendation queue in the background.
+  - Artist radio should immediately start a random track from the selected artist, then build/append the recommendation queue in the background.
+- Add row menus for `UP NEXT` queue items. First action can be Start track radio; future actions can extend the same menu.
+- Redesign the full player layout again:
+  - Order should be album art, waveform/scrub bar, track title, artist, album/year, rating controls, codec/bitrate/quality, then volume.
+  - Track title should remain bold and be slightly larger than album metadata.
+  - Album/year metadata should use subtly differentiated color so the hierarchy is clear without looking dramatic.
+  - Rating controls should remain provider-aware: Navidrome gets heart/stars; Jellyfin/Plexamp-like sources may need different controls.
+- Simplify the bottom player control strip:
+  - Remove the `gapless / no crossfade` capability text from the player UI.
+  - Keep the down arrow centered.
+  - Add action icons around it: a dedicated track-radio icon on the left, and a hamburger/overflow menu on the far right.
+  - The overflow menu should grow into actions like Start track radio, Track details, Show lyrics, Go to artist page, Go to album page, Show visualizer, Add to playlist, and other useful track actions.
+- Refine the volume bar:
+  - Make it thinner.
+  - Remove the filled/blank Material slider track treatment; prefer a simple white line with no surrounding empty coloring.
+  - Remove the percentage label on the right.
+- Fill in the player `RELATED` tab next to `UP NEXT`.
 - Continue refining Library browsing, including genres and richer artist/album grouping.
 - Improve Home radio seeds with richer picker/detail flows for artists, albums, genres, and decades.
 - Improve packaged app startup speed. The generated Windows executable opens noticeably slowly; profile cold start, runtime image startup, settings/database initialization, restored connection work, and first Home/library loading so the shell appears quickly and background work stays backgrounded.
@@ -187,6 +237,16 @@ Good next slices:
 - Phase 2C follow-up: expose Settings controls for audio cache depth and disk limit once the core cache behavior is stable.
 - Phase 2C follow-up: add visible/debuggable prefetch status and cache-hit reporting in Stats for nerds.
 - Phase 2C follow-up: harden audio cache behavior for mobile/offline use, including expiry rules, partial download cleanup, and provider-specific refresh hooks if Android needs them.
+- Waveform follow-up: add cache-hit/status reporting for waveform generation in Stats for nerds.
+- Waveform follow-up: consider queue-aware/background waveform analysis for likely-upcoming tracks after measuring CPU impact.
+- Radio startup follow-up: split radio playback into instant seed playback plus background queue expansion for track, album, and artist radio.
+- Queue actions follow-up: add per-row overflow menus in `UP NEXT`, starting with Start track radio.
+- Player actions follow-up: replace the bottom capability label with centered collapse control plus track-radio and overflow action icons.
+- Player layout follow-up: reorder the metadata/ratings/quality/volume stack and tighten the visual hierarchy.
+- Volume follow-up: replace the Material volume slider with a thinner custom line control and drop the right-side percent text.
+- Related tab V1: define and populate provider-aware related content for the full player.
+- Visualizer V1: separate static waveform analysis from live frequency visualization. Live spectrum requires decoded PCM access and should be treated as a later player-engine/audio-pipeline task.
+- Crossfade follow-up: revisit `ExperimentalCrossfadeMpvPlaybackEngine` with cached local next files, explicit transition reset on seek/pause/skip/queue clear, and configurable fade curves inspired by Feishin's web player.
 - Broaden reusable row-level favorite/rating controls beyond the player.
 - Add Library genres and richer artist/album grouping.
 - Add lyrics domain model and Navidrome/provider capability shape before building the UI.

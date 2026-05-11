@@ -1,8 +1,11 @@
 package app.naviamp.desktop
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -36,11 +39,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.toComposeImageBitmap
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -72,6 +79,7 @@ fun NowPlayingPanel(
     supportsTrackFavorites: Boolean,
     supportsTrackRatings: Boolean,
     nowPlayingTrack: Track?,
+    nowPlayingWaveform: AudioWaveform?,
     coverArtUrl: String?,
     upNext: List<Track>,
     firstUpNextQueueIndex: Int,
@@ -137,6 +145,7 @@ fun NowPlayingPanel(
                     supportsCrossfade = supportsCrossfade,
                     supportsSoftwareVolume = supportsSoftwareVolume,
                     nowPlayingTrack = nowPlayingTrack,
+                    nowPlayingWaveform = nowPlayingWaveform,
                     playbackState = playbackState,
                     playbackProgress = playbackProgress,
                     volumePercent = volumePercent,
@@ -190,6 +199,7 @@ fun NowPlayingPanel(
                     supportsCrossfade = supportsCrossfade,
                     supportsSoftwareVolume = supportsSoftwareVolume,
                     nowPlayingTrack = nowPlayingTrack,
+                    nowPlayingWaveform = nowPlayingWaveform,
                     playbackState = playbackState,
                     playbackProgress = playbackProgress,
                     volumePercent = volumePercent,
@@ -333,6 +343,7 @@ private fun PlayerDetails(
     supportsCrossfade: Boolean,
     supportsSoftwareVolume: Boolean,
     nowPlayingTrack: Track?,
+    nowPlayingWaveform: AudioWaveform?,
     playbackState: PlaybackState,
     playbackProgress: PlaybackProgress,
     volumePercent: Int,
@@ -402,24 +413,47 @@ private fun PlayerDetails(
                 textAlign = TextAlign.Center,
                 modifier = Modifier.width(42.dp),
             )
-            Slider(
-                value = scrubberValue,
-                onValueChange = {
-                    isScrubbing = true
-                    scrubberValue = it
-                },
-                onValueChangeFinished = {
-                    effectiveDurationSeconds?.let { duration ->
-                        onSeek(scrubberValue * duration)
-                    }
-                    isScrubbing = false
-                },
-                enabled = canSeek,
-                colors = playerSliderColors(playerColors, appColors),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(22.dp),
-            )
+            if (nowPlayingWaveform != null) {
+                WaveformScrubber(
+                    waveform = nowPlayingWaveform,
+                    value = scrubberValue,
+                    enabled = canSeek,
+                    playerColors = playerColors,
+                    appColors = appColors,
+                    onValueChange = {
+                        isScrubbing = true
+                        scrubberValue = it
+                    },
+                    onValueChangeFinished = {
+                        effectiveDurationSeconds?.let { duration ->
+                            onSeek(scrubberValue * duration)
+                        }
+                        isScrubbing = false
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(22.dp),
+                )
+            } else {
+                Slider(
+                    value = scrubberValue,
+                    onValueChange = {
+                        isScrubbing = true
+                        scrubberValue = it
+                    },
+                    onValueChangeFinished = {
+                        effectiveDurationSeconds?.let { duration ->
+                            onSeek(scrubberValue * duration)
+                        }
+                        isScrubbing = false
+                    },
+                    enabled = canSeek,
+                    colors = playerSliderColors(playerColors, appColors),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(22.dp),
+                )
+            }
             Text(
                 effectiveDurationSeconds.durationLabel(),
                 color = appColors.primaryText,
@@ -565,13 +599,17 @@ private fun PlayerDetails(
                 .fillMaxWidth()
                 .padding(horizontal = 42.dp),
         ) {
-            Text(
-                "VOL",
-                color = appColors.secondaryText,
-                fontSize = 10.sp,
-                textAlign = TextAlign.Center,
+            Box(
+                contentAlignment = Alignment.Center,
                 modifier = Modifier.width(22.dp),
-            )
+            ) {
+                Icon(
+                    imageVector = TransportIcons.Volume,
+                    contentDescription = "Volume",
+                    tint = appColors.secondaryText,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
             Slider(
                 value = volumeValue,
                 onValueChange = {
@@ -634,6 +672,81 @@ private fun playerSliderColors(
     disabledActiveTrackColor = Color.White.copy(alpha = 0.18f),
     disabledInactiveTrackColor = Color.White.copy(alpha = 0.12f),
 )
+
+@Composable
+private fun WaveformScrubber(
+    waveform: AudioWaveform,
+    value: Float,
+    enabled: Boolean,
+    playerColors: PlayerColors,
+    appColors: AppColors,
+    onValueChange: (Float) -> Unit,
+    onValueChangeFinished: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var widthPx by remember { mutableFloatStateOf(1f) }
+
+    fun updateFromX(x: Float) {
+        if (!enabled) return
+        onValueChange((x / widthPx).coerceIn(0f, 1f))
+    }
+
+    Canvas(
+        modifier = modifier
+            .clip(RoundedCornerShape(4.dp))
+            .onSizeChanged { widthPx = it.width.toFloat().coerceAtLeast(1f) }
+            .pointerInput(enabled, widthPx) {
+                detectTapGestures { offset ->
+                    updateFromX(offset.x)
+                    onValueChangeFinished()
+                }
+            }
+            .pointerInput(enabled, widthPx) {
+                detectDragGestures(
+                    onDragStart = { offset -> updateFromX(offset.x) },
+                    onDrag = { change, _ -> updateFromX(change.position.x) },
+                    onDragEnd = onValueChangeFinished,
+                    onDragCancel = onValueChangeFinished,
+                )
+            },
+    ) {
+        val amplitudes = waveform.amplitudes
+        if (amplitudes.isEmpty()) return@Canvas
+
+        val centerY = size.height / 2f
+        val visibleBars = minOf(amplitudes.size, (size.width / 3f).toInt().coerceAtLeast(24))
+        val step = size.width / visibleBars.toFloat()
+        val strokeWidth = (step * 0.62f).coerceIn(1.2f, 2.4f)
+        val minBarHeight = 2.5f
+        val maxBarHeight = size.height * 0.92f
+
+        repeat(visibleBars) { index ->
+            val sourceIndex = if (visibleBars == 1) {
+                0
+            } else {
+                ((index / (visibleBars - 1f)) * (amplitudes.size - 1)).toInt()
+            }
+            val amplitude = amplitudes[sourceIndex].coerceIn(0f, 1f)
+            val barHeight = (minBarHeight + amplitude * (maxBarHeight - minBarHeight))
+                .coerceAtMost(size.height)
+            val ratio = if (visibleBars == 1) 0f else index / (visibleBars - 1f)
+            val x = index * step + step / 2f
+            val color = when {
+                !enabled -> appColors.mutedText.copy(alpha = 0.28f)
+                ratio <= value -> playerColors.accent
+                else -> appColors.secondaryText.copy(alpha = 0.38f)
+            }
+
+            drawLine(
+                color = color,
+                start = Offset(x, centerY - barHeight / 2f),
+                end = Offset(x, centerY + barHeight / 2f),
+                strokeWidth = strokeWidth,
+                cap = StrokeCap.Round,
+            )
+        }
+    }
+}
 
 @Composable
 private fun TransportIconButton(

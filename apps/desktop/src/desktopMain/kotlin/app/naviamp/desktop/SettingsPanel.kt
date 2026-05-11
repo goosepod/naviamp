@@ -164,6 +164,13 @@ fun SettingsPanel(
                     },
                 )
             }
+            TextButton(
+                onClick = onOpenStatsForNerds,
+                contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
+                modifier = Modifier.height(24.dp),
+            ) {
+                Text("Stats for nerds", fontSize = 12.sp)
+            }
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
