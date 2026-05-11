@@ -90,6 +90,8 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - The current overflow menu starts with Start track radio, Go to artist, and Go to album. Track details, lyrics, visualizer, and playlist actions can extend this menu later.
   - Starting track radio from the player screen does not restart the current track; it preserves playback and replaces the upcoming queue with radio recommendations.
   - Popup menus use a shared dark Feishin-inspired treatment through `NaviampDropdownMenu` / `NaviampDropdownMenuItem`.
+  - The `RELATED` tab is active. It loads same-album and same-artist tracks from the local source-scoped library index, excluding the current track and deduplicating by provider track ID.
+  - Related rows can start playback immediately from the related list, and their row menu can start track radio.
 - Album release years:
   - Navidrome album/song `year` maps onto albums and tracks.
   - Album rows, album detail, and the player album line show release years when available.
@@ -206,7 +208,6 @@ Top-of-mind work the user wants:
   - Track title should remain bold and be slightly larger than album metadata.
   - Album/year metadata should use subtly differentiated color so the hierarchy is clear without looking dramatic.
   - Rating controls should remain provider-aware: Navidrome gets heart/stars; Jellyfin/Plexamp-like sources may need different controls.
-- Fill in the player `RELATED` tab next to `UP NEXT`.
 - Continue refining Library browsing, including genres and richer artist/album grouping.
 - Improve Home radio seeds with richer picker/detail flows for artists, albums, genres, and decades.
 - Improve packaged app startup speed. The generated Windows executable opens noticeably slowly; profile cold start, runtime image startup, settings/database initialization, restored connection work, and first Home/library loading so the shell appears quickly and background work stays backgrounded.
