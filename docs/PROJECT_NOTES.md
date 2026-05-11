@@ -99,6 +99,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
     - Timed lyrics highlight slightly ahead of the exact timestamp to feel aligned with vocals, auto-scroll so the active line stays near center, and click-to-seek works both forward and backward. Unsynced lyrics render as scrollable text.
     - Seek handling updates playback progress immediately and ignores short-lived stale mpv progress after a deliberate seek so scrub bar and lyric state can jump backward cleanly.
   - Starting track radio from the player screen does not restart the current track; it preserves playback and replaces the upcoming queue with radio recommendations.
+  - `UP NEXT` rows have the shared overflow menu treatment. The first action starts track radio from that queued song.
   - Popup menus use a shared dark Feishin-inspired treatment through `NaviampDropdownMenu` / `NaviampDropdownMenuItem`.
   - The `RELATED` tab is active. It loads same-album and same-artist tracks from the local source-scoped library index, excluding the current track and deduplicating by provider track ID.
   - Related rows can start playback immediately from the related list, and their row menu can start track radio.
@@ -218,7 +219,7 @@ Top-of-mind work the user wants:
 - Continue refining lyrics support: auto-scroll active synced lines, cache provider lyrics in SQLite, add MP4/M4A embedded lyrics parsing, and consider a settings-controlled LRCLIB fallback.
 - Improve play reporting with an offline retry queue and local history table so failed scrobbles can be retried and Home can use local play data without depending entirely on server history.
 - Improve the upcoming queue further as needed.
-- Add row menus for `UP NEXT` queue items. First action can be Start track radio; future actions can extend the same menu.
+- Expand row menus for `UP NEXT` queue items beyond Start track radio as more queue actions are added.
 - Redesign the full player layout again:
   - Order should be album art, waveform/scrub bar, track title, artist, album/year, rating controls, codec/bitrate/quality, then volume.
   - Track title should remain bold and be slightly larger than album metadata.

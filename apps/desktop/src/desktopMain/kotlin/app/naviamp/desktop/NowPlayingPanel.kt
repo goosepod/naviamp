@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -109,6 +110,7 @@ fun NowPlayingPanel(
     onAlbumSelected: (Track) -> Unit,
     onTrackRadioSelected: (Track) -> Unit,
     onQueueIndexSelected: (Int) -> Unit,
+    onUpNextTrackRadioSelected: (Track) -> Unit,
     onRelatedTrackSelected: (Int) -> Unit,
     onRelatedTrackRadioSelected: (Track) -> Unit,
     onCollapseToHome: () -> Unit,
@@ -125,7 +127,7 @@ fun NowPlayingPanel(
 
     BoxWithConstraints(
         modifier = Modifier
-            .fillMaxWidth()
+            .fillMaxSize()
             .heightIn(min = 300.dp)
             .padding(0.dp),
     ) {
@@ -140,64 +142,62 @@ fun NowPlayingPanel(
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxSize(),
             ) {
-                if (showLyrics) {
-                    LyricsPanel(
-                        lyrics = nowPlayingLyrics,
-                        playbackProgress = playbackProgress,
-                        appColors = appColors,
-                        onSeek = onSeek,
-                        modifier = Modifier
-                            .width(artSize + 24.dp)
-                            .height(artSize),
-                    )
-                } else {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier
+                        .weight(0.9f)
+                        .fillMaxHeight(),
+                ) {
                     CoverArt(
                         coverArtState = coverArtState,
                         appColors = appColors,
                         size = artSize,
                     )
+                    PlayerDetails(
+                        appColors = appColors,
+                        playerColors = playerColors,
+                        playbackEngineName = playbackEngineName,
+                        supportsSoftwareVolume = supportsSoftwareVolume,
+                        nowPlayingTrack = nowPlayingTrack,
+                        nowPlayingWaveform = nowPlayingWaveform,
+                        nowPlayingAudioTags = nowPlayingAudioTags,
+                        playbackState = playbackState,
+                        playbackProgress = playbackProgress,
+                        volumePercent = volumePercent,
+                        supportsPause = supportsPause,
+                        supportsSeek = supportsSeek,
+                        supportsTrackFavorites = supportsTrackFavorites,
+                        supportsTrackRatings = supportsTrackRatings,
+                        hasPrevious = hasPrevious,
+                        hasNext = hasNext,
+                        onPause = onPause,
+                        onResume = onResume,
+                        onPlayCurrent = onPlayCurrent,
+                        onSeek = onSeek,
+                        onPrevious = onPrevious,
+                        onNext = onNext,
+                        onVolumeChanged = onVolumeChanged,
+                        onToggleTrackFavorite = onToggleTrackFavorite,
+                        onTrackRatingSelected = onTrackRatingSelected,
+                        onArtistSelected = onArtistSelected,
+                        onAlbumSelected = onAlbumSelected,
+                        onTrackRadioSelected = onTrackRadioSelected,
+                        lyricsVisible = showLyrics,
+                        onToggleLyrics = { showLyrics = !showLyrics },
+                        onCollapseToHome = onCollapseToHome,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
+                    )
                 }
-                PlayerDetails(
-                    appColors = appColors,
-                    playerColors = playerColors,
-                    playbackEngineName = playbackEngineName,
-                    supportsSoftwareVolume = supportsSoftwareVolume,
-                    nowPlayingTrack = nowPlayingTrack,
-                    nowPlayingWaveform = nowPlayingWaveform,
-                    nowPlayingAudioTags = nowPlayingAudioTags,
-                    playbackState = playbackState,
-                    playbackProgress = playbackProgress,
-                    volumePercent = volumePercent,
-                    supportsPause = supportsPause,
-                    supportsSeek = supportsSeek,
-                    supportsTrackFavorites = supportsTrackFavorites,
-                    supportsTrackRatings = supportsTrackRatings,
-                    hasPrevious = hasPrevious,
-                    hasNext = hasNext,
-                    onPause = onPause,
-                    onResume = onResume,
-                    onPlayCurrent = onPlayCurrent,
-                    onSeek = onSeek,
-                    onPrevious = onPrevious,
-                    onNext = onNext,
-                    onVolumeChanged = onVolumeChanged,
-                    onToggleTrackFavorite = onToggleTrackFavorite,
-                    onTrackRatingSelected = onTrackRatingSelected,
-                    onArtistSelected = onArtistSelected,
-                    onAlbumSelected = onAlbumSelected,
-                    onTrackRadioSelected = onTrackRadioSelected,
-                    lyricsVisible = showLyrics,
-                    onToggleLyrics = { showLyrics = !showLyrics },
-                    onCollapseToHome = onCollapseToHome,
-                    modifier = Modifier.weight(0.9f),
-                )
                 Column(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier
                         .weight(1.1f)
-                        .height(420.dp),
+                        .fillMaxHeight(),
                 ) {
                     UpNextPanel(
                         appColors = appColors,
@@ -207,9 +207,10 @@ fun NowPlayingPanel(
                         relatedTracks = relatedTracks,
                         relatedCoverArtUrl = relatedCoverArtUrl,
                         onQueueIndexSelected = onQueueIndexSelected,
+                        onUpNextTrackRadioSelected = onUpNextTrackRadioSelected,
                         onRelatedTrackSelected = onRelatedTrackSelected,
                         onRelatedTrackRadioSelected = onRelatedTrackRadioSelected,
-                        modifier = Modifier.weight(if (showLyrics) 0.58f else 1f),
+                        modifier = Modifier.weight(if (showLyrics) 0.42f else 1f),
                     )
                     if (showLyrics) {
                         LyricsPanel(
@@ -219,7 +220,7 @@ fun NowPlayingPanel(
                             onSeek = onSeek,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .weight(0.42f),
+                                .weight(0.58f),
                         )
                     }
                 }
@@ -228,7 +229,9 @@ fun NowPlayingPanel(
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(3.dp),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState()),
             ) {
                 if (showLyrics) {
                     LyricsPanel(
@@ -289,6 +292,7 @@ fun NowPlayingPanel(
                     relatedTracks = relatedTracks,
                     relatedCoverArtUrl = relatedCoverArtUrl,
                     onQueueIndexSelected = onQueueIndexSelected,
+                    onUpNextTrackRadioSelected = onUpNextTrackRadioSelected,
                     onRelatedTrackSelected = onRelatedTrackSelected,
                     onRelatedTrackRadioSelected = onRelatedTrackRadioSelected,
                     modifier = Modifier
@@ -1250,6 +1254,7 @@ private fun UpNextPanel(
     relatedTracks: List<Track>,
     relatedCoverArtUrl: (Track) -> String?,
     onQueueIndexSelected: (Int) -> Unit,
+    onUpNextTrackRadioSelected: (Track) -> Unit,
     onRelatedTrackSelected: (Int) -> Unit,
     onRelatedTrackRadioSelected: (Track) -> Unit,
     modifier: Modifier = Modifier,
@@ -1338,6 +1343,8 @@ private fun UpNextPanel(
                         },
                         onStartRadio = if (selectedTab == PlayerListTab.Related) {
                             { onRelatedTrackRadioSelected(track) }
+                        } else if (selectedTab == PlayerListTab.UpNext) {
+                            { onUpNextTrackRadioSelected(track) }
                         } else {
                             null
                         },

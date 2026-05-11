@@ -1394,8 +1394,7 @@ fun NaviampApp(
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .fillMaxWidth()
-                                .verticalScroll(rememberScrollState()),
+                                .fillMaxWidth(),
                         ) {
                             NowPlayingPanel(
                                 appColors = appColors,
@@ -1476,6 +1475,9 @@ fun NaviampApp(
                                         scope = coroutineScope,
                                         index = queueIndex,
                                     )
+                                },
+                                onUpNextTrackRadioSelected = { track ->
+                                    playTrackRadio(track)
                                 },
                                 onRelatedTrackSelected = { index ->
                                     playRelatedTrack(index)
