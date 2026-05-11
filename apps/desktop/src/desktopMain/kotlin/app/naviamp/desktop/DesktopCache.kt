@@ -10,6 +10,9 @@ import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.ArtistInfo
 import app.naviamp.domain.AudioInfo
+import app.naviamp.domain.LyricLine
+import app.naviamp.domain.Lyrics
+import app.naviamp.domain.LyricsSource
 import app.naviamp.domain.ReplayGain
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.StreamRequest
@@ -206,6 +209,63 @@ class DesktopCache(
             trimAudioWaveformStore()
             waveform
         }
+
+    suspend fun providerLyrics(
+        sourceId: String,
+        provider: MediaProvider,
+        trackId: TrackId,
+    ): Lyrics? =
+        withContext(Dispatchers.IO) {
+            cachedLyrics(sourceId, trackId)?.let { return@withContext it }
+            val lyrics = provider.lyrics(trackId) ?: return@withContext null
+            upsertLyrics(sourceId, trackId, lyrics)
+            lyrics
+        }
+
+    suspend fun cachedLyrics(
+        sourceId: String,
+        trackId: TrackId,
+    ): Lyrics? =
+        withContext(Dispatchers.IO) {
+            val row = queries.selectCachedLyrics(
+                source_id = sourceId,
+                remote_track_id = trackId.value,
+            ).executeAsOneOrNull() ?: return@withContext null
+
+            queries.touchCachedLyrics(nowMillis(), sourceId, trackId.value)
+            Lyrics(
+                source = row.lyric_source.toLyricsSource(),
+                synced = row.synced != 0L,
+                lines = json.decodeFromString<List<LyricLineDto>>(row.lines_json).map { it.toLyricLine() },
+                displayArtist = row.display_artist,
+                displayTitle = row.display_title,
+                language = row.language,
+                offsetMillis = row.offset_millis.toInt(),
+            )
+        }
+
+    private fun upsertLyrics(
+        sourceId: String,
+        trackId: TrackId,
+        lyrics: Lyrics,
+    ) {
+        val linesJson = json.encodeToString(lyrics.lines.map { LyricLineDto.fromLyricLine(it) })
+        val now = nowMillis()
+        queries.upsertCachedLyrics(
+            source_id = sourceId,
+            remote_track_id = trackId.value,
+            lyric_source = lyrics.source.name,
+            synced = if (lyrics.synced) 1L else 0L,
+            lines_json = linesJson,
+            display_artist = lyrics.displayArtist,
+            display_title = lyrics.displayTitle,
+            language = lyrics.language,
+            offset_millis = lyrics.offsetMillis.toLong(),
+            size_bytes = linesJson.toByteArray(Charsets.UTF_8).size.toLong(),
+            created_at_epoch_millis = now,
+            last_accessed_epoch_millis = now,
+        )
+    }
 
     suspend fun cacheAudioTrack(
         sourceId: String,
@@ -512,6 +572,7 @@ class DesktopCache(
             queries.clearImages()
             queries.clearAudioWaveforms()
             queries.clearAudio()
+            queries.clearLyrics()
         }
         clearAudioFiles()
     }
@@ -547,6 +608,8 @@ class DesktopCache(
             audioBytes = queries.audioCacheSize().executeAsOne(),
             audioWaveformCount = queries.audioWaveformCacheCount().executeAsOne(),
             audioWaveformBytes = queries.audioWaveformCacheSize().executeAsOne(),
+            lyricsCount = queries.lyricsCacheCount().executeAsOne(),
+            lyricsBytes = queries.lyricsCacheSize().executeAsOne(),
             mediaSourceCount = queries.mediaSourceCount().executeAsOne(),
             libraryArtistCount = queries.libraryArtistCount().executeAsOne(),
             libraryAlbumCount = queries.libraryAlbumCount().executeAsOne(),
@@ -679,6 +742,8 @@ data class CacheStats(
     val audioBytes: Long,
     val audioWaveformCount: Long,
     val audioWaveformBytes: Long,
+    val lyricsCount: Long,
+    val lyricsBytes: Long,
     val mediaSourceCount: Long,
     val libraryArtistCount: Long,
     val libraryAlbumCount: Long,
@@ -954,6 +1019,27 @@ private fun ensureCurrentTables(driver: JdbcSqliteDriver) {
         """.trimIndent(),
         0,
     )
+    driver.execute(
+        null,
+        """
+        CREATE TABLE IF NOT EXISTS cached_lyrics (
+          source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+          remote_track_id TEXT NOT NULL,
+          lyric_source TEXT NOT NULL,
+          synced INTEGER NOT NULL,
+          lines_json TEXT NOT NULL,
+          display_artist TEXT,
+          display_title TEXT,
+          language TEXT,
+          offset_millis INTEGER NOT NULL,
+          size_bytes INTEGER NOT NULL,
+          created_at_epoch_millis INTEGER NOT NULL,
+          last_accessed_epoch_millis INTEGER NOT NULL,
+          PRIMARY KEY(source_id, remote_track_id)
+        )
+        """.trimIndent(),
+        0,
+    )
     listOf(
         "CREATE INDEX IF NOT EXISTS library_artist_source_name ON library_artist(source_id, search_name)",
         "CREATE INDEX IF NOT EXISTS library_album_source_title ON library_album(source_id, search_title)",
@@ -962,6 +1048,7 @@ private fun ensureCurrentTables(driver: JdbcSqliteDriver) {
         "CREATE INDEX IF NOT EXISTS library_track_source_artist ON library_track(source_id, search_artist_name)",
         "CREATE INDEX IF NOT EXISTS cached_audio_source_access ON cached_audio(source_id, last_accessed_epoch_millis)",
         "CREATE INDEX IF NOT EXISTS cached_audio_waveform_access ON cached_audio_waveform(last_accessed_epoch_millis)",
+        "CREATE INDEX IF NOT EXISTS cached_lyrics_access ON cached_lyrics(last_accessed_epoch_millis)",
     ).forEach { sql ->
         driver.execute(null, sql, 0)
     }
@@ -1039,6 +1126,29 @@ private fun Path.sizeOrZero(): Long =
     runCatching {
         if (exists()) Files.size(this) else 0L
     }.getOrDefault(0L)
+
+private fun String.toLyricsSource(): LyricsSource =
+    runCatching { LyricsSource.valueOf(this) }.getOrDefault(LyricsSource.Provider)
+
+@Serializable
+private data class LyricLineDto(
+    val startMillis: Long? = null,
+    val text: String,
+) {
+    fun toLyricLine(): LyricLine =
+        LyricLine(
+            startMillis = startMillis,
+            text = text,
+        )
+
+    companion object {
+        fun fromLyricLine(line: LyricLine): LyricLineDto =
+            LyricLineDto(
+                startMillis = line.startMillis,
+                text = line.text,
+            )
+    }
+}
 
 @Serializable
 private data class MediaSearchResultsDto(

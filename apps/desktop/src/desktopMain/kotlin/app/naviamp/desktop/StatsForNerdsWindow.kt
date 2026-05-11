@@ -139,6 +139,7 @@ fun StatsForNerdsWindow(
                                 "Images" to "${info.cacheStats.imageCount} (${info.cacheStats.imageBytes.bytesLabel()})",
                                 "Audio files" to "${info.cacheStats.audioCount} (${info.cacheStats.audioBytes.bytesLabel()})",
                                 "Waveforms" to "${info.cacheStats.audioWaveformCount} (${info.cacheStats.audioWaveformBytes.bytesLabel()})",
+                                "Lyrics" to "${info.cacheStats.lyricsCount} (${info.cacheStats.lyricsBytes.bytesLabel()})",
                                 "Provider responses" to info.cacheStats.responseCount.toString(),
                                 "Hot images" to "${info.cacheStats.hotImageCount} (${info.cacheStats.hotImageBytes.bytesLabel()})",
                                 "Image budget" to info.cacheStats.maxImageBytes.bytesLabel(),

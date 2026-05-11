@@ -534,7 +534,8 @@ fun NaviampApp(
                     quality = quality,
                 )
                 val tags = AudioTagReader().read(audioFile.path)
-                val lyrics = provider.lyrics(track.id) ?: lyricsFromAudioTags(tags)
+                val lyrics = sessionCache.providerLyrics(sourceId, provider, track.id)
+                    ?: lyricsFromAudioTags(tags)
                 Triple(waveform, tags, lyrics)
             }.getOrNull()
         }

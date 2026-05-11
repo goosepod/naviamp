@@ -94,6 +94,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - Lyrics V1:
     - Provider contract includes lyrics lookup by track ID.
     - Navidrome/OpenSubsonic uses `getLyricsBySongId` and prefers synced structured lyrics when available.
+    - Provider lyrics are cached in SQLite by source and remote track ID so repeat plays can render server lyrics without another provider request.
     - Current-track lyrics fall back to embedded cached-file tags (`USLT`, `SYLT`, `LYRICS`, `SYNCEDLYRICS`, etc.) when the server does not return lyrics.
     - The player bottom row has a lyrics toggle next to the hamburger menu. In compact mode it swaps album art for lyrics; in wide mode it shows lyrics alongside the `UP NEXT` / `RELATED` area.
     - Timed lyrics highlight slightly ahead of the exact timestamp to feel aligned with vocals, auto-scroll so the active line stays near center, and click-to-seek works both forward and backward. Unsynced lyrics render as scrollable text.
@@ -216,7 +217,9 @@ Top-of-mind work the user wants:
 - Continue refining the scrub bar.
 - Add a Plexamp/Feishin-style waveform scrubber backed by cached-track analysis, not a second live stream where possible.
 - Add a music visualization on the player screen, activated by clicking album art.
-- Continue refining lyrics support: auto-scroll active synced lines, cache provider lyrics in SQLite, add MP4/M4A embedded lyrics parsing, and consider a settings-controlled LRCLIB fallback.
+- Continue refining lyrics support: add MP4/M4A embedded lyrics parsing, improve provider/cache controls, and consider a settings-controlled LRCLIB fallback.
+  - For LRCLIB fallback, prefer pulling synced lyrics when the existing provider/embedded lyrics are missing or unsynced.
+  - Investigate whether Navidrome can write synchronized lyrics back to files or sidecar metadata. If possible, consider an explicit user-controlled action to save LRCLIB lyrics back to the library.
 - Improve play reporting with an offline retry queue and local history table so failed scrobbles can be retried and Home can use local play data without depending entirely on server history.
 - Improve the upcoming queue further as needed.
 - Expand row menus for `UP NEXT` queue items beyond Start track radio as more queue actions are added.
