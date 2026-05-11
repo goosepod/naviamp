@@ -165,6 +165,38 @@ object TransportIcons {
             lineTo(19f, 17f)
         }
     }.build()
+
+    val Lyrics: ImageVector = ImageVector.Builder(
+        name = "Lyrics",
+        defaultWidth = IconSize,
+        defaultHeight = IconSize,
+        viewportWidth = Viewport,
+        viewportHeight = Viewport,
+    ).apply {
+        path(
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 1.9f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+        ) {
+            moveTo(7f, 4f)
+            lineTo(17f, 4f)
+            curveTo(18.1f, 4f, 19f, 4.9f, 19f, 6f)
+            lineTo(19f, 18f)
+            curveTo(19f, 19.1f, 18.1f, 20f, 17f, 20f)
+            lineTo(7f, 20f)
+            curveTo(5.9f, 20f, 5f, 19.1f, 5f, 18f)
+            lineTo(5f, 6f)
+            curveTo(5f, 4.9f, 5.9f, 4f, 7f, 4f)
+            close()
+            moveTo(8f, 8f)
+            lineTo(16f, 8f)
+            moveTo(8f, 12f)
+            lineTo(16f, 12f)
+            moveTo(8f, 16f)
+            lineTo(13f, 16f)
+        }
+    }.build()
 }
 
 private val IconSize = 24.dp

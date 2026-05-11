@@ -75,6 +75,29 @@ data class ReplayGain(
     val albumPeak: Double?,
 )
 
+data class Lyrics(
+    val source: LyricsSource,
+    val synced: Boolean,
+    val lines: List<LyricLine>,
+    val displayArtist: String? = null,
+    val displayTitle: String? = null,
+    val language: String? = null,
+    val offsetMillis: Int = 0,
+) {
+    val hasTimedLines: Boolean
+        get() = lines.any { it.startMillis != null }
+}
+
+data class LyricLine(
+    val startMillis: Long?,
+    val text: String,
+)
+
+enum class LyricsSource {
+    Provider,
+    Embedded,
+}
+
 data class Playlist(
     val id: String,
     val name: String,

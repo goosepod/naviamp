@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -56,6 +58,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Track
 import app.naviamp.desktop.playback.PlaybackProgress
 import app.naviamp.desktop.playback.PlaybackState
@@ -80,6 +83,7 @@ fun NowPlayingPanel(
     nowPlayingTrack: Track?,
     nowPlayingWaveform: AudioWaveform?,
     nowPlayingAudioTags: List<AudioTag>?,
+    nowPlayingLyrics: Lyrics?,
     coverArtUrl: String?,
     upNext: List<Track>,
     firstUpNextQueueIndex: Int,
@@ -109,6 +113,7 @@ fun NowPlayingPanel(
     onRelatedTrackRadioSelected: (Track) -> Unit,
     onCollapseToHome: () -> Unit,
 ) {
+    var showLyrics by remember(nowPlayingTrack?.id) { mutableStateOf(false) }
     val coverArtState = rememberCoverArtState(coverArtUrl, appColors)
     val playerColors = remember(coverArtState.palette, appColors) {
         PlayerColors.from(coverArtState.palette, appColors)
@@ -137,11 +142,23 @@ fun NowPlayingPanel(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                CoverArt(
-                    coverArtState = coverArtState,
-                    appColors = appColors,
-                    size = artSize,
-                )
+                if (showLyrics) {
+                    LyricsPanel(
+                        lyrics = nowPlayingLyrics,
+                        playbackProgress = playbackProgress,
+                        appColors = appColors,
+                        onSeek = onSeek,
+                        modifier = Modifier
+                            .width(artSize + 24.dp)
+                            .height(artSize),
+                    )
+                } else {
+                    CoverArt(
+                        coverArtState = coverArtState,
+                        appColors = appColors,
+                        size = artSize,
+                    )
+                }
                 PlayerDetails(
                     appColors = appColors,
                     playerColors = playerColors,
@@ -171,23 +188,41 @@ fun NowPlayingPanel(
                     onArtistSelected = onArtistSelected,
                     onAlbumSelected = onAlbumSelected,
                     onTrackRadioSelected = onTrackRadioSelected,
+                    lyricsVisible = showLyrics,
+                    onToggleLyrics = { showLyrics = !showLyrics },
                     onCollapseToHome = onCollapseToHome,
                     modifier = Modifier.weight(0.9f),
                 )
-                UpNextPanel(
-                    appColors = appColors,
-                    upNext = upNext,
-                    firstQueueIndex = firstUpNextQueueIndex,
-                    coverArtUrl = upNextCoverArtUrl,
-                    relatedTracks = relatedTracks,
-                    relatedCoverArtUrl = relatedCoverArtUrl,
-                    onQueueIndexSelected = onQueueIndexSelected,
-                    onRelatedTrackSelected = onRelatedTrackSelected,
-                    onRelatedTrackRadioSelected = onRelatedTrackRadioSelected,
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier
                         .weight(1.1f)
                         .height(420.dp),
-                )
+                ) {
+                    UpNextPanel(
+                        appColors = appColors,
+                        upNext = upNext,
+                        firstQueueIndex = firstUpNextQueueIndex,
+                        coverArtUrl = upNextCoverArtUrl,
+                        relatedTracks = relatedTracks,
+                        relatedCoverArtUrl = relatedCoverArtUrl,
+                        onQueueIndexSelected = onQueueIndexSelected,
+                        onRelatedTrackSelected = onRelatedTrackSelected,
+                        onRelatedTrackRadioSelected = onRelatedTrackRadioSelected,
+                        modifier = Modifier.weight(if (showLyrics) 0.58f else 1f),
+                    )
+                    if (showLyrics) {
+                        LyricsPanel(
+                            lyrics = nowPlayingLyrics,
+                            playbackProgress = playbackProgress,
+                            appColors = appColors,
+                            onSeek = onSeek,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(0.42f),
+                        )
+                    }
+                }
             }
         } else {
             Column(
@@ -195,11 +230,23 @@ fun NowPlayingPanel(
                 verticalArrangement = Arrangement.spacedBy(3.dp),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                CoverArt(
-                    coverArtState = coverArtState,
-                    appColors = appColors,
-                    size = artSize,
-                )
+                if (showLyrics) {
+                    LyricsPanel(
+                        lyrics = nowPlayingLyrics,
+                        playbackProgress = playbackProgress,
+                        appColors = appColors,
+                        onSeek = onSeek,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(artSize),
+                    )
+                } else {
+                    CoverArt(
+                        coverArtState = coverArtState,
+                        appColors = appColors,
+                        size = artSize,
+                    )
+                }
                 PlayerDetails(
                     appColors = appColors,
                     playerColors = playerColors,
@@ -229,6 +276,8 @@ fun NowPlayingPanel(
                     onArtistSelected = onArtistSelected,
                     onAlbumSelected = onAlbumSelected,
                     onTrackRadioSelected = onTrackRadioSelected,
+                    lyricsVisible = showLyrics,
+                    onToggleLyrics = { showLyrics = !showLyrics },
                     onCollapseToHome = onCollapseToHome,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -377,6 +426,8 @@ private fun PlayerDetails(
     onArtistSelected: (Track) -> Unit,
     onAlbumSelected: (Track) -> Unit,
     onTrackRadioSelected: (Track) -> Unit,
+    lyricsVisible: Boolean,
+    onToggleLyrics: () -> Unit,
     onCollapseToHome: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -387,6 +438,14 @@ private fun PlayerDetails(
     val effectiveDurationSeconds = nowPlayingTrack?.durationSeconds?.toDouble()
         ?: playbackProgress.durationSeconds
     val effectiveProgressFraction = playbackProgress.fraction(effectiveDurationSeconds)
+    val displayedProgress = if (isScrubbing && effectiveDurationSeconds != null) {
+        PlaybackProgress(
+            positionSeconds = scrubberValue * effectiveDurationSeconds,
+            durationSeconds = effectiveDurationSeconds,
+        )
+    } else {
+        playbackProgress
+    }
     val canSeek = supportsSeek && effectiveDurationSeconds != null && nowPlayingTrack != null
     val canTogglePause = nowPlayingTrack != null &&
         playbackState != PlaybackState.Loading &&
@@ -423,7 +482,7 @@ private fun PlayerDetails(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(
-                playbackProgress.positionLabel(),
+                displayedProgress.positionLabel(),
                 color = appColors.primaryText,
                 fontSize = 11.sp,
                 textAlign = TextAlign.Center,
@@ -666,48 +725,62 @@ private fun PlayerDetails(
                     modifier = Modifier.size(18.dp),
                 )
             }
-            Box(modifier = Modifier.align(Alignment.CenterEnd)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.align(Alignment.CenterEnd),
+            ) {
                 TransportIconButton(
                     enabled = nowPlayingTrack != null,
-                    icon = TransportIcons.Menu,
-                    contentDescription = "Track actions",
+                    icon = TransportIcons.Lyrics,
+                    contentDescription = if (lyricsVisible) "Hide lyrics" else "Show lyrics",
                     appColors = appColors,
-                    onClick = { actionMenuExpanded = true },
+                    selected = lyricsVisible,
+                    onClick = onToggleLyrics,
                 )
-                NaviampDropdownMenu(
-                    expanded = actionMenuExpanded,
-                    onDismissRequest = { actionMenuExpanded = false },
-                ) {
-                    NaviampDropdownMenuItem(
-                        label = "Start track radio",
-                        onClick = {
-                            actionMenuExpanded = false
-                            nowPlayingTrack?.let(onTrackRadioSelected)
-                        },
+                Box {
+                    TransportIconButton(
+                        enabled = nowPlayingTrack != null,
+                        icon = TransportIcons.Menu,
+                        contentDescription = "Track actions",
+                        appColors = appColors,
+                        onClick = { actionMenuExpanded = true },
                     )
-                    NaviampDropdownMenuItem(
-                        label = "Track details",
-                        onClick = {
-                            actionMenuExpanded = false
-                            trackDetailsOpen = true
-                        },
-                    )
-                    NaviampDropdownMenuItem(
-                        label = "Go to artist",
-                        enabled = nowPlayingTrack?.artistId != null,
-                        onClick = {
-                            actionMenuExpanded = false
-                            nowPlayingTrack?.let(onArtistSelected)
-                        },
-                    )
-                    NaviampDropdownMenuItem(
-                        label = "Go to album",
-                        enabled = nowPlayingTrack?.albumId != null,
-                        onClick = {
-                            actionMenuExpanded = false
-                            nowPlayingTrack?.let(onAlbumSelected)
-                        },
-                    )
+                    NaviampDropdownMenu(
+                        expanded = actionMenuExpanded,
+                        onDismissRequest = { actionMenuExpanded = false },
+                    ) {
+                        NaviampDropdownMenuItem(
+                            label = "Start track radio",
+                            onClick = {
+                                actionMenuExpanded = false
+                                nowPlayingTrack?.let(onTrackRadioSelected)
+                            },
+                        )
+                        NaviampDropdownMenuItem(
+                            label = "Track details",
+                            onClick = {
+                                actionMenuExpanded = false
+                                trackDetailsOpen = true
+                            },
+                        )
+                        NaviampDropdownMenuItem(
+                            label = "Go to artist",
+                            enabled = nowPlayingTrack?.artistId != null,
+                            onClick = {
+                                actionMenuExpanded = false
+                                nowPlayingTrack?.let(onArtistSelected)
+                            },
+                        )
+                        NaviampDropdownMenuItem(
+                            label = "Go to album",
+                            enabled = nowPlayingTrack?.albumId != null,
+                            onClick = {
+                                actionMenuExpanded = false
+                                nowPlayingTrack?.let(onAlbumSelected)
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -855,6 +928,88 @@ private fun TrackDetailSection(
 
 private fun String?.orUnknown(): String =
     this?.takeIf { it.isNotBlank() } ?: "Unknown"
+
+@Composable
+private fun LyricsPanel(
+    lyrics: Lyrics?,
+    playbackProgress: PlaybackProgress,
+    appColors: AppColors,
+    onSeek: (Double) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val listState = rememberLazyListState()
+    val positionMillis = playbackProgress.positionSeconds?.times(1000)?.toLong()
+    val activeLineIndex = remember(lyrics, positionMillis) {
+        lyrics?.lines
+            ?.indexOfLast { line ->
+                val startMillis = line.startMillis?.plus(lyrics.offsetMillis)
+                startMillis != null &&
+                    positionMillis != null &&
+                    startMillis <= positionMillis + LyricsHighlightLeadMillis
+            }
+            ?: -1
+    }
+
+    LaunchedEffect(activeLineIndex, lyrics?.lines?.size) {
+        val lineCount = lyrics?.lines?.size ?: return@LaunchedEffect
+        if (activeLineIndex < 0) return@LaunchedEffect
+        val targetIndex = when {
+            activeLineIndex >= lineCount - LyricsBottomScrollThreshold -> lineCount - 1
+            else -> (activeLineIndex - LyricsCenterLeadLines).coerceAtLeast(0)
+        }
+        listState.animateScrollToItem(targetIndex)
+    }
+
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(7.dp))
+            .background(Color.Black.copy(alpha = 0.18f))
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+    ) {
+        when {
+            lyrics == null -> Text(
+                "Lyrics unavailable",
+                color = appColors.mutedText,
+                fontSize = 13.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.align(Alignment.Center),
+            )
+            lyrics.lines.isEmpty() -> Text(
+                "No lyrics found",
+                color = appColors.mutedText,
+                fontSize = 13.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.align(Alignment.Center),
+            )
+            else -> LazyColumn(
+                state = listState,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .fillMaxSize(),
+            ) {
+                items(lyrics.lines.size) { index ->
+                    val line = lyrics.lines[index]
+                    val active = index == activeLineIndex
+                    Text(
+                        text = line.text,
+                        color = if (active) appColors.primaryText else appColors.secondaryText.copy(alpha = 0.72f),
+                        fontSize = if (active) 15.sp else 13.sp,
+                        lineHeight = if (active) 18.sp else 16.sp,
+                        fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = line.startMillis != null) {
+                                line.startMillis
+                                    ?.plus(lyrics.offsetMillis)
+                                    ?.coerceAtLeast(0L)
+                                    ?.let { onSeek(it / 1000.0) }
+                            },
+                    )
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun playerSliderColors(
@@ -1022,6 +1177,7 @@ private fun TransportIconButton(
     contentDescription: String,
     appColors: AppColors,
     prominent: Boolean = false,
+    selected: Boolean = false,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
@@ -1031,10 +1187,10 @@ private fun TransportIconButton(
             .size(if (prominent) 44.dp else 34.dp)
             .clip(RoundedCornerShape(999.dp))
             .background(
-                if (prominent) {
-                    Color.White.copy(alpha = if (enabled) 0.18f else 0.08f)
-                } else {
-                    Color.Transparent
+                when {
+                    prominent -> Color.White.copy(alpha = if (enabled) 0.18f else 0.08f)
+                    selected -> Color.White.copy(alpha = 0.12f)
+                    else -> Color.Transparent
                 },
             ),
     ) {
@@ -1547,3 +1703,7 @@ private fun Color.colorDistance(other: Color): Float {
     val blueDistance = blue - other.blue
     return redDistance * redDistance + greenDistance * greenDistance + blueDistance * blueDistance
 }
+
+private const val LyricsHighlightLeadMillis = 350L
+private const val LyricsCenterLeadLines = 3
+private const val LyricsBottomScrollThreshold = 3

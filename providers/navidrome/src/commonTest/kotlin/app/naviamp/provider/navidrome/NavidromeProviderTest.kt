@@ -575,6 +575,80 @@ class NavidromeProviderTest {
         assertEquals(listOf("track-3"), tracks.map { it.id.value })
     }
 
+    @Test
+    fun lyricsUsesGetLyricsBySongId() = runTest {
+        val httpClient = RecordingResponseHttpClient(
+            """
+            {
+              "subsonic-response": {
+                "status": "ok",
+                "lyricsList": {
+                  "structuredLyrics": [
+                    {
+                      "displayArtist": "New Order",
+                      "displayTitle": "Ceremony",
+                      "lang": "eng",
+                      "synced": true,
+                      "offset": 0,
+                      "line": [
+                        { "start": 12000, "value": "This is why events unnerve me" },
+                        { "start": 17000, "value": "They find it all a different story" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+            """.trimIndent(),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        val lyrics = provider.lyrics(TrackId("track-lyrics"))
+
+        assertEquals(
+            "https://music.example.test/rest/getLyricsBySongId.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=track-lyrics",
+            httpClient.urls.single(),
+        )
+        assertEquals(true, lyrics?.synced)
+        assertEquals(listOf(12000L, 17000L), lyrics?.lines?.map { it.startMillis })
+        assertEquals("New Order", lyrics?.displayArtist)
+    }
+
+    @Test
+    fun reportNowPlayingUsesScrobbleWithoutSubmission() = runTest {
+        val httpClient = RecordingHttpClient()
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        provider.reportNowPlaying(TrackId("track-1"))
+
+        assertEquals(
+            "https://music.example.test/rest/scrobble.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=track-1&submission=false",
+            httpClient.urls.single(),
+        )
+    }
+
+    @Test
+    fun reportPlayedUsesScrobbleWithSubmissionTime() = runTest {
+        val httpClient = RecordingHttpClient()
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        provider.reportPlayed(TrackId("track-1"), playedAtEpochMillis = 1_778_526_000_000L)
+
+        assertEquals(
+            "https://music.example.test/rest/scrobble.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=track-1&submission=true&time=1778526000000",
+            httpClient.urls.single(),
+        )
+    }
+
     private fun connection(baseUrl: String): NavidromeConnection =
         NavidromeConnection(
             baseUrl = baseUrl,

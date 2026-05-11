@@ -10,6 +10,9 @@ import app.naviamp.domain.ArtistInfo
 import app.naviamp.domain.AudioInfo
 import app.naviamp.domain.AudioCodec
 import app.naviamp.domain.Genre
+import app.naviamp.domain.LyricLine
+import app.naviamp.domain.Lyrics
+import app.naviamp.domain.LyricsSource
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.ProviderId
 import app.naviamp.domain.StreamRequest
@@ -26,8 +29,10 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
 import java.net.URI
 import java.net.URLEncoder
 import java.net.http.HttpClient
@@ -52,6 +57,7 @@ class NavidromeProvider(
             supportsTrackRadio = true,
             supportsTrackFavorites = true,
             supportsTrackRatings = true,
+            supportsPlayReporting = true,
         )
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -323,6 +329,41 @@ class NavidromeProvider(
                 trackRadioFallback(trackId, count)
             }
 
+    override suspend fun lyrics(trackId: TrackId): Lyrics? {
+        val response = runCatching {
+            get(
+                endpoint = "getLyricsBySongId.view",
+                params = mapOf("id" to trackId.value),
+            )
+        }.getOrNull() ?: return null
+        val lyricsList = response.subsonicResponse()["lyricsList"]?.jsonObject ?: return null
+        val structuredLyrics = lyricsList["structuredLyrics"] as? JsonArray ?: return null
+        return structuredLyrics
+            .mapNotNull { it as? JsonObject }
+            .mapNotNull { it.toLyrics() }
+            .sortedWith(
+                compareByDescending<Lyrics> { it.hasTimedLines }
+                    .thenByDescending { it.lines.size },
+            )
+            .firstOrNull()
+    }
+
+    override suspend fun reportNowPlaying(trackId: TrackId) {
+        scrobble(
+            trackId = trackId,
+            submission = false,
+            playedAtEpochMillis = null,
+        )
+    }
+
+    override suspend fun reportPlayed(trackId: TrackId, playedAtEpochMillis: Long) {
+        scrobble(
+            trackId = trackId,
+            submission = true,
+            playedAtEpochMillis = playedAtEpochMillis,
+        )
+    }
+
     override suspend fun streamUrl(request: StreamRequest): String {
         val params = when (val quality = request.quality) {
             StreamQuality.Original -> mapOf("id" to request.trackId.value)
@@ -423,6 +464,21 @@ class NavidromeProvider(
             params = mapOf("id" to trackId.value),
         )
         return response.subsonicResponse()["song"]?.jsonObject?.toTrack()
+    }
+
+    private suspend fun scrobble(
+        trackId: TrackId,
+        submission: Boolean,
+        playedAtEpochMillis: Long?,
+    ) {
+        get(
+            endpoint = "scrobble.view",
+            params = buildMap {
+                put("id", trackId.value)
+                put("submission", submission.toString())
+                playedAtEpochMillis?.let { put("time", it.toString()) }
+            },
+        )
     }
 
     private suspend fun artistInfo(artistId: ArtistId): ArtistInfo? {
@@ -541,6 +597,29 @@ class NavidromeProvider(
             favoritedAtIso8601 = stringValue("starred"),
             userRating = intValue("userRating")?.takeIf { it in 1..5 },
         )
+
+    private fun JsonObject.toLyrics(): Lyrics? {
+        val lineArray = this["line"] as? JsonArray ?: return null
+        val lines = lineArray
+            .mapNotNull { it as? JsonObject }
+            .mapNotNull { line ->
+                val value = line.stringValue("value")?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                LyricLine(
+                    startMillis = line.longValue("start"),
+                    text = value,
+                )
+            }
+        if (lines.isEmpty()) return null
+        return Lyrics(
+            source = LyricsSource.Provider,
+            synced = booleanValue("synced") ?: lines.any { it.startMillis != null },
+            lines = lines,
+            displayArtist = stringValue("displayArtist"),
+            displayTitle = stringValue("displayTitle"),
+            language = stringValue("lang"),
+            offsetMillis = intValue("offset") ?: 0,
+        )
+    }
 }
 
 interface NavidromeHttpClient {
@@ -672,6 +751,12 @@ private fun JsonObject.stringValue(key: String): String? =
 
 private fun JsonObject.intValue(key: String): Int? =
     stringValue(key)?.toIntOrNull()
+
+private fun JsonObject.longValue(key: String): Long? =
+    this[key]?.jsonPrimitive?.longOrNull ?: stringValue(key)?.toLongOrNull()
+
+private fun JsonObject.booleanValue(key: String): Boolean? =
+    this[key]?.jsonPrimitive?.booleanOrNull ?: stringValue(key)?.toBooleanStrictOrNull()
 
 private fun JsonObject.arrayValue(key: String): JsonArray =
     this[key] as? JsonArray ?: JsonArray(emptyList())

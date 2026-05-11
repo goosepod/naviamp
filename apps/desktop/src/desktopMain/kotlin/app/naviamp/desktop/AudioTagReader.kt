@@ -95,6 +95,10 @@ class AudioTagReader {
                 val value = decodeCommentFrame(frameData)
                 AudioTag("Lyrics", value)
             }
+            frameId == "SYLT" -> {
+                val value = decodeSynchronizedLyricsFrame(frameData)
+                AudioTag("Synced Lyrics", value)
+            }
             frameId == "POPM" -> AudioTag("Popularimeter", frameData.toHexPreview())
             else -> null
         }?.takeIf { it.value.isNotBlank() }
@@ -117,6 +121,36 @@ class AudioTagReader {
         val text = decodeEncodedText(encoding, textBytes)
         val parts = text.split('\u0000').map { it.trim() }.filter { it.isNotBlank() }
         return parts.lastOrNull() ?: text.trim()
+    }
+
+    private fun decodeSynchronizedLyricsFrame(frameData: ByteArray): String {
+        if (frameData.size <= 6) return ""
+        val encoding = frameData[0].toInt() and 0xFF
+        val timestampFormat = frameData[4].toInt() and 0xFF
+        if (timestampFormat != 2) return ""
+        var offset = 6
+        while (offset < frameData.size && frameData[offset].toInt() != 0) {
+            offset += 1
+        }
+        offset += 1
+
+        val lines = mutableListOf<String>()
+        while (offset < frameData.size) {
+            val textStart = offset
+            while (offset < frameData.size && frameData[offset].toInt() != 0) {
+                offset += 1
+            }
+            if (offset + 5 > frameData.size) break
+            val textBytes = frameData.copyOfRange(textStart, offset)
+            offset += 1
+            val timeMillis = frameData.intBe(offset).toLong()
+            offset += 4
+            val text = decodeEncodedText(encoding, textBytes).trim()
+            if (text.isNotBlank()) {
+                lines += "${timeMillis.toLrcTimestamp()} $text"
+            }
+        }
+        return lines.joinToString("\n")
     }
 
     private fun decodeId3TextFrame(frameData: ByteArray): String {
@@ -276,6 +310,13 @@ private fun removeUnsynchronization(bytes: ByteArray): ByteArray {
 private fun ByteArray.toHexPreview(): String =
     take(24).joinToString(" ") { byte -> "%02X".format(byte) }
 
+private fun Long.toLrcTimestamp(): String {
+    val minutes = this / 60_000
+    val seconds = (this % 60_000) / 1_000
+    val centiseconds = (this % 1_000) / 10
+    return "[%02d:%02d.%02d]".format(minutes, seconds, centiseconds)
+}
+
 private val Id3FrameNames = mapOf(
     "TIT2" to "Title",
     "TPE1" to "Artist",
@@ -316,6 +357,7 @@ private val CommonTagNames = mapOf(
     "composer" to "Composer",
     "lyricist" to "Lyricist",
     "comment" to "Comment",
+    "syncedlyrics" to "Synced Lyrics",
     "bpm" to "BPM",
     "isrc" to "ISRC",
     "label" to "Label",

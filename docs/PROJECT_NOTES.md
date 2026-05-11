@@ -91,6 +91,13 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - Track details opens a modal with song metadata, provider IDs, favorite/rating state, audio codec/bitrate/sample/depth/content type, and replay-gain fields when available.
   - Track details also reads embedded tags from the cached audio file when available. Common tags are ordered first (`Title`, `Artist`, `Album Artist`, `Album`, track/disc/date/genre/etc.), and extra tags are shown alphabetically below them.
   - Embedded tag parsing currently covers ID3v2 text/comment frames for MP3-like files and FLAC Vorbis comments. Add MP4/M4A atom parsing later if needed.
+  - Lyrics V1:
+    - Provider contract includes lyrics lookup by track ID.
+    - Navidrome/OpenSubsonic uses `getLyricsBySongId` and prefers synced structured lyrics when available.
+    - Current-track lyrics fall back to embedded cached-file tags (`USLT`, `SYLT`, `LYRICS`, `SYNCEDLYRICS`, etc.) when the server does not return lyrics.
+    - The player bottom row has a lyrics toggle next to the hamburger menu. In compact mode it swaps album art for lyrics; in wide mode it shows lyrics alongside the `UP NEXT` / `RELATED` area.
+    - Timed lyrics highlight slightly ahead of the exact timestamp to feel aligned with vocals, auto-scroll so the active line stays near center, and click-to-seek works both forward and backward. Unsynced lyrics render as scrollable text.
+    - Seek handling updates playback progress immediately and ignores short-lived stale mpv progress after a deliberate seek so scrub bar and lyric state can jump backward cleanly.
   - Starting track radio from the player screen does not restart the current track; it preserves playback and replaces the upcoming queue with radio recommendations.
   - Popup menus use a shared dark Feishin-inspired treatment through `NaviampDropdownMenu` / `NaviampDropdownMenuItem`.
   - The `RELATED` tab is active. It loads same-album and same-artist tracks from the local source-scoped library index, excluding the current track and deduplicating by provider track ID.
@@ -133,6 +140,11 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - Navidrome radio uses Subsonic/OpenSubsonic recommendation endpoints first: `getSimilarSongs2` for artist radio and `getSimilarSongs` for album/track radio.
   - If the server returns no recommendations, Naviamp falls back to local seed-adjacent queues from the artist/album details it can fetch.
   - Active radio queues auto-refill when 10 or fewer upcoming tracks remain by asking for track radio from the currently playing track, filtering duplicates, and appending fresh tracks.
+- Navidrome play reporting:
+  - Provider contracts now expose play reporting as a capability so future Jellyfin/Plex-like providers can implement their own equivalent APIs.
+  - Naviamp sends `scrobble.view?id=<trackId>&submission=false` when playback starts so Navidrome's Now Playing view can reflect current playback.
+  - Naviamp sends `scrobble.view?id=<trackId>&submission=true&time=<epochMillis>` once the playback session reaches the play threshold.
+  - The current play threshold is 50% of the track or 4 minutes, whichever comes first. Each playback session reports at most one submitted play.
 - Home V1:
   - Home now loads a richer provider-backed dashboard from Navidrome/Subsonic: mixes, recently added albums, recent/frequent/random album sections, playlists, genre spotlight, and a fixed 2000s decade spotlight.
   - Home station rows can start Library Radio, Random Album Radio, Genre Radio, and Decade Radio. Artist/Album Mix Builder rows jump into the matching Library tab for seed selection.
@@ -203,7 +215,8 @@ Top-of-mind work the user wants:
 - Continue refining the scrub bar.
 - Add a Plexamp/Feishin-style waveform scrubber backed by cached-track analysis, not a second live stream where possible.
 - Add a music visualization on the player screen, activated by clicking album art.
-- Add lyrics support.
+- Continue refining lyrics support: auto-scroll active synced lines, cache provider lyrics in SQLite, add MP4/M4A embedded lyrics parsing, and consider a settings-controlled LRCLIB fallback.
+- Improve play reporting with an offline retry queue and local history table so failed scrobbles can be retried and Home can use local play data without depending entirely on server history.
 - Improve the upcoming queue further as needed.
 - Add row menus for `UP NEXT` queue items. First action can be Start track radio; future actions can extend the same menu.
 - Redesign the full player layout again:

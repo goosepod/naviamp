@@ -45,6 +45,7 @@ import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.Genre
+import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
@@ -220,6 +221,7 @@ fun NaviampApp(
     var nowPlayingWaveform by remember { mutableStateOf<AudioWaveform?>(null) }
     var nowPlayingWaveformReloadToken by remember { mutableStateOf(0) }
     var nowPlayingAudioTags by remember { mutableStateOf<List<AudioTag>?>(null) }
+    var nowPlayingLyrics by remember { mutableStateOf<Lyrics?>(null) }
     var relatedTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
     var playbackState by remember { mutableStateOf<PlaybackState>(PlaybackState.Idle) }
     var playbackProgress by remember { mutableStateOf(PlaybackProgress.Unknown) }
@@ -250,6 +252,10 @@ fun NaviampApp(
     var lastSavedPlaybackPositionSeconds by remember {
         mutableStateOf(savedPlaybackSession?.positionSeconds?.takeIf { it > 0.0 })
     }
+    var pendingSeekPositionSeconds by remember { mutableStateOf<Double?>(null) }
+    var pendingSeekIssuedAtMillis by remember { mutableStateOf<Long?>(null) }
+    var playReportSessionId by remember { mutableStateOf(0) }
+    var submittedPlayReportSessionId by remember { mutableStateOf<Int?>(null) }
     var targetPlayerColors by remember {
         mutableStateOf(PlayerColors.from(AlbumPalette.fallback(appColors.albumArtPlaceholder), appColors))
     }
@@ -345,6 +351,55 @@ fun NaviampApp(
         savePlaybackSession(playbackQueue, positionSeconds)
     }
 
+    fun performSeek(positionSeconds: Double) {
+        val durationSeconds = playbackProgress.durationSeconds ?: nowPlayingTrack?.durationSeconds?.toDouble()
+        val seekProgress = PlaybackProgress(
+            positionSeconds = positionSeconds,
+            durationSeconds = durationSeconds,
+        )
+        pendingSeekPositionSeconds = positionSeconds
+        pendingSeekIssuedAtMillis = System.currentTimeMillis()
+        playbackProgress = seekProgress
+        maybeSavePlaybackPosition(seekProgress)
+        playbackEngine.seek(positionSeconds)
+    }
+
+    fun reportNowPlaying(track: Track) {
+        val provider = connectedProvider ?: return
+        if (!provider.capabilities.supportsPlayReporting) return
+        coroutineScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    provider.reportNowPlaying(track.id)
+                }
+            }
+        }
+    }
+
+    fun maybeReportPlayed(progress: PlaybackProgress) {
+        val provider = connectedProvider ?: return
+        if (!provider.capabilities.supportsPlayReporting) return
+        if (submittedPlayReportSessionId == playReportSessionId) return
+        val track = nowPlayingTrack ?: return
+        val positionSeconds = progress.positionSeconds ?: return
+        val durationSeconds = progress.durationSeconds ?: track.durationSeconds?.toDouble()
+        if (positionSeconds < playReportThresholdSeconds(durationSeconds)) return
+
+        val activeSessionId = playReportSessionId
+        submittedPlayReportSessionId = activeSessionId
+        coroutineScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    provider.reportPlayed(track.id, System.currentTimeMillis())
+                }
+            }.onFailure {
+                if (submittedPlayReportSessionId == activeSessionId) {
+                    submittedPlayReportSessionId = null
+                }
+            }
+        }
+    }
+
     fun stopRadioContinuation() {
         radioSessionId += 1
         radioQueueActive = false
@@ -393,9 +448,13 @@ fun NaviampApp(
             val trackChanged = nowPlayingTrack?.id != track.id
             nowPlayingTrack = track
             nowPlayingCoverArtUrl = coverArtUrl
+            playReportSessionId += 1
+            submittedPlayReportSessionId = null
+            reportNowPlaying(track)
             if (trackChanged) {
                 nowPlayingWaveform = null
                 nowPlayingAudioTags = null
+                nowPlayingLyrics = null
                 nowPlayingWaveformReloadToken += 1
             }
             playbackProgress = PlaybackProgress.Unknown
@@ -411,10 +470,32 @@ fun NaviampApp(
         onPlaybackStateChanged = { state ->
             playbackState = state
         },
-        onPlaybackProgressChanged = { progress ->
+        onPlaybackProgressChanged = progressChanged@{ progress ->
+            val pendingSeek = pendingSeekPositionSeconds
+            val pendingSeekIssuedAt = pendingSeekIssuedAtMillis
+            if (
+                pendingSeek != null &&
+                pendingSeekIssuedAt != null &&
+                progress.positionSeconds != null &&
+                abs(progress.positionSeconds - pendingSeek) > PendingSeekToleranceSeconds &&
+                System.currentTimeMillis() - pendingSeekIssuedAt < PendingSeekStaleProgressWindowMillis
+            ) {
+                return@progressChanged
+            }
+            if (
+                pendingSeek != null &&
+                (progress.positionSeconds == null ||
+                    pendingSeekIssuedAt == null ||
+                    abs(progress.positionSeconds - pendingSeek) <= PendingSeekToleranceSeconds ||
+                    System.currentTimeMillis() - pendingSeekIssuedAt >= PendingSeekStaleProgressWindowMillis)
+            ) {
+                pendingSeekPositionSeconds = null
+                pendingSeekIssuedAtMillis = null
+            }
             val mergedProgress = progress.mergeWith(playbackProgress)
             playbackProgress = mergedProgress
             maybeSavePlaybackPosition(mergedProgress)
+            maybeReportPlayed(mergedProgress)
         },
     )
 
@@ -439,7 +520,7 @@ fun NaviampApp(
         }
         val quality = playbackEngine.streamQuality()
 
-        val waveformAndTags = withContext(Dispatchers.IO) {
+        val waveformTagsAndLyrics = withContext(Dispatchers.IO) {
             runCatching {
                 val audioFile = sessionCache.cacheAudioTrack(
                     sourceId = sourceId,
@@ -453,11 +534,13 @@ fun NaviampApp(
                     quality = quality,
                 )
                 val tags = AudioTagReader().read(audioFile.path)
-                waveform to tags
+                val lyrics = provider.lyrics(track.id) ?: lyricsFromAudioTags(tags)
+                Triple(waveform, tags, lyrics)
             }.getOrNull()
         }
-        nowPlayingWaveform = waveformAndTags?.first
-        nowPlayingAudioTags = waveformAndTags?.second
+        nowPlayingWaveform = waveformTagsAndLyrics?.first
+        nowPlayingAudioTags = waveformTagsAndLyrics?.second
+        nowPlayingLyrics = waveformTagsAndLyrics?.third
     }
 
     LaunchedEffect(nowPlayingTrack?.id, connectedSourceId) {
@@ -1325,6 +1408,7 @@ fun NaviampApp(
                                 nowPlayingTrack = nowPlayingTrack,
                                 nowPlayingWaveform = nowPlayingWaveform,
                                 nowPlayingAudioTags = nowPlayingAudioTags,
+                                nowPlayingLyrics = nowPlayingLyrics,
                                 coverArtUrl = nowPlayingCoverArtUrl,
                                 upNext = playbackQueue.upNext(),
                                 firstUpNextQueueIndex = playbackQueue.currentIndex + 1,
@@ -1355,7 +1439,7 @@ fun NaviampApp(
                                     playlistEngine.playCurrent(coroutineScope, restoredPosition)
                                 },
                                 onSeek = { positionSeconds ->
-                                    playbackEngine.seek(positionSeconds)
+                                    performSeek(positionSeconds)
                                 },
                                 onPrevious = {
                                     openPlayerOnTrackStart = false
@@ -1690,6 +1774,8 @@ private fun shouldAutoSyncLibrary(
 private val LibraryAutoSyncIntervalMillis = TimeUnit.HOURS.toMillis(24)
 private const val LibraryPageSize = 50
 private const val PlaybackPositionSaveThresholdSeconds = 5.0
+private const val PendingSeekToleranceSeconds = 2.0
+private const val PendingSeekStaleProgressWindowMillis = 1_500L
 private const val RadioRefillThreshold = 10
 private const val RadioRefillCount = 50
 private const val RadioQueueHistoryLimit = 25
@@ -1749,7 +1835,14 @@ private fun app.naviamp.domain.provider.ProviderCapabilities.asStatsMap(): Map<S
         "Track radio" to supportsTrackRadio,
         "Track favorites" to supportsTrackFavorites,
         "Track ratings" to supportsTrackRatings,
+        "Play reporting" to supportsPlayReporting,
     )
+
+private fun playReportThresholdSeconds(durationSeconds: Double?): Double =
+    durationSeconds
+        ?.takeIf { it > 0.0 }
+        ?.let { minOf(it * PlayReportDurationFraction, PlayReportMaxThresholdSeconds) }
+        ?: PlayReportMaxThresholdSeconds
 
 private fun restoredRoute(
     savedRouteName: String?,
@@ -1779,3 +1872,6 @@ private fun WindowState.toWindowSettings(): WindowSettings =
         widthDp = size.width.value.coerceAtLeast(320f),
         heightDp = size.height.value.coerceAtLeast(420f),
     )
+
+private const val PlayReportDurationFraction = 0.5
+private const val PlayReportMaxThresholdSeconds = 240.0

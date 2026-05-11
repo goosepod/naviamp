@@ -246,7 +246,10 @@ fun TrackMetadataTrailing(
     track: Track,
     showDuration: Boolean,
 ) {
-    Column(horizontalAlignment = Alignment.End) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(5.dp, Alignment.End),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         track.compactFavoriteRatingLabel()?.let {
             Text(it, color = appColors.primaryText, fontSize = 11.sp)
         }

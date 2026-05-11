@@ -7,6 +7,7 @@ import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.Genre
+import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.ProviderId
 import app.naviamp.domain.StreamRequest
@@ -43,6 +44,9 @@ interface MediaProvider {
     suspend fun artistRadio(artistId: ArtistId, count: Int = 50): List<Track> = emptyList()
     suspend fun albumRadio(albumId: AlbumId, count: Int = 50): List<Track> = emptyList()
     suspend fun trackRadio(trackId: TrackId, count: Int = 50): List<Track> = emptyList()
+    suspend fun lyrics(trackId: TrackId): Lyrics? = null
+    suspend fun reportNowPlaying(trackId: TrackId) = Unit
+    suspend fun reportPlayed(trackId: TrackId, playedAtEpochMillis: Long) = Unit
     suspend fun streamUrl(request: StreamRequest): String
     suspend fun setTrackFavorite(trackId: TrackId, favorite: Boolean) {
         throw UnsupportedOperationException("Track favorites are not supported by $displayName.")
@@ -78,6 +82,7 @@ data class ProviderCapabilities(
     val supportsTrackRadio: Boolean,
     val supportsTrackFavorites: Boolean = false,
     val supportsTrackRatings: Boolean = false,
+    val supportsPlayReporting: Boolean = false,
 )
 
 data class ConnectionValidation(
