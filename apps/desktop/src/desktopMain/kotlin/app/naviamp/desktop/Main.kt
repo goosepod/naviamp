@@ -80,6 +80,7 @@ import java.awt.Taskbar
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 import javax.imageio.ImageIO
+import kotlin.math.abs
 
 fun main() {
     configureDesktopApplicationName()
@@ -217,6 +218,7 @@ fun NaviampApp(
     var nowPlayingTrack by remember { mutableStateOf(restoredTrack) }
     var nowPlayingCoverArtUrl by remember { mutableStateOf<String?>(null) }
     var nowPlayingWaveform by remember { mutableStateOf<AudioWaveform?>(null) }
+    var nowPlayingWaveformReloadToken by remember { mutableStateOf(0) }
     var playbackState by remember { mutableStateOf<PlaybackState>(PlaybackState.Idle) }
     var playbackProgress by remember { mutableStateOf(PlaybackProgress.Unknown) }
     var playbackQueue by remember {
@@ -240,6 +242,12 @@ fun NaviampApp(
     var isRadioRefilling by remember { mutableStateOf(false) }
     var lastRadioRefillSeedId by remember { mutableStateOf<String?>(null) }
     var radioSessionId by remember { mutableStateOf(0) }
+    var restoredPlaybackPositionSeconds by remember {
+        mutableStateOf(savedPlaybackSession?.positionSeconds?.takeIf { it > 0.0 })
+    }
+    var lastSavedPlaybackPositionSeconds by remember {
+        mutableStateOf(savedPlaybackSession?.positionSeconds?.takeIf { it > 0.0 })
+    }
     var targetPlayerColors by remember {
         mutableStateOf(PlayerColors.from(AlbumPalette.fallback(appColors.albumArtPlaceholder), appColors))
     }
@@ -313,13 +321,26 @@ fun NaviampApp(
         }
     }
 
-    fun savePlaybackSession(queue: PlaybackQueue) {
+    fun savePlaybackSession(
+        queue: PlaybackQueue,
+        positionSeconds: Double? = playbackProgress.positionSeconds,
+    ) {
         settingsStore.savePlaybackSession(
             PlaybackSessionSettings.fromTracks(
                 tracks = queue.tracks,
                 currentIndex = queue.currentIndex,
+                positionSeconds = positionSeconds,
             ),
         )
+    }
+
+    fun maybeSavePlaybackPosition(progress: PlaybackProgress) {
+        val positionSeconds = progress.positionSeconds ?: return
+        if (playbackQueue.currentIndex !in playbackQueue.tracks.indices) return
+        val lastSaved = lastSavedPlaybackPositionSeconds
+        if (lastSaved != null && abs(positionSeconds - lastSaved) < PlaybackPositionSaveThresholdSeconds) return
+        lastSavedPlaybackPositionSeconds = positionSeconds
+        savePlaybackSession(playbackQueue, positionSeconds)
     }
 
     fun stopRadioContinuation() {
@@ -367,9 +388,13 @@ fun NaviampApp(
 
     val playlistCallbacks = PlaylistCallbacks(
         onTrackStarted = { track, coverArtUrl ->
+            val trackChanged = nowPlayingTrack?.id != track.id
             nowPlayingTrack = track
             nowPlayingCoverArtUrl = coverArtUrl
-            nowPlayingWaveform = null
+            if (trackChanged) {
+                nowPlayingWaveform = null
+                nowPlayingWaveformReloadToken += 1
+            }
             playbackProgress = PlaybackProgress.Unknown
             refillRadioIfNeeded(playlistEngine.queue)
             if (openPlayerOnTrackStart) {
@@ -378,17 +403,25 @@ fun NaviampApp(
         },
         onQueueChanged = { queue ->
             playbackQueue = queue
-            savePlaybackSession(queue)
+            savePlaybackSession(queue, playbackProgress.positionSeconds)
         },
         onPlaybackStateChanged = { state ->
             playbackState = state
         },
         onPlaybackProgressChanged = { progress ->
-            playbackProgress = progress.mergeWith(playbackProgress)
+            val mergedProgress = progress.mergeWith(playbackProgress)
+            playbackProgress = mergedProgress
+            maybeSavePlaybackPosition(mergedProgress)
         },
     )
 
-    LaunchedEffect(nowPlayingTrack?.id, connectedSourceId, connectedProvider, playbackEngine) {
+    LaunchedEffect(
+        nowPlayingTrack?.id,
+        connectedSourceId,
+        connectedProvider,
+        playbackEngine,
+        nowPlayingWaveformReloadToken,
+    ) {
         val track = nowPlayingTrack ?: run {
             nowPlayingWaveform = null
             return@LaunchedEffect
@@ -938,6 +971,45 @@ fun NaviampApp(
         }
     }
 
+    fun convertCurrentTrackToRadio(track: Track) {
+        val provider = connectedProvider ?: return
+        val currentTrack = playlistEngine.queue.tracks.getOrNull(playlistEngine.queue.currentIndex)
+        if (currentTrack?.id != track.id) {
+            playTrackRadio(track)
+            return
+        }
+
+        connectionStatus = "Building ${track.title} radio..."
+        radioSessionId += 1
+        val activeRadioSessionId = radioSessionId
+        radioQueueActive = true
+        isRadioRefilling = true
+        lastRadioRefillSeedId = track.id.value
+        coroutineScope.launch {
+            try {
+                val fetchedTracks = withContext(Dispatchers.IO) {
+                    provider.trackRadio(track.id, count = RadioRefillCount)
+                }
+                if (radioQueueActive && activeRadioSessionId == radioSessionId) {
+                    playlistEngine.replaceUpcomingTracks(
+                        currentTrack = track,
+                        upcomingTracks = fetchedTracks,
+                        maxHistory = RadioQueueHistoryLimit,
+                    )
+                    connectionStatus = null
+                }
+            } catch (exception: Exception) {
+                if (activeRadioSessionId == radioSessionId) {
+                    connectionStatus = exception.message ?: "Could not build ${track.title} radio."
+                }
+            } finally {
+                if (activeRadioSessionId == radioSessionId) {
+                    isRadioRefilling = false
+                }
+            }
+        }
+    }
+
     fun applyTrackMetadataUpdate(updatedTrack: Track) {
         nowPlayingTrack = nowPlayingTrack?.let { track ->
             if (track.id == updatedTrack.id) updatedTrack else track
@@ -1212,8 +1284,6 @@ fun NaviampApp(
                                 playbackEngineName = playbackEngine.name,
                                 supportsPause = playbackEngine.supportsPause,
                                 supportsSeek = playbackEngine.supportsSeek,
-                                supportsGapless = playbackEngine.supportsGapless,
-                                supportsCrossfade = playbackEngine.supportsCrossfade,
                                 supportsSoftwareVolume = playbackEngine.supportsSoftwareVolume,
                                 supportsTrackFavorites = connectedProvider?.capabilities?.supportsTrackFavorites == true,
                                 supportsTrackRatings = connectedProvider?.capabilities?.supportsTrackRatings == true,
@@ -1240,7 +1310,9 @@ fun NaviampApp(
                                     playbackEngine.resume()
                                 },
                                 onPlayCurrent = {
-                                    playlistEngine.playCurrent(coroutineScope)
+                                    val restoredPosition = restoredPlaybackPositionSeconds
+                                    restoredPlaybackPositionSeconds = null
+                                    playlistEngine.playCurrent(coroutineScope, restoredPosition)
                                 },
                                 onSeek = { positionSeconds ->
                                     playbackEngine.seek(positionSeconds)
@@ -1270,6 +1342,9 @@ fun NaviampApp(
                                 },
                                 onAlbumSelected = { track ->
                                     openTrackAlbumDetails(track)
+                                },
+                                onTrackRadioSelected = { track ->
+                                    convertCurrentTrackToRadio(track)
                                 },
                                 onQueueIndexSelected = { queueIndex ->
                                     openPlayerOnTrackStart = false
@@ -1493,7 +1568,9 @@ fun NaviampApp(
                                 },
                                 onPlayCurrent = {
                                     openPlayerOnTrackStart = false
-                                    playlistEngine.playCurrent(coroutineScope)
+                                    val restoredPosition = restoredPlaybackPositionSeconds
+                                    restoredPlaybackPositionSeconds = null
+                                    playlistEngine.playCurrent(coroutineScope, restoredPosition)
                                 },
                                 onPrevious = {
                                     openPlayerOnTrackStart = false
@@ -1566,6 +1643,7 @@ private fun shouldAutoSyncLibrary(
 
 private val LibraryAutoSyncIntervalMillis = TimeUnit.HOURS.toMillis(24)
 private const val LibraryPageSize = 50
+private const val PlaybackPositionSaveThresholdSeconds = 5.0
 private const val RadioRefillThreshold = 10
 private const val RadioRefillCount = 50
 private const val RadioQueueHistoryLimit = 25

@@ -117,6 +117,54 @@ object TransportIcons {
             curveTo(22f, 14f, 21f, 16f, 19.5f, 17.5f)
         }
     }.build()
+
+    val Radio: ImageVector = ImageVector.Builder(
+        name = "Radio",
+        defaultWidth = IconSize,
+        defaultHeight = IconSize,
+        viewportWidth = Viewport,
+        viewportHeight = Viewport,
+    ).apply {
+        path(
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 1.9f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+        ) {
+            moveTo(12f, 12f)
+            lineTo(12f, 12.1f)
+            moveTo(8.7f, 8.7f)
+            curveTo(6.9f, 10.5f, 6.9f, 13.5f, 8.7f, 15.3f)
+            moveTo(15.3f, 8.7f)
+            curveTo(17.1f, 10.5f, 17.1f, 13.5f, 15.3f, 15.3f)
+            moveTo(5.7f, 5.7f)
+            curveTo(2.2f, 9.2f, 2.2f, 14.8f, 5.7f, 18.3f)
+            moveTo(18.3f, 5.7f)
+            curveTo(21.8f, 9.2f, 21.8f, 14.8f, 18.3f, 18.3f)
+        }
+    }.build()
+
+    val Menu: ImageVector = ImageVector.Builder(
+        name = "Menu",
+        defaultWidth = IconSize,
+        defaultHeight = IconSize,
+        viewportWidth = Viewport,
+        viewportHeight = Viewport,
+    ).apply {
+        path(
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 2f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+        ) {
+            moveTo(5f, 7f)
+            lineTo(19f, 7f)
+            moveTo(5f, 12f)
+            lineTo(19f, 12f)
+            moveTo(5f, 17f)
+            lineTo(19f, 17f)
+        }
+    }.build()
 }
 
 private val IconSize = 24.dp

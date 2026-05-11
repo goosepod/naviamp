@@ -414,6 +414,9 @@ class ExperimentalCrossfadeMpvPlaybackEngine(
             "--input-ipc-server=${endpoint.mpvPath}",
         )
         if (startPaused) args += "--pause=yes"
+        request.startPositionSeconds
+            ?.takeIf { it > 0.0 }
+            ?.let { args += "--start=$it" }
         args += request.url
         trace.log("slot start paused=$startPaused volume=$volume")
         val process = ProcessBuilder(args)

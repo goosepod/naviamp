@@ -82,6 +82,14 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 - Player metadata navigation:
   - Navidrome song `artistId` and `albumId` map onto tracks and are persisted in the saved playback session.
   - The player artist and album text open their detail pages when those IDs are available.
+- Player layout/actions:
+  - Full player metadata order is album art, waveform/scrub bar, track title, artist, album/year, rating controls, codec/quality, volume, transport controls, then bottom actions.
+  - The player volume control is a custom line control with no percent label.
+  - The old `Gapless / No crossfade` capability label is removed from the player screen.
+  - The collapse arrow is centered in the bottom action row, with a dedicated current-track radio icon on the left and a current-track overflow menu on the right.
+  - The current overflow menu starts with Start track radio, Go to artist, and Go to album. Track details, lyrics, visualizer, and playlist actions can extend this menu later.
+  - Starting track radio from the player screen does not restart the current track; it preserves playback and replaces the upcoming queue with radio recommendations.
+  - Popup menus use a shared dark Feishin-inspired treatment through `NaviampDropdownMenu` / `NaviampDropdownMenuItem`.
 - Album release years:
   - Navidrome album/song `year` maps onto albums and tracks.
   - Album rows, album detail, and the player album line show release years when available.
@@ -108,6 +116,9 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - Settings can clear image/API cache, clear the local artist/album/track index, or run a guarded full database reset that removes saved servers too.
 - Mini player behavior:
   - Tapping the mini-player row opens the full player, but its transport buttons should only control playback and should not navigate away from the current screen.
+- Playback session restore:
+  - Saved sessions include the queue, current index, and last known playback position.
+  - When playback is resumed after app restart, the first play action passes the saved position into the playback request so mpv starts at that offset. Do not rely on an immediate post-play IPC seek; mpv may not be ready yet.
 - Radio:
   - Artist, album, and track rows expose "Start radio" menu actions where those rows appear.
   - Track radio starts playback immediately from the selected track, then appends recommendation results in the background.
@@ -133,6 +144,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - `AudioWaveformAnalyzer` uses resolved/bundled mpv as a decoder, writes a temporary mono 8 kHz WAV, parses 16-bit PCM amplitude peaks, normalizes them into compact buckets, then removes the temp file.
   - The current-track waveform is generated only after a cached audio file exists; the UI keeps the normal Material slider until analysis is available.
   - The current-track waveform path actively caches/analyzes the now-playing file; it does not depend on the upcoming-track prefetch job finishing.
+  - Restored sessions should keep an already loaded waveform when playback starts for the same track; only clear/reload waveform UI state when the track ID changes.
   - The Now Playing scrubber draws a compact Compose waveform with played/unplayed coloring and supports click/drag seeking through the same `onSeek` path as the old slider.
   - Waveform generation is intentionally current-track only for now so upcoming prefetch does not become a CPU-heavy analysis queue.
   - Waveform rows are a separate cache from audio files. Audio eviction should not delete waveform analysis, because the waveform is small and can make repeat plays render instantly.
@@ -194,15 +206,6 @@ Top-of-mind work the user wants:
   - Track title should remain bold and be slightly larger than album metadata.
   - Album/year metadata should use subtly differentiated color so the hierarchy is clear without looking dramatic.
   - Rating controls should remain provider-aware: Navidrome gets heart/stars; Jellyfin/Plexamp-like sources may need different controls.
-- Simplify the bottom player control strip:
-  - Remove the `gapless / no crossfade` capability text from the player UI.
-  - Keep the down arrow centered.
-  - Add action icons around it: a dedicated track-radio icon on the left, and a hamburger/overflow menu on the far right.
-  - The overflow menu should grow into actions like Start track radio, Track details, Show lyrics, Go to artist page, Go to album page, Show visualizer, Add to playlist, and other useful track actions.
-- Refine the volume bar:
-  - Make it thinner.
-  - Remove the filled/blank Material slider track treatment; prefer a simple white line with no surrounding empty coloring.
-  - Remove the percentage label on the right.
 - Fill in the player `RELATED` tab next to `UP NEXT`.
 - Continue refining Library browsing, including genres and richer artist/album grouping.
 - Improve Home radio seeds with richer picker/detail flows for artists, albums, genres, and decades.
@@ -240,9 +243,7 @@ Good next slices:
 - Waveform follow-up: add cache-hit/status reporting for waveform generation in Stats for nerds.
 - Waveform follow-up: consider queue-aware/background waveform analysis for likely-upcoming tracks after measuring CPU impact.
 - Queue actions follow-up: add per-row overflow menus in `UP NEXT`, starting with Start track radio.
-- Player actions follow-up: replace the bottom capability label with centered collapse control plus track-radio and overflow action icons.
-- Player layout follow-up: reorder the metadata/ratings/quality/volume stack and tighten the visual hierarchy.
-- Volume follow-up: replace the Material volume slider with a thinner custom line control and drop the right-side percent text.
+- Player actions follow-up: extend the current-track overflow menu with Track details, lyrics, visualizer, add-to-playlist, and provider-specific actions.
 - Related tab V1: define and populate provider-aware related content for the full player.
 - Visualizer V1: separate static waveform analysis from live frequency visualization. Live spectrum requires decoded PCM access and should be treated as a later player-engine/audio-pipeline task.
 - Crossfade follow-up: revisit `ExperimentalCrossfadeMpvPlaybackEngine` with cached local next files, explicit transition reset on seek/pause/skip/queue clear, and configurable fade curves inspired by Feishin's web player.

@@ -11,8 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -220,13 +218,13 @@ private fun RowOverflowMenu(
         ) {
             Text("⋮", color = appColors.mutedText, fontSize = 15.sp)
         }
-        DropdownMenu(
+        NaviampDropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
         ) {
             items.forEach { item ->
-                DropdownMenuItem(
-                    text = { Text(item.label) },
+                NaviampDropdownMenuItem(
+                    label = item.label,
                     onClick = {
                         expanded = false
                         item.onClick()

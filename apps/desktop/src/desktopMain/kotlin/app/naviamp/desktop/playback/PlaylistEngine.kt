@@ -103,6 +103,32 @@ class PlaylistEngine(
         callbacks?.onQueueChanged(queue)
     }
 
+    fun replaceUpcomingTracks(
+        currentTrack: Track,
+        upcomingTracks: List<Track>,
+        maxHistory: Int? = null,
+    ) {
+        val currentQueueIndex = queue.tracks.indexOfFirst { it.id == currentTrack.id }
+            .takeIf { it >= 0 }
+            ?: queue.currentIndex
+        val currentQueueTrack = queue.tracks.getOrNull(currentQueueIndex) ?: currentTrack
+        val prunedTrackCount = maxHistory
+            ?.let { (currentQueueIndex - it.coerceAtLeast(0)).coerceAtLeast(0) }
+            ?: 0
+        val history = queue.tracks
+            .take(currentQueueIndex)
+            .drop(prunedTrackCount)
+        val dedupedUpcoming = upcomingTracks.filterNot { track ->
+            track.id == currentQueueTrack.id || history.any { it.id == track.id }
+        }
+
+        queue = PlaybackQueue(
+            tracks = history + currentQueueTrack + dedupedUpcoming,
+            currentIndex = history.size,
+        )
+        callbacks?.onQueueChanged(queue)
+    }
+
     fun setCrossfadeSettings(settings: CrossfadeSettings) {
         crossfadeSettings = settings
         (playbackEngine as? QueueAwarePlaybackEngine)?.setCrossfadeDuration(settings.durationSeconds)
@@ -118,6 +144,12 @@ class PlaylistEngine(
         if (queue.currentIndex !in queue.tracks.indices) return
         sessionId += 1
         playQueueIndex(scope, queue.tracks, queue.currentIndex, sessionId)
+    }
+
+    fun playCurrent(scope: CoroutineScope, startPositionSeconds: Double?) {
+        if (queue.currentIndex !in queue.tracks.indices) return
+        sessionId += 1
+        playQueueIndex(scope, queue.tracks, queue.currentIndex, sessionId, startPositionSeconds)
     }
 
     fun jumpTo(scope: CoroutineScope, index: Int) {
@@ -137,6 +169,7 @@ class PlaylistEngine(
         tracks: List<Track>,
         index: Int,
         activeSessionId: Int,
+        startPositionSeconds: Double? = null,
     ) {
         val track = tracks.getOrNull(index) ?: return
         val currentProvider = provider ?: return
@@ -162,6 +195,7 @@ class PlaylistEngine(
                         url = playbackUrl,
                         mediaId = track.id.value,
                         replayGainMode = replayGainMode.forEngine(playbackEngine),
+                        startPositionSeconds = startPositionSeconds?.takeIf { it > 0.0 },
                     ),
                     onStateChanged = { state ->
                         scope.launch {

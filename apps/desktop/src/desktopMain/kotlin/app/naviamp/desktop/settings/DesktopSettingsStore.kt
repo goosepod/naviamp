@@ -142,6 +142,7 @@ data class SearchSettings(
 data class PlaybackSessionSettings(
     val tracks: List<SavedTrack> = emptyList(),
     val currentIndex: Int = -1,
+    val positionSeconds: Double? = null,
 ) {
     fun currentTrack(): Track? =
         tracks.getOrNull(currentIndex)?.toTrack()
@@ -150,11 +151,16 @@ data class PlaybackSessionSettings(
         tracks.map { it.toTrack() }
 
     companion object {
-        fun fromTracks(tracks: List<Track>, currentIndex: Int): PlaybackSessionSettings? {
+        fun fromTracks(
+            tracks: List<Track>,
+            currentIndex: Int,
+            positionSeconds: Double? = null,
+        ): PlaybackSessionSettings? {
             if (tracks.isEmpty() || currentIndex !in tracks.indices) return null
             return PlaybackSessionSettings(
                 tracks = tracks.map { SavedTrack.fromTrack(it) },
                 currentIndex = currentIndex,
+                positionSeconds = positionSeconds?.takeIf { it > 0.0 },
             )
         }
     }

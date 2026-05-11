@@ -69,7 +69,7 @@ class MpvProcessPlaybackEngine(
                 val endpoint = createIpcEndpoint()
                 currentEndpoint = endpoint
                 ipcEndpoint = endpoint
-                currentProcess = ProcessBuilder(
+                val args = mutableListOf(
                     executable,
                     "--no-video",
                     "--really-quiet",
@@ -77,8 +77,12 @@ class MpvProcessPlaybackEngine(
                     "--replaygain=${request.replayGainMode.mpvValue()}",
                     "--volume=$volumePercent",
                     "--input-ipc-server=${endpoint.mpvPath}",
-                    request.url,
                 )
+                request.startPositionSeconds
+                    ?.takeIf { it > 0.0 }
+                    ?.let { args += "--start=$it" }
+                args += request.url
+                currentProcess = ProcessBuilder(args)
                     .redirectErrorStream(true)
                     .start()
                 process = currentProcess

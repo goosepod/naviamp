@@ -40,6 +40,7 @@ data class PlaybackRequest(
     val url: String,
     val mediaId: String? = null,
     val replayGainMode: ReplayGainMode = ReplayGainMode.Off,
+    val startPositionSeconds: Double? = null,
 )
 
 enum class ReplayGainMode(

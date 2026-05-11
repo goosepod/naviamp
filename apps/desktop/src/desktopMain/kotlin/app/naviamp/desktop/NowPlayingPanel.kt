@@ -73,8 +73,6 @@ fun NowPlayingPanel(
     playbackEngineName: String,
     supportsPause: Boolean,
     supportsSeek: Boolean,
-    supportsGapless: Boolean,
-    supportsCrossfade: Boolean,
     supportsSoftwareVolume: Boolean,
     supportsTrackFavorites: Boolean,
     supportsTrackRatings: Boolean,
@@ -101,6 +99,7 @@ fun NowPlayingPanel(
     onTrackRatingSelected: (Track, Int?) -> Unit,
     onArtistSelected: (Track) -> Unit,
     onAlbumSelected: (Track) -> Unit,
+    onTrackRadioSelected: (Track) -> Unit,
     onQueueIndexSelected: (Int) -> Unit,
     onCollapseToHome: () -> Unit,
 ) {
@@ -141,8 +140,6 @@ fun NowPlayingPanel(
                     appColors = appColors,
                     playerColors = playerColors,
                     playbackEngineName = playbackEngineName,
-                    supportsGapless = supportsGapless,
-                    supportsCrossfade = supportsCrossfade,
                     supportsSoftwareVolume = supportsSoftwareVolume,
                     nowPlayingTrack = nowPlayingTrack,
                     nowPlayingWaveform = nowPlayingWaveform,
@@ -166,6 +163,7 @@ fun NowPlayingPanel(
                     onTrackRatingSelected = onTrackRatingSelected,
                     onArtistSelected = onArtistSelected,
                     onAlbumSelected = onAlbumSelected,
+                    onTrackRadioSelected = onTrackRadioSelected,
                     onCollapseToHome = onCollapseToHome,
                     modifier = Modifier.weight(0.9f),
                 )
@@ -195,8 +193,6 @@ fun NowPlayingPanel(
                     appColors = appColors,
                     playerColors = playerColors,
                     playbackEngineName = playbackEngineName,
-                    supportsGapless = supportsGapless,
-                    supportsCrossfade = supportsCrossfade,
                     supportsSoftwareVolume = supportsSoftwareVolume,
                     nowPlayingTrack = nowPlayingTrack,
                     nowPlayingWaveform = nowPlayingWaveform,
@@ -220,6 +216,7 @@ fun NowPlayingPanel(
                     onTrackRatingSelected = onTrackRatingSelected,
                     onArtistSelected = onArtistSelected,
                     onAlbumSelected = onAlbumSelected,
+                    onTrackRadioSelected = onTrackRadioSelected,
                     onCollapseToHome = onCollapseToHome,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -339,8 +336,6 @@ private fun PlayerDetails(
     appColors: AppColors,
     playerColors: PlayerColors,
     playbackEngineName: String,
-    supportsGapless: Boolean,
-    supportsCrossfade: Boolean,
     supportsSoftwareVolume: Boolean,
     nowPlayingTrack: Track?,
     nowPlayingWaveform: AudioWaveform?,
@@ -364,6 +359,7 @@ private fun PlayerDetails(
     onTrackRatingSelected: (Track, Int?) -> Unit,
     onArtistSelected: (Track) -> Unit,
     onAlbumSelected: (Track) -> Unit,
+    onTrackRadioSelected: (Track) -> Unit,
     onCollapseToHome: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -380,9 +376,11 @@ private fun PlayerDetails(
         playbackState !is PlaybackState.Error &&
         (supportsPause || playbackState != PlaybackState.Playing)
     val metadataTextStyle = TextStyle(
-        fontSize = 14.sp,
+        fontSize = 13.sp,
         lineHeight = 14.sp,
     )
+    val audioInfo = nowPlayingTrack?.playbackAudioInfo(playbackEngineName)
+    var actionMenuExpanded by remember { mutableStateOf(false) }
 
     LaunchedEffect(effectiveProgressFraction) {
         if (!isScrubbing) {
@@ -465,9 +463,20 @@ private fun PlayerDetails(
 
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(1.dp),
-            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 3.dp, bottom = 5.dp),
         ) {
+            Text(
+                nowPlayingTrack?.title ?: "Queue will appear here after connection",
+                color = appColors.primaryText,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                style = metadataTextStyle.copy(fontSize = 15.sp, lineHeight = 16.sp),
+            )
             Text(
                 nowPlayingTrack?.artistName ?: "Nothing Playing",
                 color = appColors.secondaryText,
@@ -480,17 +489,8 @@ private fun PlayerDetails(
                 },
             )
             Text(
-                nowPlayingTrack?.title ?: "Queue will appear here after connection",
-                color = appColors.primaryText,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-                style = metadataTextStyle,
-            )
-            Text(
                 nowPlayingTrack?.albumTitleWithYear() ?: playbackState.label(),
-                color = appColors.secondaryText,
+                color = appColors.secondaryText.copy(alpha = 0.84f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
@@ -509,7 +509,6 @@ private fun PlayerDetails(
                 .padding(vertical = 2.dp),
         ) {
             val canSetFavorite = nowPlayingTrack != null && supportsTrackFavorites
-            val audioInfo = nowPlayingTrack?.playbackAudioInfo(playbackEngineName)
             Text(
                 nowPlayingTrack?.favoriteGlyph() ?: "♡",
                 color = if (nowPlayingTrack?.favoritedAtIso8601 != null) {
@@ -525,14 +524,6 @@ private fun PlayerDetails(
                         nowPlayingTrack?.let(onToggleTrackFavorite)
                     },
             )
-            Text(
-                audioInfo?.codec.orEmpty(),
-                color = appColors.secondaryText,
-                fontSize = 11.sp,
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-                modifier = Modifier.width(40.dp),
-            )
             TrackRatingControl(
                 track = nowPlayingTrack,
                 enabled = supportsTrackRatings,
@@ -541,20 +532,57 @@ private fun PlayerDetails(
                 onRatingSelected = onTrackRatingSelected,
                 modifier = Modifier.width(82.dp),
             )
-            Text(
-                audioInfo?.quality.orEmpty(),
-                color = appColors.secondaryText,
-                fontSize = 11.sp,
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-                modifier = Modifier.width(54.dp),
+        }
+
+        Text(
+            listOfNotNull(audioInfo?.codec, audioInfo?.quality).joinToString("  "),
+            color = appColors.secondaryText,
+            fontSize = 11.sp,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 42.dp),
+        ) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.width(22.dp),
+            ) {
+                Icon(
+                    imageVector = TransportIcons.Volume,
+                    contentDescription = "Volume",
+                    tint = appColors.secondaryText,
+                    modifier = Modifier.size(17.dp),
+                )
+            }
+            VolumeLineControl(
+                value = volumeValue,
+                enabled = supportsSoftwareVolume,
+                onValueChange = {
+                    isChangingVolume = true
+                    volumeValue = it
+                    onVolumeChanged((it * 100).toInt().coerceIn(0, 100))
+                },
+                onValueChangeFinished = {
+                    isChangingVolume = false
+                },
+                modifier = Modifier
+                    .weight(1f)
+                    .height(14.dp),
             )
         }
 
         Row(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(top = 8.dp, bottom = 8.dp),
+            modifier = Modifier.padding(top = 6.dp, bottom = 4.dp),
         ) {
             TransportIconButton(
                 enabled = hasPrevious,
@@ -592,69 +620,70 @@ private fun PlayerDetails(
             )
         }
 
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 42.dp),
+                .height(32.dp),
         ) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.width(22.dp),
+            TransportIconButton(
+                enabled = nowPlayingTrack != null,
+                icon = TransportIcons.Radio,
+                contentDescription = "Start track radio",
+                appColors = appColors,
+                onClick = {
+                    nowPlayingTrack?.let(onTrackRadioSelected)
+                },
+                modifier = Modifier.align(Alignment.CenterStart),
+            )
+            IconButton(
+                onClick = onCollapseToHome,
+                modifier = Modifier
+                    .size(28.dp)
+                    .align(Alignment.Center),
             ) {
                 Icon(
-                    imageVector = TransportIcons.Volume,
-                    contentDescription = "Volume",
+                    imageVector = NavigationIcons.ChevronDown,
+                    contentDescription = "Back",
                     tint = appColors.secondaryText,
                     modifier = Modifier.size(18.dp),
                 )
             }
-            Slider(
-                value = volumeValue,
-                onValueChange = {
-                    isChangingVolume = true
-                    volumeValue = it
-                    onVolumeChanged((it * 100).toInt().coerceIn(0, 100))
-                },
-                onValueChangeFinished = {
-                    isChangingVolume = false
-                },
-                enabled = supportsSoftwareVolume,
-                colors = playerSliderColors(playerColors, appColors),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(16.dp),
-            )
-            Text(
-                "${(volumeValue * 100).toInt().coerceIn(0, 100)}%",
-                color = appColors.secondaryText,
-                fontSize = 11.sp,
-                textAlign = TextAlign.End,
-                modifier = Modifier.width(34.dp),
-            )
-        }
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Text(
-                playbackCapabilityLabel(supportsGapless, supportsCrossfade),
-                color = appColors.mutedText,
-                textAlign = TextAlign.Center,
-                fontSize = 10.sp,
-            )
-            IconButton(
-                onClick = onCollapseToHome,
-                modifier = Modifier.size(28.dp),
-            ) {
-                Icon(
-                    imageVector = NavigationIcons.ChevronDown,
-                    contentDescription = "Home",
-                    tint = appColors.secondaryText,
-                    modifier = Modifier.size(18.dp),
+            Box(modifier = Modifier.align(Alignment.CenterEnd)) {
+                TransportIconButton(
+                    enabled = nowPlayingTrack != null,
+                    icon = TransportIcons.Menu,
+                    contentDescription = "Track actions",
+                    appColors = appColors,
+                    onClick = { actionMenuExpanded = true },
                 )
+                NaviampDropdownMenu(
+                    expanded = actionMenuExpanded,
+                    onDismissRequest = { actionMenuExpanded = false },
+                ) {
+                    NaviampDropdownMenuItem(
+                        label = "Start track radio",
+                        onClick = {
+                            actionMenuExpanded = false
+                            nowPlayingTrack?.let(onTrackRadioSelected)
+                        },
+                    )
+                    NaviampDropdownMenuItem(
+                        label = "Go to artist",
+                        enabled = nowPlayingTrack?.artistId != null,
+                        onClick = {
+                            actionMenuExpanded = false
+                            nowPlayingTrack?.let(onArtistSelected)
+                        },
+                    )
+                    NaviampDropdownMenuItem(
+                        label = "Go to album",
+                        enabled = nowPlayingTrack?.albumId != null,
+                        onClick = {
+                            actionMenuExpanded = false
+                            nowPlayingTrack?.let(onAlbumSelected)
+                        },
+                    )
+                }
             }
         }
     }
@@ -672,6 +701,60 @@ private fun playerSliderColors(
     disabledActiveTrackColor = Color.White.copy(alpha = 0.18f),
     disabledInactiveTrackColor = Color.White.copy(alpha = 0.12f),
 )
+
+@Composable
+private fun VolumeLineControl(
+    value: Float,
+    enabled: Boolean,
+    onValueChange: (Float) -> Unit,
+    onValueChangeFinished: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var widthPx by remember { mutableFloatStateOf(1f) }
+
+    fun updateFromX(x: Float) {
+        if (!enabled) return
+        onValueChange((x / widthPx).coerceIn(0f, 1f))
+    }
+
+    Canvas(
+        modifier = modifier
+            .onSizeChanged { widthPx = it.width.toFloat().coerceAtLeast(1f) }
+            .pointerInput(enabled, widthPx) {
+                detectTapGestures { offset ->
+                    updateFromX(offset.x)
+                    onValueChangeFinished()
+                }
+            }
+            .pointerInput(enabled, widthPx) {
+                detectDragGestures(
+                    onDragStart = { offset -> updateFromX(offset.x) },
+                    onDrag = { change, _ -> updateFromX(change.position.x) },
+                    onDragEnd = onValueChangeFinished,
+                    onDragCancel = onValueChangeFinished,
+                )
+            },
+    ) {
+        val centerY = size.height / 2f
+        val endX = size.width * value.coerceIn(0f, 1f)
+        val disabledAlpha = if (enabled) 1f else 0.42f
+
+        drawLine(
+            color = Color.White.copy(alpha = 0.24f * disabledAlpha),
+            start = Offset(0f, centerY),
+            end = Offset(size.width, centerY),
+            strokeWidth = 4f,
+            cap = StrokeCap.Round,
+        )
+        drawLine(
+            color = Color.White.copy(alpha = 0.88f * disabledAlpha),
+            start = Offset(0f, centerY),
+            end = Offset(endX, centerY),
+            strokeWidth = 4f,
+            cap = StrokeCap.Round,
+        )
+    }
+}
 
 @Composable
 private fun WaveformScrubber(
@@ -772,11 +855,12 @@ private fun TransportIconButton(
     contentDescription: String,
     appColors: AppColors,
     prominent: Boolean = false,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier
+        modifier = modifier
             .size(if (prominent) 44.dp else 34.dp)
             .clip(RoundedCornerShape(999.dp))
             .background(
@@ -908,15 +992,6 @@ private fun UpNextPanel(
             }
         }
     }
-}
-
-private fun playbackCapabilityLabel(
-    supportsGapless: Boolean,
-    supportsCrossfade: Boolean,
-): String {
-    val gapless = if (supportsGapless) "Gapless" else "No gapless"
-    val crossfade = if (supportsCrossfade) "Crossfade" else "No crossfade"
-    return "$gapless • $crossfade"
 }
 
 @Composable
