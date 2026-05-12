@@ -29,6 +29,7 @@ fun DownloadsPanel(
     coverArtUrl: (String?) -> String?,
     onTrackSelected: (Int) -> Unit,
     onRemoveDownload: (DownloadedTrack) -> Unit,
+    onTrackAddToPlaylist: (DownloadedTrack) -> Unit,
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -119,6 +120,12 @@ fun DownloadsPanel(
                             modifier = Modifier.size(17.dp),
                         )
                     }
+                    RowOverflowMenu(
+                        appColors = appColors,
+                        items = listOf(RowMenuItem("Add to playlist", NavigationIcons.Playlist) {
+                            onTrackAddToPlaylist(download)
+                        }),
+                    )
                 }
             }
         }

@@ -23,6 +23,8 @@ import androidx.compose.ui.unit.sp
 enum class AppRoute {
     Player,
     Home,
+    Playlists,
+    PlaylistDetail,
     AlbumDetail,
     ArtistDetail,
     Library,
@@ -45,6 +47,7 @@ data class BottomNavigationItem(
 
 val BottomNavigationItems = listOf(
     BottomNavigationItem(AppRoute.Home, "Home", NavigationIcons.Home),
+    BottomNavigationItem(AppRoute.Playlists, "Playlists", NavigationIcons.Playlist),
     BottomNavigationItem(AppRoute.Library, "Library", NavigationIcons.Library),
     BottomNavigationItem(AppRoute.Search, "Search", NavigationIcons.Search),
     BottomNavigationItem(AppRoute.Downloads, "Downloads", NavigationIcons.Downloads),

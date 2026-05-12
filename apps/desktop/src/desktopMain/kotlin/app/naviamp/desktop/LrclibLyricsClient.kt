@@ -30,7 +30,7 @@ class LrclibLyricsClient(
 
         val request = HttpRequest.newBuilder(URI.create(url))
             .header("Accept", "application/json")
-            .header("User-Agent", "Naviamp/0.5.0 (https://github.com/jbmcmichael/Naviamp)")
+            .header("User-Agent", "Naviamp/0.9.0 (https://github.com/jbmcmichael/Naviamp)")
             .GET()
             .build()
         val response = runCatching {

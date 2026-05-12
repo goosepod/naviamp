@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import app.naviamp.domain.Album
 import app.naviamp.domain.Genre
 import app.naviamp.domain.Playlist
+import app.naviamp.desktop.settings.RecentRadioStream
 
 data class HomeContent(
     val recentlyAddedAlbums: List<Album> = emptyList(),
@@ -34,6 +35,7 @@ data class HomeContent(
     val frequentAlbums: List<Album> = emptyList(),
     val randomAlbums: List<Album> = emptyList(),
     val playlists: List<Playlist> = emptyList(),
+    val recentRadioStreams: List<RecentRadioStream> = emptyList(),
     val genres: List<Genre> = emptyList(),
     val genreSpotlight: Genre? = null,
     val genreSpotlightAlbums: List<Album> = emptyList(),
@@ -49,6 +51,7 @@ data class HomeContent(
             frequentAlbums.isEmpty() &&
             randomAlbums.isEmpty() &&
             playlists.isEmpty() &&
+            recentRadioStreams.isEmpty() &&
             genreSpotlightAlbums.isEmpty() &&
             decadeAlbums.isEmpty()
 }
@@ -62,8 +65,11 @@ fun HomePanel(
     onAlbumSelected: (Album) -> Unit,
     onAlbumRadioSelected: (Album) -> Unit,
     onAlbumDownloadSelected: (Album) -> Unit,
+    onAlbumAddToPlaylist: (Album) -> Unit,
     onPlaylistSelected: (Playlist) -> Unit,
     onPlaylistDownloadSelected: (Playlist) -> Unit,
+    onPlaylistAddToPlaylist: (Playlist) -> Unit,
+    onRecentRadioSelected: (RecentRadioStream) -> Unit,
     onLibraryRadioSelected: () -> Unit,
     onRandomAlbumRadioSelected: () -> Unit,
     onGenreRadioSelected: (Genre) -> Unit,
@@ -109,6 +115,7 @@ fun HomePanel(
             onAlbumSelected = onAlbumSelected,
             onAlbumRadioSelected = onAlbumRadioSelected,
             onAlbumDownloadSelected = onAlbumDownloadSelected,
+            onAlbumAddToPlaylist = onAlbumAddToPlaylist,
         )
 
         if (homeContent.playlists.isNotEmpty()) {
@@ -120,7 +127,16 @@ fun HomePanel(
                         coverArtUrl = coverArtUrl(playlist.coverArtId),
                         onClick = { onPlaylistSelected(playlist) },
                         onDownload = { onPlaylistDownloadSelected(playlist) },
+                        onAddToPlaylist = { onPlaylistAddToPlaylist(playlist) },
                     )
+                }
+            }
+        }
+
+        if (homeContent.recentRadioStreams.isNotEmpty()) {
+            HomeSection(title = "Recently Played Radio", appColors = appColors) {
+                homeContent.recentRadioStreams.take(5).forEach { stream ->
+                    StationRow(appColors, stream.label, "Radio", onClick = { onRecentRadioSelected(stream) })
                 }
             }
         }
@@ -148,6 +164,7 @@ fun HomePanel(
             onAlbumSelected = onAlbumSelected,
             onAlbumRadioSelected = onAlbumRadioSelected,
             onAlbumDownloadSelected = onAlbumDownloadSelected,
+            onAlbumAddToPlaylist = onAlbumAddToPlaylist,
         )
 
         HomeAlbumSection(
@@ -158,6 +175,7 @@ fun HomePanel(
             onAlbumSelected = onAlbumSelected,
             onAlbumRadioSelected = onAlbumRadioSelected,
             onAlbumDownloadSelected = onAlbumDownloadSelected,
+            onAlbumAddToPlaylist = onAlbumAddToPlaylist,
         )
 
         HomeAlbumSection(
@@ -168,6 +186,7 @@ fun HomePanel(
             onAlbumSelected = onAlbumSelected,
             onAlbumRadioSelected = onAlbumRadioSelected,
             onAlbumDownloadSelected = onAlbumDownloadSelected,
+            onAlbumAddToPlaylist = onAlbumAddToPlaylist,
         )
 
         homeContent.genreSpotlight?.let { genre ->
@@ -179,6 +198,7 @@ fun HomePanel(
                 onAlbumSelected = onAlbumSelected,
                 onAlbumRadioSelected = onAlbumRadioSelected,
                 onAlbumDownloadSelected = onAlbumDownloadSelected,
+                onAlbumAddToPlaylist = onAlbumAddToPlaylist,
             )
         }
 
@@ -190,6 +210,7 @@ fun HomePanel(
             onAlbumSelected = onAlbumSelected,
             onAlbumRadioSelected = onAlbumRadioSelected,
             onAlbumDownloadSelected = onAlbumDownloadSelected,
+            onAlbumAddToPlaylist = onAlbumAddToPlaylist,
         )
     }
 }
@@ -203,6 +224,7 @@ private fun HomeAlbumSection(
     onAlbumSelected: (Album) -> Unit,
     onAlbumRadioSelected: (Album) -> Unit,
     onAlbumDownloadSelected: (Album) -> Unit,
+    onAlbumAddToPlaylist: (Album) -> Unit,
 ) {
     if (albums.isEmpty()) return
     HomeSection(title = title, appColors = appColors) {
@@ -216,6 +238,7 @@ private fun HomeAlbumSection(
                 onClick = { onAlbumSelected(album) },
                 onStartRadio = { onAlbumRadioSelected(album) },
                 onDownload = { onAlbumDownloadSelected(album) },
+                onAddToPlaylist = { onAlbumAddToPlaylist(album) },
             )
         }
     }
@@ -273,6 +296,7 @@ private fun PlaylistRow(
     coverArtUrl: String?,
     onClick: () -> Unit,
     onDownload: () -> Unit,
+    onAddToPlaylist: () -> Unit,
 ) {
     MediaRow(appColors = appColors, onClick = onClick) {
         CoverArtThumb(
@@ -301,7 +325,10 @@ private fun PlaylistRow(
         Text("Playlist", color = appColors.mutedText, fontSize = 11.sp)
         RowOverflowMenu(
             appColors = appColors,
-            items = listOf(RowMenuItem("Download playlist", NavigationIcons.Downloads, onDownload)),
+            items = listOf(
+                RowMenuItem("Download playlist", NavigationIcons.Downloads, onDownload),
+                RowMenuItem("Add to playlist", NavigationIcons.Playlist, onAddToPlaylist),
+            ),
         )
     }
 }
@@ -359,21 +386,5 @@ private fun HomeSection(
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             content()
         }
-    }
-}
-
-private fun Playlist.summaryLabel(): String =
-    listOfNotNull(
-        "$trackCount tracks",
-        durationSeconds?.durationSummary(),
-    ).joinToString(" - ")
-
-private fun Int.durationSummary(): String {
-    val hours = this / 3600
-    val minutes = (this % 3600) / 60
-    return if (hours > 0) {
-        "${hours}h ${minutes}m"
-    } else {
-        "${minutes}m"
     }
 }

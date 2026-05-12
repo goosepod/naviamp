@@ -115,12 +115,15 @@ fun NowPlayingPanel(
     onAlbumSelected: (Track) -> Unit,
     onTrackRadioSelected: (Track) -> Unit,
     onDownloadTrackSelected: (Track) -> Unit,
+    onAddTrackToPlaylist: (Track) -> Unit,
     onQueueIndexSelected: (Int) -> Unit,
     onUpNextTrackRadioSelected: (Track) -> Unit,
     onUpNextTrackDownloadSelected: (Track) -> Unit,
+    onUpNextTrackAddToPlaylist: (Track) -> Unit,
     onRelatedTrackSelected: (Int) -> Unit,
     onRelatedTrackRadioSelected: (Track) -> Unit,
     onRelatedTrackDownloadSelected: (Track) -> Unit,
+    onRelatedTrackAddToPlaylist: (Track) -> Unit,
     onCollapseToHome: () -> Unit,
 ) {
     var showLyrics by remember(nowPlayingTrack?.id) { mutableStateOf(false) }
@@ -194,6 +197,7 @@ fun NowPlayingPanel(
                         onAlbumSelected = onAlbumSelected,
                         onTrackRadioSelected = onTrackRadioSelected,
                         onDownloadTrackSelected = onDownloadTrackSelected,
+                        onAddTrackToPlaylist = onAddTrackToPlaylist,
                         lyricsVisible = showLyrics,
                         onToggleLyrics = { showLyrics = !showLyrics },
                         onCollapseToHome = onCollapseToHome,
@@ -220,9 +224,11 @@ fun NowPlayingPanel(
                         onQueueIndexSelected = onQueueIndexSelected,
                         onUpNextTrackRadioSelected = onUpNextTrackRadioSelected,
                         onUpNextTrackDownloadSelected = onUpNextTrackDownloadSelected,
+                        onUpNextTrackAddToPlaylist = onUpNextTrackAddToPlaylist,
                         onRelatedTrackSelected = onRelatedTrackSelected,
                         onRelatedTrackRadioSelected = onRelatedTrackRadioSelected,
                         onRelatedTrackDownloadSelected = onRelatedTrackDownloadSelected,
+                        onRelatedTrackAddToPlaylist = onRelatedTrackAddToPlaylist,
                         modifier = Modifier.weight(if (showLyrics) 0.42f else 1f),
                     )
                     if (showLyrics) {
@@ -295,6 +301,7 @@ fun NowPlayingPanel(
                     onAlbumSelected = onAlbumSelected,
                     onTrackRadioSelected = onTrackRadioSelected,
                     onDownloadTrackSelected = onDownloadTrackSelected,
+                    onAddTrackToPlaylist = onAddTrackToPlaylist,
                     lyricsVisible = showLyrics,
                     onToggleLyrics = { showLyrics = !showLyrics },
                     onCollapseToHome = onCollapseToHome,
@@ -312,9 +319,11 @@ fun NowPlayingPanel(
                     onQueueIndexSelected = onQueueIndexSelected,
                     onUpNextTrackRadioSelected = onUpNextTrackRadioSelected,
                     onUpNextTrackDownloadSelected = onUpNextTrackDownloadSelected,
+                    onUpNextTrackAddToPlaylist = onUpNextTrackAddToPlaylist,
                     onRelatedTrackSelected = onRelatedTrackSelected,
                     onRelatedTrackRadioSelected = onRelatedTrackRadioSelected,
                     onRelatedTrackDownloadSelected = onRelatedTrackDownloadSelected,
+                    onRelatedTrackAddToPlaylist = onRelatedTrackAddToPlaylist,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(280.dp),
@@ -451,6 +460,7 @@ private fun PlayerDetails(
     onAlbumSelected: (Track) -> Unit,
     onTrackRadioSelected: (Track) -> Unit,
     onDownloadTrackSelected: (Track) -> Unit,
+    onAddTrackToPlaylist: (Track) -> Unit,
     lyricsVisible: Boolean,
     onToggleLyrics: () -> Unit,
     onCollapseToHome: () -> Unit,
@@ -727,16 +737,29 @@ private fun PlayerDetails(
                 .fillMaxWidth()
                 .height(32.dp),
         ) {
-            TransportIconButton(
-                enabled = nowPlayingTrack != null,
-                icon = TransportIcons.Radio,
-                contentDescription = "Start track radio",
-                appColors = appColors,
-                onClick = {
-                    nowPlayingTrack?.let(onTrackRadioSelected)
-                },
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(0.dp),
                 modifier = Modifier.align(Alignment.CenterStart),
-            )
+            ) {
+                TransportIconButton(
+                    enabled = nowPlayingTrack != null,
+                    icon = TransportIcons.Radio,
+                    contentDescription = "Start track radio",
+                    appColors = appColors,
+                    onClick = {
+                        nowPlayingTrack?.let(onTrackRadioSelected)
+                    },
+                )
+                TransportIconButton(
+                    enabled = nowPlayingTrack != null,
+                    icon = NavigationIcons.Playlist,
+                    contentDescription = "Add track to playlist",
+                    appColors = appColors,
+                    onClick = {
+                        nowPlayingTrack?.let(onAddTrackToPlaylist)
+                    },
+                )
+            }
             IconButton(
                 onClick = onCollapseToHome,
                 modifier = Modifier
@@ -828,8 +851,11 @@ private fun PlayerDetails(
                         NaviampDropdownMenuItem(
                             label = "Add to playlist",
                             icon = NavigationIcons.Playlist,
-                            enabled = false,
-                            onClick = { },
+                            enabled = nowPlayingTrack != null,
+                            onClick = {
+                                actionMenuExpanded = false
+                                nowPlayingTrack?.let(onAddTrackToPlaylist)
+                            },
                         )
                     }
                 }
@@ -1313,9 +1339,11 @@ private fun UpNextPanel(
     onQueueIndexSelected: (Int) -> Unit,
     onUpNextTrackRadioSelected: (Track) -> Unit,
     onUpNextTrackDownloadSelected: (Track) -> Unit,
+    onUpNextTrackAddToPlaylist: (Track) -> Unit,
     onRelatedTrackSelected: (Int) -> Unit,
     onRelatedTrackRadioSelected: (Track) -> Unit,
     onRelatedTrackDownloadSelected: (Track) -> Unit,
+    onRelatedTrackAddToPlaylist: (Track) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scrollState = rememberScrollState()
@@ -1432,6 +1460,15 @@ private fun UpNextPanel(
                             }
                             PlayerListTab.Related -> {
                                 { onRelatedTrackDownloadSelected(track) }
+                            }
+                        },
+                        onAddToPlaylist = when (selectedTab) {
+                            PlayerListTab.BackTo,
+                            PlayerListTab.UpNext -> {
+                                { onUpNextTrackAddToPlaylist(track) }
+                            }
+                            PlayerListTab.Related -> {
+                                { onRelatedTrackAddToPlaylist(track) }
                             }
                         },
                         titleStyle = TextStyle(

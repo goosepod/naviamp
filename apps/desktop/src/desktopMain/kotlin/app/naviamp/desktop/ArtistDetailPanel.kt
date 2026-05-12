@@ -34,9 +34,11 @@ fun ArtistDetailPanel(
     coverArtUrl: (String?) -> String?,
     onBack: () -> Unit,
     onArtistRadio: (Artist) -> Unit,
+    onAddArtistToPlaylist: (Artist) -> Unit,
     onAlbumSelected: (Album) -> Unit,
     onAlbumRadioSelected: (Album) -> Unit,
     onAlbumDownloadSelected: (Album) -> Unit,
+    onAlbumAddToPlaylist: (Album) -> Unit,
 ) {
     val effectiveArtist = artistDetails?.artist ?: artist
     val imageUrl = artistDetails?.info?.largeImageUrl
@@ -108,6 +110,13 @@ fun ArtistDetailPanel(
                         enabled = details.albums.isNotEmpty(),
                         onClick = { effectiveArtist?.let(onArtistRadio) },
                     )
+                    DetailActionIconButton(
+                        appColors = appColors,
+                        icon = NavigationIcons.Playlist,
+                        contentDescription = "Add artist to playlist",
+                        enabled = details.albums.isNotEmpty(),
+                        onClick = { effectiveArtist?.let(onAddArtistToPlaylist) },
+                    )
                     details.info?.biography
                         ?.takeIf { it.isNotBlank() }
                         ?.let { biography ->
@@ -155,6 +164,7 @@ fun ArtistDetailPanel(
                         onClick = { onAlbumSelected(album) },
                         onStartRadio = { onAlbumRadioSelected(album) },
                         onDownload = { onAlbumDownloadSelected(album) },
+                        onAddToPlaylist = { onAlbumAddToPlaylist(album) },
                     )
                 }
             }

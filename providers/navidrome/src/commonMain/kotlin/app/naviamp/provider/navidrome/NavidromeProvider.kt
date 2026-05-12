@@ -255,6 +255,50 @@ class NavidromeProvider(
         }
     }
 
+    override suspend fun createPlaylist(name: String, trackIds: List<TrackId>): Playlist {
+        val trimmedName = name.trim()
+        if (trimmedName.isBlank()) throw NavidromeException("Playlist name is required.")
+        val response = get(
+            endpoint = "createPlaylist.view",
+            params = listOf("name" to trimmedName) + trackIds.map { "songId" to it.value },
+        )
+        val playlist = response.subsonicResponse()["playlist"]?.jsonObject
+        if (playlist != null) return playlist.toPlaylist()
+
+        return Playlist(
+            id = trimmedName,
+            name = trimmedName,
+            trackCount = trackIds.size,
+        )
+    }
+
+    override suspend fun addTracksToPlaylist(playlistId: String, trackIds: List<TrackId>) {
+        if (trackIds.isEmpty()) return
+        get(
+            endpoint = "updatePlaylist.view",
+            params = listOf("playlistId" to playlistId) + trackIds.map { "songIdToAdd" to it.value },
+        )
+    }
+
+    override suspend fun renamePlaylist(playlistId: String, name: String) {
+        val trimmedName = name.trim()
+        if (trimmedName.isBlank()) throw NavidromeException("Playlist name is required.")
+        get(
+            endpoint = "updatePlaylist.view",
+            params = listOf(
+                "playlistId" to playlistId,
+                "name" to trimmedName,
+            ),
+        )
+    }
+
+    override suspend fun deletePlaylist(playlistId: String) {
+        get(
+            endpoint = "deletePlaylist.view",
+            params = listOf("id" to playlistId),
+        )
+    }
+
     override suspend fun genres(limit: Int): List<Genre> {
         val response = get("getGenres.view")
         val genres = response.subsonicResponse()["genres"]
@@ -514,6 +558,12 @@ class NavidromeProvider(
     private suspend fun get(
         endpoint: String,
         params: Map<String, String> = emptyMap(),
+    ): JsonObject =
+        get(endpoint, params.entries.map { it.key to it.value })
+
+    private suspend fun get(
+        endpoint: String,
+        params: List<Pair<String, String>>,
     ): JsonObject {
         val body = httpClient.get(url(endpoint, params))
         val root = json.parseToJsonElement(body).jsonObject
@@ -537,8 +587,14 @@ class NavidromeProvider(
     private fun url(
         endpoint: String,
         params: Map<String, String> = emptyMap(),
+    ): String =
+        url(endpoint, params.entries.map { it.key to it.value })
+
+    private fun url(
+        endpoint: String,
+        params: List<Pair<String, String>>,
     ): String {
-        val allParams = authParams + params
+        val allParams = authParams.toList() + params
         return "${connection.normalizedBaseUrl}/rest/$endpoint?${allParams.toQueryString()}"
     }
 
@@ -830,8 +886,8 @@ private fun String.sanitizedNavidromeUrl(): String =
         }
     }.getOrDefault("<unparseable url>")
 
-private fun Map<String, String>.toQueryString(): String =
-    entries.joinToString("&") { (key, value) ->
+private fun List<Pair<String, String>>.toQueryString(): String =
+    joinToString("&") { (key, value) ->
         "${key.urlEncode()}=${value.urlEncode()}"
     }
 

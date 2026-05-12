@@ -216,6 +216,13 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - Settings > Playback also includes an `Up Next selection` toggle with an info affordance. `Move selected` plays the clicked upcoming track while keeping skipped upcoming tracks queued; `Skip to selected` treats the click like advancing through the queue so skipped upcoming tracks become history.
   - Selecting a song from `UP NEXT` should scroll the list back to the top so the first visible row is the actual next song after the newly current track.
 - Detail-page and overflow-menu actions now use leading/icon-only controls where appropriate. Keep menu text, but include recognizable leading icons for radio, download, details, album, artist, and playlist actions.
+- Playlists V1:
+  - Playlists are server-backed through the provider contract. Navidrome uses Subsonic `createPlaylist`, `updatePlaylist`, and `deletePlaylist` for create, append, rename, and delete.
+  - A top-level Playlists screen sits between Home and Library. It lists playlists alphabetically or by locally tracked recent play, with play, shuffle, rename, delete, download, and add-to-playlist actions.
+  - Playlist detail behaves like an album detail surface: it can play/shuffle the full playlist, act on individual tracks, and renders a dynamic Compose cover collage from distinct album artwork in the playlist.
+  - Add-to-playlist is a shared dialog that can append to an existing playlist or create a new server playlist. Artist and album additions expand to all current tracks before appending.
+  - Add-to-playlist entry points are wired through Search, Home, Library, artist detail, album detail, playlist detail, Downloads, Now Playing, `BACK TO`, `UP NEXT`, and `RELATED`.
+  - Home keeps the existing recent playlists section and adds a locally persisted Recently Played Radio section. Library, genre, decade, artist, album, random album, and track radio launches are recorded and can be restarted from Home.
 - Desktop mpv crossfade attempt:
   - A dual-mpv-process crossfade attempt caused regressions in seek, pause, progress polling, and track advancement.
   - `MpvProcessPlaybackEngine` was restored to the stable single-process mpv path and reports `supportsCrossfade = false` again.

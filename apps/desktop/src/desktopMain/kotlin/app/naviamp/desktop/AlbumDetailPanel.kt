@@ -35,9 +35,11 @@ fun AlbumDetailPanel(
     onShuffleAlbum: () -> Unit,
     onAlbumRadio: () -> Unit,
     onDownloadAlbum: () -> Unit,
+    onAddAlbumToPlaylist: () -> Unit,
     onPlayTrack: (Int) -> Unit,
     onTrackRadio: (Track) -> Unit,
     onDownloadTrack: (Track) -> Unit,
+    onAddTrackToPlaylist: (Track) -> Unit,
     onArtistSelected: (Track) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -142,6 +144,13 @@ fun AlbumDetailPanel(
                         enabled = albumDetails?.tracks?.isNotEmpty() == true,
                         onClick = onDownloadAlbum,
                     )
+                    DetailActionIconButton(
+                        appColors = appColors,
+                        icon = NavigationIcons.Playlist,
+                        contentDescription = "Add album to playlist",
+                        enabled = albumDetails?.tracks?.isNotEmpty() == true,
+                        onClick = onAddAlbumToPlaylist,
+                    )
                 }
             }
         }
@@ -171,6 +180,7 @@ fun AlbumDetailPanel(
                         onClick = { onPlayTrack(index) },
                         onStartRadio = { onTrackRadio(track) },
                         onDownload = { onDownloadTrack(track) },
+                        onAddToPlaylist = { onAddTrackToPlaylist(track) },
                     )
                 }
             }

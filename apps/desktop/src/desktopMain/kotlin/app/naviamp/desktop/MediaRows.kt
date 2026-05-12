@@ -72,6 +72,7 @@ fun ArtistRow(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
     onStartRadio: (() -> Unit)? = null,
+    onAddToPlaylist: (() -> Unit)? = null,
 ) {
     MediaRow(appColors = appColors, modifier = modifier, onClick = onClick) {
         MediaTextBlock(
@@ -85,6 +86,7 @@ fun ArtistRow(
             appColors = appColors,
             items = listOfNotNull(
                 onStartRadio?.let { RowMenuItem("Start artist radio", TransportIcons.Radio, it) },
+                onAddToPlaylist?.let { RowMenuItem("Add to playlist", NavigationIcons.Playlist, it) },
             ),
         )
     }
@@ -101,6 +103,7 @@ fun AlbumRow(
     onClick: (() -> Unit)? = null,
     onStartRadio: (() -> Unit)? = null,
     onDownload: (() -> Unit)? = null,
+    onAddToPlaylist: (() -> Unit)? = null,
 ) {
     MediaRow(
         appColors = appColors,
@@ -130,6 +133,7 @@ fun AlbumRow(
             items = listOfNotNull(
                 onStartRadio?.let { RowMenuItem("Start album radio", TransportIcons.Radio, it) },
                 onDownload?.let { RowMenuItem("Download album", NavigationIcons.Downloads, it) },
+                onAddToPlaylist?.let { RowMenuItem("Add to playlist", NavigationIcons.Playlist, it) },
             ),
         )
     }
@@ -156,6 +160,7 @@ fun TrackRow(
     showMenu: Boolean = false,
     onStartRadio: (() -> Unit)? = null,
     onDownload: (() -> Unit)? = null,
+    onAddToPlaylist: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
 ) {
     MediaRow(
@@ -196,12 +201,13 @@ fun TrackRow(
             track = track,
             showDuration = showDuration,
         )
-        if (showMenu || onStartRadio != null || onDownload != null) {
+        if (showMenu || onStartRadio != null || onDownload != null || onAddToPlaylist != null) {
             RowOverflowMenu(
                 appColors = appColors,
                 items = listOfNotNull(
                     onStartRadio?.let { RowMenuItem("Start track radio", TransportIcons.Radio, it) },
                     onDownload?.let { RowMenuItem("Download track", NavigationIcons.Downloads, it) },
+                    onAddToPlaylist?.let { RowMenuItem("Add to playlist", NavigationIcons.Playlist, it) },
                 ),
             )
         }

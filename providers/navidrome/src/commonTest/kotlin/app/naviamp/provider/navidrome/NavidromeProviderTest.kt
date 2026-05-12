@@ -436,6 +436,70 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun createPlaylistSendsNameAndSongIds() = runTest {
+        val httpClient = RecordingHttpClient()
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        provider.createPlaylist("Road Mix", listOf(TrackId("track-1"), TrackId("track-2")))
+
+        assertEquals(
+            "https://music.example.test/rest/createPlaylist.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&name=Road+Mix&songId=track-1&songId=track-2",
+            httpClient.urls.single(),
+        )
+    }
+
+    @Test
+    fun addTracksToPlaylistUsesRepeatedSongIds() = runTest {
+        val httpClient = RecordingHttpClient()
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        provider.addTracksToPlaylist("playlist-1", listOf(TrackId("track-1"), TrackId("track-2")))
+
+        assertEquals(
+            "https://music.example.test/rest/updatePlaylist.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&playlistId=playlist-1&songIdToAdd=track-1&songIdToAdd=track-2",
+            httpClient.urls.single(),
+        )
+    }
+
+    @Test
+    fun renamePlaylistUsesUpdatePlaylist() = runTest {
+        val httpClient = RecordingHttpClient()
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        provider.renamePlaylist("playlist-1", "New Name")
+
+        assertEquals(
+            "https://music.example.test/rest/updatePlaylist.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&playlistId=playlist-1&name=New+Name",
+            httpClient.urls.single(),
+        )
+    }
+
+    @Test
+    fun deletePlaylistUsesDeletePlaylist() = runTest {
+        val httpClient = RecordingHttpClient()
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        provider.deletePlaylist("playlist-1")
+
+        assertEquals(
+            "https://music.example.test/rest/deletePlaylist.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=playlist-1",
+            httpClient.urls.single(),
+        )
+    }
+
+    @Test
     fun randomSongsIncludesGenreAndYearFilters() = runTest {
         val httpClient = RecordingResponseHttpClient(
             """

@@ -71,7 +71,7 @@ compose.desktop {
 
         nativeDistributions {
             packageName = "Naviamp"
-            packageVersion = "0.1.0"
+            packageVersion = "0.9.0"
             modules("java.net.http", "java.sql")
 
             windows {

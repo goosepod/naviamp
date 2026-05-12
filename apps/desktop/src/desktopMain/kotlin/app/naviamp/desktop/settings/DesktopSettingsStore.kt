@@ -1,7 +1,9 @@
 package app.naviamp.desktop.settings
 
 import app.naviamp.desktop.playback.ReplayGainMode
+import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumId
+import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.AudioInfo
 import app.naviamp.domain.Track
@@ -93,6 +95,20 @@ class DesktopSettingsStore(
         saveSettings(loadSettings().copy(search = searchSettings))
     }
 
+    fun loadRecentRadioStreams(): List<RecentRadioStream> =
+        loadSettings().recentRadioStreams
+
+    fun saveRecentRadioStreams(streams: List<RecentRadioStream>) {
+        saveSettings(loadSettings().copy(recentRadioStreams = streams.take(12)))
+    }
+
+    fun loadRecentPlaylistIds(): List<String> =
+        loadSettings().recentPlaylistIds
+
+    fun saveRecentPlaylistIds(ids: List<String>) {
+        saveSettings(loadSettings().copy(recentPlaylistIds = ids.distinct().take(50)))
+    }
+
     private fun loadSettings(): DesktopSettings {
         if (!settingsPath.exists()) return DesktopSettings()
         val text = settingsPath.readText()
@@ -125,6 +141,8 @@ data class DesktopSettings(
     val session: PlaybackSessionSettings? = null,
     val navigation: NavigationSettings = NavigationSettings(),
     val search: SearchSettings = SearchSettings(),
+    val recentRadioStreams: List<RecentRadioStream> = emptyList(),
+    val recentPlaylistIds: List<String> = emptyList(),
 )
 
 @Serializable
@@ -181,6 +199,76 @@ data class NavigationSettings(
 data class SearchSettings(
     val query: String = "",
 )
+
+@Serializable
+data class RecentRadioStream(
+    val id: String,
+    val label: String,
+    val kind: RecentRadioKind,
+    val artist: SavedArtist? = null,
+    val album: SavedAlbum? = null,
+    val track: SavedTrack? = null,
+    val genre: String? = null,
+    val fromYear: Int? = null,
+    val toYear: Int? = null,
+)
+
+@Serializable
+enum class RecentRadioKind {
+    Library,
+    RandomAlbum,
+    Genre,
+    Decade,
+    Artist,
+    Album,
+    Track,
+}
+
+@Serializable
+data class SavedArtist(
+    val id: String,
+    val name: String,
+) {
+    fun toArtist(): Artist =
+        Artist(id = ArtistId(id), name = name)
+
+    companion object {
+        fun fromArtist(artist: Artist): SavedArtist =
+            SavedArtist(id = artist.id.value, name = artist.name)
+    }
+}
+
+@Serializable
+data class SavedAlbum(
+    val id: String,
+    val title: String,
+    val artistName: String,
+    val coverArtId: String? = null,
+    val recentlyAddedAtIso8601: String? = null,
+    val releaseYear: Int? = null,
+) {
+    fun toAlbum(): Album =
+        Album(
+            id = AlbumId(id),
+            title = title,
+            artistName = artistName,
+            coverArtId = coverArtId,
+            recentlyAddedAtIso8601 = recentlyAddedAtIso8601,
+            releaseYear = releaseYear,
+        )
+
+    companion object {
+        fun fromAlbum(album: Album): SavedAlbum =
+            SavedAlbum(
+                id = album.id.value,
+                title = album.title,
+                artistName = album.artistName,
+                coverArtId = album.coverArtId,
+                recentlyAddedAtIso8601 = album.recentlyAddedAtIso8601,
+                releaseYear = album.releaseYear,
+            )
+    }
+}
 
 @Serializable
 data class PlaybackSessionSettings(

@@ -34,6 +34,18 @@ interface MediaProvider {
     suspend fun search(query: String, limit: Int = 20): MediaSearchResults
     suspend fun playlists(limit: Int = 20): List<Playlist> = emptyList()
     suspend fun playlistTracks(playlistId: String): List<Track> = emptyList()
+    suspend fun createPlaylist(name: String, trackIds: List<TrackId>): Playlist {
+        throw UnsupportedOperationException("Playlist creation is not supported by $displayName.")
+    }
+    suspend fun addTracksToPlaylist(playlistId: String, trackIds: List<TrackId>) {
+        throw UnsupportedOperationException("Playlist edits are not supported by $displayName.")
+    }
+    suspend fun renamePlaylist(playlistId: String, name: String) {
+        throw UnsupportedOperationException("Playlist edits are not supported by $displayName.")
+    }
+    suspend fun deletePlaylist(playlistId: String) {
+        throw UnsupportedOperationException("Playlist deletion is not supported by $displayName.")
+    }
     suspend fun genres(limit: Int = 50): List<Genre> = emptyList()
     suspend fun randomSongs(
         limit: Int = 50,
