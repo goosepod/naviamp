@@ -52,21 +52,21 @@ import app.naviamp.domain.Playlist
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
-import app.naviamp.desktop.playback.CrossfadeSettings
-import app.naviamp.desktop.playback.PlaybackEngine
-import app.naviamp.desktop.playback.PlaybackEngineFactory
-import app.naviamp.desktop.playback.PlaybackProgress
-import app.naviamp.desktop.playback.PlaybackRequest
+import app.naviamp.domain.playback.CrossfadeSettings
+import app.naviamp.domain.playback.PlaybackEngine
+import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.desktop.playback.PlaybackQueue
-import app.naviamp.desktop.playback.PlaybackState
-import app.naviamp.desktop.playback.PlaybackStreamMetadata
+import app.naviamp.desktop.playback.PlaybackEngineFactory
+import app.naviamp.domain.playback.PlaybackState
+import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.desktop.playback.PlaybackTrace
 import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.PlaylistEngine
 import app.naviamp.desktop.playback.RepeatMode
-import app.naviamp.desktop.playback.ReplayGainMode
-import app.naviamp.desktop.playback.label
-import app.naviamp.desktop.playback.mergeWith
+import app.naviamp.domain.playback.ReplayGainMode
+import app.naviamp.domain.playback.label
+import app.naviamp.domain.playback.mergeWith
 import app.naviamp.desktop.settings.DesktopSettingsStore
 import app.naviamp.desktop.settings.NavigationSettings
 import app.naviamp.desktop.settings.PlaybackSettings
@@ -615,20 +615,21 @@ fun NaviampApp(
         onPlaybackProgressChanged = progressChanged@{ progress ->
             val pendingSeek = pendingSeekPositionSeconds
             val pendingSeekIssuedAt = pendingSeekIssuedAtMillis
+            val progressPosition = progress.positionSeconds
             if (
                 pendingSeek != null &&
                 pendingSeekIssuedAt != null &&
-                progress.positionSeconds != null &&
-                abs(progress.positionSeconds - pendingSeek) > PendingSeekToleranceSeconds &&
+                progressPosition != null &&
+                abs(progressPosition - pendingSeek) > PendingSeekToleranceSeconds &&
                 System.currentTimeMillis() - pendingSeekIssuedAt < PendingSeekStaleProgressWindowMillis
             ) {
                 return@progressChanged
             }
             if (
                 pendingSeek != null &&
-                (progress.positionSeconds == null ||
+                (progressPosition == null ||
                     pendingSeekIssuedAt == null ||
-                    abs(progress.positionSeconds - pendingSeek) <= PendingSeekToleranceSeconds ||
+                    abs(progressPosition - pendingSeek) <= PendingSeekToleranceSeconds ||
                     System.currentTimeMillis() - pendingSeekIssuedAt >= PendingSeekStaleProgressWindowMillis)
             ) {
                 pendingSeekPositionSeconds = null

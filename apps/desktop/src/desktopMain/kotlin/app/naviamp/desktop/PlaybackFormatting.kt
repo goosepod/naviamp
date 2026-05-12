@@ -4,8 +4,8 @@ import app.naviamp.domain.AudioCodec
 import app.naviamp.domain.AudioInfo
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
-import app.naviamp.desktop.playback.PlaybackEngine
-import app.naviamp.desktop.playback.PlaybackProgress
+import app.naviamp.domain.playback.PlaybackEngine
+import app.naviamp.domain.playback.PlaybackProgress
 
 fun Track.durationLabel(): String {
     val duration = durationSeconds ?: return "--:--"

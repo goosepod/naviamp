@@ -19,6 +19,7 @@ Naviamp is a Kotlin Multiplatform / Compose Multiplatform music client inspired 
 Current priorities:
 
 - Windows desktop works and is the main live test path right now.
+- Android is now an active target, but the first milestone is separation of concerns before UI work.
 - Navidrome is the first provider, but the app should stay provider-oriented.
 - Playback uses mpv on desktop when available.
 - Audio/track caching is now a priority because it will matter for fast desktop skips, network handoff, and the future Android app.
@@ -32,8 +33,9 @@ UI convention:
 Main source areas:
 
 - `core/domain`: provider contracts and provider-neutral domain models.
+- `core/domain/src/commonMain/kotlin/app/naviamp/domain/playback`: shared playback contracts, playback state/progress models, replay-gain settings, and engine capability shape.
 - `providers/navidrome`: Navidrome/Subsonic API implementation and mapping.
-- `apps/desktop`: Compose desktop UI, settings, playback engine integration, and desktop tests.
+- `apps/desktop`: Compose desktop UI, desktop settings/cache, mpv/JLayer playback engine integration, and desktop tests.
 
 Useful docs:
 
@@ -167,8 +169,8 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - Naviamp sends `scrobble.view?id=<trackId>&submission=true&time=<epochMillis>` once the playback session reaches the play threshold.
   - The current play threshold is 50% of the track or 4 minutes, whichever comes first. Each playback session reports at most one submitted play.
 - Home V1:
-  - Home now loads a richer provider-backed dashboard from Navidrome/Subsonic: mixes, recently added albums, recent/frequent/random album sections, playlists, genre spotlight, and a fixed 2000s decade spotlight.
-  - Home station rows can start Library Radio, Random Album Radio, Genre Radio, and Decade Radio. Artist/Album Mix Builder rows jump into the matching Library tab for seed selection.
+  - Home now loads a richer provider-backed dashboard from Navidrome/Subsonic: mixes, recently added albums, recent/frequent/random album sections, playlists, rotating genre shortcuts, and a data-driven decade spotlight selected from indexed album years when available.
+  - Home station rows can start Library Radio, Random Album Radio, rotating Genre Radio shortcuts, and Decade Radio when backing content exists. Artist/Album Mix Builder rows jump into the matching Library tab for seed selection.
   - Provider contracts now include album lists, playlists, genres, playlist tracks, and random-song queries so other providers can implement the same Home surface.
 - Audio cache V1:
   - Desktop now has a source-scoped file-backed audio cache with SQLite metadata for source, remote track ID, stream quality, local file path, byte count, content type, created time, and last access time.
@@ -272,6 +274,33 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 - Track heart/star mutations currently update Navidrome from the player screen; shared row controls can broaden this later.
 - Library page scroll/search state is still mostly in-memory in `Main.kt`; future route-state work should preserve the selected Library tab, search query, and scroll/jump position if needed.
 - Authenticated stream URLs should be treated as short-lived secrets. Cache/provider tables should persist provider IDs and display metadata, then refresh stream URLs only when playback or prefetch needs them.
+- Shared playback types live in `core/domain` so Android can implement a Media3-backed engine against the same `PlaybackEngine` contract. Desktop-specific engine factories and mpv/JLayer implementations stay under `apps/desktop`.
+
+## Android Roadmap
+
+The Android work should be staged so the desktop app keeps working while platform seams move into the right places.
+
+1. Separation of concerns:
+   - Keep provider contracts, playback contracts, queue behavior, and provider-neutral models in shared/common code.
+   - Keep desktop-only windowing, file pickers, mpv/JLayer engines, JVM image/tag helpers, and desktop settings/cache adapters out of shared modules.
+   - Extract reusable Compose panels only after their dependencies are platform-neutral.
+2. Android project skeleton:
+   - Add Android Gradle plugin/version catalog entries and an `apps:android` module.
+   - Add Android targets to `core:domain` and `providers:navidrome`.
+   - Choose the Android Compose stack deliberately: AndroidX Compose for a native app shell, or Compose Multiplatform only where it reduces duplication without fighting Android lifecycle expectations.
+3. Android playback:
+   - Implement `PlaybackEngine` with AndroidX Media3 ExoPlayer.
+   - Add Media3 session/notification integration so playback works from background, lock screen, headset controls, and Android Auto-compatible surfaces later.
+   - Start with play/pause/seek/progress/metadata/internet-radio support. Treat replay gain, crossfade, waveform analysis, and visualizer support as later capability-gated work.
+4. Android persistence and storage:
+   - Reuse SQLDelight with the Android driver.
+   - Add Android settings/storage adapters for saved connections, recent items, sessions, image/API cache, audio cache, and downloads.
+   - Respect scoped storage and keep user-selected downloads separate from evictable cache files.
+5. Android app milestone order:
+   - Connect to Navidrome, search/select a track, stream through Media3, and show Now Playing.
+   - Restore sessions and add queue controls.
+   - Bring over Home, Library, Playlists, Internet Radio, Downloads, and Settings in that order.
+   - Add background playback polish, media notification actions, and cache/download behavior before treating Android as daily-driver ready.
 
 ## Roadmap Items From The User
 
@@ -281,7 +310,6 @@ Top-of-mind work the user wants:
 - Continue modularizing reusable UI pieces where screens still carry one-off media UI.
 - Broaden starring and favoriting controls beyond the player, including reusable row-level controls.
 - Continue refining the scrub bar.
-- Add a Plexamp/Feishin-style waveform scrubber backed by cached-track analysis, not a second live stream where possible.
 - Revisit visualizer support in the experimental player instead of bolting it onto the current mpv IPC path.
   - A true live spectrum analyzer needs live PCM/FFT data from the playback engine or platform audio APIs.
   - Feishin's desktop visualizer uses WebAudio plus `audiomotion-analyzer`; for mpv/local playback it captures system audio with Chromium `getDisplayMedia` and feeds that live stream to WebAudio.
@@ -294,11 +322,6 @@ Top-of-mind work the user wants:
 - Improve play reporting with an offline retry queue and local history table so failed scrobbles can be retried and Home can use local play data without depending entirely on server history.
 - Improve the upcoming queue further as needed.
 - Expand row menus for `UP NEXT` queue items beyond Start track radio as more queue actions are added.
-- Redesign the full player layout again:
-  - Order should be album art, waveform/scrub bar, track title, artist, album/year, rating controls, codec/bitrate/quality, then volume.
-  - Track title should remain bold and be slightly larger than album metadata.
-  - Album/year metadata should use subtly differentiated color so the hierarchy is clear without looking dramatic.
-  - Rating controls should remain provider-aware: Navidrome gets heart/stars; Jellyfin/Plexamp-like sources may need different controls.
 - Continue refining Library browsing, including genres and richer artist/album grouping.
 - Improve Home radio seeds with richer picker/detail flows for artists, albums, genres, and decades.
 - Improve packaged app startup speed. The generated Windows executable opens noticeably slowly; profile cold start, runtime image startup, settings/database initialization, restored connection work, and first Home/library loading so the shell appears quickly and background work stays backgrounded.
@@ -326,20 +349,17 @@ Top-of-mind work the user wants:
 
 Good next slices:
 
-- Phase 2C follow-up: harden audio cache behavior for mobile/offline use, including expiry rules, partial download cleanup, and provider-specific refresh hooks if Android needs them.
+- Android separation follow-up: continue extracting shared app state and platform-neutral Compose surfaces without moving desktop-only cache/settings/window/playback code into common code.
+- Android app follow-up: add the Android module skeleton and a Media3-backed `PlaybackEngine` once the shared seams are ready.
+- Phase 2C follow-up: harden audio cache behavior for mobile/offline use, including expiry rules, partial download cleanup, and provider-specific refresh hooks.
 - Downloads follow-up: add a clearer download queue/progress surface for multi-track jobs, plus downloaded indicators on rows/albums/playlists.
 - Lyrics follow-up: investigate whether LRCLIB synced lyrics can be written back to Navidrome-managed files or sidecar lyric metadata, and only add this as an explicit user-controlled action if Navidrome supports it safely.
-- Waveform follow-up: add cache-hit/status reporting for waveform generation in Stats for nerds.
 - Waveform follow-up: consider queue-aware/background waveform analysis for likely-upcoming tracks after measuring CPU impact.
-- Queue actions follow-up: add per-row overflow menus in `UP NEXT`, starting with Start track radio.
-- Player actions follow-up: extend the current-track overflow menu with Track details, lyrics, add-to-playlist, and provider-specific actions.
-- Related tab V1: define and populate provider-aware related content for the full player.
+- Queue actions follow-up: keep expanding per-row overflow menus in `UP NEXT`, `BACK TO`, and `RELATED` as new actions become useful.
 - Visualizer follow-up: prototype a real live PCM/FFT path in the experimental player, then wire the player UI to that capability once it behaves well.
 - Crossfade follow-up: revisit `ExperimentalCrossfadeMpvPlaybackEngine` with cached local next files, explicit transition reset on seek/pause/skip/queue clear, and configurable fade curves inspired by Feishin's web player.
 - Broaden reusable row-level favorite/rating controls beyond the player.
 - Add Library genres and richer artist/album grouping.
-- Add lyrics domain model and Navidrome/provider capability shape before building the UI.
-- Re-approach crossfade with an isolated engine/prototype and explicit playback debug tracing.
 - Profile and improve packaged Windows startup time so the app window appears quickly before connection/library work continues.
 - Phase 2A: add a SQLite playback-history table and record play/skip/completion events from the desktop player.
 - Phase 2B: build Home sections from local history: Recent Plays, History, Most Played This Month, and dynamic decade/year modules.

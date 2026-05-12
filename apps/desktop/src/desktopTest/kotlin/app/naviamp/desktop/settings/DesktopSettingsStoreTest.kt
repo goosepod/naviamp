@@ -1,6 +1,6 @@
 package app.naviamp.desktop.settings
 
-import app.naviamp.desktop.playback.ReplayGainMode
+import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.AlbumId
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.AudioInfo

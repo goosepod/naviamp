@@ -1,4 +1,4 @@
-package app.naviamp.desktop.playback
+package app.naviamp.domain.playback
 
 import kotlinx.coroutines.CoroutineScope
 

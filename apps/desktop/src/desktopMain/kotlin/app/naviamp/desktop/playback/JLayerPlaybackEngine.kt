@@ -1,5 +1,10 @@
 package app.naviamp.desktop.playback
 
+import app.naviamp.domain.playback.PlaybackEngine
+import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.playback.PlaybackRequest
+import app.naviamp.domain.playback.PlaybackState
+import app.naviamp.domain.playback.PlaybackStreamMetadata
 import javazoom.jl.player.Player
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

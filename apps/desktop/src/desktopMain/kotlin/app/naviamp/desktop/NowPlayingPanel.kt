@@ -70,10 +70,10 @@ import androidx.compose.ui.unit.sp
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Track
-import app.naviamp.desktop.playback.PlaybackProgress
-import app.naviamp.desktop.playback.PlaybackState
+import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.desktop.playback.RepeatMode
-import app.naviamp.desktop.playback.label
+import app.naviamp.domain.playback.label
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch

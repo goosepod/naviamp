@@ -1,5 +1,7 @@
 package app.naviamp.desktop.playback
 
+import app.naviamp.domain.playback.PlaybackEngine
+
 object PlaybackEngineFactory {
     fun createDefault(): PlaybackEngine {
         val mpv = MpvExecutableResolver().resolve()
