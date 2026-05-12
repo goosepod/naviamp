@@ -219,6 +219,7 @@ fun NaviampApp(
     var nowPlayingTrack by remember { mutableStateOf(restoredTrack) }
     var nowPlayingCoverArtUrl by remember { mutableStateOf<String?>(null) }
     var nowPlayingWaveform by remember { mutableStateOf<AudioWaveform?>(null) }
+    var nowPlayingWaveformStatus by remember { mutableStateOf("No track") }
     var nowPlayingWaveformReloadToken by remember { mutableStateOf(0) }
     var nowPlayingAudioTags by remember { mutableStateOf<List<AudioTag>?>(null) }
     var nowPlayingLyrics by remember { mutableStateOf<Lyrics?>(null) }
@@ -453,6 +454,7 @@ fun NaviampApp(
             reportNowPlaying(track)
             if (trackChanged) {
                 nowPlayingWaveform = null
+                nowPlayingWaveformStatus = "Waiting"
                 nowPlayingAudioTags = null
                 nowPlayingLyrics = null
                 nowPlayingWaveformReloadToken += 1
@@ -508,17 +510,21 @@ fun NaviampApp(
     ) {
         val track = nowPlayingTrack ?: run {
             nowPlayingWaveform = null
+            nowPlayingWaveformStatus = "No track"
             return@LaunchedEffect
         }
         val sourceId = connectedSourceId ?: run {
             nowPlayingWaveform = null
+            nowPlayingWaveformStatus = "No source"
             return@LaunchedEffect
         }
         val provider = connectedProvider ?: run {
             nowPlayingWaveform = null
+            nowPlayingWaveformStatus = "No provider"
             return@LaunchedEffect
         }
         val quality = playbackEngine.streamQuality()
+        nowPlayingWaveformStatus = "Loading"
 
         val waveformTagsAndLyrics = withContext(Dispatchers.IO) {
             runCatching {
@@ -528,20 +534,31 @@ fun NaviampApp(
                     track = track,
                     quality = quality,
                 )
-                val waveform = sessionCache.ensureAudioWaveform(
+                val cachedWaveform = sessionCache.cachedAudioWaveform(
                     sourceId = sourceId,
                     trackId = track.id,
                     quality = quality,
                 )
+                val waveform = cachedWaveform ?: sessionCache.ensureAudioWaveform(
+                    sourceId = sourceId,
+                    trackId = track.id,
+                    quality = quality,
+                )
+                val waveformStatus = when {
+                    cachedWaveform != null -> "Cached"
+                    waveform != null -> "Generated"
+                    else -> "Unavailable"
+                }
                 val tags = AudioTagReader().read(audioFile.path)
                 val lyrics = sessionCache.providerLyrics(sourceId, provider, track.id)
                     ?: lyricsFromAudioTags(tags)
-                Triple(waveform, tags, lyrics)
+                NowPlayingAnalysis(waveform, waveformStatus, tags, lyrics)
             }.getOrNull()
         }
-        nowPlayingWaveform = waveformTagsAndLyrics?.first
-        nowPlayingAudioTags = waveformTagsAndLyrics?.second
-        nowPlayingLyrics = waveformTagsAndLyrics?.third
+        nowPlayingWaveform = waveformTagsAndLyrics?.waveform
+        nowPlayingWaveformStatus = waveformTagsAndLyrics?.waveformStatus ?: "Unavailable"
+        nowPlayingAudioTags = waveformTagsAndLyrics?.audioTags
+        nowPlayingLyrics = waveformTagsAndLyrics?.lyrics
     }
 
     LaunchedEffect(nowPlayingTrack?.id, connectedSourceId) {
@@ -1336,6 +1353,8 @@ fun NaviampApp(
             playbackProgress = playbackProgress,
             playbackSettings = playbackSettings,
             streamQuality = playbackEngine.streamQuality(),
+            waveform = nowPlayingWaveform,
+            waveformStatus = nowPlayingWaveformStatus,
         ),
         cacheStats = sessionCache.stats(),
         providerCapabilities = connectedProvider?.capabilities?.asStatsMap().orEmpty(),
@@ -1803,6 +1822,8 @@ private fun Track.toStreamStats(
     playbackProgress: PlaybackProgress,
     playbackSettings: PlaybackSettings,
     streamQuality: StreamQuality,
+    waveform: AudioWaveform?,
+    waveformStatus: String,
 ): StreamStats {
     val effectiveDurationSeconds = durationSeconds?.toDouble() ?: playbackProgress.durationSeconds
     val audio = audioInfo
@@ -1820,8 +1841,17 @@ private fun Track.toStreamStats(
         bitrate = audio?.bitrateKbps?.let { "$it kbps" } ?: "Unknown",
         contentType = audio?.contentType ?: "Unknown",
         coverArtId = coverArtId ?: "None",
+        waveformStatus = waveformStatus,
+        waveformBuckets = waveform?.amplitudes?.size?.toString() ?: "None",
     )
 }
+
+private data class NowPlayingAnalysis(
+    val waveform: AudioWaveform?,
+    val waveformStatus: String,
+    val audioTags: List<AudioTag>,
+    val lyrics: Lyrics?,
+)
 
 private fun StreamQuality.statsLabel(): String =
     when (this) {
