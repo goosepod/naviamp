@@ -7,6 +7,7 @@ import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.Genre
+import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.ProviderId
@@ -53,6 +54,20 @@ interface MediaProvider {
         fromYear: Int? = null,
         toYear: Int? = null,
     ): List<Track> = emptyList()
+    suspend fun internetRadioStations(): List<InternetRadioStation> = emptyList()
+    suspend fun createInternetRadioStation(
+        name: String,
+        streamUrl: String,
+        homePageUrl: String?,
+    ): InternetRadioStation {
+        throw UnsupportedOperationException("Internet radio stations are not supported by $displayName.")
+    }
+    suspend fun updateInternetRadioStation(station: InternetRadioStation) {
+        throw UnsupportedOperationException("Internet radio station edits are not supported by $displayName.")
+    }
+    suspend fun deleteInternetRadioStation(stationId: String) {
+        throw UnsupportedOperationException("Internet radio station deletion is not supported by $displayName.")
+    }
     suspend fun artistRadio(artistId: ArtistId, count: Int = 50): List<Track> = emptyList()
     suspend fun albumRadio(albumId: AlbumId, count: Int = 50): List<Track> = emptyList()
     suspend fun trackRadio(trackId: TrackId, count: Int = 50): List<Track> = emptyList()

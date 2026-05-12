@@ -29,6 +29,7 @@ enum class AppRoute {
     ArtistDetail,
     Library,
     Search,
+    InternetRadio,
     Downloads,
     Settings,
     ;
@@ -50,6 +51,7 @@ val BottomNavigationItems = listOf(
     BottomNavigationItem(AppRoute.Playlists, "Playlists", NavigationIcons.Playlist),
     BottomNavigationItem(AppRoute.Library, "Library", NavigationIcons.Library),
     BottomNavigationItem(AppRoute.Search, "Search", NavigationIcons.Search),
+    BottomNavigationItem(AppRoute.InternetRadio, "Radio", NavigationIcons.InternetRadio),
     BottomNavigationItem(AppRoute.Downloads, "Downloads", NavigationIcons.Downloads),
     BottomNavigationItem(AppRoute.Settings, "Settings", NavigationIcons.Settings),
 )

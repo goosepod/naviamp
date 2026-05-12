@@ -17,6 +17,19 @@ class PlaybackQueueTest {
     }
 
     @Test
+    fun invalidCurrentIndexHasNoHistoryOrUpcomingTracks() {
+        val queue = PlaybackQueue(
+            tracks = listOf(track("1"), track("2")),
+            currentIndex = -1,
+        )
+
+        assertEquals(emptyList(), queue.backTo())
+        assertEquals(emptyList(), queue.upNext())
+        assertEquals(false, queue.hasPrevious())
+        assertEquals(false, queue.hasNext())
+    }
+
+    @Test
     fun jumpingToUpcomingKeepsSkippedTracksUpcoming() {
         val queue = PlaybackQueue(
             tracks = listOf(track("1"), track("2"), track("3"), track("4")),

@@ -10,6 +10,7 @@ import app.naviamp.domain.ArtistInfo
 import app.naviamp.domain.AudioInfo
 import app.naviamp.domain.AudioCodec
 import app.naviamp.domain.Genre
+import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.LyricLine
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.LyricsSource
@@ -352,6 +353,66 @@ class NavidromeProvider(
         }
     }
 
+    override suspend fun internetRadioStations(): List<InternetRadioStation> {
+        val response = get("getInternetRadioStations.view")
+        val stations = response.subsonicResponse()["internetRadioStations"]
+            ?.jsonObject
+            ?.arrayValue("internetRadioStation")
+            .orEmpty()
+        return stations.mapNotNull { station ->
+            (station as? JsonObject)?.toInternetRadioStation()
+        }
+    }
+
+    override suspend fun createInternetRadioStation(
+        name: String,
+        streamUrl: String,
+        homePageUrl: String?,
+    ): InternetRadioStation {
+        val trimmedName = name.trim()
+        val trimmedStreamUrl = streamUrl.trim()
+        if (trimmedName.isBlank()) throw NavidromeException("Station name is required.")
+        if (trimmedStreamUrl.isBlank()) throw NavidromeException("Stream URL is required.")
+        get(
+            endpoint = "createInternetRadioStation.view",
+            params = internetRadioParams(
+                name = trimmedName,
+                streamUrl = trimmedStreamUrl,
+                homePageUrl = homePageUrl,
+            ),
+        )
+        return internetRadioStations().firstOrNull {
+            it.name == trimmedName && it.streamUrl == trimmedStreamUrl
+        } ?: InternetRadioStation(
+            id = trimmedStreamUrl,
+            name = trimmedName,
+            streamUrl = trimmedStreamUrl,
+            homePageUrl = homePageUrl?.trim()?.takeIf { it.isNotBlank() },
+        )
+    }
+
+    override suspend fun updateInternetRadioStation(station: InternetRadioStation) {
+        val trimmedName = station.name.trim()
+        val trimmedStreamUrl = station.streamUrl.trim()
+        if (trimmedName.isBlank()) throw NavidromeException("Station name is required.")
+        if (trimmedStreamUrl.isBlank()) throw NavidromeException("Stream URL is required.")
+        get(
+            endpoint = "updateInternetRadioStation.view",
+            params = listOf("id" to station.id) + internetRadioParams(
+                name = trimmedName,
+                streamUrl = trimmedStreamUrl,
+                homePageUrl = station.homePageUrl,
+            ),
+        )
+    }
+
+    override suspend fun deleteInternetRadioStation(stationId: String) {
+        get(
+            endpoint = "deleteInternetRadioStation.view",
+            params = listOf("id" to stationId),
+        )
+    }
+
     override suspend fun artistRadio(artistId: ArtistId, count: Int): List<Track> =
         similarSongs(
             endpoint = "getSimilarSongs2.view",
@@ -608,6 +669,19 @@ class NavidromeProvider(
             "f" to "json",
         )
 
+    private fun internetRadioParams(
+        name: String,
+        streamUrl: String,
+        homePageUrl: String?,
+    ): List<Pair<String, String>> =
+        buildList {
+            add("name" to name)
+            add("streamUrl" to streamUrl)
+            homePageUrl?.trim()?.takeIf { it.isNotBlank() }?.let {
+                add("homePageUrl" to it)
+            }
+        }
+
     private fun AudioCodec.toNavidromeFormat(): String =
         when (this) {
             AudioCodec.Opus -> "opus"
@@ -640,6 +714,14 @@ class NavidromeProvider(
             trackCount = intValue("songCount") ?: 0,
             durationSeconds = intValue("duration"),
             coverArtId = stringValue("coverArt"),
+        )
+
+    private fun JsonObject.toInternetRadioStation(): InternetRadioStation =
+        InternetRadioStation(
+            id = stringValue("id") ?: throw NavidromeException("Internet radio station is missing an id."),
+            name = stringValue("name") ?: "Internet Radio",
+            streamUrl = stringValue("streamUrl") ?: throw NavidromeException("Internet radio station is missing a stream URL."),
+            homePageUrl = stringValue("homePageUrl"),
         )
 
     private fun JsonObject.toTrack(): Track =

@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.domain.Album
 import app.naviamp.domain.Genre
+import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Playlist
 import app.naviamp.desktop.settings.RecentRadioStream
 
@@ -36,6 +37,7 @@ data class HomeContent(
     val randomAlbums: List<Album> = emptyList(),
     val playlists: List<Playlist> = emptyList(),
     val recentRadioStreams: List<RecentRadioStream> = emptyList(),
+    val recentInternetRadioStations: List<InternetRadioStation> = emptyList(),
     val genres: List<Genre> = emptyList(),
     val genreSpotlight: Genre? = null,
     val genreSpotlightAlbums: List<Album> = emptyList(),
@@ -52,6 +54,7 @@ data class HomeContent(
             randomAlbums.isEmpty() &&
             playlists.isEmpty() &&
             recentRadioStreams.isEmpty() &&
+            recentInternetRadioStations.isEmpty() &&
             genreSpotlightAlbums.isEmpty() &&
             decadeAlbums.isEmpty()
 }
@@ -70,6 +73,7 @@ fun HomePanel(
     onPlaylistDownloadSelected: (Playlist) -> Unit,
     onPlaylistAddToPlaylist: (Playlist) -> Unit,
     onRecentRadioSelected: (RecentRadioStream) -> Unit,
+    onInternetRadioStationSelected: (InternetRadioStation) -> Unit,
     onLibraryRadioSelected: () -> Unit,
     onRandomAlbumRadioSelected: () -> Unit,
     onGenreRadioSelected: (Genre) -> Unit,
@@ -137,6 +141,19 @@ fun HomePanel(
             HomeSection(title = "Recently Played Radio", appColors = appColors) {
                 homeContent.recentRadioStreams.take(5).forEach { stream ->
                     StationRow(appColors, stream.label, "Radio", onClick = { onRecentRadioSelected(stream) })
+                }
+            }
+        }
+
+        if (homeContent.recentInternetRadioStations.isNotEmpty()) {
+            HomeSection(title = "Recent Internet Radio", appColors = appColors) {
+                homeContent.recentInternetRadioStations.take(5).forEach { station ->
+                    StationRow(
+                        appColors,
+                        station.name,
+                        station.homePageUrl ?: station.streamUrl,
+                        onClick = { onInternetRadioStationSelected(station) },
+                    )
                 }
             }
         }

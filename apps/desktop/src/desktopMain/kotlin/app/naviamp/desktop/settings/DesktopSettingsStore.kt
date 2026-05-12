@@ -6,6 +6,7 @@ import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.AudioInfo
+import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.provider.navidrome.NavidromeConnection
@@ -109,6 +110,13 @@ class DesktopSettingsStore(
         saveSettings(loadSettings().copy(recentPlaylistIds = ids.distinct().take(50)))
     }
 
+    fun loadRecentInternetRadioStations(): List<SavedInternetRadioStation> =
+        loadSettings().recentInternetRadioStations
+
+    fun saveRecentInternetRadioStations(stations: List<SavedInternetRadioStation>) {
+        saveSettings(loadSettings().copy(recentInternetRadioStations = stations.take(12)))
+    }
+
     private fun loadSettings(): DesktopSettings {
         if (!settingsPath.exists()) return DesktopSettings()
         val text = settingsPath.readText()
@@ -143,6 +151,7 @@ data class DesktopSettings(
     val search: SearchSettings = SearchSettings(),
     val recentRadioStreams: List<RecentRadioStream> = emptyList(),
     val recentPlaylistIds: List<String> = emptyList(),
+    val recentInternetRadioStations: List<SavedInternetRadioStation> = emptyList(),
 )
 
 @Serializable
@@ -266,6 +275,32 @@ data class SavedAlbum(
                 coverArtId = album.coverArtId,
                 recentlyAddedAtIso8601 = album.recentlyAddedAtIso8601,
                 releaseYear = album.releaseYear,
+            )
+    }
+}
+
+@Serializable
+data class SavedInternetRadioStation(
+    val id: String,
+    val name: String,
+    val streamUrl: String,
+    val homePageUrl: String? = null,
+) {
+    fun toStation(): InternetRadioStation =
+        InternetRadioStation(
+            id = id,
+            name = name,
+            streamUrl = streamUrl,
+            homePageUrl = homePageUrl,
+        )
+
+    companion object {
+        fun fromStation(station: InternetRadioStation): SavedInternetRadioStation =
+            SavedInternetRadioStation(
+                id = station.id,
+                name = station.name,
+                streamUrl = station.streamUrl,
+                homePageUrl = station.homePageUrl,
             )
     }
 }

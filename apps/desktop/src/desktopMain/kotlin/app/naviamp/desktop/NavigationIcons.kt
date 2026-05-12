@@ -367,6 +367,38 @@ object NavigationIcons {
             lineTo(21f, 17f)
         }
     }.build()
+
+    val InternetRadio: ImageVector = ImageVector.Builder(
+        name = "InternetRadio",
+        defaultWidth = IconSize,
+        defaultHeight = IconSize,
+        viewportWidth = Viewport,
+        viewportHeight = Viewport,
+    ).apply {
+        path(
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 1.9f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+        ) {
+            moveTo(5f, 11f)
+            lineTo(19f, 11f)
+            curveTo(20.1f, 11f, 21f, 11.9f, 21f, 13f)
+            lineTo(21f, 18f)
+            curveTo(21f, 19.1f, 20.1f, 20f, 19f, 20f)
+            lineTo(5f, 20f)
+            curveTo(3.9f, 20f, 3f, 19.1f, 3f, 18f)
+            lineTo(3f, 13f)
+            curveTo(3f, 11.9f, 3.9f, 11f, 5f, 11f)
+            close()
+            moveTo(8f, 11f)
+            lineTo(16.5f, 4.5f)
+            moveTo(8f, 15.5f)
+            lineTo(8.1f, 15.5f)
+            moveTo(12f, 15.5f)
+            lineTo(17f, 15.5f)
+        }
+    }.build()
 }
 
 private val IconSize = 24.dp

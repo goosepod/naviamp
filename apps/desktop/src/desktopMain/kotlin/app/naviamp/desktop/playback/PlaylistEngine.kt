@@ -433,16 +433,24 @@ data class PlaybackQueue(
     val currentIndex: Int = -1,
 ) {
     fun backTo(): List<Track> =
-        tracks.take(currentIndex).asReversed()
+        if (currentIndex in tracks.indices) {
+            tracks.take(currentIndex).asReversed()
+        } else {
+            emptyList()
+        }
 
     fun upNext(): List<Track> =
-        tracks.drop(currentIndex + 1)
+        if (currentIndex in tracks.indices) {
+            tracks.drop(currentIndex + 1)
+        } else {
+            emptyList()
+        }
 
     fun hasNext(): Boolean =
-        currentIndex + 1 < tracks.size
+        currentIndex in tracks.indices && currentIndex + 1 < tracks.size
 
     fun hasPrevious(): Boolean =
-        currentIndex > 0
+        currentIndex in tracks.indices && currentIndex > 0
 
     fun jumpTo(
         index: Int,

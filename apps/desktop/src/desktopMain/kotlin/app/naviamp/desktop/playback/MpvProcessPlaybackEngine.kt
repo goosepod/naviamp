@@ -8,6 +8,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -54,6 +55,7 @@ class MpvProcessPlaybackEngine(
         request: PlaybackRequest,
         onStateChanged: (PlaybackState) -> Unit,
         onProgressChanged: (PlaybackProgress) -> Unit,
+        onMetadataChanged: (PlaybackStreamMetadata) -> Unit,
     ) {
         stop()
         val currentPlaybackId = nextPlaybackId()
@@ -89,6 +91,7 @@ class MpvProcessPlaybackEngine(
                 endpoint.waitUntilReady()
                 onStateChanged(PlaybackState.Playing)
                 currentProgressJob = scope.launch(Dispatchers.IO) {
+                    var lastMetadata = PlaybackStreamMetadata()
                     while (currentProcess.isAlive) {
                         onProgressChanged(
                             PlaybackProgress(
@@ -96,6 +99,11 @@ class MpvProcessPlaybackEngine(
                                 durationSeconds = queryDouble("duration"),
                             ),
                         )
+                        val metadata = queryStreamMetadata()
+                        if (metadata != lastMetadata) {
+                            lastMetadata = metadata
+                            onMetadataChanged(metadata)
+                        }
                         delay(500)
                     }
                 }
@@ -186,6 +194,34 @@ class MpvProcessPlaybackEngine(
         playbackId == id
 
     private fun queryDouble(property: String): Double? {
+        val data = queryProperty(property) ?: return null
+        return data.doubleValue()
+    }
+
+    private fun queryStreamMetadata(): PlaybackStreamMetadata {
+        val properties = queryProperty("metadata")
+            ?.jsonObjectOrNull()
+            ?.mapNotNull { (key, value) ->
+                value.metadataString()?.let { key to it }
+            }
+            ?.toMap()
+            .orEmpty()
+        val mediaTitle = queryProperty("media-title")?.metadataString()
+        val title = listOf(
+            properties["icy-title"],
+            properties["StreamTitle"],
+            properties["streamtitle"],
+            properties["title"],
+            mediaTitle,
+        ).firstOrNull { !it.isNullOrBlank() }?.trim()
+
+        return PlaybackStreamMetadata(
+            title = title,
+            properties = properties + listOfNotNull(mediaTitle?.let { "media-title" to it }),
+        )
+    }
+
+    private fun queryProperty(property: String): JsonElement? {
         val response = sendIpcCommand(
             command = """{"command":["get_property","$property"]}""",
             reportErrors = false,
@@ -196,7 +232,7 @@ class MpvProcessPlaybackEngine(
             json.parseToJsonElement(response).jsonObject["data"]
         }.getOrNull() ?: return null
 
-        return data.doubleValue()
+        return data
     }
 
     private fun sendIpcCommand(command: String, reportErrors: Boolean = true): String? {
@@ -348,6 +384,12 @@ private fun RandomAccessFile.readUtf8Line(): String {
 
 private fun JsonElement.doubleValue(): Double? =
     runCatching { jsonPrimitive.doubleOrNull }.getOrNull()
+
+private fun JsonElement.metadataString(): String? =
+    runCatching { jsonPrimitive.contentOrNull?.takeIf { it.isNotBlank() } }.getOrNull()
+
+private fun JsonElement.jsonObjectOrNull(): JsonObject? =
+    runCatching { jsonObject }.getOrNull()
 
 private fun ReplayGainMode.mpvValue(): String =
     when (this) {

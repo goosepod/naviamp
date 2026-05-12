@@ -534,6 +534,105 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun internetRadioStationsMapSubsonicStations() = runTest {
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = FakeHttpClient(
+                """
+                {
+                  "subsonic-response": {
+                    "status": "ok",
+                    "internetRadioStations": {
+                      "internetRadioStation": [
+                        {
+                          "id": "station-1",
+                          "name": "KEXP",
+                          "streamUrl": "https://kexp.example/stream",
+                          "homePageUrl": "https://kexp.org"
+                        }
+                      ]
+                    }
+                  }
+                }
+                """.trimIndent(),
+            ),
+        )
+
+        val stations = provider.internetRadioStations()
+
+        assertEquals("station-1", stations.single().id)
+        assertEquals("KEXP", stations.single().name)
+        assertEquals("https://kexp.example/stream", stations.single().streamUrl)
+        assertEquals("https://kexp.org", stations.single().homePageUrl)
+    }
+
+    @Test
+    fun createInternetRadioStationSendsStationFields() = runTest {
+        val httpClient = RecordingResponseHttpClient(
+            """
+            {
+              "subsonic-response": {
+                "status": "ok",
+                "internetRadioStations": {
+                  "internetRadioStation": [
+                    {
+                      "id": "station-1",
+                      "name": "KEXP",
+                      "streamUrl": "https://kexp.example/stream",
+                      "homePageUrl": "https://kexp.org"
+                    }
+                  ]
+                }
+              }
+            }
+            """.trimIndent(),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        provider.createInternetRadioStation(
+            name = "KEXP",
+            streamUrl = "https://kexp.example/stream",
+            homePageUrl = "https://kexp.org",
+        )
+
+        assertEquals(
+            "https://music.example.test/rest/createInternetRadioStation.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&name=KEXP&streamUrl=https%3A%2F%2Fkexp.example%2Fstream&homePageUrl=https%3A%2F%2Fkexp.org",
+            httpClient.urls.first(),
+        )
+    }
+
+    @Test
+    fun updateAndDeleteInternetRadioStationsUseSubsonicEndpoints() = runTest {
+        val httpClient = RecordingHttpClient()
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        provider.updateInternetRadioStation(
+            app.naviamp.domain.InternetRadioStation(
+                id = "station-1",
+                name = "KEXP",
+                streamUrl = "https://kexp.example/stream",
+                homePageUrl = null,
+            ),
+        )
+        provider.deleteInternetRadioStation("station-1")
+
+        assertEquals(
+            "https://music.example.test/rest/updateInternetRadioStation.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=station-1&name=KEXP&streamUrl=https%3A%2F%2Fkexp.example%2Fstream",
+            httpClient.urls.first(),
+        )
+        assertEquals(
+            "https://music.example.test/rest/deleteInternetRadioStation.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=station-1",
+            httpClient.urls.last(),
+        )
+    }
+
+    @Test
     fun genresMapCounts() = runTest {
         val provider = NavidromeProvider(
             connection = connection("https://music.example.test"),

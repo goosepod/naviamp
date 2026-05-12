@@ -62,6 +62,7 @@ class ExperimentalCrossfadeMpvPlaybackEngine(
         request: PlaybackRequest,
         onStateChanged: (PlaybackState) -> Unit,
         onProgressChanged: (PlaybackProgress) -> Unit,
+        onMetadataChanged: (PlaybackStreamMetadata) -> Unit,
     ) {
         this.scope = scope
         this.onStateChanged = onStateChanged

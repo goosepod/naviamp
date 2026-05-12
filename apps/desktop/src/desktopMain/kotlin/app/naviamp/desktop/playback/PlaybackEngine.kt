@@ -17,6 +17,7 @@ interface PlaybackEngine {
         request: PlaybackRequest,
         onStateChanged: (PlaybackState) -> Unit,
         onProgressChanged: (PlaybackProgress) -> Unit,
+        onMetadataChanged: (PlaybackStreamMetadata) -> Unit = {},
     )
 
     fun pause()
@@ -41,6 +42,11 @@ data class PlaybackRequest(
     val mediaId: String? = null,
     val replayGainMode: ReplayGainMode = ReplayGainMode.Off,
     val startPositionSeconds: Double? = null,
+)
+
+data class PlaybackStreamMetadata(
+    val title: String? = null,
+    val properties: Map<String, String> = emptyMap(),
 )
 
 enum class ReplayGainMode(

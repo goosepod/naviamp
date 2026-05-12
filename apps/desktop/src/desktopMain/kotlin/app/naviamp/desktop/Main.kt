@@ -46,16 +46,20 @@ import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.Genre
+import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
+import app.naviamp.domain.TrackId
 import app.naviamp.desktop.playback.CrossfadeSettings
 import app.naviamp.desktop.playback.PlaybackEngine
 import app.naviamp.desktop.playback.PlaybackEngineFactory
 import app.naviamp.desktop.playback.PlaybackProgress
+import app.naviamp.desktop.playback.PlaybackRequest
 import app.naviamp.desktop.playback.PlaybackQueue
 import app.naviamp.desktop.playback.PlaybackState
+import app.naviamp.desktop.playback.PlaybackStreamMetadata
 import app.naviamp.desktop.playback.PlaybackTrace
 import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.PlaylistEngine
@@ -71,6 +75,7 @@ import app.naviamp.desktop.settings.RecentRadioKind
 import app.naviamp.desktop.settings.RecentRadioStream
 import app.naviamp.desktop.settings.SavedAlbum
 import app.naviamp.desktop.settings.SavedArtist
+import app.naviamp.desktop.settings.SavedInternetRadioStation
 import app.naviamp.desktop.settings.SavedTrack
 import app.naviamp.desktop.settings.SearchSettings
 import app.naviamp.desktop.settings.UpNextSelectionBehavior
@@ -177,6 +182,7 @@ fun NaviampApp(
     val savedSearch = remember { settingsStore.loadSearchSettings() }
     val savedRecentRadioStreams = remember { settingsStore.loadRecentRadioStreams() }
     val savedRecentPlaylistIds = remember { settingsStore.loadRecentPlaylistIds() }
+    val savedRecentInternetRadioStations = remember { settingsStore.loadRecentInternetRadioStations() }
     var connectedSourceId by remember { mutableStateOf(savedMediaSource?.id) }
     var cacheSettings by remember {
         mutableStateOf(settingsStore.loadCacheSettings().normalized())
@@ -231,6 +237,14 @@ fun NaviampApp(
     var addToPlaylistTarget by remember { mutableStateOf<AddToPlaylistTarget?>(null) }
     var addToPlaylistStatus by remember { mutableStateOf<String?>(null) }
     var recentRadioStreams by remember { mutableStateOf(savedRecentRadioStreams) }
+    var internetRadioStations by remember { mutableStateOf<List<InternetRadioStation>>(emptyList()) }
+    var internetRadioStatus by remember { mutableStateOf<String?>(null) }
+    var internetRadioStationPendingEdit by remember { mutableStateOf<InternetRadioStation?>(null) }
+    var internetRadioStationPendingDelete by remember { mutableStateOf<InternetRadioStation?>(null) }
+    var isNewInternetRadioStationDialogOpen by remember { mutableStateOf(false) }
+    var recentInternetRadioStations by remember {
+        mutableStateOf(savedRecentInternetRadioStations.map { it.toStation() })
+    }
     var selectedAlbum by remember { mutableStateOf<Album?>(null) }
     var selectedAlbumDetails by remember { mutableStateOf<AlbumDetails?>(null) }
     var selectedAlbumStatus by remember { mutableStateOf<String?>(null) }
@@ -271,6 +285,8 @@ fun NaviampApp(
     var nowPlayingAudioTags by remember { mutableStateOf<List<AudioTag>?>(null) }
     var nowPlayingLyrics by remember { mutableStateOf<Lyrics?>(null) }
     var nowPlayingLyricsStatus by remember { mutableStateOf<String?>(null) }
+    var nowPlayingInternetRadioStation by remember { mutableStateOf<InternetRadioStation?>(null) }
+    var nowPlayingStreamMetadata by remember { mutableStateOf(PlaybackStreamMetadata()) }
     var relatedTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
     var playbackState by remember { mutableStateOf<PlaybackState>(PlaybackState.Idle) }
     var playbackProgress by remember { mutableStateOf(PlaybackProgress.Unknown) }
@@ -416,6 +432,7 @@ fun NaviampApp(
     }
 
     fun performSeek(positionSeconds: Double) {
+        if (nowPlayingTrack?.isInternetRadioTrack() == true) return
         val durationSeconds = playbackProgress.durationSeconds ?: nowPlayingTrack?.durationSeconds?.toDouble()
         val seekProgress = PlaybackProgress(
             positionSeconds = positionSeconds,
@@ -530,6 +547,8 @@ fun NaviampApp(
     val playlistCallbacks = PlaylistCallbacks(
         onTrackStarted = { track, coverArtUrl ->
             val trackChanged = nowPlayingTrack?.id != track.id
+            nowPlayingInternetRadioStation = null
+            nowPlayingStreamMetadata = PlaybackStreamMetadata()
             nowPlayingTrack = track
             nowPlayingCoverArtUrl = coverArtUrl
             playReportSessionId += 1
@@ -597,6 +616,14 @@ fun NaviampApp(
         val track = nowPlayingTrack ?: run {
             nowPlayingWaveform = null
             nowPlayingWaveformStatus = "No track"
+            nowPlayingLyricsStatus = null
+            return@LaunchedEffect
+        }
+        if (track.isInternetRadioTrack()) {
+            nowPlayingWaveform = null
+            nowPlayingWaveformStatus = "Internet radio"
+            nowPlayingAudioTags = null
+            nowPlayingLyrics = null
             nowPlayingLyricsStatus = null
             return@LaunchedEffect
         }
@@ -684,7 +711,7 @@ fun NaviampApp(
     LaunchedEffect(nowPlayingTrack?.id, connectedSourceId) {
         val track = nowPlayingTrack
         val sourceId = connectedSourceId
-        if (track == null || sourceId == null) {
+        if (track == null || sourceId == null || track.isInternetRadioTrack()) {
             relatedTracks = emptyList()
             return@LaunchedEffect
         }
@@ -770,6 +797,7 @@ fun NaviampApp(
                             provider.albumsByYear(decadeFromYear, decadeToYear, limit = 6)
                         }.getOrDefault(emptyList()),
                         recentRadioStreams = recentRadioStreams,
+                        recentInternetRadioStations = recentInternetRadioStations,
                     )
                 }
                 homeContent = content
@@ -797,6 +825,7 @@ fun NaviampApp(
                         }.thenBy { it.name.lowercase() },
                     ).take(6),
                     recentRadioStreams = recentRadioStreams,
+                    recentInternetRadioStations = recentInternetRadioStations,
                 )
             } catch (exception: Exception) {
                 playlistStatus = exception.message ?: "Could not load playlists."
@@ -871,6 +900,126 @@ fun NaviampApp(
         recentRadioStreams = (listOf(stream) + recentRadioStreams.filterNot { it.id == stream.id }).take(12)
         settingsStore.saveRecentRadioStreams(recentRadioStreams)
         homeContent = homeContent.copy(recentRadioStreams = recentRadioStreams)
+    }
+
+    fun refreshInternetRadioStations() {
+        val provider = connectedProvider ?: return
+        internetRadioStatus = "Loading internet radio..."
+        coroutineScope.launch {
+            try {
+                internetRadioStations = withContext(Dispatchers.IO) {
+                    provider.internetRadioStations()
+                }
+                internetRadioStatus = null
+            } catch (exception: Exception) {
+                internetRadioStatus = exception.message ?: "Could not load internet radio stations."
+            }
+        }
+    }
+
+    fun rememberInternetRadioStation(station: InternetRadioStation) {
+        recentInternetRadioStations = (listOf(station) + recentInternetRadioStations.filterNot { it.id == station.id })
+            .take(12)
+        settingsStore.saveRecentInternetRadioStations(
+            recentInternetRadioStations.map { SavedInternetRadioStation.fromStation(it) },
+        )
+        homeContent = homeContent.copy(recentInternetRadioStations = recentInternetRadioStations)
+    }
+
+    fun playInternetRadioStation(station: InternetRadioStation) {
+        rememberInternetRadioStation(station)
+        stopRadioContinuation()
+        playlistEngine.clear()
+        val radioTrack = Track(
+            id = TrackId("internet-radio:${station.id}"),
+            title = station.name,
+            artistName = "Internet Radio",
+            albumTitle = station.homePageUrl ?: station.streamUrl,
+            durationSeconds = null,
+            coverArtId = null,
+            audioInfo = null,
+            replayGain = null,
+        )
+        nowPlayingTrack = radioTrack
+        nowPlayingCoverArtUrl = null
+        nowPlayingWaveform = null
+        nowPlayingWaveformStatus = "Internet radio"
+        nowPlayingAudioTags = null
+        nowPlayingLyrics = null
+        nowPlayingLyricsStatus = null
+        nowPlayingInternetRadioStation = station
+        nowPlayingStreamMetadata = PlaybackStreamMetadata()
+        playbackProgress = PlaybackProgress.Unknown
+        playbackQueue = PlaybackQueue()
+        settingsStore.savePlaybackSession(null)
+        appRoute = AppRoute.Player
+        playbackEngine.play(
+            scope = coroutineScope,
+            request = PlaybackRequest(
+                url = station.streamUrl,
+                mediaId = station.id,
+                replayGainMode = ReplayGainMode.Off,
+            ),
+            onStateChanged = { state ->
+                playbackState = state
+            },
+            onProgressChanged = { progress ->
+                playbackProgress = progress.copy(durationSeconds = null)
+            },
+            onMetadataChanged = { metadata ->
+                nowPlayingStreamMetadata = metadata
+                metadata.title?.takeIf { it.isNotBlank() }?.let { streamTitle ->
+                    nowPlayingTrack = radioTrack.copy(
+                        title = streamTitle,
+                        artistName = station.name,
+                        albumTitle = "Internet Radio",
+                    )
+                }
+            },
+        )
+    }
+
+    fun saveInternetRadioStation(station: InternetRadioStation) {
+        val provider = connectedProvider ?: return
+        internetRadioStatus = "Saving ${station.name}..."
+        coroutineScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    if (station.id == station.streamUrl) {
+                        provider.createInternetRadioStation(
+                            name = station.name,
+                            streamUrl = station.streamUrl,
+                            homePageUrl = station.homePageUrl,
+                        )
+                    } else {
+                        provider.updateInternetRadioStation(station)
+                    }
+                }
+                isNewInternetRadioStationDialogOpen = false
+                internetRadioStationPendingEdit = null
+                internetRadioStatus = null
+                refreshInternetRadioStations()
+            } catch (exception: Exception) {
+                internetRadioStatus = exception.message ?: "Could not save station."
+            }
+        }
+    }
+
+    fun deleteInternetRadioStation(station: InternetRadioStation) {
+        val provider = connectedProvider ?: return
+        internetRadioStatus = "Deleting ${station.name}..."
+        coroutineScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    provider.deleteInternetRadioStation(station.id)
+                }
+                internetRadioStationPendingDelete = null
+                internetRadioStatus = null
+                refreshInternetRadioStations()
+            } catch (exception: Exception) {
+                internetRadioStatus = exception.message ?: "Could not delete station."
+            }
+        }
     }
 
     fun startLibrarySync(force: Boolean = false) {
@@ -1006,6 +1155,7 @@ fun NaviampApp(
                 refreshLibrarySnapshot()
                 loadHomeContent(provider)
                 refreshPlaylists()
+                refreshInternetRadioStations()
                 startLibrarySync(force = !restoreSavedSession)
             } catch (exception: Exception) {
                 connectedProvider = null
@@ -1911,6 +2061,8 @@ fun NaviampApp(
             waveform = nowPlayingWaveform,
             waveformStatus = nowPlayingWaveformStatus,
             cachedAudio = currentAudioCacheMetadata,
+            internetRadioStation = nowPlayingInternetRadioStation,
+            streamMetadata = nowPlayingStreamMetadata,
         ),
         cacheStats = sessionCache.stats(),
         providerCapabilities = connectedProvider?.capabilities?.asStatsMap().orEmpty(),
@@ -1976,7 +2128,6 @@ fun NaviampApp(
                                 appColors = appColors,
                                 playbackEngineName = playbackEngine.name,
                                 supportsPause = playbackEngine.supportsPause,
-                                supportsSeek = playbackEngine.supportsSeek,
                                 supportsSoftwareVolume = playbackEngine.supportsSoftwareVolume,
                                 supportsTrackFavorites = connectedProvider?.capabilities?.supportsTrackFavorites == true,
                                 supportsTrackRatings = connectedProvider?.capabilities?.supportsTrackRatings == true,
@@ -1988,6 +2139,9 @@ fun NaviampApp(
                                 coverArtUrl = nowPlayingCoverArtUrl,
                                 backTo = playbackQueue.backTo(),
                                 upNext = playbackQueue.upNext(),
+                                internetRadioStations = internetRadioStations,
+                                currentInternetRadioStationId =
+                                    nowPlayingInternetRadioStation?.id ?: nowPlayingTrack?.internetRadioStationId(),
                                 firstBackToQueueIndex = playbackQueue.currentIndex - 1,
                                 firstUpNextQueueIndex = playbackQueue.currentIndex + 1,
                                 upNextCoverArtUrl = { track ->
@@ -2002,6 +2156,8 @@ fun NaviampApp(
                                 playbackState = playbackState,
                                 playbackProgress = playbackProgress,
                                 volumePercent = playbackSettings.volumePercent,
+                                supportsSeek = playbackEngine.supportsSeek &&
+                                    nowPlayingTrack?.isInternetRadioTrack() != true,
                                 onPlayerColorsChanged = { colors ->
                                     targetPlayerColors = colors
                                 },
@@ -2052,6 +2208,9 @@ fun NaviampApp(
                                 },
                                 onAddTrackToPlaylist = { track ->
                                     openAddToPlaylist(AddToPlaylistTarget.TrackTarget(track))
+                                },
+                                onInternetRadioStationSelected = { station ->
+                                    playInternetRadioStation(station)
                                 },
                                 onQueueIndexSelected = { queueIndex ->
                                     openPlayerOnTrackStart = false
@@ -2139,6 +2298,9 @@ fun NaviampApp(
                                     },
                                     onRecentRadioSelected = { stream ->
                                         playRecentRadio(stream)
+                                    },
+                                    onInternetRadioStationSelected = { station ->
+                                        playInternetRadioStation(station)
                                     },
                                     onLibraryRadioSelected = {
                                         playLibraryRadio()
@@ -2343,6 +2505,15 @@ fun NaviampApp(
                                             }
                                         },
                                     )
+                                    AppRoute.InternetRadio -> InternetRadioPanel(
+                                        appColors = appColors,
+                                        stations = internetRadioStations,
+                                        status = internetRadioStatus ?: connectionStatus,
+                                        onPlayStation = { station -> playInternetRadioStation(station) },
+                                        onNewStation = { isNewInternetRadioStationDialogOpen = true },
+                                        onEditStation = { station -> internetRadioStationPendingEdit = station },
+                                        onDeleteStation = { station -> internetRadioStationPendingDelete = station },
+                                    )
                                     AppRoute.Downloads -> {
                                         val downloads = remember(
                                             connectedSourceId,
@@ -2517,6 +2688,27 @@ fun NaviampApp(
                                 onConfirm = { deletePlaylist(playlist) },
                             )
                         }
+                        if (isNewInternetRadioStationDialogOpen) {
+                            InternetRadioStationDialog(
+                                initialStation = null,
+                                onDismiss = { isNewInternetRadioStationDialogOpen = false },
+                                onConfirm = { station -> saveInternetRadioStation(station) },
+                            )
+                        }
+                        internetRadioStationPendingEdit?.let { station ->
+                            InternetRadioStationDialog(
+                                initialStation = station,
+                                onDismiss = { internetRadioStationPendingEdit = null },
+                                onConfirm = { updatedStation -> saveInternetRadioStation(updatedStation) },
+                            )
+                        }
+                        internetRadioStationPendingDelete?.let { station ->
+                            DeleteInternetRadioStationDialog(
+                                station = station,
+                                onDismiss = { internetRadioStationPendingDelete = null },
+                                onConfirm = { deleteInternetRadioStation(station) },
+                            )
+                        }
                         if (nowPlayingTrack != null) {
                             MiniPlayerPanel(
                                 appColors = appColors,
@@ -2599,6 +2791,12 @@ private fun PlaybackSettings.forEngine(playbackEngine: PlaybackEngine): Playback
         upNextSelectionBehavior = upNextSelectionBehavior,
     )
 
+private fun Track.isInternetRadioTrack(): Boolean =
+    id.value.startsWith("internet-radio:")
+
+private fun Track.internetRadioStationId(): String? =
+    id.value.takeIf { it.startsWith("internet-radio:") }?.removePrefix("internet-radio:")
+
 private const val PreviousRestartThresholdSeconds = 10.0
 
 private fun shouldAutoSyncLibrary(
@@ -2646,12 +2844,19 @@ private fun Track.toStreamStats(
     waveform: AudioWaveform?,
     waveformStatus: String,
     cachedAudio: CachedAudioMetadata?,
+    internetRadioStation: InternetRadioStation?,
+    streamMetadata: PlaybackStreamMetadata,
 ): StreamStats {
     val effectiveDurationSeconds = durationSeconds?.toDouble() ?: playbackProgress.durationSeconds
     val audio = audioInfo
     return StreamStats(
         state = playbackState.label(),
+        source = if (internetRadioStation != null || isInternetRadioTrack()) "Internet radio" else "Library track",
         trackId = id.value,
+        stationId = internetRadioStation?.id ?: "None",
+        stationName = internetRadioStation?.name ?: "None",
+        stationStreamUrl = internetRadioStation?.streamUrl ?: "None",
+        stationHomePageUrl = internetRadioStation?.homePageUrl ?: "None",
         title = title,
         artist = artistName,
         album = albumTitleWithYear() ?: "Unknown album",
@@ -2668,6 +2873,11 @@ private fun Track.toStreamStats(
         audioCacheStatus = cachedAudio?.let { if (it.exists) "Cached" else "Missing file" } ?: "Not cached",
         audioCacheSize = cachedAudio?.sizeBytes?.statsBytesLabel() ?: "None",
         audioCachePath = cachedAudio?.path?.toAbsolutePath()?.toString() ?: "None",
+        streamMetadataTitle = streamMetadata.title ?: "None",
+        streamMetadataProperties = streamMetadata.properties.entries
+            .sortedBy { it.key.lowercase() }
+            .joinToString(", ") { (key, value) -> "$key=$value" }
+            .ifBlank { "None" },
     )
 }
 

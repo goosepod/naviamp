@@ -19,12 +19,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -53,19 +57,24 @@ import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Track
 import app.naviamp.desktop.playback.PlaybackProgress
 import app.naviamp.desktop.playback.PlaybackState
 import app.naviamp.desktop.playback.label
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.skia.Image as SkiaImage
@@ -73,6 +82,7 @@ import java.io.ByteArrayInputStream
 import javax.imageio.ImageIO
 import kotlin.math.abs
 import kotlin.math.pow
+import kotlin.math.roundToInt
 
 @Composable
 fun NowPlayingPanel(
@@ -91,6 +101,8 @@ fun NowPlayingPanel(
     coverArtUrl: String?,
     backTo: List<Track>,
     upNext: List<Track>,
+    internetRadioStations: List<InternetRadioStation>,
+    currentInternetRadioStationId: String?,
     firstBackToQueueIndex: Int,
     firstUpNextQueueIndex: Int,
     upNextCoverArtUrl: (Track) -> String?,
@@ -116,6 +128,7 @@ fun NowPlayingPanel(
     onTrackRadioSelected: (Track) -> Unit,
     onDownloadTrackSelected: (Track) -> Unit,
     onAddTrackToPlaylist: (Track) -> Unit,
+    onInternetRadioStationSelected: (InternetRadioStation) -> Unit,
     onQueueIndexSelected: (Int) -> Unit,
     onUpNextTrackRadioSelected: (Track) -> Unit,
     onUpNextTrackDownloadSelected: (Track) -> Unit,
@@ -216,12 +229,15 @@ fun NowPlayingPanel(
                         appColors = appColors,
                         backTo = backTo,
                         upNext = upNext,
+                        internetRadioStations = internetRadioStations,
+                        currentInternetRadioStationId = currentInternetRadioStationId,
                         firstBackToQueueIndex = firstBackToQueueIndex,
                         firstQueueIndex = firstUpNextQueueIndex,
                         coverArtUrl = upNextCoverArtUrl,
                         relatedTracks = relatedTracks,
                         relatedCoverArtUrl = relatedCoverArtUrl,
                         onQueueIndexSelected = onQueueIndexSelected,
+                        onInternetRadioStationSelected = onInternetRadioStationSelected,
                         onUpNextTrackRadioSelected = onUpNextTrackRadioSelected,
                         onUpNextTrackDownloadSelected = onUpNextTrackDownloadSelected,
                         onUpNextTrackAddToPlaylist = onUpNextTrackAddToPlaylist,
@@ -311,12 +327,15 @@ fun NowPlayingPanel(
                     appColors = appColors,
                     backTo = backTo,
                     upNext = upNext,
+                    internetRadioStations = internetRadioStations,
+                    currentInternetRadioStationId = currentInternetRadioStationId,
                     firstBackToQueueIndex = firstBackToQueueIndex,
                     firstQueueIndex = firstUpNextQueueIndex,
                     coverArtUrl = upNextCoverArtUrl,
                     relatedTracks = relatedTracks,
                     relatedCoverArtUrl = relatedCoverArtUrl,
                     onQueueIndexSelected = onQueueIndexSelected,
+                    onInternetRadioStationSelected = onInternetRadioStationSelected,
                     onUpNextTrackRadioSelected = onUpNextTrackRadioSelected,
                     onUpNextTrackDownloadSelected = onUpNextTrackDownloadSelected,
                     onUpNextTrackAddToPlaylist = onUpNextTrackAddToPlaylist,
@@ -472,6 +491,7 @@ private fun PlayerDetails(
     var isChangingVolume by remember { mutableStateOf(false) }
     val effectiveDurationSeconds = nowPlayingTrack?.durationSeconds?.toDouble()
         ?: playbackProgress.durationSeconds
+    val isLiveStream = !supportsSeek && effectiveDurationSeconds == null && nowPlayingTrack != null
     val effectiveProgressFraction = playbackProgress.fraction(effectiveDurationSeconds)
     val displayedProgress = if (isScrubbing && effectiveDurationSeconds != null) {
         PlaybackProgress(
@@ -517,13 +537,27 @@ private fun PlayerDetails(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(
-                displayedProgress.positionLabel(),
+                if (isLiveStream) "LIVE" else displayedProgress.positionLabel(),
                 color = appColors.primaryText,
                 fontSize = 11.sp,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.width(42.dp),
             )
-            if (nowPlayingWaveform != null) {
+            if (isLiveStream) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(22.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(2.dp)
+                            .background(playerColors.accent.copy(alpha = 0.7f)),
+                    )
+                }
+            } else if (nowPlayingWaveform != null) {
                 WaveformScrubber(
                     waveform = nowPlayingWaveform,
                     value = scrubberValue,
@@ -565,7 +599,7 @@ private fun PlayerDetails(
                 )
             }
             Text(
-                effectiveDurationSeconds.durationLabel(),
+                if (isLiveStream) "Radio" else effectiveDurationSeconds.durationLabel(),
                 color = appColors.primaryText,
                 textAlign = TextAlign.Center,
                 fontSize = 11.sp,
@@ -580,14 +614,11 @@ private fun PlayerDetails(
                 .fillMaxWidth()
                 .padding(top = 3.dp, bottom = 5.dp),
         ) {
-            Text(
-                nowPlayingTrack?.title ?: "Queue will appear here after connection",
+            BouncingTitleText(
+                text = nowPlayingTrack?.title ?: "Queue will appear here after connection",
                 color = appColors.primaryText,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
                 style = metadataTextStyle.copy(fontSize = 15.sp, lineHeight = 16.sp),
+                modifier = Modifier.fillMaxWidth(),
             )
             Text(
                 nowPlayingTrack?.artistName ?: "Nothing Playing",
@@ -1327,10 +1358,78 @@ private fun TrackRatingControl(
 }
 
 @Composable
+private fun BouncingTitleText(
+    text: String,
+    color: Color,
+    style: TextStyle,
+    modifier: Modifier = Modifier,
+) {
+    val textMeasurer = rememberTextMeasurer()
+    var containerWidth by remember { mutableStateOf(0) }
+    val textWidth = remember(text, style) {
+        textMeasurer.measure(
+            text = AnnotatedString(text),
+            style = style.copy(fontWeight = FontWeight.Bold),
+            maxLines = 1,
+            softWrap = false,
+        ).size.width
+    }
+    val overflow = (textWidth - containerWidth).coerceAtLeast(0)
+    val offset = remember(text) { Animatable(0f) }
+
+    LaunchedEffect(text, overflow) {
+        offset.snapTo(0f)
+        if (overflow <= 0) return@LaunchedEffect
+        delay(900)
+        while (true) {
+            offset.animateTo(
+                targetValue = overflow.toFloat(),
+                animationSpec = tween(
+                    durationMillis = (overflow * 18).coerceIn(2400, 9000),
+                    easing = LinearEasing,
+                ),
+            )
+            delay(700)
+            offset.animateTo(
+                targetValue = 0f,
+                animationSpec = tween(
+                    durationMillis = (overflow * 18).coerceIn(2400, 9000),
+                    easing = LinearEasing,
+                ),
+            )
+            delay(1200)
+        }
+    }
+
+    Box(
+        contentAlignment = if (overflow > 0) Alignment.CenterStart else Alignment.Center,
+        modifier = modifier
+            .clip(RoundedCornerShape(1.dp))
+            .onSizeChanged { containerWidth = it.width },
+    ) {
+        Text(
+            text,
+            color = color,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Visible,
+            textAlign = if (overflow > 0) TextAlign.Start else TextAlign.Center,
+            style = style,
+            modifier = Modifier.offset {
+                IntOffset(-offset.value.roundToInt(), 0)
+            },
+        )
+    }
+}
+
+@Composable
 private fun UpNextPanel(
     appColors: AppColors,
     backTo: List<Track>,
     upNext: List<Track>,
+    internetRadioStations: List<InternetRadioStation>,
+    currentInternetRadioStationId: String?,
     firstBackToQueueIndex: Int,
     firstQueueIndex: Int,
     coverArtUrl: (Track) -> String?,
@@ -1344,10 +1443,21 @@ private fun UpNextPanel(
     onRelatedTrackRadioSelected: (Track) -> Unit,
     onRelatedTrackDownloadSelected: (Track) -> Unit,
     onRelatedTrackAddToPlaylist: (Track) -> Unit,
+    onInternetRadioStationSelected: (InternetRadioStation) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scrollState = rememberScrollState()
     val coroutineScope = rememberCoroutineScope()
+    if (currentInternetRadioStationId != null) {
+        InternetRadioStationsNowPlayingPanel(
+            appColors = appColors,
+            stations = internetRadioStations,
+            currentStationId = currentInternetRadioStationId,
+            onStationSelected = onInternetRadioStationSelected,
+            modifier = modifier,
+        )
+        return
+    }
     var selectedTab by remember { mutableStateOf(PlayerListTab.UpNext) }
     val visibleTracks = when (selectedTab) {
         PlayerListTab.BackTo -> backTo
@@ -1498,6 +1608,89 @@ private enum class PlayerListTab {
     BackTo,
     UpNext,
     Related,
+}
+
+@Composable
+private fun InternetRadioStationsNowPlayingPanel(
+    appColors: AppColors,
+    stations: List<InternetRadioStation>,
+    currentStationId: String,
+    onStationSelected: (InternetRadioStation) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val scrollState = rememberScrollState()
+    val visibleStations = stations.sortedBy { it.name.lowercase() }
+
+    Column(
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = modifier,
+    ) {
+        Text(
+            "STATIONS",
+            color = appColors.primaryText,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 12.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Box(
+            modifier = Modifier
+                .height(1.dp)
+                .fillMaxWidth()
+                .background(Color.White.copy(alpha = 0.18f)),
+        )
+        if (visibleStations.isEmpty()) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(42.dp),
+            ) {
+                Text("No internet radio stations", color = appColors.mutedText, fontSize = 11.sp)
+            }
+        } else {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(scrollState),
+            ) {
+                visibleStations.forEach { station ->
+                    val isCurrent = station.id == currentStationId
+                    MediaRow(
+                        appColors = appColors,
+                        background = isCurrent,
+                        horizontalPadding = 0.dp,
+                        verticalPadding = 0.dp,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(32.dp),
+                        onClick = { onStationSelected(station) },
+                    ) {
+                        DetailActionIconButton(
+                            appColors,
+                            if (isCurrent) NavigationIcons.InternetRadio else TransportIcons.Play,
+                            if (isCurrent) "Current station" else "Play station",
+                            true,
+                        ) {
+                            onStationSelected(station)
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                station.name,
+                                color = if (isCurrent) appColors.primaryText else appColors.secondaryText,
+                                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.SemiBold,
+                                fontSize = 12.sp,
+                                lineHeight = 12.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable

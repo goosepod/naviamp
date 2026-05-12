@@ -28,6 +28,7 @@ class JLayerPlaybackEngine : PlaybackEngine {
         request: PlaybackRequest,
         onStateChanged: (PlaybackState) -> Unit,
         onProgressChanged: (PlaybackProgress) -> Unit,
+        onMetadataChanged: (PlaybackStreamMetadata) -> Unit,
     ) {
         stop()
         val currentPlaybackId = nextPlaybackId()

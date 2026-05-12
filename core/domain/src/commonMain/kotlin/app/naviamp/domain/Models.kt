@@ -113,6 +113,13 @@ data class Genre(
     val trackCount: Int? = null,
 )
 
+data class InternetRadioStation(
+    val id: String,
+    val name: String,
+    val streamUrl: String,
+    val homePageUrl: String? = null,
+)
+
 data class StreamRequest(
     val trackId: TrackId,
     val quality: StreamQuality,

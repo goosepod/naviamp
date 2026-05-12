@@ -338,7 +338,12 @@ data class LibrarySyncStats(
 
 data class StreamStats(
     val state: String,
+    val source: String,
     val trackId: String,
+    val stationId: String,
+    val stationName: String,
+    val stationStreamUrl: String,
+    val stationHomePageUrl: String,
     val title: String,
     val artist: String,
     val album: String,
@@ -355,11 +360,18 @@ data class StreamStats(
     val audioCacheStatus: String,
     val audioCacheSize: String,
     val audioCachePath: String,
+    val streamMetadataTitle: String,
+    val streamMetadataProperties: String,
 ) {
     fun rows(): List<Pair<String, String>> =
         listOf(
             "State" to state,
+            "Source" to source,
             "Track ID" to trackId,
+            "Station ID" to stationId,
+            "Station name" to stationName,
+            "Station stream URL" to stationStreamUrl,
+            "Station home page" to stationHomePageUrl,
             "Title" to title,
             "Artist" to artist,
             "Album" to album,
@@ -376,6 +388,8 @@ data class StreamStats(
             "Audio cache" to audioCacheStatus,
             "Audio cache size" to audioCacheSize,
             "Audio cache path" to audioCachePath,
+            "Stream metadata title" to streamMetadataTitle,
+            "Stream metadata" to streamMetadataProperties,
         )
 }
 
