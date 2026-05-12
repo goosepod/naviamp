@@ -221,6 +221,11 @@ FROM media_source
 ORDER BY COALESCE(last_connected_at_epoch_millis, created_at_epoch_millis) DESC
 LIMIT 1;
 
+selectMediaSources:
+SELECT *
+FROM media_source
+ORDER BY COALESCE(last_connected_at_epoch_millis, created_at_epoch_millis) DESC;
+
 selectMediaSourceByCacheNamespace:
 SELECT *
 FROM media_source

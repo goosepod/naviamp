@@ -133,6 +133,9 @@ class DesktopCache(
     fun latestMediaSource(): SavedMediaSource? =
         queries.selectLatestMediaSource().executeAsOneOrNull()?.toSavedMediaSource()
 
+    fun mediaSources(): List<SavedMediaSource> =
+        queries.selectMediaSources().executeAsList().map { it.toSavedMediaSource() }
+
     fun mediaSource(sourceId: String): SavedMediaSource? =
         queries.selectMediaSourceById(sourceId).executeAsOneOrNull()?.toSavedMediaSource()
 

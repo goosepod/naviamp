@@ -1324,6 +1324,7 @@ fun NaviampApp(
     }
 
     val statsMediaSource = connectedSourceId?.let { sessionCache.mediaSource(it) } ?: sessionCache.latestMediaSource()
+    val savedMediaSources = sessionCache.mediaSources()
     val streamQuality = playbackEngine.streamQuality()
     val currentAudioCacheMetadata = connectedSourceId
         ?.let { sourceId ->
@@ -1676,6 +1677,8 @@ fun NaviampApp(
                                         serverUrl = serverUrl,
                                         username = username,
                                         password = password,
+                                        savedConnections = savedMediaSources,
+                                        currentSourceId = connectedSourceId,
                                         hasSavedConnection = savedConnectionForLogin != null,
                                         isConnecting = isConnecting,
                                         connectionStatus = connectionStatus,
@@ -1696,6 +1699,27 @@ fun NaviampApp(
                                         },
                                         onPasswordChanged = { password = it },
                                         onConnect = { connectToServer() },
+                                        onNewConnection = {
+                                            savedConnectionForLogin = null
+                                            serverUrl = ""
+                                            username = ""
+                                            password = ""
+                                            connectionStatus = null
+                                        },
+                                        onEditConnection = { source ->
+                                            savedConnectionForLogin = source.toNavidromeConnection()
+                                            serverUrl = source.baseUrl
+                                            username = source.username
+                                            password = ""
+                                            connectionStatus = "Editing saved connection. Leave password blank to reuse it."
+                                        },
+                                        onConnectSavedConnection = { source ->
+                                            savedConnectionForLogin = source.toNavidromeConnection()
+                                            serverUrl = source.baseUrl
+                                            username = source.username
+                                            password = ""
+                                            connectToServer()
+                                        },
                                         onPlaybackSettingsChanged = { settings ->
                                             playbackSettings = settings.forEngine(playbackEngine)
                                             settingsStore.savePlaybackSettings(playbackSettings)

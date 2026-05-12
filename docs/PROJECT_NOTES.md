@@ -103,6 +103,8 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - `UP NEXT` rows have the shared overflow menu treatment. The first action starts track radio from that queued song.
   - The player hamburger menu includes lyrics toggle, track details, track radio, go to album, and go to artist. Add-to-playlist is present as a disabled placeholder until that flow exists.
   - The experimental visualizer was removed from the player because precomputed waveform/spectrum data did not feel like a real music-reactive surface. Bring visualizer support back only when the player can provide live PCM/FFT data.
+  - Settings are organized into categories: Connections, Playback, Local data, and Diagnostics.
+  - Settings Connections now shows saved server connections as a list with edit/connect actions plus a new-connection action, instead of exposing only raw connection text fields.
   - Popup menus use a shared dark Feishin-inspired treatment through `NaviampDropdownMenu` / `NaviampDropdownMenuItem`.
   - The `RELATED` tab is active. It loads same-album and same-artist tracks from the local source-scoped library index, excluding the current track and deduplicating by provider track ID.
   - Related rows can start playback immediately from the related list, and their row menu can start track radio.
