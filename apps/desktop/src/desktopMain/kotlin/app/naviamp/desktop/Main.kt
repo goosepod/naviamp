@@ -200,6 +200,9 @@ fun NaviampApp(
     val libraryListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val restoredTracks = remember(savedPlaybackSession) { savedPlaybackSession?.toTracks().orEmpty() }
+    val restoredInternetRadioStation = remember(savedPlaybackSession) {
+        savedPlaybackSession?.internetRadioStation?.toStation()
+    }
     val restoredTrack = remember(savedPlaybackSession) { savedPlaybackSession?.currentTrack() }
     var serverUrl by remember { mutableStateOf(savedConnection?.baseUrl.orEmpty()) }
     var connectionName by remember { mutableStateOf(savedConnection?.displayName.orEmpty()) }
@@ -285,7 +288,7 @@ fun NaviampApp(
     var nowPlayingAudioTags by remember { mutableStateOf<List<AudioTag>?>(null) }
     var nowPlayingLyrics by remember { mutableStateOf<Lyrics?>(null) }
     var nowPlayingLyricsStatus by remember { mutableStateOf<String?>(null) }
-    var nowPlayingInternetRadioStation by remember { mutableStateOf<InternetRadioStation?>(null) }
+    var nowPlayingInternetRadioStation by remember { mutableStateOf(restoredInternetRadioStation) }
     var nowPlayingStreamMetadata by remember { mutableStateOf(PlaybackStreamMetadata()) }
     var relatedTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
     var playbackState by remember { mutableStateOf<PlaybackState>(PlaybackState.Idle) }
@@ -951,7 +954,7 @@ fun NaviampApp(
         nowPlayingStreamMetadata = PlaybackStreamMetadata()
         playbackProgress = PlaybackProgress.Unknown
         playbackQueue = PlaybackQueue()
-        settingsStore.savePlaybackSession(null)
+        settingsStore.savePlaybackSession(PlaybackSessionSettings.fromInternetRadioStation(station))
         appRoute = AppRoute.Player
         playbackEngine.play(
             scope = coroutineScope,
@@ -977,6 +980,17 @@ fun NaviampApp(
                 }
             },
         )
+    }
+
+    fun playCurrentSelection() {
+        val station = nowPlayingInternetRadioStation
+        if (station != null || nowPlayingTrack?.isInternetRadioTrack() == true) {
+            station?.let { playInternetRadioStation(it) }
+            return
+        }
+        val restoredPosition = restoredPlaybackPositionSeconds
+        restoredPlaybackPositionSeconds = null
+        playlistEngine.playCurrent(coroutineScope, restoredPosition)
     }
 
     fun saveInternetRadioStation(station: InternetRadioStation) {
@@ -1126,7 +1140,21 @@ fun NaviampApp(
                 if (restoreSavedSession && savedPlaybackSession != null) {
                     val tracks = savedPlaybackSession.toTracks()
                     val currentTrack = savedPlaybackSession.currentTrack()
-                    if (tracks.isNotEmpty() && currentTrack != null) {
+                    val internetRadioStation = savedPlaybackSession.internetRadioStation?.toStation()
+                    if (internetRadioStation != null && currentTrack != null) {
+                        nowPlayingInternetRadioStation = internetRadioStation
+                        nowPlayingStreamMetadata = PlaybackStreamMetadata()
+                        nowPlayingTrack = currentTrack
+                        nowPlayingCoverArtUrl = null
+                        nowPlayingWaveform = null
+                        nowPlayingWaveformStatus = "Internet radio"
+                        nowPlayingAudioTags = null
+                        nowPlayingLyrics = null
+                        nowPlayingLyricsStatus = null
+                        playbackProgress = PlaybackProgress.Unknown
+                        playbackQueue = PlaybackQueue()
+                        playbackState = PlaybackState.Idle
+                    } else if (tracks.isNotEmpty() && currentTrack != null) {
                         playlistEngine.restore(
                             provider = provider,
                             tracks = tracks,
@@ -1135,6 +1163,8 @@ fun NaviampApp(
                             replayGainMode = playbackSettings.replayGainMode,
                             callbacks = playlistCallbacks,
                         )
+                        nowPlayingInternetRadioStation = null
+                        nowPlayingStreamMetadata = PlaybackStreamMetadata()
                         nowPlayingTrack = currentTrack
                         nowPlayingCoverArtUrl = currentTrack.coverArtId?.let { provider.coverArtUrl(it) }
                         playbackState = PlaybackState.Idle
@@ -2168,9 +2198,7 @@ fun NaviampApp(
                                     playbackEngine.resume()
                                 },
                                 onPlayCurrent = {
-                                    val restoredPosition = restoredPlaybackPositionSeconds
-                                    restoredPlaybackPositionSeconds = null
-                                    playlistEngine.playCurrent(coroutineScope, restoredPosition)
+                                    playCurrentSelection()
                                 },
                                 onSeek = { positionSeconds ->
                                     performSeek(positionSeconds)
@@ -2728,9 +2756,7 @@ fun NaviampApp(
                                 },
                                 onPlayCurrent = {
                                     openPlayerOnTrackStart = false
-                                    val restoredPosition = restoredPlaybackPositionSeconds
-                                    restoredPlaybackPositionSeconds = null
-                                    playlistEngine.playCurrent(coroutineScope, restoredPosition)
+                                    playCurrentSelection()
                                 },
                                 onPrevious = {
                                     handlePreviousButton()

@@ -1,12 +1,15 @@
 package app.naviamp.desktop
 
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -38,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
@@ -119,94 +123,134 @@ fun SettingsPanel(
         unfocusedBorderColor = appColors.border,
     )
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Settings", color = appColors.primaryText, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.width(150.dp),
-            ) {
-                SettingsCategory.entries.forEach { category ->
-                    FilterChip(
-                        selected = selectedCategory == category,
-                        onClick = { selectedCategory = category },
-                        label = { Text(category.label, fontSize = 12.sp) },
-                        modifier = Modifier.fillMaxWidth(),
+    @Composable
+    fun CategoryContent(category: SettingsCategory) {
+        when (category) {
+            SettingsCategory.Connections -> ConnectionsSettings(
+                appColors = appColors,
+                serverUrl = serverUrl,
+                connectionName = connectionName,
+                username = username,
+                password = password,
+                insecureSkipTlsVerification = insecureSkipTlsVerification,
+                customCertificatePath = customCertificatePath,
+                clientCertificateKeyStorePath = clientCertificateKeyStorePath,
+                clientCertificateKeyStorePassword = clientCertificateKeyStorePassword,
+                savedConnections = savedConnections,
+                currentSourceId = currentSourceId,
+                hasSavedConnection = hasSavedConnection,
+                isConnectionFormOpen = isConnectionFormOpen,
+                isConnecting = isConnecting,
+                connectionStatus = connectionStatus,
+                textFieldColors = textFieldColors,
+                focusManager = focusManager,
+                onServerUrlChanged = onServerUrlChanged,
+                onConnectionNameChanged = onConnectionNameChanged,
+                onUsernameChanged = onUsernameChanged,
+                onPasswordChanged = onPasswordChanged,
+                onInsecureSkipTlsVerificationChanged = onInsecureSkipTlsVerificationChanged,
+                onCustomCertificatePathChanged = onCustomCertificatePathChanged,
+                onClientCertificateKeyStorePathChanged = onClientCertificateKeyStorePathChanged,
+                onClientCertificateKeyStorePasswordChanged = onClientCertificateKeyStorePasswordChanged,
+                onConnect = onConnect,
+                onNewConnection = onNewConnection,
+                onEditConnection = onEditConnection,
+                onDeleteConnection = onDeleteConnection,
+                onConnectSavedConnection = onConnectSavedConnection,
+                onCancelConnectionForm = onCancelConnectionForm,
+            )
+            SettingsCategory.Playback -> PlaybackSettingsSection(
+                appColors = appColors,
+                playbackSettings = playbackSettings,
+                supportsReplayGain = supportsReplayGain,
+                supportsCrossfade = supportsCrossfade,
+                onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+            )
+            SettingsCategory.Cache -> CacheSettingsSection(
+                appColors = appColors,
+                cacheSettings = cacheSettings,
+                cacheStats = cacheStats,
+                onCacheSettingsChanged = onCacheSettingsChanged,
+            )
+            SettingsCategory.LocalData -> LocalDataSettings(
+                appColors = appColors,
+                onClearCache = { clearCacheDialogOpen = true },
+                onClearLibrary = { clearLibraryDialogOpen = true },
+                onRefreshLibrary = onRefreshLibrary,
+                onResetDatabase = {
+                    resetIncludesServers = false
+                    resetDialogOpen = true
+                },
+            )
+            SettingsCategory.Diagnostics -> DiagnosticsSettings(
+                appColors = appColors,
+                connectionStatus = connectionStatus,
+                statusClickCount = statusClickCount,
+                lastStatusClickMillis = lastStatusClickMillis,
+                onStatusClickStateChanged = { count, millis ->
+                    statusClickCount = count
+                    lastStatusClickMillis = millis
+                },
+                onOpenStatsForNerds = onOpenStatsForNerds,
+            )
+        }
+    }
+
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val narrowSettings = maxWidth < 560.dp
+        var narrowCategory by remember { mutableStateOf<SettingsCategory?>(null) }
+        val connectionSubtitle = savedConnections
+            .firstOrNull { it.id == currentSourceId }
+            ?.displayName
+            ?: connectionStatus
+            ?: "Not connected"
+
+        if (narrowSettings) {
+            val activeCategory = narrowCategory
+            if (activeCategory == null) {
+                SettingsCategoryList(
+                    appColors = appColors,
+                    connectionSubtitle = connectionSubtitle,
+                    onCategorySelected = { narrowCategory = it },
+                )
+            } else {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(end = 10.dp),
+                ) {
+                    SettingsDetailHeader(
+                        appColors = appColors,
+                        title = activeCategory.label,
+                        onBack = { narrowCategory = null },
                     )
+                    CategoryContent(activeCategory)
                 }
             }
-            Column(
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.weight(1f),
-            ) {
-                when (selectedCategory) {
-                    SettingsCategory.Connections -> ConnectionsSettings(
-                        appColors = appColors,
-                        serverUrl = serverUrl,
-                        connectionName = connectionName,
-                        username = username,
-                        password = password,
-                        insecureSkipTlsVerification = insecureSkipTlsVerification,
-                        customCertificatePath = customCertificatePath,
-                        clientCertificateKeyStorePath = clientCertificateKeyStorePath,
-                        clientCertificateKeyStorePassword = clientCertificateKeyStorePassword,
-                        savedConnections = savedConnections,
-                        currentSourceId = currentSourceId,
-                        hasSavedConnection = hasSavedConnection,
-                        isConnectionFormOpen = isConnectionFormOpen,
-                        isConnecting = isConnecting,
-                        connectionStatus = connectionStatus,
-                        textFieldColors = textFieldColors,
-                        focusManager = focusManager,
-                        onServerUrlChanged = onServerUrlChanged,
-                        onConnectionNameChanged = onConnectionNameChanged,
-                        onUsernameChanged = onUsernameChanged,
-                        onPasswordChanged = onPasswordChanged,
-                        onInsecureSkipTlsVerificationChanged = onInsecureSkipTlsVerificationChanged,
-                        onCustomCertificatePathChanged = onCustomCertificatePathChanged,
-                        onClientCertificateKeyStorePathChanged = onClientCertificateKeyStorePathChanged,
-                        onClientCertificateKeyStorePasswordChanged = onClientCertificateKeyStorePasswordChanged,
-                        onConnect = onConnect,
-                        onNewConnection = onNewConnection,
-                        onEditConnection = onEditConnection,
-                        onDeleteConnection = onDeleteConnection,
-                        onConnectSavedConnection = onConnectSavedConnection,
-                        onCancelConnectionForm = onCancelConnectionForm,
-                    )
-                    SettingsCategory.Playback -> PlaybackSettingsSection(
-                        appColors = appColors,
-                        playbackSettings = playbackSettings,
-                        supportsReplayGain = supportsReplayGain,
-                        supportsCrossfade = supportsCrossfade,
-                        onPlaybackSettingsChanged = onPlaybackSettingsChanged,
-                    )
-                    SettingsCategory.Cache -> CacheSettingsSection(
-                        appColors = appColors,
-                        cacheSettings = cacheSettings,
-                        cacheStats = cacheStats,
-                        onCacheSettingsChanged = onCacheSettingsChanged,
-                    )
-                    SettingsCategory.LocalData -> LocalDataSettings(
-                        appColors = appColors,
-                        onClearCache = { clearCacheDialogOpen = true },
-                        onClearLibrary = { clearLibraryDialogOpen = true },
-                        onRefreshLibrary = onRefreshLibrary,
-                        onResetDatabase = {
-                            resetIncludesServers = false
-                            resetDialogOpen = true
-                        },
-                    )
-                    SettingsCategory.Diagnostics -> DiagnosticsSettings(
-                        appColors = appColors,
-                        connectionStatus = connectionStatus,
-                        statusClickCount = statusClickCount,
-                        lastStatusClickMillis = lastStatusClickMillis,
-                        onStatusClickStateChanged = { count, millis ->
-                            statusClickCount = count
-                            lastStatusClickMillis = millis
-                        },
-                        onOpenStatsForNerds = onOpenStatsForNerds,
-                    )
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Settings", color = appColors.primaryText, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.width(150.dp),
+                    ) {
+                        SettingsCategory.entries.forEach { category ->
+                            FilterChip(
+                                selected = selectedCategory == category,
+                                onClick = { selectedCategory = category },
+                                label = { Text(category.label, fontSize = 12.sp) },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                    }
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        CategoryContent(selectedCategory)
+                    }
                 }
             }
         }
@@ -291,6 +335,104 @@ fun SettingsPanel(
                 }
             },
         )
+    }
+}
+
+@Composable
+private fun SettingsCategoryList(
+    appColors: AppColors,
+    connectionSubtitle: String,
+    onCategorySelected: (SettingsCategory) -> Unit,
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(end = 10.dp),
+    ) {
+        Text("Settings", color = appColors.primaryText, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+        Spacer(modifier = Modifier.height(8.dp))
+        SettingsCategory.entries.forEach { category ->
+            SettingsCategoryRow(
+                appColors = appColors,
+                category = category,
+                subtitle = if (category == SettingsCategory.Connections) connectionSubtitle else category.subtitle,
+                onClick = { onCategorySelected(category) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun SettingsCategoryRow(
+    appColors: AppColors,
+    category: SettingsCategory,
+    subtitle: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(54.dp)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp),
+    ) {
+        Icon(
+            imageVector = category.icon,
+            contentDescription = null,
+            tint = appColors.secondaryText,
+            modifier = Modifier.size(20.dp),
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                category.label,
+                color = appColors.primaryText,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                subtitle,
+                color = appColors.secondaryText,
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Icon(
+            imageVector = NavigationIcons.ChevronDown,
+            contentDescription = null,
+            tint = appColors.secondaryText,
+            modifier = Modifier
+                .size(18.dp)
+                .graphicsLayer { rotationZ = -90f },
+        )
+    }
+}
+
+@Composable
+private fun SettingsDetailHeader(
+    appColors: AppColors,
+    title: String,
+    onBack: () -> Unit,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        IconButton(onClick = onBack, modifier = Modifier.size(34.dp)) {
+            Icon(
+                imageVector = NavigationIcons.Back,
+                contentDescription = "Back to settings",
+                tint = appColors.primaryText,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        Text(title, color = appColors.primaryText, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -858,26 +1000,26 @@ private fun LocalDataSettings(
         color = appColors.secondaryText,
         fontSize = 12.sp,
     )
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
         TextButton(
             onClick = onClearCache,
             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp),
-            modifier = Modifier.height(30.dp),
+            modifier = Modifier.height(30.dp).fillMaxWidth(),
         ) { Text("Clear cache", fontSize = 12.sp) }
         TextButton(
             onClick = onClearLibrary,
             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp),
-            modifier = Modifier.height(30.dp),
+            modifier = Modifier.height(30.dp).fillMaxWidth(),
         ) { Text("Clear library index", fontSize = 12.sp) }
         TextButton(
             onClick = onRefreshLibrary,
             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp),
-            modifier = Modifier.height(30.dp),
+            modifier = Modifier.height(30.dp).fillMaxWidth(),
         ) { Text("Refresh library", fontSize = 12.sp) }
         TextButton(
             onClick = onResetDatabase,
             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp),
-            modifier = Modifier.height(30.dp),
+            modifier = Modifier.height(30.dp).fillMaxWidth(),
         ) { Text("Reset database", fontSize = 12.sp) }
     }
 }
@@ -1210,10 +1352,14 @@ private val UpNextSelectionBehavior.label: String
         UpNextSelectionBehavior.SkipToSelected -> "Skip to selected"
     }
 
-private enum class SettingsCategory(val label: String) {
-    Connections("Connections"),
-    Playback("Playback"),
-    Cache("Cache"),
-    LocalData("Local data"),
-    Diagnostics("Diagnostics"),
+private enum class SettingsCategory(
+    val label: String,
+    val subtitle: String,
+    val icon: ImageVector,
+) {
+    Connections("Connections", "Servers and credentials", NavigationIcons.Settings),
+    Playback("Playback", "Player behavior and lyrics", TransportIcons.Play),
+    Cache("Cache", "Audio cache and downloads", NavigationIcons.Downloads),
+    LocalData("Local data", "Cache, library, and database", NavigationIcons.Library),
+    Diagnostics("Diagnostics", "Stats and debugging", NavigationIcons.Settings),
 }

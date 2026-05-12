@@ -4,6 +4,7 @@ import app.naviamp.desktop.playback.ReplayGainMode
 import app.naviamp.domain.AlbumId
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.AudioInfo
+import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.provider.navidrome.NavidromeConnection
@@ -185,6 +186,28 @@ class DesktopSettingsStoreTest {
         assertEquals("2026-05-09T13:45:00Z", session?.currentTrack()?.favoritedAtIso8601)
         assertEquals(4, session?.currentTrack()?.userRating)
         assertEquals(2, session?.toTracks()?.size)
+    }
+
+    @Test
+    fun savePlaybackSessionRoundTripsInternetRadioStation() {
+        val path = createTempDirectory().resolve("settings.json")
+        val store = DesktopSettingsStore(path)
+
+        store.savePlaybackSession(
+            PlaybackSessionSettings.fromInternetRadioStation(
+                InternetRadioStation(
+                    id = "station-1",
+                    name = "Station One",
+                    streamUrl = "https://example.com/stream.mp3",
+                    homePageUrl = "https://example.com",
+                ),
+            ),
+        )
+
+        val session = store.loadPlaybackSession()
+        assertEquals("Station One", session?.internetRadioStation?.name)
+        assertEquals("internet-radio:station-1", session?.currentTrack()?.id?.value)
+        assertEquals("https://example.com/stream.mp3", session?.internetRadioStation?.streamUrl)
     }
 
     @Test

@@ -227,10 +227,12 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - Internet radio stations are server-backed through the provider contract. Navidrome uses Subsonic `getInternetRadioStations`, `createInternetRadioStation`, `updateInternetRadioStation`, and `deleteInternetRadioStation`.
   - The top navigation includes an Internet Radio screen between Search and Downloads for symmetry. Stations can be added, edited, deleted, and played.
   - Internet radio playback uses the station stream URL directly through the playback engine instead of `PlaylistEngine`, so stations are not treated as normal library tracks or submitted as play reports.
+  - The last played internet radio station is saved in the playback session so reopening the app can return to the Player with that station ready to play again.
   - Internet radio playback is treated as live: seeking is disabled, the scrubber shows a live/radio line instead of elapsed/duration playback info, and mpv-backed playback polls stream metadata so ICY/Shoutcast titles can surface when stations provide them.
   - When internet radio is playing, the Now Playing side panel swaps `BACK TO` / `UP NEXT` / `RELATED` for a compact saved station list and highlights the current station.
   - Stats for Nerds includes internet-radio station details, stream URL, home page URL, current ICY/media title, and raw stream metadata properties when available.
   - Home shows a Recent Internet Radio section only after a station has been played. Recent station entries are persisted locally.
+- Settings uses a responsive layout: wide windows keep the two-column category/detail view, while narrow windows show a Plexamp-style category list and open each settings group in its own scrollable detail view with a back control.
 - Now Playing should bounce long track titles left and right instead of leaving important title text permanently clipped or using a continuous loop marquee.
 - Desktop mpv crossfade attempt:
   - A dual-mpv-process crossfade attempt caused regressions in seek, pause, progress polling, and track advancement.

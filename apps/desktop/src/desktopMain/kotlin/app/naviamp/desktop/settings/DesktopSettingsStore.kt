@@ -310,9 +310,10 @@ data class PlaybackSessionSettings(
     val tracks: List<SavedTrack> = emptyList(),
     val currentIndex: Int = -1,
     val positionSeconds: Double? = null,
+    val internetRadioStation: SavedInternetRadioStation? = null,
 ) {
     fun currentTrack(): Track? =
-        tracks.getOrNull(currentIndex)?.toTrack()
+        tracks.getOrNull(currentIndex)?.toTrack() ?: internetRadioStation?.toTrack()
 
     fun toTracks(): List<Track> =
         tracks.map { it.toTrack() }
@@ -330,8 +331,25 @@ data class PlaybackSessionSettings(
                 positionSeconds = positionSeconds?.takeIf { it > 0.0 },
             )
         }
+
+        fun fromInternetRadioStation(station: InternetRadioStation): PlaybackSessionSettings =
+            PlaybackSessionSettings(
+                internetRadioStation = SavedInternetRadioStation.fromStation(station),
+            )
     }
 }
+
+private fun SavedInternetRadioStation.toTrack(): Track =
+    Track(
+        id = TrackId("internet-radio:$id"),
+        title = name,
+        artistName = "Internet Radio",
+        albumTitle = homePageUrl ?: streamUrl,
+        durationSeconds = null,
+        coverArtId = null,
+        audioInfo = null,
+        replayGain = null,
+    )
 
 @Serializable
 data class SavedTrack(
