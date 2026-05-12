@@ -301,7 +301,7 @@ private fun PlaylistRow(
         Text("Playlist", color = appColors.mutedText, fontSize = 11.sp)
         RowOverflowMenu(
             appColors = appColors,
-            items = listOf(RowMenuItem("Download playlist", onDownload)),
+            items = listOf(RowMenuItem("Download playlist", NavigationIcons.Downloads, onDownload)),
         )
     }
 }

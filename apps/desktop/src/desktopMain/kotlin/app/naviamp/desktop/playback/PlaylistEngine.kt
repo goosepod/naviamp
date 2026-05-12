@@ -172,10 +172,15 @@ class PlaylistEngine(
         playQueueIndex(scope, queue.tracks, queue.currentIndex, sessionId, startPositionSeconds)
     }
 
-    fun jumpTo(scope: CoroutineScope, index: Int) {
+    fun jumpTo(
+        scope: CoroutineScope,
+        index: Int,
+        moveSelectedToCurrent: Boolean = true,
+    ) {
         if (index !in queue.tracks.indices || index == queue.currentIndex) return
         sessionId += 1
-        playQueueIndex(scope, queue.tracks, index, sessionId)
+        val nextQueue = queue.jumpTo(index, moveSelectedToCurrent)
+        playQueueIndex(scope, nextQueue.tracks, nextQueue.currentIndex, sessionId)
     }
 
     fun previous(scope: CoroutineScope) {
@@ -427,6 +432,9 @@ data class PlaybackQueue(
     val tracks: List<Track> = emptyList(),
     val currentIndex: Int = -1,
 ) {
+    fun backTo(): List<Track> =
+        tracks.take(currentIndex).asReversed()
+
     fun upNext(): List<Track> =
         tracks.drop(currentIndex + 1)
 
@@ -435,6 +443,29 @@ data class PlaybackQueue(
 
     fun hasPrevious(): Boolean =
         currentIndex > 0
+
+    fun jumpTo(
+        index: Int,
+        moveSelectedToCurrent: Boolean = true,
+    ): PlaybackQueue {
+        if (index !in tracks.indices || index == currentIndex) return this
+        if (currentIndex !in tracks.indices) return copy(currentIndex = index)
+        if (!moveSelectedToCurrent) return copy(currentIndex = index)
+
+        return if (index > currentIndex) {
+            val currentAndHistory = tracks.take(currentIndex + 1)
+            val upcoming = tracks.drop(currentIndex + 1)
+            val selected = tracks[index]
+            PlaybackQueue(
+                tracks = currentAndHistory + selected + upcoming.filterIndexed { upcomingIndex, _ ->
+                    currentIndex + 1 + upcomingIndex != index
+                },
+                currentIndex = currentAndHistory.size,
+            )
+        } else {
+            copy(currentIndex = index)
+        }
+    }
 }
 
 private fun ReplayGainMode.forEngine(playbackEngine: PlaybackEngine): ReplayGainMode =

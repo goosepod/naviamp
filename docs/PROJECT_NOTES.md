@@ -208,6 +208,14 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - Playlist downloads are available from Home playlist rows.
   - Album and playlist downloads resolve their track lists first, then download tracks sequentially against the same download storage budget.
   - Download progress is currently a simple status string and should be replaced with a richer queue/progress surface before large offline-library workflows.
+- Player queue history:
+  - The full-player `BACK TO` tab is real playback history, ordered most-recent first. It is not just the original queue slice before the current index.
+  - Jumping to an upcoming track moves the current track into `BACK TO` and leaves skipped upcoming tracks in `UP NEXT`.
+  - Jumping to a `BACK TO` item behaves like browser history: the selected older track becomes current, and later history moves forward into `UP NEXT`.
+  - Settings > Playback includes a previous-button behavior toggle. `Restart first` seeks to the start when more than 10 seconds into the current track, then goes previous when clicked near the start. `Always previous` always navigates back in history.
+  - Settings > Playback also includes an `Up Next selection` toggle with an info affordance. `Move selected` plays the clicked upcoming track while keeping skipped upcoming tracks queued; `Skip to selected` treats the click like advancing through the queue so skipped upcoming tracks become history.
+  - Selecting a song from `UP NEXT` should scroll the list back to the top so the first visible row is the actual next song after the newly current track.
+- Detail-page and overflow-menu actions now use leading/icon-only controls where appropriate. Keep menu text, but include recognizable leading icons for radio, download, details, album, artist, and playlist actions.
 - Desktop mpv crossfade attempt:
   - A dual-mpv-process crossfade attempt caused regressions in seek, pause, progress polling, and track advancement.
   - `MpvProcessPlaybackEngine` was restored to the stable single-process mpv path and reports `supportsCrossfade = false` again.

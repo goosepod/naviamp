@@ -1,15 +1,18 @@
 package app.naviamp.desktop
 
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -35,6 +38,7 @@ fun NaviampDropdownMenu(
 @Composable
 fun NaviampDropdownMenuItem(
     label: String,
+    icon: ImageVector? = null,
     enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
@@ -44,6 +48,16 @@ fun NaviampDropdownMenuItem(
                 label,
                 fontSize = 13.sp,
             )
+        },
+        leadingIcon = icon?.let {
+            {
+                Icon(
+                    imageVector = it,
+                    contentDescription = null,
+                    tint = if (enabled) MenuText else MenuText.copy(alpha = 0.42f),
+                    modifier = Modifier.size(17.dp),
+                )
+            }
         },
         enabled = enabled,
         colors = MenuDefaults.itemColors(

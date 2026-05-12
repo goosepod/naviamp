@@ -66,7 +66,9 @@ import app.naviamp.desktop.settings.DesktopSettingsStore
 import app.naviamp.desktop.settings.NavigationSettings
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.desktop.settings.PlaybackSessionSettings
+import app.naviamp.desktop.settings.PreviousButtonBehavior
 import app.naviamp.desktop.settings.SearchSettings
+import app.naviamp.desktop.settings.UpNextSelectionBehavior
 import app.naviamp.desktop.settings.WindowSettings
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.MediaSearchResults
@@ -248,6 +250,7 @@ fun NaviampApp(
     var nowPlayingWaveformReloadToken by remember { mutableStateOf(0) }
     var nowPlayingAudioTags by remember { mutableStateOf<List<AudioTag>?>(null) }
     var nowPlayingLyrics by remember { mutableStateOf<Lyrics?>(null) }
+    var nowPlayingLyricsStatus by remember { mutableStateOf<String?>(null) }
     var relatedTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
     var playbackState by remember { mutableStateOf<PlaybackState>(PlaybackState.Idle) }
     var playbackProgress by remember { mutableStateOf(PlaybackProgress.Unknown) }
@@ -400,6 +403,26 @@ fun NaviampApp(
         playbackEngine.seek(positionSeconds)
     }
 
+    fun canUsePreviousButton(): Boolean =
+        playbackQueue.hasPrevious() ||
+            (
+                playbackSettings.previousButtonBehavior == PreviousButtonBehavior.RestartThenPrevious &&
+                    (playbackProgress.positionSeconds ?: 0.0) > PreviousRestartThresholdSeconds
+                )
+
+    fun handlePreviousButton() {
+        openPlayerOnTrackStart = false
+        val positionSeconds = playbackProgress.positionSeconds ?: 0.0
+        if (
+            playbackSettings.previousButtonBehavior == PreviousButtonBehavior.RestartThenPrevious &&
+            positionSeconds > PreviousRestartThresholdSeconds
+        ) {
+            performSeek(0.0)
+            return
+        }
+        playlistEngine.previous(coroutineScope)
+    }
+
     fun reportNowPlaying(track: Track) {
         val provider = connectedProvider ?: return
         if (!provider.capabilities.supportsPlayReporting) return
@@ -492,6 +515,7 @@ fun NaviampApp(
                 nowPlayingWaveformStatus = "Waiting"
                 nowPlayingAudioTags = null
                 nowPlayingLyrics = null
+                nowPlayingLyricsStatus = null
                 nowPlayingWaveformReloadToken += 1
             }
             playbackProgress = PlaybackProgress.Unknown
@@ -548,20 +572,28 @@ fun NaviampApp(
         val track = nowPlayingTrack ?: run {
             nowPlayingWaveform = null
             nowPlayingWaveformStatus = "No track"
+            nowPlayingLyricsStatus = null
             return@LaunchedEffect
         }
         val sourceId = connectedSourceId ?: run {
             nowPlayingWaveform = null
             nowPlayingWaveformStatus = "No source"
+            nowPlayingLyricsStatus = null
             return@LaunchedEffect
         }
         val provider = connectedProvider ?: run {
             nowPlayingWaveform = null
             nowPlayingWaveformStatus = "No provider"
+            nowPlayingLyricsStatus = null
             return@LaunchedEffect
         }
         val quality = playbackEngine.streamQuality()
         nowPlayingWaveformStatus = "Loading"
+        nowPlayingLyricsStatus = if (playbackSettings.lrclibLyricsEnabled) {
+            "Grabbing lyrics..."
+        } else {
+            "Loading lyrics..."
+        }
 
         val waveformTagsAndLyrics = withContext(Dispatchers.IO) {
             runCatching {
@@ -621,6 +653,7 @@ fun NaviampApp(
         nowPlayingWaveformStatus = waveformTagsAndLyrics?.waveformStatus ?: "Unavailable"
         nowPlayingAudioTags = waveformTagsAndLyrics?.audioTags
         nowPlayingLyrics = waveformTagsAndLyrics?.lyrics
+        nowPlayingLyricsStatus = null
     }
 
     LaunchedEffect(nowPlayingTrack?.id, connectedSourceId) {
@@ -790,6 +823,7 @@ fun NaviampApp(
             playbackEngine.stop()
             nowPlayingTrack = null
             nowPlayingCoverArtUrl = null
+            nowPlayingLyricsStatus = null
             playbackState = PlaybackState.Idle
             playbackProgress = PlaybackProgress.Unknown
             playbackQueue = PlaybackQueue()
@@ -1403,6 +1437,7 @@ fun NaviampApp(
         playbackEngine.stop()
         nowPlayingTrack = null
         nowPlayingCoverArtUrl = null
+        nowPlayingLyricsStatus = null
         playbackState = PlaybackState.Idle
         playbackProgress = PlaybackProgress.Unknown
         playbackQueue = PlaybackQueue()
@@ -1427,6 +1462,7 @@ fun NaviampApp(
             playbackEngine.stop()
             nowPlayingTrack = null
             nowPlayingCoverArtUrl = null
+            nowPlayingLyricsStatus = null
             playbackState = PlaybackState.Idle
             playbackProgress = PlaybackProgress.Unknown
             playbackQueue = PlaybackQueue()
@@ -1657,8 +1693,11 @@ fun NaviampApp(
                                 nowPlayingWaveform = nowPlayingWaveform,
                                 nowPlayingAudioTags = nowPlayingAudioTags,
                                 nowPlayingLyrics = nowPlayingLyrics,
+                                nowPlayingLyricsStatus = nowPlayingLyricsStatus,
                                 coverArtUrl = nowPlayingCoverArtUrl,
+                                backTo = playbackQueue.backTo(),
                                 upNext = playbackQueue.upNext(),
+                                firstBackToQueueIndex = playbackQueue.currentIndex - 1,
                                 firstUpNextQueueIndex = playbackQueue.currentIndex + 1,
                                 upNextCoverArtUrl = { track ->
                                     track.coverArtId?.let { connectedProvider?.coverArtUrl(it) }
@@ -1667,7 +1706,7 @@ fun NaviampApp(
                                 relatedCoverArtUrl = { track ->
                                     track.coverArtId?.let { connectedProvider?.coverArtUrl(it) }
                                 },
-                                hasPrevious = playbackQueue.hasPrevious(),
+                                hasPrevious = canUsePreviousButton(),
                                 hasNext = playbackQueue.hasNext(),
                                 playbackState = playbackState,
                                 playbackProgress = playbackProgress,
@@ -1690,8 +1729,7 @@ fun NaviampApp(
                                     performSeek(positionSeconds)
                                 },
                                 onPrevious = {
-                                    openPlayerOnTrackStart = false
-                                    playlistEngine.previous(coroutineScope)
+                                    handlePreviousButton()
                                 },
                                 onNext = {
                                     openPlayerOnTrackStart = false
@@ -1726,6 +1764,9 @@ fun NaviampApp(
                                     playlistEngine.jumpTo(
                                         scope = coroutineScope,
                                         index = queueIndex,
+                                        moveSelectedToCurrent =
+                                            playbackSettings.upNextSelectionBehavior ==
+                                                UpNextSelectionBehavior.MoveSelectedToCurrent,
                                     )
                                 },
                                 onUpNextTrackRadioSelected = { track ->
@@ -2057,7 +2098,7 @@ fun NaviampApp(
                                 appColors = appColors,
                                 nowPlayingTrack = nowPlayingTrack,
                                 coverArtUrl = nowPlayingCoverArtUrl,
-                                hasPrevious = playbackQueue.hasPrevious(),
+                                hasPrevious = canUsePreviousButton(),
                                 hasNext = playbackQueue.hasNext(),
                                 playbackState = playbackState,
                                 onPlayerColorsChanged = { colors ->
@@ -2076,8 +2117,7 @@ fun NaviampApp(
                                     playlistEngine.playCurrent(coroutineScope, restoredPosition)
                                 },
                                 onPrevious = {
-                                    openPlayerOnTrackStart = false
-                                    playlistEngine.previous(coroutineScope)
+                                    handlePreviousButton()
                                 },
                                 onNext = {
                                     openPlayerOnTrackStart = false
@@ -2130,7 +2170,11 @@ private fun PlaybackSettings.forEngine(playbackEngine: PlaybackEngine): Playback
         },
         debugLoggingEnabled = debugLoggingEnabled,
         lrclibLyricsEnabled = lrclibLyricsEnabled,
+        previousButtonBehavior = previousButtonBehavior,
+        upNextSelectionBehavior = upNextSelectionBehavior,
     )
+
+private const val PreviousRestartThresholdSeconds = 10.0
 
 private fun shouldAutoSyncLibrary(
     sourceId: String,

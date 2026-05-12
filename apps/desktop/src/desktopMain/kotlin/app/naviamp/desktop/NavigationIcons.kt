@@ -260,6 +260,113 @@ object NavigationIcons {
             lineTo(17f, 10.2f)
         }
     }.build()
+
+    val Info: ImageVector = ImageVector.Builder(
+        name = "Info",
+        defaultWidth = IconSize,
+        defaultHeight = IconSize,
+        viewportWidth = Viewport,
+        viewportHeight = Viewport,
+    ).apply {
+        path(
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 1.9f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+        ) {
+            moveTo(12f, 21f)
+            curveTo(7f, 21f, 3f, 17f, 3f, 12f)
+            curveTo(3f, 7f, 7f, 3f, 12f, 3f)
+            curveTo(17f, 3f, 21f, 7f, 21f, 12f)
+            curveTo(21f, 17f, 17f, 21f, 12f, 21f)
+            close()
+            moveTo(12f, 11f)
+            lineTo(12f, 16f)
+            moveTo(12f, 8f)
+            lineTo(12f, 8.1f)
+        }
+    }.build()
+
+    val Album: ImageVector = ImageVector.Builder(
+        name = "Album",
+        defaultWidth = IconSize,
+        defaultHeight = IconSize,
+        viewportWidth = Viewport,
+        viewportHeight = Viewport,
+    ).apply {
+        path(
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 1.9f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+        ) {
+            moveTo(12f, 21f)
+            curveTo(7f, 21f, 3f, 17f, 3f, 12f)
+            curveTo(3f, 7f, 7f, 3f, 12f, 3f)
+            curveTo(17f, 3f, 21f, 7f, 21f, 12f)
+            curveTo(21f, 17f, 17f, 21f, 12f, 21f)
+            close()
+            moveTo(12f, 14.5f)
+            curveTo(10.6f, 14.5f, 9.5f, 13.4f, 9.5f, 12f)
+            curveTo(9.5f, 10.6f, 10.6f, 9.5f, 12f, 9.5f)
+            curveTo(13.4f, 9.5f, 14.5f, 10.6f, 14.5f, 12f)
+            curveTo(14.5f, 13.4f, 13.4f, 14.5f, 12f, 14.5f)
+            close()
+            moveTo(12f, 12f)
+            lineTo(12.1f, 12f)
+        }
+    }.build()
+
+    val Artist: ImageVector = ImageVector.Builder(
+        name = "Artist",
+        defaultWidth = IconSize,
+        defaultHeight = IconSize,
+        viewportWidth = Viewport,
+        viewportHeight = Viewport,
+    ).apply {
+        path(
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 1.9f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+        ) {
+            moveTo(12f, 12f)
+            curveTo(10f, 12f, 8.5f, 10.4f, 8.5f, 8.4f)
+            curveTo(8.5f, 6.4f, 10f, 4.8f, 12f, 4.8f)
+            curveTo(14f, 4.8f, 15.5f, 6.4f, 15.5f, 8.4f)
+            curveTo(15.5f, 10.4f, 14f, 12f, 12f, 12f)
+            close()
+            moveTo(5.5f, 20f)
+            curveTo(6.2f, 16.6f, 8.6f, 14.7f, 12f, 14.7f)
+            curveTo(15.4f, 14.7f, 17.8f, 16.6f, 18.5f, 20f)
+        }
+    }.build()
+
+    val Playlist: ImageVector = ImageVector.Builder(
+        name = "Playlist",
+        defaultWidth = IconSize,
+        defaultHeight = IconSize,
+        viewportWidth = Viewport,
+        viewportHeight = Viewport,
+    ).apply {
+        path(
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 1.9f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+        ) {
+            moveTo(5f, 7f)
+            lineTo(15f, 7f)
+            moveTo(5f, 12f)
+            lineTo(15f, 12f)
+            moveTo(5f, 17f)
+            lineTo(12f, 17f)
+            moveTo(18f, 14f)
+            lineTo(18f, 20f)
+            moveTo(15f, 17f)
+            lineTo(21f, 17f)
+        }
+    }.build()
 }
 
 private val IconSize = 24.dp

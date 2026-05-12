@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -115,38 +114,34 @@ fun AlbumDetailPanel(
                     Text(it, color = appColors.secondaryText, fontSize = 11.sp)
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Button(
+                    DetailActionIconButton(
+                        appColors = appColors,
+                        icon = TransportIcons.Play,
+                        contentDescription = "Play album",
                         enabled = albumDetails?.tracks?.isNotEmpty() == true,
                         onClick = onPlayAlbum,
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                        modifier = Modifier.height(30.dp),
-                    ) {
-                        Text("Play")
-                    }
-                    Button(
+                    )
+                    DetailActionIconButton(
+                        appColors = appColors,
+                        icon = TransportIcons.Shuffle,
+                        contentDescription = "Shuffle album",
                         enabled = (albumDetails?.tracks?.size ?: 0) > 1,
                         onClick = onShuffleAlbum,
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                        modifier = Modifier.height(30.dp),
-                    ) {
-                        Text("Shuffle")
-                    }
-                    Button(
+                    )
+                    DetailActionIconButton(
+                        appColors = appColors,
+                        icon = TransportIcons.Radio,
+                        contentDescription = "Start album radio",
                         enabled = albumDetails?.tracks?.isNotEmpty() == true,
                         onClick = onAlbumRadio,
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                        modifier = Modifier.height(30.dp),
-                    ) {
-                        Text("Radio")
-                    }
-                    Button(
+                    )
+                    DetailActionIconButton(
+                        appColors = appColors,
+                        icon = NavigationIcons.Downloads,
+                        contentDescription = "Download album",
                         enabled = albumDetails?.tracks?.isNotEmpty() == true,
                         onClick = onDownloadAlbum,
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                        modifier = Modifier.height(30.dp),
-                    ) {
-                        Text("Download")
-                    }
+                    )
                 }
             }
         }

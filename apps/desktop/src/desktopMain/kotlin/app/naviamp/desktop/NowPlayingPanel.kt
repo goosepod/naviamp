@@ -38,6 +38,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -65,6 +66,7 @@ import app.naviamp.desktop.playback.PlaybackProgress
 import app.naviamp.desktop.playback.PlaybackState
 import app.naviamp.desktop.playback.label
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.skia.Image as SkiaImage
 import java.io.ByteArrayInputStream
@@ -85,8 +87,11 @@ fun NowPlayingPanel(
     nowPlayingWaveform: AudioWaveform?,
     nowPlayingAudioTags: List<AudioTag>?,
     nowPlayingLyrics: Lyrics?,
+    nowPlayingLyricsStatus: String?,
     coverArtUrl: String?,
+    backTo: List<Track>,
     upNext: List<Track>,
+    firstBackToQueueIndex: Int,
     firstUpNextQueueIndex: Int,
     upNextCoverArtUrl: (Track) -> String?,
     relatedTracks: List<Track>,
@@ -205,7 +210,9 @@ fun NowPlayingPanel(
                 ) {
                     UpNextPanel(
                         appColors = appColors,
+                        backTo = backTo,
                         upNext = upNext,
+                        firstBackToQueueIndex = firstBackToQueueIndex,
                         firstQueueIndex = firstUpNextQueueIndex,
                         coverArtUrl = upNextCoverArtUrl,
                         relatedTracks = relatedTracks,
@@ -221,6 +228,7 @@ fun NowPlayingPanel(
                     if (showLyrics) {
                         LyricsPanel(
                             lyrics = nowPlayingLyrics,
+                            lyricsStatus = nowPlayingLyricsStatus,
                             playbackProgress = playbackProgress,
                             appColors = appColors,
                             onSeek = onSeek,
@@ -242,6 +250,7 @@ fun NowPlayingPanel(
                 if (showLyrics) {
                     LyricsPanel(
                         lyrics = nowPlayingLyrics,
+                        lyricsStatus = nowPlayingLyricsStatus,
                         playbackProgress = playbackProgress,
                         appColors = appColors,
                         onSeek = onSeek,
@@ -293,7 +302,9 @@ fun NowPlayingPanel(
                 )
                 UpNextPanel(
                     appColors = appColors,
+                    backTo = backTo,
                     upNext = upNext,
+                    firstBackToQueueIndex = firstBackToQueueIndex,
                     firstQueueIndex = firstUpNextQueueIndex,
                     coverArtUrl = upNextCoverArtUrl,
                     relatedTracks = relatedTracks,
@@ -766,6 +777,7 @@ private fun PlayerDetails(
                     ) {
                         NaviampDropdownMenuItem(
                             label = if (lyricsVisible) "Hide lyrics" else "Show lyrics",
+                            icon = TransportIcons.Lyrics,
                             onClick = {
                                 actionMenuExpanded = false
                                 onToggleLyrics()
@@ -773,6 +785,7 @@ private fun PlayerDetails(
                         )
                         NaviampDropdownMenuItem(
                             label = "Download track",
+                            icon = NavigationIcons.Downloads,
                             onClick = {
                                 actionMenuExpanded = false
                                 nowPlayingTrack?.let(onDownloadTrackSelected)
@@ -780,6 +793,7 @@ private fun PlayerDetails(
                         )
                         NaviampDropdownMenuItem(
                             label = "Track details",
+                            icon = NavigationIcons.Info,
                             onClick = {
                                 actionMenuExpanded = false
                                 trackDetailsOpen = true
@@ -787,6 +801,7 @@ private fun PlayerDetails(
                         )
                         NaviampDropdownMenuItem(
                             label = "Start track radio",
+                            icon = TransportIcons.Radio,
                             onClick = {
                                 actionMenuExpanded = false
                                 nowPlayingTrack?.let(onTrackRadioSelected)
@@ -794,6 +809,7 @@ private fun PlayerDetails(
                         )
                         NaviampDropdownMenuItem(
                             label = "Go to album",
+                            icon = NavigationIcons.Album,
                             enabled = nowPlayingTrack?.albumId != null,
                             onClick = {
                                 actionMenuExpanded = false
@@ -802,6 +818,7 @@ private fun PlayerDetails(
                         )
                         NaviampDropdownMenuItem(
                             label = "Go to artist",
+                            icon = NavigationIcons.Artist,
                             enabled = nowPlayingTrack?.artistId != null,
                             onClick = {
                                 actionMenuExpanded = false
@@ -810,6 +827,7 @@ private fun PlayerDetails(
                         )
                         NaviampDropdownMenuItem(
                             label = "Add to playlist",
+                            icon = NavigationIcons.Playlist,
                             enabled = false,
                             onClick = { },
                         )
@@ -965,6 +983,7 @@ private fun String?.orUnknown(): String =
 @Composable
 private fun LyricsPanel(
     lyrics: Lyrics?,
+    lyricsStatus: String?,
     playbackProgress: PlaybackProgress,
     appColors: AppColors,
     onSeek: (Double) -> Unit,
@@ -1000,6 +1019,13 @@ private fun LyricsPanel(
             .padding(horizontal = 14.dp, vertical = 12.dp),
     ) {
         when {
+            lyrics == null && lyricsStatus != null -> Text(
+                lyricsStatus,
+                color = appColors.mutedText,
+                fontSize = 13.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.align(Alignment.Center),
+            )
             lyrics == null -> Text(
                 "Lyrics unavailable",
                 color = appColors.mutedText,
@@ -1277,7 +1303,9 @@ private fun TrackRatingControl(
 @Composable
 private fun UpNextPanel(
     appColors: AppColors,
+    backTo: List<Track>,
     upNext: List<Track>,
+    firstBackToQueueIndex: Int,
     firstQueueIndex: Int,
     coverArtUrl: (Track) -> String?,
     relatedTracks: List<Track>,
@@ -1291,12 +1319,15 @@ private fun UpNextPanel(
     modifier: Modifier = Modifier,
 ) {
     val scrollState = rememberScrollState()
+    val coroutineScope = rememberCoroutineScope()
     var selectedTab by remember { mutableStateOf(PlayerListTab.UpNext) }
     val visibleTracks = when (selectedTab) {
+        PlayerListTab.BackTo -> backTo
         PlayerListTab.UpNext -> upNext
         PlayerListTab.Related -> relatedTracks
     }
     val activeCoverArtUrl = when (selectedTab) {
+        PlayerListTab.BackTo -> coverArtUrl
         PlayerListTab.UpNext -> coverArtUrl
         PlayerListTab.Related -> relatedCoverArtUrl
     }
@@ -1312,7 +1343,12 @@ private fun UpNextPanel(
             horizontalArrangement = Arrangement.SpaceEvenly,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("BACK TO", color = appColors.mutedText, fontWeight = FontWeight.SemiBold, fontSize = 11.sp)
+            PlayerListTabLabel(
+                label = "BACK TO",
+                selected = selectedTab == PlayerListTab.BackTo,
+                appColors = appColors,
+                onClick = { selectedTab = PlayerListTab.BackTo },
+            )
             PlayerListTabLabel(
                 label = "UP NEXT",
                 selected = selectedTab == PlayerListTab.UpNext,
@@ -1340,7 +1376,11 @@ private fun UpNextPanel(
                     .height(42.dp),
             ) {
                 Text(
-                    text = if (selectedTab == PlayerListTab.Related) "No related tracks" else "Queue is empty",
+                    text = when (selectedTab) {
+                        PlayerListTab.BackTo -> "No recent tracks"
+                        PlayerListTab.UpNext -> "Queue is empty"
+                        PlayerListTab.Related -> "No related tracks"
+                    },
                     color = appColors.mutedText,
                     fontSize = 11.sp,
                 )
@@ -1368,23 +1408,31 @@ private fun UpNextPanel(
                             .height(38.dp),
                         onClick = {
                             when (selectedTab) {
-                                PlayerListTab.UpNext -> onQueueIndexSelected(firstQueueIndex + index)
+                                PlayerListTab.BackTo -> onQueueIndexSelected(firstBackToQueueIndex - index)
+                                PlayerListTab.UpNext -> {
+                                    onQueueIndexSelected(firstQueueIndex + index)
+                                    coroutineScope.launch { scrollState.scrollTo(0) }
+                                }
                                 PlayerListTab.Related -> onRelatedTrackSelected(index)
                             }
                         },
-                        onStartRadio = if (selectedTab == PlayerListTab.Related) {
-                            { onRelatedTrackRadioSelected(track) }
-                        } else if (selectedTab == PlayerListTab.UpNext) {
-                            { onUpNextTrackRadioSelected(track) }
-                        } else {
-                            null
+                        onStartRadio = when (selectedTab) {
+                            PlayerListTab.BackTo,
+                            PlayerListTab.UpNext -> {
+                                { onUpNextTrackRadioSelected(track) }
+                            }
+                            PlayerListTab.Related -> {
+                                { onRelatedTrackRadioSelected(track) }
+                            }
                         },
-                        onDownload = if (selectedTab == PlayerListTab.Related) {
-                            { onRelatedTrackDownloadSelected(track) }
-                        } else if (selectedTab == PlayerListTab.UpNext) {
-                            { onUpNextTrackDownloadSelected(track) }
-                        } else {
-                            null
+                        onDownload = when (selectedTab) {
+                            PlayerListTab.BackTo,
+                            PlayerListTab.UpNext -> {
+                                { onUpNextTrackDownloadSelected(track) }
+                            }
+                            PlayerListTab.Related -> {
+                                { onRelatedTrackDownloadSelected(track) }
+                            }
                         },
                         titleStyle = TextStyle(
                             fontSize = 12.sp,
@@ -1410,6 +1458,7 @@ private fun UpNextPanel(
 }
 
 private enum class PlayerListTab {
+    BackTo,
     UpNext,
     Related,
 }

@@ -2,13 +2,10 @@ package app.naviamp.desktop
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.height
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -104,14 +101,13 @@ fun ArtistDetailPanel(
                         color = appColors.secondaryText,
                         fontSize = 12.sp,
                     )
-                    Button(
+                    DetailActionIconButton(
+                        appColors = appColors,
+                        icon = TransportIcons.Radio,
+                        contentDescription = "Start artist radio",
                         enabled = details.albums.isNotEmpty(),
                         onClick = { effectiveArtist?.let(onArtistRadio) },
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                        modifier = Modifier.height(30.dp),
-                    ) {
-                        Text("Radio")
-                    }
+                    )
                     details.info?.biography
                         ?.takeIf { it.isNotBlank() }
                         ?.let { biography ->

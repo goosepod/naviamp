@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -83,7 +84,7 @@ fun ArtistRow(
         RowOverflowMenu(
             appColors = appColors,
             items = listOfNotNull(
-                onStartRadio?.let { RowMenuItem("Start artist radio", it) },
+                onStartRadio?.let { RowMenuItem("Start artist radio", TransportIcons.Radio, it) },
             ),
         )
     }
@@ -127,8 +128,8 @@ fun AlbumRow(
         RowOverflowMenu(
             appColors = appColors,
             items = listOfNotNull(
-                onStartRadio?.let { RowMenuItem("Start album radio", it) },
-                onDownload?.let { RowMenuItem("Download album", it) },
+                onStartRadio?.let { RowMenuItem("Start album radio", TransportIcons.Radio, it) },
+                onDownload?.let { RowMenuItem("Download album", NavigationIcons.Downloads, it) },
             ),
         )
     }
@@ -199,8 +200,8 @@ fun TrackRow(
             RowOverflowMenu(
                 appColors = appColors,
                 items = listOfNotNull(
-                    onStartRadio?.let { RowMenuItem("Start track radio", it) },
-                    onDownload?.let { RowMenuItem("Download track", it) },
+                    onStartRadio?.let { RowMenuItem("Start track radio", TransportIcons.Radio, it) },
+                    onDownload?.let { RowMenuItem("Download track", NavigationIcons.Downloads, it) },
                 ),
             )
         }
@@ -229,6 +230,7 @@ fun RowOverflowMenu(
             items.forEach { item ->
                 NaviampDropdownMenuItem(
                     label = item.label,
+                    icon = item.icon,
                     onClick = {
                         expanded = false
                         item.onClick()
@@ -241,6 +243,7 @@ fun RowOverflowMenu(
 
 data class RowMenuItem(
     val label: String,
+    val icon: ImageVector,
     val onClick: () -> Unit,
 )
 

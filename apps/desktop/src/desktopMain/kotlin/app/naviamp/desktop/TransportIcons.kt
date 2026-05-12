@@ -24,6 +24,38 @@ object TransportIcons {
         }
     }.build()
 
+    val Shuffle: ImageVector = ImageVector.Builder(
+        name = "Shuffle",
+        defaultWidth = IconSize,
+        defaultHeight = IconSize,
+        viewportWidth = Viewport,
+        viewportHeight = Viewport,
+    ).apply {
+        path(
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 1.9f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+        ) {
+            moveTo(3.5f, 7.5f)
+            lineTo(6.2f, 7.5f)
+            curveTo(8.4f, 7.5f, 10.2f, 9.2f, 12f, 12f)
+            curveTo(13.8f, 14.8f, 15.6f, 16.5f, 17.8f, 16.5f)
+            lineTo(20.5f, 16.5f)
+            moveTo(18.1f, 14.1f)
+            lineTo(20.5f, 16.5f)
+            lineTo(18.1f, 18.9f)
+            moveTo(3.5f, 16.5f)
+            lineTo(6.2f, 16.5f)
+            curveTo(8.4f, 16.5f, 10.2f, 14.8f, 12f, 12f)
+            curveTo(13.8f, 9.2f, 15.6f, 7.5f, 17.8f, 7.5f)
+            lineTo(20.5f, 7.5f)
+            moveTo(18.1f, 5.1f)
+            lineTo(20.5f, 7.5f)
+            lineTo(18.1f, 9.9f)
+        }
+    }.build()
+
     val Pause: ImageVector = ImageVector.Builder(
         name = "Pause",
         defaultWidth = IconSize,
@@ -125,14 +157,20 @@ object TransportIcons {
         viewportWidth = Viewport,
         viewportHeight = Viewport,
     ).apply {
+        path(fill = SolidColor(Color.Black)) {
+            moveTo(12f, 13.35f)
+            curveTo(11.25f, 13.35f, 10.65f, 12.75f, 10.65f, 12f)
+            curveTo(10.65f, 11.25f, 11.25f, 10.65f, 12f, 10.65f)
+            curveTo(12.75f, 10.65f, 13.35f, 11.25f, 13.35f, 12f)
+            curveTo(13.35f, 12.75f, 12.75f, 13.35f, 12f, 13.35f)
+            close()
+        }
         path(
             stroke = SolidColor(Color.Black),
             strokeLineWidth = 1.9f,
             strokeLineCap = StrokeCap.Round,
             strokeLineJoin = StrokeJoin.Round,
         ) {
-            moveTo(12f, 12f)
-            lineTo(12f, 12.1f)
             moveTo(8.7f, 8.7f)
             curveTo(6.9f, 10.5f, 6.9f, 13.5f, 8.7f, 15.3f)
             moveTo(15.3f, 8.7f)

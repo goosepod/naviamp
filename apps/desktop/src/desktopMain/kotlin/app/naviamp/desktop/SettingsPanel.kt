@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -51,6 +52,8 @@ import androidx.compose.ui.unit.sp
 import app.naviamp.desktop.playback.ReplayGainMode
 import app.naviamp.desktop.settings.CacheSettings
 import app.naviamp.desktop.settings.PlaybackSettings
+import app.naviamp.desktop.settings.PreviousButtonBehavior
+import app.naviamp.desktop.settings.UpNextSelectionBehavior
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -725,6 +728,8 @@ private fun PlaybackSettingsSection(
     supportsCrossfade: Boolean,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
 ) {
+    var upNextHelpOpen by remember { mutableStateOf(false) }
+
     SettingsSectionTitle("Playback", appColors)
     Text(
         if (supportsReplayGain) "ReplayGain" else "ReplayGain unavailable with this playback engine",
@@ -760,6 +765,48 @@ private fun PlaybackSettingsSection(
             )
         }
     }
+    Text("Previous button", color = appColors.secondaryText, fontSize = 12.sp)
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        PreviousButtonBehavior.entries.forEach { behavior ->
+            FilterChip(
+                selected = playbackSettings.previousButtonBehavior == behavior,
+                onClick = {
+                    onPlaybackSettingsChanged(playbackSettings.copy(previousButtonBehavior = behavior))
+                },
+                label = { Text(behavior.label, fontSize = 12.sp) },
+                modifier = Modifier.height(28.dp),
+            )
+        }
+    }
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("Up Next selection", color = appColors.secondaryText, fontSize = 12.sp)
+        IconButton(
+            onClick = { upNextHelpOpen = true },
+            modifier = Modifier.size(24.dp),
+        ) {
+            Icon(
+                imageVector = NavigationIcons.Info,
+                contentDescription = "Up Next selection details",
+                tint = appColors.secondaryText,
+                modifier = Modifier.size(15.dp),
+            )
+        }
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        UpNextSelectionBehavior.entries.forEach { behavior ->
+            FilterChip(
+                selected = playbackSettings.upNextSelectionBehavior == behavior,
+                onClick = {
+                    onPlaybackSettingsChanged(playbackSettings.copy(upNextSelectionBehavior = behavior))
+                },
+                label = { Text(behavior.label, fontSize = 12.sp) },
+                modifier = Modifier.height(28.dp),
+            )
+        }
+    }
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
         Checkbox(
             checked = playbackSettings.debugLoggingEnabled,
@@ -777,6 +824,23 @@ private fun PlaybackSettingsSection(
             },
         )
         Text("Use LRCLIB when lyrics are missing or unsynced", color = appColors.secondaryText, fontSize = 12.sp)
+    }
+    if (upNextHelpOpen) {
+        AlertDialog(
+            onDismissRequest = { upNextHelpOpen = false },
+            title = { Text("Up Next selection") },
+            text = {
+                Text(
+                    "Move selected plays the clicked song now and keeps the songs before it in Up Next.\n\n" +
+                        "Skip to selected advances through the queue, so skipped songs move into Back To.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { upNextHelpOpen = false }) {
+                    Text("Close")
+                }
+            },
+        )
     }
 }
 
@@ -1133,6 +1197,18 @@ private val DownloadBudgetOptions = listOf(
     AudioCacheBudgetOption("25 GB", 25L * 1024L * 1024L * 1024L),
     AudioCacheBudgetOption("50 GB", 50L * 1024L * 1024L * 1024L),
 )
+
+private val PreviousButtonBehavior.label: String
+    get() = when (this) {
+        PreviousButtonBehavior.RestartThenPrevious -> "Restart first"
+        PreviousButtonBehavior.AlwaysPrevious -> "Always previous"
+    }
+
+private val UpNextSelectionBehavior.label: String
+    get() = when (this) {
+        UpNextSelectionBehavior.MoveSelectedToCurrent -> "Move selected"
+        UpNextSelectionBehavior.SkipToSelected -> "Skip to selected"
+    }
 
 private enum class SettingsCategory(val label: String) {
     Connections("Connections"),

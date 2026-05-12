@@ -134,7 +134,21 @@ data class PlaybackSettings(
     val volumePercent: Int = 100,
     val debugLoggingEnabled: Boolean = false,
     val lrclibLyricsEnabled: Boolean = false,
+    val previousButtonBehavior: PreviousButtonBehavior = PreviousButtonBehavior.RestartThenPrevious,
+    val upNextSelectionBehavior: UpNextSelectionBehavior = UpNextSelectionBehavior.MoveSelectedToCurrent,
 )
+
+@Serializable
+enum class PreviousButtonBehavior {
+    AlwaysPrevious,
+    RestartThenPrevious,
+}
+
+@Serializable
+enum class UpNextSelectionBehavior {
+    MoveSelectedToCurrent,
+    SkipToSelected,
+}
 
 @Serializable
 data class CacheSettings(
