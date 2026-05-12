@@ -103,8 +103,9 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - `UP NEXT` rows have the shared overflow menu treatment. The first action starts track radio from that queued song.
   - The player hamburger menu includes lyrics toggle, track details, track radio, go to album, and go to artist. Add-to-playlist is present as a disabled placeholder until that flow exists.
   - The experimental visualizer was removed from the player because precomputed waveform/spectrum data did not feel like a real music-reactive surface. Bring visualizer support back only when the player can provide live PCM/FFT data.
-  - Settings are organized into categories: Connections, Playback, Local data, and Diagnostics.
+  - Settings are organized into categories: Connections, Playback, Cache, Local data, and Diagnostics.
   - Settings Connections now shows saved server connections as a list with edit/connect actions plus a new-connection action, instead of exposing only raw connection text fields.
+  - Settings Cache exposes audio caching on/off, prefetch depth, current audio cache usage, and max audio cache budget presets.
   - Popup menus use a shared dark Feishin-inspired treatment through `NaviampDropdownMenu` / `NaviampDropdownMenuItem`.
   - The `RELATED` tab is active. It loads same-album and same-artist tracks from the local source-scoped library index, excluding the current track and deduplicating by provider track ID.
   - Related rows can start playback immediately from the related list, and their row menu can start track radio.
@@ -175,6 +176,10 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - Waveform rows are a separate cache from audio files. Audio eviction should not delete waveform analysis, because the waveform is small and can make repeat plays render instantly.
   - The waveform cache is size-capped at 32 MiB as a rough budget for about 10,000 analyzed tracks, with least-recently-used eviction based on waveform access time.
   - Stats for nerds reports waveform count, size, and budget. The Settings clear image/provider/audio cache action also clears waveform rows.
+- Audio cache settings:
+  - Audio caching can be disabled. When disabled, playback resolves fresh provider stream URLs and upcoming-track prefetch does not run.
+  - Audio prefetch depth is persisted in settings and clamped between 0 and 25 tracks.
+  - The audio cache disk budget is persisted in settings, applied to `DesktopCache`, and trims least-recently-used cached audio files when lowered.
 - Desktop mpv crossfade attempt:
   - A dual-mpv-process crossfade attempt caused regressions in seek, pause, progress polling, and track advancement.
   - `MpvProcessPlaybackEngine` was restored to the stable single-process mpv path and reports `supportsCrossfade = false` again.
@@ -269,7 +274,6 @@ Top-of-mind work the user wants:
 
 Good next slices:
 
-- Phase 2C follow-up: expose Settings controls for audio cache depth and disk limit once the core cache behavior is stable.
 - Phase 2C follow-up: add visible/debuggable prefetch status and cache-hit reporting in Stats for nerds.
 - Phase 2C follow-up: harden audio cache behavior for mobile/offline use, including expiry rules, partial download cleanup, and provider-specific refresh hooks if Android needs them.
 - Waveform follow-up: add cache-hit/status reporting for waveform generation in Stats for nerds.

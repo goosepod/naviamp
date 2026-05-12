@@ -165,11 +165,16 @@ fun NaviampApp(
     val savedNavigation = remember { settingsStore.loadNavigationSettings() }
     val savedSearch = remember { settingsStore.loadSearchSettings() }
     var connectedSourceId by remember { mutableStateOf(savedMediaSource?.id) }
+    var cacheSettings by remember {
+        mutableStateOf(settingsStore.loadCacheSettings().normalized())
+    }
     val playlistEngine = remember(playbackEngine, sessionCache) {
         PlaylistEngine(
             playbackEngine = playbackEngine,
             cache = sessionCache,
             sourceIdProvider = { connectedSourceId },
+            audioCachingEnabledProvider = { cacheSettings.audioCachingEnabled },
+            audioPrefetchDepthProvider = { cacheSettings.audioPrefetchDepth },
         )
     }
     val librarySync = remember(sessionCache) { LibrarySync(sessionCache) }
@@ -303,6 +308,16 @@ fun NaviampApp(
 
     LaunchedEffect(playbackSettings.debugLoggingEnabled) {
         PlaybackTrace.setDefaultEnabled(playbackSettings.debugLoggingEnabled)
+    }
+
+    LaunchedEffect(cacheSettings.maxAudioCacheBytes) {
+        sessionCache.updateAudioCacheLimit(cacheSettings.maxAudioCacheBytes)
+    }
+
+    LaunchedEffect(cacheSettings.audioCachingEnabled, cacheSettings.audioPrefetchDepth) {
+        if (!cacheSettings.audioCachingEnabled || cacheSettings.audioPrefetchDepth <= 0) {
+            playlistEngine.cancelAudioPrefetch()
+        }
     }
 
     LaunchedEffect(appRoute, albumDetailBackRoute, artistDetailBackRoute) {
@@ -507,6 +522,7 @@ fun NaviampApp(
         connectedProvider,
         playbackEngine,
         nowPlayingWaveformReloadToken,
+        cacheSettings.audioCachingEnabled,
     ) {
         val track = nowPlayingTrack ?: run {
             nowPlayingWaveform = null
@@ -528,28 +544,37 @@ fun NaviampApp(
 
         val waveformTagsAndLyrics = withContext(Dispatchers.IO) {
             runCatching {
-                val audioFile = sessionCache.cacheAudioTrack(
-                    sourceId = sourceId,
-                    provider = provider,
-                    track = track,
-                    quality = quality,
-                )
-                val cachedWaveform = sessionCache.cachedAudioWaveform(
+                val audioFile = if (cacheSettings.audioCachingEnabled) {
+                    sessionCache.cacheAudioTrack(
+                        sourceId = sourceId,
+                        provider = provider,
+                        track = track,
+                        quality = quality,
+                    )
+                } else {
+                    sessionCache.cachedAudioFile(sourceId, track.id, quality)
+                }
+                val cachedWaveform = if (audioFile != null) sessionCache.cachedAudioWaveform(
                     sourceId = sourceId,
                     trackId = track.id,
                     quality = quality,
-                )
-                val waveform = cachedWaveform ?: sessionCache.ensureAudioWaveform(
-                    sourceId = sourceId,
-                    trackId = track.id,
-                    quality = quality,
-                )
+                ) else null
+                val waveform = cachedWaveform ?: if (audioFile != null && cacheSettings.audioCachingEnabled) {
+                    sessionCache.ensureAudioWaveform(
+                        sourceId = sourceId,
+                        trackId = track.id,
+                        quality = quality,
+                    )
+                } else {
+                    null
+                }
                 val waveformStatus = when {
                     cachedWaveform != null -> "Cached"
                     waveform != null -> "Generated"
+                    audioFile == null && !cacheSettings.audioCachingEnabled -> "Cache disabled"
                     else -> "Unavailable"
                 }
-                val tags = AudioTagReader().read(audioFile.path)
+                val tags = audioFile?.let { AudioTagReader().read(it.path) }.orEmpty()
                 val lyrics = sessionCache.providerLyrics(sourceId, provider, track.id)
                     ?: lyricsFromAudioTags(tags)
                 NowPlayingAnalysis(waveform, waveformStatus, tags, lyrics)
@@ -1683,6 +1708,8 @@ fun NaviampApp(
                                         isConnecting = isConnecting,
                                         connectionStatus = connectionStatus,
                                         playbackSettings = playbackSettings,
+                                        cacheSettings = cacheSettings,
+                                        cacheStats = statsForNerdsInfo.cacheStats,
                                         supportsReplayGain = playbackEngine.supportsReplayGain,
                                         supportsCrossfade = playbackEngine.supportsCrossfade,
                                         onServerUrlChanged = {
@@ -1723,6 +1750,10 @@ fun NaviampApp(
                                         onPlaybackSettingsChanged = { settings ->
                                             playbackSettings = settings.forEngine(playbackEngine)
                                             settingsStore.savePlaybackSettings(playbackSettings)
+                                        },
+                                        onCacheSettingsChanged = { settings ->
+                                            cacheSettings = settings.normalized()
+                                            settingsStore.saveCacheSettings(cacheSettings)
                                         },
                                         onOpenStatsForNerds = { showStatsForNerds = true },
                                         onClearCache = { clearCacheData() },

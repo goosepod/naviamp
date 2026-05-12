@@ -13,6 +13,8 @@ class PlaylistEngine(
     private val playbackEngine: PlaybackEngine,
     private val cache: DesktopCache? = null,
     private val sourceIdProvider: () -> String? = { null },
+    private val audioCachingEnabledProvider: () -> Boolean = { true },
+    private val audioPrefetchDepthProvider: () -> Int = { DefaultAudioPrefetchDepth },
 ) {
     private var provider: MediaProvider? = null
     private var streamQuality: StreamQuality? = null
@@ -76,6 +78,11 @@ class PlaylistEngine(
         queue = PlaybackQueue()
         playbackEngine.stop()
         callbacks?.onQueueChanged(queue)
+    }
+
+    fun cancelAudioPrefetch() {
+        audioPrefetchJob?.cancel()
+        audioPrefetchJob = null
     }
 
     fun updateTrack(updatedTrack: Track) {
@@ -227,7 +234,7 @@ class PlaylistEngine(
         quality: StreamQuality,
     ): String {
         val sourceId = sourceIdProvider()
-        val cached = if (sourceId != null) {
+        val cached = if (sourceId != null && audioCachingEnabledProvider()) {
             cache?.cachedAudioFile(sourceId, track.id, quality)
         } else {
             null
@@ -242,11 +249,14 @@ class PlaylistEngine(
     }
 
     private fun startAudioPrefetch(scope: CoroutineScope, activeSessionId: Int) {
+        if (!audioCachingEnabledProvider()) return
         val audioCache = cache ?: return
         val sourceId = sourceIdProvider() ?: return
         val currentProvider = provider ?: return
         val currentQuality = streamQuality ?: return
-        val upcoming = queue.upNext().take(AudioPrefetchDepth)
+        val prefetchDepth = audioPrefetchDepthProvider().coerceIn(0, 25)
+        if (prefetchDepth <= 0) return
+        val upcoming = queue.upNext().take(prefetchDepth)
         if (upcoming.isEmpty()) return
 
         audioPrefetchJob?.cancel()
@@ -346,4 +356,4 @@ private fun ReplayGainMode.forEngine(playbackEngine: PlaybackEngine): ReplayGain
     if (playbackEngine.supportsReplayGain) this else ReplayGainMode.Off
 
 private const val CrossfadePrepareWindowSeconds = 30.0
-private const val AudioPrefetchDepth = 10
+private const val DefaultAudioPrefetchDepth = 10

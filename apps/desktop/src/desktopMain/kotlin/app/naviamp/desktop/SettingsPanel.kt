@@ -41,6 +41,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.desktop.playback.ReplayGainMode
+import app.naviamp.desktop.settings.CacheSettings
 import app.naviamp.desktop.settings.PlaybackSettings
 
 @Composable
@@ -55,6 +56,8 @@ fun SettingsPanel(
     isConnecting: Boolean,
     connectionStatus: String?,
     playbackSettings: PlaybackSettings,
+    cacheSettings: CacheSettings,
+    cacheStats: CacheStats,
     supportsReplayGain: Boolean,
     supportsCrossfade: Boolean,
     onServerUrlChanged: (String) -> Unit,
@@ -65,6 +68,7 @@ fun SettingsPanel(
     onEditConnection: (SavedMediaSource) -> Unit,
     onConnectSavedConnection: (SavedMediaSource) -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
+    onCacheSettingsChanged: (CacheSettings) -> Unit,
     onOpenStatsForNerds: () -> Unit,
     onClearCache: () -> Unit,
     onClearLibrary: () -> Unit,
@@ -136,6 +140,12 @@ fun SettingsPanel(
                         supportsReplayGain = supportsReplayGain,
                         supportsCrossfade = supportsCrossfade,
                         onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+                    )
+                    SettingsCategory.Cache -> CacheSettingsSection(
+                        appColors = appColors,
+                        cacheSettings = cacheSettings,
+                        cacheStats = cacheStats,
+                        onCacheSettingsChanged = onCacheSettingsChanged,
                     )
                     SettingsCategory.LocalData -> LocalDataSettings(
                         appColors = appColors,
@@ -512,6 +522,58 @@ private fun LocalDataSettings(
 }
 
 @Composable
+private fun CacheSettingsSection(
+    appColors: AppColors,
+    cacheSettings: CacheSettings,
+    cacheStats: CacheStats,
+    onCacheSettingsChanged: (CacheSettings) -> Unit,
+) {
+    SettingsSectionTitle("Cache", appColors)
+    Text(
+        "Audio cache: ${cacheStats.audioCount} files, ${cacheStats.audioBytes.settingsBytesLabel()} used of " +
+            cacheSettings.maxAudioCacheBytes.settingsBytesLabel(),
+        color = appColors.secondaryText,
+        fontSize = 12.sp,
+    )
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Checkbox(
+            checked = cacheSettings.audioCachingEnabled,
+            onCheckedChange = { enabled ->
+                onCacheSettingsChanged(cacheSettings.copy(audioCachingEnabled = enabled).normalized())
+            },
+        )
+        Text("Enable audio cache and prefetch", color = appColors.secondaryText, fontSize = 12.sp)
+    }
+    Text("Prefetch depth", color = appColors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        listOf(0, 3, 5, 10, 15, 25).forEach { depth ->
+            FilterChip(
+                selected = cacheSettings.audioPrefetchDepth == depth,
+                enabled = cacheSettings.audioCachingEnabled,
+                onClick = {
+                    onCacheSettingsChanged(cacheSettings.copy(audioPrefetchDepth = depth).normalized())
+                },
+                label = { Text(if (depth == 0) "Off" else depth.toString(), fontSize = 12.sp) },
+                modifier = Modifier.height(28.dp),
+            )
+        }
+    }
+    Text("Audio cache budget", color = appColors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        AudioCacheBudgetOptions.forEach { option ->
+            FilterChip(
+                selected = cacheSettings.maxAudioCacheBytes == option.bytes,
+                onClick = {
+                    onCacheSettingsChanged(cacheSettings.copy(maxAudioCacheBytes = option.bytes).normalized())
+                },
+                label = { Text(option.label, fontSize = 12.sp) },
+                modifier = Modifier.height(28.dp),
+            )
+        }
+    }
+}
+
+@Composable
 private fun DiagnosticsSettings(
     appColors: AppColors,
     connectionStatus: String?,
@@ -554,9 +616,33 @@ private fun SettingsSectionTitle(title: String, appColors: AppColors) {
     Text(title, color = appColors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
 }
 
+private fun Long.settingsBytesLabel(): String {
+    val mib = 1024.0 * 1024.0
+    val gib = mib * 1024.0
+    return when {
+        this >= gib -> "%.1f GB".format(this / gib)
+        this >= mib -> "%.0f MB".format(this / mib)
+        else -> "$this B"
+    }
+}
+
+private data class AudioCacheBudgetOption(
+    val label: String,
+    val bytes: Long,
+)
+
+private val AudioCacheBudgetOptions = listOf(
+    AudioCacheBudgetOption("512 MB", 512L * 1024L * 1024L),
+    AudioCacheBudgetOption("1 GB", 1L * 1024L * 1024L * 1024L),
+    AudioCacheBudgetOption("2 GB", 2L * 1024L * 1024L * 1024L),
+    AudioCacheBudgetOption("5 GB", 5L * 1024L * 1024L * 1024L),
+    AudioCacheBudgetOption("10 GB", 10L * 1024L * 1024L * 1024L),
+)
+
 private enum class SettingsCategory(val label: String) {
     Connections("Connections"),
     Playback("Playback"),
+    Cache("Cache"),
     LocalData("Local data"),
     Diagnostics("Diagnostics"),
 }

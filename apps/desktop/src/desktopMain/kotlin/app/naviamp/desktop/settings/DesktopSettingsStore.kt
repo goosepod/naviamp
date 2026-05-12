@@ -52,6 +52,13 @@ class DesktopSettingsStore(
         saveSettings(loadSettings().copy(playback = playbackSettings))
     }
 
+    fun loadCacheSettings(): CacheSettings =
+        loadSettings().cache
+
+    fun saveCacheSettings(cacheSettings: CacheSettings) {
+        saveSettings(loadSettings().copy(cache = cacheSettings))
+    }
+
     fun loadWindowSettings(): WindowSettings =
         loadSettings().window
 
@@ -107,6 +114,7 @@ class DesktopSettingsStore(
 data class DesktopSettings(
     val connection: SavedConnection? = null,
     val playback: PlaybackSettings = PlaybackSettings(),
+    val cache: CacheSettings = CacheSettings(),
     val window: WindowSettings = WindowSettings(),
     val session: PlaybackSessionSettings? = null,
     val navigation: NavigationSettings = NavigationSettings(),
@@ -120,6 +128,19 @@ data class PlaybackSettings(
     val volumePercent: Int = 100,
     val debugLoggingEnabled: Boolean = false,
 )
+
+@Serializable
+data class CacheSettings(
+    val audioCachingEnabled: Boolean = true,
+    val audioPrefetchDepth: Int = 10,
+    val maxAudioCacheBytes: Long = 2L * 1024L * 1024L * 1024L,
+) {
+    fun normalized(): CacheSettings =
+        copy(
+            audioPrefetchDepth = audioPrefetchDepth.coerceIn(0, 25),
+            maxAudioCacheBytes = maxAudioCacheBytes.coerceIn(256L * 1024L * 1024L, 20L * 1024L * 1024L * 1024L),
+        )
+}
 
 @Serializable
 data class WindowSettings(
@@ -280,9 +301,10 @@ private fun defaultSettingsPath(): Path {
 private fun String.looksLikeDesktopSettings(): Boolean =
     runCatching {
         val keys = Json.parseToJsonElement(this).jsonObject.keys
-        "connection" in keys ||
-            "playback" in keys ||
-            "window" in keys ||
+            "connection" in keys ||
+                "playback" in keys ||
+                "cache" in keys ||
+                "window" in keys ||
             "session" in keys ||
             "navigation" in keys ||
             "search" in keys

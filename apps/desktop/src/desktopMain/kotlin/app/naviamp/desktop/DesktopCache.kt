@@ -36,7 +36,7 @@ import kotlin.io.path.exists
 class DesktopCache(
     private val databasePath: Path = defaultCacheDatabasePath(),
     private val maxImageCacheBytes: Long = 500L * 1024L * 1024L,
-    private val maxAudioCacheBytes: Long = 2L * 1024L * 1024L * 1024L,
+    private var maxAudioCacheBytes: Long = 2L * 1024L * 1024L * 1024L,
     private val maxAudioWaveformCacheBytes: Long = 32L * 1024L * 1024L,
     private val maxHotImageBytes: Long = 32L * 1024L * 1024L,
     private val audioCacheDirectory: Path = defaultAudioCacheDirectory(),
@@ -138,6 +138,11 @@ class DesktopCache(
 
     fun mediaSource(sourceId: String): SavedMediaSource? =
         queries.selectMediaSourceById(sourceId).executeAsOneOrNull()?.toSavedMediaSource()
+
+    fun updateAudioCacheLimit(maxBytes: Long) {
+        maxAudioCacheBytes = maxBytes.coerceAtLeast(0)
+        trimAudioStore()
+    }
 
     fun cachedAudioMetadata(
         sourceId: String,
