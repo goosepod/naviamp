@@ -41,9 +41,9 @@ data class HomeContent(
     val genres: List<Genre> = emptyList(),
     val genreSpotlight: Genre? = null,
     val genreSpotlightAlbums: List<Album> = emptyList(),
-    val decadeLabel: String = "The 2000s",
-    val decadeFromYear: Int = 2000,
-    val decadeToYear: Int = 2009,
+    val decadeLabel: String = "Decade",
+    val decadeFromYear: Int = 0,
+    val decadeToYear: Int = 0,
     val decadeAlbums: List<Album> = emptyList(),
 ) {
     val isEmpty: Boolean
@@ -55,6 +55,7 @@ data class HomeContent(
             playlists.isEmpty() &&
             recentRadioStreams.isEmpty() &&
             recentInternetRadioStations.isEmpty() &&
+            genres.isEmpty() &&
             genreSpotlightAlbums.isEmpty() &&
             decadeAlbums.isEmpty()
 }
@@ -161,13 +162,15 @@ fun HomePanel(
         HomeSection(title = "Stations", appColors = appColors) {
             StationRow(appColors, "Library Radio", "Random tracks from your full library", onLibraryRadioSelected)
             StationRow(appColors, "Random Album Radio", "Start from a random album", onRandomAlbumRadioSelected)
-            homeContent.genreSpotlight?.let { genre ->
+            homeContent.genres.take(3).forEach { genre ->
                 StationRow(appColors, "${genre.name} Radio", "A random ${genre.name} station") {
                     onGenreRadioSelected(genre)
                 }
             }
-            StationRow(appColors, "${homeContent.decadeLabel} Radio", "Random songs from ${homeContent.decadeLabel}") {
-                onDecadeRadioSelected(homeContent.decadeFromYear, homeContent.decadeToYear)
+            if (homeContent.decadeAlbums.isNotEmpty()) {
+                StationRow(appColors, "${homeContent.decadeLabel} Radio", "Random songs from ${homeContent.decadeLabel}") {
+                    onDecadeRadioSelected(homeContent.decadeFromYear, homeContent.decadeToYear)
+                }
             }
             StationRow(appColors, "Artist Mix Builder", "Pick an artist from your library", onOpenArtistMixBuilder)
             StationRow(appColors, "Album Mix Builder", "Pick an album from your library", onOpenAlbumMixBuilder)

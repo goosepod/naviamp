@@ -96,6 +96,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.awt.Taskbar
 import java.time.Instant
+import java.time.LocalDate
 import java.util.concurrent.TimeUnit
 import javax.imageio.ImageIO
 import kotlin.math.abs
@@ -792,14 +793,22 @@ fun NaviampApp(
     }
 
     fun loadHomeContent(provider: NavidromeProvider) {
+        val sourceId = connectedSourceId
         homeStatus = "Loading home..."
         coroutineScope.launch {
             try {
                 val content = withContext(Dispatchers.IO) {
-                    val genres = runCatching { provider.genres(limit = 12) }.getOrDefault(emptyList())
+                    val today = LocalDate.now()
+                    val genres = runCatching { provider.genres(limit = 12) }
+                        .getOrDefault(emptyList())
+                        .rotatedBy(today.dayOfYear)
                     val genreSpotlight = genres.firstOrNull()
-                    val decadeFromYear = HomeDecadeFromYear
-                    val decadeToYear = HomeDecadeToYear
+                    val decadePick = pickHomeDecade(
+                        provider = provider,
+                        cache = sessionCache,
+                        sourceId = sourceId,
+                        today = today,
+                    )
                     HomeContent(
                         recentlyAddedAlbums = runCatching {
                             provider.albumList(AlbumListType.Newest, limit = 8)
@@ -826,12 +835,10 @@ fun NaviampApp(
                                 provider.albumsByGenre(genre.name, limit = 6)
                             }.getOrDefault(emptyList())
                         }.orEmpty(),
-                        decadeLabel = HomeDecadeLabel,
-                        decadeFromYear = decadeFromYear,
-                        decadeToYear = decadeToYear,
-                        decadeAlbums = runCatching {
-                            provider.albumsByYear(decadeFromYear, decadeToYear, limit = 6)
-                        }.getOrDefault(emptyList()),
+                        decadeLabel = decadePick?.label ?: "Decade",
+                        decadeFromYear = decadePick?.fromYear ?: 0,
+                        decadeToYear = decadePick?.toYear ?: 0,
+                        decadeAlbums = decadePick?.albums.orEmpty(),
                         recentRadioStreams = recentRadioStreams,
                         recentInternetRadioStations = recentInternetRadioStations,
                     )
@@ -2898,9 +2905,84 @@ private const val PendingSeekStaleProgressWindowMillis = 1_500L
 private const val RadioRefillThreshold = 10
 private const val RadioRefillCount = 50
 private const val RadioQueueHistoryLimit = 25
-private const val HomeDecadeFromYear = 2000
-private const val HomeDecadeToYear = 2009
-private const val HomeDecadeLabel = "The 2000s"
+
+private data class HomeDecadePick(
+    val label: String,
+    val fromYear: Int,
+    val toYear: Int,
+    val albums: List<Album>,
+)
+
+private data class HomeDecadeCandidate(
+    val fromYear: Int,
+    val toYear: Int,
+)
+
+private suspend fun pickHomeDecade(
+    provider: MediaProvider,
+    cache: DesktopCache,
+    sourceId: String?,
+    today: LocalDate,
+): HomeDecadePick? {
+    val candidates = sourceId
+        ?.let { cache.libraryAlbumYears(it) }
+        .orEmpty()
+        .toHomeDecadeCandidates(today)
+        .ifEmpty { fallbackHomeDecadeCandidates(today) }
+
+    return candidates.firstNotNullOfOrNull { candidate ->
+        val albums = runCatching {
+            provider.albumsByYear(candidate.fromYear, candidate.toYear, limit = 6)
+        }.getOrDefault(emptyList())
+        albums.takeIf { it.isNotEmpty() }?.let {
+            HomeDecadePick(
+                label = homeDecadeLabel(candidate.fromYear),
+                fromYear = candidate.fromYear,
+                toYear = candidate.toYear,
+                albums = it,
+            )
+        }
+    }
+}
+
+private fun List<LibraryAlbumYear>.toHomeDecadeCandidates(today: LocalDate): List<HomeDecadeCandidate> =
+    groupBy { it.year.floorToDecade() }
+        .map { (decade, years) ->
+            decade to years.sumOf { it.albumCount }
+        }
+        .sortedWith(compareByDescending<Pair<Int, Long>> { it.second }.thenByDescending { it.first })
+        .take(HomeDecadeCandidateLimit)
+        .rotatedBy(today.dayOfYear)
+        .map { (decade, _) -> HomeDecadeCandidate(decade, decade + 9) }
+
+private fun fallbackHomeDecadeCandidates(today: LocalDate): List<HomeDecadeCandidate> {
+    val currentDecade = today.year.floorToDecade()
+    return generateSequence(currentDecade) { previous ->
+        (previous - 10).takeIf { it >= HomeEarliestFallbackDecade }
+    }
+        .take(HomeDecadeCandidateLimit)
+        .toList()
+        .rotatedBy(today.dayOfYear)
+        .map { decade -> HomeDecadeCandidate(decade, minOf(decade + 9, today.year)) }
+}
+
+private fun homeDecadeLabel(fromYear: Int): String =
+    "The ${fromYear}s"
+
+private fun Int.floorToDecade(): Int =
+    (this / 10) * 10
+
+private fun <T> List<T>.rotatedBy(offset: Int): List<T> {
+    if (isEmpty()) return this
+    val normalizedOffset = offset.floorMod(size)
+    return drop(normalizedOffset) + take(normalizedOffset)
+}
+
+private fun Int.floorMod(divisor: Int): Int =
+    ((this % divisor) + divisor) % divisor
+
+private const val HomeDecadeCandidateLimit = 8
+private const val HomeEarliestFallbackDecade = 1950
 
 private fun PlaybackEngine.capabilitiesLabel(): String =
     listOf(

@@ -739,6 +739,16 @@ class DesktopCache(
             trackCount = queries.libraryTrackCountForSource(sourceId).executeAsOne(),
         )
 
+    fun libraryAlbumYears(sourceId: String): List<LibraryAlbumYear> =
+        queries.selectLibraryAlbumYears(sourceId)
+            .executeAsList()
+            .mapNotNull { row ->
+                LibraryAlbumYear(
+                    year = row.release_year.toInt(),
+                    albumCount = row.album_count,
+                )
+            }
+
     fun libraryOffsetForLetter(sourceId: String, tab: LibraryTab, letter: Char): Long {
         val boundary = letter.librarySearchBoundary()
         return when (tab) {
@@ -1112,6 +1122,11 @@ data class LibraryIndexStats(
     val hasUsableIndex: Boolean
         get() = artistCount > 0L || albumCount > 0L || trackCount > 0L
 }
+
+data class LibraryAlbumYear(
+    val year: Int,
+    val albumCount: Long,
+)
 
 private fun app.naviamp.desktop.cache.Library_track.toTrack(): Track =
     Track(

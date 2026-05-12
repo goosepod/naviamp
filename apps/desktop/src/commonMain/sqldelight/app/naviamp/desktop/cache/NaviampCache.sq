@@ -387,6 +387,14 @@ WHERE source_id = ?
 ORDER BY search_title
 LIMIT ? OFFSET ?;
 
+selectLibraryAlbumYears:
+SELECT release_year, COUNT(*) AS album_count
+FROM library_album
+WHERE source_id = ?
+AND release_year IS NOT NULL
+GROUP BY release_year
+ORDER BY album_count DESC, release_year DESC;
+
 selectLibraryTracks:
 SELECT *
 FROM library_track

@@ -303,10 +303,10 @@ Top-of-mind work the user wants:
 - Improve Home radio seeds with richer picker/detail flows for artists, albums, genres, and decades.
 - Improve packaged app startup speed. The generated Windows executable opens noticeably slowly; profile cold start, runtime image startup, settings/database initialization, restored connection work, and first Home/library loading so the shell appears quickly and background work stays backgrounded.
 - Phase 2 Home/personalization:
+  - Home now avoids the fixed 2000s spotlight. The decade module is selected from indexed album release years when available, and genre radio shortcuts rotate through the server's top genres.
   - Add local playback history so Home can support Recent Plays, History, Most Played This Month, and better personalized mixes without depending on server-specific smart playlists.
   - Record enough play context to build useful Home sections later: source/server, track ID, album ID, artist ID, started timestamp, completed/skip signal, duration/position, and radio/playlist context when available.
   - Add richer Home detail pages or carousels for playlists, genres, decades, generated stations, and history sections.
-  - Replace the fixed 2000s decade spotlight with dynamic decade/year picks from the indexed library.
   - Use local history plus indexed library metadata for Mixes For You, On This Day, More From recently played artists/labels/genres, and dynamic decade/year modules.
 - Continue downloads/offline support:
   - Add artist download actions if desired, with clear confirmation because artists can be very large.
