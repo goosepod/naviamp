@@ -1381,6 +1381,7 @@ fun NaviampApp(
         playbackCapabilities = playbackEngine.capabilitiesLabel(),
         queueSize = playbackQueue.tracks.size,
         currentQueueIndex = playbackQueue.currentIndex,
+        cacheRuntime = playlistEngine.cacheRuntimeStats(),
         stream = nowPlayingTrack?.toStreamStats(
             playbackState = playbackState,
             playbackProgress = playbackProgress,

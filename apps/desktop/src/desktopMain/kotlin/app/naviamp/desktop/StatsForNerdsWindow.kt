@@ -26,6 +26,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.rememberWindowState
+import app.naviamp.desktop.playback.AudioPrefetchStats
+import app.naviamp.desktop.playback.CacheRuntimeStats
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -113,7 +115,13 @@ fun StatsForNerdsWindow(
                                 "Queue" to "${info.queueSize} tracks",
                                 "Current index" to info.currentQueueIndex.toString(),
                                 "Capabilities" to info.playbackCapabilities,
+                                "Playback source" to info.cacheRuntime.playbackSource.label,
                             ),
+                        )
+                        StatsSection(
+                            appColors = appColors,
+                            title = "Audio Prefetch",
+                            rows = info.cacheRuntime.prefetch.rows(),
                         )
                         StatsSection(
                             appColors = appColors,
@@ -272,6 +280,7 @@ data class StatsForNerdsInfo(
     val playbackCapabilities: String,
     val queueSize: Int,
     val currentQueueIndex: Int,
+    val cacheRuntime: CacheRuntimeStats,
     val stream: StreamStats?,
     val cacheStats: CacheStats,
     val providerCapabilities: Map<String, Boolean>,
@@ -369,6 +378,17 @@ data class StreamStats(
             "Audio cache path" to audioCachePath,
         )
 }
+
+private fun AudioPrefetchStats.rows(): List<Pair<String, String>> =
+    listOf(
+        "Enabled" to enabled.toString(),
+        "Configured depth" to configuredDepth.toString(),
+        "State" to if (running) "Running" else "Idle",
+        "Queued" to queued.toString(),
+        "Completed" to completed.toString(),
+        "Failed" to failed.toString(),
+        "Last error" to (lastError ?: "None"),
+    )
 
 fun SavedMediaSource.toStats(): MediaSourceStats =
     MediaSourceStats(

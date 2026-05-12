@@ -24,9 +24,17 @@ class PlaylistEngine(
     private var preparedNextIndex: Int? = null
     private var audioPrefetchJob: Job? = null
     private var sessionId = 0
+    private var playbackSource: PlaybackSource = PlaybackSource.Unknown
+    private var audioPrefetchStats = AudioPrefetchStats()
 
     var queue: PlaybackQueue = PlaybackQueue()
         private set
+
+    fun cacheRuntimeStats(): CacheRuntimeStats =
+        CacheRuntimeStats(
+            playbackSource = playbackSource,
+            prefetch = audioPrefetchStats,
+        )
 
     fun playFrom(
         scope: CoroutineScope,
@@ -44,6 +52,7 @@ class PlaylistEngine(
         sessionId += 1
         audioPrefetchJob?.cancel()
         audioPrefetchJob = null
+        audioPrefetchStats = AudioPrefetchStats()
 
         playQueueIndex(scope, tracks, index, sessionId)
     }
@@ -64,6 +73,7 @@ class PlaylistEngine(
         sessionId += 1
         audioPrefetchJob?.cancel()
         audioPrefetchJob = null
+        audioPrefetchStats = AudioPrefetchStats()
         queue = PlaybackQueue(tracks = tracks, currentIndex = index)
         preparedNextIndex = null
         callbacks.onQueueChanged(queue)
@@ -75,6 +85,8 @@ class PlaylistEngine(
         sessionId += 1
         audioPrefetchJob?.cancel()
         audioPrefetchJob = null
+        audioPrefetchStats = AudioPrefetchStats()
+        playbackSource = PlaybackSource.Unknown
         queue = PlaybackQueue()
         playbackEngine.stop()
         callbacks?.onQueueChanged(queue)
@@ -83,6 +95,7 @@ class PlaylistEngine(
     fun cancelAudioPrefetch() {
         audioPrefetchJob?.cancel()
         audioPrefetchJob = null
+        audioPrefetchStats = audioPrefetchStats.copy(running = false)
     }
 
     fun updateTrack(updatedTrack: Track) {
@@ -192,14 +205,15 @@ class PlaylistEngine(
 
         scope.launch {
             try {
-                val playbackUrl = playbackUrl(currentProvider, track, currentQuality)
+                val playbackTarget = playbackTarget(currentProvider, track, currentQuality)
+                playbackSource = playbackTarget.source
                 val coverArtUrl = track.coverArtId?.let { currentProvider.coverArtUrl(it) }
                 currentCallbacks.onTrackStarted(track, coverArtUrl)
                 startAudioPrefetch(scope, activeSessionId)
                 playbackEngine.play(
                     scope = scope,
                     request = PlaybackRequest(
-                        url = playbackUrl,
+                        url = playbackTarget.url,
                         mediaId = track.id.value,
                         replayGainMode = replayGainMode.forEngine(playbackEngine),
                         startPositionSeconds = startPositionSeconds?.takeIf { it > 0.0 },
@@ -228,27 +242,40 @@ class PlaylistEngine(
         }
     }
 
-    private suspend fun playbackUrl(
+    private suspend fun playbackTarget(
         provider: MediaProvider,
         track: Track,
         quality: StreamQuality,
-    ): String {
+    ): PlaybackTarget {
         val sourceId = sourceIdProvider()
         val cached = if (sourceId != null && audioCachingEnabledProvider()) {
             cache?.cachedAudioFile(sourceId, track.id, quality)
         } else {
             null
         }
-        return cached?.path?.toUri()?.toString()
-            ?: provider.streamUrl(
+        if (cached != null) {
+            return PlaybackTarget(
+                url = cached.path.toUri().toString(),
+                source = PlaybackSource.CachedFile,
+            )
+        }
+
+        return PlaybackTarget(
+            url = provider.streamUrl(
                 StreamRequest(
                     trackId = track.id,
                     quality = quality,
                 ),
-            )
+            ),
+            source = if (audioCachingEnabledProvider()) PlaybackSource.ProviderStream else PlaybackSource.ProviderStreamCacheDisabled,
+        )
     }
 
     private fun startAudioPrefetch(scope: CoroutineScope, activeSessionId: Int) {
+        audioPrefetchStats = AudioPrefetchStats(
+            enabled = audioCachingEnabledProvider(),
+            configuredDepth = audioPrefetchDepthProvider().coerceIn(0, 25),
+        )
         if (!audioCachingEnabledProvider()) return
         val audioCache = cache ?: return
         val sourceId = sourceIdProvider() ?: return
@@ -260,10 +287,17 @@ class PlaylistEngine(
         if (upcoming.isEmpty()) return
 
         audioPrefetchJob?.cancel()
+        audioPrefetchStats = audioPrefetchStats.copy(
+            running = true,
+            queued = upcoming.size,
+            completed = 0,
+            failed = 0,
+            lastError = null,
+        )
         audioPrefetchJob = scope.launch {
             upcoming.forEach { track ->
                 if (activeSessionId != sessionId) return@launch
-                runCatching {
+                val result = runCatching {
                     audioCache.cacheAudioTrack(
                         sourceId = sourceId,
                         provider = currentProvider,
@@ -271,6 +305,17 @@ class PlaylistEngine(
                         quality = currentQuality,
                     )
                 }
+                audioPrefetchStats = if (result.isSuccess) {
+                    audioPrefetchStats.copy(completed = audioPrefetchStats.completed + 1)
+                } else {
+                    audioPrefetchStats.copy(
+                        failed = audioPrefetchStats.failed + 1,
+                        lastError = result.exceptionOrNull()?.message,
+                    )
+                }
+            }
+            if (activeSessionId == sessionId) {
+                audioPrefetchStats = audioPrefetchStats.copy(running = false)
             }
         }
     }
@@ -314,7 +359,7 @@ class PlaylistEngine(
         scope.launch {
             if (activeSessionId != sessionId) return@launch
             try {
-                val streamUrl = playbackUrl(currentProvider, nextTrack, currentQuality)
+                val streamUrl = playbackTarget(currentProvider, nextTrack, currentQuality).url
                 if (activeSessionId == sessionId) {
                     queueAwareEngine.prepareNext(
                         PlaybackRequest(
@@ -330,6 +375,33 @@ class PlaylistEngine(
         }
     }
 }
+
+data class CacheRuntimeStats(
+    val playbackSource: PlaybackSource = PlaybackSource.Unknown,
+    val prefetch: AudioPrefetchStats = AudioPrefetchStats(),
+)
+
+enum class PlaybackSource(val label: String) {
+    Unknown("Unknown"),
+    CachedFile("Cached file"),
+    ProviderStream("Provider stream"),
+    ProviderStreamCacheDisabled("Provider stream (cache disabled)"),
+}
+
+data class AudioPrefetchStats(
+    val enabled: Boolean = false,
+    val configuredDepth: Int = 0,
+    val running: Boolean = false,
+    val queued: Int = 0,
+    val completed: Int = 0,
+    val failed: Int = 0,
+    val lastError: String? = null,
+)
+
+private data class PlaybackTarget(
+    val url: String,
+    val source: PlaybackSource,
+)
 
 data class PlaylistCallbacks(
     val onTrackStarted: (Track, String?) -> Unit,

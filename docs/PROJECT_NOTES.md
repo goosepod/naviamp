@@ -172,6 +172,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - The Now Playing scrubber draws a compact Compose waveform with played/unplayed coloring and supports click/drag seeking through the same `onSeek` path as the old slider.
   - Stats for nerds shows current-track waveform status (`Waiting`, `Loading`, `Cached`, `Generated`, or `Unavailable`) and bucket count so cache-hit behavior is easier to debug.
   - Stats for nerds also shows current-track audio cache status, size, and local path without touching cache access time.
+  - Stats for nerds reports playback source (`Cached file`, provider stream, or provider stream with cache disabled) and audio prefetch counters.
   - Waveform generation is intentionally current-track only for now so upcoming prefetch does not become a CPU-heavy analysis queue.
   - Waveform rows are a separate cache from audio files. Audio eviction should not delete waveform analysis, because the waveform is small and can make repeat plays render instantly.
   - The waveform cache is size-capped at 32 MiB as a rough budget for about 10,000 analyzed tracks, with least-recently-used eviction based on waveform access time.
@@ -274,7 +275,6 @@ Top-of-mind work the user wants:
 
 Good next slices:
 
-- Phase 2C follow-up: add visible/debuggable prefetch status and cache-hit reporting in Stats for nerds.
 - Phase 2C follow-up: harden audio cache behavior for mobile/offline use, including expiry rules, partial download cleanup, and provider-specific refresh hooks if Android needs them.
 - Waveform follow-up: add cache-hit/status reporting for waveform generation in Stats for nerds.
 - Waveform follow-up: consider queue-aware/background waveform analysis for likely-upcoming tracks after measuring CPU impact.
