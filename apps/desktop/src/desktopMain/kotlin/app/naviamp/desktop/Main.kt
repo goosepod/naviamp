@@ -63,6 +63,7 @@ import app.naviamp.desktop.playback.PlaybackStreamMetadata
 import app.naviamp.desktop.playback.PlaybackTrace
 import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.PlaylistEngine
+import app.naviamp.desktop.playback.RepeatMode
 import app.naviamp.desktop.playback.ReplayGainMode
 import app.naviamp.desktop.playback.label
 import app.naviamp.desktop.playback.mergeWith
@@ -310,6 +311,8 @@ fun NaviampApp(
     }
     var showStatsForNerds by remember { mutableStateOf(false) }
     var openPlayerOnTrackStart by remember { mutableStateOf(false) }
+    var shuffledUpNextSnapshot by remember { mutableStateOf<List<Track>?>(null) }
+    var repeatMode by remember { mutableStateOf(RepeatMode.Off) }
     var radioQueueActive by remember { mutableStateOf(false) }
     var isRadioRefilling by remember { mutableStateOf(false) }
     var lastRadioRefillSeedId by remember { mutableStateOf<String?>(null) }
@@ -425,6 +428,29 @@ fun NaviampApp(
         )
     }
 
+    fun clearShuffleSnapshot() {
+        shuffledUpNextSnapshot = null
+    }
+
+    fun toggleShuffle() {
+        val snapshot = shuffledUpNextSnapshot
+        if (snapshot == null) {
+            shuffledUpNextSnapshot = playlistEngine.shuffleUpcoming()
+        } else {
+            playlistEngine.restoreUpcoming(snapshot)
+            shuffledUpNextSnapshot = null
+        }
+    }
+
+    fun cycleRepeatMode() {
+        repeatMode = when (repeatMode) {
+            RepeatMode.Off -> RepeatMode.Queue
+            RepeatMode.Queue -> RepeatMode.Track
+            RepeatMode.Track -> RepeatMode.Off
+        }
+        playlistEngine.setRepeatMode(repeatMode)
+    }
+
     fun maybeSavePlaybackPosition(progress: PlaybackProgress) {
         val positionSeconds = progress.positionSeconds ?: return
         if (playbackQueue.currentIndex !in playbackQueue.tracks.indices) return
@@ -454,6 +480,10 @@ fun NaviampApp(
                 playbackSettings.previousButtonBehavior == PreviousButtonBehavior.RestartThenPrevious &&
                     (playbackProgress.positionSeconds ?: 0.0) > PreviousRestartThresholdSeconds
                 )
+
+    fun canUseNextButton(): Boolean =
+        playbackQueue.hasNext() ||
+            (repeatMode == RepeatMode.Queue && playbackQueue.tracks.isNotEmpty())
 
     fun handlePreviousButton() {
         openPlayerOnTrackStart = false
@@ -550,6 +580,9 @@ fun NaviampApp(
     val playlistCallbacks = PlaylistCallbacks(
         onTrackStarted = { track, coverArtUrl ->
             val trackChanged = nowPlayingTrack?.id != track.id
+            if (trackChanged) {
+                clearShuffleSnapshot()
+            }
             nowPlayingInternetRadioStation = null
             nowPlayingStreamMetadata = PlaybackStreamMetadata()
             nowPlayingTrack = track
@@ -932,6 +965,7 @@ fun NaviampApp(
     fun playInternetRadioStation(station: InternetRadioStation) {
         rememberInternetRadioStation(station)
         stopRadioContinuation()
+        clearShuffleSnapshot()
         playlistEngine.clear()
         val radioTrack = Track(
             id = TrackId("internet-radio:${station.id}"),
@@ -1101,6 +1135,7 @@ fun NaviampApp(
             homeContent = HomeContent()
             homeStatus = null
             stopRadioContinuation()
+            clearShuffleSnapshot()
             playlistEngine.clear()
             playbackEngine.stop()
             nowPlayingTrack = null
@@ -1224,6 +1259,7 @@ fun NaviampApp(
         val tracks = selectedAlbumDetails?.tracks.orEmpty()
         if (tracks.isEmpty()) return
         stopRadioContinuation()
+        clearShuffleSnapshot()
         openPlayerOnTrackStart = true
         playlistEngine.playFrom(
             scope = coroutineScope,
@@ -1241,6 +1277,7 @@ fun NaviampApp(
         val tracks = searchResults.tracks
         if (tracks.isEmpty() || index !in tracks.indices) return
         stopRadioContinuation()
+        clearShuffleSnapshot()
         openPlayerOnTrackStart = true
         playlistEngine.playFrom(
             scope = coroutineScope,
@@ -1258,6 +1295,7 @@ fun NaviampApp(
         val tracks = relatedTracks
         if (tracks.isEmpty() || index !in tracks.indices) return
         stopRadioContinuation()
+        clearShuffleSnapshot()
         openPlayerOnTrackStart = true
         playlistEngine.playFrom(
             scope = coroutineScope,
@@ -1363,6 +1401,7 @@ fun NaviampApp(
         val provider = connectedProvider ?: return
         if (downloads.isEmpty() || index !in downloads.indices) return
         stopRadioContinuation()
+        clearShuffleSnapshot()
         openPlayerOnTrackStart = true
         playlistEngine.playFrom(
             scope = coroutineScope,
@@ -1395,6 +1434,7 @@ fun NaviampApp(
                 connectionStatus = null
                 radioSessionId += 1
                 radioQueueActive = true
+                clearShuffleSnapshot()
                 isRadioRefilling = false
                 lastRadioRefillSeedId = null
                 openPlayerOnTrackStart = true
@@ -1425,6 +1465,7 @@ fun NaviampApp(
         radioSessionId += 1
         val activeRadioSessionId = radioSessionId
         radioQueueActive = true
+        clearShuffleSnapshot()
         isRadioRefilling = true
         lastRadioRefillSeedId = seedTrack.id.value
         openPlayerOnTrackStart = true
@@ -1481,6 +1522,7 @@ fun NaviampApp(
                 connectionStatus = null
                 markPlaylistPlayed(playlist)
                 stopRadioContinuation()
+                clearShuffleSnapshot()
                 openPlayerOnTrackStart = true
                 playlistEngine.playFrom(
                     scope = coroutineScope,
@@ -1522,6 +1564,7 @@ fun NaviampApp(
         if (tracks.isEmpty()) return
         markPlaylistPlayed(playlist)
         stopRadioContinuation()
+        clearShuffleSnapshot()
         openPlayerOnTrackStart = true
         playlistEngine.playFrom(
             scope = coroutineScope,
@@ -2182,7 +2225,10 @@ fun NaviampApp(
                                     track.coverArtId?.let { connectedProvider?.coverArtUrl(it) }
                                 },
                                 hasPrevious = canUsePreviousButton(),
-                                hasNext = playbackQueue.hasNext(),
+                                hasNext = canUseNextButton(),
+                                shuffleEnabled = playbackQueue.upNext().size > 1,
+                                shuffleActive = shuffledUpNextSnapshot != null,
+                                repeatMode = repeatMode,
                                 playbackState = playbackState,
                                 playbackProgress = playbackProgress,
                                 volumePercent = playbackSettings.volumePercent,
@@ -2209,6 +2255,12 @@ fun NaviampApp(
                                 onNext = {
                                     openPlayerOnTrackStart = false
                                     playlistEngine.next(coroutineScope)
+                                },
+                                onToggleShuffle = {
+                                    toggleShuffle()
+                                },
+                                onCycleRepeatMode = {
+                                    cycleRepeatMode()
                                 },
                                 onVolumeChanged = { volumePercent ->
                                     playbackSettings = playbackSettings

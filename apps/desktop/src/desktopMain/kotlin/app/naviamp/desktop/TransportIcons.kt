@@ -182,6 +182,36 @@ object TransportIcons {
         }
     }.build()
 
+    val Repeat: ImageVector = ImageVector.Builder(
+        name = "Repeat",
+        defaultWidth = IconSize,
+        defaultHeight = IconSize,
+        viewportWidth = Viewport,
+        viewportHeight = Viewport,
+    ).apply {
+        path(
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 1.9f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+        ) {
+            moveTo(17f, 2.8f)
+            lineTo(20.5f, 6.3f)
+            lineTo(17f, 9.8f)
+            moveTo(3.5f, 10f)
+            lineTo(3.5f, 8.3f)
+            curveTo(3.5f, 7.2f, 4.4f, 6.3f, 5.5f, 6.3f)
+            lineTo(20.5f, 6.3f)
+            moveTo(7f, 21.2f)
+            lineTo(3.5f, 17.7f)
+            lineTo(7f, 14.2f)
+            moveTo(20.5f, 14f)
+            lineTo(20.5f, 15.7f)
+            curveTo(20.5f, 16.8f, 19.6f, 17.7f, 18.5f, 17.7f)
+            lineTo(3.5f, 17.7f)
+        }
+    }.build()
+
     val Menu: ImageVector = ImageVector.Builder(
         name = "Menu",
         defaultWidth = IconSize,

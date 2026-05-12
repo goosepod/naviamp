@@ -21,6 +21,7 @@ class PlaylistEngine(
     private var replayGainMode: ReplayGainMode = ReplayGainMode.Off
     private var callbacks: PlaylistCallbacks? = null
     private var crossfadeSettings = CrossfadeSettings()
+    private var repeatMode = RepeatMode.Off
     private var preparedNextIndex: Int? = null
     private var audioPrefetchJob: Job? = null
     private var sessionId = 0
@@ -154,10 +155,18 @@ class PlaylistEngine(
         (playbackEngine as? QueueAwarePlaybackEngine)?.setCrossfadeDuration(settings.durationSeconds)
     }
 
+    fun setRepeatMode(mode: RepeatMode) {
+        repeatMode = mode
+    }
+
     fun next(scope: CoroutineScope) {
-        if (!queue.hasNext()) return
+        val nextIndex = when {
+            queue.hasNext() -> queue.currentIndex + 1
+            repeatMode == RepeatMode.Queue && queue.tracks.isNotEmpty() -> 0
+            else -> return
+        }
         sessionId += 1
-        playQueueIndex(scope, queue.tracks, queue.currentIndex + 1, sessionId)
+        playQueueIndex(scope, queue.tracks, nextIndex, sessionId)
     }
 
     fun playCurrent(scope: CoroutineScope) {
@@ -187,6 +196,26 @@ class PlaylistEngine(
         if (!queue.hasPrevious()) return
         sessionId += 1
         playQueueIndex(scope, queue.tracks, queue.currentIndex - 1, sessionId)
+    }
+
+    fun shuffleUpcoming(): List<Track>? {
+        val originalUpcoming = queue.upNext()
+        if (originalUpcoming.size < 2 || queue.currentIndex !in queue.tracks.indices) return null
+        queue = queue.copy(
+            tracks = queue.tracks.take(queue.currentIndex + 1) + originalUpcoming.shuffled(),
+        )
+        preparedNextIndex = null
+        callbacks?.onQueueChanged(queue)
+        return originalUpcoming
+    }
+
+    fun restoreUpcoming(tracks: List<Track>) {
+        if (queue.currentIndex !in queue.tracks.indices) return
+        queue = queue.copy(
+            tracks = queue.tracks.take(queue.currentIndex + 1) + tracks,
+        )
+        preparedNextIndex = null
+        callbacks?.onQueueChanged(queue)
     }
 
     private fun playQueueIndex(
@@ -344,8 +373,18 @@ class PlaylistEngine(
     ) {
         if (activeSessionId != sessionId) return
 
-        if (state == PlaybackState.Finished && queue.hasNext()) {
-            playQueueIndex(scope, queue.tracks, queue.currentIndex + 1, activeSessionId)
+        if (state == PlaybackState.Finished) {
+            val nextIndex = when {
+                repeatMode == RepeatMode.Track && queue.currentIndex in queue.tracks.indices -> queue.currentIndex
+                queue.hasNext() -> queue.currentIndex + 1
+                repeatMode == RepeatMode.Queue && queue.tracks.isNotEmpty() -> 0
+                else -> null
+            }
+            if (nextIndex != null) {
+                playQueueIndex(scope, queue.tracks, nextIndex, activeSessionId)
+                return
+            }
+            callbacks?.onPlaybackStateChanged(state)
         } else {
             callbacks?.onPlaybackStateChanged(state)
         }
@@ -391,6 +430,12 @@ class PlaylistEngine(
             }
         }
     }
+}
+
+enum class RepeatMode {
+    Off,
+    Queue,
+    Track,
 }
 
 data class CacheRuntimeStats(

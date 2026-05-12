@@ -65,6 +65,21 @@ class PlaybackQueueTest {
         assertEquals(listOf(track("3"), track("4")), queue.upNext())
     }
 
+    @Test
+    fun restoringUpcomingPreservesCurrentAndHistory() {
+        val queue = PlaybackQueue(
+            tracks = listOf(track("1"), track("2"), track("9"), track("8")),
+            currentIndex = 1,
+        )
+        val restored = queue.copy(
+            tracks = queue.tracks.take(queue.currentIndex + 1) + listOf(track("3"), track("4")),
+        )
+
+        assertEquals(track("2"), restored.tracks[restored.currentIndex])
+        assertEquals(listOf(track("1")), restored.backTo())
+        assertEquals(listOf(track("3"), track("4")), restored.upNext())
+    }
+
     private fun track(id: String): Track =
         Track(
             id = TrackId(id),

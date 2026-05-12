@@ -234,6 +234,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - Home shows a Recent Internet Radio section only after a station has been played. Recent station entries are persisted locally.
 - Settings uses a responsive layout: wide windows keep the two-column category/detail view, while narrow windows show a Plexamp-style category list and open each settings group in its own scrollable detail view with a back control.
 - Now Playing should bounce long track titles left and right instead of leaving important title text permanently clipped or using a continuous loop marquee.
+- Now Playing has small shuffle/repeat controls around the main transport controls. Shuffle only reorders `UP NEXT` and keeps a snapshot so turning shuffle off restores the previous upcoming order. Repeat cycles Off -> Queue -> Current track -> Off.
 - Desktop mpv crossfade attempt:
   - A dual-mpv-process crossfade attempt caused regressions in seek, pause, progress polling, and track advancement.
   - `MpvProcessPlaybackEngine` was restored to the stable single-process mpv path and reports `supportsCrossfade = false` again.

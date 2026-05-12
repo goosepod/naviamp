@@ -72,6 +72,7 @@ import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Track
 import app.naviamp.desktop.playback.PlaybackProgress
 import app.naviamp.desktop.playback.PlaybackState
+import app.naviamp.desktop.playback.RepeatMode
 import app.naviamp.desktop.playback.label
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -110,6 +111,9 @@ fun NowPlayingPanel(
     relatedCoverArtUrl: (Track) -> String?,
     hasPrevious: Boolean,
     hasNext: Boolean,
+    shuffleEnabled: Boolean,
+    shuffleActive: Boolean,
+    repeatMode: RepeatMode,
     playbackState: PlaybackState,
     playbackProgress: PlaybackProgress,
     volumePercent: Int,
@@ -120,6 +124,8 @@ fun NowPlayingPanel(
     onSeek: (Double) -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
+    onToggleShuffle: () -> Unit,
+    onCycleRepeatMode: () -> Unit,
     onVolumeChanged: (Int) -> Unit,
     onToggleTrackFavorite: (Track) -> Unit,
     onTrackRatingSelected: (Track, Int?) -> Unit,
@@ -197,12 +203,17 @@ fun NowPlayingPanel(
                         supportsTrackRatings = supportsTrackRatings,
                         hasPrevious = hasPrevious,
                         hasNext = hasNext,
+                        shuffleEnabled = shuffleEnabled,
+                        shuffleActive = shuffleActive,
+                        repeatMode = repeatMode,
                         onPause = onPause,
                         onResume = onResume,
                         onPlayCurrent = onPlayCurrent,
                         onSeek = onSeek,
                         onPrevious = onPrevious,
                         onNext = onNext,
+                        onToggleShuffle = onToggleShuffle,
+                        onCycleRepeatMode = onCycleRepeatMode,
                         onVolumeChanged = onVolumeChanged,
                         onToggleTrackFavorite = onToggleTrackFavorite,
                         onTrackRatingSelected = onTrackRatingSelected,
@@ -304,12 +315,17 @@ fun NowPlayingPanel(
                     supportsTrackRatings = supportsTrackRatings,
                     hasPrevious = hasPrevious,
                     hasNext = hasNext,
+                    shuffleEnabled = shuffleEnabled,
+                    shuffleActive = shuffleActive,
+                    repeatMode = repeatMode,
                     onPause = onPause,
                     onResume = onResume,
                     onPlayCurrent = onPlayCurrent,
                     onSeek = onSeek,
                     onPrevious = onPrevious,
                     onNext = onNext,
+                    onToggleShuffle = onToggleShuffle,
+                    onCycleRepeatMode = onCycleRepeatMode,
                     onVolumeChanged = onVolumeChanged,
                     onToggleTrackFavorite = onToggleTrackFavorite,
                     onTrackRatingSelected = onTrackRatingSelected,
@@ -466,12 +482,17 @@ private fun PlayerDetails(
     supportsTrackRatings: Boolean,
     hasPrevious: Boolean,
     hasNext: Boolean,
+    shuffleEnabled: Boolean,
+    shuffleActive: Boolean,
+    repeatMode: RepeatMode,
     onPause: () -> Unit,
     onResume: () -> Unit,
     onPlayCurrent: () -> Unit,
     onSeek: (Double) -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
+    onToggleShuffle: () -> Unit,
+    onCycleRepeatMode: () -> Unit,
     onVolumeChanged: (Int) -> Unit,
     onToggleTrackFavorite: (Track) -> Unit,
     onTrackRatingSelected: (Track, Int?) -> Unit,
@@ -723,10 +744,20 @@ private fun PlayerDetails(
         }
 
         Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(top = 6.dp, bottom = 4.dp),
         ) {
+            TransportIconButton(
+                enabled = shuffleEnabled,
+                icon = TransportIcons.Shuffle,
+                contentDescription = if (shuffleActive) "Turn shuffle off" else "Shuffle Up Next",
+                appColors = appColors,
+                selected = shuffleActive,
+                buttonSize = 28.dp,
+                iconSize = 16.dp,
+                onClick = onToggleShuffle,
+            )
             TransportIconButton(
                 enabled = hasPrevious,
                 icon = TransportIcons.Previous,
@@ -760,6 +791,21 @@ private fun PlayerDetails(
                 contentDescription = "Next",
                 appColors = appColors,
                 onClick = onNext,
+            )
+            TransportIconButton(
+                enabled = nowPlayingTrack != null,
+                icon = TransportIcons.Repeat,
+                contentDescription = when (repeatMode) {
+                    RepeatMode.Off -> "Repeat off"
+                    RepeatMode.Queue -> "Repeat queue"
+                    RepeatMode.Track -> "Repeat current track"
+                },
+                appColors = appColors,
+                selected = repeatMode != RepeatMode.Off,
+                buttonSize = 28.dp,
+                iconSize = 16.dp,
+                centerText = if (repeatMode == RepeatMode.Track) "1" else null,
+                onClick = onCycleRepeatMode,
             )
         }
 
@@ -1294,13 +1340,16 @@ private fun TransportIconButton(
     appColors: AppColors,
     prominent: Boolean = false,
     selected: Boolean = false,
+    buttonSize: Dp = if (prominent) 44.dp else 34.dp,
+    iconSize: Dp = if (prominent) 24.dp else 20.dp,
+    centerText: String? = null,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
-            .size(if (prominent) 44.dp else 34.dp)
+            .size(buttonSize)
             .clip(RoundedCornerShape(999.dp))
             .background(
                 when {
@@ -1319,7 +1368,17 @@ private fun TransportIconButton(
                 imageVector = icon,
                 contentDescription = contentDescription,
                 tint = if (enabled) appColors.primaryText else appColors.mutedText.copy(alpha = 0.55f),
-                modifier = Modifier.size(if (prominent) 24.dp else 20.dp),
+                modifier = Modifier.size(iconSize),
+            )
+        }
+        centerText?.let {
+            Text(
+                it,
+                color = appColors.primaryText,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.align(Alignment.Center),
             )
         }
     }
