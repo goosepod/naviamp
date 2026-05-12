@@ -40,6 +40,7 @@ class DesktopCache(
     private val maxAudioWaveformCacheBytes: Long = 32L * 1024L * 1024L,
     private val maxHotImageBytes: Long = 32L * 1024L * 1024L,
     private val audioCacheDirectory: Path = defaultAudioCacheDirectory(),
+    private val downloadDirectory: Path = defaultDownloadDirectory(),
 ) {
     private val json = Json {
         ignoreUnknownKeys = true
@@ -194,6 +195,32 @@ class DesktopCache(
             )
         }
 
+    suspend fun downloadedAudioFile(
+        sourceId: String,
+        trackId: TrackId,
+        quality: StreamQuality,
+    ): DownloadedAudioFile? =
+        withContext(Dispatchers.IO) {
+            val qualityKey = quality.cacheKey()
+            val row = queries.selectDownloadedAudioFile(
+                source_id = sourceId,
+                remote_track_id = trackId.value,
+                quality_key = qualityKey,
+            ).executeAsOneOrNull() ?: return@withContext null
+
+            val path = Path.of(row.file_path)
+            if (!path.exists()) {
+                queries.deleteDownloadedAudio(sourceId, trackId.value, qualityKey)
+                return@withContext null
+            }
+
+            DownloadedAudioFile(
+                path = path,
+                sizeBytes = row.size_bytes,
+                contentType = row.content_type,
+            )
+        }
+
     suspend fun cachedAudioWaveform(
         sourceId: String,
         trackId: TrackId,
@@ -221,8 +248,10 @@ class DesktopCache(
     ): AudioWaveform? =
         withContext(Dispatchers.IO) {
             cachedAudioWaveform(sourceId, trackId, quality)?.let { return@withContext it }
-            val audio = cachedAudioFile(sourceId, trackId, quality) ?: return@withContext null
-            val waveform = analyzer.analyze(audio.path) ?: return@withContext null
+            val audioPath = downloadedAudioFile(sourceId, trackId, quality)?.path
+                ?: cachedAudioFile(sourceId, trackId, quality)?.path
+                ?: return@withContext null
+            val waveform = analyzer.analyze(audioPath) ?: return@withContext null
             val qualityKey = quality.cacheKey()
             val amplitudesJson = json.encodeToString(waveform.amplitudes)
             val now = nowMillis()
@@ -230,7 +259,7 @@ class DesktopCache(
                 source_id = sourceId,
                 remote_track_id = trackId.value,
                 quality_key = qualityKey,
-                audio_file_path = audio.path.toAbsolutePath().toString(),
+                audio_file_path = audioPath.toAbsolutePath().toString(),
                 bucket_count = waveform.amplitudes.size.toLong(),
                 amplitudes_json = amplitudesJson,
                 size_bytes = amplitudesJson.toByteArray(Charsets.UTF_8).size.toLong(),
@@ -343,6 +372,103 @@ class DesktopCache(
                 contentType = track.audioInfo?.contentType,
             )
         }
+
+    suspend fun downloadAudioTrack(
+        sourceId: String,
+        provider: MediaProvider,
+        track: Track,
+        quality: StreamQuality,
+        maxDownloadBytes: Long,
+    ): DownloadedAudioFile =
+        withContext(Dispatchers.IO) {
+            downloadedAudioFile(sourceId, track.id, quality)?.let { return@withContext it }
+
+            Files.createDirectories(downloadDirectory)
+            val qualityKey = quality.cacheKey()
+            val target = downloadDirectory.resolve(
+                "${stableAudioFileName(sourceId, track.id.value, qualityKey)}${track.audioInfo?.contentType.audioExtension()}",
+            )
+            val temp = downloadDirectory.resolve("${target.fileName}.tmp")
+            val streamUrl = provider.streamUrl(
+                StreamRequest(
+                    trackId = track.id,
+                    quality = quality,
+                ),
+            )
+            try {
+                URI.create(streamUrl).toURL().openStream().use { input ->
+                    Files.copy(input, temp, StandardCopyOption.REPLACE_EXISTING)
+                }
+                val size = Files.size(temp)
+                val currentDownloadBytes = queries.downloadedAudioSize().executeAsOne()
+                if (currentDownloadBytes + size > maxDownloadBytes.coerceAtLeast(0)) {
+                    Files.deleteIfExists(temp)
+                    throw IllegalStateException("Download storage limit exceeded.")
+                }
+                moveDownloadedAudio(temp, target)
+
+                val now = nowMillis()
+                queries.upsertDownloadedAudio(
+                    source_id = sourceId,
+                    remote_track_id = track.id.value,
+                    quality_key = qualityKey,
+                    file_path = target.toAbsolutePath().toString(),
+                    size_bytes = size,
+                    content_type = track.audioInfo?.contentType,
+                    title = track.title,
+                    artist_id = track.artistId?.value,
+                    artist_name = track.artistName,
+                    album_id = track.albumId?.value,
+                    album_title = track.albumTitle,
+                    album_release_year = track.albumReleaseYear?.toLong(),
+                    duration_seconds = track.durationSeconds?.toLong(),
+                    cover_art_id = track.coverArtId,
+                    audio_codec = track.audioInfo?.codec,
+                    audio_bitrate_kbps = track.audioInfo?.bitrateKbps?.toLong(),
+                    audio_content_type = track.audioInfo?.contentType,
+                    audio_bit_depth = track.audioInfo?.bitDepth?.toLong(),
+                    audio_sampling_rate_hz = track.audioInfo?.samplingRateHz?.toLong(),
+                    favorited_at_iso8601 = track.favoritedAtIso8601,
+                    user_rating = track.userRating?.toLong(),
+                    downloaded_at_epoch_millis = now,
+                )
+                DownloadedAudioFile(
+                    path = target,
+                    sizeBytes = size,
+                    contentType = track.audioInfo?.contentType,
+                )
+            } catch (exception: Exception) {
+                Files.deleteIfExists(temp)
+                throw exception
+            }
+        }
+
+    fun downloadedTracks(sourceId: String): List<DownloadedTrack> =
+        queries.selectDownloadedAudio(sourceId).executeAsList().map { row ->
+            DownloadedTrack(
+                track = row.toTrack(),
+                path = Path.of(row.file_path),
+                sizeBytes = row.size_bytes,
+                contentType = row.content_type,
+                downloadedAtEpochMillis = row.downloaded_at_epoch_millis,
+            )
+        }
+
+    fun removeDownloadedAudio(
+        sourceId: String,
+        trackId: TrackId,
+        quality: StreamQuality,
+    ) {
+        val qualityKey = quality.cacheKey()
+        queries.selectDownloadedAudioFile(
+            source_id = sourceId,
+            remote_track_id = trackId.value,
+            quality_key = qualityKey,
+        ).executeAsOneOrNull()?.let { row ->
+            Files.deleteIfExists(Path.of(row.file_path))
+        }
+        queries.deleteDownloadedAudio(sourceId, trackId.value, qualityKey)
+    }
 
     fun upsertNavidromeSource(
         connection: NavidromeConnection,
@@ -608,6 +734,11 @@ class DesktopCache(
         clearAudioFiles()
     }
 
+    fun clearDownloadData() {
+        queries.clearDownloads()
+        clearDownloadFiles()
+    }
+
     fun clearLibraryData(sourceId: String? = null) {
         queries.transaction {
             if (sourceId == null) {
@@ -624,6 +755,7 @@ class DesktopCache(
 
     fun clearAll() {
         clearCacheData()
+        clearDownloadData()
         clearLibraryData()
         queries.clearMediaSources()
     }
@@ -637,6 +769,8 @@ class DesktopCache(
             responseCount = queries.responseCacheCount().executeAsOne(),
             audioCount = queries.audioCacheCount().executeAsOne(),
             audioBytes = queries.audioCacheSize().executeAsOne(),
+            downloadCount = queries.downloadedAudioCount().executeAsOne(),
+            downloadBytes = queries.downloadedAudioSize().executeAsOne(),
             audioWaveformCount = queries.audioWaveformCacheCount().executeAsOne(),
             audioWaveformBytes = queries.audioWaveformCacheSize().executeAsOne(),
             lyricsCount = queries.lyricsCacheCount().executeAsOne(),
@@ -757,6 +891,19 @@ class DesktopCache(
             }
         }
     }
+
+    private fun clearDownloadFiles() {
+        runCatching {
+            if (!downloadDirectory.exists()) return@runCatching
+            Files.walk(downloadDirectory).use { paths ->
+                paths.sorted(Comparator.reverseOrder()).forEach { path ->
+                    if (path != downloadDirectory) {
+                        Files.deleteIfExists(path)
+                    }
+                }
+            }
+        }
+    }
 }
 
 object DesktopCaches {
@@ -771,6 +918,8 @@ data class CacheStats(
     val responseCount: Long,
     val audioCount: Long,
     val audioBytes: Long,
+    val downloadCount: Long,
+    val downloadBytes: Long,
     val audioWaveformCount: Long,
     val audioWaveformBytes: Long,
     val lyricsCount: Long,
@@ -800,6 +949,20 @@ data class CachedAudioMetadata(
     val contentType: String?,
     val createdAtEpochMillis: Long,
     val lastAccessedEpochMillis: Long,
+)
+
+data class DownloadedAudioFile(
+    val path: Path,
+    val sizeBytes: Long,
+    val contentType: String?,
+)
+
+data class DownloadedTrack(
+    val track: Track,
+    val path: Path,
+    val sizeBytes: Long,
+    val contentType: String?,
+    val downloadedAtEpochMillis: Long,
 )
 
 data class AudioWaveform(
@@ -878,6 +1041,35 @@ private fun app.naviamp.desktop.cache.Library_track.toTrack(): Track =
             codec = audio_codec,
             bitrateKbps = audio_bitrate_kbps?.toInt(),
             contentType = audio_content_type,
+            bitDepth = audio_bit_depth?.toInt(),
+            samplingRateHz = audio_sampling_rate_hz?.toInt(),
+        ).takeIf {
+            it.codec != null ||
+                it.bitrateKbps != null ||
+                it.contentType != null ||
+                it.bitDepth != null ||
+                it.samplingRateHz != null
+        },
+        replayGain = null,
+        favoritedAtIso8601 = favorited_at_iso8601,
+        userRating = user_rating?.toInt(),
+    )
+
+private fun app.naviamp.desktop.cache.Downloaded_audio.toTrack(): Track =
+    Track(
+        id = TrackId(remote_track_id),
+        title = title,
+        artistId = artist_id?.let { ArtistId(it) },
+        artistName = artist_name,
+        albumId = album_id?.let { AlbumId(it) },
+        albumTitle = album_title,
+        albumReleaseYear = album_release_year?.toInt(),
+        durationSeconds = duration_seconds?.toInt(),
+        coverArtId = cover_art_id,
+        audioInfo = AudioInfo(
+            codec = audio_codec,
+            bitrateKbps = audio_bitrate_kbps?.toInt(),
+            contentType = audio_content_type ?: content_type,
             bitDepth = audio_bit_depth?.toInt(),
             samplingRateHz = audio_sampling_rate_hz?.toInt(),
         ).takeIf {
@@ -1062,6 +1254,37 @@ private fun ensureCurrentTables(driver: JdbcSqliteDriver) {
     driver.execute(
         null,
         """
+        CREATE TABLE IF NOT EXISTS downloaded_audio (
+          source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+          remote_track_id TEXT NOT NULL,
+          quality_key TEXT NOT NULL,
+          file_path TEXT NOT NULL,
+          size_bytes INTEGER NOT NULL,
+          content_type TEXT,
+          title TEXT NOT NULL,
+          artist_id TEXT,
+          artist_name TEXT NOT NULL,
+          album_id TEXT,
+          album_title TEXT,
+          album_release_year INTEGER,
+          duration_seconds INTEGER,
+          cover_art_id TEXT,
+          audio_codec TEXT,
+          audio_bitrate_kbps INTEGER,
+          audio_content_type TEXT,
+          audio_bit_depth INTEGER,
+          audio_sampling_rate_hz INTEGER,
+          favorited_at_iso8601 TEXT,
+          user_rating INTEGER,
+          downloaded_at_epoch_millis INTEGER NOT NULL,
+          PRIMARY KEY(source_id, remote_track_id, quality_key)
+        )
+        """.trimIndent(),
+        0,
+    )
+    driver.execute(
+        null,
+        """
         CREATE TABLE IF NOT EXISTS cached_lyrics (
           source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
           remote_track_id TEXT NOT NULL,
@@ -1087,6 +1310,7 @@ private fun ensureCurrentTables(driver: JdbcSqliteDriver) {
         "CREATE INDEX IF NOT EXISTS library_track_source_title ON library_track(source_id, search_title)",
         "CREATE INDEX IF NOT EXISTS library_track_source_artist ON library_track(source_id, search_artist_name)",
         "CREATE INDEX IF NOT EXISTS cached_audio_source_access ON cached_audio(source_id, last_accessed_epoch_millis)",
+        "CREATE INDEX IF NOT EXISTS downloaded_audio_source_downloaded_at ON downloaded_audio(source_id, downloaded_at_epoch_millis)",
         "CREATE INDEX IF NOT EXISTS cached_audio_waveform_access ON cached_audio_waveform(last_accessed_epoch_millis)",
         "CREATE INDEX IF NOT EXISTS cached_lyrics_access ON cached_lyrics(last_accessed_epoch_millis)",
     ).forEach { sql ->
@@ -1099,6 +1323,9 @@ private fun defaultCacheDatabasePath(): Path =
 
 private fun defaultAudioCacheDirectory(): Path =
     defaultAppDataDirectory().resolve("audio-cache")
+
+private fun defaultDownloadDirectory(): Path =
+    defaultAppDataDirectory().resolve("downloads")
 
 private fun defaultAppDataDirectory(): Path {
     val os = System.getProperty("os.name").lowercase()

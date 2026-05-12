@@ -203,6 +203,8 @@ fun NaviampApp(
     var searchResults by remember { mutableStateOf(MediaSearchResults()) }
     var searchStatus by remember { mutableStateOf<String?>(null) }
     var isSearching by remember { mutableStateOf(false) }
+    var downloadStatus by remember { mutableStateOf<String?>(null) }
+    var downloadRefreshToken by remember { mutableStateOf(0) }
     var libraryQuery by remember { mutableStateOf("") }
     var librarySnapshot by remember { mutableStateOf(LibrarySnapshot()) }
     var libraryTab by remember { mutableStateOf(LibraryTab.Artists) }
@@ -544,7 +546,8 @@ fun NaviampApp(
 
         val waveformTagsAndLyrics = withContext(Dispatchers.IO) {
             runCatching {
-                val audioFile = if (cacheSettings.audioCachingEnabled) {
+                val downloadedFile = sessionCache.downloadedAudioFile(sourceId, track.id, quality)
+                val cachedFile = if (downloadedFile == null && cacheSettings.audioCachingEnabled) {
                     sessionCache.cacheAudioTrack(
                         sourceId = sourceId,
                         provider = provider,
@@ -554,12 +557,13 @@ fun NaviampApp(
                 } else {
                     sessionCache.cachedAudioFile(sourceId, track.id, quality)
                 }
-                val cachedWaveform = if (audioFile != null) sessionCache.cachedAudioWaveform(
+                val audioPath = downloadedFile?.path ?: cachedFile?.path
+                val cachedWaveform = if (audioPath != null) sessionCache.cachedAudioWaveform(
                     sourceId = sourceId,
                     trackId = track.id,
                     quality = quality,
                 ) else null
-                val waveform = cachedWaveform ?: if (audioFile != null && cacheSettings.audioCachingEnabled) {
+                val waveform = cachedWaveform ?: if (audioPath != null && cacheSettings.audioCachingEnabled) {
                     sessionCache.ensureAudioWaveform(
                         sourceId = sourceId,
                         trackId = track.id,
@@ -571,10 +575,10 @@ fun NaviampApp(
                 val waveformStatus = when {
                     cachedWaveform != null -> "Cached"
                     waveform != null -> "Generated"
-                    audioFile == null && !cacheSettings.audioCachingEnabled -> "Cache disabled"
+                    audioPath == null && !cacheSettings.audioCachingEnabled -> "Cache disabled"
                     else -> "Unavailable"
                 }
-                val tags = audioFile?.let { AudioTagReader().read(it.path) }.orEmpty()
+                val tags = audioPath?.let { AudioTagReader().read(it) }.orEmpty()
                 val lyrics = sessionCache.providerLyrics(sourceId, provider, track.id)
                     ?: lyricsFromAudioTags(tags)
                 NowPlayingAnalysis(waveform, waveformStatus, tags, lyrics)
@@ -870,6 +874,111 @@ fun NaviampApp(
             scope = coroutineScope,
             provider = provider,
             tracks = tracks,
+            index = index,
+            quality = playbackEngine.streamQuality(),
+            replayGainMode = playbackSettings.replayGainMode,
+            callbacks = playlistCallbacks,
+        )
+    }
+
+    fun downloadTracks(label: String, tracks: List<Track>) {
+        val provider = connectedProvider ?: run {
+            downloadStatus = "Connect to Navidrome before downloading."
+            return
+        }
+        val sourceId = connectedSourceId ?: run {
+            downloadStatus = "Connect to Navidrome before downloading."
+            return
+        }
+        if (tracks.isEmpty()) {
+            downloadStatus = "$label did not return any tracks."
+            return
+        }
+        downloadStatus = "Downloading $label..."
+        coroutineScope.launch {
+            var completed = 0
+            val uiContext = coroutineContext
+            try {
+                withContext(Dispatchers.IO) {
+                    tracks.forEachIndexed { index, track ->
+                        withContext(uiContext) {
+                            downloadStatus = "Downloading $label (${index + 1}/${tracks.size})..."
+                        }
+                        sessionCache.downloadAudioTrack(
+                            sourceId = sourceId,
+                            provider = provider,
+                            track = track,
+                            quality = playbackEngine.streamQuality(),
+                            maxDownloadBytes = cacheSettings.maxDownloadBytes,
+                        )
+                        completed += 1
+                    }
+                }
+                downloadRefreshToken += 1
+                downloadStatus = "Downloaded $label ($completed tracks)."
+            } catch (exception: Exception) {
+                downloadRefreshToken += 1
+                downloadStatus = exception.message ?: "Could not download $label."
+            }
+        }
+    }
+
+    fun downloadTrack(track: Track) {
+        downloadTracks(track.title, listOf(track))
+    }
+
+    fun downloadAlbum(album: Album) {
+        val provider = connectedProvider ?: run {
+            downloadStatus = "Connect to Navidrome before downloading."
+            return
+        }
+        downloadStatus = "Loading ${album.title}..."
+        coroutineScope.launch {
+            try {
+                val tracks = withContext(Dispatchers.IO) {
+                    sessionCache.album(provider, album.id).tracks
+                }
+                downloadTracks(album.title, tracks)
+            } catch (exception: Exception) {
+                downloadStatus = exception.message ?: "Could not load ${album.title}."
+            }
+        }
+    }
+
+    fun downloadPlaylist(playlist: Playlist) {
+        val provider = connectedProvider ?: run {
+            downloadStatus = "Connect to Navidrome before downloading."
+            return
+        }
+        downloadStatus = "Loading ${playlist.name}..."
+        coroutineScope.launch {
+            try {
+                val tracks = withContext(Dispatchers.IO) {
+                    provider.playlistTracks(playlist.id)
+                }
+                downloadTracks(playlist.name, tracks)
+            } catch (exception: Exception) {
+                downloadStatus = exception.message ?: "Could not load ${playlist.name}."
+            }
+        }
+    }
+
+    fun removeDownloadedTrack(download: DownloadedTrack) {
+        val sourceId = connectedSourceId ?: return
+        sessionCache.removeDownloadedAudio(sourceId, download.track.id, playbackEngine.streamQuality())
+        downloadRefreshToken += 1
+        downloadStatus = "Removed ${download.track.title}."
+    }
+
+    fun playDownloadedTrack(downloads: List<DownloadedTrack>, index: Int) {
+        val provider = connectedProvider ?: return
+        if (downloads.isEmpty() || index !in downloads.indices) return
+        stopRadioContinuation()
+        openPlayerOnTrackStart = true
+        playlistEngine.playFrom(
+            scope = coroutineScope,
+            provider = provider,
+            tracks = downloads.map { it.track },
             index = index,
             quality = playbackEngine.streamQuality(),
             replayGainMode = playbackSettings.replayGainMode,
@@ -1524,6 +1633,9 @@ fun NaviampApp(
                                 onTrackRadioSelected = { track ->
                                     convertCurrentTrackToRadio(track)
                                 },
+                                onDownloadTrackSelected = { track ->
+                                    downloadTrack(track)
+                                },
                                 onQueueIndexSelected = { queueIndex ->
                                     openPlayerOnTrackStart = false
                                     playlistEngine.jumpTo(
@@ -1534,11 +1646,17 @@ fun NaviampApp(
                                 onUpNextTrackRadioSelected = { track ->
                                     playTrackRadio(track)
                                 },
+                                onUpNextTrackDownloadSelected = { track ->
+                                    downloadTrack(track)
+                                },
                                 onRelatedTrackSelected = { index ->
                                     playRelatedTrack(index)
                                 },
                                 onRelatedTrackRadioSelected = { track ->
                                     playTrackRadio(track)
+                                },
+                                onRelatedTrackDownloadSelected = { track ->
+                                    downloadTrack(track)
                                 },
                                 onCollapseToHome = {
                                     appRoute = lastContentRoute
@@ -1578,8 +1696,14 @@ fun NaviampApp(
                                     onAlbumRadioSelected = { album ->
                                         playAlbumRadio(album)
                                     },
+                                    onAlbumDownloadSelected = { album ->
+                                        downloadAlbum(album)
+                                    },
                                     onPlaylistSelected = { playlist ->
                                         playPlaylist(playlist)
+                                    },
+                                    onPlaylistDownloadSelected = { playlist ->
+                                        downloadPlaylist(playlist)
                                     },
                                     onLibraryRadioSelected = {
                                         playLibraryRadio()
@@ -1617,8 +1741,13 @@ fun NaviampApp(
                                         selectedAlbumDetails?.album?.let { playAlbumRadio(it) }
                                             ?: selectedAlbum?.let { playAlbumRadio(it) }
                                     },
+                                    onDownloadAlbum = {
+                                        selectedAlbumDetails?.let { downloadTracks(it.album.title, it.tracks) }
+                                            ?: selectedAlbum?.let { downloadAlbum(it) }
+                                    },
                                     onPlayTrack = { index -> playAlbumDetails(index = index) },
                                     onTrackRadio = { track -> playTrackRadio(track) },
+                                    onDownloadTrack = { track -> downloadTrack(track) },
                                     onArtistSelected = { track ->
                                         openTrackArtistDetails(track, backRouteOverride = AppRoute.AlbumDetail)
                                     },
@@ -1635,6 +1764,7 @@ fun NaviampApp(
                                     onArtistRadio = { artist -> playArtistRadio(artist) },
                                     onAlbumSelected = { album -> openAlbumDetails(album) },
                                     onAlbumRadioSelected = { album -> playAlbumRadio(album) },
+                                    onAlbumDownloadSelected = { album -> downloadAlbum(album) },
                                 )
                                     AppRoute.Library -> {
                                         LibraryListLoadMoreEffect(
@@ -1669,6 +1799,7 @@ fun NaviampApp(
                                             onArtistRadioSelected = { artist -> playArtistRadio(artist) },
                                             onAlbumSelected = { album -> openAlbumDetails(album) },
                                             onAlbumRadioSelected = { album -> playAlbumRadio(album) },
+                                            onAlbumDownloadSelected = { album -> downloadAlbum(album) },
                                         )
                                     }
                                     AppRoute.Search -> SearchPanel(
@@ -1688,16 +1819,38 @@ fun NaviampApp(
                                         onArtistRadioSelected = { artist -> playArtistRadio(artist) },
                                         onAlbumSelected = { album -> openAlbumDetails(album) },
                                         onAlbumRadioSelected = { album -> playAlbumRadio(album) },
+                                        onAlbumDownloadSelected = { album -> downloadAlbum(album) },
                                         onTrackSelected = { index -> playSearchTrack(index) },
                                         onTrackRadioSelected = { index ->
                                             searchResults.tracks.getOrNull(index)?.let { playTrackRadio(it) }
                                         },
+                                        onTrackDownloadSelected = { index ->
+                                            searchResults.tracks.getOrNull(index)?.let { downloadTrack(it) }
+                                        },
                                     )
-                                    AppRoute.Downloads -> PlaceholderRoutePanel(
-                                        appColors = appColors,
-                                        title = "Downloads",
-                                        message = "Offline music will live here next.",
-                                    )
+                                    AppRoute.Downloads -> {
+                                        val downloads = remember(
+                                            connectedSourceId,
+                                            downloadRefreshToken,
+                                            statsForNerdsInfo.cacheStats.downloadCount,
+                                        ) {
+                                            connectedSourceId
+                                                ?.let { sessionCache.downloadedTracks(it) }
+                                                .orEmpty()
+                                        }
+                                        DownloadsPanel(
+                                            appColors = appColors,
+                                            downloads = downloads,
+                                            status = downloadStatus ?: connectionStatus,
+                                            downloadBytes = statsForNerdsInfo.cacheStats.downloadBytes,
+                                            maxDownloadBytes = cacheSettings.maxDownloadBytes,
+                                            coverArtUrl = { coverArtId ->
+                                                coverArtId?.let { connectedProvider?.coverArtUrl(it) }
+                                            },
+                                            onTrackSelected = { index -> playDownloadedTrack(downloads, index) },
+                                            onRemoveDownload = { download -> removeDownloadedTrack(download) },
+                                        )
+                                    }
                                     AppRoute.Settings -> SettingsPanel(
                                         appColors = appColors,
                                         serverUrl = serverUrl,

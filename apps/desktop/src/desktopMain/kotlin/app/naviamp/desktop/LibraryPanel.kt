@@ -49,6 +49,7 @@ fun LibraryPanel(
     onArtistRadioSelected: (Artist) -> Unit,
     onAlbumSelected: (Album) -> Unit,
     onAlbumRadioSelected: (Album) -> Unit,
+    onAlbumDownloadSelected: (Album) -> Unit,
 ) {
     val textFieldColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = appColors.primaryText,
@@ -135,6 +136,7 @@ fun LibraryPanel(
                             coverArtUrl = coverArtUrl(album.coverArtId),
                             onClick = { onAlbumSelected(album) },
                             onStartRadio = { onAlbumRadioSelected(album) },
+                            onDownload = { onAlbumDownloadSelected(album) },
                         )
                     }
                 }

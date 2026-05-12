@@ -61,7 +61,9 @@ fun HomePanel(
     coverArtUrl: (String?) -> String?,
     onAlbumSelected: (Album) -> Unit,
     onAlbumRadioSelected: (Album) -> Unit,
+    onAlbumDownloadSelected: (Album) -> Unit,
     onPlaylistSelected: (Playlist) -> Unit,
+    onPlaylistDownloadSelected: (Playlist) -> Unit,
     onLibraryRadioSelected: () -> Unit,
     onRandomAlbumRadioSelected: () -> Unit,
     onGenreRadioSelected: (Genre) -> Unit,
@@ -106,6 +108,7 @@ fun HomePanel(
             coverArtUrl = coverArtUrl,
             onAlbumSelected = onAlbumSelected,
             onAlbumRadioSelected = onAlbumRadioSelected,
+            onAlbumDownloadSelected = onAlbumDownloadSelected,
         )
 
         if (homeContent.playlists.isNotEmpty()) {
@@ -116,6 +119,7 @@ fun HomePanel(
                         playlist = playlist,
                         coverArtUrl = coverArtUrl(playlist.coverArtId),
                         onClick = { onPlaylistSelected(playlist) },
+                        onDownload = { onPlaylistDownloadSelected(playlist) },
                     )
                 }
             }
@@ -143,6 +147,7 @@ fun HomePanel(
             coverArtUrl = coverArtUrl,
             onAlbumSelected = onAlbumSelected,
             onAlbumRadioSelected = onAlbumRadioSelected,
+            onAlbumDownloadSelected = onAlbumDownloadSelected,
         )
 
         HomeAlbumSection(
@@ -152,6 +157,7 @@ fun HomePanel(
             coverArtUrl = coverArtUrl,
             onAlbumSelected = onAlbumSelected,
             onAlbumRadioSelected = onAlbumRadioSelected,
+            onAlbumDownloadSelected = onAlbumDownloadSelected,
         )
 
         HomeAlbumSection(
@@ -161,6 +167,7 @@ fun HomePanel(
             coverArtUrl = coverArtUrl,
             onAlbumSelected = onAlbumSelected,
             onAlbumRadioSelected = onAlbumRadioSelected,
+            onAlbumDownloadSelected = onAlbumDownloadSelected,
         )
 
         homeContent.genreSpotlight?.let { genre ->
@@ -171,6 +178,7 @@ fun HomePanel(
                 coverArtUrl = coverArtUrl,
                 onAlbumSelected = onAlbumSelected,
                 onAlbumRadioSelected = onAlbumRadioSelected,
+                onAlbumDownloadSelected = onAlbumDownloadSelected,
             )
         }
 
@@ -181,6 +189,7 @@ fun HomePanel(
             coverArtUrl = coverArtUrl,
             onAlbumSelected = onAlbumSelected,
             onAlbumRadioSelected = onAlbumRadioSelected,
+            onAlbumDownloadSelected = onAlbumDownloadSelected,
         )
     }
 }
@@ -193,6 +202,7 @@ private fun HomeAlbumSection(
     coverArtUrl: (String?) -> String?,
     onAlbumSelected: (Album) -> Unit,
     onAlbumRadioSelected: (Album) -> Unit,
+    onAlbumDownloadSelected: (Album) -> Unit,
 ) {
     if (albums.isEmpty()) return
     HomeSection(title = title, appColors = appColors) {
@@ -205,6 +215,7 @@ private fun HomeAlbumSection(
                 verticalPadding = 2.dp,
                 onClick = { onAlbumSelected(album) },
                 onStartRadio = { onAlbumRadioSelected(album) },
+                onDownload = { onAlbumDownloadSelected(album) },
             )
         }
     }
@@ -261,6 +272,7 @@ private fun PlaylistRow(
     playlist: Playlist,
     coverArtUrl: String?,
     onClick: () -> Unit,
+    onDownload: () -> Unit,
 ) {
     MediaRow(appColors = appColors, onClick = onClick) {
         CoverArtThumb(
@@ -287,6 +299,10 @@ private fun PlaylistRow(
             )
         }
         Text("Playlist", color = appColors.mutedText, fontSize = 11.sp)
+        RowOverflowMenu(
+            appColors = appColors,
+            items = listOf(RowMenuItem("Download playlist", onDownload)),
+        )
     }
 }
 

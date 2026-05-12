@@ -248,6 +248,18 @@ class PlaylistEngine(
         quality: StreamQuality,
     ): PlaybackTarget {
         val sourceId = sourceIdProvider()
+        val downloaded = if (sourceId != null) {
+            cache?.downloadedAudioFile(sourceId, track.id, quality)
+        } else {
+            null
+        }
+        if (downloaded != null) {
+            return PlaybackTarget(
+                url = downloaded.path.toUri().toString(),
+                source = PlaybackSource.DownloadedFile,
+            )
+        }
+
         val cached = if (sourceId != null && audioCachingEnabledProvider()) {
             cache?.cachedAudioFile(sourceId, track.id, quality)
         } else {
@@ -383,6 +395,7 @@ data class CacheRuntimeStats(
 
 enum class PlaybackSource(val label: String) {
     Unknown("Unknown"),
+    DownloadedFile("Downloaded file"),
     CachedFile("Cached file"),
     ProviderStream("Provider stream"),
     ProviderStreamCacheDisabled("Provider stream (cache disabled)"),

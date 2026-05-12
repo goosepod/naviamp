@@ -35,8 +35,10 @@ fun AlbumDetailPanel(
     onPlayAlbum: () -> Unit,
     onShuffleAlbum: () -> Unit,
     onAlbumRadio: () -> Unit,
+    onDownloadAlbum: () -> Unit,
     onPlayTrack: (Int) -> Unit,
     onTrackRadio: (Track) -> Unit,
+    onDownloadTrack: (Track) -> Unit,
     onArtistSelected: (Track) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -137,6 +139,14 @@ fun AlbumDetailPanel(
                     ) {
                         Text("Radio")
                     }
+                    Button(
+                        enabled = albumDetails?.tracks?.isNotEmpty() == true,
+                        onClick = onDownloadAlbum,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                        modifier = Modifier.height(30.dp),
+                    ) {
+                        Text("Download")
+                    }
                 }
             }
         }
@@ -165,6 +175,7 @@ fun AlbumDetailPanel(
                         showMenu = true,
                         onClick = { onPlayTrack(index) },
                         onStartRadio = { onTrackRadio(track) },
+                        onDownload = { onDownloadTrack(track) },
                     )
                 }
             }

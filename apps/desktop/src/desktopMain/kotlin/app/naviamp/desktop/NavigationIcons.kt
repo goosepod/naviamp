@@ -203,6 +203,36 @@ object NavigationIcons {
             lineTo(15f, 19f)
         }
     }.build()
+
+    val Trash: ImageVector = ImageVector.Builder(
+        name = "Trash",
+        defaultWidth = IconSize,
+        defaultHeight = IconSize,
+        viewportWidth = Viewport,
+        viewportHeight = Viewport,
+    ).apply {
+        path(
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 1.9f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+        ) {
+            moveTo(5f, 7f)
+            lineTo(19f, 7f)
+            moveTo(10f, 11f)
+            lineTo(10f, 17f)
+            moveTo(14f, 11f)
+            lineTo(14f, 17f)
+            moveTo(8f, 7f)
+            lineTo(8.8f, 20f)
+            lineTo(15.2f, 20f)
+            lineTo(16f, 7f)
+            moveTo(9.5f, 7f)
+            lineTo(10.2f, 4.5f)
+            lineTo(13.8f, 4.5f)
+            lineTo(14.5f, 7f)
+        }
+    }.build()
 }
 
 private val IconSize = 24.dp

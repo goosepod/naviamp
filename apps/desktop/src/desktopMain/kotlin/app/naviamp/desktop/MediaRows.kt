@@ -99,6 +99,7 @@ fun AlbumRow(
     verticalPadding: Dp = 3.dp,
     onClick: (() -> Unit)? = null,
     onStartRadio: (() -> Unit)? = null,
+    onDownload: (() -> Unit)? = null,
 ) {
     MediaRow(
         appColors = appColors,
@@ -127,6 +128,7 @@ fun AlbumRow(
             appColors = appColors,
             items = listOfNotNull(
                 onStartRadio?.let { RowMenuItem("Start album radio", it) },
+                onDownload?.let { RowMenuItem("Download album", it) },
             ),
         )
     }
@@ -152,6 +154,7 @@ fun TrackRow(
     showDuration: Boolean = true,
     showMenu: Boolean = false,
     onStartRadio: (() -> Unit)? = null,
+    onDownload: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
 ) {
     MediaRow(
@@ -192,11 +195,12 @@ fun TrackRow(
             track = track,
             showDuration = showDuration,
         )
-        if (showMenu || onStartRadio != null) {
+        if (showMenu || onStartRadio != null || onDownload != null) {
             RowOverflowMenu(
                 appColors = appColors,
                 items = listOfNotNull(
                     onStartRadio?.let { RowMenuItem("Start track radio", it) },
+                    onDownload?.let { RowMenuItem("Download track", it) },
                 ),
             )
         }
@@ -204,7 +208,7 @@ fun TrackRow(
 }
 
 @Composable
-private fun RowOverflowMenu(
+fun RowOverflowMenu(
     appColors: AppColors,
     items: List<RowMenuItem>,
 ) {
@@ -235,7 +239,7 @@ private fun RowOverflowMenu(
     }
 }
 
-private data class RowMenuItem(
+data class RowMenuItem(
     val label: String,
     val onClick: () -> Unit,
 )

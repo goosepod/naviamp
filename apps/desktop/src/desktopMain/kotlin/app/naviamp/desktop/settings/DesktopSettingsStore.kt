@@ -134,11 +134,13 @@ data class CacheSettings(
     val audioCachingEnabled: Boolean = true,
     val audioPrefetchDepth: Int = 10,
     val maxAudioCacheBytes: Long = 2L * 1024L * 1024L * 1024L,
+    val maxDownloadBytes: Long = 10L * 1024L * 1024L * 1024L,
 ) {
     fun normalized(): CacheSettings =
         copy(
             audioPrefetchDepth = audioPrefetchDepth.coerceIn(0, 25),
             maxAudioCacheBytes = maxAudioCacheBytes.coerceIn(256L * 1024L * 1024L, 20L * 1024L * 1024L * 1024L),
+            maxDownloadBytes = maxDownloadBytes.coerceIn(512L * 1024L * 1024L, 100L * 1024L * 1024L * 1024L),
         )
 }
 

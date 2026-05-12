@@ -21,6 +21,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -33,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -43,6 +45,8 @@ import androidx.compose.ui.unit.sp
 import app.naviamp.desktop.playback.ReplayGainMode
 import app.naviamp.desktop.settings.CacheSettings
 import app.naviamp.desktop.settings.PlaybackSettings
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 @Composable
 fun SettingsPanel(
@@ -544,33 +548,44 @@ private fun CacheSettingsSection(
         )
         Text("Enable audio cache and prefetch", color = appColors.secondaryText, fontSize = 12.sp)
     }
-    Text("Prefetch depth", color = appColors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        listOf(0, 3, 5, 10, 15, 25).forEach { depth ->
-            FilterChip(
-                selected = cacheSettings.audioPrefetchDepth == depth,
-                enabled = cacheSettings.audioCachingEnabled,
-                onClick = {
-                    onCacheSettingsChanged(cacheSettings.copy(audioPrefetchDepth = depth).normalized())
-                },
-                label = { Text(if (depth == 0) "Off" else depth.toString(), fontSize = 12.sp) },
-                modifier = Modifier.height(28.dp),
-            )
-        }
-    }
-    Text("Audio cache budget", color = appColors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        AudioCacheBudgetOptions.forEach { option ->
-            FilterChip(
-                selected = cacheSettings.maxAudioCacheBytes == option.bytes,
-                onClick = {
-                    onCacheSettingsChanged(cacheSettings.copy(maxAudioCacheBytes = option.bytes).normalized())
-                },
-                label = { Text(option.label, fontSize = 12.sp) },
-                modifier = Modifier.height(28.dp),
-            )
-        }
-    }
+    DetentIntSettingsSlider(
+        title = "Prefetch depth",
+        value = cacheSettings.audioPrefetchDepth,
+        detents = PrefetchDepthOptions,
+        snapDistance = 0.12f,
+        enabled = cacheSettings.audioCachingEnabled,
+        valueLabel = { depth -> if (depth == 0) "Off" else depth.toString() },
+        appColors = appColors,
+        onValueChanged = { depth ->
+            onCacheSettingsChanged(cacheSettings.copy(audioPrefetchDepth = depth).normalized())
+        },
+    )
+    DetentByteSettingsSlider(
+        title = "Audio cache budget",
+        valueBytes = cacheSettings.maxAudioCacheBytes,
+        detents = AudioCacheBudgetOptions,
+        snapDistance = 0.12f,
+        appColors = appColors,
+        onValueChanged = { bytes ->
+            onCacheSettingsChanged(cacheSettings.copy(maxAudioCacheBytes = bytes).normalized())
+        },
+    )
+    Text(
+        "Downloads: ${cacheStats.downloadCount} files, ${cacheStats.downloadBytes.settingsBytesLabel()} used of " +
+            cacheSettings.maxDownloadBytes.settingsBytesLabel(),
+        color = appColors.secondaryText,
+        fontSize = 12.sp,
+    )
+    DetentByteSettingsSlider(
+        title = "Download storage budget",
+        valueBytes = cacheSettings.maxDownloadBytes,
+        detents = DownloadBudgetOptions,
+        snapDistance = 0.12f,
+        appColors = appColors,
+        onValueChanged = { bytes ->
+            onCacheSettingsChanged(cacheSettings.copy(maxDownloadBytes = bytes).normalized())
+        },
+    )
 }
 
 @Composable
@@ -626,10 +641,189 @@ private fun Long.settingsBytesLabel(): String {
     }
 }
 
+@Composable
+private fun DetentIntSettingsSlider(
+    title: String,
+    value: Int,
+    detents: List<Int>,
+    snapDistance: Float,
+    valueLabel: (Int) -> String,
+    appColors: AppColors,
+    onValueChanged: (Int) -> Unit,
+    enabled: Boolean = true,
+) {
+    if (detents.isEmpty()) return
+
+    val detentValues = detents.map { it.toFloat() }
+    val sliderRange = 0f..detents.lastIndex.toFloat()
+    DetentSettingsSliderScaffold(
+        title = title,
+        valueLabel = valueLabel(value),
+        detentLabels = detents.map(valueLabel),
+        enabled = enabled,
+        appColors = appColors,
+    ) {
+        Slider(
+            value = value.toFloat().toDetentPosition(detentValues).coerceIn(sliderRange.start, sliderRange.endInclusive),
+            onValueChange = { rawPosition ->
+                val snappedPosition = rawPosition.snapToDetentPosition(detents.lastIndex, snapDistance)
+                val nextValue = snappedPosition.fromDetentPosition(detentValues)
+                    .roundToInt()
+                    .coerceIn(detents.first(), detents.last())
+                if (nextValue != value) {
+                    onValueChanged(nextValue)
+                }
+            },
+            enabled = enabled,
+            valueRange = sliderRange,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(28.dp),
+        )
+    }
+}
+
+@Composable
+private fun DetentByteSettingsSlider(
+    title: String,
+    valueBytes: Long,
+    detents: List<AudioCacheBudgetOption>,
+    snapDistance: Float,
+    appColors: AppColors,
+    onValueChanged: (Long) -> Unit,
+    enabled: Boolean = true,
+) {
+    if (detents.isEmpty()) return
+
+    val detentGb = detents.map { it.bytes.toGbFloat() }
+    val sliderRange = 0f..detents.lastIndex.toFloat()
+    val valuePosition = valueBytes.toGbFloat().toDetentPosition(detentGb)
+    DetentSettingsSliderScaffold(
+        title = title,
+        valueLabel = valueBytes.settingsBytesLabel(),
+        detentLabels = detents.map { it.label },
+        enabled = enabled,
+        appColors = appColors,
+    ) {
+        Slider(
+            value = valuePosition.coerceIn(sliderRange.start, sliderRange.endInclusive),
+            onValueChange = { rawPosition ->
+                val snappedPosition = rawPosition.snapToDetentPosition(detents.lastIndex, snapDistance)
+                val nextGb = snappedPosition.fromDetentPosition(detentGb)
+                val nextBytes = nextGb.gbToBytes()
+                if (nextBytes != valueBytes) {
+                    onValueChanged(nextBytes)
+                }
+            },
+            enabled = enabled,
+            valueRange = sliderRange,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(28.dp),
+        )
+    }
+}
+
+@Composable
+private fun DetentSettingsSliderScaffold(
+    title: String,
+    valueLabel: String,
+    detentLabels: List<String>,
+    enabled: Boolean,
+    appColors: AppColors,
+    slider: @Composable () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+        Row(
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(title, color = appColors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+            Text(valueLabel, color = appColors.secondaryText, fontSize = 12.sp)
+        }
+        slider()
+        DetentLabelRow(
+            labels = detentLabels,
+            enabled = enabled,
+            appColors = appColors,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+@Composable
+private fun DetentLabelRow(
+    labels: List<String>,
+    enabled: Boolean,
+    appColors: AppColors,
+    modifier: Modifier = Modifier,
+) {
+    Layout(
+        modifier = modifier,
+        content = {
+            labels.forEach { label ->
+                Text(
+                    label,
+                    color = if (enabled) appColors.mutedText else appColors.mutedText.copy(alpha = 0.55f),
+                    fontSize = 10.sp,
+                )
+            }
+        },
+    ) { measurables, constraints ->
+        val placeables = measurables.map { it.measure(constraints.copy(minWidth = 0, minHeight = 0)) }
+        val height = placeables.maxOfOrNull { it.height } ?: 0
+        val width = constraints.maxWidth
+        layout(width, height) {
+            val lastIndex = placeables.lastIndex.coerceAtLeast(1)
+            placeables.forEachIndexed { index, placeable ->
+                val centerX = (width * (index.toFloat() / lastIndex)).roundToInt()
+                val x = (centerX - (placeable.width / 2)).coerceIn(0, width - placeable.width)
+                placeable.placeRelative(x, 0)
+            }
+        }
+    }
+}
+
+private fun Float.toDetentPosition(detents: List<Float>): Float {
+    if (detents.isEmpty()) return 0f
+    if (this <= detents.first()) return 0f
+    if (this >= detents.last()) return detents.lastIndex.toFloat()
+
+    val upperIndex = detents.indexOfFirst { detent -> this <= detent }
+    val lowerIndex = (upperIndex - 1).coerceAtLeast(0)
+    val lower = detents[lowerIndex]
+    val upper = detents[upperIndex]
+    val segmentProgress = if (upper == lower) 0f else (this - lower) / (upper - lower)
+    return lowerIndex + segmentProgress
+}
+
+private fun Float.fromDetentPosition(detents: List<Float>): Float {
+    if (detents.isEmpty()) return 0f
+    val position = coerceIn(0f, detents.lastIndex.toFloat())
+    val lowerIndex = position.toInt().coerceIn(0, detents.lastIndex)
+    val upperIndex = (lowerIndex + 1).coerceAtMost(detents.lastIndex)
+    val segmentProgress = position - lowerIndex
+    return detents[lowerIndex] + ((detents[upperIndex] - detents[lowerIndex]) * segmentProgress)
+}
+
+private fun Float.snapToDetentPosition(lastIndex: Int, snapDistance: Float): Float {
+    val nearest = roundToInt().coerceIn(0, lastIndex).toFloat()
+    return if (abs(this - nearest) <= snapDistance) nearest else this
+}
+
+private fun Long.toGbFloat(): Float =
+    this / (1024f * 1024f * 1024f)
+
+private fun Float.gbToBytes(): Long =
+    (this * 1024f * 1024f * 1024f).toLong()
+
 private data class AudioCacheBudgetOption(
     val label: String,
     val bytes: Long,
 )
+
+private val PrefetchDepthOptions = listOf(0, 3, 5, 10, 15, 25)
 
 private val AudioCacheBudgetOptions = listOf(
     AudioCacheBudgetOption("512 MB", 512L * 1024L * 1024L),
@@ -637,6 +831,14 @@ private val AudioCacheBudgetOptions = listOf(
     AudioCacheBudgetOption("2 GB", 2L * 1024L * 1024L * 1024L),
     AudioCacheBudgetOption("5 GB", 5L * 1024L * 1024L * 1024L),
     AudioCacheBudgetOption("10 GB", 10L * 1024L * 1024L * 1024L),
+)
+
+private val DownloadBudgetOptions = listOf(
+    AudioCacheBudgetOption("1 GB", 1L * 1024L * 1024L * 1024L),
+    AudioCacheBudgetOption("5 GB", 5L * 1024L * 1024L * 1024L),
+    AudioCacheBudgetOption("10 GB", 10L * 1024L * 1024L * 1024L),
+    AudioCacheBudgetOption("25 GB", 25L * 1024L * 1024L * 1024L),
+    AudioCacheBudgetOption("50 GB", 50L * 1024L * 1024L * 1024L),
 )
 
 private enum class SettingsCategory(val label: String) {

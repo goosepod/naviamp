@@ -109,10 +109,13 @@ fun NowPlayingPanel(
     onArtistSelected: (Track) -> Unit,
     onAlbumSelected: (Track) -> Unit,
     onTrackRadioSelected: (Track) -> Unit,
+    onDownloadTrackSelected: (Track) -> Unit,
     onQueueIndexSelected: (Int) -> Unit,
     onUpNextTrackRadioSelected: (Track) -> Unit,
+    onUpNextTrackDownloadSelected: (Track) -> Unit,
     onRelatedTrackSelected: (Int) -> Unit,
     onRelatedTrackRadioSelected: (Track) -> Unit,
+    onRelatedTrackDownloadSelected: (Track) -> Unit,
     onCollapseToHome: () -> Unit,
 ) {
     var showLyrics by remember(nowPlayingTrack?.id) { mutableStateOf(false) }
@@ -185,6 +188,7 @@ fun NowPlayingPanel(
                         onArtistSelected = onArtistSelected,
                         onAlbumSelected = onAlbumSelected,
                         onTrackRadioSelected = onTrackRadioSelected,
+                        onDownloadTrackSelected = onDownloadTrackSelected,
                         lyricsVisible = showLyrics,
                         onToggleLyrics = { showLyrics = !showLyrics },
                         onCollapseToHome = onCollapseToHome,
@@ -208,8 +212,10 @@ fun NowPlayingPanel(
                         relatedCoverArtUrl = relatedCoverArtUrl,
                         onQueueIndexSelected = onQueueIndexSelected,
                         onUpNextTrackRadioSelected = onUpNextTrackRadioSelected,
+                        onUpNextTrackDownloadSelected = onUpNextTrackDownloadSelected,
                         onRelatedTrackSelected = onRelatedTrackSelected,
                         onRelatedTrackRadioSelected = onRelatedTrackRadioSelected,
+                        onRelatedTrackDownloadSelected = onRelatedTrackDownloadSelected,
                         modifier = Modifier.weight(if (showLyrics) 0.42f else 1f),
                     )
                     if (showLyrics) {
@@ -279,6 +285,7 @@ fun NowPlayingPanel(
                     onArtistSelected = onArtistSelected,
                     onAlbumSelected = onAlbumSelected,
                     onTrackRadioSelected = onTrackRadioSelected,
+                    onDownloadTrackSelected = onDownloadTrackSelected,
                     lyricsVisible = showLyrics,
                     onToggleLyrics = { showLyrics = !showLyrics },
                     onCollapseToHome = onCollapseToHome,
@@ -293,8 +300,10 @@ fun NowPlayingPanel(
                     relatedCoverArtUrl = relatedCoverArtUrl,
                     onQueueIndexSelected = onQueueIndexSelected,
                     onUpNextTrackRadioSelected = onUpNextTrackRadioSelected,
+                    onUpNextTrackDownloadSelected = onUpNextTrackDownloadSelected,
                     onRelatedTrackSelected = onRelatedTrackSelected,
                     onRelatedTrackRadioSelected = onRelatedTrackRadioSelected,
+                    onRelatedTrackDownloadSelected = onRelatedTrackDownloadSelected,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(280.dp),
@@ -430,6 +439,7 @@ private fun PlayerDetails(
     onArtistSelected: (Track) -> Unit,
     onAlbumSelected: (Track) -> Unit,
     onTrackRadioSelected: (Track) -> Unit,
+    onDownloadTrackSelected: (Track) -> Unit,
     lyricsVisible: Boolean,
     onToggleLyrics: () -> Unit,
     onCollapseToHome: () -> Unit,
@@ -759,6 +769,13 @@ private fun PlayerDetails(
                             onClick = {
                                 actionMenuExpanded = false
                                 onToggleLyrics()
+                            },
+                        )
+                        NaviampDropdownMenuItem(
+                            label = "Download track",
+                            onClick = {
+                                actionMenuExpanded = false
+                                nowPlayingTrack?.let(onDownloadTrackSelected)
                             },
                         )
                         NaviampDropdownMenuItem(
@@ -1267,8 +1284,10 @@ private fun UpNextPanel(
     relatedCoverArtUrl: (Track) -> String?,
     onQueueIndexSelected: (Int) -> Unit,
     onUpNextTrackRadioSelected: (Track) -> Unit,
+    onUpNextTrackDownloadSelected: (Track) -> Unit,
     onRelatedTrackSelected: (Int) -> Unit,
     onRelatedTrackRadioSelected: (Track) -> Unit,
+    onRelatedTrackDownloadSelected: (Track) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scrollState = rememberScrollState()
@@ -1357,6 +1376,13 @@ private fun UpNextPanel(
                             { onRelatedTrackRadioSelected(track) }
                         } else if (selectedTab == PlayerListTab.UpNext) {
                             { onUpNextTrackRadioSelected(track) }
+                        } else {
+                            null
+                        },
+                        onDownload = if (selectedTab == PlayerListTab.Related) {
+                            { onRelatedTrackDownloadSelected(track) }
+                        } else if (selectedTab == PlayerListTab.UpNext) {
+                            { onUpNextTrackDownloadSelected(track) }
                         } else {
                             null
                         },

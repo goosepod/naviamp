@@ -39,6 +39,7 @@ fun ArtistDetailPanel(
     onArtistRadio: (Artist) -> Unit,
     onAlbumSelected: (Album) -> Unit,
     onAlbumRadioSelected: (Album) -> Unit,
+    onAlbumDownloadSelected: (Album) -> Unit,
 ) {
     val effectiveArtist = artistDetails?.artist ?: artist
     val imageUrl = artistDetails?.info?.largeImageUrl
@@ -157,6 +158,7 @@ fun ArtistDetailPanel(
                         coverArtUrl = coverArtUrl(album.coverArtId),
                         onClick = { onAlbumSelected(album) },
                         onStartRadio = { onAlbumRadioSelected(album) },
+                        onDownload = { onAlbumDownloadSelected(album) },
                     )
                 }
             }
