@@ -19,7 +19,7 @@ Naviamp is a Kotlin Multiplatform / Compose Multiplatform music client inspired 
 Current priorities:
 
 - Windows desktop works and is the main live test path right now.
-- Android is now an active target, but the first milestone is separation of concerns before UI work.
+- Android is now an active target. The first app milestone is a thin native Android shell that can connect to Navidrome, search tracks, and play a selected stream through Media3.
 - Navidrome is the first provider, but the app should stay provider-oriented.
 - Playback uses mpv on desktop when available.
 - Audio/track caching is now a priority because it will matter for fast desktop skips, network handoff, and the future Android app.
@@ -36,6 +36,7 @@ Main source areas:
 - `core/domain/src/commonMain/kotlin/app/naviamp/domain/playback`: shared playback contracts, playback state/progress models, replay-gain settings, and engine capability shape.
 - `providers/navidrome`: Navidrome/Subsonic API implementation and mapping.
 - `apps/desktop`: Compose desktop UI, desktop settings/cache, mpv/JLayer playback engine integration, and desktop tests.
+- `apps/android`: Early Android app shell, Android Compose UI, and Media3 playback engine.
 
 Useful docs:
 
@@ -237,6 +238,12 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 - Settings uses a responsive layout: wide windows keep the two-column category/detail view, while narrow windows show a Plexamp-style category list and open each settings group in its own scrollable detail view with a back control.
 - Now Playing should bounce long track titles left and right instead of leaving important title text permanently clipped or using a continuous loop marquee.
 - Now Playing has small shuffle/repeat controls around the main transport controls. Shuffle only reorders `UP NEXT` and keeps a snapshot so turning shuffle off restores the previous upcoming order. Repeat cycles Off -> Queue -> Current track -> Off.
+- Android foundation:
+  - `core:domain` and `providers:navidrome` now compile for Android as well as JVM.
+  - Navidrome's provider logic is shared; platform-specific MD5, URL encoding, HTTP, and TLS handling live in JVM/Android source sets.
+  - `apps:android` builds a debug APK with a minimal Compose shell for Navidrome connection, track search, and direct stream playback.
+  - `AndroidMedia3PlaybackEngine` implements the shared `PlaybackEngine` contract with ExoPlayer and a Media3 session. It currently supports play, pause, resume, seek, stop, volume, progress polling, and basic metadata.
+  - Android does not yet have saved connections, session restore, background notification controls, local cache/downloads, or the full desktop UI surfaces.
 - Desktop mpv crossfade attempt:
   - A dual-mpv-process crossfade attempt caused regressions in seek, pause, progress polling, and track advancement.
   - `MpvProcessPlaybackEngine` was restored to the stable single-process mpv path and reports `supportsCrossfade = false` again.
@@ -285,21 +292,20 @@ The Android work should be staged so the desktop app keeps working while platfor
    - Keep desktop-only windowing, file pickers, mpv/JLayer engines, JVM image/tag helpers, and desktop settings/cache adapters out of shared modules.
    - Extract reusable Compose panels only after their dependencies are platform-neutral.
 2. Android project skeleton:
-   - Add Android Gradle plugin/version catalog entries and an `apps:android` module.
-   - Add Android targets to `core:domain` and `providers:navidrome`.
-   - Choose the Android Compose stack deliberately: AndroidX Compose for a native app shell, or Compose Multiplatform only where it reduces duplication without fighting Android lifecycle expectations.
+   - The initial `apps:android` module exists and builds.
+   - Next: decide which desktop Compose panels should move toward shared UI and which Android surfaces should stay native/mobile-specific.
 3. Android playback:
-   - Implement `PlaybackEngine` with AndroidX Media3 ExoPlayer.
-   - Add Media3 session/notification integration so playback works from background, lock screen, headset controls, and Android Auto-compatible surfaces later.
-   - Start with play/pause/seek/progress/metadata/internet-radio support. Treat replay gain, crossfade, waveform analysis, and visualizer support as later capability-gated work.
+   - The initial Media3-backed `PlaybackEngine` exists.
+   - Next: add proper foreground playback service/notification controls so playback works from background, lock screen, headset controls, and Android Auto-compatible surfaces later.
+   - Treat replay gain, crossfade, waveform analysis, and visualizer support as later capability-gated work.
 4. Android persistence and storage:
    - Reuse SQLDelight with the Android driver.
    - Add Android settings/storage adapters for saved connections, recent items, sessions, image/API cache, audio cache, and downloads.
    - Respect scoped storage and keep user-selected downloads separate from evictable cache files.
 5. Android app milestone order:
-   - Connect to Navidrome, search/select a track, stream through Media3, and show Now Playing.
-   - Restore sessions and add queue controls.
-   - Bring over Home, Library, Playlists, Internet Radio, Downloads, and Settings in that order.
+   - Connect/search/stream is in place as the first proof point.
+   - Next: restore sessions and add queue controls.
+   - Then bring over Home, Library, Playlists, Internet Radio, Downloads, and Settings in that order.
    - Add background playback polish, media notification actions, and cache/download behavior before treating Android as daily-driver ready.
 
 ## Roadmap Items From The User
@@ -350,7 +356,8 @@ Top-of-mind work the user wants:
 Good next slices:
 
 - Android separation follow-up: continue extracting shared app state and platform-neutral Compose surfaces without moving desktop-only cache/settings/window/playback code into common code.
-- Android app follow-up: add the Android module skeleton and a Media3-backed `PlaybackEngine` once the shared seams are ready.
+- Android app follow-up: add Media3 foreground playback service/notification controls and saved session restore.
+- Android app follow-up: replace the proof-of-life connection/search screen with the real navigation shell and queue-aware playback flow.
 - Phase 2C follow-up: harden audio cache behavior for mobile/offline use, including expiry rules, partial download cleanup, and provider-specific refresh hooks.
 - Downloads follow-up: add a clearer download queue/progress surface for multi-track jobs, plus downloaded indicators on rows/albums/playlists.
 - Lyrics follow-up: investigate whether LRCLIB synced lyrics can be written back to Navidrome-managed files or sidecar lyric metadata, and only add this as an explicit user-controlled action if Navidrome supports it safely.

@@ -1,6 +1,5 @@
 package app.naviamp.provider.navidrome
 
-import java.security.MessageDigest
 import kotlin.random.Random
 
 data class NavidromeConnection(
@@ -26,7 +25,7 @@ data class NavidromeConnection(
             NavidromeConnection(
                 baseUrl = baseUrl,
                 username = username,
-                token = md5(password + salt),
+                token = navidromeMd5(password + salt),
                 salt = salt,
                 displayName = displayName,
                 tlsSettings = tlsSettings,
@@ -37,12 +36,6 @@ data class NavidromeConnection(
                 byte.toUByte().toString(radix = 16).padStart(2, '0')
             }
 
-        private fun md5(value: String): String {
-            val digest = MessageDigest.getInstance("MD5").digest(value.toByteArray())
-            return digest.joinToString(separator = "") { byte ->
-                byte.toUByte().toString(radix = 16).padStart(2, '0')
-            }
-        }
     }
 }
 

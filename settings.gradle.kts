@@ -19,4 +19,4 @@ rootProject.name = "naviamp"
 include(":core:domain")
 include(":providers:navidrome")
 include(":apps:desktop")
-
+include(":apps:android")
