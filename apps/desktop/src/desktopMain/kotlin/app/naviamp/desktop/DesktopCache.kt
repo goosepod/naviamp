@@ -282,6 +282,18 @@ class DesktopCache(
             lyrics
         }
 
+    suspend fun lrclibLyrics(
+        sourceId: String,
+        track: Track,
+        client: LrclibLyricsClient = LrclibLyricsClient(),
+    ): Lyrics? =
+        withContext(Dispatchers.IO) {
+            cachedLrclibLyrics(sourceId, track.id)?.let { return@withContext it }
+            val lyrics = client.lyrics(track) ?: return@withContext null
+            upsertLrclibLyrics(sourceId, track.id, lyrics)
+            lyrics
+        }
+
     suspend fun cachedLyrics(
         sourceId: String,
         trackId: TrackId,
@@ -304,6 +316,27 @@ class DesktopCache(
             )
         }
 
+    private fun cachedLrclibLyrics(
+        sourceId: String,
+        trackId: TrackId,
+    ): Lyrics? {
+        val row = queries.selectCachedLrclibLyrics(
+            source_id = sourceId,
+            remote_track_id = trackId.value,
+        ).executeAsOneOrNull() ?: return null
+
+        queries.touchCachedLrclibLyrics(nowMillis(), sourceId, trackId.value)
+        return Lyrics(
+            source = LyricsSource.Lrclib,
+            synced = row.synced != 0L,
+            lines = json.decodeFromString<List<LyricLineDto>>(row.lines_json).map { it.toLyricLine() },
+            displayArtist = row.display_artist,
+            displayTitle = row.display_title,
+            language = row.language,
+            offsetMillis = row.offset_millis.toInt(),
+        )
+    }
+
     private fun upsertLyrics(
         sourceId: String,
         trackId: TrackId,
@@ -315,6 +348,28 @@ class DesktopCache(
             source_id = sourceId,
             remote_track_id = trackId.value,
             lyric_source = lyrics.source.name,
+            synced = if (lyrics.synced) 1L else 0L,
+            lines_json = linesJson,
+            display_artist = lyrics.displayArtist,
+            display_title = lyrics.displayTitle,
+            language = lyrics.language,
+            offset_millis = lyrics.offsetMillis.toLong(),
+            size_bytes = linesJson.toByteArray(Charsets.UTF_8).size.toLong(),
+            created_at_epoch_millis = now,
+            last_accessed_epoch_millis = now,
+        )
+    }
+
+    private fun upsertLrclibLyrics(
+        sourceId: String,
+        trackId: TrackId,
+        lyrics: Lyrics,
+    ) {
+        val linesJson = json.encodeToString(lyrics.lines.map { LyricLineDto.fromLyricLine(it) })
+        val now = nowMillis()
+        queries.upsertCachedLrclibLyrics(
+            source_id = sourceId,
+            remote_track_id = trackId.value,
             synced = if (lyrics.synced) 1L else 0L,
             lines_json = linesJson,
             display_artist = lyrics.displayArtist,
@@ -730,6 +785,7 @@ class DesktopCache(
             queries.clearAudioWaveforms()
             queries.clearAudio()
             queries.clearLyrics()
+            queries.clearLrclibLyrics()
         }
         clearAudioFiles()
     }
@@ -773,8 +829,8 @@ class DesktopCache(
             downloadBytes = queries.downloadedAudioSize().executeAsOne(),
             audioWaveformCount = queries.audioWaveformCacheCount().executeAsOne(),
             audioWaveformBytes = queries.audioWaveformCacheSize().executeAsOne(),
-            lyricsCount = queries.lyricsCacheCount().executeAsOne(),
-            lyricsBytes = queries.lyricsCacheSize().executeAsOne(),
+            lyricsCount = queries.lyricsCacheCount().executeAsOne() + queries.lrclibLyricsCacheCount().executeAsOne(),
+            lyricsBytes = queries.lyricsCacheSize().executeAsOne() + queries.lrclibLyricsCacheSize().executeAsOne(),
             mediaSourceCount = queries.mediaSourceCount().executeAsOne(),
             libraryArtistCount = queries.libraryArtistCount().executeAsOne(),
             libraryAlbumCount = queries.libraryAlbumCount().executeAsOne(),
@@ -1303,6 +1359,26 @@ private fun ensureCurrentTables(driver: JdbcSqliteDriver) {
         """.trimIndent(),
         0,
     )
+    driver.execute(
+        null,
+        """
+        CREATE TABLE IF NOT EXISTS cached_lrclib_lyrics (
+          source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+          remote_track_id TEXT NOT NULL,
+          synced INTEGER NOT NULL,
+          lines_json TEXT NOT NULL,
+          display_artist TEXT,
+          display_title TEXT,
+          language TEXT,
+          offset_millis INTEGER NOT NULL,
+          size_bytes INTEGER NOT NULL,
+          created_at_epoch_millis INTEGER NOT NULL,
+          last_accessed_epoch_millis INTEGER NOT NULL,
+          PRIMARY KEY(source_id, remote_track_id)
+        )
+        """.trimIndent(),
+        0,
+    )
     listOf(
         "CREATE INDEX IF NOT EXISTS library_artist_source_name ON library_artist(source_id, search_name)",
         "CREATE INDEX IF NOT EXISTS library_album_source_title ON library_album(source_id, search_title)",
@@ -1313,6 +1389,7 @@ private fun ensureCurrentTables(driver: JdbcSqliteDriver) {
         "CREATE INDEX IF NOT EXISTS downloaded_audio_source_downloaded_at ON downloaded_audio(source_id, downloaded_at_epoch_millis)",
         "CREATE INDEX IF NOT EXISTS cached_audio_waveform_access ON cached_audio_waveform(last_accessed_epoch_millis)",
         "CREATE INDEX IF NOT EXISTS cached_lyrics_access ON cached_lyrics(last_accessed_epoch_millis)",
+        "CREATE INDEX IF NOT EXISTS cached_lrclib_lyrics_access ON cached_lrclib_lyrics(last_accessed_epoch_millis)",
     ).forEach { sql ->
         driver.execute(null, sql, 0)
     }

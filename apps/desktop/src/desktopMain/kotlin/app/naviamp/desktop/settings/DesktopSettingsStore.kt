@@ -127,6 +127,7 @@ data class PlaybackSettings(
     val crossfadeDurationSeconds: Int = 0,
     val volumePercent: Int = 100,
     val debugLoggingEnabled: Boolean = false,
+    val lrclibLyricsEnabled: Boolean = false,
 )
 
 @Serializable

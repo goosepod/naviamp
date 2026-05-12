@@ -145,6 +145,21 @@ CREATE TABLE cached_lyrics (
   PRIMARY KEY(source_id, remote_track_id)
 );
 
+CREATE TABLE cached_lrclib_lyrics (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  remote_track_id TEXT NOT NULL,
+  synced INTEGER NOT NULL,
+  lines_json TEXT NOT NULL,
+  display_artist TEXT,
+  display_title TEXT,
+  language TEXT,
+  offset_millis INTEGER NOT NULL,
+  size_bytes INTEGER NOT NULL,
+  created_at_epoch_millis INTEGER NOT NULL,
+  last_accessed_epoch_millis INTEGER NOT NULL,
+  PRIMARY KEY(source_id, remote_track_id)
+);
+
 CREATE INDEX library_artist_source_name
 ON library_artist(source_id, search_name);
 
@@ -171,6 +186,9 @@ ON cached_audio_waveform(last_accessed_epoch_millis);
 
 CREATE INDEX cached_lyrics_access
 ON cached_lyrics(last_accessed_epoch_millis);
+
+CREATE INDEX cached_lrclib_lyrics_access
+ON cached_lrclib_lyrics(last_accessed_epoch_millis);
 
 selectImage:
 SELECT bytes
@@ -618,8 +636,20 @@ FROM cached_lyrics
 WHERE source_id = ?
 AND remote_track_id = ?;
 
+selectCachedLrclibLyrics:
+SELECT *
+FROM cached_lrclib_lyrics
+WHERE source_id = ?
+AND remote_track_id = ?;
+
 touchCachedLyrics:
 UPDATE cached_lyrics
+SET last_accessed_epoch_millis = ?
+WHERE source_id = ?
+AND remote_track_id = ?;
+
+touchCachedLrclibLyrics:
+UPDATE cached_lrclib_lyrics
 SET last_accessed_epoch_millis = ?
 WHERE source_id = ?
 AND remote_track_id = ?;
@@ -640,6 +670,21 @@ INSERT OR REPLACE INTO cached_lyrics(
   last_accessed_epoch_millis
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
+upsertCachedLrclibLyrics:
+INSERT OR REPLACE INTO cached_lrclib_lyrics(
+  source_id,
+  remote_track_id,
+  synced,
+  lines_json,
+  display_artist,
+  display_title,
+  language,
+  offset_millis,
+  size_bytes,
+  created_at_epoch_millis,
+  last_accessed_epoch_millis
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
 lyricsCacheSize:
 SELECT COALESCE(SUM(size_bytes), 0)
 FROM cached_lyrics;
@@ -647,6 +692,14 @@ FROM cached_lyrics;
 lyricsCacheCount:
 SELECT COUNT(*)
 FROM cached_lyrics;
+
+lrclibLyricsCacheSize:
+SELECT COALESCE(SUM(size_bytes), 0)
+FROM cached_lrclib_lyrics;
+
+lrclibLyricsCacheCount:
+SELECT COUNT(*)
+FROM cached_lrclib_lyrics;
 
 mediaSourceCount:
 SELECT COUNT(*)
@@ -681,6 +734,9 @@ DELETE FROM cached_audio_waveform;
 
 clearLyrics:
 DELETE FROM cached_lyrics;
+
+clearLrclibLyrics:
+DELETE FROM cached_lrclib_lyrics;
 
 clearLibraryTracks:
 DELETE FROM library_track;

@@ -97,6 +97,9 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
     - Navidrome/OpenSubsonic uses `getLyricsBySongId` and prefers synced structured lyrics when available.
     - Provider lyrics are cached in SQLite by source and remote track ID so repeat plays can render server lyrics without another provider request.
     - Current-track lyrics fall back to embedded cached-file tags (`USLT`, `SYLT`, `LYRICS`, `SYNCEDLYRICS`, etc.) when the server does not return lyrics.
+    - Playback settings include an LRCLIB fallback toggle. When enabled, Naviamp queries LRCLIB only if current provider/embedded lyrics are missing or unsynced.
+    - LRCLIB results are cached separately from Navidrome/provider lyrics so disabling the toggle removes LRCLIB from selection without disturbing server lyrics.
+    - If existing lyrics are unsynced, LRCLIB only replaces them when it finds synced lyrics. If no lyrics exist, LRCLIB can provide synced or plain lyrics.
     - The player bottom row has a lyrics toggle next to the hamburger menu. In compact mode it swaps album art for lyrics; in wide mode it shows lyrics alongside the `UP NEXT` / `RELATED` area.
     - Timed lyrics highlight slightly ahead of the exact timestamp to feel aligned with vocals, auto-scroll so the active line stays near center, and click-to-seek works both forward and backward. Unsynced lyrics render as scrollable text.
     - Seek handling updates playback progress immediately and ignores short-lived stale mpv progress after a deliberate seek so scrub bar and lyric state can jump backward cleanly.
@@ -248,7 +251,7 @@ Top-of-mind work the user wants:
   - Android has a native `android.media.audiofx.Visualizer` API, but it is Android-only and requires `RECORD_AUDIO`; evaluate it separately when the Android player exists.
   - Current Compose waveform libraries mostly draw precomputed waveform/progress rather than live spectrum data, which overlaps with Naviamp's cached waveform path.
   - Compose Media Player-style libraries may expose audio levels, but they are full playback stacks rather than a drop-in visualization layer for the existing mpv engine.
-- Continue refining lyrics support: add MP4/M4A embedded lyrics parsing, improve provider/cache controls, and consider a settings-controlled LRCLIB fallback.
+- Continue refining lyrics support: add MP4/M4A embedded lyrics parsing, improve provider/cache controls, and consider richer LRCLIB management.
   - For LRCLIB fallback, prefer pulling synced lyrics when the existing provider/embedded lyrics are missing or unsynced.
   - Investigate whether Navidrome can write synchronized lyrics back to files or sidecar metadata. If possible, consider an explicit user-controlled action to save LRCLIB lyrics back to the library.
 - Improve play reporting with an offline retry queue and local history table so failed scrobbles can be retried and Home can use local play data without depending entirely on server history.
@@ -288,6 +291,7 @@ Good next slices:
 
 - Phase 2C follow-up: harden audio cache behavior for mobile/offline use, including expiry rules, partial download cleanup, and provider-specific refresh hooks if Android needs them.
 - Downloads follow-up: add a clearer download queue/progress surface for multi-track jobs, plus downloaded indicators on rows/albums/playlists.
+- Lyrics follow-up: investigate whether LRCLIB synced lyrics can be written back to Navidrome-managed files or sidecar lyric metadata, and only add this as an explicit user-controlled action if Navidrome supports it safely.
 - Waveform follow-up: add cache-hit/status reporting for waveform generation in Stats for nerds.
 - Waveform follow-up: consider queue-aware/background waveform analysis for likely-upcoming tracks after measuring CPU impact.
 - Queue actions follow-up: add per-row overflow menus in `UP NEXT`, starting with Start track radio.

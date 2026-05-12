@@ -485,6 +485,15 @@ private fun PlaybackSettingsSection(
         )
         Text("Debug logging", color = appColors.secondaryText, fontSize = 12.sp)
     }
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Checkbox(
+            checked = playbackSettings.lrclibLyricsEnabled,
+            onCheckedChange = { enabled ->
+                onPlaybackSettingsChanged(playbackSettings.copy(lrclibLyricsEnabled = enabled))
+            },
+        )
+        Text("Use LRCLIB when lyrics are missing or unsynced", color = appColors.secondaryText, fontSize = 12.sp)
+    }
 }
 
 @Composable

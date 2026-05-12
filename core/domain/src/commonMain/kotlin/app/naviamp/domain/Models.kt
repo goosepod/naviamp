@@ -96,6 +96,7 @@ data class LyricLine(
 enum class LyricsSource {
     Provider,
     Embedded,
+    Lrclib,
 }
 
 data class Playlist(

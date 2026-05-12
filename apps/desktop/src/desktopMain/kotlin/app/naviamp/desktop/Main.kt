@@ -525,6 +525,7 @@ fun NaviampApp(
         playbackEngine,
         nowPlayingWaveformReloadToken,
         cacheSettings.audioCachingEnabled,
+        playbackSettings.lrclibLyricsEnabled,
     ) {
         val track = nowPlayingTrack ?: run {
             nowPlayingWaveform = null
@@ -579,8 +580,22 @@ fun NaviampApp(
                     else -> "Unavailable"
                 }
                 val tags = audioPath?.let { AudioTagReader().read(it) }.orEmpty()
-                val lyrics = sessionCache.providerLyrics(sourceId, provider, track.id)
+                val localLyrics = sessionCache.providerLyrics(sourceId, provider, track.id)
                     ?: lyricsFromAudioTags(tags)
+                val lrclibLyrics = if (
+                    playbackSettings.lrclibLyricsEnabled &&
+                    (localLyrics == null || !localLyrics.synced)
+                ) {
+                    sessionCache.lrclibLyrics(sourceId, track)
+                } else {
+                    null
+                }
+                val lyrics = when {
+                    localLyrics == null -> lrclibLyrics
+                    localLyrics.synced -> localLyrics
+                    lrclibLyrics?.synced == true -> lrclibLyrics
+                    else -> localLyrics
+                }
                 NowPlayingAnalysis(waveform, waveformStatus, tags, lyrics)
             }.getOrNull()
         }
@@ -1995,6 +2010,7 @@ private fun PlaybackSettings.forEngine(playbackEngine: PlaybackEngine): Playback
             100
         },
         debugLoggingEnabled = debugLoggingEnabled,
+        lrclibLyricsEnabled = lrclibLyricsEnabled,
     )
 
 private fun shouldAutoSyncLibrary(
