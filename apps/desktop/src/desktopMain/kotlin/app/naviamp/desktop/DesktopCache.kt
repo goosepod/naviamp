@@ -136,6 +136,29 @@ class DesktopCache(
     fun mediaSource(sourceId: String): SavedMediaSource? =
         queries.selectMediaSourceById(sourceId).executeAsOneOrNull()?.toSavedMediaSource()
 
+    fun cachedAudioMetadata(
+        sourceId: String,
+        trackId: TrackId,
+        quality: StreamQuality,
+    ): CachedAudioMetadata? {
+        val qualityKey = quality.cacheKey()
+        val row = queries.selectCachedAudioMetadata(
+            source_id = sourceId,
+            remote_track_id = trackId.value,
+            quality_key = qualityKey,
+        ).executeAsOneOrNull() ?: return null
+
+        val path = Path.of(row.file_path)
+        return CachedAudioMetadata(
+            path = path,
+            exists = path.exists(),
+            sizeBytes = row.size_bytes,
+            contentType = row.content_type,
+            createdAtEpochMillis = row.created_at_epoch_millis,
+            lastAccessedEpochMillis = row.last_accessed_epoch_millis,
+        )
+    }
+
     suspend fun cachedAudioFile(
         sourceId: String,
         trackId: TrackId,
@@ -760,6 +783,15 @@ data class CachedAudioFile(
     val path: Path,
     val sizeBytes: Long,
     val contentType: String?,
+)
+
+data class CachedAudioMetadata(
+    val path: Path,
+    val exists: Boolean,
+    val sizeBytes: Long,
+    val contentType: String?,
+    val createdAtEpochMillis: Long,
+    val lastAccessedEpochMillis: Long,
 )
 
 data class AudioWaveform(

@@ -168,6 +168,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - Restored sessions should keep an already loaded waveform when playback starts for the same track; only clear/reload waveform UI state when the track ID changes.
   - The Now Playing scrubber draws a compact Compose waveform with played/unplayed coloring and supports click/drag seeking through the same `onSeek` path as the old slider.
   - Stats for nerds shows current-track waveform status (`Waiting`, `Loading`, `Cached`, `Generated`, or `Unavailable`) and bucket count so cache-hit behavior is easier to debug.
+  - Stats for nerds also shows current-track audio cache status, size, and local path without touching cache access time.
   - Waveform generation is intentionally current-track only for now so upcoming prefetch does not become a CPU-heavy analysis queue.
   - Waveform rows are a separate cache from audio files. Audio eviction should not delete waveform analysis, because the waveform is small and can make repeat plays render instantly.
   - The waveform cache is size-capped at 32 MiB as a rough budget for about 10,000 analyzed tracks, with least-recently-used eviction based on waveform access time.

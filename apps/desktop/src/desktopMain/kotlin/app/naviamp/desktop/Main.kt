@@ -1324,6 +1324,13 @@ fun NaviampApp(
     }
 
     val statsMediaSource = connectedSourceId?.let { sessionCache.mediaSource(it) } ?: sessionCache.latestMediaSource()
+    val streamQuality = playbackEngine.streamQuality()
+    val currentAudioCacheMetadata = connectedSourceId
+        ?.let { sourceId ->
+            nowPlayingTrack?.let { track ->
+                sessionCache.cachedAudioMetadata(sourceId, track.id, streamQuality)
+            }
+        }
     val statsForNerdsInfo = StatsForNerdsInfo(
         route = appRoute.name,
         os = "${System.getProperty("os.name")} ${System.getProperty("os.version")} (${System.getProperty("os.arch")})",
@@ -1352,9 +1359,10 @@ fun NaviampApp(
             playbackState = playbackState,
             playbackProgress = playbackProgress,
             playbackSettings = playbackSettings,
-            streamQuality = playbackEngine.streamQuality(),
+            streamQuality = streamQuality,
             waveform = nowPlayingWaveform,
             waveformStatus = nowPlayingWaveformStatus,
+            cachedAudio = currentAudioCacheMetadata,
         ),
         cacheStats = sessionCache.stats(),
         providerCapabilities = connectedProvider?.capabilities?.asStatsMap().orEmpty(),
@@ -1824,6 +1832,7 @@ private fun Track.toStreamStats(
     streamQuality: StreamQuality,
     waveform: AudioWaveform?,
     waveformStatus: String,
+    cachedAudio: CachedAudioMetadata?,
 ): StreamStats {
     val effectiveDurationSeconds = durationSeconds?.toDouble() ?: playbackProgress.durationSeconds
     val audio = audioInfo
@@ -1843,7 +1852,22 @@ private fun Track.toStreamStats(
         coverArtId = coverArtId ?: "None",
         waveformStatus = waveformStatus,
         waveformBuckets = waveform?.amplitudes?.size?.toString() ?: "None",
+        audioCacheStatus = cachedAudio?.let { if (it.exists) "Cached" else "Missing file" } ?: "Not cached",
+        audioCacheSize = cachedAudio?.sizeBytes?.statsBytesLabel() ?: "None",
+        audioCachePath = cachedAudio?.path?.toAbsolutePath()?.toString() ?: "None",
     )
+}
+
+private fun Long.statsBytesLabel(): String {
+    val kib = 1024.0
+    val mib = kib * 1024.0
+    val gib = mib * 1024.0
+    return when {
+        this >= gib -> "%.1f GB".format(this / gib)
+        this >= mib -> "%.1f MB".format(this / mib)
+        this >= kib -> "%.1f KB".format(this / kib)
+        else -> "$this B"
+    }
 }
 
 private data class NowPlayingAnalysis(

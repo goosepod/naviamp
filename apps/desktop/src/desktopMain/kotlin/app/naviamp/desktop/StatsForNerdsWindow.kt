@@ -343,6 +343,9 @@ data class StreamStats(
     val coverArtId: String,
     val waveformStatus: String,
     val waveformBuckets: String,
+    val audioCacheStatus: String,
+    val audioCacheSize: String,
+    val audioCachePath: String,
 ) {
     fun rows(): List<Pair<String, String>> =
         listOf(
@@ -361,6 +364,9 @@ data class StreamStats(
             "Cover art ID" to coverArtId,
             "Waveform status" to waveformStatus,
             "Waveform buckets" to waveformBuckets,
+            "Audio cache" to audioCacheStatus,
+            "Audio cache size" to audioCacheSize,
+            "Audio cache path" to audioCachePath,
         )
 }
 

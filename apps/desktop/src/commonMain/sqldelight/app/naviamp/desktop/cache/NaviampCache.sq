@@ -432,6 +432,13 @@ WHERE source_id = ?
 AND remote_track_id = ?
 AND quality_key = ?;
 
+selectCachedAudioMetadata:
+SELECT *
+FROM cached_audio
+WHERE source_id = ?
+AND remote_track_id = ?
+AND quality_key = ?;
+
 upsertCachedAudio:
 INSERT OR REPLACE INTO cached_audio(
   source_id,
