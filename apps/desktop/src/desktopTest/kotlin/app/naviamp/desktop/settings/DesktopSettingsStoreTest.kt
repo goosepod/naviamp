@@ -7,6 +7,7 @@ import app.naviamp.domain.AudioInfo
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.provider.navidrome.NavidromeConnection
+import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import kotlin.io.path.createTempDirectory
 import kotlin.io.path.readText
 import kotlin.io.path.writeText
@@ -63,6 +64,33 @@ class DesktopSettingsStoreTest {
         assertEquals(72, store.loadPlaybackSettings().volumePercent)
         assertEquals(true, store.loadPlaybackSettings().debugLoggingEnabled)
         assertEquals("user", store.loadConnection()?.username)
+    }
+
+    @Test
+    fun saveConnectionRoundTripsTlsSettings() {
+        val path = createTempDirectory().resolve("settings.json")
+        val store = DesktopSettingsStore(path)
+
+        store.saveConnection(
+            NavidromeConnection(
+                baseUrl = "https://music.example.test",
+                username = "user",
+                token = "token",
+                salt = "salt",
+                tlsSettings = NavidromeTlsSettings(
+                    insecureSkipTlsVerification = true,
+                    customCertificatePath = "/certs/navidrome.pem",
+                    clientCertificateKeyStorePath = "/certs/client.p12",
+                    clientCertificateKeyStorePassword = "secret",
+                ),
+            ),
+        )
+
+        val tlsSettings = store.loadConnection()?.toConnection()?.tlsSettings
+        assertEquals(true, tlsSettings?.insecureSkipTlsVerification)
+        assertEquals("/certs/navidrome.pem", tlsSettings?.customCertificatePath)
+        assertEquals("/certs/client.p12", tlsSettings?.clientCertificateKeyStorePath)
+        assertEquals("secret", tlsSettings?.clientCertificateKeyStorePassword)
     }
 
     @Test

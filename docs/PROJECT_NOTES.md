@@ -25,6 +25,10 @@ Current priorities:
 - Offline downloads are separate from cache files. They can reuse cache/download plumbing, but user-selected downloads should live in their own storage area and should not be evicted by normal cache cleanup.
 - The app should remember state across screens where it feels natural: search query/results, navigation, session queue, window size, and similar context.
 
+UI convention:
+
+- Prefer recognizable icons instead of text labels for compact actions where the meaning is standard, such as edit, delete, back, menu, playback, and navigation controls. Keep accessible content descriptions on icon-only controls.
+
 Main source areas:
 
 - `core/domain`: provider contracts and provider-neutral domain models.
@@ -109,6 +113,12 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - The experimental visualizer was removed from the player because precomputed waveform/spectrum data did not feel like a real music-reactive surface. Bring visualizer support back only when the player can provide live PCM/FFT data.
   - Settings are organized into categories: Connections, Playback, Cache, Local data, and Diagnostics.
   - Settings Connections now shows saved server connections as a list with edit/connect actions plus a new-connection action, instead of exposing only raw connection text fields.
+  - Connection details are hidden by default and only open when creating or editing a saved connection.
+  - Saved connections support an optional user-supplied display name. If the name is blank, Naviamp uses the normalized server URL.
+  - Saved connections can be deleted from Settings after a confirmation dialog. Deleting the currently connected source clears the active provider/session state.
+  - Saved connection edit/delete row actions use icon-only controls instead of text buttons.
+  - Navidrome connections support self-hosted networking options: default platform TLS, an explicit insecure certificate-verification bypass, a user-supplied trusted certificate/CA file, and mTLS through a PKCS12 client certificate store.
+  - Navidrome TLS settings are persisted with saved media sources and applied to JVM HTTPS defaults so API calls, cover art, cached audio/downloads, and URL-based playback share the same trust/client-certificate behavior.
   - Settings Cache exposes audio caching on/off, prefetch depth, current audio cache usage, and max audio cache budget presets.
   - Popup menus use a shared dark Feishin-inspired treatment through `NaviampDropdownMenu` / `NaviampDropdownMenuItem`.
   - The `RELATED` tab is active. It loads same-album and same-artist tracks from the local source-scoped library index, excluding the current track and deduplicating by provider track ID.

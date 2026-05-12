@@ -25,6 +25,10 @@ CREATE TABLE media_source (
   username TEXT NOT NULL,
   token TEXT NOT NULL,
   salt TEXT NOT NULL,
+  insecure_skip_tls_verification INTEGER NOT NULL DEFAULT 0,
+  custom_certificate_path TEXT,
+  client_certificate_keystore_path TEXT,
+  client_certificate_keystore_password TEXT,
   created_at_epoch_millis INTEGER NOT NULL,
   last_connected_at_epoch_millis INTEGER,
   last_sync_started_at_epoch_millis INTEGER,
@@ -293,15 +297,23 @@ INSERT OR REPLACE INTO media_source(
   username,
   token,
   salt,
+  insecure_skip_tls_verification,
+  custom_certificate_path,
+  client_certificate_keystore_path,
+  client_certificate_keystore_password,
   created_at_epoch_millis,
   last_connected_at_epoch_millis,
   last_sync_started_at_epoch_millis,
   last_sync_completed_at_epoch_millis
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 touchMediaSourceConnected:
 UPDATE media_source
 SET last_connected_at_epoch_millis = ?
+WHERE id = ?;
+
+deleteMediaSource:
+DELETE FROM media_source
 WHERE id = ?;
 
 markMediaSourceSyncStarted:

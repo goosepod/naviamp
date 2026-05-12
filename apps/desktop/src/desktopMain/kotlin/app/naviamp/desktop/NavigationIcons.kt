@@ -233,6 +233,33 @@ object NavigationIcons {
             lineTo(14.5f, 7f)
         }
     }.build()
+
+    val Edit: ImageVector = ImageVector.Builder(
+        name = "Edit",
+        defaultWidth = IconSize,
+        defaultHeight = IconSize,
+        viewportWidth = Viewport,
+        viewportHeight = Viewport,
+    ).apply {
+        path(
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 1.9f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+        ) {
+            moveTo(5f, 19f)
+            lineTo(9f, 18.2f)
+            lineTo(18.2f, 9f)
+            curveTo(19f, 8.2f, 19f, 6.9f, 18.2f, 6.1f)
+            lineTo(17.9f, 5.8f)
+            curveTo(17.1f, 5f, 15.8f, 5f, 15f, 5.8f)
+            lineTo(5.8f, 15f)
+            lineTo(5f, 19f)
+            close()
+            moveTo(13.8f, 7f)
+            lineTo(17f, 10.2f)
+        }
+    }.build()
 }
 
 private val IconSize = 24.dp

@@ -18,6 +18,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -33,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalFocusManager
@@ -52,11 +55,17 @@ import kotlin.math.roundToInt
 fun SettingsPanel(
     appColors: AppColors,
     serverUrl: String,
+    connectionName: String,
     username: String,
     password: String,
+    insecureSkipTlsVerification: Boolean,
+    customCertificatePath: String,
+    clientCertificateKeyStorePath: String,
+    clientCertificateKeyStorePassword: String,
     savedConnections: List<SavedMediaSource>,
     currentSourceId: String?,
     hasSavedConnection: Boolean,
+    isConnectionFormOpen: Boolean,
     isConnecting: Boolean,
     connectionStatus: String?,
     playbackSettings: PlaybackSettings,
@@ -65,12 +74,19 @@ fun SettingsPanel(
     supportsReplayGain: Boolean,
     supportsCrossfade: Boolean,
     onServerUrlChanged: (String) -> Unit,
+    onConnectionNameChanged: (String) -> Unit,
     onUsernameChanged: (String) -> Unit,
     onPasswordChanged: (String) -> Unit,
+    onInsecureSkipTlsVerificationChanged: (Boolean) -> Unit,
+    onCustomCertificatePathChanged: (String) -> Unit,
+    onClientCertificateKeyStorePathChanged: (String) -> Unit,
+    onClientCertificateKeyStorePasswordChanged: (String) -> Unit,
     onConnect: () -> Unit,
     onNewConnection: () -> Unit,
     onEditConnection: (SavedMediaSource) -> Unit,
+    onDeleteConnection: (SavedMediaSource) -> Unit,
     onConnectSavedConnection: (SavedMediaSource) -> Unit,
+    onCancelConnectionForm: () -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     onCacheSettingsChanged: (CacheSettings) -> Unit,
     onOpenStatsForNerds: () -> Unit,
@@ -121,22 +137,35 @@ fun SettingsPanel(
                     SettingsCategory.Connections -> ConnectionsSettings(
                         appColors = appColors,
                         serverUrl = serverUrl,
+                        connectionName = connectionName,
                         username = username,
                         password = password,
+                        insecureSkipTlsVerification = insecureSkipTlsVerification,
+                        customCertificatePath = customCertificatePath,
+                        clientCertificateKeyStorePath = clientCertificateKeyStorePath,
+                        clientCertificateKeyStorePassword = clientCertificateKeyStorePassword,
                         savedConnections = savedConnections,
                         currentSourceId = currentSourceId,
                         hasSavedConnection = hasSavedConnection,
+                        isConnectionFormOpen = isConnectionFormOpen,
                         isConnecting = isConnecting,
                         connectionStatus = connectionStatus,
                         textFieldColors = textFieldColors,
                         focusManager = focusManager,
                         onServerUrlChanged = onServerUrlChanged,
+                        onConnectionNameChanged = onConnectionNameChanged,
                         onUsernameChanged = onUsernameChanged,
                         onPasswordChanged = onPasswordChanged,
+                        onInsecureSkipTlsVerificationChanged = onInsecureSkipTlsVerificationChanged,
+                        onCustomCertificatePathChanged = onCustomCertificatePathChanged,
+                        onClientCertificateKeyStorePathChanged = onClientCertificateKeyStorePathChanged,
+                        onClientCertificateKeyStorePasswordChanged = onClientCertificateKeyStorePasswordChanged,
                         onConnect = onConnect,
                         onNewConnection = onNewConnection,
                         onEditConnection = onEditConnection,
+                        onDeleteConnection = onDeleteConnection,
                         onConnectSavedConnection = onConnectSavedConnection,
+                        onCancelConnectionForm = onCancelConnectionForm,
                     )
                     SettingsCategory.Playback -> PlaybackSettingsSection(
                         appColors = appColors,
@@ -263,23 +292,38 @@ fun SettingsPanel(
 private fun ConnectionsSettings(
     appColors: AppColors,
     serverUrl: String,
+    connectionName: String,
     username: String,
     password: String,
+    insecureSkipTlsVerification: Boolean,
+    customCertificatePath: String,
+    clientCertificateKeyStorePath: String,
+    clientCertificateKeyStorePassword: String,
     savedConnections: List<SavedMediaSource>,
     currentSourceId: String?,
     hasSavedConnection: Boolean,
+    isConnectionFormOpen: Boolean,
     isConnecting: Boolean,
     connectionStatus: String?,
     textFieldColors: androidx.compose.material3.TextFieldColors,
     focusManager: androidx.compose.ui.focus.FocusManager,
     onServerUrlChanged: (String) -> Unit,
+    onConnectionNameChanged: (String) -> Unit,
     onUsernameChanged: (String) -> Unit,
     onPasswordChanged: (String) -> Unit,
+    onInsecureSkipTlsVerificationChanged: (Boolean) -> Unit,
+    onCustomCertificatePathChanged: (String) -> Unit,
+    onClientCertificateKeyStorePathChanged: (String) -> Unit,
+    onClientCertificateKeyStorePasswordChanged: (String) -> Unit,
     onConnect: () -> Unit,
     onNewConnection: () -> Unit,
     onEditConnection: (SavedMediaSource) -> Unit,
+    onDeleteConnection: (SavedMediaSource) -> Unit,
     onConnectSavedConnection: (SavedMediaSource) -> Unit,
+    onCancelConnectionForm: () -> Unit,
 ) {
+    var connectionPendingDelete by remember { mutableStateOf<SavedMediaSource?>(null) }
+
     SettingsSectionTitle("Connections", appColors)
     if (savedConnections.isEmpty()) {
         Text("No saved connections yet.", color = appColors.secondaryText, fontSize = 12.sp)
@@ -292,6 +336,7 @@ private fun ConnectionsSettings(
                     selected = connection.id == currentSourceId,
                     enabled = !isConnecting,
                     onEdit = { onEditConnection(connection) },
+                    onDelete = { connectionPendingDelete = connection },
                     onConnect = { onConnectSavedConnection(connection) },
                 )
             }
@@ -306,6 +351,22 @@ private fun ConnectionsSettings(
             Text("New connection", fontSize = 12.sp)
         }
     }
+    connectionStatus?.takeUnless { isConnectionFormOpen }?.let {
+        Text(it, color = appColors.secondaryText, fontSize = 12.sp)
+    }
+    if (!isConnectionFormOpen) {
+        connectionPendingDelete?.let { connection ->
+            DeleteConnectionDialog(
+                connection = connection,
+                onDismiss = { connectionPendingDelete = null },
+                onConfirm = {
+                    connectionPendingDelete = null
+                    onDeleteConnection(connection)
+                },
+            )
+        }
+        return
+    }
     HorizontalDivider(color = appColors.border)
     SettingsSectionTitle("Connection Details", appColors)
     if (hasSavedConnection) {
@@ -315,6 +376,17 @@ private fun ConnectionsSettings(
             fontSize = 12.sp,
         )
     }
+    OutlinedTextField(
+        value = connectionName,
+        onValueChange = onConnectionNameChanged,
+        label = { Text("Connection name (optional)") },
+        singleLine = true,
+        textStyle = MaterialTheme.typography.bodySmall,
+        modifier = Modifier.fillMaxWidth(),
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+        keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Next) }),
+        colors = textFieldColors,
+    )
     OutlinedTextField(
         value = serverUrl,
         onValueChange = onServerUrlChanged,
@@ -357,6 +429,50 @@ private fun ConnectionsSettings(
             colors = textFieldColors,
         )
     }
+    SettingsSectionTitle("TLS", appColors)
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Checkbox(
+            checked = insecureSkipTlsVerification,
+            onCheckedChange = onInsecureSkipTlsVerificationChanged,
+        )
+        Text("Skip TLS certificate verification", color = appColors.primaryText, fontSize = 12.sp)
+    }
+    OutlinedTextField(
+        value = customCertificatePath,
+        onValueChange = onCustomCertificatePathChanged,
+        enabled = !insecureSkipTlsVerification,
+        label = { Text("Trusted certificate or CA file") },
+        singleLine = true,
+        textStyle = MaterialTheme.typography.bodySmall,
+        modifier = Modifier.fillMaxWidth(),
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+        keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Next) }),
+        colors = textFieldColors,
+    )
+    SettingsSectionTitle("mTLS", appColors)
+    OutlinedTextField(
+        value = clientCertificateKeyStorePath,
+        onValueChange = onClientCertificateKeyStorePathChanged,
+        label = { Text("Client certificate PKCS12 file") },
+        singleLine = true,
+        textStyle = MaterialTheme.typography.bodySmall,
+        modifier = Modifier.fillMaxWidth(),
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+        keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Next) }),
+        colors = textFieldColors,
+    )
+    OutlinedTextField(
+        value = clientCertificateKeyStorePassword,
+        onValueChange = onClientCertificateKeyStorePasswordChanged,
+        label = { Text("Client certificate password") },
+        singleLine = true,
+        visualTransformation = PasswordVisualTransformation(),
+        textStyle = MaterialTheme.typography.bodySmall,
+        modifier = Modifier.fillMaxWidth(),
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+        keyboardActions = KeyboardActions(onDone = { onConnect() }),
+        colors = textFieldColors,
+    )
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -369,9 +485,27 @@ private fun ConnectionsSettings(
         ) {
             Text(if (isConnecting) "Connecting" else "Save and connect", fontSize = 12.sp)
         }
+        TextButton(
+            enabled = !isConnecting,
+            onClick = onCancelConnectionForm,
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+            modifier = Modifier.height(30.dp),
+        ) {
+            Text("Cancel", fontSize = 12.sp)
+        }
         connectionStatus?.let {
             Text(it, color = appColors.secondaryText, fontSize = 12.sp)
         }
+    }
+    connectionPendingDelete?.let { connection ->
+        DeleteConnectionDialog(
+            connection = connection,
+            onDismiss = { connectionPendingDelete = null },
+            onConfirm = {
+                connectionPendingDelete = null
+                onDeleteConnection(connection)
+            },
+        )
     }
 }
 
@@ -382,6 +516,7 @@ private fun SavedConnectionRow(
     selected: Boolean,
     enabled: Boolean,
     onEdit: () -> Unit,
+    onDelete: () -> Unit,
     onConnect: () -> Unit,
 ) {
     Row(
@@ -414,14 +549,20 @@ private fun SavedConnectionRow(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        TextButton(
+        ConnectionActionIconButton(
             enabled = enabled,
             onClick = onEdit,
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-            modifier = Modifier.height(28.dp),
-        ) {
-            Text("Edit", fontSize = 12.sp)
-        }
+            icon = NavigationIcons.Edit,
+            contentDescription = "Edit connection",
+            appColors = appColors,
+        )
+        ConnectionActionIconButton(
+            enabled = enabled,
+            onClick = onDelete,
+            icon = NavigationIcons.Trash,
+            contentDescription = "Delete connection",
+            appColors = appColors,
+        )
         Button(
             enabled = enabled,
             onClick = onConnect,
@@ -431,6 +572,51 @@ private fun SavedConnectionRow(
             Text(if (selected) "Reconnect" else "Connect", fontSize = 12.sp)
         }
     }
+}
+
+@Composable
+private fun ConnectionActionIconButton(
+    enabled: Boolean,
+    onClick: () -> Unit,
+    icon: ImageVector,
+    contentDescription: String,
+    appColors: AppColors,
+) {
+    IconButton(
+        enabled = enabled,
+        onClick = onClick,
+        modifier = Modifier.height(28.dp).width(28.dp),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = if (enabled) appColors.primaryText else appColors.mutedText,
+            modifier = Modifier.height(17.dp).width(17.dp),
+        )
+    }
+}
+
+@Composable
+private fun DeleteConnectionDialog(
+    connection: SavedMediaSource,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Delete Connection") },
+        text = { Text("Delete ${connection.displayName}? This removes the saved server entry.") },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("Delete")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+    )
 }
 
 @Composable

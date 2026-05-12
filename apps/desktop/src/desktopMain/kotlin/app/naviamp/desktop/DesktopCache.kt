@@ -21,6 +21,7 @@ import app.naviamp.domain.TrackId
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.provider.navidrome.NavidromeConnection
+import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -139,6 +140,10 @@ class DesktopCache(
 
     fun mediaSource(sourceId: String): SavedMediaSource? =
         queries.selectMediaSourceById(sourceId).executeAsOneOrNull()?.toSavedMediaSource()
+
+    fun deleteMediaSource(sourceId: String) {
+        queries.deleteMediaSource(sourceId)
+    }
 
     fun updateAudioCacheLimit(maxBytes: Long) {
         maxAudioCacheBytes = maxBytes.coerceAtLeast(0)
@@ -536,11 +541,15 @@ class DesktopCache(
             id = id,
             provider_id = provider.id.value,
             cache_namespace = provider.cacheNamespace,
-            display_name = provider.displayName,
+            display_name = connection.resolvedDisplayName(),
             base_url = connection.baseUrl,
             username = connection.username,
             token = connection.token,
             salt = connection.salt,
+            insecure_skip_tls_verification = if (connection.tlsSettings.insecureSkipTlsVerification) 1 else 0,
+            custom_certificate_path = connection.tlsSettings.customCertificatePath?.takeIf { it.isNotBlank() },
+            client_certificate_keystore_path = connection.tlsSettings.clientCertificateKeyStorePath?.takeIf { it.isNotBlank() },
+            client_certificate_keystore_password = connection.tlsSettings.clientCertificateKeyStorePassword,
             created_at_epoch_millis = existing?.created_at_epoch_millis ?: now,
             last_connected_at_epoch_millis = now,
             last_sync_started_at_epoch_millis = existing?.last_sync_started_at_epoch_millis,
@@ -550,11 +559,15 @@ class DesktopCache(
             id = id,
             providerId = provider.id.value,
             cacheNamespace = provider.cacheNamespace,
-            displayName = provider.displayName,
+            displayName = connection.resolvedDisplayName(),
             baseUrl = connection.baseUrl,
             username = connection.username,
             token = connection.token,
             salt = connection.salt,
+            insecureSkipTlsVerification = connection.tlsSettings.insecureSkipTlsVerification,
+            customCertificatePath = connection.tlsSettings.customCertificatePath,
+            clientCertificateKeyStorePath = connection.tlsSettings.clientCertificateKeyStorePath,
+            clientCertificateKeyStorePassword = connection.tlsSettings.clientCertificateKeyStorePassword,
             createdAtEpochMillis = existing?.created_at_epoch_millis ?: now,
             lastConnectedAtEpochMillis = now,
             lastSyncStartedAtEpochMillis = existing?.last_sync_started_at_epoch_millis,
@@ -1034,6 +1047,10 @@ data class SavedMediaSource(
     val username: String,
     val token: String,
     val salt: String,
+    val insecureSkipTlsVerification: Boolean = false,
+    val customCertificatePath: String? = null,
+    val clientCertificateKeyStorePath: String? = null,
+    val clientCertificateKeyStorePassword: String? = null,
     val createdAtEpochMillis: Long,
     val lastConnectedAtEpochMillis: Long?,
     val lastSyncStartedAtEpochMillis: Long?,
@@ -1045,6 +1062,13 @@ data class SavedMediaSource(
             username = username,
             token = token,
             salt = salt,
+            displayName = displayName,
+            tlsSettings = NavidromeTlsSettings(
+                insecureSkipTlsVerification = insecureSkipTlsVerification,
+                customCertificatePath = customCertificatePath,
+                clientCertificateKeyStorePath = clientCertificateKeyStorePath,
+                clientCertificateKeyStorePassword = clientCertificateKeyStorePassword,
+            ),
         )
 }
 
@@ -1053,16 +1077,23 @@ private fun app.naviamp.desktop.cache.Media_source.toSavedMediaSource(): SavedMe
         id = id,
         providerId = provider_id,
         cacheNamespace = cache_namespace,
-        displayName = display_name,
+        displayName = display_name.takeUnless { it == "Navidrome" } ?: base_url,
         baseUrl = base_url,
         username = username,
         token = token,
         salt = salt,
+        insecureSkipTlsVerification = insecure_skip_tls_verification != 0L,
+        customCertificatePath = custom_certificate_path,
+        clientCertificateKeyStorePath = client_certificate_keystore_path,
+        clientCertificateKeyStorePassword = client_certificate_keystore_password,
         createdAtEpochMillis = created_at_epoch_millis,
         lastConnectedAtEpochMillis = last_connected_at_epoch_millis,
         lastSyncStartedAtEpochMillis = last_sync_started_at_epoch_millis,
         lastSyncCompletedAtEpochMillis = last_sync_completed_at_epoch_millis,
     )
+
+private fun NavidromeConnection.resolvedDisplayName(): String =
+    displayName?.trim()?.takeIf { it.isNotEmpty() } ?: normalizedBaseUrl
 
 data class LibrarySnapshot(
     val artists: List<Artist> = emptyList(),
@@ -1165,6 +1196,10 @@ private fun ensureCurrentTables(driver: JdbcSqliteDriver) {
           username TEXT NOT NULL,
           token TEXT NOT NULL,
           salt TEXT NOT NULL,
+          insecure_skip_tls_verification INTEGER NOT NULL DEFAULT 0,
+          custom_certificate_path TEXT,
+          client_certificate_keystore_path TEXT,
+          client_certificate_keystore_password TEXT,
           created_at_epoch_millis INTEGER NOT NULL,
           last_connected_at_epoch_millis INTEGER,
           last_sync_started_at_epoch_millis INTEGER,
@@ -1173,6 +1208,22 @@ private fun ensureCurrentTables(driver: JdbcSqliteDriver) {
         """.trimIndent(),
         0,
     )
+    runCatching {
+        driver.execute(
+            null,
+            "ALTER TABLE media_source ADD COLUMN insecure_skip_tls_verification INTEGER NOT NULL DEFAULT 0",
+            0,
+        )
+    }
+    runCatching {
+        driver.execute(null, "ALTER TABLE media_source ADD COLUMN custom_certificate_path TEXT", 0)
+    }
+    runCatching {
+        driver.execute(null, "ALTER TABLE media_source ADD COLUMN client_certificate_keystore_path TEXT", 0)
+    }
+    runCatching {
+        driver.execute(null, "ALTER TABLE media_source ADD COLUMN client_certificate_keystore_password TEXT", 0)
+    }
     driver.execute(
         null,
         """

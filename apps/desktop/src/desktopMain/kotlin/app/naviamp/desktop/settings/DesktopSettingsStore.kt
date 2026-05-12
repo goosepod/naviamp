@@ -7,6 +7,7 @@ import app.naviamp.domain.AudioInfo
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.provider.navidrome.NavidromeConnection
+import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -36,6 +37,11 @@ class DesktopSettingsStore(
                     username = connection.username,
                     token = connection.token,
                     salt = connection.salt,
+                    displayName = connection.displayName,
+                    insecureSkipTlsVerification = connection.tlsSettings.insecureSkipTlsVerification,
+                    customCertificatePath = connection.tlsSettings.customCertificatePath,
+                    clientCertificateKeyStorePath = connection.tlsSettings.clientCertificateKeyStorePath,
+                    clientCertificateKeyStorePassword = connection.tlsSettings.clientCertificateKeyStorePassword,
                 ),
             ),
         )
@@ -276,6 +282,11 @@ data class SavedConnection(
     val username: String,
     val token: String,
     val salt: String,
+    val displayName: String? = null,
+    val insecureSkipTlsVerification: Boolean = false,
+    val customCertificatePath: String? = null,
+    val clientCertificateKeyStorePath: String? = null,
+    val clientCertificateKeyStorePassword: String? = null,
 ) {
     fun toConnection(): NavidromeConnection =
         NavidromeConnection(
@@ -283,6 +294,13 @@ data class SavedConnection(
             username = username,
             token = token,
             salt = salt,
+            displayName = displayName,
+            tlsSettings = NavidromeTlsSettings(
+                insecureSkipTlsVerification = insecureSkipTlsVerification,
+                customCertificatePath = customCertificatePath,
+                clientCertificateKeyStorePath = clientCertificateKeyStorePath,
+                clientCertificateKeyStorePassword = clientCertificateKeyStorePassword,
+            ),
         )
 }
 

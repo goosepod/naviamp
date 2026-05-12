@@ -35,14 +35,25 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import java.net.URI
 import java.net.URLEncoder
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
+import java.net.HttpURLConnection
 import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.nio.file.Path
+import java.security.KeyStore
+import java.security.SecureRandom
+import java.security.cert.CertificateFactory
+import javax.net.ssl.HostnameVerifier
+import javax.net.ssl.HttpsURLConnection
+import javax.net.ssl.KeyManager
+import javax.net.ssl.KeyManagerFactory
+import javax.net.ssl.SSLContext
+import javax.net.ssl.TrustManager
+import javax.net.ssl.TrustManagerFactory
+import javax.net.ssl.X509TrustManager
 
 class NavidromeProvider(
     private val connection: NavidromeConnection,
-    private val httpClient: NavidromeHttpClient = JavaNavidromeHttpClient(),
+    private val httpClient: NavidromeHttpClient = JavaNavidromeHttpClient(connection.tlsSettings),
 ) : MediaProvider {
     override val id: ProviderId = ProviderId("navidrome")
     override val displayName: String = "Navidrome"
@@ -656,22 +667,27 @@ object NavidromeApiCallHistory {
 }
 
 class JavaNavidromeHttpClient : NavidromeHttpClient {
-    private val client = HttpClient.newHttpClient()
+    constructor() : this(NavidromeTlsSettings())
+
+    constructor(tlsSettings: NavidromeTlsSettings) {
+        NavidromeTls.applyJvmDefaults(tlsSettings)
+    }
 
     override suspend fun get(url: String): String =
         withContext(Dispatchers.IO) {
             val startedAt = System.currentTimeMillis()
-            val request = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .GET()
-                .build()
 
             try {
-                val response = client.send(request, HttpResponse.BodyHandlers.ofString())
-                if (response.statusCode() !in 200..299) {
-                    throw NavidromeException("Navidrome returned HTTP ${response.statusCode()}.")
+                val connection = URI.create(url).toURL().openConnection() as HttpURLConnection
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 15_000
+                connection.readTimeout = 30_000
+                if (connection.responseCode !in 200..299) {
+                    throw NavidromeException("Navidrome returned HTTP ${connection.responseCode}.")
                 }
-                response.body().also {
+                connection.inputStream.bufferedReader(StandardCharsets.UTF_8).use { reader ->
+                    reader.readText()
+                }.also {
                     recordApiCall(
                         url = url,
                         startedAt = startedAt,
@@ -706,6 +722,82 @@ class JavaNavidromeHttpClient : NavidromeHttpClient {
                 errorMessage = errorMessage,
             ),
         )
+    }
+}
+
+object NavidromeTls {
+    private val platformSslContext: SSLContext = SSLContext.getDefault()
+    private val platformHostnameVerifier: HostnameVerifier = HttpsURLConnection.getDefaultHostnameVerifier()
+
+    fun applyJvmDefaults(tlsSettings: NavidromeTlsSettings) {
+        if (tlsSettings == NavidromeTlsSettings()) {
+            SSLContext.setDefault(platformSslContext)
+            HttpsURLConnection.setDefaultSSLSocketFactory(platformSslContext.socketFactory)
+            HttpsURLConnection.setDefaultHostnameVerifier(platformHostnameVerifier)
+            return
+        }
+
+        val sslContext = createSslContext(tlsSettings)
+        SSLContext.setDefault(sslContext)
+        HttpsURLConnection.setDefaultSSLSocketFactory(sslContext.socketFactory)
+        HttpsURLConnection.setDefaultHostnameVerifier(
+            if (tlsSettings.insecureSkipTlsVerification) {
+                HostnameVerifier { _, _ -> true }
+            } else {
+                platformHostnameVerifier
+            },
+        )
+    }
+
+    fun createSslContext(tlsSettings: NavidromeTlsSettings): SSLContext {
+        val context = SSLContext.getInstance("TLS")
+        context.init(
+            tlsSettings.keyManagers(),
+            tlsSettings.trustManagers(),
+            SecureRandom(),
+        )
+        return context
+    }
+
+    private fun NavidromeTlsSettings.trustManagers(): Array<TrustManager>? =
+        when {
+            insecureSkipTlsVerification -> arrayOf(TrustAllCertificates)
+            hasCustomCertificate -> {
+                val keyStore = KeyStore.getInstance(KeyStore.getDefaultType()).apply {
+                    load(null, null)
+                    Files.newInputStream(Path.of(customCertificatePath!!)).use { input ->
+                        val certificates = CertificateFactory.getInstance("X.509").generateCertificates(input)
+                        certificates.forEachIndexed { index, certificate ->
+                            setCertificateEntry("naviamp-custom-$index", certificate)
+                        }
+                    }
+                }
+                TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm()).run {
+                    init(keyStore)
+                    trustManagers
+                }
+            }
+            else -> null
+        }
+
+    private fun NavidromeTlsSettings.keyManagers(): Array<KeyManager>? {
+        if (!hasClientCertificate) return null
+        val password = clientCertificateKeyStorePassword.orEmpty().toCharArray()
+        val keyStore = KeyStore.getInstance("PKCS12").apply {
+            Files.newInputStream(Path.of(clientCertificateKeyStorePath!!)).use { input ->
+                load(input, password)
+            }
+        }
+        return KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm()).run {
+            init(keyStore, password)
+            keyManagers
+        }
+    }
+
+    private object TrustAllCertificates : X509TrustManager {
+        override fun checkClientTrusted(chain: Array<java.security.cert.X509Certificate>, authType: String) = Unit
+        override fun checkServerTrusted(chain: Array<java.security.cert.X509Certificate>, authType: String) = Unit
+        override fun getAcceptedIssuers(): Array<java.security.cert.X509Certificate> = emptyArray()
     }
 }
 

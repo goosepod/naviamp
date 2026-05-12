@@ -24,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -72,6 +73,8 @@ import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.provider.navidrome.NavidromeApiCallHistory
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
+import app.naviamp.provider.navidrome.NavidromeTls
+import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -183,9 +186,24 @@ fun NaviampApp(
     val restoredTracks = remember(savedPlaybackSession) { savedPlaybackSession?.toTracks().orEmpty() }
     val restoredTrack = remember(savedPlaybackSession) { savedPlaybackSession?.currentTrack() }
     var serverUrl by remember { mutableStateOf(savedConnection?.baseUrl.orEmpty()) }
+    var connectionName by remember { mutableStateOf(savedConnection?.displayName.orEmpty()) }
     var username by remember { mutableStateOf(savedConnection?.username.orEmpty()) }
     var password by remember { mutableStateOf("") }
+    var insecureSkipTlsVerification by remember {
+        mutableStateOf(savedConnection?.tlsSettings?.insecureSkipTlsVerification ?: false)
+    }
+    var customCertificatePath by remember {
+        mutableStateOf(savedConnection?.tlsSettings?.customCertificatePath.orEmpty())
+    }
+    var clientCertificateKeyStorePath by remember {
+        mutableStateOf(savedConnection?.tlsSettings?.clientCertificateKeyStorePath.orEmpty())
+    }
+    var clientCertificateKeyStorePassword by remember {
+        mutableStateOf(savedConnection?.tlsSettings?.clientCertificateKeyStorePassword.orEmpty())
+    }
     var savedConnectionForLogin by remember { mutableStateOf(savedConnection) }
+    var isConnectionFormOpen by remember { mutableStateOf(false) }
+    var mediaSourcesRevision by remember { mutableIntStateOf(0) }
     var isConnecting by remember { mutableStateOf(false) }
     var connectionStatus by remember { mutableStateOf<String?>(null) }
     var connectedProvider by remember { mutableStateOf<NavidromeProvider?>(null) }
@@ -737,6 +755,18 @@ fun NaviampApp(
         }
     }
 
+    fun connectionTlsSettings(): NavidromeTlsSettings =
+        NavidromeTlsSettings(
+            insecureSkipTlsVerification = insecureSkipTlsVerification,
+            customCertificatePath = customCertificatePath.trim().takeIf { !insecureSkipTlsVerification && it.isNotEmpty() },
+            clientCertificateKeyStorePath = clientCertificateKeyStorePath.trim().takeIf { it.isNotEmpty() },
+            clientCertificateKeyStorePassword = clientCertificateKeyStorePassword
+                .takeIf { clientCertificateKeyStorePath.trim().isNotEmpty() },
+        )
+
+    fun resolvedConnectionDisplayName(): String =
+        connectionName.trim().takeIf { it.isNotEmpty() } ?: serverUrl.trim().trimEnd('/')
+
     fun connectToServer(restoreSavedSession: Boolean = false) {
         if (isConnecting) return
         if (serverUrl.isBlank() || username.isBlank()) {
@@ -768,13 +798,21 @@ fun NaviampApp(
 
         coroutineScope.launch {
             try {
-                val connection = savedConnectionForLogin
-                    ?.takeIf { it.baseUrl == serverUrl && it.username == username && password.isBlank() }
-                    ?: NavidromeConnection.fromPassword(
-                        baseUrl = serverUrl,
-                        username = username,
-                        password = password,
-                    )
+                val tlsSettings = connectionTlsSettings()
+                val reusableCredentials = savedConnectionForLogin?.takeIf {
+                    it.baseUrl == serverUrl && it.username == username && password.isBlank()
+                }
+                val connection = reusableCredentials?.copy(
+                    displayName = resolvedConnectionDisplayName(),
+                    tlsSettings = tlsSettings,
+                ) ?: NavidromeConnection.fromPassword(
+                    baseUrl = serverUrl,
+                    username = username,
+                    password = password,
+                    displayName = resolvedConnectionDisplayName(),
+                    tlsSettings = tlsSettings,
+                )
+                NavidromeTls.applyJvmDefaults(connection.tlsSettings)
                 val provider = NavidromeProvider(connection)
                 val validation = provider.validateConnection()
                 if (!restoreSavedSession) {
@@ -782,6 +820,7 @@ fun NaviampApp(
                 }
                 connectedProvider = provider
                 connectedSourceId = sessionCache.upsertNavidromeSource(connection, provider).id
+                mediaSourcesRevision++
                 if (restoreSavedSession && savedPlaybackSession != null) {
                     val tracks = savedPlaybackSession.toTracks()
                     val currentTrack = savedPlaybackSession.currentTrack()
@@ -802,6 +841,7 @@ fun NaviampApp(
                 settingsStore.clearConnection()
                 savedConnectionForLogin = connection
                 password = ""
+                isConnectionFormOpen = false
                 if (appRoute == AppRoute.Settings) {
                     appRoute = AppRoute.Home
                 }
@@ -1351,6 +1391,7 @@ fun NaviampApp(
         sessionCache.clearAll()
         settingsStore.clearConnection()
         savedConnectionForLogin = null
+        mediaSourcesRevision++
         connectedProvider = null
         connectedSourceId = null
         stopRadioContinuation()
@@ -1368,6 +1409,35 @@ fun NaviampApp(
         settingsStore.savePlaybackSession(null)
         connectionStatus = "Database reset. Saved servers were removed."
         appRoute = AppRoute.Settings
+    }
+
+    fun deleteConnection(source: SavedMediaSource) {
+        sessionCache.deleteMediaSource(source.id)
+        mediaSourcesRevision++
+
+        if (connectedSourceId == source.id) {
+            connectedProvider = null
+            connectedSourceId = null
+            stopRadioContinuation()
+            librarySnapshot = LibrarySnapshot()
+            libraryStatus = null
+            homeContent = HomeContent()
+            homeStatus = null
+            playlistEngine.clear()
+            playbackEngine.stop()
+            nowPlayingTrack = null
+            nowPlayingCoverArtUrl = null
+            playbackState = PlaybackState.Idle
+            playbackProgress = PlaybackProgress.Unknown
+            playbackQueue = PlaybackQueue()
+            settingsStore.savePlaybackSession(null)
+        }
+
+        if (savedConnectionForLogin?.baseUrl == source.baseUrl && savedConnectionForLogin?.username == source.username) {
+            savedConnectionForLogin = null
+        }
+        isConnectionFormOpen = false
+        connectionStatus = "Deleted ${source.displayName}."
     }
 
     fun openArtistDetails(artist: Artist, backRouteOverride: AppRoute? = null) {
@@ -1473,7 +1543,7 @@ fun NaviampApp(
     }
 
     val statsMediaSource = connectedSourceId?.let { sessionCache.mediaSource(it) } ?: sessionCache.latestMediaSource()
-    val savedMediaSources = sessionCache.mediaSources()
+    val savedMediaSources = mediaSourcesRevision.let { sessionCache.mediaSources() }
     val streamQuality = playbackEngine.streamQuality()
     val currentAudioCacheMetadata = connectedSourceId
         ?.let { sourceId ->
@@ -1869,11 +1939,17 @@ fun NaviampApp(
                                     AppRoute.Settings -> SettingsPanel(
                                         appColors = appColors,
                                         serverUrl = serverUrl,
+                                        connectionName = connectionName,
                                         username = username,
                                         password = password,
+                                        insecureSkipTlsVerification = insecureSkipTlsVerification,
+                                        customCertificatePath = customCertificatePath,
+                                        clientCertificateKeyStorePath = clientCertificateKeyStorePath,
+                                        clientCertificateKeyStorePassword = clientCertificateKeyStorePassword,
                                         savedConnections = savedMediaSources,
                                         currentSourceId = connectedSourceId,
                                         hasSavedConnection = savedConnectionForLogin != null,
+                                        isConnectionFormOpen = isConnectionFormOpen,
                                         isConnecting = isConnecting,
                                         connectionStatus = connectionStatus,
                                         playbackSettings = playbackSettings,
@@ -1887,6 +1963,7 @@ fun NaviampApp(
                                                 savedConnectionForLogin = null
                                             }
                                         },
+                                        onConnectionNameChanged = { connectionName = it },
                                         onUsernameChanged = {
                                             username = it
                                             if (savedConnectionForLogin?.username != it) {
@@ -1894,28 +1971,70 @@ fun NaviampApp(
                                             }
                                         },
                                         onPasswordChanged = { password = it },
+                                        onInsecureSkipTlsVerificationChanged = {
+                                            insecureSkipTlsVerification = it
+                                        },
+                                        onCustomCertificatePathChanged = {
+                                            customCertificatePath = it
+                                        },
+                                        onClientCertificateKeyStorePathChanged = {
+                                            clientCertificateKeyStorePath = it
+                                        },
+                                        onClientCertificateKeyStorePasswordChanged = {
+                                            clientCertificateKeyStorePassword = it
+                                        },
                                         onConnect = { connectToServer() },
                                         onNewConnection = {
                                             savedConnectionForLogin = null
+                                            isConnectionFormOpen = true
                                             serverUrl = ""
+                                            connectionName = ""
                                             username = ""
                                             password = ""
+                                            insecureSkipTlsVerification = false
+                                            customCertificatePath = ""
+                                            clientCertificateKeyStorePath = ""
+                                            clientCertificateKeyStorePassword = ""
                                             connectionStatus = null
                                         },
                                         onEditConnection = { source ->
-                                            savedConnectionForLogin = source.toNavidromeConnection()
-                                            serverUrl = source.baseUrl
-                                            username = source.username
+                                            val connection = source.toNavidromeConnection()
+                                            savedConnectionForLogin = connection
+                                            isConnectionFormOpen = true
+                                            serverUrl = connection.baseUrl
+                                            connectionName = connection.displayName
+                                                ?.takeUnless { it == connection.normalizedBaseUrl }
+                                                .orEmpty()
+                                            username = connection.username
                                             password = ""
+                                            insecureSkipTlsVerification = connection.tlsSettings.insecureSkipTlsVerification
+                                            customCertificatePath = connection.tlsSettings.customCertificatePath.orEmpty()
+                                            clientCertificateKeyStorePath =
+                                                connection.tlsSettings.clientCertificateKeyStorePath.orEmpty()
+                                            clientCertificateKeyStorePassword =
+                                                connection.tlsSettings.clientCertificateKeyStorePassword.orEmpty()
                                             connectionStatus = "Editing saved connection. Leave password blank to reuse it."
                                         },
                                         onConnectSavedConnection = { source ->
-                                            savedConnectionForLogin = source.toNavidromeConnection()
-                                            serverUrl = source.baseUrl
-                                            username = source.username
+                                            val connection = source.toNavidromeConnection()
+                                            savedConnectionForLogin = connection
+                                            isConnectionFormOpen = false
+                                            serverUrl = connection.baseUrl
+                                            connectionName = connection.displayName
+                                                ?.takeUnless { it == connection.normalizedBaseUrl }
+                                                .orEmpty()
+                                            username = connection.username
                                             password = ""
+                                            insecureSkipTlsVerification = connection.tlsSettings.insecureSkipTlsVerification
+                                            customCertificatePath = connection.tlsSettings.customCertificatePath.orEmpty()
+                                            clientCertificateKeyStorePath =
+                                                connection.tlsSettings.clientCertificateKeyStorePath.orEmpty()
+                                            clientCertificateKeyStorePassword =
+                                                connection.tlsSettings.clientCertificateKeyStorePassword.orEmpty()
                                             connectToServer()
                                         },
+                                        onDeleteConnection = { source -> deleteConnection(source) },
+                                        onCancelConnectionForm = { isConnectionFormOpen = false },
                                         onPlaybackSettingsChanged = { settings ->
                                             playbackSettings = settings.forEngine(playbackEngine)
                                             settingsStore.savePlaybackSettings(playbackSettings)

@@ -8,6 +8,8 @@ data class NavidromeConnection(
     val username: String,
     val token: String,
     val salt: String,
+    val displayName: String? = null,
+    val tlsSettings: NavidromeTlsSettings = NavidromeTlsSettings(),
 ) {
     val normalizedBaseUrl: String =
         baseUrl.trim().trimEnd('/')
@@ -18,12 +20,16 @@ data class NavidromeConnection(
             username: String,
             password: String,
             salt: String = randomSalt(),
+            displayName: String? = null,
+            tlsSettings: NavidromeTlsSettings = NavidromeTlsSettings(),
         ): NavidromeConnection =
             NavidromeConnection(
                 baseUrl = baseUrl,
                 username = username,
                 token = md5(password + salt),
                 salt = salt,
+                displayName = displayName,
+                tlsSettings = tlsSettings,
             )
 
         private fun randomSalt(): String =
@@ -38,4 +44,17 @@ data class NavidromeConnection(
             }
         }
     }
+}
+
+data class NavidromeTlsSettings(
+    val insecureSkipTlsVerification: Boolean = false,
+    val customCertificatePath: String? = null,
+    val clientCertificateKeyStorePath: String? = null,
+    val clientCertificateKeyStorePassword: String? = null,
+) {
+    val hasCustomCertificate: Boolean
+        get() = !customCertificatePath.isNullOrBlank()
+
+    val hasClientCertificate: Boolean
+        get() = !clientCertificateKeyStorePath.isNullOrBlank()
 }
