@@ -87,7 +87,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - The player volume control is a custom line control with no percent label.
   - The old `Gapless / No crossfade` capability label is removed from the player screen.
   - The collapse arrow is centered in the bottom action row, with a dedicated current-track radio icon on the left and a current-track overflow menu on the right.
-  - The current overflow menu includes Start track radio, Track details, Go to artist, and Go to album. Lyrics, visualizer, and playlist actions can extend this menu later.
+  - The current overflow menu includes Start track radio, Track details, Go to artist, and Go to album. Playlist actions can extend this menu later.
   - Track details opens a modal with song metadata, provider IDs, favorite/rating state, audio codec/bitrate/sample/depth/content type, and replay-gain fields when available.
   - Track details also reads embedded tags from the cached audio file when available. Common tags are ordered first (`Title`, `Artist`, `Album Artist`, `Album`, track/disc/date/genre/etc.), and extra tags are shown alphabetically below them.
   - Embedded tag parsing currently covers ID3v2 text/comment frames for MP3-like files and FLAC Vorbis comments. Add MP4/M4A atom parsing later if needed.
@@ -101,7 +101,8 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
     - Seek handling updates playback progress immediately and ignores short-lived stale mpv progress after a deliberate seek so scrub bar and lyric state can jump backward cleanly.
   - Starting track radio from the player screen does not restart the current track; it preserves playback and replaces the upcoming queue with radio recommendations.
   - `UP NEXT` rows have the shared overflow menu treatment. The first action starts track radio from that queued song.
-  - The player hamburger menu includes lyrics toggle, track details, track radio, go to album, and go to artist. Visualizer and add-to-playlist are present as disabled placeholders until those flows exist.
+  - The player hamburger menu includes lyrics toggle, track details, track radio, go to album, and go to artist. Add-to-playlist is present as a disabled placeholder until that flow exists.
+  - The experimental visualizer was removed from the player because precomputed waveform/spectrum data did not feel like a real music-reactive surface. Bring visualizer support back only when the player can provide live PCM/FFT data.
   - Popup menus use a shared dark Feishin-inspired treatment through `NaviampDropdownMenu` / `NaviampDropdownMenuItem`.
   - The `RELATED` tab is active. It loads same-album and same-artist tracks from the local source-scoped library index, excluding the current track and deduplicating by provider track ID.
   - Related rows can start playback immediately from the related list, and their row menu can start track radio.
@@ -217,7 +218,12 @@ Top-of-mind work the user wants:
 - Broaden starring and favoriting controls beyond the player, including reusable row-level controls.
 - Continue refining the scrub bar.
 - Add a Plexamp/Feishin-style waveform scrubber backed by cached-track analysis, not a second live stream where possible.
-- Add a music visualization on the player screen, activated by clicking album art.
+- Revisit visualizer support in the experimental player instead of bolting it onto the current mpv IPC path.
+  - A true live spectrum analyzer needs live PCM/FFT data from the playback engine or platform audio APIs.
+  - Feishin's desktop visualizer uses WebAudio plus `audiomotion-analyzer`; for mpv/local playback it captures system audio with Chromium `getDisplayMedia` and feeds that live stream to WebAudio.
+  - Android has a native `android.media.audiofx.Visualizer` API, but it is Android-only and requires `RECORD_AUDIO`; evaluate it separately when the Android player exists.
+  - Current Compose waveform libraries mostly draw precomputed waveform/progress rather than live spectrum data, which overlaps with Naviamp's cached waveform path.
+  - Compose Media Player-style libraries may expose audio levels, but they are full playback stacks rather than a drop-in visualization layer for the existing mpv engine.
 - Continue refining lyrics support: add MP4/M4A embedded lyrics parsing, improve provider/cache controls, and consider a settings-controlled LRCLIB fallback.
   - For LRCLIB fallback, prefer pulling synced lyrics when the existing provider/embedded lyrics are missing or unsynced.
   - Investigate whether Navidrome can write synchronized lyrics back to files or sidecar metadata. If possible, consider an explicit user-controlled action to save LRCLIB lyrics back to the library.
@@ -265,9 +271,9 @@ Good next slices:
 - Waveform follow-up: add cache-hit/status reporting for waveform generation in Stats for nerds.
 - Waveform follow-up: consider queue-aware/background waveform analysis for likely-upcoming tracks after measuring CPU impact.
 - Queue actions follow-up: add per-row overflow menus in `UP NEXT`, starting with Start track radio.
-- Player actions follow-up: extend the current-track overflow menu with Track details, lyrics, visualizer, add-to-playlist, and provider-specific actions.
+- Player actions follow-up: extend the current-track overflow menu with Track details, lyrics, add-to-playlist, and provider-specific actions.
 - Related tab V1: define and populate provider-aware related content for the full player.
-- Visualizer V1: separate static waveform analysis from live frequency visualization. Live spectrum requires decoded PCM access and should be treated as a later player-engine/audio-pipeline task.
+- Visualizer follow-up: prototype a real live PCM/FFT path in the experimental player, then wire the player UI to that capability once it behaves well.
 - Crossfade follow-up: revisit `ExperimentalCrossfadeMpvPlaybackEngine` with cached local next files, explicit transition reset on seek/pause/skip/queue clear, and configurable fade curves inspired by Feishin's web player.
 - Broaden reusable row-level favorite/rating controls beyond the player.
 - Add Library genres and richer artist/album grouping.

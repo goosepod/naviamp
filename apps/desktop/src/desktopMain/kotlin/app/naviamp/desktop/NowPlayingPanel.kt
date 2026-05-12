@@ -792,11 +792,6 @@ private fun PlayerDetails(
                             },
                         )
                         NaviampDropdownMenuItem(
-                            label = "Show visualizer",
-                            enabled = false,
-                            onClick = { },
-                        )
-                        NaviampDropdownMenuItem(
                             label = "Add to playlist",
                             enabled = false,
                             onClick = { },
