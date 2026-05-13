@@ -31,6 +31,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
@@ -59,6 +60,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -97,7 +99,8 @@ data class NaviampNowPlayingActions(
     val onVolumeChanged: (Int) -> Unit = {},
     val onToggleLyrics: () -> Unit = {},
     val onTrackRadio: () -> Unit = {},
-    val onAddToPlaylist: () -> Unit = {},
+    val onAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit = {},
+    val onCreatePlaylistAndAdd: (String) -> Unit = {},
     val onDownloadTrack: () -> Unit = {},
     val onGoToAlbum: () -> Unit = {},
     val onGoToArtist: () -> Unit = {},
@@ -107,6 +110,10 @@ data class NaviampNowPlayingActions(
     val onQueueItemSelected: (NaviampNowPlayingItemUi) -> Unit = {},
     val onRelatedItemSelected: (NaviampNowPlayingItemUi) -> Unit = {},
     val onRadioStationSelected: (NaviampNowPlayingItemUi) -> Unit = {},
+    val onQueueItemRadio: (NaviampNowPlayingItemUi) -> Unit = {},
+    val onQueueItemAddToPlaylist: (NaviampNowPlayingItemUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
+    val onQueueItemCreatePlaylistAndAdd: (NaviampNowPlayingItemUi, String) -> Unit = { _, _ -> },
+    val onQueueItemDownload: (NaviampNowPlayingItemUi) -> Unit = {},
 )
 
 @Composable
@@ -252,6 +259,7 @@ private fun NowPlayingDetails(
 ) {
     var actionMenuExpanded by remember { mutableStateOf(false) }
     var trackDetailsOpen by remember { mutableStateOf(false) }
+    var playlistDialogOpen by remember { mutableStateOf<NaviampNowPlayingItemUi?>(null) }
     var scrubberValue by remember(nowPlaying.id) { mutableFloatStateOf(nowPlaying.progressFraction.toFloat()) }
     var isScrubbing by remember { mutableStateOf(false) }
     var volumeValue by remember { mutableFloatStateOf(nowPlaying.volumePercent.coerceIn(0, 100) / 100f) }
@@ -360,6 +368,7 @@ private fun NowPlayingDetails(
                     overflow = TextOverflow.Ellipsis,
                     textAlign = TextAlign.Center,
                     fontSize = 13.sp,
+                    modifier = Modifier.clickable(enabled = !nowPlaying.isLive, onClick = actions.onGoToArtist),
                 )
                 Text(
                     if (nowPlaying.isLive) "Live stream" else nowPlaying.albumLine.ifBlank { nowPlaying.stateLabel },
@@ -488,7 +497,14 @@ private fun NowPlayingDetails(
                     icon = NaviampIcons.Playlist,
                     contentDescription = "Add track to playlist",
                     colors = colors,
-                    onClick = actions.onAddToPlaylist,
+                    onClick = {
+                        playlistDialogOpen = NaviampNowPlayingItemUi(
+                            id = nowPlaying.id,
+                            title = nowPlaying.title,
+                            subtitle = nowPlaying.subtitle,
+                            coverArtUrl = nowPlaying.coverArtUrl,
+                        )
+                    },
                 )
             }
             IconButton(
@@ -517,80 +533,89 @@ private fun NowPlayingDetails(
                     selected = nowPlaying.lyricsVisible,
                     onClick = actions.onToggleLyrics,
                 )
-                NaviampTransportIconButton(
-                    enabled = nowPlaying.menuEnabled,
-                    icon = NaviampTransportIcons.Menu,
-                    contentDescription = "Track actions",
-                    colors = colors,
-                    onClick = { actionMenuExpanded = true },
-                )
-                NaviampDropdownMenu(
-                    expanded = actionMenuExpanded,
-                    onDismissRequest = { actionMenuExpanded = false },
-                ) {
-                    NaviampDropdownMenuItem(
-                        label = if (nowPlaying.lyricsVisible) "Hide lyrics" else "Show lyrics",
-                        icon = NaviampTransportIcons.Lyrics,
-                        enabled = nowPlaying.lyricsAvailable,
-                        onClick = {
-                            actionMenuExpanded = false
-                            actions.onToggleLyrics()
-                        },
+                Box(modifier = Modifier.size(34.dp), contentAlignment = Alignment.Center) {
+                    NaviampTransportIconButton(
+                        enabled = nowPlaying.menuEnabled,
+                        icon = NaviampTransportIcons.Menu,
+                        contentDescription = "Track actions",
+                        colors = colors,
+                        onClick = { actionMenuExpanded = true },
                     )
-                    NaviampDropdownMenuItem(
-                        label = "Download track",
-                        icon = NaviampIcons.Downloads,
-                        enabled = !nowPlaying.isLive,
-                        onClick = {
-                            actionMenuExpanded = false
-                            actions.onDownloadTrack()
-                        },
-                    )
-                    NaviampDropdownMenuItem(
-                        label = "Track details",
-                        icon = NaviampIcons.Info,
-                        enabled = nowPlaying.detailSections.isNotEmpty(),
-                        onClick = {
-                            actionMenuExpanded = false
-                            trackDetailsOpen = true
-                        },
-                    )
-                    NaviampDropdownMenuItem(
-                        label = "Start track radio",
-                        icon = NaviampTransportIcons.Radio,
-                        enabled = nowPlaying.canStartRadio,
-                        onClick = {
-                            actionMenuExpanded = false
-                            actions.onTrackRadio()
-                        },
-                    )
-                    NaviampDropdownMenuItem(
-                        label = "Go to album",
-                        icon = NaviampIcons.Album,
-                        enabled = !nowPlaying.isLive,
-                        onClick = {
-                            actionMenuExpanded = false
-                            actions.onGoToAlbum()
-                        },
-                    )
-                    NaviampDropdownMenuItem(
-                        label = "Go to artist",
-                        icon = NaviampIcons.Artist,
-                        enabled = !nowPlaying.isLive,
-                        onClick = {
-                            actionMenuExpanded = false
-                            actions.onGoToArtist()
-                        },
-                    )
-                    NaviampDropdownMenuItem(
-                        label = "Add to playlist",
-                        icon = NaviampIcons.Playlist,
-                        enabled = nowPlaying.canAddToPlaylist,
-                        onClick = {
-                            actionMenuExpanded = false
-                            actions.onAddToPlaylist()
-                        },
-                    )
+                    NaviampDropdownMenu(
+                        expanded = actionMenuExpanded,
+                        onDismissRequest = { actionMenuExpanded = false },
+                        offset = DpOffset(0.dp, 6.dp),
+                    ) {
+                        NaviampDropdownMenuItem(
+                            label = if (nowPlaying.lyricsVisible) "Hide lyrics" else "Show lyrics",
+                            icon = NaviampTransportIcons.Lyrics,
+                            enabled = nowPlaying.lyricsAvailable,
+                            onClick = {
+                                actionMenuExpanded = false
+                                actions.onToggleLyrics()
+                            },
+                        )
+                        NaviampDropdownMenuItem(
+                            label = "Download track",
+                            icon = NaviampIcons.Downloads,
+                            enabled = !nowPlaying.isLive,
+                            onClick = {
+                                actionMenuExpanded = false
+                                actions.onDownloadTrack()
+                            },
+                        )
+                        NaviampDropdownMenuItem(
+                            label = "Track details",
+                            icon = NaviampIcons.Info,
+                            enabled = nowPlaying.detailSections.isNotEmpty(),
+                            onClick = {
+                                actionMenuExpanded = false
+                                trackDetailsOpen = true
+                            },
+                        )
+                        NaviampDropdownMenuItem(
+                            label = "Start track radio",
+                            icon = NaviampTransportIcons.Radio,
+                            enabled = nowPlaying.canStartRadio,
+                            onClick = {
+                                actionMenuExpanded = false
+                                actions.onTrackRadio()
+                            },
+                        )
+                        NaviampDropdownMenuItem(
+                            label = "Go to album",
+                            icon = NaviampIcons.Album,
+                            enabled = !nowPlaying.isLive,
+                            onClick = {
+                                actionMenuExpanded = false
+                                actions.onGoToAlbum()
+                            },
+                        )
+                        NaviampDropdownMenuItem(
+                            label = "Go to artist",
+                            icon = NaviampIcons.Artist,
+                            enabled = !nowPlaying.isLive,
+                            onClick = {
+                                actionMenuExpanded = false
+                                actions.onGoToArtist()
+                            },
+                        )
+                        NaviampDropdownMenuItem(
+                            label = "Add to playlist",
+                            icon = NaviampIcons.Playlist,
+                            enabled = nowPlaying.canAddToPlaylist,
+                            onClick = {
+                                actionMenuExpanded = false
+                                playlistDialogOpen = null
+                                playlistDialogOpen = NaviampNowPlayingItemUi(
+                                    id = nowPlaying.id,
+                                    title = nowPlaying.title,
+                                    subtitle = nowPlaying.subtitle,
+                                    coverArtUrl = nowPlaying.coverArtUrl,
+                                )
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -601,6 +626,31 @@ private fun NowPlayingDetails(
             sections = nowPlaying.detailSections,
             colors = colors,
             onDismissRequest = { trackDetailsOpen = false },
+        )
+    }
+    playlistDialogOpen?.let { item ->
+        AddToPlaylistDialog(
+            title = item.title,
+            colors = colors,
+            playlists = nowPlaying.playlistChoices,
+            status = nowPlaying.playlistActionStatus,
+            onDismissRequest = { playlistDialogOpen = null },
+            onAddToExisting = { playlist ->
+                playlistDialogOpen = null
+                if (item.id == nowPlaying.id) {
+                    actions.onAddToPlaylist(playlist)
+                } else {
+                    actions.onQueueItemAddToPlaylist(item, playlist)
+                }
+            },
+            onCreateAndAdd = { name ->
+                playlistDialogOpen = null
+                if (item.id == nowPlaying.id) {
+                    actions.onCreatePlaylistAndAdd(name)
+                } else {
+                    actions.onQueueItemCreatePlaylistAndAdd(item, name)
+                }
+            },
         )
     }
 }
@@ -824,15 +874,24 @@ private fun NowPlayingSidePanel(
             return@Column
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            NowPlayingTabButton("BACK TO", selectedTab == NaviampNowPlayingTab.BackTo, colors) {
-                onTabSelected(NaviampNowPlayingTab.BackTo)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                NowPlayingTabButton("BACK TO", selectedTab == NaviampNowPlayingTab.BackTo, colors) {
+                    onTabSelected(NaviampNowPlayingTab.BackTo)
+                }
             }
-            NowPlayingTabButton("UP NEXT", selectedTab == NaviampNowPlayingTab.UpNext, colors) {
-                onTabSelected(NaviampNowPlayingTab.UpNext)
+            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                NowPlayingTabButton("UP NEXT", selectedTab == NaviampNowPlayingTab.UpNext, colors) {
+                    onTabSelected(NaviampNowPlayingTab.UpNext)
+                }
             }
-            NowPlayingTabButton("RELATED", selectedTab == NaviampNowPlayingTab.Related, colors) {
-                onTabSelected(NaviampNowPlayingTab.Related)
+            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+                NowPlayingTabButton("RELATED", selectedTab == NaviampNowPlayingTab.Related, colors) {
+                    onTabSelected(NaviampNowPlayingTab.Related)
+                }
             }
         }
 
@@ -853,7 +912,12 @@ private fun NowPlayingSidePanel(
                 NaviampNowPlayingTab.UpNext -> "Queue is empty."
                 NaviampNowPlayingTab.Related -> "Related tracks are not loaded."
             },
+            playlistChoices = nowPlaying.playlistChoices,
             onClick = onClick,
+            onRadio = actions.onQueueItemRadio,
+            onAddToPlaylist = actions.onQueueItemAddToPlaylist,
+            onCreatePlaylistAndAdd = actions.onQueueItemCreatePlaylistAndAdd,
+            onDownload = actions.onQueueItemDownload,
             modifier = Modifier.weight(if (showLyrics) 0.62f else 1f),
         )
         if (showLyrics) {
@@ -990,6 +1054,86 @@ private fun TrackDetailsDialog(
 }
 
 @Composable
+private fun AddToPlaylistDialog(
+    title: String,
+    colors: NaviampColors,
+    playlists: List<NaviampPlaylistChoiceUi>,
+    status: String?,
+    onDismissRequest: () -> Unit,
+    onAddToExisting: (NaviampPlaylistChoiceUi) -> Unit,
+    onCreateAndAdd: (String) -> Unit,
+) {
+    var createNew by remember(playlists) { mutableStateOf(playlists.isEmpty()) }
+    var playlistName by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        title = { Text("Add to playlist", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Add $title to a server playlist.", color = colors.secondaryText, fontSize = 12.sp)
+                status?.let { Text(it, color = colors.secondaryText, fontSize = 12.sp) }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    NowPlayingTabButton("EXISTING", !createNew, colors) { if (playlists.isNotEmpty()) createNew = false }
+                    NowPlayingTabButton("NEW", createNew, colors) { createNew = true }
+                }
+                if (createNew) {
+                    OutlinedTextField(
+                        value = playlistName,
+                        onValueChange = { playlistName = it },
+                        label = { Text("Playlist name") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                } else {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(220.dp),
+                    ) {
+                        items(playlists.sortedBy { it.name.lowercase() }, key = { it.id }) { playlist ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(5.dp))
+                                    .clickable { onAddToExisting(playlist) }
+                                    .padding(horizontal = 8.dp, vertical = 7.dp),
+                            ) {
+                                Icon(NaviampIcons.Playlist, contentDescription = null, tint = colors.secondaryText, modifier = Modifier.size(17.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(playlist.name, color = colors.primaryText, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    if (playlist.subtitle.isNotBlank()) {
+                                        Text(playlist.subtitle, color = colors.mutedText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            if (createNew) {
+                TextButton(
+                    enabled = playlistName.isNotBlank(),
+                    onClick = { onCreateAndAdd(playlistName.trim()) },
+                ) {
+                    Text("Create and add")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismissRequest) {
+                Text("Cancel")
+            }
+        },
+    )
+}
+
+@Composable
 private fun NowPlayingTabButton(label: String, selected: Boolean, colors: NaviampColors, onClick: () -> Unit) {
     Text(
         label,
@@ -1011,7 +1155,12 @@ private fun NowPlayingItemList(
     modifier: Modifier = Modifier,
     currentId: String? = null,
     emptyLabel: String = "Nothing here yet.",
+    playlistChoices: List<NaviampPlaylistChoiceUi> = emptyList(),
     onClick: (NaviampNowPlayingItemUi) -> Unit,
+    onRadio: (NaviampNowPlayingItemUi) -> Unit = {},
+    onAddToPlaylist: (NaviampNowPlayingItemUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
+    onCreatePlaylistAndAdd: (NaviampNowPlayingItemUi, String) -> Unit = { _, _ -> },
+    onDownload: (NaviampNowPlayingItemUi) -> Unit = {},
 ) {
     if (items.isEmpty()) {
         Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -1022,6 +1171,8 @@ private fun NowPlayingItemList(
     LazyColumn(verticalArrangement = Arrangement.spacedBy(5.dp), modifier = modifier.fillMaxWidth()) {
         items(items, key = { it.id }) { item ->
             val selected = item.id == currentId
+            var menuExpanded by remember { mutableStateOf(false) }
+            var playlistDialogOpen by remember { mutableStateOf(false) }
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1040,6 +1191,60 @@ private fun NowPlayingItemList(
                 if (item.meta.isNotBlank()) {
                     Text(item.meta, color = colors.mutedText, fontSize = 10.sp)
                 }
+                Box {
+                    IconButton(
+                        onClick = { menuExpanded = true },
+                        modifier = Modifier.size(28.dp),
+                    ) {
+                        Icon(NaviampTransportIcons.Menu, contentDescription = "Track actions", tint = colors.secondaryText, modifier = Modifier.size(17.dp))
+                    }
+                    NaviampDropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
+                    ) {
+                        NaviampDropdownMenuItem(
+                            label = "Start track radio",
+                            icon = NaviampTransportIcons.Radio,
+                            onClick = {
+                                menuExpanded = false
+                                onRadio(item)
+                            },
+                        )
+                        NaviampDropdownMenuItem(
+                            label = "Download track",
+                            icon = NaviampIcons.Downloads,
+                            onClick = {
+                                menuExpanded = false
+                                onDownload(item)
+                            },
+                        )
+                        NaviampDropdownMenuItem(
+                            label = "Add to playlist",
+                            icon = NaviampIcons.Playlist,
+                            onClick = {
+                                menuExpanded = false
+                                playlistDialogOpen = true
+                            },
+                        )
+                    }
+                }
+            }
+            if (playlistDialogOpen) {
+                AddToPlaylistDialog(
+                    title = item.title,
+                    colors = colors,
+                    playlists = playlistChoices,
+                    status = null,
+                    onDismissRequest = { playlistDialogOpen = false },
+                    onAddToExisting = { playlist ->
+                        playlistDialogOpen = false
+                        onAddToPlaylist(item, playlist)
+                    },
+                    onCreateAndAdd = { name ->
+                        playlistDialogOpen = false
+                        onCreatePlaylistAndAdd(item, name)
+                    },
+                )
             }
         }
     }

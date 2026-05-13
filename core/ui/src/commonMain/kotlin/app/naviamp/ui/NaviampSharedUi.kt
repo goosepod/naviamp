@@ -53,6 +53,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpOffset
 
 data class NaviampColors(
     val background: Color = Color(0xFF101114),
@@ -139,6 +140,11 @@ data class SharedAlbumDetailUi(
     val tracks: List<AndroidTrackRowUi>,
 )
 
+data class SharedArtistDetailUi(
+    val artist: SharedMediaItemUi,
+    val albums: List<SharedMediaItemUi>,
+)
+
 data class SharedHomeUi(
     val recentlyAddedAlbums: List<SharedMediaItemUi> = emptyList(),
     val mixAlbums: List<SharedMediaItemUi> = emptyList(),
@@ -198,6 +204,8 @@ data class NowPlayingUi(
     val lyricsLines: List<NaviampLyricLineUi> = emptyList(),
     val menuEnabled: Boolean = false,
     val detailSections: List<NaviampDetailSectionUi> = emptyList(),
+    val playlistChoices: List<NaviampPlaylistChoiceUi> = emptyList(),
+    val playlistActionStatus: String? = null,
     val backTo: List<NaviampNowPlayingItemUi> = emptyList(),
     val upNext: List<NaviampNowPlayingItemUi> = emptyList(),
     val related: List<NaviampNowPlayingItemUi> = emptyList(),
@@ -212,6 +220,12 @@ data class NaviampLyricLineUi(
 data class NaviampDetailSectionUi(
     val title: String,
     val rows: List<Pair<String, String>>,
+)
+
+data class NaviampPlaylistChoiceUi(
+    val id: String,
+    val name: String,
+    val subtitle: String = "",
 )
 
 enum class SharedRoute(val label: String, val icon: ImageVector) {
@@ -238,6 +252,7 @@ fun NaviampSharedAppShell(
     playlistItems: List<SharedMediaItemUi>,
     radioStationItems: List<SharedMediaItemUi>,
     albumDetail: SharedAlbumDetailUi?,
+    artistDetail: SharedArtistDetailUi?,
     nowPlaying: NowPlayingUi?,
     nowPlayingOpen: Boolean,
     selectedRoute: SharedRoute,
@@ -266,10 +281,15 @@ fun NaviampSharedAppShell(
     onCycleRepeatMode: () -> Unit = {},
     onToggleLyrics: () -> Unit = {},
     onTrackRadio: () -> Unit = {},
-    onAddToPlaylist: () -> Unit = {},
+    onAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit = {},
+    onCreatePlaylistAndAdd: (String) -> Unit = {},
     onDownloadTrack: () -> Unit = {},
     onGoToAlbum: () -> Unit = {},
     onGoToArtist: () -> Unit = {},
+    onQueueItemRadio: (NaviampNowPlayingItemUi) -> Unit = {},
+    onQueueItemAddToPlaylist: (NaviampNowPlayingItemUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
+    onQueueItemCreatePlaylistAndAdd: (NaviampNowPlayingItemUi, String) -> Unit = { _, _ -> },
+    onQueueItemDownload: (NaviampNowPlayingItemUi) -> Unit = {},
     onToggleFavorite: () -> Unit = {},
     onRatingSelected: (Int?) -> Unit = {},
 ) {
@@ -344,6 +364,7 @@ fun NaviampSharedAppShell(
                             playlistItems = playlistItems,
                             radioStationItems = radioStationItems,
                             albumDetail = albumDetail,
+                            artistDetail = artistDetail,
                             nowPlaying = nowPlaying,
                             nowPlayingOpen = nowPlayingOpen,
                             onEditConnection = onEditConnection,
@@ -368,9 +389,14 @@ fun NaviampSharedAppShell(
                             onToggleLyrics = onToggleLyrics,
                             onTrackRadio = onTrackRadio,
                             onAddToPlaylist = onAddToPlaylist,
+                            onCreatePlaylistAndAdd = onCreatePlaylistAndAdd,
                             onDownloadTrack = onDownloadTrack,
                             onGoToAlbum = onGoToAlbum,
                             onGoToArtist = onGoToArtist,
+                            onQueueItemRadio = onQueueItemRadio,
+                            onQueueItemAddToPlaylist = onQueueItemAddToPlaylist,
+                            onQueueItemCreatePlaylistAndAdd = onQueueItemCreatePlaylistAndAdd,
+                            onQueueItemDownload = onQueueItemDownload,
                             onToggleFavorite = onToggleFavorite,
                             onRatingSelected = onRatingSelected,
                         )
@@ -477,6 +503,7 @@ private fun ConnectedContent(
     playlistItems: List<SharedMediaItemUi>,
     radioStationItems: List<SharedMediaItemUi>,
     albumDetail: SharedAlbumDetailUi?,
+    artistDetail: SharedArtistDetailUi?,
     nowPlaying: NowPlayingUi?,
     nowPlayingOpen: Boolean,
     onEditConnection: () -> Unit,
@@ -500,10 +527,15 @@ private fun ConnectedContent(
     onCycleRepeatMode: () -> Unit,
     onToggleLyrics: () -> Unit,
     onTrackRadio: () -> Unit,
-    onAddToPlaylist: () -> Unit,
+    onAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit,
+    onCreatePlaylistAndAdd: (String) -> Unit,
     onDownloadTrack: () -> Unit,
     onGoToAlbum: () -> Unit,
     onGoToArtist: () -> Unit,
+    onQueueItemRadio: (NaviampNowPlayingItemUi) -> Unit,
+    onQueueItemAddToPlaylist: (NaviampNowPlayingItemUi, NaviampPlaylistChoiceUi?) -> Unit,
+    onQueueItemCreatePlaylistAndAdd: (NaviampNowPlayingItemUi, String) -> Unit,
+    onQueueItemDownload: (NaviampNowPlayingItemUi) -> Unit,
     onToggleFavorite: () -> Unit,
     onRatingSelected: (Int?) -> Unit,
 ) {
@@ -524,15 +556,21 @@ private fun ConnectedContent(
             onToggleLyrics = onToggleLyrics,
             onTrackRadio = onTrackRadio,
             onAddToPlaylist = onAddToPlaylist,
+            onCreatePlaylistAndAdd = onCreatePlaylistAndAdd,
             onDownloadTrack = onDownloadTrack,
             onGoToAlbum = onGoToAlbum,
             onGoToArtist = onGoToArtist,
+            onQueueItemRadio = onQueueItemRadio,
+            onQueueItemAddToPlaylist = onQueueItemAddToPlaylist,
+            onQueueItemCreatePlaylistAndAdd = onQueueItemCreatePlaylistAndAdd,
+            onQueueItemDownload = onQueueItemDownload,
             onToggleFavorite = onToggleFavorite,
             onRatingSelected = onRatingSelected,
             onTrackSelected = onTrackSelected,
             onRadioStationSelected = onRadioStationSelected,
         )
         albumDetail != null -> AlbumDetailContent(colors, albumDetail, onCloseNowPlaying, onTrackSelected)
+        artistDetail != null -> ArtistDetailContent(colors, artistDetail, onCloseNowPlaying, onAlbumSelected)
         else -> when (selectedRoute) {
             SharedRoute.Home -> SharedHome(colors, home, onEditConnection, onAlbumSelected, onPlaylistSelected, onRadioStationSelected)
             SharedRoute.Playlists -> MediaListContent(colors, "Playlists", playlistItems, "No playlists found.", onPlaylistSelected)
@@ -658,6 +696,27 @@ private fun AlbumDetailContent(
 }
 
 @Composable
+private fun ArtistDetailContent(
+    colors: NaviampColors,
+    detail: SharedArtistDetailUi,
+    onBack: () -> Unit,
+    onAlbumSelected: (SharedMediaItemUi) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
+                Icon(NaviampIcons.Back, contentDescription = "Back", tint = colors.primaryText)
+            }
+            Column {
+                Text(detail.artist.title, color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("${detail.albums.size} albums", color = colors.secondaryText, fontSize = 13.sp)
+            }
+        }
+        MediaListContent(colors, "Albums", detail.albums, "No albums found.", onAlbumSelected)
+    }
+}
+
+@Composable
 private fun FullNowPlaying(
     nowPlaying: NowPlayingUi,
     colors: NaviampColors,
@@ -673,10 +732,15 @@ private fun FullNowPlaying(
     onCycleRepeatMode: () -> Unit,
     onToggleLyrics: () -> Unit,
     onTrackRadio: () -> Unit,
-    onAddToPlaylist: () -> Unit,
+    onAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit,
+    onCreatePlaylistAndAdd: (String) -> Unit,
     onDownloadTrack: () -> Unit,
     onGoToAlbum: () -> Unit,
     onGoToArtist: () -> Unit,
+    onQueueItemRadio: (NaviampNowPlayingItemUi) -> Unit,
+    onQueueItemAddToPlaylist: (NaviampNowPlayingItemUi, NaviampPlaylistChoiceUi?) -> Unit,
+    onQueueItemCreatePlaylistAndAdd: (NaviampNowPlayingItemUi, String) -> Unit,
+    onQueueItemDownload: (NaviampNowPlayingItemUi) -> Unit,
     onToggleFavorite: () -> Unit,
     onRatingSelected: (Int?) -> Unit,
     onTrackSelected: (AndroidTrackRowUi) -> Unit,
@@ -699,9 +763,14 @@ private fun FullNowPlaying(
                 onToggleLyrics = onToggleLyrics,
                 onTrackRadio = onTrackRadio,
                 onAddToPlaylist = onAddToPlaylist,
+                onCreatePlaylistAndAdd = onCreatePlaylistAndAdd,
                 onDownloadTrack = onDownloadTrack,
                 onGoToAlbum = onGoToAlbum,
                 onGoToArtist = onGoToArtist,
+                onQueueItemRadio = onQueueItemRadio,
+                onQueueItemAddToPlaylist = onQueueItemAddToPlaylist,
+                onQueueItemCreatePlaylistAndAdd = onQueueItemCreatePlaylistAndAdd,
+                onQueueItemDownload = onQueueItemDownload,
                 onToggleFavorite = onToggleFavorite,
                 onRatingSelected = onRatingSelected,
                 onCollapse = onBack,
@@ -1116,11 +1185,13 @@ fun NaviampDropdownMenu(
     expanded: Boolean,
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
+    offset: DpOffset = DpOffset.Zero,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismissRequest,
+        offset = offset,
         shape = RoundedCornerShape(4.dp),
         containerColor = MenuBackground,
         tonalElevation = 0.dp,
