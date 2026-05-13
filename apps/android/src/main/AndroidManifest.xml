@@ -4,6 +4,7 @@
     <application
         android:allowBackup="true"
         android:label="Naviamp"
+        android:usesCleartextTraffic="true"
         android:theme="@style/NaviampTheme">
         <activity
             android:name=".MainActivity"
@@ -16,4 +17,3 @@
         </activity>
     </application>
 </manifest>
-

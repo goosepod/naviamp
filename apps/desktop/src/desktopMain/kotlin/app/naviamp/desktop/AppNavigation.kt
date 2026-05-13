@@ -1,24 +1,20 @@
 package app.naviamp.desktop
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.naviamp.ui.SharedBottomNavigationBar
+import app.naviamp.ui.SharedRoute
 
 enum class AppRoute {
     Player,
@@ -62,30 +58,40 @@ fun BottomNavigationBar(
     selectedRoute: AppRoute,
     onRouteSelected: (AppRoute) -> Unit,
 ) {
-    Row(
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.Black.copy(alpha = 0.28f))
-            .padding(vertical = 0.dp),
-    ) {
-        BottomNavigationItems.forEach { item ->
-            val selected = item.route == selectedRoute
-            IconButton(
-                onClick = { onRouteSelected(item.route) },
-                modifier = Modifier.size(36.dp),
-            ) {
-                Icon(
-                    imageVector = item.icon,
-                    contentDescription = item.label,
-                    tint = if (selected) appColors.primaryText else appColors.mutedText,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-        }
-    }
+    SharedBottomNavigationBar(
+        colors = appColors,
+        selectedRoute = selectedRoute.toSharedRoute(),
+        onRouteSelected = { route -> onRouteSelected(route.toAppRoute()) },
+    )
 }
+
+private fun AppRoute.toSharedRoute(): SharedRoute =
+    when (this) {
+        AppRoute.Player -> SharedRoute.Search
+        AppRoute.Home -> SharedRoute.Home
+        AppRoute.Playlists,
+        AppRoute.PlaylistDetail,
+        -> SharedRoute.Playlists
+        AppRoute.Library -> SharedRoute.Library
+        AppRoute.Search,
+        AppRoute.AlbumDetail,
+        AppRoute.ArtistDetail,
+        -> SharedRoute.Search
+        AppRoute.InternetRadio -> SharedRoute.Radio
+        AppRoute.Downloads -> SharedRoute.Downloads
+        AppRoute.Settings -> SharedRoute.Settings
+    }
+
+private fun SharedRoute.toAppRoute(): AppRoute =
+    when (this) {
+        SharedRoute.Home -> AppRoute.Home
+        SharedRoute.Playlists -> AppRoute.Playlists
+        SharedRoute.Library -> AppRoute.Library
+        SharedRoute.Search -> AppRoute.Search
+        SharedRoute.Radio -> AppRoute.InternetRadio
+        SharedRoute.Downloads -> AppRoute.Downloads
+        SharedRoute.Settings -> AppRoute.Settings
+    }
 
 @Composable
 fun PlaceholderRoutePanel(

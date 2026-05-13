@@ -34,6 +34,7 @@ Main source areas:
 
 - `core/domain`: provider contracts and provider-neutral domain models.
 - `core/domain/src/commonMain/kotlin/app/naviamp/domain/playback`: shared playback contracts, playback state/progress models, replay-gain settings, and engine capability shape.
+- `core/ui`: shared Compose Multiplatform UI primitives used by desktop and Android. Keep cross-target visual language here first: colors, bottom navigation, transport icons, shared transport controls, cover-art abstraction, popup menu treatment, and row overflow menu primitives.
 - `providers/navidrome`: Navidrome/Subsonic API implementation and mapping.
 - `apps/desktop`: Compose desktop UI, desktop settings/cache, mpv/JLayer playback engine integration, and desktop tests.
 - `apps/android`: Early Android app shell, Android Compose UI, and Media3 playback engine.
@@ -219,6 +220,10 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - Settings > Playback also includes an `Up Next selection` toggle with an info affordance. `Move selected` plays the clicked upcoming track while keeping skipped upcoming tracks queued; `Skip to selected` treats the click like advancing through the queue so skipped upcoming tracks become history.
   - Selecting a song from `UP NEXT` should scroll the list back to the top so the first visible row is the actual next song after the newly current track.
 - Detail-page and overflow-menu actions now use leading/icon-only controls where appropriate. Keep menu text, but include recognizable leading icons for radio, download, details, album, artist, and playlist actions.
+- Shared UI extraction is underway:
+  - `core/ui` owns the shared app colors, navigation icons, bottom navigation bar, transport icon vectors, Android cover-art abstraction, popup/dropdown menu styling, row overflow menu primitive, and the first shared transport control row.
+  - Desktop `AppColors`, `NavigationIcons`, `TransportIcons`, `AppNavigation`, and popup menus are now thin adapters over `core/ui` where possible.
+  - When adding Android functionality, prefer moving the existing desktop visual primitive into `core/ui` and having both targets call it, rather than recreating a similar-looking Android-only version.
 - Playlists V1:
   - Playlists are server-backed through the provider contract. Navidrome uses Subsonic `createPlaylist`, `updatePlaylist`, and `deletePlaylist` for create, append, rename, and delete.
   - A top-level Playlists screen sits between Home and Library. It lists playlists alphabetically or by locally tracked recent play, with play, shuffle, rename, delete, download, and add-to-playlist actions.
@@ -243,7 +248,8 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - Navidrome's provider logic is shared; platform-specific MD5, URL encoding, HTTP, and TLS handling live in JVM/Android source sets.
   - `apps:android` builds a debug APK with a minimal Compose shell for Navidrome connection, track search, and direct stream playback.
   - `AndroidMedia3PlaybackEngine` implements the shared `PlaybackEngine` contract with ExoPlayer and a Media3 session. It currently supports play, pause, resume, seek, stop, volume, progress polling, and basic metadata.
-  - Android does not yet have saved connections, session restore, background notification controls, local cache/downloads, or the full desktop UI surfaces.
+  - Android now applies the active Navidrome TLS settings to Media3 stream playback so self-signed/custom/mTLS connection settings also cover the final media URL.
+  - Android does not yet have saved connections, session restore, background notification controls, local cache/downloads, or full queue-aware desktop parity.
 - Desktop mpv crossfade attempt:
   - A dual-mpv-process crossfade attempt caused regressions in seek, pause, progress polling, and track advancement.
   - `MpvProcessPlaybackEngine` was restored to the stable single-process mpv path and reports `supportsCrossfade = false` again.
@@ -293,7 +299,9 @@ The Android work should be staged so the desktop app keeps working while platfor
    - Extract reusable Compose panels only after their dependencies are platform-neutral.
 2. Android project skeleton:
    - The initial `apps:android` module exists and builds.
-   - Next: decide which desktop Compose panels should move toward shared UI and which Android surfaces should stay native/mobile-specific.
+   - A new `core:ui` shared Compose module now owns the first cross-platform Naviamp shell, navigation shape, color contract, icons, connection form, home/search/list surfaces, media rows, and mini now-playing surface used by Android.
+   - Desktop now consumes the shared UI module for the app color contract, bottom navigation, and navigation/action icons; its existing panels still live in `apps:desktop` until their state dependencies are separated.
+   - Next: move desktop panels into shared UI only after their data/state dependencies are platform-neutral; avoid moving desktop-only cache/settings/window/playback code into common code.
 3. Android playback:
    - The initial Media3-backed `PlaybackEngine` exists.
    - Next: add proper foreground playback service/notification controls so playback works from background, lock screen, headset controls, and Android Auto-compatible surfaces later.
@@ -304,8 +312,9 @@ The Android work should be staged so the desktop app keeps working while platfor
    - Respect scoped storage and keep user-selected downloads separate from evictable cache files.
 5. Android app milestone order:
    - Connect/search/stream is in place as the first proof point.
+   - Android now uses the shared Naviamp-style shell instead of the temporary Android-only Material proof screen, and provider-backed Home, Search, Library, Playlists, and Internet Radio lists are wired into the shared surfaces.
    - Next: restore sessions and add queue controls.
-   - Then bring over Home, Library, Playlists, Internet Radio, Downloads, and Settings in that order.
+   - Then deepen each screen toward desktop parity: playable album/playlist/library detail flows, station management, downloads, richer settings, and row actions.
    - Add background playback polish, media notification actions, and cache/download behavior before treating Android as daily-driver ready.
 
 ## Roadmap Items From The User

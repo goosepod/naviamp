@@ -33,6 +33,7 @@ kotlin {
 
 dependencies {
     implementation(project(":core:domain"))
+    implementation(project(":core:ui"))
     implementation(project(":providers:navidrome"))
     implementation(libs.activity.compose)
     implementation(compose.foundation)

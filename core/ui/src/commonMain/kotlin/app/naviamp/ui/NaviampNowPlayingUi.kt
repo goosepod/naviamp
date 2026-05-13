@@ -1,0 +1,934 @@
+package app.naviamp.ui
+
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
+
+enum class NaviampRepeatMode {
+    Off,
+    Queue,
+    Track,
+}
+
+enum class NaviampNowPlayingTab {
+    BackTo,
+    UpNext,
+    Related,
+}
+
+data class NaviampNowPlayingItemUi(
+    val id: String,
+    val title: String,
+    val subtitle: String,
+    val meta: String = "",
+    val coverArtUrl: String? = null,
+)
+
+data class NaviampNowPlayingActions(
+    val onPause: () -> Unit = {},
+    val onResume: () -> Unit = {},
+    val onPlayCurrent: () -> Unit = {},
+    val onSeek: (Double) -> Unit = {},
+    val onPrevious: () -> Unit = {},
+    val onNext: () -> Unit = {},
+    val onToggleShuffle: () -> Unit = {},
+    val onCycleRepeatMode: () -> Unit = {},
+    val onVolumeChanged: (Int) -> Unit = {},
+    val onToggleLyrics: () -> Unit = {},
+    val onTrackRadio: () -> Unit = {},
+    val onAddToPlaylist: () -> Unit = {},
+    val onToggleFavorite: () -> Unit = {},
+    val onRatingSelected: (Int?) -> Unit = {},
+    val onCollapse: () -> Unit = {},
+    val onQueueItemSelected: (NaviampNowPlayingItemUi) -> Unit = {},
+    val onRelatedItemSelected: (NaviampNowPlayingItemUi) -> Unit = {},
+    val onRadioStationSelected: (NaviampNowPlayingItemUi) -> Unit = {},
+)
+
+@Composable
+fun NaviampNowPlayingPanel(
+    nowPlaying: NowPlayingUi,
+    colors: NaviampColors,
+    actions: NaviampNowPlayingActions,
+    modifier: Modifier = Modifier,
+) {
+    var selectedTab by remember(nowPlaying.id, nowPlaying.isLive) { mutableStateOf(NaviampNowPlayingTab.UpNext) }
+    val showStationList = nowPlaying.isLive
+    val artSizeDefault = 286.dp
+
+    BoxWithConstraints(
+        modifier = modifier
+            .fillMaxSize()
+            .heightIn(min = 300.dp),
+    ) {
+        val wideLayout = maxWidth >= 780.dp
+        val artSize = when {
+            wideLayout -> 350.dp
+            maxWidth < 380.dp -> 238.dp
+            else -> artSizeDefault
+        }
+
+        if (wideLayout) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier
+                        .weight(0.9f)
+                        .fillMaxHeight(),
+                ) {
+                    PlatformCoverArt(nowPlaying.coverArtUrl, colors, artSize, 8.dp)
+                    NowPlayingDetails(
+                        nowPlaying = nowPlaying,
+                        colors = colors,
+                        actions = actions,
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    )
+                }
+                NowPlayingSidePanel(
+                    nowPlaying = nowPlaying,
+                    colors = colors,
+                    selectedTab = selectedTab,
+                    onTabSelected = { selectedTab = it },
+                    showStationList = showStationList,
+                    actions = actions,
+                    modifier = Modifier
+                        .weight(1.1f)
+                        .fillMaxHeight(),
+                )
+            }
+        } else {
+            val viewportHeight = maxHeight
+            val scrollState = rememberScrollState()
+            val coroutineScope = rememberCoroutineScope()
+            fun scrollToPlayer() {
+                coroutineScope.launch { scrollState.animateScrollTo(0) }
+            }
+            val itemActions = actions.copy(
+                onQueueItemSelected = {
+                    actions.onQueueItemSelected(it)
+                    scrollToPlayer()
+                },
+                onRelatedItemSelected = {
+                    actions.onRelatedItemSelected(it)
+                    scrollToPlayer()
+                },
+                onRadioStationSelected = {
+                    actions.onRadioStationSelected(it)
+                    scrollToPlayer()
+                },
+            )
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState),
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(viewportHeight / 2)
+                        .padding(horizontal = 14.dp),
+                ) {
+                    PlatformCoverArt(nowPlaying.coverArtUrl, colors, artSize, 8.dp)
+                }
+                NowPlayingDetails(
+                    nowPlaying = nowPlaying,
+                    colors = colors,
+                    actions = actions,
+                    mobileLayout = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(viewportHeight / 2)
+                        .padding(horizontal = 14.dp),
+                )
+                NowPlayingSidePanel(
+                    nowPlaying = nowPlaying,
+                    colors = colors,
+                    selectedTab = selectedTab,
+                    onTabSelected = { selectedTab = it },
+                    showStationList = showStationList,
+                    actions = itemActions,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(340.dp)
+                        .padding(horizontal = 14.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun NowPlayingDetails(
+    nowPlaying: NowPlayingUi,
+    colors: NaviampColors,
+    actions: NaviampNowPlayingActions,
+    mobileLayout: Boolean = false,
+    modifier: Modifier = Modifier,
+) {
+    var scrubberValue by remember(nowPlaying.id) { mutableFloatStateOf(nowPlaying.progressFraction.toFloat()) }
+    var isScrubbing by remember { mutableStateOf(false) }
+    var volumeValue by remember { mutableFloatStateOf(nowPlaying.volumePercent.coerceIn(0, 100) / 100f) }
+    var isChangingVolume by remember { mutableStateOf(false) }
+    val canSeek = nowPlaying.canSeek && nowPlaying.durationSeconds != null && !nowPlaying.isLive
+    val canTogglePlayback = nowPlaying.canPlayPause
+
+    LaunchedEffect(nowPlaying.progressFraction) {
+        if (!isScrubbing) {
+            scrubberValue = nowPlaying.progressFraction.toFloat()
+        }
+    }
+    LaunchedEffect(nowPlaying.volumePercent) {
+        if (!isChangingVolume) {
+            volumeValue = nowPlaying.volumePercent.coerceIn(0, 100) / 100f
+        }
+    }
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = if (mobileLayout) Arrangement.SpaceBetween else Arrangement.spacedBy(6.dp),
+        modifier = modifier.padding(bottom = if (mobileLayout) 4.dp else 0.dp),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(
+                if (nowPlaying.isLive) "LIVE" else secondsLabel(nowPlaying.positionSeconds),
+                color = colors.primaryText,
+                fontSize = 11.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.width(42.dp),
+            )
+            if (nowPlaying.isLive) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(22.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(2.dp)
+                            .background(colors.accent.copy(alpha = 0.7f)),
+                    )
+                }
+            } else {
+                WaveformScrubber(
+                    amplitudes = nowPlaying.waveformAmplitudes,
+                    value = scrubberValue.coerceIn(0f, 1f),
+                    enabled = canSeek,
+                    colors = colors,
+                    onValueChange = {
+                        isScrubbing = true
+                        scrubberValue = it
+                    },
+                    onValueChangeFinished = { seekFraction ->
+                        scrubberValue = seekFraction
+                        nowPlaying.durationSeconds?.let { duration ->
+                            actions.onSeek(seekFraction * duration)
+                        }
+                        isScrubbing = false
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(28.dp),
+                )
+            }
+            Text(
+                if (nowPlaying.isLive) "Radio" else secondsLabel(nowPlaying.durationSeconds),
+                color = colors.primaryText,
+                textAlign = TextAlign.Center,
+                fontSize = 11.sp,
+                modifier = Modifier.width(42.dp),
+            )
+        }
+
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(if (mobileLayout) 7.dp else 6.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = if (mobileLayout) 8.dp else 3.dp, bottom = if (mobileLayout) 2.dp else 5.dp),
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(if (mobileLayout) 2.dp else 6.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .offset(y = if (mobileLayout) (-14).dp else 0.dp)
+                    .padding(bottom = if (mobileLayout) 1.dp else 0.dp),
+            ) {
+                BouncingTitleText(
+                    text = nowPlaying.title,
+                    color = colors.primaryText,
+                    fontSize = 15,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    nowPlaying.subtitle,
+                    color = colors.secondaryText,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                    fontSize = 13.sp,
+                )
+                Text(
+                    if (nowPlaying.isLive) "Live stream" else nowPlaying.albumLine.ifBlank { nowPlaying.stateLabel },
+                    color = colors.secondaryText.copy(alpha = 0.84f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                    fontSize = 13.sp,
+                )
+            }
+
+            if (!nowPlaying.isLive && (nowPlaying.canFavorite || nowPlaying.canRate || nowPlaying.favoriteActive || nowPlaying.userRating != null)) {
+                RatingRow(
+                    favoriteActive = nowPlaying.favoriteActive,
+                    canFavorite = nowPlaying.canFavorite,
+                    rating = nowPlaying.userRating,
+                    canRate = nowPlaying.canRate,
+                    colors = colors,
+                    onToggleFavorite = actions.onToggleFavorite,
+                    onRatingSelected = actions.onRatingSelected,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
+            if (!nowPlaying.isLive && nowPlaying.audioInfo.isNotBlank()) {
+                Text(
+                    nowPlaying.audioInfo,
+                    color = colors.secondaryText,
+                    fontSize = 11.sp,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+
+        if (nowPlaying.canChangeVolume) {
+            VolumeRow(
+                value = volumeValue,
+                isChangingVolume = { isChangingVolume = it },
+                onValueChanged = {
+                    volumeValue = it
+                    actions.onVolumeChanged((it * 100).toInt().coerceIn(0, 100))
+                },
+                colors = colors,
+            )
+        }
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(top = if (mobileLayout) 0.dp else 6.dp, bottom = if (mobileLayout) 0.dp else 4.dp),
+        ) {
+            NaviampTransportIconButton(
+                enabled = nowPlaying.shuffleEnabled,
+                icon = NaviampTransportIcons.Shuffle,
+                contentDescription = if (nowPlaying.shuffleActive) "Turn shuffle off" else "Shuffle Up Next",
+                colors = colors,
+                selected = nowPlaying.shuffleActive,
+                buttonSize = 28.dp,
+                iconSize = 16.dp,
+                onClick = actions.onToggleShuffle,
+            )
+            NaviampTransportIconButton(
+                enabled = nowPlaying.hasPrevious,
+                icon = NaviampTransportIcons.Previous,
+                contentDescription = "Previous",
+                colors = colors,
+                onClick = actions.onPrevious,
+            )
+            NaviampTransportIconButton(
+                enabled = canTogglePlayback,
+                icon = if (nowPlaying.isPlaying) NaviampTransportIcons.Pause else NaviampTransportIcons.Play,
+                contentDescription = if (nowPlaying.isPlaying) "Pause" else "Play",
+                colors = colors,
+                prominent = true,
+                onClick = {
+                    when {
+                        nowPlaying.isPlaying -> actions.onPause()
+                        nowPlaying.isPaused -> actions.onResume()
+                        else -> actions.onPlayCurrent()
+                    }
+                },
+            )
+            NaviampTransportIconButton(
+                enabled = nowPlaying.hasNext,
+                icon = NaviampTransportIcons.Next,
+                contentDescription = "Next",
+                colors = colors,
+                onClick = actions.onNext,
+            )
+            NaviampTransportIconButton(
+                enabled = nowPlaying.canRepeat,
+                icon = NaviampTransportIcons.Repeat,
+                contentDescription = when (nowPlaying.repeatMode) {
+                    NaviampRepeatMode.Off -> "Repeat off"
+                    NaviampRepeatMode.Queue -> "Repeat queue"
+                    NaviampRepeatMode.Track -> "Repeat current track"
+                },
+                colors = colors,
+                selected = nowPlaying.repeatMode != NaviampRepeatMode.Off,
+                buttonSize = 28.dp,
+                iconSize = 16.dp,
+                centerText = if (nowPlaying.repeatMode == NaviampRepeatMode.Track) "1" else null,
+                onClick = actions.onCycleRepeatMode,
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(if (mobileLayout) 36.dp else 32.dp)
+                .padding(bottom = 0.dp),
+        ) {
+            Row(modifier = Modifier.align(Alignment.CenterStart)) {
+                NaviampTransportIconButton(
+                    enabled = nowPlaying.canStartRadio,
+                    icon = NaviampTransportIcons.Radio,
+                    contentDescription = "Start track radio",
+                    colors = colors,
+                    onClick = actions.onTrackRadio,
+                )
+                NaviampTransportIconButton(
+                    enabled = nowPlaying.canAddToPlaylist,
+                    icon = NaviampIcons.Playlist,
+                    contentDescription = "Add track to playlist",
+                    colors = colors,
+                    onClick = actions.onAddToPlaylist,
+                )
+            }
+            IconButton(
+                onClick = actions.onCollapse,
+                modifier = Modifier
+                    .size(28.dp)
+                    .align(Alignment.Center),
+            ) {
+                Icon(
+                    imageVector = NaviampIcons.ChevronDown,
+                    contentDescription = "Back",
+                    tint = colors.secondaryText,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.align(Alignment.CenterEnd),
+            ) {
+                NaviampTransportIconButton(
+                    enabled = nowPlaying.lyricsAvailable,
+                    icon = NaviampTransportIcons.Lyrics,
+                    contentDescription = if (nowPlaying.lyricsVisible) "Hide lyrics" else "Show lyrics",
+                    colors = colors,
+                    selected = nowPlaying.lyricsVisible,
+                    onClick = actions.onToggleLyrics,
+                )
+                NaviampTransportIconButton(
+                    enabled = nowPlaying.menuEnabled,
+                    icon = NaviampTransportIcons.Menu,
+                    contentDescription = "Track actions",
+                    colors = colors,
+                    onClick = {},
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun WaveformScrubber(
+    amplitudes: List<Float>,
+    value: Float,
+    enabled: Boolean,
+    colors: NaviampColors,
+    onValueChange: (Float) -> Unit,
+    onValueChangeFinished: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var widthPx by remember { mutableFloatStateOf(1f) }
+    var latestValue by remember(value) { mutableFloatStateOf(value.coerceIn(0f, 1f)) }
+
+    fun updateFromX(x: Float): Float {
+        if (!enabled) return latestValue
+        val nextValue = (x / widthPx).coerceIn(0f, 1f)
+        latestValue = nextValue
+        onValueChange(nextValue)
+        return nextValue
+    }
+
+    Canvas(
+        modifier = modifier
+            .clip(RoundedCornerShape(4.dp))
+            .onSizeChanged { widthPx = it.width.toFloat().coerceAtLeast(1f) }
+            .pointerInput(enabled, widthPx) {
+                detectTapGestures { offset ->
+                    onValueChangeFinished(updateFromX(offset.x))
+                }
+            }
+            .pointerInput(enabled, widthPx) {
+                detectDragGestures(
+                    onDragStart = { offset -> updateFromX(offset.x) },
+                    onDrag = { change, _ -> updateFromX(change.position.x) },
+                    onDragEnd = { onValueChangeFinished(latestValue) },
+                    onDragCancel = { onValueChangeFinished(latestValue) },
+                )
+            },
+    ) {
+        if (amplitudes.isEmpty()) {
+            drawFallbackScrubLine(value, enabled, colors)
+            return@Canvas
+        }
+
+        val centerY = size.height / 2f
+        val visibleBars = minOf(amplitudes.size, (size.width / 3f).toInt().coerceAtLeast(24))
+        val step = size.width / visibleBars.toFloat()
+        val strokeWidth = (step * 0.62f).coerceIn(1.2f, 2.4f)
+        val minBarHeight = 2.5f
+        val maxBarHeight = size.height * 0.92f
+
+        repeat(visibleBars) { index ->
+            val sourceIndex = if (visibleBars == 1) {
+                0
+            } else {
+                ((index / (visibleBars - 1f)) * (amplitudes.size - 1)).toInt()
+            }
+            val amplitude = amplitudes[sourceIndex].coerceIn(0f, 1f)
+            val barHeight = (minBarHeight + amplitude * (maxBarHeight - minBarHeight))
+                .coerceAtMost(size.height)
+            val ratio = if (visibleBars == 1) 0f else index / (visibleBars - 1f)
+            val color = when {
+                !enabled -> colors.mutedText.copy(alpha = 0.28f)
+                ratio <= value -> colors.primaryText.copy(alpha = 0.92f)
+                else -> colors.primaryText.copy(alpha = 0.30f)
+            }
+            val x = index * step + step / 2f
+            drawLine(
+                color = color,
+                start = Offset(x, centerY - barHeight / 2f),
+                end = Offset(x, centerY + barHeight / 2f),
+                strokeWidth = strokeWidth,
+                cap = StrokeCap.Round,
+            )
+        }
+    }
+}
+
+private fun DrawScope.drawFallbackScrubLine(
+    value: Float,
+    enabled: Boolean,
+    colors: NaviampColors,
+) {
+    val centerY = size.height / 2f
+    val endX = size.width * value.coerceIn(0f, 1f)
+    val disabledAlpha = if (enabled) 1f else 0.42f
+    drawLine(
+        color = colors.primaryText.copy(alpha = 0.24f * disabledAlpha),
+        start = Offset.Zero.copy(y = centerY),
+        end = Offset(size.width, centerY),
+        strokeWidth = 5f,
+        cap = StrokeCap.Round,
+    )
+    drawLine(
+        color = colors.accent.copy(alpha = 0.88f * disabledAlpha),
+        start = Offset.Zero.copy(y = centerY),
+        end = Offset(endX, centerY),
+        strokeWidth = 5f,
+        cap = StrokeCap.Round,
+    )
+}
+
+@Composable
+private fun RatingRow(
+    favoriteActive: Boolean,
+    canFavorite: Boolean,
+    rating: Int?,
+    canRate: Boolean,
+    colors: NaviampColors,
+    onToggleFavorite: () -> Unit,
+    onRatingSelected: (Int?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier.padding(vertical = 1.dp),
+    ) {
+        Text(
+            if (favoriteActive) "♥" else "♡",
+            color = if (favoriteActive) colors.accent else colors.primaryText.copy(alpha = 0.72f),
+            fontSize = 16.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .width(24.dp)
+                .clickable(enabled = canFavorite, onClick = onToggleFavorite),
+        )
+        Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.width(82.dp)) {
+            (1..5).forEach { value ->
+                val selected = (rating ?: 0) >= value
+                Text(
+                    if (selected) "★" else "☆",
+                    color = if (selected) colors.accent else colors.primaryText.copy(alpha = 0.72f),
+                    fontSize = 16.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .width(16.dp)
+                        .clickable(enabled = canRate) {
+                            onRatingSelected(if (rating == value) null else value)
+                        },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun VolumeRow(
+    value: Float,
+    isChangingVolume: (Boolean) -> Unit,
+    onValueChanged: (Float) -> Unit,
+    colors: NaviampColors,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 42.dp),
+    ) {
+        Icon(
+            imageVector = NaviampTransportIcons.Volume,
+            contentDescription = "Volume",
+            tint = colors.secondaryText,
+            modifier = Modifier.size(17.dp),
+        )
+        Slider(
+            value = value.coerceIn(0f, 1f),
+            onValueChange = {
+                isChangingVolume(true)
+                onValueChanged(it)
+            },
+            onValueChangeFinished = { isChangingVolume(false) },
+            enabled = true,
+            colors = SliderDefaults.colors(
+                thumbColor = colors.primaryText,
+                activeTrackColor = colors.accent,
+                inactiveTrackColor = colors.primaryText.copy(alpha = 0.24f),
+                disabledThumbColor = colors.mutedText,
+                disabledActiveTrackColor = colors.mutedText.copy(alpha = 0.36f),
+                disabledInactiveTrackColor = colors.mutedText.copy(alpha = 0.18f),
+            ),
+            modifier = Modifier
+                .weight(1f)
+                .height(20.dp),
+        )
+    }
+}
+
+@Composable
+private fun NowPlayingSidePanel(
+    nowPlaying: NowPlayingUi,
+    colors: NaviampColors,
+    selectedTab: NaviampNowPlayingTab,
+    onTabSelected: (NaviampNowPlayingTab) -> Unit,
+    showStationList: Boolean,
+    actions: NaviampNowPlayingActions,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color.Black.copy(alpha = 0.12f))
+            .padding(8.dp),
+    ) {
+        if (showStationList) {
+            Text("STATIONS", color = colors.primaryText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            NowPlayingItemList(
+                items = nowPlaying.radioStations,
+                colors = colors,
+                currentId = nowPlaying.id,
+                onClick = actions.onRadioStationSelected,
+                modifier = Modifier.weight(1f),
+            )
+            return@Column
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            NowPlayingTabButton("BACK TO", selectedTab == NaviampNowPlayingTab.BackTo, colors) {
+                onTabSelected(NaviampNowPlayingTab.BackTo)
+            }
+            NowPlayingTabButton("UP NEXT", selectedTab == NaviampNowPlayingTab.UpNext, colors) {
+                onTabSelected(NaviampNowPlayingTab.UpNext)
+            }
+            NowPlayingTabButton("RELATED", selectedTab == NaviampNowPlayingTab.Related, colors) {
+                onTabSelected(NaviampNowPlayingTab.Related)
+            }
+        }
+
+        val items = when (selectedTab) {
+            NaviampNowPlayingTab.BackTo -> nowPlaying.backTo
+            NaviampNowPlayingTab.UpNext -> nowPlaying.upNext
+            NaviampNowPlayingTab.Related -> nowPlaying.related
+        }
+        val onClick = when (selectedTab) {
+            NaviampNowPlayingTab.Related -> actions.onRelatedItemSelected
+            else -> actions.onQueueItemSelected
+        }
+        NowPlayingItemList(
+            items = items,
+            colors = colors,
+            emptyLabel = when (selectedTab) {
+                NaviampNowPlayingTab.BackTo -> "Playback history will appear here."
+                NaviampNowPlayingTab.UpNext -> "Queue is empty."
+                NaviampNowPlayingTab.Related -> "Related tracks are not loaded."
+            },
+            onClick = onClick,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun NowPlayingTabButton(label: String, selected: Boolean, colors: NaviampColors, onClick: () -> Unit) {
+    Text(
+        label,
+        color = if (selected) colors.primaryText else colors.secondaryText,
+        fontSize = 11.sp,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(if (selected) Color.White.copy(alpha = 0.12f) else Color.Transparent)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+    )
+}
+
+@Composable
+private fun NowPlayingItemList(
+    items: List<NaviampNowPlayingItemUi>,
+    colors: NaviampColors,
+    modifier: Modifier = Modifier,
+    currentId: String? = null,
+    emptyLabel: String = "Nothing here yet.",
+    onClick: (NaviampNowPlayingItemUi) -> Unit,
+) {
+    if (items.isEmpty()) {
+        Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            Text(emptyLabel, color = colors.secondaryText, fontSize = 12.sp, textAlign = TextAlign.Center)
+        }
+        return
+    }
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(5.dp), modifier = modifier.fillMaxWidth()) {
+        items(items, key = { it.id }) { item ->
+            val selected = item.id == currentId
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(5.dp))
+                    .background(if (selected) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.10f))
+                    .clickable { onClick(item) }
+                    .padding(horizontal = 6.dp, vertical = 5.dp),
+            ) {
+                PlatformCoverArt(item.coverArtUrl, colors, 32.dp, 4.dp)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(item.title, color = colors.primaryText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(item.subtitle, color = colors.secondaryText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                if (item.meta.isNotBlank()) {
+                    Text(item.meta, color = colors.mutedText, fontSize = 10.sp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun NaviampTransportIconButton(
+    enabled: Boolean,
+    icon: ImageVector,
+    contentDescription: String,
+    colors: NaviampColors,
+    prominent: Boolean = false,
+    selected: Boolean = false,
+    buttonSize: Dp = if (prominent) 44.dp else 34.dp,
+    iconSize: Dp = if (prominent) 24.dp else 20.dp,
+    centerText: String? = null,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .size(buttonSize)
+            .clip(RoundedCornerShape(999.dp))
+            .background(
+                when {
+                    prominent -> Color.White.copy(alpha = if (enabled) 0.18f else 0.08f)
+                    selected -> Color.White.copy(alpha = 0.12f)
+                    else -> Color.Transparent
+                },
+            ),
+    ) {
+        IconButton(
+            enabled = enabled,
+            onClick = onClick,
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                tint = if (enabled) colors.primaryText else colors.mutedText.copy(alpha = 0.55f),
+                modifier = Modifier.size(iconSize),
+            )
+        }
+        centerText?.let {
+            Text(
+                it,
+                color = colors.primaryText,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.align(Alignment.Center),
+            )
+        }
+    }
+}
+
+@Composable
+private fun BouncingTitleText(
+    text: String,
+    color: Color,
+    fontSize: Int,
+    modifier: Modifier = Modifier,
+) {
+    val textMeasurer = rememberTextMeasurer()
+    val offset = remember(text) { Animatable(0f) }
+    var containerWidth by remember { mutableStateOf(0) }
+    val textWidth = remember(text, fontSize) {
+        textMeasurer.measure(AnnotatedString(text), style = androidx.compose.ui.text.TextStyle(fontSize = fontSize.sp, fontWeight = FontWeight.Bold)).size.width
+    }
+    val overflow = (textWidth - containerWidth).coerceAtLeast(0)
+
+    LaunchedEffect(text, overflow) {
+        offset.snapTo(0f)
+        if (overflow > 0) {
+            while (true) {
+                kotlinx.coroutines.delay(800)
+                offset.animateTo(-overflow.toFloat(), tween(durationMillis = (overflow * 24).coerceAtLeast(1800), easing = LinearEasing))
+                kotlinx.coroutines.delay(800)
+                offset.animateTo(0f, tween(durationMillis = (overflow * 24).coerceAtLeast(1800), easing = LinearEasing))
+            }
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .height(20.dp)
+            .clip(RoundedCornerShape(2.dp))
+            .onSizeChanged { containerWidth = it.width },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text,
+            color = color,
+            fontSize = fontSize.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            softWrap = false,
+            textAlign = if (overflow > 0) TextAlign.Start else TextAlign.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .offset { IntOffset(offset.value.roundToInt(), 0) },
+        )
+    }
+}
+
+private val NowPlayingUi.progressFraction: Double
+    get() {
+        val position = positionSeconds ?: return 0.0
+        val duration = durationSeconds ?: return 0.0
+        if (duration <= 0.0) return 0.0
+        return (position / duration).coerceIn(0.0, 1.0)
+    }
+
+private fun secondsLabel(seconds: Double?): String {
+    val total = seconds?.roundToInt() ?: return "--:--"
+    val minutes = total / 60
+    val remainder = total % 60
+    return "$minutes:${remainder.toString().padStart(2, '0')}"
+}

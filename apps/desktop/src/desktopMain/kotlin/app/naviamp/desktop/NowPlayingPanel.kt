@@ -74,6 +74,7 @@ import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.desktop.playback.RepeatMode
 import app.naviamp.domain.playback.label
+import app.naviamp.ui.NaviampTransportIconButton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -1346,42 +1347,19 @@ private fun TransportIconButton(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = modifier
-            .size(buttonSize)
-            .clip(RoundedCornerShape(999.dp))
-            .background(
-                when {
-                    prominent -> Color.White.copy(alpha = if (enabled) 0.18f else 0.08f)
-                    selected -> Color.White.copy(alpha = 0.12f)
-                    else -> Color.Transparent
-                },
-            ),
-    ) {
-        IconButton(
-            enabled = enabled,
-            onClick = onClick,
-            modifier = Modifier.fillMaxSize(),
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = contentDescription,
-                tint = if (enabled) appColors.primaryText else appColors.mutedText.copy(alpha = 0.55f),
-                modifier = Modifier.size(iconSize),
-            )
-        }
-        centerText?.let {
-            Text(
-                it,
-                color = appColors.primaryText,
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.align(Alignment.Center),
-            )
-        }
-    }
+    NaviampTransportIconButton(
+        enabled = enabled,
+        icon = icon,
+        contentDescription = contentDescription,
+        colors = appColors,
+        prominent = prominent,
+        selected = selected,
+        buttonSize = buttonSize,
+        iconSize = iconSize,
+        centerText = centerText,
+        modifier = modifier,
+        onClick = onClick,
+    )
 }
 
 @Composable
