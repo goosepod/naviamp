@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,13 +63,15 @@ private fun NaviampAndroidApp() {
     val context = LocalContext.current
     val playbackEngine = remember { AndroidMedia3PlaybackEngine(context) }
     val waveformAnalyzer = remember { AndroidAudioWaveformAnalyzer(context) }
-    var serverUrl by remember { mutableStateOf("") }
-    var username by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var skipTlsVerification by remember { mutableStateOf(false) }
-    var customCertificatePath by remember { mutableStateOf("") }
-    var clientCertificatePath by remember { mutableStateOf("") }
-    var clientCertificatePassword by remember { mutableStateOf("") }
+    val settingsStore = remember { AndroidSettingsStore(context) }
+    val savedConnection = remember { settingsStore.loadConnection() }
+    var serverUrl by remember { mutableStateOf(savedConnection.serverUrl) }
+    var username by remember { mutableStateOf(savedConnection.username) }
+    var password by remember { mutableStateOf(savedConnection.password) }
+    var skipTlsVerification by remember { mutableStateOf(savedConnection.skipTlsVerification) }
+    var customCertificatePath by remember { mutableStateOf(savedConnection.customCertificatePath) }
+    var clientCertificatePath by remember { mutableStateOf(savedConnection.clientCertificatePath) }
+    var clientCertificatePassword by remember { mutableStateOf(savedConnection.clientCertificatePassword) }
     var query by remember { mutableStateOf("") }
     var homeState by remember { mutableStateOf(AndroidBrowseState()) }
     var searchResults by remember { mutableStateOf(MediaSearchResults()) }
@@ -150,6 +153,64 @@ private fun NaviampAndroidApp() {
         albumDetail = albumDetail?.copy(
             tracks = albumDetail?.tracks.orEmpty().map { if (it.id == updatedTrack.id) updatedTrack else it },
         )
+    }
+
+    fun currentConnectionForm(): ConnectionFormState =
+        ConnectionFormState(
+            serverUrl = serverUrl,
+            username = username,
+            password = password,
+            skipTlsVerification = skipTlsVerification,
+            customCertificatePath = customCertificatePath,
+            clientCertificatePath = clientCertificatePath,
+            clientCertificatePassword = clientCertificatePassword,
+        )
+
+    fun connectToNavidrome() {
+        scope.launch {
+            status = "Connecting..."
+            val connectionForm = currentConnectionForm()
+            runCatching {
+                val tlsSettings = NavidromeTlsSettings(
+                    insecureSkipTlsVerification = connectionForm.skipTlsVerification,
+                    customCertificatePath = connectionForm.customCertificatePath.trim().takeIf { it.isNotEmpty() },
+                    clientCertificateKeyStorePath = connectionForm.clientCertificatePath.trim().takeIf { it.isNotEmpty() },
+                    clientCertificateKeyStorePassword = connectionForm.clientCertificatePassword
+                        .takeIf { connectionForm.clientCertificatePath.trim().isNotEmpty() },
+                )
+                val connection = NavidromeConnection.fromPassword(
+                    baseUrl = connectionForm.serverUrl,
+                    username = connectionForm.username,
+                    password = connectionForm.password,
+                    tlsSettings = tlsSettings,
+                )
+                val nextProvider = NavidromeProvider(connection)
+                playbackEngine.applyTlsSettings(tlsSettings)
+                validation = nextProvider.validateConnection()
+                homeState = loadBrowseState(nextProvider)
+                provider = nextProvider
+                activeTlsSettings = tlsSettings
+                settingsStore.saveConnection(connectionForm)
+            }.onSuccess {
+                status = "Connected."
+                editingConnection = false
+                selectedRoute = SharedRoute.Home
+            }.onFailure { error ->
+                status = error.message ?: "Connection failed."
+                provider = null
+                validation = null
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (
+            savedConnection.serverUrl.isNotBlank() &&
+            savedConnection.username.isNotBlank() &&
+            savedConnection.password.isNotBlank()
+        ) {
+            connectToNavidrome()
+        }
     }
 
     NaviampSharedAppShell(
@@ -249,40 +310,7 @@ private fun NaviampAndroidApp() {
             clientCertificatePath = form.clientCertificatePath
             clientCertificatePassword = form.clientCertificatePassword
         },
-        onConnect = {
-            scope.launch {
-                status = "Connecting..."
-                runCatching {
-                    val tlsSettings = NavidromeTlsSettings(
-                        insecureSkipTlsVerification = skipTlsVerification,
-                        customCertificatePath = customCertificatePath.trim().takeIf { it.isNotEmpty() },
-                        clientCertificateKeyStorePath = clientCertificatePath.trim().takeIf { it.isNotEmpty() },
-                        clientCertificateKeyStorePassword = clientCertificatePassword
-                            .takeIf { clientCertificatePath.trim().isNotEmpty() },
-                    )
-                    val connection = NavidromeConnection.fromPassword(
-                        baseUrl = serverUrl,
-                        username = username,
-                        password = password,
-                        tlsSettings = tlsSettings,
-                    )
-                    val nextProvider = NavidromeProvider(connection)
-                    playbackEngine.applyTlsSettings(tlsSettings)
-                    validation = nextProvider.validateConnection()
-                    homeState = loadBrowseState(nextProvider)
-                    provider = nextProvider
-                    activeTlsSettings = tlsSettings
-                }.onSuccess {
-                    status = "Connected."
-                    editingConnection = false
-                    selectedRoute = SharedRoute.Home
-                }.onFailure { error ->
-                    status = error.message ?: "Connection failed."
-                    provider = null
-                    validation = null
-                }
-            }
-        },
+        onConnect = { connectToNavidrome() },
         onEditConnection = { editingConnection = true },
         onCancelEditConnection = { editingConnection = false },
         onQueryChanged = { query = it },
