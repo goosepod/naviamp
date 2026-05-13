@@ -403,6 +403,18 @@ fun NaviampSharedAppShell(
                     }
                 }
                 if (!showFullNowPlaying) {
+                    if (connected && !editingConnection && nowPlaying != null) {
+                        MiniNowPlaying(
+                            nowPlaying = nowPlaying,
+                            colors = colors,
+                            onOpen = onOpenNowPlaying,
+                            onPause = onPause,
+                            onResume = onResume,
+                            onPrevious = onPrevious,
+                            onNext = onNext,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                        )
+                    }
                     SharedBottomNavigationBar(
                         colors = colors,
                         selectedRoute = selectedRoute,
@@ -575,7 +587,7 @@ private fun ConnectedContent(
             SharedRoute.Home -> SharedHome(colors, home, onEditConnection, onAlbumSelected, onPlaylistSelected, onRadioStationSelected)
             SharedRoute.Playlists -> MediaListContent(colors, "Playlists", playlistItems, "No playlists found.", onPlaylistSelected)
             SharedRoute.Library -> MediaListContent(colors, "Library", libraryArtists, "No library artists found.", onArtistSelected)
-            SharedRoute.Search -> SearchContent(colors, query, searchResults, nowPlaying, onQueryChanged, onSearch, onTrackSelected, onAlbumSelected, onArtistSelected, onOpenNowPlaying, onPause, onResume, onStop)
+            SharedRoute.Search -> SearchContent(colors, query, searchResults, onQueryChanged, onSearch, onTrackSelected, onAlbumSelected, onArtistSelected)
             SharedRoute.Radio -> MediaListContent(colors, "Internet Radio", radioStationItems, "No stations found.", onRadioStationSelected)
             SharedRoute.Settings -> SettingsContent(colors, onEditConnection)
             SharedRoute.Downloads -> PlaceholderRoute(colors, selectedRoute)
@@ -614,24 +626,16 @@ private fun SearchContent(
     colors: NaviampColors,
     query: String,
     results: SharedSearchResultsUi,
-    nowPlaying: NowPlayingUi?,
     onQueryChanged: (String) -> Unit,
     onSearch: () -> Unit,
     onTrackSelected: (AndroidTrackRowUi) -> Unit,
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
     onArtistSelected: (SharedMediaItemUi) -> Unit,
-    onOpenNowPlaying: () -> Unit,
-    onPause: () -> Unit,
-    onResume: () -> Unit,
-    onStop: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Search", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         NaviampTextField(query, onQueryChanged, "Search tracks", colors)
         PrimaryButton("Search", colors, onSearch, enabled = query.isNotBlank())
-        nowPlaying?.let {
-            MiniNowPlaying(it, colors, onOpenNowPlaying, onPause, onResume, onStop)
-        }
         if (query.isNotBlank() && results.isEmpty) {
             Text("No matches found.", color = colors.secondaryText, fontSize = 12.sp)
         }
@@ -839,33 +843,92 @@ private fun MiniNowPlaying(
     onOpen: () -> Unit,
     onPause: () -> Unit,
     onResume: () -> Unit,
-    onStop: () -> Unit,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = Modifier
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(Color.Black.copy(alpha = 0.24f))
-            .clickable(onClick = onOpen)
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+            .background(Color.Black.copy(alpha = 0.22f))
+            .padding(horizontal = 6.dp, vertical = 4.dp),
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            PlatformCoverArt(nowPlaying.coverArtUrl, colors, 42.dp, 5.dp)
-            Column(Modifier.weight(1f)) {
-                Text("Now Playing", color = colors.primaryText, fontWeight = FontWeight.Bold)
-                Text(nowPlaying.title, color = colors.primaryText, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(nowPlaying.subtitle, color = colors.secondaryText, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 12.sp)
-                Text(nowPlaying.stateLabel, color = colors.secondaryText, fontSize = 12.sp)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier
+                .weight(1f)
+                .clickable(onClick = onOpen),
+        ) {
+            PlatformCoverArt(nowPlaying.coverArtUrl, colors, 40.dp, 5.dp)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text(
+                    nowPlaying.subtitle.ifBlank { "Nothing Playing" },
+                    color = colors.secondaryText,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    fontSize = 11.sp,
+                )
+                Text(
+                    nowPlaying.title.ifBlank { "Queue is empty" },
+                    color = colors.primaryText,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                )
             }
         }
-        SharedTransportControls(
+        MiniPlayerIconButton(
             colors = colors,
-            isPlaying = nowPlaying.stateLabel.startsWith("Playing"),
-            onPause = onPause,
-            onResume = onResume,
-            onStop = onStop,
-            compact = true,
+            enabled = nowPlaying.hasPrevious,
+            icon = NaviampTransportIcons.Previous,
+            contentDescription = "Previous",
+            onClick = onPrevious,
+        )
+        MiniPlayerIconButton(
+            colors = colors,
+            enabled = nowPlaying.canPlayPause,
+            icon = if (nowPlaying.isPlaying) NaviampTransportIcons.Pause else NaviampTransportIcons.Play,
+            contentDescription = if (nowPlaying.isPlaying) "Pause" else "Play",
+            onClick = {
+                if (nowPlaying.isPlaying) {
+                    onPause()
+                } else {
+                    onResume()
+                }
+            },
+        )
+        MiniPlayerIconButton(
+            colors = colors,
+            enabled = nowPlaying.hasNext,
+            icon = NaviampTransportIcons.Next,
+            contentDescription = "Next",
+            onClick = onNext,
+        )
+    }
+}
+
+@Composable
+private fun MiniPlayerIconButton(
+    colors: NaviampColors,
+    enabled: Boolean,
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+) {
+    IconButton(
+        enabled = enabled,
+        onClick = onClick,
+        modifier = Modifier.size(34.dp),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = if (enabled) colors.primaryText else colors.mutedText,
+            modifier = Modifier.size(20.dp),
         )
     }
 }

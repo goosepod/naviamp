@@ -175,7 +175,7 @@ private fun NaviampAndroidApp() {
         }
     }
 
-    fun playTrack(track: Track, queue: List<Track>? = null) {
+    fun playTrack(track: Track, queue: List<Track>? = null, openNowPlaying: Boolean = true) {
         val activeProvider = provider
         if (activeProvider == null) {
             status = "Connect before playing a track."
@@ -194,7 +194,9 @@ private fun NaviampAndroidApp() {
                 shuffledUpNextSnapshot = null
                 nowPlaying = track
                 nowPlayingStation = null
-                nowPlayingOpen = true
+                if (openNowPlaying) {
+                    nowPlayingOpen = true
+                }
                 playbackProgress = PlaybackProgress.Unknown
                 loadRelatedTracks(track)
                 if (lyricsVisible) loadLyrics(track)
@@ -239,7 +241,7 @@ private fun NaviampAndroidApp() {
             else -> currentIndex + offset
         }
         val nextTrack = knownTracks.getOrNull(nextIndex) ?: return
-        playTrack(nextTrack, knownTracks)
+        playTrack(nextTrack, knownTracks, openNowPlaying = false)
     }
 
     AndroidPlaybackNotificationControls.onPlayPause = {
