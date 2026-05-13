@@ -1,8 +1,10 @@
 package app.naviamp.android
 
+import android.Manifest
 import android.app.DownloadManager
 import android.content.Context
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import androidx.activity.ComponentActivity
@@ -18,6 +20,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import app.naviamp.android.playback.AndroidAudioWaveformAnalyzer
 import app.naviamp.android.playback.AndroidMedia3PlaybackEngine
+import app.naviamp.android.playback.AndroidPlaybackNotificationControls
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Artist
@@ -62,6 +65,9 @@ import java.net.URL
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1001)
+        }
         setContent {
             NaviampAndroidApp()
         }
@@ -114,6 +120,7 @@ private fun NaviampAndroidApp() {
 
     DisposableEffect(playbackEngine) {
         onDispose {
+            AndroidPlaybackNotificationControls.clear()
             playbackEngine.release()
         }
     }
@@ -192,6 +199,11 @@ private fun NaviampAndroidApp() {
                 loadRelatedTracks(track)
                 if (lyricsVisible) loadLyrics(track)
                 playbackEngine.applyTlsSettings(activeTlsSettings)
+                playbackEngine.updateNotificationMetadata(
+                    title = track.title,
+                    subtitle = track.artistName,
+                    coverArtUrl = track.coverArtUrl(activeProvider),
+                )
                 playbackEngine.play(
                     scope = scope,
                     request = PlaybackRequest(streamUrl),
@@ -229,6 +241,16 @@ private fun NaviampAndroidApp() {
         val nextTrack = knownTracks.getOrNull(nextIndex) ?: return
         playTrack(nextTrack, knownTracks)
     }
+
+    AndroidPlaybackNotificationControls.onPlayPause = {
+        when (playbackState) {
+            PlaybackState.Playing -> playbackEngine.pause()
+            else -> playbackEngine.resume()
+        }
+    }
+    AndroidPlaybackNotificationControls.onPrevious = { playAdjacentTrack(-1) }
+    AndroidPlaybackNotificationControls.onNext = { playAdjacentTrack(1) }
+    AndroidPlaybackNotificationControls.onStop = { playbackEngine.stop() }
 
     fun applyTrackMetadataUpdate(updatedTrack: Track) {
         nowPlaying = nowPlaying?.let { if (it.id == updatedTrack.id) updatedTrack else it }
@@ -562,6 +584,11 @@ private fun NaviampAndroidApp() {
             nowPlayingOpen = true
             status = "Loading ${station.name}..."
             playbackEngine.applyTlsSettings(activeTlsSettings)
+            playbackEngine.updateNotificationMetadata(
+                title = station.name,
+                subtitle = "Internet radio",
+                coverArtUrl = null,
+            )
             scope.launch {
                 runCatching {
                     resolveInternetRadioStreamUrl(station.streamUrl.trim())

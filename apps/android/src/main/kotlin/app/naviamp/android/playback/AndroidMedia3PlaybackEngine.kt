@@ -49,6 +49,7 @@ class AndroidMedia3PlaybackEngine(
     private var onProgressChanged: ((PlaybackProgress) -> Unit)? = null
     private var onMetadataChanged: ((PlaybackStreamMetadata) -> Unit)? = null
     private var tlsSettings: NavidromeTlsSettings = NavidromeTlsSettings()
+    private var notificationMetadata = AndroidPlaybackNotificationMetadata()
 
     override val name: String = "Media3"
     override val supportsPause: Boolean = true
@@ -62,6 +63,19 @@ class AndroidMedia3PlaybackEngine(
     fun applyTlsSettings(tlsSettings: NavidromeTlsSettings) {
         this.tlsSettings = tlsSettings
         AndroidPlaybackTls.applyDefaults(tlsSettings)
+    }
+
+    fun updateNotificationMetadata(
+        title: String?,
+        subtitle: String?,
+        coverArtUrl: String?,
+    ) {
+        notificationMetadata = AndroidPlaybackNotificationMetadata(
+            title = title,
+            subtitle = subtitle,
+            coverArtUrl = coverArtUrl,
+        )
+        AndroidPlaybackForegroundService.update(appContext, notificationMetadata)
     }
 
     init {
@@ -105,6 +119,8 @@ class AndroidMedia3PlaybackEngine(
         onProgressChanged(PlaybackProgress.Unknown)
 
         AndroidPlaybackTls.applyDefaults(tlsSettings)
+        AndroidPlaybackNotificationControls.isPlaying = true
+        AndroidPlaybackForegroundService.start(appContext, notificationMetadata)
         player.setMediaItem(MediaItem.fromUri(request.url))
         player.prepare()
         request.startPositionSeconds?.let { player.seekTo((it * 1000).toLong().coerceAtLeast(0L)) }
@@ -114,10 +130,14 @@ class AndroidMedia3PlaybackEngine(
 
     override fun pause() {
         player.pause()
+        AndroidPlaybackNotificationControls.isPlaying = false
+        AndroidPlaybackForegroundService.update(appContext, notificationMetadata)
     }
 
     override fun resume() {
         player.play()
+        AndroidPlaybackNotificationControls.isPlaying = true
+        AndroidPlaybackForegroundService.update(appContext, notificationMetadata)
     }
 
     override fun seek(positionSeconds: Double) {
@@ -131,6 +151,8 @@ class AndroidMedia3PlaybackEngine(
     override fun stop() {
         progressJob?.cancel()
         progressJob = null
+        AndroidPlaybackNotificationControls.isPlaying = false
+        AndroidPlaybackForegroundService.stop(appContext)
         player.stop()
         player.clearMediaItems()
         onProgressChanged?.invoke(PlaybackProgress.Unknown)
@@ -140,6 +162,8 @@ class AndroidMedia3PlaybackEngine(
     fun release() {
         progressJob?.cancel()
         progressJob = null
+        AndroidPlaybackNotificationControls.clear()
+        AndroidPlaybackForegroundService.stop(appContext)
         mediaSession.release()
         player.release()
         onStateChanged = null
@@ -164,6 +188,10 @@ class AndroidMedia3PlaybackEngine(
             Player.STATE_ENDED -> PlaybackState.Finished
             Player.STATE_IDLE -> PlaybackState.Idle
             else -> PlaybackState.Idle
+        }
+        AndroidPlaybackNotificationControls.isPlaying = state == PlaybackState.Playing
+        if (state == PlaybackState.Playing || state == PlaybackState.Paused || state == PlaybackState.Loading) {
+            AndroidPlaybackForegroundService.update(appContext, notificationMetadata)
         }
         onStateChanged?.invoke(state)
     }
