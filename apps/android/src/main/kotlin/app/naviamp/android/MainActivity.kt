@@ -26,6 +26,7 @@ import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.AudioInfo
+import app.naviamp.domain.Genre
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Playlist
@@ -54,6 +55,7 @@ import app.naviamp.ui.NowPlayingUi
 import app.naviamp.ui.SharedAlbumDetailUi
 import app.naviamp.ui.SharedArtistDetailUi
 import app.naviamp.ui.SharedHomeUi
+import app.naviamp.ui.SharedHomeStationUi
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedRoute
 import kotlinx.coroutines.Dispatchers
@@ -61,6 +63,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
+import java.time.LocalDate
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -242,6 +245,24 @@ private fun NaviampAndroidApp() {
         }
         val nextTrack = knownTracks.getOrNull(nextIndex) ?: return
         playTrack(nextTrack, knownTracks, openNowPlaying = false)
+    }
+
+    fun playRadioTracks(statusLabel: String, loadTracks: suspend (NavidromeProvider) -> List<Track>) {
+        val activeProvider = provider ?: return
+        scope.launch {
+            status = "Starting $statusLabel..."
+            runCatching { loadTracks(activeProvider) }
+                .onSuccess { radioTracks ->
+                    val queue = radioTracks.distinctBy { it.id }
+                    val firstTrack = queue.firstOrNull()
+                    if (firstTrack == null) {
+                        status = "No tracks found for $statusLabel."
+                    } else {
+                        playTrack(firstTrack, queue)
+                    }
+                }
+                .onFailure { error -> status = error.message ?: "Could not start $statusLabel." }
+        }
     }
 
     AndroidPlaybackNotificationControls.onPlayPause = {
@@ -611,6 +632,38 @@ private fun NaviampAndroidApp() {
                 }
             }
         },
+        onHomeStationSelected = { station ->
+            when {
+                station.id == HomeStationLibrary -> {
+                    playRadioTracks("Library Radio") { activeProvider ->
+                        activeProvider.randomSongs(limit = 50)
+                    }
+                }
+                station.id == HomeStationRandomAlbum -> {
+                    playRadioTracks("Random Album Radio") { activeProvider ->
+                        val album = homeState.randomAlbums.firstOrNull()
+                            ?: activeProvider.albumList(AlbumListType.Random, limit = 1).firstOrNull()
+                        album?.let { activeProvider.album(it.id).tracks }.orEmpty()
+                    }
+                }
+                station.id.startsWith(HomeStationGenrePrefix) -> {
+                    val genre = station.id.removePrefix(HomeStationGenrePrefix)
+                    playRadioTracks("${genre} Radio") { activeProvider ->
+                        activeProvider.randomSongs(limit = 50, genre = genre)
+                    }
+                }
+                station.id.startsWith(HomeStationDecadePrefix) -> {
+                    val years = station.id.removePrefix(HomeStationDecadePrefix).split("-")
+                    val fromYear = years.getOrNull(0)?.toIntOrNull()
+                    val toYear = years.getOrNull(1)?.toIntOrNull()
+                    if (fromYear != null && toYear != null) {
+                        playRadioTracks(station.title) { activeProvider ->
+                            activeProvider.randomSongs(limit = 50, fromYear = fromYear, toYear = toYear)
+                        }
+                    }
+                }
+            }
+        },
         onOpenNowPlaying = { nowPlayingOpen = true },
         onCloseNowPlaying = {
             nowPlayingOpen = false
@@ -764,26 +817,74 @@ private fun NaviampAndroidApp() {
 private data class AndroidBrowseState(
     val recentlyAddedAlbums: List<Album> = emptyList(),
     val mixAlbums: List<Album> = emptyList(),
+    val recentAlbums: List<Album> = emptyList(),
+    val frequentAlbums: List<Album> = emptyList(),
+    val randomAlbums: List<Album> = emptyList(),
     val artists: List<Artist> = emptyList(),
     val playlists: List<Playlist> = emptyList(),
     val radioStations: List<InternetRadioStation> = emptyList(),
+    val genres: List<Genre> = emptyList(),
+    val genreSpotlight: Genre? = null,
+    val genreSpotlightAlbums: List<Album> = emptyList(),
+    val decadeLabel: String = "Decade",
+    val decadeFromYear: Int = 0,
+    val decadeToYear: Int = 0,
+    val decadeAlbums: List<Album> = emptyList(),
 )
 
-private suspend fun loadBrowseState(provider: NavidromeProvider): AndroidBrowseState =
-    AndroidBrowseState(
-        recentlyAddedAlbums = runCatching { provider.recentlyAddedAlbums(limit = 12) }.getOrDefault(emptyList()),
-        mixAlbums = runCatching { provider.albumList(AlbumListType.Random, limit = 6) }.getOrDefault(emptyList()),
+private suspend fun loadBrowseState(provider: NavidromeProvider): AndroidBrowseState {
+    val today = LocalDate.now()
+    val genres = runCatching { provider.genres(limit = 12) }
+        .getOrDefault(emptyList())
+        .rotatedBy(today.dayOfYear)
+    val genreSpotlight = genres.firstOrNull()
+    val decadeFromYear = today.year.floorToDecade()
+    val decadeToYear = minOf(decadeFromYear + 9, today.year)
+    return AndroidBrowseState(
+        recentlyAddedAlbums = runCatching { provider.albumList(AlbumListType.Newest, limit = 8) }.getOrDefault(emptyList()),
+        mixAlbums = runCatching { provider.albumList(AlbumListType.Random, limit = 8) }.getOrDefault(emptyList()),
+        recentAlbums = runCatching { provider.albumList(AlbumListType.Recent, limit = 6) }.getOrDefault(emptyList()),
+        frequentAlbums = runCatching { provider.albumList(AlbumListType.Frequent, limit = 6) }.getOrDefault(emptyList()),
+        randomAlbums = runCatching { provider.albumList(AlbumListType.Random, limit = 6) }.getOrDefault(emptyList()),
         artists = runCatching { provider.artists(limit = 50) }.getOrDefault(emptyList()),
         playlists = runCatching { provider.playlists(limit = 50) }.getOrDefault(emptyList()),
         radioStations = runCatching { provider.internetRadioStations() }.getOrDefault(emptyList()),
+        genres = genres,
+        genreSpotlight = genreSpotlight,
+        genreSpotlightAlbums = genreSpotlight?.let { genre ->
+            runCatching { provider.albumsByGenre(genre.name, limit = 6) }.getOrDefault(emptyList())
+        }.orEmpty(),
+        decadeLabel = "The ${decadeFromYear}s",
+        decadeFromYear = decadeFromYear,
+        decadeToYear = decadeToYear,
+        decadeAlbums = runCatching { provider.albumsByYear(decadeFromYear, decadeToYear, limit = 6) }.getOrDefault(emptyList()),
     )
+}
 
 private fun AndroidBrowseState.toSharedHome(provider: NavidromeProvider?): SharedHomeUi =
     SharedHomeUi(
         recentlyAddedAlbums = recentlyAddedAlbums.map { it.toSharedMediaItem(provider) },
         mixAlbums = mixAlbums.map { it.toSharedMediaItem(provider) },
+        recentAlbums = recentAlbums.map { it.toSharedMediaItem(provider) },
+        frequentAlbums = frequentAlbums.map { it.toSharedMediaItem(provider) },
+        randomAlbums = randomAlbums.map { it.toSharedMediaItem(provider) },
         playlists = playlists.map { it.toSharedMediaItem() },
+        recentRadioStreams = emptyList(),
         radioStations = radioStations.map { it.toSharedMediaItem() },
+        stations = buildList {
+            add(SharedHomeStationUi(HomeStationLibrary, "Library Radio", "Random tracks from your full library"))
+            add(SharedHomeStationUi(HomeStationRandomAlbum, "Random Album Radio", "Start from a random album"))
+            genres.take(3).forEach { genre ->
+                add(SharedHomeStationUi("${HomeStationGenrePrefix}${genre.name}", "${genre.name} Radio", "A random ${genre.name} station"))
+            }
+            if (decadeAlbums.isNotEmpty()) {
+                add(SharedHomeStationUi("${HomeStationDecadePrefix}${decadeFromYear}-${decadeToYear}", "$decadeLabel Radio", "Random songs from $decadeLabel"))
+            }
+        },
+        genreSpotlightTitle = genreSpotlight?.name,
+        genreSpotlightAlbums = genreSpotlightAlbums.map { it.toSharedMediaItem(provider) },
+        decadeLabel = decadeLabel,
+        decadeAlbums = decadeAlbums.map { it.toSharedMediaItem(provider) },
     )
 
 private fun MediaSearchResults.toSharedSearchResults(provider: NavidromeProvider?) =
@@ -1035,3 +1136,20 @@ private fun String.isPlaylistContentType(): Boolean =
         contains("text/plain") ||
         contains("text/html") ||
         contains("application/octet-stream")
+
+private fun Int.floorToDecade(): Int =
+    (this / 10) * 10
+
+private fun <T> List<T>.rotatedBy(offset: Int): List<T> {
+    if (isEmpty()) return this
+    val normalizedOffset = offset.floorMod(size)
+    return drop(normalizedOffset) + take(normalizedOffset)
+}
+
+private fun Int.floorMod(other: Int): Int =
+    ((this % other) + other) % other
+
+private const val HomeStationLibrary = "library"
+private const val HomeStationRandomAlbum = "random-album"
+private const val HomeStationGenrePrefix = "genre:"
+private const val HomeStationDecadePrefix = "decade:"

@@ -2,6 +2,7 @@ package app.naviamp.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -148,15 +149,37 @@ data class SharedArtistDetailUi(
 data class SharedHomeUi(
     val recentlyAddedAlbums: List<SharedMediaItemUi> = emptyList(),
     val mixAlbums: List<SharedMediaItemUi> = emptyList(),
+    val recentAlbums: List<SharedMediaItemUi> = emptyList(),
+    val frequentAlbums: List<SharedMediaItemUi> = emptyList(),
+    val randomAlbums: List<SharedMediaItemUi> = emptyList(),
     val playlists: List<SharedMediaItemUi> = emptyList(),
+    val recentRadioStreams: List<SharedMediaItemUi> = emptyList(),
     val radioStations: List<SharedMediaItemUi> = emptyList(),
+    val stations: List<SharedHomeStationUi> = emptyList(),
+    val genreSpotlightTitle: String? = null,
+    val genreSpotlightAlbums: List<SharedMediaItemUi> = emptyList(),
+    val decadeLabel: String = "Decade",
+    val decadeAlbums: List<SharedMediaItemUi> = emptyList(),
 ) {
     val isEmpty: Boolean
         get() = recentlyAddedAlbums.isEmpty() &&
             mixAlbums.isEmpty() &&
+            recentAlbums.isEmpty() &&
+            frequentAlbums.isEmpty() &&
+            randomAlbums.isEmpty() &&
             playlists.isEmpty() &&
-            radioStations.isEmpty()
+            recentRadioStreams.isEmpty() &&
+            radioStations.isEmpty() &&
+            stations.isEmpty() &&
+            genreSpotlightAlbums.isEmpty() &&
+            decadeAlbums.isEmpty()
 }
+
+data class SharedHomeStationUi(
+    val id: String,
+    val title: String,
+    val subtitle: String,
+)
 
 data class SharedSearchResultsUi(
     val artists: List<SharedMediaItemUi> = emptyList(),
@@ -268,6 +291,7 @@ fun NaviampSharedAppShell(
     onArtistSelected: (SharedMediaItemUi) -> Unit,
     onPlaylistSelected: (SharedMediaItemUi) -> Unit,
     onRadioStationSelected: (SharedMediaItemUi) -> Unit,
+    onHomeStationSelected: (SharedHomeStationUi) -> Unit = {},
     onOpenNowPlaying: () -> Unit,
     onCloseNowPlaying: () -> Unit,
     onPause: () -> Unit,
@@ -375,6 +399,7 @@ fun NaviampSharedAppShell(
                             onArtistSelected = onArtistSelected,
                             onPlaylistSelected = onPlaylistSelected,
                             onRadioStationSelected = onRadioStationSelected,
+                            onHomeStationSelected = onHomeStationSelected,
                             onOpenNowPlaying = onOpenNowPlaying,
                             onCloseNowPlaying = onCloseNowPlaying,
                             onPause = onPause,
@@ -526,6 +551,7 @@ private fun ConnectedContent(
     onArtistSelected: (SharedMediaItemUi) -> Unit,
     onPlaylistSelected: (SharedMediaItemUi) -> Unit,
     onRadioStationSelected: (SharedMediaItemUi) -> Unit,
+    onHomeStationSelected: (SharedHomeStationUi) -> Unit,
     onOpenNowPlaying: () -> Unit,
     onCloseNowPlaying: () -> Unit,
     onPause: () -> Unit,
@@ -584,7 +610,7 @@ private fun ConnectedContent(
         albumDetail != null -> AlbumDetailContent(colors, albumDetail, onCloseNowPlaying, onTrackSelected)
         artistDetail != null -> ArtistDetailContent(colors, artistDetail, onCloseNowPlaying, onAlbumSelected)
         else -> when (selectedRoute) {
-            SharedRoute.Home -> SharedHome(colors, home, onEditConnection, onAlbumSelected, onPlaylistSelected, onRadioStationSelected)
+            SharedRoute.Home -> SharedHome(colors, home, onAlbumSelected, onPlaylistSelected, onRadioStationSelected, onHomeStationSelected)
             SharedRoute.Playlists -> MediaListContent(colors, "Playlists", playlistItems, "No playlists found.", onPlaylistSelected)
             SharedRoute.Library -> MediaListContent(colors, "Library", libraryArtists, "No library artists found.", onArtistSelected)
             SharedRoute.Search -> SearchContent(colors, query, searchResults, onQueryChanged, onSearch, onTrackSelected, onAlbumSelected, onArtistSelected)
@@ -599,25 +625,41 @@ private fun ConnectedContent(
 private fun SharedHome(
     colors: NaviampColors,
     home: SharedHomeUi,
-    onEditConnection: () -> Unit,
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
     onPlaylistSelected: (SharedMediaItemUi) -> Unit,
     onRadioStationSelected: (SharedMediaItemUi) -> Unit,
+    onHomeStationSelected: (SharedHomeStationUi) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            Text("Home", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-            IconButton(onClick = onEditConnection, modifier = Modifier.size(36.dp)) {
-                Icon(NaviampIcons.Settings, contentDescription = "Edit connection", tint = colors.primaryText)
-            }
-        }
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("Music", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         if (home.isEmpty) {
             PlaceholderTile("Home sections will appear after connection.", colors)
         }
-        HomeSection("Mixes For You", home.mixAlbums, colors, onAlbumSelected)
+        if (home.mixAlbums.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                SectionHeader("MIXES FOR YOU", colors)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                ) {
+                    home.mixAlbums.take(6).forEach { album ->
+                        MixCard(album, colors, onClick = { onAlbumSelected(album) })
+                    }
+                }
+            }
+        }
         HomeSection("Recently Added In Music", home.recentlyAddedAlbums, colors, onAlbumSelected)
         HomeSection("Recent Playlists", home.playlists, colors, onPlaylistSelected)
+        HomeSection("Recently Played Radio", home.recentRadioStreams, colors, onRadioStationSelected, stationStyle = true)
         HomeSection("Recent Internet Radio", home.radioStations, colors, onRadioStationSelected)
+        HomeStationSection(home.stations, colors, onHomeStationSelected)
+        HomeSection("Recent Albums", home.recentAlbums, colors, onAlbumSelected)
+        HomeSection("Frequently Played Albums", home.frequentAlbums, colors, onAlbumSelected)
+        HomeSection("Random Albums", home.randomAlbums, colors, onAlbumSelected)
+        home.genreSpotlightTitle?.let { title ->
+            HomeSection("More In $title", home.genreSpotlightAlbums, colors, onAlbumSelected)
+        }
+        HomeSection("From ${home.decadeLabel}", home.decadeAlbums, colors, onAlbumSelected)
     }
 }
 
@@ -955,22 +997,132 @@ private fun TrackRow(track: AndroidTrackRowUi, colors: NaviampColors, onTrackSel
 }
 
 @Composable
+private fun MixCard(
+    album: SharedMediaItemUi,
+    colors: NaviampColors,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .width(154.dp)
+            .height(120.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .clickable(onClick = onClick),
+    ) {
+        PlatformCoverArt(album.coverArtUrl, colors, 154.dp, 6.dp)
+        Column(
+            verticalArrangement = Arrangement.Bottom,
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        0f to Color.Transparent,
+                        1f to Color.Black.copy(alpha = 0.68f),
+                    ),
+                )
+                .padding(8.dp),
+        ) {
+            Text(
+                "${album.subtitle} Mix",
+                color = colors.primaryText,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                album.title,
+                color = colors.secondaryText,
+                fontSize = 11.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun HomeStationSection(
+    stations: List<SharedHomeStationUi>,
+    colors: NaviampColors,
+    onStationSelected: (SharedHomeStationUi) -> Unit,
+) {
+    if (stations.isEmpty()) return
+
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        SectionHeader("STATIONS", colors)
+        stations.forEach { station ->
+            StationRow(
+                title = station.title,
+                subtitle = station.subtitle,
+                colors = colors,
+                onClick = { onStationSelected(station) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun StationRow(
+    title: String,
+    subtitle: String,
+    colors: NaviampColors,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(5.dp))
+            .background(Color.Black.copy(alpha = 0.12f))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(34.dp)
+                .clip(RoundedCornerShape(5.dp))
+                .background(colors.controlSurface.copy(alpha = 0.5f)),
+        ) {
+            Icon(NaviampIcons.InternetRadio, contentDescription = null, tint = colors.primaryText, modifier = Modifier.size(19.dp))
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, color = colors.primaryText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(subtitle, color = colors.secondaryText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        Text(">", color = colors.mutedText, fontSize = 16.sp)
+    }
+}
+
+@Composable
 private fun HomeSection(
     title: String,
     items: List<SharedMediaItemUi>,
     colors: NaviampColors,
     onItemSelected: ((SharedMediaItemUi) -> Unit)? = null,
+    stationStyle: Boolean = false,
 ) {
     if (items.isEmpty()) return
 
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        SectionHeader(title, colors)
+        SectionHeader(title.uppercase(), colors)
         items.take(6).forEach { item ->
-            SharedMediaRow(
-                item = item,
-                colors = colors,
-                onClick = onItemSelected?.let { { it(item) } },
-            )
+            if (stationStyle) {
+                StationRow(
+                    title = item.title,
+                    subtitle = item.subtitle,
+                    colors = colors,
+                    onClick = { onItemSelected?.invoke(item) },
+                )
+            } else {
+                SharedMediaRow(
+                    item = item,
+                    colors = colors,
+                    onClick = onItemSelected?.let { { it(item) } },
+                )
+            }
         }
     }
 }
