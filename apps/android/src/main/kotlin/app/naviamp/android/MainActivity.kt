@@ -19,6 +19,7 @@ import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Artist
 import app.naviamp.domain.AudioInfo
 import app.naviamp.domain.InternetRadioStation
+import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.StreamRequest
@@ -35,7 +36,10 @@ import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import app.naviamp.ui.AndroidTrackRowUi
 import app.naviamp.ui.ConnectionFormState
+import app.naviamp.ui.NaviampDetailSectionUi
+import app.naviamp.ui.NaviampLyricLineUi
 import app.naviamp.ui.NaviampNowPlayingItemUi
+import app.naviamp.ui.NaviampRepeatMode
 import app.naviamp.ui.NaviampSharedAppShell
 import app.naviamp.ui.NowPlayingUi
 import app.naviamp.ui.SharedAlbumDetailUi
@@ -63,6 +67,7 @@ private fun NaviampAndroidApp() {
     val context = LocalContext.current
     val playbackEngine = remember { AndroidMedia3PlaybackEngine(context) }
     val waveformAnalyzer = remember { AndroidAudioWaveformAnalyzer(context) }
+    val lrclibLyricsClient = remember { AndroidLrclibLyricsClient() }
     val settingsStore = remember { AndroidSettingsStore(context) }
     val savedConnection = remember { settingsStore.loadConnection() }
     var serverUrl by remember { mutableStateOf(savedConnection.serverUrl) }
@@ -90,6 +95,13 @@ private fun NaviampAndroidApp() {
     var playbackProgress by remember { mutableStateOf(PlaybackProgress.Unknown) }
     var volumePercent by remember { mutableStateOf(100) }
     var waveformByTrackId by remember { mutableStateOf<Map<String, List<Float>>>(emptyMap()) }
+    var playQueue by remember { mutableStateOf<List<Track>>(emptyList()) }
+    var shuffledUpNextSnapshot by remember { mutableStateOf<List<Track>?>(null) }
+    var repeatMode by remember { mutableStateOf(NaviampRepeatMode.Off) }
+    var relatedTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
+    var lyricsVisible by remember { mutableStateOf(false) }
+    var lyricsByTrackId by remember { mutableStateOf<Map<String, Lyrics?>>(emptyMap()) }
+    var lyricsStatusByTrackId by remember { mutableStateOf<Map<String, String?>>(emptyMap()) }
 
     DisposableEffect(playbackEngine) {
         onDispose {
@@ -97,21 +109,79 @@ private fun NaviampAndroidApp() {
         }
     }
 
-    fun playTrack(track: Track) {
+    fun activeQueue(): List<Track> =
+        playQueue.ifEmpty { allKnownTracks(searchResults, albumDetail) }
+
+    fun findKnownTrack(trackId: String): Track? =
+        (activeQueue() + relatedTracks + allKnownTracks(searchResults, albumDetail))
+            .firstOrNull { it.id.value == trackId }
+
+    fun loadLyrics(track: Track) {
+        val activeProvider = provider ?: return
+        if (lyricsByTrackId.containsKey(track.id.value) || lyricsStatusByTrackId[track.id.value] != null) return
+        lyricsStatusByTrackId = lyricsStatusByTrackId + (track.id.value to "Grabbing lyrics")
+        scope.launch {
+            runCatching {
+                val localLyrics = activeProvider.lyrics(track.id)
+                val lrclibLyrics = if (localLyrics == null || !localLyrics.synced) {
+                    lrclibLyricsClient.lyrics(track)
+                } else {
+                    null
+                }
+                when {
+                    localLyrics == null -> lrclibLyrics
+                    localLyrics.synced -> localLyrics
+                    lrclibLyrics?.synced == true -> lrclibLyrics
+                    else -> localLyrics
+                }
+            }
+                .onSuccess { lyrics ->
+                    lyricsByTrackId = lyricsByTrackId + (track.id.value to lyrics)
+                    lyricsStatusByTrackId = lyricsStatusByTrackId + (track.id.value to null)
+                }
+                .onFailure { error ->
+                    lyricsByTrackId = lyricsByTrackId + (track.id.value to null)
+                    lyricsStatusByTrackId = lyricsStatusByTrackId + (track.id.value to (error.message ?: "Lyrics unavailable"))
+                }
+        }
+    }
+
+    fun loadRelatedTracks(track: Track) {
+        val activeProvider = provider ?: return
+        if (!activeProvider.capabilities.supportsTrackRadio) {
+            relatedTracks = emptyList()
+            return
+        }
+        scope.launch {
+            runCatching { activeProvider.trackRadio(track.id, count = 20) }
+                .onSuccess { relatedTracks = it }
+                .onFailure { relatedTracks = emptyList() }
+        }
+    }
+
+    fun playTrack(track: Track, queue: List<Track>? = null) {
         val activeProvider = provider
         if (activeProvider == null) {
             status = "Connect before playing a track."
             return
         }
+        val nextQueue = queue
+            ?.takeIf { tracks -> tracks.any { it.id == track.id } }
+            ?: activeQueue().takeIf { tracks -> tracks.any { it.id == track.id } }
+            ?: listOf(track)
         scope.launch {
             status = "Loading ${track.title}..."
             runCatching {
                 activeProvider.streamUrl(StreamRequest(track.id, StreamQuality.Original))
             }.onSuccess { streamUrl ->
+                playQueue = nextQueue
+                shuffledUpNextSnapshot = null
                 nowPlaying = track
                 nowPlayingStation = null
                 nowPlayingOpen = true
                 playbackProgress = PlaybackProgress.Unknown
+                loadRelatedTracks(track)
+                if (lyricsVisible) loadLyrics(track)
                 playbackEngine.applyTlsSettings(activeTlsSettings)
                 playbackEngine.play(
                     scope = scope,
@@ -138,10 +208,17 @@ private fun NaviampAndroidApp() {
 
     fun playAdjacentTrack(offset: Int) {
         val currentTrack = nowPlaying ?: return
-        val knownTracks = allKnownTracks(searchResults, albumDetail)
+        val knownTracks = activeQueue()
         val currentIndex = knownTracks.indexOfFirst { it.id == currentTrack.id }
-        val nextTrack = knownTracks.getOrNull(currentIndex + offset) ?: return
-        playTrack(nextTrack)
+        if (currentIndex < 0) return
+        val nextIndex = when {
+            repeatMode == NaviampRepeatMode.Track -> currentIndex
+            offset > 0 && currentIndex == knownTracks.lastIndex && repeatMode == NaviampRepeatMode.Queue -> 0
+            offset < 0 && currentIndex == 0 && repeatMode == NaviampRepeatMode.Queue -> knownTracks.lastIndex
+            else -> currentIndex + offset
+        }
+        val nextTrack = knownTracks.getOrNull(nextIndex) ?: return
+        playTrack(nextTrack, knownTracks)
     }
 
     fun applyTrackMetadataUpdate(updatedTrack: Track) {
@@ -235,8 +312,10 @@ private fun NaviampAndroidApp() {
         radioStationItems = homeState.radioStations.map { it.toSharedMediaItem() },
         albumDetail = albumDetail?.toSharedAlbumDetail(provider),
         nowPlaying = nowPlaying?.let { track ->
-            val knownTracks = allKnownTracks(searchResults, albumDetail)
+            val knownTracks = activeQueue()
             val currentIndex = knownTracks.indexOfFirst { it.id == track.id }
+            val lyrics = lyricsByTrackId[track.id.value]
+            val lyricsStatus = lyricsStatusByTrackId[track.id.value]
             NowPlayingUi(
                 id = track.id.value,
                 title = track.title,
@@ -256,17 +335,28 @@ private fun NaviampAndroidApp() {
                 isPaused = playbackState == PlaybackState.Paused,
                 canSeek = true,
                 canChangeVolume = false,
-                hasPrevious = currentIndex > 0,
-                hasNext = currentIndex >= 0 && currentIndex < knownTracks.lastIndex,
-                shuffleEnabled = knownTracks.size > 2,
+                hasPrevious = currentIndex > 0 || (repeatMode == NaviampRepeatMode.Queue && knownTracks.size > 1),
+                hasNext = (currentIndex >= 0 && currentIndex < knownTracks.lastIndex) ||
+                    (repeatMode == NaviampRepeatMode.Queue && knownTracks.size > 1),
+                shuffleEnabled = knownTracks.drop(currentIndex + 1).size > 1,
+                shuffleActive = shuffledUpNextSnapshot != null,
+                repeatMode = repeatMode,
                 canRepeat = knownTracks.isNotEmpty(),
-                canStartRadio = true,
-                canAddToPlaylist = true,
+                canStartRadio = provider?.capabilities?.supportsTrackRadio == true,
+                canAddToPlaylist = homeState.playlists.isNotEmpty(),
                 favoriteActive = track.favoritedAtIso8601 != null,
                 canFavorite = provider?.capabilities?.supportsTrackFavorites == true,
                 userRating = track.userRating,
                 canRate = provider?.capabilities?.supportsTrackRatings == true,
+                lyricsAvailable = true,
+                lyricsVisible = lyricsVisible,
+                lyricsStatus = lyricsStatus,
+                lyricsOffsetMillis = lyrics?.offsetMillis ?: 0,
+                lyricsLines = lyrics?.lines.orEmpty().map { line ->
+                    NaviampLyricLineUi(startMillis = line.startMillis, text = line.text)
+                },
                 menuEnabled = true,
+                detailSections = track.toDetailSections(),
                 backTo = knownTracks
                     .take(currentIndex.coerceAtLeast(0))
                     .asReversed()
@@ -276,6 +366,7 @@ private fun NaviampAndroidApp() {
                 } else {
                     emptyList()
                 },
+                related = relatedTracks.map { it.toNowPlayingItemUi(provider) },
             )
         } ?: nowPlayingStation?.let { station ->
             NowPlayingUi(
@@ -331,12 +422,15 @@ private fun NaviampAndroidApp() {
             }
         },
         onTrackSelected = { selectedTrack ->
-            val track = allKnownTracks(searchResults, albumDetail).firstOrNull { it.id.value == selectedTrack.id }
+            val currentTracks = activeQueue().takeIf { queue -> queue.any { it.id.value == selectedTrack.id } }
+                ?: relatedTracks.takeIf { queue -> queue.any { it.id.value == selectedTrack.id } }
+                ?: allKnownTracks(searchResults, albumDetail)
+            val track = currentTracks.firstOrNull { it.id.value == selectedTrack.id } ?: findKnownTrack(selectedTrack.id)
             if (track == null) {
                 status = "Track not found."
                 return@NaviampSharedAppShell
             }
-            playTrack(track)
+            playTrack(track, currentTracks)
         },
         onAlbumSelected = { selectedAlbum ->
             val activeProvider = provider ?: return@NaviampSharedAppShell
@@ -405,6 +499,94 @@ private fun NaviampAndroidApp() {
         onVolumeChanged = { percent ->
             volumePercent = percent
             playbackEngine.setVolume(percent)
+        },
+        onToggleShuffle = {
+            val currentTrack = nowPlaying ?: return@NaviampSharedAppShell
+            val queue = activeQueue()
+            val currentIndex = queue.indexOfFirst { it.id == currentTrack.id }
+            if (currentIndex < 0) return@NaviampSharedAppShell
+            val snapshot = shuffledUpNextSnapshot
+            if (snapshot == null) {
+                val upcoming = queue.drop(currentIndex + 1)
+                if (upcoming.size < 2) return@NaviampSharedAppShell
+                shuffledUpNextSnapshot = upcoming
+                playQueue = queue.take(currentIndex + 1) + upcoming.shuffled()
+            } else {
+                playQueue = queue.take(currentIndex + 1) + snapshot
+                shuffledUpNextSnapshot = null
+            }
+        },
+        onCycleRepeatMode = {
+            repeatMode = when (repeatMode) {
+                NaviampRepeatMode.Off -> NaviampRepeatMode.Queue
+                NaviampRepeatMode.Queue -> NaviampRepeatMode.Track
+                NaviampRepeatMode.Track -> NaviampRepeatMode.Off
+            }
+        },
+        onToggleLyrics = {
+            lyricsVisible = !lyricsVisible
+            if (lyricsVisible) {
+                nowPlaying?.let(::loadLyrics)
+            }
+        },
+        onTrackRadio = {
+            val activeProvider = provider ?: return@NaviampSharedAppShell
+            val currentTrack = nowPlaying ?: return@NaviampSharedAppShell
+            if (!activeProvider.capabilities.supportsTrackRadio) return@NaviampSharedAppShell
+            scope.launch {
+                status = "Starting ${currentTrack.title} radio..."
+                runCatching { activeProvider.trackRadio(currentTrack.id, count = 50) }
+                    .onSuccess { radioTracks ->
+                        val deduped = radioTracks.filterNot { it.id == currentTrack.id }.distinctBy { it.id }
+                        val queue = listOf(currentTrack) + deduped
+                        playQueue = queue
+                        relatedTracks = deduped
+                        shuffledUpNextSnapshot = null
+                        status = "Track radio loaded."
+                    }
+                    .onFailure { error ->
+                        status = error.message ?: "Could not start track radio."
+                    }
+            }
+        },
+        onAddToPlaylist = {
+            val activeProvider = provider ?: return@NaviampSharedAppShell
+            val currentTrack = nowPlaying ?: return@NaviampSharedAppShell
+            val targetPlaylist = homeState.playlists.firstOrNull()
+            if (targetPlaylist == null) {
+                status = "Create a playlist before adding tracks on Android."
+                return@NaviampSharedAppShell
+            }
+            scope.launch {
+                runCatching {
+                    activeProvider.addTracksToPlaylist(targetPlaylist.id, listOf(currentTrack.id))
+                    activeProvider.playlists(limit = 50)
+                }.onSuccess { playlists ->
+                    homeState = homeState.copy(playlists = playlists)
+                    status = "Added ${currentTrack.title} to ${targetPlaylist.name}."
+                }.onFailure { error ->
+                    status = error.message ?: "Could not add track to playlist."
+                }
+            }
+        },
+        onDownloadTrack = {
+            status = "Downloads from Now Playing are not wired on Android yet."
+        },
+        onGoToAlbum = {
+            val activeProvider = provider ?: return@NaviampSharedAppShell
+            val albumId = nowPlaying?.albumId ?: return@NaviampSharedAppShell
+            scope.launch {
+                runCatching { activeProvider.album(albumId) }
+                    .onSuccess { detail ->
+                        albumDetail = detail
+                        nowPlayingOpen = false
+                        selectedRoute = SharedRoute.Library
+                    }
+                    .onFailure { error -> status = error.message ?: "Album failed to load." }
+            }
+        },
+        onGoToArtist = {
+            status = "Artist details are next for Android."
         },
         onToggleFavorite = {
             val activeProvider = provider ?: return@NaviampSharedAppShell
@@ -529,6 +711,49 @@ private fun InternetRadioStation.toNowPlayingStationUi(): NaviampNowPlayingItemU
         subtitle = homePageUrl ?: "Internet radio",
     )
 
+private fun Track.toDetailSections(): List<NaviampDetailSectionUi> =
+    listOf(
+        NaviampDetailSectionUi(
+            title = "Song",
+            rows = listOfNotNull(
+                "Title" to title,
+                "Artist" to artistName,
+                "Album" to albumTitle.orUnknown(),
+                albumReleaseYear?.let { "Year" to it.toString() },
+                durationSeconds?.let { "Duration" to it.durationLabel() },
+            ),
+        ),
+        NaviampDetailSectionUi(
+            title = "File",
+            rows = listOfNotNull(
+                "Codec" to audioInfo?.codec.orUnknown(),
+                audioInfo?.bitrateKbps?.let { "Bitrate" to "$it kbps" },
+                audioInfo?.samplingRateHz?.let { "Sample rate" to "$it Hz" },
+                audioInfo?.bitDepth?.let { "Bit depth" to "$it bit" },
+                "Content type" to audioInfo?.contentType.orUnknown(),
+            ),
+        ),
+        NaviampDetailSectionUi(
+            title = "Library",
+            rows = listOfNotNull(
+                "Track ID" to id.value,
+                artistId?.let { "Artist ID" to it.value },
+                albumId?.let { "Album ID" to it.value },
+                "Favorite" to if (favoritedAtIso8601 != null) "Yes" else "No",
+                userRating?.let { "Rating" to "$it / 5" },
+            ),
+        ),
+        NaviampDetailSectionUi(
+            title = "Replay gain",
+            rows = listOfNotNull(
+                replayGain?.trackGainDb?.let { "Track gain" to "${it.formatTwoDecimals()} dB" },
+                replayGain?.albumGainDb?.let { "Album gain" to "${it.formatTwoDecimals()} dB" },
+                replayGain?.trackPeak?.let { "Track peak" to it.formatSixDecimals() },
+                replayGain?.albumPeak?.let { "Album peak" to it.formatSixDecimals() },
+            ),
+        ),
+    ).filter { it.rows.isNotEmpty() }
+
 private fun AudioInfo.androidAudioInfo(): String =
     buildList {
         val normalizedCodec = codec?.takeIf { it.isNotBlank() }
@@ -539,6 +764,15 @@ private fun AudioInfo.androidAudioInfo(): String =
         samplingRateHz?.takeIf { it > 0 }?.let { add("${it / 1000.0} kHz") }
         bitDepth?.takeIf { it > 0 }?.let { add("$it-bit") }
     }.joinToString("  ")
+
+private fun String?.orUnknown(): String =
+    this?.takeIf { it.isNotBlank() } ?: "Unknown"
+
+private fun Double.formatTwoDecimals(): String =
+    kotlin.math.round(this * 100.0).div(100.0).toString()
+
+private fun Double.formatSixDecimals(): String =
+    kotlin.math.round(this * 1_000_000.0).div(1_000_000.0).toString()
 
 private fun allKnownTracks(
     searchResults: MediaSearchResults,

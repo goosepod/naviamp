@@ -24,14 +24,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -95,6 +98,9 @@ data class NaviampNowPlayingActions(
     val onToggleLyrics: () -> Unit = {},
     val onTrackRadio: () -> Unit = {},
     val onAddToPlaylist: () -> Unit = {},
+    val onDownloadTrack: () -> Unit = {},
+    val onGoToAlbum: () -> Unit = {},
+    val onGoToArtist: () -> Unit = {},
     val onToggleFavorite: () -> Unit = {},
     val onRatingSelected: (Int?) -> Unit = {},
     val onCollapse: () -> Unit = {},
@@ -153,6 +159,7 @@ fun NaviampNowPlayingPanel(
                     selectedTab = selectedTab,
                     onTabSelected = { selectedTab = it },
                     showStationList = showStationList,
+                    showLyrics = nowPlaying.lyricsVisible,
                     actions = actions,
                     modifier = Modifier
                         .weight(1.1f)
@@ -194,7 +201,18 @@ fun NaviampNowPlayingPanel(
                         .height(viewportHeight / 2)
                         .padding(horizontal = 14.dp),
                 ) {
-                    PlatformCoverArt(nowPlaying.coverArtUrl, colors, artSize, 8.dp)
+                    if (nowPlaying.lyricsVisible && !showStationList) {
+                        LyricsPanel(
+                            nowPlaying = nowPlaying,
+                            colors = colors,
+                            onSeek = actions.onSeek,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(artSize),
+                        )
+                    } else {
+                        PlatformCoverArt(nowPlaying.coverArtUrl, colors, artSize, 8.dp)
+                    }
                 }
                 NowPlayingDetails(
                     nowPlaying = nowPlaying,
@@ -212,6 +230,7 @@ fun NaviampNowPlayingPanel(
                     selectedTab = selectedTab,
                     onTabSelected = { selectedTab = it },
                     showStationList = showStationList,
+                    showLyrics = false,
                     actions = itemActions,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -231,6 +250,8 @@ private fun NowPlayingDetails(
     mobileLayout: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
+    var actionMenuExpanded by remember { mutableStateOf(false) }
+    var trackDetailsOpen by remember { mutableStateOf(false) }
     var scrubberValue by remember(nowPlaying.id) { mutableFloatStateOf(nowPlaying.progressFraction.toFloat()) }
     var isScrubbing by remember { mutableStateOf(false) }
     var volumeValue by remember { mutableFloatStateOf(nowPlaying.volumePercent.coerceIn(0, 100) / 100f) }
@@ -501,10 +522,86 @@ private fun NowPlayingDetails(
                     icon = NaviampTransportIcons.Menu,
                     contentDescription = "Track actions",
                     colors = colors,
-                    onClick = {},
+                    onClick = { actionMenuExpanded = true },
                 )
+                NaviampDropdownMenu(
+                    expanded = actionMenuExpanded,
+                    onDismissRequest = { actionMenuExpanded = false },
+                ) {
+                    NaviampDropdownMenuItem(
+                        label = if (nowPlaying.lyricsVisible) "Hide lyrics" else "Show lyrics",
+                        icon = NaviampTransportIcons.Lyrics,
+                        enabled = nowPlaying.lyricsAvailable,
+                        onClick = {
+                            actionMenuExpanded = false
+                            actions.onToggleLyrics()
+                        },
+                    )
+                    NaviampDropdownMenuItem(
+                        label = "Download track",
+                        icon = NaviampIcons.Downloads,
+                        enabled = !nowPlaying.isLive,
+                        onClick = {
+                            actionMenuExpanded = false
+                            actions.onDownloadTrack()
+                        },
+                    )
+                    NaviampDropdownMenuItem(
+                        label = "Track details",
+                        icon = NaviampIcons.Info,
+                        enabled = nowPlaying.detailSections.isNotEmpty(),
+                        onClick = {
+                            actionMenuExpanded = false
+                            trackDetailsOpen = true
+                        },
+                    )
+                    NaviampDropdownMenuItem(
+                        label = "Start track radio",
+                        icon = NaviampTransportIcons.Radio,
+                        enabled = nowPlaying.canStartRadio,
+                        onClick = {
+                            actionMenuExpanded = false
+                            actions.onTrackRadio()
+                        },
+                    )
+                    NaviampDropdownMenuItem(
+                        label = "Go to album",
+                        icon = NaviampIcons.Album,
+                        enabled = !nowPlaying.isLive,
+                        onClick = {
+                            actionMenuExpanded = false
+                            actions.onGoToAlbum()
+                        },
+                    )
+                    NaviampDropdownMenuItem(
+                        label = "Go to artist",
+                        icon = NaviampIcons.Artist,
+                        enabled = !nowPlaying.isLive,
+                        onClick = {
+                            actionMenuExpanded = false
+                            actions.onGoToArtist()
+                        },
+                    )
+                    NaviampDropdownMenuItem(
+                        label = "Add to playlist",
+                        icon = NaviampIcons.Playlist,
+                        enabled = nowPlaying.canAddToPlaylist,
+                        onClick = {
+                            actionMenuExpanded = false
+                            actions.onAddToPlaylist()
+                        },
+                    )
+                }
             }
         }
+    }
+
+    if (trackDetailsOpen) {
+        TrackDetailsDialog(
+            sections = nowPlaying.detailSections,
+            colors = colors,
+            onDismissRequest = { trackDetailsOpen = false },
+        )
     }
 }
 
@@ -704,6 +801,7 @@ private fun NowPlayingSidePanel(
     selectedTab: NaviampNowPlayingTab,
     onTabSelected: (NaviampNowPlayingTab) -> Unit,
     showStationList: Boolean,
+    showLyrics: Boolean,
     actions: NaviampNowPlayingActions,
     modifier: Modifier = Modifier,
 ) {
@@ -756,9 +854,139 @@ private fun NowPlayingSidePanel(
                 NaviampNowPlayingTab.Related -> "Related tracks are not loaded."
             },
             onClick = onClick,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(if (showLyrics) 0.62f else 1f),
         )
+        if (showLyrics) {
+            LyricsPanel(
+                nowPlaying = nowPlaying,
+                colors = colors,
+                onSeek = actions.onSeek,
+                modifier = Modifier.weight(0.38f),
+            )
+        }
     }
+}
+
+@Composable
+private fun LyricsPanel(
+    nowPlaying: NowPlayingUi,
+    colors: NaviampColors,
+    onSeek: (Double) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val listState = rememberLazyListState()
+    val positionMillis = nowPlaying.positionSeconds?.times(1000)?.toLong()
+    val activeLineIndex = remember(nowPlaying.lyricsLines, positionMillis, nowPlaying.lyricsOffsetMillis) {
+        nowPlaying.lyricsLines.indexOfLast { line ->
+            val startMillis = line.startMillis?.plus(nowPlaying.lyricsOffsetMillis)
+            startMillis != null && positionMillis != null && startMillis <= positionMillis + 250L
+        }
+    }
+
+    LaunchedEffect(activeLineIndex, nowPlaying.lyricsLines.size) {
+        if (activeLineIndex < 0) return@LaunchedEffect
+        listState.animateScrollToItem((activeLineIndex - 4).coerceAtLeast(0))
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(7.dp))
+            .background(Color.Black.copy(alpha = 0.18f))
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+    ) {
+        when {
+            nowPlaying.lyricsStatus != null -> Text(
+                nowPlaying.lyricsStatus,
+                color = colors.mutedText,
+                fontSize = 13.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.align(Alignment.Center),
+            )
+            nowPlaying.lyricsLines.isEmpty() -> Text(
+                "Lyrics unavailable",
+                color = colors.mutedText,
+                fontSize = 13.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.align(Alignment.Center),
+            )
+            else -> LazyColumn(
+                state = listState,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                items(nowPlaying.lyricsLines.size) { index ->
+                    val line = nowPlaying.lyricsLines[index]
+                    val active = index == activeLineIndex
+                    Text(
+                        text = line.text,
+                        color = if (active) colors.primaryText else colors.secondaryText.copy(alpha = 0.72f),
+                        fontSize = if (active) 15.sp else 13.sp,
+                        lineHeight = if (active) 18.sp else 16.sp,
+                        fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = line.startMillis != null) {
+                                line.startMillis
+                                    ?.plus(nowPlaying.lyricsOffsetMillis)
+                                    ?.coerceAtLeast(0L)
+                                    ?.let { onSeek(it / 1000.0) }
+                            },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TrackDetailsDialog(
+    sections: List<NaviampDetailSectionUi>,
+    colors: NaviampColors,
+    onDismissRequest: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        title = { Text("Track details", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .width(420.dp)
+                    .heightIn(max = 520.dp)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                sections.forEach { section ->
+                    if (section.rows.isNotEmpty()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(section.title, color = colors.primaryText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            section.rows.forEach { (label, value) ->
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalAlignment = Alignment.Top,
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Text(label, color = colors.secondaryText, fontSize = 12.sp, modifier = Modifier.width(96.dp))
+                                    Text(
+                                        value,
+                                        color = colors.primaryText.copy(alpha = 0.9f),
+                                        fontSize = 12.sp,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismissRequest) {
+                Text("Close")
+            }
+        },
+    )
 }
 
 @Composable
