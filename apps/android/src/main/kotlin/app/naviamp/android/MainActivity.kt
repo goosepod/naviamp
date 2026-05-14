@@ -40,6 +40,7 @@ import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.label
+import app.naviamp.domain.radio.RadioService
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
@@ -57,6 +58,8 @@ import app.naviamp.ui.SharedArtistDetailUi
 import app.naviamp.ui.SharedHomeUi
 import app.naviamp.ui.SharedHomeStationUi
 import app.naviamp.ui.SharedMediaItemUi
+import app.naviamp.ui.SharedPlaylistDetailUi
+import app.naviamp.ui.SharedPlaylistSortMode
 import app.naviamp.ui.SharedRoute
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -98,6 +101,10 @@ private fun NaviampAndroidApp() {
     var searchResults by remember { mutableStateOf(MediaSearchResults()) }
     var albumDetail by remember { mutableStateOf<AlbumDetails?>(null) }
     var artistDetail by remember { mutableStateOf<ArtistDetails?>(null) }
+    var selectedPlaylist by remember { mutableStateOf<Playlist?>(null) }
+    var selectedPlaylistTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
+    var playlistSortMode by remember { mutableStateOf(SharedPlaylistSortMode.Alphabetical) }
+    var recentPlaylistIds by remember { mutableStateOf<List<String>>(emptyList()) }
     var editingConnection by remember { mutableStateOf(false) }
     var selectedRoute by remember { mutableStateOf(SharedRoute.Home) }
     var provider by remember { mutableStateOf<NavidromeProvider?>(null) }
@@ -132,7 +139,7 @@ private fun NaviampAndroidApp() {
         playQueue.ifEmpty { allKnownTracks(searchResults, albumDetail) }
 
     fun findKnownTrack(trackId: String): Track? =
-        (activeQueue() + relatedTracks + allKnownTracks(searchResults, albumDetail))
+        (activeQueue() + selectedPlaylistTracks + relatedTracks + allKnownTracks(searchResults, albumDetail))
             .firstOrNull { it.id.value == trackId }
 
     fun loadLyrics(track: Track) {
@@ -172,7 +179,7 @@ private fun NaviampAndroidApp() {
             return
         }
         scope.launch {
-            runCatching { activeProvider.trackRadio(track.id, count = 20) }
+            runCatching { RadioService(activeProvider, count = 20).trackRadio(track.id) }
                 .onSuccess { relatedTracks = it }
                 .onFailure { relatedTracks = emptyList() }
         }
@@ -247,11 +254,15 @@ private fun NaviampAndroidApp() {
         playTrack(nextTrack, knownTracks, openNowPlaying = false)
     }
 
-    fun playRadioTracks(statusLabel: String, loadTracks: suspend (NavidromeProvider) -> List<Track>) {
+    fun radioService(): RadioService? =
+        provider?.let(::RadioService)
+
+    fun playRadioTracks(statusLabel: String, loadTracks: suspend (RadioService) -> List<Track>) {
         val activeProvider = provider ?: return
+        val service = RadioService(activeProvider)
         scope.launch {
             status = "Starting $statusLabel..."
-            runCatching { loadTracks(activeProvider) }
+            runCatching { loadTracks(service) }
                 .onSuccess { radioTracks ->
                     val queue = radioTracks.distinctBy { it.id }
                     val firstTrack = queue.firstOrNull()
@@ -262,6 +273,33 @@ private fun NaviampAndroidApp() {
                     }
                 }
                 .onFailure { error -> status = error.message ?: "Could not start $statusLabel." }
+        }
+    }
+
+    fun startSeededRadio(
+        statusLabel: String,
+        seedTrack: Track,
+        loadRest: suspend (RadioService) -> List<Track>,
+    ) {
+        val activeProvider = provider ?: return
+        val service = RadioService(activeProvider)
+        val seedQueue = listOf(seedTrack)
+        playTrack(seedTrack, seedQueue)
+        scope.launch {
+            runCatching { loadRest(service) }
+                .onSuccess { fetchedTracks ->
+                    val queue = service.queue(seedTrack, fetchedTracks)
+                        .ifEmpty { seedQueue }
+                    if (nowPlaying?.id == seedTrack.id) {
+                        playQueue = queue
+                    }
+                    status = "Playing $statusLabel."
+                }
+                .onFailure { error ->
+                    if (nowPlaying?.id == seedTrack.id) {
+                        status = error.message ?: "Could not build $statusLabel."
+                    }
+                }
         }
     }
 
@@ -294,11 +332,101 @@ private fun NaviampAndroidApp() {
                 .onSuccess { detail ->
                     artistDetail = detail
                     albumDetail = null
+                    selectedPlaylist = null
+                    selectedPlaylistTracks = emptyList()
                     nowPlayingOpen = false
                     selectedRoute = SharedRoute.Library
                     status = "Connected."
                 }
                 .onFailure { error -> status = error.message ?: "Artist failed to load." }
+        }
+    }
+
+    fun openPlaylistDetails(playlist: Playlist) {
+        val activeProvider = provider ?: return
+        selectedPlaylist = playlist
+        selectedRoute = SharedRoute.Playlists
+        albumDetail = null
+        artistDetail = null
+        nowPlayingOpen = false
+        recentPlaylistIds = (listOf(playlist.id) + recentPlaylistIds.filterNot { it == playlist.id }).take(20)
+        scope.launch {
+            status = "Loading ${playlist.name}..."
+            runCatching { activeProvider.playlistTracks(playlist.id) }
+                .onSuccess { playlistTracks ->
+                    selectedPlaylistTracks = playlistTracks
+                    tracks = playlistTracks
+                    status = "Connected."
+                }
+                .onFailure { error ->
+                    selectedPlaylistTracks = emptyList()
+                    status = error.message ?: "Playlist failed to load."
+                }
+        }
+    }
+
+    fun playPlaylist(playlist: Playlist, shuffle: Boolean) {
+        val activeProvider = provider ?: return
+        scope.launch {
+            status = "Loading ${playlist.name}..."
+            val playlistTracks = if (selectedPlaylist?.id == playlist.id && selectedPlaylistTracks.isNotEmpty()) {
+                selectedPlaylistTracks
+            } else {
+                runCatching { activeProvider.playlistTracks(playlist.id) }
+                    .onSuccess {
+                        selectedPlaylist = playlist
+                        selectedPlaylistTracks = it
+                        tracks = it
+                    }
+                    .getOrDefault(emptyList())
+            }
+            val queue = if (shuffle) playlistTracks.shuffled() else playlistTracks
+            queue.firstOrNull()?.let { firstTrack ->
+                recentPlaylistIds = (listOf(playlist.id) + recentPlaylistIds.filterNot { it == playlist.id }).take(20)
+                playTrack(firstTrack, queue)
+            } ?: run {
+                status = "Playlist is empty."
+            }
+        }
+    }
+
+    fun renamePlaylist(playlist: Playlist, name: String) {
+        val activeProvider = provider ?: return
+        scope.launch {
+            status = "Renaming ${playlist.name}..."
+            runCatching {
+                activeProvider.renamePlaylist(playlist.id, name.trim())
+                activeProvider.playlists(limit = 500)
+            }.onSuccess { playlists ->
+                homeState = homeState.copy(playlists = playlists)
+                selectedPlaylist = selectedPlaylist?.let { current ->
+                    if (current.id == playlist.id) playlists.firstOrNull { it.id == playlist.id } ?: current.copy(name = name.trim()) else current
+                }
+                status = "Renamed playlist."
+            }.onFailure { error ->
+                status = error.message ?: "Could not rename playlist."
+            }
+        }
+    }
+
+    fun deletePlaylist(playlist: Playlist) {
+        val activeProvider = provider ?: return
+        scope.launch {
+            status = "Deleting ${playlist.name}..."
+            runCatching {
+                activeProvider.deletePlaylist(playlist.id)
+                activeProvider.playlists(limit = 500)
+            }.onSuccess { playlists ->
+                homeState = homeState.copy(playlists = playlists)
+                if (selectedPlaylist?.id == playlist.id) {
+                    selectedPlaylist = null
+                    selectedPlaylistTracks = emptyList()
+                }
+                recentPlaylistIds = recentPlaylistIds.filterNot { it == playlist.id }
+                status = "Deleted playlist."
+            }.onFailure { error ->
+                status = error.message ?: "Could not delete playlist."
+            }
         }
     }
 
@@ -446,9 +574,12 @@ private fun NaviampAndroidApp() {
         searchResults = searchResults.toSharedSearchResults(provider),
         libraryArtists = homeState.artists.map { it.toSharedMediaItem() },
         playlistItems = homeState.playlists.map { it.toSharedMediaItem() },
+        recentPlaylistIds = recentPlaylistIds,
+        playlistSortMode = playlistSortMode,
         radioStationItems = homeState.radioStations.map { it.toSharedMediaItem() },
         albumDetail = albumDetail?.toSharedAlbumDetail(provider),
         artistDetail = artistDetail?.toSharedArtistDetail(provider),
+        playlistDetail = selectedPlaylist?.toSharedPlaylistDetail(selectedPlaylistTracks, provider),
         nowPlaying = nowPlaying?.let { track ->
             val knownTracks = activeQueue()
             val currentIndex = knownTracks.indexOfFirst { it.id == track.id }
@@ -556,6 +687,8 @@ private fun NaviampAndroidApp() {
                     tracks = results.tracks
                     albumDetail = null
                     artistDetail = null
+                    selectedPlaylist = null
+                    selectedPlaylistTracks = emptyList()
                     status = if (results.isEmpty) "No matches found." else "Found ${results.totalCount()} matches."
                 }.onFailure { error ->
                     status = error.message ?: "Search failed."
@@ -582,6 +715,8 @@ private fun NaviampAndroidApp() {
                 }.onSuccess { detail ->
                     albumDetail = detail
                     artistDetail = null
+                    selectedPlaylist = null
+                    selectedPlaylistTracks = emptyList()
                     tracks = detail.tracks
                     nowPlayingOpen = false
                     status = "Connected."
@@ -590,11 +725,80 @@ private fun NaviampAndroidApp() {
                 }
             }
         },
+        onAlbumPlay = { _, shuffle ->
+            val albumTracks = albumDetail?.tracks.orEmpty()
+            val queue = if (shuffle) albumTracks.shuffled() else albumTracks
+            queue.firstOrNull()?.let { playTrack(it, queue) }
+                ?: run { status = "Album is empty." }
+        },
+        onAlbumRadio = { detail ->
+            val service = radioService() ?: return@NaviampSharedAppShell
+            val albumId = app.naviamp.domain.AlbumId(detail.album.id)
+            val loadedAlbumTracks = albumDetail?.tracks.orEmpty()
+            val album = albumDetail?.album ?: return@NaviampSharedAppShell
+            scope.launch {
+                status = "Starting ${detail.album.title} radio..."
+                val seedTrack = service.albumSeed(album, loadedAlbumTracks)
+                if (seedTrack == null) {
+                    status = "${detail.album.title} did not return any tracks."
+                } else {
+                    startSeededRadio("${detail.album.title} radio", seedTrack) { radioService ->
+                        radioService.albumRadio(albumId, loadedAlbumTracks)
+                    }
+                }
+            }
+        },
+        onArtistRadio = { detail ->
+            val service = radioService() ?: return@NaviampSharedAppShell
+            val artistId = app.naviamp.domain.ArtistId(detail.artist.id)
+            val artist = artistDetail?.artist ?: Artist(artistId, detail.artist.title)
+            scope.launch {
+                status = "Starting ${detail.artist.title} radio..."
+                runCatching { service.artistSeed(artist, artistDetail?.albums.orEmpty()) }
+                    .onSuccess { seedTrack ->
+                    if (seedTrack == null) {
+                        status = "${detail.artist.title} radio did not find a seed track."
+                    } else {
+                        startSeededRadio("${detail.artist.title} radio", seedTrack) { radioService ->
+                            radioService.artistRadio(artistId)
+                        }
+                    }
+                }.onFailure { error ->
+                    status = error.message ?: "Could not start artist radio."
+                }
+            }
+        },
         onArtistSelected = { selectedArtist ->
             openArtistDetails(app.naviamp.domain.ArtistId(selectedArtist.id), selectedArtist.title)
         },
-        onPlaylistSelected = {
-            status = "Playlist details are next for Android."
+        onPlaylistSelected = { selectedPlaylist ->
+            homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }?.let { openPlaylistDetails(it) }
+                ?: run { status = "Playlist not found." }
+        },
+        onPlaylistSortModeChanged = { playlistSortMode = it },
+        onPlaylistPlay = { selectedPlaylist, shuffle ->
+            homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }?.let { playPlaylist(it, shuffle) }
+                ?: run { status = "Playlist not found." }
+        },
+        onPlaylistRename = { selectedPlaylist, name ->
+            homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }?.let { renamePlaylist(it, name) }
+                ?: run { status = "Playlist not found." }
+        },
+        onPlaylistDelete = { selectedPlaylist ->
+            homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }?.let { deletePlaylist(it) }
+                ?: run { status = "Playlist not found." }
+        },
+        onPlaylistBack = {
+            selectedPlaylist = null
+            selectedPlaylistTracks = emptyList()
+        },
+        onPlaylistTrackSelected = { selectedTrack ->
+            val track = selectedPlaylistTracks.firstOrNull { it.id.value == selectedTrack.id } ?: findKnownTrack(selectedTrack.id)
+            if (track == null) {
+                status = "Track not found."
+                return@NaviampSharedAppShell
+            }
+            playTrack(track, selectedPlaylistTracks.ifEmpty { listOf(track) })
         },
         onRadioStationSelected = { selectedStation ->
             val station = homeState.radioStations.firstOrNull { it.id == selectedStation.id }
@@ -635,21 +839,21 @@ private fun NaviampAndroidApp() {
         onHomeStationSelected = { station ->
             when {
                 station.id == HomeStationLibrary -> {
-                    playRadioTracks("Library Radio") { activeProvider ->
-                        activeProvider.randomSongs(limit = 50)
+                    playRadioTracks("Library Radio") { radioService ->
+                        radioService.libraryRadio()
                     }
                 }
                 station.id == HomeStationRandomAlbum -> {
-                    playRadioTracks("Random Album Radio") { activeProvider ->
+                    playRadioTracks("Random Album Radio") { radioService ->
                         val album = homeState.randomAlbums.firstOrNull()
-                            ?: activeProvider.albumList(AlbumListType.Random, limit = 1).firstOrNull()
-                        album?.let { activeProvider.album(it.id).tracks }.orEmpty()
+                            ?: provider?.albumList(AlbumListType.Random, limit = 1)?.firstOrNull()
+                        album?.let { radioService.albumRadio(it.id) }.orEmpty()
                     }
                 }
                 station.id.startsWith(HomeStationGenrePrefix) -> {
                     val genre = station.id.removePrefix(HomeStationGenrePrefix)
-                    playRadioTracks("${genre} Radio") { activeProvider ->
-                        activeProvider.randomSongs(limit = 50, genre = genre)
+                    playRadioTracks("${genre} Radio") { radioService ->
+                        radioService.genreRadio(genre)
                     }
                 }
                 station.id.startsWith(HomeStationDecadePrefix) -> {
@@ -657,8 +861,8 @@ private fun NaviampAndroidApp() {
                     val fromYear = years.getOrNull(0)?.toIntOrNull()
                     val toYear = years.getOrNull(1)?.toIntOrNull()
                     if (fromYear != null && toYear != null) {
-                        playRadioTracks(station.title) { activeProvider ->
-                            activeProvider.randomSongs(limit = 50, fromYear = fromYear, toYear = toYear)
+                        playRadioTracks(station.title) { radioService ->
+                            radioService.decadeRadio(fromYear, toYear)
                         }
                     }
                 }
@@ -669,6 +873,8 @@ private fun NaviampAndroidApp() {
             nowPlayingOpen = false
             albumDetail = null
             artistDetail = null
+            selectedPlaylist = null
+            selectedPlaylistTracks = emptyList()
         },
         onPause = playbackEngine::pause,
         onResume = playbackEngine::resume,
@@ -710,15 +916,15 @@ private fun NaviampAndroidApp() {
             }
         },
         onTrackRadio = {
-            val activeProvider = provider ?: return@NaviampSharedAppShell
+            val service = radioService() ?: return@NaviampSharedAppShell
             val currentTrack = nowPlaying ?: return@NaviampSharedAppShell
-            if (!activeProvider.capabilities.supportsTrackRadio) return@NaviampSharedAppShell
+            if (provider?.capabilities?.supportsTrackRadio != true) return@NaviampSharedAppShell
             scope.launch {
                 status = "Starting ${currentTrack.title} radio..."
-                runCatching { activeProvider.trackRadio(currentTrack.id, count = 50) }
+                runCatching { service.trackRadio(currentTrack.id) }
                     .onSuccess { radioTracks ->
-                        val deduped = radioTracks.filterNot { it.id == currentTrack.id }.distinctBy { it.id }
-                        val queue = listOf(currentTrack) + deduped
+                        val queue = service.queue(currentTrack, radioTracks)
+                        val deduped = queue.drop(1)
                         playQueue = queue
                         relatedTracks = deduped
                         shuffledUpNextSnapshot = null
@@ -759,12 +965,12 @@ private fun NaviampAndroidApp() {
         },
         onQueueItemRadio = { item ->
             findKnownTrack(item.id)?.let { track ->
-                val activeProvider = provider ?: return@let
-                if (!activeProvider.capabilities.supportsTrackRadio) return@let
+                val service = radioService() ?: return@let
+                if (provider?.capabilities?.supportsTrackRadio != true) return@let
                 scope.launch {
-                    runCatching { activeProvider.trackRadio(track.id, count = 50) }
+                    runCatching { service.trackRadio(track.id) }
                         .onSuccess { radioTracks ->
-                            val queue = listOf(track) + radioTracks.filterNot { it.id == track.id }.distinctBy { it.id }
+                            val queue = service.queue(track, radioTracks)
                             playTrack(track, queue)
                         }
                         .onFailure { error -> status = error.message ?: "Could not start track radio." }
@@ -912,6 +1118,12 @@ private fun Playlist.toPlaylistChoiceUi(): NaviampPlaylistChoiceUi =
         subtitle = "$trackCount tracks",
     )
 
+private fun Playlist.toSharedPlaylistDetail(tracks: List<Track>, provider: NavidromeProvider?): SharedPlaylistDetailUi =
+    SharedPlaylistDetailUi(
+        playlist = toSharedMediaItem(),
+        tracks = tracks.map { it.toAndroidTrackRowUi(provider) },
+    )
+
 private fun InternetRadioStation.toSharedMediaItem(): SharedMediaItemUi =
     SharedMediaItemUi(id = id, title = name, subtitle = homePageUrl ?: "Internet radio")
 
@@ -919,6 +1131,7 @@ private fun AlbumDetails.toSharedAlbumDetail(provider: NavidromeProvider?): Shar
     SharedAlbumDetailUi(
         album = album.toSharedMediaItem(provider),
         tracks = tracks.map { it.toAndroidTrackRowUi(provider) },
+        totalDurationLabel = tracks.totalDurationLabel(),
     )
 
 private fun ArtistDetails.toSharedArtistDetail(provider: NavidromeProvider?): SharedArtistDetailUi =
@@ -1148,6 +1361,15 @@ private fun <T> List<T>.rotatedBy(offset: Int): List<T> {
 
 private fun Int.floorMod(other: Int): Int =
     ((this % other) + other) % other
+
+private fun List<Track>.totalDurationLabel(): String {
+    val totalSeconds = mapNotNull { it.durationSeconds }.sum()
+    if (totalSeconds <= 0) return ""
+    val hours = totalSeconds / 3600
+    val minutes = totalSeconds / 60
+    val remainingMinutes = (totalSeconds % 3600) / 60
+    return if (hours > 0) "${hours}h ${remainingMinutes}m" else "$minutes minutes"
+}
 
 private const val HomeStationLibrary = "library"
 private const val HomeStationRandomAlbum = "random-album"

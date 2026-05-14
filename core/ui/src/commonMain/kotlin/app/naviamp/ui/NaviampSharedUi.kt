@@ -25,6 +25,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -139,11 +140,17 @@ data class SharedMediaItemUi(
 data class SharedAlbumDetailUi(
     val album: SharedMediaItemUi,
     val tracks: List<AndroidTrackRowUi>,
+    val totalDurationLabel: String = "",
 )
 
 data class SharedArtistDetailUi(
     val artist: SharedMediaItemUi,
     val albums: List<SharedMediaItemUi>,
+)
+
+data class SharedPlaylistDetailUi(
+    val playlist: SharedMediaItemUi,
+    val tracks: List<AndroidTrackRowUi>,
 )
 
 data class SharedHomeUi(
@@ -261,6 +268,11 @@ enum class SharedRoute(val label: String, val icon: ImageVector) {
     Settings("Settings", NaviampIcons.Settings),
 }
 
+enum class SharedPlaylistSortMode(val label: String) {
+    Alphabetical("A-Z"),
+    RecentlyPlayed("Recent"),
+}
+
 @Composable
 fun NaviampSharedAppShell(
     status: String,
@@ -273,9 +285,12 @@ fun NaviampSharedAppShell(
     searchResults: SharedSearchResultsUi,
     libraryArtists: List<SharedMediaItemUi>,
     playlistItems: List<SharedMediaItemUi>,
+    recentPlaylistIds: List<String> = emptyList(),
+    playlistSortMode: SharedPlaylistSortMode = SharedPlaylistSortMode.Alphabetical,
     radioStationItems: List<SharedMediaItemUi>,
     albumDetail: SharedAlbumDetailUi?,
     artistDetail: SharedArtistDetailUi?,
+    playlistDetail: SharedPlaylistDetailUi? = null,
     nowPlaying: NowPlayingUi?,
     nowPlayingOpen: Boolean,
     selectedRoute: SharedRoute,
@@ -288,8 +303,17 @@ fun NaviampSharedAppShell(
     onSearch: () -> Unit,
     onTrackSelected: (AndroidTrackRowUi) -> Unit,
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
+    onAlbumPlay: (SharedAlbumDetailUi, Boolean) -> Unit = { _, _ -> },
+    onAlbumRadio: (SharedAlbumDetailUi) -> Unit = {},
     onArtistSelected: (SharedMediaItemUi) -> Unit,
+    onArtistRadio: (SharedArtistDetailUi) -> Unit = {},
     onPlaylistSelected: (SharedMediaItemUi) -> Unit,
+    onPlaylistSortModeChanged: (SharedPlaylistSortMode) -> Unit = {},
+    onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit = { _, _ -> },
+    onPlaylistRename: (SharedMediaItemUi, String) -> Unit = { _, _ -> },
+    onPlaylistDelete: (SharedMediaItemUi) -> Unit = {},
+    onPlaylistBack: () -> Unit = {},
+    onPlaylistTrackSelected: (AndroidTrackRowUi) -> Unit = {},
     onRadioStationSelected: (SharedMediaItemUi) -> Unit,
     onHomeStationSelected: (SharedHomeStationUi) -> Unit = {},
     onOpenNowPlaying: () -> Unit,
@@ -360,7 +384,7 @@ fun NaviampSharedAppShell(
                         ),
                     verticalArrangement = if (showFullNowPlaying) Arrangement.spacedBy(0.dp) else Arrangement.spacedBy(14.dp),
                 ) {
-                    if (!showFullNowPlaying) {
+                    if (!showFullNowPlaying && (!connected || editingConnection)) {
                         Text("Naviamp", color = colors.primaryText, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                         Text(status, color = colors.secondaryText, fontSize = 13.sp)
                         serverVersion?.let {
@@ -386,9 +410,12 @@ fun NaviampSharedAppShell(
                             searchResults = searchResults,
                             libraryArtists = libraryArtists,
                             playlistItems = playlistItems,
+                            recentPlaylistIds = recentPlaylistIds,
+                            playlistSortMode = playlistSortMode,
                             radioStationItems = radioStationItems,
                             albumDetail = albumDetail,
                             artistDetail = artistDetail,
+                            playlistDetail = playlistDetail,
                             nowPlaying = nowPlaying,
                             nowPlayingOpen = nowPlayingOpen,
                             onEditConnection = onEditConnection,
@@ -396,8 +423,17 @@ fun NaviampSharedAppShell(
                             onSearch = onSearch,
                             onTrackSelected = onTrackSelected,
                             onAlbumSelected = onAlbumSelected,
+                            onAlbumPlay = onAlbumPlay,
+                            onAlbumRadio = onAlbumRadio,
                             onArtistSelected = onArtistSelected,
+                            onArtistRadio = onArtistRadio,
                             onPlaylistSelected = onPlaylistSelected,
+                            onPlaylistSortModeChanged = onPlaylistSortModeChanged,
+                            onPlaylistPlay = onPlaylistPlay,
+                            onPlaylistRename = onPlaylistRename,
+                            onPlaylistDelete = onPlaylistDelete,
+                            onPlaylistBack = onPlaylistBack,
+                            onPlaylistTrackSelected = onPlaylistTrackSelected,
                             onRadioStationSelected = onRadioStationSelected,
                             onHomeStationSelected = onHomeStationSelected,
                             onOpenNowPlaying = onOpenNowPlaying,
@@ -538,9 +574,12 @@ private fun ConnectedContent(
     searchResults: SharedSearchResultsUi,
     libraryArtists: List<SharedMediaItemUi>,
     playlistItems: List<SharedMediaItemUi>,
+    recentPlaylistIds: List<String>,
+    playlistSortMode: SharedPlaylistSortMode,
     radioStationItems: List<SharedMediaItemUi>,
     albumDetail: SharedAlbumDetailUi?,
     artistDetail: SharedArtistDetailUi?,
+    playlistDetail: SharedPlaylistDetailUi?,
     nowPlaying: NowPlayingUi?,
     nowPlayingOpen: Boolean,
     onEditConnection: () -> Unit,
@@ -548,8 +587,17 @@ private fun ConnectedContent(
     onSearch: () -> Unit,
     onTrackSelected: (AndroidTrackRowUi) -> Unit,
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
+    onAlbumPlay: (SharedAlbumDetailUi, Boolean) -> Unit,
+    onAlbumRadio: (SharedAlbumDetailUi) -> Unit,
     onArtistSelected: (SharedMediaItemUi) -> Unit,
+    onArtistRadio: (SharedArtistDetailUi) -> Unit,
     onPlaylistSelected: (SharedMediaItemUi) -> Unit,
+    onPlaylistSortModeChanged: (SharedPlaylistSortMode) -> Unit,
+    onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit,
+    onPlaylistRename: (SharedMediaItemUi, String) -> Unit,
+    onPlaylistDelete: (SharedMediaItemUi) -> Unit,
+    onPlaylistBack: () -> Unit,
+    onPlaylistTrackSelected: (AndroidTrackRowUi) -> Unit,
     onRadioStationSelected: (SharedMediaItemUi) -> Unit,
     onHomeStationSelected: (SharedHomeStationUi) -> Unit,
     onOpenNowPlaying: () -> Unit,
@@ -607,11 +655,45 @@ private fun ConnectedContent(
             onTrackSelected = onTrackSelected,
             onRadioStationSelected = onRadioStationSelected,
         )
-        albumDetail != null -> AlbumDetailContent(colors, albumDetail, onCloseNowPlaying, onTrackSelected)
-        artistDetail != null -> ArtistDetailContent(colors, artistDetail, onCloseNowPlaying, onAlbumSelected)
+        albumDetail != null -> AlbumDetailContent(
+            colors = colors,
+            detail = albumDetail,
+            onBack = onCloseNowPlaying,
+            onPlayAlbum = { onAlbumPlay(albumDetail, false) },
+            onShuffleAlbum = { onAlbumPlay(albumDetail, true) },
+            onAlbumRadio = { onAlbumRadio(albumDetail) },
+            onTrackSelected = onTrackSelected,
+        )
+        artistDetail != null -> ArtistDetailContent(
+            colors = colors,
+            detail = artistDetail,
+            onBack = onCloseNowPlaying,
+            onArtistRadio = { onArtistRadio(artistDetail) },
+            onAlbumSelected = onAlbumSelected,
+        )
+        playlistDetail != null -> PlaylistDetailContent(
+            colors = colors,
+            detail = playlistDetail,
+            onBack = onPlaylistBack,
+            onPlayPlaylist = { onPlaylistPlay(playlistDetail.playlist, false) },
+            onShufflePlaylist = { onPlaylistPlay(playlistDetail.playlist, true) },
+            onRenamePlaylist = onPlaylistRename,
+            onDeletePlaylist = onPlaylistDelete,
+            onTrackSelected = onPlaylistTrackSelected,
+        )
         else -> when (selectedRoute) {
             SharedRoute.Home -> SharedHome(colors, home, onAlbumSelected, onPlaylistSelected, onRadioStationSelected, onHomeStationSelected)
-            SharedRoute.Playlists -> MediaListContent(colors, "Playlists", playlistItems, "No playlists found.", onPlaylistSelected)
+            SharedRoute.Playlists -> PlaylistsContent(
+                colors = colors,
+                playlists = playlistItems,
+                recentPlaylistIds = recentPlaylistIds,
+                sortMode = playlistSortMode,
+                onSortModeChanged = onPlaylistSortModeChanged,
+                onPlaylistSelected = onPlaylistSelected,
+                onPlaylistPlay = onPlaylistPlay,
+                onPlaylistRename = onPlaylistRename,
+                onPlaylistDelete = onPlaylistDelete,
+            )
             SharedRoute.Library -> MediaListContent(colors, "Library", libraryArtists, "No library artists found.", onArtistSelected)
             SharedRoute.Search -> SearchContent(colors, query, searchResults, onQueryChanged, onSearch, onTrackSelected, onAlbumSelected, onArtistSelected)
             SharedRoute.Radio -> MediaListContent(colors, "Internet Radio", radioStationItems, "No stations found.", onRadioStationSelected)
@@ -693,6 +775,304 @@ private fun SearchContent(
 }
 
 @Composable
+private fun PlaylistsContent(
+    colors: NaviampColors,
+    playlists: List<SharedMediaItemUi>,
+    recentPlaylistIds: List<String>,
+    sortMode: SharedPlaylistSortMode,
+    onSortModeChanged: (SharedPlaylistSortMode) -> Unit,
+    onPlaylistSelected: (SharedMediaItemUi) -> Unit,
+    onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit,
+    onPlaylistRename: (SharedMediaItemUi, String) -> Unit,
+    onPlaylistDelete: (SharedMediaItemUi) -> Unit,
+) {
+    var playlistToRename by remember { mutableStateOf<SharedMediaItemUi?>(null) }
+    var playlistToDelete by remember { mutableStateOf<SharedMediaItemUi?>(null) }
+    val sortedPlaylists = when (sortMode) {
+        SharedPlaylistSortMode.Alphabetical -> playlists.sortedBy { it.title.lowercase() }
+        SharedPlaylistSortMode.RecentlyPlayed -> playlists.sortedWith(
+            compareBy<SharedMediaItemUi> {
+                val index = recentPlaylistIds.indexOf(it.id)
+                if (index == -1) Int.MAX_VALUE else index
+            }.thenBy { it.title.lowercase() },
+        )
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Playlists", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                SharedPlaylistSortMode.entries.forEach { mode ->
+                    PlaylistSortIconButton(
+                        mode = mode,
+                        selected = sortMode == mode,
+                        colors = colors,
+                        onClick = { onSortModeChanged(mode) },
+                    )
+                }
+            }
+        }
+        if (sortedPlaylists.isEmpty()) {
+            Text("No playlists yet.", color = colors.secondaryText, fontSize = 12.sp)
+        }
+        sortedPlaylists.forEach { playlist ->
+            PlaylistListRow(
+                playlist = playlist,
+                colors = colors,
+                onClick = { onPlaylistSelected(playlist) },
+                onPlay = { onPlaylistPlay(playlist, false) },
+                onShuffle = { onPlaylistPlay(playlist, true) },
+                onRename = { playlistToRename = playlist },
+                onDelete = { playlistToDelete = playlist },
+            )
+        }
+    }
+
+    playlistToRename?.let { playlist ->
+        RenamePlaylistDialog(
+            playlist = playlist,
+            colors = colors,
+            onDismiss = { playlistToRename = null },
+            onConfirm = { name ->
+                playlistToRename = null
+                onPlaylistRename(playlist, name)
+            },
+        )
+    }
+    playlistToDelete?.let { playlist ->
+        DeletePlaylistDialog(
+            playlist = playlist,
+            colors = colors,
+            onDismiss = { playlistToDelete = null },
+            onConfirm = {
+                playlistToDelete = null
+                onPlaylistDelete(playlist)
+            },
+        )
+    }
+}
+
+@Composable
+private fun PlaylistSortIconButton(
+    mode: SharedPlaylistSortMode,
+    selected: Boolean,
+    colors: NaviampColors,
+    onClick: () -> Unit,
+) {
+    val icon = when (mode) {
+        SharedPlaylistSortMode.Alphabetical -> NaviampIcons.Alphabetical
+        SharedPlaylistSortMode.RecentlyPlayed -> NaviampIcons.Clock
+    }
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier
+            .size(34.dp)
+            .clip(RoundedCornerShape(17.dp))
+            .background(if (selected) colors.accent else colors.controlSurface.copy(alpha = 0.72f)),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = mode.label,
+            tint = if (selected) colors.onAccent else colors.secondaryText,
+            modifier = Modifier.size(18.dp),
+        )
+    }
+}
+
+@Composable
+private fun PlaylistListRow(
+    playlist: SharedMediaItemUi,
+    colors: NaviampColors,
+    onClick: () -> Unit,
+    onPlay: () -> Unit,
+    onShuffle: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(5.dp))
+            .background(Color.Black.copy(alpha = 0.12f))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        PlatformCoverArt(playlist.coverArtUrl, colors, 38.dp, 4.dp)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(playlist.title, color = colors.primaryText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(playlist.subtitle, color = colors.secondaryText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        MiniPlayerIconButton(colors, true, NaviampTransportIcons.Play, "Play playlist", onPlay)
+        MiniPlayerIconButton(colors, playlist.meta != "1 track", NaviampTransportIcons.Shuffle, "Shuffle playlist", onShuffle)
+        NaviampRowOverflowMenu(
+            colors = colors,
+            items = listOf(
+                NaviampRowMenuItem("Rename playlist", NaviampIcons.Edit, onRename),
+                NaviampRowMenuItem("Delete playlist", NaviampIcons.Trash, onDelete),
+            ),
+        )
+    }
+}
+
+@Composable
+private fun PlaylistDetailContent(
+    colors: NaviampColors,
+    detail: SharedPlaylistDetailUi,
+    onBack: () -> Unit,
+    onPlayPlaylist: () -> Unit,
+    onShufflePlaylist: () -> Unit,
+    onRenamePlaylist: (SharedMediaItemUi, String) -> Unit,
+    onDeletePlaylist: (SharedMediaItemUi) -> Unit,
+    onTrackSelected: (AndroidTrackRowUi) -> Unit,
+) {
+    var renameOpen by remember { mutableStateOf(false) }
+    var deleteOpen by remember { mutableStateOf(false) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            IconButton(onClick = onBack, modifier = Modifier.size(32.dp)) {
+                Icon(NaviampIcons.Back, contentDescription = "Back", tint = colors.primaryText, modifier = Modifier.size(18.dp))
+            }
+            Text(detail.playlist.title, color = colors.primaryText, fontWeight = FontWeight.Bold, fontSize = 18.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            PlaylistCover(colors, detail.tracks, 96.dp)
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f)) {
+                Text(detail.playlist.subtitle, color = colors.secondaryText, fontSize = 12.sp)
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampTransportIcons.Play, "Play playlist", onPlayPlaylist)
+                    MiniPlayerIconButton(colors, detail.tracks.size > 1, NaviampTransportIcons.Shuffle, "Shuffle playlist", onShufflePlaylist)
+                    MiniPlayerIconButton(colors, true, NaviampIcons.Edit, "Rename playlist", { renameOpen = true })
+                    MiniPlayerIconButton(colors, true, NaviampIcons.Trash, "Delete playlist", { deleteOpen = true })
+                }
+            }
+        }
+        detail.tracks.forEach { track ->
+            TrackRow(track, colors, onTrackSelected)
+        }
+    }
+
+    if (renameOpen) {
+        RenamePlaylistDialog(
+            playlist = detail.playlist,
+            colors = colors,
+            onDismiss = { renameOpen = false },
+            onConfirm = { name ->
+                renameOpen = false
+                onRenamePlaylist(detail.playlist, name)
+            },
+        )
+    }
+    if (deleteOpen) {
+        DeletePlaylistDialog(
+            playlist = detail.playlist,
+            colors = colors,
+            onDismiss = { deleteOpen = false },
+            onConfirm = {
+                deleteOpen = false
+                onDeletePlaylist(detail.playlist)
+            },
+        )
+    }
+}
+
+@Composable
+private fun PlaylistCover(colors: NaviampColors, tracks: List<AndroidTrackRowUi>, size: Dp) {
+    val covers = tracks.mapNotNull { it.coverArtUrl }.distinct().take(4)
+    Box(
+        modifier = Modifier
+            .size(size)
+            .clip(RoundedCornerShape(4.dp)),
+    ) {
+        when (covers.size) {
+            0 -> PlatformCoverArt(null, colors, size, 4.dp)
+            1 -> PlatformCoverArt(covers[0], colors, size, 4.dp)
+            else -> {
+                val cell = size / 2
+                Column {
+                    Row {
+                        PlatformCoverArt(covers[0], colors, cell, 0.dp)
+                        PlatformCoverArt(covers[1], colors, cell, 0.dp)
+                    }
+                    Row {
+                        PlatformCoverArt(covers.getOrElse(2) { covers[0] }, colors, cell, 0.dp)
+                        PlatformCoverArt(covers.getOrElse(3) { covers.getOrElse(2) { covers[1] } }, colors, cell, 0.dp)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RenamePlaylistDialog(
+    playlist: SharedMediaItemUi,
+    colors: NaviampColors,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit,
+) {
+    var name by remember(playlist.id) { mutableStateOf(playlist.title) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Rename playlist") },
+        text = {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("Playlist name") },
+                singleLine = true,
+            )
+        },
+        confirmButton = {
+            TextButton(enabled = name.isNotBlank(), onClick = { onConfirm(name) }) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+        containerColor = colors.controlSurface,
+        titleContentColor = colors.primaryText,
+        textContentColor = colors.secondaryText,
+    )
+}
+
+@Composable
+private fun DeletePlaylistDialog(
+    playlist: SharedMediaItemUi,
+    colors: NaviampColors,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Delete playlist") },
+        text = { Text("Delete ${playlist.title}? This removes the server playlist.") },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("Delete")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+        containerColor = colors.controlSurface,
+        titleContentColor = colors.primaryText,
+        textContentColor = colors.secondaryText,
+    )
+}
+
+@Composable
 private fun MediaListContent(
     colors: NaviampColors,
     title: String,
@@ -716,6 +1096,9 @@ private fun AlbumDetailContent(
     colors: NaviampColors,
     detail: SharedAlbumDetailUi,
     onBack: () -> Unit,
+    onPlayAlbum: () -> Unit,
+    onShuffleAlbum: () -> Unit,
+    onAlbumRadio: () -> Unit,
     onTrackSelected: (AndroidTrackRowUi) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -727,12 +1110,24 @@ private fun AlbumDetailContent(
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
             PlatformCoverArt(detail.album.coverArtUrl, colors, 96.dp, 8.dp)
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f)) {
                 Text(detail.album.subtitle, color = colors.secondaryText, fontSize = 14.sp)
                 if (detail.album.meta.isNotBlank()) {
                     Text(detail.album.meta, color = colors.mutedText, fontSize = 12.sp)
                 }
-                Text("${detail.tracks.size} tracks", color = colors.mutedText, fontSize = 12.sp)
+                Text(
+                    listOfNotNull(
+                        "${detail.tracks.size} tracks",
+                        detail.totalDurationLabel.takeIf { it.isNotBlank() },
+                    ).joinToString(" - "),
+                    color = colors.mutedText,
+                    fontSize = 12.sp,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampTransportIcons.Play, "Play album", onPlayAlbum)
+                    MiniPlayerIconButton(colors, detail.tracks.size > 1, NaviampTransportIcons.Shuffle, "Shuffle album", onShuffleAlbum)
+                    MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampTransportIcons.Radio, "Start album radio", onAlbumRadio)
+                }
             }
         }
         detail.tracks.forEachIndexed { index, track ->
@@ -746,6 +1141,7 @@ private fun ArtistDetailContent(
     colors: NaviampColors,
     detail: SharedArtistDetailUi,
     onBack: () -> Unit,
+    onArtistRadio: () -> Unit,
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -756,6 +1152,9 @@ private fun ArtistDetailContent(
             Column {
                 Text(detail.artist.title, color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text("${detail.albums.size} albums", color = colors.secondaryText, fontSize = 13.sp)
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    MiniPlayerIconButton(colors, detail.albums.isNotEmpty(), NaviampTransportIcons.Radio, "Start artist radio", onArtistRadio)
+                }
             }
         }
         MediaListContent(colors, "Albums", detail.albums, "No albums found.", onAlbumSelected)
@@ -1682,6 +2081,28 @@ object NaviampIcons {
         close()
         moveTo(13.8f, 7f)
         lineTo(17f, 10.2f)
+    }
+    val Alphabetical = icon("Alphabetical") {
+        moveTo(5f, 18f)
+        lineTo(8f, 6f)
+        lineTo(11f, 18f)
+        moveTo(6.1f, 14f)
+        lineTo(9.9f, 14f)
+        moveTo(14f, 7f)
+        lineTo(19f, 7f)
+        lineTo(14f, 17f)
+        lineTo(19f, 17f)
+    }
+    val Clock = icon("Clock") {
+        moveTo(12f, 4f)
+        curveTo(7.6f, 4f, 4f, 7.6f, 4f, 12f)
+        curveTo(4f, 16.4f, 7.6f, 20f, 12f, 20f)
+        curveTo(16.4f, 20f, 20f, 16.4f, 20f, 12f)
+        curveTo(20f, 7.6f, 16.4f, 4f, 12f, 4f)
+        close()
+        moveTo(12f, 8f)
+        lineTo(12f, 12.4f)
+        lineTo(15f, 14.2f)
     }
     val Info = icon("Info") {
         moveTo(12f, 10.5f)

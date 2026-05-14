@@ -76,7 +76,16 @@ fun PlaylistsPanel(
                     FilterChip(
                         selected = sortMode == mode,
                         onClick = { onSortModeChanged(mode) },
-                        label = { Text(mode.label, fontSize = 12.sp) },
+                        label = {
+                            Icon(
+                                imageVector = when (mode) {
+                                    PlaylistSortMode.Alphabetical -> NavigationIcons.Alphabetical
+                                    PlaylistSortMode.RecentlyPlayed -> NavigationIcons.Clock
+                                },
+                                contentDescription = mode.label,
+                                modifier = Modifier.size(16.dp),
+                            )
+                        },
                         modifier = Modifier.height(28.dp),
                     )
                 }

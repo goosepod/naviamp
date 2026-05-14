@@ -160,7 +160,7 @@ fun AlbumDetailPanel(
                 listOfNotNull(
                     "${details.tracks.size} tracks",
                     details.album.releaseYear?.toString(),
-                    details.tracks.totalDurationLabel(),
+                    "Total ${details.tracks.totalDurationLabel()}",
                 ).joinToString(" - "),
                 color = appColors.secondaryText,
                 modifier = Modifier.fillMaxWidth(),
@@ -190,7 +190,9 @@ fun AlbumDetailPanel(
 
 private fun List<app.naviamp.domain.Track>.totalDurationLabel(): String {
     val totalSeconds = mapNotNull { it.durationSeconds }.sum()
-    if (totalSeconds <= 0) return "-- minutes"
+    if (totalSeconds <= 0) return "--"
+    val hours = totalSeconds / 3600
     val minutes = totalSeconds / 60
-    return "$minutes minutes"
+    val remainingMinutes = (totalSeconds % 3600) / 60
+    return if (hours > 0) "${hours}h ${remainingMinutes}m" else "$minutes minutes"
 }

@@ -17,4 +17,6 @@ object NavigationIcons {
     val Artist = NaviampIcons.Artist
     val Playlist = NaviampIcons.Playlist
     val InternetRadio = NaviampIcons.InternetRadio
+    val Alphabetical = NaviampIcons.Alphabetical
+    val Clock = NaviampIcons.Clock
 }

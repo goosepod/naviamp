@@ -20,6 +20,7 @@ Current priorities:
 
 - Windows desktop works and is the main live test path right now.
 - Android is now an active target. The first app milestone is a thin native Android shell that can connect to Navidrome, search tracks, and play a selected stream through Media3.
+- Naviamp should be truly multiplatform. When new work can be platform-agnostic, implement it in shared/domain/app/UI modules first and keep only OS-bound code in the platform app modules.
 - Navidrome is the first provider, but the app should stay provider-oriented.
 - Playback uses mpv on desktop when available.
 - Audio/track caching is now a priority because it will matter for fast desktop skips, network handoff, and the future Android app.
@@ -157,6 +158,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - Saved sessions include the queue, current index, and last known playback position.
   - When playback is resumed after app restart, the first play action passes the saved position into the playback request so mpv starts at that offset. Do not rely on an immediate post-play IPC seek; mpv may not be ready yet.
 - Radio:
+  - Radio queue behavior is now centralized in shared `core/domain` through `RadioService`. Desktop and Android should call that service for library, genre, decade, album, artist, and track radio instead of duplicating recommendation/seed/queue rules.
   - Artist, album, and track rows expose "Start radio" menu actions where those rows appear.
   - Track radio starts playback immediately from the selected track, then appends recommendation results in the background.
   - Album radio starts playback from a random track from that album, then appends recommendation results in the background.
@@ -281,6 +283,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 ## Important Current Behavior
 
 - `PlaybackProgress.mergeWith(previous)` intentionally preserves known position/duration through brief unknown reads from mpv and ignores large backward jumps that are likely polling glitches.
+- Default architecture rule: provider behavior, queue/radio decisions, domain models, playback contracts, screen models, and reusable Compose UI should be shared whenever possible. Platform modules should mainly own playback engine implementations, notifications/background services, OS storage, file/certificate pickers, desktop windowing, and platform-specific adapters.
 - `playlistCallbacks.onTrackStarted` resets `playbackProgress` to `PlaybackProgress.Unknown` before entering the player.
 - Search state lives in `Main.kt` and query persistence lives in `DesktopSettingsStore`.
 - Album detail navigation currently falls back Home in some paths; future screen-state work should preserve deeper route state more deliberately.

@@ -67,6 +67,7 @@ import app.naviamp.desktop.playback.RepeatMode
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.playback.mergeWith
+import app.naviamp.domain.radio.RadioService
 import app.naviamp.desktop.settings.DesktopSettingsStore
 import app.naviamp.desktop.settings.NavigationSettings
 import app.naviamp.desktop.settings.PlaybackSettings
@@ -555,8 +556,9 @@ fun NaviampApp(
         val activeRadioSessionId = radioSessionId
         coroutineScope.launch {
             try {
+                val radioService = RadioService(provider)
                 val fetchedTracks = withContext(Dispatchers.IO) {
-                    provider.trackRadio(seedTrack.id, count = RadioRefillCount)
+                    radioService.trackRadio(seedTrack.id)
                 }
                 val existingTrackIds = playlistEngine.queue.tracks.map { it.id }.toSet()
                 val newTracks = fetchedTracks.filterNot { track ->
@@ -1425,15 +1427,16 @@ fun NaviampApp(
     fun playRadio(
         label: String,
         recentRadioStream: RecentRadioStream,
-        loadTracks: suspend (NavidromeProvider) -> List<Track>,
+        loadTracks: suspend (RadioService) -> List<Track>,
     ) {
         val provider = connectedProvider ?: return
+        val radioService = RadioService(provider)
         rememberRadioStream(recentRadioStream)
         connectionStatus = "Loading $label..."
         coroutineScope.launch {
             try {
                 val tracks = withContext(Dispatchers.IO) {
-                    loadTracks(provider)
+                    loadTracks(radioService)
                 }
                 if (tracks.isEmpty()) {
                     connectionStatus = "$label did not return any tracks."
@@ -1466,8 +1469,9 @@ fun NaviampApp(
         provider: NavidromeProvider,
         seedTrack: Track,
         recentRadioStream: RecentRadioStream,
-        loadRest: suspend (NavidromeProvider) -> List<Track>,
+        loadRest: suspend (RadioService) -> List<Track>,
     ) {
+        val radioService = RadioService(provider)
         rememberRadioStream(recentRadioStream)
         connectionStatus = null
         radioSessionId += 1
@@ -1490,10 +1494,10 @@ fun NaviampApp(
         coroutineScope.launch {
             try {
                 val fetchedTracks = withContext(Dispatchers.IO) {
-                    loadRest(provider)
+                    loadRest(radioService)
                 }
                 val existingTrackIds = playlistEngine.queue.tracks.map { it.id }.toSet()
-                val newTracks = fetchedTracks.filterNot { track ->
+                val newTracks = radioService.queue(seedTrack, fetchedTracks).filterNot { track ->
                     track.id in existingTrackIds
                 }
                 if (radioQueueActive && activeRadioSessionId == radioSessionId && newTracks.isNotEmpty()) {
@@ -1633,8 +1637,8 @@ fun NaviampApp(
                 label = "Library radio",
                 kind = RecentRadioKind.Library,
             ),
-        ) { provider ->
-            provider.randomSongs(limit = 50)
+        ) { radioService ->
+            radioService.libraryRadio()
         }
     }
 
@@ -1647,8 +1651,8 @@ fun NaviampApp(
                 kind = RecentRadioKind.Genre,
                 genre = genre.name,
             ),
-        ) { provider ->
-            provider.randomSongs(limit = 50, genre = genre.name)
+        ) { radioService ->
+            radioService.genreRadio(genre.name)
         }
     }
 
@@ -1662,8 +1666,8 @@ fun NaviampApp(
                 fromYear = fromYear,
                 toYear = toYear,
             ),
-        ) { provider ->
-            provider.randomSongs(limit = 50, fromYear = fromYear, toYear = toYear)
+        ) { radioService ->
+            radioService.decadeRadio(fromYear, toYear)
         }
     }
 
@@ -1731,10 +1735,8 @@ fun NaviampApp(
                         kind = RecentRadioKind.RandomAlbum,
                         album = SavedAlbum.fromAlbum(album),
                     ),
-                ) { radioProvider ->
-                    radioProvider.albumRadio(album.id).ifEmpty {
-                        radioProvider.album(album.id).tracks.shuffled()
-                    }
+                ) { radioService ->
+                    radioService.albumRadio(album.id)
                 }
             } catch (exception: Exception) {
                 connectionStatus = exception.message ?: "Could not start random album radio."
@@ -1764,8 +1766,8 @@ fun NaviampApp(
                         kind = RecentRadioKind.Artist,
                         artist = SavedArtist.fromArtist(artist),
                     ),
-                ) { radioProvider ->
-                    radioProvider.artistRadio(artist.id)
+                ) { radioService ->
+                    radioService.artistRadio(artist.id)
                 }
             } catch (exception: Exception) {
                 connectionStatus = exception.message ?: "Could not start ${artist.name} radio."
@@ -1800,10 +1802,8 @@ fun NaviampApp(
                         kind = RecentRadioKind.Album,
                         album = SavedAlbum.fromAlbum(album),
                     ),
-                ) { radioProvider ->
-                    radioProvider.albumRadio(album.id).ifEmpty {
-                        radioProvider.album(album.id).tracks.shuffled()
-                    }
+                ) { radioService ->
+                    radioService.albumRadio(album.id, loadedAlbumTracks)
                 }
             } catch (exception: Exception) {
                 connectionStatus = exception.message ?: "Could not start ${album.title} radio."
@@ -1823,8 +1823,8 @@ fun NaviampApp(
                 kind = RecentRadioKind.Track,
                 track = SavedTrack.fromTrack(track),
             ),
-        ) { radioProvider ->
-            radioProvider.trackRadio(track.id, count = RadioRefillCount)
+        ) { radioService ->
+            radioService.trackRadio(track.id)
         }
     }
 
@@ -1850,15 +1850,16 @@ fun NaviampApp(
         radioQueueActive = true
         isRadioRefilling = true
         lastRadioRefillSeedId = track.id.value
+        val radioService = RadioService(provider)
         coroutineScope.launch {
             try {
                 val fetchedTracks = withContext(Dispatchers.IO) {
-                    provider.trackRadio(track.id, count = RadioRefillCount)
+                    radioService.trackRadio(track.id)
                 }
                 if (radioQueueActive && activeRadioSessionId == radioSessionId) {
                     playlistEngine.replaceUpcomingTracks(
                         currentTrack = track,
-                        upcomingTracks = fetchedTracks,
+                        upcomingTracks = radioService.queue(track, fetchedTracks).drop(1),
                         maxHistory = RadioQueueHistoryLimit,
                     )
                     connectionStatus = null
