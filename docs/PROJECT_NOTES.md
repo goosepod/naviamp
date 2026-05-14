@@ -170,7 +170,9 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 - Internet radio stream metadata:
   - `PlaybackStreamMetadata.fromProperties` in shared domain code normalizes common stream-title keys such as `icy-title`, `StreamTitle`, and `title`.
   - Desktop mpv and Android Media3 both feed raw stream metadata through the shared normalizer.
+  - Android's Media3 HTTP data source sends `Icy-MetaData: 1`; many internet-radio servers do not send current-song metadata unless the client requests ICY metadata.
   - Android now updates the radio Now Playing title and notification title from Media3 ICY/current media metadata, matching the desktop behavior of showing the currently advertised stream title while keeping the station name as the secondary line.
+  - Desktop mpv now observes `metadata` and `media-title` property-change events on a persistent IPC connection, so internet-radio title updates do not have to wait for the normal progress polling loop.
 - Radio:
   - Radio queue behavior is now centralized in shared `core/domain` through `RadioService`. Desktop and Android should call that service for library, genre, decade, album, artist, and track radio instead of duplicating recommendation/seed/queue rules.
   - Artist, album, and track rows expose "Start radio" menu actions where those rows appear.

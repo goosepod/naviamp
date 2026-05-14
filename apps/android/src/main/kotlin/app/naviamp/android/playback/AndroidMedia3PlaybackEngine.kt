@@ -43,6 +43,7 @@ class AndroidMedia3PlaybackEngine(
     private val dataSourceFactory = DefaultHttpDataSource.Factory()
         .setUserAgent("Naviamp Android")
         .setAllowCrossProtocolRedirects(true)
+        .setDefaultRequestProperties(mapOf("Icy-MetaData" to "1"))
     private val player = ExoPlayer.Builder(appContext)
         .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
         .build()

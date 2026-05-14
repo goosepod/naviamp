@@ -41,6 +41,7 @@ class MpvProcessPlaybackEngine(
 
     private var job: Job? = null
     private var progressJob: Job? = null
+    private var metadataJob: Job? = null
     private var process: Process? = null
     private var ipcEndpoint: MpvIpcEndpoint? = null
     private var onStateChanged: ((PlaybackState) -> Unit)? = null
@@ -73,6 +74,7 @@ class MpvProcessPlaybackEngine(
             var currentProcess: Process? = null
             var currentEndpoint: MpvIpcEndpoint? = null
             var currentProgressJob: Job? = null
+            var currentMetadataJob: Job? = null
             try {
                 val endpoint = createIpcEndpoint()
                 currentEndpoint = endpoint
@@ -96,6 +98,27 @@ class MpvProcessPlaybackEngine(
                 process = currentProcess
                 endpoint.waitUntilReady()
                 onStateChanged(PlaybackState.Playing)
+                val metadataState = StreamMetadataState()
+                currentMetadataJob = scope.launch(Dispatchers.IO) {
+                    endpoint.listenForEvents(
+                        commands = listOf(
+                            """{"command":["observe_property",1,"metadata"]}""",
+                            """{"command":["observe_property",2,"media-title"]}""",
+                        ),
+                    ) { line ->
+                        if (!currentProcess.isAlive || !isCurrentPlayback(currentPlaybackId)) return@listenForEvents false
+                        val event = parseIpcEvent(line) ?: return@listenForEvents true
+                        if (!isCurrentPlayback(currentPlaybackId)) return@listenForEvents false
+                        val metadata = when (event.propertyName) {
+                            "metadata" -> metadataState.updateProperties(event.data?.metadataProperties().orEmpty())
+                            "media-title" -> metadataState.updateMediaTitle(event.data?.metadataString())
+                            else -> null
+                        }
+                        metadata?.let(onMetadataChanged)
+                        true
+                    }
+                }
+                metadataJob = currentMetadataJob
                 currentProgressJob = scope.launch(Dispatchers.IO) {
                     var lastMetadata = PlaybackStreamMetadata()
                     while (currentProcess.isAlive) {
@@ -130,8 +153,12 @@ class MpvProcessPlaybackEngine(
                 }
             } finally {
                 currentProgressJob?.cancel()
+                currentMetadataJob?.cancel()
                 if (progressJob == currentProgressJob) {
                     progressJob = null
+                }
+                if (metadataJob == currentMetadataJob) {
+                    metadataJob = null
                 }
                 if (isCurrentPlayback(currentPlaybackId)) {
                     onProgressChanged(PlaybackProgress.Unknown)
@@ -184,7 +211,9 @@ class MpvProcessPlaybackEngine(
 
         job?.cancel()
         progressJob?.cancel()
+        metadataJob?.cancel()
         progressJob = null
+        metadataJob = null
         process = null
         ipcEndpoint?.delete()
         ipcEndpoint = null
@@ -206,11 +235,7 @@ class MpvProcessPlaybackEngine(
 
     private fun queryStreamMetadata(): PlaybackStreamMetadata {
         val properties = queryProperty("metadata")
-            ?.jsonObjectOrNull()
-            ?.mapNotNull { (key, value) ->
-                value.metadataString()?.let { key to it }
-            }
-            ?.toMap()
+            ?.metadataProperties()
             .orEmpty()
         val mediaTitle = queryProperty("media-title")?.metadataString()
         return PlaybackStreamMetadata.fromProperties(
@@ -236,13 +261,25 @@ class MpvProcessPlaybackEngine(
     private fun sendIpcCommand(command: String, reportErrors: Boolean = true): String? {
         val endpoint = ipcEndpoint ?: return null
         return try {
-            endpoint.send("$command\n")
+            endpoint.send("$command\n", expectResponse = true)
         } catch (exception: Throwable) {
             if (reportErrors) {
                 onStateChanged?.invoke(PlaybackState.Error(exception.message ?: "mpv command failed."))
             }
             null
         }
+    }
+
+    private fun parseIpcEvent(line: String): MpvIpcEvent? {
+        if (line.isBlank()) return null
+        return runCatching {
+            val jsonObject = json.parseToJsonElement(line).jsonObject
+            if (jsonObject["event"]?.metadataString() != "property-change") return@runCatching null
+            MpvIpcEvent(
+                propertyName = jsonObject["name"]?.metadataString(),
+                data = jsonObject["data"],
+            )
+        }.getOrNull()
     }
 
     private fun createIpcEndpoint(): MpvIpcEndpoint =
@@ -296,7 +333,11 @@ sealed interface MpvIpcEndpoint {
 
     fun waitUntilReady()
 
-    fun send(command: String): String
+    fun send(command: String, expectResponse: Boolean): String
+
+    fun readEventLine(): String
+
+    fun listenForEvents(commands: List<String>, onLine: (String) -> Boolean)
 
     fun delete()
 
@@ -312,11 +353,31 @@ sealed interface MpvIpcEndpoint {
             }
         }
 
-        override fun send(command: String): String {
+        override fun send(command: String, expectResponse: Boolean): String {
             waitUntilReady()
             return SocketChannel.open(UnixDomainSocketAddress.of(socket.toPath())).use { channel ->
                 channel.write(ByteBuffer.wrap(command.toByteArray(StandardCharsets.UTF_8)))
+                if (expectResponse) channel.readLine() else ""
+            }
+        }
+
+        override fun readEventLine(): String {
+            waitUntilReady()
+            return SocketChannel.open(UnixDomainSocketAddress.of(socket.toPath())).use { channel ->
                 channel.readLine()
+            }
+        }
+
+        override fun listenForEvents(commands: List<String>, onLine: (String) -> Boolean) {
+            waitUntilReady()
+            SocketChannel.open(UnixDomainSocketAddress.of(socket.toPath())).use { channel ->
+                commands.forEach { command ->
+                    channel.write(ByteBuffer.wrap("$command\n".toByteArray(StandardCharsets.UTF_8)))
+                }
+                while (true) {
+                    val line = channel.readLine()
+                    if (line.isBlank() || !onLine(line)) return
+                }
             }
         }
 
@@ -341,7 +402,7 @@ sealed interface MpvIpcEndpoint {
             }
         }
 
-        override fun send(command: String): String {
+        override fun send(command: String, expectResponse: Boolean): String {
             synchronized(lock) {
                 waitUntilReady()
                 var lastException: Throwable? = null
@@ -349,7 +410,7 @@ sealed interface MpvIpcEndpoint {
                     try {
                         return RandomAccessFile(mpvPath, "rw").use { pipe ->
                             pipe.write(command.toByteArray(StandardCharsets.UTF_8))
-                            pipe.readUtf8Line()
+                            if (expectResponse) pipe.readUtf8Line() else ""
                         }
                     } catch (exception: Throwable) {
                         lastException = exception
@@ -363,7 +424,59 @@ sealed interface MpvIpcEndpoint {
             }
         }
 
+        override fun readEventLine(): String =
+            synchronized(lock) {
+                waitUntilReady()
+                RandomAccessFile(mpvPath, "rw").use { pipe ->
+                    pipe.readUtf8Line()
+                }
+            }
+
+        override fun listenForEvents(commands: List<String>, onLine: (String) -> Boolean) {
+            waitUntilReady()
+            RandomAccessFile(mpvPath, "rw").use { pipe ->
+                commands.forEach { command ->
+                    pipe.write("$command\n".toByteArray(StandardCharsets.UTF_8))
+                }
+                while (true) {
+                    val line = pipe.readUtf8Line()
+                    if (line.isBlank() || !onLine(line)) return
+                }
+            }
+        }
+
         override fun delete() = Unit
+    }
+}
+
+private data class MpvIpcEvent(
+    val propertyName: String?,
+    val data: JsonElement?,
+)
+
+private class StreamMetadataState {
+    private var properties: Map<String, String> = emptyMap()
+    private var mediaTitle: String? = null
+    private var lastMetadata = PlaybackStreamMetadata()
+
+    fun updateProperties(properties: Map<String, String>): PlaybackStreamMetadata? {
+        this.properties = properties
+        return nextMetadata()
+    }
+
+    fun updateMediaTitle(mediaTitle: String?): PlaybackStreamMetadata? {
+        this.mediaTitle = mediaTitle
+        return nextMetadata()
+    }
+
+    private fun nextMetadata(): PlaybackStreamMetadata? {
+        val metadata = PlaybackStreamMetadata.fromProperties(
+            properties = properties + listOfNotNull(mediaTitle?.let { "media-title" to it }),
+            fallbackTitle = mediaTitle,
+        )
+        if (metadata == lastMetadata) return null
+        lastMetadata = metadata
+        return metadata
     }
 }
 
@@ -385,6 +498,14 @@ private fun JsonElement.doubleValue(): Double? =
 
 private fun JsonElement.metadataString(): String? =
     runCatching { jsonPrimitive.contentOrNull?.takeIf { it.isNotBlank() } }.getOrNull()
+
+private fun JsonElement.metadataProperties(): Map<String, String> =
+    jsonObjectOrNull()
+        ?.mapNotNull { (key, value) ->
+            value.metadataString()?.let { key to it }
+        }
+        ?.toMap()
+        .orEmpty()
 
 private fun JsonElement.jsonObjectOrNull(): JsonObject? =
     runCatching { jsonObject }.getOrNull()

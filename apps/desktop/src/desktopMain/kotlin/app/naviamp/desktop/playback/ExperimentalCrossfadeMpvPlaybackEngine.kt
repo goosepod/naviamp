@@ -529,7 +529,7 @@ class ExperimentalCrossfadeMpvPlaybackEngine(
         private fun send(command: String, reportErrors: Boolean = true): String? =
             try {
                 if (!process.isAlive) return null
-                endpoint.send("$command\n")
+                endpoint.send("$command\n", expectResponse = true)
             } catch (exception: Throwable) {
                 trace.log("slot=$id command failed: ${exception.message}")
                 if (reportErrors) {
