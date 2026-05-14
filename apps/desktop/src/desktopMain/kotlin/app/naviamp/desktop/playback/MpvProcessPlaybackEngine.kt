@@ -213,17 +213,9 @@ class MpvProcessPlaybackEngine(
             ?.toMap()
             .orEmpty()
         val mediaTitle = queryProperty("media-title")?.metadataString()
-        val title = listOf(
-            properties["icy-title"],
-            properties["StreamTitle"],
-            properties["streamtitle"],
-            properties["title"],
-            mediaTitle,
-        ).firstOrNull { !it.isNullOrBlank() }?.trim()
-
-        return PlaybackStreamMetadata(
-            title = title,
+        return PlaybackStreamMetadata.fromProperties(
             properties = properties + listOfNotNull(mediaTitle?.let { "media-title" to it }),
+            fallbackTitle = mediaTitle,
         )
     }
 

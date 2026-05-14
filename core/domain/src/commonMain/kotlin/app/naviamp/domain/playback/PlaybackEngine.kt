@@ -47,7 +47,31 @@ data class PlaybackRequest(
 data class PlaybackStreamMetadata(
     val title: String? = null,
     val properties: Map<String, String> = emptyMap(),
-)
+) {
+    companion object {
+        fun fromProperties(
+            properties: Map<String, String>,
+            fallbackTitle: String? = null,
+        ): PlaybackStreamMetadata =
+            PlaybackStreamMetadata(
+                title = streamTitle(properties, fallbackTitle),
+                properties = properties,
+            )
+    }
+}
+
+fun streamTitle(
+    properties: Map<String, String>,
+    fallbackTitle: String? = null,
+): String? =
+    listOf(
+        properties["icy-title"],
+        properties["StreamTitle"],
+        properties["streamtitle"],
+        properties["title"],
+        properties["Title"],
+        fallbackTitle,
+    ).firstOrNull { !it.isNullOrBlank() }?.trim()
 
 enum class ReplayGainMode(
     val displayName: String,

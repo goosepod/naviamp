@@ -164,6 +164,13 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 - Playback session restore:
   - Saved sessions include the queue, current index, and last known playback position.
   - When playback is resumed after app restart, the first play action passes the saved position into the playback request so mpv starts at that offset. Do not rely on an immediate post-play IPC seek; mpv may not be ready yet.
+  - Android now persists a source-scoped playback session in SQLDelight with the shared `PlaybackSessionSettings` payload.
+  - Android restore is conservative: reconnecting restores the saved queue/current track or last internet radio station into Now Playing and waits for the user to press Play; it does not autoplay.
+  - Android track-session resume passes the saved position into the first Media3 playback request.
+- Internet radio stream metadata:
+  - `PlaybackStreamMetadata.fromProperties` in shared domain code normalizes common stream-title keys such as `icy-title`, `StreamTitle`, and `title`.
+  - Desktop mpv and Android Media3 both feed raw stream metadata through the shared normalizer.
+  - Android now updates the radio Now Playing title and notification title from Media3 ICY/current media metadata, matching the desktop behavior of showing the currently advertised stream title while keeping the station name as the secondary line.
 - Radio:
   - Radio queue behavior is now centralized in shared `core/domain` through `RadioService`. Desktop and Android should call that service for library, genre, decade, album, artist, and track radio instead of duplicating recommendation/seed/queue rules.
   - Artist, album, and track rows expose "Start radio" menu actions where those rows appear.
@@ -386,7 +393,8 @@ The Android work should be staged so the desktop app keeps working while platfor
 5. Android app milestone order:
    - Connect/search/stream is in place as the first proof point.
    - Android now uses the shared Naviamp-style shell instead of the temporary Android-only Material proof screen, and provider-backed Home, Search, Library, Playlists, and Internet Radio lists are wired into the shared surfaces.
-   - Next: restore sessions and add queue controls.
+   - Session restore has started: saved queues/stations are persisted per source and restored into Now Playing without autoplay.
+   - Next: add fuller queue controls and deepen restored-session polish.
    - Then deepen each screen toward desktop parity: playable album/playlist/library detail flows, station management, downloads, richer settings, and row actions.
    - Add background playback polish, media notification actions, and cache/download behavior before treating Android as daily-driver ready.
 

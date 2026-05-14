@@ -42,11 +42,13 @@ import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
+import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.settings.ConnectionFormState
+import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
@@ -67,6 +69,7 @@ import app.naviamp.ui.SharedPlaylistDetailUi
 import app.naviamp.ui.SharedPlaylistSortMode
 import app.naviamp.ui.SharedRoute
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
@@ -94,7 +97,8 @@ private fun NaviampAndroidApp() {
     val lrclibLyricsClient = remember { AndroidLrclibLyricsClient() }
     val storage = remember { AndroidStorage(context) }
     val settingsStore = remember { AndroidSettingsStore(context) }
-    val savedProviderConnection = remember { storage.latestNavidromeConnection() }
+    val savedProviderSource = remember { storage.latestNavidromeSource() }
+    val savedProviderConnection = savedProviderSource?.connection
     val savedConnection = remember { settingsStore.loadConnection(savedProviderConnection) }
     var serverUrl by remember { mutableStateOf(savedConnection.serverUrl) }
     var username by remember { mutableStateOf(savedConnection.username) }
@@ -118,12 +122,15 @@ private fun NaviampAndroidApp() {
     var navigationState by remember { mutableStateOf(NaviampNavigationState()) }
     val selectedRoute = navigationState.route.toSharedRoute()
     var provider by remember { mutableStateOf<NavidromeProvider?>(null) }
+    var activeSourceId by remember { mutableStateOf<String?>(savedProviderSource?.id) }
+    var restoredStartPositionSeconds by remember { mutableStateOf<Double?>(null) }
     var activeTlsSettings by remember { mutableStateOf(NavidromeTlsSettings()) }
     var validation by remember { mutableStateOf<ConnectionValidation?>(null) }
     var status by remember { mutableStateOf("Connect to Navidrome to start Android playback.") }
     var tracks by remember { mutableStateOf<List<Track>>(emptyList()) }
     var nowPlaying by remember { mutableStateOf<Track?>(null) }
     var nowPlayingStation by remember { mutableStateOf<InternetRadioStation?>(null) }
+    var nowPlayingStreamMetadata by remember { mutableStateOf(PlaybackStreamMetadata()) }
     var nowPlayingOpen by remember { mutableStateOf(false) }
     var playbackState by remember { mutableStateOf<PlaybackState>(PlaybackState.Idle) }
     var playbackProgress by remember { mutableStateOf(PlaybackProgress.Unknown) }
@@ -195,7 +202,12 @@ private fun NaviampAndroidApp() {
         }
     }
 
-    fun playTrack(track: Track, queue: List<Track>? = null, openNowPlaying: Boolean = true) {
+    fun playTrack(
+        track: Track,
+        queue: List<Track>? = null,
+        openNowPlaying: Boolean = true,
+        startPositionSeconds: Double? = null,
+    ) {
         val activeProvider = provider
         if (activeProvider == null) {
             status = "Connect before playing a track."
@@ -217,6 +229,7 @@ private fun NaviampAndroidApp() {
                 shuffledUpNextSnapshot = null
                 nowPlaying = track
                 nowPlayingStation = null
+                nowPlayingStreamMetadata = PlaybackStreamMetadata()
                 if (openNowPlaying) {
                     nowPlayingOpen = true
                 }
@@ -231,7 +244,7 @@ private fun NaviampAndroidApp() {
                 )
                 playbackEngine.play(
                     scope = scope,
-                    request = PlaybackRequest(streamUrl),
+                    request = PlaybackRequest(streamUrl, startPositionSeconds = startPositionSeconds),
                     onStateChanged = { state ->
                         playbackState = state
                         if (state is PlaybackState.Error) {
@@ -250,6 +263,58 @@ private fun NaviampAndroidApp() {
                 status = error.message ?: "Playback failed."
             }
         }
+    }
+
+    fun playInternetRadioStation(station: InternetRadioStation) {
+        nowPlaying = null
+        nowPlayingStation = station
+        nowPlayingStreamMetadata = PlaybackStreamMetadata()
+        nowPlayingOpen = true
+        status = "Loading ${station.name}..."
+        playbackEngine.applyTlsSettings(activeTlsSettings)
+        playbackEngine.updateNotificationMetadata(
+            title = station.name,
+            subtitle = "Internet radio",
+            coverArtUrl = null,
+        )
+        scope.launch {
+            runCatching {
+                resolveInternetRadioStreamUrl(station.streamUrl.trim())
+            }.onSuccess { streamUrl ->
+                playbackEngine.play(
+                    scope = scope,
+                    request = PlaybackRequest(streamUrl),
+                    onStateChanged = { state ->
+                        playbackState = state
+                        if (state is PlaybackState.Error) {
+                            status = state.message
+                        }
+                    },
+                    onProgressChanged = { playbackProgress = it },
+                    onMetadataChanged = { metadata ->
+                        nowPlayingStreamMetadata = metadata
+                        metadata.title?.takeIf { it.isNotBlank() }?.let { streamTitle ->
+                            playbackEngine.updateNotificationMetadata(
+                                title = streamTitle,
+                                subtitle = station.name,
+                                coverArtUrl = null,
+                            )
+                        }
+                    },
+                )
+            }.onFailure { error ->
+                status = error.message ?: "Radio stream failed."
+            }
+        }
+    }
+
+    fun performSeek(positionSeconds: Double) {
+        restoredStartPositionSeconds = null
+        playbackProgress = PlaybackProgress(
+            positionSeconds = positionSeconds.coerceAtLeast(0.0),
+            durationSeconds = playbackProgress.durationSeconds,
+        )
+        playbackEngine.seek(positionSeconds)
     }
 
     fun playAdjacentTrack(offset: Int) {
@@ -545,6 +610,65 @@ private fun NaviampAndroidApp() {
         }
     }
 
+    fun restorePlaybackSession(sourceId: String): Boolean {
+        val session = storage.loadPlaybackSession(sourceId) ?: return false
+        session.internetRadioStation?.toStation()?.let { station ->
+            nowPlaying = null
+            nowPlayingStation = station
+            nowPlayingStreamMetadata = PlaybackStreamMetadata()
+            playbackQueue = PlaybackQueue()
+            playbackProgress = PlaybackProgress.Unknown
+            restoredStartPositionSeconds = null
+            nowPlayingOpen = true
+            status = "Restored ${station.name}. Press play to resume."
+            return true
+        }
+
+        val sessionTracks = session.toTracks()
+        val currentTrack = session.currentTrack() ?: return false
+        playbackQueue = PlaybackQueue(
+            tracks = sessionTracks,
+            currentIndex = session.currentIndex.coerceIn(sessionTracks.indices),
+        )
+        tracks = sessionTracks
+        nowPlaying = currentTrack
+        nowPlayingStation = null
+        nowPlayingStreamMetadata = PlaybackStreamMetadata()
+        nowPlayingOpen = true
+        playbackProgress = PlaybackProgress(
+            positionSeconds = session.positionSeconds,
+            durationSeconds = currentTrack.durationSeconds?.toDouble(),
+        )
+        restoredStartPositionSeconds = session.positionSeconds
+        loadRelatedTracks(currentTrack)
+        status = "Restored ${currentTrack.title}. Press play to resume."
+        return true
+    }
+
+    fun savePlaybackSession() {
+        val sourceId = activeSourceId ?: return
+        val station = nowPlayingStation
+        if (station != null) {
+            storage.savePlaybackSession(
+                sourceId = sourceId,
+                session = PlaybackSessionSettings.fromInternetRadioStation(station),
+            )
+            return
+        }
+
+        val currentTrack = nowPlaying ?: return
+        val queue = playbackQueue.takeIf { it.current?.id == currentTrack.id }
+            ?: PlaybackQueue(tracks = listOf(currentTrack), currentIndex = 0)
+        storage.savePlaybackSession(
+            sourceId = sourceId,
+            session = PlaybackSessionSettings.fromTracks(
+                tracks = queue.tracks,
+                currentIndex = queue.currentIndex,
+                positionSeconds = playbackProgress.positionSeconds,
+            ),
+        )
+    }
+
     fun currentConnectionForm(): ConnectionFormState =
         ConnectionFormState(
             serverUrl = serverUrl,
@@ -566,15 +690,19 @@ private fun NaviampAndroidApp() {
                 validation = nextProvider.validateConnection()
                 homeState = loadBrowseState(nextProvider)
                 preloadPlaylistTracks(nextProvider, homeState.playlists)
-                storage.upsertNavidromeSource(
+                val mediaSource = storage.upsertNavidromeSource(
                     connection = connection,
                     cacheNamespace = nextProvider.cacheNamespace,
                     providerId = nextProvider.id.value,
                 )
                 provider = nextProvider
+                activeSourceId = mediaSource.id
                 activeTlsSettings = tlsSettings
+                restorePlaybackSession(mediaSource.id)
             }.onSuccess {
-                status = "Connected."
+                if (nowPlaying == null && nowPlayingStation == null) {
+                    status = "Connected."
+                }
                 editingConnection = false
                 navigationState = navigationState.copy(route = NaviampRoute.Home)
             }.onFailure { error ->
@@ -622,6 +750,18 @@ private fun NaviampAndroidApp() {
                 connectToNavidrome()
             }
         }
+    }
+
+    LaunchedEffect(
+        activeSourceId,
+        playbackQueue,
+        nowPlaying?.id,
+        nowPlayingStation?.id,
+        playbackProgress.positionSeconds,
+    ) {
+        if (activeSourceId == null || (nowPlaying == null && nowPlayingStation == null)) return@LaunchedEffect
+        delay(1_000)
+        savePlaybackSession()
     }
 
     NaviampSharedAppShell(
@@ -711,8 +851,12 @@ private fun NaviampAndroidApp() {
         } ?: nowPlayingStation?.let { station ->
             NowPlayingUi(
                 id = station.id,
-                title = station.name,
-                subtitle = "Internet radio",
+                title = nowPlayingStreamMetadata.title?.takeIf { it.isNotBlank() } ?: station.name,
+                subtitle = if (nowPlayingStreamMetadata.title.isNullOrBlank()) {
+                    "Internet radio"
+                } else {
+                    station.name
+                },
                 stateLabel = playbackState.label(),
                 isLive = true,
                 volumePercent = volumePercent,
@@ -863,35 +1007,7 @@ private fun NaviampAndroidApp() {
                 status = "Station not found."
                 return@NaviampSharedAppShell
             }
-            nowPlaying = null
-            nowPlayingStation = station
-            nowPlayingOpen = true
-            status = "Loading ${station.name}..."
-            playbackEngine.applyTlsSettings(activeTlsSettings)
-            playbackEngine.updateNotificationMetadata(
-                title = station.name,
-                subtitle = "Internet radio",
-                coverArtUrl = null,
-            )
-            scope.launch {
-                runCatching {
-                    resolveInternetRadioStreamUrl(station.streamUrl.trim())
-                }.onSuccess { streamUrl ->
-                    playbackEngine.play(
-                        scope = scope,
-                        request = PlaybackRequest(streamUrl),
-                        onStateChanged = { state ->
-                            playbackState = state
-                            if (state is PlaybackState.Error) {
-                                status = state.message
-                            }
-                        },
-                        onProgressChanged = { playbackProgress = it },
-                    )
-                }.onFailure { error ->
-                    status = error.message ?: "Radio stream failed."
-                }
-            }
+            playInternetRadioStation(station)
         },
         onHomeStationSelected = { station ->
             when {
@@ -931,11 +1047,25 @@ private fun NaviampAndroidApp() {
             contentState = contentState.clearDetails()
         },
         onPause = playbackEngine::pause,
-        onResume = playbackEngine::resume,
+        onResume = {
+            when (playbackState) {
+                PlaybackState.Idle, PlaybackState.Stopped, PlaybackState.Finished -> {
+                    nowPlaying?.let { track ->
+                        playTrack(
+                            track = track,
+                            queue = playbackQueue.tracks.ifEmpty { listOf(track) },
+                            startPositionSeconds = restoredStartPositionSeconds,
+                        )
+                        restoredStartPositionSeconds = null
+                    } ?: nowPlayingStation?.let(::playInternetRadioStation)
+                }
+                else -> playbackEngine.resume()
+            }
+        },
         onStop = playbackEngine::stop,
         onPrevious = { playAdjacentTrack(-1) },
         onNext = { playAdjacentTrack(1) },
-        onSeek = playbackEngine::seek,
+        onSeek = ::performSeek,
         onVolumeChanged = { percent ->
             volumePercent = percent
             playbackEngine.setVolume(percent)

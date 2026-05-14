@@ -117,6 +117,12 @@ CREATE TABLE cached_lrclib_lyrics (
   PRIMARY KEY(source_id, remote_track_id)
 );
 
+CREATE TABLE playback_session (
+  source_id TEXT NOT NULL PRIMARY KEY REFERENCES media_source(id) ON DELETE CASCADE,
+  payload TEXT NOT NULL,
+  updated_at_epoch_millis INTEGER NOT NULL
+);
+
 CREATE INDEX cached_audio_source_access
 ON cached_audio(source_id, last_accessed_epoch_millis);
 
@@ -163,9 +169,29 @@ INSERT OR REPLACE INTO media_source(
   last_sync_completed_at_epoch_millis
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
+selectPlaybackSession:
+SELECT payload
+FROM playback_session
+WHERE source_id = ?;
+
+upsertPlaybackSession:
+INSERT OR REPLACE INTO playback_session(
+  source_id,
+  payload,
+  updated_at_epoch_millis
+) VALUES (?, ?, ?);
+
+deletePlaybackSession:
+DELETE FROM playback_session
+WHERE source_id = ?;
+
 mediaSourceCount:
 SELECT COUNT(*)
 FROM media_source;
+
+playbackSessionCount:
+SELECT COUNT(*)
+FROM playback_session;
 
 imageCacheSize:
 SELECT COALESCE(SUM(size_bytes), 0)

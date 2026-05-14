@@ -2,12 +2,15 @@ package app.naviamp.android.playback
 
 import android.content.Context
 import androidx.media3.common.MediaItem
+import androidx.media3.common.Metadata
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.SeekParameters
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.extractor.metadata.icy.IcyInfo
 import androidx.media3.session.MediaSession
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackProgress
@@ -43,6 +46,7 @@ class AndroidMedia3PlaybackEngine(
     private val player = ExoPlayer.Builder(appContext)
         .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
         .build()
+        .also { it.setSeekParameters(SeekParameters.EXACT) }
     private val mediaSession = MediaSession.Builder(appContext, player).build()
     private var progressJob: Job? = null
     private var onStateChanged: ((PlaybackState) -> Unit)? = null
@@ -96,10 +100,18 @@ class AndroidMedia3PlaybackEngine(
 
                 override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
                     onMetadataChanged?.invoke(
-                        PlaybackStreamMetadata(
-                            title = mediaMetadata.title?.toString(),
+                        PlaybackStreamMetadata.fromProperties(
+                            properties = mediaMetadata.toStreamProperties(),
+                            fallbackTitle = mediaMetadata.title?.toString(),
                         ),
                     )
+                }
+
+                override fun onMetadata(metadata: Metadata) {
+                    val properties = metadata.toStreamProperties()
+                    if (properties.isNotEmpty()) {
+                        onMetadataChanged?.invoke(PlaybackStreamMetadata.fromProperties(properties))
+                    }
                 }
             },
         )
@@ -204,6 +216,26 @@ class AndroidMedia3PlaybackEngine(
         )
     }
 }
+
+private fun MediaMetadata.toStreamProperties(): Map<String, String> =
+    buildMap<String, String> {
+        title?.toString()?.takeIf { it.isNotBlank() }?.let { put("title", it) }
+        artist?.toString()?.takeIf { it.isNotBlank() }?.let { put("artist", it) }
+        albumTitle?.toString()?.takeIf { it.isNotBlank() }?.let { put("album", it) }
+        station?.toString()?.takeIf { it.isNotBlank() }?.let { put("station", it) }
+    }
+
+private fun Metadata.toStreamProperties(): Map<String, String> =
+    buildMap<String, String> {
+        for (index in 0 until length()) {
+            when (val entry = this@toStreamProperties[index]) {
+                is IcyInfo -> {
+                    entry.title?.takeIf { it.isNotBlank() }?.let { put("icy-title", it) }
+                    entry.url?.takeIf { it.isNotBlank() }?.let { put("icy-url", it) }
+                }
+            }
+        }
+    }
 
 private object AndroidPlaybackTls {
     private val platformSslContext: SSLContext = SSLContext.getDefault()

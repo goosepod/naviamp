@@ -42,6 +42,7 @@ dependencies {
     implementation(compose.runtime)
     implementation(compose.ui)
     implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.kotlinx.serialization.json)
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.session)
     implementation(libs.sqldelight.android.driver)

@@ -4,8 +4,11 @@ import android.content.Context
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import app.naviamp.android.storage.Media_source
 import app.naviamp.android.storage.NaviampAndroidDatabase
+import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.io.File
 import java.security.MessageDigest
 
@@ -22,14 +25,21 @@ class AndroidStorage(
     }
     private val database = NaviampAndroidDatabase(driver)
     private val queries = database.naviampAndroidQueries
+    private val json = Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = true
+    }
 
     val audioCacheDirectory: File = File(appContext.cacheDir, "audio-cache")
     val downloadDirectory: File = File(appContext.filesDir, "downloads")
 
-    fun latestNavidromeConnection(): NavidromeConnection? =
+    fun latestNavidromeSource(): AndroidSavedMediaSource? =
         queries.selectLatestMediaSource()
             .executeAsOneOrNull()
-            ?.toNavidromeConnection()
+            ?.toAndroidSavedMediaSource()
+
+    fun latestNavidromeConnection(): NavidromeConnection? =
+        latestNavidromeSource()?.connection
 
     fun upsertNavidromeSource(connection: NavidromeConnection, cacheNamespace: String, providerId: String): AndroidMediaSource {
         val now = System.currentTimeMillis()
@@ -61,10 +71,30 @@ class AndroidStorage(
         )
     }
 
+    fun loadPlaybackSession(sourceId: String): PlaybackSessionSettings? =
+        queries.selectPlaybackSession(sourceId)
+            .executeAsOneOrNull()
+            ?.let { payload ->
+                runCatching { json.decodeFromString<PlaybackSessionSettings>(payload) }.getOrNull()
+            }
+
+    fun savePlaybackSession(sourceId: String, session: PlaybackSessionSettings?) {
+        if (session == null) {
+            queries.deletePlaybackSession(sourceId)
+            return
+        }
+        queries.upsertPlaybackSession(
+            source_id = sourceId,
+            payload = json.encodeToString(session),
+            updated_at_epoch_millis = System.currentTimeMillis(),
+        )
+    }
+
     fun stats(): AndroidStorageStats =
         AndroidStorageStats(
             databaseName = DatabaseName,
             mediaSourceCount = queries.mediaSourceCount().executeAsOne(),
+            playbackSessionCount = queries.playbackSessionCount().executeAsOne(),
             imageBytes = queries.imageCacheSize().executeAsOne(),
             responseCount = queries.responseCacheCount().executeAsOne(),
             audioBytes = queries.audioCacheSize().executeAsOne(),
@@ -82,9 +112,17 @@ data class AndroidMediaSource(
     val displayName: String,
 )
 
+data class AndroidSavedMediaSource(
+    val id: String,
+    val cacheNamespace: String,
+    val displayName: String,
+    val connection: NavidromeConnection,
+)
+
 data class AndroidStorageStats(
     val databaseName: String,
     val mediaSourceCount: Long,
+    val playbackSessionCount: Long,
     val imageBytes: Long,
     val responseCount: Long,
     val audioBytes: Long,
@@ -95,18 +133,23 @@ data class AndroidStorageStats(
     val downloadDirectory: String,
 )
 
-private fun Media_source.toNavidromeConnection(): NavidromeConnection =
-    NavidromeConnection(
-        baseUrl = base_url,
-        username = username,
-        token = token,
-        salt = salt,
-        displayName = display_name.takeUnless { it == "Navidrome" } ?: base_url,
-        tlsSettings = NavidromeTlsSettings(
-            insecureSkipTlsVerification = insecure_skip_tls_verification != 0L,
-            customCertificatePath = custom_certificate_path,
-            clientCertificateKeyStorePath = client_certificate_keystore_path,
-            clientCertificateKeyStorePassword = client_certificate_keystore_password,
+private fun Media_source.toAndroidSavedMediaSource(): AndroidSavedMediaSource =
+    AndroidSavedMediaSource(
+        id = id,
+        cacheNamespace = cache_namespace,
+        displayName = display_name,
+        connection = NavidromeConnection(
+            baseUrl = base_url,
+            username = username,
+            token = token,
+            salt = salt,
+            displayName = display_name.takeUnless { it == "Navidrome" } ?: base_url,
+            tlsSettings = NavidromeTlsSettings(
+                insecureSkipTlsVerification = insecure_skip_tls_verification != 0L,
+                customCertificatePath = custom_certificate_path,
+                clientCertificateKeyStorePath = client_certificate_keystore_path,
+                clientCertificateKeyStorePassword = client_certificate_keystore_password,
+            ),
         ),
     )
 
