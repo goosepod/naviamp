@@ -56,6 +56,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
+import app.naviamp.domain.Album
+import app.naviamp.domain.InternetRadioStation
+import app.naviamp.domain.Playlist
+import app.naviamp.domain.Track
+import app.naviamp.domain.home.HomeContent
+import app.naviamp.domain.home.homeStations
 
 data class NaviampColors(
     val background: Color = Color(0xFF101114),
@@ -181,6 +187,66 @@ data class SharedHomeStationUi(
     val title: String,
     val subtitle: String,
 )
+
+fun HomeContent.toSharedHomeUi(
+    coverArtUrl: (String?) -> String?,
+    playlistTracksById: Map<String, List<Track>> = emptyMap(),
+): SharedHomeUi =
+    SharedHomeUi(
+        recentlyAddedAlbums = recentlyAddedAlbums.map { it.toSharedMediaItem(coverArtUrl) },
+        mixAlbums = mixAlbums.map { it.toSharedMediaItem(coverArtUrl) },
+        recentAlbums = recentAlbums.map { it.toSharedMediaItem(coverArtUrl) },
+        frequentAlbums = frequentAlbums.map { it.toSharedMediaItem(coverArtUrl) },
+        randomAlbums = randomAlbums.map { it.toSharedMediaItem(coverArtUrl) },
+        playlists = playlists.map { playlist ->
+            playlist.toSharedMediaItem(
+                coverArtUrl = coverArtUrl,
+                tracks = playlistTracksById[playlist.id].orEmpty(),
+            )
+        },
+        recentRadioStreams = recentRadioStreams.map {
+            SharedMediaItemUi(id = it.id, title = it.label, subtitle = "Radio")
+        },
+        radioStations = radioStations.map { it.toSharedMediaItem() },
+        stations = homeStations(this).map {
+            SharedHomeStationUi(id = it.id, title = it.title, subtitle = it.subtitle)
+        },
+        genreSpotlightTitle = genreSpotlight?.name,
+        genreSpotlightAlbums = genreSpotlightAlbums.map { it.toSharedMediaItem(coverArtUrl) },
+        decadeLabel = decadeLabel,
+        decadeAlbums = decadeAlbums.map { it.toSharedMediaItem(coverArtUrl) },
+    )
+
+private fun Album.toSharedMediaItem(coverArtUrl: (String?) -> String?): SharedMediaItemUi =
+    SharedMediaItemUi(
+        id = id.value,
+        title = title,
+        subtitle = artistName,
+        meta = releaseYear?.toString().orEmpty(),
+        coverArtUrl = coverArtUrl(coverArtId),
+    )
+
+private fun Playlist.toSharedMediaItem(
+    coverArtUrl: (String?) -> String?,
+    tracks: List<Track> = emptyList(),
+): SharedMediaItemUi =
+    SharedMediaItemUi(
+        id = id,
+        title = name,
+        subtitle = "$trackCount tracks",
+        meta = durationSeconds?.durationLabel().orEmpty(),
+        coverArtUrl = coverArtUrl(coverArtId),
+        coverArtUrls = tracks.mapNotNull { coverArtUrl(it.coverArtId) }.distinct().take(4),
+    )
+
+private fun InternetRadioStation.toSharedMediaItem(): SharedMediaItemUi =
+    SharedMediaItemUi(id = id, title = name, subtitle = homePageUrl ?: "Internet radio")
+
+private fun Int.durationLabel(): String {
+    val minutes = this / 60
+    val seconds = this % 60
+    return "$minutes:${seconds.toString().padStart(2, '0')}"
+}
 
 data class SharedSearchResultsUi(
     val artists: List<SharedMediaItemUi> = emptyList(),

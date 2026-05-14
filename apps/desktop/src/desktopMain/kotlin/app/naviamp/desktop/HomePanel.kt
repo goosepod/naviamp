@@ -27,38 +27,8 @@ import app.naviamp.domain.Album
 import app.naviamp.domain.Genre
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Playlist
+import app.naviamp.domain.home.HomeContent
 import app.naviamp.desktop.settings.RecentRadioStream
-
-data class HomeContent(
-    val recentlyAddedAlbums: List<Album> = emptyList(),
-    val mixAlbums: List<Album> = emptyList(),
-    val recentAlbums: List<Album> = emptyList(),
-    val frequentAlbums: List<Album> = emptyList(),
-    val randomAlbums: List<Album> = emptyList(),
-    val playlists: List<Playlist> = emptyList(),
-    val recentRadioStreams: List<RecentRadioStream> = emptyList(),
-    val recentInternetRadioStations: List<InternetRadioStation> = emptyList(),
-    val genres: List<Genre> = emptyList(),
-    val genreSpotlight: Genre? = null,
-    val genreSpotlightAlbums: List<Album> = emptyList(),
-    val decadeLabel: String = "Decade",
-    val decadeFromYear: Int = 0,
-    val decadeToYear: Int = 0,
-    val decadeAlbums: List<Album> = emptyList(),
-) {
-    val isEmpty: Boolean
-        get() = recentlyAddedAlbums.isEmpty() &&
-            mixAlbums.isEmpty() &&
-            recentAlbums.isEmpty() &&
-            frequentAlbums.isEmpty() &&
-            randomAlbums.isEmpty() &&
-            playlists.isEmpty() &&
-            recentRadioStreams.isEmpty() &&
-            recentInternetRadioStations.isEmpty() &&
-            genres.isEmpty() &&
-            genreSpotlightAlbums.isEmpty() &&
-            decadeAlbums.isEmpty()
-}
 
 @Composable
 fun HomePanel(

@@ -315,6 +315,9 @@ Default stance: implement behavior in shared code unless it needs OS APIs, a pla
    - Keep HTTP transport and embedded-file tag readers behind interfaces because Android and desktop read files/network differently today.
 7. Shared home/browse orchestration:
    - Move Home content assembly, decade/genre station selection, provider-backed sections, and UI model mapping into common code.
+   - Initial extraction is in place in `core/domain/home`: provider-backed Home sections, genre rotation, decade candidate selection, Home station IDs/parsing, and a cache-backed album-year repository contract.
+   - Android and desktop now both load Home through the shared `HomeService`; desktop supplies album-year data from `DesktopCache`, while Android uses the shared fallback decade policy until its SQLDelight library repository is wired in.
+   - Android shared-shell Home UI mapping now uses the common Home content and station model mapper in `core/ui`.
    - Desktop cache-backed library index can be one implementation of a shared library repository; Android should later use the same contract with SQLDelight Android drivers.
 8. Shared media UI models and mappers:
    - Move repeated `Track`/`Album`/`Artist`/`Playlist` to UI row mapping into common code so Android does not keep local copies of desktop behavior.
