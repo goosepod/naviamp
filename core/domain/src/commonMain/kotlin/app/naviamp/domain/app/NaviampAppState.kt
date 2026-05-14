@@ -6,6 +6,7 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.provider.MediaSearchResults
+import app.naviamp.domain.queue.PlaybackQueue
 
 enum class NaviampRoute {
     Player,
@@ -66,7 +67,7 @@ data class NaviampNowPlayingState(
     val track: Track? = null,
     val station: InternetRadioStation? = null,
     val open: Boolean = false,
-    val queue: List<Track> = emptyList(),
+    val queue: PlaybackQueue = PlaybackQueue(),
     val relatedTracks: List<Track> = emptyList(),
 )
 

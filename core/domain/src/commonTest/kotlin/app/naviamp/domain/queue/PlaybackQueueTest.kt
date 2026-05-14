@@ -1,4 +1,4 @@
-package app.naviamp.desktop.playback
+package app.naviamp.domain.queue
 
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
@@ -70,14 +70,11 @@ class PlaybackQueueTest {
         val queue = PlaybackQueue(
             tracks = listOf(track("1"), track("2"), track("9"), track("8")),
             currentIndex = 1,
-        )
-        val restored = queue.copy(
-            tracks = queue.tracks.take(queue.currentIndex + 1) + listOf(track("3"), track("4")),
-        )
+        ).restoreUpcoming(listOf(track("3"), track("4")))
 
-        assertEquals(track("2"), restored.tracks[restored.currentIndex])
-        assertEquals(listOf(track("1")), restored.backTo())
-        assertEquals(listOf(track("3"), track("4")), restored.upNext())
+        assertEquals(track("2"), queue.tracks[queue.currentIndex])
+        assertEquals(listOf(track("1")), queue.backTo())
+        assertEquals(listOf(track("3"), track("4")), queue.upNext())
     }
 
     private fun track(id: String): Track =

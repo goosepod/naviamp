@@ -1,5 +1,6 @@
 package app.naviamp.ui
 
+import android.content.Context
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -13,6 +14,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -22,7 +24,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.net.URL
+import java.security.MessageDigest
+import java.util.LinkedHashMap
 import kotlin.math.abs
 import kotlin.math.pow
 
@@ -33,15 +38,15 @@ actual fun PlatformCoverArt(
     size: Dp,
     cornerRadius: Dp,
 ) {
+    val context = LocalContext.current
     var image by remember(url) { mutableStateOf<ImageBitmap?>(null) }
 
     LaunchedEffect(url) {
         image = url?.let { coverArtUrl ->
             runCatching {
                 withContext(Dispatchers.IO) {
-                    URL(coverArtUrl).openStream().use { input ->
-                        BitmapFactory.decodeStream(input)?.asImageBitmap()
-                    }
+                    AndroidCoverArtCache.imageBytes(context, coverArtUrl)
+                        ?.let { BitmapFactory.decodeByteArray(it, 0, it.size)?.asImageBitmap() }
                 }
             }.getOrNull()
         }
@@ -69,6 +74,7 @@ actual fun rememberPlatformCoverArtGradientColors(
     url: String?,
     colors: NaviampColors,
 ): List<Color> {
+    val context = LocalContext.current
     var gradientColors by remember {
         mutableStateOf(listOf(colors.backgroundWarm, colors.background, colors.backgroundOlive))
     }
@@ -79,9 +85,9 @@ actual fun rememberPlatformCoverArtGradientColors(
         } else {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    URL(url).openStream().use { input ->
-                        BitmapFactory.decodeStream(input)
-                    }?.albumGradientColors(colors)
+                    AndroidCoverArtCache.imageBytes(context, url)
+                        ?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }
+                        ?.albumGradientColors(colors)
                 }
             }.getOrNull() ?: listOf(colors.backgroundWarm, colors.background, colors.backgroundOlive)
         }
@@ -89,6 +95,53 @@ actual fun rememberPlatformCoverArtGradientColors(
 
     return gradientColors
 }
+
+private object AndroidCoverArtCache {
+    private const val MaxHotBytes = 16L * 1024L * 1024L
+    private val hotImages = object : LinkedHashMap<String, ByteArray>(16, 0.75f, true) {}
+    private var hotBytes = 0L
+
+    fun imageBytes(context: Context, url: String): ByteArray? {
+        synchronized(this) {
+            hotImages[url]?.let { return it }
+        }
+
+        val cacheFile = File(context.cacheDir, "cover-art/${url.sha256()}.img")
+        if (cacheFile.exists() && cacheFile.length() > 0L) {
+            return runCatching { cacheFile.readBytes() }
+                .getOrNull()
+                ?.also { putHot(url, it) }
+        }
+
+        return runCatching {
+            URL(url).openStream().use { input -> input.readBytes() }
+        }.getOrNull()?.also { bytes ->
+            runCatching {
+                cacheFile.parentFile?.mkdirs()
+                cacheFile.writeBytes(bytes)
+            }
+            putHot(url, bytes)
+        }
+    }
+
+    private fun putHot(url: String, bytes: ByteArray) {
+        synchronized(this) {
+            hotImages.remove(url)?.let { hotBytes -= it.size }
+            hotImages[url] = bytes
+            hotBytes += bytes.size
+            while (hotBytes > MaxHotBytes && hotImages.isNotEmpty()) {
+                val eldest = hotImages.entries.iterator().next()
+                hotBytes -= eldest.value.size
+                hotImages.remove(eldest.key)
+            }
+        }
+    }
+}
+
+private fun String.sha256(): String =
+    MessageDigest.getInstance("SHA-256")
+        .digest(toByteArray(Charsets.UTF_8))
+        .joinToString("") { "%02x".format(it) }
 
 private fun android.graphics.Bitmap.albumGradientColors(colors: NaviampColors): List<Color> {
     val buckets = mutableMapOf<Int, ColorBucket>()

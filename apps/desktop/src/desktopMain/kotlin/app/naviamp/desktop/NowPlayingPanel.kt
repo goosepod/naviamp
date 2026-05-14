@@ -72,8 +72,8 @@ import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Track
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
-import app.naviamp.desktop.playback.RepeatMode
 import app.naviamp.domain.playback.label
+import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.ui.NaviampTransportIconButton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -590,15 +590,16 @@ private fun PlayerDetails(
                         isScrubbing = true
                         scrubberValue = it
                     },
-                    onValueChangeFinished = {
+                    onValueChangeFinished = { seekFraction ->
+                        scrubberValue = seekFraction
                         effectiveDurationSeconds?.let { duration ->
-                            onSeek(scrubberValue * duration)
+                            onSeek(seekFraction * duration)
                         }
                         isScrubbing = false
                     },
                     modifier = Modifier
                         .weight(1f)
-                        .height(22.dp),
+                        .height(28.dp),
                 )
             } else {
                 Slider(
@@ -1249,14 +1250,18 @@ private fun WaveformScrubber(
     playerColors: PlayerColors,
     appColors: AppColors,
     onValueChange: (Float) -> Unit,
-    onValueChangeFinished: () -> Unit,
+    onValueChangeFinished: (Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var widthPx by remember { mutableFloatStateOf(1f) }
+    var latestValue by remember(value) { mutableFloatStateOf(value.coerceIn(0f, 1f)) }
 
-    fun updateFromX(x: Float) {
-        if (!enabled) return
-        onValueChange((x / widthPx).coerceIn(0f, 1f))
+    fun updateFromX(x: Float): Float {
+        if (!enabled) return latestValue
+        val nextValue = (x / widthPx).coerceIn(0f, 1f)
+        latestValue = nextValue
+        onValueChange(nextValue)
+        return nextValue
     }
 
     Canvas(
@@ -1265,16 +1270,15 @@ private fun WaveformScrubber(
             .onSizeChanged { widthPx = it.width.toFloat().coerceAtLeast(1f) }
             .pointerInput(enabled, widthPx) {
                 detectTapGestures { offset ->
-                    updateFromX(offset.x)
-                    onValueChangeFinished()
+                    onValueChangeFinished(updateFromX(offset.x))
                 }
             }
             .pointerInput(enabled, widthPx) {
                 detectDragGestures(
                     onDragStart = { offset -> updateFromX(offset.x) },
                     onDrag = { change, _ -> updateFromX(change.position.x) },
-                    onDragEnd = onValueChangeFinished,
-                    onDragCancel = onValueChangeFinished,
+                    onDragEnd = { onValueChangeFinished(latestValue) },
+                    onDragCancel = { onValueChangeFinished(latestValue) },
                 )
             },
     ) {

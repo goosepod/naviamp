@@ -42,6 +42,7 @@ enum class PlaylistSortMode(val label: String) {
 fun PlaylistsPanel(
     appColors: AppColors,
     playlists: List<Playlist>,
+    playlistTracks: (Playlist) -> List<Track>,
     recentPlaylistIds: List<String>,
     sortMode: PlaylistSortMode,
     status: String?,
@@ -101,7 +102,9 @@ fun PlaylistsPanel(
             PlaylistListRow(
                 appColors = appColors,
                 playlist = playlist,
-                coverArtUrl = coverArtUrl(playlist.coverArtId),
+                coverArtUrl = coverArtUrl,
+                playlistCoverArtUrl = coverArtUrl(playlist.coverArtId),
+                tracks = playlistTracks(playlist),
                 onClick = { onPlaylistSelected(playlist) },
                 onPlay = { onPlayPlaylist(playlist, false) },
                 onShuffle = { onPlayPlaylist(playlist, true) },
@@ -118,7 +121,9 @@ fun PlaylistsPanel(
 private fun PlaylistListRow(
     appColors: AppColors,
     playlist: Playlist,
-    coverArtUrl: String?,
+    coverArtUrl: (String?) -> String?,
+    playlistCoverArtUrl: String?,
+    tracks: List<Track>,
     onClick: () -> Unit,
     onPlay: () -> Unit,
     onShuffle: () -> Unit,
@@ -128,7 +133,11 @@ private fun PlaylistListRow(
     onAddToPlaylist: () -> Unit,
 ) {
     MediaRow(appColors = appColors, onClick = onClick) {
-        CoverArtThumb(appColors = appColors, coverArtUrl = coverArtUrl, size = 38.dp, cornerRadius = 4.dp)
+        if (tracks.isNotEmpty()) {
+            PlaylistCover(appColors = appColors, tracks = tracks, coverArtUrl = coverArtUrl, size = 38.dp)
+        } else {
+            CoverArtThumb(appColors = appColors, coverArtUrl = playlistCoverArtUrl, size = 38.dp, cornerRadius = 4.dp)
+        }
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 playlist.name,

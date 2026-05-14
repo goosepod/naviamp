@@ -56,17 +56,17 @@ import app.naviamp.domain.playback.CrossfadeSettings
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
-import app.naviamp.desktop.playback.PlaybackQueue
 import app.naviamp.desktop.playback.PlaybackEngineFactory
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.desktop.playback.PlaybackTrace
 import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.PlaylistEngine
-import app.naviamp.desktop.playback.RepeatMode
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.playback.mergeWith
+import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioService
 import app.naviamp.desktop.settings.DesktopSettingsStore
 import app.naviamp.desktop.settings.NavigationSettings
@@ -237,6 +237,7 @@ fun NaviampApp(
     var recentPlaylistIds by remember { mutableStateOf(savedRecentPlaylistIds) }
     var selectedPlaylist by remember { mutableStateOf<Playlist?>(null) }
     var selectedPlaylistTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
+    var playlistTracksById by remember { mutableStateOf<Map<String, List<Track>>>(emptyMap()) }
     var selectedPlaylistStatus by remember { mutableStateOf<String?>(null) }
     var playlistPendingRename by remember { mutableStateOf<Playlist?>(null) }
     var playlistPendingDelete by remember { mutableStateOf<Playlist?>(null) }
@@ -873,6 +874,15 @@ fun NaviampApp(
                     recentRadioStreams = recentRadioStreams,
                     recentInternetRadioStations = recentInternetRadioStations,
                 )
+                playlists.take(100).forEach { playlist ->
+                    if (playlistTracksById[playlist.id].isNullOrEmpty()) {
+                        runCatching {
+                            withContext(Dispatchers.IO) { provider.playlistTracks(playlist.id) }
+                        }.onSuccess { tracks ->
+                            playlistTracksById = playlistTracksById + (playlist.id to tracks)
+                        }
+                    }
+                }
             } catch (exception: Exception) {
                 playlistStatus = exception.message ?: "Could not load playlists."
             }
@@ -1524,8 +1534,9 @@ fun NaviampApp(
         coroutineScope.launch {
             try {
                 val loadedTracks = withContext(Dispatchers.IO) {
-                    provider.playlistTracks(playlist.id)
+                    playlistTracksById[playlist.id] ?: provider.playlistTracks(playlist.id)
                 }
+                playlistTracksById = playlistTracksById + (playlist.id to loadedTracks)
                 val tracks = if (shuffle) loadedTracks.shuffled() else loadedTracks
                 if (tracks.isEmpty()) {
                     connectionStatus = "${playlist.name} did not return any tracks."
@@ -1559,9 +1570,9 @@ fun NaviampApp(
         appRoute = AppRoute.PlaylistDetail
         coroutineScope.launch {
             try {
-                selectedPlaylistTracks = withContext(Dispatchers.IO) {
-                    provider.playlistTracks(playlist.id)
-                }
+                selectedPlaylistTracks = playlistTracksById[playlist.id]
+                    ?: withContext(Dispatchers.IO) { provider.playlistTracks(playlist.id) }
+                playlistTracksById = playlistTracksById + (playlist.id to selectedPlaylistTracks)
                 selectedPlaylistStatus = null
             } catch (exception: Exception) {
                 selectedPlaylistStatus = exception.message ?: "Could not load ${playlist.name}."
@@ -1621,6 +1632,7 @@ fun NaviampApp(
                     selectedPlaylistTracks = emptyList()
                     appRoute = AppRoute.Playlists
                 }
+                playlistTracksById = playlistTracksById - playlist.id
                 playlistStatus = null
                 refreshPlaylists()
             } catch (exception: Exception) {
@@ -2471,6 +2483,7 @@ fun NaviampApp(
                                 AppRoute.Playlists -> PlaylistsPanel(
                                     appColors = appColors,
                                     playlists = playlists,
+                                    playlistTracks = { playlist -> playlistTracksById[playlist.id].orEmpty() },
                                     recentPlaylistIds = recentPlaylistIds,
                                     sortMode = playlistSortMode,
                                     status = playlistStatus ?: connectionStatus,

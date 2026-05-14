@@ -8,7 +8,8 @@ import java.nio.file.Path
 import java.util.concurrent.TimeUnit
 import kotlin.io.path.exists
 import kotlin.math.abs
-import kotlin.math.max
+import kotlin.math.ceil
+import kotlin.math.sqrt
 
 class AudioWaveformAnalyzer(
     private val mpvExecutable: Path? = MpvExecutableResolver().resolve()?.toPath(),
@@ -95,29 +96,43 @@ private fun parseWaveform(wavPath: Path, bucketCount: Int): AudioWaveform? {
     if (sampleCount <= 0) return null
 
     val bucketAmplitudes = FloatArray(bucketCount)
-    val samplesPerBucket = max(1, sampleCount / bucketCount)
-    var sampleIndex = 0
-    var maxAmplitude = 0f
+    var maxBucketAmplitude = 0f
 
-    while (sampleIndex < sampleCount) {
-        val bucket = (sampleIndex / samplesPerBucket).coerceAtMost(bucketCount - 1)
-        val sampleOffset = start + sampleIndex * 2
-        val amplitude = abs(bytes.shortLe(sampleOffset).toInt()) / Short.MAX_VALUE.toFloat()
-        if (amplitude > bucketAmplitudes[bucket]) {
-            bucketAmplitudes[bucket] = amplitude
+    repeat(bucketCount) { bucket ->
+        val sampleStart = ((bucket / bucketCount.toFloat()) * sampleCount).toInt()
+        val sampleEnd = ceil(((bucket + 1) / bucketCount.toFloat()) * sampleCount).toInt()
+            .coerceAtMost(sampleCount)
+        if (sampleStart >= sampleEnd) return@repeat
+
+        var sumSquares = 0.0
+        var peak = 0f
+        var count = 0
+        var sampleIndex = sampleStart
+        while (sampleIndex < sampleEnd) {
+            val sampleOffset = start + sampleIndex * 2
+            val amplitude = abs(bytes.shortLe(sampleOffset).toInt()) / Short.MAX_VALUE.toFloat()
+            sumSquares += (amplitude * amplitude).toDouble()
+            if (amplitude > peak) peak = amplitude
+            count += 1
+            sampleIndex += 1
         }
-        if (amplitude > maxAmplitude) {
-            maxAmplitude = amplitude
+
+        if (count > 0) {
+            val rms = sqrt(sumSquares / count).toFloat()
+            val blended = rms * 0.82f + peak * 0.18f
+            bucketAmplitudes[bucket] = blended
+            if (blended > maxBucketAmplitude) {
+                maxBucketAmplitude = blended
+            }
         }
-        sampleIndex += 1
     }
 
-    if (maxAmplitude <= 0f) {
+    if (maxBucketAmplitude <= 0f) {
         return AudioWaveform(List(bucketCount) { 0f })
     }
 
     return AudioWaveform(
-        amplitudes = bucketAmplitudes.map { (it / maxAmplitude).coerceIn(0f, 1f) },
+        amplitudes = bucketAmplitudes.map { (it / maxBucketAmplitude).coerceIn(0f, 1f) },
     )
 }
 

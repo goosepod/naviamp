@@ -218,6 +218,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - The full-player `BACK TO` tab is real playback history, ordered most-recent first. It is not just the original queue slice before the current index.
   - Jumping to an upcoming track moves the current track into `BACK TO` and leaves skipped upcoming tracks in `UP NEXT`.
   - Jumping to a `BACK TO` item behaves like browser history: the selected older track becomes current, and later history moves forward into `UP NEXT`.
+  - The canonical `PlaybackQueue` and `RepeatMode` now live in shared `core/domain/queue`, with common tests for history/up-next/jump behavior. Desktop and Android should use this shared queue model instead of platform-local queue lists.
   - Settings > Playback includes a previous-button behavior toggle. `Restart first` seeks to the start when more than 10 seconds into the current track, then goes previous when clicked near the start. `Always previous` always navigates back in history.
   - Settings > Playback also includes an `Up Next selection` toggle with an info affordance. `Move selected` plays the clicked upcoming track while keeping skipped upcoming tracks queued; `Skip to selected` treats the click like advancing through the queue so skipped upcoming tracks become history.
   - Selecting a song from `UP NEXT` should scroll the list back to the top so the first visible row is the actual next song after the newly current track.
@@ -283,6 +284,7 @@ Default stance: implement behavior in shared code unless it needs OS APIs, a pla
 4. Shared playlist workflows:
    - Move playlist details loading, play/shuffle, rename/delete, add-to-playlist target expansion, duplicate handling, and recent-playlist tracking into a shared playlist service.
    - Desktop and Android should only provide UI callbacks and confirmation surfaces.
+   - Future smart playlists: Navidrome smart playlists are currently `.nsp` JSON definitions with field/operator rules, imported during scans and refreshed when accessed. Add a playlist-screen smart-playlist builder behind an icon/button that can switch from normal playlists into a rule-builder interface, generate `.nsp` JSON, and eventually save/import it through whatever Navidrome API or file workflow becomes available. Reference Navidrome docs: https://www.navidrome.org/docs/usage/features/smart-playlists/, the generator library: https://github.com/WB2024/Navidrome-SmartPlaylist-Generator-nsp, and Feishin's working smart-playlist UI.
 5. Shared internet-radio service:
    - Move playlist/stream URL resolution from Android `MainActivity` into common code behind a small HTTP client interface.
    - Share station CRUD orchestration, recent-station tracking, live-stream session restore, and station-to-now-playing model conversion.

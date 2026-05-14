@@ -12,6 +12,8 @@ import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.ReplayGainMode
+import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.queue.RepeatMode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -121,13 +123,7 @@ class PlaylistEngine(
     ) {
         if (tracks.isEmpty()) return
 
-        val prunedTrackCount = maxHistory
-            ?.let { (queue.currentIndex - it.coerceAtLeast(0)).coerceAtLeast(0) }
-            ?: 0
-        queue = PlaybackQueue(
-            tracks = (queue.tracks + tracks).drop(prunedTrackCount),
-            currentIndex = queue.currentIndex - prunedTrackCount,
-        )
+        queue = queue.appendTracks(tracks, maxHistory)
         callbacks?.onQueueChanged(queue)
     }
 
@@ -136,24 +132,7 @@ class PlaylistEngine(
         upcomingTracks: List<Track>,
         maxHistory: Int? = null,
     ) {
-        val currentQueueIndex = queue.tracks.indexOfFirst { it.id == currentTrack.id }
-            .takeIf { it >= 0 }
-            ?: queue.currentIndex
-        val currentQueueTrack = queue.tracks.getOrNull(currentQueueIndex) ?: currentTrack
-        val prunedTrackCount = maxHistory
-            ?.let { (currentQueueIndex - it.coerceAtLeast(0)).coerceAtLeast(0) }
-            ?: 0
-        val history = queue.tracks
-            .take(currentQueueIndex)
-            .drop(prunedTrackCount)
-        val dedupedUpcoming = upcomingTracks.filterNot { track ->
-            track.id == currentQueueTrack.id || history.any { it.id == track.id }
-        }
-
-        queue = PlaybackQueue(
-            tracks = history + currentQueueTrack + dedupedUpcoming,
-            currentIndex = history.size,
-        )
+        queue = queue.replaceUpcomingTracks(currentTrack, upcomingTracks, maxHistory)
         callbacks?.onQueueChanged(queue)
     }
 
@@ -208,9 +187,7 @@ class PlaylistEngine(
     fun shuffleUpcoming(): List<Track>? {
         val originalUpcoming = queue.upNext()
         if (originalUpcoming.size < 2 || queue.currentIndex !in queue.tracks.indices) return null
-        queue = queue.copy(
-            tracks = queue.tracks.take(queue.currentIndex + 1) + originalUpcoming.shuffled(),
-        )
+        queue = queue.shuffleUpcoming()?.first ?: return null
         preparedNextIndex = null
         callbacks?.onQueueChanged(queue)
         return originalUpcoming
@@ -218,9 +195,7 @@ class PlaylistEngine(
 
     fun restoreUpcoming(tracks: List<Track>) {
         if (queue.currentIndex !in queue.tracks.indices) return
-        queue = queue.copy(
-            tracks = queue.tracks.take(queue.currentIndex + 1) + tracks,
-        )
+        queue = queue.restoreUpcoming(tracks)
         preparedNextIndex = null
         callbacks?.onQueueChanged(queue)
     }
@@ -439,12 +414,6 @@ class PlaylistEngine(
     }
 }
 
-enum class RepeatMode {
-    Off,
-    Queue,
-    Track,
-}
-
 data class CacheRuntimeStats(
     val playbackSource: PlaybackSource = PlaybackSource.Unknown,
     val prefetch: AudioPrefetchStats = AudioPrefetchStats(),
@@ -479,54 +448,6 @@ data class PlaylistCallbacks(
     val onPlaybackStateChanged: (PlaybackState) -> Unit,
     val onPlaybackProgressChanged: (PlaybackProgress) -> Unit,
 )
-
-data class PlaybackQueue(
-    val tracks: List<Track> = emptyList(),
-    val currentIndex: Int = -1,
-) {
-    fun backTo(): List<Track> =
-        if (currentIndex in tracks.indices) {
-            tracks.take(currentIndex).asReversed()
-        } else {
-            emptyList()
-        }
-
-    fun upNext(): List<Track> =
-        if (currentIndex in tracks.indices) {
-            tracks.drop(currentIndex + 1)
-        } else {
-            emptyList()
-        }
-
-    fun hasNext(): Boolean =
-        currentIndex in tracks.indices && currentIndex + 1 < tracks.size
-
-    fun hasPrevious(): Boolean =
-        currentIndex in tracks.indices && currentIndex > 0
-
-    fun jumpTo(
-        index: Int,
-        moveSelectedToCurrent: Boolean = true,
-    ): PlaybackQueue {
-        if (index !in tracks.indices || index == currentIndex) return this
-        if (currentIndex !in tracks.indices) return copy(currentIndex = index)
-        if (!moveSelectedToCurrent) return copy(currentIndex = index)
-
-        return if (index > currentIndex) {
-            val currentAndHistory = tracks.take(currentIndex + 1)
-            val upcoming = tracks.drop(currentIndex + 1)
-            val selected = tracks[index]
-            PlaybackQueue(
-                tracks = currentAndHistory + selected + upcoming.filterIndexed { upcomingIndex, _ ->
-                    currentIndex + 1 + upcomingIndex != index
-                },
-                currentIndex = currentAndHistory.size,
-            )
-        } else {
-            copy(currentIndex = index)
-        }
-    }
-}
 
 private fun ReplayGainMode.forEngine(playbackEngine: PlaybackEngine): ReplayGainMode =
     if (playbackEngine.supportsReplayGain) this else ReplayGainMode.Off

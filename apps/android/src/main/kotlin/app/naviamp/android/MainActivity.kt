@@ -43,6 +43,8 @@ import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.label
+import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioService
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
@@ -109,6 +111,7 @@ private fun NaviampAndroidApp() {
     val selectedPlaylistTracks = contentState.selectedPlaylistTracks
     var playlistSortMode by remember { mutableStateOf(SharedPlaylistSortMode.Alphabetical) }
     var recentPlaylistIds by remember { mutableStateOf<List<String>>(emptyList()) }
+    var playlistTracksById by remember { mutableStateOf<Map<String, List<Track>>>(emptyMap()) }
     var editingConnection by remember { mutableStateOf(false) }
     var navigationState by remember { mutableStateOf(NaviampNavigationState()) }
     val selectedRoute = navigationState.route.toSharedRoute()
@@ -124,9 +127,9 @@ private fun NaviampAndroidApp() {
     var playbackProgress by remember { mutableStateOf(PlaybackProgress.Unknown) }
     var volumePercent by remember { mutableStateOf(100) }
     var waveformByTrackId by remember { mutableStateOf<Map<String, List<Float>>>(emptyMap()) }
-    var playQueue by remember { mutableStateOf<List<Track>>(emptyList()) }
+    var playbackQueue by remember { mutableStateOf(PlaybackQueue()) }
     var shuffledUpNextSnapshot by remember { mutableStateOf<List<Track>?>(null) }
-    var repeatMode by remember { mutableStateOf(NaviampRepeatMode.Off) }
+    var repeatMode by remember { mutableStateOf(RepeatMode.Off) }
     var relatedTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
     var lyricsVisible by remember { mutableStateOf(false) }
     var lyricsByTrackId by remember { mutableStateOf<Map<String, Lyrics?>>(emptyMap()) }
@@ -141,7 +144,7 @@ private fun NaviampAndroidApp() {
     }
 
     fun activeQueue(): List<Track> =
-        playQueue.ifEmpty { allKnownTracks(searchResults, albumDetail) }
+        playbackQueue.tracks.ifEmpty { allKnownTracks(searchResults, albumDetail) }
 
     fun findKnownTrack(trackId: String): Track? =
         (activeQueue() + selectedPlaylistTracks + relatedTracks + allKnownTracks(searchResults, albumDetail))
@@ -205,7 +208,10 @@ private fun NaviampAndroidApp() {
             runCatching {
                 activeProvider.streamUrl(StreamRequest(track.id, StreamQuality.Original))
             }.onSuccess { streamUrl ->
-                playQueue = nextQueue
+                playbackQueue = PlaybackQueue(
+                    tracks = nextQueue,
+                    currentIndex = nextQueue.indexOfFirst { it.id == track.id }.takeIf { it >= 0 } ?: 0,
+                )
                 shuffledUpNextSnapshot = null
                 nowPlaying = track
                 nowPlayingStation = null
@@ -250,9 +256,9 @@ private fun NaviampAndroidApp() {
         val currentIndex = knownTracks.indexOfFirst { it.id == currentTrack.id }
         if (currentIndex < 0) return
         val nextIndex = when {
-            repeatMode == NaviampRepeatMode.Track -> currentIndex
-            offset > 0 && currentIndex == knownTracks.lastIndex && repeatMode == NaviampRepeatMode.Queue -> 0
-            offset < 0 && currentIndex == 0 && repeatMode == NaviampRepeatMode.Queue -> knownTracks.lastIndex
+            repeatMode == RepeatMode.Track -> currentIndex
+            offset > 0 && currentIndex == knownTracks.lastIndex && repeatMode == RepeatMode.Queue -> 0
+            offset < 0 && currentIndex == 0 && repeatMode == RepeatMode.Queue -> knownTracks.lastIndex
             else -> currentIndex + offset
         }
         val nextTrack = knownTracks.getOrNull(nextIndex) ?: return
@@ -296,7 +302,7 @@ private fun NaviampAndroidApp() {
                     val queue = service.queue(seedTrack, fetchedTracks)
                         .ifEmpty { seedQueue }
                     if (nowPlaying?.id == seedTrack.id) {
-                        playQueue = queue
+                        playbackQueue = PlaybackQueue(tracks = queue, currentIndex = 0)
                     }
                     status = "Playing $statusLabel."
                 }
@@ -354,8 +360,9 @@ private fun NaviampAndroidApp() {
         recentPlaylistIds = (listOf(playlist.id) + recentPlaylistIds.filterNot { it == playlist.id }).take(20)
         scope.launch {
             status = "Loading ${playlist.name}..."
-            runCatching { activeProvider.playlistTracks(playlist.id) }
+            runCatching { playlistTracksById[playlist.id] ?: activeProvider.playlistTracks(playlist.id) }
                 .onSuccess { playlistTracks ->
+                    playlistTracksById = playlistTracksById + (playlist.id to playlistTracks)
                     contentState = contentState.showPlaylist(playlist, playlistTracks)
                     tracks = playlistTracks
                     status = "Connected."
@@ -374,8 +381,9 @@ private fun NaviampAndroidApp() {
             val playlistTracks = if (selectedPlaylist?.id == playlist.id && selectedPlaylistTracks.isNotEmpty()) {
                 selectedPlaylistTracks
             } else {
-                runCatching { activeProvider.playlistTracks(playlist.id) }
+                runCatching { playlistTracksById[playlist.id] ?: activeProvider.playlistTracks(playlist.id) }
                     .onSuccess {
+                        playlistTracksById = playlistTracksById + (playlist.id to it)
                         contentState = contentState.showPlaylist(playlist, it)
                         tracks = it
                     }
@@ -428,6 +436,7 @@ private fun NaviampAndroidApp() {
                         selectedPlaylistTracks = emptyList(),
                     )
                 }
+                playlistTracksById = playlistTracksById - playlist.id
                 recentPlaylistIds = recentPlaylistIds.filterNot { it == playlist.id }
                 status = "Deleted playlist."
             }.onFailure { error ->
@@ -436,11 +445,27 @@ private fun NaviampAndroidApp() {
         }
     }
 
+    fun preloadPlaylistTracks(activeProvider: NavidromeProvider, playlists: List<Playlist>) {
+        scope.launch {
+            playlists.take(100).forEach { playlist ->
+                if (playlistTracksById[playlist.id].isNullOrEmpty()) {
+                    runCatching { activeProvider.playlistTracks(playlist.id) }
+                        .onSuccess { tracks ->
+                            playlistTracksById = playlistTracksById + (playlist.id to tracks)
+                        }
+                }
+            }
+        }
+    }
+
     fun refreshAndroidPlaylists() {
         val activeProvider = provider ?: return
         scope.launch {
             runCatching { activeProvider.playlists(limit = 500) }
-                .onSuccess { playlists -> homeState = homeState.copy(playlists = playlists) }
+                .onSuccess { playlists ->
+                    homeState = homeState.copy(playlists = playlists)
+                    preloadPlaylistTracks(activeProvider, playlists)
+                }
         }
     }
 
@@ -536,6 +561,7 @@ private fun NaviampAndroidApp() {
                 playbackEngine.applyTlsSettings(tlsSettings)
                 validation = nextProvider.validateConnection()
                 homeState = loadBrowseState(nextProvider)
+                preloadPlaylistTracks(nextProvider, homeState.playlists)
                 provider = nextProvider
                 activeTlsSettings = tlsSettings
                 settingsStore.saveConnection(connectionForm)
@@ -576,10 +602,10 @@ private fun NaviampAndroidApp() {
             clientCertificatePassword = clientCertificatePassword,
         ),
         query = query,
-        home = homeState.toSharedHome(provider),
+        home = homeState.toSharedHome(provider, playlistTracksById),
         searchResults = searchResults.toSharedSearchResults(provider),
         libraryArtists = homeState.artists.map { it.toSharedMediaItem() },
-        playlistItems = homeState.playlists.map { it.toSharedMediaItem() },
+        playlistItems = homeState.playlists.map { it.toSharedMediaItem(provider, playlistTracksById[it.id].orEmpty()) },
         recentPlaylistIds = recentPlaylistIds,
         playlistSortMode = playlistSortMode,
         radioStationItems = homeState.radioStations.map { it.toSharedMediaItem() },
@@ -610,12 +636,12 @@ private fun NaviampAndroidApp() {
                 isPaused = playbackState == PlaybackState.Paused,
                 canSeek = true,
                 canChangeVolume = false,
-                hasPrevious = currentIndex > 0 || (repeatMode == NaviampRepeatMode.Queue && knownTracks.size > 1),
+                hasPrevious = currentIndex > 0 || (repeatMode == RepeatMode.Queue && knownTracks.size > 1),
                 hasNext = (currentIndex >= 0 && currentIndex < knownTracks.lastIndex) ||
-                    (repeatMode == NaviampRepeatMode.Queue && knownTracks.size > 1),
+                    (repeatMode == RepeatMode.Queue && knownTracks.size > 1),
                 shuffleEnabled = knownTracks.drop(currentIndex + 1).size > 1,
                 shuffleActive = shuffledUpNextSnapshot != null,
-                repeatMode = repeatMode,
+                repeatMode = repeatMode.toNaviampRepeatMode(),
                 canRepeat = knownTracks.isNotEmpty(),
                 canStartRadio = provider?.capabilities?.supportsTrackRadio == true,
                 canAddToPlaylist = true,
@@ -890,21 +916,21 @@ private fun NaviampAndroidApp() {
             val currentIndex = queue.indexOfFirst { it.id == currentTrack.id }
             if (currentIndex < 0) return@NaviampSharedAppShell
             val snapshot = shuffledUpNextSnapshot
+            val queueState = PlaybackQueue(tracks = queue, currentIndex = currentIndex)
             if (snapshot == null) {
-                val upcoming = queue.drop(currentIndex + 1)
-                if (upcoming.size < 2) return@NaviampSharedAppShell
-                shuffledUpNextSnapshot = upcoming
-                playQueue = queue.take(currentIndex + 1) + upcoming.shuffled()
+                val shuffled = queueState.shuffleUpcoming() ?: return@NaviampSharedAppShell
+                playbackQueue = shuffled.first
+                shuffledUpNextSnapshot = shuffled.second
             } else {
-                playQueue = queue.take(currentIndex + 1) + snapshot
+                playbackQueue = queueState.restoreUpcoming(snapshot)
                 shuffledUpNextSnapshot = null
             }
         },
         onCycleRepeatMode = {
             repeatMode = when (repeatMode) {
-                NaviampRepeatMode.Off -> NaviampRepeatMode.Queue
-                NaviampRepeatMode.Queue -> NaviampRepeatMode.Track
-                NaviampRepeatMode.Track -> NaviampRepeatMode.Off
+                RepeatMode.Off -> RepeatMode.Queue
+                RepeatMode.Queue -> RepeatMode.Track
+                RepeatMode.Track -> RepeatMode.Off
             }
         },
         onToggleLyrics = {
@@ -923,7 +949,7 @@ private fun NaviampAndroidApp() {
                     .onSuccess { radioTracks ->
                         val queue = service.queue(currentTrack, radioTracks)
                         val deduped = queue.drop(1)
-                        playQueue = queue
+                        playbackQueue = PlaybackQueue(tracks = queue, currentIndex = 0)
                         relatedTracks = deduped
                         shuffledUpNextSnapshot = null
                         status = "Track radio loaded."
@@ -1065,14 +1091,17 @@ private suspend fun loadBrowseState(provider: NavidromeProvider): AndroidBrowseS
     )
 }
 
-private fun AndroidBrowseState.toSharedHome(provider: NavidromeProvider?): SharedHomeUi =
+private fun AndroidBrowseState.toSharedHome(
+    provider: NavidromeProvider?,
+    playlistTracksById: Map<String, List<Track>>,
+): SharedHomeUi =
     SharedHomeUi(
         recentlyAddedAlbums = recentlyAddedAlbums.map { it.toSharedMediaItem(provider) },
         mixAlbums = mixAlbums.map { it.toSharedMediaItem(provider) },
         recentAlbums = recentAlbums.map { it.toSharedMediaItem(provider) },
         frequentAlbums = frequentAlbums.map { it.toSharedMediaItem(provider) },
         randomAlbums = randomAlbums.map { it.toSharedMediaItem(provider) },
-        playlists = playlists.map { it.toSharedMediaItem() },
+        playlists = playlists.map { it.toSharedMediaItem(provider, playlistTracksById[it.id].orEmpty()) },
         recentRadioStreams = emptyList(),
         radioStations = radioStations.map { it.toSharedMediaItem() },
         stations = buildList {
@@ -1101,12 +1130,17 @@ private fun MediaSearchResults.toSharedSearchResults(provider: NavidromeProvider
 private fun Artist.toSharedMediaItem(): SharedMediaItemUi =
     SharedMediaItemUi(id = id.value, title = name, subtitle = "Artist")
 
-private fun Playlist.toSharedMediaItem(): SharedMediaItemUi =
+private fun Playlist.toSharedMediaItem(
+    provider: NavidromeProvider? = null,
+    tracks: List<Track> = emptyList(),
+): SharedMediaItemUi =
     SharedMediaItemUi(
         id = id,
         title = name,
         subtitle = "$trackCount tracks",
         meta = durationSeconds?.durationLabel().orEmpty(),
+        coverArtUrl = coverArtId?.let { provider?.coverArtUrl(it) },
+        coverArtUrls = tracks.mapNotNull { it.coverArtUrl(provider) }.distinct().take(4),
     )
 
 private fun Playlist.toPlaylistChoiceUi(): NaviampPlaylistChoiceUi =
@@ -1118,7 +1152,7 @@ private fun Playlist.toPlaylistChoiceUi(): NaviampPlaylistChoiceUi =
 
 private fun Playlist.toSharedPlaylistDetail(tracks: List<Track>, provider: NavidromeProvider?): SharedPlaylistDetailUi =
     SharedPlaylistDetailUi(
-        playlist = toSharedMediaItem(),
+        playlist = toSharedMediaItem(provider, tracks),
         tracks = tracks.map { it.toAndroidTrackRowUi(provider) },
     )
 
@@ -1395,6 +1429,13 @@ private fun SharedRoute.toNaviampRoute(): NaviampRoute =
         SharedRoute.Radio -> NaviampRoute.Radio
         SharedRoute.Downloads -> NaviampRoute.Downloads
         SharedRoute.Settings -> NaviampRoute.Settings
+    }
+
+private fun RepeatMode.toNaviampRepeatMode(): NaviampRepeatMode =
+    when (this) {
+        RepeatMode.Off -> NaviampRepeatMode.Off
+        RepeatMode.Queue -> NaviampRepeatMode.Queue
+        RepeatMode.Track -> NaviampRepeatMode.Track
     }
 
 private const val HomeStationLibrary = "library"

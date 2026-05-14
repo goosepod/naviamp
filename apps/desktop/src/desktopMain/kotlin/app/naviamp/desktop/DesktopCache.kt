@@ -232,7 +232,7 @@ class DesktopCache(
         quality: StreamQuality,
     ): AudioWaveform? =
         withContext(Dispatchers.IO) {
-            val qualityKey = quality.cacheKey()
+            val qualityKey = quality.waveformCacheKey()
             val row = queries.selectCachedAudioWaveform(
                 source_id = sourceId,
                 remote_track_id = trackId.value,
@@ -257,7 +257,7 @@ class DesktopCache(
                 ?: cachedAudioFile(sourceId, trackId, quality)?.path
                 ?: return@withContext null
             val waveform = analyzer.analyze(audioPath) ?: return@withContext null
-            val qualityKey = quality.cacheKey()
+            val qualityKey = quality.waveformCacheKey()
             val amplitudesJson = json.encodeToString(waveform.amplitudes)
             val now = nowMillis()
             queries.upsertCachedAudioWaveform(
@@ -1511,6 +1511,9 @@ private fun StreamQuality.cacheKey(): String =
         StreamQuality.Original -> "original"
         is StreamQuality.Transcoded -> "transcoded:${codec.name.lowercase()}:$bitrateKbps"
     }
+
+private fun StreamQuality.waveformCacheKey(): String =
+    "${cacheKey()}:waveform-v2"
 
 private fun String?.audioExtension(): String =
     when (this?.lowercase()?.substringBefore(";")?.trim()) {

@@ -135,6 +135,7 @@ data class SharedMediaItemUi(
     val subtitle: String,
     val meta: String = "",
     val coverArtUrl: String? = null,
+    val coverArtUrls: List<String> = emptyList(),
 )
 
 data class SharedAlbumDetailUi(
@@ -805,7 +806,7 @@ private fun PlaylistsContent(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text("Playlists", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 SharedPlaylistSortMode.entries.forEach { mode ->
                     PlaylistSortIconButton(
                         mode = mode,
@@ -867,12 +868,13 @@ private fun PlaylistSortIconButton(
         SharedPlaylistSortMode.Alphabetical -> NaviampIcons.Alphabetical
         SharedPlaylistSortMode.RecentlyPlayed -> NaviampIcons.Clock
     }
-    IconButton(
-        onClick = onClick,
+    Box(
         modifier = Modifier
-            .size(34.dp)
-            .clip(RoundedCornerShape(17.dp))
-            .background(if (selected) colors.accent else colors.controlSurface.copy(alpha = 0.72f)),
+            .size(38.dp)
+            .clip(RoundedCornerShape(19.dp))
+            .background(if (selected) colors.accent else colors.controlSurface.copy(alpha = 0.72f))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
     ) {
         Icon(
             imageVector = icon,
@@ -903,7 +905,11 @@ private fun PlaylistListRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        PlatformCoverArt(playlist.coverArtUrl, colors, 38.dp, 4.dp)
+        PlaylistCoverFromUrls(
+            colors = colors,
+            covers = playlist.coverArtUrls.ifEmpty { listOfNotNull(playlist.coverArtUrl) },
+            size = 38.dp,
+        )
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(playlist.title, color = colors.primaryText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(playlist.subtitle, color = colors.secondaryText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -984,25 +990,35 @@ private fun PlaylistDetailContent(
 
 @Composable
 private fun PlaylistCover(colors: NaviampColors, tracks: List<AndroidTrackRowUi>, size: Dp) {
-    val covers = tracks.mapNotNull { it.coverArtUrl }.distinct().take(4)
+    PlaylistCoverFromUrls(colors, tracks.mapNotNull { it.coverArtUrl }.distinct().take(4), size)
+}
+
+@Composable
+private fun PlaylistCoverFromUrls(colors: NaviampColors, covers: List<String>, size: Dp) {
+    val visibleCovers = covers.distinct().take(4)
     Box(
         modifier = Modifier
             .size(size)
             .clip(RoundedCornerShape(4.dp)),
     ) {
-        when (covers.size) {
+        when (visibleCovers.size) {
             0 -> PlatformCoverArt(null, colors, size, 4.dp)
-            1 -> PlatformCoverArt(covers[0], colors, size, 4.dp)
+            1 -> PlatformCoverArt(visibleCovers[0], colors, size, 4.dp)
             else -> {
                 val cell = size / 2
                 Column {
                     Row {
-                        PlatformCoverArt(covers[0], colors, cell, 0.dp)
-                        PlatformCoverArt(covers[1], colors, cell, 0.dp)
+                        PlatformCoverArt(visibleCovers[0], colors, cell, 0.dp)
+                        PlatformCoverArt(visibleCovers[1], colors, cell, 0.dp)
                     }
                     Row {
-                        PlatformCoverArt(covers.getOrElse(2) { covers[0] }, colors, cell, 0.dp)
-                        PlatformCoverArt(covers.getOrElse(3) { covers.getOrElse(2) { covers[1] } }, colors, cell, 0.dp)
+                        PlatformCoverArt(visibleCovers.getOrElse(2) { visibleCovers[0] }, colors, cell, 0.dp)
+                        PlatformCoverArt(
+                            visibleCovers.getOrElse(3) { visibleCovers.getOrElse(2) { visibleCovers[1] } },
+                            colors,
+                            cell,
+                            0.dp,
+                        )
                     }
                 }
             }
