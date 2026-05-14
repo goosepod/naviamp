@@ -12,6 +12,8 @@ We are working in the Naviamp repo. Please read docs/PROJECT_NOTES.md, CONTRIBUT
 
 Keep each chat focused on one issue or feature. Commit when the issue is working. Update this file when a decision, quirk, or roadmap item should survive into future chats.
 
+Project shorthand: when the user says "ship it", commit the currently modified project code. Do not push unless explicitly asked; the user will handle pushing by default.
+
 ## Project Shape
 
 Naviamp is a Kotlin Multiplatform / Compose Multiplatform music client inspired by Plexamp, currently focused on desktop and Navidrome.
@@ -138,6 +140,11 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - Cache keys include provider namespace details so different servers/users do not mix cached data.
   - Connected media sources are now represented in SQLite so future library rows can reference a stable source/server/user.
   - The schema includes a slim source-scoped artist/album/track library index intended for local browse/search. Store provider IDs and display/search metadata here, not full authenticated stream URLs.
+- Android persistence/storage step 4 has started:
+  - `apps:android` now applies SQLDelight with the Android driver and has an app-local `NaviampAndroidDatabase`.
+  - The initial Android schema mirrors the key desktop persistence boundaries: saved media sources, image/API cache tables, evictable audio cache, separate downloaded audio, waveform cache, and lyrics caches.
+  - `AndroidStorage` owns app-scoped cache/download directories; downloads are under app files storage and are intentionally separate from evictable cache files.
+  - Android Navidrome login now upserts a saved media source with token/salt into SQLDelight, and app startup can restore the latest saved source without needing the plaintext password path. SharedPreferences remains as a temporary migration/form fallback.
   - Navidrome library import starts in the background after connection/restore. It indexes artists, paged alphabetical albums, then album tracks by crawling album details. Settings also has a manual Refresh library action.
   - Restored startup uses the local index instead of reimporting when a source already has indexed rows and the last completed sync is recent. Manual Refresh library still forces a sync.
   - Library import runs on `Dispatchers.IO`; UI status updates hop back to the Compose coroutine context instead of `Dispatchers.Main`, because the desktop app does not install a coroutines Main dispatcher.
@@ -372,6 +379,8 @@ The Android work should be staged so the desktop app keeps working while platfor
    - Treat replay gain, crossfade, waveform analysis, and visualizer support as later capability-gated work.
 4. Android persistence and storage:
    - Reuse SQLDelight with the Android driver.
+   - Initial SQLDelight Android driver/schema/storage adapter is in place.
+   - Saved Navidrome media sources now persist to Android SQLDelight and can restore on app startup from token/salt.
    - Add Android settings/storage adapters for saved connections, recent items, sessions, image/API cache, audio cache, and downloads.
    - Respect scoped storage and keep user-selected downloads separate from evictable cache files.
 5. Android app milestone order:

@@ -2,6 +2,7 @@ package app.naviamp.android
 
 import android.content.Context
 import app.naviamp.domain.settings.ConnectionFormState
+import app.naviamp.provider.navidrome.NavidromeConnection
 
 class AndroidSettingsStore(
     context: Context,
@@ -11,15 +12,19 @@ class AndroidSettingsStore(
         Context.MODE_PRIVATE,
     )
 
-    fun loadConnection(): ConnectionFormState =
+    fun loadConnection(savedConnection: NavidromeConnection? = null): ConnectionFormState =
         ConnectionFormState(
-            serverUrl = preferences.getString(KeyServerUrl, "").orEmpty(),
-            username = preferences.getString(KeyUsername, "").orEmpty(),
+            serverUrl = savedConnection?.baseUrl ?: preferences.getString(KeyServerUrl, "").orEmpty(),
+            username = savedConnection?.username ?: preferences.getString(KeyUsername, "").orEmpty(),
             password = preferences.getString(KeyPassword, "").orEmpty(),
-            skipTlsVerification = preferences.getBoolean(KeySkipTlsVerification, false),
-            customCertificatePath = preferences.getString(KeyCustomCertificatePath, "").orEmpty(),
-            clientCertificatePath = preferences.getString(KeyClientCertificatePath, "").orEmpty(),
-            clientCertificatePassword = preferences.getString(KeyClientCertificatePassword, "").orEmpty(),
+            skipTlsVerification = savedConnection?.tlsSettings?.insecureSkipTlsVerification
+                ?: preferences.getBoolean(KeySkipTlsVerification, false),
+            customCertificatePath = savedConnection?.tlsSettings?.customCertificatePath
+                ?: preferences.getString(KeyCustomCertificatePath, "").orEmpty(),
+            clientCertificatePath = savedConnection?.tlsSettings?.clientCertificateKeyStorePath
+                ?: preferences.getString(KeyClientCertificatePath, "").orEmpty(),
+            clientCertificatePassword = savedConnection?.tlsSettings?.clientCertificateKeyStorePassword
+                ?: preferences.getString(KeyClientCertificatePassword, "").orEmpty(),
         )
 
     fun saveConnection(connection: ConnectionFormState) {
