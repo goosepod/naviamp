@@ -65,6 +65,7 @@ import app.naviamp.desktop.playback.PlaylistEngine
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.playback.mergeWith
+import app.naviamp.domain.lyrics.selectPreferredLyrics
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioService
@@ -723,8 +724,9 @@ fun NaviampApp(
                     else -> "Unavailable"
                 }
                 val tags = audioPath?.let { AudioTagReader().read(it) }.orEmpty()
-                val localLyrics = sessionCache.providerLyrics(sourceId, provider, track.id)
-                    ?: lyricsFromAudioTags(tags)
+                val providerLyrics = sessionCache.providerLyrics(sourceId, provider, track.id)
+                val embeddedLyrics = lyricsFromAudioTags(tags)
+                val localLyrics = providerLyrics ?: embeddedLyrics
                 val lrclibLyrics = if (
                     playbackSettings.lrclibLyricsEnabled &&
                     (localLyrics == null || !localLyrics.synced)
@@ -733,12 +735,11 @@ fun NaviampApp(
                 } else {
                     null
                 }
-                val lyrics = when {
-                    localLyrics == null -> lrclibLyrics
-                    localLyrics.synced -> localLyrics
-                    lrclibLyrics?.synced == true -> lrclibLyrics
-                    else -> localLyrics
-                }
+                val lyrics = selectPreferredLyrics(
+                    providerLyrics = providerLyrics,
+                    embeddedLyrics = embeddedLyrics,
+                    onlineLyrics = lrclibLyrics,
+                )
                 NowPlayingAnalysis(waveform, waveformStatus, tags, lyrics)
             }.getOrNull()
         }

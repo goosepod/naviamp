@@ -98,6 +98,7 @@ data class NaviampColors(
 }
 
 typealias ConnectionFormState = app.naviamp.domain.settings.ConnectionFormState
+typealias PlaybackSettings = app.naviamp.domain.settings.PlaybackSettings
 
 @Composable
 expect fun PlatformCoverArt(
@@ -273,6 +274,7 @@ fun NaviampSharedAppShell(
     connected: Boolean,
     editingConnection: Boolean,
     connectionForm: ConnectionFormState,
+    playbackSettings: PlaybackSettings = PlaybackSettings(),
     query: String,
     home: SharedHomeUi,
     searchResults: SharedSearchResultsUi,
@@ -292,6 +294,7 @@ fun NaviampSharedAppShell(
     onConnect: () -> Unit,
     onEditConnection: () -> Unit,
     onCancelEditConnection: () -> Unit,
+    onPlaybackSettingsChanged: (PlaybackSettings) -> Unit = {},
     onQueryChanged: (String) -> Unit,
     onSearch: () -> Unit,
     onTrackSelected: (AndroidTrackRowUi) -> Unit,
@@ -386,7 +389,7 @@ fun NaviampSharedAppShell(
                         }
                     }
 
-                    if (!connected || editingConnection) {
+                    if (editingConnection || (!connected && selectedRoute != SharedRoute.Settings)) {
                         ConnectionCard(
                             form = connectionForm,
                             colors = colors,
@@ -412,7 +415,9 @@ fun NaviampSharedAppShell(
                             playlistDetail = playlistDetail,
                             nowPlaying = nowPlaying,
                             nowPlayingOpen = nowPlayingOpen,
+                            playbackSettings = playbackSettings,
                             onEditConnection = onEditConnection,
+                            onPlaybackSettingsChanged = onPlaybackSettingsChanged,
                             onQueryChanged = onQueryChanged,
                             onSearch = onSearch,
                             onTrackSelected = onTrackSelected,
@@ -577,7 +582,9 @@ private fun ConnectedContent(
     playlistDetail: SharedPlaylistDetailUi?,
     nowPlaying: NowPlayingUi?,
     nowPlayingOpen: Boolean,
+    playbackSettings: PlaybackSettings,
     onEditConnection: () -> Unit,
+    onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     onQueryChanged: (String) -> Unit,
     onSearch: () -> Unit,
     onTrackSelected: (AndroidTrackRowUi) -> Unit,
@@ -622,6 +629,12 @@ private fun ConnectedContent(
     onRatingSelected: (Int?) -> Unit,
 ) {
     when {
+        selectedRoute == SharedRoute.Settings -> SettingsContent(
+            colors = colors,
+            playbackSettings = playbackSettings,
+            onEditConnection = onEditConnection,
+            onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+        )
         nowPlayingOpen && nowPlaying != null -> FullNowPlaying(
             nowPlaying = nowPlaying,
             colors = colors,
@@ -693,7 +706,7 @@ private fun ConnectedContent(
             SharedRoute.Library -> MediaListContent(colors, "Library", libraryArtists, "No library artists found.", onArtistSelected)
             SharedRoute.Search -> SearchContent(colors, query, searchResults, onQueryChanged, onSearch, onTrackSelected, onAlbumSelected, onArtistSelected)
             SharedRoute.Radio -> MediaListContent(colors, "Internet Radio", radioStationItems, "No stations found.", onRadioStationSelected)
-            SharedRoute.Settings -> SettingsContent(colors, onEditConnection)
+            SharedRoute.Settings -> Unit
             SharedRoute.Downloads -> PlaceholderRoute(colors, selectedRoute)
         }
     }
@@ -1273,11 +1286,31 @@ private fun FullNowPlaying(
 }
 
 @Composable
-private fun SettingsContent(colors: NaviampColors, onEditConnection: () -> Unit) {
+private fun SettingsContent(
+    colors: NaviampColors,
+    playbackSettings: PlaybackSettings,
+    onEditConnection: () -> Unit,
+    onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text("Settings", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         SettingsRow("Connection", "Edit Navidrome server and TLS options", colors, onEditConnection)
-        SettingsRow("Playback", "Android playback settings will land here as the shared player grows.", colors, {})
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+                checked = playbackSettings.lrclibLyricsEnabled,
+                onCheckedChange = { enabled ->
+                    onPlaybackSettingsChanged(playbackSettings.copy(lrclibLyricsEnabled = enabled))
+                },
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Use LRCLIB", color = colors.primaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "Pull online lyrics when server lyrics are missing or unsynced",
+                    color = colors.secondaryText,
+                    fontSize = 12.sp,
+                )
+            }
+        }
     }
 }
 

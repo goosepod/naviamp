@@ -44,6 +44,7 @@ import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.label
+import app.naviamp.domain.lyrics.selectPreferredLyrics
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioService
@@ -100,6 +101,7 @@ private fun NaviampAndroidApp() {
     val savedProviderSource = remember { storage.latestNavidromeSource() }
     val savedProviderConnection = savedProviderSource?.connection
     val savedConnection = remember { settingsStore.loadConnection(savedProviderConnection) }
+    val savedPlaybackSettings = remember { settingsStore.loadPlaybackSettings() }
     var serverUrl by remember { mutableStateOf(savedConnection.serverUrl) }
     var username by remember { mutableStateOf(savedConnection.username) }
     var password by remember { mutableStateOf(savedConnection.password) }
@@ -107,6 +109,7 @@ private fun NaviampAndroidApp() {
     var customCertificatePath by remember { mutableStateOf(savedConnection.customCertificatePath) }
     var clientCertificatePath by remember { mutableStateOf(savedConnection.clientCertificatePath) }
     var clientCertificatePassword by remember { mutableStateOf(savedConnection.clientCertificatePassword) }
+    var playbackSettings by remember { mutableStateOf(savedPlaybackSettings) }
     var homeState by remember { mutableStateOf(AndroidBrowseState()) }
     var contentState by remember { mutableStateOf(NaviampContentState()) }
     val query = contentState.searchQuery
@@ -166,17 +169,16 @@ private fun NaviampAndroidApp() {
         scope.launch {
             runCatching {
                 val localLyrics = activeProvider.lyrics(track.id)
-                val lrclibLyrics = if (localLyrics == null || !localLyrics.synced) {
+                val onlineLyrics = if (playbackSettings.lrclibLyricsEnabled && (localLyrics == null || !localLyrics.synced)) {
                     lrclibLyricsClient.lyrics(track)
                 } else {
                     null
                 }
-                when {
-                    localLyrics == null -> lrclibLyrics
-                    localLyrics.synced -> localLyrics
-                    lrclibLyrics?.synced == true -> lrclibLyrics
-                    else -> localLyrics
-                }
+                selectPreferredLyrics(
+                    providerLyrics = localLyrics,
+                    embeddedLyrics = null,
+                    onlineLyrics = onlineLyrics,
+                )
             }
                 .onSuccess { lyrics ->
                     lyricsByTrackId = lyricsByTrackId + (track.id.value to lyrics)
@@ -778,6 +780,7 @@ private fun NaviampAndroidApp() {
             clientCertificatePath = clientCertificatePath,
             clientCertificatePassword = clientCertificatePassword,
         ),
+        playbackSettings = playbackSettings,
         query = query,
         home = homeState.toSharedHome(provider, playlistTracksById),
         searchResults = searchResults.toSharedSearchResults(provider),
@@ -888,6 +891,13 @@ private fun NaviampAndroidApp() {
         onConnect = { connectToNavidrome() },
         onEditConnection = { editingConnection = true },
         onCancelEditConnection = { editingConnection = false },
+        onPlaybackSettingsChanged = { settings ->
+            playbackSettings = settings
+            settingsStore.savePlaybackSettings(settings)
+            lyricsByTrackId = emptyMap()
+            lyricsStatusByTrackId = emptyMap()
+            if (lyricsVisible) nowPlaying?.let(::loadLyrics)
+        },
         onQueryChanged = { contentState = contentState.copy(searchQuery = it) },
         onSearch = {
             val activeProvider = provider ?: return@NaviampSharedAppShell

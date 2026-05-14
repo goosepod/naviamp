@@ -2,6 +2,7 @@ package app.naviamp.android
 
 import android.content.Context
 import app.naviamp.domain.settings.ConnectionFormState
+import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.provider.navidrome.NavidromeConnection
 
 class AndroidSettingsStore(
@@ -38,6 +39,17 @@ class AndroidSettingsStore(
             .putString(KeyClientCertificatePassword, connection.clientCertificatePassword)
             .apply()
     }
+
+    fun loadPlaybackSettings(): PlaybackSettings =
+        PlaybackSettings(
+            lrclibLyricsEnabled = preferences.getBoolean(KeyLrclibLyricsEnabled, false),
+        )
+
+    fun savePlaybackSettings(settings: PlaybackSettings) {
+        preferences.edit()
+            .putBoolean(KeyLrclibLyricsEnabled, settings.lrclibLyricsEnabled)
+            .apply()
+    }
 }
 
 private const val PreferencesName = "naviamp_android_settings"
@@ -48,3 +60,4 @@ private const val KeySkipTlsVerification = "skip_tls_verification"
 private const val KeyCustomCertificatePath = "custom_certificate_path"
 private const val KeyClientCertificatePath = "client_certificate_path"
 private const val KeyClientCertificatePassword = "client_certificate_password"
+private const val KeyLrclibLyricsEnabled = "lrclib_lyrics_enabled"

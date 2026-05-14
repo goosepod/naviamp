@@ -308,6 +308,10 @@ Default stance: implement behavior in shared code unless it needs OS APIs, a pla
    - Keep actual live audio playback and metadata polling in platform playback engines where required.
 6. Shared lyrics service:
    - Move LRCLIB query construction, response parsing, LRC parsing, provider/embedded/LRCLIB preference rules, and cache selection into common code.
+   - Initial extraction is in place in `core/domain/lyrics`: generic LRC/plain lyric parsing, lyric tag-key detection, provider/embedded/online preference rules, a `LyricsProvider` contract, and an LRCLIB provider base.
+   - Desktop and Android LRCLIB clients now implement the shared LRCLIB provider by supplying only HTTP transport and URL encoding.
+   - Desktop embedded-file tag reading stays platform-specific, but embedded lyric tag detection/parsing now delegates into the shared lyrics parser.
+   - Android Settings now exposes the same LRCLIB lyrics toggle as desktop and gates online lyric fallback through it.
    - Keep HTTP transport and embedded-file tag readers behind interfaces because Android and desktop read files/network differently today.
 7. Shared home/browse orchestration:
    - Move Home content assembly, decade/genre station selection, provider-backed sections, and UI model mapping into common code.
