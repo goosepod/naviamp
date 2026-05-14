@@ -1,7 +1,7 @@
 package app.naviamp.android
 
 import android.content.Context
-import app.naviamp.ui.ConnectionFormState
+import app.naviamp.domain.settings.ConnectionFormState
 
 class AndroidSettingsStore(
     context: Context,

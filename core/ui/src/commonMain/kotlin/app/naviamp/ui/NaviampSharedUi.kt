@@ -97,15 +97,7 @@ data class NaviampColors(
     }
 }
 
-data class ConnectionFormState(
-    val serverUrl: String = "",
-    val username: String = "",
-    val password: String = "",
-    val skipTlsVerification: Boolean = false,
-    val customCertificatePath: String = "",
-    val clientCertificatePath: String = "",
-    val clientCertificatePassword: String = "",
-)
+typealias ConnectionFormState = app.naviamp.domain.settings.ConnectionFormState
 
 @Composable
 expect fun PlatformCoverArt(
@@ -304,6 +296,7 @@ fun NaviampSharedAppShell(
     onSearch: () -> Unit,
     onTrackSelected: (AndroidTrackRowUi) -> Unit,
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
+    onMixAlbumSelected: (SharedMediaItemUi) -> Unit = onAlbumSelected,
     onAlbumPlay: (SharedAlbumDetailUi, Boolean) -> Unit = { _, _ -> },
     onAlbumRadio: (SharedAlbumDetailUi) -> Unit = {},
     onArtistSelected: (SharedMediaItemUi) -> Unit,
@@ -424,6 +417,7 @@ fun NaviampSharedAppShell(
                             onSearch = onSearch,
                             onTrackSelected = onTrackSelected,
                             onAlbumSelected = onAlbumSelected,
+                            onMixAlbumSelected = onMixAlbumSelected,
                             onAlbumPlay = onAlbumPlay,
                             onAlbumRadio = onAlbumRadio,
                             onArtistSelected = onArtistSelected,
@@ -588,6 +582,7 @@ private fun ConnectedContent(
     onSearch: () -> Unit,
     onTrackSelected: (AndroidTrackRowUi) -> Unit,
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
+    onMixAlbumSelected: (SharedMediaItemUi) -> Unit,
     onAlbumPlay: (SharedAlbumDetailUi, Boolean) -> Unit,
     onAlbumRadio: (SharedAlbumDetailUi) -> Unit,
     onArtistSelected: (SharedMediaItemUi) -> Unit,
@@ -683,7 +678,7 @@ private fun ConnectedContent(
             onTrackSelected = onPlaylistTrackSelected,
         )
         else -> when (selectedRoute) {
-            SharedRoute.Home -> SharedHome(colors, home, onAlbumSelected, onPlaylistSelected, onRadioStationSelected, onHomeStationSelected)
+            SharedRoute.Home -> SharedHome(colors, home, onAlbumSelected, onMixAlbumSelected, onPlaylistSelected, onRadioStationSelected, onHomeStationSelected)
             SharedRoute.Playlists -> PlaylistsContent(
                 colors = colors,
                 playlists = playlistItems,
@@ -709,6 +704,7 @@ private fun SharedHome(
     colors: NaviampColors,
     home: SharedHomeUi,
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
+    onMixAlbumSelected: (SharedMediaItemUi) -> Unit,
     onPlaylistSelected: (SharedMediaItemUi) -> Unit,
     onRadioStationSelected: (SharedMediaItemUi) -> Unit,
     onHomeStationSelected: (SharedHomeStationUi) -> Unit,
@@ -726,7 +722,7 @@ private fun SharedHome(
                     modifier = Modifier.horizontalScroll(rememberScrollState()),
                 ) {
                     home.mixAlbums.take(6).forEach { album ->
-                        MixCard(album, colors, onClick = { onAlbumSelected(album) })
+                        MixCard(album, colors, onClick = { onMixAlbumSelected(album) })
                     }
                 }
             }

@@ -17,11 +17,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -40,6 +42,9 @@ actual fun PlatformCoverArt(
 ) {
     val context = LocalContext.current
     var image by remember(url) { mutableStateOf<ImageBitmap?>(null) }
+    val elevated = size >= 180.dp
+    val shadowMargin = if (elevated) 12.dp else 0.dp
+    val shape = RoundedCornerShape(cornerRadius)
 
     LaunchedEffect(url) {
         image = url?.let { coverArtUrl ->
@@ -53,18 +58,33 @@ actual fun PlatformCoverArt(
     }
 
     Box(
+        contentAlignment = androidx.compose.ui.Alignment.Center,
         modifier = Modifier
-            .size(size)
-            .clip(RoundedCornerShape(cornerRadius))
-            .background(colors.albumArtPlaceholder),
+            .size(size + shadowMargin * 2),
     ) {
-        image?.let {
-            Image(
-                bitmap = it,
-                contentDescription = "Album art",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
+        Box(
+            modifier = Modifier
+                .size(size)
+                .then(
+                    if (elevated) {
+                        Modifier
+                            .shadow(24.dp, shape, clip = false)
+                            .shadow(7.dp, shape, clip = false)
+                    } else {
+                        Modifier
+                    },
+                )
+                .clip(shape)
+                .background(colors.albumArtPlaceholder),
+        ) {
+            image?.let {
+                Image(
+                    bitmap = it,
+                    contentDescription = "Album art",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
         }
     }
 }

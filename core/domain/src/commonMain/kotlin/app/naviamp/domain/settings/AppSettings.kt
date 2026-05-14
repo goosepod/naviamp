@@ -1,0 +1,294 @@
+package app.naviamp.domain.settings
+
+import app.naviamp.domain.Album
+import app.naviamp.domain.AlbumId
+import app.naviamp.domain.Artist
+import app.naviamp.domain.ArtistId
+import app.naviamp.domain.AudioInfo
+import app.naviamp.domain.InternetRadioStation
+import app.naviamp.domain.Track
+import app.naviamp.domain.TrackId
+import app.naviamp.domain.playback.ReplayGainMode
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class ConnectionFormState(
+    val serverUrl: String = "",
+    val username: String = "",
+    val password: String = "",
+    val skipTlsVerification: Boolean = false,
+    val customCertificatePath: String = "",
+    val clientCertificatePath: String = "",
+    val clientCertificatePassword: String = "",
+)
+
+@Serializable
+data class PlaybackSettings(
+    val replayGainMode: ReplayGainMode = ReplayGainMode.Off,
+    val crossfadeDurationSeconds: Int = 0,
+    val volumePercent: Int = 100,
+    val debugLoggingEnabled: Boolean = false,
+    val lrclibLyricsEnabled: Boolean = false,
+    val previousButtonBehavior: PreviousButtonBehavior = PreviousButtonBehavior.RestartThenPrevious,
+    val upNextSelectionBehavior: UpNextSelectionBehavior = UpNextSelectionBehavior.MoveSelectedToCurrent,
+)
+
+@Serializable
+enum class PreviousButtonBehavior {
+    AlwaysPrevious,
+    RestartThenPrevious,
+}
+
+@Serializable
+enum class UpNextSelectionBehavior {
+    MoveSelectedToCurrent,
+    SkipToSelected,
+}
+
+@Serializable
+data class CacheSettings(
+    val audioCachingEnabled: Boolean = true,
+    val audioPrefetchDepth: Int = 10,
+    val maxAudioCacheBytes: Long = 2L * 1024L * 1024L * 1024L,
+    val maxDownloadBytes: Long = 10L * 1024L * 1024L * 1024L,
+) {
+    fun normalized(): CacheSettings =
+        copy(
+            audioPrefetchDepth = audioPrefetchDepth.coerceIn(0, 25),
+            maxAudioCacheBytes = maxAudioCacheBytes.coerceIn(256L * 1024L * 1024L, 20L * 1024L * 1024L * 1024L),
+            maxDownloadBytes = maxDownloadBytes.coerceIn(512L * 1024L * 1024L, 100L * 1024L * 1024L * 1024L),
+        )
+}
+
+@Serializable
+data class NavigationSettings(
+    val route: String = "Home",
+    val lastContentRoute: String = "Home",
+)
+
+@Serializable
+data class SearchSettings(
+    val query: String = "",
+)
+
+@Serializable
+data class RecentRadioStream(
+    val id: String,
+    val label: String,
+    val kind: RecentRadioKind,
+    val artist: SavedArtist? = null,
+    val album: SavedAlbum? = null,
+    val track: SavedTrack? = null,
+    val genre: String? = null,
+    val fromYear: Int? = null,
+    val toYear: Int? = null,
+)
+
+@Serializable
+enum class RecentRadioKind {
+    Library,
+    RandomAlbum,
+    Genre,
+    Decade,
+    Artist,
+    Album,
+    Track,
+}
+
+@Serializable
+data class SavedArtist(
+    val id: String,
+    val name: String,
+) {
+    fun toArtist(): Artist =
+        Artist(id = ArtistId(id), name = name)
+
+    companion object {
+        fun fromArtist(artist: Artist): SavedArtist =
+            SavedArtist(id = artist.id.value, name = artist.name)
+    }
+}
+
+@Serializable
+data class SavedAlbum(
+    val id: String,
+    val title: String,
+    val artistName: String,
+    val coverArtId: String? = null,
+    val recentlyAddedAtIso8601: String? = null,
+    val releaseYear: Int? = null,
+) {
+    fun toAlbum(): Album =
+        Album(
+            id = AlbumId(id),
+            title = title,
+            artistName = artistName,
+            coverArtId = coverArtId,
+            recentlyAddedAtIso8601 = recentlyAddedAtIso8601,
+            releaseYear = releaseYear,
+        )
+
+    companion object {
+        fun fromAlbum(album: Album): SavedAlbum =
+            SavedAlbum(
+                id = album.id.value,
+                title = album.title,
+                artistName = album.artistName,
+                coverArtId = album.coverArtId,
+                recentlyAddedAtIso8601 = album.recentlyAddedAtIso8601,
+                releaseYear = album.releaseYear,
+            )
+    }
+}
+
+@Serializable
+data class SavedInternetRadioStation(
+    val id: String,
+    val name: String,
+    val streamUrl: String,
+    val homePageUrl: String? = null,
+) {
+    fun toStation(): InternetRadioStation =
+        InternetRadioStation(
+            id = id,
+            name = name,
+            streamUrl = streamUrl,
+            homePageUrl = homePageUrl,
+        )
+
+    companion object {
+        fun fromStation(station: InternetRadioStation): SavedInternetRadioStation =
+            SavedInternetRadioStation(
+                id = station.id,
+                name = station.name,
+                streamUrl = station.streamUrl,
+                homePageUrl = station.homePageUrl,
+            )
+    }
+}
+
+@Serializable
+data class PlaybackSessionSettings(
+    val tracks: List<SavedTrack> = emptyList(),
+    val currentIndex: Int = -1,
+    val positionSeconds: Double? = null,
+    val internetRadioStation: SavedInternetRadioStation? = null,
+) {
+    fun currentTrack(): Track? =
+        tracks.getOrNull(currentIndex)?.toTrack() ?: internetRadioStation?.toTrack()
+
+    fun toTracks(): List<Track> =
+        tracks.map { it.toTrack() }
+
+    companion object {
+        fun fromTracks(
+            tracks: List<Track>,
+            currentIndex: Int,
+            positionSeconds: Double? = null,
+        ): PlaybackSessionSettings? {
+            if (tracks.isEmpty() || currentIndex !in tracks.indices) return null
+            return PlaybackSessionSettings(
+                tracks = tracks.map { SavedTrack.fromTrack(it) },
+                currentIndex = currentIndex,
+                positionSeconds = positionSeconds?.takeIf { it > 0.0 },
+            )
+        }
+
+        fun fromInternetRadioStation(station: InternetRadioStation): PlaybackSessionSettings =
+            PlaybackSessionSettings(
+                internetRadioStation = SavedInternetRadioStation.fromStation(station),
+            )
+    }
+}
+
+private fun SavedInternetRadioStation.toTrack(): Track =
+    Track(
+        id = TrackId("internet-radio:$id"),
+        title = name,
+        artistName = "Internet Radio",
+        albumTitle = homePageUrl ?: streamUrl,
+        durationSeconds = null,
+        coverArtId = null,
+        audioInfo = null,
+        replayGain = null,
+    )
+
+@Serializable
+data class SavedTrack(
+    val id: String,
+    val title: String,
+    val artistId: String? = null,
+    val artistName: String,
+    val albumId: String? = null,
+    val albumTitle: String? = null,
+    val albumReleaseYear: Int? = null,
+    val durationSeconds: Int? = null,
+    val coverArtId: String? = null,
+    val audioInfo: SavedAudioInfo? = null,
+    val favoritedAtIso8601: String? = null,
+    val userRating: Int? = null,
+) {
+    fun toTrack(): Track =
+        Track(
+            id = TrackId(id),
+            title = title,
+            artistId = artistId?.let { ArtistId(it) },
+            artistName = artistName,
+            albumId = albumId?.let { AlbumId(it) },
+            albumTitle = albumTitle,
+            albumReleaseYear = albumReleaseYear,
+            durationSeconds = durationSeconds,
+            coverArtId = coverArtId,
+            audioInfo = audioInfo?.toAudioInfo(),
+            replayGain = null,
+            favoritedAtIso8601 = favoritedAtIso8601,
+            userRating = userRating,
+        )
+
+    companion object {
+        fun fromTrack(track: Track): SavedTrack =
+            SavedTrack(
+                id = track.id.value,
+                title = track.title,
+                artistId = track.artistId?.value,
+                artistName = track.artistName,
+                albumId = track.albumId?.value,
+                albumTitle = track.albumTitle,
+                albumReleaseYear = track.albumReleaseYear,
+                durationSeconds = track.durationSeconds,
+                coverArtId = track.coverArtId,
+                audioInfo = track.audioInfo?.let { SavedAudioInfo.fromAudioInfo(it) },
+                favoritedAtIso8601 = track.favoritedAtIso8601,
+                userRating = track.userRating,
+            )
+    }
+}
+
+@Serializable
+data class SavedAudioInfo(
+    val codec: String? = null,
+    val bitrateKbps: Int? = null,
+    val contentType: String? = null,
+    val bitDepth: Int? = null,
+    val samplingRateHz: Int? = null,
+) {
+    fun toAudioInfo(): AudioInfo =
+        AudioInfo(
+            codec = codec,
+            bitrateKbps = bitrateKbps,
+            contentType = contentType,
+            bitDepth = bitDepth,
+            samplingRateHz = samplingRateHz,
+        )
+
+    companion object {
+        fun fromAudioInfo(audioInfo: AudioInfo): SavedAudioInfo =
+            SavedAudioInfo(
+                codec = audioInfo.codec,
+                bitrateKbps = audioInfo.bitrateKbps,
+                contentType = audioInfo.contentType,
+                bitDepth = audioInfo.bitDepth,
+                samplingRateHz = audioInfo.samplingRateHz,
+            )
+    }
+}

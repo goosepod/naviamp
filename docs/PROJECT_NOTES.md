@@ -281,6 +281,7 @@ Default stance: implement behavior in shared code unless it needs OS APIs, a pla
 3. Shared playback session persistence models:
    - Move `PlaybackSessionSettings`, saved track/album/artist/station DTOs, recent radio streams, recent playlist IDs, navigation/search settings, and playback/cache setting models out of desktop settings into common code.
    - Platform settings stores should only read/write those common serializable models using platform storage.
+   - Initial shared settings models now live in `core/domain/settings`: connection form state, playback/cache settings, previous/up-next behavior enums, navigation/search settings, recent radio streams, saved media DTOs, and playback session restoration. Desktop keeps only the JSON store, window settings, and provider-token connection wrapper locally.
 4. Shared playlist workflows:
    - Move playlist details loading, play/shuffle, rename/delete, add-to-playlist target expansion, duplicate handling, and recent-playlist tracking into a shared playlist service.
    - Desktop and Android should only provide UI callbacks and confirmation surfaces.

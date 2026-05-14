@@ -46,11 +46,11 @@ import app.naviamp.domain.playback.label
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioService
+import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import app.naviamp.ui.AndroidTrackRowUi
-import app.naviamp.ui.ConnectionFormState
 import app.naviamp.ui.NaviampDetailSectionUi
 import app.naviamp.ui.NaviampLyricLineUi
 import app.naviamp.ui.NaviampNowPlayingItemUi
@@ -311,6 +311,21 @@ private fun NaviampAndroidApp() {
                         status = error.message ?: "Could not build $statusLabel."
                     }
                 }
+        }
+    }
+
+    fun startAlbumRadio(album: Album, loadedAlbumTracks: List<Track> = emptyList()) {
+        val service = radioService() ?: return
+        scope.launch {
+            status = "Starting ${album.title} radio..."
+            val seedTrack = service.albumSeed(album, loadedAlbumTracks)
+            if (seedTrack == null) {
+                status = "${album.title} did not return any tracks."
+            } else {
+                startSeededRadio("${album.title} radio", seedTrack) { radioService ->
+                    radioService.albumRadio(album.id, loadedAlbumTracks)
+                }
+            }
         }
     }
 
@@ -750,6 +765,11 @@ private fun NaviampAndroidApp() {
                 }
             }
         },
+        onMixAlbumSelected = { selectedAlbum ->
+            homeState.mixAlbums.firstOrNull { it.id.value == selectedAlbum.id }
+                ?.let { startAlbumRadio(it) }
+                ?: run { status = "Album not found." }
+        },
         onAlbumPlay = { _, shuffle ->
             val albumTracks = albumDetail?.tracks.orEmpty()
             val queue = if (shuffle) albumTracks.shuffled() else albumTracks
@@ -757,21 +777,9 @@ private fun NaviampAndroidApp() {
                 ?: run { status = "Album is empty." }
         },
         onAlbumRadio = { detail ->
-            val service = radioService() ?: return@NaviampSharedAppShell
-            val albumId = app.naviamp.domain.AlbumId(detail.album.id)
             val loadedAlbumTracks = albumDetail?.tracks.orEmpty()
             val album = albumDetail?.album ?: return@NaviampSharedAppShell
-            scope.launch {
-                status = "Starting ${detail.album.title} radio..."
-                val seedTrack = service.albumSeed(album, loadedAlbumTracks)
-                if (seedTrack == null) {
-                    status = "${detail.album.title} did not return any tracks."
-                } else {
-                    startSeededRadio("${detail.album.title} radio", seedTrack) { radioService ->
-                        radioService.albumRadio(albumId, loadedAlbumTracks)
-                    }
-                }
-            }
+            startAlbumRadio(album, loadedAlbumTracks)
         },
         onArtistRadio = { detail ->
             val service = radioService() ?: return@NaviampSharedAppShell
