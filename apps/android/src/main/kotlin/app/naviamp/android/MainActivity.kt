@@ -74,7 +74,16 @@ import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedPlaylistDetailUi
 import app.naviamp.ui.SharedPlaylistSortMode
 import app.naviamp.ui.SharedRoute
+import app.naviamp.ui.toAndroidTrackRowUi
+import app.naviamp.ui.toNowPlayingItemUi
+import app.naviamp.ui.toNowPlayingStationUi
+import app.naviamp.ui.toPlaylistChoiceUi
+import app.naviamp.ui.toSharedAlbumDetailUi
+import app.naviamp.ui.toSharedArtistDetailUi
 import app.naviamp.ui.toSharedHomeUi
+import app.naviamp.ui.toSharedMediaItemUi
+import app.naviamp.ui.toSharedPlaylistDetailUi
+import app.naviamp.ui.toSharedSearchResultsUi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -792,15 +801,23 @@ private fun NaviampAndroidApp() {
             coverArtUrl = { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
             playlistTracksById = playlistTracksById,
         ),
-        searchResults = searchResults.toSharedSearchResults(provider),
-        libraryArtists = homeState.artists.map { it.toSharedMediaItem() },
-        playlistItems = homeState.playlists.map { it.toSharedMediaItem(provider, playlistTracksById[it.id].orEmpty()) },
+        searchResults = searchResults.toSharedSearchResultsUi { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
+        libraryArtists = homeState.artists.map { it.toSharedMediaItemUi() },
+        playlistItems = homeState.playlists.map {
+            it.toSharedMediaItemUi(
+                coverArtUrl = { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
+                tracks = playlistTracksById[it.id].orEmpty(),
+            )
+        },
         recentPlaylistIds = recentPlaylistIds,
         playlistSortMode = playlistSortMode,
-        radioStationItems = homeState.radioStations.map { it.toSharedMediaItem() },
-        albumDetail = albumDetail?.toSharedAlbumDetail(provider),
-        artistDetail = artistDetail?.toSharedArtistDetail(provider),
-        playlistDetail = selectedPlaylist?.toSharedPlaylistDetail(selectedPlaylistTracks, provider),
+        radioStationItems = homeState.radioStations.map { it.toSharedMediaItemUi() },
+        albumDetail = albumDetail?.toSharedAlbumDetailUi { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
+        artistDetail = artistDetail?.toSharedArtistDetailUi { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
+        playlistDetail = selectedPlaylist?.toSharedPlaylistDetailUi(
+            tracks = selectedPlaylistTracks,
+            coverArtUrl = { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
+        ),
         nowPlaying = nowPlaying?.let { track ->
             val knownTracks = activeQueue()
             val currentIndex = knownTracks.indexOfFirst { it.id == track.id }
@@ -852,13 +869,17 @@ private fun NaviampAndroidApp() {
                 backTo = knownTracks
                     .take(currentIndex.coerceAtLeast(0))
                     .asReversed()
-                    .map { it.toNowPlayingItemUi(provider) },
+                    .map { it.toNowPlayingItemUi { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } } },
                 upNext = if (currentIndex >= 0) {
-                    knownTracks.drop(currentIndex + 1).map { it.toNowPlayingItemUi(provider) }
+                    knownTracks.drop(currentIndex + 1).map {
+                        it.toNowPlayingItemUi { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } }
+                    }
                 } else {
                     emptyList()
                 },
-                related = relatedTracks.map { it.toNowPlayingItemUi(provider) },
+                related = relatedTracks.map {
+                    it.toNowPlayingItemUi { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } }
+                },
             )
         } ?: nowPlayingStation?.let { station ->
             NowPlayingUi(
@@ -1229,94 +1250,8 @@ private suspend fun loadBrowseState(provider: NavidromeProvider): HomeContent {
     ).load()
 }
 
-private fun MediaSearchResults.toSharedSearchResults(provider: NavidromeProvider?) =
-    app.naviamp.ui.SharedSearchResultsUi(
-        artists = artists.map { it.toSharedMediaItem() },
-        albums = albums.map { it.toSharedMediaItem(provider) },
-        tracks = tracks.map { it.toAndroidTrackRowUi(provider) },
-    )
-
-private fun Artist.toSharedMediaItem(): SharedMediaItemUi =
-    SharedMediaItemUi(id = id.value, title = name, subtitle = "Artist")
-
-private fun Playlist.toSharedMediaItem(
-    provider: NavidromeProvider? = null,
-    tracks: List<Track> = emptyList(),
-): SharedMediaItemUi =
-    SharedMediaItemUi(
-        id = id,
-        title = name,
-        subtitle = "$trackCount tracks",
-        meta = durationSeconds?.durationLabel().orEmpty(),
-        coverArtUrl = coverArtId?.let { provider?.coverArtUrl(it) },
-        coverArtUrls = tracks.mapNotNull { it.coverArtUrl(provider) }.distinct().take(4),
-    )
-
-private fun Playlist.toPlaylistChoiceUi(): NaviampPlaylistChoiceUi =
-    NaviampPlaylistChoiceUi(
-        id = id,
-        name = name,
-        subtitle = "$trackCount tracks",
-    )
-
-private fun Playlist.toSharedPlaylistDetail(tracks: List<Track>, provider: NavidromeProvider?): SharedPlaylistDetailUi =
-    SharedPlaylistDetailUi(
-        playlist = toSharedMediaItem(provider, tracks),
-        tracks = tracks.map { it.toAndroidTrackRowUi(provider) },
-    )
-
-private fun InternetRadioStation.toSharedMediaItem(): SharedMediaItemUi =
-    SharedMediaItemUi(id = id, title = name, subtitle = homePageUrl ?: "Internet radio")
-
-private fun AlbumDetails.toSharedAlbumDetail(provider: NavidromeProvider?): SharedAlbumDetailUi =
-    SharedAlbumDetailUi(
-        album = album.toSharedMediaItem(provider),
-        tracks = tracks.map { it.toAndroidTrackRowUi(provider) },
-        totalDurationLabel = tracks.totalDurationLabel(),
-    )
-
-private fun ArtistDetails.toSharedArtistDetail(provider: NavidromeProvider?): SharedArtistDetailUi =
-    SharedArtistDetailUi(
-        artist = artist.toSharedMediaItem(),
-        albums = albums.map { it.toSharedMediaItem(provider) },
-    )
-
-private fun Album.toSharedMediaItem(provider: NavidromeProvider?): SharedMediaItemUi =
-    SharedMediaItemUi(
-        id = id.value,
-        title = title,
-        subtitle = artistName,
-        meta = releaseYear?.toString().orEmpty(),
-        coverArtUrl = coverArtId?.let { provider?.coverArtUrl(it) },
-    )
-
-private fun Track.toAndroidTrackRowUi(provider: NavidromeProvider?): AndroidTrackRowUi =
-    AndroidTrackRowUi(
-        id = id.value,
-        title = title,
-        subtitle = listOfNotNull(artistName, albumTitle).joinToString(" - "),
-        coverArtUrl = coverArtUrl(provider),
-        meta = durationSeconds?.durationLabel().orEmpty(),
-    )
-
 private fun Track.coverArtUrl(provider: NavidromeProvider?): String? =
     coverArtId?.let { provider?.coverArtUrl(it) }
-
-private fun Track.toNowPlayingItemUi(provider: NavidromeProvider?): NaviampNowPlayingItemUi =
-    NaviampNowPlayingItemUi(
-        id = id.value,
-        title = title,
-        subtitle = listOfNotNull(artistName, albumTitle).joinToString(" - "),
-        meta = durationSeconds?.durationLabel().orEmpty(),
-        coverArtUrl = coverArtUrl(provider),
-    )
-
-private fun InternetRadioStation.toNowPlayingStationUi(): NaviampNowPlayingItemUi =
-    NaviampNowPlayingItemUi(
-        id = id,
-        title = name,
-        subtitle = homePageUrl ?: "Internet radio",
-    )
 
 private fun Track.toDetailSections(): List<NaviampDetailSectionUi> =
     listOf(
@@ -1490,15 +1425,6 @@ private fun String.isPlaylistContentType(): Boolean =
         contains("text/plain") ||
         contains("text/html") ||
         contains("application/octet-stream")
-
-private fun List<Track>.totalDurationLabel(): String {
-    val totalSeconds = mapNotNull { it.durationSeconds }.sum()
-    if (totalSeconds <= 0) return ""
-    val hours = totalSeconds / 3600
-    val minutes = totalSeconds / 60
-    val remainingMinutes = (totalSeconds % 3600) / 60
-    return if (hours > 0) "${hours}h ${remainingMinutes}m" else "$minutes minutes"
-}
 
 private fun NaviampRoute.toSharedRoute(): SharedRoute =
     when (this) {

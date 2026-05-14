@@ -321,6 +321,8 @@ Default stance: implement behavior in shared code unless it needs OS APIs, a pla
    - Desktop cache-backed library index can be one implementation of a shared library repository; Android should later use the same contract with SQLDelight Android drivers.
 8. Shared media UI models and mappers:
    - Move repeated `Track`/`Album`/`Artist`/`Playlist` to UI row mapping into common code so Android does not keep local copies of desktop behavior.
+   - Initial mapper extraction is in place in `core/ui/MediaUiMappers.kt`: artist/album/playlist/station media items, track rows, now-playing queue items, playlist choices, details, and search result UI mapping.
+   - Android now delegates its repeated media UI model mapping to shared `core/ui` mappers and only keeps provider cover-art URL resolution locally.
    - Continue putting reusable Compose surfaces in `core/ui` and only use platform-specific `expect/actual` for cover art/image loading or OS-required pieces.
 9. Shared formatting utilities:
    - Move duration labels, audio-quality labels, stream stats, bytes labels, decade labels, rating labels, and playlist total-duration labels to common code.
