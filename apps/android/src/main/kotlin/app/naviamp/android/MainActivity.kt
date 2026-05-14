@@ -33,6 +33,9 @@ import app.naviamp.domain.Playlist
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
+import app.naviamp.domain.app.NaviampContentState
+import app.naviamp.domain.app.NaviampNavigationState
+import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaSearchResults
@@ -96,17 +99,19 @@ private fun NaviampAndroidApp() {
     var customCertificatePath by remember { mutableStateOf(savedConnection.customCertificatePath) }
     var clientCertificatePath by remember { mutableStateOf(savedConnection.clientCertificatePath) }
     var clientCertificatePassword by remember { mutableStateOf(savedConnection.clientCertificatePassword) }
-    var query by remember { mutableStateOf("") }
     var homeState by remember { mutableStateOf(AndroidBrowseState()) }
-    var searchResults by remember { mutableStateOf(MediaSearchResults()) }
-    var albumDetail by remember { mutableStateOf<AlbumDetails?>(null) }
-    var artistDetail by remember { mutableStateOf<ArtistDetails?>(null) }
-    var selectedPlaylist by remember { mutableStateOf<Playlist?>(null) }
-    var selectedPlaylistTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
+    var contentState by remember { mutableStateOf(NaviampContentState()) }
+    val query = contentState.searchQuery
+    val searchResults = contentState.searchResults
+    val albumDetail = contentState.albumDetail
+    val artistDetail = contentState.artistDetail
+    val selectedPlaylist = contentState.selectedPlaylist
+    val selectedPlaylistTracks = contentState.selectedPlaylistTracks
     var playlistSortMode by remember { mutableStateOf(SharedPlaylistSortMode.Alphabetical) }
     var recentPlaylistIds by remember { mutableStateOf<List<String>>(emptyList()) }
     var editingConnection by remember { mutableStateOf(false) }
-    var selectedRoute by remember { mutableStateOf(SharedRoute.Home) }
+    var navigationState by remember { mutableStateOf(NaviampNavigationState()) }
+    val selectedRoute = navigationState.route.toSharedRoute()
     var provider by remember { mutableStateOf<NavidromeProvider?>(null) }
     var activeTlsSettings by remember { mutableStateOf(NavidromeTlsSettings()) }
     var validation by remember { mutableStateOf<ConnectionValidation?>(null) }
@@ -316,11 +321,13 @@ private fun NaviampAndroidApp() {
     fun applyTrackMetadataUpdate(updatedTrack: Track) {
         nowPlaying = nowPlaying?.let { if (it.id == updatedTrack.id) updatedTrack else it }
         tracks = tracks.map { if (it.id == updatedTrack.id) updatedTrack else it }
-        searchResults = searchResults.copy(
-            tracks = searchResults.tracks.map { if (it.id == updatedTrack.id) updatedTrack else it },
-        )
-        albumDetail = albumDetail?.copy(
-            tracks = albumDetail?.tracks.orEmpty().map { if (it.id == updatedTrack.id) updatedTrack else it },
+        contentState = contentState.copy(
+            searchResults = searchResults.copy(
+                tracks = searchResults.tracks.map { if (it.id == updatedTrack.id) updatedTrack else it },
+            ),
+            albumDetail = albumDetail?.copy(
+                tracks = albumDetail.tracks.map { if (it.id == updatedTrack.id) updatedTrack else it },
+            ),
         )
     }
 
@@ -330,12 +337,9 @@ private fun NaviampAndroidApp() {
             status = "Loading ${fallbackName ?: "artist"}..."
             runCatching { activeProvider.artist(artistId) }
                 .onSuccess { detail ->
-                    artistDetail = detail
-                    albumDetail = null
-                    selectedPlaylist = null
-                    selectedPlaylistTracks = emptyList()
+                    contentState = contentState.showArtist(detail)
                     nowPlayingOpen = false
-                    selectedRoute = SharedRoute.Library
+                    navigationState = navigationState.copy(route = NaviampRoute.Library)
                     status = "Connected."
                 }
                 .onFailure { error -> status = error.message ?: "Artist failed to load." }
@@ -344,22 +348,20 @@ private fun NaviampAndroidApp() {
 
     fun openPlaylistDetails(playlist: Playlist) {
         val activeProvider = provider ?: return
-        selectedPlaylist = playlist
-        selectedRoute = SharedRoute.Playlists
-        albumDetail = null
-        artistDetail = null
+        contentState = contentState.showPlaylist(playlist)
+        navigationState = navigationState.copy(route = NaviampRoute.Playlists)
         nowPlayingOpen = false
         recentPlaylistIds = (listOf(playlist.id) + recentPlaylistIds.filterNot { it == playlist.id }).take(20)
         scope.launch {
             status = "Loading ${playlist.name}..."
             runCatching { activeProvider.playlistTracks(playlist.id) }
                 .onSuccess { playlistTracks ->
-                    selectedPlaylistTracks = playlistTracks
+                    contentState = contentState.showPlaylist(playlist, playlistTracks)
                     tracks = playlistTracks
                     status = "Connected."
                 }
                 .onFailure { error ->
-                    selectedPlaylistTracks = emptyList()
+                    contentState = contentState.showPlaylist(playlist)
                     status = error.message ?: "Playlist failed to load."
                 }
         }
@@ -374,8 +376,7 @@ private fun NaviampAndroidApp() {
             } else {
                 runCatching { activeProvider.playlistTracks(playlist.id) }
                     .onSuccess {
-                        selectedPlaylist = playlist
-                        selectedPlaylistTracks = it
+                        contentState = contentState.showPlaylist(playlist, it)
                         tracks = it
                     }
                     .getOrDefault(emptyList())
@@ -399,8 +400,11 @@ private fun NaviampAndroidApp() {
                 activeProvider.playlists(limit = 500)
             }.onSuccess { playlists ->
                 homeState = homeState.copy(playlists = playlists)
-                selectedPlaylist = selectedPlaylist?.let { current ->
-                    if (current.id == playlist.id) playlists.firstOrNull { it.id == playlist.id } ?: current.copy(name = name.trim()) else current
+                selectedPlaylist?.let { current ->
+                    if (current.id == playlist.id) {
+                        val renamed = playlists.firstOrNull { it.id == playlist.id } ?: current.copy(name = name.trim())
+                        contentState = contentState.copy(selectedPlaylist = renamed)
+                    }
                 }
                 status = "Renamed playlist."
             }.onFailure { error ->
@@ -419,8 +423,10 @@ private fun NaviampAndroidApp() {
             }.onSuccess { playlists ->
                 homeState = homeState.copy(playlists = playlists)
                 if (selectedPlaylist?.id == playlist.id) {
-                    selectedPlaylist = null
-                    selectedPlaylistTracks = emptyList()
+                    contentState = contentState.copy(
+                        selectedPlaylist = null,
+                        selectedPlaylistTracks = emptyList(),
+                    )
                 }
                 recentPlaylistIds = recentPlaylistIds.filterNot { it == playlist.id }
                 status = "Deleted playlist."
@@ -536,7 +542,7 @@ private fun NaviampAndroidApp() {
             }.onSuccess {
                 status = "Connected."
                 editingConnection = false
-                selectedRoute = SharedRoute.Home
+                navigationState = navigationState.copy(route = NaviampRoute.Home)
             }.onFailure { error ->
                 status = error.message ?: "Connection failed."
                 provider = null
@@ -662,7 +668,7 @@ private fun NaviampAndroidApp() {
         },
         nowPlayingOpen = nowPlayingOpen,
         selectedRoute = selectedRoute,
-        onRouteSelected = { selectedRoute = it },
+        onRouteSelected = { route -> navigationState = navigationState.copy(route = route.toNaviampRoute()) },
         onConnectionFormChanged = { form ->
             serverUrl = form.serverUrl
             username = form.username
@@ -675,7 +681,7 @@ private fun NaviampAndroidApp() {
         onConnect = { connectToNavidrome() },
         onEditConnection = { editingConnection = true },
         onCancelEditConnection = { editingConnection = false },
-        onQueryChanged = { query = it },
+        onQueryChanged = { contentState = contentState.copy(searchQuery = it) },
         onSearch = {
             val activeProvider = provider ?: return@NaviampSharedAppShell
             scope.launch {
@@ -683,12 +689,8 @@ private fun NaviampAndroidApp() {
                 runCatching {
                     activeProvider.search(query, limit = 20)
                 }.onSuccess { results ->
-                    searchResults = results
+                    contentState = contentState.clearDetails().copy(searchResults = results)
                     tracks = results.tracks
-                    albumDetail = null
-                    artistDetail = null
-                    selectedPlaylist = null
-                    selectedPlaylistTracks = emptyList()
                     status = if (results.isEmpty) "No matches found." else "Found ${results.totalCount()} matches."
                 }.onFailure { error ->
                     status = error.message ?: "Search failed."
@@ -713,10 +715,7 @@ private fun NaviampAndroidApp() {
                 runCatching {
                     activeProvider.album(app.naviamp.domain.AlbumId(selectedAlbum.id))
                 }.onSuccess { detail ->
-                    albumDetail = detail
-                    artistDetail = null
-                    selectedPlaylist = null
-                    selectedPlaylistTracks = emptyList()
+                    contentState = contentState.showAlbum(detail)
                     tracks = detail.tracks
                     nowPlayingOpen = false
                     status = "Connected."
@@ -789,8 +788,10 @@ private fun NaviampAndroidApp() {
                 ?: run { status = "Playlist not found." }
         },
         onPlaylistBack = {
-            selectedPlaylist = null
-            selectedPlaylistTracks = emptyList()
+            contentState = contentState.copy(
+                selectedPlaylist = null,
+                selectedPlaylistTracks = emptyList(),
+            )
         },
         onPlaylistTrackSelected = { selectedTrack ->
             val track = selectedPlaylistTracks.firstOrNull { it.id.value == selectedTrack.id } ?: findKnownTrack(selectedTrack.id)
@@ -871,10 +872,7 @@ private fun NaviampAndroidApp() {
         onOpenNowPlaying = { nowPlayingOpen = true },
         onCloseNowPlaying = {
             nowPlayingOpen = false
-            albumDetail = null
-            artistDetail = null
-            selectedPlaylist = null
-            selectedPlaylistTracks = emptyList()
+            contentState = contentState.clearDetails()
         },
         onPause = playbackEngine::pause,
         onResume = playbackEngine::resume,
@@ -952,9 +950,9 @@ private fun NaviampAndroidApp() {
             scope.launch {
                 runCatching { activeProvider.album(albumId) }
                     .onSuccess { detail ->
-                        albumDetail = detail
+                        contentState = contentState.showAlbum(detail)
                         nowPlayingOpen = false
-                        selectedRoute = SharedRoute.Library
+                        navigationState = navigationState.copy(route = NaviampRoute.Library)
                     }
                     .onFailure { error -> status = error.message ?: "Album failed to load." }
             }
@@ -1370,6 +1368,34 @@ private fun List<Track>.totalDurationLabel(): String {
     val remainingMinutes = (totalSeconds % 3600) / 60
     return if (hours > 0) "${hours}h ${remainingMinutes}m" else "$minutes minutes"
 }
+
+private fun NaviampRoute.toSharedRoute(): SharedRoute =
+    when (this) {
+        NaviampRoute.Home -> SharedRoute.Home
+        NaviampRoute.Playlists,
+        NaviampRoute.PlaylistDetail,
+        -> SharedRoute.Playlists
+        NaviampRoute.Library -> SharedRoute.Library
+        NaviampRoute.Search,
+        NaviampRoute.AlbumDetail,
+        NaviampRoute.ArtistDetail,
+        NaviampRoute.Player,
+        -> SharedRoute.Search
+        NaviampRoute.Radio -> SharedRoute.Radio
+        NaviampRoute.Downloads -> SharedRoute.Downloads
+        NaviampRoute.Settings -> SharedRoute.Settings
+    }
+
+private fun SharedRoute.toNaviampRoute(): NaviampRoute =
+    when (this) {
+        SharedRoute.Home -> NaviampRoute.Home
+        SharedRoute.Playlists -> NaviampRoute.Playlists
+        SharedRoute.Library -> NaviampRoute.Library
+        SharedRoute.Search -> NaviampRoute.Search
+        SharedRoute.Radio -> NaviampRoute.Radio
+        SharedRoute.Downloads -> NaviampRoute.Downloads
+        SharedRoute.Settings -> NaviampRoute.Settings
+    }
 
 private const val HomeStationLibrary = "library"
 private const val HomeStationRandomAlbum = "random-album"

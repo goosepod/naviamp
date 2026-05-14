@@ -251,7 +251,9 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - `apps:android` builds a debug APK with a minimal Compose shell for Navidrome connection, track search, and direct stream playback.
   - `AndroidMedia3PlaybackEngine` implements the shared `PlaybackEngine` contract with ExoPlayer and a Media3 session. It currently supports play, pause, resume, seek, stop, volume, progress polling, and basic metadata.
   - Android now applies the active Navidrome TLS settings to Media3 stream playback so self-signed/custom/mTLS connection settings also cover the final media URL.
+  - Shared app/session state extraction has started in `core/domain/app`. Android now uses shared navigation/content selection state for route, search, album detail, artist detail, and playlist detail state.
   - Android does not yet have saved connections, session restore, background notification controls, local cache/downloads, or full queue-aware desktop parity.
+
 - Desktop mpv crossfade attempt:
   - A dual-mpv-process crossfade attempt caused regressions in seek, pause, progress polling, and track advancement.
   - `MpvProcessPlaybackEngine` was restored to the stable single-process mpv path and reports `supportsCrossfade = false` again.
@@ -262,6 +264,62 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 - Kotlin/IDE housekeeping:
   - Kotlin version catalog bumped to `2.3.0`.
   - Generated `apps/desktop/bin/` output is ignored.
+
+## Platform-Agnostic Extraction Worklist
+
+Default stance: implement behavior in shared code unless it needs OS APIs, a platform playback engine, platform storage, native file/certificate picking, notification/background service plumbing, or desktop windowing.
+
+1. Shared app/session state layer:
+   - Extract the route, connection, selected album/artist/playlist, search, home, station, now-playing, queue, and status state currently split between desktop `Main.kt` and Android `MainActivity.kt`.
+   - Target shape: a shared app controller/view-model in common code that accepts a `MediaProvider`, playback facade, settings repository, and cache/history interfaces.
+   - Keep Compose window setup, Android activity lifecycle, and desktop window state in platform modules.
+2. Shared queue/playback orchestration:
+   - Move browser-history `BACK TO`, `UP NEXT`, previous-button behavior, up-next selection behavior, shuffle snapshot/restore, repeat mode, queue append/replace, and radio refill policy out of desktop `PlaylistEngine`.
+   - `PlaylistEngine` should become a platform adapter around a shared queue session plus a platform `PlaybackEngine`.
+   - The existing tiny `core/domain/queue/PlayQueue` is not enough for current app behavior and should be replaced or expanded from the proven desktop queue behavior.
+3. Shared playback session persistence models:
+   - Move `PlaybackSessionSettings`, saved track/album/artist/station DTOs, recent radio streams, recent playlist IDs, navigation/search settings, and playback/cache setting models out of desktop settings into common code.
+   - Platform settings stores should only read/write those common serializable models using platform storage.
+4. Shared playlist workflows:
+   - Move playlist details loading, play/shuffle, rename/delete, add-to-playlist target expansion, duplicate handling, and recent-playlist tracking into a shared playlist service.
+   - Desktop and Android should only provide UI callbacks and confirmation surfaces.
+5. Shared internet-radio service:
+   - Move playlist/stream URL resolution from Android `MainActivity` into common code behind a small HTTP client interface.
+   - Share station CRUD orchestration, recent-station tracking, live-stream session restore, and station-to-now-playing model conversion.
+   - Keep actual live audio playback and metadata polling in platform playback engines where required.
+6. Shared lyrics service:
+   - Move LRCLIB query construction, response parsing, LRC parsing, provider/embedded/LRCLIB preference rules, and cache selection into common code.
+   - Keep HTTP transport and embedded-file tag readers behind interfaces because Android and desktop read files/network differently today.
+7. Shared home/browse orchestration:
+   - Move Home content assembly, decade/genre station selection, provider-backed sections, and UI model mapping into common code.
+   - Desktop cache-backed library index can be one implementation of a shared library repository; Android should later use the same contract with SQLDelight Android drivers.
+8. Shared media UI models and mappers:
+   - Move repeated `Track`/`Album`/`Artist`/`Playlist` to UI row mapping into common code so Android does not keep local copies of desktop behavior.
+   - Continue putting reusable Compose surfaces in `core/ui` and only use platform-specific `expect/actual` for cover art/image loading or OS-required pieces.
+9. Shared formatting utilities:
+   - Move duration labels, audio-quality labels, stream stats, bytes labels, decade labels, rating labels, and playlist total-duration labels to common code.
+   - This reduces small UI mismatches and keeps Android/desktop wording consistent.
+10. Shared waveform model and pure analysis helpers:
+   - Keep platform decoders separate: mpv/WAV decode on desktop, MediaCodec on Android.
+   - Share bucket normalization, waveform cache metadata shape, scrubber UI model, and seek math.
+11. Shared cache/download contracts:
+   - Define common repository interfaces for image/API cache, audio cache, waveform cache, downloads, local library index, and playback history.
+   - Desktop can keep its current SQLite/file implementation; Android should implement the same contracts with SQLDelight Android driver and app-scoped storage.
+12. Shared connection/source management:
+   - Move saved connection models, display-name fallback, connection normalization, TLS option models, and source identity concepts into common code.
+   - Keep certificate file selection and platform TLS application in platform/provider source sets.
+13. Shared now-playing parity:
+   - Keep the current shared `NaviampNowPlayingPanel` as the source of truth for Android and desktop visual behavior.
+   - Close remaining visual deltas there first. Android album artwork should get the same kind of drop shadow/depth treatment desktop has.
+14. Shared row/menu action catalog:
+   - Centralize the available row actions for tracks, albums, artists, playlists, stations, downloads, queue rows, and search results so each platform does not manually drift.
+   - UI can still decide whether an action appears as icon-only, menu item, or disabled option.
+
+Known platform-specific boundaries:
+
+- Desktop window creation, menu bar, Stats for Nerds separate window, mpv/JLayer engines, mpv executable resolution, desktop tag readers, and desktop filesystem/cache paths.
+- Android Activity lifecycle, foreground service/media notification, Media3/ExoPlayer engine, Android scoped storage, notification artwork, Android system volume behavior, and Android-specific TLS/media-source wiring.
+- Provider platform source sets for HTTP/TLS/crypto/URL handling may stay split as long as the provider-facing behavior remains shared.
 
 ## Reference Research
 
@@ -359,9 +417,11 @@ Top-of-mind work the user wants:
 - Compact, playback-focused, Plexamp-inspired.
 - Dense UI is preferred over roomy whitespace.
 - Keep text readable; avoid muted grey for important secondary metadata.
+- Album artwork should have depth. Android album art needs a drop shadow/depth treatment matching the desktop player rather than sitting flat on the background.
 - Keep provider-specific logic behind provider modules.
 - Prefer small, focused changes and tests where behavior is nontrivial.
 - Future UI should preserve screen state and scroll/search position when possible.
+- When collapsing the player with the down arrow, return to the last-used screen and restore that screen's last vertical scroll position, not just the route.
 
 ## Suggested Next Issues
 
