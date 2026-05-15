@@ -29,6 +29,8 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.desktop.settings.RecentRadioStream
+import app.naviamp.ui.NaviampAction
+import app.naviamp.ui.playlistRowActions
 
 @Composable
 fun HomePanel(
@@ -315,10 +317,13 @@ private fun PlaylistRow(
         Text("Playlist", color = appColors.mutedText, fontSize = 11.sp)
         RowOverflowMenu(
             appColors = appColors,
-            items = listOf(
-                RowMenuItem("Download playlist", NavigationIcons.Downloads, onDownload),
-                RowMenuItem("Add to playlist", NavigationIcons.Playlist, onAddToPlaylist),
-            ),
+            items = playlistRowActions(canDownload = true, canAddToPlaylist = true).mapNotNull { action ->
+                when (action.action) {
+                    NaviampAction.DownloadPlaylist -> RowMenuItem(action.label, action.icon, onDownload, action.enabled)
+                    NaviampAction.AddPlaylistToPlaylist -> RowMenuItem(action.label, action.icon, onAddToPlaylist, action.enabled)
+                    else -> null
+                }
+            },
         )
     }
 }

@@ -22,6 +22,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.domain.InternetRadioStation
+import app.naviamp.ui.NaviampAction
+import app.naviamp.ui.stationRowActions
 
 @Composable
 fun InternetRadioPanel(
@@ -90,10 +92,13 @@ private fun InternetRadioStationRow(
         }
         RowOverflowMenu(
             appColors = appColors,
-            items = listOf(
-                RowMenuItem("Edit station", NavigationIcons.Edit, onEdit),
-                RowMenuItem("Delete station", NavigationIcons.Trash, onDelete),
-            ),
+            items = stationRowActions(canEdit = true, canDelete = true).mapNotNull { action ->
+                when (action.action) {
+                    NaviampAction.EditStation -> RowMenuItem(action.label, action.icon, onEdit, action.enabled)
+                    NaviampAction.DeleteStation -> RowMenuItem(action.label, action.icon, onDelete, action.enabled)
+                    else -> null
+                }
+            },
         )
     }
 }

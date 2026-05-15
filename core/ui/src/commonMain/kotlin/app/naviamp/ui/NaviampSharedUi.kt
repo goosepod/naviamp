@@ -968,10 +968,13 @@ private fun PlaylistListRow(
         MiniPlayerIconButton(colors, playlist.meta != "1 track", NaviampTransportIcons.Shuffle, "Shuffle playlist", onShuffle)
         NaviampRowOverflowMenu(
             colors = colors,
-            items = listOf(
-                NaviampRowMenuItem("Rename playlist", NaviampIcons.Edit, onRename),
-                NaviampRowMenuItem("Delete playlist", NaviampIcons.Trash, onDelete),
-            ),
+            items = playlistRowActions(canRename = true, canDelete = true).mapNotNull { action ->
+                when (action.action) {
+                    NaviampAction.RenamePlaylist -> NaviampRowMenuItem(action.label, action.icon, onRename, action.enabled)
+                    NaviampAction.DeletePlaylist -> NaviampRowMenuItem(action.label, action.icon, onDelete, action.enabled)
+                    else -> null
+                }
+            },
         )
     }
 }
@@ -1941,6 +1944,7 @@ data class NaviampRowMenuItem(
     val label: String,
     val icon: ImageVector,
     val onClick: () -> Unit,
+    val enabled: Boolean = true,
 )
 
 @Composable
@@ -1967,6 +1971,7 @@ fun NaviampRowOverflowMenu(
                 NaviampDropdownMenuItem(
                     label = item.label,
                     icon = item.icon,
+                    enabled = item.enabled,
                     onClick = {
                         expanded = false
                         item.onClick()

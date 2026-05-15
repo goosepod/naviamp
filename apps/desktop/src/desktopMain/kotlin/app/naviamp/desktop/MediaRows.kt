@@ -24,10 +24,15 @@ import androidx.compose.ui.unit.sp
 import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
 import app.naviamp.domain.Track
+import app.naviamp.ui.NaviampAction
+import app.naviamp.ui.NaviampActionSpec
 import app.naviamp.ui.NaviampRowMenuItem
 import app.naviamp.ui.NaviampRowOverflowMenu
+import app.naviamp.ui.albumRowActions
+import app.naviamp.ui.artistRowActions
 import app.naviamp.ui.compactFavoriteRatingLabel
 import app.naviamp.ui.durationLabel
+import app.naviamp.ui.trackRowActions
 
 @Composable
 fun MediaRow(
@@ -82,10 +87,16 @@ fun ArtistRow(
         )
         RowOverflowMenu(
             appColors = appColors,
-            items = listOfNotNull(
-                onStartRadio?.let { RowMenuItem("Start artist radio", TransportIcons.Radio, it) },
-                onAddToPlaylist?.let { RowMenuItem("Add to playlist", NavigationIcons.Playlist, it) },
-            ),
+            items = artistRowActions(
+                canStartRadio = onStartRadio != null,
+                canAddToPlaylist = onAddToPlaylist != null,
+            ).mapNotNull { action ->
+                when (action.action) {
+                    NaviampAction.StartArtistRadio -> onStartRadio?.let { action.toRowMenuItem(it) }
+                    NaviampAction.AddToPlaylist -> onAddToPlaylist?.let { action.toRowMenuItem(it) }
+                    else -> null
+                }
+            },
         )
     }
 }
@@ -128,11 +139,18 @@ fun AlbumRow(
         }
         RowOverflowMenu(
             appColors = appColors,
-            items = listOfNotNull(
-                onStartRadio?.let { RowMenuItem("Start album radio", TransportIcons.Radio, it) },
-                onDownload?.let { RowMenuItem("Download album", NavigationIcons.Downloads, it) },
-                onAddToPlaylist?.let { RowMenuItem("Add to playlist", NavigationIcons.Playlist, it) },
-            ),
+            items = albumRowActions(
+                canStartRadio = onStartRadio != null,
+                canDownload = onDownload != null,
+                canAddToPlaylist = onAddToPlaylist != null,
+            ).mapNotNull { action ->
+                when (action.action) {
+                    NaviampAction.StartAlbumRadio -> onStartRadio?.let { action.toRowMenuItem(it) }
+                    NaviampAction.DownloadAlbum -> onDownload?.let { action.toRowMenuItem(it) }
+                    NaviampAction.AddToPlaylist -> onAddToPlaylist?.let { action.toRowMenuItem(it) }
+                    else -> null
+                }
+            },
         )
     }
 }
@@ -202,11 +220,18 @@ fun TrackRow(
         if (showMenu || onStartRadio != null || onDownload != null || onAddToPlaylist != null) {
             RowOverflowMenu(
                 appColors = appColors,
-                items = listOfNotNull(
-                    onStartRadio?.let { RowMenuItem("Start track radio", TransportIcons.Radio, it) },
-                    onDownload?.let { RowMenuItem("Download track", NavigationIcons.Downloads, it) },
-                    onAddToPlaylist?.let { RowMenuItem("Add to playlist", NavigationIcons.Playlist, it) },
-                ),
+                items = trackRowActions(
+                    canStartRadio = onStartRadio != null,
+                    canDownload = onDownload != null,
+                    canAddToPlaylist = onAddToPlaylist != null,
+                ).mapNotNull { action ->
+                    when (action.action) {
+                        NaviampAction.StartTrackRadio -> onStartRadio?.let { action.toRowMenuItem(it) }
+                        NaviampAction.DownloadTrack -> onDownload?.let { action.toRowMenuItem(it) }
+                        NaviampAction.AddToPlaylist -> onAddToPlaylist?.let { action.toRowMenuItem(it) }
+                        else -> null
+                    }
+                },
             )
         }
     }
@@ -219,7 +244,7 @@ fun RowOverflowMenu(
 ) {
     NaviampRowOverflowMenu(
         colors = appColors,
-        items = items.map { NaviampRowMenuItem(it.label, it.icon, it.onClick) },
+        items = items.map { NaviampRowMenuItem(it.label, it.icon, it.onClick, it.enabled) },
     )
 }
 
@@ -227,7 +252,11 @@ data class RowMenuItem(
     val label: String,
     val icon: ImageVector,
     val onClick: () -> Unit,
+    val enabled: Boolean = true,
 )
+
+private fun NaviampActionSpec.toRowMenuItem(onClick: () -> Unit): RowMenuItem =
+    RowMenuItem(label = label, icon = icon, onClick = onClick, enabled = enabled)
 
 @Composable
 fun TrackMetadataTrailing(

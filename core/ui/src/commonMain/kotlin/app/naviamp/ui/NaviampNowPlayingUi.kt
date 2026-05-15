@@ -666,88 +666,49 @@ private fun NowPlayingDetails(
                         onDismissRequest = { actionMenuExpanded = false },
                         offset = DpOffset(0.dp, 6.dp),
                     ) {
-                        NaviampDropdownMenuItem(
-                            label = if (nowPlaying.lyricsVisible) "Hide lyrics" else "Show lyrics",
-                            icon = NaviampTransportIcons.Lyrics,
-                            enabled = nowPlaying.lyricsAvailable,
-                            onClick = {
-                                actionMenuExpanded = false
-                                actions.onToggleLyrics()
-                            },
-                        )
-                        NaviampDropdownMenuItem(
-                            label = "Download track",
-                            icon = NaviampIcons.Downloads,
-                            enabled = !nowPlaying.isLive,
-                            onClick = {
-                                actionMenuExpanded = false
-                                actions.onDownloadTrack()
-                            },
-                        )
-                        NaviampDropdownMenuItem(
-                            label = "Track details",
-                            icon = NaviampIcons.Info,
-                            enabled = nowPlaying.detailSections.isNotEmpty(),
-                            onClick = {
-                                actionMenuExpanded = false
-                                trackDetailsOpen = true
-                            },
-                        )
-                        NaviampDropdownMenuItem(
-                            label = trackPreferenceLabel,
-                            icon = NaviampTransportIcons.Heart,
-                            enabled = canSetTrackPreference,
-                            onClick = {
-                                actionMenuExpanded = false
-                                cycleTrackPreference()
-                            },
-                        )
-                        NaviampDropdownMenuItem(
-                            label = "Start track radio",
-                            icon = NaviampTransportIcons.Radio,
-                            enabled = nowPlaying.canStartRadio,
-                            onClick = {
-                                actionMenuExpanded = false
-                                actions.onTrackRadio()
-                            },
-                        )
-                        NaviampDropdownMenuItem(
-                            label = "Go to album",
-                            icon = NaviampIcons.Album,
-                            enabled = !nowPlaying.isLive,
-                            onClick = {
-                                actionMenuExpanded = false
-                                actions.onGoToAlbum()
-                            },
-                        )
-                        NaviampDropdownMenuItem(
-                            label = "Go to artist",
-                            icon = NaviampIcons.Artist,
-                            enabled = !nowPlaying.isLive,
-                            onClick = {
-                                actionMenuExpanded = false
-                                actions.onGoToArtist()
-                            },
-                        )
-                        NaviampDropdownMenuItem(
-                            label = "Add to playlist",
-                            icon = NaviampIcons.Playlist,
-                            enabled = nowPlaying.canAddToPlaylist,
-                            onClick = {
-                                actionMenuExpanded = false
-                                if (nowPlaying.useInlinePlaylistPicker) {
-                                    playlistDialogOpen = null
-                                    playlistDialogOpen = NaviampNowPlayingItemUi(
-                                        id = nowPlaying.id,
-                                        title = nowPlaying.title,
-                                        subtitle = nowPlaying.subtitle,
-                                        coverArtUrl = nowPlaying.coverArtUrl,
-                                    )
-                                } else {
-                                    actions.onAddToPlaylist(null)
-                                }
-                            },
-                        )
+                        nowPlayingTrackMenuActions(
+                            lyricsVisible = nowPlaying.lyricsVisible,
+                            lyricsAvailable = nowPlaying.lyricsAvailable,
+                            isLive = nowPlaying.isLive,
+                            hasDetails = nowPlaying.detailSections.isNotEmpty(),
+                            trackPreferenceLabel = trackPreferenceLabel,
+                            canSetTrackPreference = canSetTrackPreference,
+                            canStartRadio = nowPlaying.canStartRadio,
+                            canAddToPlaylist = nowPlaying.canAddToPlaylist,
+                        ).forEach { action ->
+                            NaviampDropdownMenuItem(
+                                label = action.label,
+                                icon = action.icon,
+                                enabled = action.enabled,
+                                onClick = {
+                                    actionMenuExpanded = false
+                                    when (action.action) {
+                                        NaviampAction.ShowLyrics,
+                                        NaviampAction.HideLyrics -> actions.onToggleLyrics()
+                                        NaviampAction.DownloadTrack -> actions.onDownloadTrack()
+                                        NaviampAction.TrackDetails -> trackDetailsOpen = true
+                                        NaviampAction.TrackPreference -> cycleTrackPreference()
+                                        NaviampAction.StartTrackRadio -> actions.onTrackRadio()
+                                        NaviampAction.GoToAlbum -> actions.onGoToAlbum()
+                                        NaviampAction.GoToArtist -> actions.onGoToArtist()
+                                        NaviampAction.AddToPlaylist -> {
+                                            if (nowPlaying.useInlinePlaylistPicker) {
+                                                playlistDialogOpen = null
+                                                playlistDialogOpen = NaviampNowPlayingItemUi(
+                                                    id = nowPlaying.id,
+                                                    title = nowPlaying.title,
+                                                    subtitle = nowPlaying.subtitle,
+                                                    coverArtUrl = nowPlaying.coverArtUrl,
+                                                )
+                                            } else {
+                                                actions.onAddToPlaylist(null)
+                                            }
+                                        }
+                                        else -> Unit
+                                    }
+                                },
+                            )
+                        }
                     }
                 }
             }
@@ -1368,34 +1329,28 @@ private fun NowPlayingItemList(
                         expanded = menuExpanded,
                         onDismissRequest = { menuExpanded = false },
                     ) {
-                        NaviampDropdownMenuItem(
-                            label = "Start track radio",
-                            icon = NaviampTransportIcons.Radio,
-                            onClick = {
-                                menuExpanded = false
-                                onRadio(item)
-                            },
-                        )
-                        NaviampDropdownMenuItem(
-                            label = "Download track",
-                            icon = NaviampIcons.Downloads,
-                            onClick = {
-                                menuExpanded = false
-                                onDownload(item)
-                            },
-                        )
-                        NaviampDropdownMenuItem(
-                            label = "Add to playlist",
-                            icon = NaviampIcons.Playlist,
-                            onClick = {
-                                menuExpanded = false
-                                if (useInlinePlaylistPicker) {
-                                    playlistDialogOpen = true
-                                } else {
-                                    onAddToPlaylist(item, null)
-                                }
-                            },
-                        )
+                        queueRowActions().forEach { action ->
+                            NaviampDropdownMenuItem(
+                                label = action.label,
+                                icon = action.icon,
+                                enabled = action.enabled,
+                                onClick = {
+                                    menuExpanded = false
+                                    when (action.action) {
+                                        NaviampAction.StartTrackRadio -> onRadio(item)
+                                        NaviampAction.DownloadTrack -> onDownload(item)
+                                        NaviampAction.AddToPlaylist -> {
+                                            if (useInlinePlaylistPicker) {
+                                                playlistDialogOpen = true
+                                            } else {
+                                                onAddToPlaylist(item, null)
+                                            }
+                                        }
+                                        else -> Unit
+                                    }
+                                },
+                            )
+                        }
                     }
                     }
                 }

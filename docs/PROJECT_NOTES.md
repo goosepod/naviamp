@@ -359,6 +359,7 @@ Default stance: implement behavior in shared code unless it needs OS APIs, a pla
 14. Shared row/menu action catalog:
    - Centralize the available row actions for tracks, albums, artists, playlists, stations, downloads, queue rows, and search results so each platform does not manually drift.
    - UI can still decide whether an action appears as icon-only, menu item, or disabled option.
+   - Initial catalog extraction is in place in `core/ui/NaviampActionCatalog.kt`: shared action IDs, labels, icons, enabled-state specs, and helper catalogs for track, album, artist, playlist, station, download, queue, and now-playing menus. Desktop row menus and shared now-playing/queue menus now consume this catalog while keeping platform callbacks local.
 15. Shared settings layout and ui
    - Centralize settings options and layouts so that both desktop and android have a similar interface
    - Find what options can be shared, what isn't needed on android, or what should be added and not on desktop

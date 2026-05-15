@@ -18,6 +18,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.naviamp.ui.NaviampAction
+import app.naviamp.ui.downloadRowActions
 import app.naviamp.ui.storageBytesLabel
 
 @Composable
@@ -71,6 +73,8 @@ fun DownloadsPanel(
             )
         } else {
             downloads.forEachIndexed { index, download ->
+                val rowActions = downloadRowActions(canRemove = true, canAddToPlaylist = true)
+                val removeAction = rowActions.first { it.action == NaviampAction.RemoveDownload }
                 MediaRow(
                     appColors = appColors,
                     onClick = { onTrackSelected(index) },
@@ -115,17 +119,22 @@ fun DownloadsPanel(
                         modifier = Modifier.size(28.dp),
                     ) {
                         Icon(
-                            imageVector = NavigationIcons.Trash,
-                            contentDescription = "Remove download",
+                            imageVector = removeAction.icon,
+                            contentDescription = removeAction.label,
                             tint = appColors.mutedText,
                             modifier = Modifier.size(17.dp),
                         )
                     }
                     RowOverflowMenu(
                         appColors = appColors,
-                        items = listOf(RowMenuItem("Add to playlist", NavigationIcons.Playlist) {
-                            onTrackAddToPlaylist(download)
-                        }),
+                        items = rowActions.mapNotNull { action ->
+                            when (action.action) {
+                                NaviampAction.AddToPlaylist -> RowMenuItem(action.label, action.icon, {
+                                    onTrackAddToPlaylist(download)
+                                }, action.enabled)
+                                else -> null
+                            }
+                        },
                     )
                 }
             }
