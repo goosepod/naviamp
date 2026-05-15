@@ -363,6 +363,8 @@ Default stance: implement behavior in shared code unless it needs OS APIs, a pla
 15. Shared settings layout and ui
    - Centralize settings options and layouts so that both desktop and android have a similar interface
    - Find what options can be shared, what isn't needed on android, or what should be added and not on desktop
+   - Initial settings extraction is in place in `core/ui/NaviampSettingsUi.kt`: shared settings category metadata, shared Android shell settings content, and a shared playback settings section for ReplayGain, crossfade, previous/up-next behavior, debug logging, and LRCLIB. Desktop now uses the shared category metadata and shared playback section while keeping desktop-only connection management, cache sliders, local data actions, and Stats for Nerds wiring local. Android uses the same playback settings layout; unsupported ReplayGain/crossfade options are visible but disabled, while previous-button behavior, up-next behavior, debug logging, and LRCLIB are persisted in Android settings.
+   - Android connection editing now follows the desktop form structure more closely: connection details, optional connection name, username/password row with saved-token reuse, TLS, and mTLS sections.
 
 Known platform-specific boundaries:
 

@@ -56,12 +56,11 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.desktop.settings.CacheSettings
 import app.naviamp.desktop.settings.PlaybackSettings
-import app.naviamp.desktop.settings.PreviousButtonBehavior
-import app.naviamp.desktop.settings.UpNextSelectionBehavior
+import app.naviamp.ui.NaviampPlaybackSettingsSection
+import app.naviamp.ui.NaviampSettingsCategory
 import app.naviamp.ui.storageBytesLabel
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -112,7 +111,7 @@ fun SettingsPanel(
     onResetDatabase: () -> Unit,
 ) {
     val focusManager = LocalFocusManager.current
-    var selectedCategory by remember { mutableStateOf(SettingsCategory.Connections) }
+    var selectedCategory by remember { mutableStateOf(NaviampSettingsCategory.Connections) }
     var statusClickCount by remember { mutableIntStateOf(0) }
     var lastStatusClickMillis by remember { mutableStateOf(0L) }
     var clearCacheDialogOpen by remember { mutableStateOf(false) }
@@ -130,9 +129,9 @@ fun SettingsPanel(
     )
 
     @Composable
-    fun CategoryContent(category: SettingsCategory) {
+    fun CategoryContent(category: NaviampSettingsCategory) {
         when (category) {
-            SettingsCategory.Connections -> ConnectionsSettings(
+            NaviampSettingsCategory.Connections -> ConnectionsSettings(
                 appColors = appColors,
                 serverUrl = serverUrl,
                 connectionName = connectionName,
@@ -165,20 +164,20 @@ fun SettingsPanel(
                 onConnectSavedConnection = onConnectSavedConnection,
                 onCancelConnectionForm = onCancelConnectionForm,
             )
-            SettingsCategory.Playback -> PlaybackSettingsSection(
-                appColors = appColors,
+            NaviampSettingsCategory.Playback -> NaviampPlaybackSettingsSection(
+                colors = appColors,
                 playbackSettings = playbackSettings,
                 supportsReplayGain = supportsReplayGain,
                 supportsCrossfade = supportsCrossfade,
                 onPlaybackSettingsChanged = onPlaybackSettingsChanged,
             )
-            SettingsCategory.Cache -> CacheSettingsSection(
+            NaviampSettingsCategory.Cache -> CacheSettingsSection(
                 appColors = appColors,
                 cacheSettings = cacheSettings,
                 cacheStats = cacheStats,
                 onCacheSettingsChanged = onCacheSettingsChanged,
             )
-            SettingsCategory.LocalData -> LocalDataSettings(
+            NaviampSettingsCategory.LocalData -> LocalDataSettings(
                 appColors = appColors,
                 onClearCache = { clearCacheDialogOpen = true },
                 onClearLibrary = { clearLibraryDialogOpen = true },
@@ -188,7 +187,7 @@ fun SettingsPanel(
                     resetDialogOpen = true
                 },
             )
-            SettingsCategory.Diagnostics -> DiagnosticsSettings(
+            NaviampSettingsCategory.Diagnostics -> DiagnosticsSettings(
                 appColors = appColors,
                 connectionStatus = connectionStatus,
                 statusClickCount = statusClickCount,
@@ -204,7 +203,7 @@ fun SettingsPanel(
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val narrowSettings = maxWidth < 560.dp
-        var narrowCategory by remember { mutableStateOf<SettingsCategory?>(null) }
+        var narrowCategory by remember { mutableStateOf<NaviampSettingsCategory?>(null) }
         val connectionSubtitle = savedConnections
             .firstOrNull { it.id == currentSourceId }
             ?.displayName
@@ -258,7 +257,7 @@ fun SettingsPanel(
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                         modifier = Modifier.width(150.dp),
                     ) {
-                        SettingsCategory.entries.forEach { category ->
+                        NaviampSettingsCategory.entries.forEach { category ->
                             FilterChip(
                                 selected = selectedCategory == category,
                                 onClick = { selectedCategory = category },
@@ -366,7 +365,7 @@ fun SettingsPanel(
 private fun SettingsCategoryList(
     appColors: AppColors,
     connectionSubtitle: String,
-    onCategorySelected: (SettingsCategory) -> Unit,
+    onCategorySelected: (NaviampSettingsCategory) -> Unit,
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -376,11 +375,11 @@ private fun SettingsCategoryList(
     ) {
         Text("Settings", color = appColors.primaryText, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
         Spacer(modifier = Modifier.height(8.dp))
-        SettingsCategory.entries.forEach { category ->
+        NaviampSettingsCategory.entries.forEach { category ->
             SettingsCategoryRow(
                 appColors = appColors,
                 category = category,
-                subtitle = if (category == SettingsCategory.Connections) connectionSubtitle else category.subtitle,
+                subtitle = if (category == NaviampSettingsCategory.Connections) connectionSubtitle else category.subtitle,
                 onClick = { onCategorySelected(category) },
             )
         }
@@ -390,7 +389,7 @@ private fun SettingsCategoryList(
 @Composable
 private fun SettingsCategoryRow(
     appColors: AppColors,
-    category: SettingsCategory,
+    category: NaviampSettingsCategory,
     subtitle: String,
     onClick: () -> Unit,
 ) {
@@ -887,130 +886,6 @@ private fun DeleteConnectionDialog(
 }
 
 @Composable
-private fun PlaybackSettingsSection(
-    appColors: AppColors,
-    playbackSettings: PlaybackSettings,
-    supportsReplayGain: Boolean,
-    supportsCrossfade: Boolean,
-    onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
-) {
-    var upNextHelpOpen by remember { mutableStateOf(false) }
-
-    SettingsSectionTitle("Playback", appColors)
-    Text(
-        if (supportsReplayGain) "ReplayGain" else "ReplayGain unavailable with this playback engine",
-        color = appColors.secondaryText,
-        fontSize = 12.sp,
-    )
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        ReplayGainMode.entries.forEach { mode ->
-            FilterChip(
-                selected = playbackSettings.replayGainMode == mode,
-                enabled = supportsReplayGain || mode == ReplayGainMode.Off,
-                onClick = { onPlaybackSettingsChanged(playbackSettings.copy(replayGainMode = mode)) },
-                label = { Text(mode.displayName, fontSize = 12.sp) },
-                modifier = Modifier.height(28.dp),
-            )
-        }
-    }
-    Text(
-        if (supportsCrossfade) "Crossfade" else "Crossfade unavailable with this playback engine",
-        color = appColors.secondaryText,
-        fontSize = 12.sp,
-    )
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        listOf(0, 3, 5, 8, 12).forEach { seconds ->
-            FilterChip(
-                selected = playbackSettings.crossfadeDurationSeconds == seconds,
-                enabled = supportsCrossfade || seconds == 0,
-                onClick = {
-                    onPlaybackSettingsChanged(playbackSettings.copy(crossfadeDurationSeconds = seconds))
-                },
-                label = { Text(if (seconds == 0) "Off" else "${seconds}s", fontSize = 12.sp) },
-                modifier = Modifier.height(28.dp),
-            )
-        }
-    }
-    Text("Previous button", color = appColors.secondaryText, fontSize = 12.sp)
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        PreviousButtonBehavior.entries.forEach { behavior ->
-            FilterChip(
-                selected = playbackSettings.previousButtonBehavior == behavior,
-                onClick = {
-                    onPlaybackSettingsChanged(playbackSettings.copy(previousButtonBehavior = behavior))
-                },
-                label = { Text(behavior.label, fontSize = 12.sp) },
-                modifier = Modifier.height(28.dp),
-            )
-        }
-    }
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text("Up Next selection", color = appColors.secondaryText, fontSize = 12.sp)
-        IconButton(
-            onClick = { upNextHelpOpen = true },
-            modifier = Modifier.size(24.dp),
-        ) {
-            Icon(
-                imageVector = NavigationIcons.Info,
-                contentDescription = "Up Next selection details",
-                tint = appColors.secondaryText,
-                modifier = Modifier.size(15.dp),
-            )
-        }
-    }
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        UpNextSelectionBehavior.entries.forEach { behavior ->
-            FilterChip(
-                selected = playbackSettings.upNextSelectionBehavior == behavior,
-                onClick = {
-                    onPlaybackSettingsChanged(playbackSettings.copy(upNextSelectionBehavior = behavior))
-                },
-                label = { Text(behavior.label, fontSize = 12.sp) },
-                modifier = Modifier.height(28.dp),
-            )
-        }
-    }
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-        Checkbox(
-            checked = playbackSettings.debugLoggingEnabled,
-            onCheckedChange = { enabled ->
-                onPlaybackSettingsChanged(playbackSettings.copy(debugLoggingEnabled = enabled))
-            },
-        )
-        Text("Debug logging", color = appColors.secondaryText, fontSize = 12.sp)
-    }
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-        Checkbox(
-            checked = playbackSettings.lrclibLyricsEnabled,
-            onCheckedChange = { enabled ->
-                onPlaybackSettingsChanged(playbackSettings.copy(lrclibLyricsEnabled = enabled))
-            },
-        )
-        Text("Use LRCLIB when lyrics are missing or unsynced", color = appColors.secondaryText, fontSize = 12.sp)
-    }
-    if (upNextHelpOpen) {
-        AlertDialog(
-            onDismissRequest = { upNextHelpOpen = false },
-            title = { Text("Up Next selection") },
-            text = {
-                Text(
-                    "Move selected plays the clicked song now and keeps the songs before it in Up Next.\n\n" +
-                        "Skip to selected advances through the queue, so skipped songs move into Back To.",
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = { upNextHelpOpen = false }) {
-                    Text("Close")
-                }
-            },
-        )
-    }
-}
-
-@Composable
 private fun LocalDataSettings(
     appColors: AppColors,
     onClearCache: () -> Unit,
@@ -1353,27 +1228,3 @@ private val DownloadBudgetOptions = listOf(
     AudioCacheBudgetOption("25 GB", 25L * 1024L * 1024L * 1024L),
     AudioCacheBudgetOption("50 GB", 50L * 1024L * 1024L * 1024L),
 )
-
-private val PreviousButtonBehavior.label: String
-    get() = when (this) {
-        PreviousButtonBehavior.RestartThenPrevious -> "Restart first"
-        PreviousButtonBehavior.AlwaysPrevious -> "Always previous"
-    }
-
-private val UpNextSelectionBehavior.label: String
-    get() = when (this) {
-        UpNextSelectionBehavior.MoveSelectedToCurrent -> "Move selected"
-        UpNextSelectionBehavior.SkipToSelected -> "Skip to selected"
-    }
-
-private enum class SettingsCategory(
-    val label: String,
-    val subtitle: String,
-    val icon: ImageVector,
-) {
-    Connections("Connections", "Servers and credentials", NavigationIcons.Settings),
-    Playback("Playback", "Player behavior and lyrics", TransportIcons.Play),
-    Cache("Cache", "Audio cache and downloads", NavigationIcons.Downloads),
-    LocalData("Local data", "Cache, library, and database", NavigationIcons.Library),
-    Diagnostics("Diagnostics", "Stats and debugging", NavigationIcons.Settings),
-}

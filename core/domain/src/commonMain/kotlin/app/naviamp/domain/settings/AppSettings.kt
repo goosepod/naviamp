@@ -13,6 +13,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class ConnectionFormState(
+    val displayName: String = "",
     val serverUrl: String = "",
     val username: String = "",
     val password: String = "",

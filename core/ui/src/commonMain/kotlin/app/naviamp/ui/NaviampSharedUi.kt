@@ -540,27 +540,45 @@ private fun ConnectionCard(
     onConnect: () -> Unit,
     onCancel: (() -> Unit)?,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SettingsSectionTitle("Connection Details", colors)
+        if (isReconnect) {
+            Text(
+                "Saved credentials loaded. Leave password blank to reuse them.",
+                color = colors.mutedText,
+                fontSize = 11.sp,
+            )
+        }
+        NaviampTextField(
+            value = form.displayName,
+            onValueChange = { onFormChanged(form.copy(displayName = it)) },
+            label = "Connection name (optional)",
+            colors = colors,
+        )
         NaviampTextField(
             value = form.serverUrl,
             onValueChange = { onFormChanged(form.copy(serverUrl = it)) },
             label = "Server URL",
             colors = colors,
         )
-        NaviampTextField(
-            value = form.username,
-            onValueChange = { onFormChanged(form.copy(username = it)) },
-            label = "Username",
-            colors = colors,
-        )
-        NaviampTextField(
-            value = form.password,
-            onValueChange = { onFormChanged(form.copy(password = it)) },
-            label = "Password",
-            colors = colors,
-            isPassword = true,
-        )
-        Text("TLS", color = colors.primaryText, fontWeight = FontWeight.Bold)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            NaviampTextField(
+                value = form.username,
+                onValueChange = { onFormChanged(form.copy(username = it)) },
+                label = "Username",
+                colors = colors,
+                modifier = Modifier.weight(1f),
+            )
+            NaviampTextField(
+                value = form.password,
+                onValueChange = { onFormChanged(form.copy(password = it)) },
+                label = if (isReconnect) "Password (optional)" else "Password",
+                colors = colors,
+                isPassword = true,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        SettingsSectionTitle("TLS", colors)
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -579,7 +597,7 @@ private fun ConnectionCard(
             colors = colors,
             enabled = !form.skipTlsVerification,
         )
-        Text("mTLS", color = colors.primaryText, fontWeight = FontWeight.Bold)
+        SettingsSectionTitle("mTLS", colors)
         NaviampTextField(
             value = form.clientCertificatePath,
             onValueChange = { onFormChanged(form.copy(clientCertificatePath = it)) },
@@ -593,14 +611,19 @@ private fun ConnectionCard(
             colors = colors,
             isPassword = true,
         )
-        PrimaryButton(
-            label = if (isReconnect) "Save and reconnect" else "Connect",
-            colors = colors,
-            onClick = onConnect,
-        )
-        onCancel?.let {
-            TextButton(onClick = it, modifier = Modifier.fillMaxWidth()) {
-                Text("Cancel", color = colors.secondaryText)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            PrimaryButton(
+                label = if (isReconnect) "Save and connect" else "Connect",
+                colors = colors,
+                onClick = onConnect,
+            )
+            onCancel?.let {
+                TextButton(onClick = it) {
+                    Text("Cancel", color = colors.secondaryText)
+                }
             }
         }
     }
@@ -1336,26 +1359,12 @@ private fun SettingsContent(
     onEditConnection: () -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("Settings", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        SettingsRow("Connection", "Edit Navidrome server and TLS options", colors, onEditConnection)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(
-                checked = playbackSettings.lrclibLyricsEnabled,
-                onCheckedChange = { enabled ->
-                    onPlaybackSettingsChanged(playbackSettings.copy(lrclibLyricsEnabled = enabled))
-                },
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Use LRCLIB", color = colors.primaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                Text(
-                    "Pull online lyrics when server lyrics are missing or unsynced",
-                    color = colors.secondaryText,
-                    fontSize = 12.sp,
-                )
-            }
-        }
-    }
+    NaviampSharedSettingsContent(
+        colors = colors,
+        playbackSettings = playbackSettings,
+        onEditConnection = onEditConnection,
+        onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+    )
 }
 
 @Composable
@@ -1665,28 +1674,12 @@ private fun SharedMediaRow(
 }
 
 @Composable
-private fun SettingsRow(title: String, subtitle: String, colors: NaviampColors, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(title, color = colors.primaryText, fontSize = 15.sp)
-            Text(subtitle, color = colors.mutedText, fontSize = 12.sp)
-        }
-        Icon(NaviampIcons.ChevronRight, contentDescription = null, tint = colors.secondaryText, modifier = Modifier.size(18.dp))
-    }
-}
-
-@Composable
 private fun NaviampTextField(
     value: String,
     onValueChange: (String) -> Unit,
     label: String,
     colors: NaviampColors,
+    modifier: Modifier = Modifier.fillMaxWidth(),
     enabled: Boolean = true,
     isPassword: Boolean = false,
 ) {
@@ -1697,7 +1690,7 @@ private fun NaviampTextField(
         singleLine = true,
         enabled = enabled,
         visualTransformation = if (isPassword) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier,
     )
 }
 

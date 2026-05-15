@@ -55,6 +55,7 @@ import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.PlaybackSessionSettings
+import app.naviamp.domain.settings.PreviousButtonBehavior
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
@@ -119,6 +120,7 @@ private fun NaviampAndroidApp() {
     val savedProviderConnection = savedProviderSource?.toNavidromeConnection()
     val savedConnection = remember { settingsStore.loadConnection(savedProviderConnection) }
     val savedPlaybackSettings = remember { settingsStore.loadPlaybackSettings() }
+    var connectionName by remember { mutableStateOf(savedConnection.displayName) }
     var serverUrl by remember { mutableStateOf(savedConnection.serverUrl) }
     var username by remember { mutableStateOf(savedConnection.username) }
     var password by remember { mutableStateOf(savedConnection.password) }
@@ -386,6 +388,14 @@ private fun NaviampAndroidApp() {
 
     fun playAdjacentTrack(offset: Int) {
         val currentTrack = nowPlaying ?: return
+        if (
+            offset < 0 &&
+            playbackSettings.previousButtonBehavior == PreviousButtonBehavior.RestartThenPrevious &&
+            (playbackProgress.positionSeconds ?: 0.0) > 3.0
+        ) {
+            performSeek(0.0)
+            return
+        }
         val knownTracks = activeQueue()
         val currentIndex = knownTracks.indexOfFirst { it.id == currentTrack.id }
         if (currentIndex < 0) return
@@ -738,6 +748,7 @@ private fun NaviampAndroidApp() {
 
     fun currentConnectionForm(): ConnectionFormState =
         ConnectionFormState(
+            displayName = connectionName,
             serverUrl = serverUrl,
             username = username,
             password = password,
@@ -791,12 +802,23 @@ private fun NaviampAndroidApp() {
         )
         scope.launch {
             runCatching {
-                NavidromeConnection.fromPassword(
-                    baseUrl = connectionForm.serverUrl,
-                    username = connectionForm.username,
-                    password = connectionForm.password,
-                    tlsSettings = tlsSettings,
-                )
+                val displayName = connectionForm.displayName.trim().takeIf { it.isNotEmpty() }
+                if (connectionForm.password.isBlank() && savedProviderConnection != null) {
+                    savedProviderConnection.copy(
+                        baseUrl = connectionForm.serverUrl,
+                        username = connectionForm.username,
+                        displayName = displayName,
+                        tlsSettings = tlsSettings,
+                    )
+                } else {
+                    NavidromeConnection.fromPassword(
+                        baseUrl = connectionForm.serverUrl,
+                        username = connectionForm.username,
+                        password = connectionForm.password,
+                        displayName = displayName,
+                        tlsSettings = tlsSettings,
+                    )
+                }
             }.onSuccess { connection ->
                 settingsStore.saveConnection(connectionForm)
                 connectWithNavidromeConnection(connection)
@@ -837,6 +859,7 @@ private fun NaviampAndroidApp() {
         connected = provider != null,
         editingConnection = editingConnection,
         connectionForm = ConnectionFormState(
+            displayName = connectionName,
             serverUrl = serverUrl,
             username = username,
             password = password,
@@ -936,6 +959,7 @@ private fun NaviampAndroidApp() {
         selectedRoute = selectedRoute,
         onRouteSelected = { route -> navigationState = navigationState.copy(route = route.toNaviampRoute()) },
         onConnectionFormChanged = { form ->
+            connectionName = form.displayName
             serverUrl = form.serverUrl
             username = form.username
             password = form.password
