@@ -61,6 +61,8 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.naviamp.domain.waveform.playbackFraction
+import app.naviamp.domain.waveform.seekSecondsForFraction
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -308,7 +310,7 @@ private fun NowPlayingDetails(
                 }
             } else {
                 WaveformScrubber(
-                    amplitudes = nowPlaying.waveformAmplitudes,
+                    amplitudes = nowPlaying.waveform?.amplitudes.orEmpty(),
                     value = scrubberValue.coerceIn(0f, 1f),
                     enabled = canSeek,
                     colors = colors,
@@ -318,9 +320,7 @@ private fun NowPlayingDetails(
                     },
                     onValueChangeFinished = { seekFraction ->
                         scrubberValue = seekFraction
-                        nowPlaying.durationSeconds?.let { duration ->
-                            actions.onSeek(seekFraction * duration)
-                        }
+                        seekSecondsForFraction(seekFraction, nowPlaying.durationSeconds)?.let(actions.onSeek)
                         isScrubbing = false
                     },
                     modifier = Modifier
@@ -1350,12 +1350,7 @@ private fun BouncingTitleText(
 }
 
 private val NowPlayingUi.progressFraction: Double
-    get() {
-        val position = positionSeconds ?: return 0.0
-        val duration = durationSeconds ?: return 0.0
-        if (duration <= 0.0) return 0.0
-        return (position / duration).coerceIn(0.0, 1.0)
-    }
+    get() = playbackFraction(positionSeconds, durationSeconds)
 
 private fun secondsLabel(seconds: Double?): String {
     val total = seconds?.roundToInt() ?: return "--:--"

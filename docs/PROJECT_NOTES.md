@@ -332,6 +332,8 @@ Default stance: implement behavior in shared code unless it needs OS APIs, a pla
 10. Shared waveform model and pure analysis helpers:
    - Keep platform decoders separate: mpv/WAV decode on desktop, MediaCodec on Android.
    - Share bucket normalization, waveform cache metadata shape, scrubber UI model, and seek math.
+   - Initial extraction is in place in `core/domain/waveform`: shared `AudioWaveform`, waveform cache metadata, stream-quality waveform cache keys, bucket normalization for decoded peaks/PCM samples, playback fraction, and seek-target math.
+   - Desktop still decodes through mpv/WAV and Android still decodes through MediaCodec, but both now delegate pure bucket normalization to shared code and use the same waveform model.
 11. Shared cache/download contracts:
    - Define common repository interfaces for image/API cache, audio cache, waveform cache, downloads, local library index, and playback history.
    - Desktop can keep its current SQLite/file implementation; Android should implement the same contracts with SQLDelight Android driver and app-scoped storage.
@@ -344,6 +346,9 @@ Default stance: implement behavior in shared code unless it needs OS APIs, a pla
 14. Shared row/menu action catalog:
    - Centralize the available row actions for tracks, albums, artists, playlists, stations, downloads, queue rows, and search results so each platform does not manually drift.
    - UI can still decide whether an action appears as icon-only, menu item, or disabled option.
+15. Shared settings layout and ui
+   - Centralize settings options and layouts so that both desktop and android have a similar interface
+   - Find what options can be shared, what isn't needed on android, or what should be added and not on desktop
 
 Known platform-specific boundaries:
 

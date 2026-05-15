@@ -20,6 +20,9 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
+import app.naviamp.domain.waveform.AudioWaveform
+import app.naviamp.domain.waveform.AudioWaveformCacheMetadata
+import app.naviamp.domain.waveform.waveformCacheKey
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import kotlinx.coroutines.Dispatchers
@@ -260,16 +263,25 @@ class DesktopCache(
             val qualityKey = quality.waveformCacheKey()
             val amplitudesJson = json.encodeToString(waveform.amplitudes)
             val now = nowMillis()
+            val metadata = AudioWaveformCacheMetadata(
+                sourceId = sourceId,
+                remoteTrackId = trackId.value,
+                qualityKey = qualityKey,
+                bucketCount = waveform.amplitudes.size,
+                sizeBytes = amplitudesJson.toByteArray(Charsets.UTF_8).size.toLong(),
+                createdAtEpochMillis = now,
+                lastAccessedEpochMillis = now,
+            )
             queries.upsertCachedAudioWaveform(
-                source_id = sourceId,
-                remote_track_id = trackId.value,
-                quality_key = qualityKey,
+                source_id = metadata.sourceId,
+                remote_track_id = metadata.remoteTrackId,
+                quality_key = metadata.qualityKey,
                 audio_file_path = audioPath.toAbsolutePath().toString(),
-                bucket_count = waveform.amplitudes.size.toLong(),
+                bucket_count = metadata.bucketCount.toLong(),
                 amplitudes_json = amplitudesJson,
-                size_bytes = amplitudesJson.toByteArray(Charsets.UTF_8).size.toLong(),
-                created_at_epoch_millis = now,
-                last_accessed_epoch_millis = now,
+                size_bytes = metadata.sizeBytes,
+                created_at_epoch_millis = metadata.createdAtEpochMillis,
+                last_accessed_epoch_millis = metadata.lastAccessedEpochMillis,
             )
             trimAudioWaveformStore()
             waveform
@@ -1044,10 +1056,6 @@ data class DownloadedTrack(
     val downloadedAtEpochMillis: Long,
 )
 
-data class AudioWaveform(
-    val amplitudes: List<Float>,
-)
-
 data class SavedMediaSource(
     val id: String,
     val providerId: String,
@@ -1511,9 +1519,6 @@ private fun StreamQuality.cacheKey(): String =
         StreamQuality.Original -> "original"
         is StreamQuality.Transcoded -> "transcoded:${codec.name.lowercase()}:$bitrateKbps"
     }
-
-private fun StreamQuality.waveformCacheKey(): String =
-    "${cacheKey()}:waveform-v2"
 
 private fun String?.audioExtension(): String =
     when (this?.lowercase()?.substringBefore(";")?.trim()) {

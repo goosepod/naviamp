@@ -55,6 +55,7 @@ import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.PlaybackSessionSettings
+import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
@@ -161,7 +162,7 @@ private fun NaviampAndroidApp() {
     var pendingSeekIssuedAtMillis by remember { mutableStateOf<Long?>(null) }
     var playbackSessionToken by remember { mutableStateOf(0L) }
     var volumePercent by remember { mutableStateOf(100) }
-    var waveformByTrackId by remember { mutableStateOf<Map<String, List<Float>>>(emptyMap()) }
+    var waveformByTrackId by remember { mutableStateOf<Map<String, AudioWaveform>>(emptyMap()) }
     var playbackQueue by remember { mutableStateOf(PlaybackQueue()) }
     var shuffledUpNextSnapshot by remember { mutableStateOf<List<Track>?>(null) }
     var repeatMode by remember { mutableStateOf(RepeatMode.Off) }
@@ -887,7 +888,7 @@ private fun NaviampAndroidApp() {
                     track.albumReleaseYear?.toString(),
                 ).joinToString(" - "),
                 audioInfo = track.audioInfo?.compactLabel().orEmpty(),
-                waveformAmplitudes = waveformByTrackId[track.id.value].orEmpty(),
+                waveform = waveformByTrackId[track.id.value],
                 positionSeconds = playbackProgress.positionSeconds,
                 durationSeconds = track.durationSeconds?.toDouble() ?: playbackProgress.durationSeconds,
                 volumePercent = volumePercent,

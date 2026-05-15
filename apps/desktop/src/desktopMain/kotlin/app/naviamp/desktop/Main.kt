@@ -74,6 +74,7 @@ import app.naviamp.domain.lyrics.selectPreferredLyrics
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioService
+import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.desktop.settings.DesktopSettingsStore
 import app.naviamp.desktop.settings.NavigationSettings
 import app.naviamp.desktop.settings.PlaybackSettings

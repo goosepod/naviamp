@@ -6,6 +6,7 @@ import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.waveform.playbackFraction
 
 fun Track.durationLabel(): String {
     val duration = durationSeconds ?: return "--:--"
@@ -48,10 +49,7 @@ fun Double?.durationLabel(): String =
     this?.toTimeLabel() ?: "--:--"
 
 fun PlaybackProgress.fraction(effectiveDurationSeconds: Double?): Double {
-    val position = positionSeconds ?: return 0.0
-    val duration = effectiveDurationSeconds ?: return 0.0
-    if (duration <= 0.0) return 0.0
-    return (position / duration).coerceIn(0.0, 1.0)
+    return playbackFraction(positionSeconds, effectiveDurationSeconds)
 }
 
 fun PlaybackEngine.streamQuality(): StreamQuality =

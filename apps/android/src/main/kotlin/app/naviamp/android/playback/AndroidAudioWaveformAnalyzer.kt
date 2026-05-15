@@ -4,6 +4,9 @@ import android.content.Context
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
+import app.naviamp.domain.waveform.AudioWaveform
+import app.naviamp.domain.waveform.DefaultWaveformBucketCount
+import app.naviamp.domain.waveform.normalizeWaveformPeaks
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -14,11 +17,11 @@ import kotlin.math.abs
 
 class AndroidAudioWaveformAnalyzer(
     context: Context,
-    private val bucketCount: Int = DefaultBucketCount,
+    private val bucketCount: Int = DefaultWaveformBucketCount,
 ) {
     private val cacheDirectory = File(context.cacheDir, "waveforms").apply { mkdirs() }
 
-    suspend fun analyze(trackId: String, streamUrl: String): List<Float>? =
+    suspend fun analyze(trackId: String, streamUrl: String): AudioWaveform? =
         withContext(Dispatchers.IO) {
             val audioFile = downloadToCache(trackId, streamUrl) ?: return@withContext null
             decodePeaks(audioFile)
@@ -51,7 +54,7 @@ class AndroidAudioWaveformAnalyzer(
         }
     }
 
-    private fun decodePeaks(audioFile: File): List<Float>? {
+    private fun decodePeaks(audioFile: File): AudioWaveform? {
         val extractor = MediaExtractor()
         var codec: MediaCodec? = null
         return try {
@@ -116,7 +119,7 @@ class AndroidAudioWaveformAnalyzer(
                 }
             }
 
-            peaks.toBuckets(bucketCount)
+            normalizeWaveformPeaks(peaks, bucketCount)
         } catch (_: Exception) {
             null
         } finally {
@@ -141,20 +144,7 @@ private fun ByteBuffer.peak(offset: Int, size: Int): Float {
     return peak.coerceIn(0f, 1f)
 }
 
-private fun List<Float>.toBuckets(bucketCount: Int): List<Float>? {
-    if (isEmpty()) return null
-    val buckets = FloatArray(bucketCount)
-    forEachIndexed { index, peak ->
-        val bucket = ((index / lastIndex.coerceAtLeast(1).toFloat()) * (bucketCount - 1)).toInt()
-        if (peak > buckets[bucket]) buckets[bucket] = peak
-    }
-    val max = buckets.maxOrNull() ?: return null
-    if (max <= 0f) return List(bucketCount) { 0f }
-    return buckets.map { (it / max).coerceIn(0f, 1f) }
-}
-
 private fun String.safeFileName(): String =
     replace(Regex("[^A-Za-z0-9._-]"), "_").take(96).ifBlank { "track" }
 
-private const val DefaultBucketCount = 180
 private const val MaxCachedAudioBytes = 120L * 1024L * 1024L

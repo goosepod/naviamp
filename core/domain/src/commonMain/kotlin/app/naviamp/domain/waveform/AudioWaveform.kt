@@ -1,0 +1,95 @@
+package app.naviamp.domain.waveform
+
+import app.naviamp.domain.StreamQuality
+import kotlin.math.ceil
+import kotlin.math.sqrt
+
+data class AudioWaveform(
+    val amplitudes: List<Float>,
+)
+
+data class AudioWaveformCacheMetadata(
+    val sourceId: String,
+    val remoteTrackId: String,
+    val qualityKey: String,
+    val bucketCount: Int,
+    val sizeBytes: Long,
+    val createdAtEpochMillis: Long,
+    val lastAccessedEpochMillis: Long,
+)
+
+fun StreamQuality.waveformCacheKey(): String =
+    when (this) {
+        StreamQuality.Original -> "original"
+        is StreamQuality.Transcoded -> "transcoded:${codec.name.lowercase()}:$bitrateKbps"
+    } + ":waveform-v2"
+
+fun playbackFraction(positionSeconds: Double?, durationSeconds: Double?): Double {
+    val position = positionSeconds ?: return 0.0
+    val duration = durationSeconds ?: return 0.0
+    if (duration <= 0.0) return 0.0
+    return (position / duration).coerceIn(0.0, 1.0)
+}
+
+fun seekSecondsForFraction(fraction: Float, durationSeconds: Double?): Double? =
+    durationSeconds?.takeIf { it > 0.0 }?.let { fraction.coerceIn(0f, 1f) * it }
+
+fun normalizeWaveformPeaks(
+    peaks: List<Float>,
+    bucketCount: Int = DefaultWaveformBucketCount,
+): AudioWaveform? {
+    if (peaks.isEmpty() || bucketCount <= 0) return null
+    val buckets = FloatArray(bucketCount)
+    peaks.forEachIndexed { index, peak ->
+        val bucket = ((index / peaks.lastIndex.coerceAtLeast(1).toFloat()) * (bucketCount - 1)).toInt()
+        buckets[bucket] = maxOf(buckets[bucket], peak.coerceIn(0f, 1f))
+    }
+    return normalizeBuckets(buckets)
+}
+
+fun normalizePcm16Waveform(
+    sampleCount: Int,
+    bucketCount: Int = DefaultWaveformBucketCount,
+    sampleAmplitude: (Int) -> Float,
+): AudioWaveform? {
+    if (sampleCount <= 0 || bucketCount <= 0) return null
+
+    val buckets = FloatArray(bucketCount)
+    repeat(bucketCount) { bucket ->
+        val sampleStart = ((bucket / bucketCount.toFloat()) * sampleCount).toInt()
+        val sampleEnd = ceil(((bucket + 1) / bucketCount.toFloat()) * sampleCount)
+            .toInt()
+            .coerceAtMost(sampleCount)
+        if (sampleStart >= sampleEnd) return@repeat
+
+        var sumSquares = 0.0
+        var peak = 0f
+        var count = 0
+        var sampleIndex = sampleStart
+        while (sampleIndex < sampleEnd) {
+            val amplitude = sampleAmplitude(sampleIndex).coerceIn(0f, 1f)
+            sumSquares += (amplitude * amplitude).toDouble()
+            peak = maxOf(peak, amplitude)
+            count += 1
+            sampleIndex += 1
+        }
+
+        if (count > 0) {
+            val rms = sqrt(sumSquares / count).toFloat()
+            buckets[bucket] = rms * RmsWeight + peak * PeakWeight
+        }
+    }
+
+    return normalizeBuckets(buckets)
+}
+
+private fun normalizeBuckets(buckets: FloatArray): AudioWaveform {
+    val max = buckets.maxOrNull() ?: 0f
+    if (max <= 0f) return AudioWaveform(List(buckets.size) { 0f })
+    return AudioWaveform(buckets.map { (it / max).coerceIn(0f, 1f) })
+}
+
+const val DefaultWaveformBucketCount = 180
+
+private const val RmsWeight = 0.82f
+private const val PeakWeight = 0.18f

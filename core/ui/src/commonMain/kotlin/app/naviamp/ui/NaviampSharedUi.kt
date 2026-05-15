@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.DpOffset
 import app.naviamp.domain.Track
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.homeStations
+import app.naviamp.domain.waveform.AudioWaveform
 
 data class NaviampColors(
     val background: Color = Color(0xFF101114),
@@ -232,7 +233,7 @@ data class NowPlayingUi(
     val isLive: Boolean = false,
     val albumLine: String = "",
     val audioInfo: String = "",
-    val waveformAmplitudes: List<Float> = emptyList(),
+    val waveform: AudioWaveform? = null,
     val positionSeconds: Double? = null,
     val durationSeconds: Double? = null,
     val volumePercent: Int = 100,

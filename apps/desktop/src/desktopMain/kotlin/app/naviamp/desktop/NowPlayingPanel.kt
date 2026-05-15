@@ -74,6 +74,8 @@ import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.queue.RepeatMode
+import app.naviamp.domain.waveform.AudioWaveform
+import app.naviamp.domain.waveform.seekSecondsForFraction
 import app.naviamp.ui.NaviampTransportIconButton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -592,9 +594,7 @@ private fun PlayerDetails(
                     },
                     onValueChangeFinished = { seekFraction ->
                         scrubberValue = seekFraction
-                        effectiveDurationSeconds?.let { duration ->
-                            onSeek(seekFraction * duration)
-                        }
+                        seekSecondsForFraction(seekFraction, effectiveDurationSeconds)?.let(onSeek)
                         isScrubbing = false
                     },
                     modifier = Modifier
@@ -609,9 +609,7 @@ private fun PlayerDetails(
                         scrubberValue = it
                     },
                     onValueChangeFinished = {
-                        effectiveDurationSeconds?.let { duration ->
-                            onSeek(scrubberValue * duration)
-                        }
+                        seekSecondsForFraction(scrubberValue, effectiveDurationSeconds)?.let(onSeek)
                         isScrubbing = false
                     },
                     enabled = canSeek,
