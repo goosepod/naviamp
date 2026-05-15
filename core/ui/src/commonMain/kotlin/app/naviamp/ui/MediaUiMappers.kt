@@ -97,18 +97,3 @@ fun InternetRadioStation.toNowPlayingStationUi(): NaviampNowPlayingItemUi =
         title = name,
         subtitle = homePageUrl ?: "Internet radio",
     )
-
-private fun List<Track>.totalDurationLabel(): String {
-    val totalSeconds = mapNotNull { it.durationSeconds }.sum()
-    if (totalSeconds <= 0) return ""
-    val hours = totalSeconds / 3600
-    val minutes = totalSeconds / 60
-    val remainingMinutes = (totalSeconds % 3600) / 60
-    return if (hours > 0) "${hours}h ${remainingMinutes}m" else "$minutes minutes"
-}
-
-private fun Int.durationLabel(): String {
-    val minutes = this / 60
-    val seconds = this % 60
-    return "$minutes:${seconds.toString().padStart(2, '0')}"
-}

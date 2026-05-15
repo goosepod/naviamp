@@ -326,6 +326,8 @@ Default stance: implement behavior in shared code unless it needs OS APIs, a pla
    - Continue putting reusable Compose surfaces in `core/ui` and only use platform-specific `expect/actual` for cover art/image loading or OS-required pieces.
 9. Shared formatting utilities:
    - Move duration labels, audio-quality labels, stream stats, bytes labels, decade labels, rating labels, and playlist total-duration labels to common code.
+   - Initial extraction is in place in `core/ui/Formatting.kt`: track/int/double duration labels, byte/storage-size labels, stream-quality labels, compact audio-info labels, rating labels, replay-gain decimal labels, and playlist total-duration labels.
+   - Android detail/now-playing audio labels, shared media UI mappers, and desktop cache/download/stats byte labels now use shared formatting helpers.
    - This reduces small UI mismatches and keeps Android/desktop wording consistent.
 10. Shared waveform model and pure analysis helpers:
    - Keep platform decoders separate: mpv/WAV decode on desktop, MediaCodec on Android.

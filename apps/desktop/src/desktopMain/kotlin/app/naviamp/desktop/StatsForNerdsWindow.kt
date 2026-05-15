@@ -28,6 +28,7 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.rememberWindowState
 import app.naviamp.desktop.playback.AudioPrefetchStats
 import app.naviamp.desktop.playback.CacheRuntimeStats
+import app.naviamp.ui.bytesLabel
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -427,18 +428,6 @@ data class ApiCallStats(
 ) {
     val statusLabel: String
         get() = if (success) "OK" else "ERROR"
-}
-
-private fun Long.bytesLabel(): String {
-    val kib = 1024.0
-    val mib = kib * 1024.0
-    val gib = mib * 1024.0
-    return when {
-        this >= gib -> "%.1f GB".format(this / gib)
-        this >= mib -> "%.1f MB".format(this / mib)
-        this >= kib -> "%.1f KB".format(this / kib)
-        else -> "$this B"
-    }
 }
 
 private fun Long?.dateTimeLabel(): String =

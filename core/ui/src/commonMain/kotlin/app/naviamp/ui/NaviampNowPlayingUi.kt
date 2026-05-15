@@ -6,8 +6,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -53,7 +51,6 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -665,71 +662,72 @@ private fun WaveformScrubber(
     onValueChangeFinished: (Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var widthPx by remember { mutableFloatStateOf(1f) }
     var latestValue by remember(value) { mutableFloatStateOf(value.coerceIn(0f, 1f)) }
 
-    fun updateFromX(x: Float): Float {
-        if (!enabled) return latestValue
-        val nextValue = (x / widthPx).coerceIn(0f, 1f)
-        latestValue = nextValue
-        onValueChange(nextValue)
-        return nextValue
-    }
-
-    Canvas(
+    Box(
         modifier = modifier
             .clip(RoundedCornerShape(4.dp))
-            .onSizeChanged { widthPx = it.width.toFloat().coerceAtLeast(1f) }
-            .pointerInput(enabled, widthPx) {
-                detectTapGestures { offset ->
-                    onValueChangeFinished(updateFromX(offset.x))
-                }
-            }
-            .pointerInput(enabled, widthPx) {
-                detectDragGestures(
-                    onDragStart = { offset -> updateFromX(offset.x) },
-                    onDrag = { change, _ -> updateFromX(change.position.x) },
-                    onDragEnd = { onValueChangeFinished(latestValue) },
-                    onDragCancel = { onValueChangeFinished(latestValue) },
-                )
-            },
     ) {
-        if (amplitudes.isEmpty()) {
-            drawFallbackScrubLine(value, enabled, colors)
-            return@Canvas
+        Canvas(
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            if (amplitudes.isEmpty()) {
+                drawFallbackScrubLine(value, enabled, colors)
+                return@Canvas
+            }
+
+            val centerY = size.height / 2f
+            val visibleBars = minOf(amplitudes.size, (size.width / 3f).toInt().coerceAtLeast(24))
+            val step = size.width / visibleBars.toFloat()
+            val strokeWidth = (step * 0.62f).coerceIn(1.2f, 2.4f)
+            val minBarHeight = 2.5f
+            val maxBarHeight = size.height * 0.92f
+
+            repeat(visibleBars) { index ->
+                val sourceIndex = if (visibleBars == 1) {
+                    0
+                } else {
+                    ((index / (visibleBars - 1f)) * (amplitudes.size - 1)).toInt()
+                }
+                val amplitude = amplitudes[sourceIndex].coerceIn(0f, 1f)
+                val barHeight = (minBarHeight + amplitude * (maxBarHeight - minBarHeight))
+                    .coerceAtMost(size.height)
+                val ratio = if (visibleBars == 1) 0f else index / (visibleBars - 1f)
+                val color = when {
+                    !enabled -> colors.mutedText.copy(alpha = 0.28f)
+                    ratio <= value -> colors.primaryText.copy(alpha = 0.92f)
+                    else -> colors.primaryText.copy(alpha = 0.30f)
+                }
+                val x = index * step + step / 2f
+                drawLine(
+                    color = color,
+                    start = Offset(x, centerY - barHeight / 2f),
+                    end = Offset(x, centerY + barHeight / 2f),
+                    strokeWidth = strokeWidth,
+                    cap = StrokeCap.Round,
+                )
+            }
         }
 
-        val centerY = size.height / 2f
-        val visibleBars = minOf(amplitudes.size, (size.width / 3f).toInt().coerceAtLeast(24))
-        val step = size.width / visibleBars.toFloat()
-        val strokeWidth = (step * 0.62f).coerceIn(1.2f, 2.4f)
-        val minBarHeight = 2.5f
-        val maxBarHeight = size.height * 0.92f
-
-        repeat(visibleBars) { index ->
-            val sourceIndex = if (visibleBars == 1) {
-                0
-            } else {
-                ((index / (visibleBars - 1f)) * (amplitudes.size - 1)).toInt()
-            }
-            val amplitude = amplitudes[sourceIndex].coerceIn(0f, 1f)
-            val barHeight = (minBarHeight + amplitude * (maxBarHeight - minBarHeight))
-                .coerceAtMost(size.height)
-            val ratio = if (visibleBars == 1) 0f else index / (visibleBars - 1f)
-            val color = when {
-                !enabled -> colors.mutedText.copy(alpha = 0.28f)
-                ratio <= value -> colors.primaryText.copy(alpha = 0.92f)
-                else -> colors.primaryText.copy(alpha = 0.30f)
-            }
-            val x = index * step + step / 2f
-            drawLine(
-                color = color,
-                start = Offset(x, centerY - barHeight / 2f),
-                end = Offset(x, centerY + barHeight / 2f),
-                strokeWidth = strokeWidth,
-                cap = StrokeCap.Round,
+        Slider(
+            value = value.coerceIn(0f, 1f),
+            onValueChange = { nextValue ->
+                latestValue = nextValue.coerceIn(0f, 1f)
+                onValueChange(latestValue)
+            },
+            onValueChangeFinished = {
+                onValueChangeFinished(latestValue)
+            },
+            enabled = enabled,
+            colors = SliderDefaults.colors(
+                thumbColor = Color.Transparent,
+                activeTrackColor = Color.Transparent,
+                inactiveTrackColor = Color.Transparent,
+                disabledThumbColor = Color.Transparent,
+                disabledActiveTrackColor = Color.Transparent,
+                disabledInactiveTrackColor = Color.Transparent,
             )
-        }
+        )
     }
 }
 

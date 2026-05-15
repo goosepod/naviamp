@@ -10,7 +10,9 @@ import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.SeekParameters
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.extractor.metadata.icy.IcyInfo
+import androidx.media3.extractor.mp3.Mp3Extractor
 import androidx.media3.session.MediaSession
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackProgress
@@ -44,8 +46,13 @@ class AndroidMedia3PlaybackEngine(
         .setUserAgent("Naviamp Android")
         .setAllowCrossProtocolRedirects(true)
         .setDefaultRequestProperties(mapOf("Icy-MetaData" to "1"))
+    private val extractorsFactory = DefaultExtractorsFactory()
+        .setMp3ExtractorFlags(
+            Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING or
+                Mp3Extractor.FLAG_ENABLE_CONSTANT_BITRATE_SEEKING_ALWAYS,
+        )
     private val player = ExoPlayer.Builder(appContext)
-        .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
+        .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory, extractorsFactory))
         .build()
         .also { it.setSeekParameters(SeekParameters.EXACT) }
     private val mediaSession = MediaSession.Builder(appContext, player).build()
@@ -125,6 +132,10 @@ class AndroidMedia3PlaybackEngine(
         onProgressChanged: (PlaybackProgress) -> Unit,
         onMetadataChanged: (PlaybackStreamMetadata) -> Unit,
     ) {
+        progressJob?.cancel()
+        progressJob = null
+        player.stop()
+        player.clearMediaItems()
         this.onStateChanged = onStateChanged
         this.onProgressChanged = onProgressChanged
         this.onMetadataChanged = onMetadataChanged
@@ -134,11 +145,13 @@ class AndroidMedia3PlaybackEngine(
         AndroidPlaybackTls.applyDefaults(tlsSettings)
         AndroidPlaybackNotificationControls.isPlaying = true
         AndroidPlaybackForegroundService.start(appContext, notificationMetadata)
-        player.setMediaItem(MediaItem.fromUri(request.url))
+        val startPositionMillis = request.startPositionSeconds
+            ?.let { (it * 1000).toLong().coerceAtLeast(0L) }
+            ?: 0L
+        player.setMediaItem(MediaItem.fromUri(request.url), startPositionMillis)
         player.prepare()
-        request.startPositionSeconds?.let { player.seekTo((it * 1000).toLong().coerceAtLeast(0L)) }
         player.play()
-        startProgressPolling(scope)
+        startProgressPolling(scope, onProgressChanged)
     }
 
     override fun pause() {
@@ -184,11 +197,14 @@ class AndroidMedia3PlaybackEngine(
         onMetadataChanged = null
     }
 
-    private fun startProgressPolling(scope: CoroutineScope) {
+    private fun startProgressPolling(
+        scope: CoroutineScope,
+        onProgressChanged: (PlaybackProgress) -> Unit,
+    ) {
         progressJob?.cancel()
         progressJob = scope.launch {
             while (isActive) {
-                onProgressChanged?.invoke(player.toPlaybackProgress())
+                onProgressChanged(player.toPlaybackProgress())
                 delay(500)
             }
         }

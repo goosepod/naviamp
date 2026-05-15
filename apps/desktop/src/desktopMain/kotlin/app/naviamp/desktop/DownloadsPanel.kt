@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.naviamp.ui.storageBytesLabel
 
 @Composable
 fun DownloadsPanel(
@@ -50,8 +51,8 @@ fun DownloadsPanel(
                     fontSize = 18.sp,
                 )
                 Text(
-                    "${downloads.size} files - ${downloadBytes.downloadsBytesLabel()} of " +
-                        maxDownloadBytes.downloadsBytesLabel(),
+                    "${downloads.size} files - ${downloadBytes.storageBytesLabel()} of " +
+                        maxDownloadBytes.storageBytesLabel(),
                     color = appColors.secondaryText,
                     fontSize = 12.sp,
                 )
@@ -104,7 +105,7 @@ fun DownloadsPanel(
                         showDuration = true,
                     )
                     Text(
-                        download.sizeBytes.downloadsBytesLabel(),
+                        download.sizeBytes.storageBytesLabel(),
                         color = appColors.mutedText,
                         fontSize = 11.sp,
                     )
@@ -129,15 +130,5 @@ fun DownloadsPanel(
                 }
             }
         }
-    }
-}
-
-private fun Long.downloadsBytesLabel(): String {
-    val mib = 1024.0 * 1024.0
-    val gib = mib * 1024.0
-    return when {
-        this >= gib -> "%.1f GB".format(this / gib)
-        this >= mib -> "%.0f MB".format(this / mib)
-        else -> "$this B"
     }
 }

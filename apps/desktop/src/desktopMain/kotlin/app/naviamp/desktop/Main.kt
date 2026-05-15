@@ -96,6 +96,8 @@ import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.NavidromeTls
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
+import app.naviamp.ui.bytesLabel
+import app.naviamp.ui.label
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -2939,7 +2941,7 @@ private fun Track.toStreamStats(
         album = albumTitleWithYear() ?: "Unknown album",
         duration = durationLabel(),
         progress = playbackProgress.label(effectiveDurationSeconds),
-        streamQuality = streamQuality.statsLabel(),
+        streamQuality = streamQuality.label(),
         replayGainMode = playbackSettings.replayGainMode.displayName,
         codec = audio?.codec ?: "Unknown",
         bitrate = audio?.bitrateKbps?.let { "$it kbps" } ?: "Unknown",
@@ -2948,7 +2950,7 @@ private fun Track.toStreamStats(
         waveformStatus = waveformStatus,
         waveformBuckets = waveform?.amplitudes?.size?.toString() ?: "None",
         audioCacheStatus = cachedAudio?.let { if (it.exists) "Cached" else "Missing file" } ?: "Not cached",
-        audioCacheSize = cachedAudio?.sizeBytes?.statsBytesLabel() ?: "None",
+        audioCacheSize = cachedAudio?.sizeBytes?.bytesLabel() ?: "None",
         audioCachePath = cachedAudio?.path?.toAbsolutePath()?.toString() ?: "None",
         streamMetadataTitle = streamMetadata.title ?: "None",
         streamMetadataProperties = streamMetadata.properties.entries
@@ -2958,30 +2960,12 @@ private fun Track.toStreamStats(
     )
 }
 
-private fun Long.statsBytesLabel(): String {
-    val kib = 1024.0
-    val mib = kib * 1024.0
-    val gib = mib * 1024.0
-    return when {
-        this >= gib -> "%.1f GB".format(this / gib)
-        this >= mib -> "%.1f MB".format(this / mib)
-        this >= kib -> "%.1f KB".format(this / kib)
-        else -> "$this B"
-    }
-}
-
 private data class NowPlayingAnalysis(
     val waveform: AudioWaveform?,
     val waveformStatus: String,
     val audioTags: List<AudioTag>,
     val lyrics: Lyrics?,
 )
-
-private fun StreamQuality.statsLabel(): String =
-    when (this) {
-        StreamQuality.Original -> "Original"
-        is StreamQuality.Transcoded -> "${codec.name.uppercase()} transcode at $bitrateKbps kbps"
-    }
 
 private fun app.naviamp.domain.provider.ProviderCapabilities.asStatsMap(): Map<String, Boolean> =
     mapOf(

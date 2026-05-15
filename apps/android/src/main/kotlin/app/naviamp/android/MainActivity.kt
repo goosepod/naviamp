@@ -25,7 +25,6 @@ import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
-import app.naviamp.domain.AudioInfo
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Playlist
@@ -74,6 +73,10 @@ import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedPlaylistDetailUi
 import app.naviamp.ui.SharedPlaylistSortMode
 import app.naviamp.ui.SharedRoute
+import app.naviamp.ui.compactLabel
+import app.naviamp.ui.durationLabel
+import app.naviamp.ui.ratingLabel
+import app.naviamp.ui.sixDecimalLabel
 import app.naviamp.ui.toAndroidTrackRowUi
 import app.naviamp.ui.toNowPlayingItemUi
 import app.naviamp.ui.toNowPlayingStationUi
@@ -84,6 +87,7 @@ import app.naviamp.ui.toSharedHomeUi
 import app.naviamp.ui.toSharedMediaItemUi
 import app.naviamp.ui.toSharedPlaylistDetailUi
 import app.naviamp.ui.toSharedSearchResultsUi
+import app.naviamp.ui.twoDecimalLabel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -91,6 +95,7 @@ import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
 import java.time.LocalDate
+import kotlin.math.abs
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -152,6 +157,9 @@ private fun NaviampAndroidApp() {
     var nowPlayingOpen by remember { mutableStateOf(false) }
     var playbackState by remember { mutableStateOf<PlaybackState>(PlaybackState.Idle) }
     var playbackProgress by remember { mutableStateOf(PlaybackProgress.Unknown) }
+    var pendingSeekPositionSeconds by remember { mutableStateOf<Double?>(null) }
+    var pendingSeekIssuedAtMillis by remember { mutableStateOf<Long?>(null) }
+    var playbackSessionToken by remember { mutableStateOf(0L) }
     var volumePercent by remember { mutableStateOf(100) }
     var waveformByTrackId by remember { mutableStateOf<Map<String, List<Float>>>(emptyMap()) }
     var playbackQueue by remember { mutableStateOf(PlaybackQueue()) }
@@ -219,6 +227,47 @@ private fun NaviampAndroidApp() {
         }
     }
 
+    fun beginPlaybackSession(): Long {
+        playbackSessionToken += 1
+        pendingSeekPositionSeconds = null
+        pendingSeekIssuedAtMillis = null
+        playbackProgress = PlaybackProgress.Unknown
+        return playbackSessionToken
+    }
+
+    fun handlePlaybackProgressChanged(sessionToken: Long, progress: PlaybackProgress) {
+        if (sessionToken != playbackSessionToken) return
+        if (progress.positionSeconds == null && progress.durationSeconds == null) {
+            pendingSeekPositionSeconds = null
+            pendingSeekIssuedAtMillis = null
+            playbackProgress = PlaybackProgress.Unknown
+            return
+        }
+        val pendingSeek = pendingSeekPositionSeconds
+        val pendingSeekIssuedAt = pendingSeekIssuedAtMillis
+        val progressPosition = progress.positionSeconds
+        if (
+            pendingSeek != null &&
+            pendingSeekIssuedAt != null &&
+            progressPosition != null &&
+            abs(progressPosition - pendingSeek) > PendingSeekToleranceSeconds &&
+            System.currentTimeMillis() - pendingSeekIssuedAt < PendingSeekStaleProgressWindowMillis
+        ) {
+            return
+        }
+        if (
+            pendingSeek != null &&
+            (progressPosition == null ||
+                pendingSeekIssuedAt == null ||
+                abs(progressPosition - pendingSeek) <= PendingSeekToleranceSeconds ||
+                System.currentTimeMillis() - pendingSeekIssuedAt >= PendingSeekStaleProgressWindowMillis)
+        ) {
+            pendingSeekPositionSeconds = null
+            pendingSeekIssuedAtMillis = null
+        }
+        playbackProgress = progress.mergeForAndroidPlayback(playbackProgress)
+    }
+
     fun playTrack(
         track: Track,
         queue: List<Track>? = null,
@@ -239,6 +288,7 @@ private fun NaviampAndroidApp() {
             runCatching {
                 activeProvider.streamUrl(StreamRequest(track.id, StreamQuality.Original))
             }.onSuccess { streamUrl ->
+                playbackEngine.applyTlsSettings(activeTlsSettings)
                 playbackQueue = PlaybackQueue(
                     tracks = nextQueue,
                     currentIndex = nextQueue.indexOfFirst { it.id == track.id }.takeIf { it >= 0 } ?: 0,
@@ -250,10 +300,9 @@ private fun NaviampAndroidApp() {
                 if (openNowPlaying) {
                     nowPlayingOpen = true
                 }
-                playbackProgress = PlaybackProgress.Unknown
+                val sessionToken = beginPlaybackSession()
                 loadRelatedTracks(track)
                 if (lyricsVisible) loadLyrics(track)
-                playbackEngine.applyTlsSettings(activeTlsSettings)
                 playbackEngine.updateNotificationMetadata(
                     title = track.title,
                     subtitle = track.artistName,
@@ -268,7 +317,7 @@ private fun NaviampAndroidApp() {
                             status = state.message
                         }
                     },
-                    onProgressChanged = { playbackProgress = it },
+                    onProgressChanged = { progress -> handlePlaybackProgressChanged(sessionToken, progress) },
                 )
                 status = "Loading ${track.title}..."
                 scope.launch {
@@ -283,6 +332,7 @@ private fun NaviampAndroidApp() {
     }
 
     fun playInternetRadioStation(station: InternetRadioStation) {
+        val sessionToken = beginPlaybackSession()
         nowPlaying = null
         nowPlayingStation = station
         nowPlayingStreamMetadata = PlaybackStreamMetadata()
@@ -307,7 +357,7 @@ private fun NaviampAndroidApp() {
                             status = state.message
                         }
                     },
-                    onProgressChanged = { playbackProgress = it },
+                    onProgressChanged = { progress -> handlePlaybackProgressChanged(sessionToken, progress) },
                     onMetadataChanged = { metadata ->
                         nowPlayingStreamMetadata = metadata
                         metadata.title?.takeIf { it.isNotBlank() }?.let { streamTitle ->
@@ -327,10 +377,13 @@ private fun NaviampAndroidApp() {
 
     fun performSeek(positionSeconds: Double) {
         restoredStartPositionSeconds = null
+        val durationSeconds = playbackProgress.durationSeconds ?: nowPlaying?.durationSeconds?.toDouble()
         playbackProgress = PlaybackProgress(
             positionSeconds = positionSeconds.coerceAtLeast(0.0),
-            durationSeconds = playbackProgress.durationSeconds,
+            durationSeconds = durationSeconds,
         )
+        pendingSeekPositionSeconds = positionSeconds
+        pendingSeekIssuedAtMillis = System.currentTimeMillis()
         playbackEngine.seek(positionSeconds)
     }
 
@@ -833,7 +886,7 @@ private fun NaviampAndroidApp() {
                     track.albumTitle,
                     track.albumReleaseYear?.toString(),
                 ).joinToString(" - "),
-                audioInfo = track.audioInfo?.androidAudioInfo().orEmpty(),
+                audioInfo = track.audioInfo?.compactLabel().orEmpty(),
                 waveformAmplitudes = waveformByTrackId[track.id.value].orEmpty(),
                 positionSeconds = playbackProgress.positionSeconds,
                 durationSeconds = track.durationSeconds?.toDouble() ?: playbackProgress.durationSeconds,
@@ -1282,39 +1335,22 @@ private fun Track.toDetailSections(): List<NaviampDetailSectionUi> =
                 artistId?.let { "Artist ID" to it.value },
                 albumId?.let { "Album ID" to it.value },
                 "Favorite" to if (favoritedAtIso8601 != null) "Yes" else "No",
-                userRating?.let { "Rating" to "$it / 5" },
+                userRating?.let { "Rating" to it.ratingLabel() },
             ),
         ),
         NaviampDetailSectionUi(
             title = "Replay gain",
             rows = listOfNotNull(
-                replayGain?.trackGainDb?.let { "Track gain" to "${it.formatTwoDecimals()} dB" },
-                replayGain?.albumGainDb?.let { "Album gain" to "${it.formatTwoDecimals()} dB" },
-                replayGain?.trackPeak?.let { "Track peak" to it.formatSixDecimals() },
-                replayGain?.albumPeak?.let { "Album peak" to it.formatSixDecimals() },
+                replayGain?.trackGainDb?.let { "Track gain" to "${it.twoDecimalLabel()} dB" },
+                replayGain?.albumGainDb?.let { "Album gain" to "${it.twoDecimalLabel()} dB" },
+                replayGain?.trackPeak?.let { "Track peak" to it.sixDecimalLabel() },
+                replayGain?.albumPeak?.let { "Album peak" to it.sixDecimalLabel() },
             ),
         ),
     ).filter { it.rows.isNotEmpty() }
 
-private fun AudioInfo.androidAudioInfo(): String =
-    buildList {
-        val normalizedCodec = codec?.takeIf { it.isNotBlank() }
-        normalizedCodec?.let(::add)
-        if (!normalizedCodec.equals("FLAC", ignoreCase = true)) {
-            bitrateKbps?.takeIf { it > 0 }?.let { add("${it} kbps") }
-        }
-        samplingRateHz?.takeIf { it > 0 }?.let { add("${it / 1000.0} kHz") }
-        bitDepth?.takeIf { it > 0 }?.let { add("$it-bit") }
-    }.joinToString("  ")
-
 private fun String?.orUnknown(): String =
     this?.takeIf { it.isNotBlank() } ?: "Unknown"
-
-private fun Double.formatTwoDecimals(): String =
-    kotlin.math.round(this * 100.0).div(100.0).toString()
-
-private fun Double.formatSixDecimals(): String =
-    kotlin.math.round(this * 1_000_000.0).div(1_000_000.0).toString()
 
 private fun allKnownTracks(
     searchResults: MediaSearchResults,
@@ -1324,17 +1360,6 @@ private fun allKnownTracks(
 
 private fun MediaSearchResults.totalCount(): Int =
     artists.size + albums.size + tracks.size
-
-private fun Int.durationLabel(): String {
-    val hours = this / 3600
-    val minutes = (this % 3600) / 60
-    val seconds = this % 60
-    return if (hours > 0) {
-        "$hours:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}"
-    } else {
-        "$minutes:${seconds.toString().padStart(2, '0')}"
-    }
-}
 
 private suspend fun resolveInternetRadioStreamUrl(stationUrl: String): String =
     withContext(Dispatchers.IO) {
@@ -1460,3 +1485,12 @@ private fun RepeatMode.toNaviampRepeatMode(): NaviampRepeatMode =
         RepeatMode.Queue -> NaviampRepeatMode.Queue
         RepeatMode.Track -> NaviampRepeatMode.Track
     }
+
+private fun PlaybackProgress.mergeForAndroidPlayback(previous: PlaybackProgress): PlaybackProgress =
+    PlaybackProgress(
+        positionSeconds = positionSeconds ?: previous.positionSeconds,
+        durationSeconds = durationSeconds ?: previous.durationSeconds,
+    )
+
+private const val PendingSeekToleranceSeconds = 2.0
+private const val PendingSeekStaleProgressWindowMillis = 1_500L

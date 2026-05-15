@@ -58,6 +58,7 @@ import app.naviamp.desktop.settings.CacheSettings
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.desktop.settings.PreviousButtonBehavior
 import app.naviamp.desktop.settings.UpNextSelectionBehavior
+import app.naviamp.ui.storageBytesLabel
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -1033,8 +1034,8 @@ private fun CacheSettingsSection(
 ) {
     SettingsSectionTitle("Cache", appColors)
     Text(
-        "Audio cache: ${cacheStats.audioCount} files, ${cacheStats.audioBytes.settingsBytesLabel()} used of " +
-            cacheSettings.maxAudioCacheBytes.settingsBytesLabel(),
+        "Audio cache: ${cacheStats.audioCount} files, ${cacheStats.audioBytes.storageBytesLabel()} used of " +
+            cacheSettings.maxAudioCacheBytes.storageBytesLabel(),
         color = appColors.secondaryText,
         fontSize = 12.sp,
     )
@@ -1070,8 +1071,8 @@ private fun CacheSettingsSection(
         },
     )
     Text(
-        "Downloads: ${cacheStats.downloadCount} files, ${cacheStats.downloadBytes.settingsBytesLabel()} used of " +
-            cacheSettings.maxDownloadBytes.settingsBytesLabel(),
+        "Downloads: ${cacheStats.downloadCount} files, ${cacheStats.downloadBytes.storageBytesLabel()} used of " +
+            cacheSettings.maxDownloadBytes.storageBytesLabel(),
         color = appColors.secondaryText,
         fontSize = 12.sp,
     )
@@ -1128,16 +1129,6 @@ private fun DiagnosticsSettings(
 @Composable
 private fun SettingsSectionTitle(title: String, appColors: AppColors) {
     Text(title, color = appColors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-}
-
-private fun Long.settingsBytesLabel(): String {
-    val mib = 1024.0 * 1024.0
-    val gib = mib * 1024.0
-    return when {
-        this >= gib -> "%.1f GB".format(this / gib)
-        this >= mib -> "%.0f MB".format(this / mib)
-        else -> "$this B"
-    }
 }
 
 @Composable
@@ -1199,7 +1190,7 @@ private fun DetentByteSettingsSlider(
     val valuePosition = valueBytes.toGbFloat().toDetentPosition(detentGb)
     DetentSettingsSliderScaffold(
         title = title,
-        valueLabel = valueBytes.settingsBytesLabel(),
+        valueLabel = valueBytes.storageBytesLabel(),
         detentLabels = detents.map { it.label },
         enabled = enabled,
         appColors = appColors,
