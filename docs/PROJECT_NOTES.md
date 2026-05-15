@@ -344,6 +344,8 @@ Default stance: implement behavior in shared code unless it needs OS APIs, a pla
 12. Shared connection/source management:
    - Move saved connection models, display-name fallback, connection normalization, TLS option models, and source identity concepts into common code.
    - Keep certificate file selection and platform TLS application in platform/provider source sets.
+   - Initial extraction is in place in `core/domain/source`: shared TLS option model, saved media source model, media source identity, base URL normalization, display-name fallback, and stable source ID generation.
+   - Navidrome keeps provider-specific connection creation and platform TLS application, but its TLS settings now alias the shared domain model and storage returns the same saved source type on Android and desktop.
 13. Shared now-playing parity:
    - Keep the current shared `NaviampNowPlayingPanel` as the source of truth for Android and desktop visual behavior.
    - Close remaining visual deltas there first. Android album artwork should get the same kind of drop shadow/depth treatment desktop has.

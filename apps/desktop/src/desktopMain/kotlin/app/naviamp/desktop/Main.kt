@@ -75,6 +75,7 @@ import app.naviamp.domain.lyrics.selectPreferredLyrics
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioService
+import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.desktop.settings.DesktopSettingsStore
 import app.naviamp.desktop.settings.NavigationSettings
@@ -98,6 +99,7 @@ import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.NavidromeTls
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
+import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.ui.bytesLabel
 import app.naviamp.ui.label
 import kotlinx.coroutines.Dispatchers
@@ -2332,7 +2334,7 @@ fun NaviampApp(
                                 .weight(1f)
                                 .fillMaxWidth()
                                 .then(
-                                    if (appRoute == AppRoute.Library) {
+                                    if (appRoute == AppRoute.Library || appRoute == AppRoute.Settings) {
                                         Modifier
                                     } else {
                                         Modifier.verticalScroll(contentScrollState)

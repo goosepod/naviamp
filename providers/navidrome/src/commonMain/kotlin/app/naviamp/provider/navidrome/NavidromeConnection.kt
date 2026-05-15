@@ -1,6 +1,12 @@
 package app.naviamp.provider.navidrome
 
+import app.naviamp.domain.source.ConnectionTlsSettings
+import app.naviamp.domain.source.SavedMediaSource
+import app.naviamp.domain.source.normalizedBaseUrl
+import app.naviamp.domain.source.resolvedConnectionDisplayName
 import kotlin.random.Random
+
+typealias NavidromeTlsSettings = ConnectionTlsSettings
 
 data class NavidromeConnection(
     val baseUrl: String,
@@ -11,7 +17,7 @@ data class NavidromeConnection(
     val tlsSettings: NavidromeTlsSettings = NavidromeTlsSettings(),
 ) {
     val normalizedBaseUrl: String =
-        baseUrl.trim().trimEnd('/')
+        normalizedBaseUrl(baseUrl)
 
     companion object {
         fun fromPassword(
@@ -39,15 +45,15 @@ data class NavidromeConnection(
     }
 }
 
-data class NavidromeTlsSettings(
-    val insecureSkipTlsVerification: Boolean = false,
-    val customCertificatePath: String? = null,
-    val clientCertificateKeyStorePath: String? = null,
-    val clientCertificateKeyStorePassword: String? = null,
-) {
-    val hasCustomCertificate: Boolean
-        get() = !customCertificatePath.isNullOrBlank()
+fun NavidromeConnection.resolvedDisplayName(): String =
+    resolvedConnectionDisplayName(displayName, normalizedBaseUrl)
 
-    val hasClientCertificate: Boolean
-        get() = !clientCertificateKeyStorePath.isNullOrBlank()
-}
+fun SavedMediaSource.toNavidromeConnection(): NavidromeConnection =
+    NavidromeConnection(
+        baseUrl = baseUrl,
+        username = username,
+        token = token,
+        salt = salt,
+        displayName = displayName,
+        tlsSettings = tlsSettings,
+    )

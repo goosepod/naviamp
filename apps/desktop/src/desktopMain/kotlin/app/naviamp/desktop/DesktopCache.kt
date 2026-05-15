@@ -29,11 +29,14 @@ import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
+import app.naviamp.domain.source.ConnectionTlsSettings
+import app.naviamp.domain.source.SavedMediaSource
+import app.naviamp.domain.source.stableMediaSourceId
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.domain.waveform.AudioWaveformCacheMetadata
 import app.naviamp.domain.waveform.waveformCacheKey
 import app.naviamp.provider.navidrome.NavidromeConnection
-import app.naviamp.provider.navidrome.NavidromeTlsSettings
+import app.naviamp.provider.navidrome.resolvedDisplayName
 import app.naviamp.storage.NaviampStorageDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -564,12 +567,13 @@ class DesktopCache(
     ): SavedMediaSource {
         val now = nowMillis()
         val existing = queries.selectMediaSourceByCacheNamespace(provider.cacheNamespace).executeAsOneOrNull()
-        val id = existing?.id ?: stableSourceId(provider.cacheNamespace)
+        val id = existing?.id ?: stableMediaSourceId(provider.cacheNamespace)
+        val displayName = connection.resolvedDisplayName()
         queries.upsertMediaSource(
             id = id,
             provider_id = provider.id.value,
             cache_namespace = provider.cacheNamespace,
-            display_name = connection.resolvedDisplayName(),
+            display_name = displayName,
             base_url = connection.baseUrl,
             username = connection.username,
             token = connection.token,
@@ -587,15 +591,12 @@ class DesktopCache(
             id = id,
             providerId = provider.id.value,
             cacheNamespace = provider.cacheNamespace,
-            displayName = connection.resolvedDisplayName(),
+            displayName = displayName,
             baseUrl = connection.baseUrl,
             username = connection.username,
             token = connection.token,
             salt = connection.salt,
-            insecureSkipTlsVerification = connection.tlsSettings.insecureSkipTlsVerification,
-            customCertificatePath = connection.tlsSettings.customCertificatePath,
-            clientCertificateKeyStorePath = connection.tlsSettings.clientCertificateKeyStorePath,
-            clientCertificateKeyStorePassword = connection.tlsSettings.clientCertificateKeyStorePassword,
+            tlsSettings = connection.tlsSettings,
             createdAtEpochMillis = existing?.created_at_epoch_millis ?: now,
             lastConnectedAtEpochMillis = now,
             lastSyncStartedAtEpochMillis = existing?.last_sync_started_at_epoch_millis,
@@ -1082,40 +1083,6 @@ data class DownloadedTrack(
     val downloadedAtEpochMillis: Long,
 )
 
-data class SavedMediaSource(
-    val id: String,
-    val providerId: String,
-    val cacheNamespace: String,
-    val displayName: String,
-    val baseUrl: String,
-    val username: String,
-    val token: String,
-    val salt: String,
-    val insecureSkipTlsVerification: Boolean = false,
-    val customCertificatePath: String? = null,
-    val clientCertificateKeyStorePath: String? = null,
-    val clientCertificateKeyStorePassword: String? = null,
-    val createdAtEpochMillis: Long,
-    val lastConnectedAtEpochMillis: Long?,
-    val lastSyncStartedAtEpochMillis: Long?,
-    val lastSyncCompletedAtEpochMillis: Long?,
-) {
-    fun toNavidromeConnection(): NavidromeConnection =
-        NavidromeConnection(
-            baseUrl = baseUrl,
-            username = username,
-            token = token,
-            salt = salt,
-            displayName = displayName,
-            tlsSettings = NavidromeTlsSettings(
-                insecureSkipTlsVerification = insecureSkipTlsVerification,
-                customCertificatePath = customCertificatePath,
-                clientCertificateKeyStorePath = clientCertificateKeyStorePath,
-                clientCertificateKeyStorePassword = clientCertificateKeyStorePassword,
-            ),
-        )
-}
-
 private fun app.naviamp.storage.Media_source.toSavedMediaSource(): SavedMediaSource =
     SavedMediaSource(
         id = id,
@@ -1126,18 +1093,17 @@ private fun app.naviamp.storage.Media_source.toSavedMediaSource(): SavedMediaSou
         username = username,
         token = token,
         salt = salt,
-        insecureSkipTlsVerification = insecure_skip_tls_verification != 0L,
-        customCertificatePath = custom_certificate_path,
-        clientCertificateKeyStorePath = client_certificate_keystore_path,
-        clientCertificateKeyStorePassword = client_certificate_keystore_password,
+        tlsSettings = ConnectionTlsSettings(
+            insecureSkipTlsVerification = insecure_skip_tls_verification != 0L,
+            customCertificatePath = custom_certificate_path,
+            clientCertificateKeyStorePath = client_certificate_keystore_path,
+            clientCertificateKeyStorePassword = client_certificate_keystore_password,
+        ),
         createdAtEpochMillis = created_at_epoch_millis,
         lastConnectedAtEpochMillis = last_connected_at_epoch_millis,
         lastSyncStartedAtEpochMillis = last_sync_started_at_epoch_millis,
         lastSyncCompletedAtEpochMillis = last_sync_completed_at_epoch_millis,
     )
-
-private fun NavidromeConnection.resolvedDisplayName(): String =
-    displayName?.trim()?.takeIf { it.isNotEmpty() } ?: normalizedBaseUrl
 
 private fun app.naviamp.storage.Library_track.toTrack(): Track =
     Track(
@@ -1238,13 +1204,6 @@ private fun String.searchText(): String =
 
 private fun Char.librarySearchBoundary(): String =
     if (this == '#') "" else lowercaseChar().toString()
-
-private fun stableSourceId(cacheNamespace: String): String {
-    val digest = MessageDigest.getInstance("SHA-256")
-        .digest(cacheNamespace.toByteArray(Charsets.UTF_8))
-        .joinToString("") { "%02x".format(it) }
-    return "source_${digest.take(24)}"
-}
 
 private fun stableAudioFileName(sourceId: String, trackId: String, qualityKey: String): String {
     val digest = MessageDigest.getInstance("SHA-256")

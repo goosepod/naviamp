@@ -3,6 +3,8 @@ package app.naviamp.desktop
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -10,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -54,6 +57,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.domain.playback.ReplayGainMode
+import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.desktop.settings.CacheSettings
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.desktop.settings.PreviousButtonBehavior
@@ -64,6 +68,7 @@ import kotlin.math.roundToInt
 
 @Composable
 fun SettingsPanel(
+    modifier: Modifier = Modifier,
     appColors: AppColors,
     serverUrl: String,
     connectionName: String,
@@ -197,7 +202,7 @@ fun SettingsPanel(
         }
     }
 
-    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val narrowSettings = maxWidth < 560.dp
         var narrowCategory by remember { mutableStateOf<SettingsCategory?>(null) }
         val connectionSubtitle = savedConnections
@@ -218,7 +223,7 @@ fun SettingsPanel(
                 Column(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier
-                        .fillMaxWidth()
+                        .fillMaxSize()
                         .padding(end = 10.dp),
                 ) {
                     SettingsDetailHeader(
@@ -226,13 +231,29 @@ fun SettingsPanel(
                         title = activeCategory.label,
                         onBack = { narrowCategory = null },
                     )
-                    CategoryContent(activeCategory)
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState()),
+                    ) {
+                        CategoryContent(activeCategory)
+                    }
                 }
             }
         } else {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxSize(),
+            ) {
                 Text("Settings", color = appColors.primaryText, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                ) {
                     Column(
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                         modifier = Modifier.width(150.dp),
@@ -248,7 +269,9 @@ fun SettingsPanel(
                     }
                     Column(
                         verticalArrangement = Arrangement.spacedBy(10.dp),
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState()),
                     ) {
                         CategoryContent(selectedCategory)
                     }

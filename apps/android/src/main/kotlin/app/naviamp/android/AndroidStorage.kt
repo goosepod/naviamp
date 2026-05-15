@@ -24,10 +24,15 @@ import app.naviamp.domain.cache.PlaybackHistoryRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.settings.PlaybackSessionSettings
+import app.naviamp.domain.source.ConnectionTlsSettings
+import app.naviamp.domain.source.MediaSourceIdentity
+import app.naviamp.domain.source.SavedMediaSource
+import app.naviamp.domain.source.stableMediaSourceId
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.domain.waveform.waveformCacheKey
 import app.naviamp.provider.navidrome.NavidromeConnection
-import app.naviamp.provider.navidrome.NavidromeTlsSettings
+import app.naviamp.provider.navidrome.resolvedDisplayName
+import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.storage.Downloaded_audio
 import app.naviamp.storage.Library_track
 import app.naviamp.storage.Media_source
@@ -70,18 +75,18 @@ class AndroidStorage(
     val downloadDirectory: File = File(appContext.filesDir, "downloads")
     private var maxAudioCacheBytes: Long = 2L * 1024L * 1024L * 1024L
 
-    fun latestNavidromeSource(): AndroidSavedMediaSource? =
+    fun latestNavidromeSource(): SavedMediaSource? =
         queries.selectLatestMediaSource()
             .executeAsOneOrNull()
-            ?.toAndroidSavedMediaSource()
+            ?.toSavedMediaSource()
 
     fun latestNavidromeConnection(): NavidromeConnection? =
-        latestNavidromeSource()?.connection
+        latestNavidromeSource()?.toNavidromeConnection()
 
-    fun upsertNavidromeSource(connection: NavidromeConnection, cacheNamespace: String, providerId: String): AndroidMediaSource {
+    fun upsertNavidromeSource(connection: NavidromeConnection, cacheNamespace: String, providerId: String): MediaSourceIdentity {
         val now = System.currentTimeMillis()
         val existing = queries.selectMediaSourceByCacheNamespace(cacheNamespace).executeAsOneOrNull()
-        val id = existing?.id ?: stableSourceId(cacheNamespace)
+        val id = existing?.id ?: stableMediaSourceId(cacheNamespace)
         val displayName = connection.resolvedDisplayName()
         queries.upsertMediaSource(
             id = id,
@@ -101,7 +106,7 @@ class AndroidStorage(
             last_sync_started_at_epoch_millis = existing?.last_sync_started_at_epoch_millis,
             last_sync_completed_at_epoch_millis = existing?.last_sync_completed_at_epoch_millis,
         )
-        return AndroidMediaSource(
+        return MediaSourceIdentity(
             id = id,
             cacheNamespace = cacheNamespace,
             displayName = displayName,
@@ -656,19 +661,6 @@ class AndroidStorage(
     }
 }
 
-data class AndroidMediaSource(
-    val id: String,
-    val cacheNamespace: String,
-    val displayName: String,
-)
-
-data class AndroidSavedMediaSource(
-    val id: String,
-    val cacheNamespace: String,
-    val displayName: String,
-    val connection: NavidromeConnection,
-)
-
 data class AndroidStorageStats(
     val databaseName: String,
     val mediaSourceCount: Long,
@@ -724,28 +716,27 @@ data class AndroidPlaybackHistoryItem(
     val playedAtEpochMillis: Long,
 )
 
-private fun Media_source.toAndroidSavedMediaSource(): AndroidSavedMediaSource =
-    AndroidSavedMediaSource(
+private fun Media_source.toSavedMediaSource(): SavedMediaSource =
+    SavedMediaSource(
         id = id,
+        providerId = provider_id,
         cacheNamespace = cache_namespace,
-        displayName = display_name,
-        connection = NavidromeConnection(
-            baseUrl = base_url,
-            username = username,
-            token = token,
-            salt = salt,
-            displayName = display_name.takeUnless { it == "Navidrome" } ?: base_url,
-            tlsSettings = NavidromeTlsSettings(
-                insecureSkipTlsVerification = insecure_skip_tls_verification != 0L,
-                customCertificatePath = custom_certificate_path,
-                clientCertificateKeyStorePath = client_certificate_keystore_path,
-                clientCertificateKeyStorePassword = client_certificate_keystore_password,
-            ),
+        displayName = display_name.takeUnless { it == "Navidrome" } ?: base_url,
+        baseUrl = base_url,
+        username = username,
+        token = token,
+        salt = salt,
+        tlsSettings = ConnectionTlsSettings(
+            insecureSkipTlsVerification = insecure_skip_tls_verification != 0L,
+            customCertificatePath = custom_certificate_path,
+            clientCertificateKeyStorePath = client_certificate_keystore_path,
+            clientCertificateKeyStorePassword = client_certificate_keystore_password,
         ),
+        createdAtEpochMillis = created_at_epoch_millis,
+        lastConnectedAtEpochMillis = last_connected_at_epoch_millis,
+        lastSyncStartedAtEpochMillis = last_sync_started_at_epoch_millis,
+        lastSyncCompletedAtEpochMillis = last_sync_completed_at_epoch_millis,
     )
-
-private fun NavidromeConnection.resolvedDisplayName(): String =
-    displayName?.trim()?.takeIf { it.isNotEmpty() } ?: normalizedBaseUrl
 
 private fun Library_track.toTrack(): Track =
     Track(
@@ -853,13 +844,6 @@ private fun clearFiles(directory: File) {
     directory.walkBottomUp()
         .filter { it != directory }
         .forEach { it.delete() }
-}
-
-private fun stableSourceId(cacheNamespace: String): String {
-    val digest = MessageDigest.getInstance("SHA-256")
-        .digest(cacheNamespace.toByteArray(Charsets.UTF_8))
-        .joinToString("") { "%02x".format(it) }
-    return "source_${digest.take(24)}"
 }
 
 private fun stableAudioFileName(sourceId: String, trackId: String, qualityKey: String): String {

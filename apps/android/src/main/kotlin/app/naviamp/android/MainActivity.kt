@@ -59,6 +59,7 @@ import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
+import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.ui.AndroidTrackRowUi
 import app.naviamp.ui.NaviampDetailSectionUi
 import app.naviamp.ui.NaviampLyricLineUi
@@ -120,7 +121,7 @@ private fun NaviampAndroidApp() {
     val storage = remember { AndroidStorage(context) }
     val settingsStore = remember { AndroidSettingsStore(context) }
     val savedProviderSource = remember { storage.latestNavidromeSource() }
-    val savedProviderConnection = savedProviderSource?.connection
+    val savedProviderConnection = savedProviderSource?.toNavidromeConnection()
     val savedConnection = remember { settingsStore.loadConnection(savedProviderConnection) }
     val savedPlaybackSettings = remember { settingsStore.loadPlaybackSettings() }
     var serverUrl by remember { mutableStateOf(savedConnection.serverUrl) }
