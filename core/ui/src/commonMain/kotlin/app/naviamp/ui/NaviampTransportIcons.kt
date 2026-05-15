@@ -198,6 +198,30 @@ object NaviampTransportIcons {
         }
     }.build()
 
+    val Heart: ImageVector = ImageVector.Builder(
+        name = "Heart",
+        defaultWidth = IconSize,
+        defaultHeight = IconSize,
+        viewportWidth = Viewport,
+        viewportHeight = Viewport,
+    ).apply {
+        path(
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 1.9f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+        ) {
+            moveTo(12f, 20f)
+            curveTo(8.4f, 17.1f, 5.2f, 14.3f, 4.1f, 11.4f)
+            curveTo(3.1f, 8.8f, 4.4f, 6f, 7.2f, 5.5f)
+            curveTo(9f, 5.2f, 10.8f, 6.1f, 12f, 7.7f)
+            curveTo(13.2f, 6.1f, 15f, 5.2f, 16.8f, 5.5f)
+            curveTo(19.6f, 6f, 20.9f, 8.8f, 19.9f, 11.4f)
+            curveTo(18.8f, 14.3f, 15.6f, 17.1f, 12f, 20f)
+            close()
+        }
+    }.build()
+
     val Repeat: ImageVector = ImageVector.Builder(
         name = "Repeat",
         defaultWidth = IconSize,

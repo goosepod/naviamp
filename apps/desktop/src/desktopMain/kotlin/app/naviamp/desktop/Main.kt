@@ -100,13 +100,18 @@ import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.NavidromeTls
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import app.naviamp.provider.navidrome.toNavidromeConnection
+import app.naviamp.ui.NaviampPlayerColors
 import app.naviamp.ui.bytesLabel
+import app.naviamp.ui.durationLabel
 import app.naviamp.ui.label
+import app.naviamp.ui.nowPlayingAlbumLine
+import app.naviamp.ui.rememberPlatformCoverArtPlayerColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.awt.Dimension
 import java.awt.Taskbar
 import java.time.Instant
 import java.time.LocalDate
@@ -148,6 +153,7 @@ fun main() {
             },
             title = "Naviamp",
         ) {
+            window.minimumSize = Dimension(320, 430)
             NaviampApp(
                 playbackEngine = playbackEngine,
                 settingsStore = settingsStore,
@@ -342,13 +348,11 @@ fun NaviampApp(
     var pendingSeekIssuedAtMillis by remember { mutableStateOf<Long?>(null) }
     var playReportSessionId by remember { mutableStateOf(0) }
     var submittedPlayReportSessionId by remember { mutableStateOf<Int?>(null) }
-    var targetPlayerColors by remember {
-        mutableStateOf(PlayerColors.from(AlbumPalette.fallback(appColors.albumArtPlaceholder), appColors))
-    }
+    val coverArtPlayerColors = rememberPlatformCoverArtPlayerColors(nowPlayingCoverArtUrl, appColors)
     val targetBackgroundColors = if (nowPlayingTrack != null) {
-        targetPlayerColors
+        coverArtPlayerColors
     } else {
-        PlayerColors.solid(appColors.background)
+        NaviampPlayerColors.solid(appColors.background)
     }
     val backgroundStart by animateColorAsState(
         targetValue = targetBackgroundColors.backgroundStart,
@@ -2176,7 +2180,7 @@ fun NaviampApp(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(
-                            PlayerColors(
+                            NaviampPlayerColors(
                                 backgroundStart = backgroundStart,
                                 backgroundMid = backgroundMid,
                                 backgroundEnd = backgroundEnd,
@@ -2233,9 +2237,6 @@ fun NaviampApp(
                                 volumePercent = playbackSettings.volumePercent,
                                 supportsSeek = playbackEngine.supportsSeek &&
                                     nowPlayingTrack?.isInternetRadioTrack() != true,
-                                onPlayerColorsChanged = { colors ->
-                                    targetPlayerColors = colors
-                                },
                                 onPause = {
                                     playbackEngine.pause()
                                 },
@@ -2797,9 +2798,6 @@ fun NaviampApp(
                                 hasPrevious = canUsePreviousButton(),
                                 hasNext = playbackQueue.hasNext(),
                                 playbackState = playbackState,
-                                onPlayerColorsChanged = { colors ->
-                                    targetPlayerColors = colors
-                                },
                                 onPause = {
                                     playbackEngine.pause()
                                 },
@@ -2942,7 +2940,7 @@ private fun Track.toStreamStats(
         stationHomePageUrl = internetRadioStation?.homePageUrl ?: "None",
         title = title,
         artist = artistName,
-        album = albumTitleWithYear() ?: "Unknown album",
+        album = nowPlayingAlbumLine().ifBlank { "Unknown album" },
         duration = durationLabel(),
         progress = playbackProgress.label(effectiveDurationSeconds),
         streamQuality = streamQuality.label(),

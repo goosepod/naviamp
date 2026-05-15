@@ -27,6 +27,7 @@ import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.PlaylistEngine
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.provider.navidrome.NavidromeProvider
+import app.naviamp.ui.durationLabel
 import kotlinx.coroutines.launch
 
 @Composable

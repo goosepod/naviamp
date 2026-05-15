@@ -118,6 +118,12 @@ expect fun rememberPlatformCoverArtGradientColors(
     colors: NaviampColors,
 ): List<Color>
 
+@Composable
+expect fun rememberPlatformCoverArtPlayerColors(
+    url: String?,
+    colors: NaviampColors,
+): NaviampPlayerColors
+
 data class AndroidTrackRowUi(
     val id: String,
     val title: String,
@@ -262,6 +268,7 @@ data class NowPlayingUi(
     val menuEnabled: Boolean = false,
     val detailSections: List<NaviampDetailSectionUi> = emptyList(),
     val playlistChoices: List<NaviampPlaylistChoiceUi> = emptyList(),
+    val useInlinePlaylistPicker: Boolean = true,
     val playlistActionStatus: String? = null,
     val backTo: List<NaviampNowPlayingItemUi> = emptyList(),
     val upNext: List<NaviampNowPlayingItemUi> = emptyList(),
@@ -498,12 +505,13 @@ fun NaviampSharedAppShell(
                 }
                 if (!showFullNowPlaying) {
                     if (connected && !editingConnection && nowPlaying != null) {
-                        MiniNowPlaying(
+                        NaviampMiniNowPlaying(
                             nowPlaying = nowPlaying,
                             colors = colors,
                             onOpen = onOpenNowPlaying,
                             onPause = onPause,
                             onResume = onResume,
+                            onPlayCurrent = onResume,
                             onPrevious = onPrevious,
                             onNext = onNext,
                             modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
@@ -1356,12 +1364,13 @@ private fun PlaceholderRoute(colors: NaviampColors, route: SharedRoute) {
 }
 
 @Composable
-private fun MiniNowPlaying(
+fun NaviampMiniNowPlaying(
     nowPlaying: NowPlayingUi,
     colors: NaviampColors,
     onOpen: () -> Unit,
     onPause: () -> Unit,
     onResume: () -> Unit,
+    onPlayCurrent: () -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
     modifier: Modifier = Modifier,
@@ -1415,8 +1424,10 @@ private fun MiniNowPlaying(
             onClick = {
                 if (nowPlaying.isPlaying) {
                     onPause()
-                } else {
+                } else if (nowPlaying.isPaused) {
                     onResume()
+                } else {
+                    onPlayCurrent()
                 }
             },
         )

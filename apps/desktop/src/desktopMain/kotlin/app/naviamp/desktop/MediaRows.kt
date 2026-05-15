@@ -26,6 +26,8 @@ import app.naviamp.domain.Artist
 import app.naviamp.domain.Track
 import app.naviamp.ui.NaviampRowMenuItem
 import app.naviamp.ui.NaviampRowOverflowMenu
+import app.naviamp.ui.compactFavoriteRatingLabel
+import app.naviamp.ui.durationLabel
 
 @Composable
 fun MediaRow(

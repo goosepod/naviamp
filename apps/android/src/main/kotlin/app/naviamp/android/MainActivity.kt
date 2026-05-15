@@ -61,12 +61,11 @@ import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.ui.AndroidTrackRowUi
-import app.naviamp.ui.NaviampDetailSectionUi
-import app.naviamp.ui.NaviampLyricLineUi
 import app.naviamp.ui.NaviampNowPlayingItemUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
-import app.naviamp.ui.NaviampRepeatMode
 import app.naviamp.ui.NaviampSharedAppShell
+import app.naviamp.ui.NowPlayingRadioUiConfig
+import app.naviamp.ui.NowPlayingTrackUiConfig
 import app.naviamp.ui.NowPlayingUi
 import app.naviamp.ui.SharedAlbumDetailUi
 import app.naviamp.ui.SharedArtistDetailUi
@@ -75,13 +74,10 @@ import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedPlaylistDetailUi
 import app.naviamp.ui.SharedPlaylistSortMode
 import app.naviamp.ui.SharedRoute
-import app.naviamp.ui.compactLabel
-import app.naviamp.ui.durationLabel
-import app.naviamp.ui.ratingLabel
-import app.naviamp.ui.sixDecimalLabel
 import app.naviamp.ui.toAndroidTrackRowUi
 import app.naviamp.ui.toNowPlayingItemUi
 import app.naviamp.ui.toNowPlayingStationUi
+import app.naviamp.ui.toNowPlayingUi
 import app.naviamp.ui.toPlaylistChoiceUi
 import app.naviamp.ui.toSharedAlbumDetailUi
 import app.naviamp.ui.toSharedArtistDetailUi
@@ -89,7 +85,6 @@ import app.naviamp.ui.toSharedHomeUi
 import app.naviamp.ui.toSharedMediaItemUi
 import app.naviamp.ui.toSharedPlaylistDetailUi
 import app.naviamp.ui.toSharedSearchResultsUi
-import app.naviamp.ui.twoDecimalLabel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -878,87 +873,63 @@ private fun NaviampAndroidApp() {
             val currentIndex = knownTracks.indexOfFirst { it.id == track.id }
             val lyrics = lyricsByTrackId[track.id.value]
             val lyricsStatus = lyricsStatusByTrackId[track.id.value]
-            NowPlayingUi(
-                id = track.id.value,
-                title = track.title,
-                subtitle = track.artistName,
-                stateLabel = "${playbackState.label()} ${playbackProgress.positionSeconds?.toInt() ?: 0}s",
-                coverArtUrl = track.coverArtUrl(provider),
-                albumLine = listOfNotNull(
-                    track.albumTitle,
-                    track.albumReleaseYear?.toString(),
-                ).joinToString(" - "),
-                audioInfo = track.audioInfo?.compactLabel().orEmpty(),
-                waveform = waveformByTrackId[track.id.value],
-                positionSeconds = playbackProgress.positionSeconds,
-                durationSeconds = track.durationSeconds?.toDouble() ?: playbackProgress.durationSeconds,
-                volumePercent = volumePercent,
-                isPlaying = playbackState == PlaybackState.Playing,
-                isPaused = playbackState == PlaybackState.Paused,
-                canSeek = true,
-                canChangeVolume = false,
-                hasPrevious = currentIndex > 0 || (repeatMode == RepeatMode.Queue && knownTracks.size > 1),
-                hasNext = (currentIndex >= 0 && currentIndex < knownTracks.lastIndex) ||
-                    (repeatMode == RepeatMode.Queue && knownTracks.size > 1),
-                shuffleEnabled = knownTracks.drop(currentIndex + 1).size > 1,
-                shuffleActive = shuffledUpNextSnapshot != null,
-                repeatMode = repeatMode.toNaviampRepeatMode(),
-                canRepeat = knownTracks.isNotEmpty(),
-                canStartRadio = provider?.capabilities?.supportsTrackRadio == true,
-                canAddToPlaylist = true,
-                favoriteActive = track.favoritedAtIso8601 != null,
-                canFavorite = provider?.capabilities?.supportsTrackFavorites == true,
-                userRating = track.userRating,
-                canRate = provider?.capabilities?.supportsTrackRatings == true,
-                lyricsAvailable = true,
-                lyricsVisible = lyricsVisible,
-                lyricsStatus = lyricsStatus,
-                lyricsOffsetMillis = lyrics?.offsetMillis ?: 0,
-                lyricsLines = lyrics?.lines.orEmpty().map { line ->
-                    NaviampLyricLineUi(startMillis = line.startMillis, text = line.text)
-                },
-                menuEnabled = true,
-                detailSections = track.toDetailSections(),
-                playlistChoices = homeState.playlists.map { it.toPlaylistChoiceUi() },
-                playlistActionStatus = playlistActionStatus,
-                backTo = knownTracks
-                    .take(currentIndex.coerceAtLeast(0))
-                    .asReversed()
-                    .map { it.toNowPlayingItemUi { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } } },
-                upNext = if (currentIndex >= 0) {
-                    knownTracks.drop(currentIndex + 1).map {
+            track.toNowPlayingUi(
+                NowPlayingTrackUiConfig(
+                    stateLabel = "${playbackState.label()} ${playbackProgress.positionSeconds?.toInt() ?: 0}s",
+                    coverArtUrl = track.coverArtUrl(provider),
+                    waveform = waveformByTrackId[track.id.value],
+                    positionSeconds = playbackProgress.positionSeconds,
+                    durationSeconds = playbackProgress.durationSeconds,
+                    volumePercent = volumePercent,
+                    isPlaying = playbackState == PlaybackState.Playing,
+                    isPaused = playbackState == PlaybackState.Paused,
+                    canSeek = true,
+                    canChangeVolume = false,
+                    hasPrevious = currentIndex > 0 || (repeatMode == RepeatMode.Queue && knownTracks.size > 1),
+                    hasNext = (currentIndex >= 0 && currentIndex < knownTracks.lastIndex) ||
+                        (repeatMode == RepeatMode.Queue && knownTracks.size > 1),
+                    shuffleEnabled = knownTracks.drop(currentIndex + 1).size > 1,
+                    shuffleActive = shuffledUpNextSnapshot != null,
+                    repeatMode = repeatMode,
+                    canRepeat = knownTracks.isNotEmpty(),
+                    canStartRadio = provider?.capabilities?.supportsTrackRadio == true,
+                    canAddToPlaylist = true,
+                    canFavorite = provider?.capabilities?.supportsTrackFavorites == true,
+                    canRate = provider?.capabilities?.supportsTrackRatings == true,
+                    lyricsAvailable = true,
+                    lyricsVisible = lyricsVisible,
+                    lyricsStatus = lyricsStatus,
+                    lyrics = lyrics,
+                    menuEnabled = true,
+                    playlistChoices = homeState.playlists.map { it.toPlaylistChoiceUi() },
+                    playlistActionStatus = playlistActionStatus,
+                    backTo = knownTracks
+                        .take(currentIndex.coerceAtLeast(0))
+                        .asReversed()
+                        .map { it.toNowPlayingItemUi { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } } },
+                    upNext = if (currentIndex >= 0) {
+                        knownTracks.drop(currentIndex + 1).map {
+                            it.toNowPlayingItemUi { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } }
+                        }
+                    } else {
+                        emptyList()
+                    },
+                    related = relatedTracks.map {
                         it.toNowPlayingItemUi { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } }
-                    }
-                } else {
-                    emptyList()
-                },
-                related = relatedTracks.map {
-                    it.toNowPlayingItemUi { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } }
-                },
+                    },
+                ),
             )
         } ?: nowPlayingStation?.let { station ->
-            NowPlayingUi(
-                id = station.id,
-                title = nowPlayingStreamMetadata.title?.takeIf { it.isNotBlank() } ?: station.name,
-                subtitle = if (nowPlayingStreamMetadata.title.isNullOrBlank()) {
-                    "Internet radio"
-                } else {
-                    station.name
-                },
-                stateLabel = playbackState.label(),
-                isLive = true,
-                volumePercent = volumePercent,
-                isPlaying = playbackState == PlaybackState.Playing,
-                isPaused = playbackState == PlaybackState.Paused,
-                canSeek = false,
-                canChangeVolume = false,
-                hasPrevious = false,
-                hasNext = false,
-                canRepeat = false,
-                canStartRadio = false,
-                canAddToPlaylist = false,
-                menuEnabled = false,
-                radioStations = homeState.radioStations.map { it.toNowPlayingStationUi() },
+            station.toNowPlayingUi(
+                NowPlayingRadioUiConfig(
+                    streamTitle = nowPlayingStreamMetadata.title,
+                    stateLabel = playbackState.label(),
+                    volumePercent = volumePercent,
+                    isPlaying = playbackState == PlaybackState.Playing,
+                    isPaused = playbackState == PlaybackState.Paused,
+                    canChangeVolume = false,
+                    radioStations = homeState.radioStations.map { it.toNowPlayingStationUi() },
+                ),
             )
         },
         nowPlayingOpen = nowPlayingOpen,
@@ -1308,52 +1279,6 @@ private suspend fun loadBrowseState(provider: NavidromeProvider): HomeContent {
 private fun Track.coverArtUrl(provider: NavidromeProvider?): String? =
     coverArtId?.let { provider?.coverArtUrl(it) }
 
-private fun Track.toDetailSections(): List<NaviampDetailSectionUi> =
-    listOf(
-        NaviampDetailSectionUi(
-            title = "Song",
-            rows = listOfNotNull(
-                "Title" to title,
-                "Artist" to artistName,
-                "Album" to albumTitle.orUnknown(),
-                albumReleaseYear?.let { "Year" to it.toString() },
-                durationSeconds?.let { "Duration" to it.durationLabel() },
-            ),
-        ),
-        NaviampDetailSectionUi(
-            title = "File",
-            rows = listOfNotNull(
-                "Codec" to audioInfo?.codec.orUnknown(),
-                audioInfo?.bitrateKbps?.let { "Bitrate" to "$it kbps" },
-                audioInfo?.samplingRateHz?.let { "Sample rate" to "$it Hz" },
-                audioInfo?.bitDepth?.let { "Bit depth" to "$it bit" },
-                "Content type" to audioInfo?.contentType.orUnknown(),
-            ),
-        ),
-        NaviampDetailSectionUi(
-            title = "Library",
-            rows = listOfNotNull(
-                "Track ID" to id.value,
-                artistId?.let { "Artist ID" to it.value },
-                albumId?.let { "Album ID" to it.value },
-                "Favorite" to if (favoritedAtIso8601 != null) "Yes" else "No",
-                userRating?.let { "Rating" to it.ratingLabel() },
-            ),
-        ),
-        NaviampDetailSectionUi(
-            title = "Replay gain",
-            rows = listOfNotNull(
-                replayGain?.trackGainDb?.let { "Track gain" to "${it.twoDecimalLabel()} dB" },
-                replayGain?.albumGainDb?.let { "Album gain" to "${it.twoDecimalLabel()} dB" },
-                replayGain?.trackPeak?.let { "Track peak" to it.sixDecimalLabel() },
-                replayGain?.albumPeak?.let { "Album peak" to it.sixDecimalLabel() },
-            ),
-        ),
-    ).filter { it.rows.isNotEmpty() }
-
-private fun String?.orUnknown(): String =
-    this?.takeIf { it.isNotBlank() } ?: "Unknown"
-
 private fun allKnownTracks(
     searchResults: MediaSearchResults,
     albumDetail: AlbumDetails?,
@@ -1479,13 +1404,6 @@ private fun SharedRoute.toNaviampRoute(): NaviampRoute =
         SharedRoute.Radio -> NaviampRoute.Radio
         SharedRoute.Downloads -> NaviampRoute.Downloads
         SharedRoute.Settings -> NaviampRoute.Settings
-    }
-
-private fun RepeatMode.toNaviampRepeatMode(): NaviampRepeatMode =
-    when (this) {
-        RepeatMode.Off -> NaviampRepeatMode.Off
-        RepeatMode.Queue -> NaviampRepeatMode.Queue
-        RepeatMode.Track -> NaviampRepeatMode.Track
     }
 
 private fun PlaybackProgress.mergeForAndroidPlayback(previous: PlaybackProgress): PlaybackProgress =

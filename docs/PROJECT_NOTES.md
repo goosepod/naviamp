@@ -23,6 +23,7 @@ Current priorities:
 - Windows desktop works and is the main live test path right now.
 - Android is now an active target. The first app milestone is a thin native Android shell that can connect to Navidrome, search tracks, and play a selected stream through Media3.
 - Naviamp should be truly multiplatform. When new work can be platform-agnostic, implement it in shared/domain/app/UI modules first and keep only OS-bound code in the platform app modules.
+- Default bias: if behavior is not inherently tied to OS APIs, keep it platform-agnostic. Visual behavior, color derivation, layout decisions, screen state, queue/action models, and pure transformations should live in shared modules unless there is a concrete platform API boundary. If platform-specific-looking code is encountered during other work and cannot be moved immediately, add a note here so it is not forgotten.
 - Navidrome is the first provider, but the app should stay provider-oriented.
 - Playback uses mpv on desktop when available.
 - Audio/track caching is now a priority because it will matter for fast desktop skips, network handoff, and the future Android app.
@@ -349,6 +350,12 @@ Default stance: implement behavior in shared code unless it needs OS APIs, a pla
 13. Shared now-playing parity:
    - Keep the current shared `NaviampNowPlayingPanel` as the source of truth for Android and desktop visual behavior.
    - Close remaining visual deltas there first. Android album artwork should get the same kind of drop shadow/depth treatment desktop has.
+   - Large now-playing album art depth now lives in shared `NaviampNowPlayingPanel` through a common wrapper around `PlatformCoverArt`, so Android gets the same elevated album-art treatment without hiding that behavior in the Android image loader.
+   - Platform cover art should keep the previous bitmap visible while the next URL loads, then crossfade quickly to the new artwork. Android and desktop now both do this through their shared `PlatformCoverArt` actuals.
+   - Desktop full now-playing now feeds the shared `NaviampNowPlayingPanel` and only keeps desktop-specific adaptation around it: desktop add-to-playlist routing and track/tag/detail mapping.
+   - The shared `NaviampMiniNowPlaying` row is used by the shared shell and desktop mini-player so compact now-playing presentation stays in common UI.
+   - Shared `NaviampPlayerColors` / `NaviampAlbumPalette` own album-art palette to gradient selection. Platform actuals should only decode/sample artwork pixels before passing RGB samples into shared code.
+   - Old desktop-only full-player helper code has been removed from the desktop adapter now that desktop renders through shared now-playing UI.
 14. Shared row/menu action catalog:
    - Centralize the available row actions for tracks, albums, artists, playlists, stations, downloads, queue rows, and search results so each platform does not manually drift.
    - UI can still decide whether an action appears as icon-only, menu item, or disabled option.

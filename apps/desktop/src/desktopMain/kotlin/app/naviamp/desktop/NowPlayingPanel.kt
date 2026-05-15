@@ -1,72 +1,10 @@
 package app.naviamp.desktop
 
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.tween
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.toComposeImageBitmap
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Track
@@ -75,18 +13,17 @@ import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.waveform.AudioWaveform
-import app.naviamp.domain.waveform.seekSecondsForFraction
-import app.naviamp.ui.NaviampTransportIconButton
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.jetbrains.skia.Image as SkiaImage
-import java.io.ByteArrayInputStream
-import javax.imageio.ImageIO
-import kotlin.math.abs
-import kotlin.math.pow
-import kotlin.math.roundToInt
+import app.naviamp.ui.NaviampMiniNowPlaying
+import app.naviamp.ui.NaviampNowPlayingActions
+import app.naviamp.ui.NaviampNowPlayingItemUi
+import app.naviamp.ui.NaviampNowPlayingPanel
+import app.naviamp.ui.MiniNowPlayingUiConfig
+import app.naviamp.ui.NowPlayingRadioUiConfig
+import app.naviamp.ui.NowPlayingTrackUiConfig
+import app.naviamp.ui.NowPlayingUi
+import app.naviamp.ui.toNowPlayingItemUi
+import app.naviamp.ui.toNowPlayingUi
+import app.naviamp.ui.toMiniNowPlayingUi
 
 @Composable
 fun NowPlayingPanel(
@@ -120,7 +57,6 @@ fun NowPlayingPanel(
     playbackState: PlaybackState,
     playbackProgress: PlaybackProgress,
     volumePercent: Int,
-    onPlayerColorsChanged: (PlayerColors) -> Unit,
     onPause: () -> Unit,
     onResume: () -> Unit,
     onPlayCurrent: () -> Unit,
@@ -149,226 +85,178 @@ fun NowPlayingPanel(
     onCollapseToHome: () -> Unit,
 ) {
     var showLyrics by remember(nowPlayingTrack?.id) { mutableStateOf(false) }
-    val coverArtState = rememberCoverArtState(coverArtUrl, appColors)
-    val playerColors = remember(coverArtState.palette, appColors) {
-        PlayerColors.from(coverArtState.palette, appColors)
+    val isLiveStream = currentInternetRadioStationId != null
+    val effectiveDurationSeconds = nowPlayingTrack?.durationSeconds?.toDouble()
+        ?: playbackProgress.durationSeconds
+    val canTogglePlayback = nowPlayingTrack != null &&
+        playbackState != PlaybackState.Loading &&
+        playbackState !is PlaybackState.Error &&
+        (supportsPause || playbackState != PlaybackState.Playing)
+    val backToItems = backTo.mapIndexed { index, track ->
+        track.toNowPlayingItemUi(
+            id = "queue:${firstBackToQueueIndex - index}",
+            coverArtUrl = upNextCoverArtUrl(track),
+            meta = "",
+        )
     }
-
-    LaunchedEffect(coverArtState.palette) {
-        onPlayerColorsChanged(playerColors)
+    val upNextItems = upNext.mapIndexed { index, track ->
+        track.toNowPlayingItemUi(
+            id = "queue:${firstUpNextQueueIndex + index}",
+            coverArtUrl = upNextCoverArtUrl(track),
+            meta = "",
+        )
     }
-
-    BoxWithConstraints(
-        modifier = Modifier
-            .fillMaxSize()
-            .heightIn(min = 300.dp)
-            .padding(0.dp),
-    ) {
-        val wideLayout = maxWidth >= 780.dp
-        val artSize = when {
-            wideLayout -> 350.dp
-            maxWidth < 380.dp -> 238.dp
-            else -> 286.dp
+    val relatedItems = relatedTracks.mapIndexed { index, track ->
+        track.toNowPlayingItemUi(
+            id = "related:$index",
+            coverArtUrl = relatedCoverArtUrl(track),
+            meta = "",
+        )
+    }
+    val itemTracks = remember(backTo, upNext, relatedTracks, firstBackToQueueIndex, firstUpNextQueueIndex) {
+        buildMap {
+            backTo.forEachIndexed { index, track -> put("queue:${firstBackToQueueIndex - index}", track) }
+            upNext.forEachIndexed { index, track -> put("queue:${firstUpNextQueueIndex + index}", track) }
+            relatedTracks.forEachIndexed { index, track -> put("related:$index", track) }
         }
+    }
+    val radioStations = internetRadioStations
+        .sortedBy { it.name.lowercase() }
+        .map { station ->
+            NaviampNowPlayingItemUi(
+                id = station.id,
+                title = station.name,
+                subtitle = station.homePageUrl ?: station.streamUrl,
+            )
+        }
+    val nowPlayingUi = if (nowPlayingTrack != null) {
+        nowPlayingTrack.toNowPlayingUi(
+            NowPlayingTrackUiConfig(
+                stateLabel = playbackState.label(),
+                coverArtUrl = coverArtUrl,
+                playbackEngineName = playbackEngineName,
+                waveform = nowPlayingWaveform,
+                positionSeconds = playbackProgress.positionSeconds,
+                durationSeconds = effectiveDurationSeconds,
+                volumePercent = volumePercent,
+                isPlaying = playbackState == PlaybackState.Playing,
+                isPaused = playbackState == PlaybackState.Paused,
+                canPlayPause = canTogglePlayback,
+                canSeek = supportsSeek && !isLiveStream,
+                canChangeVolume = supportsSoftwareVolume,
+                hasPrevious = hasPrevious,
+                hasNext = hasNext,
+                shuffleEnabled = shuffleEnabled,
+                shuffleActive = shuffleActive,
+                repeatMode = repeatMode,
+                canRepeat = !isLiveStream,
+                canStartRadio = !isLiveStream,
+                canAddToPlaylist = !isLiveStream,
+                canFavorite = supportsTrackFavorites && !isLiveStream,
+                canRate = supportsTrackRatings && !isLiveStream,
+                lyricsAvailable = !isLiveStream,
+                lyricsVisible = showLyrics,
+                lyricsStatus = nowPlayingLyricsStatus,
+                lyrics = nowPlayingLyrics,
+                menuEnabled = true,
+                embeddedTags = nowPlayingAudioTags?.map { it.key to it.value }
+                    ?: listOf("Status" to "Loading from cached audio"),
+                useInlinePlaylistPicker = false,
+                backTo = backToItems,
+                upNext = upNextItems,
+                related = relatedItems,
+            ),
+        ).copy(
+            isLive = isLiveStream,
+            radioStations = radioStations,
+        )
+    } else {
+        internetRadioStations.firstOrNull { it.id == currentInternetRadioStationId }?.toNowPlayingUi(
+            NowPlayingRadioUiConfig(
+                stateLabel = playbackState.label(),
+                volumePercent = volumePercent,
+                isPlaying = playbackState == PlaybackState.Playing,
+                isPaused = playbackState == PlaybackState.Paused,
+                canPlayPause = canTogglePlayback,
+                canChangeVolume = supportsSoftwareVolume,
+                radioStations = radioStations,
+            ),
+        ) ?: NowPlayingUi(
+            title = "Queue will appear here after connection",
+            subtitle = if (isLiveStream) "Internet radio" else "Nothing Playing",
+            stateLabel = playbackState.label(),
+            coverArtUrl = coverArtUrl,
+            volumePercent = volumePercent,
+            isPlaying = playbackState == PlaybackState.Playing,
+            isPaused = playbackState == PlaybackState.Paused,
+            canPlayPause = canTogglePlayback,
+            canChangeVolume = supportsSoftwareVolume,
+            hasPrevious = hasPrevious,
+            hasNext = hasNext,
+            radioStations = radioStations,
+        )
+    }
 
-        if (wideLayout) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                    modifier = Modifier
-                        .weight(0.9f)
-                        .fillMaxHeight(),
-                ) {
-                    CoverArt(
-                        coverArtState = coverArtState,
-                        appColors = appColors,
-                        size = artSize,
-                    )
-                    PlayerDetails(
-                        appColors = appColors,
-                        playerColors = playerColors,
-                        playbackEngineName = playbackEngineName,
-                        supportsSoftwareVolume = supportsSoftwareVolume,
-                        nowPlayingTrack = nowPlayingTrack,
-                        nowPlayingWaveform = nowPlayingWaveform,
-                        nowPlayingAudioTags = nowPlayingAudioTags,
-                        playbackState = playbackState,
-                        playbackProgress = playbackProgress,
-                        volumePercent = volumePercent,
-                        supportsPause = supportsPause,
-                        supportsSeek = supportsSeek,
-                        supportsTrackFavorites = supportsTrackFavorites,
-                        supportsTrackRatings = supportsTrackRatings,
-                        hasPrevious = hasPrevious,
-                        hasNext = hasNext,
-                        shuffleEnabled = shuffleEnabled,
-                        shuffleActive = shuffleActive,
-                        repeatMode = repeatMode,
-                        onPause = onPause,
-                        onResume = onResume,
-                        onPlayCurrent = onPlayCurrent,
-                        onSeek = onSeek,
-                        onPrevious = onPrevious,
-                        onNext = onNext,
-                        onToggleShuffle = onToggleShuffle,
-                        onCycleRepeatMode = onCycleRepeatMode,
-                        onVolumeChanged = onVolumeChanged,
-                        onToggleTrackFavorite = onToggleTrackFavorite,
-                        onTrackRatingSelected = onTrackRatingSelected,
-                        onArtistSelected = onArtistSelected,
-                        onAlbumSelected = onAlbumSelected,
-                        onTrackRadioSelected = onTrackRadioSelected,
-                        onDownloadTrackSelected = onDownloadTrackSelected,
-                        onAddTrackToPlaylist = onAddTrackToPlaylist,
-                        lyricsVisible = showLyrics,
-                        onToggleLyrics = { showLyrics = !showLyrics },
-                        onCollapseToHome = onCollapseToHome,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 8.dp),
-                    )
-                }
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier
-                        .weight(1.1f)
-                        .fillMaxHeight(),
-                ) {
-                    UpNextPanel(
-                        appColors = appColors,
-                        backTo = backTo,
-                        upNext = upNext,
-                        internetRadioStations = internetRadioStations,
-                        currentInternetRadioStationId = currentInternetRadioStationId,
-                        firstBackToQueueIndex = firstBackToQueueIndex,
-                        firstQueueIndex = firstUpNextQueueIndex,
-                        coverArtUrl = upNextCoverArtUrl,
-                        relatedTracks = relatedTracks,
-                        relatedCoverArtUrl = relatedCoverArtUrl,
-                        onQueueIndexSelected = onQueueIndexSelected,
-                        onInternetRadioStationSelected = onInternetRadioStationSelected,
-                        onUpNextTrackRadioSelected = onUpNextTrackRadioSelected,
-                        onUpNextTrackDownloadSelected = onUpNextTrackDownloadSelected,
-                        onUpNextTrackAddToPlaylist = onUpNextTrackAddToPlaylist,
-                        onRelatedTrackSelected = onRelatedTrackSelected,
-                        onRelatedTrackRadioSelected = onRelatedTrackRadioSelected,
-                        onRelatedTrackDownloadSelected = onRelatedTrackDownloadSelected,
-                        onRelatedTrackAddToPlaylist = onRelatedTrackAddToPlaylist,
-                        modifier = Modifier.weight(if (showLyrics) 0.42f else 1f),
-                    )
-                    if (showLyrics) {
-                        LyricsPanel(
-                            lyrics = nowPlayingLyrics,
-                            lyricsStatus = nowPlayingLyricsStatus,
-                            playbackProgress = playbackProgress,
-                            appColors = appColors,
-                            onSeek = onSeek,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(0.58f),
-                        )
+    NaviampNowPlayingPanel(
+        nowPlaying = nowPlayingUi,
+        colors = appColors,
+        actions = NaviampNowPlayingActions(
+            onPause = onPause,
+            onResume = onResume,
+            onPlayCurrent = onPlayCurrent,
+            onSeek = onSeek,
+            onPrevious = onPrevious,
+            onNext = onNext,
+            onToggleShuffle = onToggleShuffle,
+            onCycleRepeatMode = onCycleRepeatMode,
+            onVolumeChanged = onVolumeChanged,
+            onToggleLyrics = { showLyrics = !showLyrics },
+            onTrackRadio = { nowPlayingTrack?.let(onTrackRadioSelected) },
+            onAddToPlaylist = { nowPlayingTrack?.let(onAddTrackToPlaylist) },
+            onDownloadTrack = { nowPlayingTrack?.let(onDownloadTrackSelected) },
+            onGoToAlbum = { nowPlayingTrack?.let(onAlbumSelected) },
+            onGoToArtist = { nowPlayingTrack?.let(onArtistSelected) },
+            onToggleFavorite = { nowPlayingTrack?.let(onToggleTrackFavorite) },
+            onRatingSelected = { rating -> nowPlayingTrack?.let { onTrackRatingSelected(it, rating) } },
+            onCollapse = onCollapseToHome,
+            onQueueItemSelected = { item ->
+                item.id.removePrefix("queue:").toIntOrNull()?.let(onQueueIndexSelected)
+            },
+            onRelatedItemSelected = { item ->
+                item.id.removePrefix("related:").toIntOrNull()?.let(onRelatedTrackSelected)
+            },
+            onRadioStationSelected = { item ->
+                internetRadioStations.firstOrNull { it.id == item.id }?.let(onInternetRadioStationSelected)
+            },
+            onQueueItemRadio = { item ->
+                itemTracks[item.id]?.let {
+                    if (item.id.startsWith("related:")) {
+                        onRelatedTrackRadioSelected(it)
+                    } else {
+                        onUpNextTrackRadioSelected(it)
                     }
                 }
-            }
-        } else {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(3.dp),
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState()),
-            ) {
-                if (showLyrics) {
-                    LyricsPanel(
-                        lyrics = nowPlayingLyrics,
-                        lyricsStatus = nowPlayingLyricsStatus,
-                        playbackProgress = playbackProgress,
-                        appColors = appColors,
-                        onSeek = onSeek,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(artSize),
-                    )
-                } else {
-                    CoverArt(
-                        coverArtState = coverArtState,
-                        appColors = appColors,
-                        size = artSize,
-                    )
+            },
+            onQueueItemAddToPlaylist = { item, _ ->
+                itemTracks[item.id]?.let {
+                    if (item.id.startsWith("related:")) {
+                        onRelatedTrackAddToPlaylist(it)
+                    } else {
+                        onUpNextTrackAddToPlaylist(it)
+                    }
                 }
-                PlayerDetails(
-                    appColors = appColors,
-                    playerColors = playerColors,
-                    playbackEngineName = playbackEngineName,
-                    supportsSoftwareVolume = supportsSoftwareVolume,
-                    nowPlayingTrack = nowPlayingTrack,
-                    nowPlayingWaveform = nowPlayingWaveform,
-                    nowPlayingAudioTags = nowPlayingAudioTags,
-                    playbackState = playbackState,
-                    playbackProgress = playbackProgress,
-                    volumePercent = volumePercent,
-                    supportsPause = supportsPause,
-                    supportsSeek = supportsSeek,
-                    supportsTrackFavorites = supportsTrackFavorites,
-                    supportsTrackRatings = supportsTrackRatings,
-                    hasPrevious = hasPrevious,
-                    hasNext = hasNext,
-                    shuffleEnabled = shuffleEnabled,
-                    shuffleActive = shuffleActive,
-                    repeatMode = repeatMode,
-                    onPause = onPause,
-                    onResume = onResume,
-                    onPlayCurrent = onPlayCurrent,
-                    onSeek = onSeek,
-                    onPrevious = onPrevious,
-                    onNext = onNext,
-                    onToggleShuffle = onToggleShuffle,
-                    onCycleRepeatMode = onCycleRepeatMode,
-                    onVolumeChanged = onVolumeChanged,
-                    onToggleTrackFavorite = onToggleTrackFavorite,
-                    onTrackRatingSelected = onTrackRatingSelected,
-                    onArtistSelected = onArtistSelected,
-                    onAlbumSelected = onAlbumSelected,
-                    onTrackRadioSelected = onTrackRadioSelected,
-                    onDownloadTrackSelected = onDownloadTrackSelected,
-                    onAddTrackToPlaylist = onAddTrackToPlaylist,
-                    lyricsVisible = showLyrics,
-                    onToggleLyrics = { showLyrics = !showLyrics },
-                    onCollapseToHome = onCollapseToHome,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                UpNextPanel(
-                    appColors = appColors,
-                    backTo = backTo,
-                    upNext = upNext,
-                    internetRadioStations = internetRadioStations,
-                    currentInternetRadioStationId = currentInternetRadioStationId,
-                    firstBackToQueueIndex = firstBackToQueueIndex,
-                    firstQueueIndex = firstUpNextQueueIndex,
-                    coverArtUrl = upNextCoverArtUrl,
-                    relatedTracks = relatedTracks,
-                    relatedCoverArtUrl = relatedCoverArtUrl,
-                    onQueueIndexSelected = onQueueIndexSelected,
-                    onInternetRadioStationSelected = onInternetRadioStationSelected,
-                    onUpNextTrackRadioSelected = onUpNextTrackRadioSelected,
-                    onUpNextTrackDownloadSelected = onUpNextTrackDownloadSelected,
-                    onUpNextTrackAddToPlaylist = onUpNextTrackAddToPlaylist,
-                    onRelatedTrackSelected = onRelatedTrackSelected,
-                    onRelatedTrackRadioSelected = onRelatedTrackRadioSelected,
-                    onRelatedTrackDownloadSelected = onRelatedTrackDownloadSelected,
-                    onRelatedTrackAddToPlaylist = onRelatedTrackAddToPlaylist,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(280.dp),
-                )
-            }
-        }
-    }
+            },
+            onQueueItemDownload = { item ->
+                itemTracks[item.id]?.let {
+                    if (item.id.startsWith("related:")) {
+                        onRelatedTrackDownloadSelected(it)
+                    } else {
+                        onUpNextTrackDownloadSelected(it)
+                    }
+                }
+            },
+        ),
+    )
 }
 
 @Composable
@@ -379,7 +267,6 @@ fun MiniPlayerPanel(
     hasPrevious: Boolean,
     hasNext: Boolean,
     playbackState: PlaybackState,
-    onPlayerColorsChanged: (PlayerColors) -> Unit,
     onPause: () -> Unit,
     onResume: () -> Unit,
     onPlayCurrent: () -> Unit,
@@ -387,1686 +274,27 @@ fun MiniPlayerPanel(
     onNext: () -> Unit,
     onOpenPlayer: () -> Unit,
 ) {
-    val coverArtState = rememberCoverArtState(coverArtUrl, appColors)
-    val playerColors = remember(coverArtState.palette, appColors) {
-        PlayerColors.from(coverArtState.palette, appColors)
-    }
     val canTogglePause = nowPlayingTrack != null &&
         playbackState != PlaybackState.Loading &&
         playbackState !is PlaybackState.Error
-
-    LaunchedEffect(coverArtState.palette) {
-        onPlayerColorsChanged(playerColors)
-    }
-
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onOpenPlayer)
-            .background(Color.Black.copy(alpha = 0.22f))
-            .padding(horizontal = 6.dp, vertical = 4.dp),
-    ) {
-        CoverArt(
-            coverArtState = coverArtState,
-            appColors = appColors,
-            size = 40.dp,
-            elevated = false,
-        )
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                nowPlayingTrack?.artistName ?: "Nothing Playing",
-                color = appColors.secondaryText,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                fontSize = 11.sp,
-            )
-            Text(
-                nowPlayingTrack?.title ?: "Queue is empty",
-                color = appColors.primaryText,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                fontWeight = FontWeight.Bold,
-                fontSize = 12.sp,
-            )
-        }
-        TransportIconButton(
-            enabled = hasPrevious,
-            icon = TransportIcons.Previous,
-            contentDescription = "Previous",
-            appColors = appColors,
-            onClick = onPrevious,
-        )
-        TransportIconButton(
-            enabled = canTogglePause,
-            icon = if (playbackState == PlaybackState.Playing) {
-                TransportIcons.Pause
-            } else {
-                TransportIcons.Play
-            },
-            contentDescription = if (playbackState == PlaybackState.Playing) "Pause" else "Play",
-            appColors = appColors,
-            onClick = {
-                if (playbackState == PlaybackState.Playing) {
-                    onPause()
-                } else if (playbackState == PlaybackState.Paused) {
-                    onResume()
-                } else {
-                    onPlayCurrent()
-                }
-            },
-        )
-        TransportIconButton(
-            enabled = hasNext,
-            icon = TransportIcons.Next,
-            contentDescription = "Next",
-            appColors = appColors,
-            onClick = onNext,
-        )
-    }
-}
-
-@Composable
-private fun PlayerDetails(
-    appColors: AppColors,
-    playerColors: PlayerColors,
-    playbackEngineName: String,
-    supportsSoftwareVolume: Boolean,
-    nowPlayingTrack: Track?,
-    nowPlayingWaveform: AudioWaveform?,
-    nowPlayingAudioTags: List<AudioTag>?,
-    playbackState: PlaybackState,
-    playbackProgress: PlaybackProgress,
-    volumePercent: Int,
-    supportsPause: Boolean,
-    supportsSeek: Boolean,
-    supportsTrackFavorites: Boolean,
-    supportsTrackRatings: Boolean,
-    hasPrevious: Boolean,
-    hasNext: Boolean,
-    shuffleEnabled: Boolean,
-    shuffleActive: Boolean,
-    repeatMode: RepeatMode,
-    onPause: () -> Unit,
-    onResume: () -> Unit,
-    onPlayCurrent: () -> Unit,
-    onSeek: (Double) -> Unit,
-    onPrevious: () -> Unit,
-    onNext: () -> Unit,
-    onToggleShuffle: () -> Unit,
-    onCycleRepeatMode: () -> Unit,
-    onVolumeChanged: (Int) -> Unit,
-    onToggleTrackFavorite: (Track) -> Unit,
-    onTrackRatingSelected: (Track, Int?) -> Unit,
-    onArtistSelected: (Track) -> Unit,
-    onAlbumSelected: (Track) -> Unit,
-    onTrackRadioSelected: (Track) -> Unit,
-    onDownloadTrackSelected: (Track) -> Unit,
-    onAddTrackToPlaylist: (Track) -> Unit,
-    lyricsVisible: Boolean,
-    onToggleLyrics: () -> Unit,
-    onCollapseToHome: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    var scrubberValue by remember { mutableFloatStateOf(0f) }
-    var isScrubbing by remember { mutableStateOf(false) }
-    var volumeValue by remember { mutableFloatStateOf(volumePercent.coerceIn(0, 100) / 100f) }
-    var isChangingVolume by remember { mutableStateOf(false) }
-    val effectiveDurationSeconds = nowPlayingTrack?.durationSeconds?.toDouble()
-        ?: playbackProgress.durationSeconds
-    val isLiveStream = !supportsSeek && effectiveDurationSeconds == null && nowPlayingTrack != null
-    val effectiveProgressFraction = playbackProgress.fraction(effectiveDurationSeconds)
-    val displayedProgress = if (isScrubbing && effectiveDurationSeconds != null) {
-        PlaybackProgress(
-            positionSeconds = scrubberValue * effectiveDurationSeconds,
-            durationSeconds = effectiveDurationSeconds,
-        )
-    } else {
-        playbackProgress
-    }
-    val canSeek = supportsSeek && effectiveDurationSeconds != null && nowPlayingTrack != null
-    val canTogglePause = nowPlayingTrack != null &&
-        playbackState != PlaybackState.Loading &&
-        playbackState !is PlaybackState.Error &&
-        (supportsPause || playbackState != PlaybackState.Playing)
-    val metadataTextStyle = TextStyle(
-        fontSize = 13.sp,
-        lineHeight = 14.sp,
-    )
-    val audioInfo = nowPlayingTrack?.playbackAudioInfo(playbackEngineName)
-    var actionMenuExpanded by remember { mutableStateOf(false) }
-    var trackDetailsOpen by remember { mutableStateOf(false) }
-
-    LaunchedEffect(effectiveProgressFraction) {
-        if (!isScrubbing) {
-            scrubberValue = effectiveProgressFraction.toFloat()
-        }
-    }
-
-    LaunchedEffect(volumePercent) {
-        if (!isChangingVolume) {
-            volumeValue = volumePercent.coerceIn(0, 100) / 100f
-        }
-    }
-
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-        modifier = modifier,
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(
-                if (isLiveStream) "LIVE" else displayedProgress.positionLabel(),
-                color = appColors.primaryText,
-                fontSize = 11.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.width(42.dp),
-            )
-            if (isLiveStream) {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(22.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(2.dp)
-                            .background(playerColors.accent.copy(alpha = 0.7f)),
-                    )
-                }
-            } else if (nowPlayingWaveform != null) {
-                WaveformScrubber(
-                    waveform = nowPlayingWaveform,
-                    value = scrubberValue,
-                    enabled = canSeek,
-                    playerColors = playerColors,
-                    appColors = appColors,
-                    onValueChange = {
-                        isScrubbing = true
-                        scrubberValue = it
-                    },
-                    onValueChangeFinished = { seekFraction ->
-                        scrubberValue = seekFraction
-                        seekSecondsForFraction(seekFraction, effectiveDurationSeconds)?.let(onSeek)
-                        isScrubbing = false
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(28.dp),
-                )
-            } else {
-                Slider(
-                    value = scrubberValue,
-                    onValueChange = {
-                        isScrubbing = true
-                        scrubberValue = it
-                    },
-                    onValueChangeFinished = {
-                        seekSecondsForFraction(scrubberValue, effectiveDurationSeconds)?.let(onSeek)
-                        isScrubbing = false
-                    },
-                    enabled = canSeek,
-                    colors = playerSliderColors(playerColors, appColors),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(22.dp),
-                )
-            }
-            Text(
-                if (isLiveStream) "Radio" else effectiveDurationSeconds.durationLabel(),
-                color = appColors.primaryText,
-                textAlign = TextAlign.Center,
-                fontSize = 11.sp,
-                modifier = Modifier.width(42.dp),
-            )
-        }
-
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 3.dp, bottom = 5.dp),
-        ) {
-            BouncingTitleText(
-                text = nowPlayingTrack?.title ?: "Queue will appear here after connection",
-                color = appColors.primaryText,
-                style = metadataTextStyle.copy(fontSize = 15.sp, lineHeight = 16.sp),
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Text(
-                nowPlayingTrack?.artistName ?: "Nothing Playing",
-                color = appColors.secondaryText,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-                style = metadataTextStyle,
-                modifier = Modifier.clickable(enabled = nowPlayingTrack?.artistId != null) {
-                    nowPlayingTrack?.let(onArtistSelected)
-                },
-            )
-            Text(
-                nowPlayingTrack?.albumTitleWithYear() ?: playbackState.label(),
-                color = appColors.secondaryText.copy(alpha = 0.84f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-                style = metadataTextStyle,
-                modifier = Modifier.clickable(enabled = nowPlayingTrack?.albumId != null) {
-                    nowPlayingTrack?.let(onAlbumSelected)
-                },
-            )
-        }
-
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterHorizontally),
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 2.dp),
-        ) {
-            val canSetFavorite = nowPlayingTrack != null && supportsTrackFavorites
-            Text(
-                nowPlayingTrack?.favoriteGlyph() ?: "♡",
-                color = if (nowPlayingTrack?.favoritedAtIso8601 != null) {
-                    playerColors.accent
-                } else {
-                    Color.White.copy(alpha = 0.72f)
-                },
-                fontSize = 16.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .width(24.dp)
-                    .clickable(enabled = canSetFavorite) {
-                        nowPlayingTrack?.let(onToggleTrackFavorite)
-                    },
-            )
-            TrackRatingControl(
-                track = nowPlayingTrack,
-                enabled = supportsTrackRatings,
-                activeColor = playerColors.accent,
-                inactiveColor = Color.White.copy(alpha = 0.72f),
-                onRatingSelected = onTrackRatingSelected,
-                modifier = Modifier.width(82.dp),
-            )
-        }
-
-        Text(
-            listOfNotNull(audioInfo?.codec, audioInfo?.quality).joinToString("  "),
-            color = appColors.secondaryText,
-            fontSize = 11.sp,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.fillMaxWidth(),
-        )
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 42.dp),
-        ) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.width(22.dp),
-            ) {
-                Icon(
-                    imageVector = TransportIcons.Volume,
-                    contentDescription = "Volume",
-                    tint = appColors.secondaryText,
-                    modifier = Modifier.size(17.dp),
-                )
-            }
-            VolumeLineControl(
-                value = volumeValue,
-                enabled = supportsSoftwareVolume,
-                onValueChange = {
-                    isChangingVolume = true
-                    volumeValue = it
-                    onVolumeChanged((it * 100).toInt().coerceIn(0, 100))
-                },
-                onValueChangeFinished = {
-                    isChangingVolume = false
-                },
-                modifier = Modifier
-                    .weight(1f)
-                    .height(14.dp),
-            )
-        }
-
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(top = 6.dp, bottom = 4.dp),
-        ) {
-            TransportIconButton(
-                enabled = shuffleEnabled,
-                icon = TransportIcons.Shuffle,
-                contentDescription = if (shuffleActive) "Turn shuffle off" else "Shuffle Up Next",
-                appColors = appColors,
-                selected = shuffleActive,
-                buttonSize = 28.dp,
-                iconSize = 16.dp,
-                onClick = onToggleShuffle,
-            )
-            TransportIconButton(
-                enabled = hasPrevious,
-                icon = TransportIcons.Previous,
-                contentDescription = "Previous",
-                appColors = appColors,
-                onClick = onPrevious,
-            )
-            TransportIconButton(
-                enabled = canTogglePause,
-                icon = if (playbackState == PlaybackState.Playing) {
-                    TransportIcons.Pause
-                } else {
-                    TransportIcons.Play
-                },
-                contentDescription = if (playbackState == PlaybackState.Playing) "Pause" else "Play",
-                appColors = appColors,
-                prominent = true,
-                onClick = {
-                    if (playbackState == PlaybackState.Playing) {
-                        onPause()
-                    } else if (playbackState == PlaybackState.Paused) {
-                        onResume()
-                    } else {
-                        onPlayCurrent()
-                    }
-                },
-            )
-            TransportIconButton(
-                enabled = hasNext,
-                icon = TransportIcons.Next,
-                contentDescription = "Next",
-                appColors = appColors,
-                onClick = onNext,
-            )
-            TransportIconButton(
-                enabled = nowPlayingTrack != null,
-                icon = TransportIcons.Repeat,
-                contentDescription = when (repeatMode) {
-                    RepeatMode.Off -> "Repeat off"
-                    RepeatMode.Queue -> "Repeat queue"
-                    RepeatMode.Track -> "Repeat current track"
-                },
-                appColors = appColors,
-                selected = repeatMode != RepeatMode.Off,
-                buttonSize = 28.dp,
-                iconSize = 16.dp,
-                centerText = if (repeatMode == RepeatMode.Track) "1" else null,
-                onClick = onCycleRepeatMode,
-            )
-        }
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(32.dp),
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(0.dp),
-                modifier = Modifier.align(Alignment.CenterStart),
-            ) {
-                TransportIconButton(
-                    enabled = nowPlayingTrack != null,
-                    icon = TransportIcons.Radio,
-                    contentDescription = "Start track radio",
-                    appColors = appColors,
-                    onClick = {
-                        nowPlayingTrack?.let(onTrackRadioSelected)
-                    },
-                )
-                TransportIconButton(
-                    enabled = nowPlayingTrack != null,
-                    icon = NavigationIcons.Playlist,
-                    contentDescription = "Add track to playlist",
-                    appColors = appColors,
-                    onClick = {
-                        nowPlayingTrack?.let(onAddTrackToPlaylist)
-                    },
-                )
-            }
-            IconButton(
-                onClick = onCollapseToHome,
-                modifier = Modifier
-                    .size(28.dp)
-                    .align(Alignment.Center),
-            ) {
-                Icon(
-                    imageVector = NavigationIcons.ChevronDown,
-                    contentDescription = "Back",
-                    tint = appColors.secondaryText,
-                    modifier = Modifier.size(18.dp),
-                )
-            }
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = Modifier.align(Alignment.CenterEnd),
-            ) {
-                TransportIconButton(
-                    enabled = nowPlayingTrack != null,
-                    icon = TransportIcons.Lyrics,
-                    contentDescription = if (lyricsVisible) "Hide lyrics" else "Show lyrics",
-                    appColors = appColors,
-                    selected = lyricsVisible,
-                    onClick = onToggleLyrics,
-                )
-                Box {
-                    TransportIconButton(
-                        enabled = nowPlayingTrack != null,
-                        icon = TransportIcons.Menu,
-                        contentDescription = "Track actions",
-                        appColors = appColors,
-                        onClick = { actionMenuExpanded = true },
-                    )
-                    NaviampDropdownMenu(
-                        expanded = actionMenuExpanded,
-                        onDismissRequest = { actionMenuExpanded = false },
-                    ) {
-                        NaviampDropdownMenuItem(
-                            label = if (lyricsVisible) "Hide lyrics" else "Show lyrics",
-                            icon = TransportIcons.Lyrics,
-                            onClick = {
-                                actionMenuExpanded = false
-                                onToggleLyrics()
-                            },
-                        )
-                        NaviampDropdownMenuItem(
-                            label = "Download track",
-                            icon = NavigationIcons.Downloads,
-                            onClick = {
-                                actionMenuExpanded = false
-                                nowPlayingTrack?.let(onDownloadTrackSelected)
-                            },
-                        )
-                        NaviampDropdownMenuItem(
-                            label = "Track details",
-                            icon = NavigationIcons.Info,
-                            onClick = {
-                                actionMenuExpanded = false
-                                trackDetailsOpen = true
-                            },
-                        )
-                        NaviampDropdownMenuItem(
-                            label = "Start track radio",
-                            icon = TransportIcons.Radio,
-                            onClick = {
-                                actionMenuExpanded = false
-                                nowPlayingTrack?.let(onTrackRadioSelected)
-                            },
-                        )
-                        NaviampDropdownMenuItem(
-                            label = "Go to album",
-                            icon = NavigationIcons.Album,
-                            enabled = nowPlayingTrack?.albumId != null,
-                            onClick = {
-                                actionMenuExpanded = false
-                                nowPlayingTrack?.let(onAlbumSelected)
-                            },
-                        )
-                        NaviampDropdownMenuItem(
-                            label = "Go to artist",
-                            icon = NavigationIcons.Artist,
-                            enabled = nowPlayingTrack?.artistId != null,
-                            onClick = {
-                                actionMenuExpanded = false
-                                nowPlayingTrack?.let(onArtistSelected)
-                            },
-                        )
-                        NaviampDropdownMenuItem(
-                            label = "Add to playlist",
-                            icon = NavigationIcons.Playlist,
-                            enabled = nowPlayingTrack != null,
-                            onClick = {
-                                actionMenuExpanded = false
-                                nowPlayingTrack?.let(onAddTrackToPlaylist)
-                            },
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    val detailsTrack = nowPlayingTrack
-    if (trackDetailsOpen && detailsTrack != null) {
-        TrackDetailsDialog(
-            track = detailsTrack,
-            audioTags = nowPlayingAudioTags,
-            onDismissRequest = { trackDetailsOpen = false },
-        )
-    }
-}
-
-@Composable
-private fun TrackDetailsDialog(
-    track: Track,
-    audioTags: List<AudioTag>?,
-    onDismissRequest: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismissRequest,
-        title = {
-            Text(
-                text = "Track details",
-                fontWeight = FontWeight.Bold,
-            )
-        },
-        text = {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier
-                    .width(420.dp)
-                    .heightIn(max = 520.dp)
-                    .verticalScroll(rememberScrollState()),
-            ) {
-                TrackDetailSection(
-                    title = "Song",
-                    rows = listOfNotNull(
-                        "Title" to track.title,
-                        "Artist" to track.artistName,
-                        "Album" to track.albumTitle.orUnknown(),
-                        track.albumReleaseYear?.let { "Year" to it.toString() },
-                        "Duration" to track.durationLabel(),
-                    ),
-                )
-                TrackTagSection(audioTags)
-                TrackDetailSection(
-                    title = "File",
-                    rows = listOfNotNull(
-                        "Codec" to track.audioInfo?.codec.orUnknown(),
-                        track.audioInfo?.bitrateKbps?.let { "Bitrate" to "$it kbps" },
-                        track.audioInfo?.samplingRateHz?.let { "Sample rate" to "$it Hz" },
-                        track.audioInfo?.bitDepth?.let { "Bit depth" to "$it bit" },
-                        "Content type" to track.audioInfo?.contentType.orUnknown(),
-                    ),
-                )
-                TrackDetailSection(
-                    title = "Library",
-                    rows = listOfNotNull(
-                        "Track ID" to track.id.value,
-                        track.artistId?.let { "Artist ID" to it.value },
-                        track.albumId?.let { "Album ID" to it.value },
-                        "Favorite" to if (track.favoritedAtIso8601 != null) "Yes" else "No",
-                        track.userRating?.let { "Rating" to "$it / 5" },
-                    ),
-                )
-                track.replayGain?.let { replayGain ->
-                    TrackDetailSection(
-                        title = "Replay gain",
-                        rows = listOfNotNull(
-                            replayGain.trackGainDb?.let { "Track gain" to "%.2f dB".format(java.util.Locale.US, it) },
-                            replayGain.albumGainDb?.let { "Album gain" to "%.2f dB".format(java.util.Locale.US, it) },
-                            replayGain.trackPeak?.let { "Track peak" to "%.6f".format(java.util.Locale.US, it) },
-                            replayGain.albumPeak?.let { "Album peak" to "%.6f".format(java.util.Locale.US, it) },
-                        ),
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismissRequest) {
-                Text("Close")
-            }
-        },
-    )
-}
-
-@Composable
-private fun TrackTagSection(audioTags: List<AudioTag>?) {
-    val rows = audioTags?.map { it.key to it.value }
-    when {
-        rows == null -> TrackDetailSection(
-            title = "Embedded tags",
-            rows = listOf("Status" to "Loading from cached audio"),
-        )
-        rows.isEmpty() -> TrackDetailSection(
-            title = "Embedded tags",
-            rows = listOf("Status" to "No readable ID3/Vorbis tags found"),
-        )
-        else -> TrackDetailSection(
-            title = "Embedded tags",
-            rows = rows,
-        )
-    }
-}
-
-@Composable
-private fun TrackDetailSection(
-    title: String,
-    rows: List<Pair<String, String>>,
-) {
-    if (rows.isEmpty()) return
-
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(
-            text = title,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-        )
-        rows.forEach { (label, value) ->
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.Top,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(
-                    text = label,
-                    color = Color.White.copy(alpha = 0.68f),
-                    fontSize = 12.sp,
-                    modifier = Modifier.width(96.dp),
-                )
-                Text(
-                    text = value,
-                    color = Color.White.copy(alpha = 0.9f),
-                    fontSize = 12.sp,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-        }
-    }
-}
-
-private fun String?.orUnknown(): String =
-    this?.takeIf { it.isNotBlank() } ?: "Unknown"
-
-@Composable
-private fun LyricsPanel(
-    lyrics: Lyrics?,
-    lyricsStatus: String?,
-    playbackProgress: PlaybackProgress,
-    appColors: AppColors,
-    onSeek: (Double) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val listState = rememberLazyListState()
-    val positionMillis = playbackProgress.positionSeconds?.times(1000)?.toLong()
-    val activeLineIndex = remember(lyrics, positionMillis) {
-        lyrics?.lines
-            ?.indexOfLast { line ->
-                val startMillis = line.startMillis?.plus(lyrics.offsetMillis)
-                startMillis != null &&
-                    positionMillis != null &&
-                    startMillis <= positionMillis + LyricsHighlightLeadMillis
-            }
-            ?: -1
-    }
-
-    LaunchedEffect(activeLineIndex, lyrics?.lines?.size) {
-        val lineCount = lyrics?.lines?.size ?: return@LaunchedEffect
-        if (activeLineIndex < 0) return@LaunchedEffect
-        val targetIndex = when {
-            activeLineIndex >= lineCount - LyricsBottomScrollThreshold -> lineCount - 1
-            else -> (activeLineIndex - LyricsCenterLeadLines).coerceAtLeast(0)
-        }
-        listState.animateScrollToItem(targetIndex)
-    }
-
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(7.dp))
-            .background(Color.Black.copy(alpha = 0.18f))
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-    ) {
-        when {
-            lyrics == null && lyricsStatus != null -> Text(
-                lyricsStatus,
-                color = appColors.mutedText,
-                fontSize = 13.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.align(Alignment.Center),
-            )
-            lyrics == null -> Text(
-                "Lyrics unavailable",
-                color = appColors.mutedText,
-                fontSize = 13.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.align(Alignment.Center),
-            )
-            lyrics.lines.isEmpty() -> Text(
-                "No lyrics found",
-                color = appColors.mutedText,
-                fontSize = 13.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.align(Alignment.Center),
-            )
-            else -> LazyColumn(
-                state = listState,
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier
-                    .fillMaxSize(),
-            ) {
-                items(lyrics.lines.size) { index ->
-                    val line = lyrics.lines[index]
-                    val active = index == activeLineIndex
-                    Text(
-                        text = line.text,
-                        color = if (active) appColors.primaryText else appColors.secondaryText.copy(alpha = 0.72f),
-                        fontSize = if (active) 15.sp else 13.sp,
-                        lineHeight = if (active) 18.sp else 16.sp,
-                        fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(enabled = line.startMillis != null) {
-                                line.startMillis
-                                    ?.plus(lyrics.offsetMillis)
-                                    ?.coerceAtLeast(0L)
-                                    ?.let { onSeek(it / 1000.0) }
-                            },
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun playerSliderColors(
-    playerColors: PlayerColors,
-    appColors: AppColors,
-) = SliderDefaults.colors(
-    thumbColor = Color.White,
-    activeTrackColor = playerColors.accent,
-    inactiveTrackColor = Color.White.copy(alpha = 0.22f),
-    disabledThumbColor = appColors.mutedText,
-    disabledActiveTrackColor = Color.White.copy(alpha = 0.18f),
-    disabledInactiveTrackColor = Color.White.copy(alpha = 0.12f),
-)
-
-@Composable
-private fun VolumeLineControl(
-    value: Float,
-    enabled: Boolean,
-    onValueChange: (Float) -> Unit,
-    onValueChangeFinished: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    var widthPx by remember { mutableFloatStateOf(1f) }
-
-    fun updateFromX(x: Float) {
-        if (!enabled) return
-        onValueChange((x / widthPx).coerceIn(0f, 1f))
-    }
-
-    Canvas(
-        modifier = modifier
-            .onSizeChanged { widthPx = it.width.toFloat().coerceAtLeast(1f) }
-            .pointerInput(enabled, widthPx) {
-                detectTapGestures { offset ->
-                    updateFromX(offset.x)
-                    onValueChangeFinished()
-                }
-            }
-            .pointerInput(enabled, widthPx) {
-                detectDragGestures(
-                    onDragStart = { offset -> updateFromX(offset.x) },
-                    onDrag = { change, _ -> updateFromX(change.position.x) },
-                    onDragEnd = onValueChangeFinished,
-                    onDragCancel = onValueChangeFinished,
-                )
-            },
-    ) {
-        val centerY = size.height / 2f
-        val endX = size.width * value.coerceIn(0f, 1f)
-        val disabledAlpha = if (enabled) 1f else 0.42f
-
-        drawLine(
-            color = Color.White.copy(alpha = 0.24f * disabledAlpha),
-            start = Offset(0f, centerY),
-            end = Offset(size.width, centerY),
-            strokeWidth = 4f,
-            cap = StrokeCap.Round,
-        )
-        drawLine(
-            color = Color.White.copy(alpha = 0.88f * disabledAlpha),
-            start = Offset(0f, centerY),
-            end = Offset(endX, centerY),
-            strokeWidth = 4f,
-            cap = StrokeCap.Round,
-        )
-    }
-}
-
-@Composable
-private fun WaveformScrubber(
-    waveform: AudioWaveform,
-    value: Float,
-    enabled: Boolean,
-    playerColors: PlayerColors,
-    appColors: AppColors,
-    onValueChange: (Float) -> Unit,
-    onValueChangeFinished: (Float) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    var widthPx by remember { mutableFloatStateOf(1f) }
-    var latestValue by remember(value) { mutableFloatStateOf(value.coerceIn(0f, 1f)) }
-
-    fun updateFromX(x: Float): Float {
-        if (!enabled) return latestValue
-        val nextValue = (x / widthPx).coerceIn(0f, 1f)
-        latestValue = nextValue
-        onValueChange(nextValue)
-        return nextValue
-    }
-
-    Canvas(
-        modifier = modifier
-            .clip(RoundedCornerShape(4.dp))
-            .onSizeChanged { widthPx = it.width.toFloat().coerceAtLeast(1f) }
-            .pointerInput(enabled, widthPx) {
-                detectTapGestures { offset ->
-                    onValueChangeFinished(updateFromX(offset.x))
-                }
-            }
-            .pointerInput(enabled, widthPx) {
-                detectDragGestures(
-                    onDragStart = { offset -> updateFromX(offset.x) },
-                    onDrag = { change, _ -> updateFromX(change.position.x) },
-                    onDragEnd = { onValueChangeFinished(latestValue) },
-                    onDragCancel = { onValueChangeFinished(latestValue) },
-                )
-            },
-    ) {
-        val amplitudes = waveform.amplitudes
-        if (amplitudes.isEmpty()) return@Canvas
-
-        val centerY = size.height / 2f
-        val visibleBars = minOf(amplitudes.size, (size.width / 3f).toInt().coerceAtLeast(24))
-        val step = size.width / visibleBars.toFloat()
-        val strokeWidth = (step * 0.62f).coerceIn(1.2f, 2.4f)
-        val minBarHeight = 2.5f
-        val maxBarHeight = size.height * 0.92f
-
-        repeat(visibleBars) { index ->
-            val sourceIndex = if (visibleBars == 1) {
-                0
-            } else {
-                ((index / (visibleBars - 1f)) * (amplitudes.size - 1)).toInt()
-            }
-            val amplitude = amplitudes[sourceIndex].coerceIn(0f, 1f)
-            val barHeight = (minBarHeight + amplitude * (maxBarHeight - minBarHeight))
-                .coerceAtMost(size.height)
-            val ratio = if (visibleBars == 1) 0f else index / (visibleBars - 1f)
-            val x = index * step + step / 2f
-            val color = when {
-                !enabled -> appColors.mutedText.copy(alpha = 0.28f)
-                ratio <= value -> waveformActiveColor(playerColors.backgroundMid)
-                else -> waveformInactiveColor(playerColors.backgroundMid)
-            }
-
-            drawLine(
-                color = color,
-                start = Offset(x, centerY - barHeight / 2f),
-                end = Offset(x, centerY + barHeight / 2f),
-                strokeWidth = strokeWidth,
-                cap = StrokeCap.Round,
-            )
-        }
-    }
-}
-
-private fun waveformActiveColor(background: Color): Color =
-    if (background.luminance() < 0.42f) {
-        Color.White.copy(alpha = 0.92f)
-    } else {
-        Color.Black.copy(alpha = 0.72f)
-    }
-
-private fun waveformInactiveColor(background: Color): Color =
-    if (background.luminance() < 0.42f) {
-        Color.White.copy(alpha = 0.30f)
-    } else {
-        Color.Black.copy(alpha = 0.24f)
-    }
-
-private fun Color.luminance(): Float =
-    0.2126f * red + 0.7152f * green + 0.0722f * blue
-
-@Composable
-private fun TransportIconButton(
-    enabled: Boolean,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    contentDescription: String,
-    appColors: AppColors,
-    prominent: Boolean = false,
-    selected: Boolean = false,
-    buttonSize: Dp = if (prominent) 44.dp else 34.dp,
-    iconSize: Dp = if (prominent) 24.dp else 20.dp,
-    centerText: String? = null,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-) {
-    NaviampTransportIconButton(
-        enabled = enabled,
-        icon = icon,
-        contentDescription = contentDescription,
+    NaviampMiniNowPlaying(
+        nowPlaying = nowPlayingTrack.toMiniNowPlayingUi(
+            MiniNowPlayingUiConfig(
+                stateLabel = playbackState.label(),
+                coverArtUrl = coverArtUrl,
+                isPlaying = playbackState == PlaybackState.Playing,
+                isPaused = playbackState == PlaybackState.Paused,
+                canPlayPause = canTogglePause,
+                hasPrevious = hasPrevious,
+                hasNext = hasNext,
+            ),
+        ),
         colors = appColors,
-        prominent = prominent,
-        selected = selected,
-        buttonSize = buttonSize,
-        iconSize = iconSize,
-        centerText = centerText,
-        modifier = modifier,
-        onClick = onClick,
+        onOpen = onOpenPlayer,
+        onPause = onPause,
+        onResume = onResume,
+        onPlayCurrent = onPlayCurrent,
+        onPrevious = onPrevious,
+        onNext = onNext,
     )
 }
-
-@Composable
-private fun TrackRatingControl(
-    track: Track?,
-    enabled: Boolean,
-    activeColor: Color,
-    inactiveColor: Color,
-    onRatingSelected: (Track, Int?) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        horizontalArrangement = Arrangement.Center,
-        modifier = modifier,
-    ) {
-        (1..5).forEach { rating ->
-            val selected = (track?.userRating ?: 0) >= rating
-            Text(
-                if (selected) "★" else "☆",
-                color = if (selected) activeColor else inactiveColor,
-                fontSize = 16.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .width(16.dp)
-                    .clickable(enabled = track != null && enabled) {
-                        track?.let {
-                            onRatingSelected(it, if (it.userRating == rating) null else rating)
-                        }
-                    },
-            )
-        }
-    }
-}
-
-@Composable
-private fun BouncingTitleText(
-    text: String,
-    color: Color,
-    style: TextStyle,
-    modifier: Modifier = Modifier,
-) {
-    val textMeasurer = rememberTextMeasurer()
-    var containerWidth by remember { mutableStateOf(0) }
-    val textWidth = remember(text, style) {
-        textMeasurer.measure(
-            text = AnnotatedString(text),
-            style = style.copy(fontWeight = FontWeight.Bold),
-            maxLines = 1,
-            softWrap = false,
-        ).size.width
-    }
-    val overflow = (textWidth - containerWidth).coerceAtLeast(0)
-    val offset = remember(text) { Animatable(0f) }
-
-    LaunchedEffect(text, overflow) {
-        offset.snapTo(0f)
-        if (overflow <= 0) return@LaunchedEffect
-        delay(900)
-        while (true) {
-            offset.animateTo(
-                targetValue = overflow.toFloat(),
-                animationSpec = tween(
-                    durationMillis = (overflow * 18).coerceIn(2400, 9000),
-                    easing = LinearEasing,
-                ),
-            )
-            delay(700)
-            offset.animateTo(
-                targetValue = 0f,
-                animationSpec = tween(
-                    durationMillis = (overflow * 18).coerceIn(2400, 9000),
-                    easing = LinearEasing,
-                ),
-            )
-            delay(1200)
-        }
-    }
-
-    Box(
-        contentAlignment = if (overflow > 0) Alignment.CenterStart else Alignment.Center,
-        modifier = modifier
-            .clip(RoundedCornerShape(1.dp))
-            .onSizeChanged { containerWidth = it.width },
-    ) {
-        Text(
-            text,
-            color = color,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Visible,
-            textAlign = if (overflow > 0) TextAlign.Start else TextAlign.Center,
-            style = style,
-            modifier = Modifier.offset {
-                IntOffset(-offset.value.roundToInt(), 0)
-            },
-        )
-    }
-}
-
-@Composable
-private fun UpNextPanel(
-    appColors: AppColors,
-    backTo: List<Track>,
-    upNext: List<Track>,
-    internetRadioStations: List<InternetRadioStation>,
-    currentInternetRadioStationId: String?,
-    firstBackToQueueIndex: Int,
-    firstQueueIndex: Int,
-    coverArtUrl: (Track) -> String?,
-    relatedTracks: List<Track>,
-    relatedCoverArtUrl: (Track) -> String?,
-    onQueueIndexSelected: (Int) -> Unit,
-    onUpNextTrackRadioSelected: (Track) -> Unit,
-    onUpNextTrackDownloadSelected: (Track) -> Unit,
-    onUpNextTrackAddToPlaylist: (Track) -> Unit,
-    onRelatedTrackSelected: (Int) -> Unit,
-    onRelatedTrackRadioSelected: (Track) -> Unit,
-    onRelatedTrackDownloadSelected: (Track) -> Unit,
-    onRelatedTrackAddToPlaylist: (Track) -> Unit,
-    onInternetRadioStationSelected: (InternetRadioStation) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val scrollState = rememberScrollState()
-    val coroutineScope = rememberCoroutineScope()
-    if (currentInternetRadioStationId != null) {
-        InternetRadioStationsNowPlayingPanel(
-            appColors = appColors,
-            stations = internetRadioStations,
-            currentStationId = currentInternetRadioStationId,
-            onStationSelected = onInternetRadioStationSelected,
-            modifier = modifier,
-        )
-        return
-    }
-    var selectedTab by remember { mutableStateOf(PlayerListTab.UpNext) }
-    val visibleTracks = when (selectedTab) {
-        PlayerListTab.BackTo -> backTo
-        PlayerListTab.UpNext -> upNext
-        PlayerListTab.Related -> relatedTracks
-    }
-    val activeCoverArtUrl = when (selectedTab) {
-        PlayerListTab.BackTo -> coverArtUrl
-        PlayerListTab.UpNext -> coverArtUrl
-        PlayerListTab.Related -> relatedCoverArtUrl
-    }
-    LaunchedEffect(selectedTab) {
-        scrollState.scrollTo(0)
-    }
-
-    Column(
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-        modifier = modifier,
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            PlayerListTabLabel(
-                label = "BACK TO",
-                selected = selectedTab == PlayerListTab.BackTo,
-                appColors = appColors,
-                onClick = { selectedTab = PlayerListTab.BackTo },
-            )
-            PlayerListTabLabel(
-                label = "UP NEXT",
-                selected = selectedTab == PlayerListTab.UpNext,
-                appColors = appColors,
-                onClick = { selectedTab = PlayerListTab.UpNext },
-            )
-            PlayerListTabLabel(
-                label = "RELATED",
-                selected = selectedTab == PlayerListTab.Related,
-                appColors = appColors,
-                onClick = { selectedTab = PlayerListTab.Related },
-            )
-        }
-        Box(
-            modifier = Modifier
-                .height(1.dp)
-                .fillMaxWidth()
-                .background(Color.White.copy(alpha = 0.18f)),
-        )
-        if (visibleTracks.isEmpty()) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(42.dp),
-            ) {
-                Text(
-                    text = when (selectedTab) {
-                        PlayerListTab.BackTo -> "No recent tracks"
-                        PlayerListTab.UpNext -> "Queue is empty"
-                        PlayerListTab.Related -> "No related tracks"
-                    },
-                    color = appColors.mutedText,
-                    fontSize = 11.sp,
-                )
-            }
-        } else {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-                modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(scrollState),
-            ) {
-                visibleTracks.forEachIndexed { index, track ->
-                    val trackCoverArtState = rememberCoverArtState(activeCoverArtUrl(track), appColors)
-                    TrackRow(
-                        appColors = appColors,
-                        track = track,
-                        subtitle = track.artistName,
-                        background = false,
-                        horizontalPadding = 0.dp,
-                        verticalPadding = 0.dp,
-                        showDuration = false,
-                        showMenu = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(38.dp),
-                        onClick = {
-                            when (selectedTab) {
-                                PlayerListTab.BackTo -> onQueueIndexSelected(firstBackToQueueIndex - index)
-                                PlayerListTab.UpNext -> {
-                                    onQueueIndexSelected(firstQueueIndex + index)
-                                    coroutineScope.launch { scrollState.scrollTo(0) }
-                                }
-                                PlayerListTab.Related -> onRelatedTrackSelected(index)
-                            }
-                        },
-                        onStartRadio = when (selectedTab) {
-                            PlayerListTab.BackTo,
-                            PlayerListTab.UpNext -> {
-                                { onUpNextTrackRadioSelected(track) }
-                            }
-                            PlayerListTab.Related -> {
-                                { onRelatedTrackRadioSelected(track) }
-                            }
-                        },
-                        onDownload = when (selectedTab) {
-                            PlayerListTab.BackTo,
-                            PlayerListTab.UpNext -> {
-                                { onUpNextTrackDownloadSelected(track) }
-                            }
-                            PlayerListTab.Related -> {
-                                { onRelatedTrackDownloadSelected(track) }
-                            }
-                        },
-                        onAddToPlaylist = when (selectedTab) {
-                            PlayerListTab.BackTo,
-                            PlayerListTab.UpNext -> {
-                                { onUpNextTrackAddToPlaylist(track) }
-                            }
-                            PlayerListTab.Related -> {
-                                { onRelatedTrackAddToPlaylist(track) }
-                            }
-                        },
-                        titleStyle = TextStyle(
-                            fontSize = 12.sp,
-                            lineHeight = 12.sp,
-                        ),
-                        subtitleStyle = TextStyle(
-                            fontSize = 11.sp,
-                            lineHeight = 11.sp,
-                        ),
-                        leadingContent = {
-                            CoverArt(
-                                coverArtState = trackCoverArtState,
-                                appColors = appColors,
-                                size = 32.dp,
-                                elevated = false,
-                            )
-                        },
-                    )
-                }
-            }
-        }
-    }
-}
-
-private enum class PlayerListTab {
-    BackTo,
-    UpNext,
-    Related,
-}
-
-@Composable
-private fun InternetRadioStationsNowPlayingPanel(
-    appColors: AppColors,
-    stations: List<InternetRadioStation>,
-    currentStationId: String,
-    onStationSelected: (InternetRadioStation) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val scrollState = rememberScrollState()
-    val visibleStations = stations.sortedBy { it.name.lowercase() }
-
-    Column(
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-        modifier = modifier,
-    ) {
-        Text(
-            "STATIONS",
-            color = appColors.primaryText,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 12.sp,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Box(
-            modifier = Modifier
-                .height(1.dp)
-                .fillMaxWidth()
-                .background(Color.White.copy(alpha = 0.18f)),
-        )
-        if (visibleStations.isEmpty()) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(42.dp),
-            ) {
-                Text("No internet radio stations", color = appColors.mutedText, fontSize = 11.sp)
-            }
-        } else {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-                modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(scrollState),
-            ) {
-                visibleStations.forEach { station ->
-                    val isCurrent = station.id == currentStationId
-                    MediaRow(
-                        appColors = appColors,
-                        background = isCurrent,
-                        horizontalPadding = 0.dp,
-                        verticalPadding = 0.dp,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(32.dp),
-                        onClick = { onStationSelected(station) },
-                    ) {
-                        DetailActionIconButton(
-                            appColors,
-                            if (isCurrent) NavigationIcons.InternetRadio else TransportIcons.Play,
-                            if (isCurrent) "Current station" else "Play station",
-                            true,
-                        ) {
-                            onStationSelected(station)
-                        }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                station.name,
-                                color = if (isCurrent) appColors.primaryText else appColors.secondaryText,
-                                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.SemiBold,
-                                fontSize = 12.sp,
-                                lineHeight = 12.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun PlayerListTabLabel(
-    label: String,
-    selected: Boolean,
-    appColors: AppColors,
-    onClick: () -> Unit,
-) {
-    Text(
-        text = label,
-        color = if (selected) appColors.primaryText else appColors.mutedText,
-        fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
-        fontSize = 11.sp,
-        modifier = Modifier.clickable(onClick = onClick),
-    )
-}
-
-@Composable
-private fun CoverArt(
-    coverArtState: CoverArtState,
-    appColors: AppColors,
-    size: Dp,
-    elevated: Boolean = true,
-) {
-    val shadowMargin = if (elevated) 12.dp else 0.dp
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier
-            .size(size + shadowMargin * 2),
-    ) {
-        Box(
-            modifier = Modifier
-                .size(size)
-                .then(
-                    if (elevated) {
-                        Modifier
-                            .shadow(24.dp, RoundedCornerShape(8.dp), clip = false)
-                            .shadow(7.dp, RoundedCornerShape(7.dp), clip = false)
-                    } else {
-                        Modifier
-                    },
-                )
-                .clip(RoundedCornerShape(if (elevated) 7.dp else 4.dp))
-                .background(appColors.albumArtPlaceholder),
-        ) {
-            coverArtState.image?.let {
-                Image(
-                    bitmap = it,
-                    contentDescription = "Album art",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .aspectRatio(1f),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun rememberCoverArtState(
-    coverArtUrl: String?,
-    appColors: AppColors,
-): CoverArtState {
-    var coverArtState by remember {
-        mutableStateOf(CoverArtState(image = null, palette = AlbumPalette.fallback(appColors.albumArtPlaceholder)))
-    }
-
-    LaunchedEffect(coverArtUrl) {
-        if (coverArtUrl == null) {
-            coverArtState = CoverArtState(image = null, palette = AlbumPalette.fallback(appColors.albumArtPlaceholder))
-            return@LaunchedEffect
-        }
-
-        runCatching {
-            withContext(Dispatchers.IO) {
-                val bytes = DesktopCaches.session.imageBytes(coverArtUrl)
-                CoverArtState(
-                    image = SkiaImage.makeFromEncoded(bytes).toComposeImageBitmap(),
-                    palette = albumPalette(bytes) ?: AlbumPalette.fallback(appColors.albumArtPlaceholder),
-                )
-            }
-        }.onSuccess {
-            coverArtState = it
-        }
-    }
-
-    return coverArtState
-}
-
-private data class CoverArtState(
-    val image: ImageBitmap?,
-    val palette: AlbumPalette,
-)
-
-data class PlayerColors(
-    val backgroundStart: Color,
-    val backgroundMid: Color,
-    val backgroundEnd: Color,
-    val accent: Color,
-) {
-    val backgroundBrush: Brush
-        get() = Brush.linearGradient(colors = listOf(backgroundStart, backgroundMid, backgroundEnd))
-
-    fun backgroundBrush(end: androidx.compose.ui.geometry.Offset): Brush =
-        Brush.linearGradient(
-            colors = listOf(backgroundStart, backgroundMid, backgroundEnd),
-            start = androidx.compose.ui.geometry.Offset.Zero,
-            end = end,
-        )
-
-    companion object {
-        fun solid(color: Color): PlayerColors =
-            PlayerColors(
-                backgroundStart = color,
-                backgroundMid = color,
-                backgroundEnd = color,
-                accent = color,
-            )
-
-        fun from(palette: AlbumPalette, appColors: AppColors): PlayerColors {
-            val secondary = if (palette.primary.hueDistance(palette.secondary) < 0.08f) {
-                palette.secondary.shiftHue(0.09f)
-            } else {
-                palette.secondary
-            }
-            val left = palette.primary
-                .mix(Color.White, 0.03f)
-                .mix(Color.Black, 0.34f)
-                .mix(appColors.background, 0.16f)
-            val middle = palette.accent
-                .mix(palette.primary, 0.28f)
-                .mix(Color.Black, 0.42f)
-                .mix(appColors.background, 0.10f)
-            val right = secondary
-                .mix(Color.Black, 0.66f)
-                .mix(appColors.background, 0.12f)
-            return PlayerColors(
-                backgroundStart = left,
-                backgroundMid = middle,
-                backgroundEnd = right,
-                accent = palette.accent.mix(Color.White, 0.08f),
-            )
-        }
-    }
-}
-
-data class AlbumPalette(
-    val primary: Color,
-    val secondary: Color,
-    val accent: Color,
-) {
-    companion object {
-        fun fallback(color: Color): AlbumPalette =
-            AlbumPalette(
-                primary = color,
-                secondary = color.mix(Color(0xFF7C1232), 0.45f),
-                accent = color,
-            )
-    }
-}
-
-private fun albumPalette(bytes: ByteArray): AlbumPalette? {
-    val image = ImageIO.read(ByteArrayInputStream(bytes)) ?: return null
-    val buckets = mutableMapOf<Int, ColorBucket>()
-    val stepX = (image.width / 32).coerceAtLeast(1)
-    val stepY = (image.height / 32).coerceAtLeast(1)
-
-    var y = 0
-    while (y < image.height) {
-        var x = 0
-        while (x < image.width) {
-            val pixel = image.getRGB(x, y)
-            val alpha = (pixel ushr 24) and 0xFF
-            if (alpha > 200) {
-                val red = (pixel shr 16) and 0xFF
-                val green = (pixel shr 8) and 0xFF
-                val blue = pixel and 0xFF
-                val hsb = FloatArray(3)
-                java.awt.Color.RGBtoHSB(red, green, blue, hsb)
-                val saturation = hsb[1]
-                val brightness = hsb[2]
-                if (saturation > 0.06f && brightness in 0.12f..0.96f) {
-                    val key = ((red / 32) shl 10) or ((green / 32) shl 5) or (blue / 32)
-                    buckets.getOrPut(key) { ColorBucket() }.add(red, green, blue, saturation, brightness)
-                }
-            }
-            x += stepX
-        }
-        y += stepY
-    }
-
-    val candidates = buckets.values
-        .filter { it.count >= 2 }
-        .sortedByDescending { it.score() }
-
-    val primary = candidates.firstOrNull() ?: return null
-    val secondary = candidates.firstOrNull { primary.colorDistance(it) > 0.045f }
-        ?: candidates.firstOrNull { primary.hueDistance(it) > 0.08f }
-        ?: candidates.getOrNull(1)
-        ?: primary
-    val accent = candidates
-        .filter { primary.colorDistance(it) > 0.025f || primary.hueDistance(it) > 0.06f }
-        .maxByOrNull { it.accentScore(primary) }
-        ?: primary
-
-    return AlbumPalette(
-        primary = primary.color(),
-        secondary = secondary.color(),
-        accent = accent.color(),
-    )
-}
-
-private class ColorBucket {
-    var red = 0L
-    var green = 0L
-    var blue = 0L
-    var saturation = 0.0
-    var brightness = 0.0
-    var count = 0
-
-    fun add(red: Int, green: Int, blue: Int, saturation: Float, brightness: Float) {
-        this.red += red
-        this.green += green
-        this.blue += blue
-        this.saturation += saturation
-        this.brightness += brightness
-        count += 1
-    }
-
-    fun color(): Color =
-        Color(
-            red = (red / count).toInt(),
-            green = (green / count).toInt(),
-            blue = (blue / count).toInt(),
-        )
-
-    fun score(): Double {
-        val saturationAverage = saturationAverage().toDouble()
-        val brightnessAverage = brightnessAverage().toDouble()
-        val brightnessScore = 1.0 - abs(brightnessAverage - 0.58).coerceAtMost(0.58) / 0.58
-        return count.toDouble().pow(0.55) * (saturationAverage + 0.12) * (brightnessScore + 0.55)
-    }
-
-    fun accentScore(primary: ColorBucket): Double =
-        score() * (1.0 + saturationAverage()) * (1.0 + colorDistance(primary))
-
-    fun saturationAverage(): Float =
-        (saturation / count).toFloat()
-
-    private fun brightnessAverage(): Float =
-        (brightness / count).toFloat()
-
-    fun hueDistance(other: ColorBucket): Float {
-        val hsb = FloatArray(3)
-        val otherHsb = FloatArray(3)
-        val color = color()
-        val otherColor = other.color()
-        java.awt.Color.RGBtoHSB(
-            (color.red * 255).toInt(),
-            (color.green * 255).toInt(),
-            (color.blue * 255).toInt(),
-            hsb,
-        )
-        java.awt.Color.RGBtoHSB(
-            (otherColor.red * 255).toInt(),
-            (otherColor.green * 255).toInt(),
-            (otherColor.blue * 255).toInt(),
-            otherHsb,
-        )
-        val distance = abs(hsb[0] - otherHsb[0])
-        return minOf(distance, 1f - distance)
-    }
-
-    fun colorDistance(other: ColorBucket): Float =
-        color().colorDistance(other.color())
-}
-
-fun Color.mix(other: Color, amount: Float): Color {
-    val clamped = amount.coerceIn(0f, 1f)
-    return Color(
-        red = red + (other.red - red) * clamped,
-        green = green + (other.green - green) * clamped,
-        blue = blue + (other.blue - blue) * clamped,
-        alpha = alpha + (other.alpha - alpha) * clamped,
-    )
-}
-
-private fun Color.shiftHue(amount: Float): Color {
-    val hsb = FloatArray(3)
-    java.awt.Color.RGBtoHSB(
-        (red * 255).toInt(),
-        (green * 255).toInt(),
-        (blue * 255).toInt(),
-        hsb,
-    )
-    val hue = ((hsb[0] + amount) % 1f + 1f) % 1f
-    val rgb = java.awt.Color.HSBtoRGB(
-        hue,
-        (hsb[1] * 1.08f).coerceIn(0f, 1f),
-        (hsb[2] * 0.9f).coerceIn(0f, 1f),
-    )
-    return Color(
-        red = (rgb shr 16) and 0xFF,
-        green = (rgb shr 8) and 0xFF,
-        blue = rgb and 0xFF,
-        alpha = (alpha * 255).toInt(),
-    )
-}
-
-private fun Color.hueDistance(other: Color): Float {
-    val hsb = FloatArray(3)
-    val otherHsb = FloatArray(3)
-    java.awt.Color.RGBtoHSB(
-        (red * 255).toInt(),
-        (green * 255).toInt(),
-        (blue * 255).toInt(),
-        hsb,
-    )
-    java.awt.Color.RGBtoHSB(
-        (other.red * 255).toInt(),
-        (other.green * 255).toInt(),
-        (other.blue * 255).toInt(),
-        otherHsb,
-    )
-    val distance = abs(hsb[0] - otherHsb[0])
-    return minOf(distance, 1f - distance)
-}
-
-private fun Color.colorDistance(other: Color): Float {
-    val redDistance = red - other.red
-    val greenDistance = green - other.green
-    val blueDistance = blue - other.blue
-    return redDistance * redDistance + greenDistance * greenDistance + blueDistance * blueDistance
-}
-
-private const val LyricsHighlightLeadMillis = 350L
-private const val LyricsCenterLeadLines = 3
-private const val LyricsBottomScrollThreshold = 3
