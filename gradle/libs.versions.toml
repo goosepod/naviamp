@@ -20,6 +20,7 @@ media3-exoplayer = { module = "androidx.media3:media3-exoplayer", version.ref = 
 media3-session = { module = "androidx.media3:media3-session", version.ref = "media3" }
 sqldelight-sqlite-driver = { module = "app.cash.sqldelight:sqlite-driver", version.ref = "sqldelight" }
 sqldelight-android-driver = { module = "app.cash.sqldelight:android-driver", version.ref = "sqldelight" }
+sqldelight-runtime = { module = "app.cash.sqldelight:runtime", version.ref = "sqldelight" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

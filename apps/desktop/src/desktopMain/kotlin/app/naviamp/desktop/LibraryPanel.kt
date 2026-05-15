@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
+import app.naviamp.domain.cache.LibrarySnapshot
 
 @Composable
 fun LibraryPanel(

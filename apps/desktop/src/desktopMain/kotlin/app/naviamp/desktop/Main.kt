@@ -52,6 +52,7 @@ import app.naviamp.domain.Playlist
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.playback.CrossfadeSettings
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackProgress
@@ -766,7 +767,7 @@ fun NaviampApp(
             return@LaunchedEffect
         }
         relatedTracks = withContext(Dispatchers.IO) {
-            sessionCache.relatedLibraryTracks(sourceId, track)
+            sessionCache.relatedLibraryTracks(sourceId, track, limit = 40)
         }
     }
 
@@ -778,9 +779,9 @@ fun NaviampApp(
             return
         }
         librarySnapshot = if (libraryQuery.isBlank()) {
-            sessionCache.librarySnapshot(sourceId, limit = libraryLimit.toLong())
+            sessionCache.librarySnapshot(sourceId, limit = libraryLimit.toLong(), offset = 0)
         } else {
-            sessionCache.searchLibrary(sourceId, libraryQuery, limit = libraryLimit.toLong())
+            sessionCache.searchLibrary(sourceId, libraryQuery, limit = libraryLimit.toLong(), offset = 0)
         }
     }
 
@@ -1926,7 +1927,7 @@ fun NaviampApp(
     fun clearLibraryData() {
         connectedSourceId?.let { sourceId ->
             sessionCache.clearLibraryData(sourceId)
-        } ?: sessionCache.clearLibraryData()
+        } ?: sessionCache.clearLibraryData(null)
         librarySnapshot = LibrarySnapshot()
         connectionStatus = "Local artist, album, and track index cleared."
     }

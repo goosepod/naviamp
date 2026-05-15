@@ -1,7 +1,6 @@
 package app.naviamp.desktop
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
-import app.naviamp.desktop.cache.NaviampCacheDatabase
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.AlbumId
@@ -18,6 +17,16 @@ import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.cache.AudioCacheRepository
+import app.naviamp.domain.cache.AudioWaveformCacheRepository
+import app.naviamp.domain.cache.CacheMaintenanceRepository
+import app.naviamp.domain.cache.DownloadRepository
+import app.naviamp.domain.cache.ImageCacheRepository
+import app.naviamp.domain.cache.LibraryAlbumYear
+import app.naviamp.domain.cache.LibraryIndexStats
+import app.naviamp.domain.cache.LibrarySnapshot
+import app.naviamp.domain.cache.LocalLibraryIndexRepository
+import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.waveform.AudioWaveform
@@ -25,6 +34,7 @@ import app.naviamp.domain.waveform.AudioWaveformCacheMetadata
 import app.naviamp.domain.waveform.waveformCacheKey
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
+import app.naviamp.storage.NaviampStorageDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -45,17 +55,23 @@ class DesktopCache(
     private val maxHotImageBytes: Long = 32L * 1024L * 1024L,
     private val audioCacheDirectory: Path = defaultAudioCacheDirectory(),
     private val downloadDirectory: Path = defaultDownloadDirectory(),
-) {
+) : ImageCacheRepository,
+    ProviderResponseCacheRepository,
+    AudioCacheRepository<CachedAudioFile, CachedAudioMetadata>,
+    AudioWaveformCacheRepository,
+    DownloadRepository<DownloadedAudioFile, DownloadedTrack>,
+    LocalLibraryIndexRepository,
+    CacheMaintenanceRepository<CacheStats> {
     private val json = Json {
         ignoreUnknownKeys = true
         encodeDefaults = true
     }
     private val database = createDatabase(databasePath)
-    private val queries = database.naviampCacheQueries
+    private val queries = database.naviampStorageQueries
     private val hotImages = object : LinkedHashMap<String, ByteArray>(16, 0.75f, true) {}
     private var hotImageBytes: Long = 0
 
-    suspend fun imageBytes(url: String): ByteArray {
+    override suspend fun imageBytes(url: String): ByteArray {
         hotImage(url)?.let { return it }
 
         return withContext(Dispatchers.IO) {
@@ -148,12 +164,12 @@ class DesktopCache(
         queries.deleteMediaSource(sourceId)
     }
 
-    fun updateAudioCacheLimit(maxBytes: Long) {
+    override fun updateAudioCacheLimit(maxBytes: Long) {
         maxAudioCacheBytes = maxBytes.coerceAtLeast(0)
         trimAudioStore()
     }
 
-    fun cachedAudioMetadata(
+    override fun cachedAudioMetadata(
         sourceId: String,
         trackId: TrackId,
         quality: StreamQuality,
@@ -176,7 +192,7 @@ class DesktopCache(
         )
     }
 
-    suspend fun cachedAudioFile(
+    override suspend fun cachedAudioFile(
         sourceId: String,
         trackId: TrackId,
         quality: StreamQuality,
@@ -203,7 +219,7 @@ class DesktopCache(
             )
         }
 
-    suspend fun downloadedAudioFile(
+    override suspend fun downloadedAudioFile(
         sourceId: String,
         trackId: TrackId,
         quality: StreamQuality,
@@ -229,7 +245,7 @@ class DesktopCache(
             )
         }
 
-    suspend fun cachedAudioWaveform(
+    override suspend fun cachedAudioWaveform(
         sourceId: String,
         trackId: TrackId,
         quality: StreamQuality,
@@ -399,7 +415,7 @@ class DesktopCache(
         )
     }
 
-    suspend fun cacheAudioTrack(
+    override suspend fun cacheAudioTrack(
         sourceId: String,
         provider: MediaProvider,
         track: Track,
@@ -445,7 +461,7 @@ class DesktopCache(
             )
         }
 
-    suspend fun downloadAudioTrack(
+    override suspend fun downloadAudioTrack(
         sourceId: String,
         provider: MediaProvider,
         track: Track,
@@ -515,7 +531,7 @@ class DesktopCache(
             }
         }
 
-    fun downloadedTracks(sourceId: String): List<DownloadedTrack> =
+    override fun downloadedTracks(sourceId: String): List<DownloadedTrack> =
         queries.selectDownloadedAudio(sourceId).executeAsList().map { row ->
             DownloadedTrack(
                 track = row.toTrack(),
@@ -526,7 +542,7 @@ class DesktopCache(
             )
         }
 
-    fun removeDownloadedAudio(
+    override fun removeDownloadedAudio(
         sourceId: String,
         trackId: TrackId,
         quality: StreamQuality,
@@ -587,15 +603,15 @@ class DesktopCache(
         )
     }
 
-    fun markLibrarySyncStarted(sourceId: String) {
+    override fun markLibrarySyncStarted(sourceId: String) {
         queries.markMediaSourceSyncStarted(nowMillis(), sourceId)
     }
 
-    fun markLibrarySyncCompleted(sourceId: String) {
+    override fun markLibrarySyncCompleted(sourceId: String) {
         queries.markMediaSourceSyncCompleted(nowMillis(), sourceId)
     }
 
-    fun upsertLibraryArtists(sourceId: String, artists: List<Artist>) {
+    override fun upsertLibraryArtists(sourceId: String, artists: List<Artist>) {
         val now = nowMillis()
         queries.transaction {
             artists.forEach { artist ->
@@ -610,7 +626,7 @@ class DesktopCache(
         }
     }
 
-    fun upsertLibraryAlbums(sourceId: String, albums: List<Album>) {
+    override fun upsertLibraryAlbums(sourceId: String, albums: List<Album>) {
         val now = nowMillis()
         queries.transaction {
             albums.forEach { album ->
@@ -630,7 +646,7 @@ class DesktopCache(
         }
     }
 
-    fun upsertLibraryTracks(sourceId: String, tracks: List<Track>) {
+    override fun upsertLibraryTracks(sourceId: String, tracks: List<Track>) {
         val now = nowMillis()
         queries.transaction {
             tracks.forEach { track ->
@@ -660,7 +676,7 @@ class DesktopCache(
         }
     }
 
-    fun librarySnapshot(sourceId: String, limit: Long = 50, offset: Long = 0): LibrarySnapshot =
+    override fun librarySnapshot(sourceId: String, limit: Long, offset: Long): LibrarySnapshot =
         LibrarySnapshot(
             artists = queries.selectLibraryArtists(sourceId, limit, offset).executeAsList().map {
                 Artist(
@@ -683,7 +699,7 @@ class DesktopCache(
             },
         )
 
-    fun searchLibrary(sourceId: String, query: String, limit: Long = 50, offset: Long = 0): LibrarySnapshot {
+    override fun searchLibrary(sourceId: String, query: String, limit: Long, offset: Long): LibrarySnapshot {
         val pattern = "%${query.searchText()}%"
         return LibrarySnapshot(
             artists = queries.searchLibraryArtists(sourceId, pattern, limit, offset).executeAsList().map {
@@ -708,27 +724,27 @@ class DesktopCache(
         )
     }
 
-    fun randomLibraryTrackForAlbum(sourceId: String, albumId: AlbumId): Track? =
+    override fun randomLibraryTrackForAlbum(sourceId: String, albumId: AlbumId): Track? =
         queries.selectRandomLibraryTrackForAlbum(sourceId, albumId.value)
             .executeAsOneOrNull()
             ?.toTrack()
 
-    fun libraryTracksForAlbum(sourceId: String, albumId: AlbumId, limit: Long = 50): List<Track> =
+    override fun libraryTracksForAlbum(sourceId: String, albumId: AlbumId, limit: Long): List<Track> =
         queries.selectLibraryTracksForAlbum(sourceId, albumId.value, limit)
             .executeAsList()
             .map { it.toTrack() }
 
-    fun randomLibraryTrackForArtist(sourceId: String, artistId: ArtistId): Track? =
+    override fun randomLibraryTrackForArtist(sourceId: String, artistId: ArtistId): Track? =
         queries.selectRandomLibraryTrackForArtist(sourceId, artistId.value)
             .executeAsOneOrNull()
             ?.toTrack()
 
-    fun libraryTracksForArtist(sourceId: String, artistId: ArtistId, limit: Long = 50): List<Track> =
+    override fun libraryTracksForArtist(sourceId: String, artistId: ArtistId, limit: Long): List<Track> =
         queries.selectLibraryTracksForArtist(sourceId, artistId.value, limit)
             .executeAsList()
             .map { it.toTrack() }
 
-    fun relatedLibraryTracks(sourceId: String, track: Track, limit: Long = 40): List<Track> {
+    override fun relatedLibraryTracks(sourceId: String, track: Track, limit: Long): List<Track> {
         val albumTracks = track.albumId
             ?.let { libraryTracksForAlbum(sourceId, it, limit) }
             .orEmpty()
@@ -744,14 +760,14 @@ class DesktopCache(
             .toList()
     }
 
-    fun libraryIndexStats(sourceId: String): LibraryIndexStats =
+    override fun libraryIndexStats(sourceId: String): LibraryIndexStats =
         LibraryIndexStats(
             artistCount = queries.libraryArtistCountForSource(sourceId).executeAsOne(),
             albumCount = queries.libraryAlbumCountForSource(sourceId).executeAsOne(),
             trackCount = queries.libraryTrackCountForSource(sourceId).executeAsOne(),
         )
 
-    fun libraryAlbumYears(sourceId: String): List<LibraryAlbumYear> =
+    override fun libraryAlbumYears(sourceId: String): List<LibraryAlbumYear> =
         queries.selectLibraryAlbumYears(sourceId)
             .executeAsList()
             .mapNotNull { row ->
@@ -805,11 +821,11 @@ class DesktopCache(
         }
     }
 
-    fun clearProviderData() {
+    override fun clearProviderData() {
         queries.clearResponses()
     }
 
-    fun clearCacheData() {
+    override fun clearCacheData() {
         synchronized(hotImages) {
             hotImages.clear()
             hotImageBytes = 0
@@ -825,12 +841,12 @@ class DesktopCache(
         clearAudioFiles()
     }
 
-    fun clearDownloadData() {
+    override fun clearDownloadData() {
         queries.clearDownloads()
         clearDownloadFiles()
     }
 
-    fun clearLibraryData(sourceId: String? = null) {
+    override fun clearLibraryData(sourceId: String?) {
         queries.transaction {
             if (sourceId == null) {
                 queries.clearLibraryTracks()
@@ -844,14 +860,14 @@ class DesktopCache(
         }
     }
 
-    fun clearAll() {
+    override fun clearAll() {
         clearCacheData()
         clearDownloadData()
-        clearLibraryData()
+        clearLibraryData(null)
         queries.clearMediaSources()
     }
 
-    fun stats(): CacheStats =
+    override fun stats(): CacheStats =
         CacheStats(
             databasePath = databasePath.toAbsolutePath().toString(),
             databaseBytes = databasePath.sizeOrZero(),
@@ -878,7 +894,7 @@ class DesktopCache(
             maxHotImageBytes = maxHotImageBytes,
         )
 
-    private suspend fun <T> cached(
+    override suspend fun <T> cachedProviderResponse(
         provider: MediaProvider,
         resourceType: String,
         resourceId: String,
@@ -905,6 +921,16 @@ class DesktopCache(
         )
         return value
     }
+
+    private suspend fun <T> cached(
+        provider: MediaProvider,
+        resourceType: String,
+        resourceId: String,
+        decode: (String) -> T,
+        encode: (T) -> String,
+        fetch: suspend () -> T,
+    ): T =
+        cachedProviderResponse(provider, resourceType, resourceId, decode, encode, fetch)
 
     private fun cacheKey(provider: MediaProvider, resourceType: String, resourceId: String): String =
         "${provider.cacheNamespace}:$resourceType:$resourceId"
@@ -1090,7 +1116,7 @@ data class SavedMediaSource(
         )
 }
 
-private fun app.naviamp.desktop.cache.Media_source.toSavedMediaSource(): SavedMediaSource =
+private fun app.naviamp.storage.Media_source.toSavedMediaSource(): SavedMediaSource =
     SavedMediaSource(
         id = id,
         providerId = provider_id,
@@ -1113,30 +1139,7 @@ private fun app.naviamp.desktop.cache.Media_source.toSavedMediaSource(): SavedMe
 private fun NavidromeConnection.resolvedDisplayName(): String =
     displayName?.trim()?.takeIf { it.isNotEmpty() } ?: normalizedBaseUrl
 
-data class LibrarySnapshot(
-    val artists: List<Artist> = emptyList(),
-    val albums: List<Album> = emptyList(),
-    val tracks: List<Track> = emptyList(),
-) {
-    val isEmpty: Boolean
-        get() = artists.isEmpty() && albums.isEmpty() && tracks.isEmpty()
-}
-
-data class LibraryIndexStats(
-    val artistCount: Long,
-    val albumCount: Long,
-    val trackCount: Long,
-) {
-    val hasUsableIndex: Boolean
-        get() = artistCount > 0L || albumCount > 0L || trackCount > 0L
-}
-
-data class LibraryAlbumYear(
-    val year: Int,
-    val albumCount: Long,
-)
-
-private fun app.naviamp.desktop.cache.Library_track.toTrack(): Track =
+private fun app.naviamp.storage.Library_track.toTrack(): Track =
     Track(
         id = TrackId(remote_track_id),
         title = title,
@@ -1165,7 +1168,7 @@ private fun app.naviamp.desktop.cache.Library_track.toTrack(): Track =
         userRating = user_rating?.toInt(),
     )
 
-private fun app.naviamp.desktop.cache.Downloaded_audio.toTrack(): Track =
+private fun app.naviamp.storage.Downloaded_audio.toTrack(): Track =
     Track(
         id = TrackId(remote_track_id),
         title = title,
@@ -1194,283 +1197,19 @@ private fun app.naviamp.desktop.cache.Downloaded_audio.toTrack(): Track =
         userRating = user_rating?.toInt(),
     )
 
-private fun createDatabase(path: Path): NaviampCacheDatabase {
+private fun createDatabase(path: Path): NaviampStorageDatabase {
     Files.createDirectories(path.parent)
     val exists = path.exists()
     val driver = JdbcSqliteDriver("jdbc:sqlite:${path.toAbsolutePath()}")
     if (!exists) {
-        NaviampCacheDatabase.Schema.create(driver)
+        NaviampStorageDatabase.Schema.create(driver)
     }
     driver.execute(null, "PRAGMA foreign_keys=ON", 0)
-    ensureCurrentTables(driver)
-    return NaviampCacheDatabase(driver)
-}
-
-private fun ensureCurrentTables(driver: JdbcSqliteDriver) {
-    driver.execute(
-        null,
-        """
-        CREATE TABLE IF NOT EXISTS media_source (
-          id TEXT NOT NULL PRIMARY KEY,
-          provider_id TEXT NOT NULL,
-          cache_namespace TEXT NOT NULL UNIQUE,
-          display_name TEXT NOT NULL,
-          base_url TEXT NOT NULL,
-          username TEXT NOT NULL,
-          token TEXT NOT NULL,
-          salt TEXT NOT NULL,
-          insecure_skip_tls_verification INTEGER NOT NULL DEFAULT 0,
-          custom_certificate_path TEXT,
-          client_certificate_keystore_path TEXT,
-          client_certificate_keystore_password TEXT,
-          created_at_epoch_millis INTEGER NOT NULL,
-          last_connected_at_epoch_millis INTEGER,
-          last_sync_started_at_epoch_millis INTEGER,
-          last_sync_completed_at_epoch_millis INTEGER
-        )
-        """.trimIndent(),
-        0,
-    )
-    runCatching {
-        driver.execute(
-            null,
-            "ALTER TABLE media_source ADD COLUMN insecure_skip_tls_verification INTEGER NOT NULL DEFAULT 0",
-            0,
-        )
-    }
-    runCatching {
-        driver.execute(null, "ALTER TABLE media_source ADD COLUMN custom_certificate_path TEXT", 0)
-    }
-    runCatching {
-        driver.execute(null, "ALTER TABLE media_source ADD COLUMN client_certificate_keystore_path TEXT", 0)
-    }
-    runCatching {
-        driver.execute(null, "ALTER TABLE media_source ADD COLUMN client_certificate_keystore_password TEXT", 0)
-    }
-    driver.execute(
-        null,
-        """
-        CREATE TABLE IF NOT EXISTS cached_audio_waveform (
-          source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
-          remote_track_id TEXT NOT NULL,
-          quality_key TEXT NOT NULL,
-          audio_file_path TEXT NOT NULL,
-          bucket_count INTEGER NOT NULL,
-          amplitudes_json TEXT NOT NULL,
-          size_bytes INTEGER NOT NULL DEFAULT 0,
-          created_at_epoch_millis INTEGER NOT NULL,
-          last_accessed_epoch_millis INTEGER NOT NULL DEFAULT 0,
-          PRIMARY KEY(source_id, remote_track_id, quality_key)
-        )
-        """.trimIndent(),
-        0,
-    )
-    runCatching {
-        driver.execute(
-            null,
-            "ALTER TABLE cached_audio_waveform ADD COLUMN size_bytes INTEGER NOT NULL DEFAULT 0",
-            0,
-        )
-    }
-    runCatching {
-        driver.execute(
-            null,
-            "ALTER TABLE cached_audio_waveform ADD COLUMN last_accessed_epoch_millis INTEGER NOT NULL DEFAULT 0",
-            0,
-        )
-    }
-    driver.execute(
-        null,
-        "UPDATE cached_audio_waveform SET size_bytes = LENGTH(amplitudes_json) WHERE size_bytes = 0",
-        0,
-    )
-    driver.execute(
-        null,
-        """
-        UPDATE cached_audio_waveform
-        SET last_accessed_epoch_millis = created_at_epoch_millis
-        WHERE last_accessed_epoch_millis = 0
-        """.trimIndent(),
-        0,
-    )
-    driver.execute(
-        null,
-        """
-        CREATE TABLE IF NOT EXISTS library_artist (
-          source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
-          remote_artist_id TEXT NOT NULL,
-          name TEXT NOT NULL,
-          search_name TEXT NOT NULL,
-          updated_at_epoch_millis INTEGER NOT NULL,
-          PRIMARY KEY(source_id, remote_artist_id)
-        )
-        """.trimIndent(),
-        0,
-    )
-    driver.execute(
-        null,
-        """
-        CREATE TABLE IF NOT EXISTS library_album (
-          source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
-          remote_album_id TEXT NOT NULL,
-          remote_artist_id TEXT,
-          title TEXT NOT NULL,
-          artist_name TEXT NOT NULL,
-          search_title TEXT NOT NULL,
-          search_artist_name TEXT NOT NULL,
-          cover_art_id TEXT,
-          release_year INTEGER,
-          updated_at_epoch_millis INTEGER NOT NULL,
-          PRIMARY KEY(source_id, remote_album_id)
-        )
-        """.trimIndent(),
-        0,
-    )
-    driver.execute(
-        null,
-        """
-        CREATE TABLE IF NOT EXISTS library_track (
-          source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
-          remote_track_id TEXT NOT NULL,
-          remote_album_id TEXT,
-          remote_artist_id TEXT,
-          title TEXT NOT NULL,
-          artist_name TEXT NOT NULL,
-          album_title TEXT,
-          search_title TEXT NOT NULL,
-          search_artist_name TEXT NOT NULL,
-          search_album_title TEXT,
-          duration_seconds INTEGER,
-          cover_art_id TEXT,
-          audio_codec TEXT,
-          audio_bitrate_kbps INTEGER,
-          audio_content_type TEXT,
-          audio_bit_depth INTEGER,
-          audio_sampling_rate_hz INTEGER,
-          favorited_at_iso8601 TEXT,
-          user_rating INTEGER,
-          updated_at_epoch_millis INTEGER NOT NULL,
-          PRIMARY KEY(source_id, remote_track_id)
-        )
-        """.trimIndent(),
-        0,
-    )
-    listOf(
-        "ALTER TABLE library_track ADD COLUMN audio_codec TEXT",
-        "ALTER TABLE library_track ADD COLUMN audio_bitrate_kbps INTEGER",
-        "ALTER TABLE library_track ADD COLUMN audio_content_type TEXT",
-        "ALTER TABLE library_track ADD COLUMN audio_bit_depth INTEGER",
-        "ALTER TABLE library_track ADD COLUMN audio_sampling_rate_hz INTEGER",
-    ).forEach { sql ->
-        runCatching { driver.execute(null, sql, 0) }
-    }
-    driver.execute(
-        null,
-        """
-        CREATE TABLE IF NOT EXISTS cached_audio (
-          source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
-          remote_track_id TEXT NOT NULL,
-          quality_key TEXT NOT NULL,
-          file_path TEXT NOT NULL,
-          size_bytes INTEGER NOT NULL,
-          content_type TEXT,
-          created_at_epoch_millis INTEGER NOT NULL,
-          last_accessed_epoch_millis INTEGER NOT NULL,
-          PRIMARY KEY(source_id, remote_track_id, quality_key)
-        )
-        """.trimIndent(),
-        0,
-    )
-    driver.execute(
-        null,
-        """
-        CREATE TABLE IF NOT EXISTS downloaded_audio (
-          source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
-          remote_track_id TEXT NOT NULL,
-          quality_key TEXT NOT NULL,
-          file_path TEXT NOT NULL,
-          size_bytes INTEGER NOT NULL,
-          content_type TEXT,
-          title TEXT NOT NULL,
-          artist_id TEXT,
-          artist_name TEXT NOT NULL,
-          album_id TEXT,
-          album_title TEXT,
-          album_release_year INTEGER,
-          duration_seconds INTEGER,
-          cover_art_id TEXT,
-          audio_codec TEXT,
-          audio_bitrate_kbps INTEGER,
-          audio_content_type TEXT,
-          audio_bit_depth INTEGER,
-          audio_sampling_rate_hz INTEGER,
-          favorited_at_iso8601 TEXT,
-          user_rating INTEGER,
-          downloaded_at_epoch_millis INTEGER NOT NULL,
-          PRIMARY KEY(source_id, remote_track_id, quality_key)
-        )
-        """.trimIndent(),
-        0,
-    )
-    driver.execute(
-        null,
-        """
-        CREATE TABLE IF NOT EXISTS cached_lyrics (
-          source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
-          remote_track_id TEXT NOT NULL,
-          lyric_source TEXT NOT NULL,
-          synced INTEGER NOT NULL,
-          lines_json TEXT NOT NULL,
-          display_artist TEXT,
-          display_title TEXT,
-          language TEXT,
-          offset_millis INTEGER NOT NULL,
-          size_bytes INTEGER NOT NULL,
-          created_at_epoch_millis INTEGER NOT NULL,
-          last_accessed_epoch_millis INTEGER NOT NULL,
-          PRIMARY KEY(source_id, remote_track_id)
-        )
-        """.trimIndent(),
-        0,
-    )
-    driver.execute(
-        null,
-        """
-        CREATE TABLE IF NOT EXISTS cached_lrclib_lyrics (
-          source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
-          remote_track_id TEXT NOT NULL,
-          synced INTEGER NOT NULL,
-          lines_json TEXT NOT NULL,
-          display_artist TEXT,
-          display_title TEXT,
-          language TEXT,
-          offset_millis INTEGER NOT NULL,
-          size_bytes INTEGER NOT NULL,
-          created_at_epoch_millis INTEGER NOT NULL,
-          last_accessed_epoch_millis INTEGER NOT NULL,
-          PRIMARY KEY(source_id, remote_track_id)
-        )
-        """.trimIndent(),
-        0,
-    )
-    listOf(
-        "CREATE INDEX IF NOT EXISTS library_artist_source_name ON library_artist(source_id, search_name)",
-        "CREATE INDEX IF NOT EXISTS library_album_source_title ON library_album(source_id, search_title)",
-        "CREATE INDEX IF NOT EXISTS library_album_source_artist ON library_album(source_id, search_artist_name)",
-        "CREATE INDEX IF NOT EXISTS library_track_source_title ON library_track(source_id, search_title)",
-        "CREATE INDEX IF NOT EXISTS library_track_source_artist ON library_track(source_id, search_artist_name)",
-        "CREATE INDEX IF NOT EXISTS cached_audio_source_access ON cached_audio(source_id, last_accessed_epoch_millis)",
-        "CREATE INDEX IF NOT EXISTS downloaded_audio_source_downloaded_at ON downloaded_audio(source_id, downloaded_at_epoch_millis)",
-        "CREATE INDEX IF NOT EXISTS cached_audio_waveform_access ON cached_audio_waveform(last_accessed_epoch_millis)",
-        "CREATE INDEX IF NOT EXISTS cached_lyrics_access ON cached_lyrics(last_accessed_epoch_millis)",
-        "CREATE INDEX IF NOT EXISTS cached_lrclib_lyrics_access ON cached_lrclib_lyrics(last_accessed_epoch_millis)",
-    ).forEach { sql ->
-        driver.execute(null, sql, 0)
-    }
+    return NaviampStorageDatabase(driver)
 }
 
 private fun defaultCacheDatabasePath(): Path =
-    defaultAppDataDirectory().resolve("cache.db")
+    defaultAppDataDirectory().resolve("storage.db")
 
 private fun defaultAudioCacheDirectory(): Path =
     defaultAppDataDirectory().resolve("audio-cache")

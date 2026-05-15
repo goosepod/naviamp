@@ -5,7 +5,6 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.compose.multiplatform)
     alias(libs.plugins.compose.compiler)
-    alias(libs.plugins.sqldelight)
 }
 
 android {
@@ -34,6 +33,7 @@ kotlin {
 
 dependencies {
     implementation(project(":core:domain"))
+    implementation(project(":core:storage"))
     implementation(project(":core:ui"))
     implementation(project(":providers:navidrome"))
     implementation(libs.activity.compose)
@@ -46,12 +46,4 @@ dependencies {
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.session)
     implementation(libs.sqldelight.android.driver)
-}
-
-sqldelight {
-    databases {
-        create("NaviampAndroidDatabase") {
-            packageName.set("app.naviamp.android.storage")
-        }
-    }
 }

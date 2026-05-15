@@ -164,6 +164,34 @@ CREATE TABLE cached_lrclib_lyrics (
   PRIMARY KEY(source_id, remote_track_id)
 );
 
+CREATE TABLE playback_session (
+  source_id TEXT NOT NULL PRIMARY KEY REFERENCES media_source(id) ON DELETE CASCADE,
+  payload TEXT NOT NULL,
+  updated_at_epoch_millis INTEGER NOT NULL
+);
+
+CREATE TABLE playback_history (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  remote_track_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  artist_id TEXT,
+  artist_name TEXT NOT NULL,
+  album_id TEXT,
+  album_title TEXT,
+  album_release_year INTEGER,
+  duration_seconds INTEGER,
+  cover_art_id TEXT,
+  audio_codec TEXT,
+  audio_bitrate_kbps INTEGER,
+  audio_content_type TEXT,
+  audio_bit_depth INTEGER,
+  audio_sampling_rate_hz INTEGER,
+  favorited_at_iso8601 TEXT,
+  user_rating INTEGER,
+  played_at_epoch_millis INTEGER NOT NULL,
+  PRIMARY KEY(source_id, remote_track_id, played_at_epoch_millis)
+);
+
 CREATE INDEX library_artist_source_name
 ON library_artist(source_id, search_name);
 
@@ -193,6 +221,9 @@ ON cached_lyrics(last_accessed_epoch_millis);
 
 CREATE INDEX cached_lrclib_lyrics_access
 ON cached_lrclib_lyrics(last_accessed_epoch_millis);
+
+CREATE INDEX playback_history_source_played_at
+ON playback_history(source_id, played_at_epoch_millis);
 
 selectImage:
 SELECT bytes
@@ -286,6 +317,22 @@ selectMediaSourceById:
 SELECT *
 FROM media_source
 WHERE id = ?;
+
+selectPlaybackSession:
+SELECT payload
+FROM playback_session
+WHERE source_id = ?;
+
+upsertPlaybackSession:
+INSERT OR REPLACE INTO playback_session(
+  source_id,
+  payload,
+  updated_at_epoch_millis
+) VALUES (?, ?, ?);
+
+deletePlaybackSession:
+DELETE FROM playback_session
+WHERE source_id = ?;
 
 upsertMediaSource:
 INSERT OR REPLACE INTO media_source(
@@ -650,6 +697,35 @@ WHERE source_id = ?
 AND remote_track_id = ?
 AND quality_key = ?;
 
+selectPlaybackHistory:
+SELECT *
+FROM playback_history
+WHERE source_id = ?
+ORDER BY played_at_epoch_millis DESC
+LIMIT ?;
+
+upsertPlaybackHistory:
+INSERT OR REPLACE INTO playback_history(
+  source_id,
+  remote_track_id,
+  title,
+  artist_id,
+  artist_name,
+  album_id,
+  album_title,
+  album_release_year,
+  duration_seconds,
+  cover_art_id,
+  audio_codec,
+  audio_bitrate_kbps,
+  audio_content_type,
+  audio_bit_depth,
+  audio_sampling_rate_hz,
+  favorited_at_iso8601,
+  user_rating,
+  played_at_epoch_millis
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
 selectCachedLyrics:
 SELECT *
 FROM cached_lyrics
@@ -721,6 +797,10 @@ lrclibLyricsCacheCount:
 SELECT COUNT(*)
 FROM cached_lrclib_lyrics;
 
+playbackSessionCount:
+SELECT COUNT(*)
+FROM playback_session;
+
 mediaSourceCount:
 SELECT COUNT(*)
 FROM media_source;
@@ -757,6 +837,9 @@ DELETE FROM cached_lyrics;
 
 clearLrclibLyrics:
 DELETE FROM cached_lrclib_lyrics;
+
+clearPlaybackHistory:
+DELETE FROM playback_history;
 
 clearLibraryTracks:
 DELETE FROM library_track;

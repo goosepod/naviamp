@@ -17,6 +17,7 @@ dependencyResolutionManagement {
 rootProject.name = "naviamp"
 
 include(":core:domain")
+include(":core:storage")
 include(":core:ui")
 include(":providers:navidrome")
 include(":apps:desktop")

@@ -337,6 +337,10 @@ Default stance: implement behavior in shared code unless it needs OS APIs, a pla
 11. Shared cache/download contracts:
    - Define common repository interfaces for image/API cache, audio cache, waveform cache, downloads, local library index, and playback history.
    - Desktop can keep its current SQLite/file implementation; Android should implement the same contracts with SQLDelight Android driver and app-scoped storage.
+   - Initial contract extraction is in place in `core/domain/cache`: shared interfaces for image cache, provider response cache, audio cache, waveform cache, downloads, playback history, local library index, and cache maintenance.
+   - Desktop `DesktopCache` now explicitly implements the shared contracts it already supports, and the library snapshot/index stat models are shared domain types.
+   - Android `AndroidStorage` now implements the shared contracts on top of SQLDelight and app-scoped cache/download directories, including cached images/responses/audio/waveforms, downloads, local library indexing, playback history, and cache maintenance.
+   - Shared SQLDelight schema now lives in `core/storage` as `NaviampStorageDatabase`; Android and desktop only provide platform drivers and file locations, so storage table/query changes are made once.
 12. Shared connection/source management:
    - Move saved connection models, display-name fallback, connection normalization, TLS option models, and source identity concepts into common code.
    - Keep certificate file selection and platform TLS application in platform/provider source sets.
