@@ -62,6 +62,14 @@ compose.desktop {
             "-Dsun.awt.application.name=Naviamp",
         )
 
+        buildTypes {
+            release {
+                proguard {
+                    configurationFiles.from(project.file("proguard-rules.pro"))
+                }
+            }
+        }
+
         nativeDistributions {
             packageName = "Naviamp"
             packageVersion = "0.9.0"

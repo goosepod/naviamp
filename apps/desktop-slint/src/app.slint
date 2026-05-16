@@ -1,0 +1,120 @@
+import { Button, LineEdit, ListView } from "std-widgets.slint";
+
+export struct TrackRow {
+    title: string,
+    subtitle: string,
+}
+
+export component AppWindow inherits Window {
+    title: "Naviamp Slint";
+    width: 920px;
+    height: 620px;
+    background: #121417;
+
+    in-out property <string> server-url;
+    in-out property <string> username;
+    in-out property <string> password;
+    in-out property <string> query;
+    in property <string> status-text: "Ready";
+    in property <[TrackRow]> tracks;
+
+    callback connect-requested(string, string, string);
+    callback search-requested(string);
+    callback play-requested(int);
+
+    VerticalLayout {
+        padding: 18px;
+        spacing: 14px;
+
+        Text {
+            text: "Naviamp";
+            color: #f5f7fb;
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        Rectangle {
+            height: 1px;
+            background: #2b3038;
+        }
+
+        GridLayout {
+            spacing: 8px;
+            Row {
+                Text { text: "Server"; color: #b8c0cc; vertical-alignment: center; }
+                LineEdit { text <=> root.server-url; placeholder-text: "https://music.example.com"; }
+            }
+            Row {
+                Text { text: "User"; color: #b8c0cc; vertical-alignment: center; }
+                LineEdit { text <=> root.username; placeholder-text: "username"; }
+            }
+            Row {
+                Text { text: "Password"; color: #b8c0cc; vertical-alignment: center; }
+                LineEdit { text <=> root.password; placeholder-text: "password"; }
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 8px;
+            Button {
+                text: "Save Connection";
+                clicked => { root.connect-requested(root.server-url, root.username, root.password); }
+            }
+            Text {
+                text: root.status-text;
+                color: #9ba7b5;
+                vertical-alignment: center;
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 8px;
+            LineEdit {
+                text <=> root.query;
+                placeholder-text: "Search tracks";
+                accepted => { root.search-requested(root.query); }
+            }
+            Button {
+                text: "Search";
+                clicked => { root.search-requested(root.query); }
+            }
+        }
+
+        Rectangle {
+            border-color: #2b3038;
+            border-width: 1px;
+            border-radius: 6px;
+            background: #171a1f;
+
+            ListView {
+                for track[index] in root.tracks: Rectangle {
+                    height: 58px;
+                    background: row-touch.pressed ? #263241 : row-touch.has-hover ? #202833 : #171a1f;
+
+                    row-touch := TouchArea {
+                        clicked => { root.play-requested(index); }
+                    }
+
+                    VerticalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        padding-top: 8px;
+                        spacing: 3px;
+                        Text {
+                            text: track.title;
+                            color: #f5f7fb;
+                            font-size: 15px;
+                            overflow: elide;
+                        }
+                        Text {
+                            text: track.subtitle;
+                            color: #9ba7b5;
+                            font-size: 12px;
+                            overflow: elide;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
