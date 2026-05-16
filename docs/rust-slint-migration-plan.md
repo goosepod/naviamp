@@ -119,6 +119,7 @@ Owns playback engines and queue interaction:
 
 - `PlaybackEngine` trait.
 - `MpvProcessPlaybackEngine`.
+- Future `BassPlaybackEngine` for Plexamp-like native playback.
 - Progress polling.
 - Pause/resume/seek/volume.
 - Stream metadata.
@@ -129,6 +130,7 @@ Rules:
 
 - Queue logic is not inside mpv code.
 - mpv executable resolution is platform-aware but isolated.
+- BASS should be treated as the likely long-term desktop playback backend. On Windows, Plexamp ships BASS libraries under `resources/treble` (`bass.dll`, `bassmix.dll`, `bass_fx.dll`, codec plugins, and `treble.node`), which supports the Plexamp-for-Navidrome direction.
 - Windows/macOS/Linux differences stay behind the same engine trait.
 - Android should have a separate playback implementation later if Slint Android becomes serious.
 
@@ -320,6 +322,8 @@ Exit criteria:
 - [ ] Add error reporting that does not close the whole app.
 - [ ] Add Windows named-pipe IPC carefully, avoiding the busy-pipe issue fixed in Kotlin.
 - [ ] Add Unix socket IPC for macOS/Linux.
+- [ ] Research BASS licensing, Rust FFI options, plugin packaging, and cross-platform availability.
+- [ ] Add experimental `BassPlaybackEngine` behind the existing `PlaybackEngine` trait.
 
 Exit criteria:
 
