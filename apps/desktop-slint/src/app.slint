@@ -7,6 +7,12 @@ export struct MediaRow {
     source_index: int,
 }
 
+export struct SourceRow {
+    title: string,
+    subtitle: string,
+    source_index: int,
+}
+
 export component AppWindow inherits Window {
     title: "Naviamp";
     width: 920px;
@@ -19,8 +25,11 @@ export component AppWindow inherits Window {
     in-out property <string> query;
     in property <string> status-text: "Ready";
     in property <[MediaRow]> media-rows;
+    in property <[SourceRow]> sources;
 
     callback connect-requested(string, string, string);
+    callback source-activated(int);
+    callback source-delete-requested(int);
     callback search-requested(string);
     callback row-activated(string, int);
 
@@ -38,6 +47,52 @@ export component AppWindow inherits Window {
         Rectangle {
             height: 1px;
             background: #2b3038;
+        }
+
+        if root.sources.length > 0: Rectangle {
+            height: 92px;
+            border-color: #2b3038;
+            border-width: 1px;
+            border-radius: 6px;
+            background: #171a1f;
+
+            ListView {
+                for source in root.sources: Rectangle {
+                    height: 44px;
+                    background: source-touch.pressed ? #263241 : source-touch.has-hover ? #202833 : #171a1f;
+
+                    source-touch := TouchArea {
+                        clicked => { root.source-activated(source.source_index); }
+                    }
+
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 8px;
+                        spacing: 8px;
+
+                        VerticalLayout {
+                            spacing: 2px;
+                            Text {
+                                text: source.title;
+                                color: #f5f7fb;
+                                font-size: 13px;
+                                overflow: elide;
+                            }
+                            Text {
+                                text: source.subtitle;
+                                color: #9ba7b5;
+                                font-size: 11px;
+                                overflow: elide;
+                            }
+                        }
+
+                        Button {
+                            text: "Delete";
+                            clicked => { root.source-delete-requested(source.source_index); }
+                        }
+                    }
+                }
+            }
         }
 
         GridLayout {

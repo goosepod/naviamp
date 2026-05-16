@@ -2,6 +2,7 @@ use crate::storage::StoragePaths;
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::path::PathBuf;
 
 #[derive(Clone, Default, Serialize, Deserialize)]
 pub struct Settings {
@@ -29,6 +30,23 @@ impl Settings {
         } else {
             self.sources.push(source);
         }
+    }
+
+    pub fn activate_source_by_index(&mut self, index: usize) -> Option<SavedMediaSource> {
+        let source = self.sources.get(index)?.clone();
+        self.active_source_id = Some(source.id.clone());
+        Some(source)
+    }
+
+    pub fn remove_source_by_index(&mut self, index: usize) -> Option<SavedMediaSource> {
+        if index >= self.sources.len() {
+            return None;
+        }
+        let removed = self.sources.remove(index);
+        if self.active_source_id.as_deref() == Some(&removed.id) {
+            self.active_source_id = self.sources.first().map(|source| source.id.clone());
+        }
+        Some(removed)
     }
 }
 
@@ -90,21 +108,44 @@ impl ConnectionDraft {
     }
 }
 
-pub fn load_settings() -> Result<Settings> {
-    let path = StoragePaths::new()?.settings_file();
-    let content = fs::read_to_string(path)?;
-    Ok(toml::from_str(&content)?)
+pub trait SettingsStore: Send + Sync {
+    fn load(&self) -> Result<Settings>;
+
+    fn save(&self, settings: &Settings) -> Result<()>;
 }
 
-pub fn save_settings(settings: &Settings) -> Result<()> {
+#[derive(Clone, Debug)]
+pub struct TomlSettingsStore {
+    path: PathBuf,
+}
+
+impl TomlSettingsStore {
+    pub fn from_storage_paths(paths: StoragePaths) -> Self {
+        Self {
+            path: paths.settings_file(),
+        }
+    }
+}
+
+impl SettingsStore for TomlSettingsStore {
+    fn load(&self) -> Result<Settings> {
+        let content = fs::read_to_string(&self.path)?;
+        Ok(toml::from_str(&content)?)
+    }
+
+    fn save(&self, settings: &Settings) -> Result<()> {
+        if let Some(parent) = self.path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&self.path, toml::to_string_pretty(settings)?)?;
+        Ok(())
+    }
+}
+
+pub fn default_settings_store() -> Result<TomlSettingsStore> {
     let paths = StoragePaths::new()?;
     paths.ensure_base_dirs()?;
-    let path = paths.settings_file();
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    fs::write(path, toml::to_string_pretty(settings)?)?;
-    Ok(())
+    Ok(TomlSettingsStore::from_storage_paths(paths))
 }
 
 fn normalize_server_url(value: &str) -> String {
@@ -127,7 +168,7 @@ fn display_name_for_source(server_url: &str, username: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{ConnectionDraft, MediaSourceKind};
+    use super::{ConnectionDraft, MediaSourceKind, Settings, SettingsStore, TomlSettingsStore};
 
     #[test]
     fn connection_draft_normalizes_server_url() {
@@ -155,5 +196,57 @@ mod tests {
         assert_eq!(MediaSourceKind::Navidrome, source.kind);
         assert_eq!(source.id.len(), 32);
         assert_eq!("Me @ https://music.example.com", source.display_name);
+    }
+
+    #[test]
+    fn removing_active_source_selects_next_source() {
+        let first = ConnectionDraft {
+            server_url: "https://one.example.com".to_string(),
+            username: "me".to_string(),
+            password: "password".to_string(),
+        }
+        .to_saved_source("token-1".to_string(), "salt".to_string())
+        .expect("first source");
+        let second = ConnectionDraft {
+            server_url: "https://two.example.com".to_string(),
+            username: "me".to_string(),
+            password: "password".to_string(),
+        }
+        .to_saved_source("token-2".to_string(), "salt".to_string())
+        .expect("second source");
+        let second_id = second.id.clone();
+        let mut settings = Settings::default();
+        settings.upsert_source(first);
+        settings.upsert_source(second);
+        settings.activate_source_by_index(0);
+
+        settings.remove_source_by_index(0);
+
+        assert_eq!(Some(second_id), settings.active_source_id);
+    }
+
+    #[test]
+    fn toml_settings_store_round_trips_settings() {
+        let temp_dir =
+            std::env::temp_dir().join(format!("naviamp-settings-test-{}", std::process::id()));
+        let path = temp_dir.join("settings.toml");
+        let store = TomlSettingsStore { path };
+        let mut settings = Settings::default();
+        settings.upsert_source(
+            ConnectionDraft {
+                server_url: "https://music.example.com".to_string(),
+                username: "me".to_string(),
+                password: "password".to_string(),
+            }
+            .to_saved_source("token".to_string(), "salt".to_string())
+            .expect("source"),
+        );
+
+        store.save(&settings).expect("save settings");
+        let loaded = store.load().expect("load settings");
+
+        assert_eq!(settings.active_source_id, loaded.active_source_id);
+        assert_eq!(1, loaded.sources.len());
+        let _ = std::fs::remove_dir_all(temp_dir);
     }
 }

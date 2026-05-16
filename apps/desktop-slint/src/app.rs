@@ -2,8 +2,8 @@ use crate::domain::{SearchResults, StreamRequest};
 use crate::playback::{default_playback_engine, PlaybackEngine};
 use crate::provider::navidrome::NavidromeProvider;
 use crate::provider::MediaProvider;
-use crate::settings::{load_settings, save_settings, ConnectionDraft, Settings};
-use crate::ui::{search_rows, AppWindow};
+use crate::settings::{default_settings_store, ConnectionDraft, Settings, SettingsStore};
+use crate::ui::{search_rows, source_rows, AppWindow};
 use crate::worker::BackgroundWorker;
 use anyhow::{Context, Result};
 use slint::ComponentHandle;
@@ -16,12 +16,18 @@ struct AppState {
 }
 
 pub fn run() -> Result<()> {
+    let settings_store = Arc::new(default_settings_store()?);
+    run_with_settings_store(settings_store)
+}
+
+fn run_with_settings_store(settings_store: Arc<dyn SettingsStore>) -> Result<()> {
     let ui = AppWindow::new()?;
-    let settings = load_settings().unwrap_or_default();
+    let settings = settings_store.load().unwrap_or_default();
     if let Some(source) = settings.active_source() {
         ui.set_server_url(source.server_url.into());
         ui.set_username(source.username.into());
     }
+    ui.set_sources(source_rows(&settings));
     ui.set_password(String::new().into());
 
     let controller = AppController {
@@ -31,6 +37,7 @@ pub fn run() -> Result<()> {
             search_results: SearchResults::default(),
             playback: default_playback_engine(),
         })),
+        settings_store,
         worker: BackgroundWorker::new("naviamp-background"),
     };
     controller.bind();
@@ -43,6 +50,7 @@ pub fn run() -> Result<()> {
 struct AppController {
     ui: AppWindow,
     state: Arc<Mutex<AppState>>,
+    settings_store: Arc<dyn SettingsStore>,
     worker: BackgroundWorker,
 }
 
@@ -50,6 +58,7 @@ impl AppController {
     fn bind(&self) {
         self.bind_window_close();
         self.bind_connection();
+        self.bind_sources();
         self.bind_search();
         self.bind_playback();
     }
@@ -67,6 +76,7 @@ impl AppController {
     fn bind_connection(&self) {
         let ui_weak = self.ui.as_weak();
         let state = Arc::clone(&self.state);
+        let settings_store = Arc::clone(&self.settings_store);
         let worker = self.worker.clone();
         self.ui
             .on_connect_requested(move |server_url, username, password| {
@@ -81,6 +91,7 @@ impl AppController {
                 let ui_weak_for_result = ui_weak.clone();
                 let state_for_save = Arc::clone(&state);
                 let state_for_result = Arc::clone(&state);
+                let settings_store = Arc::clone(&settings_store);
                 worker.submit(move || {
                     let result = NavidromeProvider::from_password(&draft)
                         .and_then(|provider| provider.validate_connection())
@@ -91,7 +102,7 @@ impl AppController {
                                 .map_err(|error| anyhow::anyhow!(error.to_string()))
                                 .map(|state| state.settings.clone())?;
                             settings.upsert_source(source);
-                            save_settings(&settings)?;
+                            settings_store.save(&settings)?;
                             Ok(settings)
                         });
 
@@ -101,6 +112,7 @@ impl AppController {
                                 Ok(settings) => {
                                     if let Ok(mut state) = state_for_result.lock() {
                                         state.settings = settings;
+                                        ui.set_sources(source_rows(&state.settings));
                                     }
                                     ui.set_status_text("Connection saved".into());
                                 }
@@ -115,6 +127,71 @@ impl AppController {
                     .ok();
                 });
             });
+    }
+
+    fn bind_sources(&self) {
+        let ui_weak = self.ui.as_weak();
+        let state = Arc::clone(&self.state);
+        let settings_store = Arc::clone(&self.settings_store);
+        self.ui.on_source_activated(move |index| {
+            let result = state
+                .lock()
+                .map_err(|error| anyhow::anyhow!(error.to_string()))
+                .and_then(|mut state| {
+                    let source = state
+                        .settings
+                        .activate_source_by_index(index as usize)
+                        .ok_or_else(|| anyhow::anyhow!("source not found"))?;
+                    settings_store.save(&state.settings)?;
+                    Ok((state.settings.clone(), source))
+                });
+            if let Some(ui) = ui_weak.upgrade() {
+                match result {
+                    Ok((settings, source)) => {
+                        ui.set_server_url(source.server_url.into());
+                        ui.set_username(source.username.into());
+                        ui.set_password(String::new().into());
+                        ui.set_sources(source_rows(&settings));
+                        ui.set_status_text("Source selected".into());
+                    }
+                    Err(error) => ui.set_status_text(format!("Source failed: {error}").into()),
+                }
+            }
+        });
+
+        let ui_weak = self.ui.as_weak();
+        let state = Arc::clone(&self.state);
+        let settings_store = Arc::clone(&self.settings_store);
+        self.ui.on_source_delete_requested(move |index| {
+            let result = state
+                .lock()
+                .map_err(|error| anyhow::anyhow!(error.to_string()))
+                .and_then(|mut state| {
+                    let removed = state
+                        .settings
+                        .remove_source_by_index(index as usize)
+                        .ok_or_else(|| anyhow::anyhow!("source not found"))?;
+                    settings_store.save(&state.settings)?;
+                    Ok((state.settings.clone(), removed))
+                });
+            if let Some(ui) = ui_weak.upgrade() {
+                match result {
+                    Ok((settings, removed)) => {
+                        if let Some(source) = settings.active_source() {
+                            ui.set_server_url(source.server_url.into());
+                            ui.set_username(source.username.into());
+                        } else {
+                            ui.set_server_url(String::new().into());
+                            ui.set_username(String::new().into());
+                        }
+                        ui.set_password(String::new().into());
+                        ui.set_sources(source_rows(&settings));
+                        ui.set_status_text(format!("Deleted {}", removed.display_name).into());
+                    }
+                    Err(error) => ui.set_status_text(format!("Delete failed: {error}").into()),
+                }
+            }
+        });
     }
 
     fn bind_search(&self) {

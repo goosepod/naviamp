@@ -291,7 +291,8 @@ Exit criteria:
 - [x] Generate stable source IDs/cache namespaces.
 - [x] Store token/salt instead of plaintext password after validation.
 - [x] Support multiple saved connections.
-- [ ] Add edit/delete/connect flows.
+- [x] Add edit/delete/connect flows.
+- [x] Put settings persistence behind a `SettingsStore` trait.
 - [ ] Add TLS setting model, even if only default TLS works initially.
 - [ ] Add import/export-safe config layout.
 - [ ] Persist window size and last route.
