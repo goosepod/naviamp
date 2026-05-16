@@ -12,7 +12,7 @@ pub struct StoragePaths {
 
 impl StoragePaths {
     pub fn new() -> Result<Self> {
-        let dirs = ProjectDirs::from("app", "naviamp", "Naviamp Slint")
+        let dirs = ProjectDirs::from("app", "naviamp", "Naviamp")
             .ok_or_else(|| anyhow!("could not find app storage directories"))?;
 
         Ok(Self {

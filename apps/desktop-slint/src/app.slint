@@ -1,12 +1,14 @@
 import { Button, LineEdit, ListView } from "std-widgets.slint";
 
-export struct TrackRow {
+export struct MediaRow {
+    kind: string,
     title: string,
     subtitle: string,
+    source_index: int,
 }
 
 export component AppWindow inherits Window {
-    title: "Naviamp Slint";
+    title: "Naviamp";
     width: 920px;
     height: 620px;
     background: #121417;
@@ -16,11 +18,11 @@ export component AppWindow inherits Window {
     in-out property <string> password;
     in-out property <string> query;
     in property <string> status-text: "Ready";
-    in property <[TrackRow]> tracks;
+    in property <[MediaRow]> media-rows;
 
     callback connect-requested(string, string, string);
     callback search-requested(string);
-    callback play-requested(int);
+    callback row-activated(string, int);
 
     VerticalLayout {
         padding: 18px;
@@ -87,12 +89,12 @@ export component AppWindow inherits Window {
             background: #171a1f;
 
             ListView {
-                for track[index] in root.tracks: Rectangle {
+                for row in root.media-rows: Rectangle {
                     height: 58px;
                     background: row-touch.pressed ? #263241 : row-touch.has-hover ? #202833 : #171a1f;
 
                     row-touch := TouchArea {
-                        clicked => { root.play-requested(index); }
+                        clicked => { root.row-activated(row.kind, row.source_index); }
                     }
 
                     VerticalLayout {
@@ -101,13 +103,13 @@ export component AppWindow inherits Window {
                         padding-top: 8px;
                         spacing: 3px;
                         Text {
-                            text: track.title;
+                            text: row.title;
                             color: #f5f7fb;
                             font-size: 15px;
                             overflow: elide;
                         }
                         Text {
-                            text: track.subtitle;
+                            text: row.subtitle;
                             color: #9ba7b5;
                             font-size: 12px;
                             overflow: elide;

@@ -1,9 +1,9 @@
-use crate::domain::Track;
+use crate::domain::SearchResults;
 use crate::playback::MpvPlaybackEngine;
 use crate::provider::navidrome::NavidromeProvider;
 use crate::provider::MediaProvider;
 use crate::settings::{load_settings, save_settings, Settings};
-use crate::ui::{track_rows, AppWindow};
+use crate::ui::{search_rows, AppWindow};
 use crate::worker::BackgroundWorker;
 use anyhow::{Context, Result};
 use slint::ComponentHandle;
@@ -12,7 +12,7 @@ use std::sync::{Arc, Mutex};
 #[derive(Default)]
 struct AppState {
     settings: Settings,
-    tracks: Vec<Track>,
+    search_results: SearchResults,
     playback: MpvPlaybackEngine,
 }
 
@@ -27,7 +27,7 @@ pub fn run() -> Result<()> {
         ui: ui.clone_strong(),
         state: Arc::new(Mutex::new(AppState {
             settings,
-            tracks: Vec::new(),
+            search_results: SearchResults::default(),
             playback: MpvPlaybackEngine::default(),
         })),
         worker: BackgroundWorker::new("naviamp-background"),
@@ -66,6 +66,7 @@ impl AppController {
     fn bind_connection(&self) {
         let ui_weak = self.ui.as_weak();
         let state = Arc::clone(&self.state);
+        let worker = self.worker.clone();
         self.ui
             .on_connect_requested(move |server_url, username, password| {
                 let settings = Settings {
@@ -73,16 +74,36 @@ impl AppController {
                     username: username.to_string(),
                     password: password.to_string(),
                 };
-                if let Ok(mut state) = state.lock() {
-                    state.settings = settings.clone();
-                }
-                let message = match save_settings(&settings) {
-                    Ok(()) => "Connection saved".to_string(),
-                    Err(error) => format!("Could not save settings: {error}"),
-                };
                 if let Some(ui) = ui_weak.upgrade() {
-                    ui.set_status_text(message.into());
+                    ui.set_status_text("Checking connection...".into());
                 }
+                let ui_weak_for_result = ui_weak.clone();
+                let state_for_result = Arc::clone(&state);
+                worker.submit(move || {
+                    let result = NavidromeProvider::new(settings.clone())
+                        .and_then(|provider| provider.validate_connection())
+                        .and_then(|()| save_settings(&settings))
+                        .map(|()| settings);
+
+                    slint::invoke_from_event_loop(move || {
+                        if let Some(ui) = ui_weak_for_result.upgrade() {
+                            match result {
+                                Ok(settings) => {
+                                    if let Ok(mut state) = state_for_result.lock() {
+                                        state.settings = settings;
+                                    }
+                                    ui.set_status_text("Connection saved".into());
+                                }
+                                Err(error) => {
+                                    ui.set_status_text(
+                                        format!("Connection failed: {error}").into(),
+                                    );
+                                }
+                            }
+                        }
+                    })
+                    .ok();
+                });
             });
     }
 
@@ -109,16 +130,16 @@ impl AppController {
             let ui_weak_for_result = ui_weak.clone();
             let state_for_result = Arc::clone(&state);
             worker.submit(move || {
-                let result = NavidromeProvider::new(settings)
-                    .and_then(|provider| provider.search_tracks(&query));
+                let result =
+                    NavidromeProvider::new(settings).and_then(|provider| provider.search(&query));
                 slint::invoke_from_event_loop(move || {
                     if let Some(ui) = ui_weak_for_result.upgrade() {
                         match result {
-                            Ok(tracks) => {
+                            Ok(results) => {
                                 if let Ok(mut state) = state_for_result.lock() {
-                                    state.tracks = tracks.clone();
+                                    state.search_results = results.clone();
                                 }
-                                ui.set_tracks(track_rows(&tracks));
+                                ui.set_media_rows(search_rows(&results));
                                 ui.set_status_text("Search complete".into());
                             }
                             Err(error) => {
@@ -135,7 +156,13 @@ impl AppController {
     fn bind_playback(&self) {
         let ui_weak = self.ui.as_weak();
         let state = Arc::clone(&self.state);
-        self.ui.on_play_requested(move |index| {
+        self.ui.on_row_activated(move |kind, index| {
+            if kind.as_str() != "track" {
+                if let Some(ui) = ui_weak.upgrade() {
+                    ui.set_status_text("Open details is coming next".into());
+                }
+                return;
+            }
             let (settings, track) = {
                 let state = match state.lock() {
                     Ok(state) => state,
@@ -146,7 +173,7 @@ impl AppController {
                         return;
                     }
                 };
-                let Some(track) = state.tracks.get(index as usize).cloned() else {
+                let Some(track) = state.search_results.tracks.get(index as usize).cloned() else {
                     return;
                 };
                 (state.settings.clone(), track)

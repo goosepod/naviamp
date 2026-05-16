@@ -188,7 +188,7 @@ cargo build --release
 - Portable output:
 
 ```text
-apps/desktop-slint/target/release/naviamp-slint.exe
+apps/desktop-slint/target/release/naviamp.exe
 ```
 
 - Add a `dist` task/script later that copies:
@@ -221,13 +221,15 @@ apps/desktop-slint/target/release/naviamp-slint.exe
 
 ### Phase 0: Stabilize The Spike
 
-- [ ] Rename binary and package metadata from `naviamp-slint` to production naming.
-- [ ] Add `README.md` with prerequisites for Windows and macOS.
-- [ ] Remove throwaway state and move code out of `main.rs`.
-- [ ] Add a simple `cargo test` baseline.
-- [ ] Add `cargo fmt` and `cargo clippy` expectations.
-- [ ] Decide whether to commit or revert the Kotlin Compose ProGuard experiment.
-- [ ] Keep generated `target/` and `dist/` ignored.
+- [x] Rename binary and package metadata from `naviamp-slint` to production naming.
+- [x] Add `README.md` with prerequisites for Windows and macOS.
+- [x] Remove throwaway state and move code out of `main.rs`.
+- [x] Add a simple `cargo test` baseline.
+- [x] Add `cargo fmt` and `cargo clippy` expectations.
+- [x] Decide whether to commit or revert the Kotlin Compose ProGuard experiment.
+- [x] Keep generated `target/` and `dist/` ignored.
+
+Decision: leave the Kotlin Compose ProGuard experiment in the legacy Kotlin desktop path for now. Rust/Slint desktop work continues separately on this branch.
 
 Exit criteria:
 
@@ -257,9 +259,9 @@ Exit criteria:
 
 Port the Kotlin provider behavior in layers.
 
-- [ ] Auth/token/salt model.
-- [ ] Connection validation.
-- [ ] `search3` artists/albums/tracks.
+- [x] Auth/token/salt model.
+- [x] Connection validation.
+- [x] `search3` artists/albums/tracks.
 - [ ] `getAlbum`.
 - [ ] `getArtist`.
 - [ ] `getArtistInfo2`.
