@@ -8,13 +8,23 @@ use std::os::windows::process::CommandExt;
 #[cfg(target_os = "windows")]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
+pub trait PlaybackEngine: Send {
+    fn play_url(&mut self, url: &str) -> Result<()>;
+
+    fn stop(&mut self);
+}
+
+pub fn default_playback_engine() -> Box<dyn PlaybackEngine> {
+    Box::<MpvPlaybackEngine>::default()
+}
+
 #[derive(Default)]
 pub struct MpvPlaybackEngine {
     child: Option<Child>,
 }
 
-impl MpvPlaybackEngine {
-    pub fn play_url(&mut self, url: &str) -> Result<()> {
+impl PlaybackEngine for MpvPlaybackEngine {
+    fn play_url(&mut self, url: &str) -> Result<()> {
         self.stop();
         let mut command = Command::new("mpv");
         command
@@ -31,7 +41,7 @@ impl MpvPlaybackEngine {
         Ok(())
     }
 
-    pub fn stop(&mut self) {
+    fn stop(&mut self) {
         if let Some(mut child) = self.child.take() {
             if let Some(mut stdin) = child.stdin.take() {
                 let _ = stdin.write_all(b"q\n");

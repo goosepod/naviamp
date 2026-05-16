@@ -249,6 +249,7 @@ Exit criteria:
 - [x] Replace global/thread-local track storage with explicit app state.
 - [x] Replace blocking network calls with an async runtime or a controlled worker queue.
 - [x] Add an app controller for UI callbacks.
+- [x] Introduce a `PlaybackEngine` trait so mpv can be swapped for libvlc or another backend.
 
 Exit criteria:
 
@@ -264,13 +265,13 @@ Port the Kotlin provider behavior in layers.
 - [x] `search3` artists/albums/tracks.
 - [x] `getAlbum`.
 - [x] `getArtist`.
-- [ ] `getArtistInfo2`.
-- [ ] `getPlaylists`.
-- [ ] `getPlaylist`.
-- [ ] `getGenres`.
-- [ ] `getInternetRadioStations`.
-- [ ] `getRandomSongs`.
-- [ ] `getSimilarSongs` / `getSimilarSongs2`.
+- [x] `getArtistInfo2`.
+- [x] `getPlaylists`.
+- [x] `getPlaylist`.
+- [x] `getGenres`.
+- [x] `getInternetRadioStations`.
+- [x] `getRandomSongs`.
+- [x] `getSimilarSongs` / `getSimilarSongs2`.
 - [ ] Stream URL generation for original quality.
 - [ ] Transcoded stream URL generation.
 - [ ] Favorite/rating mutation APIs.

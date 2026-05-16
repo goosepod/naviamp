@@ -1,4 +1,7 @@
-use crate::domain::{Album, AlbumDetail, Artist, ArtistDetail, SearchResults, Track};
+use crate::domain::{
+    Album, AlbumDetail, Artist, ArtistDetail, ArtistInfo, Genre, InternetRadioStation, Playlist,
+    PlaylistDetail, SearchResults, Track,
+};
 use crate::provider::MediaProvider;
 use crate::settings::Settings;
 use anyhow::{anyhow, Context, Result};
@@ -147,6 +150,83 @@ impl MediaProvider for NavidromeProvider {
         Ok(parse_artist_detail(artist))
     }
 
+    fn artist_info(&self, artist_id: &str) -> Result<ArtistInfo> {
+        let response =
+            self.request_json_with_params("getArtistInfo2.view", &[("id", artist_id)])?;
+        let root = Self::response_root(&response)?;
+        let info = root
+            .get("artistInfo2")
+            .ok_or_else(|| anyhow!("missing artist info"))?;
+
+        Ok(parse_artist_info(artist_id, info))
+    }
+
+    fn playlists(&self) -> Result<Vec<Playlist>> {
+        let response = self.request_json("getPlaylists.view")?;
+        let root = Self::response_root(&response)?;
+        let playlists = root
+            .get("playlists")
+            .ok_or_else(|| anyhow!("missing playlists"))?;
+
+        Ok(parse_playlists(playlists))
+    }
+
+    fn playlist(&self, playlist_id: &str) -> Result<PlaylistDetail> {
+        let response = self.request_json_with_params("getPlaylist.view", &[("id", playlist_id)])?;
+        let root = Self::response_root(&response)?;
+        let playlist = root
+            .get("playlist")
+            .ok_or_else(|| anyhow!("missing playlist"))?;
+
+        Ok(parse_playlist_detail(playlist))
+    }
+
+    fn genres(&self) -> Result<Vec<Genre>> {
+        let response = self.request_json("getGenres.view")?;
+        let root = Self::response_root(&response)?;
+        let genres = root
+            .get("genres")
+            .ok_or_else(|| anyhow!("missing genres"))?;
+
+        Ok(parse_genres(genres))
+    }
+
+    fn internet_radio_stations(&self) -> Result<Vec<InternetRadioStation>> {
+        let response = self.request_json("getInternetRadioStations.view")?;
+        let root = Self::response_root(&response)?;
+        let stations = root
+            .get("internetRadioStations")
+            .ok_or_else(|| anyhow!("missing internet radio stations"))?;
+
+        Ok(parse_internet_radio_stations(stations))
+    }
+
+    fn random_tracks(&self, count: u32) -> Result<Vec<Track>> {
+        let count = count.to_string();
+        let response = self.request_json_with_params("getRandomSongs.view", &[("size", &count)])?;
+        let root = Self::response_root(&response)?;
+        let random_songs = root
+            .get("randomSongs")
+            .ok_or_else(|| anyhow!("missing random songs"))?;
+
+        Ok(parse_tracks(random_songs))
+    }
+
+    fn similar_tracks(&self, track_id: &str, count: u32) -> Result<Vec<Track>> {
+        let count = count.to_string();
+        let response = self.request_json_with_params(
+            "getSimilarSongs2.view",
+            &[("id", track_id), ("count", &count)],
+        )?;
+        let root = Self::response_root(&response)?;
+        let similar_songs = root
+            .get("similarSongs2")
+            .or_else(|| root.get("similarSongs"))
+            .ok_or_else(|| anyhow!("missing similar songs"))?;
+
+        Ok(parse_tracks(similar_songs))
+    }
+
     fn stream_url(&self, track_id: &str) -> Result<String> {
         self.settings.validate_for_connection()?;
         Ok(format!(
@@ -248,6 +328,95 @@ fn parse_artist_detail(artist: &serde_json::Value) -> ArtistDetail {
     }
 }
 
+fn parse_artist_info(artist_id: &str, info: &serde_json::Value) -> ArtistInfo {
+    ArtistInfo {
+        artist_id: artist_id.to_string(),
+        biography: json_string(info, "biography"),
+        musicbrainz_id: json_string(info, "musicBrainzId"),
+        lastfm_url: json_string(info, "lastFmUrl"),
+        small_image_url: json_string(info, "smallImageUrl"),
+        medium_image_url: json_string(info, "mediumImageUrl"),
+        large_image_url: json_string(info, "largeImageUrl"),
+    }
+}
+
+fn parse_playlists(playlists: &serde_json::Value) -> Vec<Playlist> {
+    json_array(playlists, "playlist")
+        .into_iter()
+        .filter_map(|playlist| parse_playlist_summary(&playlist))
+        .collect()
+}
+
+fn parse_playlist_detail(playlist: &serde_json::Value) -> PlaylistDetail {
+    PlaylistDetail {
+        playlist: parse_playlist_summary(playlist).unwrap_or_else(|| Playlist {
+            id: String::new(),
+            name: "Untitled Playlist".to_string(),
+            owner: String::new(),
+            song_count: 0,
+            duration_seconds: 0,
+        }),
+        tracks: json_array(playlist, "entry")
+            .into_iter()
+            .filter_map(|entry| parse_track(&entry))
+            .collect(),
+    }
+}
+
+fn parse_playlist_summary(playlist: &serde_json::Value) -> Option<Playlist> {
+    Some(Playlist {
+        id: playlist.get("id")?.as_str()?.to_string(),
+        name: playlist
+            .get("name")
+            .and_then(|value| value.as_str())
+            .unwrap_or("Untitled Playlist")
+            .to_string(),
+        owner: playlist
+            .get("owner")
+            .and_then(|value| value.as_str())
+            .unwrap_or("")
+            .to_string(),
+        song_count: json_u32(playlist, "songCount"),
+        duration_seconds: json_u32(playlist, "duration"),
+    })
+}
+
+fn parse_genres(genres: &serde_json::Value) -> Vec<Genre> {
+    json_array(genres, "genre")
+        .into_iter()
+        .map(|genre| Genre {
+            name: genre
+                .get("value")
+                .or_else(|| genre.get("name"))
+                .and_then(|value| value.as_str())
+                .or_else(|| genre.as_str())
+                .unwrap_or("")
+                .to_string(),
+            song_count: json_u32(&genre, "songCount"),
+            album_count: json_u32(&genre, "albumCount"),
+        })
+        .filter(|genre| !genre.name.is_empty())
+        .collect()
+}
+
+fn parse_internet_radio_stations(stations: &serde_json::Value) -> Vec<InternetRadioStation> {
+    json_array(stations, "internetRadioStation")
+        .into_iter()
+        .filter_map(|station| {
+            Some(InternetRadioStation {
+                id: station.get("id")?.as_str()?.to_string(),
+                name: station
+                    .get("name")
+                    .and_then(|value| value.as_str())
+                    .unwrap_or("Untitled Station")
+                    .to_string(),
+                stream_url: station.get("streamUrl")?.as_str()?.to_string(),
+                home_page_url: json_string(&station, "homePageUrl"),
+            })
+        })
+        .collect()
+}
+
 fn json_array(result: &serde_json::Value, key: &str) -> Vec<serde_json::Value> {
     result
         .get(key)
@@ -256,9 +425,29 @@ fn json_array(result: &serde_json::Value, key: &str) -> Vec<serde_json::Value> {
         .unwrap_or_default()
 }
 
+fn json_string(value: &serde_json::Value, key: &str) -> Option<String> {
+    value
+        .get(key)
+        .and_then(|value| value.as_str())
+        .filter(|value| !value.is_empty())
+        .map(ToString::to_string)
+}
+
+fn json_u32(value: &serde_json::Value, key: &str) -> u32 {
+    value
+        .get(key)
+        .and_then(|value| value.as_u64())
+        .and_then(|value| u32::try_from(value).ok())
+        .unwrap_or_default()
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{parse_album_detail, parse_artist_detail, NavidromeAuth, CLIENT_NAME};
+    use super::{
+        parse_album_detail, parse_artist_detail, parse_artist_info, parse_genres,
+        parse_internet_radio_stations, parse_playlist_detail, parse_playlists, NavidromeAuth,
+        CLIENT_NAME,
+    };
     use serde_json::json;
 
     #[test]
@@ -312,5 +501,101 @@ mod tests {
         assert_eq!("The Example", detail.artist.name);
         assert_eq!(1, detail.albums.len());
         assert_eq!("album-1", detail.albums[0].id);
+    }
+
+    #[test]
+    fn parses_artist_info() {
+        let info = json!({
+            "biography": "A short bio",
+            "musicBrainzId": "mbid",
+            "lastFmUrl": "https://last.fm/example",
+            "largeImageUrl": "https://img/large.jpg"
+        });
+
+        let parsed = parse_artist_info("artist-1", &info);
+
+        assert_eq!("artist-1", parsed.artist_id);
+        assert_eq!(Some("A short bio".to_string()), parsed.biography);
+        assert_eq!(Some("mbid".to_string()), parsed.musicbrainz_id);
+        assert_eq!(
+            Some("https://img/large.jpg".to_string()),
+            parsed.large_image_url
+        );
+    }
+
+    #[test]
+    fn parses_playlists() {
+        let playlists = json!({
+            "playlist": [
+                { "id": "playlist-1", "name": "Favorites", "owner": "me", "songCount": 12, "duration": 3600 }
+            ]
+        });
+
+        let parsed = parse_playlists(&playlists);
+
+        assert_eq!(1, parsed.len());
+        assert_eq!("Favorites", parsed[0].name);
+        assert_eq!(12, parsed[0].song_count);
+    }
+
+    #[test]
+    fn parses_playlist_detail_tracks() {
+        let playlist = json!({
+            "id": "playlist-1",
+            "name": "Favorites",
+            "entry": [
+                { "id": "song-1", "title": "One", "artist": "The Example", "album": "Blue Record" }
+            ]
+        });
+
+        let parsed = parse_playlist_detail(&playlist);
+
+        assert_eq!("playlist-1", parsed.playlist.id);
+        assert_eq!(1, parsed.tracks.len());
+        assert_eq!("song-1", parsed.tracks[0].id);
+    }
+
+    #[test]
+    fn parses_genres() {
+        let genres = json!({
+            "genre": [
+                { "value": "Rock", "songCount": 10, "albumCount": 2 }
+            ]
+        });
+
+        let parsed = parse_genres(&genres);
+
+        assert_eq!(1, parsed.len());
+        assert_eq!("Rock", parsed[0].name);
+        assert_eq!(2, parsed[0].album_count);
+    }
+
+    #[test]
+    fn parses_internet_radio_stations() {
+        let stations = json!({
+            "internetRadioStation": [
+                { "id": "station-1", "name": "Radio", "streamUrl": "https://radio/stream", "homePageUrl": "https://radio" }
+            ]
+        });
+
+        let parsed = parse_internet_radio_stations(&stations);
+
+        assert_eq!(1, parsed.len());
+        assert_eq!("station-1", parsed[0].id);
+        assert_eq!("https://radio/stream", parsed[0].stream_url);
+    }
+
+    #[test]
+    fn parses_random_song_container() {
+        let random_songs = json!({
+            "song": [
+                { "id": "song-1", "title": "One", "artist": "The Example", "album": "Blue Record" }
+            ]
+        });
+
+        let parsed = super::parse_tracks(&random_songs);
+
+        assert_eq!(1, parsed.len());
+        assert_eq!("song-1", parsed[0].id);
     }
 }

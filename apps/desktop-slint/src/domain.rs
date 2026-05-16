@@ -23,6 +23,47 @@ pub struct ArtistDetail {
     pub albums: Vec<Album>,
 }
 
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ArtistInfo {
+    pub artist_id: String,
+    pub biography: Option<String>,
+    pub musicbrainz_id: Option<String>,
+    pub lastfm_url: Option<String>,
+    pub small_image_url: Option<String>,
+    pub medium_image_url: Option<String>,
+    pub large_image_url: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Playlist {
+    pub id: String,
+    pub name: String,
+    pub owner: String,
+    pub song_count: u32,
+    pub duration_seconds: u32,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PlaylistDetail {
+    pub playlist: Playlist,
+    pub tracks: Vec<Track>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Genre {
+    pub name: String,
+    pub song_count: u32,
+    pub album_count: u32,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct InternetRadioStation {
+    pub id: String,
+    pub name: String,
+    pub stream_url: String,
+    pub home_page_url: Option<String>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Track {
     pub id: String,

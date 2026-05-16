@@ -1,5 +1,5 @@
 use crate::domain::SearchResults;
-use crate::playback::MpvPlaybackEngine;
+use crate::playback::{default_playback_engine, PlaybackEngine};
 use crate::provider::navidrome::NavidromeProvider;
 use crate::provider::MediaProvider;
 use crate::settings::{load_settings, save_settings, Settings};
@@ -9,11 +9,10 @@ use anyhow::{Context, Result};
 use slint::ComponentHandle;
 use std::sync::{Arc, Mutex};
 
-#[derive(Default)]
 struct AppState {
     settings: Settings,
     search_results: SearchResults,
-    playback: MpvPlaybackEngine,
+    playback: Box<dyn PlaybackEngine>,
 }
 
 pub fn run() -> Result<()> {
@@ -28,7 +27,7 @@ pub fn run() -> Result<()> {
         state: Arc::new(Mutex::new(AppState {
             settings,
             search_results: SearchResults::default(),
-            playback: MpvPlaybackEngine::default(),
+            playback: default_playback_engine(),
         })),
         worker: BackgroundWorker::new("naviamp-background"),
     };
