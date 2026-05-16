@@ -433,16 +433,10 @@ sealed interface MpvIpcEndpoint {
             }
 
         override fun listenForEvents(commands: List<String>, onLine: (String) -> Boolean) {
-            waitUntilReady()
-            RandomAccessFile(mpvPath, "rw").use { pipe ->
-                commands.forEach { command ->
-                    pipe.write("$command\n".toByteArray(StandardCharsets.UTF_8))
-                }
-                while (true) {
-                    val line = pipe.readUtf8Line()
-                    if (line.isBlank() || !onLine(line)) return
-                }
-            }
+            // mpv's Windows named-pipe IPC is effectively single-client for this use.
+            // Keeping an observe_property connection open can make later command opens fail
+            // with "All pipe instances are busy" during rapid track changes. Metadata is
+            // still refreshed by the polling path, so avoid the long-lived event handle here.
         }
 
         override fun delete() = Unit
