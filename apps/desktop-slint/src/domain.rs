@@ -65,6 +65,51 @@ pub struct InternetRadioStation {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Lyrics {
+    pub artist: String,
+    pub title: String,
+    pub text: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[allow(dead_code)]
+pub enum StreamFormat {
+    Original,
+    Mp3,
+    Opus,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StreamRequest {
+    pub item_id: String,
+    pub max_bitrate_kbps: Option<u32>,
+    pub format: StreamFormat,
+}
+
+impl StreamRequest {
+    pub fn original(item_id: impl Into<String>) -> Self {
+        Self {
+            item_id: item_id.into(),
+            max_bitrate_kbps: None,
+            format: StreamFormat::Original,
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn transcoded(
+        item_id: impl Into<String>,
+        max_bitrate_kbps: u32,
+        format: StreamFormat,
+    ) -> Self {
+        Self {
+            item_id: item_id.into(),
+            max_bitrate_kbps: Some(max_bitrate_kbps),
+            format,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Track {
     pub id: String,
     pub title: String,

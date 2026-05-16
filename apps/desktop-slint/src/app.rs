@@ -1,4 +1,4 @@
-use crate::domain::SearchResults;
+use crate::domain::{SearchResults, StreamRequest};
 use crate::playback::{default_playback_engine, PlaybackEngine};
 use crate::provider::navidrome::NavidromeProvider;
 use crate::provider::MediaProvider;
@@ -274,7 +274,7 @@ impl AppController {
             };
 
             let result = NavidromeProvider::new(settings)
-                .and_then(|provider| provider.stream_url(&track.id))
+                .and_then(|provider| provider.stream_url(&StreamRequest::original(&track.id)))
                 .and_then(|url| {
                     state
                         .lock()

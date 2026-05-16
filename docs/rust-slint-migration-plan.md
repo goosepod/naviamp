@@ -272,12 +272,12 @@ Port the Kotlin provider behavior in layers.
 - [x] `getInternetRadioStations`.
 - [x] `getRandomSongs`.
 - [x] `getSimilarSongs` / `getSimilarSongs2`.
-- [ ] Stream URL generation for original quality.
-- [ ] Transcoded stream URL generation.
-- [ ] Favorite/rating mutation APIs.
-- [ ] Lyrics API.
-- [ ] Now-playing/play scrobble APIs.
-- [ ] Tests with checked JSON fixtures.
+- [x] Stream URL generation for original quality.
+- [x] Transcoded stream URL generation.
+- [x] Favorite/rating mutation APIs.
+- [x] Lyrics API.
+- [x] Now-playing/play scrobble APIs.
+- [x] Tests with checked JSON fixtures.
 
 Exit criteria:
 

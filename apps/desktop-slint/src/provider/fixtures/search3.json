@@ -1,0 +1,29 @@
+{
+  "subsonic-response": {
+    "status": "ok",
+    "version": "1.16.1",
+    "searchResult3": {
+      "artist": [
+        {
+          "id": "artist-1",
+          "name": "The Example"
+        }
+      ],
+      "album": [
+        {
+          "id": "album-1",
+          "name": "Blue Record",
+          "artist": "The Example"
+        }
+      ],
+      "song": [
+        {
+          "id": "song-1",
+          "title": "One",
+          "artist": "The Example",
+          "album": "Blue Record"
+        }
+      ]
+    }
+  }
+}

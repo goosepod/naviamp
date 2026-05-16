@@ -1,8 +1,8 @@
 pub mod navidrome;
 
 use crate::domain::{
-    AlbumDetail, ArtistDetail, ArtistInfo, Genre, InternetRadioStation, Playlist, PlaylistDetail,
-    SearchResults,
+    AlbumDetail, ArtistDetail, ArtistInfo, Genre, InternetRadioStation, Lyrics, Playlist,
+    PlaylistDetail, SearchResults, StreamRequest, Track,
 };
 use anyhow::Result;
 
@@ -26,9 +26,19 @@ pub trait MediaProvider {
 
     fn internet_radio_stations(&self) -> Result<Vec<InternetRadioStation>>;
 
-    fn random_tracks(&self, count: u32) -> Result<Vec<crate::domain::Track>>;
+    fn random_tracks(&self, count: u32) -> Result<Vec<Track>>;
 
-    fn similar_tracks(&self, track_id: &str, count: u32) -> Result<Vec<crate::domain::Track>>;
+    fn similar_tracks(&self, track_id: &str, count: u32) -> Result<Vec<Track>>;
 
-    fn stream_url(&self, track_id: &str) -> Result<String>;
+    fn stream_url(&self, request: &StreamRequest) -> Result<String>;
+
+    fn set_favorite(&self, item_id: &str, favorite: bool) -> Result<()>;
+
+    fn set_rating(&self, item_id: &str, rating: u8) -> Result<()>;
+
+    fn lyrics(&self, track: &Track) -> Result<Option<Lyrics>>;
+
+    fn report_now_playing(&self, track_id: &str) -> Result<()>;
+
+    fn scrobble(&self, track_id: &str) -> Result<()>;
 }

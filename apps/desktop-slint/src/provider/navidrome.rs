@@ -1,6 +1,6 @@
 use crate::domain::{
-    Album, AlbumDetail, Artist, ArtistDetail, ArtistInfo, Genre, InternetRadioStation, Playlist,
-    PlaylistDetail, SearchResults, Track,
+    Album, AlbumDetail, Artist, ArtistDetail, ArtistInfo, Genre, InternetRadioStation, Lyrics,
+    Playlist, PlaylistDetail, SearchResults, StreamFormat, StreamRequest, Track,
 };
 use crate::provider::MediaProvider;
 use crate::settings::Settings;
@@ -227,13 +227,84 @@ impl MediaProvider for NavidromeProvider {
         Ok(parse_tracks(similar_songs))
     }
 
-    fn stream_url(&self, track_id: &str) -> Result<String> {
+    fn stream_url(&self, request: &StreamRequest) -> Result<String> {
         self.settings.validate_for_connection()?;
-        Ok(format!(
+        Ok(self.stream_url_for_request(request))
+    }
+
+    fn set_favorite(&self, item_id: &str, favorite: bool) -> Result<()> {
+        let endpoint = if favorite { "star.view" } else { "unstar.view" };
+        let response = self.request_json_with_params(endpoint, &[("id", item_id)])?;
+        Self::response_root(&response)?;
+        Ok(())
+    }
+
+    fn set_rating(&self, item_id: &str, rating: u8) -> Result<()> {
+        if rating > 5 {
+            return Err(anyhow!("rating must be between 0 and 5"));
+        }
+        let rating = rating.to_string();
+        let response = self
+            .request_json_with_params("setRating.view", &[("id", item_id), ("rating", &rating)])?;
+        Self::response_root(&response)?;
+        Ok(())
+    }
+
+    fn lyrics(&self, track: &Track) -> Result<Option<Lyrics>> {
+        let response = self.request_json_with_params(
+            "getLyrics.view",
+            &[("artist", &track.artist), ("title", &track.title)],
+        )?;
+        let root = Self::response_root(&response)?;
+
+        Ok(root.get("lyrics").and_then(parse_lyrics))
+    }
+
+    fn report_now_playing(&self, track_id: &str) -> Result<()> {
+        self.scrobble_with_submission(track_id, false)
+    }
+
+    fn scrobble(&self, track_id: &str) -> Result<()> {
+        self.scrobble_with_submission(track_id, true)
+    }
+}
+
+impl NavidromeProvider {
+    fn stream_url_for_request(&self, request: &StreamRequest) -> String {
+        let mut url = format!(
             "{}&id={}",
             self.api_url("stream.view"),
-            urlencoding::encode(track_id),
-        ))
+            urlencoding::encode(&request.item_id),
+        );
+
+        if let Some(max_bitrate) = request.max_bitrate_kbps {
+            url.push_str("&maxBitRate=");
+            url.push_str(&max_bitrate.to_string());
+        }
+        if let Some(format) = stream_format_param(&request.format) {
+            url.push_str("&format=");
+            url.push_str(format);
+        }
+
+        url
+    }
+
+    fn scrobble_with_submission(&self, track_id: &str, submission: bool) -> Result<()> {
+        let submission = if submission { "true" } else { "false" };
+        let response = self.request_json_with_params(
+            "scrobble.view",
+            &[("id", track_id), ("submission", submission)],
+        )?;
+        Self::response_root(&response)?;
+        Ok(())
+    }
+}
+
+fn stream_format_param(format: &StreamFormat) -> Option<&'static str> {
+    match format {
+        StreamFormat::Original => None,
+        StreamFormat::Mp3 => Some("mp3"),
+        StreamFormat::Opus => Some("opus"),
     }
 }
 
@@ -417,6 +488,26 @@ fn parse_internet_radio_stations(stations: &serde_json::Value) -> Vec<InternetRa
         .collect()
 }
 
+fn parse_lyrics(lyrics: &serde_json::Value) -> Option<Lyrics> {
+    Some(Lyrics {
+        artist: lyrics
+            .get("artist")
+            .and_then(|value| value.as_str())
+            .unwrap_or("")
+            .to_string(),
+        title: lyrics
+            .get("title")
+            .and_then(|value| value.as_str())
+            .unwrap_or("")
+            .to_string(),
+        text: lyrics
+            .get("value")
+            .or_else(|| lyrics.get("text"))
+            .and_then(|value| value.as_str())?
+            .to_string(),
+    })
+}
+
 fn json_array(result: &serde_json::Value, key: &str) -> Vec<serde_json::Value> {
     result
         .get(key)
@@ -443,10 +534,13 @@ fn json_u32(value: &serde_json::Value, key: &str) -> u32 {
 
 #[cfg(test)]
 mod tests {
+    use crate::domain::{StreamFormat, StreamRequest};
+    use crate::settings::Settings;
+
     use super::{
         parse_album_detail, parse_artist_detail, parse_artist_info, parse_genres,
-        parse_internet_radio_stations, parse_playlist_detail, parse_playlists, NavidromeAuth,
-        CLIENT_NAME,
+        parse_internet_radio_stations, parse_lyrics, parse_playlist_detail, parse_playlists,
+        NavidromeAuth, NavidromeProvider, CLIENT_NAME,
     };
     use serde_json::json;
 
@@ -483,6 +577,18 @@ mod tests {
         assert_eq!("Blue Record", detail.album.title);
         assert_eq!(1, detail.tracks.len());
         assert_eq!("song-1", detail.tracks[0].id);
+    }
+
+    #[test]
+    fn parses_search_results_fixture() {
+        let response: serde_json::Value =
+            serde_json::from_str(include_str!("fixtures/search3.json")).expect("valid fixture");
+        let root = NavidromeProvider::response_root(&response).expect("valid response root");
+        let result = root.get("searchResult3").expect("search result fixture");
+
+        assert_eq!(1, super::parse_artists(result).len());
+        assert_eq!(1, super::parse_albums(result).len());
+        assert_eq!(1, super::parse_tracks(result).len());
     }
 
     #[test]
@@ -597,5 +703,79 @@ mod tests {
 
         assert_eq!(1, parsed.len());
         assert_eq!("song-1", parsed[0].id);
+    }
+
+    #[test]
+    fn original_stream_url_has_no_transcode_params() {
+        let provider = test_provider();
+
+        let url = provider.stream_url_for_request(&StreamRequest::original("song 1"));
+
+        assert!(url.contains("/rest/stream.view?"));
+        assert!(url.contains("&id=song%201"));
+        assert!(!url.contains("maxBitRate"));
+        assert!(!url.contains("&format="));
+    }
+
+    #[test]
+    fn transcoded_stream_url_includes_quality_params() {
+        let provider = test_provider();
+
+        let url = provider.stream_url_for_request(&StreamRequest::transcoded(
+            "song-1",
+            192,
+            StreamFormat::Mp3,
+        ));
+
+        assert!(url.contains("&id=song-1"));
+        assert!(url.contains("&maxBitRate=192"));
+        assert!(url.contains("&format=mp3"));
+    }
+
+    #[test]
+    fn opus_stream_url_uses_opus_format_param() {
+        let provider = test_provider();
+
+        let url = provider.stream_url_for_request(&StreamRequest::transcoded(
+            "song-1",
+            128,
+            StreamFormat::Opus,
+        ));
+
+        assert!(url.contains("&format=opus"));
+    }
+
+    #[test]
+    fn parses_lyrics() {
+        let lyrics = json!({
+            "artist": "The Example",
+            "title": "One",
+            "value": "Line one\nLine two"
+        });
+
+        let parsed = parse_lyrics(&lyrics).expect("lyrics should parse");
+
+        assert_eq!("The Example", parsed.artist);
+        assert_eq!("One", parsed.title);
+        assert_eq!("Line one\nLine two", parsed.text);
+    }
+
+    #[test]
+    fn ignores_lyrics_without_text() {
+        let lyrics = json!({
+            "artist": "The Example",
+            "title": "One"
+        });
+
+        assert_eq!(None, parse_lyrics(&lyrics));
+    }
+
+    fn test_provider() -> NavidromeProvider {
+        NavidromeProvider::new(Settings {
+            server_url: "https://music.example.com".to_string(),
+            username: "user".to_string(),
+            password: "password".to_string(),
+        })
+        .expect("valid test settings")
     }
 }
