@@ -237,16 +237,16 @@ Exit criteria:
 
 ### Phase 1: Production Skeleton
 
-- [ ] Create `src/domain`.
-- [ ] Create `src/provider`.
-- [ ] Create `src/provider/navidrome`.
-- [ ] Create `src/storage`.
-- [ ] Create `src/playback`.
-- [ ] Create `src/app`.
-- [ ] Create `src/ui` or organize `.slint` files under `ui/`.
-- [ ] Replace global/thread-local track storage with explicit app state.
-- [ ] Replace blocking network calls with an async runtime or a controlled worker queue.
-- [ ] Add an app event/message loop for UI callbacks.
+- [x] Create `src/domain`.
+- [x] Create `src/provider`.
+- [x] Create `src/provider/navidrome`.
+- [x] Create `src/storage`.
+- [x] Create `src/playback`.
+- [x] Create `src/app`.
+- [x] Create `src/ui` or organize `.slint` files under `ui/`.
+- [x] Replace global/thread-local track storage with explicit app state.
+- [x] Replace blocking network calls with an async runtime or a controlled worker queue.
+- [x] Add an app controller for UI callbacks.
 
 Exit criteria:
 
