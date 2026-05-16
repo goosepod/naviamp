@@ -3,7 +3,7 @@ use crate::domain::{
     Playlist, PlaylistDetail, SearchResults, StreamFormat, StreamRequest, Track,
 };
 use crate::provider::MediaProvider;
-use crate::settings::Settings;
+use crate::settings::{ConnectionDraft, SavedMediaSource};
 use anyhow::{anyhow, Context, Result};
 use reqwest::blocking::Client;
 
@@ -13,29 +13,48 @@ const DEFAULT_SALT: &str = "naviamp";
 
 #[derive(Clone)]
 pub struct NavidromeProvider {
-    settings: Settings,
+    source: SavedMediaSource,
     client: Client,
     auth: NavidromeAuth,
 }
 
 impl NavidromeProvider {
-    pub fn new(settings: Settings) -> Result<Self> {
-        settings.validate_for_connection()?;
-        let auth = NavidromeAuth::from_settings(&settings);
+    pub fn new(source: SavedMediaSource) -> Result<Self> {
+        let auth = NavidromeAuth::from_source(&source);
         Ok(Self {
-            settings,
+            source,
             client: Client::new(),
             auth,
         })
     }
 
+    pub fn from_password(draft: &ConnectionDraft) -> Result<Self> {
+        draft.validate_for_connection()?;
+        let auth = NavidromeAuth::from_password(
+            draft.username.trim().to_string(),
+            draft.password.clone(),
+            DEFAULT_SALT.to_string(),
+        );
+        let source = draft.to_saved_source(auth.token.clone(), auth.salt.clone())?;
+        Ok(Self {
+            source,
+            client: Client::new(),
+            auth,
+        })
+    }
+
+    pub fn saved_source_from_password(draft: &ConnectionDraft) -> Result<SavedMediaSource> {
+        let provider = Self::from_password(draft)?;
+        Ok(provider.source)
+    }
+
     fn api_url(&self, endpoint: &str) -> String {
         format!(
             "{}/rest/{}?u={}&t={}&s={}&v={}&c={}&f=json",
-            self.settings.server_url.trim_end_matches('/'),
+            self.source.server_url.trim_end_matches('/'),
             endpoint,
             urlencoding::encode(&self.auth.username),
-            self.auth.token(),
+            self.auth.token,
             urlencoding::encode(&self.auth.salt),
             API_VERSION,
             urlencoding::encode(CLIENT_NAME),
@@ -81,24 +100,25 @@ impl NavidromeProvider {
 #[derive(Clone, Debug)]
 struct NavidromeAuth {
     username: String,
-    password: String,
+    token: String,
     salt: String,
 }
 
 impl NavidromeAuth {
-    fn from_settings(settings: &Settings) -> Self {
+    fn from_source(source: &SavedMediaSource) -> Self {
         Self {
-            username: settings.username.clone(),
-            password: settings.password.clone(),
-            salt: DEFAULT_SALT.to_string(),
+            username: source.username.clone(),
+            token: source.token.clone(),
+            salt: source.salt.clone(),
         }
     }
 
-    fn token(&self) -> String {
-        format!(
-            "{:x}",
-            md5::compute(format!("{}{}", self.password, self.salt))
-        )
+    fn from_password(username: String, password: String, salt: String) -> Self {
+        Self {
+            username,
+            token: format!("{:x}", md5::compute(format!("{password}{salt}"))),
+            salt,
+        }
     }
 }
 
@@ -228,7 +248,6 @@ impl MediaProvider for NavidromeProvider {
     }
 
     fn stream_url(&self, request: &StreamRequest) -> Result<String> {
-        self.settings.validate_for_connection()?;
         Ok(self.stream_url_for_request(request))
     }
 
@@ -535,7 +554,7 @@ fn json_u32(value: &serde_json::Value, key: &str) -> u32 {
 #[cfg(test)]
 mod tests {
     use crate::domain::{StreamFormat, StreamRequest};
-    use crate::settings::Settings;
+    use crate::settings::{ConnectionDraft, MediaSourceKind, SavedMediaSource};
 
     use super::{
         parse_album_detail, parse_artist_detail, parse_artist_info, parse_genres,
@@ -548,11 +567,11 @@ mod tests {
     fn auth_token_matches_subsonic_token_formula() {
         let auth = NavidromeAuth {
             username: "user".to_string(),
-            password: "password".to_string(),
+            token: "06fe650023ce9fc5698876c8c303f6ed".to_string(),
             salt: "naviamp".to_string(),
         };
 
-        assert_eq!(auth.token(), "06fe650023ce9fc5698876c8c303f6ed");
+        assert_eq!(auth.token, "06fe650023ce9fc5698876c8c303f6ed");
     }
 
     #[test]
@@ -771,11 +790,30 @@ mod tests {
     }
 
     fn test_provider() -> NavidromeProvider {
-        NavidromeProvider::new(Settings {
+        NavidromeProvider::new(SavedMediaSource {
+            id: "source-1".to_string(),
+            display_name: "Test".to_string(),
+            kind: MediaSourceKind::Navidrome,
             server_url: "https://music.example.com".to_string(),
             username: "user".to_string(),
-            password: "password".to_string(),
+            token: "06fe650023ce9fc5698876c8c303f6ed".to_string(),
+            salt: "naviamp".to_string(),
         })
         .expect("valid test settings")
+    }
+
+    #[test]
+    fn password_draft_creates_token_backed_provider() {
+        let draft = ConnectionDraft {
+            server_url: "https://music.example.com/".to_string(),
+            username: "user".to_string(),
+            password: "password".to_string(),
+        };
+
+        let provider = NavidromeProvider::from_password(&draft).expect("provider");
+
+        assert_eq!("https://music.example.com", provider.source.server_url);
+        assert_eq!("06fe650023ce9fc5698876c8c303f6ed", provider.source.token);
+        assert_eq!("naviamp", provider.source.salt);
     }
 }

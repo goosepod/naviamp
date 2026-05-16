@@ -286,11 +286,11 @@ Exit criteria:
 
 ### Phase 3: Settings And Source Storage
 
-- [ ] Define Rust `SavedMediaSource`.
-- [ ] Normalize base URLs.
-- [ ] Generate stable source IDs/cache namespaces.
-- [ ] Store token/salt instead of plaintext password after validation.
-- [ ] Support multiple saved connections.
+- [x] Define Rust `SavedMediaSource`.
+- [x] Normalize base URLs.
+- [x] Generate stable source IDs/cache namespaces.
+- [x] Store token/salt instead of plaintext password after validation.
+- [x] Support multiple saved connections.
 - [ ] Add edit/delete/connect flows.
 - [ ] Add TLS setting model, even if only default TLS works initially.
 - [ ] Add import/export-safe config layout.

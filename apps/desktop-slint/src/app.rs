@@ -2,7 +2,7 @@ use crate::domain::{SearchResults, StreamRequest};
 use crate::playback::{default_playback_engine, PlaybackEngine};
 use crate::provider::navidrome::NavidromeProvider;
 use crate::provider::MediaProvider;
-use crate::settings::{load_settings, save_settings, Settings};
+use crate::settings::{load_settings, save_settings, ConnectionDraft, Settings};
 use crate::ui::{search_rows, AppWindow};
 use crate::worker::BackgroundWorker;
 use anyhow::{Context, Result};
@@ -18,9 +18,11 @@ struct AppState {
 pub fn run() -> Result<()> {
     let ui = AppWindow::new()?;
     let settings = load_settings().unwrap_or_default();
-    ui.set_server_url(settings.server_url.clone().into());
-    ui.set_username(settings.username.clone().into());
-    ui.set_password(settings.password.clone().into());
+    if let Some(source) = settings.active_source() {
+        ui.set_server_url(source.server_url.into());
+        ui.set_username(source.username.into());
+    }
+    ui.set_password(String::new().into());
 
     let controller = AppController {
         ui: ui.clone_strong(),
@@ -68,7 +70,7 @@ impl AppController {
         let worker = self.worker.clone();
         self.ui
             .on_connect_requested(move |server_url, username, password| {
-                let settings = Settings {
+                let draft = ConnectionDraft {
                     server_url: server_url.to_string(),
                     username: username.to_string(),
                     password: password.to_string(),
@@ -77,12 +79,21 @@ impl AppController {
                     ui.set_status_text("Checking connection...".into());
                 }
                 let ui_weak_for_result = ui_weak.clone();
+                let state_for_save = Arc::clone(&state);
                 let state_for_result = Arc::clone(&state);
                 worker.submit(move || {
-                    let result = NavidromeProvider::new(settings.clone())
+                    let result = NavidromeProvider::from_password(&draft)
                         .and_then(|provider| provider.validate_connection())
-                        .and_then(|()| save_settings(&settings))
-                        .map(|()| settings);
+                        .and_then(|()| NavidromeProvider::saved_source_from_password(&draft))
+                        .and_then(|source| {
+                            let mut settings = state_for_save
+                                .lock()
+                                .map_err(|error| anyhow::anyhow!(error.to_string()))
+                                .map(|state| state.settings.clone())?;
+                            settings.upsert_source(source);
+                            save_settings(&settings)?;
+                            Ok(settings)
+                        });
 
                     slint::invoke_from_event_loop(move || {
                         if let Some(ui) = ui_weak_for_result.upgrade() {
@@ -113,8 +124,8 @@ impl AppController {
         self.ui.on_search_requested(move |query| {
             let settings = state
                 .lock()
-                .map(|state| state.settings.clone())
-                .unwrap_or_default();
+                .ok()
+                .and_then(|state| state.settings.active_source());
             let query = query.to_string();
             if query.trim().is_empty() {
                 if let Some(ui) = ui_weak.upgrade() {
@@ -129,8 +140,10 @@ impl AppController {
             let ui_weak_for_result = ui_weak.clone();
             let state_for_result = Arc::clone(&state);
             worker.submit(move || {
-                let result =
-                    NavidromeProvider::new(settings).and_then(|provider| provider.search(&query));
+                let result = settings
+                    .ok_or_else(|| anyhow::anyhow!("no saved source"))
+                    .and_then(NavidromeProvider::new)
+                    .and_then(|provider| provider.search(&query));
                 slint::invoke_from_event_loop(move || {
                     if let Some(ui) = ui_weak_for_result.upgrade() {
                         match result {
@@ -159,7 +172,7 @@ impl AppController {
         self.ui.on_row_activated(move |kind, index| {
             match kind.as_str() {
                 "artist" => {
-                    let (settings, artist) = {
+                    let (source, artist) = {
                         let state = match state.lock() {
                             Ok(state) => state,
                             Err(error) => {
@@ -174,7 +187,10 @@ impl AppController {
                         else {
                             return;
                         };
-                        (state.settings.clone(), artist)
+                        let Some(source) = state.settings.active_source() else {
+                            return;
+                        };
+                        (source, artist)
                     };
 
                     if let Some(ui) = ui_weak.upgrade() {
@@ -182,7 +198,7 @@ impl AppController {
                     }
                     let ui_weak_for_result = ui_weak.clone();
                     worker.submit(move || {
-                        let result = NavidromeProvider::new(settings)
+                        let result = NavidromeProvider::new(source)
                             .and_then(|provider| provider.artist(&artist.id));
                         slint::invoke_from_event_loop(move || {
                             if let Some(ui) = ui_weak_for_result.upgrade() {
@@ -208,7 +224,7 @@ impl AppController {
                     return;
                 }
                 "album" => {
-                    let (settings, album) = {
+                    let (source, album) = {
                         let state = match state.lock() {
                             Ok(state) => state,
                             Err(error) => {
@@ -222,7 +238,10 @@ impl AppController {
                         else {
                             return;
                         };
-                        (state.settings.clone(), album)
+                        let Some(source) = state.settings.active_source() else {
+                            return;
+                        };
+                        (source, album)
                     };
 
                     if let Some(ui) = ui_weak.upgrade() {
@@ -230,7 +249,7 @@ impl AppController {
                     }
                     let ui_weak_for_result = ui_weak.clone();
                     worker.submit(move || {
-                        let result = NavidromeProvider::new(settings)
+                        let result = NavidromeProvider::new(source)
                             .and_then(|provider| provider.album(&album.id));
                         slint::invoke_from_event_loop(move || {
                             if let Some(ui) = ui_weak_for_result.upgrade() {
@@ -257,7 +276,7 @@ impl AppController {
                 _ => return,
             };
 
-            let (settings, track) = {
+            let (source, track) = {
                 let state = match state.lock() {
                     Ok(state) => state,
                     Err(error) => {
@@ -270,10 +289,13 @@ impl AppController {
                 let Some(track) = state.search_results.tracks.get(index as usize).cloned() else {
                     return;
                 };
-                (state.settings.clone(), track)
+                let Some(source) = state.settings.active_source() else {
+                    return;
+                };
+                (source, track)
             };
 
-            let result = NavidromeProvider::new(settings)
+            let result = NavidromeProvider::new(source)
                 .and_then(|provider| provider.stream_url(&StreamRequest::original(&track.id)))
                 .and_then(|url| {
                     state
