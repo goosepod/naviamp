@@ -293,9 +293,9 @@ Exit criteria:
 - [x] Support multiple saved connections.
 - [x] Add edit/delete/connect flows.
 - [x] Put settings persistence behind a `SettingsStore` trait.
-- [ ] Add TLS setting model, even if only default TLS works initially.
-- [ ] Add import/export-safe config layout.
-- [ ] Persist window size and last route.
+- [x] Add TLS setting model, even if only default TLS works initially.
+- [x] Add import/export-safe config layout.
+- [x] Persist window size and last route.
 
 Exit criteria:
 

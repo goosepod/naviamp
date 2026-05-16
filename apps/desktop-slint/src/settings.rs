@@ -4,10 +4,26 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
-#[derive(Clone, Default, Serialize, Deserialize)]
+const CURRENT_CONFIG_VERSION: u32 = 1;
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct Settings {
+    pub config_version: u32,
     pub active_source_id: Option<String>,
     pub sources: Vec<SavedMediaSource>,
+    pub app: AppPreferences,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            config_version: CURRENT_CONFIG_VERSION,
+            active_source_id: None,
+            sources: Vec::new(),
+            app: AppPreferences::default(),
+        }
+    }
 }
 
 impl Settings {
@@ -56,6 +72,7 @@ pub enum MediaSourceKind {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct SavedMediaSource {
     pub id: String,
     pub display_name: String,
@@ -64,6 +81,63 @@ pub struct SavedMediaSource {
     pub username: String,
     pub token: String,
     pub salt: String,
+    pub tls: TlsSettings,
+}
+
+impl Default for SavedMediaSource {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            display_name: String::new(),
+            kind: MediaSourceKind::Navidrome,
+            server_url: String::new(),
+            username: String::new(),
+            token: String::new(),
+            salt: String::new(),
+            tls: TlsSettings::default(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TlsSettings {
+    pub certificate_validation: CertificateValidation,
+}
+
+impl Default for TlsSettings {
+    fn default() -> Self {
+        Self {
+            certificate_validation: CertificateValidation::Default,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CertificateValidation {
+    #[default]
+    Default,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct AppPreferences {
+    pub window: WindowPreferences,
+    pub last_route: String,
+}
+
+impl Default for AppPreferences {
+    fn default() -> Self {
+        Self {
+            window: WindowPreferences::default(),
+            last_route: "search".to_string(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WindowPreferences {
+    pub width: Option<u32>,
+    pub height: Option<u32>,
 }
 
 #[derive(Clone, Default)]
@@ -104,6 +178,7 @@ impl ConnectionDraft {
             username,
             token,
             salt,
+            tls: TlsSettings::default(),
         })
     }
 }
@@ -168,7 +243,10 @@ fn display_name_for_source(server_url: &str, username: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{ConnectionDraft, MediaSourceKind, Settings, SettingsStore, TomlSettingsStore};
+    use super::{
+        CertificateValidation, ConnectionDraft, MediaSourceKind, Settings, SettingsStore,
+        TomlSettingsStore, CURRENT_CONFIG_VERSION,
+    };
 
     #[test]
     fn connection_draft_normalizes_server_url() {
@@ -248,5 +326,31 @@ mod tests {
         assert_eq!(settings.active_source_id, loaded.active_source_id);
         assert_eq!(1, loaded.sources.len());
         let _ = std::fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn settings_loads_without_newer_optional_fields() {
+        let settings: Settings = toml::from_str(
+            r#"
+active_source_id = "source-1"
+
+[[sources]]
+id = "source-1"
+display_name = "me @ https://music.example.com"
+kind = "Navidrome"
+server_url = "https://music.example.com"
+username = "me"
+token = "token"
+salt = "salt"
+"#,
+        )
+        .expect("settings should deserialize with defaults");
+
+        assert_eq!(CURRENT_CONFIG_VERSION, settings.config_version);
+        assert_eq!("search", settings.app.last_route);
+        assert_eq!(
+            CertificateValidation::Default,
+            settings.sources[0].tls.certificate_validation
+        );
     }
 }

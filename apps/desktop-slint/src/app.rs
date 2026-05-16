@@ -6,7 +6,7 @@ use crate::settings::{default_settings_store, ConnectionDraft, Settings, Setting
 use crate::ui::{search_rows, source_rows, AppWindow};
 use crate::worker::BackgroundWorker;
 use anyhow::{Context, Result};
-use slint::ComponentHandle;
+use slint::{ComponentHandle, PhysicalSize};
 use std::sync::{Arc, Mutex};
 
 struct AppState {
@@ -26,6 +26,9 @@ fn run_with_settings_store(settings_store: Arc<dyn SettingsStore>) -> Result<()>
     if let Some(source) = settings.active_source() {
         ui.set_server_url(source.server_url.into());
         ui.set_username(source.username.into());
+    }
+    if let (Some(width), Some(height)) = (settings.app.window.width, settings.app.window.height) {
+        ui.window().set_size(PhysicalSize::new(width, height));
     }
     ui.set_sources(source_rows(&settings));
     ui.set_password(String::new().into());
@@ -65,9 +68,18 @@ impl AppController {
 
     fn bind_window_close(&self) {
         let state = Arc::clone(&self.state);
+        let ui_weak = self.ui.as_weak();
+        let settings_store = Arc::clone(&self.settings_store);
         self.ui.window().on_close_requested(move || {
             if let Ok(mut state) = state.lock() {
                 state.playback.stop();
+                if let Some(ui) = ui_weak.upgrade() {
+                    let size = ui.window().size();
+                    state.settings.app.window.width = Some(size.width);
+                    state.settings.app.window.height = Some(size.height);
+                    state.settings.app.last_route = "search".to_string();
+                    let _ = settings_store.save(&state.settings);
+                }
             }
             std::process::exit(0);
         });

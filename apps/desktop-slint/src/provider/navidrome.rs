@@ -798,6 +798,7 @@ mod tests {
             username: "user".to_string(),
             token: "06fe650023ce9fc5698876c8c303f6ed".to_string(),
             salt: "naviamp".to_string(),
+            tls: crate::settings::TlsSettings::default(),
         })
         .expect("valid test settings")
     }
