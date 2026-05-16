@@ -12,6 +12,18 @@ pub struct Album {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AlbumDetail {
+    pub album: Album,
+    pub tracks: Vec<Track>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ArtistDetail {
+    pub artist: Artist,
+    pub albums: Vec<Album>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Track {
     pub id: String,
     pub title: String,

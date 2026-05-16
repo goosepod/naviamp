@@ -156,13 +156,108 @@ impl AppController {
     fn bind_playback(&self) {
         let ui_weak = self.ui.as_weak();
         let state = Arc::clone(&self.state);
+        let worker = self.worker.clone();
         self.ui.on_row_activated(move |kind, index| {
-            if kind.as_str() != "track" {
-                if let Some(ui) = ui_weak.upgrade() {
-                    ui.set_status_text("Open details is coming next".into());
+            match kind.as_str() {
+                "artist" => {
+                    let (settings, artist) = {
+                        let state = match state.lock() {
+                            Ok(state) => state,
+                            Err(error) => {
+                                if let Some(ui) = ui_weak.upgrade() {
+                                    ui.set_status_text(format!("Artist failed: {error}").into());
+                                }
+                                return;
+                            }
+                        };
+                        let Some(artist) =
+                            state.search_results.artists.get(index as usize).cloned()
+                        else {
+                            return;
+                        };
+                        (state.settings.clone(), artist)
+                    };
+
+                    if let Some(ui) = ui_weak.upgrade() {
+                        ui.set_status_text(format!("Opening {}", artist.name).into());
+                    }
+                    let ui_weak_for_result = ui_weak.clone();
+                    worker.submit(move || {
+                        let result = NavidromeProvider::new(settings)
+                            .and_then(|provider| provider.artist(&artist.id));
+                        slint::invoke_from_event_loop(move || {
+                            if let Some(ui) = ui_weak_for_result.upgrade() {
+                                match result {
+                                    Ok(detail) => ui.set_status_text(
+                                        format!(
+                                            "{} albums by {}",
+                                            detail.albums.len(),
+                                            detail.artist.name
+                                        )
+                                        .into(),
+                                    ),
+                                    Err(error) => {
+                                        ui.set_status_text(
+                                            format!("Artist failed: {error}").into(),
+                                        );
+                                    }
+                                }
+                            }
+                        })
+                        .ok();
+                    });
+                    return;
                 }
-                return;
-            }
+                "album" => {
+                    let (settings, album) = {
+                        let state = match state.lock() {
+                            Ok(state) => state,
+                            Err(error) => {
+                                if let Some(ui) = ui_weak.upgrade() {
+                                    ui.set_status_text(format!("Album failed: {error}").into());
+                                }
+                                return;
+                            }
+                        };
+                        let Some(album) = state.search_results.albums.get(index as usize).cloned()
+                        else {
+                            return;
+                        };
+                        (state.settings.clone(), album)
+                    };
+
+                    if let Some(ui) = ui_weak.upgrade() {
+                        ui.set_status_text(format!("Opening {}", album.title).into());
+                    }
+                    let ui_weak_for_result = ui_weak.clone();
+                    worker.submit(move || {
+                        let result = NavidromeProvider::new(settings)
+                            .and_then(|provider| provider.album(&album.id));
+                        slint::invoke_from_event_loop(move || {
+                            if let Some(ui) = ui_weak_for_result.upgrade() {
+                                match result {
+                                    Ok(detail) => ui.set_status_text(
+                                        format!(
+                                            "{} tracks on {}",
+                                            detail.tracks.len(),
+                                            detail.album.title
+                                        )
+                                        .into(),
+                                    ),
+                                    Err(error) => {
+                                        ui.set_status_text(format!("Album failed: {error}").into());
+                                    }
+                                }
+                            }
+                        })
+                        .ok();
+                    });
+                    return;
+                }
+                "track" => {}
+                _ => return,
+            };
+
             let (settings, track) = {
                 let state = match state.lock() {
                     Ok(state) => state,

@@ -52,7 +52,11 @@ export component AppWindow inherits Window {
             }
             Row {
                 Text { text: "Password"; color: #b8c0cc; vertical-alignment: center; }
-                LineEdit { text <=> root.password; placeholder-text: "password"; }
+                LineEdit {
+                    text <=> root.password;
+                    placeholder-text: "password";
+                    input-type: InputType.password;
+                }
             }
         }
 

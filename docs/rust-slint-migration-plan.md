@@ -262,8 +262,8 @@ Port the Kotlin provider behavior in layers.
 - [x] Auth/token/salt model.
 - [x] Connection validation.
 - [x] `search3` artists/albums/tracks.
-- [ ] `getAlbum`.
-- [ ] `getArtist`.
+- [x] `getAlbum`.
+- [x] `getArtist`.
 - [ ] `getArtistInfo2`.
 - [ ] `getPlaylists`.
 - [ ] `getPlaylist`.
