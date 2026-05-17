@@ -84,6 +84,7 @@ pub struct StreamRequest {
     pub item_id: String,
     pub max_bitrate_kbps: Option<u32>,
     pub format: StreamFormat,
+    pub start_seconds: Option<u32>,
 }
 
 impl StreamRequest {
@@ -92,6 +93,14 @@ impl StreamRequest {
             item_id: item_id.into(),
             max_bitrate_kbps: None,
             format: StreamFormat::Original,
+            start_seconds: None,
+        }
+    }
+
+    pub fn original_from(item_id: impl Into<String>, start_seconds: u32) -> Self {
+        Self {
+            start_seconds: Some(start_seconds),
+            ..Self::original(item_id)
         }
     }
 
@@ -105,6 +114,7 @@ impl StreamRequest {
             item_id: item_id.into(),
             max_bitrate_kbps: Some(max_bitrate_kbps),
             format,
+            start_seconds: None,
         }
     }
 }

@@ -1,8 +1,10 @@
-use crate::domain::{SearchResults, StreamRequest};
+use crate::domain::{SearchResults, StreamRequest, Track};
 use crate::playback::{default_playback_engine, PlaybackEngine, PlaybackSnapshot};
 use crate::provider::navidrome::NavidromeProvider;
 use crate::provider::MediaProvider;
-use crate::settings::{default_settings_store, ConnectionDraft, Settings, SettingsStore};
+use crate::settings::{
+    default_settings_store, ConnectionDraft, SavedMediaSource, Settings, SettingsStore,
+};
 use crate::ui::{search_rows, source_rows, AppWindow};
 use crate::worker::BackgroundWorker;
 use anyhow::{Context, Result};
@@ -14,6 +16,14 @@ struct AppState {
     settings: Settings,
     search_results: SearchResults,
     playback: Box<dyn PlaybackEngine>,
+    latest_playback_snapshot: PlaybackSnapshot,
+    current_playback: Option<CurrentPlayback>,
+}
+
+#[derive(Clone)]
+struct CurrentPlayback {
+    source: SavedMediaSource,
+    track: Track,
 }
 
 pub fn run() -> Result<()> {
@@ -40,6 +50,8 @@ fn run_with_settings_store(settings_store: Arc<dyn SettingsStore>) -> Result<()>
             settings,
             search_results: SearchResults::default(),
             playback: default_playback_engine(),
+            latest_playback_snapshot: PlaybackSnapshot::default(),
+            current_playback: None,
         })),
         settings_store,
         worker: BackgroundWorker::new("naviamp-background"),
@@ -247,6 +259,7 @@ impl AppController {
         self.ui.on_playback_stop_requested(move || {
             if let Ok(mut state) = state.lock() {
                 state.playback.stop();
+                state.current_playback = None;
             }
             if let Some(ui) = ui_weak.upgrade() {
                 ui.set_status_text("Stopped".into());
@@ -265,6 +278,76 @@ impl AppController {
                 ui.set_status_text(format!("Volume failed: {error}").into());
             }
         });
+
+        let ui_weak = self.ui.as_weak();
+        let state = Arc::clone(&self.state);
+        self.ui.on_playback_seek_requested(move |progress| {
+            let result = {
+                let mut app_state = match state.lock() {
+                    Ok(state) => state,
+                    Err(error) => {
+                        if let Some(ui) = ui_weak.upgrade() {
+                            ui.set_status_text(format!("Seek failed: {error}").into());
+                        }
+                        return;
+                    }
+                };
+
+                let result = (|| {
+                    let Some(duration) = app_state.latest_playback_snapshot.duration_seconds else {
+                        return Ok(SeekOutcome::Noop);
+                    };
+                    if duration <= 0.0 {
+                        return Ok(SeekOutcome::Noop);
+                    }
+
+                    let target_seconds = duration * f64::from(progress.clamp(0.0, 100.0)) / 100.0;
+                    match app_state.playback.seek_absolute(target_seconds) {
+                        Ok(()) => Ok(SeekOutcome::InPlace(target_seconds)),
+                        Err(error) if is_unseekable_stream_error(&error) => {
+                            let current = app_state
+                                .current_playback
+                                .clone()
+                                .ok_or_else(|| anyhow::anyhow!("no active track to seek"))?;
+                            Ok(SeekOutcome::RestartStream {
+                                current: Box::new(current),
+                                target_seconds,
+                            })
+                        }
+                        Err(error) => Err(error),
+                    }
+                })();
+
+                drop(app_state);
+
+                match result {
+                    Ok(SeekOutcome::RestartStream {
+                        current,
+                        target_seconds,
+                    }) => restart_stream_at_offset(&state, current.as_ref(), target_seconds)
+                        .map(|()| SeekOutcome::Restarted(target_seconds)),
+                    other => other,
+                }
+            };
+
+            if let Some(ui) = ui_weak.upgrade() {
+                match result {
+                    Ok(
+                        SeekOutcome::InPlace(target_seconds)
+                        | SeekOutcome::Restarted(target_seconds),
+                    ) => {
+                        ui.set_playback_elapsed_text(format_seconds(target_seconds).into());
+                        ui.set_playback_progress(progress.clamp(0.0, 100.0));
+                    }
+                    Ok(SeekOutcome::Noop) => {}
+                    Ok(SeekOutcome::RestartStream { .. }) => {}
+                    Err(error) if error.to_string().contains("seeking is not available") => {
+                        ui.set_status_text("Seeking is not available for this stream".into());
+                    }
+                    Err(error) => ui.set_status_text(format!("Seek failed: {error}").into()),
+                }
+            }
+        });
     }
 
     fn bind_playback_snapshot_polling(&self) {
@@ -276,11 +359,16 @@ impl AppController {
                     .lock()
                     .map_err(|error| anyhow::anyhow!(error.to_string()))
                     .and_then(|mut state| state.playback.snapshot());
-                if let (Ok(snapshot), Some(ui)) = (result, ui_weak.upgrade()) {
-                    ui.set_playback_status_text(playback_status_text(snapshot).into());
-                    ui.set_playback_elapsed_text(playback_elapsed_text(snapshot).into());
-                    ui.set_playback_duration_text(playback_duration_text(snapshot).into());
-                    ui.set_playback_progress(playback_progress(snapshot));
+                if let Ok(snapshot) = result {
+                    if let Ok(mut state) = state.lock() {
+                        state.latest_playback_snapshot = snapshot;
+                    }
+                    if let Some(ui) = ui_weak.upgrade() {
+                        ui.set_playback_status_text(playback_status_text(snapshot).into());
+                        ui.set_playback_elapsed_text(playback_elapsed_text(snapshot).into());
+                        ui.set_playback_duration_text(playback_duration_text(snapshot).into());
+                        ui.set_playback_progress(playback_progress(snapshot));
+                    }
                 }
             });
     }
@@ -463,13 +551,20 @@ impl AppController {
                 (source, track)
             };
 
-            let result = NavidromeProvider::new(source)
+            let result = NavidromeProvider::new(source.clone())
                 .and_then(|provider| provider.stream_url(&StreamRequest::original(&track.id)))
                 .and_then(|url| {
                     state
                         .lock()
                         .map_err(|error| anyhow::anyhow!(error.to_string()))
-                        .and_then(|mut state| state.playback.play_url(&url))
+                        .and_then(|mut state| {
+                            state.playback.play_url(&url)?;
+                            state.current_playback = Some(CurrentPlayback {
+                                source: source.clone(),
+                                track: track.clone(),
+                            });
+                            Ok(())
+                        })
                         .context("could not start playback")
                 });
 
@@ -487,6 +582,42 @@ impl AppController {
             state.playback.stop();
         }
     }
+}
+
+enum SeekOutcome {
+    Noop,
+    InPlace(f64),
+    RestartStream {
+        current: Box<CurrentPlayback>,
+        target_seconds: f64,
+    },
+    Restarted(f64),
+}
+
+fn restart_stream_at_offset(
+    state: &Arc<Mutex<AppState>>,
+    current: &CurrentPlayback,
+    target_seconds: f64,
+) -> Result<()> {
+    let start_seconds = target_seconds.max(0.0).round().min(u32::MAX as f64) as u32;
+    let provider = NavidromeProvider::new(current.source.clone())?;
+    let url = provider.stream_url(&StreamRequest::original_from(
+        &current.track.id,
+        start_seconds,
+    ))?;
+
+    state
+        .lock()
+        .map_err(|error| anyhow::anyhow!(error.to_string()))
+        .and_then(|mut state| {
+            state.playback.play_url(&url)?;
+            state.current_playback = Some(current.clone());
+            Ok(())
+        })
+}
+
+fn is_unseekable_stream_error(error: &anyhow::Error) -> bool {
+    error.to_string().contains("seeking is not available")
 }
 
 fn playback_status_text(snapshot: PlaybackSnapshot) -> String {

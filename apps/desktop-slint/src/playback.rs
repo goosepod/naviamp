@@ -15,6 +15,8 @@ pub trait PlaybackEngine: Send {
 
     fn seek_relative(&mut self, seconds: i32) -> Result<()>;
 
+    fn seek_absolute(&mut self, seconds: f64) -> Result<()>;
+
     fn set_volume(&mut self, percent: u8) -> Result<()>;
 
     fn snapshot(&mut self) -> Result<PlaybackSnapshot>;
@@ -42,8 +44,9 @@ type BassHandle = u32;
 const BASS_POS_BYTE: BassDword = 0;
 const BASS_ACTIVE_PLAYING: BassDword = 1;
 const BASS_ATTRIB_VOL: BassDword = 2;
-const BASS_STREAM_BLOCK: BassDword = 0x100000;
 const BASS_STREAM_STATUS: BassDword = 0x800000;
+const BASS_ERROR_POSITION: i32 = 7;
+const BASS_ERROR_NOTAVAIL: i32 = 37;
 
 type BassInit =
     unsafe extern "system" fn(i32, u32, BassDword, *mut c_void, *mut c_void) -> BassBool;
@@ -93,7 +96,7 @@ impl PlaybackEngine for BassPlaybackEngine {
         self.release_stream();
         let bass = self.bass()?;
         let url = CString::new(url).context("stream URL contains an embedded null byte")?;
-        let flags = BASS_STREAM_BLOCK | BASS_STREAM_STATUS;
+        let flags = BASS_STREAM_STATUS;
         let stream =
             unsafe { (bass.stream_create_url)(url.as_ptr(), 0, flags, null_mut(), null_mut()) };
         if stream == 0 {
@@ -134,11 +137,15 @@ impl PlaybackEngine for BassPlaybackEngine {
         let current_bytes = unsafe { (bass.channel_get_position)(stream, BASS_POS_BYTE) };
         let current_seconds = unsafe { (bass.channel_bytes2_seconds)(stream, current_bytes) };
         let target_seconds = (current_seconds + f64::from(seconds)).max(0.0);
-        let target_bytes = unsafe { (bass.channel_seconds2_bytes)(stream, target_seconds) };
-        bass.check(
-            unsafe { (bass.channel_set_position)(stream, target_bytes, BASS_POS_BYTE) },
-            "BASS_ChannelSetPosition failed",
-        )
+        bass.seek_absolute(stream, target_seconds)
+    }
+
+    fn seek_absolute(&mut self, seconds: f64) -> Result<()> {
+        let Some(stream) = self.stream else {
+            return Ok(());
+        };
+        let bass = self.bass()?;
+        bass.seek_absolute(stream, seconds.max(0.0))
     }
 
     fn set_volume(&mut self, percent: u8) -> Result<()> {
@@ -312,9 +319,8 @@ impl BassLibrary {
     }
 
     fn error(&self, message: &str) -> anyhow::Error {
-        anyhow::anyhow!("{message}: BASS error {}", unsafe {
-            (self.get_error_code)()
-        })
+        let error_code = unsafe { (self.get_error_code)() };
+        anyhow::anyhow!("{}: {}", message, bass_error_message(error_code))
     }
 
     fn snapshot(&self, stream: BassHandle, volume: u8) -> PlaybackSnapshot {
@@ -330,6 +336,21 @@ impl BassLibrary {
             is_playing: unsafe { (self._channel_is_active)(stream) } == BASS_ACTIVE_PLAYING,
             volume,
         }
+    }
+
+    fn seek_absolute(&self, stream: BassHandle, seconds: f64) -> Result<()> {
+        let target_bytes = unsafe { (self.channel_seconds2_bytes)(stream, seconds) };
+        if unsafe { (self.channel_set_position)(stream, target_bytes, BASS_POS_BYTE) } == 0 {
+            let error_code = unsafe { (self.get_error_code)() };
+            if matches!(error_code, BASS_ERROR_POSITION | BASS_ERROR_NOTAVAIL) {
+                anyhow::bail!("seeking is not available for this stream");
+            }
+            anyhow::bail!(
+                "BASS_ChannelSetPosition failed: {}",
+                bass_error_message(error_code)
+            );
+        }
+        Ok(())
     }
 }
 
@@ -471,6 +492,14 @@ fn bass_seconds(seconds: f64) -> Option<f64> {
         .filter(|value| *value >= 0.0)
 }
 
+fn bass_error_message(error_code: i32) -> String {
+    match error_code {
+        BASS_ERROR_POSITION => "BASS error 7: invalid position".to_string(),
+        BASS_ERROR_NOTAVAIL => "BASS error 37: requested action is not available".to_string(),
+        _ => format!("BASS error {error_code}"),
+    }
+}
+
 fn null_mut<T>() -> *mut T {
     std::ptr::null_mut()
 }
@@ -526,6 +555,18 @@ mod tests {
         assert_eq!(None, super::bass_seconds(-1.0));
         assert_eq!(None, super::bass_seconds(f64::NAN));
         assert_eq!(None, super::bass_seconds(f64::INFINITY));
+    }
+
+    #[test]
+    fn bass_error_message_names_seek_failures() {
+        assert_eq!(
+            "BASS error 7: invalid position",
+            super::bass_error_message(super::BASS_ERROR_POSITION)
+        );
+        assert_eq!(
+            "BASS error 37: requested action is not available",
+            super::bass_error_message(super::BASS_ERROR_NOTAVAIL)
+        );
     }
 
     fn test_dir(name: &str) -> PathBuf {

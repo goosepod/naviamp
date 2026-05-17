@@ -304,6 +304,10 @@ impl NavidromeProvider {
             url.push_str("&format=");
             url.push_str(format);
         }
+        if let Some(start_seconds) = request.start_seconds {
+            url.push_str("&timeOffset=");
+            url.push_str(&start_seconds.to_string());
+        }
 
         url
     }
@@ -762,6 +766,16 @@ mod tests {
         ));
 
         assert!(url.contains("&format=opus"));
+    }
+
+    #[test]
+    fn offset_stream_url_includes_time_offset_param() {
+        let provider = test_provider();
+
+        let url = provider.stream_url_for_request(&StreamRequest::original_from("song-1", 95));
+
+        assert!(url.contains("&id=song-1"));
+        assert!(url.contains("&timeOffset=95"));
     }
 
     #[test]

@@ -41,6 +41,7 @@ export component AppWindow inherits Window {
     callback playback-resume-requested();
     callback playback-stop-requested();
     callback volume-changed(float);
+    callback playback-seek-requested(float);
 
     VerticalLayout {
         padding: 18px;
@@ -175,6 +176,7 @@ export component AppWindow inherits Window {
                 minimum: 0;
                 maximum: 100;
                 value: root.playback-progress;
+                released(value) => { root.playback-seek-requested(value); }
             }
             Text {
                 text: root.playback-duration-text;

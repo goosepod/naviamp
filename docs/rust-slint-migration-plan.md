@@ -336,6 +336,12 @@ Exit criteria:
 - [x] Add playback snapshot API for BASS duration.
 - [x] Wire playback snapshot polling into app/UI state.
 - [x] Add read-only playback progress UI from BASS snapshots.
+- [x] Add absolute seek support to BASS playback.
+- [x] Wire temporary progress slider to seek.
+- [x] Handle non-seekable BASS streams without showing raw backend errors.
+- [x] Add provider-level stream offset support via `StreamRequest` for seek fallback.
+- [x] Restart the active Navidrome stream at the requested offset when BASS cannot seek in-place.
+- [ ] Verify whether Navidrome honors `timeOffset` for audio on real servers; Subsonic/OpenSubsonic document it as video-focused.
 - [ ] Replace temporary playback progress controls with real scrubber/player UI.
 - [ ] Add stream metadata polling for internet radio.
 - [ ] Add error reporting that does not close the whole app.
