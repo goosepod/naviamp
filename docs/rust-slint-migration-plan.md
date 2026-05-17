@@ -332,8 +332,9 @@ Exit criteria:
 - [x] Add stop.
 - [x] Add volume.
 - [ ] Fix BASS lifecycle bug where pressing Stop prevents starting a later track in the same app session.
-- [ ] Add progress polling.
-- [ ] Add duration polling.
+- [x] Add playback snapshot API for BASS position/progress.
+- [x] Add playback snapshot API for BASS duration.
+- [ ] Wire playback snapshot polling into app/UI state.
 - [ ] Add stream metadata polling for internet radio.
 - [ ] Add error reporting that does not close the whole app.
 - [x] Remove Windows named-pipe/child-process dependency from the Rust app.

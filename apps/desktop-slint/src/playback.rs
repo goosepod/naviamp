@@ -17,7 +17,17 @@ pub trait PlaybackEngine: Send {
 
     fn set_volume(&mut self, percent: u8) -> Result<()>;
 
+    fn snapshot(&mut self) -> Result<PlaybackSnapshot>;
+
     fn stop(&mut self);
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct PlaybackSnapshot {
+    pub position_seconds: Option<f64>,
+    pub duration_seconds: Option<f64>,
+    pub is_playing: bool,
+    pub volume: u8,
 }
 
 pub fn default_playback_engine() -> Box<dyn PlaybackEngine> {
@@ -30,6 +40,7 @@ type BassQword = u64;
 type BassHandle = u32;
 
 const BASS_POS_BYTE: BassDword = 0;
+const BASS_ACTIVE_PLAYING: BassDword = 1;
 const BASS_ATTRIB_VOL: BassDword = 2;
 const BASS_STREAM_BLOCK: BassDword = 0x100000;
 const BASS_STREAM_STATUS: BassDword = 0x800000;
@@ -54,6 +65,7 @@ type BassChannelPause = unsafe extern "system" fn(BassHandle) -> BassBool;
 type BassChannelStop = unsafe extern "system" fn(BassHandle) -> BassBool;
 type BassChannelIsActive = unsafe extern "system" fn(BassHandle) -> BassDword;
 type BassChannelSetAttribute = unsafe extern "system" fn(BassHandle, BassDword, f32) -> BassBool;
+type BassChannelGetLength = unsafe extern "system" fn(BassHandle, BassDword) -> BassQword;
 type BassChannelGetPosition = unsafe extern "system" fn(BassHandle, BassDword) -> BassQword;
 type BassChannelSetPosition =
     unsafe extern "system" fn(BassHandle, BassQword, BassDword) -> BassBool;
@@ -143,6 +155,17 @@ impl PlaybackEngine for BassPlaybackEngine {
         )
     }
 
+    fn snapshot(&mut self) -> Result<PlaybackSnapshot> {
+        let Some(stream) = self.stream else {
+            return Ok(PlaybackSnapshot {
+                volume: self.volume,
+                ..PlaybackSnapshot::default()
+            });
+        };
+        let bass = self.bass()?;
+        Ok(bass.snapshot(stream, self.volume))
+    }
+
     fn stop(&mut self) {
         self.release_stream();
         self.bass.take();
@@ -189,6 +212,7 @@ struct BassLibrary {
     channel_stop: BassChannelStop,
     _channel_is_active: BassChannelIsActive,
     channel_set_attribute: BassChannelSetAttribute,
+    channel_get_length: BassChannelGetLength,
     channel_get_position: BassChannelGetPosition,
     channel_set_position: BassChannelSetPosition,
     channel_bytes2_seconds: BassChannelBytes2Seconds,
@@ -219,6 +243,8 @@ impl BassLibrary {
                 load_symbol::<BassChannelIsActive>(&library, b"BASS_ChannelIsActive\0")?;
             let channel_set_attribute =
                 load_symbol::<BassChannelSetAttribute>(&library, b"BASS_ChannelSetAttribute\0")?;
+            let channel_get_length =
+                load_symbol::<BassChannelGetLength>(&library, b"BASS_ChannelGetLength\0")?;
             let channel_get_position =
                 load_symbol::<BassChannelGetPosition>(&library, b"BASS_ChannelGetPosition\0")?;
             let channel_set_position =
@@ -261,6 +287,7 @@ impl BassLibrary {
                 channel_stop,
                 _channel_is_active: channel_is_active,
                 channel_set_attribute,
+                channel_get_length,
                 channel_get_position,
                 channel_set_position,
                 channel_bytes2_seconds,
@@ -288,6 +315,21 @@ impl BassLibrary {
         anyhow::anyhow!("{message}: BASS error {}", unsafe {
             (self.get_error_code)()
         })
+    }
+
+    fn snapshot(&self, stream: BassHandle, volume: u8) -> PlaybackSnapshot {
+        let position_bytes = unsafe { (self.channel_get_position)(stream, BASS_POS_BYTE) };
+        let length_bytes = unsafe { (self.channel_get_length)(stream, BASS_POS_BYTE) };
+        PlaybackSnapshot {
+            position_seconds: bass_seconds(unsafe {
+                (self.channel_bytes2_seconds)(stream, position_bytes)
+            }),
+            duration_seconds: bass_seconds(unsafe {
+                (self.channel_bytes2_seconds)(stream, length_bytes)
+            }),
+            is_playing: unsafe { (self._channel_is_active)(stream) } == BASS_ACTIVE_PLAYING,
+            volume,
+        }
     }
 }
 
@@ -422,6 +464,13 @@ fn platform_slug() -> &'static str {
     }
 }
 
+fn bass_seconds(seconds: f64) -> Option<f64> {
+    seconds
+        .is_finite()
+        .then_some(seconds)
+        .filter(|value| *value >= 0.0)
+}
+
 fn null_mut<T>() -> *mut T {
     std::ptr::null_mut()
 }
@@ -468,6 +517,15 @@ mod tests {
         assert_eq!(bundled_dir, resolver.resolve().expect("resolve"));
 
         let _ = fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn bass_seconds_rejects_unknown_values() {
+        assert_eq!(Some(12.5), super::bass_seconds(12.5));
+        assert_eq!(Some(0.0), super::bass_seconds(0.0));
+        assert_eq!(None, super::bass_seconds(-1.0));
+        assert_eq!(None, super::bass_seconds(f64::NAN));
+        assert_eq!(None, super::bass_seconds(f64::INFINITY));
     }
 
     fn test_dir(name: &str) -> PathBuf {
