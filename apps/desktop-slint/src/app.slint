@@ -39,7 +39,6 @@ export component AppWindow inherits Window {
     callback row-activated(string, int);
     callback playback-pause-requested();
     callback playback-resume-requested();
-    callback playback-stop-requested();
     callback volume-changed(float);
     callback playback-seek-requested(float);
 
@@ -147,10 +146,6 @@ export component AppWindow inherits Window {
             Button {
                 text: "Resume";
                 clicked => { root.playback-resume-requested(); }
-            }
-            Button {
-                text: "Stop";
-                clicked => { root.playback-stop-requested(); }
             }
             Slider {
                 minimum: 0;

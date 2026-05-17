@@ -175,7 +175,6 @@ impl PlaybackEngine for BassPlaybackEngine {
 
     fn stop(&mut self) {
         self.release_stream();
-        self.bass.take();
     }
 }
 

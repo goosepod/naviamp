@@ -329,9 +329,8 @@ Exit criteria:
   - Windows Media on Windows
 - [x] Add pause/resume.
 - [x] Add seek.
-- [x] Add stop.
+- [x] Remove user-facing Stop control; use pause/play and reserve hard stop for app shutdown.
 - [x] Add volume.
-- [ ] Fix BASS lifecycle bug where pressing Stop prevents starting a later track in the same app session.
 - [x] Add playback snapshot API for BASS position/progress.
 - [x] Add playback snapshot API for BASS duration.
 - [x] Wire playback snapshot polling into app/UI state.
@@ -341,7 +340,7 @@ Exit criteria:
 - [x] Handle non-seekable BASS streams without showing raw backend errors.
 - [x] Add provider-level stream offset support via `StreamRequest` for seek fallback.
 - [x] Restart the active Navidrome stream at the requested offset when BASS cannot seek in-place.
-- [ ] Verify whether Navidrome honors `timeOffset` for audio on real servers; Subsonic/OpenSubsonic document it as video-focused.
+- [x] Verify whether Navidrome honors `timeOffset` for audio on real servers; Subsonic/OpenSubsonic document it as video-focused.
 - [ ] Replace temporary playback progress controls with real scrubber/player UI.
 - [ ] Add stream metadata polling for internet radio.
 - [ ] Add error reporting that does not close the whole app.

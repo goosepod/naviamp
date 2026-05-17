@@ -256,18 +256,6 @@ impl AppController {
 
         let ui_weak = self.ui.as_weak();
         let state = Arc::clone(&self.state);
-        self.ui.on_playback_stop_requested(move || {
-            if let Ok(mut state) = state.lock() {
-                state.playback.stop();
-                state.current_playback = None;
-            }
-            if let Some(ui) = ui_weak.upgrade() {
-                ui.set_status_text("Stopped".into());
-            }
-        });
-
-        let ui_weak = self.ui.as_weak();
-        let state = Arc::clone(&self.state);
         self.ui.on_volume_changed(move |volume| {
             let percent = volume.clamp(0.0, 100.0).round() as u8;
             let result = state
