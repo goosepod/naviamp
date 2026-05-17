@@ -2904,6 +2904,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "directories",
+ "libloading",
  "md5",
  "reqwest",
  "serde",

@@ -16,7 +16,7 @@ Project shorthand: when the user says "ship it", commit the currently modified p
 
 ## Project Shape
 
-Naviamp is a Kotlin Multiplatform / Compose Multiplatform music client inspired by Plexamp, currently focused on desktop and Navidrome.
+Naviamp is a Kotlin Multiplatform / Compose Multiplatform music client currently focused on desktop and Navidrome.
 
 Current priorities:
 
@@ -260,7 +260,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - When internet radio is playing, the Now Playing side panel swaps `BACK TO` / `UP NEXT` / `RELATED` for a compact saved station list and highlights the current station.
   - Stats for Nerds includes internet-radio station details, stream URL, home page URL, current ICY/media title, and raw stream metadata properties when available.
   - Home shows a Recent Internet Radio section only after a station has been played. Recent station entries are persisted locally.
-- Settings uses a responsive layout: wide windows keep the two-column category/detail view, while narrow windows show a Plexamp-style category list and open each settings group in its own scrollable detail view with a back control.
+- Settings uses a responsive layout: wide windows keep the two-column category/detail view, while narrow windows show a compact category list and open each settings group in its own scrollable detail view with a back control.
 - Now Playing should bounce long track titles left and right instead of leaving important title text permanently clipped or using a continuous loop marquee.
 - Now Playing has small shuffle/repeat controls around the main transport controls. Shuffle only reorders `UP NEXT` and keeps a snapshot so turning shuffle off restores the previous upcoming order. Repeat cycles Off -> Queue -> Current track -> Off.
 - Android foundation:
@@ -468,7 +468,7 @@ Top-of-mind work the user wants:
 
 ## Design Preferences
 
-- Compact, playback-focused, Plexamp-inspired.
+- Compact and playback-focused.
 - Dense UI is preferred over roomy whitespace.
 - Keep text readable; avoid muted grey for important secondary metadata.
 - Album artwork should have depth. Android album art needs a drop shadow/depth treatment matching the desktop player rather than sitting flat on the background.

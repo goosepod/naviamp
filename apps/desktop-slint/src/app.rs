@@ -62,6 +62,7 @@ impl AppController {
         self.bind_window_close();
         self.bind_connection();
         self.bind_sources();
+        self.bind_playback_controls();
         self.bind_search();
         self.bind_playback();
     }
@@ -202,6 +203,62 @@ impl AppController {
                     }
                     Err(error) => ui.set_status_text(format!("Delete failed: {error}").into()),
                 }
+            }
+        });
+    }
+
+    fn bind_playback_controls(&self) {
+        let ui_weak = self.ui.as_weak();
+        let state = Arc::clone(&self.state);
+        self.ui.on_playback_pause_requested(move || {
+            let result = state
+                .lock()
+                .map_err(|error| anyhow::anyhow!(error.to_string()))
+                .and_then(|mut state| state.playback.pause());
+            if let Some(ui) = ui_weak.upgrade() {
+                match result {
+                    Ok(()) => ui.set_status_text("Paused".into()),
+                    Err(error) => ui.set_status_text(format!("Pause failed: {error}").into()),
+                }
+            }
+        });
+
+        let ui_weak = self.ui.as_weak();
+        let state = Arc::clone(&self.state);
+        self.ui.on_playback_resume_requested(move || {
+            let result = state
+                .lock()
+                .map_err(|error| anyhow::anyhow!(error.to_string()))
+                .and_then(|mut state| state.playback.resume());
+            if let Some(ui) = ui_weak.upgrade() {
+                match result {
+                    Ok(()) => ui.set_status_text("Playing".into()),
+                    Err(error) => ui.set_status_text(format!("Resume failed: {error}").into()),
+                }
+            }
+        });
+
+        let ui_weak = self.ui.as_weak();
+        let state = Arc::clone(&self.state);
+        self.ui.on_playback_stop_requested(move || {
+            if let Ok(mut state) = state.lock() {
+                state.playback.stop();
+            }
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.set_status_text("Stopped".into());
+            }
+        });
+
+        let ui_weak = self.ui.as_weak();
+        let state = Arc::clone(&self.state);
+        self.ui.on_volume_changed(move |volume| {
+            let percent = volume.clamp(0.0, 100.0).round() as u8;
+            let result = state
+                .lock()
+                .map_err(|error| anyhow::anyhow!(error.to_string()))
+                .and_then(|mut state| state.playback.set_volume(percent));
+            if let (Err(error), Some(ui)) = (result, ui_weak.upgrade()) {
+                ui.set_status_text(format!("Volume failed: {error}").into());
             }
         });
     }

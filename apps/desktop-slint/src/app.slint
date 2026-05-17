@@ -1,4 +1,4 @@
-import { Button, LineEdit, ListView } from "std-widgets.slint";
+import { Button, LineEdit, ListView, Slider } from "std-widgets.slint";
 
 export struct MediaRow {
     kind: string,
@@ -23,6 +23,7 @@ export component AppWindow inherits Window {
     in-out property <string> username;
     in-out property <string> password;
     in-out property <string> query;
+    in-out property <float> volume: 80;
     in property <string> status-text: "Ready";
     in property <[MediaRow]> media-rows;
     in property <[SourceRow]> sources;
@@ -32,6 +33,10 @@ export component AppWindow inherits Window {
     callback source-delete-requested(int);
     callback search-requested(string);
     callback row-activated(string, int);
+    callback playback-pause-requested();
+    callback playback-resume-requested();
+    callback playback-stop-requested();
+    callback volume-changed(float);
 
     VerticalLayout {
         padding: 18px;
@@ -125,6 +130,28 @@ export component AppWindow inherits Window {
                 text: root.status-text;
                 color: #9ba7b5;
                 vertical-alignment: center;
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 8px;
+            Button {
+                text: "Pause";
+                clicked => { root.playback-pause-requested(); }
+            }
+            Button {
+                text: "Resume";
+                clicked => { root.playback-resume-requested(); }
+            }
+            Button {
+                text: "Stop";
+                clicked => { root.playback-stop-requested(); }
+            }
+            Slider {
+                minimum: 0;
+                maximum: 100;
+                value <=> root.volume;
+                changed => { root.volume-changed(root.volume); }
             }
         }
 

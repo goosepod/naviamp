@@ -20,7 +20,7 @@ It currently:
 - Builds a Windows release exe around 6.23 MiB.
 - Saves a basic Navidrome connection.
 - Searches Navidrome tracks through `search3`.
-- Plays a selected track with external `mpv`.
+- Plays a selected track through native BASS playback.
 
 This proves the size/startup direction is viable, but it is not yet architected as the production desktop app.
 
@@ -39,7 +39,7 @@ naviamp/
     naviamp-provider/    Provider traits and provider-neutral API models
     naviamp-navidrome/   Navidrome/Subsonic implementation
     naviamp-storage/     SQLite schema, repositories, migrations
-    naviamp-playback/    Playback contracts and mpv process control
+    naviamp-playback/    Playback contracts and BASS/native audio control
   docs/
 ```
 
@@ -118,8 +118,9 @@ Rules:
 Owns playback engines and queue interaction:
 
 - `PlaybackEngine` trait.
-- `MpvProcessPlaybackEngine`.
-- Future `BassPlaybackEngine` for Plexamp-like native playback.
+- `BassPlaybackEngine` for native playback.
+- `DROP` as the future public/project name for Naviamp's BASS integration layer and runtime module.
+- Future alternate engines only when a platform needs one.
 - Progress polling.
 - Pause/resume/seek/volume.
 - Stream metadata.
@@ -128,9 +129,10 @@ Owns playback engines and queue interaction:
 
 Rules:
 
-- Queue logic is not inside mpv code.
-- mpv executable resolution is platform-aware but isolated.
-- BASS should be treated as the likely long-term desktop playback backend. On Windows, Plexamp ships BASS libraries under `resources/treble` (`bass.dll`, `bassmix.dll`, `bass_fx.dll`, codec plugins, and `treble.node`), which supports the Plexamp-for-Navidrome direction.
+- Queue logic is not inside BASS FFI code.
+- BASS library resolution is platform-aware but isolated.
+- BASS is the long-term desktop playback backend. Runtime libraries and codec plugins are distributed with Naviamp builds.
+- The BASS integration should eventually move into its own directory/module named `DROP`, with its runtime libraries colocated there.
 - Windows/macOS/Linux differences stay behind the same engine trait.
 - Android should have a separate playback implementation later if Slint Android becomes serious.
 
@@ -172,7 +174,7 @@ Rules:
 
 - `.slint` files receive view models, not provider/storage objects.
 - UI components stay reusable: `TrackRow`, `AlbumRow`, `ArtistRow`, `MiniPlayer`, `NowPlaying`, `SettingsSection`, etc.
-- Keep dense, Plexamp-inspired design as a visual target.
+- Keep dense, playback-focused design as a visual target.
 
 ## Build And Tooling Plan
 
@@ -195,7 +197,7 @@ apps/desktop-slint/target/release/naviamp.exe
 
 - Add a `dist` task/script later that copies:
   - `Naviamp.exe`
-  - bundled `mpv.exe` if license/package decision is approved
+  - bundled BASS runtime libraries and plugin DLLs
   - license/notice files
 
 ### macOS
@@ -204,7 +206,7 @@ apps/desktop-slint/target/release/naviamp.exe
 - Support both `aarch64-apple-darwin` and `x86_64-apple-darwin`.
 - Start with unsigned `.app` or raw binary for local dev.
 - Later add signing/notarization.
-- Decide whether to bundle `mpv` or use a first-run resolver.
+- Bundle BASS runtime libraries inside the app bundle once macOS packaging begins.
 
 ### Linux
 
@@ -251,7 +253,7 @@ Exit criteria:
 - [x] Replace global/thread-local track storage with explicit app state.
 - [x] Replace blocking network calls with an async runtime or a controlled worker queue.
 - [x] Add an app controller for UI callbacks.
-- [x] Introduce a `PlaybackEngine` trait so mpv can be swapped for libvlc or another backend.
+- [x] Introduce a `PlaybackEngine` trait so BASS stays isolated and can be swapped for platform-specific engines if needed.
 
 Exit criteria:
 
@@ -306,24 +308,38 @@ Exit criteria:
 
 ### Phase 4: Playback Engine V1
 
-- [ ] Move current `mpv` launch code into `MpvProcessPlaybackEngine`.
-- [ ] Add executable resolution:
-  - env var
+- [x] Replace external `mpv` process playback with native `BassPlaybackEngine`.
+- [x] Add BASS runtime resolution:
+  - `NAVIAMP_BASS_DIR` env var
   - adjacent app folder
   - bundled app resources
-  - PATH fallback
-- [ ] Add pause/resume.
-- [ ] Add seek.
-- [ ] Add stop.
-- [ ] Add volume.
+  - ignored local dev vendor folder
+  - project-local bundled runtime folder
+- [x] Add BASS plugin loading for common modules:
+  - FLAC
+  - Opus
+  - ALAC
+  - APE
+  - DSD
+  - MPC
+  - HLS
+  - WebM
+  - MIDI
+  - mixer/fx
+  - Windows Media on Windows
+- [x] Add pause/resume.
+- [x] Add seek.
+- [x] Add stop.
+- [x] Add volume.
 - [ ] Add progress polling.
 - [ ] Add duration polling.
 - [ ] Add stream metadata polling for internet radio.
 - [ ] Add error reporting that does not close the whole app.
-- [ ] Add Windows named-pipe IPC carefully, avoiding the busy-pipe issue fixed in Kotlin.
-- [ ] Add Unix socket IPC for macOS/Linux.
-- [ ] Research BASS licensing, Rust FFI options, plugin packaging, and cross-platform availability.
-- [ ] Add experimental `BassPlaybackEngine` behind the existing `PlaybackEngine` trait.
+- [x] Remove Windows named-pipe/child-process dependency from the Rust app.
+- [x] Research BASS licensing enough to proceed for this free open-source app.
+- [x] Add `BassPlaybackEngine` behind the existing `PlaybackEngine` trait.
+- [x] Add a local BASS runtime prep script for Windows.
+- [ ] Add a future visualizer backend abstraction; start with Slint/software rendering, then evaluate GPU-backed rendering only if needed.
 
 Exit criteria:
 
@@ -439,6 +455,8 @@ Exit criteria:
 - [ ] Album-art color sampling.
 - [ ] Shared palette model.
 - [ ] Apply restrained player/background theming.
+- [ ] Add visualizer/waveform rendering plan without assuming Chromium/Vulkan/SwiftShader dependencies.
+- [ ] Evaluate GPU-backed rendering only after a Slint/software visualizer proves insufficient.
 
 Exit criteria:
 
@@ -585,7 +603,7 @@ Windows:
 
 - [ ] Portable dist folder/script.
 - [ ] Optional installer later.
-- [ ] Bundled mpv decision.
+- [ ] Bundled BASS runtime/plugin packaging.
 - [ ] Media keys.
 - [ ] Taskbar/app icon.
 - [ ] File locations under `%APPDATA%`/`%LOCALAPPDATA%`.
@@ -594,7 +612,7 @@ macOS:
 
 - [ ] `.app` bundle.
 - [ ] App icon.
-- [ ] Bundled mpv decision.
+- [ ] Bundled BASS runtime/plugin packaging.
 - [ ] Media keys / Now Playing integration.
 - [ ] Config/cache paths under Application Support/Caches.
 - [ ] Signing/notarization plan.
@@ -654,7 +672,7 @@ Media browsing:
 
 Playback:
 
-- [ ] mpv playback.
+- [x] BASS playback.
 - [ ] Pause/resume.
 - [ ] Seek.
 - [ ] Volume.

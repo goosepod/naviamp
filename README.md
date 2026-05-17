@@ -1,6 +1,6 @@
 # Naviamp
 
-Naviamp is a planned cross-platform music client for Navidrome, inspired by the compact, playback-focused experience of Plexamp.
+Naviamp is a planned cross-platform music client for Navidrome, focused on a compact, playback-first experience.
 
 The project is private while it is being shaped, but should be ready to open source when we decide to publish it.
 
