@@ -21,7 +21,8 @@
           "id": "song-1",
           "title": "One",
           "artist": "The Example",
-          "album": "Blue Record"
+          "album": "Blue Record",
+          "coverArt": "cover-1"
         }
       ]
     }

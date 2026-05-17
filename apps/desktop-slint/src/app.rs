@@ -1,4 +1,5 @@
 use crate::domain::{SearchResults, StreamRequest, Track};
+use crate::image_cache::{default_cover_art_cache, CoverArtCache};
 use crate::playback::{default_playback_engine, PlaybackEngine, PlaybackSnapshot};
 use crate::provider::navidrome::NavidromeProvider;
 use crate::provider::MediaProvider;
@@ -8,9 +9,12 @@ use crate::settings::{
 use crate::ui::{search_rows, source_rows, AppWindow};
 use crate::worker::BackgroundWorker;
 use anyhow::{Context, Result};
-use slint::{ComponentHandle, PhysicalSize, Timer, TimerMode};
+use slint::{ComponentHandle, Image, PhysicalSize, Timer, TimerMode, Weak};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+
+const MIN_WINDOW_WIDTH: u32 = 860;
+const MIN_WINDOW_HEIGHT: u32 = 600;
 
 struct AppState {
     settings: Settings,
@@ -39,7 +43,10 @@ fn run_with_settings_store(settings_store: Arc<dyn SettingsStore>) -> Result<()>
         ui.set_username(source.username.into());
     }
     if let (Some(width), Some(height)) = (settings.app.window.width, settings.app.window.height) {
-        ui.window().set_size(PhysicalSize::new(width, height));
+        ui.window().set_size(PhysicalSize::new(
+            width.max(MIN_WINDOW_WIDTH),
+            height.max(MIN_WINDOW_HEIGHT),
+        ));
     }
     ui.set_sources(source_rows(&settings));
     ui.set_password(String::new().into());
@@ -56,6 +63,7 @@ fn run_with_settings_store(settings_store: Arc<dyn SettingsStore>) -> Result<()>
         settings_store,
         worker: BackgroundWorker::new("naviamp-background"),
         playback_timer: Timer::default(),
+        cover_art_cache: Arc::new(default_cover_art_cache()?),
     };
     controller.bind();
 
@@ -70,6 +78,7 @@ struct AppController {
     settings_store: Arc<dyn SettingsStore>,
     worker: BackgroundWorker,
     playback_timer: Timer,
+    cover_art_cache: Arc<CoverArtCache>,
 }
 
 impl AppController {
@@ -356,6 +365,7 @@ impl AppController {
                         ui.set_playback_elapsed_text(playback_elapsed_text(snapshot).into());
                         ui.set_playback_duration_text(playback_duration_text(snapshot).into());
                         ui.set_playback_progress(playback_progress(snapshot));
+                        ui.set_playback_is_playing(snapshot.is_playing);
                     }
                 }
             });
@@ -413,6 +423,7 @@ impl AppController {
         let ui_weak = self.ui.as_weak();
         let state = Arc::clone(&self.state);
         let worker = self.worker.clone();
+        let cover_art_cache = Arc::clone(&self.cover_art_cache);
         self.ui.on_row_activated(move |kind, index| {
             match kind.as_str() {
                 "artist" => {
@@ -551,6 +562,9 @@ impl AppController {
                                 source: source.clone(),
                                 track: track.clone(),
                             });
+                            if let Some(ui) = ui_weak.upgrade() {
+                                set_now_playing(&ui, &track);
+                            }
                             Ok(())
                         })
                         .context("could not start playback")
@@ -558,7 +572,16 @@ impl AppController {
 
             if let Some(ui) = ui_weak.upgrade() {
                 match result {
-                    Ok(()) => ui.set_status_text(format!("Playing {}", track.title).into()),
+                    Ok(()) => {
+                        ui.set_status_text(format!("Playing {}", track.title).into());
+                        load_now_playing_art(
+                            worker.clone(),
+                            ui_weak.clone(),
+                            Arc::clone(&cover_art_cache),
+                            source.clone(),
+                            track.cover_art_id.clone(),
+                        );
+                    }
                     Err(error) => ui.set_status_text(format!("Playback failed: {error}").into()),
                 }
             }
@@ -606,6 +629,45 @@ fn restart_stream_at_offset(
 
 fn is_unseekable_stream_error(error: &anyhow::Error) -> bool {
     error.to_string().contains("seeking is not available")
+}
+
+fn set_now_playing(ui: &AppWindow, track: &Track) {
+    ui.set_now_playing_title(track.title.clone().into());
+    ui.set_now_playing_subtitle(track.subtitle().into());
+    ui.set_now_playing_art(Image::default());
+}
+
+fn load_now_playing_art(
+    worker: BackgroundWorker,
+    ui_weak: Weak<AppWindow>,
+    cache: Arc<CoverArtCache>,
+    source: SavedMediaSource,
+    cover_art_id: Option<String>,
+) {
+    let Some(cover_art_id) = cover_art_id else {
+        return;
+    };
+
+    worker.submit(move || {
+        let result = NavidromeProvider::new(source)
+            .and_then(|provider| provider.cover_art_url(&cover_art_id, cache.cover_art_size()))
+            .and_then(|url| cache.fetch(&url));
+
+        slint::invoke_from_event_loop(move || {
+            let Some(ui) = ui_weak.upgrade() else {
+                return;
+            };
+
+            match result {
+                Ok(path) => {
+                    let image = Image::load_from_path(&path).unwrap_or_default();
+                    ui.set_now_playing_art(image);
+                }
+                Err(error) => ui.set_status_text(format!("Cover art failed: {error}").into()),
+            }
+        })
+        .ok();
+    });
 }
 
 fn playback_status_text(snapshot: PlaybackSnapshot) -> String {

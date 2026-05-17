@@ -32,6 +32,10 @@ impl StoragePaths {
     pub fn settings_file(&self) -> PathBuf {
         self.config_dir.join("settings.toml")
     }
+
+    pub fn image_cache_dir(&self) -> PathBuf {
+        self.cache_dir.join("images")
+    }
 }
 
 #[cfg(test)]
@@ -49,6 +53,20 @@ mod tests {
         assert_eq!(
             paths.settings_file(),
             std::path::PathBuf::from("config/settings.toml")
+        );
+    }
+
+    #[test]
+    fn image_cache_lives_under_cache_dir() {
+        let paths = StoragePaths {
+            config_dir: "config".into(),
+            data_dir: "data".into(),
+            cache_dir: "cache".into(),
+        };
+
+        assert_eq!(
+            paths.image_cache_dir(),
+            std::path::PathBuf::from("cache/images")
         );
     }
 }

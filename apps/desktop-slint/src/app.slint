@@ -15,8 +15,11 @@ export struct SourceRow {
 
 export component AppWindow inherits Window {
     title: "Naviamp";
-    width: 920px;
-    height: 620px;
+    preferred-width: 1100px;
+    preferred-height: 760px;
+    min-width: 860px;
+    min-height: 600px;
+    resize-border-width: 8px;
     background: #121417;
 
     in-out property <string> server-url;
@@ -29,6 +32,10 @@ export component AppWindow inherits Window {
     in property <string> playback-status-text: "Idle";
     in property <string> playback-elapsed-text: "0:00";
     in property <string> playback-duration-text: "--:--";
+    in property <string> now-playing-title: "Nothing playing";
+    in property <string> now-playing-subtitle: "";
+    in property <image> now-playing-art;
+    in property <bool> playback-is-playing: false;
     in property <[MediaRow]> media-rows;
     in property <[SourceRow]> sources;
 
@@ -137,46 +144,103 @@ export component AppWindow inherits Window {
             }
         }
 
-        HorizontalLayout {
-            spacing: 8px;
-            Button {
-                text: "Pause";
-                clicked => { root.playback-pause-requested(); }
-            }
-            Button {
-                text: "Resume";
-                clicked => { root.playback-resume-requested(); }
-            }
-            Slider {
-                minimum: 0;
-                maximum: 100;
-                value <=> root.volume;
-                changed => { root.volume-changed(root.volume); }
-            }
-            Text {
-                text: root.playback-status-text;
-                color: #9ba7b5;
-                vertical-alignment: center;
-            }
-        }
+        Rectangle {
+            height: 112px;
+            border-color: #2b3038;
+            border-width: 1px;
+            border-radius: 6px;
+            background: #171a1f;
 
-        HorizontalLayout {
-            spacing: 8px;
-            Text {
-                text: root.playback-elapsed-text;
-                color: #9ba7b5;
-                vertical-alignment: center;
-            }
-            Slider {
-                minimum: 0;
-                maximum: 100;
-                value: root.playback-progress;
-                released(value) => { root.playback-seek-requested(value); }
-            }
-            Text {
-                text: root.playback-duration-text;
-                color: #9ba7b5;
-                vertical-alignment: center;
+            VerticalLayout {
+                padding: 12px;
+                spacing: 8px;
+
+                HorizontalLayout {
+                    spacing: 10px;
+
+                    Rectangle {
+                        width: 64px;
+                        height: 64px;
+                        border-radius: 6px;
+                        background: #263241;
+                        clip: true;
+
+                        Image {
+                            source: root.now-playing-art;
+                            image-fit: cover;
+                            width: parent.width;
+                            height: parent.height;
+                        }
+                    }
+
+                    if root.playback-is-playing: Button {
+                        text: "Pause";
+                        clicked => { root.playback-pause-requested(); }
+                    }
+
+                    if !root.playback-is-playing: Button {
+                        text: "Play";
+                        clicked => { root.playback-resume-requested(); }
+                    }
+
+                    VerticalLayout {
+                        spacing: 2px;
+                        Text {
+                            text: root.now-playing-title;
+                            color: #f5f7fb;
+                            font-size: 15px;
+                            font-weight: 700;
+                            overflow: elide;
+                        }
+                        Text {
+                            text: root.now-playing-subtitle;
+                            color: #9ba7b5;
+                            font-size: 12px;
+                            overflow: elide;
+                        }
+                    }
+
+                    Text {
+                        text: root.playback-status-text;
+                        color: #9ba7b5;
+                        vertical-alignment: center;
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    Text {
+                        text: root.playback-elapsed-text;
+                        color: #9ba7b5;
+                        vertical-alignment: center;
+                    }
+                    Slider {
+                        minimum: 0;
+                        maximum: 100;
+                        value: root.playback-progress;
+                        released(value) => { root.playback-seek-requested(value); }
+                    }
+                    Text {
+                        text: root.playback-duration-text;
+                        color: #9ba7b5;
+                        vertical-alignment: center;
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    Text {
+                        text: "Volume";
+                        color: #9ba7b5;
+                        vertical-alignment: center;
+                    }
+                    Slider {
+                        minimum: 0;
+                        maximum: 100;
+                        value <=> root.volume;
+                        changed => { root.volume-changed(root.volume); }
+                    }
+                }
             }
         }
 

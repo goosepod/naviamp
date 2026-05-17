@@ -251,6 +251,10 @@ impl MediaProvider for NavidromeProvider {
         Ok(self.stream_url_for_request(request))
     }
 
+    fn cover_art_url(&self, cover_art_id: &str, size: u32) -> Result<String> {
+        Ok(self.cover_art_url_for_request(cover_art_id, size))
+    }
+
     fn set_favorite(&self, item_id: &str, favorite: bool) -> Result<()> {
         let endpoint = if favorite { "star.view" } else { "unstar.view" };
         let response = self.request_json_with_params(endpoint, &[("id", item_id)])?;
@@ -310,6 +314,15 @@ impl NavidromeProvider {
         }
 
         url
+    }
+
+    fn cover_art_url_for_request(&self, cover_art_id: &str, size: u32) -> String {
+        format!(
+            "{}&id={}&size={}",
+            self.api_url("getCoverArt.view"),
+            urlencoding::encode(cover_art_id),
+            size
+        )
     }
 
     fn scrobble_with_submission(&self, track_id: &str, submission: bool) -> Result<()> {
@@ -398,6 +411,7 @@ fn parse_track(song: &serde_json::Value) -> Option<Track> {
             .and_then(|value| value.as_str())
             .unwrap_or("")
             .to_string(),
+        cover_art_id: json_string(song, "coverArt"),
     })
 }
 
@@ -612,6 +626,10 @@ mod tests {
         assert_eq!(1, super::parse_artists(result).len());
         assert_eq!(1, super::parse_albums(result).len());
         assert_eq!(1, super::parse_tracks(result).len());
+        assert_eq!(
+            Some("cover-1".to_string()),
+            super::parse_tracks(result)[0].cover_art_id
+        );
     }
 
     #[test]
@@ -776,6 +794,17 @@ mod tests {
 
         assert!(url.contains("&id=song-1"));
         assert!(url.contains("&timeOffset=95"));
+    }
+
+    #[test]
+    fn cover_art_url_includes_art_id_and_size() {
+        let provider = test_provider();
+
+        let url = provider.cover_art_url_for_request("cover 1", 300);
+
+        assert!(url.contains("/rest/getCoverArt.view?"));
+        assert!(url.contains("&id=cover%201"));
+        assert!(url.contains("&size=300"));
     }
 
     #[test]

@@ -32,6 +32,8 @@ pub trait MediaProvider {
 
     fn stream_url(&self, request: &StreamRequest) -> Result<String>;
 
+    fn cover_art_url(&self, cover_art_id: &str, size: u32) -> Result<String>;
+
     fn set_favorite(&self, item_id: &str, favorite: bool) -> Result<()>;
 
     fn set_rating(&self, item_id: &str, rating: u8) -> Result<()>;

@@ -5,6 +5,7 @@
 
 mod app;
 mod domain;
+mod image_cache;
 mod playback;
 mod provider;
 mod settings;

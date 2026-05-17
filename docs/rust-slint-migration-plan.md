@@ -341,7 +341,10 @@ Exit criteria:
 - [x] Add provider-level stream offset support via `StreamRequest` for seek fallback.
 - [x] Restart the active Navidrome stream at the requested offset when BASS cannot seek in-place.
 - [x] Verify whether Navidrome honors `timeOffset` for audio on real servers; Subsonic/OpenSubsonic document it as video-focused.
-- [ ] Replace temporary playback progress controls with real scrubber/player UI.
+- [x] Replace temporary playback progress controls with a first-pass player panel.
+- [x] Make the desktop window easier to resize and clamp stale saved sizes.
+- [ ] Add final player UI styling and icons.
+- [x] Add first-pass album art plumbing for the player panel.
 - [ ] Add stream metadata polling for internet radio.
 - [ ] Add error reporting that does not close the whole app.
 - [x] Remove Windows named-pipe/child-process dependency from the Rust app.
@@ -456,9 +459,9 @@ Exit criteria:
 
 ### Phase 10: Images And Theming
 
-- [ ] Cover art URL model.
-- [ ] Image download/cache.
-- [ ] Decode images for display.
+- [x] Cover art URL model.
+- [x] First-pass image download/cache for now-playing cover art.
+- [x] Decode cached cover art for display.
 - [ ] In-memory hot image cache.
 - [ ] Persist image bytes in SQLite.
 - [ ] Album-art color sampling.

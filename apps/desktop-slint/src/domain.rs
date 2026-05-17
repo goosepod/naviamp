@@ -125,6 +125,7 @@ pub struct Track {
     pub title: String,
     pub artist: String,
     pub album: String,
+    pub cover_art_id: Option<String>,
 }
 
 impl Track {
@@ -169,6 +170,7 @@ mod tests {
             title: "Song".into(),
             artist: String::new(),
             album: String::new(),
+            cover_art_id: None,
         };
 
         assert_eq!("- - -", track.subtitle());
