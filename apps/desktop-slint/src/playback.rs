@@ -78,7 +78,7 @@ impl Default for BassPlaybackEngine {
 
 impl PlaybackEngine for BassPlaybackEngine {
     fn play_url(&mut self, url: &str) -> Result<()> {
-        self.stop();
+        self.release_stream();
         let bass = self.bass()?;
         let url = CString::new(url).context("stream URL contains an embedded null byte")?;
         let flags = BASS_STREAM_BLOCK | BASS_STREAM_STATUS;
@@ -144,10 +144,8 @@ impl PlaybackEngine for BassPlaybackEngine {
     }
 
     fn stop(&mut self) {
-        if let (Some(bass), Some(stream)) = (self.bass.as_ref(), self.stream.take()) {
-            let _ = unsafe { (bass.channel_stop)(stream) };
-            let _ = unsafe { (bass.stream_free)(stream) };
-        }
+        self.release_stream();
+        self.bass.take();
     }
 }
 
@@ -161,6 +159,13 @@ impl BassPlaybackEngine {
         bass.init()?;
         self.bass = Some(Arc::clone(&bass));
         Ok(bass)
+    }
+
+    fn release_stream(&mut self) {
+        if let (Some(bass), Some(stream)) = (self.bass.as_ref(), self.stream.take()) {
+            let _ = unsafe { (bass.channel_stop)(stream) };
+            let _ = unsafe { (bass.stream_free)(stream) };
+        }
     }
 }
 

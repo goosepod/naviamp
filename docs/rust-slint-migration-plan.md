@@ -331,6 +331,7 @@ Exit criteria:
 - [x] Add seek.
 - [x] Add stop.
 - [x] Add volume.
+- [ ] Fix BASS lifecycle bug where pressing Stop prevents starting a later track in the same app session.
 - [ ] Add progress polling.
 - [ ] Add duration polling.
 - [ ] Add stream metadata polling for internet radio.
