@@ -278,6 +278,9 @@ impl AppController {
                     .and_then(|mut state| state.playback.snapshot());
                 if let (Ok(snapshot), Some(ui)) = (result, ui_weak.upgrade()) {
                     ui.set_playback_status_text(playback_status_text(snapshot).into());
+                    ui.set_playback_elapsed_text(playback_elapsed_text(snapshot).into());
+                    ui.set_playback_duration_text(playback_duration_text(snapshot).into());
+                    ui.set_playback_progress(playback_progress(snapshot));
                 }
             });
     }
@@ -505,6 +508,30 @@ fn playback_status_text(snapshot: PlaybackSnapshot) -> String {
     }
 }
 
+fn playback_elapsed_text(snapshot: PlaybackSnapshot) -> String {
+    snapshot
+        .position_seconds
+        .map(format_seconds)
+        .unwrap_or_else(|| "0:00".to_string())
+}
+
+fn playback_duration_text(snapshot: PlaybackSnapshot) -> String {
+    snapshot
+        .duration_seconds
+        .filter(|duration| *duration > 0.0)
+        .map(format_seconds)
+        .unwrap_or_else(|| "--:--".to_string())
+}
+
+fn playback_progress(snapshot: PlaybackSnapshot) -> f32 {
+    match (snapshot.position_seconds, snapshot.duration_seconds) {
+        (Some(position), Some(duration)) if duration > 0.0 => {
+            ((position / duration) * 100.0).clamp(0.0, 100.0) as f32
+        }
+        _ => 0.0,
+    }
+}
+
 fn format_seconds(seconds: f64) -> String {
     let seconds = seconds.max(0.0).round() as u64;
     let minutes = seconds / 60;
@@ -514,7 +541,10 @@ fn format_seconds(seconds: f64) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{format_seconds, playback_status_text};
+    use super::{
+        format_seconds, playback_duration_text, playback_elapsed_text, playback_progress,
+        playback_status_text,
+    };
     use crate::playback::PlaybackSnapshot;
 
     #[test]
@@ -534,5 +564,40 @@ mod tests {
     fn formats_seconds_as_minutes() {
         assert_eq!("0:00", format_seconds(0.0));
         assert_eq!("1:02", format_seconds(62.0));
+    }
+
+    #[test]
+    fn derives_playback_progress_percent() {
+        assert_eq!(
+            50.0,
+            playback_progress(PlaybackSnapshot {
+                position_seconds: Some(30.0),
+                duration_seconds: Some(60.0),
+                is_playing: true,
+                volume: 80,
+            })
+        );
+        assert_eq!(
+            0.0,
+            playback_progress(PlaybackSnapshot {
+                position_seconds: Some(30.0),
+                duration_seconds: None,
+                is_playing: true,
+                volume: 80,
+            })
+        );
+    }
+
+    #[test]
+    fn formats_elapsed_and_unknown_duration() {
+        let snapshot = PlaybackSnapshot {
+            position_seconds: Some(4.0),
+            duration_seconds: None,
+            is_playing: false,
+            volume: 80,
+        };
+
+        assert_eq!("0:04", playback_elapsed_text(snapshot));
+        assert_eq!("--:--", playback_duration_text(snapshot));
     }
 }

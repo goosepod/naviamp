@@ -24,8 +24,11 @@ export component AppWindow inherits Window {
     in-out property <string> password;
     in-out property <string> query;
     in-out property <float> volume: 80;
+    in property <float> playback-progress: 0;
     in property <string> status-text: "Ready";
     in property <string> playback-status-text: "Idle";
+    in property <string> playback-elapsed-text: "0:00";
+    in property <string> playback-duration-text: "--:--";
     in property <[MediaRow]> media-rows;
     in property <[SourceRow]> sources;
 
@@ -156,6 +159,25 @@ export component AppWindow inherits Window {
             }
             Text {
                 text: root.playback-status-text;
+                color: #9ba7b5;
+                vertical-alignment: center;
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 8px;
+            Text {
+                text: root.playback-elapsed-text;
+                color: #9ba7b5;
+                vertical-alignment: center;
+            }
+            Slider {
+                minimum: 0;
+                maximum: 100;
+                value: root.playback-progress;
+            }
+            Text {
+                text: root.playback-duration-text;
                 color: #9ba7b5;
                 vertical-alignment: center;
             }
