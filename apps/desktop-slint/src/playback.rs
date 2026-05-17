@@ -9,6 +9,8 @@ use std::sync::Arc;
 pub trait PlaybackEngine: Send {
     fn play_url(&mut self, url: &str) -> Result<()>;
 
+    fn embedded_cover_art(&mut self) -> Result<Option<Vec<u8>>>;
+
     fn pause(&mut self) -> Result<()>;
 
     fn resume(&mut self) -> Result<()>;
@@ -47,6 +49,9 @@ const BASS_ATTRIB_VOL: BassDword = 2;
 const BASS_STREAM_STATUS: BassDword = 0x800000;
 const BASS_ERROR_POSITION: i32 = 7;
 const BASS_ERROR_NOTAVAIL: i32 = 37;
+const BASS_TAG_ID3V2_BINARY: BassDword = 20;
+const BASS_TAG_ID3V2_2_BINARY: BassDword = 21;
+const BASS_TAG_MP4_COVERART: BassDword = 0x1400;
 
 type BassInit =
     unsafe extern "system" fn(i32, u32, BassDword, *mut c_void, *mut c_void) -> BassBool;
@@ -74,6 +79,13 @@ type BassChannelSetPosition =
     unsafe extern "system" fn(BassHandle, BassQword, BassDword) -> BassBool;
 type BassChannelBytes2Seconds = unsafe extern "system" fn(BassHandle, BassQword) -> f64;
 type BassChannelSeconds2Bytes = unsafe extern "system" fn(BassHandle, f64) -> BassQword;
+type BassChannelGetTags = unsafe extern "system" fn(BassHandle, BassDword) -> *const c_void;
+
+#[repr(C)]
+struct BassTagBinary {
+    data: *const c_void,
+    length: BassDword,
+}
 
 pub struct BassPlaybackEngine {
     bass: Option<Arc<BassLibrary>>,
@@ -105,6 +117,14 @@ impl PlaybackEngine for BassPlaybackEngine {
         self.stream = Some(stream);
         self.set_volume(self.volume)?;
         self.resume()
+    }
+
+    fn embedded_cover_art(&mut self) -> Result<Option<Vec<u8>>> {
+        let Some(stream) = self.stream else {
+            return Ok(None);
+        };
+        let bass = self.bass()?;
+        Ok(bass.embedded_cover_art(stream))
     }
 
     fn pause(&mut self) -> Result<()> {
@@ -223,6 +243,7 @@ struct BassLibrary {
     channel_set_position: BassChannelSetPosition,
     channel_bytes2_seconds: BassChannelBytes2Seconds,
     channel_seconds2_bytes: BassChannelSeconds2Bytes,
+    channel_get_tags: BassChannelGetTags,
 }
 
 impl BassLibrary {
@@ -259,6 +280,8 @@ impl BassLibrary {
                 load_symbol::<BassChannelBytes2Seconds>(&library, b"BASS_ChannelBytes2Seconds\0")?;
             let channel_seconds2_bytes =
                 load_symbol::<BassChannelSeconds2Bytes>(&library, b"BASS_ChannelSeconds2Bytes\0")?;
+            let channel_get_tags =
+                load_symbol::<BassChannelGetTags>(&library, b"BASS_ChannelGetTags\0")?;
 
             let mut plugin_handles = Vec::new();
             for plugin in bass_plugin_names() {
@@ -298,6 +321,7 @@ impl BassLibrary {
                 channel_set_position,
                 channel_bytes2_seconds,
                 channel_seconds2_bytes,
+                channel_get_tags,
             })
         }
     }
@@ -350,6 +374,35 @@ impl BassLibrary {
             );
         }
         Ok(())
+    }
+
+    fn embedded_cover_art(&self, stream: BassHandle) -> Option<Vec<u8>> {
+        self.mp4_cover_art(stream)
+            .or_else(|| self.id3v2_cover_art(stream, BASS_TAG_ID3V2_BINARY))
+            .or_else(|| self.id3v2_cover_art(stream, BASS_TAG_ID3V2_2_BINARY))
+    }
+
+    fn mp4_cover_art(&self, stream: BassHandle) -> Option<Vec<u8>> {
+        self.binary_tag(stream, BASS_TAG_MP4_COVERART)
+            .map(ToOwned::to_owned)
+    }
+
+    fn id3v2_cover_art(&self, stream: BassHandle, tag: BassDword) -> Option<Vec<u8>> {
+        self.binary_tag(stream, tag).and_then(extract_id3_cover_art)
+    }
+
+    fn binary_tag(&self, stream: BassHandle, tag: BassDword) -> Option<&[u8]> {
+        let tag = unsafe { (self.channel_get_tags)(stream, tag) };
+        if tag.is_null() {
+            return None;
+        }
+
+        let tag = unsafe { &*(tag as *const BassTagBinary) };
+        if tag.data.is_null() || tag.length == 0 {
+            return None;
+        }
+
+        Some(unsafe { std::slice::from_raw_parts(tag.data as *const u8, tag.length as usize) })
     }
 }
 
@@ -499,6 +552,108 @@ fn bass_error_message(error_code: i32) -> String {
     }
 }
 
+fn extract_id3_cover_art(tag: &[u8]) -> Option<Vec<u8>> {
+    if tag.len() < 10 || &tag[0..3] != b"ID3" {
+        return None;
+    }
+
+    let version = tag[3];
+    let tag_size = synchsafe_u32(&tag[6..10])? as usize;
+    let tag_end = 10usize.saturating_add(tag_size).min(tag.len());
+    let mut offset = 10usize;
+
+    while offset < tag_end {
+        let frame = match version {
+            2 => next_id3v22_frame(tag, offset, tag_end)?,
+            3 | 4 => next_id3v23_or_24_frame(tag, offset, tag_end, version)?,
+            _ => return None,
+        };
+
+        if frame.id == "APIC" || frame.id == "PIC" {
+            return extract_image_from_frame(frame.data);
+        }
+        offset = frame.next_offset;
+    }
+
+    None
+}
+
+struct Id3Frame<'a> {
+    id: &'a str,
+    data: &'a [u8],
+    next_offset: usize,
+}
+
+fn next_id3v23_or_24_frame<'a>(
+    tag: &'a [u8],
+    offset: usize,
+    tag_end: usize,
+    version: u8,
+) -> Option<Id3Frame<'a>> {
+    if offset + 10 > tag_end || tag[offset..offset + 4].iter().all(|byte| *byte == 0) {
+        return None;
+    }
+
+    let id = std::str::from_utf8(&tag[offset..offset + 4]).ok()?;
+    let size = if version == 4 {
+        synchsafe_u32(&tag[offset + 4..offset + 8])?
+    } else {
+        u32::from_be_bytes(tag[offset + 4..offset + 8].try_into().ok()?)
+    } as usize;
+    let data_start = offset + 10;
+    let data_end = data_start.checked_add(size)?.min(tag_end);
+    Some(Id3Frame {
+        id,
+        data: &tag[data_start..data_end],
+        next_offset: data_end,
+    })
+}
+
+fn next_id3v22_frame<'a>(tag: &'a [u8], offset: usize, tag_end: usize) -> Option<Id3Frame<'a>> {
+    if offset + 6 > tag_end || tag[offset..offset + 3].iter().all(|byte| *byte == 0) {
+        return None;
+    }
+
+    let id = std::str::from_utf8(&tag[offset..offset + 3]).ok()?;
+    let size = ((tag[offset + 3] as usize) << 16)
+        | ((tag[offset + 4] as usize) << 8)
+        | tag[offset + 5] as usize;
+    let data_start = offset + 6;
+    let data_end = data_start.checked_add(size)?.min(tag_end);
+    Some(Id3Frame {
+        id,
+        data: &tag[data_start..data_end],
+        next_offset: data_end,
+    })
+}
+
+fn synchsafe_u32(bytes: &[u8]) -> Option<u32> {
+    if bytes.len() != 4 || bytes.iter().any(|byte| byte & 0x80 != 0) {
+        return None;
+    }
+
+    Some(
+        ((bytes[0] as u32) << 21)
+            | ((bytes[1] as u32) << 14)
+            | ((bytes[2] as u32) << 7)
+            | bytes[3] as u32,
+    )
+}
+
+fn extract_image_from_frame(frame: &[u8]) -> Option<Vec<u8>> {
+    let start = image_magic_offset(frame)?;
+    Some(frame[start..].to_vec())
+}
+
+fn image_magic_offset(bytes: &[u8]) -> Option<usize> {
+    bytes.windows(4).position(|window| {
+        window.starts_with(&[0xff, 0xd8, 0xff])
+            || window == b"\x89PNG"
+            || window == b"GIF8"
+            || window == b"RIFF"
+    })
+}
+
 fn null_mut<T>() -> *mut T {
     std::ptr::null_mut()
 }
@@ -566,6 +721,39 @@ mod tests {
             "BASS error 37: requested action is not available",
             super::bass_error_message(super::BASS_ERROR_NOTAVAIL)
         );
+    }
+
+    #[test]
+    fn extracts_cover_art_from_id3v23_apic_frame() {
+        let image = [0xff, 0xd8, 0xff, 0xdb, 1, 2, 3];
+        let mut frame = Vec::new();
+        frame.extend_from_slice(&[0]);
+        frame.extend_from_slice(b"image/jpeg");
+        frame.push(0);
+        frame.push(3);
+        frame.push(0);
+        frame.extend_from_slice(&image);
+
+        let mut tag = Vec::new();
+        tag.extend_from_slice(b"ID3");
+        tag.extend_from_slice(&[3, 0, 0]);
+        let tag_size = 10 + frame.len();
+        tag.extend_from_slice(&synchsafe(tag_size as u32));
+        tag.extend_from_slice(b"APIC");
+        tag.extend_from_slice(&(frame.len() as u32).to_be_bytes());
+        tag.extend_from_slice(&[0, 0]);
+        tag.extend_from_slice(&frame);
+
+        assert_eq!(Some(image.to_vec()), super::extract_id3_cover_art(&tag));
+    }
+
+    fn synchsafe(value: u32) -> [u8; 4] {
+        [
+            ((value >> 21) & 0x7f) as u8,
+            ((value >> 14) & 0x7f) as u8,
+            ((value >> 7) & 0x7f) as u8,
+            (value & 0x7f) as u8,
+        ]
     }
 
     fn test_dir(name: &str) -> PathBuf {

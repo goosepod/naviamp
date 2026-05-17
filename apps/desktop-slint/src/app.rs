@@ -85,11 +85,21 @@ impl AppController {
     fn bind(&self) {
         self.bind_window_close();
         self.bind_connection();
+        self.bind_error_banner();
         self.bind_sources();
         self.bind_playback_controls();
         self.bind_playback_snapshot_polling();
         self.bind_search();
         self.bind_playback();
+    }
+
+    fn bind_error_banner(&self) {
+        let ui_weak = self.ui.as_weak();
+        self.ui.on_error_dismissed(move || {
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.set_error_text(String::new().into());
+            }
+        });
     }
 
     fn bind_window_close(&self) {
@@ -155,9 +165,7 @@ impl AppController {
                                     ui.set_status_text("Connection saved".into());
                                 }
                                 Err(error) => {
-                                    ui.set_status_text(
-                                        format!("Connection failed: {error}").into(),
-                                    );
+                                    set_error_text(&ui, format!("Connection failed: {error}"));
                                 }
                             }
                         }
@@ -192,7 +200,7 @@ impl AppController {
                         ui.set_sources(source_rows(&settings));
                         ui.set_status_text("Source selected".into());
                     }
-                    Err(error) => ui.set_status_text(format!("Source failed: {error}").into()),
+                    Err(error) => set_error_text(&ui, format!("Source failed: {error}")),
                 }
             }
         });
@@ -226,7 +234,7 @@ impl AppController {
                         ui.set_sources(source_rows(&settings));
                         ui.set_status_text(format!("Deleted {}", removed.display_name).into());
                     }
-                    Err(error) => ui.set_status_text(format!("Delete failed: {error}").into()),
+                    Err(error) => set_error_text(&ui, format!("Delete failed: {error}")),
                 }
             }
         });
@@ -243,7 +251,7 @@ impl AppController {
             if let Some(ui) = ui_weak.upgrade() {
                 match result {
                     Ok(()) => ui.set_status_text("Paused".into()),
-                    Err(error) => ui.set_status_text(format!("Pause failed: {error}").into()),
+                    Err(error) => set_error_text(&ui, format!("Pause failed: {error}")),
                 }
             }
         });
@@ -258,7 +266,7 @@ impl AppController {
             if let Some(ui) = ui_weak.upgrade() {
                 match result {
                     Ok(()) => ui.set_status_text("Playing".into()),
-                    Err(error) => ui.set_status_text(format!("Resume failed: {error}").into()),
+                    Err(error) => set_error_text(&ui, format!("Resume failed: {error}")),
                 }
             }
         });
@@ -272,7 +280,7 @@ impl AppController {
                 .map_err(|error| anyhow::anyhow!(error.to_string()))
                 .and_then(|mut state| state.playback.set_volume(percent));
             if let (Err(error), Some(ui)) = (result, ui_weak.upgrade()) {
-                ui.set_status_text(format!("Volume failed: {error}").into());
+                set_error_text(&ui, format!("Volume failed: {error}"));
             }
         });
 
@@ -284,7 +292,7 @@ impl AppController {
                     Ok(state) => state,
                     Err(error) => {
                         if let Some(ui) = ui_weak.upgrade() {
-                            ui.set_status_text(format!("Seek failed: {error}").into());
+                            set_error_text(&ui, format!("Seek failed: {error}"));
                         }
                         return;
                     }
@@ -339,9 +347,9 @@ impl AppController {
                     Ok(SeekOutcome::Noop) => {}
                     Ok(SeekOutcome::RestartStream { .. }) => {}
                     Err(error) if error.to_string().contains("seeking is not available") => {
-                        ui.set_status_text("Seeking is not available for this stream".into());
+                        set_error_text(&ui, "Seeking is not available for this stream");
                     }
-                    Err(error) => ui.set_status_text(format!("Seek failed: {error}").into()),
+                    Err(error) => set_error_text(&ui, format!("Seek failed: {error}")),
                 }
             }
         });
@@ -409,7 +417,7 @@ impl AppController {
                                 ui.set_status_text("Search complete".into());
                             }
                             Err(error) => {
-                                ui.set_status_text(format!("Search failed: {error}").into());
+                                set_error_text(&ui, format!("Search failed: {error}"));
                             }
                         }
                     }
@@ -432,7 +440,7 @@ impl AppController {
                             Ok(state) => state,
                             Err(error) => {
                                 if let Some(ui) = ui_weak.upgrade() {
-                                    ui.set_status_text(format!("Artist failed: {error}").into());
+                                    set_error_text(&ui, format!("Artist failed: {error}"));
                                 }
                                 return;
                             }
@@ -467,9 +475,7 @@ impl AppController {
                                         .into(),
                                     ),
                                     Err(error) => {
-                                        ui.set_status_text(
-                                            format!("Artist failed: {error}").into(),
-                                        );
+                                        set_error_text(&ui, format!("Artist failed: {error}"));
                                     }
                                 }
                             }
@@ -484,7 +490,7 @@ impl AppController {
                             Ok(state) => state,
                             Err(error) => {
                                 if let Some(ui) = ui_weak.upgrade() {
-                                    ui.set_status_text(format!("Album failed: {error}").into());
+                                    set_error_text(&ui, format!("Album failed: {error}"));
                                 }
                                 return;
                             }
@@ -518,7 +524,7 @@ impl AppController {
                                         .into(),
                                     ),
                                     Err(error) => {
-                                        ui.set_status_text(format!("Album failed: {error}").into());
+                                        set_error_text(&ui, format!("Album failed: {error}"));
                                     }
                                 }
                             }
@@ -536,7 +542,7 @@ impl AppController {
                     Ok(state) => state,
                     Err(error) => {
                         if let Some(ui) = ui_weak.upgrade() {
-                            ui.set_status_text(format!("Playback failed: {error}").into());
+                            set_error_text(&ui, format!("Playback failed: {error}"));
                         }
                         return;
                     }
@@ -558,6 +564,7 @@ impl AppController {
                         .map_err(|error| anyhow::anyhow!(error.to_string()))
                         .and_then(|mut state| {
                             state.playback.play_url(&url)?;
+                            let embedded_cover_art = state.playback.embedded_cover_art()?;
                             state.current_playback = Some(CurrentPlayback {
                                 source: source.clone(),
                                 track: track.clone(),
@@ -565,24 +572,26 @@ impl AppController {
                             if let Some(ui) = ui_weak.upgrade() {
                                 set_now_playing(&ui, &track);
                             }
-                            Ok(())
+                            Ok(embedded_cover_art)
                         })
                         .context("could not start playback")
                 });
 
             if let Some(ui) = ui_weak.upgrade() {
                 match result {
-                    Ok(()) => {
+                    Ok(embedded_cover_art) => {
                         ui.set_status_text(format!("Playing {}", track.title).into());
                         load_now_playing_art(
                             worker.clone(),
                             ui_weak.clone(),
                             Arc::clone(&cover_art_cache),
                             source.clone(),
+                            track.id.clone(),
                             track.cover_art_id.clone(),
+                            embedded_cover_art,
                         );
                     }
-                    Err(error) => ui.set_status_text(format!("Playback failed: {error}").into()),
+                    Err(error) => set_error_text(&ui, format!("Playback failed: {error}")),
                 }
             }
         });
@@ -637,21 +646,32 @@ fn set_now_playing(ui: &AppWindow, track: &Track) {
     ui.set_now_playing_art(Image::default());
 }
 
+fn set_error_text(ui: &AppWindow, message: impl Into<String>) {
+    ui.set_error_text(message.into().into());
+}
+
 fn load_now_playing_art(
     worker: BackgroundWorker,
     ui_weak: Weak<AppWindow>,
     cache: Arc<CoverArtCache>,
     source: SavedMediaSource,
+    track_id: String,
     cover_art_id: Option<String>,
+    embedded_cover_art: Option<Vec<u8>>,
 ) {
-    let Some(cover_art_id) = cover_art_id else {
+    if embedded_cover_art.is_none() && cover_art_id.is_none() {
         return;
-    };
+    }
 
     worker.submit(move || {
-        let result = NavidromeProvider::new(source)
-            .and_then(|provider| provider.cover_art_url(&cover_art_id, cache.cover_art_size()))
-            .and_then(|url| cache.fetch(&url));
+        let result = if let Some(bytes) = embedded_cover_art {
+            cache.store_embedded(&track_id, &bytes)
+        } else {
+            let cover_art_id = cover_art_id.expect("cover art id was checked before submit");
+            NavidromeProvider::new(source)
+                .and_then(|provider| provider.cover_art_url(&cover_art_id, cache.cover_art_size()))
+                .and_then(|url| cache.fetch(&url))
+        };
 
         slint::invoke_from_event_loop(move || {
             let Some(ui) = ui_weak.upgrade() else {
@@ -659,11 +679,11 @@ fn load_now_playing_art(
             };
 
             match result {
-                Ok(path) => {
-                    let image = Image::load_from_path(&path).unwrap_or_default();
-                    ui.set_now_playing_art(image);
-                }
-                Err(error) => ui.set_status_text(format!("Cover art failed: {error}").into()),
+                Ok(path) => match Image::load_from_path(&path) {
+                    Ok(image) => ui.set_now_playing_art(image),
+                    Err(error) => set_error_text(&ui, format!("Cover art decode failed: {error}")),
+                },
+                Err(error) => set_error_text(&ui, format!("Cover art failed: {error}")),
             }
         })
         .ok();

@@ -29,6 +29,7 @@ export component AppWindow inherits Window {
     in-out property <float> volume: 80;
     in property <float> playback-progress: 0;
     in property <string> status-text: "Ready";
+    in property <string> error-text: "";
     in property <string> playback-status-text: "Idle";
     in property <string> playback-elapsed-text: "0:00";
     in property <string> playback-duration-text: "--:--";
@@ -48,6 +49,7 @@ export component AppWindow inherits Window {
     callback playback-resume-requested();
     callback volume-changed(float);
     callback playback-seek-requested(float);
+    callback error-dismissed();
 
     VerticalLayout {
         padding: 18px;
@@ -63,6 +65,32 @@ export component AppWindow inherits Window {
         Rectangle {
             height: 1px;
             background: #2b3038;
+        }
+
+        if root.error-text != "": Rectangle {
+            height: 44px;
+            border-radius: 6px;
+            border-width: 1px;
+            border-color: #7b3941;
+            background: #2a171b;
+
+            HorizontalLayout {
+                padding-left: 12px;
+                padding-right: 8px;
+                spacing: 8px;
+
+                Text {
+                    text: root.error-text;
+                    color: #ffd4d9;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+
+                Button {
+                    text: "Dismiss";
+                    clicked => { root.error-dismissed(); }
+                }
+            }
         }
 
         if root.sources.length > 0: Rectangle {
