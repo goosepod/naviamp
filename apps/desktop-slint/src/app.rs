@@ -366,13 +366,13 @@ impl AppController {
                     .and_then(|mut state| state.playback.snapshot());
                 if let Ok(snapshot) = result {
                     if let Ok(mut state) = state.lock() {
-                        state.latest_playback_snapshot = snapshot;
+                        state.latest_playback_snapshot = snapshot.clone();
                     }
                     if let Some(ui) = ui_weak.upgrade() {
-                        ui.set_playback_status_text(playback_status_text(snapshot).into());
-                        ui.set_playback_elapsed_text(playback_elapsed_text(snapshot).into());
-                        ui.set_playback_duration_text(playback_duration_text(snapshot).into());
-                        ui.set_playback_progress(playback_progress(snapshot));
+                        ui.set_playback_status_text(playback_status_text(&snapshot).into());
+                        ui.set_playback_elapsed_text(playback_elapsed_text(&snapshot).into());
+                        ui.set_playback_duration_text(playback_duration_text(&snapshot).into());
+                        ui.set_playback_progress(playback_progress(&snapshot));
                         ui.set_playback_is_playing(snapshot.is_playing);
                     }
                 }
@@ -690,7 +690,11 @@ fn load_now_playing_art(
     });
 }
 
-fn playback_status_text(snapshot: PlaybackSnapshot) -> String {
+fn playback_status_text(snapshot: &PlaybackSnapshot) -> String {
+    if let Some(stream_title) = snapshot.stream_title.as_ref() {
+        return stream_title.clone();
+    }
+
     let state = if snapshot.is_playing {
         "Playing"
     } else {
@@ -709,14 +713,14 @@ fn playback_status_text(snapshot: PlaybackSnapshot) -> String {
     }
 }
 
-fn playback_elapsed_text(snapshot: PlaybackSnapshot) -> String {
+fn playback_elapsed_text(snapshot: &PlaybackSnapshot) -> String {
     snapshot
         .position_seconds
         .map(format_seconds)
         .unwrap_or_else(|| "0:00".to_string())
 }
 
-fn playback_duration_text(snapshot: PlaybackSnapshot) -> String {
+fn playback_duration_text(snapshot: &PlaybackSnapshot) -> String {
     snapshot
         .duration_seconds
         .filter(|duration| *duration > 0.0)
@@ -724,7 +728,7 @@ fn playback_duration_text(snapshot: PlaybackSnapshot) -> String {
         .unwrap_or_else(|| "--:--".to_string())
 }
 
-fn playback_progress(snapshot: PlaybackSnapshot) -> f32 {
+fn playback_progress(snapshot: &PlaybackSnapshot) -> f32 {
     match (snapshot.position_seconds, snapshot.duration_seconds) {
         (Some(position), Some(duration)) if duration > 0.0 => {
             ((position / duration) * 100.0).clamp(0.0, 100.0) as f32
@@ -752,11 +756,12 @@ mod tests {
     fn formats_playback_status_with_duration() {
         assert_eq!(
             "Playing 1:05 / 3:02",
-            playback_status_text(PlaybackSnapshot {
+            playback_status_text(&PlaybackSnapshot {
                 position_seconds: Some(65.0),
                 duration_seconds: Some(182.0),
                 is_playing: true,
                 volume: 80,
+                stream_title: None,
             })
         );
     }
@@ -771,20 +776,22 @@ mod tests {
     fn derives_playback_progress_percent() {
         assert_eq!(
             50.0,
-            playback_progress(PlaybackSnapshot {
+            playback_progress(&PlaybackSnapshot {
                 position_seconds: Some(30.0),
                 duration_seconds: Some(60.0),
                 is_playing: true,
                 volume: 80,
+                stream_title: None,
             })
         );
         assert_eq!(
             0.0,
-            playback_progress(PlaybackSnapshot {
+            playback_progress(&PlaybackSnapshot {
                 position_seconds: Some(30.0),
                 duration_seconds: None,
                 is_playing: true,
                 volume: 80,
+                stream_title: None,
             })
         );
     }
@@ -796,9 +803,24 @@ mod tests {
             duration_seconds: None,
             is_playing: false,
             volume: 80,
+            stream_title: None,
         };
 
-        assert_eq!("0:04", playback_elapsed_text(snapshot));
-        assert_eq!("--:--", playback_duration_text(snapshot));
+        assert_eq!("0:04", playback_elapsed_text(&snapshot));
+        assert_eq!("--:--", playback_duration_text(&snapshot));
+    }
+
+    #[test]
+    fn playback_status_prefers_stream_title() {
+        assert_eq!(
+            "Live Artist - Live Song",
+            playback_status_text(&PlaybackSnapshot {
+                position_seconds: None,
+                duration_seconds: None,
+                is_playing: true,
+                volume: 80,
+                stream_title: Some("Live Artist - Live Song".to_string()),
+            })
+        );
     }
 }

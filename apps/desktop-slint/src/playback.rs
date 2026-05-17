@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use libloading::{Library, Symbol};
 use std::env;
-use std::ffi::{c_char, c_void, CString};
+use std::ffi::{c_char, c_void, CStr, CString};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -26,12 +26,13 @@ pub trait PlaybackEngine: Send {
     fn stop(&mut self);
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct PlaybackSnapshot {
     pub position_seconds: Option<f64>,
     pub duration_seconds: Option<f64>,
     pub is_playing: bool,
     pub volume: u8,
+    pub stream_title: Option<String>,
 }
 
 pub fn default_playback_engine() -> Box<dyn PlaybackEngine> {
@@ -49,6 +50,9 @@ const BASS_ATTRIB_VOL: BassDword = 2;
 const BASS_STREAM_STATUS: BassDword = 0x800000;
 const BASS_ERROR_POSITION: i32 = 7;
 const BASS_ERROR_NOTAVAIL: i32 = 37;
+const BASS_TAG_HTTP: BassDword = 3;
+const BASS_TAG_ICY: BassDword = 4;
+const BASS_TAG_META: BassDword = 5;
 const BASS_TAG_ID3V2_BINARY: BassDword = 20;
 const BASS_TAG_ID3V2_2_BINARY: BassDword = 21;
 const BASS_TAG_MP4_COVERART: BassDword = 0x1400;
@@ -358,6 +362,7 @@ impl BassLibrary {
             }),
             is_playing: unsafe { (self._channel_is_active)(stream) } == BASS_ACTIVE_PLAYING,
             volume,
+            stream_title: self.stream_title(stream),
         }
     }
 
@@ -382,6 +387,22 @@ impl BassLibrary {
             .or_else(|| self.id3v2_cover_art(stream, BASS_TAG_ID3V2_2_BINARY))
     }
 
+    fn stream_title(&self, stream: BassHandle) -> Option<String> {
+        self.single_string_tag(stream, BASS_TAG_META)
+            .as_deref()
+            .and_then(parse_icy_stream_title)
+            .or_else(|| {
+                self.string_list_tag(stream, BASS_TAG_ICY)
+                    .into_iter()
+                    .find_map(parse_icy_header_title)
+            })
+            .or_else(|| {
+                self.string_list_tag(stream, BASS_TAG_HTTP)
+                    .into_iter()
+                    .find_map(parse_icy_header_title)
+            })
+    }
+
     fn mp4_cover_art(&self, stream: BassHandle) -> Option<Vec<u8>> {
         self.binary_tag(stream, BASS_TAG_MP4_COVERART)
             .map(ToOwned::to_owned)
@@ -403,6 +424,28 @@ impl BassLibrary {
         }
 
         Some(unsafe { std::slice::from_raw_parts(tag.data as *const u8, tag.length as usize) })
+    }
+
+    fn single_string_tag(&self, stream: BassHandle, tag: BassDword) -> Option<String> {
+        let value = unsafe { (self.channel_get_tags)(stream, tag) };
+        if value.is_null() {
+            return None;
+        }
+
+        unsafe { CStr::from_ptr(value as *const c_char) }
+            .to_string_lossy()
+            .trim()
+            .to_string()
+            .into_non_empty()
+    }
+
+    fn string_list_tag(&self, stream: BassHandle, tag: BassDword) -> Vec<String> {
+        let values = unsafe { (self.channel_get_tags)(stream, tag) };
+        if values.is_null() {
+            return Vec::new();
+        }
+
+        unsafe { read_null_terminated_string_list(values as *const c_char, 8192) }
     }
 }
 
@@ -578,6 +621,26 @@ fn extract_id3_cover_art(tag: &[u8]) -> Option<Vec<u8>> {
     None
 }
 
+fn parse_icy_stream_title(meta: &str) -> Option<String> {
+    let marker = "StreamTitle='";
+    let start = meta.find(marker)? + marker.len();
+    let rest = &meta[start..];
+    let end = rest.find("';").or_else(|| rest.find('\''))?;
+    rest[..end].trim().to_string().into_non_empty()
+}
+
+fn parse_icy_header_title(header: String) -> Option<String> {
+    let (key, value) = header.split_once(':')?;
+    if !matches!(
+        key.trim().to_ascii_lowercase().as_str(),
+        "icy-name" | "icy-description"
+    ) {
+        return None;
+    }
+
+    value.trim().to_string().into_non_empty()
+}
+
 struct Id3Frame<'a> {
     id: &'a str,
     data: &'a [u8],
@@ -652,6 +715,34 @@ fn image_magic_offset(bytes: &[u8]) -> Option<usize> {
             || window == b"GIF8"
             || window == b"RIFF"
     })
+}
+
+unsafe fn read_null_terminated_string_list(values: *const c_char, max_bytes: usize) -> Vec<String> {
+    let mut strings = Vec::new();
+    let mut offset = 0usize;
+    while offset < max_bytes {
+        let current = values.add(offset);
+        if *current == 0 {
+            break;
+        }
+
+        let value = CStr::from_ptr(current).to_string_lossy().trim().to_string();
+        offset += value.len() + 1;
+        if let Some(value) = value.into_non_empty() {
+            strings.push(value);
+        }
+    }
+    strings
+}
+
+trait NonEmptyString {
+    fn into_non_empty(self) -> Option<String>;
+}
+
+impl NonEmptyString for String {
+    fn into_non_empty(self) -> Option<String> {
+        (!self.is_empty()).then_some(self)
+    }
 }
 
 fn null_mut<T>() -> *mut T {
@@ -745,6 +836,31 @@ mod tests {
         tag.extend_from_slice(&frame);
 
         assert_eq!(Some(image.to_vec()), super::extract_id3_cover_art(&tag));
+    }
+
+    #[test]
+    fn parses_icy_stream_title() {
+        assert_eq!(
+            Some("Artist - Song".to_string()),
+            super::parse_icy_stream_title("StreamTitle='Artist - Song';StreamUrl='';")
+        );
+        assert_eq!(None, super::parse_icy_stream_title("StreamUrl='';"));
+    }
+
+    #[test]
+    fn parses_icy_header_title() {
+        assert_eq!(
+            Some("Station".to_string()),
+            super::parse_icy_header_title("icy-name: Station".to_string())
+        );
+        assert_eq!(
+            Some("Description".to_string()),
+            super::parse_icy_header_title("icy-description: Description".to_string())
+        );
+        assert_eq!(
+            None,
+            super::parse_icy_header_title("content-type: audio/mpeg".to_string())
+        );
     }
 
     fn synchsafe(value: u32) -> [u8; 4] {

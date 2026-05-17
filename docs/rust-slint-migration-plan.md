@@ -345,7 +345,7 @@ Exit criteria:
 - [x] Make the desktop window easier to resize and clamp stale saved sizes.
 - [ ] Add final player UI styling and icons.
 - [x] Add first-pass album art plumbing for the player panel.
-- [ ] Add stream metadata polling for internet radio.
+- [x] Add stream metadata polling for internet radio.
 - [x] Add dismissible error reporting that does not close the whole app.
 - [x] Remove Windows named-pipe/child-process dependency from the Rust app.
 - [x] Research BASS licensing enough to proceed for this free open-source app.
