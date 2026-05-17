@@ -25,6 +25,7 @@ export component AppWindow inherits Window {
     in-out property <string> query;
     in-out property <float> volume: 80;
     in property <string> status-text: "Ready";
+    in property <string> playback-status-text: "Idle";
     in property <[MediaRow]> media-rows;
     in property <[SourceRow]> sources;
 
@@ -152,6 +153,11 @@ export component AppWindow inherits Window {
                 maximum: 100;
                 value <=> root.volume;
                 changed => { root.volume-changed(root.volume); }
+            }
+            Text {
+                text: root.playback-status-text;
+                color: #9ba7b5;
+                vertical-alignment: center;
             }
         }
 

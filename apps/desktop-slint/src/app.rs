@@ -1,13 +1,14 @@
 use crate::domain::{SearchResults, StreamRequest};
-use crate::playback::{default_playback_engine, PlaybackEngine};
+use crate::playback::{default_playback_engine, PlaybackEngine, PlaybackSnapshot};
 use crate::provider::navidrome::NavidromeProvider;
 use crate::provider::MediaProvider;
 use crate::settings::{default_settings_store, ConnectionDraft, Settings, SettingsStore};
 use crate::ui::{search_rows, source_rows, AppWindow};
 use crate::worker::BackgroundWorker;
 use anyhow::{Context, Result};
-use slint::{ComponentHandle, PhysicalSize};
+use slint::{ComponentHandle, PhysicalSize, Timer, TimerMode};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 struct AppState {
     settings: Settings,
@@ -42,6 +43,7 @@ fn run_with_settings_store(settings_store: Arc<dyn SettingsStore>) -> Result<()>
         })),
         settings_store,
         worker: BackgroundWorker::new("naviamp-background"),
+        playback_timer: Timer::default(),
     };
     controller.bind();
 
@@ -55,6 +57,7 @@ struct AppController {
     state: Arc<Mutex<AppState>>,
     settings_store: Arc<dyn SettingsStore>,
     worker: BackgroundWorker,
+    playback_timer: Timer,
 }
 
 impl AppController {
@@ -63,6 +66,7 @@ impl AppController {
         self.bind_connection();
         self.bind_sources();
         self.bind_playback_controls();
+        self.bind_playback_snapshot_polling();
         self.bind_search();
         self.bind_playback();
     }
@@ -261,6 +265,21 @@ impl AppController {
                 ui.set_status_text(format!("Volume failed: {error}").into());
             }
         });
+    }
+
+    fn bind_playback_snapshot_polling(&self) {
+        let ui_weak = self.ui.as_weak();
+        let state = Arc::clone(&self.state);
+        self.playback_timer
+            .start(TimerMode::Repeated, Duration::from_millis(500), move || {
+                let result = state
+                    .lock()
+                    .map_err(|error| anyhow::anyhow!(error.to_string()))
+                    .and_then(|mut state| state.playback.snapshot());
+                if let (Ok(snapshot), Some(ui)) = (result, ui_weak.upgrade()) {
+                    ui.set_playback_status_text(playback_status_text(snapshot).into());
+                }
+            });
     }
 
     fn bind_search(&self) {
@@ -464,5 +483,56 @@ impl AppController {
         if let Ok(mut state) = self.state.lock() {
             state.playback.stop();
         }
+    }
+}
+
+fn playback_status_text(snapshot: PlaybackSnapshot) -> String {
+    let state = if snapshot.is_playing {
+        "Playing"
+    } else {
+        "Idle"
+    };
+    match (snapshot.position_seconds, snapshot.duration_seconds) {
+        (Some(position), Some(duration)) if duration > 0.0 => {
+            format!(
+                "{state} {} / {}",
+                format_seconds(position),
+                format_seconds(duration)
+            )
+        }
+        (Some(position), _) => format!("{state} {}", format_seconds(position)),
+        _ => state.to_string(),
+    }
+}
+
+fn format_seconds(seconds: f64) -> String {
+    let seconds = seconds.max(0.0).round() as u64;
+    let minutes = seconds / 60;
+    let seconds = seconds % 60;
+    format!("{minutes}:{seconds:02}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{format_seconds, playback_status_text};
+    use crate::playback::PlaybackSnapshot;
+
+    #[test]
+    fn formats_playback_status_with_duration() {
+        assert_eq!(
+            "Playing 1:05 / 3:02",
+            playback_status_text(PlaybackSnapshot {
+                position_seconds: Some(65.0),
+                duration_seconds: Some(182.0),
+                is_playing: true,
+                volume: 80,
+            })
+        );
+    }
+
+    #[test]
+    fn formats_seconds_as_minutes() {
+        assert_eq!("0:00", format_seconds(0.0));
+        assert_eq!("1:02", format_seconds(62.0));
     }
 }
