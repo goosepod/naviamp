@@ -60,6 +60,8 @@ export struct MediaRow {
     title: string,
     subtitle: string,
     source_index: int,
+    is_header: bool,
+    action_label: string,
 }
 
 export struct SourceRow {
@@ -87,6 +89,7 @@ export component AppWindow inherits Window {
     in-out property <float> playback-progress: 0;
     in property <string> status-text: "Ready";
     in property <string> error-text: "";
+    in property <string> search-state-text: "";
     in property <string> playback-status-text: "Idle";
     in property <string> playback-elapsed-text: "0:00";
     in property <string> playback-duration-text: "--:--";
@@ -104,6 +107,7 @@ export component AppWindow inherits Window {
     callback search-requested(string);
     callback radio-requested();
     callback row-activated(string, int);
+    callback row-action-requested(string, int, string);
     callback playback-pause-requested();
     callback playback-resume-requested();
     callback playback-previous-requested();
@@ -308,6 +312,11 @@ export component AppWindow inherits Window {
                             clicked => { root.search-requested(root.query); }
                         }
                     }
+                    if root.search-state-text != "": Text {
+                        text: root.search-state-text;
+                        color: #9ba7b5;
+                        font-size: 13px;
+                    }
                     Rectangle {
                         border-color: #2b3038;
                         border-width: 1px;
@@ -316,29 +325,38 @@ export component AppWindow inherits Window {
 
                         ListView {
                             for row in root.media-rows: Rectangle {
-                                height: 58px;
-                                background: search-row-touch.pressed ? #263241 : search-row-touch.has-hover ? #202833 : #171a1f;
+                                height: row.is_header ? 34px : 58px;
+                                background: row.is_header ? #121821 : search-row-touch.pressed ? #263241 : search-row-touch.has-hover ? #202833 : #171a1f;
 
                                 search-row-touch := TouchArea {
                                     clicked => { root.row-activated(row.kind, row.source_index); }
                                 }
 
-                                VerticalLayout {
+                                HorizontalLayout {
                                     padding-left: 12px;
-                                    padding-right: 12px;
-                                    padding-top: 8px;
-                                    spacing: 3px;
-                                    Text {
-                                        text: row.title;
-                                        color: #f5f7fb;
-                                        font-size: 15px;
-                                        overflow: elide;
+                                    padding-right: 8px;
+                                    padding-top: row.is_header ? 6px : 8px;
+                                    spacing: 8px;
+
+                                    VerticalLayout {
+                                        spacing: 3px;
+                                        Text {
+                                            text: row.title;
+                                            color: row.is_header ? #7fc7e8 : #f5f7fb;
+                                            font-size: row.is_header ? 12px : 15px;
+                                            font-weight: row.is_header ? 700 : 400;
+                                            overflow: elide;
+                                        }
+                                        if !row.is_header: Text {
+                                            text: row.subtitle;
+                                            color: #9ba7b5;
+                                            font-size: 12px;
+                                            overflow: elide;
+                                        }
                                     }
-                                    Text {
-                                        text: row.subtitle;
-                                        color: #9ba7b5;
-                                        font-size: 12px;
-                                        overflow: elide;
+                                    if row.action_label != "": Button {
+                                        text: row.action_label;
+                                        clicked => { root.row-action-requested(row.kind, row.source_index, row.action_label); }
                                     }
                                 }
                             }

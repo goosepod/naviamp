@@ -166,6 +166,8 @@ mod tests {
             artist: "Artist".to_string(),
             album: "Album".to_string(),
             cover_art_id: None,
+            favorited_at: None,
+            user_rating: None,
         }
     }
 

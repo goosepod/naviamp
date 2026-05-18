@@ -126,6 +126,8 @@ pub struct Track {
     pub artist: String,
     pub album: String,
     pub cover_art_id: Option<String>,
+    pub favorited_at: Option<String>,
+    pub user_rating: Option<u8>,
 }
 
 impl Track {
@@ -143,6 +145,12 @@ pub struct SearchResults {
     pub artists: Vec<Artist>,
     pub albums: Vec<Album>,
     pub tracks: Vec<Track>,
+}
+
+impl SearchResults {
+    pub fn is_empty(&self) -> bool {
+        self.artists.is_empty() && self.albums.is_empty() && self.tracks.is_empty()
+    }
 }
 
 impl Album {
@@ -171,6 +179,8 @@ mod tests {
             artist: String::new(),
             album: String::new(),
             cover_art_id: None,
+            favorited_at: None,
+            user_rating: None,
         };
 
         assert_eq!("- - -", track.subtitle());

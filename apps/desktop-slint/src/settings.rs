@@ -123,6 +123,7 @@ pub enum CertificateValidation {
 pub struct AppPreferences {
     pub window: WindowPreferences,
     pub last_route: String,
+    pub last_search_query: String,
 }
 
 impl Default for AppPreferences {
@@ -130,6 +131,7 @@ impl Default for AppPreferences {
         Self {
             window: WindowPreferences::default(),
             last_route: "search".to_string(),
+            last_search_query: String::new(),
         }
     }
 }

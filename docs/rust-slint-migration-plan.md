@@ -416,15 +416,15 @@ Exit criteria:
 
 ### Phase 7: Search Screen Parity
 
-- [ ] Search query persistence.
-- [ ] Group results into artists, albums, and tracks.
-- [ ] Track rows start queue playback.
-- [ ] Album rows open album detail.
-- [ ] Artist rows open artist detail.
-- [ ] Row overflow actions.
-- [ ] Favorite/rating state display.
-- [ ] Loading and empty states.
-- [ ] Cached search responses.
+- [x] Search query persistence.
+- [x] Group results into artists, albums, and tracks.
+- [x] Track rows start queue playback.
+- [x] Album rows open album detail.
+- [x] Artist rows open artist detail.
+- [x] Row overflow actions.
+- [x] Favorite/rating state display.
+- [x] Loading and empty states.
+- [x] Cached search responses.
 
 Exit criteria:
 

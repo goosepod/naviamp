@@ -412,6 +412,12 @@ fn parse_track(song: &serde_json::Value) -> Option<Track> {
             .unwrap_or("")
             .to_string(),
         cover_art_id: json_string(song, "coverArt"),
+        favorited_at: json_string(song, "starred"),
+        user_rating: song
+            .get("userRating")
+            .and_then(|value| value.as_u64())
+            .and_then(|value| u8::try_from(value).ok())
+            .filter(|value| (1..=5).contains(value)),
     })
 }
 

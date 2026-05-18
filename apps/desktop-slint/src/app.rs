@@ -7,12 +7,16 @@ use crate::queue::{RepeatMode, TrackQueue};
 use crate::settings::{
     default_settings_store, ConnectionDraft, SavedMediaSource, Settings, SettingsStore,
 };
-use crate::ui::{radio_rows, search_rows, source_rows, visualizer_levels, AppWindow};
+use crate::ui::{
+    album_detail_rows, artist_detail_rows, radio_rows, search_rows, source_rows, visualizer_levels,
+    AppWindow,
+};
 use crate::visualizer::{default_visualizer_backend, VisualizerBackend, VisualizerFrame};
 use crate::worker::BackgroundWorker;
 use anyhow::{Context, Result};
 use reqwest::blocking::Client;
 use slint::{ComponentHandle, Image, PhysicalSize, Timer, TimerMode, Weak};
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -22,6 +26,7 @@ const MIN_WINDOW_HEIGHT: u32 = 600;
 struct AppState {
     settings: Settings,
     route_history: Vec<String>,
+    search_cache: HashMap<String, SearchResults>,
     search_results: SearchResults,
     radio_stations: Vec<InternetRadioStation>,
     playback: Box<dyn PlaybackEngine>,
@@ -58,13 +63,16 @@ fn run_with_settings_store(settings_store: Arc<dyn SettingsStore>) -> Result<()>
     }
     ui.set_sources(source_rows(&settings));
     ui.set_password(String::new().into());
+    ui.set_query(settings.app.last_search_query.clone().into());
     ui.set_current_route(settings.app.last_route.clone().into());
+    ui.set_search_state_text("Search for artists, albums, or tracks".into());
     ui.set_visualizer_levels(visualizer_levels(&VisualizerFrame::default()));
 
     let controller = AppController {
         ui: ui.clone_strong(),
         state: Arc::new(Mutex::new(AppState {
             route_history: Vec::new(),
+            search_cache: HashMap::new(),
             settings,
             search_results: SearchResults::default(),
             radio_stations: Vec::new(),
@@ -109,6 +117,7 @@ impl AppController {
         self.bind_playback_snapshot_polling();
         self.bind_search();
         self.bind_radio();
+        self.bind_row_actions();
         self.bind_playback();
     }
 
@@ -561,6 +570,7 @@ impl AppController {
     fn bind_search(&self) {
         let ui_weak = self.ui.as_weak();
         let state = Arc::clone(&self.state);
+        let settings_store = Arc::clone(&self.settings_store);
         let worker = self.worker.clone();
         self.ui.on_search_requested(move |query| {
             let settings = state
@@ -571,15 +581,32 @@ impl AppController {
             if query.trim().is_empty() {
                 if let Some(ui) = ui_weak.upgrade() {
                     ui.set_status_text("Enter a search term".into());
+                    ui.set_search_state_text("Enter a search term".into());
                 }
                 return;
             }
+            let cache_key = query.trim().to_ascii_lowercase();
+            if let Ok(mut state) = state.lock() {
+                state.settings.app.last_search_query = query.clone();
+                let _ = settings_store.save(&state.settings);
+                if let Some(results) = state.search_cache.get(&cache_key).cloned() {
+                    state.search_results = results.clone();
+                    if let Some(ui) = ui_weak.upgrade() {
+                        ui.set_media_rows(search_rows(&results));
+                        ui.set_search_state_text(search_state_text(&results).into());
+                        ui.set_status_text("Search restored from cache".into());
+                    }
+                    return;
+                }
+            }
             if let Some(ui) = ui_weak.upgrade() {
                 ui.set_status_text("Searching...".into());
+                ui.set_search_state_text("Searching...".into());
             }
 
             let ui_weak_for_result = ui_weak.clone();
             let state_for_result = Arc::clone(&state);
+            let settings_store = Arc::clone(&settings_store);
             worker.submit(move || {
                 let result = settings
                     .ok_or_else(|| anyhow::anyhow!("no saved source"))
@@ -590,12 +617,21 @@ impl AppController {
                         match result {
                             Ok(results) => {
                                 if let Ok(mut state) = state_for_result.lock() {
+                                    state.settings.app.last_search_query = query.clone();
+                                    let _ = settings_store.save(&state.settings);
+                                    state.search_cache.insert(cache_key, results.clone());
                                     state.search_results = results.clone();
                                 }
                                 ui.set_media_rows(search_rows(&results));
-                                ui.set_status_text("Search complete".into());
+                                ui.set_search_state_text(search_state_text(&results).into());
+                                ui.set_status_text(if results.is_empty() {
+                                    "No search results".into()
+                                } else {
+                                    "Search complete".into()
+                                });
                             }
                             Err(error) => {
+                                ui.set_search_state_text("Search failed".into());
                                 set_error_text(&ui, format!("Search failed: {error}"));
                             }
                         }
@@ -604,6 +640,92 @@ impl AppController {
                 .ok();
             });
         });
+    }
+
+    fn bind_row_actions(&self) {
+        let ui_weak = self.ui.as_weak();
+        let state = Arc::clone(&self.state);
+        let worker = self.worker.clone();
+        self.ui
+            .on_row_action_requested(move |kind, index, action_label| {
+                if kind.as_str() != "track" {
+                    if let Some(ui) = ui_weak.upgrade() {
+                        ui.set_status_text("Open the row for more options".into());
+                    }
+                    return;
+                }
+
+                let (source, track, favorite) = {
+                    let state = match state.lock() {
+                        Ok(state) => state,
+                        Err(error) => {
+                            if let Some(ui) = ui_weak.upgrade() {
+                                set_error_text(&ui, format!("Track action failed: {error}"));
+                            }
+                            return;
+                        }
+                    };
+                    let Some(track) = state.search_results.tracks.get(index as usize).cloned()
+                    else {
+                        return;
+                    };
+                    let Some(source) = state.settings.active_source() else {
+                        return;
+                    };
+                    (source, track, action_label.as_str() == "Favorite")
+                };
+
+                if let Some(ui) = ui_weak.upgrade() {
+                    ui.set_status_text(
+                        format!(
+                            "{} {}",
+                            if favorite {
+                                "Favoriting"
+                            } else {
+                                "Unfavoriting"
+                            },
+                            track.title
+                        )
+                        .into(),
+                    );
+                }
+
+                let ui_weak_for_result = ui_weak.clone();
+                let state_for_result = Arc::clone(&state);
+                worker.submit(move || {
+                    let result = NavidromeProvider::new(source)
+                        .and_then(|provider| provider.set_favorite(&track.id, favorite));
+                    slint::invoke_from_event_loop(move || {
+                        if let Some(ui) = ui_weak_for_result.upgrade() {
+                            match result {
+                                Ok(()) => {
+                                    if let Ok(mut state) = state_for_result.lock() {
+                                        if let Some(track) =
+                                            state.search_results.tracks.get_mut(index as usize)
+                                        {
+                                            track.favorited_at =
+                                                favorite.then(|| "now".to_string());
+                                        }
+                                        ui.set_media_rows(search_rows(&state.search_results));
+                                    }
+                                    ui.set_status_text(
+                                        if favorite {
+                                            "Track favorited"
+                                        } else {
+                                            "Track unfavorited"
+                                        }
+                                        .into(),
+                                    );
+                                }
+                                Err(error) => {
+                                    set_error_text(&ui, format!("Track action failed: {error}"));
+                                }
+                            }
+                        }
+                    })
+                    .ok();
+                });
+            });
     }
 
     fn bind_radio(&self) {
@@ -658,6 +780,7 @@ impl AppController {
         let cover_art_cache = Arc::clone(&self.cover_art_cache);
         self.ui.on_row_activated(move |kind, index| {
             match kind.as_str() {
+                "header" => return,
                 "artist" => {
                     let (source, artist) = {
                         let state = match state.lock() {
@@ -684,20 +807,29 @@ impl AppController {
                         ui.set_status_text(format!("Opening {}", artist.name).into());
                     }
                     let ui_weak_for_result = ui_weak.clone();
+                    let state_for_result = Arc::clone(&state);
                     worker.submit(move || {
                         let result = NavidromeProvider::new(source)
                             .and_then(|provider| provider.artist(&artist.id));
                         slint::invoke_from_event_loop(move || {
                             if let Some(ui) = ui_weak_for_result.upgrade() {
                                 match result {
-                                    Ok(detail) => ui.set_status_text(
-                                        format!(
-                                            "{} albums by {}",
-                                            detail.albums.len(),
-                                            detail.artist.name
-                                        )
-                                        .into(),
-                                    ),
+                                    Ok(detail) => {
+                                        if let Ok(mut state) = state_for_result.lock() {
+                                            state.search_results.artists.clear();
+                                            state.search_results.albums = detail.albums.clone();
+                                            state.search_results.tracks.clear();
+                                        }
+                                        ui.set_media_rows(artist_detail_rows(&detail));
+                                        ui.set_status_text(
+                                            format!(
+                                                "{} albums by {}",
+                                                detail.albums.len(),
+                                                detail.artist.name
+                                            )
+                                            .into(),
+                                        );
+                                    }
                                     Err(error) => {
                                         set_error_text(&ui, format!("Artist failed: {error}"));
                                     }
@@ -733,20 +865,29 @@ impl AppController {
                         ui.set_status_text(format!("Opening {}", album.title).into());
                     }
                     let ui_weak_for_result = ui_weak.clone();
+                    let state_for_result = Arc::clone(&state);
                     worker.submit(move || {
                         let result = NavidromeProvider::new(source)
                             .and_then(|provider| provider.album(&album.id));
                         slint::invoke_from_event_loop(move || {
                             if let Some(ui) = ui_weak_for_result.upgrade() {
                                 match result {
-                                    Ok(detail) => ui.set_status_text(
-                                        format!(
-                                            "{} tracks on {}",
-                                            detail.tracks.len(),
-                                            detail.album.title
-                                        )
-                                        .into(),
-                                    ),
+                                    Ok(detail) => {
+                                        if let Ok(mut state) = state_for_result.lock() {
+                                            state.search_results.artists.clear();
+                                            state.search_results.albums.clear();
+                                            state.search_results.tracks = detail.tracks.clone();
+                                        }
+                                        ui.set_media_rows(album_detail_rows(&detail));
+                                        ui.set_status_text(
+                                            format!(
+                                                "{} tracks on {}",
+                                                detail.tracks.len(),
+                                                detail.album.title
+                                            )
+                                            .into(),
+                                        );
+                                    }
                                     Err(error) => {
                                         set_error_text(&ui, format!("Album failed: {error}"));
                                     }
@@ -1306,6 +1447,19 @@ fn reset_playback_progress_ui(ui: &AppWindow) {
     ui.set_playback_is_playing(true);
 }
 
+fn search_state_text(results: &SearchResults) -> String {
+    if results.is_empty() {
+        return "No results".to_string();
+    }
+
+    format!(
+        "{} artists, {} albums, {} tracks",
+        results.artists.len(),
+        results.albums.len(),
+        results.tracks.len()
+    )
+}
+
 fn resolve_radio_stream_url(url: &str) -> Result<String> {
     if !looks_like_radio_playlist(url) {
         return Ok(url.to_string());
@@ -1465,7 +1619,9 @@ mod tests {
     use super::{
         format_seconds, merge_playback_snapshot, parse_radio_playlist, playback_duration_text,
         playback_elapsed_text, playback_progress, playback_reached_end, playback_status_text,
+        search_state_text,
     };
+    use crate::domain::SearchResults;
     use crate::playback::PlaybackSnapshot;
 
     #[test]
@@ -1510,6 +1666,11 @@ mod tests {
                 stream_title: None,
             })
         );
+    }
+
+    #[test]
+    fn search_state_summarizes_empty_results() {
+        assert_eq!("No results", search_state_text(&SearchResults::default()));
     }
 
     #[test]
