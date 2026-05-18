@@ -26,6 +26,7 @@ struct AppState {
     latest_playback_snapshot: PlaybackSnapshot,
     current_playback: Option<CurrentPlayback>,
     queue: TrackQueue,
+    playback_session_id: u64,
 }
 
 #[derive(Clone)]
@@ -65,6 +66,7 @@ fn run_with_settings_store(settings_store: Arc<dyn SettingsStore>) -> Result<()>
             latest_playback_snapshot: PlaybackSnapshot::default(),
             current_playback: None,
             queue: TrackQueue::default(),
+            playback_session_id: 0,
         })),
         settings_store,
         worker: BackgroundWorker::new("naviamp-background"),
@@ -283,25 +285,34 @@ impl AppController {
         let worker = self.worker.clone();
         let cover_art_cache = Arc::clone(&self.cover_art_cache);
         self.ui.on_playback_previous_requested(move || {
-            let result = play_queue_neighbor(&state, QueueDirection::Previous);
             if let Some(ui) = ui_weak.upgrade() {
-                match result {
-                    Ok((source, track, embedded_cover_art)) => {
-                        set_now_playing(&ui, &track);
-                        ui.set_status_text(format!("Playing {}", track.title).into());
-                        load_now_playing_art(
-                            worker.clone(),
-                            ui_weak.clone(),
-                            Arc::clone(&cover_art_cache),
-                            source,
-                            track.id.clone(),
-                            track.cover_art_id.clone(),
-                            embedded_cover_art,
-                        );
-                    }
-                    Err(error) => set_error_text(&ui, format!("Previous failed: {error}")),
-                }
+                ui.set_status_text("Starting previous track...".into());
             }
+            let state_for_worker = Arc::clone(&state);
+            let ui_weak_for_result = ui_weak.clone();
+            let worker_for_art = worker.clone();
+            let cover_art_cache = Arc::clone(&cover_art_cache);
+            worker.submit(move || {
+                let result = play_queue_neighbor(&state_for_worker, QueueDirection::Previous);
+                slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = ui_weak_for_result.upgrade() {
+                        match result {
+                            Ok(started) => handle_started_track_playback(
+                                &ui,
+                                &state_for_worker,
+                                worker_for_art,
+                                ui_weak_for_result.clone(),
+                                cover_art_cache,
+                                started,
+                            ),
+                            Err(error) => {
+                                set_error_text(&ui, format!("Previous failed: {error:#}"))
+                            }
+                        }
+                    }
+                })
+                .ok();
+            });
         });
 
         let ui_weak = self.ui.as_weak();
@@ -309,25 +320,32 @@ impl AppController {
         let worker = self.worker.clone();
         let cover_art_cache = Arc::clone(&self.cover_art_cache);
         self.ui.on_playback_next_requested(move || {
-            let result = play_queue_neighbor(&state, QueueDirection::Next);
             if let Some(ui) = ui_weak.upgrade() {
-                match result {
-                    Ok((source, track, embedded_cover_art)) => {
-                        set_now_playing(&ui, &track);
-                        ui.set_status_text(format!("Playing {}", track.title).into());
-                        load_now_playing_art(
-                            worker.clone(),
-                            ui_weak.clone(),
-                            Arc::clone(&cover_art_cache),
-                            source,
-                            track.id.clone(),
-                            track.cover_art_id.clone(),
-                            embedded_cover_art,
-                        );
-                    }
-                    Err(error) => set_error_text(&ui, format!("Next failed: {error}")),
-                }
+                ui.set_status_text("Starting next track...".into());
             }
+            let state_for_worker = Arc::clone(&state);
+            let ui_weak_for_result = ui_weak.clone();
+            let worker_for_art = worker.clone();
+            let cover_art_cache = Arc::clone(&cover_art_cache);
+            worker.submit(move || {
+                let result = play_queue_neighbor(&state_for_worker, QueueDirection::Next);
+                slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = ui_weak_for_result.upgrade() {
+                        match result {
+                            Ok(started) => handle_started_track_playback(
+                                &ui,
+                                &state_for_worker,
+                                worker_for_art,
+                                ui_weak_for_result.clone(),
+                                cover_art_cache,
+                                started,
+                            ),
+                            Err(error) => set_error_text(&ui, format!("Next failed: {error:#}")),
+                        }
+                    }
+                })
+                .ok();
+            });
         });
 
         let ui_weak = self.ui.as_weak();
@@ -670,29 +688,33 @@ impl AppController {
                         station
                     };
 
-                    let result = resolve_radio_stream_url(&station.stream_url)
-                        .and_then(|stream_url| {
-                            state
-                                .lock()
-                                .map_err(|error| anyhow::anyhow!(error.to_string()))
-                                .and_then(|mut state| {
-                                    state.playback.play_url(&stream_url)?;
-                                    state.current_playback = None;
-                                    state.queue = TrackQueue::default();
-                                    Ok(())
-                                })
-                        })
-                        .context("could not start radio");
-
                     if let Some(ui) = ui_weak.upgrade() {
-                        match result {
-                            Ok(()) => {
-                                set_now_playing_radio(&ui, &station);
-                                ui.set_status_text(format!("Playing {}", station.name).into());
-                            }
-                            Err(error) => set_error_text(&ui, format!("Radio failed: {error:#}")),
-                        }
+                        ui.set_status_text(format!("Starting {}", station.name).into());
                     }
+
+                    let state_for_worker = Arc::clone(&state);
+                    let ui_weak_for_result = ui_weak.clone();
+                    worker.submit(move || {
+                        let station_for_result = station.clone();
+                        let result = start_radio_playback(&state_for_worker, &station)
+                            .context("could not start radio");
+                        slint::invoke_from_event_loop(move || {
+                            if let Some(ui) = ui_weak_for_result.upgrade() {
+                                match result {
+                                    Ok(()) => {
+                                        set_now_playing_radio(&ui, &station_for_result);
+                                        ui.set_status_text(
+                                            format!("Playing {}", station_for_result.name).into(),
+                                        );
+                                    }
+                                    Err(error) => {
+                                        set_error_text(&ui, format!("Radio failed: {error:#}"))
+                                    }
+                                }
+                            }
+                        })
+                        .ok();
+                    });
                     return;
                 }
                 _ => return,
@@ -731,27 +753,35 @@ impl AppController {
                 (source, track)
             };
 
-            let result = start_track_playback(&state, source.clone(), track.clone())
-                .context("could not start playback");
-
             if let Some(ui) = ui_weak.upgrade() {
-                match result {
-                    Ok(embedded_cover_art) => {
-                        set_now_playing(&ui, &track);
-                        ui.set_status_text(format!("Playing {}", track.title).into());
-                        load_now_playing_art(
-                            worker.clone(),
-                            ui_weak.clone(),
-                            Arc::clone(&cover_art_cache),
-                            source.clone(),
-                            track.id.clone(),
-                            track.cover_art_id.clone(),
-                            embedded_cover_art,
-                        );
-                    }
-                    Err(error) => set_error_text(&ui, format!("Playback failed: {error}")),
-                }
+                ui.set_status_text(format!("Starting {}", track.title).into());
             }
+            let state_for_worker = Arc::clone(&state);
+            let ui_weak_for_result = ui_weak.clone();
+            let worker_for_art = worker.clone();
+            let cover_art_cache = Arc::clone(&cover_art_cache);
+            worker.submit(move || {
+                let result = start_track_playback(&state_for_worker, source, track)
+                    .context("could not start playback");
+                slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = ui_weak_for_result.upgrade() {
+                        match result {
+                            Ok(started) => handle_started_track_playback(
+                                &ui,
+                                &state_for_worker,
+                                worker_for_art,
+                                ui_weak_for_result.clone(),
+                                cover_art_cache,
+                                started,
+                            ),
+                            Err(error) => {
+                                set_error_text(&ui, format!("Playback failed: {error:#}"))
+                            }
+                        }
+                    }
+                })
+                .ok();
+            });
         });
     }
 
@@ -777,10 +807,30 @@ enum QueueDirection {
     Next,
 }
 
+struct StartedTrackPlayback {
+    source: SavedMediaSource,
+    track: Track,
+    embedded_cover_art: Option<Vec<u8>>,
+    session_id: u64,
+}
+
+struct NowPlayingArtRequest {
+    session_id: u64,
+    source: SavedMediaSource,
+    track_id: String,
+    cover_art_id: Option<String>,
+    embedded_cover_art: Option<Vec<u8>>,
+}
+
+fn next_playback_session(state: &mut AppState) -> u64 {
+    state.playback_session_id = state.playback_session_id.wrapping_add(1).max(1);
+    state.playback_session_id
+}
+
 fn play_queue_neighbor(
     state: &Arc<Mutex<AppState>>,
     direction: QueueDirection,
-) -> Result<(SavedMediaSource, Track, Option<Vec<u8>>)> {
+) -> Result<StartedTrackPlayback> {
     let (source, track) = {
         let mut state = state
             .lock()
@@ -798,25 +848,33 @@ fn play_queue_neighbor(
         (source, track)
     };
 
-    let embedded_cover_art = start_track_playback(state, source.clone(), track.clone())?;
-    Ok((source, track, embedded_cover_art))
+    start_track_playback(state, source, track)
 }
 
 fn start_track_playback(
     state: &Arc<Mutex<AppState>>,
     source: SavedMediaSource,
     track: Track,
-) -> Result<Option<Vec<u8>>> {
+) -> Result<StartedTrackPlayback> {
     let provider = NavidromeProvider::new(source.clone())?;
     let url = provider.stream_url(&StreamRequest::original(&track.id))?;
     state
         .lock()
         .map_err(|error| anyhow::anyhow!(error.to_string()))
         .and_then(|mut state| {
+            let session_id = next_playback_session(&mut state);
             state.playback.play_url(&url)?;
             let embedded_cover_art = state.playback.embedded_cover_art()?;
-            state.current_playback = Some(CurrentPlayback { source, track });
-            Ok(embedded_cover_art)
+            state.current_playback = Some(CurrentPlayback {
+                source: source.clone(),
+                track: track.clone(),
+            });
+            Ok(StartedTrackPlayback {
+                source,
+                track,
+                embedded_cover_art,
+                session_id,
+            })
         })
 }
 
@@ -836,14 +894,57 @@ fn restart_stream_at_offset(
         .lock()
         .map_err(|error| anyhow::anyhow!(error.to_string()))
         .and_then(|mut state| {
+            next_playback_session(&mut state);
             state.playback.play_url(&url)?;
             state.current_playback = Some(current.clone());
             Ok(())
         })
 }
 
+fn start_radio_playback(
+    state: &Arc<Mutex<AppState>>,
+    station: &InternetRadioStation,
+) -> Result<()> {
+    let stream_url = resolve_radio_stream_url(&station.stream_url)?;
+    state
+        .lock()
+        .map_err(|error| anyhow::anyhow!(error.to_string()))
+        .and_then(|mut state| {
+            next_playback_session(&mut state);
+            state.playback.play_url(&stream_url)?;
+            state.current_playback = None;
+            state.queue = TrackQueue::default();
+            Ok(())
+        })
+}
+
 fn is_unseekable_stream_error(error: &anyhow::Error) -> bool {
     error.to_string().contains("seeking is not available")
+}
+
+fn handle_started_track_playback(
+    ui: &AppWindow,
+    state: &Arc<Mutex<AppState>>,
+    worker: BackgroundWorker,
+    ui_weak: Weak<AppWindow>,
+    cover_art_cache: Arc<CoverArtCache>,
+    started: StartedTrackPlayback,
+) {
+    set_now_playing(ui, &started.track);
+    ui.set_status_text(format!("Playing {}", started.track.title).into());
+    load_now_playing_art(
+        worker,
+        ui_weak,
+        Arc::clone(state),
+        cover_art_cache,
+        NowPlayingArtRequest {
+            session_id: started.session_id,
+            source: started.source,
+            track_id: started.track.id,
+            cover_art_id: started.track.cover_art_id,
+            embedded_cover_art: started.embedded_cover_art,
+        },
+    );
 }
 
 fn set_now_playing(ui: &AppWindow, track: &Track) {
@@ -914,22 +1015,22 @@ fn non_empty_url(value: &str) -> Option<String> {
 fn load_now_playing_art(
     worker: BackgroundWorker,
     ui_weak: Weak<AppWindow>,
+    state: Arc<Mutex<AppState>>,
     cache: Arc<CoverArtCache>,
-    source: SavedMediaSource,
-    track_id: String,
-    cover_art_id: Option<String>,
-    embedded_cover_art: Option<Vec<u8>>,
+    request: NowPlayingArtRequest,
 ) {
-    if embedded_cover_art.is_none() && cover_art_id.is_none() {
+    if request.embedded_cover_art.is_none() && request.cover_art_id.is_none() {
         return;
     }
 
     worker.submit(move || {
-        let result = if let Some(bytes) = embedded_cover_art {
-            cache.store_embedded(&track_id, &bytes)
+        let result = if let Some(bytes) = request.embedded_cover_art {
+            cache.store_embedded(&request.track_id, &bytes)
         } else {
-            let cover_art_id = cover_art_id.expect("cover art id was checked before submit");
-            NavidromeProvider::new(source)
+            let cover_art_id = request
+                .cover_art_id
+                .expect("cover art id was checked before submit");
+            NavidromeProvider::new(request.source)
                 .and_then(|provider| provider.cover_art_url(&cover_art_id, cache.cover_art_size()))
                 .and_then(|url| cache.fetch(&url))
         };
@@ -938,6 +1039,9 @@ fn load_now_playing_art(
             let Some(ui) = ui_weak.upgrade() else {
                 return;
             };
+            if !is_current_playback_session(&state, request.session_id) {
+                return;
+            }
 
             match result {
                 Ok(path) => match Image::load_from_path(&path) {
@@ -949,6 +1053,13 @@ fn load_now_playing_art(
         })
         .ok();
     });
+}
+
+fn is_current_playback_session(state: &Arc<Mutex<AppState>>, session_id: u64) -> bool {
+    state
+        .lock()
+        .map(|state| state.playback_session_id == session_id)
+        .unwrap_or(false)
 }
 
 fn playback_status_text(snapshot: &PlaybackSnapshot) -> String {

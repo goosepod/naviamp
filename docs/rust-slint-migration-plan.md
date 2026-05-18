@@ -326,6 +326,7 @@ Exit criteria:
   - HLS
   - WebM
   - MIDI
+  - WavPack
   - mixer/fx
   - Windows Media on Windows
 - [x] Add pause/resume.
@@ -352,6 +353,11 @@ Exit criteria:
 - [x] Research BASS licensing enough to proceed for this free open-source app.
 - [x] Add `BassPlaybackEngine` behind the existing `PlaybackEngine` trait.
 - [x] Add a local BASS runtime prep script for Windows.
+- [x] Move playback and radio startup off the UI callback path.
+- [x] Add playback session IDs for stale async artwork protection.
+- [x] Split the public playback contract from the BASS implementation module.
+- [ ] Move BASS FFI, runtime loading, tag parsing, and engine code into separate `playback/bass/*` modules before adding gapless/crossfade.
+- [ ] Add a dedicated playback command worker instead of sharing the general background worker.
 - [ ] Add a future visualizer backend abstraction; start with Slint/software rendering, then evaluate GPU-backed rendering only if needed.
 
 Exit criteria:
@@ -370,7 +376,8 @@ Port Kotlin `PlaylistEngine` behavior in Rust.
 - [x] Repeat off/track/queue.
 - [x] Shuffle upcoming.
 - [ ] Preserve back-to/up-next lists.
-- [ ] Queue-aware session IDs to ignore stale async callbacks.
+- [x] Queue-aware session IDs to ignore stale artwork callbacks.
+- [ ] Extend session IDs to all playback-result callbacks.
 - [ ] Track-start callback.
 - [ ] Playback-finished auto-advance.
 - [ ] Progress merge behavior equivalent to `PlaybackProgress.mergeWith`.
@@ -623,9 +630,9 @@ Windows:
 
 macOS:
 
-- [ ] `.app` bundle.
+- [x] Basic unsigned `.app` bundle script for local testing.
 - [ ] App icon.
-- [ ] Bundled BASS runtime/plugin packaging.
+- [x] Bundled BASS runtime/plugin packaging for local `.app`.
 - [ ] Media keys / Now Playing integration.
 - [ ] Config/cache paths under Application Support/Caches.
 - [ ] Signing/notarization plan.
@@ -686,14 +693,14 @@ Media browsing:
 Playback:
 
 - [x] BASS playback.
-- [ ] Pause/resume.
-- [ ] Seek.
-- [ ] Volume.
-- [ ] Previous behavior.
+- [x] Pause/resume.
+- [x] Seek.
+- [x] Volume.
+- [x] Previous behavior.
 - [ ] Up-next behavior.
 - [ ] Repeat.
-- [ ] Shuffle upcoming.
-- [ ] Queue jump.
+- [x] Shuffle upcoming.
+- [x] Queue jump.
 - [ ] Session restore.
 - [ ] ReplayGain.
 - [ ] Gapless.
