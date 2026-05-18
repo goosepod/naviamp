@@ -359,7 +359,7 @@ Exit criteria:
 - [x] Move BASS runtime/plugin lookup into a separate `playback/bass/runtime` module.
 - [x] Add a dedicated playback worker for track/radio startup.
 - [x] Reset progress UI and ignore stale BASS snapshots during playback transitions.
-- [ ] Move BASS FFI, tag parsing, and engine code into separate `playback/bass/*` modules before adding gapless/crossfade.
+- [x] Move BASS FFI, tag parsing, and engine code into separate `playback/bass/*` modules before adding gapless/crossfade.
 - [ ] Route pause/resume/seek/volume/snapshot through the playback worker before adding gapless/crossfade.
 - [ ] Add a future visualizer backend abstraction; start with Slint/software rendering, then evaluate GPU-backed rendering only if needed.
 
