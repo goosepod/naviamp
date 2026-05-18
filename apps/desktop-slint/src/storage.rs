@@ -36,6 +36,10 @@ impl StoragePaths {
     pub fn image_cache_dir(&self) -> PathBuf {
         self.cache_dir.join("images")
     }
+
+    pub fn image_cache_database(&self) -> PathBuf {
+        self.data_dir.join("image-cache.sqlite")
+    }
 }
 
 #[cfg(test)]
@@ -67,6 +71,20 @@ mod tests {
         assert_eq!(
             paths.image_cache_dir(),
             std::path::PathBuf::from("cache/images")
+        );
+    }
+
+    #[test]
+    fn image_cache_database_lives_under_data_dir() {
+        let paths = StoragePaths {
+            config_dir: "config".into(),
+            data_dir: "data".into(),
+            cache_dir: "cache".into(),
+        };
+
+        assert_eq!(
+            paths.image_cache_database(),
+            std::path::PathBuf::from("data/image-cache.sqlite")
         );
     }
 }

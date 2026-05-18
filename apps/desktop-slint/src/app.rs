@@ -1,7 +1,7 @@
 use crate::domain::{
     AlbumDetail, ArtistDetail, InternetRadioStation, SearchResults, StreamRequest, Track,
 };
-use crate::image_cache::{default_cover_art_cache, CoverArtCache};
+use crate::image_cache::{default_cover_art_cache, CoverArtCache, CoverArtPalette};
 use crate::playback::{default_playback_engine, PlaybackEngine, PlaybackSnapshot};
 use crate::provider::navidrome::NavidromeProvider;
 use crate::provider::MediaProvider;
@@ -17,7 +17,7 @@ use crate::visualizer::{default_visualizer_backend, VisualizerBackend, Visualize
 use crate::worker::BackgroundWorker;
 use anyhow::{Context, Result};
 use reqwest::blocking::Client;
-use slint::{ComponentHandle, Image, PhysicalSize, Timer, TimerMode, Weak};
+use slint::{Color, ComponentHandle, Image, PhysicalSize, Timer, TimerMode, Weak};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -1988,6 +1988,7 @@ fn set_now_playing(ui: &AppWindow, track: &Track) {
     ui.set_now_playing_favorite(track.favorited_at.is_some());
     ui.set_now_playing_rating(i32::from(track.user_rating.unwrap_or(0)));
     ui.set_now_playing_art(Image::default());
+    apply_player_palette(ui, &CoverArtPalette::default());
     reset_playback_progress_ui(ui);
 }
 
@@ -2000,6 +2001,7 @@ fn set_now_playing_radio(ui: &AppWindow, station: &InternetRadioStation) {
     ui.set_now_playing_details(station.stream_url.clone().into());
     ui.set_now_playing_favorite(false);
     ui.set_now_playing_rating(0);
+    apply_player_palette(ui, &CoverArtPalette::default());
     ui.set_now_playing_subtitle(
         station
             .home_page_url
@@ -2211,8 +2213,11 @@ fn load_now_playing_art(
             }
 
             match result {
-                Ok(path) => match Image::load_from_path(&path) {
-                    Ok(image) => ui.set_now_playing_art(image),
+                Ok(cached) => match Image::load_from_path(&cached.path) {
+                    Ok(image) => {
+                        ui.set_now_playing_art(image);
+                        apply_player_palette(&ui, &cached.palette);
+                    }
                     Err(error) => set_error_text(&ui, format!("Cover art decode failed: {error}")),
                 },
                 Err(error) => set_error_text(&ui, format!("Cover art failed: {error}")),
@@ -2220,6 +2225,15 @@ fn load_now_playing_art(
         })
         .ok();
     });
+}
+
+fn apply_player_palette(ui: &AppWindow, palette: &CoverArtPalette) {
+    ui.set_player_accent(color_from_rgb(palette.accent));
+    ui.set_player_surface(color_from_rgb(palette.surface));
+}
+
+fn color_from_rgb((red, green, blue): (u8, u8, u8)) -> Color {
+    Color::from_rgb_u8(red, green, blue)
 }
 
 fn is_current_playback_session(state: &Arc<Mutex<AppState>>, session_id: u64) -> bool {

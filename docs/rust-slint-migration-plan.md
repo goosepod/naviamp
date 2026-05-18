@@ -473,13 +473,20 @@ Exit criteria:
 - [x] Cover art URL model.
 - [x] First-pass image download/cache for now-playing cover art.
 - [x] Decode cached cover art for display.
-- [ ] In-memory hot image cache.
-- [ ] Persist image bytes in SQLite.
-- [ ] Album-art color sampling.
-- [ ] Shared palette model.
-- [ ] Apply restrained player/background theming.
-- [ ] Add visualizer/waveform rendering plan without assuming Chromium/Vulkan/SwiftShader dependencies.
-- [ ] Evaluate GPU-backed rendering only after a Slint/software visualizer proves insufficient.
+- [x] In-memory hot image cache.
+- [x] Persist image bytes in SQLite.
+- [x] Album-art color sampling.
+- [x] Shared palette model.
+- [x] Apply restrained player/background theming.
+- [x] Add visualizer/waveform rendering plan without assuming Chromium/Vulkan/SwiftShader dependencies.
+- [x] Evaluate GPU-backed rendering only after a Slint/software visualizer proves insufficient.
+
+Visualizer/waveform note:
+
+- Keep the current Slint/software visualizer as the baseline path.
+- Add waveform data as a lightweight Rust model first, fed by BASS position/level data or decoded track analysis.
+- Render waveform/levels in Slint primitives before considering a GPU surface.
+- Only evaluate GPU-backed rendering after profiling proves the software visualizer cannot hit target smoothness on macOS and Windows.
 
 Exit criteria:
 

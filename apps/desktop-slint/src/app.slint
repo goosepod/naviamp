@@ -103,6 +103,8 @@ export component AppWindow inherits Window {
     in property <string> now-playing-codec-line: "--";
     in property <string> now-playing-details: "";
     in property <image> now-playing-art;
+    in property <color> player-accent: #7fc7e8;
+    in property <color> player-surface: #15191f;
     in property <bool> now-playing-favorite: false;
     in property <int> now-playing-rating: 0;
     in property <bool> playback-is-playing: false;
@@ -612,10 +614,10 @@ export component AppWindow inherits Window {
                 }
 
                 if root.current-route == "player": Rectangle {
-                    border-color: #2b3038;
+                    border-color: root.player-accent;
                     border-width: 1px;
                     border-radius: 6px;
-                    background: #15191f;
+                    background: root.player-surface;
 
                     HorizontalLayout {
                         padding: 16px;
