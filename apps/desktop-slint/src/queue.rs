@@ -1,4 +1,5 @@
 use crate::domain::Track;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum RepeatMode {
@@ -41,6 +42,30 @@ impl TrackQueue {
         self.repeat_mode = repeat_mode;
     }
 
+    pub fn shuffle_upcoming(&mut self) {
+        let seed = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|duration| duration.as_nanos() as u64)
+            .unwrap_or(0);
+        self.shuffle_upcoming_with_seed(seed);
+    }
+
+    fn shuffle_upcoming_with_seed(&mut self, seed: u64) {
+        let Some(current_index) = self.current_index else {
+            return;
+        };
+        let start = current_index + 1;
+        if start >= self.tracks.len() {
+            return;
+        }
+
+        let mut state = seed.max(1);
+        for index in (start + 1..self.tracks.len()).rev() {
+            let swap_index = start + (next_random(&mut state) as usize % (index - start + 1));
+            self.tracks.swap(index, swap_index);
+        }
+    }
+
     pub fn next(&mut self) -> Option<&Track> {
         if self.repeat_mode == RepeatMode::Track {
             return self.current();
@@ -74,6 +99,13 @@ impl TrackQueue {
         self.current_index = Some(previous_index);
         self.current()
     }
+}
+
+fn next_random(state: &mut u64) -> u64 {
+    *state ^= *state << 13;
+    *state ^= *state >> 7;
+    *state ^= *state << 17;
+    *state
 }
 
 #[cfg(test)]
@@ -147,5 +179,38 @@ mod tests {
 
         assert_eq!("1", queue.next().unwrap().id);
         assert_eq!("2", queue.previous().unwrap().id);
+    }
+
+    #[test]
+    fn shuffles_only_upcoming_tracks() {
+        let mut queue = TrackQueue::play_from_tracks(
+            vec![
+                track("1"),
+                track("2"),
+                track("3"),
+                track("4"),
+                track("5"),
+                track("6"),
+            ],
+            1,
+        );
+
+        queue.shuffle_upcoming_with_seed(7);
+
+        assert_eq!("2", queue.current().unwrap().id);
+        assert_eq!("1", queue.tracks[0].id);
+        let mut upcoming = queue.tracks[2..]
+            .iter()
+            .map(|track| track.id.as_str())
+            .collect::<Vec<_>>();
+        upcoming.sort_unstable();
+        assert_eq!(vec!["3", "4", "5", "6"], upcoming);
+        assert_ne!(
+            vec!["3", "4", "5", "6"],
+            queue.tracks[2..]
+                .iter()
+                .map(|track| track.id.as_str())
+                .collect::<Vec<_>>()
+        );
     }
 }

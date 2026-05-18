@@ -332,6 +332,21 @@ impl AppController {
 
         let ui_weak = self.ui.as_weak();
         let state = Arc::clone(&self.state);
+        self.ui.on_playback_shuffle_requested(move || {
+            let result = state
+                .lock()
+                .map_err(|error| anyhow::anyhow!(error.to_string()))
+                .map(|mut state| state.queue.shuffle_upcoming());
+            if let Some(ui) = ui_weak.upgrade() {
+                match result {
+                    Ok(()) => ui.set_status_text("Shuffled upcoming tracks".into()),
+                    Err(error) => set_error_text(&ui, format!("Shuffle failed: {error}")),
+                }
+            }
+        });
+
+        let ui_weak = self.ui.as_weak();
+        let state = Arc::clone(&self.state);
         self.ui.on_volume_changed(move |volume| {
             let percent = volume.clamp(0.0, 100.0).round() as u8;
             let result = state

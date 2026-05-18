@@ -368,7 +368,7 @@ Port Kotlin `PlaylistEngine` behavior in Rust.
 - [x] Next/previous.
 - [x] Jump to queue item.
 - [x] Repeat off/track/queue.
-- [ ] Shuffle upcoming.
+- [x] Shuffle upcoming.
 - [ ] Preserve back-to/up-next lists.
 - [ ] Queue-aware session IDs to ignore stale async callbacks.
 - [ ] Track-start callback.

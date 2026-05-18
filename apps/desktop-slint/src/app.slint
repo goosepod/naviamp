@@ -50,6 +50,7 @@ export component AppWindow inherits Window {
     callback playback-resume-requested();
     callback playback-previous-requested();
     callback playback-next-requested();
+    callback playback-shuffle-requested();
     callback volume-changed(float);
     callback playback-seek-requested(float);
     callback error-dismissed();
@@ -222,6 +223,11 @@ export component AppWindow inherits Window {
                     Button {
                         text: "Next";
                         clicked => { root.playback-next-requested(); }
+                    }
+
+                    Button {
+                        text: "Shuffle";
+                        clicked => { root.playback-shuffle-requested(); }
                     }
 
                     VerticalLayout {
