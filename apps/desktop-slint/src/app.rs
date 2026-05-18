@@ -260,6 +260,7 @@ impl AppController {
         let state = Arc::clone(&self.state);
         let playback_worker = self.playback_worker.clone();
         self.ui.on_playback_pause_requested(move || {
+            let command_session_id = current_playback_session(&state);
             let state_for_worker = Arc::clone(&state);
             let ui_weak_for_result = ui_weak.clone();
             playback_worker.submit(move || {
@@ -269,6 +270,9 @@ impl AppController {
                     .and_then(|mut state| state.playback.pause());
                 slint::invoke_from_event_loop(move || {
                     if let Some(ui) = ui_weak_for_result.upgrade() {
+                        if !is_current_playback_session(&state_for_worker, command_session_id) {
+                            return;
+                        }
                         match result {
                             Ok(()) => ui.set_status_text("Paused".into()),
                             Err(error) => set_error_text(&ui, format!("Pause failed: {error}")),
@@ -283,6 +287,7 @@ impl AppController {
         let state = Arc::clone(&self.state);
         let playback_worker = self.playback_worker.clone();
         self.ui.on_playback_resume_requested(move || {
+            let command_session_id = current_playback_session(&state);
             let state_for_worker = Arc::clone(&state);
             let ui_weak_for_result = ui_weak.clone();
             playback_worker.submit(move || {
@@ -292,6 +297,9 @@ impl AppController {
                     .and_then(|mut state| state.playback.resume());
                 slint::invoke_from_event_loop(move || {
                     if let Some(ui) = ui_weak_for_result.upgrade() {
+                        if !is_current_playback_session(&state_for_worker, command_session_id) {
+                            return;
+                        }
                         match result {
                             Ok(()) => ui.set_status_text("Playing".into()),
                             Err(error) => set_error_text(&ui, format!("Resume failed: {error}")),
@@ -312,7 +320,7 @@ impl AppController {
                 reset_playback_progress_ui(&ui);
                 ui.set_status_text("Starting previous track...".into());
             }
-            begin_playback_transition(&state);
+            let transition_session_id = begin_playback_transition(&state);
             let state_for_worker = Arc::clone(&state);
             let ui_weak_for_result = ui_weak.clone();
             let worker_for_art = worker.clone();
@@ -330,9 +338,15 @@ impl AppController {
                                 cover_art_cache,
                                 started,
                             ),
-                            Err(error) => {
+                            Err(error)
+                                if is_current_playback_session(
+                                    &state_for_worker,
+                                    transition_session_id,
+                                ) =>
+                            {
                                 set_error_text(&ui, format!("Previous failed: {error:#}"))
                             }
+                            Err(_) => {}
                         }
                     }
                 })
@@ -350,7 +364,7 @@ impl AppController {
                 reset_playback_progress_ui(&ui);
                 ui.set_status_text("Starting next track...".into());
             }
-            begin_playback_transition(&state);
+            let transition_session_id = begin_playback_transition(&state);
             let state_for_worker = Arc::clone(&state);
             let ui_weak_for_result = ui_weak.clone();
             let worker_for_art = worker.clone();
@@ -368,7 +382,15 @@ impl AppController {
                                 cover_art_cache,
                                 started,
                             ),
-                            Err(error) => set_error_text(&ui, format!("Next failed: {error:#}")),
+                            Err(error)
+                                if is_current_playback_session(
+                                    &state_for_worker,
+                                    transition_session_id,
+                                ) =>
+                            {
+                                set_error_text(&ui, format!("Next failed: {error:#}"))
+                            }
+                            Err(_) => {}
                         }
                     }
                 })
@@ -396,6 +418,7 @@ impl AppController {
         let playback_worker = self.playback_worker.clone();
         self.ui.on_volume_changed(move |volume| {
             let percent = volume.clamp(0.0, 100.0).round() as u8;
+            let command_session_id = current_playback_session(&state);
             let state_for_worker = Arc::clone(&state);
             let ui_weak_for_result = ui_weak.clone();
             playback_worker.submit(move || {
@@ -406,6 +429,9 @@ impl AppController {
                 if let Err(error) = result {
                     slint::invoke_from_event_loop(move || {
                         if let Some(ui) = ui_weak_for_result.upgrade() {
+                            if !is_current_playback_session(&state_for_worker, command_session_id) {
+                                return;
+                            }
                             set_error_text(&ui, format!("Volume failed: {error}"));
                         }
                     })
@@ -419,13 +445,20 @@ impl AppController {
         let playback_worker = self.playback_worker.clone();
         self.ui.on_playback_seek_requested(move |progress| {
             let progress = progress.clamp(0.0, 100.0);
+            let command_session_id = current_playback_session(&state);
             let state_for_worker = Arc::clone(&state);
             let ui_weak_for_result = ui_weak.clone();
             playback_worker.submit(move || {
                 let result = seek_to_progress(&state_for_worker, progress);
                 slint::invoke_from_event_loop(move || {
                     if let Some(ui) = ui_weak_for_result.upgrade() {
-                        apply_seek_result(&ui, result, progress);
+                        apply_seek_result(
+                            &ui,
+                            &state_for_worker,
+                            command_session_id,
+                            result,
+                            progress,
+                        );
                     }
                 })
                 .ok();
@@ -436,28 +469,50 @@ impl AppController {
     fn bind_playback_snapshot_polling(&self) {
         let ui_weak = self.ui.as_weak();
         let state = Arc::clone(&self.state);
+        let worker = self.worker.clone();
         let playback_worker = self.playback_worker.clone();
+        let cover_art_cache = Arc::clone(&self.cover_art_cache);
         self.playback_timer
             .start(TimerMode::Repeated, Duration::from_millis(500), move || {
                 let state_for_worker = Arc::clone(&state);
                 let ui_weak_for_result = ui_weak.clone();
+                let worker_for_art = worker.clone();
+                let cover_art_cache = Arc::clone(&cover_art_cache);
                 playback_worker.submit(move || {
                     if let Some(update) = poll_playback_snapshot(&state_for_worker) {
                         slint::invoke_from_event_loop(move || {
                             if let Some(ui) = ui_weak_for_result.upgrade() {
-                                let snapshot = update.snapshot;
-                                ui.set_playback_status_text(playback_status_text(&snapshot).into());
-                                ui.set_playback_elapsed_text(
-                                    playback_elapsed_text(&snapshot).into(),
-                                );
-                                ui.set_playback_duration_text(
-                                    playback_duration_text(&snapshot).into(),
-                                );
-                                ui.set_playback_progress(playback_progress(&snapshot));
-                                ui.set_playback_is_playing(snapshot.is_playing);
-                                ui.set_visualizer_levels(visualizer_levels(
-                                    &update.visualizer_frame,
-                                ));
+                                match update {
+                                    PlaybackPollUpdate::Snapshot {
+                                        snapshot,
+                                        visualizer_frame,
+                                    } => {
+                                        ui.set_playback_status_text(
+                                            playback_status_text(&snapshot).into(),
+                                        );
+                                        ui.set_playback_elapsed_text(
+                                            playback_elapsed_text(&snapshot).into(),
+                                        );
+                                        ui.set_playback_duration_text(
+                                            playback_duration_text(&snapshot).into(),
+                                        );
+                                        ui.set_playback_progress(playback_progress(&snapshot));
+                                        ui.set_playback_is_playing(snapshot.is_playing);
+                                        ui.set_visualizer_levels(visualizer_levels(
+                                            &visualizer_frame,
+                                        ));
+                                    }
+                                    PlaybackPollUpdate::TrackStarted(started) => {
+                                        handle_started_track_playback(
+                                            &ui,
+                                            &state_for_worker,
+                                            worker_for_art,
+                                            ui_weak_for_result.clone(),
+                                            cover_art_cache,
+                                            started,
+                                        );
+                                    }
+                                }
                             }
                         })
                         .ok();
@@ -688,7 +743,7 @@ impl AppController {
                         reset_playback_progress_ui(&ui);
                         ui.set_status_text(format!("Starting {}", station.name).into());
                     }
-                    begin_playback_transition(&state);
+                    let transition_session_id = begin_playback_transition(&state);
 
                     let state_for_worker = Arc::clone(&state);
                     let ui_weak_for_result = ui_weak.clone();
@@ -699,15 +754,27 @@ impl AppController {
                         slint::invoke_from_event_loop(move || {
                             if let Some(ui) = ui_weak_for_result.upgrade() {
                                 match result {
-                                    Ok(()) => {
+                                    Ok(session_id)
+                                        if is_current_playback_session(
+                                            &state_for_worker,
+                                            session_id,
+                                        ) =>
+                                    {
                                         set_now_playing_radio(&ui, &station_for_result);
                                         ui.set_status_text(
                                             format!("Playing {}", station_for_result.name).into(),
                                         );
                                     }
-                                    Err(error) => {
+                                    Ok(_) => {}
+                                    Err(error)
+                                        if is_current_playback_session(
+                                            &state_for_worker,
+                                            transition_session_id,
+                                        ) =>
+                                    {
                                         set_error_text(&ui, format!("Radio failed: {error:#}"))
                                     }
+                                    Err(_) => {}
                                 }
                             }
                         })
@@ -755,7 +822,7 @@ impl AppController {
                 reset_playback_progress_ui(&ui);
                 ui.set_status_text(format!("Starting {}", track.title).into());
             }
-            begin_playback_transition(&state);
+            let transition_session_id = begin_playback_transition(&state);
             let state_for_worker = Arc::clone(&state);
             let ui_weak_for_result = ui_weak.clone();
             let worker_for_art = worker.clone();
@@ -774,9 +841,15 @@ impl AppController {
                                 cover_art_cache,
                                 started,
                             ),
-                            Err(error) => {
+                            Err(error)
+                                if is_current_playback_session(
+                                    &state_for_worker,
+                                    transition_session_id,
+                                ) =>
+                            {
                                 set_error_text(&ui, format!("Playback failed: {error:#}"))
                             }
+                            Err(_) => {}
                         }
                     }
                 })
@@ -794,12 +867,18 @@ impl AppController {
 
 enum SeekOutcome {
     Noop,
-    InPlace(f64),
+    InPlace {
+        target_seconds: f64,
+        session_id: u64,
+    },
     RestartStream {
         current: Box<CurrentPlayback>,
         target_seconds: f64,
     },
-    Restarted(f64),
+    Restarted {
+        target_seconds: f64,
+        session_id: u64,
+    },
 }
 
 fn seek_to_progress(state: &Arc<Mutex<AppState>>, progress: f32) -> Result<SeekOutcome> {
@@ -815,8 +894,12 @@ fn seek_to_progress(state: &Arc<Mutex<AppState>>, progress: f32) -> Result<SeekO
         }
 
         let target_seconds = duration * f64::from(progress) / 100.0;
+        let session_id = app_state.playback_session_id;
         match app_state.playback.seek_absolute(target_seconds) {
-            Ok(()) => Ok(SeekOutcome::InPlace(target_seconds)),
+            Ok(()) => Ok(SeekOutcome::InPlace {
+                target_seconds,
+                session_id,
+            }),
             Err(error) if is_unseekable_stream_error(&error) => {
                 let current = app_state
                     .current_playback
@@ -835,33 +918,62 @@ fn seek_to_progress(state: &Arc<Mutex<AppState>>, progress: f32) -> Result<SeekO
         Ok(SeekOutcome::RestartStream {
             current,
             target_seconds,
-        }) => restart_stream_at_offset(state, current.as_ref(), target_seconds)
-            .map(|()| SeekOutcome::Restarted(target_seconds)),
+        }) => restart_stream_at_offset(state, current.as_ref(), target_seconds).map(|session_id| {
+            SeekOutcome::Restarted {
+                target_seconds,
+                session_id,
+            }
+        }),
         other => other,
     }
 }
 
-fn apply_seek_result(ui: &AppWindow, result: Result<SeekOutcome>, progress: f32) {
+fn apply_seek_result(
+    ui: &AppWindow,
+    state: &Arc<Mutex<AppState>>,
+    command_session_id: u64,
+    result: Result<SeekOutcome>,
+    progress: f32,
+) {
     match result {
-        Ok(SeekOutcome::InPlace(target_seconds) | SeekOutcome::Restarted(target_seconds)) => {
+        Ok(
+            SeekOutcome::InPlace {
+                target_seconds,
+                session_id,
+            }
+            | SeekOutcome::Restarted {
+                target_seconds,
+                session_id,
+            },
+        ) if is_current_playback_session(state, session_id) => {
             ui.set_playback_elapsed_text(format_seconds(target_seconds).into());
             ui.set_playback_progress(progress);
         }
+        Ok(SeekOutcome::InPlace { .. } | SeekOutcome::Restarted { .. }) => {}
         Ok(SeekOutcome::Noop) => {}
         Ok(SeekOutcome::RestartStream { .. }) => {}
-        Err(error) if error.to_string().contains("seeking is not available") => {
+        Err(error)
+            if is_current_playback_session(state, command_session_id)
+                && error.to_string().contains("seeking is not available") =>
+        {
             set_error_text(ui, "Seeking is not available for this stream");
         }
-        Err(error) => set_error_text(ui, format!("Seek failed: {error}")),
+        Err(error) if is_current_playback_session(state, command_session_id) => {
+            set_error_text(ui, format!("Seek failed: {error}"));
+        }
+        Err(_) => {}
     }
 }
 
-struct PlaybackUiSnapshot {
-    snapshot: PlaybackSnapshot,
-    visualizer_frame: VisualizerFrame,
+enum PlaybackPollUpdate {
+    Snapshot {
+        snapshot: PlaybackSnapshot,
+        visualizer_frame: VisualizerFrame,
+    },
+    TrackStarted(StartedTrackPlayback),
 }
 
-fn poll_playback_snapshot(state: &Arc<Mutex<AppState>>) -> Option<PlaybackUiSnapshot> {
+fn poll_playback_snapshot(state: &Arc<Mutex<AppState>>) -> Option<PlaybackPollUpdate> {
     let (session_id, snapshot) = state
         .lock()
         .map_err(|error| anyhow::anyhow!(error.to_string()))
@@ -874,17 +986,81 @@ fn poll_playback_snapshot(state: &Arc<Mutex<AppState>>) -> Option<PlaybackUiSnap
         })
         .ok()?;
 
-    state.lock().ok().and_then(|mut state| {
+    let snapshot_update = state.lock().ok().and_then(|mut state| {
         if state.playback_session_id != session_id {
             return None;
         }
+        let previous = state.latest_playback_snapshot.clone();
+        let snapshot = merge_playback_snapshot(snapshot, &previous);
+        let should_auto_advance =
+            state.current_playback.is_some() && playback_reached_end(&previous, &snapshot);
         state.latest_playback_snapshot = snapshot.clone();
         let visualizer_frame = state.visualizer.next_frame(&snapshot);
-        Some(PlaybackUiSnapshot {
-            snapshot,
-            visualizer_frame,
-        })
+        Some((snapshot, visualizer_frame, should_auto_advance))
+    })?;
+
+    let (snapshot, visualizer_frame, should_auto_advance) = snapshot_update;
+    if should_auto_advance {
+        if let Ok(started) = play_queue_neighbor(state, QueueDirection::Next) {
+            return Some(PlaybackPollUpdate::TrackStarted(started));
+        }
+    }
+
+    Some(PlaybackPollUpdate::Snapshot {
+        snapshot,
+        visualizer_frame,
     })
+}
+
+fn merge_playback_snapshot(
+    current: PlaybackSnapshot,
+    previous: &PlaybackSnapshot,
+) -> PlaybackSnapshot {
+    PlaybackSnapshot {
+        position_seconds: merge_position_seconds(
+            current.position_seconds,
+            previous.position_seconds,
+        ),
+        duration_seconds: merge_duration_seconds(
+            current.duration_seconds,
+            previous.duration_seconds,
+        ),
+        is_playing: current.is_playing,
+        volume: current.volume,
+        stream_title: current
+            .stream_title
+            .or_else(|| previous.stream_title.clone()),
+    }
+}
+
+fn merge_position_seconds(current: Option<f64>, previous: Option<f64>) -> Option<f64> {
+    match (current, previous) {
+        (None, previous) => previous,
+        (current, None) => current,
+        (Some(current), Some(previous)) if current >= previous => Some(current),
+        (Some(current), Some(previous)) if previous - current <= 1.0 => Some(current),
+        (Some(_), Some(previous)) => Some(previous),
+    }
+}
+
+fn merge_duration_seconds(current: Option<f64>, previous: Option<f64>) -> Option<f64> {
+    match (current, previous) {
+        (None, previous) => previous,
+        (current, None) => current,
+        (Some(current), Some(previous)) if current >= previous => Some(current),
+        (Some(_), Some(previous)) => Some(previous),
+    }
+}
+
+fn playback_reached_end(previous: &PlaybackSnapshot, current: &PlaybackSnapshot) -> bool {
+    if !previous.is_playing || current.is_playing {
+        return false;
+    }
+
+    match (current.position_seconds, current.duration_seconds) {
+        (Some(position), Some(duration)) if duration > 0.0 => position >= duration - 1.0,
+        _ => false,
+    }
 }
 
 enum QueueDirection {
@@ -912,10 +1088,13 @@ fn next_playback_session(state: &mut AppState) -> u64 {
     state.playback_session_id
 }
 
-fn begin_playback_transition(state: &Arc<Mutex<AppState>>) {
+fn begin_playback_transition(state: &Arc<Mutex<AppState>>) -> u64 {
     if let Ok(mut state) = state.lock() {
-        next_playback_session(&mut state);
+        let session_id = next_playback_session(&mut state);
         reset_latest_playback_snapshot(&mut state);
+        session_id
+    } else {
+        0
     }
 }
 
@@ -983,7 +1162,7 @@ fn restart_stream_at_offset(
     state: &Arc<Mutex<AppState>>,
     current: &CurrentPlayback,
     target_seconds: f64,
-) -> Result<()> {
+) -> Result<u64> {
     let start_seconds = target_seconds.max(0.0).round().min(u32::MAX as f64) as u32;
     let provider = NavidromeProvider::new(current.source.clone())?;
     let url = provider.stream_url(&StreamRequest::original_from(
@@ -995,29 +1174,29 @@ fn restart_stream_at_offset(
         .lock()
         .map_err(|error| anyhow::anyhow!(error.to_string()))
         .and_then(|mut state| {
-            next_playback_session(&mut state);
+            let session_id = next_playback_session(&mut state);
             state.playback.play_url(&url)?;
             reset_latest_playback_snapshot(&mut state);
             state.current_playback = Some(current.clone());
-            Ok(())
+            Ok(session_id)
         })
 }
 
 fn start_radio_playback(
     state: &Arc<Mutex<AppState>>,
     station: &InternetRadioStation,
-) -> Result<()> {
+) -> Result<u64> {
     let stream_url = resolve_radio_stream_url(&station.stream_url)?;
     state
         .lock()
         .map_err(|error| anyhow::anyhow!(error.to_string()))
         .and_then(|mut state| {
-            next_playback_session(&mut state);
+            let session_id = next_playback_session(&mut state);
             state.playback.play_url(&stream_url)?;
             reset_latest_playback_snapshot(&mut state);
             state.current_playback = None;
             state.queue = TrackQueue::default();
-            Ok(())
+            Ok(session_id)
         })
 }
 
@@ -1033,7 +1212,11 @@ fn handle_started_track_playback(
     cover_art_cache: Arc<CoverArtCache>,
     started: StartedTrackPlayback,
 ) {
-    set_now_playing(ui, &started.track);
+    if !is_current_playback_session(state, started.session_id) {
+        return;
+    }
+
+    handle_track_started(ui, &started.track);
     ui.set_status_text(format!("Playing {}", started.track.title).into());
     load_now_playing_art(
         worker,
@@ -1048,6 +1231,10 @@ fn handle_started_track_playback(
             embedded_cover_art: started.embedded_cover_art,
         },
     );
+}
+
+fn handle_track_started(ui: &AppWindow, track: &Track) {
+    set_now_playing(ui, track);
 }
 
 fn set_now_playing(ui: &AppWindow, track: &Track) {
@@ -1175,6 +1362,13 @@ fn is_current_playback_session(state: &Arc<Mutex<AppState>>, session_id: u64) ->
         .unwrap_or(false)
 }
 
+fn current_playback_session(state: &Arc<Mutex<AppState>>) -> u64 {
+    state
+        .lock()
+        .map(|state| state.playback_session_id)
+        .unwrap_or(0)
+}
+
 fn playback_status_text(snapshot: &PlaybackSnapshot) -> String {
     if let Some(stream_title) = snapshot.stream_title.as_ref() {
         return stream_title.clone();
@@ -1232,8 +1426,8 @@ fn format_seconds(seconds: f64) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        format_seconds, parse_radio_playlist, playback_duration_text, playback_elapsed_text,
-        playback_progress, playback_status_text,
+        format_seconds, merge_playback_snapshot, parse_radio_playlist, playback_duration_text,
+        playback_elapsed_text, playback_progress, playback_reached_end, playback_status_text,
     };
     use crate::playback::PlaybackSnapshot;
 
@@ -1307,6 +1501,99 @@ mod tests {
                 stream_title: Some("Live Artist - Live Song".to_string()),
             })
         );
+    }
+
+    #[test]
+    fn merge_playback_snapshot_keeps_previous_values_when_current_read_is_unknown() {
+        let previous = PlaybackSnapshot {
+            position_seconds: Some(42.0),
+            duration_seconds: Some(180.0),
+            is_playing: true,
+            volume: 80,
+            stream_title: None,
+        };
+
+        let merged = merge_playback_snapshot(
+            PlaybackSnapshot {
+                is_playing: true,
+                volume: 80,
+                ..PlaybackSnapshot::default()
+            },
+            &previous,
+        );
+
+        assert_eq!(Some(42.0), merged.position_seconds);
+        assert_eq!(Some(180.0), merged.duration_seconds);
+    }
+
+    #[test]
+    fn merge_playback_snapshot_ignores_large_backward_position_jumps() {
+        let previous = PlaybackSnapshot {
+            position_seconds: Some(42.0),
+            duration_seconds: Some(180.0),
+            is_playing: true,
+            volume: 80,
+            stream_title: None,
+        };
+
+        let merged = merge_playback_snapshot(
+            PlaybackSnapshot {
+                position_seconds: Some(0.0),
+                duration_seconds: Some(180.0),
+                is_playing: true,
+                volume: 80,
+                stream_title: None,
+            },
+            &previous,
+        );
+
+        assert_eq!(Some(42.0), merged.position_seconds);
+        assert_eq!(Some(180.0), merged.duration_seconds);
+    }
+
+    #[test]
+    fn merge_playback_snapshot_allows_small_backward_position_correction() {
+        let previous = PlaybackSnapshot {
+            position_seconds: Some(42.0),
+            duration_seconds: Some(180.0),
+            is_playing: true,
+            volume: 80,
+            stream_title: None,
+        };
+
+        let merged = merge_playback_snapshot(
+            PlaybackSnapshot {
+                position_seconds: Some(41.4),
+                duration_seconds: Some(180.0),
+                is_playing: true,
+                volume: 80,
+                stream_title: None,
+            },
+            &previous,
+        );
+
+        assert_eq!(Some(41.4), merged.position_seconds);
+    }
+
+    #[test]
+    fn playback_reached_end_requires_playing_to_idle_at_known_end() {
+        let previous = PlaybackSnapshot {
+            position_seconds: Some(179.0),
+            duration_seconds: Some(180.0),
+            is_playing: true,
+            volume: 80,
+            stream_title: None,
+        };
+        let current = PlaybackSnapshot {
+            position_seconds: Some(180.0),
+            duration_seconds: Some(180.0),
+            is_playing: false,
+            volume: 80,
+            stream_title: None,
+        };
+
+        assert!(playback_reached_end(&previous, &current));
+        assert!(!playback_reached_end(&current, &current));
     }
 
     #[test]

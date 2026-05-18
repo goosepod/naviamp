@@ -11,35 +11,69 @@ pub enum RepeatMode {
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct TrackQueue {
-    tracks: Vec<Track>,
-    current_index: Option<usize>,
+    back_to: Vec<Track>,
+    current: Option<Track>,
+    up_next: Vec<Track>,
     repeat_mode: RepeatMode,
 }
 
 impl TrackQueue {
     pub fn play_from_tracks(tracks: Vec<Track>, index: usize) -> Self {
-        let current_index = (index < tracks.len()).then_some(index);
+        let mut tracks = tracks;
+        if index >= tracks.len() {
+            return Self {
+                repeat_mode: RepeatMode::Off,
+                ..Self::default()
+            };
+        }
+
+        let up_next = tracks.split_off(index + 1);
+        let current = tracks.pop();
         Self {
-            tracks,
-            current_index,
+            back_to: tracks,
+            current,
+            up_next,
             repeat_mode: RepeatMode::Off,
         }
     }
 
     pub fn current(&self) -> Option<&Track> {
-        self.current_index.and_then(|index| self.tracks.get(index))
+        self.current.as_ref()
     }
 
     pub fn jump_to(&mut self, index: usize) -> Option<&Track> {
-        if index >= self.tracks.len() {
+        let mut tracks = self.tracks();
+        if index >= tracks.len() {
             return None;
         }
-        self.current_index = Some(index);
+
+        let repeat_mode = self.repeat_mode;
+        *self = Self::play_from_tracks(std::mem::take(&mut tracks), index);
+        self.repeat_mode = repeat_mode;
         self.current()
     }
 
     pub fn set_repeat_mode(&mut self, repeat_mode: RepeatMode) {
         self.repeat_mode = repeat_mode;
+    }
+
+    #[allow(dead_code)]
+    pub fn back_to(&self) -> &[Track] {
+        &self.back_to
+    }
+
+    #[allow(dead_code)]
+    pub fn up_next(&self) -> &[Track] {
+        &self.up_next
+    }
+
+    fn tracks(&self) -> Vec<Track> {
+        self.back_to
+            .iter()
+            .cloned()
+            .chain(self.current.iter().cloned())
+            .chain(self.up_next.iter().cloned())
+            .collect()
     }
 
     pub fn shuffle_upcoming(&mut self) {
@@ -51,18 +85,14 @@ impl TrackQueue {
     }
 
     fn shuffle_upcoming_with_seed(&mut self, seed: u64) {
-        let Some(current_index) = self.current_index else {
-            return;
-        };
-        let start = current_index + 1;
-        if start >= self.tracks.len() {
+        if self.up_next.len() < 2 {
             return;
         }
 
         let mut state = seed.max(1);
-        for index in (start + 1..self.tracks.len()).rev() {
-            let swap_index = start + (next_random(&mut state) as usize % (index - start + 1));
-            self.tracks.swap(index, swap_index);
+        for index in (1..self.up_next.len()).rev() {
+            let swap_index = next_random(&mut state) as usize % (index + 1);
+            self.up_next.swap(index, swap_index);
         }
     }
 
@@ -71,16 +101,26 @@ impl TrackQueue {
             return self.current();
         }
 
-        let next_index = self.current_index? + 1;
-        if next_index >= self.tracks.len() {
-            if self.repeat_mode == RepeatMode::Queue && !self.tracks.is_empty() {
-                self.current_index = Some(0);
-                return self.current();
+        if let Some(next) = self.up_next.first().cloned() {
+            if let Some(current) = self.current.replace(next) {
+                self.back_to.push(current);
             }
-            return None;
+            self.up_next.remove(0);
+            return self.current();
         }
-        self.current_index = Some(next_index);
-        self.current()
+
+        if self.repeat_mode == RepeatMode::Queue {
+            let tracks = self.tracks();
+            if tracks.is_empty() {
+                return None;
+            }
+            *self = Self::play_from_tracks(tracks, 0);
+            self.repeat_mode = RepeatMode::Queue;
+            return self.current();
+        }
+
+        self.current.as_ref()?;
+        None
     }
 
     pub fn previous(&mut self) -> Option<&Track> {
@@ -88,16 +128,23 @@ impl TrackQueue {
             return self.current();
         }
 
-        let current_index = self.current_index?;
-        let Some(previous_index) = current_index.checked_sub(1) else {
-            if self.repeat_mode == RepeatMode::Queue && !self.tracks.is_empty() {
-                self.current_index = Some(self.tracks.len() - 1);
-                return self.current();
+        if let Some(previous) = self.back_to.pop() {
+            if let Some(current) = self.current.replace(previous) {
+                self.up_next.insert(0, current);
             }
-            return None;
-        };
-        self.current_index = Some(previous_index);
-        self.current()
+            return self.current();
+        }
+
+        if self.repeat_mode == RepeatMode::Queue {
+            let tracks = self.tracks();
+            let last_index = tracks.len().checked_sub(1)?;
+            *self = Self::play_from_tracks(tracks, last_index);
+            self.repeat_mode = RepeatMode::Queue;
+            return self.current();
+        }
+
+        self.current.as_ref()?;
+        None
     }
 }
 
@@ -127,6 +174,8 @@ mod tests {
         let queue = TrackQueue::play_from_tracks(vec![track("1"), track("2"), track("3")], 1);
 
         assert_eq!("2", queue.current().unwrap().id);
+        assert_eq!(vec!["1"], track_ids(queue.back_to()));
+        assert_eq!(vec!["3"], track_ids(queue.up_next()));
     }
 
     #[test]
@@ -141,6 +190,8 @@ mod tests {
         let mut queue = TrackQueue::play_from_tracks(vec![track("1"), track("2")], 0);
 
         assert_eq!("2", queue.next().unwrap().id);
+        assert_eq!(vec!["1"], track_ids(queue.back_to()));
+        assert!(queue.up_next().is_empty());
         assert!(queue.next().is_none());
         assert_eq!("2", queue.current().unwrap().id);
     }
@@ -150,6 +201,8 @@ mod tests {
         let mut queue = TrackQueue::play_from_tracks(vec![track("1"), track("2")], 1);
 
         assert_eq!("1", queue.previous().unwrap().id);
+        assert!(queue.back_to().is_empty());
+        assert_eq!(vec!["2"], track_ids(queue.up_next()));
         assert!(queue.previous().is_none());
         assert_eq!("1", queue.current().unwrap().id);
     }
@@ -159,6 +212,8 @@ mod tests {
         let mut queue = TrackQueue::play_from_tracks(vec![track("1"), track("2"), track("3")], 0);
 
         assert_eq!("3", queue.jump_to(2).unwrap().id);
+        assert_eq!(vec!["1", "2"], track_ids(queue.back_to()));
+        assert!(queue.up_next().is_empty());
         assert!(queue.jump_to(9).is_none());
         assert_eq!("3", queue.current().unwrap().id);
     }
@@ -198,19 +253,14 @@ mod tests {
         queue.shuffle_upcoming_with_seed(7);
 
         assert_eq!("2", queue.current().unwrap().id);
-        assert_eq!("1", queue.tracks[0].id);
-        let mut upcoming = queue.tracks[2..]
-            .iter()
-            .map(|track| track.id.as_str())
-            .collect::<Vec<_>>();
+        assert_eq!(vec!["1"], track_ids(queue.back_to()));
+        let mut upcoming = track_ids(queue.up_next());
         upcoming.sort_unstable();
         assert_eq!(vec!["3", "4", "5", "6"], upcoming);
-        assert_ne!(
-            vec!["3", "4", "5", "6"],
-            queue.tracks[2..]
-                .iter()
-                .map(|track| track.id.as_str())
-                .collect::<Vec<_>>()
-        );
+        assert_ne!(vec!["3", "4", "5", "6"], track_ids(queue.up_next()));
+    }
+
+    fn track_ids(tracks: &[Track]) -> Vec<&str> {
+        tracks.iter().map(|track| track.id.as_str()).collect()
     }
 }
