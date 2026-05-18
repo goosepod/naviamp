@@ -7,7 +7,8 @@ use crate::queue::{RepeatMode, TrackQueue};
 use crate::settings::{
     default_settings_store, ConnectionDraft, SavedMediaSource, Settings, SettingsStore,
 };
-use crate::ui::{radio_rows, search_rows, source_rows, AppWindow};
+use crate::ui::{radio_rows, search_rows, source_rows, visualizer_levels, AppWindow};
+use crate::visualizer::{default_visualizer_backend, VisualizerBackend, VisualizerFrame};
 use crate::worker::BackgroundWorker;
 use anyhow::{Context, Result};
 use reqwest::blocking::Client;
@@ -27,6 +28,7 @@ struct AppState {
     current_playback: Option<CurrentPlayback>,
     queue: TrackQueue,
     playback_session_id: u64,
+    visualizer: Box<dyn VisualizerBackend>,
 }
 
 #[derive(Clone)]
@@ -55,6 +57,7 @@ fn run_with_settings_store(settings_store: Arc<dyn SettingsStore>) -> Result<()>
     }
     ui.set_sources(source_rows(&settings));
     ui.set_password(String::new().into());
+    ui.set_visualizer_levels(visualizer_levels(&VisualizerFrame::default()));
 
     let controller = AppController {
         ui: ui.clone_strong(),
@@ -67,6 +70,7 @@ fn run_with_settings_store(settings_store: Arc<dyn SettingsStore>) -> Result<()>
             current_playback: None,
             queue: TrackQueue::default(),
             playback_session_id: 0,
+            visualizer: default_visualizer_backend(),
         })),
         settings_store,
         worker: BackgroundWorker::new("naviamp-background"),
@@ -438,9 +442,10 @@ impl AppController {
                 let state_for_worker = Arc::clone(&state);
                 let ui_weak_for_result = ui_weak.clone();
                 playback_worker.submit(move || {
-                    if let Some(snapshot) = poll_playback_snapshot(&state_for_worker) {
+                    if let Some(update) = poll_playback_snapshot(&state_for_worker) {
                         slint::invoke_from_event_loop(move || {
                             if let Some(ui) = ui_weak_for_result.upgrade() {
+                                let snapshot = update.snapshot;
                                 ui.set_playback_status_text(playback_status_text(&snapshot).into());
                                 ui.set_playback_elapsed_text(
                                     playback_elapsed_text(&snapshot).into(),
@@ -450,6 +455,9 @@ impl AppController {
                                 );
                                 ui.set_playback_progress(playback_progress(&snapshot));
                                 ui.set_playback_is_playing(snapshot.is_playing);
+                                ui.set_visualizer_levels(visualizer_levels(
+                                    &update.visualizer_frame,
+                                ));
                             }
                         })
                         .ok();
@@ -848,7 +856,12 @@ fn apply_seek_result(ui: &AppWindow, result: Result<SeekOutcome>, progress: f32)
     }
 }
 
-fn poll_playback_snapshot(state: &Arc<Mutex<AppState>>) -> Option<PlaybackSnapshot> {
+struct PlaybackUiSnapshot {
+    snapshot: PlaybackSnapshot,
+    visualizer_frame: VisualizerFrame,
+}
+
+fn poll_playback_snapshot(state: &Arc<Mutex<AppState>>) -> Option<PlaybackUiSnapshot> {
     let (session_id, snapshot) = state
         .lock()
         .map_err(|error| anyhow::anyhow!(error.to_string()))
@@ -866,7 +879,11 @@ fn poll_playback_snapshot(state: &Arc<Mutex<AppState>>) -> Option<PlaybackSnapsh
             return None;
         }
         state.latest_playback_snapshot = snapshot.clone();
-        Some(snapshot)
+        let visualizer_frame = state.visualizer.next_frame(&snapshot);
+        Some(PlaybackUiSnapshot {
+            snapshot,
+            visualizer_frame,
+        })
     })
 }
 

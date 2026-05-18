@@ -1,5 +1,6 @@
 use crate::domain::{InternetRadioStation, SearchResults};
 use crate::settings::Settings;
+use crate::visualizer::VisualizerFrame;
 use slint::{ModelRc, SharedString, VecModel};
 
 slint::include_modules!();
@@ -79,4 +80,8 @@ pub fn source_rows(settings: &Settings) -> ModelRc<SourceRow> {
         })
         .collect::<Vec<_>>();
     ModelRc::new(VecModel::from(rows))
+}
+
+pub fn visualizer_levels(frame: &VisualizerFrame) -> ModelRc<f32> {
+    ModelRc::new(VecModel::from(frame.levels.to_vec()))
 }

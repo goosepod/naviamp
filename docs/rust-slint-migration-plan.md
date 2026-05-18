@@ -361,7 +361,7 @@ Exit criteria:
 - [x] Reset progress UI and ignore stale BASS snapshots during playback transitions.
 - [x] Move BASS FFI, tag parsing, and engine code into separate `playback/bass/*` modules before adding gapless/crossfade.
 - [x] Route pause/resume/seek/volume/snapshot through the playback worker before adding gapless/crossfade.
-- [ ] Add a future visualizer backend abstraction; start with Slint/software rendering, then evaluate GPU-backed rendering only if needed.
+- [x] Add a future visualizer backend abstraction; start with Slint/software rendering, then evaluate GPU-backed rendering only if needed.
 
 Exit criteria:
 

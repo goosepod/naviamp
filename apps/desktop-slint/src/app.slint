@@ -64,6 +64,7 @@ export component AppWindow inherits Window {
     in property <string> now-playing-subtitle: "";
     in property <image> now-playing-art;
     in property <bool> playback-is-playing: false;
+    in property <[float]> visualizer-levels;
     in property <[MediaRow]> media-rows;
     in property <[SourceRow]> sources;
 
@@ -204,7 +205,7 @@ export component AppWindow inherits Window {
         }
 
         Rectangle {
-            height: 132px;
+            height: 164px;
             border-color: #2b3038;
             border-width: 1px;
             border-radius: 6px;
@@ -326,6 +327,29 @@ export component AppWindow inherits Window {
                         maximum: 100;
                         value <=> root.volume;
                         changed => { root.volume-changed(root.volume); }
+                    }
+                }
+
+                Rectangle {
+                    height: 22px;
+                    background: transparent;
+
+                    HorizontalLayout {
+                        spacing: 4px;
+                        for level in root.visualizer-levels: Rectangle {
+                            width: 8px;
+                            border-radius: 2px;
+                            background: root.playback-is-playing ? #5ac8fa : #3d4652;
+                            opacity: root.playback-is-playing ? 0.78 : 0.36;
+
+                            Rectangle {
+                                y: parent.height - self.height;
+                                width: parent.width;
+                                height: 3px + level * 19px;
+                                border-radius: 2px;
+                                background: root.playback-is-playing ? #a7e7ff : #5d6978;
+                            }
+                        }
                     }
                 }
             }

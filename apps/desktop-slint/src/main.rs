@@ -12,6 +12,7 @@ mod queue;
 mod settings;
 mod storage;
 mod ui;
+mod visualizer;
 mod worker;
 
 use anyhow::Result;
