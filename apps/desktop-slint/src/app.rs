@@ -3,7 +3,7 @@ use crate::image_cache::{default_cover_art_cache, CoverArtCache};
 use crate::playback::{default_playback_engine, PlaybackEngine, PlaybackSnapshot};
 use crate::provider::navidrome::NavidromeProvider;
 use crate::provider::MediaProvider;
-use crate::queue::TrackQueue;
+use crate::queue::{RepeatMode, TrackQueue};
 use crate::settings::{
     default_settings_store, ConnectionDraft, SavedMediaSource, Settings, SettingsStore,
 };
@@ -709,7 +709,8 @@ impl AppController {
                     }
                 };
                 app_state.queue = TrackQueue::play_from_tracks(tracks, index as usize);
-                let Some(track) = app_state.queue.current().cloned() else {
+                app_state.queue.set_repeat_mode(RepeatMode::Off);
+                let Some(track) = app_state.queue.jump_to(index as usize).cloned() else {
                     return;
                 };
                 (source, track)

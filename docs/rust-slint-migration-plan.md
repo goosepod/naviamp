@@ -366,15 +366,15 @@ Port Kotlin `PlaylistEngine` behavior in Rust.
 - [x] Queue model.
 - [x] Play from list/index.
 - [x] Next/previous.
-- [ ] Jump to queue item.
-- [ ] Repeat off/track/queue.
+- [x] Jump to queue item.
+- [x] Repeat off/track/queue.
 - [ ] Shuffle upcoming.
 - [ ] Preserve back-to/up-next lists.
 - [ ] Queue-aware session IDs to ignore stale async callbacks.
 - [ ] Track-start callback.
 - [ ] Playback-finished auto-advance.
 - [ ] Progress merge behavior equivalent to `PlaybackProgress.mergeWith`.
-- [ ] Unit tests for all queue transitions.
+- [x] Unit tests for current queue transitions.
 
 Exit criteria:
 
