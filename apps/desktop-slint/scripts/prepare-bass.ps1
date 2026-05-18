@@ -18,6 +18,7 @@ New-Item -ItemType Directory -Force -Path $TargetDir | Out-Null
 $packages = @(
     "bass24.zip",
     "bass_ssl.zip",
+    "bass_aac24.zip",
     "bassflac24.zip",
     "bassopus24.zip",
     "bassalac24.zip",

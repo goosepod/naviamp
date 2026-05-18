@@ -1,4 +1,4 @@
-use crate::domain::SearchResults;
+use crate::domain::{InternetRadioStation, SearchResults};
 use crate::settings::Settings;
 use slint::{ModelRc, SharedString, VecModel};
 
@@ -38,6 +38,26 @@ pub fn search_rows(results: &SearchResults) -> ModelRc<MediaRow> {
     let rows = artist_rows
         .chain(album_rows)
         .chain(track_rows)
+        .collect::<Vec<_>>();
+    ModelRc::new(VecModel::from(rows))
+}
+
+pub fn radio_rows(stations: &[InternetRadioStation]) -> ModelRc<MediaRow> {
+    let rows = stations
+        .iter()
+        .enumerate()
+        .map(|(index, station)| MediaRow {
+            kind: SharedString::from("radio"),
+            title: SharedString::from(station.name.as_str()),
+            subtitle: SharedString::from(
+                station
+                    .home_page_url
+                    .as_deref()
+                    .filter(|value| !value.is_empty())
+                    .unwrap_or("Internet radio"),
+            ),
+            source_index: index as i32,
+        })
         .collect::<Vec<_>>();
     ModelRc::new(VecModel::from(rows))
 }

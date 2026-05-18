@@ -316,6 +316,7 @@ Exit criteria:
   - ignored local dev vendor folder
   - project-local bundled runtime folder
 - [x] Add BASS plugin loading for common modules:
+  - AAC
   - FLAC
   - Opus
   - ALAC
@@ -390,7 +391,7 @@ Build the Slint equivalent of the current app shell.
 - [ ] Search route.
 - [ ] Library route placeholder.
 - [ ] Playlists route placeholder.
-- [ ] Internet radio route placeholder.
+- [x] Internet radio route placeholder.
 - [ ] Downloads route placeholder.
 - [ ] Settings route.
 - [ ] Mini player.
@@ -679,7 +680,7 @@ Media browsing:
 - [ ] Library albums.
 - [ ] Library local search.
 - [ ] Playlists.
-- [ ] Internet radio.
+- [x] Internet radio.
 - [ ] Downloads.
 
 Playback:

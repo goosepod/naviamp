@@ -44,6 +44,7 @@ export component AppWindow inherits Window {
     callback source-activated(int);
     callback source-delete-requested(int);
     callback search-requested(string);
+    callback radio-requested();
     callback row-activated(string, int);
     callback playback-pause-requested();
     callback playback-resume-requested();
@@ -282,6 +283,10 @@ export component AppWindow inherits Window {
             Button {
                 text: "Search";
                 clicked => { root.search-requested(root.query); }
+            }
+            Button {
+                text: "Radio";
+                clicked => { root.radio-requested(); }
             }
         }
 

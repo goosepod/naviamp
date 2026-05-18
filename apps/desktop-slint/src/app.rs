@@ -1,4 +1,4 @@
-use crate::domain::{SearchResults, StreamRequest, Track};
+use crate::domain::{InternetRadioStation, SearchResults, StreamRequest, Track};
 use crate::image_cache::{default_cover_art_cache, CoverArtCache};
 use crate::playback::{default_playback_engine, PlaybackEngine, PlaybackSnapshot};
 use crate::provider::navidrome::NavidromeProvider;
@@ -6,9 +6,10 @@ use crate::provider::MediaProvider;
 use crate::settings::{
     default_settings_store, ConnectionDraft, SavedMediaSource, Settings, SettingsStore,
 };
-use crate::ui::{search_rows, source_rows, AppWindow};
+use crate::ui::{radio_rows, search_rows, source_rows, AppWindow};
 use crate::worker::BackgroundWorker;
 use anyhow::{Context, Result};
+use reqwest::blocking::Client;
 use slint::{ComponentHandle, Image, PhysicalSize, Timer, TimerMode, Weak};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -19,6 +20,7 @@ const MIN_WINDOW_HEIGHT: u32 = 600;
 struct AppState {
     settings: Settings,
     search_results: SearchResults,
+    radio_stations: Vec<InternetRadioStation>,
     playback: Box<dyn PlaybackEngine>,
     latest_playback_snapshot: PlaybackSnapshot,
     current_playback: Option<CurrentPlayback>,
@@ -56,6 +58,7 @@ fn run_with_settings_store(settings_store: Arc<dyn SettingsStore>) -> Result<()>
         state: Arc::new(Mutex::new(AppState {
             settings,
             search_results: SearchResults::default(),
+            radio_stations: Vec::new(),
             playback: default_playback_engine(),
             latest_playback_snapshot: PlaybackSnapshot::default(),
             current_playback: None,
@@ -90,6 +93,7 @@ impl AppController {
         self.bind_playback_controls();
         self.bind_playback_snapshot_polling();
         self.bind_search();
+        self.bind_radio();
         self.bind_playback();
     }
 
@@ -427,6 +431,50 @@ impl AppController {
         });
     }
 
+    fn bind_radio(&self) {
+        let ui_weak = self.ui.as_weak();
+        let state = Arc::clone(&self.state);
+        let worker = self.worker.clone();
+        self.ui.on_radio_requested(move || {
+            let settings = state
+                .lock()
+                .ok()
+                .and_then(|state| state.settings.active_source());
+
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.set_status_text("Loading radio stations...".into());
+            }
+
+            let ui_weak_for_result = ui_weak.clone();
+            let state_for_result = Arc::clone(&state);
+            worker.submit(move || {
+                let result = settings
+                    .ok_or_else(|| anyhow::anyhow!("no saved source"))
+                    .and_then(NavidromeProvider::new)
+                    .and_then(|provider| provider.internet_radio_stations());
+                slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = ui_weak_for_result.upgrade() {
+                        match result {
+                            Ok(stations) => {
+                                if let Ok(mut state) = state_for_result.lock() {
+                                    state.radio_stations = stations.clone();
+                                }
+                                ui.set_media_rows(radio_rows(&stations));
+                                ui.set_status_text(
+                                    format!("{} radio stations", stations.len()).into(),
+                                );
+                            }
+                            Err(error) => {
+                                set_error_text(&ui, format!("Radio failed: {error}"));
+                            }
+                        }
+                    }
+                })
+                .ok();
+            });
+        });
+    }
+
     fn bind_playback(&self) {
         let ui_weak = self.ui.as_weak();
         let state = Arc::clone(&self.state);
@@ -534,6 +582,48 @@ impl AppController {
                     return;
                 }
                 "track" => {}
+                "radio" => {
+                    let station = {
+                        let state = match state.lock() {
+                            Ok(state) => state,
+                            Err(error) => {
+                                if let Some(ui) = ui_weak.upgrade() {
+                                    set_error_text(&ui, format!("Radio failed: {error}"));
+                                }
+                                return;
+                            }
+                        };
+                        let Some(station) = state.radio_stations.get(index as usize).cloned()
+                        else {
+                            return;
+                        };
+                        station
+                    };
+
+                    let result = resolve_radio_stream_url(&station.stream_url)
+                        .and_then(|stream_url| {
+                            state
+                                .lock()
+                                .map_err(|error| anyhow::anyhow!(error.to_string()))
+                                .and_then(|mut state| {
+                                    state.playback.play_url(&stream_url)?;
+                                    state.current_playback = None;
+                                    Ok(())
+                                })
+                        })
+                        .context("could not start radio");
+
+                    if let Some(ui) = ui_weak.upgrade() {
+                        match result {
+                            Ok(()) => {
+                                set_now_playing_radio(&ui, &station);
+                                ui.set_status_text(format!("Playing {}", station.name).into());
+                            }
+                            Err(error) => set_error_text(&ui, format!("Radio failed: {error:#}")),
+                        }
+                    }
+                    return;
+                }
                 _ => return,
             };
 
@@ -646,8 +736,63 @@ fn set_now_playing(ui: &AppWindow, track: &Track) {
     ui.set_now_playing_art(Image::default());
 }
 
+fn set_now_playing_radio(ui: &AppWindow, station: &InternetRadioStation) {
+    ui.set_now_playing_title(station.name.clone().into());
+    ui.set_now_playing_subtitle(
+        station
+            .home_page_url
+            .as_deref()
+            .unwrap_or("Internet radio")
+            .into(),
+    );
+    ui.set_now_playing_art(Image::default());
+}
+
 fn set_error_text(ui: &AppWindow, message: impl Into<String>) {
     ui.set_error_text(message.into().into());
+}
+
+fn resolve_radio_stream_url(url: &str) -> Result<String> {
+    if !looks_like_radio_playlist(url) {
+        return Ok(url.to_string());
+    }
+
+    let body = Client::builder()
+        .timeout(Duration::from_secs(10))
+        .build()?
+        .get(url)
+        .send()
+        .context("radio playlist request failed")?
+        .error_for_status()
+        .context("radio playlist server returned an error")?
+        .text()
+        .context("radio playlist text failed")?;
+
+    parse_radio_playlist(&body)
+        .ok_or_else(|| anyhow::anyhow!("radio playlist had no supported stream URL"))
+}
+
+fn looks_like_radio_playlist(url: &str) -> bool {
+    let url = url.to_ascii_lowercase();
+    url.contains(".pls") || (url.contains(".m3u") && !url.contains(".m3u8"))
+}
+
+fn parse_radio_playlist(body: &str) -> Option<String> {
+    body.lines().map(str::trim).find_map(|line| {
+        if line.is_empty() || line.starts_with('#') || line.starts_with('[') {
+            return None;
+        }
+        if let Some((key, value)) = line.split_once('=') {
+            if key.trim().to_ascii_lowercase().starts_with("file") {
+                return non_empty_url(value.trim());
+            }
+        }
+        non_empty_url(line)
+    })
+}
+
+fn non_empty_url(value: &str) -> Option<String> {
+    (value.starts_with("http://") || value.starts_with("https://")).then(|| value.to_string())
 }
 
 fn load_now_playing_art(
@@ -747,8 +892,8 @@ fn format_seconds(seconds: f64) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        format_seconds, playback_duration_text, playback_elapsed_text, playback_progress,
-        playback_status_text,
+        format_seconds, parse_radio_playlist, playback_duration_text, playback_elapsed_text,
+        playback_progress, playback_status_text,
     };
     use crate::playback::PlaybackSnapshot;
 
@@ -821,6 +966,22 @@ mod tests {
                 volume: 80,
                 stream_title: Some("Live Artist - Live Song".to_string()),
             })
+        );
+    }
+
+    #[test]
+    fn parses_pls_radio_playlist() {
+        assert_eq!(
+            Some("https://stream.example/radio".to_string()),
+            parse_radio_playlist("[playlist]\nFile1=https://stream.example/radio\nTitle1=Radio")
+        );
+    }
+
+    #[test]
+    fn parses_m3u_radio_playlist() {
+        assert_eq!(
+            Some("http://stream.example/live".to_string()),
+            parse_radio_playlist("#EXTM3U\n#EXTINF:-1,Radio\nhttp://stream.example/live")
         );
     }
 }

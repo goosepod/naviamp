@@ -50,6 +50,11 @@ const BASS_ATTRIB_VOL: BassDword = 2;
 const BASS_STREAM_STATUS: BassDword = 0x800000;
 const BASS_ERROR_POSITION: i32 = 7;
 const BASS_ERROR_NOTAVAIL: i32 = 37;
+const BASS_ERROR_TIMEOUT: i32 = 40;
+const BASS_ERROR_FILEFORM: i32 = 41;
+const BASS_ERROR_CODEC: i32 = 44;
+const BASS_ERROR_PROTOCOL: i32 = 48;
+const BASS_ERROR_DENIED: i32 = 49;
 const BASS_TAG_HTTP: BassDword = 3;
 const BASS_TAG_ICY: BassDword = 4;
 const BASS_TAG_META: BassDword = 5;
@@ -541,8 +546,8 @@ impl BassLibraryResolver {
 
 fn bass_plugin_names() -> &'static [&'static str] {
     &[
-        "bassflac", "bassopus", "bassalac", "bassape", "bassdsd", "bass_mpc", "basshls",
-        "basswebm", "bassmidi", "bassmix", "bass_fx", "basswma",
+        "bass_aac", "bassflac", "bassopus", "bassalac", "bassape", "bassdsd", "bass_mpc",
+        "basshls", "basswebm", "bassmidi", "bassmix", "bass_fx", "basswma",
     ]
 }
 
@@ -591,6 +596,11 @@ fn bass_error_message(error_code: i32) -> String {
     match error_code {
         BASS_ERROR_POSITION => "BASS error 7: invalid position".to_string(),
         BASS_ERROR_NOTAVAIL => "BASS error 37: requested action is not available".to_string(),
+        BASS_ERROR_TIMEOUT => "BASS error 40: connection timed out".to_string(),
+        BASS_ERROR_FILEFORM => "BASS error 41: unsupported file or playlist format".to_string(),
+        BASS_ERROR_CODEC => "BASS error 44: codec is not available or supported".to_string(),
+        BASS_ERROR_PROTOCOL => "BASS error 48: unsupported protocol".to_string(),
+        BASS_ERROR_DENIED => "BASS error 49: access denied".to_string(),
         _ => format!("BASS error {error_code}"),
     }
 }
@@ -811,6 +821,10 @@ mod tests {
         assert_eq!(
             "BASS error 37: requested action is not available",
             super::bass_error_message(super::BASS_ERROR_NOTAVAIL)
+        );
+        assert_eq!(
+            "BASS error 41: unsupported file or playlist format",
+            super::bass_error_message(super::BASS_ERROR_FILEFORM)
         );
     }
 
