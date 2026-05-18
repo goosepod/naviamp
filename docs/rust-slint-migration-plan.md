@@ -497,16 +497,16 @@ Exit criteria:
 
 Port Home in slices:
 
-- [ ] Recently added albums.
-- [ ] Random albums.
-- [ ] Frequent albums.
-- [ ] Recent albums.
-- [ ] Playlists section.
-- [ ] Genre shortcuts.
-- [ ] Decade/year spotlight from local index.
-- [ ] Library radio.
-- [ ] Random album radio.
-- [ ] Home loading/cache behavior.
+- [x] Recently added albums.
+- [x] Random albums.
+- [x] Frequent albums.
+- [x] Recent albums.
+- [x] Playlists section.
+- [x] Genre shortcuts.
+- [x] Decade/year spotlight from local index.
+- [x] Library radio.
+- [x] Random album radio.
+- [x] Home loading/cache behavior.
 
 Exit criteria:
 

@@ -11,6 +11,25 @@ pub struct Album {
     pub artist: String,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AlbumListType {
+    Newest,
+    Random,
+    Frequent,
+    Recent,
+}
+
+impl AlbumListType {
+    pub fn as_subsonic_type(self) -> &'static str {
+        match self {
+            Self::Newest => "newest",
+            Self::Random => "random",
+            Self::Frequent => "frequent",
+            Self::Recent => "recent",
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AlbumDetail {
     pub album: Album,

@@ -1,5 +1,6 @@
 use crate::domain::{
-    AlbumDetail, ArtistDetail, InternetRadioStation, SearchResults, StreamRequest, Track,
+    Album, AlbumDetail, AlbumListType, ArtistDetail, Genre, InternetRadioStation, Playlist,
+    SearchResults, StreamRequest, Track,
 };
 use crate::image_cache::{default_cover_art_cache, CoverArtCache, CoverArtPalette};
 use crate::playback::{default_playback_engine, PlaybackEngine, PlaybackSnapshot};
@@ -11,13 +12,16 @@ use crate::settings::{
 };
 use crate::ui::{
     album_detail_rows, artist_detail_rows, back_to_rows, radio_rows, search_rows, source_rows,
-    up_next_rows, visualizer_levels, AppWindow,
+    up_next_rows, visualizer_levels, AppWindow, MediaRow,
 };
 use crate::visualizer::{default_visualizer_backend, VisualizerBackend, VisualizerFrame};
 use crate::worker::BackgroundWorker;
 use anyhow::{Context, Result};
 use reqwest::blocking::Client;
-use slint::{Color, ComponentHandle, Image, PhysicalSize, Timer, TimerMode, Weak};
+use slint::{
+    Color, ComponentHandle, Image, ModelRc, PhysicalSize, SharedString, Timer, TimerMode, VecModel,
+    Weak,
+};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -29,6 +33,7 @@ struct AppState {
     settings: Settings,
     route_history: Vec<String>,
     search_cache: HashMap<String, SearchResults>,
+    home_cache: Option<HomeContent>,
     search_results: SearchResults,
     current_album_detail: Option<AlbumDetail>,
     current_artist_detail: Option<ArtistDetail>,
@@ -45,6 +50,17 @@ struct AppState {
 struct CurrentPlayback {
     source: SavedMediaSource,
     track: Track,
+}
+
+#[derive(Clone, Debug, Default)]
+struct HomeContent {
+    recently_added_albums: Vec<Album>,
+    random_albums: Vec<Album>,
+    frequent_albums: Vec<Album>,
+    recent_albums: Vec<Album>,
+    playlists: Vec<Playlist>,
+    genres: Vec<Genre>,
+    spotlight_tracks: Vec<Track>,
 }
 
 struct TrackPlaybackRequest {
@@ -84,6 +100,7 @@ fn run_with_settings_store(settings_store: Arc<dyn SettingsStore>) -> Result<()>
         state: Arc::new(Mutex::new(AppState {
             route_history: Vec::new(),
             search_cache: HashMap::new(),
+            home_cache: None,
             settings,
             search_results: SearchResults::default(),
             current_album_detail: None,
@@ -129,6 +146,7 @@ impl AppController {
         self.bind_playback_controls();
         self.bind_now_playing_controls();
         self.bind_playback_snapshot_polling();
+        self.bind_home();
         self.bind_search();
         self.bind_radio();
         self.bind_row_actions();
@@ -688,6 +706,118 @@ impl AppController {
         });
     }
 
+    fn bind_home(&self) {
+        let ui_weak = self.ui.as_weak();
+        let state = Arc::clone(&self.state);
+        let worker = self.worker.clone();
+        self.ui.on_home_requested(move || {
+            submit_home_load(&ui_weak, &state, &worker);
+        });
+
+        let ui_weak = self.ui.as_weak();
+        let state = Arc::clone(&self.state);
+        let playback_worker = self.playback_worker.clone();
+        let worker = self.worker.clone();
+        let cover_art_cache = Arc::clone(&self.cover_art_cache);
+        self.ui.on_home_library_radio_requested(move || {
+            let source = match active_source_from_state(&state) {
+                Ok(source) => source,
+                Err(error) => {
+                    if let Some(ui) = ui_weak.upgrade() {
+                        set_error_text(&ui, format!("Library radio failed: {error}"));
+                    }
+                    return;
+                }
+            };
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.set_status_text("Building library radio...".into());
+            }
+            let ui_weak_for_result = ui_weak.clone();
+            let state_for_result = Arc::clone(&state);
+            let playback_worker_for_result = playback_worker.clone();
+            let worker_for_art = worker.clone();
+            let cover_art_cache = Arc::clone(&cover_art_cache);
+            worker.submit(move || {
+                let tracks = NavidromeProvider::new(source.clone())
+                    .and_then(|provider| provider.random_tracks(50));
+                slint::invoke_from_event_loop(move || match tracks {
+                    Ok(tracks) => start_tracks_from_ui(
+                        &ui_weak_for_result,
+                        &state_for_result,
+                        &playback_worker_for_result,
+                        worker_for_art,
+                        cover_art_cache,
+                        TrackPlaybackRequest {
+                            source,
+                            tracks,
+                            start_index: 0,
+                            status_text: "Starting library radio...",
+                        },
+                    ),
+                    Err(error) => {
+                        if let Some(ui) = ui_weak_for_result.upgrade() {
+                            set_error_text(&ui, format!("Library radio failed: {error}"));
+                        }
+                    }
+                })
+                .ok();
+            });
+        });
+
+        let ui_weak = self.ui.as_weak();
+        let state = Arc::clone(&self.state);
+        let playback_worker = self.playback_worker.clone();
+        let worker = self.worker.clone();
+        let cover_art_cache = Arc::clone(&self.cover_art_cache);
+        self.ui.on_home_random_album_radio_requested(move || {
+            let source = match active_source_from_state(&state) {
+                Ok(source) => source,
+                Err(error) => {
+                    if let Some(ui) = ui_weak.upgrade() {
+                        set_error_text(&ui, format!("Random album radio failed: {error}"));
+                    }
+                    return;
+                }
+            };
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.set_status_text("Choosing a random album...".into());
+            }
+            let ui_weak_for_result = ui_weak.clone();
+            let state_for_result = Arc::clone(&state);
+            let playback_worker_for_result = playback_worker.clone();
+            let worker_for_art = worker.clone();
+            let cover_art_cache = Arc::clone(&cover_art_cache);
+            worker.submit(move || {
+                let result = random_album_radio_tracks(source.clone());
+                slint::invoke_from_event_loop(move || match result {
+                    Ok(tracks) => start_tracks_from_ui(
+                        &ui_weak_for_result,
+                        &state_for_result,
+                        &playback_worker_for_result,
+                        worker_for_art,
+                        cover_art_cache,
+                        TrackPlaybackRequest {
+                            source,
+                            tracks,
+                            start_index: 0,
+                            status_text: "Starting random album radio...",
+                        },
+                    ),
+                    Err(error) => {
+                        if let Some(ui) = ui_weak_for_result.upgrade() {
+                            set_error_text(&ui, format!("Random album radio failed: {error}"));
+                        }
+                    }
+                })
+                .ok();
+            });
+        });
+
+        if self.ui.get_current_route().as_str() == "home" {
+            submit_home_load(&self.ui.as_weak(), &self.state, &self.worker);
+        }
+    }
+
     fn bind_playback_snapshot_polling(&self) {
         let ui_weak = self.ui.as_weak();
         let state = Arc::clone(&self.state);
@@ -1100,6 +1230,143 @@ impl AppController {
         self.ui.on_row_activated(move |kind, index| {
             match kind.as_str() {
                 "header" => return,
+                "home-album" => {
+                    let (source, album) = {
+                        let state = match state.lock() {
+                            Ok(state) => state,
+                            Err(error) => {
+                                if let Some(ui) = ui_weak.upgrade() {
+                                    set_error_text(&ui, format!("Album failed: {error}"));
+                                }
+                                return;
+                            }
+                        };
+                        let Some(content) = state.home_cache.as_ref() else {
+                            return;
+                        };
+                        let Some(album) = home_album(content, index as usize) else {
+                            return;
+                        };
+                        let Some(source) = state.settings.active_source() else {
+                            return;
+                        };
+                        (source, album)
+                    };
+
+                    if let Some(ui) = ui_weak.upgrade() {
+                        ui.set_status_text(format!("Opening {}", album.title).into());
+                    }
+                    let ui_weak_for_result = ui_weak.clone();
+                    let state_for_result = Arc::clone(&state);
+                    let settings_store_for_result = Arc::clone(&settings_store);
+                    worker.submit(move || {
+                        let result = NavidromeProvider::new(source)
+                            .and_then(|provider| provider.album(&album.id));
+                        slint::invoke_from_event_loop(move || {
+                            if let Some(ui) = ui_weak_for_result.upgrade() {
+                                match result {
+                                    Ok(detail) => {
+                                        if let Ok(mut state) = state_for_result.lock() {
+                                            state.search_results.artists.clear();
+                                            state.search_results.albums.clear();
+                                            state.search_results.tracks = detail.tracks.clone();
+                                            state.current_album_detail = Some(detail.clone());
+                                            navigate_to_locked(
+                                                &mut state,
+                                                "album-detail",
+                                                &settings_store_for_result,
+                                            );
+                                        }
+                                        ui.set_media_rows(album_detail_rows(&detail));
+                                        ui.set_detail_title(detail.album.title.clone().into());
+                                        ui.set_detail_subtitle(
+                                            format!(
+                                                "{} - {} tracks",
+                                                detail.album.artist,
+                                                detail.tracks.len()
+                                            )
+                                            .into(),
+                                        );
+                                        ui.set_current_route("album-detail".into());
+                                        ui.set_status_text(
+                                            format!(
+                                                "{} tracks on {}",
+                                                detail.tracks.len(),
+                                                detail.album.title
+                                            )
+                                            .into(),
+                                        );
+                                    }
+                                    Err(error) => {
+                                        set_error_text(&ui, format!("Album failed: {error}"));
+                                    }
+                                }
+                            }
+                        })
+                        .ok();
+                    });
+                    return;
+                }
+                "home-track" => {
+                    let (source, tracks) = {
+                        let state = match state.lock() {
+                            Ok(state) => state,
+                            Err(error) => {
+                                if let Some(ui) = ui_weak.upgrade() {
+                                    set_error_text(&ui, format!("Playback failed: {error}"));
+                                }
+                                return;
+                            }
+                        };
+                        let Some(content) = state.home_cache.as_ref() else {
+                            return;
+                        };
+                        let Some(source) = state.settings.active_source() else {
+                            return;
+                        };
+                        (source, content.spotlight_tracks.clone())
+                    };
+                    start_tracks_from_ui(
+                        &ui_weak,
+                        &state,
+                        &playback_worker,
+                        worker.clone(),
+                        Arc::clone(&cover_art_cache),
+                        TrackPlaybackRequest {
+                            source,
+                            tracks,
+                            start_index: index as usize,
+                            status_text: "Starting spotlight track...",
+                        },
+                    );
+                    return;
+                }
+                "home-genre" => {
+                    let genre = state
+                        .lock()
+                        .ok()
+                        .and_then(|state| state.home_cache.clone())
+                        .and_then(|content| content.genres.get(index as usize).cloned());
+                    if let (Some(ui), Some(genre)) = (ui_weak.upgrade(), genre) {
+                        ui.set_query(genre.name.clone().into());
+                        ui.set_current_route("search".into());
+                        ui.set_status_text(format!("Search ready for {}", genre.name).into());
+                    }
+                    return;
+                }
+                "home-playlist" => {
+                    let playlist = state
+                        .lock()
+                        .ok()
+                        .and_then(|state| state.home_cache.clone())
+                        .and_then(|content| content.playlists.get(index as usize).cloned());
+                    if let (Some(ui), Some(playlist)) = (ui_weak.upgrade(), playlist) {
+                        ui.set_status_text(
+                            format!("Playlist detail comes in Phase 13: {}", playlist.name).into(),
+                        );
+                    }
+                    return;
+                }
                 "artist" => {
                     let (source, artist) = {
                         let state = match state.lock() {
@@ -1657,6 +1924,256 @@ fn play_queue_neighbor(
     start_track_playback(state, source, track)
 }
 
+fn submit_home_load(
+    ui_weak: &Weak<AppWindow>,
+    state: &Arc<Mutex<AppState>>,
+    worker: &BackgroundWorker,
+) {
+    let source = match active_source_from_state(state) {
+        Ok(source) => source,
+        Err(error) => {
+            if let Some(ui) = ui_weak.upgrade() {
+                set_error_text(&ui, format!("Home failed: {error}"));
+            }
+            return;
+        }
+    };
+
+    if let Some(ui) = ui_weak.upgrade() {
+        ui.set_status_text("Loading home...".into());
+        ui.set_search_state_text("Loading home sections...".into());
+    }
+
+    let ui_weak_for_result = ui_weak.clone();
+    let state_for_result = Arc::clone(state);
+    worker.submit(move || {
+        let result = load_home_content(source);
+        slint::invoke_from_event_loop(move || {
+            if let Some(ui) = ui_weak_for_result.upgrade() {
+                match result {
+                    Ok(content) => {
+                        if let Ok(mut state) = state_for_result.lock() {
+                            state.home_cache = Some(content.clone());
+                        }
+                        ui.set_media_rows(home_rows(&content));
+                        ui.set_search_state_text(home_summary(&content).into());
+                        ui.set_status_text("Home loaded".into());
+                    }
+                    Err(error) => {
+                        ui.set_search_state_text("Home failed".into());
+                        set_error_text(&ui, format!("Home failed: {error}"));
+                    }
+                }
+            }
+        })
+        .ok();
+    });
+}
+
+fn load_home_content(source: SavedMediaSource) -> Result<HomeContent> {
+    let provider = NavidromeProvider::new(source)?;
+    Ok(HomeContent {
+        recently_added_albums: provider.album_list(AlbumListType::Newest, 8)?,
+        random_albums: provider.album_list(AlbumListType::Random, 8)?,
+        frequent_albums: provider.album_list(AlbumListType::Frequent, 8)?,
+        recent_albums: provider.album_list(AlbumListType::Recent, 8)?,
+        playlists: provider.playlists()?.into_iter().take(8).collect(),
+        genres: provider.genres()?.into_iter().take(10).collect(),
+        spotlight_tracks: provider.random_tracks(25)?,
+    })
+}
+
+fn active_source_from_state(state: &Arc<Mutex<AppState>>) -> Result<SavedMediaSource> {
+    state
+        .lock()
+        .map_err(|error| anyhow::anyhow!(error.to_string()))?
+        .settings
+        .active_source()
+        .ok_or_else(|| anyhow::anyhow!("no active source"))
+}
+
+fn random_album_radio_tracks(source: SavedMediaSource) -> Result<Vec<Track>> {
+    let provider = NavidromeProvider::new(source)?;
+    let albums = provider.album_list(AlbumListType::Random, 1)?;
+    let album = albums
+        .first()
+        .ok_or_else(|| anyhow::anyhow!("no random album found"))?;
+    let detail = provider.album(&album.id)?;
+    if detail.tracks.is_empty() {
+        provider.random_tracks(25)
+    } else {
+        Ok(detail.tracks)
+    }
+}
+
+fn home_rows(content: &HomeContent) -> ModelRc<MediaRow> {
+    let mut rows = Vec::new();
+    let mut album_index = 0usize;
+    append_home_albums(
+        &mut rows,
+        &mut album_index,
+        "Recently Added",
+        &content.recently_added_albums,
+    );
+    append_home_albums(
+        &mut rows,
+        &mut album_index,
+        "Random Albums",
+        &content.random_albums,
+    );
+    append_home_albums(
+        &mut rows,
+        &mut album_index,
+        "Frequent Albums",
+        &content.frequent_albums,
+    );
+    append_home_albums(
+        &mut rows,
+        &mut album_index,
+        "Recent Albums",
+        &content.recent_albums,
+    );
+
+    if !content.playlists.is_empty() {
+        rows.push(home_header("Playlists", content.playlists.len()));
+        rows.extend(
+            content
+                .playlists
+                .iter()
+                .enumerate()
+                .map(|(index, playlist)| MediaRow {
+                    kind: SharedString::from("home-playlist"),
+                    title: SharedString::from(playlist.name.as_str()),
+                    subtitle: SharedString::from(format!(
+                        "{} tracks - {}",
+                        playlist.song_count, playlist.owner
+                    )),
+                    source_index: index as i32,
+                    is_header: false,
+                    action_label: SharedString::new(),
+                }),
+        );
+    }
+
+    if !content.genres.is_empty() {
+        rows.push(home_header("Genres", content.genres.len()));
+        rows.extend(
+            content
+                .genres
+                .iter()
+                .enumerate()
+                .map(|(index, genre)| MediaRow {
+                    kind: SharedString::from("home-genre"),
+                    title: SharedString::from(genre.name.as_str()),
+                    subtitle: SharedString::from(format!(
+                        "{} songs - {} albums",
+                        genre.song_count, genre.album_count
+                    )),
+                    source_index: index as i32,
+                    is_header: false,
+                    action_label: SharedString::from("Search"),
+                }),
+        );
+    }
+
+    let decade = spotlight_decade(&content.spotlight_tracks);
+    if !content.spotlight_tracks.is_empty() {
+        rows.push(home_header(
+            decade
+                .map(|decade| format!("{decade}s Spotlight"))
+                .unwrap_or_else(|| "Year Spotlight".to_string()),
+            content.spotlight_tracks.len(),
+        ));
+        rows.extend(
+            content
+                .spotlight_tracks
+                .iter()
+                .enumerate()
+                .map(|(index, track)| MediaRow {
+                    kind: SharedString::from("home-track"),
+                    title: SharedString::from(track.title.as_str()),
+                    subtitle: SharedString::from(track.subtitle()),
+                    source_index: index as i32,
+                    is_header: false,
+                    action_label: SharedString::new(),
+                }),
+        );
+    }
+
+    ModelRc::new(VecModel::from(rows))
+}
+
+fn append_home_albums(
+    rows: &mut Vec<MediaRow>,
+    album_index: &mut usize,
+    label: &str,
+    albums: &[Album],
+) {
+    if albums.is_empty() {
+        return;
+    }
+    rows.push(home_header(label, albums.len()));
+    for album in albums {
+        rows.push(MediaRow {
+            kind: SharedString::from("home-album"),
+            title: SharedString::from(album.title.as_str()),
+            subtitle: SharedString::from(format!("Album - {}", album.subtitle())),
+            source_index: *album_index as i32,
+            is_header: false,
+            action_label: SharedString::new(),
+        });
+        *album_index += 1;
+    }
+}
+
+fn home_header(label: impl Into<String>, count: usize) -> MediaRow {
+    MediaRow {
+        kind: SharedString::from("header"),
+        title: SharedString::from(format!("{} ({count})", label.into())),
+        subtitle: SharedString::new(),
+        source_index: -1,
+        is_header: true,
+        action_label: SharedString::new(),
+    }
+}
+
+fn home_album(content: &HomeContent, index: usize) -> Option<Album> {
+    content
+        .recently_added_albums
+        .iter()
+        .chain(content.random_albums.iter())
+        .chain(content.frequent_albums.iter())
+        .chain(content.recent_albums.iter())
+        .nth(index)
+        .cloned()
+}
+
+fn spotlight_decade(tracks: &[Track]) -> Option<u32> {
+    let mut counts = HashMap::<u32, usize>::new();
+    for decade in tracks
+        .iter()
+        .filter_map(|track| track.year.map(|year| year / 10 * 10))
+    {
+        *counts.entry(decade).or_default() += 1;
+    }
+    counts
+        .into_iter()
+        .max_by_key(|(_, count)| *count)
+        .map(|(decade, _)| decade)
+}
+
+fn home_summary(content: &HomeContent) -> String {
+    format!(
+        "{} albums, {} playlists, {} genres",
+        content.recently_added_albums.len()
+            + content.random_albums.len()
+            + content.frequent_albums.len()
+            + content.recent_albums.len(),
+        content.playlists.len(),
+        content.genres.len()
+    )
+}
+
 fn current_track_action(state: &Arc<Mutex<AppState>>) -> Result<(SavedMediaSource, Track)> {
     let state = state
         .lock()
@@ -2095,6 +2612,16 @@ fn restore_route_rows(ui: &AppWindow, state: &Arc<Mutex<AppState>>) {
     };
 
     match route.as_str() {
+        "home" => {
+            if let Some(content) = state.home_cache.as_ref() {
+                ui.set_media_rows(home_rows(content));
+                ui.set_search_state_text(home_summary(content).into());
+            } else {
+                ui.set_search_state_text(
+                    "Refresh Home to load albums, playlists, and genres".into(),
+                );
+            }
+        }
         "search" => ui.set_media_rows(search_rows(&state.search_results)),
         "album-detail" => {
             if let Some(detail) = state.current_album_detail.as_ref() {

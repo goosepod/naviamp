@@ -72,6 +72,7 @@ export struct SourceRow {
 
 export component AppWindow inherits Window {
     title: "Naviamp";
+    icon: @image-url("../assets/naviamp.png");
     preferred-width: 1100px;
     preferred-height: 760px;
     min-width: 860px;
@@ -119,6 +120,9 @@ export component AppWindow inherits Window {
     callback connect-requested(string, string, string);
     callback source-activated(int);
     callback source-delete-requested(int);
+    callback home-requested();
+    callback home-library-radio-requested();
+    callback home-random-album-radio-requested();
     callback search-requested(string);
     callback radio-requested();
     callback row-activated(string, int);
@@ -592,7 +596,53 @@ export component AppWindow inherits Window {
                     }
                 }
 
-                if root.current-route == "home" || root.current-route == "library" || root.current-route == "playlists" || root.current-route == "downloads": Rectangle {
+                if root.current-route == "home": VerticalLayout {
+                    spacing: 10px;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Button { text: "Refresh Home"; clicked => { root.home-requested(); } }
+                        Button { text: "Library Radio"; clicked => { root.home-library-radio-requested(); } }
+                        Button { text: "Random Album Radio"; clicked => { root.home-random-album-radio-requested(); } }
+                    }
+                    if root.search-state-text != "": Text {
+                        text: root.search-state-text;
+                        color: #9ba7b5;
+                        font-size: 13px;
+                    }
+                    Rectangle {
+                        border-color: #2b3038;
+                        border-width: 1px;
+                        border-radius: 6px;
+                        background: #171a1f;
+
+                        ListView {
+                            for row in root.media-rows: Rectangle {
+                                height: row.is_header ? 34px : 58px;
+                                background: row.is_header ? #121821 : home-row-touch.pressed ? #263241 : home-row-touch.has-hover ? #202833 : #171a1f;
+                                home-row-touch := TouchArea {
+                                    clicked => { root.row-activated(row.kind, row.source_index); }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 12px;
+                                    padding-right: 8px;
+                                    padding-top: row.is_header ? 6px : 8px;
+                                    spacing: 8px;
+                                    VerticalLayout {
+                                        spacing: 3px;
+                                        Text { text: row.title; color: row.is_header ? #7fc7e8 : #f5f7fb; font-size: row.is_header ? 12px : 15px; font-weight: row.is_header ? 700 : 400; overflow: elide; }
+                                        if !row.is_header: Text { text: row.subtitle; color: #9ba7b5; font-size: 12px; overflow: elide; }
+                                    }
+                                    if row.action_label != "": Button {
+                                        text: row.action_label;
+                                        clicked => { root.row-action-requested(row.kind, row.source_index, row.action_label); }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if root.current-route == "library" || root.current-route == "playlists" || root.current-route == "downloads": Rectangle {
                     border-color: #2b3038;
                     border-width: 1px;
                     border-radius: 6px;

@@ -1,8 +1,8 @@
 pub mod navidrome;
 
 use crate::domain::{
-    AlbumDetail, ArtistDetail, ArtistInfo, Genre, InternetRadioStation, Lyrics, Playlist,
-    PlaylistDetail, SearchResults, StreamRequest, Track,
+    Album, AlbumDetail, AlbumListType, ArtistDetail, ArtistInfo, Genre, InternetRadioStation,
+    Lyrics, Playlist, PlaylistDetail, SearchResults, StreamRequest, Track,
 };
 use anyhow::Result;
 
@@ -13,6 +13,8 @@ pub trait MediaProvider {
     fn search(&self, query: &str) -> Result<SearchResults>;
 
     fn album(&self, album_id: &str) -> Result<AlbumDetail>;
+
+    fn album_list(&self, list_type: AlbumListType, count: u32) -> Result<Vec<Album>>;
 
     fn artist(&self, artist_id: &str) -> Result<ArtistDetail>;
 

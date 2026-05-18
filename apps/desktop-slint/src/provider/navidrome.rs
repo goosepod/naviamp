@@ -1,6 +1,7 @@
 use crate::domain::{
-    Album, AlbumDetail, Artist, ArtistDetail, ArtistInfo, Genre, InternetRadioStation, Lyrics,
-    Playlist, PlaylistDetail, SearchResults, StreamFormat, StreamRequest, Track,
+    Album, AlbumDetail, AlbumListType, Artist, ArtistDetail, ArtistInfo, Genre,
+    InternetRadioStation, Lyrics, Playlist, PlaylistDetail, SearchResults, StreamFormat,
+    StreamRequest, Track,
 };
 use crate::provider::MediaProvider;
 use crate::settings::{ConnectionDraft, SavedMediaSource};
@@ -158,6 +159,21 @@ impl MediaProvider for NavidromeProvider {
         let album = root.get("album").ok_or_else(|| anyhow!("missing album"))?;
 
         Ok(parse_album_detail(album))
+    }
+
+    fn album_list(&self, list_type: AlbumListType, count: u32) -> Result<Vec<Album>> {
+        let count = count.to_string();
+        let response = self.request_json_with_params(
+            "getAlbumList2.view",
+            &[("type", list_type.as_subsonic_type()), ("size", &count)],
+        )?;
+        let root = Self::response_root(&response)?;
+        let album_list = root
+            .get("albumList2")
+            .or_else(|| root.get("albumList"))
+            .ok_or_else(|| anyhow!("missing album list"))?;
+
+        Ok(parse_albums(album_list))
     }
 
     fn artist(&self, artist_id: &str) -> Result<ArtistDetail> {
