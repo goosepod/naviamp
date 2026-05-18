@@ -97,10 +97,21 @@ export component AppWindow inherits Window {
     in property <string> playback-duration-text: "--:--";
     in property <string> now-playing-title: "Nothing playing";
     in property <string> now-playing-subtitle: "";
+    in property <string> now-playing-artist: "";
+    in property <string> now-playing-album: "";
+    in property <string> now-playing-year: "--";
+    in property <string> now-playing-codec-line: "--";
+    in property <string> now-playing-details: "";
     in property <image> now-playing-art;
+    in property <bool> now-playing-favorite: false;
+    in property <int> now-playing-rating: 0;
     in property <bool> playback-is-playing: false;
+    in-out property <bool> show-track-details: false;
+    in-out property <bool> show-player-menu: false;
     in property <[float]> visualizer-levels;
     in property <[MediaRow]> media-rows;
+    in property <[MediaRow]> up-next-rows;
+    in property <[MediaRow]> back-to-rows;
     in property <[SourceRow]> sources;
 
     callback connect-requested(string, string, string);
@@ -120,6 +131,10 @@ export component AppWindow inherits Window {
     callback playback-shuffle-requested();
     callback volume-changed(float);
     callback playback-seek-requested(float);
+    callback now-playing-favorite-requested();
+    callback now-playing-rating-requested(int);
+    callback now-playing-link-requested(string);
+    callback queue-row-activated(int);
     callback error-dismissed();
     callback route-requested(string);
     callback back-requested();
@@ -602,17 +617,149 @@ export component AppWindow inherits Window {
                     border-radius: 6px;
                     background: #15191f;
 
-                    VerticalLayout {
+                    HorizontalLayout {
                         padding: 16px;
-                        spacing: 14px;
-                        Image {
-                            source: root.now-playing-art;
-                            image-fit: contain;
-                            height: 260px;
+                        spacing: 18px;
+
+                        VerticalLayout {
+                            spacing: 12px;
+                            width: 330px;
+                            Image {
+                                source: root.now-playing-art;
+                                image-fit: contain;
+                                height: 280px;
+                            }
+                            HorizontalLayout {
+                                spacing: 8px;
+                                Button { text: root.now-playing-favorite ? "Unfavorite" : "Favorite"; clicked => { root.now-playing-favorite-requested(); } }
+                                Button { text: "Details"; clicked => { root.show-track-details = !root.show-track-details; } }
+                                Button { text: "..."; clicked => { root.show-player-menu = !root.show-player-menu; } }
+                            }
+                            if root.show-player-menu: Rectangle {
+                                height: 78px;
+                                border-color: #343b46;
+                                border-width: 1px;
+                                border-radius: 6px;
+                                background: #101318;
+                                VerticalLayout {
+                                    padding: 8px;
+                                    spacing: 6px;
+                                    Button { text: "Go To Artist"; clicked => { root.now-playing-link-requested("artist"); } }
+                                    Button { text: "Go To Album"; clicked => { root.now-playing-link-requested("album"); } }
+                                }
+                            }
                         }
-                        Text { text: root.now-playing-title; color: #f5f7fb; font-size: 24px; font-weight: 700; horizontal-alignment: center; overflow: elide; }
-                        Text { text: root.now-playing-subtitle; color: #9ba7b5; font-size: 14px; horizontal-alignment: center; overflow: elide; }
-                        Text { text: root.playback-status-text; color: #7fc7e8; font-size: 13px; horizontal-alignment: center; overflow: elide; }
+
+                        VerticalLayout {
+                            spacing: 12px;
+                            Text { text: root.now-playing-title; color: #f5f7fb; font-size: 26px; font-weight: 700; overflow: elide; }
+                            HorizontalLayout {
+                                spacing: 8px;
+                                Button { text: root.now-playing-artist == "" ? "Artist" : root.now-playing-artist; clicked => { root.now-playing-link-requested("artist"); } }
+                                Button { text: root.now-playing-album == "" ? "Album" : root.now-playing-album; clicked => { root.now-playing-link-requested("album"); } }
+                            }
+                            Text { text: "Year " + root.now-playing-year + "  -  " + root.now-playing-codec-line; color: #9ba7b5; font-size: 13px; overflow: elide; }
+                            Text { text: root.playback-status-text; color: #7fc7e8; font-size: 13px; overflow: elide; }
+
+                            HorizontalLayout {
+                                spacing: 8px;
+                                Text { text: root.playback-elapsed-text; color: #9ba7b5; width: 42px; vertical-alignment: center; }
+                                Slider {
+                                    minimum: 0;
+                                    maximum: 100;
+                                    value <=> root.playback-progress;
+                                    released(value) => { root.playback-seek-requested(value); }
+                                }
+                                Text { text: root.playback-duration-text; color: #9ba7b5; width: 48px; vertical-alignment: center; }
+                            }
+
+                            HorizontalLayout {
+                                spacing: 6px;
+                                PlayerIconButton { label: "<<"; clicked => { root.playback-previous-requested(); } }
+                                if root.playback-is-playing: PlayerIconButton { label: "||"; active: true; clicked => { root.playback-pause-requested(); } }
+                                if !root.playback-is-playing: PlayerIconButton { label: ">"; active: true; clicked => { root.playback-resume-requested(); } }
+                                PlayerIconButton { label: ">>"; clicked => { root.playback-next-requested(); } }
+                                PlayerIconButton { label: "Shuffle"; button-width: 74px; clicked => { root.playback-shuffle-requested(); } }
+                            }
+
+                            HorizontalLayout {
+                                spacing: 6px;
+                                Text { text: "Rating"; color: #9ba7b5; vertical-alignment: center; }
+                                Button { text: root.now-playing-rating >= 1 ? "*" : "-"; clicked => { root.now-playing-rating-requested(1); } }
+                                Button { text: root.now-playing-rating >= 2 ? "*" : "-"; clicked => { root.now-playing-rating-requested(2); } }
+                                Button { text: root.now-playing-rating >= 3 ? "*" : "-"; clicked => { root.now-playing-rating-requested(3); } }
+                                Button { text: root.now-playing-rating >= 4 ? "*" : "-"; clicked => { root.now-playing-rating-requested(4); } }
+                                Button { text: root.now-playing-rating >= 5 ? "*" : "-"; clicked => { root.now-playing-rating-requested(5); } }
+                            }
+
+                            HorizontalLayout {
+                                spacing: 14px;
+                                VerticalLayout {
+                                    spacing: 6px;
+                                    Text { text: "Up Next"; color: #f5f7fb; font-size: 15px; font-weight: 700; }
+                                    Rectangle {
+                                        height: 132px;
+                                        border-color: #2b3038;
+                                        border-width: 1px;
+                                        border-radius: 6px;
+                                        background: #171a1f;
+                                        ListView {
+                                            for row in root.up-next-rows: Rectangle {
+                                                height: 42px;
+                                                background: up-next-touch.pressed ? #263241 : up-next-touch.has-hover ? #202833 : #171a1f;
+                                                up-next-touch := TouchArea { clicked => { root.queue-row-activated(row.source_index); } }
+                                                VerticalLayout {
+                                                    padding-left: 10px;
+                                                    padding-top: 5px;
+                                                    spacing: 2px;
+                                                    Text { text: row.title; color: #f5f7fb; font-size: 13px; overflow: elide; }
+                                                    Text { text: row.subtitle; color: #9ba7b5; font-size: 11px; overflow: elide; }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                VerticalLayout {
+                                    spacing: 6px;
+                                    Text { text: "Back To"; color: #f5f7fb; font-size: 15px; font-weight: 700; }
+                                    Rectangle {
+                                        height: 132px;
+                                        border-color: #2b3038;
+                                        border-width: 1px;
+                                        border-radius: 6px;
+                                        background: #171a1f;
+                                        ListView {
+                                            for row in root.back-to-rows: Rectangle {
+                                                height: 42px;
+                                                background: back-to-touch.pressed ? #263241 : back-to-touch.has-hover ? #202833 : #171a1f;
+                                                back-to-touch := TouchArea { clicked => { root.queue-row-activated(row.source_index); } }
+                                                VerticalLayout {
+                                                    padding-left: 10px;
+                                                    padding-top: 5px;
+                                                    spacing: 2px;
+                                                    Text { text: row.title; color: #f5f7fb; font-size: 13px; overflow: elide; }
+                                                    Text { text: row.subtitle; color: #9ba7b5; font-size: 11px; overflow: elide; }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            Rectangle {
+                                height: root.show-track-details ? 86px : 42px;
+                                border-color: #2b3038;
+                                border-width: 1px;
+                                border-radius: 6px;
+                                background: #171a1f;
+                                VerticalLayout {
+                                    padding: 10px;
+                                    spacing: 4px;
+                                    Text { text: "Related tracks will appear here."; color: #9ba7b5; font-size: 13px; overflow: elide; }
+                                    if root.show-track-details: Text { text: root.now-playing-details; color: #d8dee8; font-size: 12px; overflow: elide; }
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -671,6 +818,16 @@ export component AppWindow inherits Window {
                                 released(value) => { root.playback-seek-requested(value); }
                             }
                             Text { text: root.playback-duration-text; color: #9ba7b5; width: 48px; vertical-alignment: center; }
+                        }
+                        HorizontalLayout {
+                            spacing: 8px;
+                            Text { text: "Volume"; color: #9ba7b5; width: 52px; vertical-alignment: center; }
+                            Slider {
+                                minimum: 0;
+                                maximum: 100;
+                                value <=> root.volume;
+                                changed(value) => { root.volume-changed(value); }
+                            }
                         }
                     }
                 }

@@ -448,21 +448,21 @@ Exit criteria:
 
 ### Phase 9: Now Playing V1
 
-- [ ] Album art.
-- [ ] Track title.
-- [ ] Artist and album links.
-- [ ] Album year.
-- [ ] Codec/bitrate line.
-- [ ] Favorite toggle.
-- [ ] Rating controls.
-- [ ] Scrub bar.
-- [ ] Volume control.
-- [ ] Transport controls.
-- [ ] Up Next list.
-- [ ] Back To list.
-- [ ] Related placeholder.
-- [ ] Track details dialog.
-- [ ] Current-track overflow menu.
+- [x] Album art.
+- [x] Track title.
+- [x] Artist and album links.
+- [x] Album year.
+- [x] Codec/bitrate line.
+- [x] Favorite toggle.
+- [x] Rating controls.
+- [x] Scrub bar.
+- [x] Volume control.
+- [x] Transport controls.
+- [x] Up Next list.
+- [x] Back To list.
+- [x] Related placeholder.
+- [x] Track details dialog.
+- [x] Current-track overflow menu.
 
 Exit criteria:
 

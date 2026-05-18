@@ -1,4 +1,5 @@
 use crate::domain::{AlbumDetail, ArtistDetail, InternetRadioStation, SearchResults, Track};
+use crate::queue::TrackQueue;
 use crate::settings::Settings;
 use crate::visualizer::VisualizerFrame;
 use slint::{ModelRc, SharedString, VecModel};
@@ -138,6 +139,35 @@ pub fn radio_rows(stations: &[InternetRadioStation]) -> ModelRc<MediaRow> {
             source_index: index as i32,
             is_header: false,
             action_label: SharedString::from("..."),
+        })
+        .collect::<Vec<_>>();
+    ModelRc::new(VecModel::from(rows))
+}
+
+pub fn back_to_rows(queue: &TrackQueue) -> ModelRc<MediaRow> {
+    queue_track_rows(queue.back_to().iter().enumerate())
+}
+
+pub fn up_next_rows(queue: &TrackQueue) -> ModelRc<MediaRow> {
+    let offset = queue.back_to().len() + usize::from(queue.current().is_some());
+    queue_track_rows(
+        queue
+            .up_next()
+            .iter()
+            .enumerate()
+            .map(|(index, track)| (offset + index, track)),
+    )
+}
+
+fn queue_track_rows<'a>(tracks: impl Iterator<Item = (usize, &'a Track)>) -> ModelRc<MediaRow> {
+    let rows = tracks
+        .map(|(index, track)| MediaRow {
+            kind: SharedString::from("queue-track"),
+            title: SharedString::from(track.title.as_str()),
+            subtitle: SharedString::from(track_metadata_line(track)),
+            source_index: index as i32,
+            is_header: false,
+            action_label: SharedString::new(),
         })
         .collect::<Vec<_>>();
     ModelRc::new(VecModel::from(rows))

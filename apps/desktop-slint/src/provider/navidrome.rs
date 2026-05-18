@@ -411,6 +411,16 @@ fn parse_track(song: &serde_json::Value) -> Option<Track> {
             .and_then(|value| value.as_str())
             .unwrap_or("")
             .to_string(),
+        year: song
+            .get("year")
+            .and_then(|value| value.as_u64())
+            .and_then(|value| u32::try_from(value).ok()),
+        bit_rate_kbps: song
+            .get("bitRate")
+            .or_else(|| song.get("bitrate"))
+            .and_then(|value| value.as_u64())
+            .and_then(|value| u32::try_from(value).ok()),
+        codec: json_string(song, "suffix").or_else(|| json_string(song, "type")),
         cover_art_id: json_string(song, "coverArt"),
         favorited_at: json_string(song, "starred"),
         user_rating: song

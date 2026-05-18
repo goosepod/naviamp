@@ -41,6 +41,10 @@ impl TrackQueue {
         self.current.as_ref()
     }
 
+    pub fn current_mut(&mut self) -> Option<&mut Track> {
+        self.current.as_mut()
+    }
+
     pub fn jump_to(&mut self, index: usize) -> Option<&Track> {
         let mut tracks = self.tracks();
         if index >= tracks.len() {
@@ -67,7 +71,7 @@ impl TrackQueue {
         &self.up_next
     }
 
-    fn tracks(&self) -> Vec<Track> {
+    pub fn tracks(&self) -> Vec<Track> {
         self.back_to
             .iter()
             .cloned()
@@ -165,6 +169,9 @@ mod tests {
             title: format!("Track {id}"),
             artist: "Artist".to_string(),
             album: "Album".to_string(),
+            year: None,
+            bit_rate_kbps: None,
+            codec: None,
             cover_art_id: None,
             favorited_at: None,
             user_rating: None,

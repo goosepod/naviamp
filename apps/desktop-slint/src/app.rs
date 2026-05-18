@@ -10,8 +10,8 @@ use crate::settings::{
     default_settings_store, ConnectionDraft, SavedMediaSource, Settings, SettingsStore,
 };
 use crate::ui::{
-    album_detail_rows, artist_detail_rows, radio_rows, search_rows, source_rows, visualizer_levels,
-    AppWindow,
+    album_detail_rows, artist_detail_rows, back_to_rows, radio_rows, search_rows, source_rows,
+    up_next_rows, visualizer_levels, AppWindow,
 };
 use crate::visualizer::{default_visualizer_backend, VisualizerBackend, VisualizerFrame};
 use crate::worker::BackgroundWorker;
@@ -127,6 +127,7 @@ impl AppController {
         self.bind_error_banner();
         self.bind_sources();
         self.bind_playback_controls();
+        self.bind_now_playing_controls();
         self.bind_playback_snapshot_polling();
         self.bind_search();
         self.bind_radio();
@@ -473,7 +474,10 @@ impl AppController {
                 .map(|mut state| state.queue.shuffle_upcoming());
             if let Some(ui) = ui_weak.upgrade() {
                 match result {
-                    Ok(()) => ui.set_status_text("Shuffled upcoming tracks".into()),
+                    Ok(()) => {
+                        refresh_now_playing_context(&ui, &state);
+                        ui.set_status_text("Shuffled upcoming tracks".into());
+                    }
                     Err(error) => set_error_text(&ui, format!("Shuffle failed: {error}")),
                 }
             }
@@ -532,6 +536,158 @@ impl AppController {
         });
     }
 
+    fn bind_now_playing_controls(&self) {
+        let ui_weak = self.ui.as_weak();
+        let state = Arc::clone(&self.state);
+        let worker = self.worker.clone();
+        self.ui.on_now_playing_favorite_requested(move || {
+            let (source, track, favorite) = match current_track_action(&state) {
+                Ok((source, track)) => (source, track.clone(), track.favorited_at.is_none()),
+                Err(error) => {
+                    if let Some(ui) = ui_weak.upgrade() {
+                        set_error_text(&ui, format!("Favorite failed: {error}"));
+                    }
+                    return;
+                }
+            };
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.set_status_text(
+                    if favorite {
+                        "Favoriting track..."
+                    } else {
+                        "Unfavoriting track..."
+                    }
+                    .into(),
+                );
+            }
+            let ui_weak_for_result = ui_weak.clone();
+            let state_for_result = Arc::clone(&state);
+            worker.submit(move || {
+                let result = NavidromeProvider::new(source)
+                    .and_then(|provider| provider.set_favorite(&track.id, favorite));
+                slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = ui_weak_for_result.upgrade() {
+                        match result {
+                            Ok(()) => {
+                                update_current_track(&state_for_result, |track| {
+                                    track.favorited_at = favorite.then(|| "now".to_string());
+                                });
+                                refresh_now_playing_context(&ui, &state_for_result);
+                                ui.set_status_text(
+                                    if favorite {
+                                        "Track favorited"
+                                    } else {
+                                        "Track unfavorited"
+                                    }
+                                    .into(),
+                                );
+                            }
+                            Err(error) => set_error_text(&ui, format!("Favorite failed: {error}")),
+                        }
+                    }
+                })
+                .ok();
+            });
+        });
+
+        let ui_weak = self.ui.as_weak();
+        let state = Arc::clone(&self.state);
+        let worker = self.worker.clone();
+        self.ui.on_now_playing_rating_requested(move |rating| {
+            let rating = rating.clamp(1, 5) as u8;
+            let (source, track) = match current_track_action(&state) {
+                Ok(value) => value,
+                Err(error) => {
+                    if let Some(ui) = ui_weak.upgrade() {
+                        set_error_text(&ui, format!("Rating failed: {error}"));
+                    }
+                    return;
+                }
+            };
+            let ui_weak_for_result = ui_weak.clone();
+            let state_for_result = Arc::clone(&state);
+            worker.submit(move || {
+                let result = NavidromeProvider::new(source)
+                    .and_then(|provider| provider.set_rating(&track.id, rating));
+                slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = ui_weak_for_result.upgrade() {
+                        match result {
+                            Ok(()) => {
+                                update_current_track(&state_for_result, |track| {
+                                    track.user_rating = Some(rating);
+                                });
+                                refresh_now_playing_context(&ui, &state_for_result);
+                                ui.set_status_text(format!("Rated {rating} stars").into());
+                            }
+                            Err(error) => set_error_text(&ui, format!("Rating failed: {error}")),
+                        }
+                    }
+                })
+                .ok();
+            });
+        });
+
+        let ui_weak = self.ui.as_weak();
+        let state = Arc::clone(&self.state);
+        self.ui.on_now_playing_link_requested(move |target| {
+            let query = state
+                .lock()
+                .ok()
+                .and_then(|state| {
+                    state
+                        .current_playback
+                        .as_ref()
+                        .map(|playback| playback.track.clone())
+                })
+                .map(|track| {
+                    if target.as_str() == "album" {
+                        track.album
+                    } else {
+                        track.artist
+                    }
+                })
+                .unwrap_or_default();
+            if query.is_empty() {
+                return;
+            }
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.set_query(query.clone().into());
+                ui.set_current_route("search".into());
+                ui.set_status_text(format!("Search ready for {query}").into());
+            }
+        });
+
+        let ui_weak = self.ui.as_weak();
+        let state = Arc::clone(&self.state);
+        let worker = self.worker.clone();
+        let playback_worker = self.playback_worker.clone();
+        let cover_art_cache = Arc::clone(&self.cover_art_cache);
+        self.ui.on_queue_row_activated(move |index| {
+            let (source, tracks, start_index) = match queue_tracks_source(&state, index as usize) {
+                Ok(value) => value,
+                Err(error) => {
+                    if let Some(ui) = ui_weak.upgrade() {
+                        set_error_text(&ui, format!("Queue failed: {error}"));
+                    }
+                    return;
+                }
+            };
+            start_tracks_from_ui(
+                &ui_weak,
+                &state,
+                &playback_worker,
+                worker.clone(),
+                Arc::clone(&cover_art_cache),
+                TrackPlaybackRequest {
+                    source,
+                    tracks,
+                    start_index,
+                    status_text: "Starting queued track...",
+                },
+            );
+        });
+    }
+
     fn bind_playback_snapshot_polling(&self) {
         let ui_weak = self.ui.as_weak();
         let state = Arc::clone(&self.state);
@@ -575,7 +731,7 @@ impl AppController {
                                             worker_for_art,
                                             ui_weak_for_result.clone(),
                                             cover_art_cache,
-                                            started,
+                                            *started,
                                         );
                                     }
                                 }
@@ -1131,6 +1287,7 @@ impl AppController {
                                         ) =>
                                     {
                                         set_now_playing_radio(&ui, &station_for_result);
+                                        refresh_now_playing_context(&ui, &state_for_worker);
                                         ui.set_status_text(
                                             format!("Playing {}", station_for_result.name).into(),
                                         );
@@ -1340,7 +1497,7 @@ enum PlaybackPollUpdate {
         snapshot: PlaybackSnapshot,
         visualizer_frame: VisualizerFrame,
     },
-    TrackStarted(StartedTrackPlayback),
+    TrackStarted(Box<StartedTrackPlayback>),
 }
 
 fn poll_playback_snapshot(state: &Arc<Mutex<AppState>>) -> Option<PlaybackPollUpdate> {
@@ -1372,7 +1529,7 @@ fn poll_playback_snapshot(state: &Arc<Mutex<AppState>>) -> Option<PlaybackPollUp
     let (snapshot, visualizer_frame, should_auto_advance) = snapshot_update;
     if should_auto_advance {
         if let Ok(started) = play_queue_neighbor(state, QueueDirection::Next) {
-            return Some(PlaybackPollUpdate::TrackStarted(started));
+            return Some(PlaybackPollUpdate::TrackStarted(Box::new(started)));
         }
     }
 
@@ -1498,6 +1655,65 @@ fn play_queue_neighbor(
     };
 
     start_track_playback(state, source, track)
+}
+
+fn current_track_action(state: &Arc<Mutex<AppState>>) -> Result<(SavedMediaSource, Track)> {
+    let state = state
+        .lock()
+        .map_err(|error| anyhow::anyhow!(error.to_string()))?;
+    let playback = state
+        .current_playback
+        .clone()
+        .ok_or_else(|| anyhow::anyhow!("nothing playing"))?;
+    Ok((playback.source, playback.track))
+}
+
+fn update_current_track(state: &Arc<Mutex<AppState>>, update: impl Fn(&mut Track)) {
+    if let Ok(mut state) = state.lock() {
+        let Some(current) = state.current_playback.as_mut() else {
+            return;
+        };
+        update(&mut current.track);
+        let current_track = current.track.clone();
+        if let Some(queue_track) = state.queue.current_mut() {
+            *queue_track = current_track.clone();
+        }
+        if let Some(search_track) = state
+            .search_results
+            .tracks
+            .iter_mut()
+            .find(|track| track.id == current_track.id)
+        {
+            *search_track = current_track.clone();
+        }
+        if let Some(detail) = state.current_album_detail.as_mut() {
+            if let Some(track) = detail
+                .tracks
+                .iter_mut()
+                .find(|track| track.id == current_track.id)
+            {
+                *track = current_track;
+            }
+        }
+    }
+}
+
+fn queue_tracks_source(
+    state: &Arc<Mutex<AppState>>,
+    start_index: usize,
+) -> Result<(SavedMediaSource, Vec<Track>, usize)> {
+    let state = state
+        .lock()
+        .map_err(|error| anyhow::anyhow!(error.to_string()))?;
+    let source = state
+        .settings
+        .active_source()
+        .ok_or_else(|| anyhow::anyhow!("no active source"))?;
+    let tracks = state.queue.tracks();
+    if start_index >= tracks.len() {
+        return Err(anyhow::anyhow!("queue track not found"));
+    }
+    Ok((source, tracks, start_index))
 }
 
 fn detail_album_source_tracks(
@@ -1734,6 +1950,7 @@ fn handle_started_track_playback(
     }
 
     handle_track_started(ui, &started.track);
+    refresh_now_playing_context(ui, state);
     ui.set_status_text(format!("Playing {}", started.track.title).into());
     load_now_playing_art(
         worker,
@@ -1757,12 +1974,32 @@ fn handle_track_started(ui: &AppWindow, track: &Track) {
 fn set_now_playing(ui: &AppWindow, track: &Track) {
     ui.set_now_playing_title(track.title.clone().into());
     ui.set_now_playing_subtitle(track.subtitle().into());
+    ui.set_now_playing_artist(track.artist.clone().into());
+    ui.set_now_playing_album(track.album.clone().into());
+    ui.set_now_playing_year(
+        track
+            .year
+            .map(|year| year.to_string())
+            .unwrap_or_else(|| "--".to_string())
+            .into(),
+    );
+    ui.set_now_playing_codec_line(track_codec_line(track).into());
+    ui.set_now_playing_details(track_details_line(track).into());
+    ui.set_now_playing_favorite(track.favorited_at.is_some());
+    ui.set_now_playing_rating(i32::from(track.user_rating.unwrap_or(0)));
     ui.set_now_playing_art(Image::default());
     reset_playback_progress_ui(ui);
 }
 
 fn set_now_playing_radio(ui: &AppWindow, station: &InternetRadioStation) {
     ui.set_now_playing_title(station.name.clone().into());
+    ui.set_now_playing_artist(String::new().into());
+    ui.set_now_playing_album("Internet radio".into());
+    ui.set_now_playing_year("--".into());
+    ui.set_now_playing_codec_line("Live stream".into());
+    ui.set_now_playing_details(station.stream_url.clone().into());
+    ui.set_now_playing_favorite(false);
+    ui.set_now_playing_rating(0);
     ui.set_now_playing_subtitle(
         station
             .home_page_url
@@ -1772,6 +2009,63 @@ fn set_now_playing_radio(ui: &AppWindow, station: &InternetRadioStation) {
     );
     ui.set_now_playing_art(Image::default());
     reset_playback_progress_ui(ui);
+}
+
+fn refresh_now_playing_context(ui: &AppWindow, state: &Arc<Mutex<AppState>>) {
+    let Ok(state) = state.lock() else {
+        return;
+    };
+    ui.set_up_next_rows(up_next_rows(&state.queue));
+    ui.set_back_to_rows(back_to_rows(&state.queue));
+    if let Some(current) = state.current_playback.as_ref() {
+        ui.set_now_playing_title(current.track.title.clone().into());
+        ui.set_now_playing_subtitle(current.track.subtitle().into());
+        ui.set_now_playing_artist(current.track.artist.clone().into());
+        ui.set_now_playing_album(current.track.album.clone().into());
+        ui.set_now_playing_year(
+            current
+                .track
+                .year
+                .map(|year| year.to_string())
+                .unwrap_or_else(|| "--".to_string())
+                .into(),
+        );
+        ui.set_now_playing_codec_line(track_codec_line(&current.track).into());
+        ui.set_now_playing_details(track_details_line(&current.track).into());
+        ui.set_now_playing_favorite(current.track.favorited_at.is_some());
+        ui.set_now_playing_rating(i32::from(current.track.user_rating.unwrap_or(0)));
+    }
+}
+
+fn track_codec_line(track: &Track) -> String {
+    match (track.codec.as_deref(), track.bit_rate_kbps) {
+        (Some(codec), Some(bit_rate)) => format!("{} - {} kbps", codec.to_uppercase(), bit_rate),
+        (Some(codec), None) => codec.to_uppercase(),
+        (None, Some(bit_rate)) => format!("{bit_rate} kbps"),
+        (None, None) => "--".to_string(),
+    }
+}
+
+fn track_details_line(track: &Track) -> String {
+    format!(
+        "Track ID: {} | Artist: {} | Album: {} | Year: {} | Audio: {}",
+        track.id,
+        display_player_field(&track.artist),
+        display_player_field(&track.album),
+        track
+            .year
+            .map(|year| year.to_string())
+            .unwrap_or_else(|| "--".to_string()),
+        track_codec_line(track)
+    )
+}
+
+fn display_player_field(value: &str) -> &str {
+    if value.trim().is_empty() {
+        "--"
+    } else {
+        value
+    }
 }
 
 fn set_error_text(ui: &AppWindow, message: impl Into<String>) {
