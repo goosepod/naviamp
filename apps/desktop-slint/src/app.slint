@@ -27,7 +27,7 @@ export component AppWindow inherits Window {
     in-out property <string> password;
     in-out property <string> query;
     in-out property <float> volume: 80;
-    in property <float> playback-progress: 0;
+    in-out property <float> playback-progress: 0;
     in property <string> status-text: "Ready";
     in property <string> error-text: "";
     in property <string> playback-status-text: "Idle";
@@ -264,7 +264,7 @@ export component AppWindow inherits Window {
                     Slider {
                         minimum: 0;
                         maximum: 100;
-                        value: root.playback-progress;
+                        value <=> root.playback-progress;
                         released(value) => { root.playback-seek-requested(value); }
                     }
                     Text {
