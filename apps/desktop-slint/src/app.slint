@@ -90,6 +90,8 @@ export component AppWindow inherits Window {
     in property <string> status-text: "Ready";
     in property <string> error-text: "";
     in property <string> search-state-text: "";
+    in property <string> detail-title: "";
+    in property <string> detail-subtitle: "";
     in property <string> playback-status-text: "Idle";
     in property <string> playback-elapsed-text: "0:00";
     in property <string> playback-duration-text: "--:--";
@@ -108,6 +110,9 @@ export component AppWindow inherits Window {
     callback radio-requested();
     callback row-activated(string, int);
     callback row-action-requested(string, int, string);
+    callback album-play-requested();
+    callback album-radio-requested();
+    callback artist-radio-requested();
     callback playback-pause-requested();
     callback playback-resume-requested();
     callback playback-previous-requested();
@@ -254,6 +259,8 @@ export component AppWindow inherits Window {
                     }
                     Text {
                         text: root.current-route == "player" ? "Now Playing" :
+                            root.current-route == "album-detail" ? "Album" :
+                            root.current-route == "artist-detail" ? "Artist" :
                             root.current-route == "radio" ? "Internet Radio" :
                             root.current-route == "library" ? "Library" :
                             root.current-route == "playlists" ? "Playlists" :
@@ -357,6 +364,106 @@ export component AppWindow inherits Window {
                                     if row.action_label != "": Button {
                                         text: row.action_label;
                                         clicked => { root.row-action-requested(row.kind, row.source_index, row.action_label); }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if root.current-route == "album-detail": VerticalLayout {
+                    spacing: 10px;
+                    HorizontalLayout {
+                        spacing: 10px;
+                        VerticalLayout {
+                            spacing: 3px;
+                            Text { text: root.detail-title; color: #f5f7fb; font-size: 20px; font-weight: 700; overflow: elide; }
+                            Text { text: root.detail-subtitle; color: #9ba7b5; font-size: 13px; overflow: elide; }
+                        }
+                        Button {
+                            text: "Play Album";
+                            clicked => { root.album-play-requested(); }
+                        }
+                        Button {
+                            text: "Album Radio";
+                            clicked => { root.album-radio-requested(); }
+                        }
+                    }
+                    Rectangle {
+                        border-color: #2b3038;
+                        border-width: 1px;
+                        border-radius: 6px;
+                        background: #171a1f;
+
+                        ListView {
+                            for row in root.media-rows: Rectangle {
+                                height: row.is_header ? 34px : 58px;
+                                background: row.is_header ? #121821 : album-row-touch.pressed ? #263241 : album-row-touch.has-hover ? #202833 : #171a1f;
+
+                                album-row-touch := TouchArea {
+                                    clicked => { root.row-activated(row.kind, row.source_index); }
+                                }
+
+                                HorizontalLayout {
+                                    padding-left: 12px;
+                                    padding-right: 8px;
+                                    padding-top: row.is_header ? 6px : 8px;
+                                    spacing: 8px;
+
+                                    VerticalLayout {
+                                        spacing: 3px;
+                                        Text { text: row.title; color: row.is_header ? #7fc7e8 : #f5f7fb; font-size: row.is_header ? 12px : 15px; font-weight: row.is_header ? 700 : 400; overflow: elide; }
+                                        if !row.is_header: Text { text: row.subtitle; color: #9ba7b5; font-size: 12px; overflow: elide; }
+                                    }
+                                    if row.action_label != "": Button {
+                                        text: row.action_label;
+                                        clicked => { root.row-action-requested(row.kind, row.source_index, row.action_label); }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if root.current-route == "artist-detail": VerticalLayout {
+                    spacing: 10px;
+                    HorizontalLayout {
+                        spacing: 10px;
+                        VerticalLayout {
+                            spacing: 3px;
+                            Text { text: root.detail-title; color: #f5f7fb; font-size: 20px; font-weight: 700; overflow: elide; }
+                            Text { text: root.detail-subtitle; color: #9ba7b5; font-size: 13px; overflow: elide; }
+                        }
+                        Button {
+                            text: "Artist Radio";
+                            clicked => { root.artist-radio-requested(); }
+                        }
+                    }
+                    Rectangle {
+                        border-color: #2b3038;
+                        border-width: 1px;
+                        border-radius: 6px;
+                        background: #171a1f;
+
+                        ListView {
+                            for row in root.media-rows: Rectangle {
+                                height: row.is_header ? 34px : 58px;
+                                background: row.is_header ? #121821 : artist-row-touch.pressed ? #263241 : artist-row-touch.has-hover ? #202833 : #171a1f;
+
+                                artist-row-touch := TouchArea {
+                                    clicked => { root.row-activated(row.kind, row.source_index); }
+                                }
+
+                                HorizontalLayout {
+                                    padding-left: 12px;
+                                    padding-right: 8px;
+                                    padding-top: row.is_header ? 6px : 8px;
+                                    spacing: 8px;
+
+                                    VerticalLayout {
+                                        spacing: 3px;
+                                        Text { text: row.title; color: row.is_header ? #7fc7e8 : #f5f7fb; font-size: row.is_header ? 12px : 15px; font-weight: row.is_header ? 700 : 400; overflow: elide; }
+                                        if !row.is_header: Text { text: row.subtitle; color: #9ba7b5; font-size: 12px; overflow: elide; }
                                     }
                                 }
                             }

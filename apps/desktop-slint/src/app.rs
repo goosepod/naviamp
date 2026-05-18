@@ -1,4 +1,6 @@
-use crate::domain::{InternetRadioStation, SearchResults, StreamRequest, Track};
+use crate::domain::{
+    AlbumDetail, ArtistDetail, InternetRadioStation, SearchResults, StreamRequest, Track,
+};
 use crate::image_cache::{default_cover_art_cache, CoverArtCache};
 use crate::playback::{default_playback_engine, PlaybackEngine, PlaybackSnapshot};
 use crate::provider::navidrome::NavidromeProvider;
@@ -28,6 +30,8 @@ struct AppState {
     route_history: Vec<String>,
     search_cache: HashMap<String, SearchResults>,
     search_results: SearchResults,
+    current_album_detail: Option<AlbumDetail>,
+    current_artist_detail: Option<ArtistDetail>,
     radio_stations: Vec<InternetRadioStation>,
     playback: Box<dyn PlaybackEngine>,
     latest_playback_snapshot: PlaybackSnapshot,
@@ -41,6 +45,13 @@ struct AppState {
 struct CurrentPlayback {
     source: SavedMediaSource,
     track: Track,
+}
+
+struct TrackPlaybackRequest {
+    source: SavedMediaSource,
+    tracks: Vec<Track>,
+    start_index: usize,
+    status_text: &'static str,
 }
 
 pub fn run() -> Result<()> {
@@ -75,6 +86,8 @@ fn run_with_settings_store(settings_store: Arc<dyn SettingsStore>) -> Result<()>
             search_cache: HashMap::new(),
             settings,
             search_results: SearchResults::default(),
+            current_album_detail: None,
+            current_artist_detail: None,
             radio_stations: Vec::new(),
             playback: default_playback_engine(),
             latest_playback_snapshot: PlaybackSnapshot::default(),
@@ -118,6 +131,7 @@ impl AppController {
         self.bind_search();
         self.bind_radio();
         self.bind_row_actions();
+        self.bind_detail_actions();
         self.bind_playback();
     }
 
@@ -153,6 +167,7 @@ impl AppController {
         let ui_weak = self.ui.as_weak();
         let state = Arc::clone(&self.state);
         let settings_store = Arc::clone(&self.settings_store);
+        let ui_weak_for_route = ui_weak.clone();
         self.ui.on_route_requested(move |route| {
             if let Ok(mut state) = state.lock() {
                 let route = route.to_string();
@@ -163,20 +178,25 @@ impl AppController {
                 state.settings.app.last_route = route.to_string();
                 let _ = settings_store.save(&state.settings);
             }
+            if let Some(ui) = ui_weak_for_route.upgrade() {
+                restore_route_rows(&ui, &state);
+            }
         });
 
         let state = Arc::clone(&self.state);
         let settings_store = Arc::clone(&self.settings_store);
         self.ui.on_back_requested(move || {
-            if let Ok(mut state) = state.lock() {
-                let route = state
+            if let Ok(mut app_state) = state.lock() {
+                let route = app_state
                     .route_history
                     .pop()
                     .unwrap_or_else(|| "search".to_string());
-                state.settings.app.last_route = route.clone();
-                let _ = settings_store.save(&state.settings);
+                app_state.settings.app.last_route = route.clone();
+                let _ = settings_store.save(&app_state.settings);
                 if let Some(ui) = ui_weak.upgrade() {
                     ui.set_current_route(route.into());
+                    drop(app_state);
+                    restore_route_rows(&ui, &state);
                 }
             }
         });
@@ -706,8 +726,18 @@ impl AppController {
                                             track.favorited_at =
                                                 favorite.then(|| "now".to_string());
                                         }
-                                        ui.set_media_rows(search_rows(&state.search_results));
+                                        if let Some(detail) = state.current_album_detail.as_mut() {
+                                            if let Some(track) = detail
+                                                .tracks
+                                                .iter_mut()
+                                                .find(|item| item.id == track.id)
+                                            {
+                                                track.favorited_at =
+                                                    favorite.then(|| "now".to_string());
+                                            }
+                                        }
                                     }
+                                    restore_route_rows(&ui, &state_for_result);
                                     ui.set_status_text(
                                         if favorite {
                                             "Track favorited"
@@ -726,6 +756,138 @@ impl AppController {
                     .ok();
                 });
             });
+    }
+
+    fn bind_detail_actions(&self) {
+        let ui_weak = self.ui.as_weak();
+        let state = Arc::clone(&self.state);
+        let playback_worker = self.playback_worker.clone();
+        let worker = self.worker.clone();
+        let cover_art_cache = Arc::clone(&self.cover_art_cache);
+        self.ui.on_album_play_requested(move || {
+            let (source, tracks) = match detail_album_source_tracks(&state) {
+                Ok(value) => value,
+                Err(error) => {
+                    if let Some(ui) = ui_weak.upgrade() {
+                        set_error_text(&ui, format!("Album playback failed: {error}"));
+                    }
+                    return;
+                }
+            };
+            start_tracks_from_ui(
+                &ui_weak,
+                &state,
+                &playback_worker,
+                worker.clone(),
+                Arc::clone(&cover_art_cache),
+                TrackPlaybackRequest {
+                    source,
+                    tracks,
+                    start_index: 0,
+                    status_text: "Starting album...",
+                },
+            );
+        });
+
+        let ui_weak = self.ui.as_weak();
+        let state = Arc::clone(&self.state);
+        let playback_worker = self.playback_worker.clone();
+        let worker = self.worker.clone();
+        let cover_art_cache = Arc::clone(&self.cover_art_cache);
+        self.ui.on_album_radio_requested(move || {
+            let (source, album) = match detail_album_source(&state) {
+                Ok(value) => value,
+                Err(error) => {
+                    if let Some(ui) = ui_weak.upgrade() {
+                        set_error_text(&ui, format!("Album radio failed: {error}"));
+                    }
+                    return;
+                }
+            };
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.set_status_text("Building album radio...".into());
+            }
+
+            let ui_weak_for_result = ui_weak.clone();
+            let state_for_result = Arc::clone(&state);
+            let playback_worker_for_result = playback_worker.clone();
+            let worker_for_art = worker.clone();
+            let cover_art_cache = Arc::clone(&cover_art_cache);
+            worker.submit(move || {
+                let tracks = album_radio_tracks(source.clone(), &album);
+                slint::invoke_from_event_loop(move || match tracks {
+                    Ok(tracks) => start_tracks_from_ui(
+                        &ui_weak_for_result,
+                        &state_for_result,
+                        &playback_worker_for_result,
+                        worker_for_art,
+                        cover_art_cache,
+                        TrackPlaybackRequest {
+                            source,
+                            tracks,
+                            start_index: 0,
+                            status_text: "Starting album radio...",
+                        },
+                    ),
+                    Err(error) => {
+                        if let Some(ui) = ui_weak_for_result.upgrade() {
+                            set_error_text(&ui, format!("Album radio failed: {error}"));
+                        }
+                    }
+                })
+                .ok();
+            });
+        });
+
+        let ui_weak = self.ui.as_weak();
+        let state = Arc::clone(&self.state);
+        let playback_worker = self.playback_worker.clone();
+        let worker = self.worker.clone();
+        let cover_art_cache = Arc::clone(&self.cover_art_cache);
+        self.ui.on_artist_radio_requested(move || {
+            let (source, artist) = match detail_artist_source(&state) {
+                Ok(value) => value,
+                Err(error) => {
+                    if let Some(ui) = ui_weak.upgrade() {
+                        set_error_text(&ui, format!("Artist radio failed: {error}"));
+                    }
+                    return;
+                }
+            };
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.set_status_text("Building artist radio...".into());
+            }
+
+            let ui_weak_for_result = ui_weak.clone();
+            let state_for_result = Arc::clone(&state);
+            let playback_worker_for_result = playback_worker.clone();
+            let worker_for_art = worker.clone();
+            let cover_art_cache = Arc::clone(&cover_art_cache);
+            worker.submit(move || {
+                let tracks = artist_radio_tracks(source.clone(), &artist);
+                slint::invoke_from_event_loop(move || match tracks {
+                    Ok(tracks) => start_tracks_from_ui(
+                        &ui_weak_for_result,
+                        &state_for_result,
+                        &playback_worker_for_result,
+                        worker_for_art,
+                        cover_art_cache,
+                        TrackPlaybackRequest {
+                            source,
+                            tracks,
+                            start_index: 0,
+                            status_text: "Starting artist radio...",
+                        },
+                    ),
+                    Err(error) => {
+                        if let Some(ui) = ui_weak_for_result.upgrade() {
+                            set_error_text(&ui, format!("Artist radio failed: {error}"));
+                        }
+                    }
+                })
+                .ok();
+            });
+        });
     }
 
     fn bind_radio(&self) {
@@ -778,6 +940,7 @@ impl AppController {
         let worker = self.worker.clone();
         let playback_worker = self.playback_worker.clone();
         let cover_art_cache = Arc::clone(&self.cover_art_cache);
+        let settings_store = Arc::clone(&self.settings_store);
         self.ui.on_row_activated(move |kind, index| {
             match kind.as_str() {
                 "header" => return,
@@ -808,6 +971,7 @@ impl AppController {
                     }
                     let ui_weak_for_result = ui_weak.clone();
                     let state_for_result = Arc::clone(&state);
+                    let settings_store_for_result = Arc::clone(&settings_store);
                     worker.submit(move || {
                         let result = NavidromeProvider::new(source)
                             .and_then(|provider| provider.artist(&artist.id));
@@ -819,8 +983,19 @@ impl AppController {
                                             state.search_results.artists.clear();
                                             state.search_results.albums = detail.albums.clone();
                                             state.search_results.tracks.clear();
+                                            state.current_artist_detail = Some(detail.clone());
+                                            navigate_to_locked(
+                                                &mut state,
+                                                "artist-detail",
+                                                &settings_store_for_result,
+                                            );
                                         }
                                         ui.set_media_rows(artist_detail_rows(&detail));
+                                        ui.set_detail_title(detail.artist.name.clone().into());
+                                        ui.set_detail_subtitle(
+                                            format!("{} albums", detail.albums.len()).into(),
+                                        );
+                                        ui.set_current_route("artist-detail".into());
                                         ui.set_status_text(
                                             format!(
                                                 "{} albums by {}",
@@ -866,6 +1041,7 @@ impl AppController {
                     }
                     let ui_weak_for_result = ui_weak.clone();
                     let state_for_result = Arc::clone(&state);
+                    let settings_store_for_result = Arc::clone(&settings_store);
                     worker.submit(move || {
                         let result = NavidromeProvider::new(source)
                             .and_then(|provider| provider.album(&album.id));
@@ -877,8 +1053,24 @@ impl AppController {
                                             state.search_results.artists.clear();
                                             state.search_results.albums.clear();
                                             state.search_results.tracks = detail.tracks.clone();
+                                            state.current_album_detail = Some(detail.clone());
+                                            navigate_to_locked(
+                                                &mut state,
+                                                "album-detail",
+                                                &settings_store_for_result,
+                                            );
                                         }
                                         ui.set_media_rows(album_detail_rows(&detail));
+                                        ui.set_detail_title(detail.album.title.clone().into());
+                                        ui.set_detail_subtitle(
+                                            format!(
+                                                "{} - {} tracks",
+                                                detail.album.artist,
+                                                detail.tracks.len()
+                                            )
+                                            .into(),
+                                        );
+                                        ui.set_current_route("album-detail".into());
                                         ui.set_status_text(
                                             format!(
                                                 "{} tracks on {}",
@@ -1308,6 +1500,153 @@ fn play_queue_neighbor(
     start_track_playback(state, source, track)
 }
 
+fn detail_album_source_tracks(
+    state: &Arc<Mutex<AppState>>,
+) -> Result<(SavedMediaSource, Vec<Track>)> {
+    let state = state
+        .lock()
+        .map_err(|error| anyhow::anyhow!(error.to_string()))?;
+    let source = state
+        .settings
+        .active_source()
+        .ok_or_else(|| anyhow::anyhow!("no active source"))?;
+    let tracks = state
+        .current_album_detail
+        .as_ref()
+        .map(|detail| detail.tracks.clone())
+        .filter(|tracks| !tracks.is_empty())
+        .ok_or_else(|| anyhow::anyhow!("album has no tracks"))?;
+    Ok((source, tracks))
+}
+
+fn detail_album_source(state: &Arc<Mutex<AppState>>) -> Result<(SavedMediaSource, AlbumDetail)> {
+    let state = state
+        .lock()
+        .map_err(|error| anyhow::anyhow!(error.to_string()))?;
+    let source = state
+        .settings
+        .active_source()
+        .ok_or_else(|| anyhow::anyhow!("no active source"))?;
+    let album = state
+        .current_album_detail
+        .clone()
+        .ok_or_else(|| anyhow::anyhow!("no album selected"))?;
+    Ok((source, album))
+}
+
+fn detail_artist_source(state: &Arc<Mutex<AppState>>) -> Result<(SavedMediaSource, ArtistDetail)> {
+    let state = state
+        .lock()
+        .map_err(|error| anyhow::anyhow!(error.to_string()))?;
+    let source = state
+        .settings
+        .active_source()
+        .ok_or_else(|| anyhow::anyhow!("no active source"))?;
+    let artist = state
+        .current_artist_detail
+        .clone()
+        .ok_or_else(|| anyhow::anyhow!("no artist selected"))?;
+    Ok((source, artist))
+}
+
+fn album_radio_tracks(source: SavedMediaSource, album: &AlbumDetail) -> Result<Vec<Track>> {
+    let seed = album
+        .tracks
+        .first()
+        .ok_or_else(|| anyhow::anyhow!("album has no tracks"))?;
+    let provider = NavidromeProvider::new(source)?;
+    let tracks = provider.similar_tracks(&seed.id, 25)?;
+    if tracks.is_empty() {
+        Ok(album.tracks.clone())
+    } else {
+        Ok(tracks)
+    }
+}
+
+fn artist_radio_tracks(source: SavedMediaSource, artist: &ArtistDetail) -> Result<Vec<Track>> {
+    let provider = NavidromeProvider::new(source)?;
+    let Some(album) = artist.albums.first() else {
+        return provider.random_tracks(25);
+    };
+    let album = provider.album(&album.id)?;
+    let Some(seed) = album.tracks.first() else {
+        return provider.random_tracks(25);
+    };
+    let tracks = provider.similar_tracks(&seed.id, 25)?;
+    if tracks.is_empty() {
+        Ok(album.tracks)
+    } else {
+        Ok(tracks)
+    }
+}
+
+fn start_tracks_from_ui(
+    ui_weak: &Weak<AppWindow>,
+    state: &Arc<Mutex<AppState>>,
+    playback_worker: &BackgroundWorker,
+    worker_for_art: BackgroundWorker,
+    cover_art_cache: Arc<CoverArtCache>,
+    request: TrackPlaybackRequest,
+) {
+    let track = {
+        let mut state = match state.lock() {
+            Ok(state) => state,
+            Err(error) => {
+                if let Some(ui) = ui_weak.upgrade() {
+                    set_error_text(&ui, format!("Playback failed: {error}"));
+                }
+                return;
+            }
+        };
+        state.queue = TrackQueue::play_from_tracks(request.tracks, request.start_index);
+        state.queue.set_repeat_mode(RepeatMode::Off);
+        let Some(track) = state.queue.jump_to(request.start_index).cloned() else {
+            if let Some(ui) = ui_weak.upgrade() {
+                set_error_text(&ui, "Playback failed: queue is empty");
+            }
+            return;
+        };
+        track
+    };
+
+    if let Some(ui) = ui_weak.upgrade() {
+        reset_playback_progress_ui(&ui);
+        ui.set_status_text(request.status_text.into());
+    }
+    let transition_session_id = begin_playback_transition(state);
+    let state_for_worker = Arc::clone(state);
+    let ui_weak_for_result = ui_weak.clone();
+    let source = request.source;
+    playback_worker.submit(move || {
+        let result = start_track_playback(&state_for_worker, source, track)
+            .context("could not start playback");
+        slint::invoke_from_event_loop(move || {
+            if let Some(ui) = ui_weak_for_result.upgrade() {
+                match result {
+                    Ok(started) => handle_started_track_playback(
+                        &ui,
+                        &state_for_worker,
+                        worker_for_art,
+                        ui_weak_for_result.clone(),
+                        cover_art_cache,
+                        started,
+                    ),
+                    Err(error)
+                        if is_current_playback_session(
+                            &state_for_worker,
+                            transition_session_id,
+                        ) =>
+                    {
+                        set_error_text(&ui, format!("Playback failed: {error:#}"))
+                    }
+                    Err(_) => {}
+                }
+            }
+        })
+        .ok();
+    });
+}
+
 fn start_track_playback(
     state: &Arc<Mutex<AppState>>,
     source: SavedMediaSource,
@@ -1437,6 +1776,49 @@ fn set_now_playing_radio(ui: &AppWindow, station: &InternetRadioStation) {
 
 fn set_error_text(ui: &AppWindow, message: impl Into<String>) {
     ui.set_error_text(message.into().into());
+}
+
+fn navigate_to_locked(
+    state: &mut AppState,
+    route: impl Into<String>,
+    settings_store: &Arc<dyn SettingsStore>,
+) {
+    let route = route.into();
+    if state.settings.app.last_route != route {
+        let previous = state.settings.app.last_route.clone();
+        state.route_history.push(previous);
+    }
+    state.settings.app.last_route = route;
+    let _ = settings_store.save(&state.settings);
+}
+
+fn restore_route_rows(ui: &AppWindow, state: &Arc<Mutex<AppState>>) {
+    let route = ui.get_current_route().to_string();
+    let Ok(state) = state.lock() else {
+        return;
+    };
+
+    match route.as_str() {
+        "search" => ui.set_media_rows(search_rows(&state.search_results)),
+        "album-detail" => {
+            if let Some(detail) = state.current_album_detail.as_ref() {
+                ui.set_media_rows(album_detail_rows(detail));
+                ui.set_detail_title(detail.album.title.clone().into());
+                ui.set_detail_subtitle(
+                    format!("{} - {} tracks", detail.album.artist, detail.tracks.len()).into(),
+                );
+            }
+        }
+        "artist-detail" => {
+            if let Some(detail) = state.current_artist_detail.as_ref() {
+                ui.set_media_rows(artist_detail_rows(detail));
+                ui.set_detail_title(detail.artist.name.clone().into());
+                ui.set_detail_subtitle(format!("{} albums", detail.albums.len()).into());
+            }
+        }
+        "radio" => ui.set_media_rows(radio_rows(&state.radio_stations)),
+        _ => {}
+    }
 }
 
 fn reset_playback_progress_ui(ui: &AppWindow) {

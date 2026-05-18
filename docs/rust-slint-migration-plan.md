@@ -432,15 +432,15 @@ Exit criteria:
 
 ### Phase 8: Album And Artist Detail
 
-- [ ] Album detail route.
-- [ ] Album track list.
-- [ ] Play album.
-- [ ] Play selected track from album queue.
-- [ ] Album radio action.
-- [ ] Artist detail route.
-- [ ] Artist albums list.
-- [ ] Artist radio action.
-- [ ] Preserve route back-stack source.
+- [x] Album detail route.
+- [x] Album track list.
+- [x] Play album.
+- [x] Play selected track from album queue.
+- [x] Album radio action.
+- [x] Artist detail route.
+- [x] Artist albums list.
+- [x] Artist radio action.
+- [x] Preserve route back-stack source.
 
 Exit criteria:
 
