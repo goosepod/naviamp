@@ -58,6 +58,7 @@ import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.desktop.playback.PlaybackEngineFactory
+import app.naviamp.desktop.playback.PlaybackEngineDiagnostics
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.desktop.playback.PlaybackTrace
@@ -658,6 +659,9 @@ fun NaviampApp(
             playbackProgress = mergedProgress
             maybeSavePlaybackPosition(mergedProgress)
             maybeReportPlayed(mergedProgress)
+        },
+        onMetadataChanged = { metadata ->
+            nowPlayingStreamMetadata = metadata
         },
     )
 
@@ -2126,6 +2130,7 @@ fun NaviampApp(
         ),
         playbackEngineName = playbackEngine.name,
         playbackCapabilities = playbackEngine.capabilitiesLabel(),
+        playbackEngineStats = (playbackEngine as? PlaybackEngineDiagnostics)?.statsRows().orEmpty(),
         queueSize = playbackQueue.tracks.size,
         currentQueueIndex = playbackQueue.currentIndex,
         cacheRuntime = playlistEngine.cacheRuntimeStats(),

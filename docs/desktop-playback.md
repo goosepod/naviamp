@@ -4,7 +4,9 @@ Naviamp uses a small playback abstraction so queue behavior, UI controls, and pr
 
 ## Current Engine
 
-Desktop currently uses `MpvProcessPlaybackEngine` when an `mpv` executable is available. It launches mpv as a child process and controls it over JSON IPC.
+Desktop currently uses `BassPlaybackEngine` when BASS is available. It can be overridden during development with `NAVIAMP_PLAYBACK_ENGINE=mpv-crossfade-prototype` for the old mpv crossfade prototype, or by removing/unbundling BASS to fall back to mpv/JLayer.
+
+The legacy mpv path uses `MpvProcessPlaybackEngine` when an `mpv` executable is available. It launches mpv as a child process and controls it over JSON IPC.
 
 The process engine supports:
 
@@ -97,3 +99,44 @@ If Gradle is running under a JVM whose architecture does not match the package y
 ## Direction
 
 The production desktop target is bundled mpv/libmpv so users do not need a separate install. The process engine keeps development moving, but the crossfade path likely requires a richer engine implementation, either libmpv integration or a controlled two-player strategy.
+
+The next desktop playback investigation is BASS inside the Kotlin app, tracked in `docs/kotlin-bass-roadmap.md`. The intent is to keep the existing Kotlin UI and put BASS behind the current playback interface.
+
+## BASS Spike
+
+The Kotlin desktop app has an initial JNA-based BASS binding spike under:
+
+```text
+apps/desktop/src/desktopMain/kotlin/app/naviamp/desktop/playback/bass
+```
+
+The first Kotlin BASS implementation uses JNA to prove loading, packaging, and basic playback quickly. Production BASS work should move to JNI so Naviamp can keep native callbacks, BASSmix, PCM/FFT visualizers, gapless playback, and crossfade behavior fast and consistent across desktop and Android.
+
+The JNI production binding design is tracked in `docs/bass-jni-design.md`.
+
+The BASS engine resolves libraries in this order:
+
+1. JVM property: `-Dnaviamp.bass.dir=/path/to/bass`
+2. Environment variable: `NAVIAMP_BASS_DIR=/path/to/bass`
+3. Bundled desktop resources under `playback/bass/<platform>`
+4. Development vendor fallback under `apps/desktop-slint/vendor/bass/<platform>`
+
+The desktop Gradle build copies the current platform BASS libraries from:
+
+```text
+apps/desktop-slint/vendor/bass/<platform>
+```
+
+into generated desktop resources at:
+
+```text
+playback/bass/<platform>
+```
+
+Override the platform for packaging with:
+
+```shell
+./gradlew -Pnaviamp.bass.platform=macos-arm64 :apps:desktop:packageDmg
+```
+
+Once BASS is stable, mpv should no longer be bundled. The mpv process engine can remain temporarily as a development fallback during the transition.

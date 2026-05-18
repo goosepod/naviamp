@@ -23,6 +23,27 @@ val copyDesktopMpv by tasks.registering(Copy::class) {
     })
     onlyIf { desktopMpvVendorFile.get().asFile.isFile }
 }
+val desktopBassPlatform = providers.gradleProperty("naviamp.bass.platform")
+    .orElse(desktopMpvPlatform())
+val desktopBassVendorDir = desktopBassPlatform.map { platform ->
+    layout.projectDirectory.dir("../desktop-slint/vendor/bass/$platform")
+}
+val generatedDesktopBassResources = layout.buildDirectory.dir("generated/desktopBass")
+val copyDesktopBass by tasks.registering(Copy::class) {
+    from(desktopBassVendorDir)
+    into(generatedDesktopBassResources.zip(desktopBassPlatform) { resources, platform ->
+        resources.dir("playback/bass/$platform")
+    })
+    onlyIf { desktopBassVendorDir.get().asFile.isDirectory }
+}
+val generatedDesktopBassAppResources = layout.buildDirectory.dir("generated/desktopBassApp")
+val copyDesktopBassAppResources by tasks.registering(Copy::class) {
+    from(desktopBassVendorDir)
+    into(generatedDesktopBassAppResources.zip(desktopBassPlatform) { resources, platform ->
+        resources.dir("$platform/playback/bass/$platform")
+    })
+    onlyIf { desktopBassVendorDir.get().asFile.isDirectory }
+}
 
 kotlin {
     jvm("desktop")
@@ -30,6 +51,7 @@ kotlin {
     sourceSets {
         val desktopMain by getting {
             resources.srcDir(generatedDesktopMpvResources)
+            resources.srcDir(generatedDesktopBassResources)
 
             dependencies {
                 implementation(project(":core:domain"))
@@ -41,6 +63,7 @@ kotlin {
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.serialization.json)
                 implementation(libs.jlayer)
+                implementation(libs.jna)
                 implementation(libs.sqldelight.sqlite.driver)
             }
         }
@@ -72,11 +95,15 @@ compose.desktop {
 
         nativeDistributions {
             packageName = "Naviamp"
-            packageVersion = "0.9.0"
+            packageVersion = "1.0.0"
+            appResourcesRootDir.set(generatedDesktopBassAppResources)
             modules("java.net.http", "java.sql")
 
             windows {
                 iconFile.set(project.file("src/desktopMain/resources/icons/naviamp.ico"))
+            }
+            macOS {
+                iconFile.set(project.file("src/desktopMain/resources/icons/naviamp.icns"))
             }
         }
     }
@@ -85,7 +112,18 @@ compose.desktop {
 tasks.matching { it.name == "desktopProcessResources" || it.name == "processDesktopMainResources" }
     .configureEach {
         dependsOn(copyDesktopMpv)
+        dependsOn(copyDesktopBass)
     }
+
+tasks.matching {
+    it.name == "prepareAppResources" ||
+    it.name == "createDistributable" ||
+        it.name == "createReleaseDistributable" ||
+        it.name == "packageDistributionForCurrentOS" ||
+        it.name == "packageReleaseDistributionForCurrentOS"
+}.configureEach {
+    dependsOn(copyDesktopBassAppResources)
+}
 
 fun desktopMpvPlatform(): String {
     val os = System.getProperty("os.name").lowercase().let { osName ->

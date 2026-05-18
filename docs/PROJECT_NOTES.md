@@ -26,6 +26,7 @@ Current priorities:
 - Default bias: if behavior is not inherently tied to OS APIs, keep it platform-agnostic. Visual behavior, color derivation, layout decisions, screen state, queue/action models, and pure transformations should live in shared modules unless there is a concrete platform API boundary. If platform-specific-looking code is encountered during other work and cannot be moved immediately, add a note here so it is not forgotten.
 - Navidrome is the first provider, but the app should stay provider-oriented.
 - Playback uses mpv on desktop when available.
+- Playback direction has changed: BASS is the target engine for desktop and Android. The current Kotlin desktop BASS path starts with JNA, but production should move to JNI for visualizers, BASSmix, crossfade, gapless playback, and platform parity. mpv should not remain bundled once BASS is stable.
 - Audio/track caching is now a priority because it will matter for fast desktop skips, network handoff, and the future Android app.
 - Offline downloads are separate from cache files. They can reuse cache/download plumbing, but user-selected downloads should live in their own storage area and should not be evicted by normal cache cleanup.
 - The app should remember state across screens where it feels natural: search query/results, navigation, session queue, window size, and similar context.
@@ -47,6 +48,7 @@ Useful docs:
 
 - `docs/architecture.md`
 - `docs/desktop-playback.md`
+- `docs/kotlin-bass-roadmap.md`
 - `docs/roadmap.md`
 - `docs/setup.md`
 

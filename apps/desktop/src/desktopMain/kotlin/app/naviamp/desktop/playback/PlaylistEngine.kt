@@ -247,6 +247,13 @@ class PlaylistEngine(
                             }
                         }
                     },
+                    onMetadataChanged = { metadata ->
+                        scope.launch {
+                            if (activeSessionId == sessionId) {
+                                callbacks?.onMetadataChanged(metadata)
+                            }
+                        }
+                    },
                 )
             } catch (exception: Exception) {
                 if (activeSessionId == sessionId) {
@@ -447,6 +454,7 @@ data class PlaylistCallbacks(
     val onQueueChanged: (PlaybackQueue) -> Unit,
     val onPlaybackStateChanged: (PlaybackState) -> Unit,
     val onPlaybackProgressChanged: (PlaybackProgress) -> Unit,
+    val onMetadataChanged: (app.naviamp.domain.playback.PlaybackStreamMetadata) -> Unit = {},
 )
 
 private fun ReplayGainMode.forEngine(playbackEngine: PlaybackEngine): ReplayGainMode =

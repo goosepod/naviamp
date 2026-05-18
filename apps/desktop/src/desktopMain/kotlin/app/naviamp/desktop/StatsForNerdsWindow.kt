@@ -118,7 +118,7 @@ fun StatsForNerdsWindow(
                                 "Current index" to info.currentQueueIndex.toString(),
                                 "Capabilities" to info.playbackCapabilities,
                                 "Playback source" to info.cacheRuntime.playbackSource.label,
-                            ),
+                            ) + info.playbackEngineStats,
                         )
                         StatsSection(
                             appColors = appColors,
@@ -280,6 +280,7 @@ data class StatsForNerdsInfo(
     val librarySync: LibrarySyncStats,
     val playbackEngineName: String,
     val playbackCapabilities: String,
+    val playbackEngineStats: List<Pair<String, String>>,
     val queueSize: Int,
     val currentQueueIndex: Int,
     val cacheRuntime: CacheRuntimeStats,
