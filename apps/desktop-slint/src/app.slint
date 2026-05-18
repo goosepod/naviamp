@@ -1,5 +1,32 @@
 import { Button, LineEdit, ListView, Slider } from "std-widgets.slint";
 
+component PlayerIconButton inherits Rectangle {
+    in property <string> label;
+    in property <length> button-width: 46px;
+    in property <bool> active: false;
+    callback clicked();
+
+    width: root.button-width;
+    height: 46px;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: root.active ? #5ac8fa : #343b46;
+    background: touch.pressed ? #2f4356 : touch.has-hover ? #253342 : root.active ? #1d3345 : #20242b;
+
+    touch := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    Text {
+        text: root.label;
+        color: root.active ? #dff5ff : #f5f7fb;
+        font-size: 14px;
+        font-weight: 700;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}
+
 export struct MediaRow {
     kind: string,
     title: string,
@@ -177,24 +204,26 @@ export component AppWindow inherits Window {
         }
 
         Rectangle {
-            height: 112px;
+            height: 132px;
             border-color: #2b3038;
             border-width: 1px;
             border-radius: 6px;
-            background: #171a1f;
+            background: #15191f;
 
             VerticalLayout {
                 padding: 12px;
-                spacing: 8px;
+                spacing: 10px;
 
                 HorizontalLayout {
-                    spacing: 10px;
+                    spacing: 12px;
 
                     Rectangle {
-                        width: 64px;
-                        height: 64px;
+                        width: 76px;
+                        height: 76px;
                         border-radius: 6px;
-                        background: #263241;
+                        border-width: 1px;
+                        border-color: #364152;
+                        background: #243041;
                         clip: true;
 
                         Image {
@@ -205,37 +234,12 @@ export component AppWindow inherits Window {
                         }
                     }
 
-                    if root.playback-is-playing: Button {
-                        text: "Pause";
-                        clicked => { root.playback-pause-requested(); }
-                    }
-
-                    if !root.playback-is-playing: Button {
-                        text: "Play";
-                        clicked => { root.playback-resume-requested(); }
-                    }
-
-                    Button {
-                        text: "Previous";
-                        clicked => { root.playback-previous-requested(); }
-                    }
-
-                    Button {
-                        text: "Next";
-                        clicked => { root.playback-next-requested(); }
-                    }
-
-                    Button {
-                        text: "Shuffle";
-                        clicked => { root.playback-shuffle-requested(); }
-                    }
-
                     VerticalLayout {
-                        spacing: 2px;
+                        spacing: 5px;
                         Text {
                             text: root.now-playing-title;
                             color: #f5f7fb;
-                            font-size: 15px;
+                            font-size: 18px;
                             font-weight: 700;
                             overflow: elide;
                         }
@@ -245,12 +249,45 @@ export component AppWindow inherits Window {
                             font-size: 12px;
                             overflow: elide;
                         }
+                        Text {
+                            text: root.playback-status-text;
+                            color: #7fc7e8;
+                            font-size: 12px;
+                            overflow: elide;
+                        }
                     }
 
-                    Text {
-                        text: root.playback-status-text;
-                        color: #9ba7b5;
-                        vertical-alignment: center;
+                    HorizontalLayout {
+                        spacing: 6px;
+                        alignment: end;
+
+                        PlayerIconButton {
+                            label: "<<";
+                            clicked => { root.playback-previous-requested(); }
+                        }
+
+                        if root.playback-is-playing: PlayerIconButton {
+                            label: "||";
+                            active: true;
+                            clicked => { root.playback-pause-requested(); }
+                        }
+
+                        if !root.playback-is-playing: PlayerIconButton {
+                            label: ">";
+                            active: true;
+                            clicked => { root.playback-resume-requested(); }
+                        }
+
+                        PlayerIconButton {
+                            label: ">>";
+                            clicked => { root.playback-next-requested(); }
+                        }
+
+                        PlayerIconButton {
+                            label: "Shuffle";
+                            button-width: 74px;
+                            clicked => { root.playback-shuffle-requested(); }
+                        }
                     }
                 }
 
@@ -259,6 +296,7 @@ export component AppWindow inherits Window {
                     Text {
                         text: root.playback-elapsed-text;
                         color: #9ba7b5;
+                        width: 42px;
                         vertical-alignment: center;
                     }
                     Slider {
@@ -270,6 +308,7 @@ export component AppWindow inherits Window {
                     Text {
                         text: root.playback-duration-text;
                         color: #9ba7b5;
+                        width: 48px;
                         vertical-alignment: center;
                     }
                 }
@@ -279,6 +318,7 @@ export component AppWindow inherits Window {
                     Text {
                         text: "Volume";
                         color: #9ba7b5;
+                        width: 58px;
                         vertical-alignment: center;
                     }
                     Slider {

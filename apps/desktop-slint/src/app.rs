@@ -254,32 +254,48 @@ impl AppController {
     fn bind_playback_controls(&self) {
         let ui_weak = self.ui.as_weak();
         let state = Arc::clone(&self.state);
+        let playback_worker = self.playback_worker.clone();
         self.ui.on_playback_pause_requested(move || {
-            let result = state
-                .lock()
-                .map_err(|error| anyhow::anyhow!(error.to_string()))
-                .and_then(|mut state| state.playback.pause());
-            if let Some(ui) = ui_weak.upgrade() {
-                match result {
-                    Ok(()) => ui.set_status_text("Paused".into()),
-                    Err(error) => set_error_text(&ui, format!("Pause failed: {error}")),
-                }
-            }
+            let state_for_worker = Arc::clone(&state);
+            let ui_weak_for_result = ui_weak.clone();
+            playback_worker.submit(move || {
+                let result = state_for_worker
+                    .lock()
+                    .map_err(|error| anyhow::anyhow!(error.to_string()))
+                    .and_then(|mut state| state.playback.pause());
+                slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = ui_weak_for_result.upgrade() {
+                        match result {
+                            Ok(()) => ui.set_status_text("Paused".into()),
+                            Err(error) => set_error_text(&ui, format!("Pause failed: {error}")),
+                        }
+                    }
+                })
+                .ok();
+            });
         });
 
         let ui_weak = self.ui.as_weak();
         let state = Arc::clone(&self.state);
+        let playback_worker = self.playback_worker.clone();
         self.ui.on_playback_resume_requested(move || {
-            let result = state
-                .lock()
-                .map_err(|error| anyhow::anyhow!(error.to_string()))
-                .and_then(|mut state| state.playback.resume());
-            if let Some(ui) = ui_weak.upgrade() {
-                match result {
-                    Ok(()) => ui.set_status_text("Playing".into()),
-                    Err(error) => set_error_text(&ui, format!("Resume failed: {error}")),
-                }
-            }
+            let state_for_worker = Arc::clone(&state);
+            let ui_weak_for_result = ui_weak.clone();
+            playback_worker.submit(move || {
+                let result = state_for_worker
+                    .lock()
+                    .map_err(|error| anyhow::anyhow!(error.to_string()))
+                    .and_then(|mut state| state.playback.resume());
+                slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = ui_weak_for_result.upgrade() {
+                        match result {
+                            Ok(()) => ui.set_status_text("Playing".into()),
+                            Err(error) => set_error_text(&ui, format!("Resume failed: {error}")),
+                        }
+                    }
+                })
+                .ok();
+            });
         });
 
         let ui_weak = self.ui.as_weak();
@@ -373,124 +389,72 @@ impl AppController {
 
         let ui_weak = self.ui.as_weak();
         let state = Arc::clone(&self.state);
+        let playback_worker = self.playback_worker.clone();
         self.ui.on_volume_changed(move |volume| {
             let percent = volume.clamp(0.0, 100.0).round() as u8;
-            let result = state
-                .lock()
-                .map_err(|error| anyhow::anyhow!(error.to_string()))
-                .and_then(|mut state| state.playback.set_volume(percent));
-            if let (Err(error), Some(ui)) = (result, ui_weak.upgrade()) {
-                set_error_text(&ui, format!("Volume failed: {error}"));
-            }
+            let state_for_worker = Arc::clone(&state);
+            let ui_weak_for_result = ui_weak.clone();
+            playback_worker.submit(move || {
+                let result = state_for_worker
+                    .lock()
+                    .map_err(|error| anyhow::anyhow!(error.to_string()))
+                    .and_then(|mut state| state.playback.set_volume(percent));
+                if let Err(error) = result {
+                    slint::invoke_from_event_loop(move || {
+                        if let Some(ui) = ui_weak_for_result.upgrade() {
+                            set_error_text(&ui, format!("Volume failed: {error}"));
+                        }
+                    })
+                    .ok();
+                }
+            });
         });
 
         let ui_weak = self.ui.as_weak();
         let state = Arc::clone(&self.state);
+        let playback_worker = self.playback_worker.clone();
         self.ui.on_playback_seek_requested(move |progress| {
-            let result = {
-                let mut app_state = match state.lock() {
-                    Ok(state) => state,
-                    Err(error) => {
-                        if let Some(ui) = ui_weak.upgrade() {
-                            set_error_text(&ui, format!("Seek failed: {error}"));
-                        }
-                        return;
+            let progress = progress.clamp(0.0, 100.0);
+            let state_for_worker = Arc::clone(&state);
+            let ui_weak_for_result = ui_weak.clone();
+            playback_worker.submit(move || {
+                let result = seek_to_progress(&state_for_worker, progress);
+                slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = ui_weak_for_result.upgrade() {
+                        apply_seek_result(&ui, result, progress);
                     }
-                };
-
-                let result = (|| {
-                    let Some(duration) = app_state.latest_playback_snapshot.duration_seconds else {
-                        return Ok(SeekOutcome::Noop);
-                    };
-                    if duration <= 0.0 {
-                        return Ok(SeekOutcome::Noop);
-                    }
-
-                    let target_seconds = duration * f64::from(progress.clamp(0.0, 100.0)) / 100.0;
-                    match app_state.playback.seek_absolute(target_seconds) {
-                        Ok(()) => Ok(SeekOutcome::InPlace(target_seconds)),
-                        Err(error) if is_unseekable_stream_error(&error) => {
-                            let current = app_state
-                                .current_playback
-                                .clone()
-                                .ok_or_else(|| anyhow::anyhow!("no active track to seek"))?;
-                            Ok(SeekOutcome::RestartStream {
-                                current: Box::new(current),
-                                target_seconds,
-                            })
-                        }
-                        Err(error) => Err(error),
-                    }
-                })();
-
-                drop(app_state);
-
-                match result {
-                    Ok(SeekOutcome::RestartStream {
-                        current,
-                        target_seconds,
-                    }) => restart_stream_at_offset(&state, current.as_ref(), target_seconds)
-                        .map(|()| SeekOutcome::Restarted(target_seconds)),
-                    other => other,
-                }
-            };
-
-            if let Some(ui) = ui_weak.upgrade() {
-                match result {
-                    Ok(
-                        SeekOutcome::InPlace(target_seconds)
-                        | SeekOutcome::Restarted(target_seconds),
-                    ) => {
-                        ui.set_playback_elapsed_text(format_seconds(target_seconds).into());
-                        ui.set_playback_progress(progress.clamp(0.0, 100.0));
-                    }
-                    Ok(SeekOutcome::Noop) => {}
-                    Ok(SeekOutcome::RestartStream { .. }) => {}
-                    Err(error) if error.to_string().contains("seeking is not available") => {
-                        set_error_text(&ui, "Seeking is not available for this stream");
-                    }
-                    Err(error) => set_error_text(&ui, format!("Seek failed: {error}")),
-                }
-            }
+                })
+                .ok();
+            });
         });
     }
 
     fn bind_playback_snapshot_polling(&self) {
         let ui_weak = self.ui.as_weak();
         let state = Arc::clone(&self.state);
+        let playback_worker = self.playback_worker.clone();
         self.playback_timer
             .start(TimerMode::Repeated, Duration::from_millis(500), move || {
-                let result = state
-                    .lock()
-                    .map_err(|error| anyhow::anyhow!(error.to_string()))
-                    .and_then(|mut state| {
-                        let session_id = state.playback_session_id;
-                        state
-                            .playback
-                            .snapshot()
-                            .map(|snapshot| (session_id, snapshot))
-                    });
-                if let Ok((session_id, snapshot)) = result {
-                    let should_apply = state
-                        .lock()
-                        .map(|mut state| {
-                            if state.playback_session_id != session_id {
-                                return false;
+                let state_for_worker = Arc::clone(&state);
+                let ui_weak_for_result = ui_weak.clone();
+                playback_worker.submit(move || {
+                    if let Some(snapshot) = poll_playback_snapshot(&state_for_worker) {
+                        slint::invoke_from_event_loop(move || {
+                            if let Some(ui) = ui_weak_for_result.upgrade() {
+                                ui.set_playback_status_text(playback_status_text(&snapshot).into());
+                                ui.set_playback_elapsed_text(
+                                    playback_elapsed_text(&snapshot).into(),
+                                );
+                                ui.set_playback_duration_text(
+                                    playback_duration_text(&snapshot).into(),
+                                );
+                                ui.set_playback_progress(playback_progress(&snapshot));
+                                ui.set_playback_is_playing(snapshot.is_playing);
                             }
-                            state.latest_playback_snapshot = snapshot.clone();
-                            true
                         })
-                        .unwrap_or(false);
-                    if should_apply {
-                        if let Some(ui) = ui_weak.upgrade() {
-                            ui.set_playback_status_text(playback_status_text(&snapshot).into());
-                            ui.set_playback_elapsed_text(playback_elapsed_text(&snapshot).into());
-                            ui.set_playback_duration_text(playback_duration_text(&snapshot).into());
-                            ui.set_playback_progress(playback_progress(&snapshot));
-                            ui.set_playback_is_playing(snapshot.is_playing);
-                        }
+                        .ok();
                     }
-                }
+                });
             });
     }
 
@@ -828,6 +792,82 @@ enum SeekOutcome {
         target_seconds: f64,
     },
     Restarted(f64),
+}
+
+fn seek_to_progress(state: &Arc<Mutex<AppState>>, progress: f32) -> Result<SeekOutcome> {
+    let result = {
+        let mut app_state = state
+            .lock()
+            .map_err(|error| anyhow::anyhow!(error.to_string()))?;
+        let Some(duration) = app_state.latest_playback_snapshot.duration_seconds else {
+            return Ok(SeekOutcome::Noop);
+        };
+        if duration <= 0.0 {
+            return Ok(SeekOutcome::Noop);
+        }
+
+        let target_seconds = duration * f64::from(progress) / 100.0;
+        match app_state.playback.seek_absolute(target_seconds) {
+            Ok(()) => Ok(SeekOutcome::InPlace(target_seconds)),
+            Err(error) if is_unseekable_stream_error(&error) => {
+                let current = app_state
+                    .current_playback
+                    .clone()
+                    .ok_or_else(|| anyhow::anyhow!("no active track to seek"))?;
+                Ok(SeekOutcome::RestartStream {
+                    current: Box::new(current),
+                    target_seconds,
+                })
+            }
+            Err(error) => Err(error),
+        }
+    };
+
+    match result {
+        Ok(SeekOutcome::RestartStream {
+            current,
+            target_seconds,
+        }) => restart_stream_at_offset(state, current.as_ref(), target_seconds)
+            .map(|()| SeekOutcome::Restarted(target_seconds)),
+        other => other,
+    }
+}
+
+fn apply_seek_result(ui: &AppWindow, result: Result<SeekOutcome>, progress: f32) {
+    match result {
+        Ok(SeekOutcome::InPlace(target_seconds) | SeekOutcome::Restarted(target_seconds)) => {
+            ui.set_playback_elapsed_text(format_seconds(target_seconds).into());
+            ui.set_playback_progress(progress);
+        }
+        Ok(SeekOutcome::Noop) => {}
+        Ok(SeekOutcome::RestartStream { .. }) => {}
+        Err(error) if error.to_string().contains("seeking is not available") => {
+            set_error_text(ui, "Seeking is not available for this stream");
+        }
+        Err(error) => set_error_text(ui, format!("Seek failed: {error}")),
+    }
+}
+
+fn poll_playback_snapshot(state: &Arc<Mutex<AppState>>) -> Option<PlaybackSnapshot> {
+    let (session_id, snapshot) = state
+        .lock()
+        .map_err(|error| anyhow::anyhow!(error.to_string()))
+        .and_then(|mut state| {
+            let session_id = state.playback_session_id;
+            state
+                .playback
+                .snapshot()
+                .map(|snapshot| (session_id, snapshot))
+        })
+        .ok()?;
+
+    state.lock().ok().and_then(|mut state| {
+        if state.playback_session_id != session_id {
+            return None;
+        }
+        state.latest_playback_snapshot = snapshot.clone();
+        Some(snapshot)
+    })
 }
 
 enum QueueDirection {

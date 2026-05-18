@@ -345,7 +345,7 @@ Exit criteria:
 - [x] Verify whether Navidrome honors `timeOffset` for audio on real servers; Subsonic/OpenSubsonic document it as video-focused.
 - [x] Replace temporary playback progress controls with a first-pass player panel.
 - [x] Make the desktop window easier to resize and clamp stale saved sizes.
-- [ ] Add final player UI styling and icons.
+- [x] Add final player UI styling and icons.
 - [x] Add first-pass album art plumbing for the player panel.
 - [x] Add stream metadata polling for internet radio.
 - [x] Add dismissible error reporting that does not close the whole app.
@@ -360,7 +360,7 @@ Exit criteria:
 - [x] Add a dedicated playback worker for track/radio startup.
 - [x] Reset progress UI and ignore stale BASS snapshots during playback transitions.
 - [x] Move BASS FFI, tag parsing, and engine code into separate `playback/bass/*` modules before adding gapless/crossfade.
-- [ ] Route pause/resume/seek/volume/snapshot through the playback worker before adding gapless/crossfade.
+- [x] Route pause/resume/seek/volume/snapshot through the playback worker before adding gapless/crossfade.
 - [ ] Add a future visualizer backend abstraction; start with Slint/software rendering, then evaluate GPU-backed rendering only if needed.
 
 Exit criteria:
