@@ -21,6 +21,7 @@ const MIN_WINDOW_HEIGHT: u32 = 600;
 
 struct AppState {
     settings: Settings,
+    route_history: Vec<String>,
     search_results: SearchResults,
     radio_stations: Vec<InternetRadioStation>,
     playback: Box<dyn PlaybackEngine>,
@@ -57,11 +58,13 @@ fn run_with_settings_store(settings_store: Arc<dyn SettingsStore>) -> Result<()>
     }
     ui.set_sources(source_rows(&settings));
     ui.set_password(String::new().into());
+    ui.set_current_route(settings.app.last_route.clone().into());
     ui.set_visualizer_levels(visualizer_levels(&VisualizerFrame::default()));
 
     let controller = AppController {
         ui: ui.clone_strong(),
         state: Arc::new(Mutex::new(AppState {
+            route_history: Vec::new(),
             settings,
             search_results: SearchResults::default(),
             radio_stations: Vec::new(),
@@ -98,6 +101,7 @@ struct AppController {
 impl AppController {
     fn bind(&self) {
         self.bind_window_close();
+        self.bind_routes();
         self.bind_connection();
         self.bind_error_banner();
         self.bind_sources();
@@ -128,11 +132,44 @@ impl AppController {
                     let size = ui.window().size();
                     state.settings.app.window.width = Some(size.width);
                     state.settings.app.window.height = Some(size.height);
-                    state.settings.app.last_route = "search".to_string();
+                    state.settings.app.last_route = ui.get_current_route().to_string();
                     let _ = settings_store.save(&state.settings);
                 }
             }
             std::process::exit(0);
+        });
+    }
+
+    fn bind_routes(&self) {
+        let ui_weak = self.ui.as_weak();
+        let state = Arc::clone(&self.state);
+        let settings_store = Arc::clone(&self.settings_store);
+        self.ui.on_route_requested(move |route| {
+            if let Ok(mut state) = state.lock() {
+                let route = route.to_string();
+                if state.settings.app.last_route != route {
+                    let previous = state.settings.app.last_route.clone();
+                    state.route_history.push(previous);
+                }
+                state.settings.app.last_route = route.to_string();
+                let _ = settings_store.save(&state.settings);
+            }
+        });
+
+        let state = Arc::clone(&self.state);
+        let settings_store = Arc::clone(&self.settings_store);
+        self.ui.on_back_requested(move || {
+            if let Ok(mut state) = state.lock() {
+                let route = state
+                    .route_history
+                    .pop()
+                    .unwrap_or_else(|| "search".to_string());
+                state.settings.app.last_route = route.clone();
+                let _ = settings_store.save(&state.settings);
+                if let Some(ui) = ui_weak.upgrade() {
+                    ui.set_current_route(route.into());
+                }
+            }
         });
     }
 

@@ -27,6 +27,34 @@ component PlayerIconButton inherits Rectangle {
     }
 }
 
+component NavButton inherits Rectangle {
+    in property <string> label;
+    in property <string> short-label;
+    in property <string> route;
+    in property <string> current-route;
+    in property <bool> collapsed: false;
+    callback clicked(string);
+
+    height: 38px;
+    border-radius: 6px;
+    background: root.current-route == root.route ? #253342 : touch.pressed ? #202b37 : touch.has-hover ? #1c242d : transparent;
+
+    touch := TouchArea {
+        clicked => { root.clicked(root.route); }
+    }
+
+    Text {
+        text: root.collapsed ? root.short-label : root.label;
+        color: root.current-route == root.route ? #f5f7fb : #9ba7b5;
+        font-size: 13px;
+        font-weight: root.current-route == root.route ? 700 : 400;
+        horizontal-alignment: root.collapsed ? center : left;
+        vertical-alignment: center;
+        x: root.collapsed ? 0px : 12px;
+        width: parent.width;
+    }
+}
+
 export struct MediaRow {
     kind: string,
     title: string,
@@ -53,6 +81,8 @@ export component AppWindow inherits Window {
     in-out property <string> username;
     in-out property <string> password;
     in-out property <string> query;
+    in-out property <string> current-route: "search";
+    in-out property <bool> nav-collapsed: false;
     in-out property <float> volume: 80;
     in-out property <float> playback-progress: 0;
     in property <string> status-text: "Ready";
@@ -82,327 +112,440 @@ export component AppWindow inherits Window {
     callback volume-changed(float);
     callback playback-seek-requested(float);
     callback error-dismissed();
+    callback route-requested(string);
+    callback back-requested();
 
-    VerticalLayout {
-        padding: 18px;
-        spacing: 14px;
-
-        Text {
-            text: "Naviamp";
-            color: #f5f7fb;
-            font-size: 28px;
-            font-weight: 700;
-        }
+    HorizontalLayout {
+        padding: 0px;
+        spacing: 0px;
 
         Rectangle {
-            height: 1px;
-            background: #2b3038;
-        }
+            width: root.nav-collapsed ? 74px : 188px;
+            background: #101318;
 
-        if root.error-text != "": Rectangle {
-            height: 44px;
-            border-radius: 6px;
-            border-width: 1px;
-            border-color: #7b3941;
-            background: #2a171b;
+            VerticalLayout {
+                padding: 14px;
+                spacing: 12px;
 
-            HorizontalLayout {
-                padding-left: 12px;
-                padding-right: 8px;
-                spacing: 8px;
-
-                Text {
-                    text: root.error-text;
-                    color: #ffd4d9;
-                    vertical-alignment: center;
-                    overflow: elide;
+                HorizontalLayout {
+                    spacing: 8px;
+                    Text {
+                        text: root.nav-collapsed ? "N" : "Naviamp";
+                        color: #f5f7fb;
+                        font-size: root.nav-collapsed ? 20px : 24px;
+                        font-weight: 700;
+                        horizontal-alignment: root.nav-collapsed ? center : left;
+                    }
+                    Button {
+                        text: root.nav-collapsed ? ">" : "<";
+                        clicked => { root.nav-collapsed = !root.nav-collapsed; }
+                    }
                 }
 
-                Button {
-                    text: "Dismiss";
-                    clicked => { root.error-dismissed(); }
+                Rectangle { height: 1px; background: #2b3038; }
+
+                NavButton {
+                    label: "Home";
+                    short-label: "H";
+                    route: "home";
+                    current-route: root.current-route;
+                    collapsed: root.nav-collapsed;
+                    clicked(route) => {
+                        root.current-route = route;
+                        root.route-requested(route);
+                    }
+                }
+                NavButton {
+                    label: "Search";
+                    short-label: "S";
+                    route: "search";
+                    current-route: root.current-route;
+                    collapsed: root.nav-collapsed;
+                    clicked(route) => {
+                        root.current-route = route;
+                        root.route-requested(route);
+                    }
+                }
+                NavButton {
+                    label: "Library";
+                    short-label: "L";
+                    route: "library";
+                    current-route: root.current-route;
+                    collapsed: root.nav-collapsed;
+                    clicked(route) => {
+                        root.current-route = route;
+                        root.route-requested(route);
+                    }
+                }
+                NavButton {
+                    label: "Playlists";
+                    short-label: "P";
+                    route: "playlists";
+                    current-route: root.current-route;
+                    collapsed: root.nav-collapsed;
+                    clicked(route) => {
+                        root.current-route = route;
+                        root.route-requested(route);
+                    }
+                }
+                NavButton {
+                    label: "Radio";
+                    short-label: "R";
+                    route: "radio";
+                    current-route: root.current-route;
+                    collapsed: root.nav-collapsed;
+                    clicked(route) => {
+                        root.current-route = route;
+                        root.route-requested(route);
+                    }
+                }
+                NavButton {
+                    label: "Downloads";
+                    short-label: "D";
+                    route: "downloads";
+                    current-route: root.current-route;
+                    collapsed: root.nav-collapsed;
+                    clicked(route) => {
+                        root.current-route = route;
+                        root.route-requested(route);
+                    }
+                }
+                NavButton {
+                    label: "Settings";
+                    short-label: "T";
+                    route: "settings";
+                    current-route: root.current-route;
+                    collapsed: root.nav-collapsed;
+                    clicked(route) => {
+                        root.current-route = route;
+                        root.route-requested(route);
+                    }
+                }
+                NavButton {
+                    label: "Now Playing";
+                    short-label: "N";
+                    route: "player";
+                    current-route: root.current-route;
+                    collapsed: root.nav-collapsed;
+                    clicked(route) => {
+                        root.current-route = route;
+                        root.route-requested(route);
+                    }
                 }
             }
         }
 
-        if root.sources.length > 0: Rectangle {
-            height: 92px;
-            border-color: #2b3038;
-            border-width: 1px;
-            border-radius: 6px;
-            background: #171a1f;
+        Rectangle {
+            background: #121417;
 
-            ListView {
-                for source in root.sources: Rectangle {
-                    height: 44px;
-                    background: source-touch.pressed ? #263241 : source-touch.has-hover ? #202833 : #171a1f;
+            VerticalLayout {
+                padding: 18px;
+                spacing: 14px;
 
-                    source-touch := TouchArea {
-                        clicked => { root.source-activated(source.source_index); }
+                HorizontalLayout {
+                    spacing: 12px;
+                    Button {
+                        text: "Back";
+                        clicked => { root.back-requested(); }
                     }
+                    Text {
+                        text: root.current-route == "player" ? "Now Playing" :
+                            root.current-route == "radio" ? "Internet Radio" :
+                            root.current-route == "library" ? "Library" :
+                            root.current-route == "playlists" ? "Playlists" :
+                            root.current-route == "downloads" ? "Downloads" :
+                            root.current-route == "settings" ? "Settings" :
+                            root.current-route == "home" ? "Home" : "Search";
+                        color: #f5f7fb;
+                        font-size: 24px;
+                        font-weight: 700;
+                    }
+                    Text {
+                        text: root.status-text;
+                        color: #9ba7b5;
+                        vertical-alignment: center;
+                        overflow: elide;
+                    }
+                }
+
+                if root.error-text != "": Rectangle {
+                    height: 44px;
+                    border-radius: 6px;
+                    border-width: 1px;
+                    border-color: #7b3941;
+                    background: #2a171b;
 
                     HorizontalLayout {
                         padding-left: 12px;
                         padding-right: 8px;
                         spacing: 8px;
 
-                        VerticalLayout {
-                            spacing: 2px;
-                            Text {
-                                text: source.title;
-                                color: #f5f7fb;
-                                font-size: 13px;
-                                overflow: elide;
-                            }
-                            Text {
-                                text: source.subtitle;
-                                color: #9ba7b5;
-                                font-size: 11px;
-                                overflow: elide;
-                            }
+                        Text {
+                            text: root.error-text;
+                            color: #ffd4d9;
+                            vertical-alignment: center;
+                            overflow: elide;
                         }
 
                         Button {
-                            text: "Delete";
-                            clicked => { root.source-delete-requested(source.source_index); }
+                            text: "Dismiss";
+                            clicked => { root.error-dismissed(); }
                         }
                     }
                 }
-            }
-        }
 
-        GridLayout {
-            spacing: 8px;
-            Row {
-                Text { text: "Server"; color: #b8c0cc; vertical-alignment: center; }
-                LineEdit { text <=> root.server-url; placeholder-text: "https://music.example.com"; }
-            }
-            Row {
-                Text { text: "User"; color: #b8c0cc; vertical-alignment: center; }
-                LineEdit { text <=> root.username; placeholder-text: "username"; }
-            }
-            Row {
-                Text { text: "Password"; color: #b8c0cc; vertical-alignment: center; }
-                LineEdit {
-                    text <=> root.password;
-                    placeholder-text: "password";
-                    input-type: InputType.password;
+                if root.current-route == "search": VerticalLayout {
+                    spacing: 10px;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        LineEdit {
+                            text <=> root.query;
+                            placeholder-text: "Search tracks";
+                            accepted => { root.search-requested(root.query); }
+                        }
+                        Button {
+                            text: "Search";
+                            clicked => { root.search-requested(root.query); }
+                        }
+                    }
+                    Rectangle {
+                        border-color: #2b3038;
+                        border-width: 1px;
+                        border-radius: 6px;
+                        background: #171a1f;
+
+                        ListView {
+                            for row in root.media-rows: Rectangle {
+                                height: 58px;
+                                background: search-row-touch.pressed ? #263241 : search-row-touch.has-hover ? #202833 : #171a1f;
+
+                                search-row-touch := TouchArea {
+                                    clicked => { root.row-activated(row.kind, row.source_index); }
+                                }
+
+                                VerticalLayout {
+                                    padding-left: 12px;
+                                    padding-right: 12px;
+                                    padding-top: 8px;
+                                    spacing: 3px;
+                                    Text {
+                                        text: row.title;
+                                        color: #f5f7fb;
+                                        font-size: 15px;
+                                        overflow: elide;
+                                    }
+                                    Text {
+                                        text: row.subtitle;
+                                        color: #9ba7b5;
+                                        font-size: 12px;
+                                        overflow: elide;
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
-            }
-        }
 
-        HorizontalLayout {
-            spacing: 8px;
-            Button {
-                text: "Save Connection";
-                clicked => { root.connect-requested(root.server-url, root.username, root.password); }
-            }
-            Text {
-                text: root.status-text;
-                color: #9ba7b5;
-                vertical-alignment: center;
-            }
-        }
+                if root.current-route == "radio": VerticalLayout {
+                    spacing: 10px;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Button {
+                            text: "Load Radio";
+                            clicked => { root.radio-requested(); }
+                        }
+                    }
+                    Rectangle {
+                        border-color: #2b3038;
+                        border-width: 1px;
+                        border-radius: 6px;
+                        background: #171a1f;
 
-        Rectangle {
-            height: 164px;
-            border-color: #2b3038;
-            border-width: 1px;
-            border-radius: 6px;
-            background: #15191f;
+                        ListView {
+                            for row in root.media-rows: Rectangle {
+                                height: 58px;
+                                background: radio-row-touch.pressed ? #263241 : radio-row-touch.has-hover ? #202833 : #171a1f;
 
-            VerticalLayout {
-                padding: 12px;
-                spacing: 10px;
+                                radio-row-touch := TouchArea {
+                                    clicked => { root.row-activated(row.kind, row.source_index); }
+                                }
 
-                HorizontalLayout {
+                                VerticalLayout {
+                                    padding-left: 12px;
+                                    padding-right: 12px;
+                                    padding-top: 8px;
+                                    spacing: 3px;
+                                    Text { text: row.title; color: #f5f7fb; font-size: 15px; overflow: elide; }
+                                    Text { text: row.subtitle; color: #9ba7b5; font-size: 12px; overflow: elide; }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if root.current-route == "settings": VerticalLayout {
                     spacing: 12px;
 
                     Rectangle {
-                        width: 76px;
-                        height: 76px;
+                        height: root.sources.length > 0 ? 92px : 0px;
+                        border-color: #2b3038;
+                        border-width: root.sources.length > 0 ? 1px : 0px;
                         border-radius: 6px;
-                        border-width: 1px;
-                        border-color: #364152;
-                        background: #243041;
-                        clip: true;
+                        background: #171a1f;
 
-                        Image {
-                            source: root.now-playing-art;
-                            image-fit: cover;
-                            width: parent.width;
-                            height: parent.height;
+                        if root.sources.length > 0: ListView {
+                            for source in root.sources: Rectangle {
+                                height: 44px;
+                                background: source-touch.pressed ? #263241 : source-touch.has-hover ? #202833 : #171a1f;
+
+                                source-touch := TouchArea {
+                                    clicked => { root.source-activated(source.source_index); }
+                                }
+
+                                HorizontalLayout {
+                                    padding-left: 12px;
+                                    padding-right: 8px;
+                                    spacing: 8px;
+
+                                    VerticalLayout {
+                                        spacing: 2px;
+                                        Text { text: source.title; color: #f5f7fb; font-size: 13px; overflow: elide; }
+                                        Text { text: source.subtitle; color: #9ba7b5; font-size: 11px; overflow: elide; }
+                                    }
+
+                                    Button {
+                                        text: "Delete";
+                                        clicked => { root.source-delete-requested(source.source_index); }
+                                    }
+                                }
+                            }
                         }
                     }
+
+                    GridLayout {
+                        spacing: 8px;
+                        Row {
+                            Text { text: "Server"; color: #b8c0cc; vertical-alignment: center; }
+                            LineEdit { text <=> root.server-url; placeholder-text: "https://music.example.com"; }
+                        }
+                        Row {
+                            Text { text: "User"; color: #b8c0cc; vertical-alignment: center; }
+                            LineEdit { text <=> root.username; placeholder-text: "username"; }
+                        }
+                        Row {
+                            Text { text: "Password"; color: #b8c0cc; vertical-alignment: center; }
+                            LineEdit {
+                                text <=> root.password;
+                                placeholder-text: "password";
+                                input-type: InputType.password;
+                            }
+                        }
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Button {
+                            text: "Save Connection";
+                            clicked => { root.connect-requested(root.server-url, root.username, root.password); }
+                        }
+                    }
+                }
+
+                if root.current-route == "home" || root.current-route == "library" || root.current-route == "playlists" || root.current-route == "downloads": Rectangle {
+                    border-color: #2b3038;
+                    border-width: 1px;
+                    border-radius: 6px;
+                    background: #171a1f;
 
                     VerticalLayout {
-                        spacing: 5px;
+                        padding: 18px;
+                        spacing: 8px;
                         Text {
-                            text: root.now-playing-title;
-                            color: #f5f7fb;
-                            font-size: 18px;
-                            font-weight: 700;
+                            text: root.current-route == "home" ? "Home will surface albums, playlists, and history." :
+                                root.current-route == "library" ? "Library browsing will land here after the local index is wired." :
+                                root.current-route == "playlists" ? "Playlist list and detail routes will land here." :
+                                "Downloads and offline cache controls will land here.";
+                            color: #b8c0cc;
+                            font-size: 14px;
                             overflow: elide;
-                        }
-                        Text {
-                            text: root.now-playing-subtitle;
-                            color: #9ba7b5;
-                            font-size: 12px;
-                            overflow: elide;
-                        }
-                        Text {
-                            text: root.playback-status-text;
-                            color: #7fc7e8;
-                            font-size: 12px;
-                            overflow: elide;
-                        }
-                    }
-
-                    HorizontalLayout {
-                        spacing: 6px;
-                        alignment: end;
-
-                        PlayerIconButton {
-                            label: "<<";
-                            clicked => { root.playback-previous-requested(); }
-                        }
-
-                        if root.playback-is-playing: PlayerIconButton {
-                            label: "||";
-                            active: true;
-                            clicked => { root.playback-pause-requested(); }
-                        }
-
-                        if !root.playback-is-playing: PlayerIconButton {
-                            label: ">";
-                            active: true;
-                            clicked => { root.playback-resume-requested(); }
-                        }
-
-                        PlayerIconButton {
-                            label: ">>";
-                            clicked => { root.playback-next-requested(); }
-                        }
-
-                        PlayerIconButton {
-                            label: "Shuffle";
-                            button-width: 74px;
-                            clicked => { root.playback-shuffle-requested(); }
                         }
                     }
                 }
 
-                HorizontalLayout {
-                    spacing: 8px;
-                    Text {
-                        text: root.playback-elapsed-text;
-                        color: #9ba7b5;
-                        width: 42px;
-                        vertical-alignment: center;
-                    }
-                    Slider {
-                        minimum: 0;
-                        maximum: 100;
-                        value <=> root.playback-progress;
-                        released(value) => { root.playback-seek-requested(value); }
-                    }
-                    Text {
-                        text: root.playback-duration-text;
-                        color: #9ba7b5;
-                        width: 48px;
-                        vertical-alignment: center;
-                    }
-                }
+                if root.current-route == "player": Rectangle {
+                    border-color: #2b3038;
+                    border-width: 1px;
+                    border-radius: 6px;
+                    background: #15191f;
 
-                HorizontalLayout {
-                    spacing: 8px;
-                    Text {
-                        text: "Volume";
-                        color: #9ba7b5;
-                        width: 58px;
-                        vertical-alignment: center;
-                    }
-                    Slider {
-                        minimum: 0;
-                        maximum: 100;
-                        value <=> root.volume;
-                        changed => { root.volume-changed(root.volume); }
+                    VerticalLayout {
+                        padding: 16px;
+                        spacing: 14px;
+                        Image {
+                            source: root.now-playing-art;
+                            image-fit: contain;
+                            height: 260px;
+                        }
+                        Text { text: root.now-playing-title; color: #f5f7fb; font-size: 24px; font-weight: 700; horizontal-alignment: center; overflow: elide; }
+                        Text { text: root.now-playing-subtitle; color: #9ba7b5; font-size: 14px; horizontal-alignment: center; overflow: elide; }
+                        Text { text: root.playback-status-text; color: #7fc7e8; font-size: 13px; horizontal-alignment: center; overflow: elide; }
                     }
                 }
 
                 Rectangle {
-                    height: 22px;
-                    background: transparent;
-
-                    HorizontalLayout {
-                        spacing: 4px;
-                        for level in root.visualizer-levels: Rectangle {
-                            width: 8px;
-                            border-radius: 2px;
-                            background: root.playback-is-playing ? #5ac8fa : #3d4652;
-                            opacity: root.playback-is-playing ? 0.78 : 0.36;
-
-                            Rectangle {
-                                y: parent.height - self.height;
-                                width: parent.width;
-                                height: 3px + level * 19px;
-                                border-radius: 2px;
-                                background: root.playback-is-playing ? #a7e7ff : #5d6978;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        HorizontalLayout {
-            spacing: 8px;
-            LineEdit {
-                text <=> root.query;
-                placeholder-text: "Search tracks";
-                accepted => { root.search-requested(root.query); }
-            }
-            Button {
-                text: "Search";
-                clicked => { root.search-requested(root.query); }
-            }
-            Button {
-                text: "Radio";
-                clicked => { root.radio-requested(); }
-            }
-        }
-
-        Rectangle {
-            border-color: #2b3038;
-            border-width: 1px;
-            border-radius: 6px;
-            background: #171a1f;
-
-            ListView {
-                for row in root.media-rows: Rectangle {
-                    height: 58px;
-                    background: row-touch.pressed ? #263241 : row-touch.has-hover ? #202833 : #171a1f;
-
-                    row-touch := TouchArea {
-                        clicked => { root.row-activated(row.kind, row.source_index); }
-                    }
+                    height: 128px;
+                    border-color: #2b3038;
+                    border-width: 1px;
+                    border-radius: 6px;
+                    background: #15191f;
 
                     VerticalLayout {
-                        padding-left: 12px;
-                        padding-right: 12px;
-                        padding-top: 8px;
-                        spacing: 3px;
-                        Text {
-                            text: row.title;
-                            color: #f5f7fb;
-                            font-size: 15px;
-                            overflow: elide;
+                        padding: 10px;
+                        spacing: 8px;
+
+                        HorizontalLayout {
+                            spacing: 10px;
+                            Rectangle {
+                                width: 58px;
+                                height: 58px;
+                                border-radius: 6px;
+                                border-width: 1px;
+                                border-color: #364152;
+                                background: #243041;
+                                clip: true;
+
+                                Image {
+                                    source: root.now-playing-art;
+                                    image-fit: cover;
+                                    width: parent.width;
+                                    height: parent.height;
+                                }
+                            }
+                            VerticalLayout {
+                                spacing: 3px;
+                                Text { text: root.now-playing-title; color: #f5f7fb; font-size: 15px; font-weight: 700; overflow: elide; }
+                                Text { text: root.now-playing-subtitle; color: #9ba7b5; font-size: 12px; overflow: elide; }
+                                Text { text: root.playback-status-text; color: #7fc7e8; font-size: 11px; overflow: elide; }
+                            }
+                            HorizontalLayout {
+                                spacing: 6px;
+                                alignment: end;
+                                PlayerIconButton { label: "<<"; clicked => { root.playback-previous-requested(); } }
+                                if root.playback-is-playing: PlayerIconButton { label: "||"; active: true; clicked => { root.playback-pause-requested(); } }
+                                if !root.playback-is-playing: PlayerIconButton { label: ">"; active: true; clicked => { root.playback-resume-requested(); } }
+                                PlayerIconButton { label: ">>"; clicked => { root.playback-next-requested(); } }
+                                PlayerIconButton { label: "Shuffle"; button-width: 74px; clicked => { root.playback-shuffle-requested(); } }
+                            }
                         }
-                        Text {
-                            text: row.subtitle;
-                            color: #9ba7b5;
-                            font-size: 12px;
-                            overflow: elide;
+                        HorizontalLayout {
+                            spacing: 8px;
+                            Text { text: root.playback-elapsed-text; color: #9ba7b5; width: 42px; vertical-alignment: center; }
+                            Slider {
+                                minimum: 0;
+                                maximum: 100;
+                                value <=> root.playback-progress;
+                                released(value) => { root.playback-seek-requested(value); }
+                            }
+                            Text { text: root.playback-duration-text; color: #9ba7b5; width: 48px; vertical-alignment: center; }
                         }
                     }
                 }

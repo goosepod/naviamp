@@ -395,19 +395,19 @@ Exit criteria:
 
 Build the Slint equivalent of the current app shell.
 
-- [ ] App frame.
-- [ ] Left/nav or bottom nav variant for desktop.
-- [ ] Home route placeholder.
-- [ ] Search route.
-- [ ] Library route placeholder.
-- [ ] Playlists route placeholder.
+- [x] App frame.
+- [x] Left/nav or bottom nav variant for desktop.
+- [x] Home route placeholder.
+- [x] Search route.
+- [x] Library route placeholder.
+- [x] Playlists route placeholder.
 - [x] Internet radio route placeholder.
-- [ ] Downloads route placeholder.
-- [ ] Settings route.
-- [ ] Mini player.
-- [ ] Full player route.
-- [ ] Back/collapse behavior.
-- [ ] Route state preservation.
+- [x] Downloads route placeholder.
+- [x] Settings route.
+- [x] Mini player.
+- [x] Full player route.
+- [x] Back/collapse behavior.
+- [x] Route state preservation.
 
 Exit criteria:
 
