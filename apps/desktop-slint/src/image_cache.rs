@@ -10,6 +10,8 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 const COVER_ART_SIZE: u32 = 300;
+const APP_BACKGROUND: RgbColor = RgbColor::new(16, 17, 20);
+const ALBUM_ART_PLACEHOLDER: RgbColor = RgbColor::new(67, 83, 107);
 
 #[derive(Clone)]
 pub struct CoverArtCache {
@@ -27,6 +29,9 @@ pub struct CachedCoverArt {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CoverArtPalette {
+    pub background_start: (u8, u8, u8),
+    pub background_mid: (u8, u8, u8),
+    pub background_end: (u8, u8, u8),
     pub accent: (u8, u8, u8),
     pub surface: (u8, u8, u8),
 }
@@ -213,44 +218,350 @@ fn sample_palette(bytes: &[u8]) -> CoverArtPalette {
         return CoverArtPalette::default();
     }
 
-    let step_x = (width / 24).max(1);
-    let step_y = (height / 24).max(1);
-    let mut red: u64 = 0;
-    let mut green: u64 = 0;
-    let mut blue: u64 = 0;
-    let mut count: u64 = 0;
+    let step_x = (width / 32).max(1);
+    let step_y = (height / 32).max(1);
+    let mut buckets = HashMap::<u16, ColorBucket>::new();
     for y in (0..height).step_by(step_y as usize) {
         for x in (0..width).step_by(step_x as usize) {
             let pixel = image.get_pixel(x, y).0;
-            red += u64::from(pixel[0]);
-            green += u64::from(pixel[1]);
-            blue += u64::from(pixel[2]);
-            count += 1;
+            if pixel[3] <= 200 {
+                continue;
+            }
+
+            let hsv = rgb_to_hsv(pixel[0], pixel[1], pixel[2]);
+            if hsv.saturation <= 0.06 || !(0.12..=0.96).contains(&hsv.value) {
+                continue;
+            }
+
+            let key = (u16::from(pixel[0] / 32) << 10)
+                | (u16::from(pixel[1] / 32) << 5)
+                | u16::from(pixel[2] / 32);
+            buckets.entry(key).or_default().add(
+                pixel[0],
+                pixel[1],
+                pixel[2],
+                hsv.saturation,
+                hsv.value,
+            );
         }
     }
-    if count == 0 {
-        return CoverArtPalette::default();
-    }
 
-    let accent = (
-        ((red / count) as u8).saturating_add(24),
-        ((green / count) as u8).saturating_add(24),
-        ((blue / count) as u8).saturating_add(24),
-    );
-    let surface = (
-        ((u16::from(accent.0) * 20 / 100) as u8).max(18),
-        ((u16::from(accent.1) * 20 / 100) as u8).max(20),
-        ((u16::from(accent.2) * 20 / 100) as u8).max(24),
-    );
-    CoverArtPalette { accent, surface }
+    album_palette_from_buckets(buckets.values()).unwrap_or_default()
 }
 
 impl Default for CoverArtPalette {
     fn default() -> Self {
+        player_palette_from_album_palette(AlbumPalette::fallback(ALBUM_ART_PLACEHOLDER))
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+struct AlbumPalette {
+    primary: RgbColor,
+    secondary: RgbColor,
+    accent: RgbColor,
+}
+
+impl AlbumPalette {
+    fn fallback(color: RgbColor) -> Self {
         Self {
-            accent: (127, 199, 232),
-            surface: (21, 25, 31),
+            primary: color,
+            secondary: color.mix(RgbColor::new(124, 18, 50), 0.45),
+            accent: color,
         }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+struct ColorBucket {
+    red: u64,
+    green: u64,
+    blue: u64,
+    saturation: f64,
+    brightness: f64,
+    count: u64,
+}
+
+impl ColorBucket {
+    fn add(&mut self, red: u8, green: u8, blue: u8, saturation: f32, brightness: f32) {
+        self.red += u64::from(red);
+        self.green += u64::from(green);
+        self.blue += u64::from(blue);
+        self.saturation += f64::from(saturation);
+        self.brightness += f64::from(brightness);
+        self.count += 1;
+    }
+
+    fn color(self) -> RgbColor {
+        RgbColor::new(
+            (self.red / self.count) as u8,
+            (self.green / self.count) as u8,
+            (self.blue / self.count) as u8,
+        )
+    }
+
+    fn score(self) -> f64 {
+        let saturation_average = self.saturation_average() as f64;
+        let brightness_average = self.brightness_average() as f64;
+        let brightness_score = 1.0 - (brightness_average - 0.58).abs().min(0.58) / 0.58;
+        (self.count as f64).powf(0.55) * (saturation_average + 0.12) * (brightness_score + 0.55)
+    }
+
+    fn accent_score(self, primary: ColorBucket) -> f64 {
+        self.score()
+            * (1.0 + f64::from(self.saturation_average()))
+            * (1.0 + f64::from(self.color_distance(primary)))
+    }
+
+    fn saturation_average(self) -> f32 {
+        (self.saturation / self.count as f64) as f32
+    }
+
+    fn brightness_average(self) -> f32 {
+        (self.brightness / self.count as f64) as f32
+    }
+
+    fn hue_distance(self, other: ColorBucket) -> f32 {
+        self.color().hue_distance(other.color())
+    }
+
+    fn color_distance(self, other: ColorBucket) -> f32 {
+        self.color().color_distance(other.color())
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct RgbColor {
+    red: f32,
+    green: f32,
+    blue: f32,
+}
+
+impl RgbColor {
+    const fn new(red: u8, green: u8, blue: u8) -> Self {
+        Self {
+            red: red as f32 / 255.0,
+            green: green as f32 / 255.0,
+            blue: blue as f32 / 255.0,
+        }
+    }
+
+    fn mix(self, other: RgbColor, amount: f32) -> Self {
+        let amount = amount.clamp(0.0, 1.0);
+        Self {
+            red: self.red + (other.red - self.red) * amount,
+            green: self.green + (other.green - self.green) * amount,
+            blue: self.blue + (other.blue - self.blue) * amount,
+        }
+    }
+
+    fn shift_hue(self, amount: f32) -> Self {
+        let hsv = rgb_to_hsv(
+            (self.red * 255.0) as u8,
+            (self.green * 255.0) as u8,
+            (self.blue * 255.0) as u8,
+        );
+        hsv_to_rgb(
+            (hsv.hue + amount).rem_euclid(1.0),
+            (hsv.saturation * 1.08).clamp(0.0, 1.0),
+            (hsv.value * 0.9).clamp(0.0, 1.0),
+        )
+    }
+
+    fn hue_distance(self, other: RgbColor) -> f32 {
+        let hsv = rgb_to_hsv(
+            (self.red * 255.0) as u8,
+            (self.green * 255.0) as u8,
+            (self.blue * 255.0) as u8,
+        );
+        let other_hsv = rgb_to_hsv(
+            (other.red * 255.0) as u8,
+            (other.green * 255.0) as u8,
+            (other.blue * 255.0) as u8,
+        );
+        let distance = (hsv.hue - other_hsv.hue).abs();
+        distance.min(1.0 - distance)
+    }
+
+    fn color_distance(self, other: RgbColor) -> f32 {
+        let red_distance = self.red - other.red;
+        let green_distance = self.green - other.green;
+        let blue_distance = self.blue - other.blue;
+        red_distance * red_distance
+            + green_distance * green_distance
+            + blue_distance * blue_distance
+    }
+
+    fn to_tuple(self) -> (u8, u8, u8) {
+        (
+            (self.red.clamp(0.0, 1.0) * 255.0).round() as u8,
+            (self.green.clamp(0.0, 1.0) * 255.0).round() as u8,
+            (self.blue.clamp(0.0, 1.0) * 255.0).round() as u8,
+        )
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+struct Hsv {
+    hue: f32,
+    saturation: f32,
+    value: f32,
+}
+
+fn album_palette_from_buckets<'a>(
+    buckets: impl Iterator<Item = &'a ColorBucket>,
+) -> Option<CoverArtPalette> {
+    let mut candidates = buckets
+        .copied()
+        .filter(|bucket| bucket.count >= 2)
+        .collect::<Vec<_>>();
+    candidates.sort_by(|left, right| right.score().total_cmp(&left.score()));
+
+    let primary = candidates.first().copied()?;
+    let secondary = candidates
+        .iter()
+        .copied()
+        .find(|candidate| primary.color_distance(*candidate) > 0.045)
+        .or_else(|| {
+            candidates
+                .iter()
+                .copied()
+                .find(|candidate| primary.hue_distance(*candidate) > 0.08)
+        })
+        .or_else(|| candidates.get(1).copied())
+        .unwrap_or(primary);
+    let accent = candidates
+        .iter()
+        .copied()
+        .filter(|candidate| {
+            primary.color_distance(*candidate) > 0.025 || primary.hue_distance(*candidate) > 0.06
+        })
+        .max_by(|left, right| {
+            left.accent_score(primary)
+                .total_cmp(&right.accent_score(primary))
+        })
+        .unwrap_or(primary);
+
+    Some(player_palette_from_album_palette(AlbumPalette {
+        primary: primary.color(),
+        secondary: secondary.color(),
+        accent: accent.color(),
+    }))
+}
+
+fn player_palette_from_album_palette(palette: AlbumPalette) -> CoverArtPalette {
+    let secondary = if palette.primary.hue_distance(palette.secondary) < 0.08 {
+        palette.secondary.shift_hue(0.09)
+    } else {
+        palette.secondary
+    };
+    let left = palette
+        .primary
+        .mix(
+            RgbColor {
+                red: 1.0,
+                green: 1.0,
+                blue: 1.0,
+            },
+            0.03,
+        )
+        .mix(
+            RgbColor {
+                red: 0.0,
+                green: 0.0,
+                blue: 0.0,
+            },
+            0.34,
+        )
+        .mix(APP_BACKGROUND, 0.16);
+    let middle = palette
+        .accent
+        .mix(palette.primary, 0.28)
+        .mix(
+            RgbColor {
+                red: 0.0,
+                green: 0.0,
+                blue: 0.0,
+            },
+            0.42,
+        )
+        .mix(APP_BACKGROUND, 0.10);
+    let right = secondary
+        .mix(
+            RgbColor {
+                red: 0.0,
+                green: 0.0,
+                blue: 0.0,
+            },
+            0.66,
+        )
+        .mix(APP_BACKGROUND, 0.12);
+
+    CoverArtPalette {
+        background_start: left.to_tuple(),
+        background_mid: middle.to_tuple(),
+        background_end: right.to_tuple(),
+        accent: palette
+            .accent
+            .mix(
+                RgbColor {
+                    red: 1.0,
+                    green: 1.0,
+                    blue: 1.0,
+                },
+                0.08,
+            )
+            .to_tuple(),
+        surface: right.to_tuple(),
+    }
+}
+
+fn rgb_to_hsv(red: u8, green: u8, blue: u8) -> Hsv {
+    let red = f32::from(red) / 255.0;
+    let green = f32::from(green) / 255.0;
+    let blue = f32::from(blue) / 255.0;
+    let max = red.max(green).max(blue);
+    let min = red.min(green).min(blue);
+    let delta = max - min;
+    let hue = if delta == 0.0 {
+        0.0
+    } else if max == red {
+        ((green - blue) / delta).rem_euclid(6.0) / 6.0
+    } else if max == green {
+        (((blue - red) / delta) + 2.0) / 6.0
+    } else {
+        (((red - green) / delta) + 4.0) / 6.0
+    };
+    let saturation = if max == 0.0 { 0.0 } else { delta / max };
+    Hsv {
+        hue,
+        saturation,
+        value: max,
+    }
+}
+
+fn hsv_to_rgb(hue: f32, saturation: f32, value: f32) -> RgbColor {
+    let h = (hue.clamp(0.0, 1.0) * 6.0).rem_euclid(6.0);
+    let c = value * saturation;
+    let x = c * (1.0 - ((h.rem_euclid(2.0)) - 1.0).abs());
+    let m = value - c;
+    let (red, green, blue) = if h < 1.0 {
+        (c, x, 0.0)
+    } else if h < 2.0 {
+        (x, c, 0.0)
+    } else if h < 3.0 {
+        (0.0, c, x)
+    } else if h < 4.0 {
+        (0.0, x, c)
+    } else if h < 5.0 {
+        (x, 0.0, c)
+    } else {
+        (c, 0.0, x)
+    };
+    RgbColor {
+        red: red + m,
+        green: green + m,
+        blue: blue + m,
     }
 }
 
@@ -278,8 +589,11 @@ mod tests {
         assert_eq!(
             super::CoverArtPalette::default(),
             super::CoverArtPalette {
-                accent: (127, 199, 232),
-                surface: (21, 25, 31),
+                background_start: (43, 52, 65),
+                background_mid: (37, 45, 58),
+                background_end: (30, 18, 27),
+                accent: (82, 97, 119),
+                surface: (30, 18, 27),
             }
         );
     }

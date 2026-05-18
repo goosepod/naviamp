@@ -552,6 +552,22 @@ Exit criteria:
 
 - Playlist workflows reach Kotlin desktop parity.
 
+### Phase 13.5: Kotlin Visual Parity
+
+- [x] Port Kotlin album-art palette and gradient derivation into Rust.
+- [x] Apply album-art gradient to the Slint shell.
+- [x] Replace the temporary desktop sidebar with a bottom-nav shell.
+- [x] Restyle mini-player and list surfaces as translucent overlays.
+- [x] Bring Kotlin SVG icon shapes into the Rust Slint app for transport and navigation controls.
+- [ ] Port Kotlin media rows with cover thumbnails, trailing metadata, and overflow menus.
+- [ ] Rebuild now-playing layout to match Kotlin wide and narrow modes.
+- [ ] Rebuild Settings, Library, Playlists, Radio, and Home screens against shared Kotlin layout patterns.
+- [ ] Add visual regression screenshots for representative album palettes.
+
+Exit criteria:
+
+- Rust Slint screens are visually recognizable as the same Naviamp app as Kotlin.
+
 ### Phase 14: Internet Radio
 
 - [ ] Station list.

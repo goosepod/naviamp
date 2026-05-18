@@ -3962,6 +3962,9 @@ fn load_now_playing_art(
 }
 
 fn apply_player_palette(ui: &AppWindow, palette: &CoverArtPalette) {
+    ui.set_background_start(color_from_rgb(palette.background_start));
+    ui.set_background_mid(color_from_rgb(palette.background_mid));
+    ui.set_background_end(color_from_rgb(palette.background_end));
     ui.set_player_accent(color_from_rgb(palette.accent));
     ui.set_player_surface(color_from_rgb(palette.surface));
 }
