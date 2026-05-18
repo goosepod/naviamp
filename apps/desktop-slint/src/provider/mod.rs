@@ -33,6 +33,14 @@ pub trait MediaProvider {
 
     fn playlist(&self, playlist_id: &str) -> Result<PlaylistDetail>;
 
+    fn create_playlist(&self, name: &str) -> Result<Playlist>;
+
+    fn rename_playlist(&self, playlist_id: &str, name: &str) -> Result<()>;
+
+    fn delete_playlist(&self, playlist_id: &str) -> Result<()>;
+
+    fn add_to_playlist(&self, playlist_id: &str, track_ids: &[String]) -> Result<()>;
+
     fn genres(&self) -> Result<Vec<Genre>>;
 
     fn internet_radio_stations(&self) -> Result<Vec<InternetRadioStation>>;

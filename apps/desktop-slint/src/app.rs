@@ -1,6 +1,6 @@
 use crate::domain::{
     Album, AlbumDetail, AlbumListType, Artist, ArtistDetail, Genre, InternetRadioStation, Playlist,
-    SearchResults, StreamRequest, Track,
+    PlaylistDetail, SearchResults, StreamRequest, Track,
 };
 use crate::image_cache::{default_cover_art_cache, CoverArtCache, CoverArtPalette};
 use crate::library_store::{default_library_store, LibrarySnapshot, LibraryStats, LibraryStore};
@@ -36,14 +36,17 @@ struct AppState {
     search_cache: HashMap<String, SearchResults>,
     home_cache: Option<HomeContent>,
     library_index: LibraryIndex,
+    playlists: Vec<Playlist>,
     search_results: SearchResults,
     current_album_detail: Option<AlbumDetail>,
     current_artist_detail: Option<ArtistDetail>,
+    current_playlist_detail: Option<PlaylistDetail>,
     radio_stations: Vec<InternetRadioStation>,
     playback: Box<dyn PlaybackEngine>,
     latest_playback_snapshot: PlaybackSnapshot,
     current_playback: Option<CurrentPlayback>,
     queue: TrackQueue,
+    pending_playlist_add_tracks: Vec<Track>,
     playback_session_id: u64,
     visualizer: Box<dyn VisualizerBackend>,
 }
@@ -121,15 +124,18 @@ fn run_with_settings_store(settings_store: Arc<dyn SettingsStore>) -> Result<()>
                 status: "Library not synced".to_string(),
                 ..LibraryIndex::default()
             },
+            playlists: Vec::new(),
             settings,
             search_results: SearchResults::default(),
             current_album_detail: None,
             current_artist_detail: None,
+            current_playlist_detail: None,
             radio_stations: Vec::new(),
             playback: default_playback_engine(),
             latest_playback_snapshot: PlaybackSnapshot::default(),
             current_playback: None,
             queue: TrackQueue::default(),
+            pending_playlist_add_tracks: Vec::new(),
             playback_session_id: 0,
             visualizer: default_visualizer_backend(),
         })),
@@ -169,6 +175,7 @@ impl AppController {
         self.bind_now_playing_controls();
         self.bind_playback_snapshot_polling();
         self.bind_home();
+        self.bind_playlists();
         self.bind_library();
         self.bind_search();
         self.bind_radio();
@@ -849,6 +856,250 @@ impl AppController {
         }
     }
 
+    fn bind_playlists(&self) {
+        let ui_weak = self.ui.as_weak();
+        let state = Arc::clone(&self.state);
+        let worker = self.worker.clone();
+        self.ui.on_playlists_refresh_requested(move || {
+            submit_playlists_load(&ui_weak, &state, &worker);
+        });
+
+        let ui_weak = self.ui.as_weak();
+        let state = Arc::clone(&self.state);
+        let worker = self.worker.clone();
+        self.ui.on_playlist_create_requested(move |name| {
+            let name = name.trim().to_string();
+            if name.is_empty() {
+                if let Some(ui) = ui_weak.upgrade() {
+                    ui.set_status_text("Enter a playlist name".into());
+                }
+                return;
+            }
+            let source = match active_source_from_state(&state) {
+                Ok(source) => source,
+                Err(error) => {
+                    if let Some(ui) = ui_weak.upgrade() {
+                        set_error_text(&ui, format!("Create playlist failed: {error}"));
+                    }
+                    return;
+                }
+            };
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.set_status_text(format!("Creating {name}").into());
+            }
+            let ui_weak_for_result = ui_weak.clone();
+            let state_for_result = Arc::clone(&state);
+            worker.submit(move || {
+                let result = NavidromeProvider::new(source.clone()).and_then(|provider| {
+                    provider.create_playlist(&name)?;
+                    provider.playlists()
+                });
+                slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = ui_weak_for_result.upgrade() {
+                        match result {
+                            Ok(playlists) => {
+                                if let Ok(mut state) = state_for_result.lock() {
+                                    state.playlists = playlists;
+                                    ui.set_media_rows(playlist_rows(&state.playlists));
+                                    ui.set_search_state_text(
+                                        playlist_summary(&state.playlists).into(),
+                                    );
+                                }
+                                ui.set_query(String::new().into());
+                                ui.set_status_text("Playlist created".into());
+                            }
+                            Err(error) => {
+                                set_error_text(&ui, format!("Create playlist failed: {error}"))
+                            }
+                        }
+                    }
+                })
+                .ok();
+            });
+        });
+
+        let ui_weak = self.ui.as_weak();
+        let state = Arc::clone(&self.state);
+        let worker = self.worker.clone();
+        self.ui.on_playlist_rename_requested(move |name| {
+            let name = name.trim().to_string();
+            if name.is_empty() {
+                if let Some(ui) = ui_weak.upgrade() {
+                    ui.set_status_text("Enter a new playlist name".into());
+                }
+                return;
+            }
+            let (source, playlist_id) = match current_playlist_source(&state) {
+                Ok((source, detail)) => (source, detail.playlist.id),
+                Err(error) => {
+                    if let Some(ui) = ui_weak.upgrade() {
+                        set_error_text(&ui, format!("Rename playlist failed: {error}"));
+                    }
+                    return;
+                }
+            };
+            let ui_weak_for_result = ui_weak.clone();
+            let state_for_result = Arc::clone(&state);
+            worker.submit(move || {
+                let result = NavidromeProvider::new(source).and_then(|provider| {
+                    provider.rename_playlist(&playlist_id, &name)?;
+                    provider.playlist(&playlist_id)
+                });
+                slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = ui_weak_for_result.upgrade() {
+                        match result {
+                            Ok(detail) => {
+                                if let Ok(mut state) = state_for_result.lock() {
+                                    state.current_playlist_detail = Some(detail.clone());
+                                }
+                                ui.set_detail_title(detail.playlist.name.clone().into());
+                                ui.set_detail_subtitle(playlist_detail_subtitle(&detail).into());
+                                ui.set_media_rows(playlist_detail_rows(&detail));
+                                ui.set_status_text("Playlist renamed".into());
+                            }
+                            Err(error) => {
+                                set_error_text(&ui, format!("Rename playlist failed: {error}"))
+                            }
+                        }
+                    }
+                })
+                .ok();
+            });
+        });
+
+        let ui_weak = self.ui.as_weak();
+        let state = Arc::clone(&self.state);
+        let worker = self.worker.clone();
+        let settings_store = Arc::clone(&self.settings_store);
+        self.ui.on_playlist_delete_requested(move || {
+            let (source, playlist_id) = match current_playlist_source(&state) {
+                Ok((source, detail)) => (source, detail.playlist.id),
+                Err(error) => {
+                    if let Some(ui) = ui_weak.upgrade() {
+                        set_error_text(&ui, format!("Delete playlist failed: {error}"));
+                    }
+                    return;
+                }
+            };
+            let ui_weak_for_result = ui_weak.clone();
+            let state_for_result = Arc::clone(&state);
+            let settings_store_for_result = Arc::clone(&settings_store);
+            worker.submit(move || {
+                let result = NavidromeProvider::new(source.clone()).and_then(|provider| {
+                    provider.delete_playlist(&playlist_id)?;
+                    provider.playlists()
+                });
+                slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = ui_weak_for_result.upgrade() {
+                        match result {
+                            Ok(playlists) => {
+                                if let Ok(mut state) = state_for_result.lock() {
+                                    state.playlists = playlists;
+                                    state.current_playlist_detail = None;
+                                    navigate_to_locked(
+                                        &mut state,
+                                        "playlists",
+                                        &settings_store_for_result,
+                                    );
+                                    ui.set_media_rows(playlist_rows(&state.playlists));
+                                    ui.set_search_state_text(
+                                        playlist_summary(&state.playlists).into(),
+                                    );
+                                }
+                                ui.set_current_route("playlists".into());
+                                ui.set_status_text("Playlist deleted".into());
+                            }
+                            Err(error) => {
+                                set_error_text(&ui, format!("Delete playlist failed: {error}"))
+                            }
+                        }
+                    }
+                })
+                .ok();
+            });
+        });
+
+        let ui_weak = self.ui.as_weak();
+        let state = Arc::clone(&self.state);
+        let playback_worker = self.playback_worker.clone();
+        let worker = self.worker.clone();
+        let cover_art_cache = Arc::clone(&self.cover_art_cache);
+        self.ui.on_playlist_play_requested(move || {
+            let (source, detail) = match current_playlist_source(&state) {
+                Ok(value) => value,
+                Err(error) => {
+                    if let Some(ui) = ui_weak.upgrade() {
+                        set_error_text(&ui, format!("Playlist playback failed: {error}"));
+                    }
+                    return;
+                }
+            };
+            start_tracks_from_ui(
+                &ui_weak,
+                &state,
+                &playback_worker,
+                worker.clone(),
+                Arc::clone(&cover_art_cache),
+                TrackPlaybackRequest {
+                    source,
+                    tracks: detail.tracks,
+                    start_index: 0,
+                    status_text: "Starting playlist...",
+                },
+            );
+        });
+
+        let ui_weak = self.ui.as_weak();
+        let state = Arc::clone(&self.state);
+        let worker = self.worker.clone();
+        self.ui.on_playlist_add_current_requested(move || {
+            let (source, playlist_id, tracks) = match current_playlist_add_request(&state) {
+                Ok(value) => value,
+                Err(error) => {
+                    if let Some(ui) = ui_weak.upgrade() {
+                        set_error_text(&ui, format!("Add to playlist failed: {error}"));
+                    }
+                    return;
+                }
+            };
+            let ui_weak_for_result = ui_weak.clone();
+            let state_for_result = Arc::clone(&state);
+            worker.submit(move || {
+                let track_ids = tracks
+                    .iter()
+                    .map(|track| track.id.clone())
+                    .collect::<Vec<_>>();
+                let result = NavidromeProvider::new(source).and_then(|provider| {
+                    provider.add_to_playlist(&playlist_id, &track_ids)?;
+                    provider.playlist(&playlist_id)
+                });
+                slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = ui_weak_for_result.upgrade() {
+                        match result {
+                            Ok(detail) => {
+                                if let Ok(mut state) = state_for_result.lock() {
+                                    state.current_playlist_detail = Some(detail.clone());
+                                    state.pending_playlist_add_tracks.clear();
+                                }
+                                ui.set_media_rows(playlist_detail_rows(&detail));
+                                ui.set_detail_subtitle(playlist_detail_subtitle(&detail).into());
+                                ui.set_status_text("Added to playlist".into());
+                            }
+                            Err(error) => {
+                                set_error_text(&ui, format!("Add to playlist failed: {error}"))
+                            }
+                        }
+                    }
+                })
+                .ok();
+            });
+        });
+
+        if self.ui.get_current_route().as_str() == "playlists" {
+            submit_playlists_load(&self.ui.as_weak(), &self.state, &self.worker);
+        }
+    }
+
     fn bind_library(&self) {
         let ui_weak = self.ui.as_weak();
         let state = Arc::clone(&self.state);
@@ -1048,8 +1299,132 @@ impl AppController {
         let ui_weak = self.ui.as_weak();
         let state = Arc::clone(&self.state);
         let worker = self.worker.clone();
+        let settings_store = Arc::clone(&self.settings_store);
         self.ui
             .on_row_action_requested(move |kind, index, action_label| {
+                if action_label.as_str() == "Add" {
+                    match kind.as_str() {
+                        "playlist" => {
+                            let (source, playlist, tracks) = {
+                                let state = match state.lock() {
+                                    Ok(state) => state,
+                                    Err(error) => {
+                                        if let Some(ui) = ui_weak.upgrade() {
+                                            set_error_text(
+                                                &ui,
+                                                format!("Add to playlist failed: {error}"),
+                                            );
+                                        }
+                                        return;
+                                    }
+                                };
+                                let Some(source) = state.settings.active_source() else {
+                                    return;
+                                };
+                                let Some(playlist) = state.playlists.get(index as usize).cloned()
+                                else {
+                                    return;
+                                };
+                                let tracks = if state.pending_playlist_add_tracks.is_empty() {
+                                    state
+                                        .current_playback
+                                        .as_ref()
+                                        .map(|current| vec![current.track.clone()])
+                                        .unwrap_or_default()
+                                } else {
+                                    state.pending_playlist_add_tracks.clone()
+                                };
+                                (source, playlist, tracks)
+                            };
+                            if tracks.is_empty() {
+                                if let Some(ui) = ui_weak.upgrade() {
+                                    ui.set_status_text("Choose a track first".into());
+                                }
+                                return;
+                            }
+                            let ui_weak_for_result = ui_weak.clone();
+                            let state_for_result = Arc::clone(&state);
+                            worker.submit(move || {
+                                let track_ids = tracks
+                                    .iter()
+                                    .map(|track| track.id.clone())
+                                    .collect::<Vec<_>>();
+                                let result = NavidromeProvider::new(source).and_then(|provider| {
+                                    provider.add_to_playlist(&playlist.id, &track_ids)?;
+                                    provider.playlist(&playlist.id)
+                                });
+                                slint::invoke_from_event_loop(move || {
+                                    if let Some(ui) = ui_weak_for_result.upgrade() {
+                                        match result {
+                                            Ok(detail) => {
+                                                if let Ok(mut state) = state_for_result.lock() {
+                                                    state.current_playlist_detail =
+                                                        Some(detail.clone());
+                                                    state.pending_playlist_add_tracks.clear();
+                                                }
+                                                ui.set_status_text(
+                                                    format!("Added to {}", detail.playlist.name)
+                                                        .into(),
+                                                );
+                                            }
+                                            Err(error) => set_error_text(
+                                                &ui,
+                                                format!("Add to playlist failed: {error}"),
+                                            ),
+                                        }
+                                    }
+                                })
+                                .ok();
+                            });
+                            return;
+                        }
+                        "library-track" | "playlist-track" => {
+                            let tracks_to_add = {
+                                let mut state = match state.lock() {
+                                    Ok(state) => state,
+                                    Err(error) => {
+                                        if let Some(ui) = ui_weak.upgrade() {
+                                            set_error_text(
+                                                &ui,
+                                                format!("Add to playlist failed: {error}"),
+                                            );
+                                        }
+                                        return;
+                                    }
+                                };
+                                let track = match kind.as_str() {
+                                    "library-track" => {
+                                        state.library_index.tracks.get(index as usize).cloned()
+                                    }
+                                    "playlist-track" => {
+                                        state.current_playlist_detail.as_ref().and_then(|detail| {
+                                            detail.tracks.get(index as usize).cloned()
+                                        })
+                                    }
+                                    _ => None,
+                                };
+                                let Some(track) = track else {
+                                    return;
+                                };
+                                state.pending_playlist_add_tracks = vec![track.clone()];
+                                navigate_to_locked(&mut state, "playlists", &settings_store);
+                                vec![track]
+                            };
+                            if let Some(ui) = ui_weak.upgrade() {
+                                ui.set_current_route("playlists".into());
+                                ui.set_status_text(
+                                    format!("Choose a playlist for {}", tracks_to_add[0].title)
+                                        .into(),
+                                );
+                                restore_route_rows(&ui, &state);
+                            }
+                            submit_playlists_load(&ui_weak, &state, &worker);
+                            return;
+                        }
+                        _ => {}
+                    }
+                }
+
                 if kind.as_str() != "track" {
                     if let Some(ui) = ui_weak.upgrade() {
                         ui.set_status_text("Open the row for more options".into());
@@ -1451,16 +1826,65 @@ impl AppController {
                     return;
                 }
                 "home-playlist" => {
-                    let playlist = state
-                        .lock()
-                        .ok()
-                        .and_then(|state| state.home_cache.clone())
-                        .and_then(|content| content.playlists.get(index as usize).cloned());
-                    if let (Some(ui), Some(playlist)) = (ui_weak.upgrade(), playlist) {
-                        ui.set_status_text(
-                            format!("Playlist detail comes in Phase 13: {}", playlist.name).into(),
-                        );
-                    }
+                    let (source, playlist) = {
+                        let state = match state.lock() {
+                            Ok(state) => state,
+                            Err(error) => {
+                                if let Some(ui) = ui_weak.upgrade() {
+                                    set_error_text(&ui, format!("Playlist failed: {error}"));
+                                }
+                                return;
+                            }
+                        };
+                        let playlist = state
+                            .home_cache
+                            .as_ref()
+                            .and_then(|content| content.playlists.get(index as usize).cloned());
+                        let Some(playlist) = playlist else {
+                            return;
+                        };
+                        let Some(source) = state.settings.active_source() else {
+                            return;
+                        };
+                        (source, playlist)
+                    };
+                    submit_playlist_detail_load(
+                        &ui_weak,
+                        &state,
+                        &worker,
+                        Arc::clone(&settings_store),
+                        source,
+                        playlist,
+                    );
+                    return;
+                }
+                "playlist" => {
+                    let (source, playlist) = {
+                        let state = match state.lock() {
+                            Ok(state) => state,
+                            Err(error) => {
+                                if let Some(ui) = ui_weak.upgrade() {
+                                    set_error_text(&ui, format!("Playlist failed: {error}"));
+                                }
+                                return;
+                            }
+                        };
+                        let Some(playlist) = state.playlists.get(index as usize).cloned() else {
+                            return;
+                        };
+                        let Some(source) = state.settings.active_source() else {
+                            return;
+                        };
+                        (source, playlist)
+                    };
+                    submit_playlist_detail_load(
+                        &ui_weak,
+                        &state,
+                        &worker,
+                        Arc::clone(&settings_store),
+                        source,
+                        playlist,
+                    );
                     return;
                 }
                 "library-artist" => {
@@ -1765,6 +2189,40 @@ impl AppController {
                         })
                         .ok();
                     });
+                    return;
+                }
+                "playlist-track" => {
+                    let (source, tracks) = {
+                        let state = match state.lock() {
+                            Ok(state) => state,
+                            Err(error) => {
+                                if let Some(ui) = ui_weak.upgrade() {
+                                    set_error_text(&ui, format!("Playback failed: {error}"));
+                                }
+                                return;
+                            }
+                        };
+                        let Some(source) = state.settings.active_source() else {
+                            return;
+                        };
+                        let Some(detail) = state.current_playlist_detail.as_ref() else {
+                            return;
+                        };
+                        (source, detail.tracks.clone())
+                    };
+                    start_tracks_from_ui(
+                        &ui_weak,
+                        &state,
+                        &playback_worker,
+                        worker.clone(),
+                        Arc::clone(&cover_art_cache),
+                        TrackPlaybackRequest {
+                            source,
+                            tracks,
+                            start_index: index as usize,
+                            status_text: "Starting playlist track...",
+                        },
+                    );
                     return;
                 }
                 "track" => {}
@@ -2237,6 +2695,92 @@ fn load_home_content(source: SavedMediaSource) -> Result<HomeContent> {
     })
 }
 
+fn submit_playlists_load(
+    ui_weak: &Weak<AppWindow>,
+    state: &Arc<Mutex<AppState>>,
+    worker: &BackgroundWorker,
+) {
+    let source = match active_source_from_state(state) {
+        Ok(source) => source,
+        Err(error) => {
+            if let Some(ui) = ui_weak.upgrade() {
+                set_error_text(&ui, format!("Playlists failed: {error}"));
+            }
+            return;
+        }
+    };
+    if let Some(ui) = ui_weak.upgrade() {
+        ui.set_search_state_text("Loading playlists...".into());
+        ui.set_status_text("Loading playlists...".into());
+    }
+    let ui_weak_for_result = ui_weak.clone();
+    let state_for_result = Arc::clone(state);
+    worker.submit(move || {
+        let result = NavidromeProvider::new(source).and_then(|provider| provider.playlists());
+        slint::invoke_from_event_loop(move || {
+            if let Some(ui) = ui_weak_for_result.upgrade() {
+                match result {
+                    Ok(playlists) => {
+                        if let Ok(mut state) = state_for_result.lock() {
+                            state.playlists = playlists;
+                            ui.set_media_rows(playlist_rows(&state.playlists));
+                            ui.set_search_state_text(playlist_summary(&state.playlists).into());
+                        }
+                        ui.set_status_text("Playlists loaded".into());
+                    }
+                    Err(error) => {
+                        ui.set_search_state_text("Playlists failed".into());
+                        set_error_text(&ui, format!("Playlists failed: {error}"));
+                    }
+                }
+            }
+        })
+        .ok();
+    });
+}
+
+fn submit_playlist_detail_load(
+    ui_weak: &Weak<AppWindow>,
+    state: &Arc<Mutex<AppState>>,
+    worker: &BackgroundWorker,
+    settings_store: Arc<dyn SettingsStore>,
+    source: SavedMediaSource,
+    playlist: Playlist,
+) {
+    if let Some(ui) = ui_weak.upgrade() {
+        ui.set_status_text(format!("Opening {}", playlist.name).into());
+    }
+    let ui_weak_for_result = ui_weak.clone();
+    let state_for_result = Arc::clone(state);
+    worker.submit(move || {
+        let result =
+            NavidromeProvider::new(source).and_then(|provider| provider.playlist(&playlist.id));
+        slint::invoke_from_event_loop(move || {
+            if let Some(ui) = ui_weak_for_result.upgrade() {
+                match result {
+                    Ok(detail) => {
+                        if let Ok(mut state) = state_for_result.lock() {
+                            state.current_playlist_detail = Some(detail.clone());
+                            navigate_to_locked(&mut state, "playlist-detail", &settings_store);
+                        }
+                        ui.set_media_rows(playlist_detail_rows(&detail));
+                        ui.set_detail_title(detail.playlist.name.clone().into());
+                        ui.set_detail_subtitle(playlist_detail_subtitle(&detail).into());
+                        ui.set_query(detail.playlist.name.clone().into());
+                        ui.set_current_route("playlist-detail".into());
+                        ui.set_status_text(
+                            format!("{} tracks in {}", detail.tracks.len(), detail.playlist.name)
+                                .into(),
+                        );
+                    }
+                    Err(error) => set_error_text(&ui, format!("Playlist failed: {error}")),
+                }
+            }
+        })
+        .ok();
+    });
+}
+
 fn submit_library_sync(
     ui_weak: &Weak<AppWindow>,
     state: &Arc<Mutex<AppState>>,
@@ -2447,7 +2991,7 @@ fn library_rows(index: &LibraryIndex) -> ModelRc<MediaRow> {
             subtitle: SharedString::from(track.subtitle()),
             source_index: source_index as i32,
             is_header: false,
-            action_label: SharedString::new(),
+            action_label: SharedString::from("Add"),
         }));
     }
 
@@ -2685,6 +3229,73 @@ fn home_album(content: &HomeContent, index: usize) -> Option<Album> {
         .cloned()
 }
 
+fn playlist_rows(playlists: &[Playlist]) -> ModelRc<MediaRow> {
+    let rows = if playlists.is_empty() {
+        vec![home_header("No playlists", 0)]
+    } else {
+        playlists
+            .iter()
+            .enumerate()
+            .map(|(index, playlist)| MediaRow {
+                kind: SharedString::from("playlist"),
+                title: SharedString::from(playlist.name.as_str()),
+                subtitle: SharedString::from(playlist_subtitle(playlist)),
+                source_index: index as i32,
+                is_header: false,
+                action_label: SharedString::from("Add"),
+            })
+            .collect::<Vec<_>>()
+    };
+    ModelRc::new(VecModel::from(rows))
+}
+
+fn playlist_detail_rows(detail: &PlaylistDetail) -> ModelRc<MediaRow> {
+    let mut rows = vec![home_header(
+        format!("{} tracks", detail.tracks.len()),
+        detail.tracks.len(),
+    )];
+    rows.extend(
+        detail
+            .tracks
+            .iter()
+            .enumerate()
+            .map(|(index, track)| MediaRow {
+                kind: SharedString::from("playlist-track"),
+                title: SharedString::from(track.title.as_str()),
+                subtitle: SharedString::from(track.subtitle()),
+                source_index: index as i32,
+                is_header: false,
+                action_label: SharedString::from("Add"),
+            }),
+    );
+    ModelRc::new(VecModel::from(rows))
+}
+
+fn playlist_summary(playlists: &[Playlist]) -> String {
+    match playlists.len() {
+        0 => "No playlists".to_string(),
+        1 => "1 playlist".to_string(),
+        count => format!("{count} playlists"),
+    }
+}
+
+fn playlist_subtitle(playlist: &Playlist) -> String {
+    format!(
+        "{} tracks - {} - {}",
+        playlist.song_count,
+        playlist.owner,
+        format_seconds(f64::from(playlist.duration_seconds))
+    )
+}
+
+fn playlist_detail_subtitle(detail: &PlaylistDetail) -> String {
+    format!(
+        "{} tracks - {}",
+        detail.tracks.len(),
+        format_seconds(f64::from(detail.playlist.duration_seconds))
+    )
+}
+
 fn spotlight_decade(tracks: &[Track]) -> Option<u32> {
     let mut counts = HashMap::<u32, usize>::new();
     for decade in tracks
@@ -2817,6 +3428,50 @@ fn detail_artist_source(state: &Arc<Mutex<AppState>>) -> Result<(SavedMediaSourc
         .clone()
         .ok_or_else(|| anyhow::anyhow!("no artist selected"))?;
     Ok((source, artist))
+}
+
+fn current_playlist_source(
+    state: &Arc<Mutex<AppState>>,
+) -> Result<(SavedMediaSource, PlaylistDetail)> {
+    let state = state
+        .lock()
+        .map_err(|error| anyhow::anyhow!(error.to_string()))?;
+    let source = state
+        .settings
+        .active_source()
+        .ok_or_else(|| anyhow::anyhow!("no active source"))?;
+    let playlist = state
+        .current_playlist_detail
+        .clone()
+        .ok_or_else(|| anyhow::anyhow!("no playlist selected"))?;
+    Ok((source, playlist))
+}
+
+fn current_playlist_add_request(
+    state: &Arc<Mutex<AppState>>,
+) -> Result<(SavedMediaSource, String, Vec<Track>)> {
+    let state = state
+        .lock()
+        .map_err(|error| anyhow::anyhow!(error.to_string()))?;
+    let source = state
+        .settings
+        .active_source()
+        .ok_or_else(|| anyhow::anyhow!("no active source"))?;
+    let playlist_id = state
+        .current_playlist_detail
+        .as_ref()
+        .map(|detail| detail.playlist.id.clone())
+        .ok_or_else(|| anyhow::anyhow!("no playlist selected"))?;
+    let tracks = if state.pending_playlist_add_tracks.is_empty() {
+        state
+            .current_playback
+            .as_ref()
+            .map(|current| vec![current.track.clone()])
+            .ok_or_else(|| anyhow::anyhow!("no current track to add"))?
+    } else {
+        state.pending_playlist_add_tracks.clone()
+    };
+    Ok((source, playlist_id, tracks))
 }
 
 fn album_radio_tracks(source: SavedMediaSource, album: &AlbumDetail) -> Result<Vec<Track>> {
@@ -3163,6 +3818,10 @@ fn restore_route_rows(ui: &AppWindow, state: &Arc<Mutex<AppState>>) {
             ui.set_media_rows(library_rows(&state.library_index));
             ui.set_search_state_text(library_summary(&state.library_index).into());
         }
+        "playlists" => {
+            ui.set_media_rows(playlist_rows(&state.playlists));
+            ui.set_search_state_text(playlist_summary(&state.playlists).into());
+        }
         "search" => ui.set_media_rows(search_rows(&state.search_results)),
         "album-detail" => {
             if let Some(detail) = state.current_album_detail.as_ref() {
@@ -3178,6 +3837,13 @@ fn restore_route_rows(ui: &AppWindow, state: &Arc<Mutex<AppState>>) {
                 ui.set_media_rows(artist_detail_rows(detail));
                 ui.set_detail_title(detail.artist.name.clone().into());
                 ui.set_detail_subtitle(format!("{} albums", detail.albums.len()).into());
+            }
+        }
+        "playlist-detail" => {
+            if let Some(detail) = state.current_playlist_detail.as_ref() {
+                ui.set_media_rows(playlist_detail_rows(detail));
+                ui.set_detail_title(detail.playlist.name.clone().into());
+                ui.set_detail_subtitle(playlist_detail_subtitle(detail).into());
             }
         }
         "radio" => ui.set_media_rows(radio_rows(&state.radio_stations)),

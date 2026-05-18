@@ -533,14 +533,20 @@ Exit criteria:
 
 ### Phase 13: Playlists
 
-- [ ] Playlist list.
-- [ ] Playlist detail.
-- [ ] Play playlist.
-- [ ] Add to playlist dialog.
-- [ ] Create playlist.
-- [ ] Rename playlist.
-- [ ] Delete playlist.
-- [ ] Add track from row/player menus.
+- [x] Playlist list.
+- [x] Playlist detail.
+- [x] Play playlist.
+- [x] Add to playlist dialog.
+- [x] Create playlist.
+- [x] Rename playlist.
+- [x] Delete playlist.
+- [x] Add track from row/player menus.
+
+Notes:
+
+- Rust Slint now has server-backed playlist list/detail flows through the provider interface.
+- Navidrome playlist mutations use Subsonic `createPlaylist`, `updatePlaylist`, and `deletePlaylist`.
+- Add-to-playlist is implemented as a lightweight target-picking workflow: row/player actions stage tracks, then playlist rows accept the add action.
 
 Exit criteria:
 

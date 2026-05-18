@@ -123,6 +123,12 @@ export component AppWindow inherits Window {
     callback home-requested();
     callback home-library-radio-requested();
     callback home-random-album-radio-requested();
+    callback playlists-refresh-requested();
+    callback playlist-create-requested(string);
+    callback playlist-rename-requested(string);
+    callback playlist-delete-requested();
+    callback playlist-play-requested();
+    callback playlist-add-current-requested();
     callback library-sync-requested();
     callback library-clear-requested();
     callback library-filter-requested(string);
@@ -289,6 +295,7 @@ export component AppWindow inherits Window {
                             root.current-route == "radio" ? "Internet Radio" :
                             root.current-route == "library" ? "Library" :
                             root.current-route == "playlists" ? "Playlists" :
+                            root.current-route == "playlist-detail" ? "Playlist" :
                             root.current-route == "downloads" ? "Downloads" :
                             root.current-route == "settings" ? "Settings" :
                             root.current-route == "home" ? "Home" : "Search";
@@ -725,7 +732,112 @@ export component AppWindow inherits Window {
                     }
                 }
 
-                if root.current-route == "playlists" || root.current-route == "downloads": Rectangle {
+                if root.current-route == "playlists": VerticalLayout {
+                    spacing: 10px;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        LineEdit {
+                            text <=> root.query;
+                            placeholder-text: "New playlist name";
+                            accepted => { root.playlist-create-requested(root.query); }
+                        }
+                        Button { text: "Create"; clicked => { root.playlist-create-requested(root.query); } }
+                        Button { text: "Refresh"; clicked => { root.playlists-refresh-requested(); } }
+                    }
+                    if root.search-state-text != "": Text {
+                        text: root.search-state-text;
+                        color: #9ba7b5;
+                        font-size: 13px;
+                    }
+                    Rectangle {
+                        border-color: #2b3038;
+                        border-width: 1px;
+                        border-radius: 6px;
+                        background: #171a1f;
+
+                        ListView {
+                            for row in root.media-rows: Rectangle {
+                                height: row.is_header ? 34px : 58px;
+                                background: row.is_header ? #121821 : playlist-row-touch.pressed ? #263241 : playlist-row-touch.has-hover ? #202833 : #171a1f;
+                                playlist-row-touch := TouchArea {
+                                    clicked => { root.row-activated(row.kind, row.source_index); }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 12px;
+                                    padding-right: 8px;
+                                    padding-top: row.is_header ? 6px : 8px;
+                                    spacing: 8px;
+                                    VerticalLayout {
+                                        spacing: 3px;
+                                        Text { text: row.title; color: row.is_header ? #7fc7e8 : #f5f7fb; font-size: row.is_header ? 12px : 15px; font-weight: row.is_header ? 700 : 400; overflow: elide; }
+                                        if !row.is_header: Text { text: row.subtitle; color: #9ba7b5; font-size: 12px; overflow: elide; }
+                                    }
+                                    if row.action_label != "": Button {
+                                        text: row.action_label;
+                                        clicked => { root.row-action-requested(row.kind, row.source_index, row.action_label); }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if root.current-route == "playlist-detail": VerticalLayout {
+                    spacing: 10px;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        VerticalLayout {
+                            spacing: 3px;
+                            Text { text: root.detail-title; color: #f5f7fb; font-size: 20px; font-weight: 700; overflow: elide; }
+                            Text { text: root.detail-subtitle; color: #9ba7b5; font-size: 13px; overflow: elide; }
+                        }
+                        Button { text: "Play Playlist"; clicked => { root.playlist-play-requested(); } }
+                        Button { text: "Add Current"; clicked => { root.playlist-add-current-requested(); } }
+                        Button { text: "Rename"; clicked => { root.playlist-rename-requested(root.query); } }
+                        Button { text: "Delete"; clicked => { root.playlist-delete-requested(); } }
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        LineEdit {
+                            text <=> root.query;
+                            placeholder-text: "Playlist name";
+                            accepted => { root.playlist-rename-requested(root.query); }
+                        }
+                    }
+                    Rectangle {
+                        border-color: #2b3038;
+                        border-width: 1px;
+                        border-radius: 6px;
+                        background: #171a1f;
+
+                        ListView {
+                            for row in root.media-rows: Rectangle {
+                                height: row.is_header ? 34px : 58px;
+                                background: row.is_header ? #121821 : playlist-detail-row-touch.pressed ? #263241 : playlist-detail-row-touch.has-hover ? #202833 : #171a1f;
+                                playlist-detail-row-touch := TouchArea {
+                                    clicked => { root.row-activated(row.kind, row.source_index); }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 12px;
+                                    padding-right: 8px;
+                                    padding-top: row.is_header ? 6px : 8px;
+                                    spacing: 8px;
+                                    VerticalLayout {
+                                        spacing: 3px;
+                                        Text { text: row.title; color: row.is_header ? #7fc7e8 : #f5f7fb; font-size: row.is_header ? 12px : 15px; font-weight: row.is_header ? 700 : 400; overflow: elide; }
+                                        if !row.is_header: Text { text: row.subtitle; color: #9ba7b5; font-size: 12px; overflow: elide; }
+                                    }
+                                    if row.action_label != "": Button {
+                                        text: row.action_label;
+                                        clicked => { root.row-action-requested(row.kind, row.source_index, row.action_label); }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if root.current-route == "downloads": Rectangle {
                     border-color: #2b3038;
                     border-width: 1px;
                     border-radius: 6px;

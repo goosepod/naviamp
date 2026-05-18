@@ -241,6 +241,49 @@ impl MediaProvider for NavidromeProvider {
         Ok(parse_playlist_detail(playlist))
     }
 
+    fn create_playlist(&self, name: &str) -> Result<Playlist> {
+        let response = self.request_json_with_params("createPlaylist.view", &[("name", name)])?;
+        let root = Self::response_root(&response)?;
+        let playlist = root
+            .get("playlist")
+            .and_then(parse_playlist_summary)
+            .unwrap_or_else(|| Playlist {
+                id: String::new(),
+                name: name.to_string(),
+                owner: String::new(),
+                song_count: 0,
+                duration_seconds: 0,
+            });
+        Ok(playlist)
+    }
+
+    fn rename_playlist(&self, playlist_id: &str, name: &str) -> Result<()> {
+        let response = self.request_json_with_params(
+            "updatePlaylist.view",
+            &[("playlistId", playlist_id), ("name", name)],
+        )?;
+        Self::response_root(&response)?;
+        Ok(())
+    }
+
+    fn delete_playlist(&self, playlist_id: &str) -> Result<()> {
+        let response =
+            self.request_json_with_params("deletePlaylist.view", &[("id", playlist_id)])?;
+        Self::response_root(&response)?;
+        Ok(())
+    }
+
+    fn add_to_playlist(&self, playlist_id: &str, track_ids: &[String]) -> Result<()> {
+        for track_id in track_ids {
+            let response = self.request_json_with_params(
+                "updatePlaylist.view",
+                &[("playlistId", playlist_id), ("songIdToAdd", track_id)],
+            )?;
+            Self::response_root(&response)?;
+        }
+        Ok(())
+    }
+
     fn genres(&self) -> Result<Vec<Genre>> {
         let response = self.request_json("getGenres.view")?;
         let root = Self::response_root(&response)?;
