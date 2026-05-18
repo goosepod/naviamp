@@ -17,6 +17,7 @@ pub enum AlbumListType {
     Random,
     Frequent,
     Recent,
+    AlphabeticalByName,
 }
 
 impl AlbumListType {
@@ -26,6 +27,7 @@ impl AlbumListType {
             Self::Random => "random",
             Self::Frequent => "frequent",
             Self::Recent => "recent",
+            Self::AlphabeticalByName => "alphabeticalByName",
         }
     }
 }

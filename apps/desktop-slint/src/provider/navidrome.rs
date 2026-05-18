@@ -153,6 +153,16 @@ impl MediaProvider for NavidromeProvider {
         })
     }
 
+    fn artists(&self) -> Result<Vec<Artist>> {
+        let response = self.request_json("getArtists.view")?;
+        let root = Self::response_root(&response)?;
+        let artists = root
+            .get("artists")
+            .ok_or_else(|| anyhow!("missing artists"))?;
+
+        Ok(parse_artist_indexes(artists))
+    }
+
     fn album(&self, album_id: &str) -> Result<AlbumDetail> {
         let response = self.request_json_with_params("getAlbum.view", &[("id", album_id)])?;
         let root = Self::response_root(&response)?;
@@ -162,10 +172,24 @@ impl MediaProvider for NavidromeProvider {
     }
 
     fn album_list(&self, list_type: AlbumListType, count: u32) -> Result<Vec<Album>> {
+        self.album_list_paged(list_type, count, 0)
+    }
+
+    fn album_list_paged(
+        &self,
+        list_type: AlbumListType,
+        count: u32,
+        offset: u32,
+    ) -> Result<Vec<Album>> {
         let count = count.to_string();
+        let offset = offset.to_string();
         let response = self.request_json_with_params(
             "getAlbumList2.view",
-            &[("type", list_type.as_subsonic_type()), ("size", &count)],
+            &[
+                ("type", list_type.as_subsonic_type()),
+                ("size", &count),
+                ("offset", &offset),
+            ],
         )?;
         let root = Self::response_root(&response)?;
         let album_list = root
@@ -390,6 +414,14 @@ fn parse_artist_summary(artist: &serde_json::Value) -> Option<Artist> {
             .unwrap_or("Unknown Artist")
             .to_string(),
     })
+}
+
+fn parse_artist_indexes(artists: &serde_json::Value) -> Vec<Artist> {
+    json_array(artists, "index")
+        .into_iter()
+        .flat_map(|index| json_array(&index, "artist"))
+        .filter_map(|artist| parse_artist_summary(&artist))
+        .collect()
 }
 
 fn parse_album_summary(album: &serde_json::Value) -> Option<Album> {

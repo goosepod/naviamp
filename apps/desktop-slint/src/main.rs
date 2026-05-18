@@ -6,6 +6,7 @@
 mod app;
 mod domain;
 mod image_cache;
+mod library_store;
 mod playback;
 mod provider;
 mod queue;

@@ -515,17 +515,17 @@ Exit criteria:
 
 ### Phase 12: Library Index And Browse
 
-- [ ] Library sync job.
-- [ ] Index artists.
-- [ ] Index paged albums.
-- [ ] Index album tracks.
-- [ ] Sync progress state.
-- [ ] Local artist browse.
-- [ ] Local album browse.
-- [ ] Local track search.
-- [ ] A-Z jump rail equivalent.
-- [ ] Manual refresh.
-- [ ] Clear local index.
+- [x] Library sync job.
+- [x] Index artists.
+- [x] Index paged albums.
+- [x] Index album tracks.
+- [x] Sync progress state.
+- [x] Local artist browse.
+- [x] Local album browse.
+- [x] Local track search.
+- [x] A-Z jump rail equivalent.
+- [x] Manual refresh.
+- [x] Clear local index.
 
 Exit criteria:
 

@@ -12,9 +12,18 @@ pub trait MediaProvider {
 
     fn search(&self, query: &str) -> Result<SearchResults>;
 
+    fn artists(&self) -> Result<Vec<crate::domain::Artist>>;
+
     fn album(&self, album_id: &str) -> Result<AlbumDetail>;
 
     fn album_list(&self, list_type: AlbumListType, count: u32) -> Result<Vec<Album>>;
+
+    fn album_list_paged(
+        &self,
+        list_type: AlbumListType,
+        count: u32,
+        offset: u32,
+    ) -> Result<Vec<Album>>;
 
     fn artist(&self, artist_id: &str) -> Result<ArtistDetail>;
 

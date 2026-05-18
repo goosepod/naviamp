@@ -123,6 +123,10 @@ export component AppWindow inherits Window {
     callback home-requested();
     callback home-library-radio-requested();
     callback home-random-album-radio-requested();
+    callback library-sync-requested();
+    callback library-clear-requested();
+    callback library-filter-requested(string);
+    callback library-letter-requested(string);
     callback search-requested(string);
     callback radio-requested();
     callback row-activated(string, int);
@@ -642,7 +646,86 @@ export component AppWindow inherits Window {
                     }
                 }
 
-                if root.current-route == "library" || root.current-route == "playlists" || root.current-route == "downloads": Rectangle {
+                if root.current-route == "library": VerticalLayout {
+                    spacing: 10px;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        LineEdit {
+                            text <=> root.query;
+                            placeholder-text: "Filter local library";
+                            accepted => { root.library-filter-requested(root.query); }
+                        }
+                        Button { text: "Filter"; clicked => { root.library-filter-requested(root.query); } }
+                        Button { text: "Sync"; clicked => { root.library-sync-requested(); } }
+                        Button { text: "Clear"; clicked => { root.library-clear-requested(); } }
+                    }
+                    HorizontalLayout {
+                        spacing: 4px;
+                        Button { text: "All"; clicked => { root.library-letter-requested(""); } }
+                        Button { text: "0-9"; clicked => { root.library-letter-requested("0-9"); } }
+                        Button { text: "#"; clicked => { root.library-letter-requested("#"); } }
+                        Button { text: "A"; clicked => { root.library-letter-requested("A"); } }
+                        Button { text: "B"; clicked => { root.library-letter-requested("B"); } }
+                        Button { text: "C"; clicked => { root.library-letter-requested("C"); } }
+                        Button { text: "D"; clicked => { root.library-letter-requested("D"); } }
+                        Button { text: "E"; clicked => { root.library-letter-requested("E"); } }
+                        Button { text: "F"; clicked => { root.library-letter-requested("F"); } }
+                        Button { text: "G"; clicked => { root.library-letter-requested("G"); } }
+                        Button { text: "H"; clicked => { root.library-letter-requested("H"); } }
+                        Button { text: "I"; clicked => { root.library-letter-requested("I"); } }
+                        Button { text: "J"; clicked => { root.library-letter-requested("J"); } }
+                        Button { text: "K"; clicked => { root.library-letter-requested("K"); } }
+                        Button { text: "L"; clicked => { root.library-letter-requested("L"); } }
+                        Button { text: "M"; clicked => { root.library-letter-requested("M"); } }
+                        Button { text: "N"; clicked => { root.library-letter-requested("N"); } }
+                        Button { text: "O"; clicked => { root.library-letter-requested("O"); } }
+                        Button { text: "P"; clicked => { root.library-letter-requested("P"); } }
+                        Button { text: "Q"; clicked => { root.library-letter-requested("Q"); } }
+                        Button { text: "R"; clicked => { root.library-letter-requested("R"); } }
+                        Button { text: "S"; clicked => { root.library-letter-requested("S"); } }
+                        Button { text: "T"; clicked => { root.library-letter-requested("T"); } }
+                        Button { text: "U"; clicked => { root.library-letter-requested("U"); } }
+                        Button { text: "V"; clicked => { root.library-letter-requested("V"); } }
+                        Button { text: "W"; clicked => { root.library-letter-requested("W"); } }
+                        Button { text: "X"; clicked => { root.library-letter-requested("X"); } }
+                        Button { text: "Y"; clicked => { root.library-letter-requested("Y"); } }
+                        Button { text: "Z"; clicked => { root.library-letter-requested("Z"); } }
+                    }
+                    if root.search-state-text != "": Text {
+                        text: root.search-state-text;
+                        color: #9ba7b5;
+                        font-size: 13px;
+                    }
+                    Rectangle {
+                        border-color: #2b3038;
+                        border-width: 1px;
+                        border-radius: 6px;
+                        background: #171a1f;
+
+                        ListView {
+                            for row in root.media-rows: Rectangle {
+                                height: row.is_header ? 34px : 58px;
+                                background: row.is_header ? #121821 : library-row-touch.pressed ? #263241 : library-row-touch.has-hover ? #202833 : #171a1f;
+                                library-row-touch := TouchArea {
+                                    clicked => { root.row-activated(row.kind, row.source_index); }
+                                }
+                                HorizontalLayout {
+                                    padding-left: 12px;
+                                    padding-right: 8px;
+                                    padding-top: row.is_header ? 6px : 8px;
+                                    spacing: 8px;
+                                    VerticalLayout {
+                                        spacing: 3px;
+                                        Text { text: row.title; color: row.is_header ? #7fc7e8 : #f5f7fb; font-size: row.is_header ? 12px : 15px; font-weight: row.is_header ? 700 : 400; overflow: elide; }
+                                        if !row.is_header: Text { text: row.subtitle; color: #9ba7b5; font-size: 12px; overflow: elide; }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if root.current-route == "playlists" || root.current-route == "downloads": Rectangle {
                     border-color: #2b3038;
                     border-width: 1px;
                     border-radius: 6px;

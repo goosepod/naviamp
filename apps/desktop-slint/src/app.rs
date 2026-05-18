@@ -1,8 +1,9 @@
 use crate::domain::{
-    Album, AlbumDetail, AlbumListType, ArtistDetail, Genre, InternetRadioStation, Playlist,
+    Album, AlbumDetail, AlbumListType, Artist, ArtistDetail, Genre, InternetRadioStation, Playlist,
     SearchResults, StreamRequest, Track,
 };
 use crate::image_cache::{default_cover_art_cache, CoverArtCache, CoverArtPalette};
+use crate::library_store::{default_library_store, LibrarySnapshot, LibraryStats, LibraryStore};
 use crate::playback::{default_playback_engine, PlaybackEngine, PlaybackSnapshot};
 use crate::provider::navidrome::NavidromeProvider;
 use crate::provider::MediaProvider;
@@ -34,6 +35,7 @@ struct AppState {
     route_history: Vec<String>,
     search_cache: HashMap<String, SearchResults>,
     home_cache: Option<HomeContent>,
+    library_index: LibraryIndex,
     search_results: SearchResults,
     current_album_detail: Option<AlbumDetail>,
     current_artist_detail: Option<ArtistDetail>,
@@ -61,6 +63,20 @@ struct HomeContent {
     playlists: Vec<Playlist>,
     genres: Vec<Genre>,
     spotlight_tracks: Vec<Track>,
+}
+
+#[derive(Clone, Debug, Default)]
+struct LibraryIndex {
+    source_id: Option<String>,
+    artists: Vec<Artist>,
+    albums: Vec<Album>,
+    tracks: Vec<Track>,
+    filter: String,
+    synced_artist_count: usize,
+    synced_album_count: usize,
+    synced_track_count: usize,
+    status: String,
+    is_synced: bool,
 }
 
 struct TrackPlaybackRequest {
@@ -101,6 +117,10 @@ fn run_with_settings_store(settings_store: Arc<dyn SettingsStore>) -> Result<()>
             route_history: Vec::new(),
             search_cache: HashMap::new(),
             home_cache: None,
+            library_index: LibraryIndex {
+                status: "Library not synced".to_string(),
+                ..LibraryIndex::default()
+            },
             settings,
             search_results: SearchResults::default(),
             current_album_detail: None,
@@ -118,6 +138,7 @@ fn run_with_settings_store(settings_store: Arc<dyn SettingsStore>) -> Result<()>
         playback_worker: BackgroundWorker::new("naviamp-playback"),
         playback_timer: Timer::default(),
         cover_art_cache: Arc::new(default_cover_art_cache()?),
+        library_store: Arc::new(default_library_store()?),
     };
     controller.bind();
 
@@ -134,6 +155,7 @@ struct AppController {
     playback_worker: BackgroundWorker,
     playback_timer: Timer,
     cover_art_cache: Arc<CoverArtCache>,
+    library_store: Arc<LibraryStore>,
 }
 
 impl AppController {
@@ -147,6 +169,7 @@ impl AppController {
         self.bind_now_playing_controls();
         self.bind_playback_snapshot_polling();
         self.bind_home();
+        self.bind_library();
         self.bind_search();
         self.bind_radio();
         self.bind_row_actions();
@@ -186,6 +209,7 @@ impl AppController {
         let ui_weak = self.ui.as_weak();
         let state = Arc::clone(&self.state);
         let settings_store = Arc::clone(&self.settings_store);
+        let library_store = Arc::clone(&self.library_store);
         let ui_weak_for_route = ui_weak.clone();
         self.ui.on_route_requested(move |route| {
             if let Ok(mut state) = state.lock() {
@@ -195,6 +219,9 @@ impl AppController {
                     state.route_history.push(previous);
                 }
                 state.settings.app.last_route = route.to_string();
+                if route == "library" {
+                    refresh_library_index_from_store(&mut state, &library_store);
+                }
                 let _ = settings_store.save(&state.settings);
             }
             if let Some(ui) = ui_weak_for_route.upgrade() {
@@ -204,6 +231,7 @@ impl AppController {
 
         let state = Arc::clone(&self.state);
         let settings_store = Arc::clone(&self.settings_store);
+        let library_store = Arc::clone(&self.library_store);
         self.ui.on_back_requested(move || {
             if let Ok(mut app_state) = state.lock() {
                 let route = app_state
@@ -211,6 +239,9 @@ impl AppController {
                     .pop()
                     .unwrap_or_else(|| "search".to_string());
                 app_state.settings.app.last_route = route.clone();
+                if route == "library" {
+                    refresh_library_index_from_store(&mut app_state, &library_store);
+                }
                 let _ = settings_store.save(&app_state.settings);
                 if let Some(ui) = ui_weak.upgrade() {
                     ui.set_current_route(route.into());
@@ -818,6 +849,71 @@ impl AppController {
         }
     }
 
+    fn bind_library(&self) {
+        let ui_weak = self.ui.as_weak();
+        let state = Arc::clone(&self.state);
+        let worker = self.worker.clone();
+        let library_store = Arc::clone(&self.library_store);
+        self.ui.on_library_sync_requested(move || {
+            submit_library_sync(&ui_weak, &state, &worker, Arc::clone(&library_store));
+        });
+
+        let ui_weak = self.ui.as_weak();
+        let state = Arc::clone(&self.state);
+        let library_store = Arc::clone(&self.library_store);
+        self.ui.on_library_clear_requested(move || {
+            if let Ok(mut state) = state.lock() {
+                if let Some(source_id) = state.library_index.source_id.as_deref() {
+                    let _ = library_store.clear_source(source_id);
+                } else if let Some(source) = state.settings.active_source() {
+                    let _ = library_store.clear_source(&source.id);
+                }
+                state.library_index = LibraryIndex {
+                    status: "Library index cleared".to_string(),
+                    ..LibraryIndex::default()
+                };
+                if let Some(ui) = ui_weak.upgrade() {
+                    ui.set_media_rows(library_rows(&state.library_index));
+                    ui.set_search_state_text(state.library_index.status.clone().into());
+                    ui.set_status_text("Library cleared".into());
+                }
+            }
+        });
+
+        let ui_weak = self.ui.as_weak();
+        let state = Arc::clone(&self.state);
+        let library_store = Arc::clone(&self.library_store);
+        self.ui.on_library_filter_requested(move |query| {
+            if let Ok(mut state) = state.lock() {
+                state.library_index.filter = query.to_string();
+                refresh_library_index_from_store(&mut state, &library_store);
+                refresh_library_ui(&ui_weak, &state);
+            }
+        });
+
+        let ui_weak = self.ui.as_weak();
+        let state = Arc::clone(&self.state);
+        let library_store = Arc::clone(&self.library_store);
+        self.ui.on_library_letter_requested(move |letter| {
+            if let Ok(mut state) = state.lock() {
+                state.library_index.filter = letter.to_string();
+                refresh_library_index_from_store(&mut state, &library_store);
+                if let Some(ui) = ui_weak.upgrade() {
+                    ui.set_query(state.library_index.filter.clone().into());
+                    ui.set_media_rows(library_rows(&state.library_index));
+                    ui.set_search_state_text(library_summary(&state.library_index).into());
+                }
+            }
+        });
+
+        if self.ui.get_current_route().as_str() == "library" {
+            if let Ok(mut state) = self.state.lock() {
+                refresh_library_index_from_store(&mut state, &self.library_store);
+                refresh_library_ui(&self.ui.as_weak(), &state);
+            }
+        }
+    }
+
     fn bind_playback_snapshot_polling(&self) {
         let ui_weak = self.ui.as_weak();
         let state = Arc::clone(&self.state);
@@ -1365,6 +1461,164 @@ impl AppController {
                             format!("Playlist detail comes in Phase 13: {}", playlist.name).into(),
                         );
                     }
+                    return;
+                }
+                "library-artist" => {
+                    let (source, artist) = {
+                        let state = match state.lock() {
+                            Ok(state) => state,
+                            Err(error) => {
+                                if let Some(ui) = ui_weak.upgrade() {
+                                    set_error_text(&ui, format!("Artist failed: {error}"));
+                                }
+                                return;
+                            }
+                        };
+                        let Some(artist) = state.library_index.artists.get(index as usize).cloned()
+                        else {
+                            return;
+                        };
+                        let Some(source) = state.settings.active_source() else {
+                            return;
+                        };
+                        (source, artist)
+                    };
+                    if let Some(ui) = ui_weak.upgrade() {
+                        ui.set_status_text(format!("Opening {}", artist.name).into());
+                    }
+                    let ui_weak_for_result = ui_weak.clone();
+                    let state_for_result = Arc::clone(&state);
+                    let settings_store_for_result = Arc::clone(&settings_store);
+                    worker.submit(move || {
+                        let result = NavidromeProvider::new(source)
+                            .and_then(|provider| provider.artist(&artist.id));
+                        slint::invoke_from_event_loop(move || {
+                            if let Some(ui) = ui_weak_for_result.upgrade() {
+                                match result {
+                                    Ok(detail) => {
+                                        if let Ok(mut state) = state_for_result.lock() {
+                                            state.search_results.artists.clear();
+                                            state.search_results.albums = detail.albums.clone();
+                                            state.search_results.tracks.clear();
+                                            state.current_artist_detail = Some(detail.clone());
+                                            navigate_to_locked(
+                                                &mut state,
+                                                "artist-detail",
+                                                &settings_store_for_result,
+                                            );
+                                        }
+                                        ui.set_media_rows(artist_detail_rows(&detail));
+                                        ui.set_detail_title(detail.artist.name.clone().into());
+                                        ui.set_detail_subtitle(
+                                            format!("{} albums", detail.albums.len()).into(),
+                                        );
+                                        ui.set_current_route("artist-detail".into());
+                                    }
+                                    Err(error) => {
+                                        set_error_text(&ui, format!("Artist failed: {error}"));
+                                    }
+                                }
+                            }
+                        })
+                        .ok();
+                    });
+                    return;
+                }
+                "library-album" => {
+                    let (source, album) = {
+                        let state = match state.lock() {
+                            Ok(state) => state,
+                            Err(error) => {
+                                if let Some(ui) = ui_weak.upgrade() {
+                                    set_error_text(&ui, format!("Album failed: {error}"));
+                                }
+                                return;
+                            }
+                        };
+                        let Some(album) = state.library_index.albums.get(index as usize).cloned()
+                        else {
+                            return;
+                        };
+                        let Some(source) = state.settings.active_source() else {
+                            return;
+                        };
+                        (source, album)
+                    };
+                    if let Some(ui) = ui_weak.upgrade() {
+                        ui.set_status_text(format!("Opening {}", album.title).into());
+                    }
+                    let ui_weak_for_result = ui_weak.clone();
+                    let state_for_result = Arc::clone(&state);
+                    let settings_store_for_result = Arc::clone(&settings_store);
+                    worker.submit(move || {
+                        let result = NavidromeProvider::new(source)
+                            .and_then(|provider| provider.album(&album.id));
+                        slint::invoke_from_event_loop(move || {
+                            if let Some(ui) = ui_weak_for_result.upgrade() {
+                                match result {
+                                    Ok(detail) => {
+                                        if let Ok(mut state) = state_for_result.lock() {
+                                            state.search_results.artists.clear();
+                                            state.search_results.albums.clear();
+                                            state.search_results.tracks = detail.tracks.clone();
+                                            state.current_album_detail = Some(detail.clone());
+                                            navigate_to_locked(
+                                                &mut state,
+                                                "album-detail",
+                                                &settings_store_for_result,
+                                            );
+                                        }
+                                        ui.set_media_rows(album_detail_rows(&detail));
+                                        ui.set_detail_title(detail.album.title.clone().into());
+                                        ui.set_detail_subtitle(
+                                            format!(
+                                                "{} - {} tracks",
+                                                detail.album.artist,
+                                                detail.tracks.len()
+                                            )
+                                            .into(),
+                                        );
+                                        ui.set_current_route("album-detail".into());
+                                    }
+                                    Err(error) => {
+                                        set_error_text(&ui, format!("Album failed: {error}"));
+                                    }
+                                }
+                            }
+                        })
+                        .ok();
+                    });
+                    return;
+                }
+                "library-track" => {
+                    let (source, tracks) = {
+                        let state = match state.lock() {
+                            Ok(state) => state,
+                            Err(error) => {
+                                if let Some(ui) = ui_weak.upgrade() {
+                                    set_error_text(&ui, format!("Playback failed: {error}"));
+                                }
+                                return;
+                            }
+                        };
+                        let Some(source) = state.settings.active_source() else {
+                            return;
+                        };
+                        (source, state.library_index.tracks.clone())
+                    };
+                    start_tracks_from_ui(
+                        &ui_weak,
+                        &state,
+                        &playback_worker,
+                        worker.clone(),
+                        Arc::clone(&cover_art_cache),
+                        TrackPlaybackRequest {
+                            source,
+                            tracks,
+                            start_index: index as usize,
+                            status_text: "Starting library track...",
+                        },
+                    );
                     return;
                 }
                 "artist" => {
@@ -1981,6 +2235,289 @@ fn load_home_content(source: SavedMediaSource) -> Result<HomeContent> {
         genres: provider.genres()?.into_iter().take(10).collect(),
         spotlight_tracks: provider.random_tracks(25)?,
     })
+}
+
+fn submit_library_sync(
+    ui_weak: &Weak<AppWindow>,
+    state: &Arc<Mutex<AppState>>,
+    worker: &BackgroundWorker,
+    library_store: Arc<LibraryStore>,
+) {
+    let source = match active_source_from_state(state) {
+        Ok(source) => source,
+        Err(error) => {
+            if let Some(ui) = ui_weak.upgrade() {
+                set_error_text(&ui, format!("Library sync failed: {error}"));
+            }
+            return;
+        }
+    };
+
+    if let Ok(mut state) = state.lock() {
+        state.library_index.status = "Syncing library...".to_string();
+        if let Some(ui) = ui_weak.upgrade() {
+            ui.set_search_state_text(state.library_index.status.clone().into());
+            ui.set_status_text("Syncing library...".into());
+        }
+    }
+
+    let ui_weak_for_result = ui_weak.clone();
+    let state_for_result = Arc::clone(state);
+    worker.submit(move || {
+        let result = sync_library_index(source, &library_store);
+        slint::invoke_from_event_loop(move || {
+            if let Some(ui) = ui_weak_for_result.upgrade() {
+                match result {
+                    Ok(index) => {
+                        if let Ok(mut state) = state_for_result.lock() {
+                            state.library_index = index;
+                            ui.set_media_rows(library_rows(&state.library_index));
+                            ui.set_search_state_text(library_summary(&state.library_index).into());
+                        }
+                        ui.set_status_text("Library synced".into());
+                    }
+                    Err(error) => {
+                        ui.set_search_state_text("Library sync failed".into());
+                        set_error_text(&ui, format!("Library sync failed: {error}"));
+                    }
+                }
+            }
+        })
+        .ok();
+    });
+}
+
+fn sync_library_index(
+    source: SavedMediaSource,
+    library_store: &LibraryStore,
+) -> Result<LibraryIndex> {
+    let source_id = source.id.clone();
+    let provider = NavidromeProvider::new(source)?;
+    let artists = provider.artists()?;
+    let mut albums = Vec::new();
+    let page_size = 100;
+    for page in 0..50 {
+        let page_albums = provider.album_list_paged(
+            AlbumListType::AlphabeticalByName,
+            page_size,
+            page * page_size,
+        )?;
+        if page_albums.is_empty() {
+            break;
+        }
+        let page_len = page_albums.len();
+        albums.extend(page_albums);
+        if page_len < page_size as usize {
+            break;
+        }
+    }
+
+    let mut tracks = Vec::new();
+    for album in &albums {
+        if let Ok(detail) = provider.album(&album.id) {
+            tracks.extend(detail.tracks);
+        }
+    }
+    tracks.sort_by(|left, right| {
+        left.artist
+            .cmp(&right.artist)
+            .then(left.album.cmp(&right.album))
+            .then(left.title.cmp(&right.title))
+    });
+
+    library_store.replace_source(&source_id, &artists, &albums, &tracks)?;
+    let snapshot = library_store.snapshot(&source_id, 150)?;
+    let stats = library_store.stats(&source_id)?;
+    Ok(library_index_from_snapshot(
+        Some(source_id),
+        String::new(),
+        snapshot,
+        stats,
+    ))
+}
+
+fn library_index_from_snapshot(
+    source_id: Option<String>,
+    filter: String,
+    snapshot: LibrarySnapshot,
+    stats: LibraryStats,
+) -> LibraryIndex {
+    LibraryIndex {
+        status: format!(
+            "Synced {} artists, {} albums, {} tracks",
+            stats.artist_count, stats.album_count, stats.track_count
+        ),
+        synced_artist_count: stats.artist_count,
+        synced_album_count: stats.album_count,
+        synced_track_count: stats.track_count,
+        is_synced: true,
+        source_id,
+        artists: snapshot.artists,
+        albums: snapshot.albums,
+        tracks: snapshot.tracks,
+        filter,
+    }
+}
+
+fn refresh_library_index_from_store(state: &mut AppState, library_store: &LibraryStore) {
+    let source_id = state
+        .library_index
+        .source_id
+        .clone()
+        .or_else(|| state.settings.active_source().map(|source| source.id));
+    let Some(source_id) = source_id else {
+        return;
+    };
+    let filter = state.library_index.filter.clone();
+    if let (Ok(snapshot), Ok(stats)) = (
+        library_store.search(&source_id, &filter, 150),
+        library_store.stats(&source_id),
+    ) {
+        state.library_index = library_index_from_snapshot(Some(source_id), filter, snapshot, stats);
+    }
+}
+
+fn refresh_library_ui(ui_weak: &Weak<AppWindow>, state: &AppState) {
+    if let Some(ui) = ui_weak.upgrade() {
+        ui.set_media_rows(library_rows(&state.library_index));
+        ui.set_search_state_text(library_summary(&state.library_index).into());
+    }
+}
+
+fn library_rows(index: &LibraryIndex) -> ModelRc<MediaRow> {
+    let filter = index.filter.trim().to_ascii_lowercase();
+    let mut rows = Vec::new();
+
+    let artists = index
+        .artists
+        .iter()
+        .enumerate()
+        .filter(|(_, artist)| library_matches(&artist.name, &filter))
+        .take(100)
+        .collect::<Vec<_>>();
+    if !artists.is_empty() {
+        rows.push(home_header("Artists", artists.len()));
+        rows.extend(artists.into_iter().map(|(source_index, artist)| MediaRow {
+            kind: SharedString::from("library-artist"),
+            title: SharedString::from(artist.name.as_str()),
+            subtitle: SharedString::from("Artist"),
+            source_index: source_index as i32,
+            is_header: false,
+            action_label: SharedString::new(),
+        }));
+    }
+
+    let albums = index
+        .albums
+        .iter()
+        .enumerate()
+        .filter(|(_, album)| {
+            library_matches(&album.title, &filter) || library_matches(&album.artist, &filter)
+        })
+        .take(100)
+        .collect::<Vec<_>>();
+    if !albums.is_empty() {
+        rows.push(home_header("Albums", albums.len()));
+        rows.extend(albums.into_iter().map(|(source_index, album)| MediaRow {
+            kind: SharedString::from("library-album"),
+            title: SharedString::from(album.title.as_str()),
+            subtitle: SharedString::from(format!("Album - {}", album.subtitle())),
+            source_index: source_index as i32,
+            is_header: false,
+            action_label: SharedString::new(),
+        }));
+    }
+
+    let tracks = index
+        .tracks
+        .iter()
+        .enumerate()
+        .filter(|(_, track)| {
+            library_matches(&track.title, &filter)
+                || library_matches(&track.artist, &filter)
+                || library_matches(&track.album, &filter)
+        })
+        .take(150)
+        .collect::<Vec<_>>();
+    if !tracks.is_empty() {
+        rows.push(home_header("Tracks", tracks.len()));
+        rows.extend(tracks.into_iter().map(|(source_index, track)| MediaRow {
+            kind: SharedString::from("library-track"),
+            title: SharedString::from(track.title.as_str()),
+            subtitle: SharedString::from(track.subtitle()),
+            source_index: source_index as i32,
+            is_header: false,
+            action_label: SharedString::new(),
+        }));
+    }
+
+    if rows.is_empty() {
+        rows.push(home_header(
+            if index.is_synced {
+                "No local matches"
+            } else {
+                "Sync library to browse locally"
+            },
+            0,
+        ));
+    }
+
+    ModelRc::new(VecModel::from(rows))
+}
+
+fn library_matches(value: &str, filter: &str) -> bool {
+    if filter.is_empty() {
+        return true;
+    }
+
+    let value = value.to_ascii_lowercase();
+    let filter = filter.to_ascii_lowercase();
+    match library_quick_filter(&filter) {
+        Some(LibraryQuickFilter::Letter(letter)) => value.starts_with(letter),
+        Some(LibraryQuickFilter::Digit) => value
+            .chars()
+            .next()
+            .is_some_and(|character| character.is_ascii_digit()),
+        Some(LibraryQuickFilter::Symbol) => value.chars().next().is_some_and(|character| {
+            !character.is_ascii_alphabetic() && !character.is_ascii_digit()
+        }),
+        None => value.contains(&filter),
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum LibraryQuickFilter<'a> {
+    Letter(&'a str),
+    Digit,
+    Symbol,
+}
+
+fn library_quick_filter(filter: &str) -> Option<LibraryQuickFilter<'_>> {
+    if filter.len() == 1 && filter.as_bytes()[0].is_ascii_alphabetic() {
+        Some(LibraryQuickFilter::Letter(filter))
+    } else if filter == "0-9" {
+        Some(LibraryQuickFilter::Digit)
+    } else if filter == "#" {
+        Some(LibraryQuickFilter::Symbol)
+    } else {
+        None
+    }
+}
+
+fn library_summary(index: &LibraryIndex) -> String {
+    if !index.is_synced {
+        return index.status.clone();
+    }
+    let filter = index.filter.trim();
+    let suffix = if filter.is_empty() {
+        String::new()
+    } else {
+        format!(" - filter: {filter}")
+    };
+    format!(
+        "{} artists, {} albums, {} tracks indexed{}",
+        index.synced_artist_count, index.synced_album_count, index.synced_track_count, suffix
+    )
 }
 
 fn active_source_from_state(state: &Arc<Mutex<AppState>>) -> Result<SavedMediaSource> {
@@ -2622,6 +3159,10 @@ fn restore_route_rows(ui: &AppWindow, state: &Arc<Mutex<AppState>>) {
                 );
             }
         }
+        "library" => {
+            ui.set_media_rows(library_rows(&state.library_index));
+            ui.set_search_state_text(library_summary(&state.library_index).into());
+        }
         "search" => ui.set_media_rows(search_rows(&state.search_results)),
         "album-detail" => {
             if let Some(detail) = state.current_album_detail.as_ref() {
@@ -2834,9 +3375,9 @@ fn format_seconds(seconds: f64) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        format_seconds, merge_playback_snapshot, parse_radio_playlist, playback_duration_text,
-        playback_elapsed_text, playback_progress, playback_reached_end, playback_status_text,
-        search_state_text,
+        format_seconds, library_matches, library_summary, merge_playback_snapshot,
+        parse_radio_playlist, playback_duration_text, playback_elapsed_text, playback_progress,
+        playback_reached_end, playback_status_text, search_state_text, LibraryIndex,
     };
     use crate::domain::SearchResults;
     use crate::playback::PlaybackSnapshot;
@@ -2888,6 +3429,30 @@ mod tests {
     #[test]
     fn search_state_summarizes_empty_results() {
         assert_eq!("No results", search_state_text(&SearchResults::default()));
+    }
+
+    #[test]
+    fn library_summary_uses_indexed_totals_not_loaded_rows() {
+        let index = LibraryIndex {
+            synced_artist_count: 345,
+            synced_album_count: 2647,
+            synced_track_count: 19_456,
+            is_synced: true,
+            ..LibraryIndex::default()
+        };
+
+        assert_eq!(
+            "345 artists, 2647 albums, 19456 tracks indexed",
+            library_summary(&index)
+        );
+    }
+
+    #[test]
+    fn library_matches_supports_digit_and_symbol_quick_filters() {
+        assert!(library_matches("3 Doors Down", "0-9"));
+        assert!(library_matches("(hed) pe", "#"));
+        assert!(library_matches("Garbage", "G"));
+        assert!(!library_matches("The Gap Band", "G"));
     }
 
     #[test]
