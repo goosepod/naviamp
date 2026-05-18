@@ -3,6 +3,7 @@ use crate::image_cache::{default_cover_art_cache, CoverArtCache};
 use crate::playback::{default_playback_engine, PlaybackEngine, PlaybackSnapshot};
 use crate::provider::navidrome::NavidromeProvider;
 use crate::provider::MediaProvider;
+use crate::queue::TrackQueue;
 use crate::settings::{
     default_settings_store, ConnectionDraft, SavedMediaSource, Settings, SettingsStore,
 };
@@ -24,6 +25,7 @@ struct AppState {
     playback: Box<dyn PlaybackEngine>,
     latest_playback_snapshot: PlaybackSnapshot,
     current_playback: Option<CurrentPlayback>,
+    queue: TrackQueue,
 }
 
 #[derive(Clone)]
@@ -62,6 +64,7 @@ fn run_with_settings_store(settings_store: Arc<dyn SettingsStore>) -> Result<()>
             playback: default_playback_engine(),
             latest_playback_snapshot: PlaybackSnapshot::default(),
             current_playback: None,
+            queue: TrackQueue::default(),
         })),
         settings_store,
         worker: BackgroundWorker::new("naviamp-background"),
@@ -271,6 +274,58 @@ impl AppController {
                 match result {
                     Ok(()) => ui.set_status_text("Playing".into()),
                     Err(error) => set_error_text(&ui, format!("Resume failed: {error}")),
+                }
+            }
+        });
+
+        let ui_weak = self.ui.as_weak();
+        let state = Arc::clone(&self.state);
+        let worker = self.worker.clone();
+        let cover_art_cache = Arc::clone(&self.cover_art_cache);
+        self.ui.on_playback_previous_requested(move || {
+            let result = play_queue_neighbor(&state, QueueDirection::Previous);
+            if let Some(ui) = ui_weak.upgrade() {
+                match result {
+                    Ok((source, track, embedded_cover_art)) => {
+                        set_now_playing(&ui, &track);
+                        ui.set_status_text(format!("Playing {}", track.title).into());
+                        load_now_playing_art(
+                            worker.clone(),
+                            ui_weak.clone(),
+                            Arc::clone(&cover_art_cache),
+                            source,
+                            track.id.clone(),
+                            track.cover_art_id.clone(),
+                            embedded_cover_art,
+                        );
+                    }
+                    Err(error) => set_error_text(&ui, format!("Previous failed: {error}")),
+                }
+            }
+        });
+
+        let ui_weak = self.ui.as_weak();
+        let state = Arc::clone(&self.state);
+        let worker = self.worker.clone();
+        let cover_art_cache = Arc::clone(&self.cover_art_cache);
+        self.ui.on_playback_next_requested(move || {
+            let result = play_queue_neighbor(&state, QueueDirection::Next);
+            if let Some(ui) = ui_weak.upgrade() {
+                match result {
+                    Ok((source, track, embedded_cover_art)) => {
+                        set_now_playing(&ui, &track);
+                        ui.set_status_text(format!("Playing {}", track.title).into());
+                        load_now_playing_art(
+                            worker.clone(),
+                            ui_weak.clone(),
+                            Arc::clone(&cover_art_cache),
+                            source,
+                            track.id.clone(),
+                            track.cover_art_id.clone(),
+                            embedded_cover_art,
+                        );
+                    }
+                    Err(error) => set_error_text(&ui, format!("Next failed: {error}")),
                 }
             }
         });
@@ -608,6 +663,7 @@ impl AppController {
                                 .and_then(|mut state| {
                                     state.playback.play_url(&stream_url)?;
                                     state.current_playback = None;
+                                    state.queue = TrackQueue::default();
                                     Ok(())
                                 })
                         })
@@ -628,7 +684,7 @@ impl AppController {
             };
 
             let (source, track) = {
-                let state = match state.lock() {
+                let app_state = match state.lock() {
                     Ok(state) => state,
                     Err(error) => {
                         if let Some(ui) = ui_weak.upgrade() {
@@ -637,39 +693,35 @@ impl AppController {
                         return;
                     }
                 };
-                let Some(track) = state.search_results.tracks.get(index as usize).cloned() else {
+                let Some(source) = app_state.settings.active_source() else {
                     return;
                 };
-                let Some(source) = state.settings.active_source() else {
+                let tracks = app_state.search_results.tracks.clone();
+                drop(app_state);
+
+                let mut app_state = match state.lock() {
+                    Ok(state) => state,
+                    Err(error) => {
+                        if let Some(ui) = ui_weak.upgrade() {
+                            set_error_text(&ui, format!("Playback failed: {error}"));
+                        }
+                        return;
+                    }
+                };
+                app_state.queue = TrackQueue::play_from_tracks(tracks, index as usize);
+                let Some(track) = app_state.queue.current().cloned() else {
                     return;
                 };
                 (source, track)
             };
 
-            let result = NavidromeProvider::new(source.clone())
-                .and_then(|provider| provider.stream_url(&StreamRequest::original(&track.id)))
-                .and_then(|url| {
-                    state
-                        .lock()
-                        .map_err(|error| anyhow::anyhow!(error.to_string()))
-                        .and_then(|mut state| {
-                            state.playback.play_url(&url)?;
-                            let embedded_cover_art = state.playback.embedded_cover_art()?;
-                            state.current_playback = Some(CurrentPlayback {
-                                source: source.clone(),
-                                track: track.clone(),
-                            });
-                            if let Some(ui) = ui_weak.upgrade() {
-                                set_now_playing(&ui, &track);
-                            }
-                            Ok(embedded_cover_art)
-                        })
-                        .context("could not start playback")
-                });
+            let result = start_track_playback(&state, source.clone(), track.clone())
+                .context("could not start playback");
 
             if let Some(ui) = ui_weak.upgrade() {
                 match result {
                     Ok(embedded_cover_art) => {
+                        set_now_playing(&ui, &track);
                         ui.set_status_text(format!("Playing {}", track.title).into());
                         load_now_playing_art(
                             worker.clone(),
@@ -702,6 +754,54 @@ enum SeekOutcome {
         target_seconds: f64,
     },
     Restarted(f64),
+}
+
+enum QueueDirection {
+    Previous,
+    Next,
+}
+
+fn play_queue_neighbor(
+    state: &Arc<Mutex<AppState>>,
+    direction: QueueDirection,
+) -> Result<(SavedMediaSource, Track, Option<Vec<u8>>)> {
+    let (source, track) = {
+        let mut state = state
+            .lock()
+            .map_err(|error| anyhow::anyhow!(error.to_string()))?;
+        let source = state
+            .settings
+            .active_source()
+            .ok_or_else(|| anyhow::anyhow!("no active source"))?;
+        let track = match direction {
+            QueueDirection::Previous => state.queue.previous(),
+            QueueDirection::Next => state.queue.next(),
+        }
+        .cloned()
+        .ok_or_else(|| anyhow::anyhow!("no queued track"))?;
+        (source, track)
+    };
+
+    let embedded_cover_art = start_track_playback(state, source.clone(), track.clone())?;
+    Ok((source, track, embedded_cover_art))
+}
+
+fn start_track_playback(
+    state: &Arc<Mutex<AppState>>,
+    source: SavedMediaSource,
+    track: Track,
+) -> Result<Option<Vec<u8>>> {
+    let provider = NavidromeProvider::new(source.clone())?;
+    let url = provider.stream_url(&StreamRequest::original(&track.id))?;
+    state
+        .lock()
+        .map_err(|error| anyhow::anyhow!(error.to_string()))
+        .and_then(|mut state| {
+            state.playback.play_url(&url)?;
+            let embedded_cover_art = state.playback.embedded_cover_art()?;
+            state.current_playback = Some(CurrentPlayback { source, track });
+            Ok(embedded_cover_art)
+        })
 }
 
 fn restart_stream_at_offset(

@@ -363,9 +363,9 @@ Exit criteria:
 
 Port Kotlin `PlaylistEngine` behavior in Rust.
 
-- [ ] Queue model.
-- [ ] Play from list/index.
-- [ ] Next/previous.
+- [x] Queue model.
+- [x] Play from list/index.
+- [x] Next/previous.
 - [ ] Jump to queue item.
 - [ ] Repeat off/track/queue.
 - [ ] Shuffle upcoming.

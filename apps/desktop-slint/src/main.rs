@@ -8,6 +8,7 @@ mod domain;
 mod image_cache;
 mod playback;
 mod provider;
+mod queue;
 mod settings;
 mod storage;
 mod ui;

@@ -48,6 +48,8 @@ export component AppWindow inherits Window {
     callback row-activated(string, int);
     callback playback-pause-requested();
     callback playback-resume-requested();
+    callback playback-previous-requested();
+    callback playback-next-requested();
     callback volume-changed(float);
     callback playback-seek-requested(float);
     callback error-dismissed();
@@ -210,6 +212,16 @@ export component AppWindow inherits Window {
                     if !root.playback-is-playing: Button {
                         text: "Play";
                         clicked => { root.playback-resume-requested(); }
+                    }
+
+                    Button {
+                        text: "Previous";
+                        clicked => { root.playback-previous-requested(); }
+                    }
+
+                    Button {
+                        text: "Next";
+                        clicked => { root.playback-next-requested(); }
                     }
 
                     VerticalLayout {
