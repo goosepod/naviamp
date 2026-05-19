@@ -26,4 +26,14 @@ class PlaybackStreamMetadataTest {
 
         assertEquals("Fallback Title", metadata.title)
     }
+
+    @Test
+    fun fromPropertiesMatchesKnownTitleKeysIgnoringCase() {
+        val metadata = PlaybackStreamMetadata.fromProperties(
+            properties = mapOf("Icy-Title" to "Case Matched Song"),
+            fallbackTitle = "Fallback Title",
+        )
+
+        assertEquals("Case Matched Song", metadata.title)
+    }
 }

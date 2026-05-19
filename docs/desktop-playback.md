@@ -149,6 +149,26 @@ apps/desktop/build/generated/desktopBassApp/windows-x64/playback/bass/windows-x6
 
 The Windows x64 set currently includes `bass.dll` plus available BASS add-ons such as FLAC, HLS, mix, Opus, WebM, WavPack, DSD, APE, ALAC, AAC, MPC, WMA, FX, and SSL. The macOS ARM64 set currently includes `libbass.dylib` plus available add-ons and the generated `libnaviamp_bass.dylib` JNI scaffold.
 
+The intended original-stream coverage is:
+
+| Format | macOS ARM64 | Windows x64 | Notes |
+| --- | --- | --- | --- |
+| MP3 | BASS core | BASS core | Direct provider streams should play without add-ons. |
+| FLAC | `bassflac` | `bassflac` | Includes Ogg FLAC where the add-on reports it. |
+| Opus | `bassopus` | `bassopus` | Direct Opus streams should remain original. |
+| AAC/M4A | CoreAudio/BASS plus HLS where applicable | `bass_aac` plus BASS core | If a macOS AAC/MP4 edge case fails, fall back to provider transcode until the matching add-on is vendored. |
+| ALAC | CoreAudio/BASS where available | `bassalac` | macOS currently relies on platform/CoreAudio support; Windows has the explicit add-on. |
+| Vorbis/Ogg | BASS core | BASS core | Native BASS stream type reports Ogg/Vorbis. |
+| WavPack | `basswv` | not currently in the Windows vendor set | Windows should fall back to provider transcode until `basswv.dll` is added. |
+| APE | `bassape` | `bassape` | Direct playback requires the add-on. |
+| MPC | `bass_mpc` | `bass_mpc` | Direct playback requires the add-on. |
+| DSD | `bassdsd` | `bassdsd` | Direct playback requires the add-on. |
+| HLS | `basshls` | `basshls` | Live/radio streams should be treated as non-seekable and unknown-duration. |
+| WMA | not packaged | `basswma` | macOS should fall back to provider transcode. |
+| WebM | `basswebm` | `basswebm` | Direct playback requires the add-on. |
+
+When a format is not covered by BASS core or a packaged add-on on the current platform, Naviamp should request provider transcoding instead of surfacing a codec error to the user. During the current spike, Stats for nerds shows the loaded BASS add-ons, current stream info, and latest BASS error. Deeper native channel diagnostics should be added through the JNI binding rather than the current JNA playback path.
+
 Override the platform for packaging/copy verification with:
 
 ```shell

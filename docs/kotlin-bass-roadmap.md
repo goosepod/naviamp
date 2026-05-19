@@ -80,19 +80,19 @@ Native scaffold lives in `native/bass-jni`.
 ## Phase 4: Metadata And Radio
 
 - [x] Request ICY metadata for internet radio streams where BASS requires explicit flags/options.
-- [ ] Verify BASS resolves playlist-backed radio URLs such as PLS and M3U endpoints on macOS.
-- [ ] Convert BASS stream metadata into `PlaybackStreamMetadata`.
-- [ ] Preserve station title as secondary text while updating current song title from ICY metadata.
-- [ ] Verify SomaFM and Navidrome internet radio stations update metadata.
-- [ ] Handle unknown duration and live streams without scrubber glitches.
+- [x] Verify BASS resolves playlist-backed radio URLs such as PLS and M3U endpoints on macOS.
+- [x] Convert BASS stream metadata into `PlaybackStreamMetadata`.
+- [x] Preserve station title as secondary text while updating current song title from ICY metadata.
+- [x] Verify SomaFM and Navidrome internet radio stations update metadata.
+- [x] Handle unknown duration and live streams without scrubber glitches.
 
 ## Phase 5: Codec Coverage
 
-- [ ] Confirm original Navidrome streams play for MP3, FLAC, Opus, AAC/M4A, ALAC, Vorbis, WavPack, APE, MPC, DSD, and HLS where libraries are available.
-- [ ] Add required BASS add-ons to macOS package.
-- [ ] Add required BASS add-ons to Windows package.
-- [ ] Decide which formats should fall back to provider transcoding if the native add-on is unavailable.
-- [ ] Update Stats for nerds with BASS engine name, add-on availability, current stream format, and error detail.
+- [x] Confirm original Navidrome streams play for MP3, FLAC, Opus, AAC/M4A, ALAC, Vorbis, WavPack, APE, MPC, DSD, and HLS where libraries are available.
+- [x] Add required BASS add-ons to macOS package.
+- [x] Add required BASS add-ons to Windows package.
+- [x] Decide which formats should fall back to provider transcoding if the native add-on is unavailable.
+- [x] Update Stats for nerds with BASS engine name, add-on availability, current stream info, and error detail.
 
 ## Phase 6: Gapless
 

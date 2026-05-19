@@ -64,14 +64,18 @@ fun streamTitle(
     properties: Map<String, String>,
     fallbackTitle: String? = null,
 ): String? =
-    listOf(
-        properties["icy-title"],
-        properties["StreamTitle"],
-        properties["streamtitle"],
-        properties["title"],
-        properties["Title"],
+    listOfNotNull(
+        properties.valueIgnoringCase("icy-title"),
+        properties.valueIgnoringCase("StreamTitle"),
+        properties.valueIgnoringCase("streamtitle"),
+        properties.valueIgnoringCase("title"),
         fallbackTitle,
     ).firstOrNull { !it.isNullOrBlank() }?.trim()
+
+private fun Map<String, String>.valueIgnoringCase(key: String): String? {
+    get(key)?.let { return it }
+    return entries.firstOrNull { it.key.equals(key, ignoreCase = true) }?.value
+}
 
 enum class ReplayGainMode(
     val displayName: String,
