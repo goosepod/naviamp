@@ -1,4 +1,5 @@
 import org.gradle.api.tasks.Copy
+import org.gradle.api.tasks.Exec
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
@@ -44,13 +45,59 @@ val copyDesktopBassAppResources by tasks.registering(Copy::class) {
     })
     onlyIf { desktopBassVendorDir.get().asFile.isDirectory }
 }
+val desktopBassJniBuildDir = desktopBassPlatform.map { platform ->
+    layout.buildDirectory.dir("generated/bassJniBuild/$platform").get()
+}
+val desktopBassJniOutputFile = desktopBassJniBuildDir.zip(desktopBassPlatform) { buildDir, platform ->
+    buildDir.file(desktopLibraryName("naviamp_bass", platform)).asFile
+}
+val configureDesktopBassJni by tasks.registering(Exec::class) {
+    val nativeProjectDir = rootProject.layout.projectDirectory.dir("native/bass-jni")
+    onlyIf {
+        desktopBassVendorDir.get().asFile.isDirectory &&
+            desktopBassPlatform.get().startsWith("macos-")
+    }
+    commandLine(
+        "cmake",
+        "-S",
+        nativeProjectDir.asFile.absolutePath,
+        "-B",
+        desktopBassJniBuildDir.get().asFile.absolutePath,
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_OSX_ARCHITECTURES=${desktopCmakeArchitecture(desktopBassPlatform.get())}",
+        "-DBASS_LIBRARY_DIR=${desktopBassVendorDir.get().asFile.absolutePath}",
+    )
+}
+val buildDesktopBassJni by tasks.registering(Exec::class) {
+    dependsOn(configureDesktopBassJni)
+    onlyIf {
+        desktopBassVendorDir.get().asFile.isDirectory &&
+            desktopBassPlatform.get().startsWith("macos-")
+    }
+    commandLine("cmake", "--build", desktopBassJniBuildDir.get().asFile.absolutePath, "--config", "Release")
+}
+val copyDesktopBassJni by tasks.registering(Copy::class) {
+    dependsOn(buildDesktopBassJni)
+    from(desktopBassJniOutputFile)
+    into(generatedDesktopBassResources.zip(desktopBassPlatform) { resources, platform ->
+        resources.dir("playback/bass/$platform")
+    })
+    onlyIf { desktopBassJniOutputFile.get().isFile }
+}
+val copyDesktopBassJniAppResources by tasks.registering(Copy::class) {
+    dependsOn(buildDesktopBassJni)
+    from(desktopBassJniOutputFile)
+    into(generatedDesktopBassAppResources.zip(desktopBassPlatform) { resources, platform ->
+        resources.dir("$platform/playback/bass/$platform")
+    })
+    onlyIf { desktopBassJniOutputFile.get().isFile }
+}
 
 kotlin {
     jvm("desktop")
 
     sourceSets {
         val desktopMain by getting {
-            resources.srcDir(generatedDesktopMpvResources)
             resources.srcDir(generatedDesktopBassResources)
 
             dependencies {
@@ -111,8 +158,8 @@ compose.desktop {
 
 tasks.matching { it.name == "desktopProcessResources" || it.name == "processDesktopMainResources" }
     .configureEach {
-        dependsOn(copyDesktopMpv)
         dependsOn(copyDesktopBass)
+        dependsOn(copyDesktopBassJni)
     }
 
 tasks.matching {
@@ -123,6 +170,7 @@ tasks.matching {
         it.name == "packageReleaseDistributionForCurrentOS"
 }.configureEach {
     dependsOn(copyDesktopBassAppResources)
+    dependsOn(copyDesktopBassJniAppResources)
 }
 
 fun desktopMpvPlatform(): String {
@@ -143,3 +191,17 @@ fun desktopMpvPlatform(): String {
     }
     return "$os-$arch"
 }
+
+fun desktopLibraryName(stem: String, platform: String): String =
+    when {
+        platform.startsWith("windows-") -> "$stem.dll"
+        platform.startsWith("macos-") -> "lib$stem.dylib"
+        else -> "lib$stem.so"
+    }
+
+fun desktopCmakeArchitecture(platform: String): String =
+    when {
+        platform.endsWith("-arm64") -> "arm64"
+        platform.endsWith("-x64") -> "x86_64"
+        else -> System.getProperty("os.arch")
+    }

@@ -59,6 +59,13 @@ The native library name should be stable, for example `naviamp_bass`, with platf
 
 The initial CMake scaffold lives in `native/bass-jni`.
 
+The first committed JNI contract exposes BASS version and last-error diagnostics through:
+
+- Android: `app.naviamp.android.playback.AndroidBassJni`
+- Desktop: `app.naviamp.desktop.playback.bass.BassJniBinding`
+
+Playback remains on the JNA `BassPlaybackEngine` until the JNI binding reaches stream creation, control, progress, metadata, and plugin parity.
+
 ## Playback And Mixer Model
 
 Basic playback can continue to use one BASS stream per current item. Gapless and crossfade should move to BASSmix instead of trying to coordinate two independent output channels from Kotlin.
@@ -124,15 +131,27 @@ Android BASS libraries downloaded from Un4seen are vendored for the JNI work und
 
 The app should fail over with a clear diagnostic when the JNI library or BASS core library is missing. During migration only, desktop may still fall back to mpv.
 
+## Artifact Policy
+
+Third-party BASS binaries are treated as vendored inputs and live under `native/bass-jni/vendor`. Generated Naviamp JNI artifacts are not committed. They are built into Gradle output directories and copied into app packages from generated build paths.
+
+Current packaging policy:
+
+- Desktop BASS libraries are copied from the Rust-side vendor tree into generated desktop resources until the Kotlin app owns all desktop vendor inputs.
+- Desktop `naviamp_bass` JNI libraries are built from `native/bass-jni` by Gradle for macOS packages and copied beside the BASS dylibs.
+- Android BASS libraries are packaged from `native/bass-jni/vendor/android` through the Android app's `jniLibs` source set.
+- Android `naviamp_bass` JNI packaging is the next native build step; the BASS dependency libraries are already packaged.
+
 ## Migration Plan
 
 1. Keep the current JNA `BassPlaybackEngine` as a behavior reference.
 2. Add JNI project layout and native build tasks.
 3. Port init, stream creation, playback, pause, stop, seek, volume, duration, and position.
-4. Switch desktop `BassPlaybackEngine` from JNA to JNI behind the same Kotlin API.
-5. Add metadata, plugin inventory, and Stats for nerds rows.
-6. Add BASSmix prepare-next support.
-7. Add ReplayGain support.
-8. Add FFT/PCM visualizer path.
-9. Add Android BASS engine using the same JNI binding shape.
-10. Remove mpv packaging when BASS covers known desktop and Android scenarios.
+4. Keep desktop `BassPlaybackEngine` on JNA until JNI reaches playback parity.
+5. Switch desktop `BassPlaybackEngine` from JNA to JNI behind the same Kotlin API.
+6. Add metadata, plugin inventory, and Stats for nerds rows.
+7. Add BASSmix prepare-next support.
+8. Add ReplayGain support.
+9. Add FFT/PCM visualizer path.
+10. Add Android BASS engine using the same JNI binding shape.
+11. Remove mpv packaging when BASS covers known desktop and Android scenarios.

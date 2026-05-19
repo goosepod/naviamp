@@ -121,6 +121,10 @@ The BASS engine resolves libraries in this order:
 3. Bundled desktop resources under `playback/bass/<platform>`
 4. Development vendor fallback under `apps/desktop-slint/vendor/bass/<platform>`
 
+## Waveform Generation
+
+Desktop waveform generation uses BASS decode streams against cached or downloaded audio files. It no longer shells out to mpv, and packaged desktop apps do not bundle an mpv executable for waveform generation.
+
 The desktop Gradle build copies the current platform BASS libraries from:
 
 ```text

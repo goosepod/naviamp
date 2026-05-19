@@ -28,6 +28,7 @@ The Rust/Slint app can remain a parallel experiment, but Kotlin/Compose is the r
 - Treat live PCM/FFT access as the future visualizer path; do not revive fake/precomputed visualizers as the final solution.
 - BASS is the target playback engine across desktop and Android. The goal is the same behavior and feature set everywhere.
 - mpv should not remain bundled once BASS is stable. Keep it only as a temporary development fallback while the BASS implementation matures.
+- Waveform generation should use BASS decode streams, not mpv or shell helpers.
 - Implement as much ReplayGain support as BASS and available metadata allow.
 
 ## Phase 1: Native Binding Spike
@@ -45,8 +46,10 @@ The Rust/Slint app can remain a parallel experiment, but Kotlin/Compose is the r
 - [x] Design a JNI binding surface for BASS that covers playback, BASSmix, PCM/FFT, tags, plugin loading, and error reporting.
 - [x] Keep the current JNA binding as the comparison spike until JNI reaches feature parity.
 - [x] Add native build layout for macOS, Windows, and Android.
-- [ ] Decide how generated native artifacts are versioned and copied into app packages.
-- [ ] Replace JNA calls in `BassPlaybackEngine` with the JNI binding after parity is proven.
+- [x] Decide how generated native artifacts are versioned and copied into app packages.
+- [x] Add initial Kotlin/native JNI contract for BASS version and error diagnostics.
+- [x] Keep `BassPlaybackEngine` on JNA until JNI playback parity is proven.
+- [x] Move desktop waveform generation from mpv process decoding to BASS decode streams.
 
 Design notes live in `docs/bass-jni-design.md`.
 Native scaffold lives in `native/bass-jni`.
@@ -94,6 +97,7 @@ Native scaffold lives in `native/bass-jni`.
 
 - [ ] Implement `QueueAwarePlaybackEngine.prepareNext` for BASS.
 - [ ] Use BASSmix or equivalent channel strategy to prepare the next stream before track end.
+- [ ] When audio prefetch caches upcoming tracks, also run sidecar prep for waveform generation, tag reading, provider/embedded lyrics, and LRCLIB fallback so Now Playing metadata is ready before playback starts.
 - [ ] Advance app queue state at the correct time without double-starting or losing play reporting.
 - [ ] Reset prepared-next state on seek, stop, queue jump, and source changes.
 - [ ] Verify album playback with known gapless albums.
@@ -119,14 +123,16 @@ Native scaffold lives in `native/bass-jni`.
 ## Phase 9: Visualizers
 
 - [ ] Add a JNI-backed BASS PCM/FFT data path.
+- [x] Use BASS decode data for cached waveform generation on desktop.
 - [ ] Feed live visualizer data into shared UI state without coupling UI to BASS.
 - [ ] Reintroduce a real music-reactive visualizer surface.
 - [ ] Keep waveform scrubber separate from live visualization.
 
 ## Phase 9.5: Android BASS
 
-- [ ] Add Android BASS native library packaging.
+- [x] Add Android BASS native library packaging.
 - [x] Vendor Android BASS core and add-on libraries for JNI work.
+- [x] Add Android BASS runtime loader diagnostics.
 - [ ] Implement Android JNI loading and lifecycle handling.
 - [ ] Replace or wrap the current Media3 engine with a BASS-backed Android playback engine.
 - [ ] Preserve Android foreground service and notification behavior.

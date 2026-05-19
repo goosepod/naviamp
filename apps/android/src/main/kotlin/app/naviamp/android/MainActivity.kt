@@ -19,6 +19,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import app.naviamp.android.playback.AndroidAudioWaveformAnalyzer
+import app.naviamp.android.playback.AndroidBassNativeLoader
 import app.naviamp.android.playback.AndroidMedia3PlaybackEngine
 import app.naviamp.android.playback.AndroidPlaybackNotificationControls
 import app.naviamp.domain.Album
@@ -111,6 +112,7 @@ class MainActivity : ComponentActivity() {
 private fun NaviampAndroidApp() {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val bassLoadReport = remember { AndroidBassNativeLoader.loadBundledLibraries() }
     val playbackEngine = remember { AndroidMedia3PlaybackEngine(context) }
     val waveformAnalyzer = remember { AndroidAudioWaveformAnalyzer(context) }
     val lrclibLyricsClient = remember { AndroidLrclibLyricsClient() }
@@ -169,6 +171,12 @@ private fun NaviampAndroidApp() {
     var lyricsByTrackId by remember { mutableStateOf<Map<String, Lyrics?>>(emptyMap()) }
     var lyricsStatusByTrackId by remember { mutableStateOf<Map<String, String?>>(emptyMap()) }
     var playlistActionStatus by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(bassLoadReport) {
+        if (!bassLoadReport.available) {
+            status = "BASS libraries are bundled but did not load on this device."
+        }
+    }
 
     DisposableEffect(playbackEngine) {
         onDispose {

@@ -53,4 +53,4 @@ BASS headers are stored under `vendor/include`.
 
 ## Build Status
 
-The CMake target currently builds only a loader stub. It is intentionally not wired into desktop or Android packaging until the JNI API reaches parity with the JNA spike.
+The CMake target currently exposes BASS version and last-error diagnostics. It is intentionally not used as the active desktop playback path until the JNI API reaches parity with the JNA spike.

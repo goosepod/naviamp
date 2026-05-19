@@ -68,6 +68,12 @@ class BassNative private constructor(
         return handleResult(handle, "BASS_StreamCreateFile failed")
     }
 
+    fun createFileDecodeStream(path: File): Result<Int> =
+        createFileStream(
+            path = path,
+            flags = BassFlags.StreamPrescan or BassFlags.StreamDecode or BassFlags.SampleFloat or BassFlags.SampleMono,
+        )
+
     fun play(channel: Int, restart: Boolean = false): Result<Unit> =
         check(library.BASS_ChannelPlay(channel, restart), "BASS_ChannelPlay failed")
 
@@ -98,12 +104,29 @@ class BassNative private constructor(
     fun durationSeconds(channel: Int): Double? =
         seconds(channel, library.BASS_ChannelGetLength(channel, BassPosition.Byte))
 
+    fun lengthBytes(channel: Int): Long? =
+        library.BASS_ChannelGetLength(channel, BassPosition.Byte)
+            .takeIf { it > 0L }
+
     fun seek(channel: Int, seconds: Double): Result<Unit> {
         val bytes = library.BASS_ChannelSeconds2Bytes(channel, seconds)
         return check(
             library.BASS_ChannelSetPosition(channel, bytes, BassPosition.Byte),
             "BASS_ChannelSetPosition failed",
         )
+    }
+
+    fun readFloatData(channel: Int, buffer: FloatArray): Result<Int> {
+        val bytesRead = library.BASS_ChannelGetData(
+            handle = channel,
+            buffer = buffer,
+            length = (buffer.size * Float.SIZE_BYTES) or BassData.Float,
+        )
+        return if (bytesRead >= 0) {
+            Result.success(bytesRead / Float.SIZE_BYTES)
+        } else {
+            Result.failure(IllegalStateException(errorMessage("BASS_ChannelGetData failed")))
+        }
     }
 
     fun errorCode(): Int = library.BASS_ErrorGetCode()
@@ -223,6 +246,7 @@ private interface BassLibrary : Library {
     fun BASS_ChannelBytes2Seconds(handle: Int, position: Long): Double
     fun BASS_ChannelSeconds2Bytes(handle: Int, seconds: Double): Long
     fun BASS_ChannelGetTags(handle: Int, tags: Int): Pointer?
+    fun BASS_ChannelGetData(handle: Int, buffer: FloatArray, length: Int): Int
 }
 
 private object BassPosition {
@@ -234,8 +258,15 @@ private object BassAttributes {
 }
 
 object BassFlags {
+    const val SampleMono: Int = 2
+    const val SampleFloat: Int = 0x100
     const val StreamPrescan: Int = 0x20000
+    const val StreamDecode: Int = 0x200000
     const val StreamStatus: Int = 0x800000
+}
+
+private object BassData {
+    const val Float: Int = 0x40000000
 }
 
 object BassActive {

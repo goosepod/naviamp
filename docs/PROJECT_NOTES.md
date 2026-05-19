@@ -489,7 +489,7 @@ Good next slices:
 - Phase 2C follow-up: harden audio cache behavior for mobile/offline use, including expiry rules, partial download cleanup, and provider-specific refresh hooks.
 - Downloads follow-up: add a clearer download queue/progress surface for multi-track jobs, plus downloaded indicators on rows/albums/playlists.
 - Lyrics follow-up: investigate whether LRCLIB synced lyrics can be written back to Navidrome-managed files or sidecar lyric metadata, and only add this as an explicit user-controlled action if Navidrome supports it safely.
-- Waveform follow-up: consider queue-aware/background waveform analysis for likely-upcoming tracks after measuring CPU impact.
+- Prefetch sidecar follow-up: because Naviamp already pre-caches upcoming audio, add a bounded background prep pass for those files: build waveform rows, read tags, fetch provider/embedded lyrics, and optionally run LRCLIB fallback before the track starts so Now Playing data appears instantly.
 - Queue actions follow-up: keep expanding per-row overflow menus in `UP NEXT`, `BACK TO`, and `RELATED` as new actions become useful.
 - Visualizer follow-up: prototype a real live PCM/FFT path in the experimental player, then wire the player UI to that capability once it behaves well.
 - Crossfade follow-up: revisit `ExperimentalCrossfadeMpvPlaybackEngine` with cached local next files, explicit transition reset on seek/pause/skip/queue clear, and configurable fade curves inspired by Feishin's web player.

@@ -1,115 +1,88 @@
 package app.naviamp.desktop
 
-import app.naviamp.desktop.playback.MpvExecutableResolver
+import app.naviamp.desktop.playback.bass.BassNative
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.domain.waveform.DefaultWaveformBucketCount
-import app.naviamp.domain.waveform.normalizePcm16Waveform
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
-import java.nio.file.Files
 import java.nio.file.Path
-import java.util.concurrent.TimeUnit
 import kotlin.io.path.exists
 import kotlin.math.abs
+import kotlin.math.sqrt
 
 class AudioWaveformAnalyzer(
-    private val mpvExecutable: Path? = MpvExecutableResolver().resolve()?.toPath(),
+    private val nativeResult: Result<BassNative> = BassNative.load(),
     private val bucketCount: Int = DefaultWaveformBucketCount,
 ) {
     fun analyze(audioPath: Path): AudioWaveform? {
-        val mpv = mpvExecutable ?: return null
         if (!audioPath.exists()) return null
-
-        val tempDirectory = Files.createTempDirectory("naviamp-waveform-")
-        val wavPath = tempDirectory.resolve("decoded.wav")
+        val bass = nativeResult.getOrNull() ?: return null
+        bass.loadAvailablePlugins()
+        val stream = bass.createFileDecodeStream(audioPath.toFile()).getOrNull() ?: return null
         return try {
-            val process = ProcessBuilder(
-                mpv.toAbsolutePath().toString(),
-                "--no-config",
-                "--no-video",
-                "--really-quiet",
-                "--untimed",
-                "--ao=pcm",
-                "--ao-pcm-file=${wavPath.toAbsolutePath()}",
-                "--audio-format=s16",
-                "--audio-channels=mono",
-                "--audio-samplerate=8000",
-                audioPath.toAbsolutePath().toString(),
+            val totalSamples = bass.lengthBytes(stream)
+                ?.let { it / Float.SIZE_BYTES }
+            decodeWaveform(
+                bass = bass,
+                stream = stream,
+                totalSamples = totalSamples,
+                bucketCount = bucketCount,
             )
-                .redirectErrorStream(true)
-                .start()
-
-            if (!process.waitFor(60, TimeUnit.SECONDS)) {
-                process.destroyForcibly()
-                return null
-            }
-            if (process.exitValue() != 0 || !wavPath.exists()) return null
-
-            parseWaveform(wavPath, bucketCount)
-        } catch (_: Exception) {
-            null
         } finally {
-            runCatching {
-                Files.walk(tempDirectory).use { paths ->
-                    paths.sorted(Comparator.reverseOrder()).forEach(Files::deleteIfExists)
-                }
-            }
+            bass.freeStream(stream)
         }
     }
 }
 
-private fun parseWaveform(wavPath: Path, bucketCount: Int): AudioWaveform? {
-    val bytes = Files.readAllBytes(wavPath)
-    if (bytes.size < WavHeaderMinimumBytes) return null
-    if (String(bytes, 0, 4, Charsets.US_ASCII) != "RIFF") return null
-    if (String(bytes, 8, 4, Charsets.US_ASCII) != "WAVE") return null
+private fun decodeWaveform(
+    bass: BassNative,
+    stream: Int,
+    totalSamples: Long?,
+    bucketCount: Int,
+): AudioWaveform? {
+    if (bucketCount <= 0) return null
+    val effectiveTotalSamples = totalSamples?.takeIf { it > 0 } ?: return null
+    val buffer = FloatArray(16_384)
+    val buckets = FloatArray(bucketCount)
+    val bucketCounts = IntArray(bucketCount)
+    val bucketSquares = DoubleArray(bucketCount)
+    val bucketPeaks = FloatArray(bucketCount)
+    var sampleIndex = 0L
 
-    var offset = 12
-    var bitsPerSample: Int? = null
-    var dataOffset: Int? = null
-    var dataSize: Int? = null
-
-    while (offset + 8 <= bytes.size) {
-        val chunkId = String(bytes, offset, 4, Charsets.US_ASCII)
-        val chunkSize = bytes.intLe(offset + 4)
-        val chunkDataOffset = offset + 8
-        if (chunkDataOffset + chunkSize > bytes.size) break
-
-        when (chunkId) {
-            "fmt " -> {
-                if (chunkSize >= 16) {
-                    bitsPerSample = bytes.shortLe(chunkDataOffset + 14).toInt()
-                }
-            }
-            "data" -> {
-                dataOffset = chunkDataOffset
-                dataSize = chunkSize
-            }
+    while (true) {
+        val read = bass.readFloatData(stream, buffer).getOrNull() ?: return null
+        if (read <= 0) break
+        var bufferIndex = 0
+        while (bufferIndex < read) {
+            if (sampleIndex >= effectiveTotalSamples) break
+            val bucket = ((sampleIndex * bucketCount) / effectiveTotalSamples)
+                .toInt()
+                .coerceIn(0, bucketCount - 1)
+            val amplitude = abs(buffer[bufferIndex]).coerceIn(0f, 1f)
+            bucketSquares[bucket] += (amplitude * amplitude).toDouble()
+            bucketPeaks[bucket] = maxOf(bucketPeaks[bucket], amplitude)
+            bucketCounts[bucket] += 1
+            sampleIndex += 1
+            bufferIndex += 1
         }
-
-        offset = chunkDataOffset + chunkSize + (chunkSize % 2)
+        if (sampleIndex >= effectiveTotalSamples) break
     }
 
-    if (bitsPerSample != 16) return null
-    val start = dataOffset ?: return null
-    val size = dataSize ?: return null
-    val sampleCount = size / 2
-    if (sampleCount <= 0) return null
+    if (sampleIndex <= 0) return null
 
-    return normalizePcm16Waveform(sampleCount, bucketCount) { sampleIndex ->
-        val sampleOffset = start + sampleIndex * 2
-        abs(bytes.shortLe(sampleOffset).toInt()) / Short.MAX_VALUE.toFloat()
+    repeat(bucketCount) { bucket ->
+        val count = bucketCounts[bucket]
+        if (count > 0) {
+            val rms = sqrt(bucketSquares[bucket] / count).toFloat()
+            buckets[bucket] = rms * RmsWeight + bucketPeaks[bucket] * PeakWeight
+        }
+    }
+
+    val max = buckets.maxOrNull() ?: 0f
+    return if (max <= 0f) {
+        AudioWaveform(List(bucketCount) { 0f })
+    } else {
+        AudioWaveform(buckets.map { (it / max).coerceIn(0f, 1f) })
     }
 }
 
-private fun ByteArray.shortLe(offset: Int): Short =
-    ByteBuffer.wrap(this, offset, 2)
-        .order(ByteOrder.LITTLE_ENDIAN)
-        .short
-
-private fun ByteArray.intLe(offset: Int): Int =
-    ByteBuffer.wrap(this, offset, 4)
-        .order(ByteOrder.LITTLE_ENDIAN)
-        .int
-
-private const val WavHeaderMinimumBytes = 44
+private const val RmsWeight = 0.82f
+private const val PeakWeight = 0.18f
