@@ -74,6 +74,8 @@ import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.home.HomeLibraryRepository
 import app.naviamp.domain.home.HomeService
 import app.naviamp.domain.lyrics.selectPreferredLyrics
+import app.naviamp.domain.popular.ArtistPopularTracksService
+import app.naviamp.domain.popular.DeezerPopularTracksClient
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioService
@@ -207,6 +209,13 @@ fun NaviampApp(
     val savedRecentPlaylistIds = remember { settingsStore.loadRecentPlaylistIds() }
     val savedRecentInternetRadioStations = remember { settingsStore.loadRecentInternetRadioStations() }
     var connectedSourceId by remember { mutableStateOf(savedMediaSource?.id) }
+    val popularTracksService = remember(sessionCache) {
+        ArtistPopularTracksService(
+            repository = sessionCache,
+            libraryTracksForArtist = { artistId, limit -> sessionCache.libraryTracksForArtist(connectedSourceId.orEmpty(), artistId, limit) },
+            client = DeezerPopularTracksClient(DesktopPopularTracksHttpClient()),
+        )
+    }
     var cacheSettings by remember {
         mutableStateOf(settingsStore.loadCacheSettings().normalized())
     }
@@ -279,6 +288,7 @@ fun NaviampApp(
     var selectedArtist by remember { mutableStateOf<Artist?>(null) }
     var selectedArtistDetails by remember { mutableStateOf<ArtistDetails?>(null) }
     var selectedArtistStatus by remember { mutableStateOf<String?>(null) }
+    var selectedArtistPopularTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
     var artistDetailBackRoute by remember { mutableStateOf(AppRoute.Search) }
     var searchQuery by remember { mutableStateOf(savedSearch.query) }
     var searchResults by remember { mutableStateOf(MediaSearchResults()) }
@@ -1331,6 +1341,35 @@ fun NaviampApp(
         )
     }
 
+    fun playPopularTracks(tracks: List<Track>, index: Int = 0) {
+        val provider = connectedProvider ?: return
+        if (tracks.isEmpty() || index !in tracks.indices) return
+        stopRadioContinuation()
+        clearShuffleSnapshot()
+        openPlayerOnTrackStart = true
+        playlistEngine.playFrom(
+            scope = coroutineScope,
+            provider = provider,
+            tracks = tracks,
+            index = index,
+            quality = playbackEngine.streamQuality(),
+            replayGainMode = playbackSettings.replayGainMode,
+            callbacks = playlistCallbacks,
+        )
+    }
+
+    fun addPopularTracksToQueue(tracks: List<Track>) {
+        if (tracks.isEmpty()) return
+        val existingIds = playlistEngine.queue.tracks.map { it.id }.toSet()
+        val newTracks = tracks.filterNot { it.id in existingIds }
+        if (newTracks.isEmpty()) {
+            connectionStatus = "Popular tracks are already in the queue."
+        } else {
+            playlistEngine.appendTracks(newTracks)
+            connectionStatus = "Added ${newTracks.size} popular tracks to queue."
+        }
+    }
+
     fun downloadTracks(label: String, tracks: List<Track>) {
         val provider = connectedProvider ?: run {
             downloadStatus = "Connect to Navidrome before downloading."
@@ -1528,6 +1567,24 @@ fun NaviampApp(
                     isRadioRefilling = false
                 }
             }
+        }
+    }
+
+    fun playPopularTracksRadio(tracks: List<Track>) {
+        val provider = connectedProvider ?: return
+        val seedTrack = tracks.shuffled().firstOrNull() ?: return
+        startSeededRadio(
+            label = "${seedTrack.artistName} popular tracks radio",
+            provider = provider,
+            seedTrack = seedTrack,
+            recentRadioStream = RecentRadioStream(
+                id = "popular:${seedTrack.artistId?.value ?: seedTrack.artistName}",
+                label = "${seedTrack.artistName} popular tracks radio",
+                kind = RecentRadioKind.Track,
+                track = SavedTrack.fromTrack(seedTrack),
+            ),
+        ) { radioService ->
+            tracks.flatMap { track -> radioService.trackRadio(track.id) }
         }
     }
 
@@ -2023,12 +2080,27 @@ fun NaviampApp(
         }
         selectedArtist = artist
         selectedArtistDetails = null
+        selectedArtistPopularTracks = emptyList()
         selectedArtistStatus = "Loading..."
         appRoute = AppRoute.ArtistDetail
         coroutineScope.launch {
             try {
-                selectedArtistDetails = sessionCache.artist(provider, artist.id)
+                val details = sessionCache.artist(provider, artist.id)
+                selectedArtistDetails = details
                 selectedArtistStatus = null
+                connectedSourceId?.let { sourceId ->
+                    runCatching {
+                        popularTracksService.popularTracks(
+                            sourceId = sourceId,
+                            artist = details.artist,
+                            limit = 10,
+                        )
+                    }.onSuccess { matches ->
+                        if (selectedArtist?.id == artist.id) {
+                            selectedArtistPopularTracks = matches.map { it.matchedTrack }
+                        }
+                    }
+                }
             } catch (exception: Exception) {
                 selectedArtistStatus = exception.message ?: "Could not load artist."
             }
@@ -2466,12 +2538,20 @@ fun NaviampApp(
                                     appColors = appColors,
                                     artist = selectedArtist,
                                     artistDetails = selectedArtistDetails,
+                                    popularTracks = selectedArtistPopularTracks,
                                     status = selectedArtistStatus,
                                     coverArtUrl = { coverArtId ->
                                         coverArtId?.let { connectedProvider?.coverArtUrl(it) }
                                     },
                                     onBack = { appRoute = artistDetailBackRoute },
                                     onArtistRadio = { artist -> playArtistRadio(artist) },
+                                    onPopularTracksPlay = { tracks -> playPopularTracks(tracks) },
+                                    onPopularTracksRadio = { tracks -> playPopularTracksRadio(tracks) },
+                                    onPopularTracksAddToQueue = { tracks -> addPopularTracksToQueue(tracks) },
+                                    onPopularTrackSelected = { track ->
+                                        val index = selectedArtistPopularTracks.indexOfFirst { it.id == track.id }.coerceAtLeast(0)
+                                        playPopularTracks(selectedArtistPopularTracks, index)
+                                    },
                                     onAddArtistToPlaylist = { artist ->
                                         openAddToPlaylist(AddToPlaylistTarget.ArtistTarget(artist))
                                     },

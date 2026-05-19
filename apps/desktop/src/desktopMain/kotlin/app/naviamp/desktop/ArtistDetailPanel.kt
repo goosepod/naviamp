@@ -24,16 +24,22 @@ import androidx.compose.ui.unit.sp
 import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
+import app.naviamp.domain.Track
 
 @Composable
 fun ArtistDetailPanel(
     appColors: AppColors,
     artist: Artist?,
     artistDetails: ArtistDetails?,
+    popularTracks: List<Track>,
     status: String?,
     coverArtUrl: (String?) -> String?,
     onBack: () -> Unit,
     onArtistRadio: (Artist) -> Unit,
+    onPopularTracksPlay: (List<Track>) -> Unit,
+    onPopularTracksRadio: (List<Track>) -> Unit,
+    onPopularTracksAddToQueue: (List<Track>) -> Unit,
+    onPopularTrackSelected: (Track) -> Unit,
     onAddArtistToPlaylist: (Artist) -> Unit,
     onAlbumSelected: (Album) -> Unit,
     onAlbumRadioSelected: (Album) -> Unit,
@@ -117,6 +123,13 @@ fun ArtistDetailPanel(
                         enabled = details.albums.isNotEmpty(),
                         onClick = { effectiveArtist?.let(onAddArtistToPlaylist) },
                     )
+                    DetailActionIconButton(
+                        appColors = appColors,
+                        icon = TransportIcons.Play,
+                        contentDescription = "Play popular tracks",
+                        enabled = popularTracks.isNotEmpty(),
+                        onClick = { onPopularTracksPlay(popularTracks) },
+                    )
                     details.info?.biography
                         ?.takeIf { it.isNotBlank() }
                         ?.let { biography ->
@@ -149,6 +162,50 @@ fun ArtistDetailPanel(
         }
 
         artistDetails?.let { details ->
+            if (popularTracks.isNotEmpty()) {
+                Text(
+                    "Popular Tracks".uppercase(),
+                    color = appColors.primaryText,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    DetailActionIconButton(
+                        appColors = appColors,
+                        icon = TransportIcons.Play,
+                        contentDescription = "Play popular tracks",
+                        enabled = true,
+                        onClick = { onPopularTracksPlay(popularTracks) },
+                    )
+                    DetailActionIconButton(
+                        appColors = appColors,
+                        icon = TransportIcons.Radio,
+                        contentDescription = "Start popular tracks radio",
+                        enabled = true,
+                        onClick = { onPopularTracksRadio(popularTracks) },
+                    )
+                    DetailActionIconButton(
+                        appColors = appColors,
+                        icon = NavigationIcons.Playlist,
+                        contentDescription = "Add popular tracks to queue",
+                        enabled = true,
+                        onClick = { onPopularTracksAddToQueue(popularTracks) },
+                    )
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    popularTracks.forEach { track ->
+                        TrackRow(
+                            appColors = appColors,
+                            track = track,
+                            coverArtUrl = coverArtUrl(track.coverArtId),
+                            onClick = { onPopularTrackSelected(track) },
+                            onStartRadio = { onPopularTracksRadio(listOf(track)) },
+                            onDownload = {},
+                            onAddToPlaylist = {},
+                        )
+                    }
+                }
+            }
             Text(
                 "Albums".uppercase(),
                 color = appColors.primaryText,

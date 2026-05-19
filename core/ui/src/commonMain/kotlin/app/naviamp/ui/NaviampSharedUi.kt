@@ -151,6 +151,7 @@ data class SharedAlbumDetailUi(
 data class SharedArtistDetailUi(
     val artist: SharedMediaItemUi,
     val albums: List<SharedMediaItemUi>,
+    val popularTracks: List<AndroidTrackRowUi> = emptyList(),
 )
 
 data class SharedPlaylistDetailUi(
@@ -350,6 +351,9 @@ fun NaviampSharedAppShell(
     onAlbumRadio: (SharedAlbumDetailUi) -> Unit = {},
     onArtistSelected: (SharedMediaItemUi) -> Unit,
     onArtistRadio: (SharedArtistDetailUi) -> Unit = {},
+    onArtistPopularPlay: (SharedArtistDetailUi) -> Unit = {},
+    onArtistPopularRadio: (SharedArtistDetailUi) -> Unit = {},
+    onArtistPopularAddToQueue: (SharedArtistDetailUi) -> Unit = {},
     onPlaylistSelected: (SharedMediaItemUi) -> Unit,
     onPlaylistSortModeChanged: (SharedPlaylistSortMode) -> Unit = {},
     onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit = { _, _ -> },
@@ -478,6 +482,9 @@ fun NaviampSharedAppShell(
                             onAlbumRadio = onAlbumRadio,
                             onArtistSelected = onArtistSelected,
                             onArtistRadio = onArtistRadio,
+                            onArtistPopularPlay = onArtistPopularPlay,
+                            onArtistPopularRadio = onArtistPopularRadio,
+                            onArtistPopularAddToQueue = onArtistPopularAddToQueue,
                             onPlaylistSelected = onPlaylistSelected,
                             onPlaylistSortModeChanged = onPlaylistSortModeChanged,
                             onPlaylistPlay = onPlaylistPlay,
@@ -690,6 +697,9 @@ private fun ConnectedContent(
     onAlbumRadio: (SharedAlbumDetailUi) -> Unit,
     onArtistSelected: (SharedMediaItemUi) -> Unit,
     onArtistRadio: (SharedArtistDetailUi) -> Unit,
+    onArtistPopularPlay: (SharedArtistDetailUi) -> Unit,
+    onArtistPopularRadio: (SharedArtistDetailUi) -> Unit,
+    onArtistPopularAddToQueue: (SharedArtistDetailUi) -> Unit,
     onPlaylistSelected: (SharedMediaItemUi) -> Unit,
     onPlaylistSortModeChanged: (SharedPlaylistSortMode) -> Unit,
     onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit,
@@ -777,6 +787,10 @@ private fun ConnectedContent(
             detail = artistDetail,
             onBack = onCloseNowPlaying,
             onArtistRadio = { onArtistRadio(artistDetail) },
+            onPopularPlay = { onArtistPopularPlay(artistDetail) },
+            onPopularRadio = { onArtistPopularRadio(artistDetail) },
+            onPopularAddToQueue = { onArtistPopularAddToQueue(artistDetail) },
+            onPopularTrackSelected = onTrackSelected,
             onAlbumSelected = onAlbumSelected,
         )
         playlistDetail != null -> PlaylistDetailContent(
@@ -1269,6 +1283,10 @@ private fun ArtistDetailContent(
     detail: SharedArtistDetailUi,
     onBack: () -> Unit,
     onArtistRadio: () -> Unit,
+    onPopularPlay: () -> Unit,
+    onPopularRadio: () -> Unit,
+    onPopularAddToQueue: () -> Unit,
+    onPopularTrackSelected: (AndroidTrackRowUi) -> Unit,
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1281,6 +1299,26 @@ private fun ArtistDetailContent(
                 Text("${detail.albums.size} albums", color = colors.secondaryText, fontSize = 13.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     MiniPlayerIconButton(colors, detail.albums.isNotEmpty(), NaviampTransportIcons.Radio, "Start artist radio", onArtistRadio)
+                    MiniPlayerIconButton(colors, detail.popularTracks.isNotEmpty(), NaviampTransportIcons.Play, "Play popular tracks", onPopularPlay)
+                    MiniPlayerIconButton(colors, detail.popularTracks.isNotEmpty(), NaviampIcons.Playlist, "Add popular tracks to queue", onPopularAddToQueue)
+                }
+            }
+        }
+        if (detail.popularTracks.isNotEmpty()) {
+            Text(
+                "Popular Tracks".uppercase(),
+                color = colors.primaryText,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp,
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    MiniPlayerIconButton(colors, true, NaviampTransportIcons.Play, "Play popular tracks", onPopularPlay)
+                    MiniPlayerIconButton(colors, true, NaviampTransportIcons.Radio, "Start popular tracks radio", onPopularRadio)
+                    MiniPlayerIconButton(colors, true, NaviampIcons.Playlist, "Add popular tracks to queue", onPopularAddToQueue)
+                }
+                detail.popularTracks.forEachIndexed { index, track ->
+                    TrackRow(track.copy(meta = (index + 1).toString()), colors, onPopularTrackSelected)
                 }
             }
         }

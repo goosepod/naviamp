@@ -153,20 +153,27 @@ Native scaffold lives in `native/bass-jni`.
 - [x] Remove Android Media3 playback fallback so Android remains fully BASS-backed.
 - [x] Build Android debug APK and compile desktop after stabilization changes.
 
-## Future Feature: Artist Popular Tracks
+## Active Feature: Artist Popular Tracks
 
-- [ ] Add a local database model for artist popular-track metadata, including source, rank, fetched timestamp, and matched local track ID.
-- [ ] Use Deezer as an enrichment source for artist top tracks while keeping the local library as the source of playable truth.
-- [ ] Match Deezer popular tracks to local library tracks by normalized artist/title, with album and duration as secondary confidence checks when available.
-- [ ] Show a Popular Tracks section on artist detail screens when local matches exist.
-- [ ] Add actions for Play Popular Tracks, Add Popular Tracks to Queue, and Start Popular Tracks Radio.
-- [ ] For Popular Tracks Radio, seed playback from one popular local track, generate radio from each matched popular track, append the results, and dedupe the queue.
+- [x] Add a local database model for artist popular-track metadata, including source, rank, fetched timestamp, and matched local track ID.
+- [x] Use Deezer as an enrichment source for artist top tracks while keeping the local library as the source of playable truth.
+- [x] Match Deezer popular tracks to local library tracks by normalized artist/title, with album and duration as secondary confidence checks when available.
+- [x] Show a Popular Tracks section on artist detail screens when local matches exist.
+- [x] Add actions for Play Popular Tracks, Add Popular Tracks to Queue, and Start Popular Tracks Radio.
+- [x] For Popular Tracks Radio, seed playback from one popular local track, generate radio from each matched popular track, append the results, and dedupe the queue.
+- [ ] Add per-track overflow actions for individual popular tracks once the shared Add to Queue menu work lands.
 
 ## Future Feature: Cached Sidecar Prep
 
 - [ ] When audio prefetch caches upcoming tracks, also run sidecar prep for waveform generation, tag reading, provider/embedded lyrics, and LRCLIB fallback so Now Playing metadata is ready before playback starts.
 - [ ] Prefer cached audio files for waveform analysis on Android and desktop so track changes can display the waveform immediately instead of decoding over the network during playback.
 - [ ] Track sidecar-prep status per cached track so failed lyrics or waveform attempts can be retried without blocking playback.
+
+## Future Cleanup: Shared Network Clients
+
+- [ ] Move LRCLIB request construction, response parsing, and selection behavior into common code with only a tiny platform HTTP adapter.
+- [ ] Move Navidrome request construction, response parsing, API call history, and endpoint behavior further into common code; keep platform-specific TLS/certificate handling behind an HTTP adapter.
+- [ ] Reuse the Deezer popular-track client shape as the model: common feature client plus platform `GET` implementation.
 
 ## Future Feature: Queue Actions
 

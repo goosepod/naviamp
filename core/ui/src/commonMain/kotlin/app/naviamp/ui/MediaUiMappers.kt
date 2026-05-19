@@ -330,10 +330,14 @@ fun AlbumDetails.toSharedAlbumDetailUi(coverArtUrl: (String?) -> String?): Share
         totalDurationLabel = tracks.totalDurationLabel(),
     )
 
-fun ArtistDetails.toSharedArtistDetailUi(coverArtUrl: (String?) -> String?): SharedArtistDetailUi =
+fun ArtistDetails.toSharedArtistDetailUi(
+    coverArtUrl: (String?) -> String?,
+    popularTracks: List<Track> = emptyList(),
+): SharedArtistDetailUi =
     SharedArtistDetailUi(
         artist = artist.toSharedMediaItemUi(coverArtUrl),
         albums = albums.map { it.toSharedMediaItemUi(coverArtUrl) },
+        popularTracks = popularTracks.map { it.toAndroidTrackRowUi(coverArtUrl) },
     )
 
 fun MediaSearchResults.toSharedSearchResultsUi(coverArtUrl: (String?) -> String?): SharedSearchResultsUi =

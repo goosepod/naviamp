@@ -59,6 +59,8 @@ import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.label
+import app.naviamp.domain.popular.ArtistPopularTracksService
+import app.naviamp.domain.popular.DeezerPopularTracksClient
 import app.naviamp.domain.lyrics.selectPreferredLyrics
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
@@ -169,6 +171,13 @@ private fun NaviampAndroidApp() {
     val selectedRoute = navigationState.route.toSharedRoute()
     var provider by remember { mutableStateOf<NavidromeProvider?>(null) }
     var activeSourceId by remember { mutableStateOf<String?>(savedProviderSource?.id) }
+    val popularTracksService = remember(storage) {
+        ArtistPopularTracksService(
+            repository = storage,
+            libraryTracksForArtist = { artistId, limit -> storage.libraryTracksForArtist(activeSourceId.orEmpty(), artistId, limit) },
+            client = DeezerPopularTracksClient(AndroidPopularTracksHttpClient()),
+        )
+    }
     var restoredStartPositionSeconds by remember { mutableStateOf<Double?>(null) }
     var activeTlsSettings by remember { mutableStateOf(NavidromeTlsSettings()) }
     var validation by remember { mutableStateOf<ConnectionValidation?>(null) }
@@ -191,6 +200,7 @@ private fun NaviampAndroidApp() {
     var shuffledUpNextSnapshot by remember { mutableStateOf<List<Track>?>(null) }
     var repeatMode by remember { mutableStateOf(RepeatMode.Off) }
     var relatedTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
+    var artistPopularTracksByArtistId by remember { mutableStateOf<Map<String, List<Track>>>(emptyMap()) }
     var lyricsVisible by remember { mutableStateOf(false) }
     var lyricsByTrackId by remember { mutableStateOf<Map<String, Lyrics?>>(emptyMap()) }
     var lyricsStatusByTrackId by remember { mutableStateOf<Map<String, String?>>(emptyMap()) }
@@ -615,6 +625,7 @@ private fun NaviampAndroidApp() {
 
     fun openArtistDetails(artistId: app.naviamp.domain.ArtistId, fallbackName: String? = null) {
         val activeProvider = provider ?: return
+        val sourceId = activeSourceId
         scope.launch {
             status = "Loading ${fallbackName ?: "artist"}..."
             runCatching { activeProvider.artist(artistId) }
@@ -623,6 +634,20 @@ private fun NaviampAndroidApp() {
                     nowPlayingOpen = false
                     navigationState = navigationState.copy(route = NaviampRoute.Library)
                     status = "Connected."
+                    if (sourceId != null) {
+                        scope.launch {
+                            runCatching {
+                                popularTracksService.popularTracks(
+                                    sourceId = sourceId,
+                                    artist = detail.artist,
+                                    limit = 10,
+                                )
+                            }.onSuccess { matches ->
+                                artistPopularTracksByArtistId =
+                                    artistPopularTracksByArtistId + (artistId.value to matches.map { it.matchedTrack })
+                            }
+                        }
+                    }
                 }
                 .onFailure { error -> status = error.message ?: "Artist failed to load." }
         }
@@ -1013,7 +1038,10 @@ private fun NaviampAndroidApp() {
         playlistSortMode = playlistSortMode,
         radioStationItems = homeState.radioStations.map { it.toSharedMediaItemUi() },
         albumDetail = albumDetail?.toSharedAlbumDetailUi { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
-        artistDetail = artistDetail?.toSharedArtistDetailUi { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
+        artistDetail = artistDetail?.toSharedArtistDetailUi(
+            coverArtUrl = { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
+            popularTracks = artistPopularTracksByArtistId[artistDetail.artist.id.value].orEmpty(),
+        ),
         playlistDetail = selectedPlaylist?.toSharedPlaylistDetailUi(
             tracks = selectedPlaylistTracks,
             coverArtUrl = { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
@@ -1138,6 +1166,7 @@ private fun NaviampAndroidApp() {
         onTrackSelected = { selectedTrack ->
             val currentTracks = activeQueue().takeIf { queue -> queue.any { it.id.value == selectedTrack.id } }
                 ?: relatedTracks.takeIf { queue -> queue.any { it.id.value == selectedTrack.id } }
+                ?: artistPopularTracksByArtistId.values.flatten().takeIf { queue -> queue.any { it.id.value == selectedTrack.id } }
                 ?: allKnownTracks(searchResults, albumDetail)
             val track = currentTracks.firstOrNull { it.id.value == selectedTrack.id } ?: findKnownTrack(selectedTrack.id)
             if (track == null) {
@@ -1196,6 +1225,36 @@ private fun NaviampAndroidApp() {
                 }.onFailure { error ->
                     status = error.message ?: "Could not start artist radio."
                 }
+            }
+        },
+        onArtistPopularPlay = { detail ->
+            val popularTracks = artistPopularTracksByArtistId[detail.artist.id].orEmpty()
+            popularTracks.firstOrNull()?.let { playTrack(it, popularTracks) }
+                ?: run { status = "No popular tracks matched your library." }
+        },
+        onArtistPopularRadio = { detail ->
+            val service = radioService() ?: return@NaviampSharedAppShell
+            val popularTracks = artistPopularTracksByArtistId[detail.artist.id].orEmpty()
+            val seedTrack = popularTracks.shuffled().firstOrNull()
+            if (seedTrack == null) {
+                status = "No popular tracks matched your library."
+                return@NaviampSharedAppShell
+            }
+            startSeededRadio("${detail.artist.title} popular tracks radio", seedTrack) { radioService ->
+                popularTracks.flatMap { track -> radioService.trackRadio(track.id) }
+            }
+        },
+        onArtistPopularAddToQueue = { detail ->
+            val popularTracks = artistPopularTracksByArtistId[detail.artist.id].orEmpty()
+            if (popularTracks.isEmpty()) {
+                status = "No popular tracks matched your library."
+            } else {
+                val currentQueue = playbackQueue.tracks
+                playbackQueue = PlaybackQueue(
+                    tracks = currentQueue + popularTracks.filterNot { track -> currentQueue.any { it.id == track.id } },
+                    currentIndex = playbackQueue.currentIndex.coerceAtLeast(0),
+                )
+                status = "Added ${popularTracks.size} popular tracks to queue."
             }
         },
         onArtistSelected = { selectedArtist ->

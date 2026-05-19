@@ -27,6 +27,8 @@ import app.naviamp.domain.cache.LibraryIndexStats
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
+import app.naviamp.domain.popular.ArtistPopularTrackCandidate
+import app.naviamp.domain.popular.ArtistPopularTrackMatch
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.source.ConnectionTlsSettings
@@ -755,6 +757,38 @@ class DesktopCache(
             .executeAsList()
             .map { it.toTrack() }
 
+    override fun artistPopularTracks(sourceId: String, artistId: ArtistId, source: String): List<ArtistPopularTrackMatch> =
+        queries.selectArtistPopularTracks(sourceId, artistId.value, source)
+            .executeAsList()
+            .map { it.toPopularTrackMatch() }
+
+    override fun replaceArtistPopularTracks(
+        sourceId: String,
+        artistId: ArtistId,
+        source: String,
+        candidates: List<ArtistPopularTrackCandidate>,
+        matchedTracksBySourceTrackId: Map<String, Track>,
+        fetchedAtEpochMillis: Long,
+    ) {
+        queries.transaction {
+            queries.deleteArtistPopularTracks(sourceId, artistId.value, source)
+            candidates.forEach { candidate ->
+                queries.upsertArtistPopularTrack(
+                    source_id = sourceId,
+                    remote_artist_id = artistId.value,
+                    popular_source = source,
+                    source_track_id = candidate.sourceTrackId,
+                    rank = candidate.rank.toLong(),
+                    title = candidate.title,
+                    album_title = candidate.albumTitle,
+                    duration_seconds = candidate.durationSeconds?.toLong(),
+                    matched_remote_track_id = matchedTracksBySourceTrackId[candidate.sourceTrackId]?.id?.value,
+                    fetched_at_epoch_millis = fetchedAtEpochMillis,
+                )
+            }
+        }
+    }
+
     override fun relatedLibraryTracks(sourceId: String, track: Track, limit: Long): List<Track> {
         val albumTracks = track.albumId
             ?.let { libraryTracksForAlbum(sourceId, it, limit) }
@@ -860,10 +894,12 @@ class DesktopCache(
     override fun clearLibraryData(sourceId: String?) {
         queries.transaction {
             if (sourceId == null) {
+                queries.clearArtistPopularTracks()
                 queries.clearLibraryTracks()
                 queries.clearLibraryAlbums()
                 queries.clearLibraryArtists()
             } else {
+                queries.clearArtistPopularTracksForSource(sourceId)
                 queries.clearLibraryForSource(sourceId)
                 queries.clearLibraryAlbumsForSource(sourceId)
                 queries.clearLibraryArtistsForSource(sourceId)
@@ -1142,6 +1178,46 @@ private fun app.naviamp.storage.Library_track.toTrack(): Track =
         replayGain = null,
         favoritedAtIso8601 = favorited_at_iso8601,
         userRating = user_rating?.toInt(),
+    )
+
+private fun app.naviamp.storage.SelectArtistPopularTracks.toPopularTrackMatch(): ArtistPopularTrackMatch =
+    ArtistPopularTrackMatch(
+        candidate = ArtistPopularTrackCandidate(
+            source = popular_source,
+            sourceTrackId = source_track_id,
+            rank = rank.toInt(),
+            title = popular_title,
+            albumTitle = popular_album_title,
+            durationSeconds = popular_duration_seconds?.toInt(),
+        ),
+        matchedTrack = Track(
+            id = TrackId(remote_track_id),
+            title = title,
+            artistId = remote_artist_id?.let { ArtistId(it) },
+            artistName = artist_name,
+            albumId = remote_album_id?.let { AlbumId(it) },
+            albumTitle = album_title,
+            albumReleaseYear = null,
+            durationSeconds = duration_seconds?.toInt(),
+            coverArtId = cover_art_id,
+            audioInfo = AudioInfo(
+                codec = audio_codec,
+                bitrateKbps = audio_bitrate_kbps?.toInt(),
+                contentType = audio_content_type,
+                bitDepth = audio_bit_depth?.toInt(),
+                samplingRateHz = audio_sampling_rate_hz?.toInt(),
+            ).takeIf {
+                it.codec != null ||
+                    it.bitrateKbps != null ||
+                    it.contentType != null ||
+                    it.bitDepth != null ||
+                    it.samplingRateHz != null
+            },
+            replayGain = null,
+            favoritedAtIso8601 = favorited_at_iso8601,
+            userRating = user_rating?.toInt(),
+        ),
+        fetchedAtEpochMillis = fetched_at_epoch_millis,
     )
 
 private fun app.naviamp.storage.Downloaded_audio.toTrack(): Track =
