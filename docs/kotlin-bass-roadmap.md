@@ -65,7 +65,7 @@ Native scaffold lives in `native/bass-jni`.
 - [x] Map BASS error codes into useful `PlaybackState.Error` messages.
 - [x] Add engine selection with `NAVIAMP_PLAYBACK_ENGINE=bass` and `-Dnaviamp.playback.engine=bass`.
 - [x] Use BASS by default when the native library is available, with mpv fallback if BASS is unavailable.
-- [ ] Verify real Navidrome library playback manually on macOS.
+- [x] Verify real Navidrome library playback manually on macOS.
 - [ ] Verify internet radio playback manually on macOS.
 
 ## Phase 3: Packaging
@@ -79,7 +79,8 @@ Native scaffold lives in `native/bass-jni`.
 
 ## Phase 4: Metadata And Radio
 
-- [ ] Request ICY metadata for internet radio streams where BASS requires explicit flags/options.
+- [x] Request ICY metadata for internet radio streams where BASS requires explicit flags/options.
+- [ ] Verify BASS resolves playlist-backed radio URLs such as PLS and M3U endpoints on macOS.
 - [ ] Convert BASS stream metadata into `PlaybackStreamMetadata`.
 - [ ] Preserve station title as secondary text while updating current song title from ICY metadata.
 - [ ] Verify SomaFM and Navidrome internet radio stations update metadata.

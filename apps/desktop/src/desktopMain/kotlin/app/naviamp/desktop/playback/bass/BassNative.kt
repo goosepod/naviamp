@@ -20,6 +20,24 @@ class BassNative private constructor(
     fun init(device: Int = -1, frequency: Int = 44_100): Result<Unit> =
         check(library.BASS_Init(device, frequency, flags = 0, window = null, clsid = null), "BASS_Init failed")
 
+    fun configureInternetStreams(): Result<Unit> {
+        val required = listOf(
+            BassConfig.NetPlaylist to 1,
+            BassConfig.NetMeta to 1,
+        )
+        required.forEach { (option, value) ->
+            setConfig(option, value).onFailure { return Result.failure(it) }
+        }
+
+        setConfig(BassConfig.NetPlaylistDepth, 5)
+            .onFailure { return Result.failure(it) }
+        setConfig(BassConfig.NetTimeout, 15_000)
+            .onFailure { return Result.failure(it) }
+        setConfig(BassConfig.NetReadTimeout, 15_000)
+            .onFailure { return Result.failure(it) }
+        return Result.success(Unit)
+    }
+
     fun free(): Result<Unit> =
         check(library.BASS_Free(), "BASS_Free failed")
 
@@ -158,6 +176,9 @@ class BassNative private constructor(
         return seconds.takeIf { it.isFinite() && it >= 0.0 }
     }
 
+    private fun setConfig(option: Int, value: Int): Result<Unit> =
+        check(library.BASS_SetConfig(option, value), "BASS_SetConfig $option failed")
+
     private fun metaTag(channel: Int): String? =
         library.BASS_ChannelGetTags(channel, BassTags.Meta)
             ?.getString(0)
@@ -228,6 +249,7 @@ data class BassPlugin(
 private interface BassLibrary : Library {
     fun BASS_Init(device: Int, frequency: Int, flags: Int, window: Pointer?, clsid: Pointer?): Boolean
     fun BASS_Free(): Boolean
+    fun BASS_SetConfig(option: Int, value: Int): Boolean
     fun BASS_GetVersion(): Int
     fun BASS_ErrorGetCode(): Int
     fun BASS_StreamCreateURL(url: String, offset: Long, flags: Int, downloadProc: Pointer?, user: Pointer?): Int
@@ -263,6 +285,14 @@ object BassFlags {
     const val StreamPrescan: Int = 0x20000
     const val StreamDecode: Int = 0x200000
     const val StreamStatus: Int = 0x800000
+}
+
+private object BassConfig {
+    const val NetTimeout: Int = 11
+    const val NetPlaylist: Int = 21
+    const val NetReadTimeout: Int = 37
+    const val NetPlaylistDepth: Int = 59
+    const val NetMeta: Int = 71
 }
 
 private object BassData {

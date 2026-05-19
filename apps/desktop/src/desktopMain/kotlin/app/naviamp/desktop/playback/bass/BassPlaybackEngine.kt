@@ -34,6 +34,7 @@ class BassPlaybackEngine(
     private var playbackId: Int = 0
     private var volumePercent: Int = 100
     private var initialized = false
+    private var internetStreamsConfigured = false
     private var onStateChanged: ((PlaybackState) -> Unit)? = null
     private var lastRequestUrl: String? = null
     private var lastError: String? = loadError?.message
@@ -189,6 +190,10 @@ class BassPlaybackEngine(
         if (!initialized) {
             bass.init().getOrThrow()
             initialized = true
+        }
+        if (!internetStreamsConfigured) {
+            bass.configureInternetStreams().getOrThrow()
+            internetStreamsConfigured = true
         }
     }
 
