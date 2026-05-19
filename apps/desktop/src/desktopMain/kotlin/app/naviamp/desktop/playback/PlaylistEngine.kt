@@ -1,8 +1,10 @@
 package app.naviamp.desktop.playback
 
 import app.naviamp.desktop.AudioTagReader
+import app.naviamp.desktop.AudioTag
 import app.naviamp.desktop.DesktopCache
 import app.naviamp.desktop.lyricsFromAudioTags
+import app.naviamp.domain.ReplayGain
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
@@ -10,10 +12,12 @@ import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.playback.CrossfadeSettings
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.playback.PlaybackReplayGain
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.ReplayGainMode
+import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import kotlinx.coroutines.CoroutineScope
@@ -245,6 +249,7 @@ class PlaylistEngine(
             try {
                 val playbackTarget = playbackTarget(currentProvider, track, currentQuality)
                 playbackSource = playbackTarget.source
+                val replayGain = replayGainForTrack(track, currentQuality)
                 val coverArtUrl = track.coverArtId?.let { currentProvider.coverArtUrl(it) }
                 currentCallbacks.onTrackStarted(track, coverArtUrl)
                 startCurrentTrackSidecars(scope, activeSessionId, track)
@@ -255,6 +260,7 @@ class PlaylistEngine(
                         url = playbackTarget.url,
                         mediaId = track.id.value,
                         replayGainMode = replayGainMode.forEngine(playbackEngine),
+                        replayGain = replayGain,
                         startPositionSeconds = startPositionSeconds?.takeIf { it > 0.0 },
                     ),
                     onStateChanged = { state ->
@@ -506,11 +512,13 @@ class PlaylistEngine(
             if (activeSessionId != sessionId) return@launch
             try {
                 val streamUrl = playbackTarget(currentProvider, nextTrack, currentQuality).url
+                val replayGain = replayGainForTrack(nextTrack, currentQuality)
                 if (activeSessionId == sessionId) {
                     val request = PlaybackRequest(
                         url = streamUrl,
                         mediaId = nextTrack.id.value,
                         replayGainMode = replayGainMode.forEngine(playbackEngine),
+                        replayGain = replayGain,
                     )
                     withContext(Dispatchers.IO) {
                         queueAwareEngine.prepareNext(request)
@@ -529,6 +537,25 @@ class PlaylistEngine(
             repeatMode == RepeatMode.Queue && queue.currentIndex in queue.tracks.indices && queue.tracks.isNotEmpty() -> 0
             else -> null
         }
+
+    private suspend fun replayGainForTrack(
+        track: Track,
+        quality: StreamQuality,
+    ): PlaybackReplayGain? {
+        track.replayGain?.takeIf { it.hasAnyValue() }?.let { replayGain ->
+            return PlaybackReplayGain(replayGain, ReplayGainSource.Provider)
+        }
+
+        val audioCache = cache ?: return null
+        val sourceId = sourceIdProvider() ?: return null
+        val audioPath = audioCache.downloadedAudioFile(sourceId, track.id, quality)?.path
+            ?: audioCache.cachedAudioFile(sourceId, track.id, quality)?.path
+            ?: return null
+        val replayGain = withContext(Dispatchers.IO) {
+            AudioTagReader().read(audioPath).replayGain()
+        } ?: return null
+        return PlaybackReplayGain(replayGain, ReplayGainSource.LocalTags)
+    }
 }
 
 data class CacheRuntimeStats(
@@ -571,5 +598,33 @@ data class PlaylistCallbacks(
 private fun ReplayGainMode.forEngine(playbackEngine: PlaybackEngine): ReplayGainMode =
     if (playbackEngine.supportsReplayGain) this else ReplayGainMode.Off
 
+private fun ReplayGain.hasAnyValue(): Boolean =
+    trackGainDb != null || albumGainDb != null || trackPeak != null || albumPeak != null
+
+private fun List<AudioTag>.replayGain(): ReplayGain? {
+    fun value(vararg keys: String): Double? {
+        val wanted = keys.map { it.normalizedReplayGainKey() }.toSet()
+        return firstNotNullOfOrNull { tag ->
+            tag.value.replayGainNumber()
+                ?.takeIf { tag.key.normalizedReplayGainKey() in wanted }
+        }
+    }
+
+    val replayGain = ReplayGain(
+        trackGainDb = value("REPLAYGAIN_TRACK_GAIN", "Replaygain Track Gain", "Track Gain"),
+        albumGainDb = value("REPLAYGAIN_ALBUM_GAIN", "Replaygain Album Gain", "Album Gain"),
+        trackPeak = value("REPLAYGAIN_TRACK_PEAK", "Replaygain Track Peak", "Track Peak"),
+        albumPeak = value("REPLAYGAIN_ALBUM_PEAK", "Replaygain Album Peak", "Album Peak"),
+    )
+    return replayGain.takeIf { it.hasAnyValue() }
+}
+
+private fun String.normalizedReplayGainKey(): String =
+    lowercase().filter { it.isLetterOrDigit() }
+
+private fun String.replayGainNumber(): Double? =
+    ReplayGainNumberRegex.find(this)?.value?.toDoubleOrNull()
+
 private const val GaplessPrepareWindowSeconds = 8.0
 private const val DefaultAudioPrefetchDepth = 10
+private val ReplayGainNumberRegex = Regex("""[-+]?\d+(?:\.\d+)?""")

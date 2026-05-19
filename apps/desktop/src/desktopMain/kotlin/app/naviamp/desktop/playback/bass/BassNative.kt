@@ -204,7 +204,7 @@ class BassNative private constructor(
 
     fun setVolume(channel: Int, volume: Float): Result<Unit> =
         check(
-            library.BASS_ChannelSetAttribute(channel, BassAttributes.Volume, volume.coerceIn(0f, 1f)),
+            library.BASS_ChannelSetAttribute(channel, BassAttributes.Volume, volume.coerceIn(0f, MaxVolumeFactor)),
             "BASS_ChannelSetAttribute volume failed",
         )
 
@@ -213,7 +213,7 @@ class BassNative private constructor(
             library.BASS_ChannelSlideAttribute(
                 channel,
                 BassAttributes.Volume,
-                volume.coerceIn(0f, 1f),
+                volume.coerceIn(0f, MaxVolumeFactor),
                 durationMillis.coerceAtLeast(0),
             ),
             "BASS_ChannelSlideAttribute volume failed",
@@ -562,3 +562,5 @@ private fun parseIcyStreamTitle(meta: String): String? {
     if (titleEnd <= titleStart) return null
     return meta.substring(titleStart, titleEnd).trim().takeIf { it.isNotBlank() }
 }
+
+private const val MaxVolumeFactor = 4f

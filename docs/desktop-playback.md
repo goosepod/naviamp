@@ -193,3 +193,11 @@ For gapless playback, the engine uses BASSmix queued decode channels. The active
 For crossfade playback, the engine uses the same BASSmix path without queue mode so the prepared next source can overlap the active source. The next source fades in with an equal-power envelope while the current source fades out. Crossfade is only prepared for finite-duration queued tracks; live radio and unknown-duration streams continue without crossfade.
 
 Audio prefetch also performs sidecar prep for upcoming tracks after caching audio: waveform generation, local tag reading for embedded lyrics, provider lyrics, and LRCLIB fallback. Those steps are best-effort and do not fail the audio prefetch if one sidecar source is unavailable.
+
+## ReplayGain
+
+Desktop BASS applies ReplayGain app-side with BASS channel volume attributes. Naviamp prefers provider ReplayGain metadata when Navidrome/OpenSubsonic returns it, then falls back to ReplayGain tags from downloaded or cached local audio files. Track and Album modes use the matching gain/peak pair, with Album falling back to Track when album-level values are missing.
+
+For mixer playback, the mixer output keeps the user volume and each source channel carries its ReplayGain factor. For direct non-mixer playback, the user volume and ReplayGain factor are multiplied on the active channel. Positive gains are bounded, and peak metadata limits boosts that would clip. Crossfade envelopes are scaled by each source's ReplayGain factor so fades do not discard loudness normalization.
+
+Stats for nerds reports the active ReplayGain mode, metadata source, applied dB/factor, and whether peak limiting prevented clipping.

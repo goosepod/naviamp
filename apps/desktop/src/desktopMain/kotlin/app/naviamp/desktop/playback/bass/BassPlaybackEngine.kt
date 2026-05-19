@@ -6,6 +6,8 @@ import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
+import app.naviamp.domain.playback.ReplayGainMode
+import app.naviamp.domain.playback.ReplayGainSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -15,6 +17,7 @@ import java.io.File
 import java.net.URI
 import kotlin.math.PI
 import kotlin.math.cos
+import kotlin.math.pow
 import kotlin.math.sin
 
 class BassPlaybackEngine(
@@ -28,7 +31,7 @@ class BassPlaybackEngine(
     override val supportsSeek: Boolean = true
     override val supportsGapless: Boolean = native?.supportsMixer == true
     override val supportsCrossfade: Boolean = native?.supportsMixer == true
-    override val supportsReplayGain: Boolean = false
+    override val supportsReplayGain: Boolean = true
     override val supportsSoftwareVolume: Boolean = true
     override val prefersOriginalStream: Boolean = true
 
@@ -45,10 +48,12 @@ class BassPlaybackEngine(
     private var lastError: String? = loadError?.message
     private var preparedStream: Int = 0
     private var preparedRequest: PlaybackRequest? = null
+    private var preparedReplayGainAdjustment: ReplayGainAdjustment? = null
     private var preparedError: String? = null
     private var endSyncCallbacks: MutableMap<Int, BassSyncCallback> = mutableMapOf()
     private var crossfadeDurationSeconds: Int = 0
     private var crossfadeActive: Boolean = false
+    private var currentReplayGainAdjustment: ReplayGainAdjustment = ReplayGainAdjustment.off()
 
     override fun play(
         scope: CoroutineScope,
@@ -85,8 +90,7 @@ class BassPlaybackEngine(
                     createDirectPlayback(bass, request, currentPlaybackId, onStateChanged).getOrThrow()
                 }
                 stream = playbackHandle
-                bass.setVolume(playbackHandle, volumePercent / 100f)
-                    .onFailure { lastError = it.message }
+                applyOutputVolume(bass)
                 request.startPositionSeconds
                     ?.takeIf { it > 0.0 }
                     ?.let { seekCurrentSource(bass, it) }
@@ -128,6 +132,7 @@ class BassPlaybackEngine(
                     freeAllStreams(bass)
                     stream = 0
                     currentSourceStream = 0
+                    currentReplayGainAdjustment = ReplayGainAdjustment.off()
                     onProgressChanged(PlaybackProgress.Unknown)
                 }
             }
@@ -168,8 +173,7 @@ class BassPlaybackEngine(
         val handle = stream
         val bass = native ?: return
         if (handle != 0) {
-            bass.setVolume(handle, volumePercent / 100f)
-                .onFailure { lastError = it.message }
+            applyOutputVolume(bass)
         }
     }
 
@@ -191,15 +195,20 @@ class BassPlaybackEngine(
             ensureInitialized(bass)
             if (stream != 0 && bass.supportsMixer) {
                 createQueuedSource(bass, request).getOrThrow().also { source ->
+                    val adjustment = replayGainAdjustment(request)
+                    applySourceReplayGain(bass, source, adjustment)
                     if (crossfadeDurationSeconds > 0) {
-                        startCrossfade(bass, source)
+                        startCrossfade(bass, source, adjustment)
                     } else {
                         bass.addMixerChannel(stream, source).getOrThrow()
                     }
                     attachEndSync(bass, source, playbackId)
+                    preparedReplayGainAdjustment = adjustment
                 }
             } else {
-                createStream(bass, request, decode = false).getOrThrow()
+                createStream(bass, request, decode = false).getOrThrow().also {
+                    preparedReplayGainAdjustment = replayGainAdjustment(request)
+                }
             }
         }.onSuccess { handle ->
             preparedStream = handle
@@ -210,6 +219,7 @@ class BassPlaybackEngine(
             lastError = preparedError
             preparedStream = 0
             preparedRequest = null
+            preparedReplayGainAdjustment = null
         }
     }
 
@@ -226,6 +236,7 @@ class BassPlaybackEngine(
         stream = 0
         currentSourceStream = 0
         crossfadeActive = false
+        currentReplayGainAdjustment = ReplayGainAdjustment.off()
         endSyncCallbacks.clear()
     }
 
@@ -246,6 +257,10 @@ class BassPlaybackEngine(
             "Active source state" to native?.let { bass ->
                 currentSourceStream.takeIf { it != 0 }?.let { bassActiveLabel(bass.activeState(it)) }
             }.orEmpty().ifBlank { "No source" },
+            "ReplayGain mode" to currentReplayGainAdjustment.mode.displayName,
+            "ReplayGain source" to (currentReplayGainAdjustment.source?.displayName ?: "None"),
+            "ReplayGain applied" to currentReplayGainAdjustment.label,
+            "ReplayGain clipping guard" to currentReplayGainAdjustment.clippingGuardLabel,
             "Crossfade duration" to if (crossfadeDurationSeconds > 0) "${crossfadeDurationSeconds}s" else "Off",
             "Crossfade active" to crossfadeActive.toString(),
             "Prepared next" to (preparedRequest?.mediaId ?: preparedRequest?.url ?: "None"),
@@ -274,6 +289,7 @@ class BassPlaybackEngine(
         val handle = preparedStream.takeIf { it != 0 && preparedRequest == request } ?: return null
         preparedStream = 0
         preparedRequest = null
+        preparedReplayGainAdjustment = null
         preparedError = null
         return handle
     }
@@ -290,9 +306,11 @@ class BassPlaybackEngine(
             bass.freeStream(finishedSource).onFailure { lastError = it.message }
         }
         currentSourceStream = queuedSource
+        currentReplayGainAdjustment = preparedReplayGainAdjustment ?: ReplayGainAdjustment.off()
         crossfadeActive = false
         preparedStream = 0
         preparedRequest = null
+        preparedReplayGainAdjustment = null
         preparedError = null
         onProgressChanged(PlaybackProgress.Unknown)
         onStateChanged(PlaybackState.Playing)
@@ -308,6 +326,7 @@ class BassPlaybackEngine(
         }
         preparedStream = 0
         preparedRequest = null
+        preparedReplayGainAdjustment = null
         preparedError = null
     }
 
@@ -332,6 +351,7 @@ class BassPlaybackEngine(
     ): Result<Int> =
         createStream(bass, request, decode = false).onSuccess { handle ->
             currentSourceStream = handle
+            currentReplayGainAdjustment = replayGainAdjustment(request)
             attachEndSync(bass, handle, currentPlaybackId, onStateChanged)
         }
 
@@ -349,6 +369,8 @@ class BassPlaybackEngine(
                 channels = info.chans.takeIf { it > 0 } ?: 2,
                 queueSources = crossfadeDurationSeconds <= 0,
             ).getOrThrow()
+            currentReplayGainAdjustment = replayGainAdjustment(request)
+            applySourceReplayGain(bass, source, currentReplayGainAdjustment)
             bass.addMixerChannel(mixer, source).getOrThrow()
             currentSourceStream = source
             attachEndSync(bass, source, currentPlaybackId, onStateChanged)
@@ -377,24 +399,30 @@ class BassPlaybackEngine(
             .onFailure { lastError = it.message }
     }
 
-    private fun startCrossfade(bass: BassNative, nextSource: Int) {
+    private fun startCrossfade(
+        bass: BassNative,
+        nextSource: Int,
+        nextAdjustment: ReplayGainAdjustment,
+    ) {
         val currentSource = currentSourceStream
-        bass.setVolume(nextSource, 1f).getOrThrow()
+        val nextVolume = nextAdjustment.volumeFactor
+        val currentVolume = currentReplayGainAdjustment.volumeFactor
+        bass.setVolume(nextSource, nextVolume).getOrThrow()
         bass.addMixerChannel(stream, nextSource).getOrThrow()
         val durationMillis = crossfadeDurationSeconds * 1_000
         val nextFadeBytes = bass.secondsToBytes(nextSource, crossfadeDurationSeconds.toDouble())
         if (nextFadeBytes != null) {
             bass.setMixerVolumeEnvelope(
                 nextSource,
-                equalPowerEnvelope(startBytes = 0L, durationBytes = nextFadeBytes, fadeIn = true),
+                equalPowerEnvelope(startBytes = 0L, durationBytes = nextFadeBytes, fadeIn = true, scale = nextVolume),
             ).onFailure {
                 lastError = it.message
                 bass.setVolume(nextSource, 0f).onFailure { error -> lastError = error.message }
-                bass.slideVolume(nextSource, 1f, durationMillis).onFailure { error -> lastError = error.message }
+                bass.slideVolume(nextSource, nextVolume, durationMillis).onFailure { error -> lastError = error.message }
             }
         } else {
             bass.setVolume(nextSource, 0f).onFailure { lastError = it.message }
-            bass.slideVolume(nextSource, 1f, durationMillis).onFailure { lastError = it.message }
+            bass.slideVolume(nextSource, nextVolume, durationMillis).onFailure { lastError = it.message }
         }
         if (currentSource != 0) {
             val currentStartBytes = bass.positionBytes(currentSource)
@@ -406,6 +434,7 @@ class BassPlaybackEngine(
                         startBytes = currentStartBytes,
                         durationBytes = currentFadeBytes,
                         fadeIn = false,
+                        scale = currentVolume,
                     ),
                 ).onFailure {
                     lastError = it.message
@@ -422,9 +451,10 @@ class BassPlaybackEngine(
         startBytes: Long,
         durationBytes: Long,
         fadeIn: Boolean,
+        scale: Float = 1f,
     ): List<Pair<Long, Float>> {
         if (durationBytes <= 0L) {
-            return listOf(startBytes to if (fadeIn) 1f else 0f)
+            return listOf(startBytes to if (fadeIn) scale else 0f)
         }
         return (0..EqualPowerEnvelopeSteps).map { step ->
             val t = step.toDouble() / EqualPowerEnvelopeSteps.toDouble()
@@ -434,9 +464,65 @@ class BassPlaybackEngine(
                 cos(t * PI / 2.0)
             }.toFloat()
             val position = startBytes + (durationBytes * t).toLong()
-            position to value
+            position to value * scale
         }
     }
+
+    private fun applyOutputVolume(bass: BassNative) {
+        val handle = stream.takeIf { it != 0 } ?: return
+        val volume = outputVolumeFactor()
+        if (currentSourceStream != 0 && handle != currentSourceStream) {
+            bass.setVolume(handle, volume)
+                .onFailure { lastError = it.message }
+        } else {
+            bass.setVolume(handle, volume * currentReplayGainAdjustment.volumeFactor)
+                .onFailure { lastError = it.message }
+        }
+    }
+
+    private fun applySourceReplayGain(
+        bass: BassNative,
+        source: Int,
+        adjustment: ReplayGainAdjustment,
+    ) {
+        bass.setVolume(source, adjustment.volumeFactor)
+            .onFailure { lastError = it.message }
+    }
+
+    private fun replayGainAdjustment(request: PlaybackRequest): ReplayGainAdjustment {
+        val mode = request.replayGainMode
+        val replayGain = request.replayGain?.replayGain
+        if (mode == ReplayGainMode.Off || replayGain == null) {
+            return ReplayGainAdjustment.off(mode)
+        }
+        val gainDb = when (mode) {
+            ReplayGainMode.Off -> null
+            ReplayGainMode.Track -> replayGain.trackGainDb
+            ReplayGainMode.Album -> replayGain.albumGainDb ?: replayGain.trackGainDb
+        } ?: return ReplayGainAdjustment.off(mode)
+        val peak = when (mode) {
+            ReplayGainMode.Off -> null
+            ReplayGainMode.Track -> replayGain.trackPeak
+            ReplayGainMode.Album -> replayGain.albumPeak ?: replayGain.trackPeak
+        }
+        val rawFactor = 10.0.pow(gainDb / 20.0)
+        val clippedFactor = if (peak != null && peak > 0.0 && rawFactor * peak > 1.0) {
+            1.0 / peak
+        } else {
+            rawFactor
+        }
+        return ReplayGainAdjustment(
+            mode = mode,
+            source = request.replayGain?.source,
+            gainDb = gainDb,
+            peak = peak,
+            volumeFactor = clippedFactor.coerceIn(0.0, MaxReplayGainFactor.toDouble()).toFloat(),
+            clippingPrevented = clippedFactor < rawFactor,
+        )
+    }
+
+    private fun outputVolumeFactor(): Float =
+        volumePercent.coerceIn(0, 100) / 100f
 
     private fun seekCurrentSource(bass: BassNative, seconds: Double) {
         val sourceHandle = currentSourceStream.takeIf { it != 0 } ?: stream
@@ -457,6 +543,7 @@ class BassPlaybackEngine(
         crossfadeActive = false
         preparedStream = 0
         preparedRequest = null
+        preparedReplayGainAdjustment = null
         preparedError = null
     }
 
@@ -492,4 +579,49 @@ private fun bassActiveLabel(active: Int): String =
         else -> "Unknown ($active)"
     }
 
+private data class ReplayGainAdjustment(
+    val mode: ReplayGainMode,
+    val source: ReplayGainSource?,
+    val gainDb: Double?,
+    val peak: Double?,
+    val volumeFactor: Float,
+    val clippingPrevented: Boolean,
+) {
+    val label: String
+        get() = if (gainDb == null) {
+            "Off"
+        } else {
+            "${gainDb.formatDb()} dB -> ${volumeFactor.formatFactor()}x"
+        }
+
+    val clippingGuardLabel: String
+        get() = when {
+            gainDb == null -> "Off"
+            clippingPrevented -> "Peak ${peak?.formatPeak() ?: "unknown"} limited boost"
+            else -> "No clipping risk detected"
+        }
+
+    companion object {
+        fun off(mode: ReplayGainMode = ReplayGainMode.Off): ReplayGainAdjustment =
+            ReplayGainAdjustment(
+                mode = mode,
+                source = null,
+                gainDb = null,
+                peak = null,
+                volumeFactor = 1f,
+                clippingPrevented = false,
+            )
+    }
+}
+
+private fun Double.formatDb(): String =
+    "%+.2f".format(this)
+
+private fun Float.formatFactor(): String =
+    "%.3f".format(this)
+
+private fun Double.formatPeak(): String =
+    "%.6f".format(this)
+
 private const val EqualPowerEnvelopeSteps = 8
+private const val MaxReplayGainFactor = 4f

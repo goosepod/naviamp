@@ -1,5 +1,6 @@
 package app.naviamp.desktop.playback
 
+import app.naviamp.domain.ReplayGain
 import kotlinx.coroutines.CoroutineScope
 
 interface PlaybackEngine {
@@ -41,8 +42,21 @@ data class PlaybackRequest(
     val url: String,
     val mediaId: String? = null,
     val replayGainMode: ReplayGainMode = ReplayGainMode.Off,
+    val replayGain: PlaybackReplayGain? = null,
     val startPositionSeconds: Double? = null,
 )
+
+data class PlaybackReplayGain(
+    val replayGain: ReplayGain,
+    val source: ReplayGainSource,
+)
+
+enum class ReplayGainSource(
+    val displayName: String,
+) {
+    Provider("Provider metadata"),
+    LocalTags("Local file tags"),
+}
 
 data class PlaybackStreamMetadata(
     val title: String? = null,

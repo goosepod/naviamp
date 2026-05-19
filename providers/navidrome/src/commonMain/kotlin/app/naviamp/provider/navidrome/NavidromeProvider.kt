@@ -16,6 +16,7 @@ import app.naviamp.domain.Lyrics
 import app.naviamp.domain.LyricsSource
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.ProviderId
+import app.naviamp.domain.ReplayGain
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
@@ -29,6 +30,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
@@ -723,10 +725,30 @@ class NavidromeProvider(
                 bitDepth = intValue("bitDepth"),
                 samplingRateHz = intValue("samplingRate"),
             ),
-            replayGain = null,
+            replayGain = replayGainValue(),
             favoritedAtIso8601 = stringValue("starred"),
             userRating = intValue("userRating")?.takeIf { it in 1..5 },
         )
+
+    private fun JsonObject.replayGainValue(): ReplayGain? {
+        val replayGain = this["replayGain"]?.jsonObject
+        fun value(vararg keys: String): Double? =
+            keys.firstNotNullOfOrNull { key ->
+                replayGain?.doubleValue(key) ?: doubleValue(key)
+            }
+
+        val trackGain = value("trackGain", "trackGainDb", "replayGainTrackGain", "replaygainTrackGain")
+        val albumGain = value("albumGain", "albumGainDb", "replayGainAlbumGain", "replaygainAlbumGain")
+        val trackPeak = value("trackPeak", "replayGainTrackPeak", "replaygainTrackPeak")
+        val albumPeak = value("albumPeak", "replayGainAlbumPeak", "replaygainAlbumPeak")
+        if (trackGain == null && albumGain == null && trackPeak == null && albumPeak == null) return null
+        return ReplayGain(
+            trackGainDb = trackGain,
+            albumGainDb = albumGain,
+            trackPeak = trackPeak,
+            albumPeak = albumPeak,
+        )
+    }
 
     private fun JsonObject.toLyrics(): Lyrics? {
         val lineArray = this["line"] as? JsonArray ?: return null
@@ -800,6 +822,9 @@ private fun JsonObject.intValue(key: String): Int? =
 
 private fun JsonObject.longValue(key: String): Long? =
     this[key]?.jsonPrimitive?.longOrNull ?: stringValue(key)?.toLongOrNull()
+
+private fun JsonObject.doubleValue(key: String): Double? =
+    this[key]?.jsonPrimitive?.doubleOrNull ?: stringValue(key)?.toDoubleOrNull()
 
 private fun JsonObject.booleanValue(key: String): Boolean? =
     this[key]?.jsonPrimitive?.booleanOrNull ?: stringValue(key)?.toBooleanStrictOrNull()

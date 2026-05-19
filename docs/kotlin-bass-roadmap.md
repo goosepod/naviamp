@@ -115,13 +115,13 @@ Native scaffold lives in `native/bass-jni`.
 
 ## Phase 8: ReplayGain And Loudness
 
-- [ ] Determine what BASS provides natively versus what Naviamp must apply from provider/tag metadata.
-- [ ] Support existing ReplayGain Off, Track, and Album modes.
-- [ ] Read ReplayGain from provider metadata where available.
-- [ ] Read ReplayGain from local file tags where available.
-- [ ] Apply gain consistently across desktop and Android.
-- [ ] Avoid clipping when applying gain and crossfade together.
-- [ ] Surface exactly which ReplayGain source is active in Stats for nerds.
+- [x] Determine what BASS provides natively versus what Naviamp must apply from provider/tag metadata.
+- [x] Support existing ReplayGain Off, Track, and Album modes.
+- [x] Read ReplayGain from provider metadata where available.
+- [x] Read ReplayGain from local file tags where available.
+- [x] Apply gain consistently for BASS-backed engines; Android remains capability-gated until the Android BASS engine lands.
+- [x] Avoid clipping when applying gain and crossfade together.
+- [x] Surface exactly which ReplayGain source is active in Stats for nerds.
 
 ## Phase 9: Visualizers
 
