@@ -19,7 +19,11 @@ if(ANDROID)
     set_target_properties(bass PROPERTIES
         IMPORTED_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/vendor/android/${ANDROID_ABI}/libbass.so"
     )
-    target_link_libraries(naviamp_bass PRIVATE bass log)
+    add_library(bassmix SHARED IMPORTED)
+    set_target_properties(bassmix PROPERTIES
+        IMPORTED_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/vendor/android/${ANDROID_ABI}/libbassmix.so"
+    )
+    target_link_libraries(naviamp_bass PRIVATE bass bassmix log)
 else()
     find_package(JNI REQUIRED)
     set(BASS_LIBRARY_DIR "" CACHE PATH "Directory containing the platform BASS library")
@@ -34,7 +38,18 @@ else()
     if(NOT EXISTS "${BASS_LIBRARY_PATH}")
         message(FATAL_ERROR "BASS library not found at ${BASS_LIBRARY_PATH}")
     endif()
-    target_link_libraries(naviamp_bass PRIVATE JNI::JNI "${BASS_LIBRARY_PATH}")
+    if(WIN32)
+        set(BASSMIX_LIBRARY_NAME "bassmix.dll")
+    elseif(APPLE)
+        set(BASSMIX_LIBRARY_NAME "libbassmix.dylib")
+    else()
+        set(BASSMIX_LIBRARY_NAME "libbassmix.so")
+    endif()
+    set(BASSMIX_LIBRARY_PATH "${BASS_LIBRARY_DIR}/${BASSMIX_LIBRARY_NAME}")
+    if(NOT EXISTS "${BASSMIX_LIBRARY_PATH}")
+        message(FATAL_ERROR "BASSmix library not found at ${BASSMIX_LIBRARY_PATH}")
+    endif()
+    target_link_libraries(naviamp_bass PRIVATE JNI::JNI "${BASS_LIBRARY_PATH}" "${BASSMIX_LIBRARY_PATH}")
     if(APPLE)
         set_target_properties(naviamp_bass PROPERTIES
             BUILD_RPATH "@loader_path"

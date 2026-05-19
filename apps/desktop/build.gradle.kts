@@ -8,24 +8,8 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
-val desktopMpvPlatform = providers.gradleProperty("naviamp.mpv.platform")
-    .orElse(desktopMpvPlatform())
-val desktopMpvExecutableName = desktopMpvPlatform.map { platform ->
-    if (platform.startsWith("windows-")) "mpv.exe" else "mpv"
-}
-val desktopMpvVendorFile = desktopMpvPlatform.zip(desktopMpvExecutableName) { platform, executableName ->
-    layout.projectDirectory.file("vendor/mpv/$platform/$executableName")
-}
-val generatedDesktopMpvResources = layout.buildDirectory.dir("generated/desktopMpv")
-val copyDesktopMpv by tasks.registering(Copy::class) {
-    from(desktopMpvVendorFile)
-    into(generatedDesktopMpvResources.zip(desktopMpvPlatform) { resources, platform ->
-        resources.dir("playback/mpv/$platform")
-    })
-    onlyIf { desktopMpvVendorFile.get().asFile.isFile }
-}
 val desktopBassPlatform = providers.gradleProperty("naviamp.bass.platform")
-    .orElse(desktopMpvPlatform())
+    .orElse(desktopNativePlatform())
 val desktopBassVendorDir = desktopBassPlatform.map { platform ->
     layout.projectDirectory.dir("../desktop-slint/vendor/bass/$platform")
 }
@@ -109,7 +93,6 @@ kotlin {
                 implementation(compose.material3)
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.serialization.json)
-                implementation(libs.jlayer)
                 implementation(libs.jna)
                 implementation(libs.sqldelight.sqlite.driver)
             }
@@ -173,7 +156,7 @@ tasks.matching {
     dependsOn(copyDesktopBassJniAppResources)
 }
 
-fun desktopMpvPlatform(): String {
+fun desktopNativePlatform(): String {
     val os = System.getProperty("os.name").lowercase().let { osName ->
         when {
             osName.contains("mac") || osName.contains("darwin") -> "macos"

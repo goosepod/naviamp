@@ -13,8 +13,13 @@ import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.waveform.AudioWaveform
 
-fun Artist.toSharedMediaItemUi(): SharedMediaItemUi =
-    SharedMediaItemUi(id = id.value, title = name, subtitle = "Artist")
+fun Artist.toSharedMediaItemUi(coverArtUrl: ((String?) -> String?)? = null): SharedMediaItemUi =
+    SharedMediaItemUi(
+        id = id.value,
+        title = name,
+        subtitle = "Artist",
+        coverArtUrl = coverArtUrl?.invoke(id.value),
+    )
 
 fun Album.toSharedMediaItemUi(coverArtUrl: (String?) -> String?): SharedMediaItemUi =
     SharedMediaItemUi(
@@ -89,11 +94,7 @@ fun Track.nowPlayingAlbumLine(): String =
     }.orEmpty()
 
 fun Track.nowPlayingAudioInfoLabel(playbackEngineName: String? = null): String =
-    if (playbackEngineName == "JLayer") {
-        "MP3  192 kbps"
-    } else {
-        audioInfo?.nowPlayingLabel().orEmpty()
-    }
+    audioInfo?.nowPlayingLabel().orEmpty()
 
 fun Track.toNowPlayingDetailSections(
     embeddedTags: List<Pair<String, String>>? = null,
@@ -331,13 +332,13 @@ fun AlbumDetails.toSharedAlbumDetailUi(coverArtUrl: (String?) -> String?): Share
 
 fun ArtistDetails.toSharedArtistDetailUi(coverArtUrl: (String?) -> String?): SharedArtistDetailUi =
     SharedArtistDetailUi(
-        artist = artist.toSharedMediaItemUi(),
+        artist = artist.toSharedMediaItemUi(coverArtUrl),
         albums = albums.map { it.toSharedMediaItemUi(coverArtUrl) },
     )
 
 fun MediaSearchResults.toSharedSearchResultsUi(coverArtUrl: (String?) -> String?): SharedSearchResultsUi =
     SharedSearchResultsUi(
-        artists = artists.map { it.toSharedMediaItemUi() },
+        artists = artists.map { it.toSharedMediaItemUi(coverArtUrl) },
         albums = albums.map { it.toSharedMediaItemUi(coverArtUrl) },
         tracks = tracks.map { it.toAndroidTrackRowUi(coverArtUrl) },
     )

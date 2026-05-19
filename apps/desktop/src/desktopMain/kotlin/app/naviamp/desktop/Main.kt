@@ -63,7 +63,6 @@ import app.naviamp.desktop.playback.PlaybackEngineFactory
 import app.naviamp.desktop.playback.PlaybackEngineDiagnostics
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
-import app.naviamp.desktop.playback.PlaybackTrace
 import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.PlaylistEngine
 import app.naviamp.domain.playback.ReplayGainMode
@@ -406,10 +405,6 @@ fun NaviampApp(
             kotlinx.coroutines.delay(66)
         }
         nowPlayingVisualizerFrame = null
-    }
-
-    LaunchedEffect(playbackSettings.debugLoggingEnabled) {
-        PlaybackTrace.setDefaultEnabled(playbackSettings.debugLoggingEnabled)
     }
 
     LaunchedEffect(cacheSettings.maxAudioCacheBytes) {

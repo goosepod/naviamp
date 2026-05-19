@@ -4,103 +4,15 @@ Naviamp uses a small playback abstraction so queue behavior, UI controls, and pr
 
 ## Current Engine
 
-Desktop currently uses `BassPlaybackEngine` when BASS is available. It can be overridden during development with `NAVIAMP_PLAYBACK_ENGINE=mpv-crossfade-prototype` for the old mpv crossfade prototype, or by removing/unbundling BASS to fall back to mpv/JLayer.
-
-The legacy mpv path uses `MpvProcessPlaybackEngine` when an `mpv` executable is available. It launches mpv as a child process and controls it over JSON IPC.
-
-The process engine supports:
-
-- Direct/original Navidrome streams
-- Pause and resume
-- Seeking
-- Progress and duration polling
-- Gapless mpv mode through `--gapless-audio=yes`
-
-It does not claim crossfade support yet. The `PlaylistEngine` has prepare-next hooks for crossfade-capable engines, but the current process engine does not overlap two streams.
-
-## Crossfade Prototype
-
-An isolated opt-in engine exists for crossfade testing:
-
-```powershell
-$env:NAVIAMP_PLAYBACK_ENGINE="mpv-crossfade-prototype"
-.\gradlew.bat :apps:desktop:run
-```
-
-or with JVM properties:
-
-```shell
-./gradlew :apps:desktop:run -Dnaviamp.playback.engine=mpv-crossfade-prototype
-```
-
-This uses `ExperimentalCrossfadeMpvPlaybackEngine`, not the stable `MpvProcessPlaybackEngine`. The stable engine remains the default and reports no crossfade support.
-
-The prototype follows the shape Feishin uses for its web-player crossfade path: keep two players, prepare the next player muted, start it near the end of the active track, use an equal-power fade curve, reset the transition on pause/seek, and advance app state only after the overlap has resolved. Feishin's mpv path uses mpv playlist prefetch/gapless behavior, while its crossfade path is implemented with two web players.
-
-Debug logging can be toggled from Settings > Playback > Debug logging. The legacy `NAVIAMP_PLAYBACK_TRACE=true` and `-Dnaviamp.playback.trace=true` switches still enable trace logging before saved settings are applied.
-
-When trace is enabled, logs are written to:
-
-```text
-%TEMP%/naviamp/mpv-crossfade-prototype.log
-```
-
-on Windows, or the platform temp directory equivalent elsewhere.
+Desktop uses `BassPlaybackEngine` as the production playback engine. The desktop factory always constructs BASS; if native BASS loading fails, playback reports a BASS error instead of switching to another audio stack.
 
 ## Engine Resolution
 
-`PlaybackEngineFactory` asks `MpvExecutableResolver` for an mpv executable. Resolution order is:
-
-1. JVM property: `-Dnaviamp.mpv.path=/path/to/mpv`
-2. Environment variable: `NAVIAMP_MPV_PATH=/path/to/mpv`
-3. Bundled app paths
-4. Development fallback from `PATH`
-5. JLayer fallback if mpv is unavailable
-
-Bundled mpv paths are platform-specific:
-
-```text
-playback/mpv/macos-arm64/mpv
-playback/mpv/macos-x64/mpv
-playback/mpv/windows-x64/mpv.exe
-playback/mpv/linux-x64/mpv
-```
-
-The resolver also checks common native app bundle layouts around the launched application directory.
-
-## Legacy mpv Bundling
-
-mpv is no longer part of the normal packaged app. The Gradle app packaging path only copies BASS resources. The old mpv vendor folder remains as a temporary development fallback while BASS is being stabilized.
-
-For local fallback experiments, place the platform mpv executable in:
-
-```text
-apps/desktop/vendor/mpv/<platform>/mpv
-```
-
-or on Windows:
-
-```text
-apps/desktop/vendor/mpv/windows-x64/mpv.exe
-```
-
-The desktop Gradle build copies the current platform executable into generated resources at:
-
-```text
-playback/mpv/<platform>/<executable>
-```
-
-If no vendor executable exists, the copy task skips cleanly and development builds continue to use `PATH`.
-
-If Gradle is running under a JVM whose architecture does not match the package you want to build, override the platform:
-
-```shell
-./gradlew -Pnaviamp.mpv.platform=macos-arm64 :apps:desktop:packageDmg
-```
+`PlaybackEngineFactory` accepts `NAVIAMP_PLAYBACK_ENGINE=bass` and `-Dnaviamp.playback.engine=bass` for compatibility with earlier testing scripts, but BASS is the only desktop engine path.
 
 ## Direction
 
-The production desktop target is bundled BASS so users do not need a separate install. The mpv process engine is now only a temporary development fallback while BASS covers the remaining edge cases.
+The production desktop target is bundled BASS so users do not need a separate install.
 
 The next desktop playback investigation is BASS inside the Kotlin app, tracked in `docs/kotlin-bass-roadmap.md`. The intent is to keep the existing Kotlin UI and put BASS behind the current playback interface.
 
@@ -182,7 +94,7 @@ BASS binaries are third-party redistributables from Un4seen. Keep the downloaded
 
 ## Waveform Generation
 
-Desktop waveform generation uses BASS decode streams against cached or downloaded audio files. It no longer shells out to mpv, and packaged desktop apps do not bundle an mpv executable for waveform generation.
+Desktop waveform generation uses BASS decode streams against cached or downloaded audio files. Packaged desktop apps do not bundle another decoder for waveform generation.
 
 ## Gapless Playback
 
@@ -210,8 +122,8 @@ The Now Playing screen renders those live FFT bands as a separate music-reactive
 
 ## Android BASS
 
-Android now builds and packages `libnaviamp_bass` from the shared JNI project and loads the bundled BASS Android libraries before constructing a BASS-backed playback engine. Media3 remains available as a fallback if the JNI/BASS load fails during startup.
+Android now builds and packages `libnaviamp_bass` from the shared JNI project and loads the bundled BASS Android libraries before constructing a BASS-backed playback engine. BASS is required on Android; JNI/BASS load failures surface as startup/playback diagnostics rather than falling back to another playback engine.
 
 The Android BASS engine owns BASS init/free lifecycle, stream creation, play/pause/stop, seek, volume, ReplayGain, progress polling, ICY/HTTP metadata polling, and FFT visualizer frames. It still uses Naviamp's existing foreground service and notification controls, so notification play/pause/previous/next/stop behavior stays routed through the same app callbacks.
 
-Android BASSmix gapless/crossfade support is not enabled yet; those capabilities stay reported as unsupported on Android until the queued mixer path is ported into the JNI layer.
+Android BASSmix gapless/crossfade support uses the same shared `QueueAwarePlaybackEngine` contract as desktop. The Android engine creates BASS decode sources, plays them through a BASSmix mixer, queues the next source for gapless playback, and slides source volumes for crossfade when a crossfade duration is configured. Android still uses the existing foreground service and notification callbacks around that BASS-backed engine.

@@ -12,8 +12,8 @@ The Rust/Slint app can remain a parallel experiment, but Kotlin/Compose is the r
 
 - The Kotlin app already has a playback abstraction in `core/domain/src/commonMain/kotlin/app/naviamp/domain/playback/PlaybackEngine.kt`.
 - Desktop chooses an engine in `apps/desktop/src/desktopMain/kotlin/app/naviamp/desktop/playback/PlaybackEngineFactory.kt`.
-- Desktop currently prefers mpv through `MpvProcessPlaybackEngine`.
-- JLayer remains a fallback path.
+- Desktop now constructs the BASS engine directly through `PlaybackEngineFactory`.
+- The old desktop mpv/JLayer runtime fallback paths have been removed from the active app.
 - `PlaylistEngine` already understands engine capabilities and can use `QueueAwarePlaybackEngine` hooks for prepare-next behavior.
 - BASS native libraries are already available in the repo through the Rust app vendor tree for macOS ARM64 and Windows x64.
 
@@ -21,14 +21,14 @@ The Rust/Slint app can remain a parallel experiment, but Kotlin/Compose is the r
 
 - Preserve the Kotlin UI. Do not redesign screens as part of BASS work unless playback behavior requires a UI affordance.
 - Add BASS as a new engine implementation, not a replacement for the playback interface.
-- Keep engine selection configurable during development so mpv remains available as a fallback until BASS is stable.
+- Keep the playback interface boundary, but make BASS the only active playback engine for the Kotlin app.
 - Use JNA only as the first desktop spike. Move to JNI for the production BASS binding, especially for low-latency visualizers, crossfade/gapless control, and platform parity.
 - Keep the Kotlin/domain playback interface clean. Avoid leaking BASS handles or BASS-specific details into UI/domain code.
 - Treat BASSmix as the likely path for serious gapless/crossfade support.
 - Treat live PCM/FFT access as the future visualizer path; do not revive fake/precomputed visualizers as the final solution.
 - BASS is the target playback engine across desktop and Android. The goal is the same behavior and feature set everywhere.
-- mpv should not remain bundled once BASS is stable. Keep it only as a temporary development fallback while the BASS implementation matures.
-- Waveform generation should use BASS decode streams, not mpv or shell helpers.
+- mpv should not remain bundled or used by the active Kotlin app.
+- Waveform generation should use BASS decode streams, not shell helpers.
 - Implement as much ReplayGain support as BASS and available metadata allow.
 
 ## Phase 1: Native Binding Spike
@@ -61,10 +61,10 @@ Native scaffold lives in `native/bass-jni`.
 - [x] Support local file playback from cached/downloaded audio paths.
 - [x] Implement pause, resume, stop, seek, and software volume.
 - [x] Poll progress and duration into `PlaybackProgress`.
-- [x] Report playback states consistently with the current mpv engine.
+- [x] Report playback states consistently through the shared playback contract.
 - [x] Map BASS error codes into useful `PlaybackState.Error` messages.
-- [x] Add engine selection with `NAVIAMP_PLAYBACK_ENGINE=bass` and `-Dnaviamp.playback.engine=bass`.
-- [x] Use BASS by default when the native library is available, with mpv fallback if BASS is unavailable.
+- [x] Keep `NAVIAMP_PLAYBACK_ENGINE=bass` and `-Dnaviamp.playback.engine=bass` compatible for development scripts.
+- [x] Use BASS as the desktop engine without mpv/JLayer fallback.
 - [x] Verify real Navidrome library playback manually on macOS.
 - [ ] Verify internet radio playback manually on macOS.
 
@@ -100,7 +100,6 @@ Native scaffold lives in `native/bass-jni`.
 - [x] Use BASSmix queued channels so BASS owns track-to-track transitions instead of waiting for app-level end polling.
 - [x] Adopt already-queued BASS sources when the app queue advances naturally, keeping UI state in sync without restarting audio.
 - [x] Prepare repeat-queue wraparound transitions so looping albums can queue the first track before the last track ends.
-- [x] When audio prefetch caches upcoming tracks, also run sidecar prep for waveform generation, tag reading, provider/embedded lyrics, and LRCLIB fallback so Now Playing metadata is ready before playback starts.
 - [x] Advance app queue state at the correct time without double-starting or losing play reporting.
 - [x] Reset prepared-next state on seek, stop, queue jump, and source changes.
 - [ ] Verify album playback with known gapless albums.
@@ -140,17 +139,19 @@ Native scaffold lives in `native/bass-jni`.
 - [x] Replace or wrap the current Media3 engine with a BASS-backed Android playback engine.
 - [x] Preserve Android foreground service and notification behavior.
 - [x] Verify Android playback controls, seek, volume/session behavior, and stream metadata at build/API level.
-- [x] Align Android capabilities with desktop where supported: BASS playback, ReplayGain, stream metadata, and visualizers are active; gapless/crossfade remain capability-gated until Android BASSmix queue support is implemented.
+- [x] Align Android capabilities with desktop where supported: BASS playback, ReplayGain, stream metadata, visualizers, gapless, and crossfade are active through BASS/BASSmix.
 
 ## Phase 10: Stabilization
 
-- [ ] Run desktop tests.
+- [x] Run desktop tests.
 - [ ] Run manual playback smoke tests on macOS.
 - [ ] Run manual playback smoke tests on Windows.
 - [ ] Test cached audio, downloaded audio, direct provider streams, and internet radio.
-- [ ] Test sleep/wake, server disconnects, bad URLs, unsupported formats, and rapid track skipping.
-- [ ] Make BASS the default desktop engine after stability is proven.
-- [ ] Keep mpv fallback available until BASS covers the known edge cases.
+- [ ] Test sleep/wake, server disconnects, bad URLs, unsupported formats, rapid track skipping, and Android gapless/crossfade transitions on device/emulator.
+- [x] Make BASS the default desktop engine.
+- [x] Remove the active desktop mpv/JLayer fallback path.
+- [x] Remove Android Media3 playback fallback so Android remains fully BASS-backed.
+- [x] Build Android debug APK and compile desktop after stabilization changes.
 
 ## Future Feature: Artist Popular Tracks
 
@@ -160,6 +161,12 @@ Native scaffold lives in `native/bass-jni`.
 - [ ] Show a Popular Tracks section on artist detail screens when local matches exist.
 - [ ] Add actions for Play Popular Tracks, Add Popular Tracks to Queue, and Start Popular Tracks Radio.
 - [ ] For Popular Tracks Radio, seed playback from one popular local track, generate radio from each matched popular track, append the results, and dedupe the queue.
+
+## Future Feature: Cached Sidecar Prep
+
+- [ ] When audio prefetch caches upcoming tracks, also run sidecar prep for waveform generation, tag reading, provider/embedded lyrics, and LRCLIB fallback so Now Playing metadata is ready before playback starts.
+- [ ] Prefer cached audio files for waveform analysis on Android and desktop so track changes can display the waveform immediately instead of decoding over the network during playback.
+- [ ] Track sidecar-prep status per cached track so failed lyrics or waveform attempts can be retried without blocking playback.
 
 ## Future Feature: Queue Actions
 
@@ -172,7 +179,7 @@ Native scaffold lives in `native/bass-jni`.
 
 - What is the smallest JNI surface that gives us playback, BASSmix, tags, and FFT without overbuilding the native layer?
 - Which BASS add-ons are required for the formats in the real library, and which are optional?
-- Which mpv fallback paths can be deleted once BASS is stable?
+- Which old docs/tests still mention retired playback engines and should be cleaned as follow-up documentation debt?
 - How much ReplayGain can be implemented directly through BASS versus app-side metadata/tag handling?
 - What is the Android BASS packaging/licensing shape for release builds?
 

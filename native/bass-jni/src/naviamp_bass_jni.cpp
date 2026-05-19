@@ -1,6 +1,7 @@
 #include "naviamp_bass_jni.h"
 
 #include "bass.h"
+#include "bassmix.h"
 
 #include <algorithm>
 #include <cmath>
@@ -84,6 +85,94 @@ Java_app_naviamp_android_playback_AndroidBassJni_nativeCreateFileStream(JNIEnv* 
     );
     env->ReleaseStringUTFChars(path, chars);
     return static_cast<jint>(stream);
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeCreateUrlDecodeStream(JNIEnv* env, jobject thiz, jstring url) {
+    (void)thiz;
+    const char* chars = env->GetStringUTFChars(url, nullptr);
+    if (chars == nullptr) return 0;
+    HSTREAM stream = BASS_StreamCreateURL(
+        chars,
+        0,
+        BASS_STREAM_STATUS | BASS_SAMPLE_FLOAT | BASS_STREAM_DECODE,
+        nullptr,
+        nullptr
+    );
+    env->ReleaseStringUTFChars(url, chars);
+    return static_cast<jint>(stream);
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeCreateFileDecodeStream(JNIEnv* env, jobject thiz, jstring path) {
+    (void)thiz;
+    const char* chars = env->GetStringUTFChars(path, nullptr);
+    if (chars == nullptr) return 0;
+    HSTREAM stream = BASS_StreamCreateFile(
+        FALSE,
+        chars,
+        0,
+        0,
+        BASS_STREAM_PRESCAN | BASS_SAMPLE_FLOAT | BASS_STREAM_DECODE
+    );
+    env->ReleaseStringUTFChars(path, chars);
+    return static_cast<jint>(stream);
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeCreateMixer(JNIEnv* env, jobject thiz, jint frequency, jint channels, jboolean queueSources) {
+    (void)env;
+    (void)thiz;
+    DWORD flags = BASS_SAMPLE_FLOAT;
+    if (queueSources == JNI_TRUE) flags |= BASS_MIXER_QUEUE;
+    HSTREAM mixer = BASS_Mixer_StreamCreate(
+        static_cast<DWORD>(std::max(1, static_cast<int>(frequency))),
+        static_cast<DWORD>(std::max(1, static_cast<int>(channels))),
+        flags
+    );
+    return static_cast<jint>(mixer);
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeAddMixerChannel(JNIEnv* env, jobject thiz, jint mixer, jint stream) {
+    (void)env;
+    (void)thiz;
+    return BASS_Mixer_StreamAddChannel(
+        static_cast<DWORD>(mixer),
+        static_cast<DWORD>(stream),
+        BASS_MIXER_CHAN_NORAMPIN
+    ) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jdouble JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativePositionBytes(JNIEnv* env, jobject thiz, jint stream) {
+    (void)env;
+    (void)thiz;
+    QWORD bytes = BASS_ChannelGetPosition(static_cast<DWORD>(stream), BASS_POS_BYTE);
+    if (bytes == static_cast<QWORD>(-1)) return -1.0;
+    return static_cast<jdouble>(bytes);
+}
+
+extern "C" JNIEXPORT jdouble JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeSecondsToBytes(JNIEnv* env, jobject thiz, jint stream, jdouble seconds) {
+    (void)env;
+    (void)thiz;
+    QWORD bytes = BASS_ChannelSeconds2Bytes(static_cast<DWORD>(stream), seconds);
+    if (bytes == static_cast<QWORD>(-1)) return -1.0;
+    return static_cast<jdouble>(bytes);
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeSlideVolume(JNIEnv* env, jobject thiz, jint stream, jfloat volume, jint millis) {
+    (void)env;
+    (void)thiz;
+    float safeVolume = std::max(0.0f, std::min(volume, 4.0f));
+    return BASS_ChannelSlideAttribute(
+        static_cast<DWORD>(stream),
+        BASS_ATTRIB_VOL,
+        safeVolume,
+        std::max(0, static_cast<int>(millis))
+    ) ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
@@ -197,6 +286,54 @@ Java_app_naviamp_android_playback_AndroidBassJni_nativeFft(JNIEnv* env, jobject 
     }
     jfloatArray result = env->NewFloatArray(static_cast<jsize>(safeBins));
     env->SetFloatArrayRegion(result, 0, static_cast<jsize>(safeBins), buffer.data());
+    return result;
+}
+
+extern "C" JNIEXPORT jfloatArray JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeDecodeWaveform(JNIEnv* env, jobject thiz, jint stream, jint bucketCount) {
+    (void)thiz;
+    int safeBucketCount = std::max(1, std::min(static_cast<int>(bucketCount), 2048));
+    constexpr int sampleCapacity = 8192;
+    std::vector<float> buffer(sampleCapacity, 0.0f);
+    std::vector<float> chunkPeaks;
+    while (true) {
+        int read = BASS_ChannelGetData(
+            static_cast<DWORD>(stream),
+            buffer.data(),
+            static_cast<DWORD>(buffer.size() * sizeof(float))
+        );
+        if (read <= 0) break;
+
+        int sampleCount = read / static_cast<int>(sizeof(float));
+        if (sampleCount <= 0) continue;
+        float peak = 0.0f;
+        for (int i = 0; i < sampleCount; ++i) {
+            peak = std::max(peak, std::abs(buffer[static_cast<size_t>(i)]));
+        }
+        chunkPeaks.push_back(std::min(peak, 1.0f));
+    }
+
+    if (chunkPeaks.empty()) {
+        return env->NewFloatArray(0);
+    }
+
+    std::vector<float> buckets(static_cast<size_t>(safeBucketCount), 0.0f);
+    for (size_t i = 0; i < chunkPeaks.size(); ++i) {
+        double ratio = chunkPeaks.size() == 1
+            ? 0.0
+            : static_cast<double>(i) / static_cast<double>(chunkPeaks.size() - 1);
+        int bucket = std::max(0, std::min(safeBucketCount - 1, static_cast<int>(ratio * (safeBucketCount - 1))));
+        buckets[static_cast<size_t>(bucket)] = std::max(buckets[static_cast<size_t>(bucket)], chunkPeaks[i]);
+    }
+
+    float maxValue = 0.0f;
+    for (float value : buckets) maxValue = std::max(maxValue, value);
+    if (maxValue > 0.0f) {
+        for (float& value : buckets) value = std::max(0.0f, std::min(value / maxValue, 1.0f));
+    }
+
+    jfloatArray result = env->NewFloatArray(static_cast<jsize>(safeBucketCount));
+    env->SetFloatArrayRegion(result, 0, static_cast<jsize>(safeBucketCount), buckets.data());
     return result;
 }
 
