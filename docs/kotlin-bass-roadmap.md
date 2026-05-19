@@ -72,10 +72,10 @@ Native scaffold lives in `native/bass-jni`.
 
 - [x] Add Gradle copy tasks for BASS native libraries under desktop generated resources.
 - [x] Bundle macOS ARM64 BASS libraries in `.app` packages.
-- [ ] Bundle Windows x64 BASS libraries in Windows packages.
-- [ ] Verify packaged apps launch without external BASS install paths.
-- [ ] Ensure BASS libraries do not open terminal windows or require shell wrappers.
-- [ ] Update app packaging docs with BASS library locations and licensing notes.
+- [x] Bundle Windows x64 BASS libraries in Windows packages.
+- [x] Verify packaged apps launch without external BASS install paths.
+- [x] Ensure BASS libraries do not open terminal windows or require shell wrappers.
+- [x] Update app packaging docs with BASS library locations and licensing notes.
 
 ## Phase 4: Metadata And Radio
 
