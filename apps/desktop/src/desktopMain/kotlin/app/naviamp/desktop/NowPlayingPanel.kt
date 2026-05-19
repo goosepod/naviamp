@@ -10,6 +10,7 @@ import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Track
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
+import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.waveform.AudioWaveform
@@ -36,6 +37,7 @@ fun NowPlayingPanel(
     supportsTrackRatings: Boolean,
     nowPlayingTrack: Track?,
     nowPlayingWaveform: AudioWaveform?,
+    nowPlayingVisualizerFrame: PlaybackVisualizerFrame?,
     nowPlayingAudioTags: List<AudioTag>?,
     nowPlayingLyrics: Lyrics?,
     nowPlayingLyricsStatus: String?,
@@ -136,6 +138,7 @@ fun NowPlayingPanel(
                 coverArtUrl = coverArtUrl,
                 playbackEngineName = playbackEngineName,
                 waveform = nowPlayingWaveform,
+                visualizerFrame = nowPlayingVisualizerFrame,
                 positionSeconds = playbackProgress.positionSeconds,
                 durationSeconds = effectiveDurationSeconds,
                 volumePercent = volumePercent,

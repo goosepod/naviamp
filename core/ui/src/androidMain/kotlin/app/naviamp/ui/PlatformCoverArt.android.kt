@@ -125,19 +125,28 @@ private object AndroidCoverArtCache {
 
     fun imageBytes(context: Context, url: String): ByteArray? {
         synchronized(this) {
-            hotImages[url]?.let { return it }
+            hotImages[url]?.let { bytes ->
+                if (isDecodableImage(bytes)) return bytes
+                hotImages.remove(url)
+                hotBytes -= bytes.size
+            }
         }
 
         val cacheFile = File(context.cacheDir, "cover-art/${url.sha256()}.img")
         if (cacheFile.exists() && cacheFile.length() > 0L) {
-            return runCatching { cacheFile.readBytes() }
+            runCatching { cacheFile.readBytes() }
                 .getOrNull()
-                ?.also { putHot(url, it) }
+                ?.takeIf(::isDecodableImage)
+                ?.also {
+                    putHot(url, it)
+                    return it
+                }
+            runCatching { cacheFile.delete() }
         }
 
         return runCatching {
             URL(url).openStream().use { input -> input.readBytes() }
-        }.getOrNull()?.also { bytes ->
+        }.getOrNull()?.takeIf(::isDecodableImage)?.also { bytes ->
             runCatching {
                 cacheFile.parentFile?.mkdirs()
                 cacheFile.writeBytes(bytes)
@@ -159,6 +168,9 @@ private object AndroidCoverArtCache {
         }
     }
 }
+
+private fun isDecodableImage(bytes: ByteArray): Boolean =
+    BitmapFactory.decodeByteArray(bytes, 0, bytes.size) != null
 
 private fun String.sha256(): String =
     MessageDigest.getInstance("SHA-256")

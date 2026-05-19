@@ -38,6 +38,17 @@ interface QueueAwarePlaybackEngine : PlaybackEngine {
     fun prepareNext(request: PlaybackRequest)
 }
 
+interface VisualizerPlaybackEngine : PlaybackEngine {
+    val supportsVisualizer: Boolean
+
+    fun visualizerFrame(): PlaybackVisualizerFrame?
+}
+
+data class PlaybackVisualizerFrame(
+    val bands: List<Float>,
+    val timestampMillis: Long,
+)
+
 data class PlaybackRequest(
     val url: String,
     val mediaId: String? = null,

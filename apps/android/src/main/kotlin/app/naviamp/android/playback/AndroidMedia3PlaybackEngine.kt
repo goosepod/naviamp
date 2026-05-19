@@ -14,7 +14,6 @@ import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.extractor.metadata.icy.IcyInfo
 import androidx.media3.extractor.mp3.Mp3Extractor
 import androidx.media3.session.MediaSession
-import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
@@ -40,7 +39,7 @@ import javax.net.ssl.X509TrustManager
 
 class AndroidMedia3PlaybackEngine(
     context: Context,
-) : PlaybackEngine {
+) : AndroidPlaybackEngine {
     private val appContext = context.applicationContext
     private val dataSourceFactory = DefaultHttpDataSource.Factory()
         .setUserAgent("Naviamp Android")
@@ -72,12 +71,12 @@ class AndroidMedia3PlaybackEngine(
     override val supportsSoftwareVolume: Boolean = true
     override val prefersOriginalStream: Boolean = false
 
-    fun applyTlsSettings(tlsSettings: NavidromeTlsSettings) {
+    override fun applyTlsSettings(tlsSettings: NavidromeTlsSettings) {
         this.tlsSettings = tlsSettings
         AndroidPlaybackTls.applyDefaults(tlsSettings)
     }
 
-    fun updateNotificationMetadata(
+    override fun updateNotificationMetadata(
         title: String?,
         subtitle: String?,
         coverArtUrl: String?,
@@ -185,7 +184,7 @@ class AndroidMedia3PlaybackEngine(
         onStateChanged?.invoke(PlaybackState.Stopped)
     }
 
-    fun release() {
+    override fun release() {
         progressJob?.cancel()
         progressJob = null
         AndroidPlaybackNotificationControls.clear()
@@ -254,7 +253,7 @@ private fun Metadata.toStreamProperties(): Map<String, String> =
         }
     }
 
-private object AndroidPlaybackTls {
+object AndroidPlaybackTls {
     private val platformSslContext: SSLContext = SSLContext.getDefault()
     private val platformHostnameVerifier: HostnameVerifier = HttpsURLConnection.getDefaultHostnameVerifier()
 

@@ -17,6 +17,11 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "0.9.0"
+        externalNativeBuild {
+            cmake {
+                arguments += "-DANDROID_STL=c++_shared"
+            }
+        }
     }
 
     compileOptions {
@@ -27,6 +32,12 @@ android {
     sourceSets {
         getByName("main") {
             jniLibs.srcDir(project.layout.projectDirectory.dir("../../native/bass-jni/vendor/android"))
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = project.layout.projectDirectory.file("../../native/bass-jni/CMakeLists.txt").asFile
         }
     }
 }

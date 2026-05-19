@@ -60,6 +60,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.homeStations
 import app.naviamp.domain.waveform.AudioWaveform
+import app.naviamp.domain.playback.PlaybackVisualizerFrame
 
 data class NaviampColors(
     val background: Color = Color(0xFF101114),
@@ -240,6 +241,7 @@ data class NowPlayingUi(
     val albumLine: String = "",
     val audioInfo: String = "",
     val waveform: AudioWaveform? = null,
+    val visualizerFrame: PlaybackVisualizerFrame? = null,
     val positionSeconds: Double? = null,
     val durationSeconds: Double? = null,
     val volumePercent: Int = 100,
@@ -313,8 +315,10 @@ fun NaviampSharedAppShell(
     serverVersion: String?,
     connected: Boolean,
     editingConnection: Boolean,
+    restoringConnection: Boolean = false,
     connectionForm: ConnectionFormState,
     playbackSettings: PlaybackSettings = PlaybackSettings(),
+    supportsReplayGain: Boolean = false,
     supportsGapless: Boolean = true,
     supportsCrossfade: Boolean = false,
     query: String,
@@ -381,7 +385,7 @@ fun NaviampSharedAppShell(
     onRatingSelected: (Int?) -> Unit = {},
 ) {
     val colors = NaviampColors.Dark
-    val showFullNowPlaying = connected && !editingConnection && nowPlayingOpen && nowPlaying != null
+    val showFullNowPlaying = connected && !editingConnection && !restoringConnection && nowPlayingOpen && nowPlaying != null
     val backgroundGradientColors = if (showFullNowPlaying) {
         rememberPlatformCoverArtGradientColors(nowPlaying.coverArtUrl, colors)
     } else {
@@ -423,7 +427,7 @@ fun NaviampSharedAppShell(
                         ),
                     verticalArrangement = if (showFullNowPlaying) Arrangement.spacedBy(0.dp) else Arrangement.spacedBy(14.dp),
                 ) {
-                    if (!showFullNowPlaying && (!connected || editingConnection)) {
+                    if (!showFullNowPlaying && (restoringConnection || !connected || editingConnection)) {
                         Text("Naviamp", color = colors.primaryText, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                         Text(status, color = colors.secondaryText, fontSize = 13.sp)
                         serverVersion?.let {
@@ -431,7 +435,9 @@ fun NaviampSharedAppShell(
                         }
                     }
 
-                    if (editingConnection || (!connected && selectedRoute != SharedRoute.Settings)) {
+                    if (restoringConnection && !editingConnection) {
+                        RestoringConnectionCard(status = status, colors = colors)
+                    } else if (editingConnection || (!connected && selectedRoute != SharedRoute.Settings)) {
                         ConnectionCard(
                             form = connectionForm,
                             colors = colors,
@@ -458,6 +464,7 @@ fun NaviampSharedAppShell(
                             nowPlaying = nowPlaying,
                             nowPlayingOpen = nowPlayingOpen,
                             playbackSettings = playbackSettings,
+                            supportsReplayGain = supportsReplayGain,
                             supportsGapless = supportsGapless,
                             supportsCrossfade = supportsCrossfade,
                             onEditConnection = onEditConnection,
@@ -508,7 +515,7 @@ fun NaviampSharedAppShell(
                     }
                 }
                 if (!showFullNowPlaying) {
-                    if (connected && !editingConnection && nowPlaying != null) {
+                    if (connected && !editingConnection && !restoringConnection && nowPlaying != null) {
                         NaviampMiniNowPlaying(
                             nowPlaying = nowPlaying,
                             colors = colors,
@@ -532,6 +539,24 @@ fun NaviampSharedAppShell(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun RestoringConnectionCard(
+    status: String,
+    colors: NaviampColors,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(colors.controlSurface.copy(alpha = 0.72f))
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text("Restoring connection", color = colors.primaryText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Text(status, color = colors.secondaryText, fontSize = 13.sp)
     }
 }
 
@@ -651,6 +676,7 @@ private fun ConnectedContent(
     nowPlaying: NowPlayingUi?,
     nowPlayingOpen: Boolean,
     playbackSettings: PlaybackSettings,
+    supportsReplayGain: Boolean = false,
     supportsGapless: Boolean = true,
     supportsCrossfade: Boolean = false,
     onEditConnection: () -> Unit,
@@ -700,10 +726,11 @@ private fun ConnectedContent(
 ) {
     when {
         selectedRoute == SharedRoute.Settings -> SettingsContent(
-            colors = colors,
-            playbackSettings = playbackSettings,
-            supportsGapless = supportsGapless,
-            supportsCrossfade = supportsCrossfade,
+                            colors = colors,
+                            playbackSettings = playbackSettings,
+                            supportsReplayGain = supportsReplayGain,
+                            supportsGapless = supportsGapless,
+                            supportsCrossfade = supportsCrossfade,
             onEditConnection = onEditConnection,
             onPlaybackSettingsChanged = onPlaybackSettingsChanged,
         )
@@ -1364,6 +1391,7 @@ private fun FullNowPlaying(
 private fun SettingsContent(
     colors: NaviampColors,
     playbackSettings: PlaybackSettings,
+    supportsReplayGain: Boolean,
     supportsGapless: Boolean,
     supportsCrossfade: Boolean,
     onEditConnection: () -> Unit,
@@ -1372,6 +1400,7 @@ private fun SettingsContent(
     NaviampSharedSettingsContent(
         colors = colors,
         playbackSettings = playbackSettings,
+        supportsReplayGain = supportsReplayGain,
         supportsGapless = supportsGapless,
         supportsCrossfade = supportsCrossfade,
         onEditConnection = onEditConnection,

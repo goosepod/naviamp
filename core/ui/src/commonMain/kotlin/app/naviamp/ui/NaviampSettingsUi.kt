@@ -49,6 +49,7 @@ fun NaviampSharedSettingsContent(
     playbackSettings: PlaybackSettings,
     onEditConnection: () -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
+    supportsReplayGain: Boolean = false,
     supportsGapless: Boolean = true,
     supportsCrossfade: Boolean = false,
     showQueueBehavior: Boolean = true,
@@ -60,7 +61,7 @@ fun NaviampSharedSettingsContent(
         NaviampPlaybackSettingsSection(
             colors = colors,
             playbackSettings = playbackSettings,
-            supportsReplayGain = false,
+            supportsReplayGain = supportsReplayGain,
             supportsGapless = supportsGapless,
             supportsCrossfade = supportsCrossfade,
             showReplayGain = true,

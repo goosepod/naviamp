@@ -2,6 +2,11 @@
 
 #include "bass.h"
 
+#include <algorithm>
+#include <cmath>
+#include <string>
+#include <vector>
+
 extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
     (void)vm;
     (void)reserved;
@@ -20,6 +25,179 @@ Java_app_naviamp_android_playback_AndroidBassJni_nativeLastErrorCode(JNIEnv* env
     (void)env;
     (void)thiz;
     return static_cast<jint>(BASS_ErrorGetCode());
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeInit(JNIEnv* env, jobject thiz) {
+    (void)env;
+    (void)thiz;
+    if (BASS_Init(-1, 44100, 0, nullptr, nullptr)) {
+        return JNI_TRUE;
+    }
+    if (BASS_ErrorGetCode() == BASS_ERROR_ALREADY) {
+        return JNI_TRUE;
+    }
+    return JNI_FALSE;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeFree(JNIEnv* env, jobject thiz) {
+    (void)env;
+    (void)thiz;
+    BASS_Free();
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeSetVerifyNet(JNIEnv* env, jobject thiz, jboolean verify) {
+    (void)env;
+    (void)thiz;
+    return BASS_SetConfig(BASS_CONFIG_VERIFY_NET, verify == JNI_TRUE ? 1 : 0) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeCreateUrlStream(JNIEnv* env, jobject thiz, jstring url) {
+    (void)thiz;
+    const char* chars = env->GetStringUTFChars(url, nullptr);
+    if (chars == nullptr) return 0;
+    HSTREAM stream = BASS_StreamCreateURL(
+        chars,
+        0,
+        BASS_STREAM_STATUS | BASS_SAMPLE_FLOAT,
+        nullptr,
+        nullptr
+    );
+    env->ReleaseStringUTFChars(url, chars);
+    return static_cast<jint>(stream);
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeCreateFileStream(JNIEnv* env, jobject thiz, jstring path) {
+    (void)thiz;
+    const char* chars = env->GetStringUTFChars(path, nullptr);
+    if (chars == nullptr) return 0;
+    HSTREAM stream = BASS_StreamCreateFile(
+        FALSE,
+        chars,
+        0,
+        0,
+        BASS_STREAM_PRESCAN | BASS_SAMPLE_FLOAT
+    );
+    env->ReleaseStringUTFChars(path, chars);
+    return static_cast<jint>(stream);
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativePlay(JNIEnv* env, jobject thiz, jint stream) {
+    (void)env;
+    (void)thiz;
+    return BASS_ChannelPlay(static_cast<DWORD>(stream), FALSE) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativePause(JNIEnv* env, jobject thiz, jint stream) {
+    (void)env;
+    (void)thiz;
+    return BASS_ChannelPause(static_cast<DWORD>(stream)) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeStop(JNIEnv* env, jobject thiz, jint stream) {
+    (void)env;
+    (void)thiz;
+    return BASS_ChannelStop(static_cast<DWORD>(stream)) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeFreeStream(JNIEnv* env, jobject thiz, jint stream) {
+    (void)env;
+    (void)thiz;
+    return BASS_StreamFree(static_cast<HSTREAM>(stream)) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeActiveState(JNIEnv* env, jobject thiz, jint stream) {
+    (void)env;
+    (void)thiz;
+    return static_cast<jint>(BASS_ChannelIsActive(static_cast<DWORD>(stream)));
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeSetVolume(JNIEnv* env, jobject thiz, jint stream, jfloat volume) {
+    (void)env;
+    (void)thiz;
+    float safeVolume = std::max(0.0f, std::min(volume, 4.0f));
+    return BASS_ChannelSetAttribute(static_cast<DWORD>(stream), BASS_ATTRIB_VOL, safeVolume) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeSeek(JNIEnv* env, jobject thiz, jint stream, jdouble seconds) {
+    (void)env;
+    (void)thiz;
+    QWORD bytes = BASS_ChannelSeconds2Bytes(static_cast<DWORD>(stream), seconds);
+    return BASS_ChannelSetPosition(static_cast<DWORD>(stream), bytes, BASS_POS_BYTE) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jdouble JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativePositionSeconds(JNIEnv* env, jobject thiz, jint stream) {
+    (void)env;
+    (void)thiz;
+    QWORD bytes = BASS_ChannelGetPosition(static_cast<DWORD>(stream), BASS_POS_BYTE);
+    if (bytes == static_cast<QWORD>(-1)) return -1.0;
+    return BASS_ChannelBytes2Seconds(static_cast<DWORD>(stream), bytes);
+}
+
+extern "C" JNIEXPORT jdouble JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeDurationSeconds(JNIEnv* env, jobject thiz, jint stream) {
+    (void)env;
+    (void)thiz;
+    QWORD bytes = BASS_ChannelGetLength(static_cast<DWORD>(stream), BASS_POS_BYTE);
+    if (bytes == static_cast<QWORD>(-1)) return -1.0;
+    return BASS_ChannelBytes2Seconds(static_cast<DWORD>(stream), bytes);
+}
+
+static void append_string_tags(std::vector<std::string>& tags, const char* raw) {
+    if (raw == nullptr) return;
+    const char* cursor = raw;
+    while (*cursor != '\0') {
+        std::string entry(cursor);
+        if (!entry.empty()) tags.push_back(entry);
+        cursor += entry.size() + 1;
+    }
+}
+
+extern "C" JNIEXPORT jobjectArray JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeStreamTags(JNIEnv* env, jobject thiz, jint stream) {
+    (void)thiz;
+    std::vector<std::string> tags;
+    append_string_tags(tags, BASS_ChannelGetTags(static_cast<DWORD>(stream), BASS_TAG_ICY));
+    append_string_tags(tags, BASS_ChannelGetTags(static_cast<DWORD>(stream), BASS_TAG_HTTP));
+    const char* meta = BASS_ChannelGetTags(static_cast<DWORD>(stream), BASS_TAG_META);
+    if (meta != nullptr && meta[0] != '\0') {
+        tags.emplace_back(std::string("StreamTitle=") + meta);
+    }
+    jclass stringClass = env->FindClass("java/lang/String");
+    jobjectArray result = env->NewObjectArray(static_cast<jsize>(tags.size()), stringClass, nullptr);
+    for (jsize i = 0; i < static_cast<jsize>(tags.size()); ++i) {
+        jstring value = env->NewStringUTF(tags[static_cast<size_t>(i)].c_str());
+        env->SetObjectArrayElement(result, i, value);
+        env->DeleteLocalRef(value);
+    }
+    return result;
+}
+
+extern "C" JNIEXPORT jfloatArray JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeFft(JNIEnv* env, jobject thiz, jint stream, jint bins) {
+    (void)thiz;
+    int safeBins = std::max(1, std::min(static_cast<int>(bins), 256));
+    std::vector<float> buffer(512, 0.0f);
+    DWORD request = BASS_DATA_FFT1024 | BASS_DATA_FFT_REMOVEDC;
+    int read = BASS_ChannelGetData(static_cast<DWORD>(stream), buffer.data(), request);
+    if (read < 0) {
+        return env->NewFloatArray(0);
+    }
+    jfloatArray result = env->NewFloatArray(static_cast<jsize>(safeBins));
+    env->SetFloatArrayRegion(result, 0, static_cast<jsize>(safeBins), buffer.data());
+    return result;
 }
 
 extern "C" JNIEXPORT jint JNICALL

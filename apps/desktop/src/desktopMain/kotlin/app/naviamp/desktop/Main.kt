@@ -57,6 +57,8 @@ import app.naviamp.domain.playback.CrossfadeSettings
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
+import app.naviamp.domain.playback.PlaybackVisualizerFrame
+import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.desktop.playback.PlaybackEngineFactory
 import app.naviamp.desktop.playback.PlaybackEngineDiagnostics
 import app.naviamp.domain.playback.PlaybackState
@@ -308,6 +310,7 @@ fun NaviampApp(
     var nowPlayingWaveform by remember { mutableStateOf<AudioWaveform?>(null) }
     var nowPlayingWaveformStatus by remember { mutableStateOf("No track") }
     var nowPlayingWaveformReloadToken by remember { mutableStateOf(0) }
+    var nowPlayingVisualizerFrame by remember { mutableStateOf<PlaybackVisualizerFrame?>(null) }
     var nowPlayingAudioTags by remember { mutableStateOf<List<AudioTag>?>(null) }
     var nowPlayingLyrics by remember { mutableStateOf<Lyrics?>(null) }
     var nowPlayingLyricsStatus by remember { mutableStateOf<String?>(null) }
@@ -390,6 +393,19 @@ fun NaviampApp(
 
     LaunchedEffect(playbackEngine, playbackSettings.volumePercent) {
         playbackEngine.setVolume(playbackSettings.volumePercent.coerceIn(0, 100))
+    }
+
+    LaunchedEffect(playbackEngine, playbackState) {
+        val visualizerEngine = playbackEngine as? VisualizerPlaybackEngine
+        if (visualizerEngine?.supportsVisualizer != true) {
+            nowPlayingVisualizerFrame = null
+            return@LaunchedEffect
+        }
+        while (playbackState == PlaybackState.Playing || playbackState == PlaybackState.Loading) {
+            nowPlayingVisualizerFrame = visualizerEngine.visualizerFrame()
+            kotlinx.coroutines.delay(66)
+        }
+        nowPlayingVisualizerFrame = null
     }
 
     LaunchedEffect(playbackSettings.debugLoggingEnabled) {
@@ -2220,6 +2236,7 @@ fun NaviampApp(
                                 supportsTrackRatings = connectedProvider?.capabilities?.supportsTrackRatings == true,
                                 nowPlayingTrack = nowPlayingTrack,
                                 nowPlayingWaveform = nowPlayingWaveform,
+                                nowPlayingVisualizerFrame = nowPlayingVisualizerFrame,
                                 nowPlayingAudioTags = nowPlayingAudioTags,
                                 nowPlayingLyrics = nowPlayingLyrics,
                                 nowPlayingLyricsStatus = nowPlayingLyricsStatus,

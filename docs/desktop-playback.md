@@ -201,3 +201,17 @@ Desktop BASS applies ReplayGain app-side with BASS channel volume attributes. Na
 For mixer playback, the mixer output keeps the user volume and each source channel carries its ReplayGain factor. For direct non-mixer playback, the user volume and ReplayGain factor are multiplied on the active channel. Positive gains are bounded, and peak metadata limits boosts that would clip. Crossfade envelopes are scaled by each source's ReplayGain factor so fades do not discard loudness normalization.
 
 Stats for nerds reports the active ReplayGain mode, metadata source, applied dB/factor, and whether peak limiting prevented clipping.
+
+## Live Visualizers
+
+The shared playback contract now has an optional `VisualizerPlaybackEngine` interface that exposes `PlaybackVisualizerFrame` values. UI code consumes that shared frame model rather than calling BASS directly. Desktop BASS fills the model from live FFT data on the active BASS channel, and Android BASS fills the same model through JNI.
+
+The Now Playing screen renders those live FFT bands as a separate music-reactive surface. The waveform scrubber remains a cached seek/position surface and is intentionally separate from the live visualizer path.
+
+## Android BASS
+
+Android now builds and packages `libnaviamp_bass` from the shared JNI project and loads the bundled BASS Android libraries before constructing a BASS-backed playback engine. Media3 remains available as a fallback if the JNI/BASS load fails during startup.
+
+The Android BASS engine owns BASS init/free lifecycle, stream creation, play/pause/stop, seek, volume, ReplayGain, progress polling, ICY/HTTP metadata polling, and FFT visualizer frames. It still uses Naviamp's existing foreground service and notification controls, so notification play/pause/previous/next/stop behavior stays routed through the same app callbacks.
+
+Android BASSmix gapless/crossfade support is not enabled yet; those capabilities stay reported as unsupported on Android until the queued mixer path is ported into the JNI layer.

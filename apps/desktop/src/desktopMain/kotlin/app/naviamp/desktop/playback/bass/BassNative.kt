@@ -258,6 +258,26 @@ class BassNative private constructor(
         }
     }
 
+    fun fft(channel: Int, bins: Int = 64): Result<FloatArray> {
+        val fftSize = when {
+            bins <= 128 -> BassData.Fft256
+            bins <= 256 -> BassData.Fft512
+            bins <= 512 -> BassData.Fft1024
+            else -> BassData.Fft2048
+        }
+        val buffer = FloatArray(maxOf(bins, 128))
+        val bytesRead = library.BASS_ChannelGetData(
+            handle = channel,
+            buffer = buffer,
+            length = fftSize or BassData.FftRemoveDc,
+        )
+        return if (bytesRead >= 0) {
+            Result.success(buffer.copyOf(bins.coerceIn(1, buffer.size)))
+        } else {
+            Result.failure(IllegalStateException(errorMessage("BASS_ChannelGetData FFT failed")))
+        }
+    }
+
     fun errorCode(): Int = library.BASS_ErrorGetCode()
 
     fun errorMessage(prefix: String): String =
@@ -474,6 +494,11 @@ private object BassConfig {
 
 private object BassData {
     const val Float: Int = 0x40000000
+    const val Fft256: Int = -0x80000000
+    const val Fft512: Int = -0x7fffffff
+    const val Fft1024: Int = -0x7ffffffe
+    const val Fft2048: Int = -0x7ffffffd
+    const val FftRemoveDc: Int = 0x40
 }
 
 object BassActive {

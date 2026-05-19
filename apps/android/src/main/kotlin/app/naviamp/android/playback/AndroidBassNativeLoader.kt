@@ -7,6 +7,7 @@ object AndroidBassNativeLoader {
 
     private val libraries = listOf(
         "bass",
+        "bass_ssl",
         "bass_aac",
         "bass_ac3",
         "bass_fx",
@@ -17,6 +18,7 @@ object AndroidBassNativeLoader {
         "bassdsd",
         "bassflac",
         "basshls",
+        "bassloud",
         "bassmidi",
         "bassmix",
         "bassopus",
@@ -75,4 +77,3 @@ data class AndroidBassLoadFailure(
     val name: String,
     val message: String,
 )
-

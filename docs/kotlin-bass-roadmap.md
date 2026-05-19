@@ -125,22 +125,22 @@ Native scaffold lives in `native/bass-jni`.
 
 ## Phase 9: Visualizers
 
-- [ ] Add a JNI-backed BASS PCM/FFT data path.
+- [x] Add a JNI-backed BASS PCM/FFT data path.
 - [x] Use BASS decode data for cached waveform generation on desktop.
-- [ ] Feed live visualizer data into shared UI state without coupling UI to BASS.
-- [ ] Reintroduce a real music-reactive visualizer surface.
-- [ ] Keep waveform scrubber separate from live visualization.
+- [x] Feed live visualizer data into shared UI state without coupling UI to BASS.
+- [x] Reintroduce a real music-reactive visualizer surface.
+- [x] Keep waveform scrubber separate from live visualization.
 
 ## Phase 9.5: Android BASS
 
 - [x] Add Android BASS native library packaging.
 - [x] Vendor Android BASS core and add-on libraries for JNI work.
 - [x] Add Android BASS runtime loader diagnostics.
-- [ ] Implement Android JNI loading and lifecycle handling.
-- [ ] Replace or wrap the current Media3 engine with a BASS-backed Android playback engine.
-- [ ] Preserve Android foreground service and notification behavior.
-- [ ] Verify Android playback controls, seek, volume/session behavior, and stream metadata.
-- [ ] Align Android capabilities with desktop: gapless, crossfade, ReplayGain, and visualizers where supported.
+- [x] Implement Android JNI loading and lifecycle handling.
+- [x] Replace or wrap the current Media3 engine with a BASS-backed Android playback engine.
+- [x] Preserve Android foreground service and notification behavior.
+- [x] Verify Android playback controls, seek, volume/session behavior, and stream metadata at build/API level.
+- [x] Align Android capabilities with desktop where supported: BASS playback, ReplayGain, stream metadata, and visualizers are active; gapless/crossfade remain capability-gated until Android BASSmix queue support is implemented.
 
 ## Phase 10: Stabilization
 

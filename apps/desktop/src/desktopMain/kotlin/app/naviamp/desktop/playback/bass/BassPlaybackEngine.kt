@@ -8,6 +8,8 @@ import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.ReplayGainSource
+import app.naviamp.domain.playback.PlaybackVisualizerFrame
+import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -22,7 +24,7 @@ import kotlin.math.sin
 
 class BassPlaybackEngine(
     private val nativeResult: Result<BassNative> = BassNative.load(),
-) : QueueAwarePlaybackEngine, PlaybackEngineDiagnostics {
+) : QueueAwarePlaybackEngine, VisualizerPlaybackEngine, PlaybackEngineDiagnostics {
     private val native: BassNative? = nativeResult.getOrNull()
     private val loadError: Throwable? = nativeResult.exceptionOrNull()
 
@@ -32,6 +34,7 @@ class BassPlaybackEngine(
     override val supportsGapless: Boolean = native?.supportsMixer == true
     override val supportsCrossfade: Boolean = native?.supportsMixer == true
     override val supportsReplayGain: Boolean = true
+    override val supportsVisualizer: Boolean = true
     override val supportsSoftwareVolume: Boolean = true
     override val prefersOriginalStream: Boolean = true
 
@@ -54,6 +57,8 @@ class BassPlaybackEngine(
     private var crossfadeDurationSeconds: Int = 0
     private var crossfadeActive: Boolean = false
     private var currentReplayGainAdjustment: ReplayGainAdjustment = ReplayGainAdjustment.off()
+    @Volatile
+    private var currentVisualizerFrame: PlaybackVisualizerFrame? = null
 
     override fun play(
         scope: CoroutineScope,
@@ -115,6 +120,7 @@ class BassPlaybackEngine(
                         lastMetadata = metadata
                         onMetadataChanged(metadata)
                     }
+                    currentVisualizerFrame = visualizerFrameFor(bass, sourceHandle)
                     delay(100)
                 }
 
@@ -133,6 +139,7 @@ class BassPlaybackEngine(
                     stream = 0
                     currentSourceStream = 0
                     currentReplayGainAdjustment = ReplayGainAdjustment.off()
+                    currentVisualizerFrame = null
                     onProgressChanged(PlaybackProgress.Unknown)
                 }
             }
@@ -237,8 +244,12 @@ class BassPlaybackEngine(
         currentSourceStream = 0
         crossfadeActive = false
         currentReplayGainAdjustment = ReplayGainAdjustment.off()
+        currentVisualizerFrame = null
         endSyncCallbacks.clear()
     }
+
+    override fun visualizerFrame(): PlaybackVisualizerFrame? =
+        currentVisualizerFrame
 
     override fun statsRows(): List<Pair<String, String>> =
         listOf(
@@ -261,6 +272,11 @@ class BassPlaybackEngine(
             "ReplayGain source" to (currentReplayGainAdjustment.source?.displayName ?: "None"),
             "ReplayGain applied" to currentReplayGainAdjustment.label,
             "ReplayGain clipping guard" to currentReplayGainAdjustment.clippingGuardLabel,
+            "Visualizer" to if (currentVisualizerFrame != null) {
+                "${currentVisualizerFrame?.bands?.size ?: 0} FFT bands"
+            } else {
+                "Waiting"
+            },
             "Crossfade duration" to if (crossfadeDurationSeconds > 0) "${crossfadeDurationSeconds}s" else "Off",
             "Crossfade active" to crossfadeActive.toString(),
             "Prepared next" to (preparedRequest?.mediaId ?: preparedRequest?.url ?: "None"),
@@ -524,6 +540,20 @@ class BassPlaybackEngine(
     private fun outputVolumeFactor(): Float =
         volumePercent.coerceIn(0, 100) / 100f
 
+    private fun visualizerFrameFor(
+        bass: BassNative,
+        sourceHandle: Int,
+    ): PlaybackVisualizerFrame? =
+        bass.fft(sourceHandle, VisualizerBandCount)
+            .map { fft ->
+                PlaybackVisualizerFrame(
+                    bands = fft.toVisualizerBands(),
+                    timestampMillis = System.currentTimeMillis(),
+                )
+            }
+            .onFailure { lastError = it.message }
+            .getOrNull()
+
     private fun seekCurrentSource(bass: BassNative, seconds: Double) {
         val sourceHandle = currentSourceStream.takeIf { it != 0 } ?: stream
         if (sourceHandle != 0) {
@@ -545,6 +575,7 @@ class BassPlaybackEngine(
         preparedRequest = null
         preparedReplayGainAdjustment = null
         preparedError = null
+        currentVisualizerFrame = null
     }
 
     private fun localFileFromUrl(url: String): File? =
@@ -623,5 +654,24 @@ private fun Float.formatFactor(): String =
 private fun Double.formatPeak(): String =
     "%.6f".format(this)
 
+private fun FloatArray.toVisualizerBands(): List<Float> {
+    if (isEmpty()) return emptyList()
+    val usable = drop(1)
+    if (usable.isEmpty()) return emptyList()
+    val bucketSize = (usable.size / VisualizerBandCount).coerceAtLeast(1)
+    return (0 until VisualizerBandCount).map { bucket ->
+        val start = bucket * bucketSize
+        if (start >= usable.size) {
+            0f
+        } else {
+            val end = minOf(start + bucketSize, usable.size)
+            val peak = usable.subList(start, end).maxOrNull() ?: 0f
+            (peak * VisualizerGain).coerceIn(0f, 1f)
+        }
+    }
+}
+
 private const val EqualPowerEnvelopeSteps = 8
 private const val MaxReplayGainFactor = 4f
+private const val VisualizerBandCount = 32
+private const val VisualizerGain = 12f

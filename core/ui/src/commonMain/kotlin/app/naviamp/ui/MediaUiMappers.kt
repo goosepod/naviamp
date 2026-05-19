@@ -8,6 +8,7 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
+import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.waveform.AudioWaveform
@@ -21,7 +22,7 @@ fun Album.toSharedMediaItemUi(coverArtUrl: (String?) -> String?): SharedMediaIte
         title = title,
         subtitle = artistName,
         meta = releaseYear?.toString().orEmpty(),
-        coverArtUrl = coverArtUrl(coverArtId),
+        coverArtUrl = coverArtUrl(coverArtId ?: id.value),
     )
 
 fun Playlist.toSharedMediaItemUi(
@@ -40,12 +41,15 @@ fun Playlist.toSharedMediaItemUi(
 fun InternetRadioStation.toSharedMediaItemUi(): SharedMediaItemUi =
     SharedMediaItemUi(id = id, title = name, subtitle = homePageUrl ?: "Internet radio")
 
-fun Track.toAndroidTrackRowUi(coverArtUrl: (String?) -> String?): AndroidTrackRowUi =
+fun Track.toAndroidTrackRowUi(
+    coverArtUrl: (String?) -> String?,
+    fallbackCoverArtId: String? = null,
+): AndroidTrackRowUi =
     AndroidTrackRowUi(
         id = id.value,
         title = title,
         subtitle = listOfNotNull(artistName, albumTitle).joinToString(" - "),
-        coverArtUrl = coverArtUrl(coverArtId),
+        coverArtUrl = coverArtUrl(coverArtId ?: fallbackCoverArtId),
         meta = durationSeconds?.durationLabel().orEmpty(),
     )
 
@@ -162,6 +166,7 @@ data class NowPlayingTrackUiConfig(
     val coverArtUrl: String?,
     val playbackEngineName: String? = null,
     val waveform: AudioWaveform? = null,
+    val visualizerFrame: PlaybackVisualizerFrame? = null,
     val positionSeconds: Double? = null,
     val durationSeconds: Double? = null,
     val volumePercent: Int = 100,
@@ -225,6 +230,7 @@ fun Track.toNowPlayingUi(config: NowPlayingTrackUiConfig): NowPlayingUi =
         albumLine = nowPlayingAlbumLine(),
         audioInfo = nowPlayingAudioInfoLabel(config.playbackEngineName),
         waveform = config.waveform,
+        visualizerFrame = config.visualizerFrame,
         positionSeconds = config.positionSeconds,
         durationSeconds = durationSeconds?.toDouble() ?: config.durationSeconds,
         volumePercent = config.volumePercent,
@@ -319,7 +325,7 @@ fun Playlist.toSharedPlaylistDetailUi(
 fun AlbumDetails.toSharedAlbumDetailUi(coverArtUrl: (String?) -> String?): SharedAlbumDetailUi =
     SharedAlbumDetailUi(
         album = album.toSharedMediaItemUi(coverArtUrl),
-        tracks = tracks.map { it.toAndroidTrackRowUi(coverArtUrl) },
+        tracks = tracks.map { it.toAndroidTrackRowUi(coverArtUrl, fallbackCoverArtId = album.coverArtId ?: album.id.value) },
         totalDurationLabel = tracks.totalDurationLabel(),
     )
 

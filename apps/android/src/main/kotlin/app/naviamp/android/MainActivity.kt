@@ -19,8 +19,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import app.naviamp.android.playback.AndroidAudioWaveformAnalyzer
+import app.naviamp.android.playback.AndroidBassJni
+import app.naviamp.android.playback.AndroidBassPlaybackEngine
 import app.naviamp.android.playback.AndroidBassNativeLoader
 import app.naviamp.android.playback.AndroidMedia3PlaybackEngine
+import app.naviamp.android.playback.AndroidPlaybackEngine
+import app.naviamp.android.playback.AndroidPlaybackTls
 import app.naviamp.android.playback.AndroidPlaybackNotificationControls
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
@@ -47,9 +51,13 @@ import app.naviamp.domain.home.parseHomeDecadeStationId
 import app.naviamp.domain.home.parseHomeGenreStationId
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
+import app.naviamp.domain.playback.PlaybackReplayGain
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
+import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.ReplayGainMode
+import app.naviamp.domain.playback.ReplayGainSource
+import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.lyrics.selectPreferredLyrics
 import app.naviamp.domain.queue.PlaybackQueue
@@ -114,7 +122,12 @@ private fun NaviampAndroidApp() {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val bassLoadReport = remember { AndroidBassNativeLoader.loadBundledLibraries() }
-    val playbackEngine = remember { AndroidMedia3PlaybackEngine(context) }
+    val playbackEngine: AndroidPlaybackEngine = remember {
+        AndroidBassJni.load().fold(
+            onSuccess = { AndroidBassPlaybackEngine(context, it) },
+            onFailure = { AndroidMedia3PlaybackEngine(context) },
+        )
+    }
     val waveformAnalyzer = remember { AndroidAudioWaveformAnalyzer(context) }
     val lrclibLyricsClient = remember { AndroidLrclibLyricsClient() }
     val storage = remember { AndroidStorage(context) }
@@ -122,6 +135,12 @@ private fun NaviampAndroidApp() {
     val savedProviderSource = remember { storage.latestNavidromeSource() }
     val savedProviderConnection = savedProviderSource?.toNavidromeConnection()
     val savedConnection = remember { settingsStore.loadConnection(savedProviderConnection) }
+    val canAutoConnect = savedProviderConnection != null ||
+        (
+            savedConnection.serverUrl.isNotBlank() &&
+                savedConnection.username.isNotBlank() &&
+                savedConnection.password.isNotBlank()
+            )
     val savedPlaybackSettings = remember { settingsStore.loadPlaybackSettings() }
     var connectionName by remember { mutableStateOf(savedConnection.displayName) }
     var serverUrl by remember { mutableStateOf(savedConnection.serverUrl) }
@@ -144,6 +163,7 @@ private fun NaviampAndroidApp() {
     var recentPlaylistIds by remember { mutableStateOf<List<String>>(emptyList()) }
     var playlistTracksById by remember { mutableStateOf<Map<String, List<Track>>>(emptyMap()) }
     var editingConnection by remember { mutableStateOf(false) }
+    var restoringConnection by remember { mutableStateOf(canAutoConnect) }
     var navigationState by remember { mutableStateOf(NaviampNavigationState()) }
     val selectedRoute = navigationState.route.toSharedRoute()
     var provider by remember { mutableStateOf<NavidromeProvider?>(null) }
@@ -159,6 +179,7 @@ private fun NaviampAndroidApp() {
     var nowPlayingOpen by remember { mutableStateOf(false) }
     var playbackState by remember { mutableStateOf<PlaybackState>(PlaybackState.Idle) }
     var playbackProgress by remember { mutableStateOf(PlaybackProgress.Unknown) }
+    var visualizerFrame by remember { mutableStateOf<PlaybackVisualizerFrame?>(null) }
     var pendingSeekPositionSeconds by remember { mutableStateOf<Double?>(null) }
     var pendingSeekIssuedAtMillis by remember { mutableStateOf<Long?>(null) }
     var playbackSessionToken by remember { mutableStateOf(0L) }
@@ -177,6 +198,19 @@ private fun NaviampAndroidApp() {
         if (!bassLoadReport.available) {
             status = "BASS libraries are bundled but did not load on this device."
         }
+    }
+
+    LaunchedEffect(playbackEngine, playbackState) {
+        val visualizerEngine = playbackEngine as? VisualizerPlaybackEngine
+        if (visualizerEngine?.supportsVisualizer != true) {
+            visualizerFrame = null
+            return@LaunchedEffect
+        }
+        while (playbackState == PlaybackState.Playing || playbackState == PlaybackState.Loading) {
+            visualizerFrame = visualizerEngine.visualizerFrame()
+            delay(66)
+        }
+        visualizerFrame = null
     }
 
     DisposableEffect(playbackEngine) {
@@ -282,6 +316,7 @@ private fun NaviampAndroidApp() {
         openNowPlaying: Boolean = true,
         startPositionSeconds: Double? = null,
     ) {
+        android.util.Log.i("NaviampBass", "playTrack requested id=${track.id.value} title=${track.title}")
         val activeProvider = provider
         if (activeProvider == null) {
             status = "Connect before playing a track."
@@ -318,7 +353,13 @@ private fun NaviampAndroidApp() {
                 )
                 playbackEngine.play(
                     scope = scope,
-                    request = PlaybackRequest(streamUrl, startPositionSeconds = startPositionSeconds),
+                    request = PlaybackRequest(
+                        url = streamUrl,
+                        mediaId = track.id.value,
+                        replayGainMode = playbackSettings.replayGainMode.forEngine(playbackEngine),
+                        replayGain = track.replayGain?.let { PlaybackReplayGain(it, ReplayGainSource.Provider) },
+                        startPositionSeconds = startPositionSeconds,
+                    ),
                     onStateChanged = { state ->
                         playbackState = state
                         if (state is PlaybackState.Error) {
@@ -774,6 +815,7 @@ private fun NaviampAndroidApp() {
                 val tlsSettings = connection.tlsSettings
                 val nextProvider = NavidromeProvider(connection)
                 playbackEngine.applyTlsSettings(tlsSettings)
+                AndroidPlaybackTls.applyDefaults(tlsSettings)
                 validation = nextProvider.validateConnection()
                 homeState = loadBrowseState(nextProvider)
                 preloadPlaylistTracks(nextProvider, homeState.playlists)
@@ -790,10 +832,12 @@ private fun NaviampAndroidApp() {
                 if (nowPlaying == null && nowPlayingStation == null) {
                     status = "Connected."
                 }
+                restoringConnection = false
                 editingConnection = false
                 navigationState = navigationState.copy(route = NaviampRoute.Home)
             }.onFailure { error ->
                 status = error.message ?: "Connection failed."
+                restoringConnection = false
                 provider = null
                 validation = null
             }
@@ -833,6 +877,7 @@ private fun NaviampAndroidApp() {
                 connectWithNavidromeConnection(connection)
             }.onFailure { error ->
                 status = error.message ?: "Connection failed."
+                restoringConnection = false
                 provider = null
                 validation = null
             }
@@ -867,6 +912,7 @@ private fun NaviampAndroidApp() {
         serverVersion = validation?.serverVersion,
         connected = provider != null,
         editingConnection = editingConnection,
+        restoringConnection = restoringConnection,
         connectionForm = ConnectionFormState(
             displayName = connectionName,
             serverUrl = serverUrl,
@@ -878,6 +924,7 @@ private fun NaviampAndroidApp() {
             clientCertificatePassword = clientCertificatePassword,
         ),
         playbackSettings = playbackSettings,
+        supportsReplayGain = playbackEngine.supportsReplayGain,
         supportsGapless = playbackEngine.supportsGapless,
         supportsCrossfade = playbackEngine.supportsCrossfade,
         query = query,
@@ -912,6 +959,7 @@ private fun NaviampAndroidApp() {
                     stateLabel = "${playbackState.label()} ${playbackProgress.positionSeconds?.toInt() ?: 0}s",
                     coverArtUrl = track.coverArtUrl(provider),
                     waveform = waveformByTrackId[track.id.value],
+                    visualizerFrame = visualizerFrame,
                     positionSeconds = playbackProgress.positionSeconds,
                     durationSeconds = playbackProgress.durationSeconds,
                     volumePercent = volumePercent,
@@ -984,7 +1032,7 @@ private fun NaviampAndroidApp() {
         onCancelEditConnection = { editingConnection = false },
         onPlaybackSettingsChanged = { settings ->
             val normalizedSettings = settings.copy(
-                replayGainMode = ReplayGainMode.Off,
+                replayGainMode = settings.replayGainMode.forEngine(playbackEngine),
                 gaplessEnabled = playbackEngine.supportsGapless && settings.gaplessEnabled,
                 crossfadeDurationSeconds = 0,
             )
@@ -1148,12 +1196,15 @@ private fun NaviampAndroidApp() {
         onOpenNowPlaying = { nowPlayingOpen = true },
         onCloseNowPlaying = {
             nowPlayingOpen = false
-            contentState = contentState.clearDetails()
         },
         onPause = playbackEngine::pause,
         onResume = {
             when (playbackState) {
-                PlaybackState.Idle, PlaybackState.Stopped, PlaybackState.Finished -> {
+                PlaybackState.Idle,
+                PlaybackState.Stopped,
+                PlaybackState.Finished,
+                is PlaybackState.Error,
+                -> {
                     nowPlaying?.let { track ->
                         playTrack(
                             track = track,
@@ -1317,7 +1368,7 @@ private suspend fun loadBrowseState(provider: NavidromeProvider): HomeContent {
 }
 
 private fun Track.coverArtUrl(provider: NavidromeProvider?): String? =
-    coverArtId?.let { provider?.coverArtUrl(it) }
+    (coverArtId ?: albumId?.value)?.let { provider?.coverArtUrl(it) }
 
 private fun allKnownTracks(
     searchResults: MediaSearchResults,
@@ -1451,6 +1502,9 @@ private fun PlaybackProgress.mergeForAndroidPlayback(previous: PlaybackProgress)
         positionSeconds = positionSeconds ?: previous.positionSeconds,
         durationSeconds = durationSeconds ?: previous.durationSeconds,
     )
+
+private fun ReplayGainMode.forEngine(playbackEngine: AndroidPlaybackEngine): ReplayGainMode =
+    if (playbackEngine.supportsReplayGain) this else ReplayGainMode.Off
 
 private const val PendingSeekToleranceSeconds = 2.0
 private const val PendingSeekStaleProgressWindowMillis = 1_500L
