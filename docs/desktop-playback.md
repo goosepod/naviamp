@@ -190,4 +190,6 @@ The BASS desktop engine implements `QueueAwarePlaybackEngine.prepareNext`. Durin
 
 For gapless playback, the engine uses BASSmix queued decode channels. The active track plays through a BASS mixer, and the prepared next track is queued into that mixer before the current source ends. When BASS advances to the queued source, the app adopts that source as the current track instead of stopping and reopening playback. Prepared streams are cleared on stop, seek, source changes, queue jumps, shuffle/restore changes, or when the next request no longer matches the prepared stream.
 
+For crossfade playback, the engine uses the same BASSmix path without queue mode so the prepared next source can overlap the active source. The next source fades in with an equal-power envelope while the current source fades out. Crossfade is only prepared for finite-duration queued tracks; live radio and unknown-duration streams continue without crossfade.
+
 Audio prefetch also performs sidecar prep for upcoming tracks after caching audio: waveform generation, local tag reading for embedded lyrics, provider lyrics, and LRCLIB fallback. Those steps are best-effort and do not fail the audio prefetch if one sidecar source is unavailable.

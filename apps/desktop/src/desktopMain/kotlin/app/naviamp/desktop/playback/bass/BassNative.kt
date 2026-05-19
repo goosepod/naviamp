@@ -123,13 +123,14 @@ class BassNative private constructor(
             .map { info }
     }
 
-    fun createMixer(freq: Int, channels: Int): Result<Int> {
+    fun createMixer(freq: Int, channels: Int, queueSources: Boolean): Result<Int> {
         val mixer = mixerLibrary
             ?: return Result.failure(IllegalStateException(mixerLoadError?.message ?: "BASSmix is unavailable."))
+        val queueFlag = if (queueSources) BassMixerFlags.Queue else 0
         val handle = mixer.BASS_Mixer_StreamCreate(
             freq,
             channels,
-            BassFlags.SampleFloat or BassMixerFlags.Queue or BassMixerFlags.End,
+            BassFlags.SampleFloat or queueFlag or BassMixerFlags.End,
         )
         return handleResult(handle, "BASS_Mixer_StreamCreate failed")
     }
@@ -147,6 +148,29 @@ class BassNative private constructor(
         val mixer = mixerLibrary
             ?: return Result.failure(IllegalStateException(mixerLoadError?.message ?: "BASSmix is unavailable."))
         return check(mixer.BASS_Mixer_ChannelRemove(channel), "BASS_Mixer_ChannelRemove failed")
+    }
+
+    fun setMixerVolumeEnvelope(channel: Int, points: List<Pair<Long, Float>>): Result<Unit> {
+        val mixer = mixerLibrary
+            ?: return Result.failure(IllegalStateException(mixerLoadError?.message ?: "BASSmix is unavailable."))
+        if (points.isEmpty()) return Result.success(Unit)
+        val firstNode = BassMixerNode()
+        @Suppress("UNCHECKED_CAST")
+        val nodes = firstNode.toArray(points.size) as Array<BassMixerNode>
+        points.forEachIndexed { index, point ->
+            nodes[index].position = point.first.coerceAtLeast(0L)
+            nodes[index].value = point.second.coerceIn(0f, 1f)
+            nodes[index].write()
+        }
+        return check(
+            mixer.BASS_Mixer_ChannelSetEnvelope(
+                channel,
+                BassMixerEnvelope.Volume,
+                nodes.first(),
+                nodes.size,
+            ),
+            "BASS_Mixer_ChannelSetEnvelope volume failed",
+        )
     }
 
     fun play(channel: Int, restart: Boolean = false): Result<Unit> =
@@ -184,8 +208,23 @@ class BassNative private constructor(
             "BASS_ChannelSetAttribute volume failed",
         )
 
+    fun slideVolume(channel: Int, volume: Float, durationMillis: Int): Result<Unit> =
+        check(
+            library.BASS_ChannelSlideAttribute(
+                channel,
+                BassAttributes.Volume,
+                volume.coerceIn(0f, 1f),
+                durationMillis.coerceAtLeast(0),
+            ),
+            "BASS_ChannelSlideAttribute volume failed",
+        )
+
     fun positionSeconds(channel: Int): Double? =
         seconds(channel, library.BASS_ChannelGetPosition(channel, BassPosition.Byte))
+
+    fun positionBytes(channel: Int): Long? =
+        library.BASS_ChannelGetPosition(channel, BassPosition.Byte)
+            .takeIf { it >= 0L }
 
     fun durationSeconds(channel: Int): Double? =
         seconds(channel, library.BASS_ChannelGetLength(channel, BassPosition.Byte))
@@ -201,6 +240,10 @@ class BassNative private constructor(
             "BASS_ChannelSetPosition failed",
         )
     }
+
+    fun secondsToBytes(channel: Int, seconds: Double): Long? =
+        library.BASS_ChannelSeconds2Bytes(channel, seconds)
+            .takeIf { it >= 0L }
 
     fun readFloatData(channel: Int, buffer: FloatArray): Result<Int> {
         val bytesRead = library.BASS_ChannelGetData(
@@ -345,6 +388,7 @@ private interface BassLibrary : Library {
     fun BASS_ChannelIsActive(handle: Int): Int
     fun BASS_ChannelGetInfo(handle: Int, info: BassChannelInfo): Boolean
     fun BASS_ChannelSetAttribute(handle: Int, attribute: Int, value: Float): Boolean
+    fun BASS_ChannelSlideAttribute(handle: Int, attribute: Int, value: Float, time: Int): Boolean
     fun BASS_ChannelSetSync(handle: Int, type: Int, param: Long, proc: BassSyncCallback, user: Pointer?): Int
     fun BASS_ChannelGetLength(handle: Int, mode: Int): Long
     fun BASS_ChannelGetPosition(handle: Int, mode: Int): Long
@@ -360,6 +404,7 @@ private interface BassMixLibrary : Library {
     fun BASS_Mixer_StreamCreate(frequency: Int, channels: Int, flags: Int): Int
     fun BASS_Mixer_StreamAddChannel(mixer: Int, channel: Int, flags: Int): Boolean
     fun BASS_Mixer_ChannelRemove(channel: Int): Boolean
+    fun BASS_Mixer_ChannelSetEnvelope(channel: Int, type: Int, nodes: BassMixerNode, count: Int): Boolean
 }
 
 class BassChannelInfo : Structure() {
@@ -374,6 +419,14 @@ class BassChannelInfo : Structure() {
 
     override fun getFieldOrder(): List<String> =
         listOf("freq", "chans", "flags", "ctype", "origres", "plugin", "sample", "filename")
+}
+
+class BassMixerNode : Structure() {
+    @JvmField var position: Long = 0L
+    @JvmField var value: Float = 0f
+
+    override fun getFieldOrder(): List<String> =
+        listOf("position", "value")
 }
 
 fun interface BassSyncCallback : Callback {
@@ -405,6 +458,10 @@ private object BassMixerFlags {
     const val Queue: Int = 0x8000
     const val End: Int = 0x10000
     const val ChannelNoRampIn: Int = 0x800000
+}
+
+private object BassMixerEnvelope {
+    const val Volume: Int = 2
 }
 
 private object BassConfig {

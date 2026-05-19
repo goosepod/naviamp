@@ -13,6 +13,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
 import java.net.URI
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 class BassPlaybackEngine(
     private val nativeResult: Result<BassNative> = BassNative.load(),
@@ -24,7 +27,7 @@ class BassPlaybackEngine(
     override val supportsPause: Boolean = true
     override val supportsSeek: Boolean = true
     override val supportsGapless: Boolean = native?.supportsMixer == true
-    override val supportsCrossfade: Boolean = false
+    override val supportsCrossfade: Boolean = native?.supportsMixer == true
     override val supportsReplayGain: Boolean = false
     override val supportsSoftwareVolume: Boolean = true
     override val prefersOriginalStream: Boolean = true
@@ -44,6 +47,8 @@ class BassPlaybackEngine(
     private var preparedRequest: PlaybackRequest? = null
     private var preparedError: String? = null
     private var endSyncCallbacks: MutableMap<Int, BassSyncCallback> = mutableMapOf()
+    private var crossfadeDurationSeconds: Int = 0
+    private var crossfadeActive: Boolean = false
 
     override fun play(
         scope: CoroutineScope,
@@ -175,7 +180,7 @@ class BassPlaybackEngine(
     }
 
     override fun setCrossfadeDuration(seconds: Int) {
-        // BASS gapless preloading does not use crossfade yet. Phase 7 will wire BASSmix fades here.
+        crossfadeDurationSeconds = seconds.coerceIn(0, 12)
     }
 
     override fun prepareNext(request: PlaybackRequest) {
@@ -186,7 +191,11 @@ class BassPlaybackEngine(
             ensureInitialized(bass)
             if (stream != 0 && bass.supportsMixer) {
                 createQueuedSource(bass, request).getOrThrow().also { source ->
-                    bass.addMixerChannel(stream, source).getOrThrow()
+                    if (crossfadeDurationSeconds > 0) {
+                        startCrossfade(bass, source)
+                    } else {
+                        bass.addMixerChannel(stream, source).getOrThrow()
+                    }
                     attachEndSync(bass, source, playbackId)
                 }
             } else {
@@ -216,6 +225,7 @@ class BassPlaybackEngine(
         }
         stream = 0
         currentSourceStream = 0
+        crossfadeActive = false
         endSyncCallbacks.clear()
     }
 
@@ -236,6 +246,8 @@ class BassPlaybackEngine(
             "Active source state" to native?.let { bass ->
                 currentSourceStream.takeIf { it != 0 }?.let { bassActiveLabel(bass.activeState(it)) }
             }.orEmpty().ifBlank { "No source" },
+            "Crossfade duration" to if (crossfadeDurationSeconds > 0) "${crossfadeDurationSeconds}s" else "Off",
+            "Crossfade active" to crossfadeActive.toString(),
             "Prepared next" to (preparedRequest?.mediaId ?: preparedRequest?.url ?: "None"),
             "Prepared next state" to when {
                 preparedStream != 0 -> "Ready"
@@ -278,6 +290,7 @@ class BassPlaybackEngine(
             bass.freeStream(finishedSource).onFailure { lastError = it.message }
         }
         currentSourceStream = queuedSource
+        crossfadeActive = false
         preparedStream = 0
         preparedRequest = null
         preparedError = null
@@ -334,6 +347,7 @@ class BassPlaybackEngine(
             val mixer = bass.createMixer(
                 freq = info.freq.takeIf { it > 0 } ?: 44_100,
                 channels = info.chans.takeIf { it > 0 } ?: 2,
+                queueSources = crossfadeDurationSeconds <= 0,
             ).getOrThrow()
             bass.addMixerChannel(mixer, source).getOrThrow()
             currentSourceStream = source
@@ -363,6 +377,67 @@ class BassPlaybackEngine(
             .onFailure { lastError = it.message }
     }
 
+    private fun startCrossfade(bass: BassNative, nextSource: Int) {
+        val currentSource = currentSourceStream
+        bass.setVolume(nextSource, 1f).getOrThrow()
+        bass.addMixerChannel(stream, nextSource).getOrThrow()
+        val durationMillis = crossfadeDurationSeconds * 1_000
+        val nextFadeBytes = bass.secondsToBytes(nextSource, crossfadeDurationSeconds.toDouble())
+        if (nextFadeBytes != null) {
+            bass.setMixerVolumeEnvelope(
+                nextSource,
+                equalPowerEnvelope(startBytes = 0L, durationBytes = nextFadeBytes, fadeIn = true),
+            ).onFailure {
+                lastError = it.message
+                bass.setVolume(nextSource, 0f).onFailure { error -> lastError = error.message }
+                bass.slideVolume(nextSource, 1f, durationMillis).onFailure { error -> lastError = error.message }
+            }
+        } else {
+            bass.setVolume(nextSource, 0f).onFailure { lastError = it.message }
+            bass.slideVolume(nextSource, 1f, durationMillis).onFailure { lastError = it.message }
+        }
+        if (currentSource != 0) {
+            val currentStartBytes = bass.positionBytes(currentSource)
+            val currentFadeBytes = bass.secondsToBytes(currentSource, crossfadeDurationSeconds.toDouble())
+            if (currentStartBytes != null && currentFadeBytes != null) {
+                bass.setMixerVolumeEnvelope(
+                    currentSource,
+                    equalPowerEnvelope(
+                        startBytes = currentStartBytes,
+                        durationBytes = currentFadeBytes,
+                        fadeIn = false,
+                    ),
+                ).onFailure {
+                    lastError = it.message
+                    bass.slideVolume(currentSource, 0f, durationMillis).onFailure { error -> lastError = error.message }
+                }
+            } else {
+                bass.slideVolume(currentSource, 0f, durationMillis).onFailure { lastError = it.message }
+            }
+        }
+        crossfadeActive = true
+    }
+
+    private fun equalPowerEnvelope(
+        startBytes: Long,
+        durationBytes: Long,
+        fadeIn: Boolean,
+    ): List<Pair<Long, Float>> {
+        if (durationBytes <= 0L) {
+            return listOf(startBytes to if (fadeIn) 1f else 0f)
+        }
+        return (0..EqualPowerEnvelopeSteps).map { step ->
+            val t = step.toDouble() / EqualPowerEnvelopeSteps.toDouble()
+            val value = if (fadeIn) {
+                sin(t * PI / 2.0)
+            } else {
+                cos(t * PI / 2.0)
+            }.toFloat()
+            val position = startBytes + (durationBytes * t).toLong()
+            position to value
+        }
+    }
+
     private fun seekCurrentSource(bass: BassNative, seconds: Double) {
         val sourceHandle = currentSourceStream.takeIf { it != 0 } ?: stream
         if (sourceHandle != 0) {
@@ -379,6 +454,7 @@ class BassPlaybackEngine(
             runCatching { bass.removeMixerChannel(handle) }
             bass.freeStream(handle).onFailure { lastError = it.message }
         }
+        crossfadeActive = false
         preparedStream = 0
         preparedRequest = null
         preparedError = null
@@ -415,3 +491,5 @@ private fun bassActiveLabel(active: Int): String =
         BassActive.Paused -> "Paused"
         else -> "Unknown ($active)"
     }
+
+private const val EqualPowerEnvelopeSteps = 8

@@ -107,11 +107,11 @@ Native scaffold lives in `native/bass-jni`.
 
 ## Phase 7: Crossfade
 
-- [ ] Implement configurable crossfade duration through existing playback settings.
-- [ ] Use two prepared channels or mixer channels with equal-power fade curves.
-- [ ] Disable or alter crossfade for live radio and unsupported streams.
-- [ ] Ensure previous/next/seek cancels active fades cleanly.
-- [ ] Expose accurate capability flags so the Playback settings screen no longer says crossfade is unavailable.
+- [x] Implement configurable crossfade duration through existing playback settings.
+- [x] Use BASSmix mixer channels with equal-power fade curves.
+- [x] Disable or alter crossfade for live radio and unsupported streams.
+- [x] Ensure previous/next/seek cancels active fades cleanly.
+- [x] Expose accurate capability flags so the Playback settings screen no longer says crossfade is unavailable.
 
 ## Phase 8: ReplayGain And Loudness
 

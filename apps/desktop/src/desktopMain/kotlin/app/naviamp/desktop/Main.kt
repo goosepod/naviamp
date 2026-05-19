@@ -664,6 +664,11 @@ fun NaviampApp(
         onMetadataChanged = { metadata ->
             nowPlayingStreamMetadata = metadata
         },
+        onCurrentTrackSidecarsReady = { track ->
+            if (nowPlayingTrack?.id == track.id) {
+                nowPlayingWaveformReloadToken += 1
+            }
+        },
     )
 
     LaunchedEffect(

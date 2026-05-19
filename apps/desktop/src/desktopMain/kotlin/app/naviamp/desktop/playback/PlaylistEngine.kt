@@ -37,6 +37,7 @@ class PlaylistEngine(
     private var gaplessEnabled = true
     private var repeatMode = RepeatMode.Off
     private var preparedNextIndex: Int? = null
+    private var currentTrackSidecarJob: Job? = null
     private var audioPrefetchJob: Job? = null
     private var sessionId = 0
     private var playbackSource: PlaybackSource = PlaybackSource.Unknown
@@ -65,6 +66,8 @@ class PlaylistEngine(
         this.replayGainMode = replayGainMode
         this.callbacks = callbacks
         sessionId += 1
+        currentTrackSidecarJob?.cancel()
+        currentTrackSidecarJob = null
         audioPrefetchJob?.cancel()
         audioPrefetchJob = null
         audioPrefetchStats = AudioPrefetchStats()
@@ -86,6 +89,8 @@ class PlaylistEngine(
         this.replayGainMode = replayGainMode
         this.callbacks = callbacks
         sessionId += 1
+        currentTrackSidecarJob?.cancel()
+        currentTrackSidecarJob = null
         audioPrefetchJob?.cancel()
         audioPrefetchJob = null
         audioPrefetchStats = AudioPrefetchStats()
@@ -98,6 +103,8 @@ class PlaylistEngine(
 
     fun clear() {
         sessionId += 1
+        currentTrackSidecarJob?.cancel()
+        currentTrackSidecarJob = null
         audioPrefetchJob?.cancel()
         audioPrefetchJob = null
         audioPrefetchStats = AudioPrefetchStats()
@@ -224,6 +231,8 @@ class PlaylistEngine(
         val currentProvider = provider ?: return
         val currentQuality = streamQuality ?: return
         val currentCallbacks = callbacks ?: return
+        currentTrackSidecarJob?.cancel()
+        currentTrackSidecarJob = null
         audioPrefetchJob?.cancel()
         audioPrefetchJob = null
 
@@ -238,6 +247,7 @@ class PlaylistEngine(
                 playbackSource = playbackTarget.source
                 val coverArtUrl = track.coverArtId?.let { currentProvider.coverArtUrl(it) }
                 currentCallbacks.onTrackStarted(track, coverArtUrl)
+                startCurrentTrackSidecars(scope, activeSessionId, track)
                 startAudioPrefetch(scope, activeSessionId)
                 playbackEngine.play(
                     scope = scope,
@@ -317,6 +327,43 @@ class PlaylistEngine(
             ),
             source = if (audioCachingEnabledProvider()) PlaybackSource.ProviderStream else PlaybackSource.ProviderStreamCacheDisabled,
         )
+    }
+
+    private fun startCurrentTrackSidecars(
+        scope: CoroutineScope,
+        activeSessionId: Int,
+        track: Track,
+    ) {
+        if (!audioCachingEnabledProvider()) return
+        val audioCache = cache ?: return
+        val sourceId = sourceIdProvider() ?: return
+        val currentProvider = provider ?: return
+        val currentQuality = streamQuality ?: return
+
+        currentTrackSidecarJob?.cancel()
+        currentTrackSidecarJob = scope.launch {
+            runCatching {
+                val cachedAudio = audioCache.cacheAudioTrack(
+                    sourceId = sourceId,
+                    provider = currentProvider,
+                    track = track,
+                    quality = currentQuality,
+                )
+                if (activeSessionId == sessionId) {
+                    runPrefetchSidecars(
+                        audioCache = audioCache,
+                        sourceId = sourceId,
+                        provider = currentProvider,
+                        track = track,
+                        quality = currentQuality,
+                        cachedAudio = cachedAudio,
+                    )
+                    if (activeSessionId == sessionId) {
+                        callbacks?.onCurrentTrackSidecarsReady(track)
+                    }
+                }
+            }
+        }
     }
 
     private fun startAudioPrefetch(scope: CoroutineScope, activeSessionId: Int) {
@@ -443,10 +490,7 @@ class PlaylistEngine(
         val position = progress.positionSeconds ?: return
         val duration = progress.durationSeconds ?: return
         val prepareWindowSeconds = if (canPrepareForCrossfade) {
-            maxOf(
-                crossfadeSettings.durationSeconds + 1.0,
-                CrossfadePrepareWindowSeconds,
-            )
+            crossfadeSettings.durationSeconds.toDouble()
         } else {
             GaplessPrepareWindowSeconds
         }
@@ -521,11 +565,11 @@ data class PlaylistCallbacks(
     val onPlaybackStateChanged: (PlaybackState) -> Unit,
     val onPlaybackProgressChanged: (PlaybackProgress) -> Unit,
     val onMetadataChanged: (app.naviamp.domain.playback.PlaybackStreamMetadata) -> Unit = {},
+    val onCurrentTrackSidecarsReady: (Track) -> Unit = {},
 )
 
 private fun ReplayGainMode.forEngine(playbackEngine: PlaybackEngine): ReplayGainMode =
     if (playbackEngine.supportsReplayGain) this else ReplayGainMode.Off
 
-private const val CrossfadePrepareWindowSeconds = 30.0
 private const val GaplessPrepareWindowSeconds = 8.0
 private const val DefaultAudioPrefetchDepth = 10
