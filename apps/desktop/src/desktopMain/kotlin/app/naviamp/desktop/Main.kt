@@ -377,11 +377,12 @@ fun NaviampApp(
         }
     }
 
-    LaunchedEffect(playbackEngine, playbackSettings.crossfadeDurationSeconds) {
+    LaunchedEffect(playbackEngine, playbackSettings.gaplessEnabled, playbackSettings.crossfadeDurationSeconds) {
         val crossfadeDurationSeconds = playbackSettings.crossfadeDurationSeconds.coerceIn(0, 12)
-        playlistEngine.setCrossfadeSettings(
-            CrossfadeSettings(
-                enabled = crossfadeDurationSeconds > 0,
+        playlistEngine.setPlaybackTransitionSettings(
+            gaplessEnabled = playbackSettings.gaplessEnabled,
+            crossfadeSettings = CrossfadeSettings(
+                enabled = !playbackSettings.gaplessEnabled && crossfadeDurationSeconds > 0,
                 durationSeconds = crossfadeDurationSeconds,
             ),
         )
@@ -2646,6 +2647,7 @@ fun NaviampApp(
                                         cacheSettings = cacheSettings,
                                         cacheStats = statsForNerdsInfo.cacheStats,
                                         supportsReplayGain = playbackEngine.supportsReplayGain,
+                                        supportsGapless = playbackEngine.supportsGapless,
                                         supportsCrossfade = playbackEngine.supportsCrossfade,
                                         onServerUrlChanged = {
                                             serverUrl = it
@@ -2857,10 +2859,11 @@ private fun PlaybackSettings.forEngine(playbackEngine: PlaybackEngine): Playback
             ReplayGainMode.Off
         },
         crossfadeDurationSeconds = if (playbackEngine.supportsCrossfade) {
-            crossfadeDurationSeconds.coerceIn(0, 12)
+            if (gaplessEnabled) 0 else crossfadeDurationSeconds.coerceIn(0, 12)
         } else {
             0
         },
+        gaplessEnabled = playbackEngine.supportsGapless && gaplessEnabled,
         volumePercent = if (playbackEngine.supportsSoftwareVolume) {
             volumePercent.coerceIn(0, 100)
         } else {

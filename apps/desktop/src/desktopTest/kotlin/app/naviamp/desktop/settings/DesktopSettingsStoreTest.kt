@@ -45,6 +45,7 @@ class DesktopSettingsStoreTest {
         store.savePlaybackSettings(
             PlaybackSettings(
                 replayGainMode = ReplayGainMode.Album,
+                gaplessEnabled = false,
                 crossfadeDurationSeconds = 5,
                 volumePercent = 72,
                 debugLoggingEnabled = true,
@@ -61,6 +62,7 @@ class DesktopSettingsStoreTest {
         )
 
         assertEquals(ReplayGainMode.Album, store.loadPlaybackSettings().replayGainMode)
+        assertEquals(false, store.loadPlaybackSettings().gaplessEnabled)
         assertEquals(5, store.loadPlaybackSettings().crossfadeDurationSeconds)
         assertEquals(72, store.loadPlaybackSettings().volumePercent)
         assertEquals(true, store.loadPlaybackSettings().debugLoggingEnabled)
@@ -102,6 +104,7 @@ class DesktopSettingsStoreTest {
         store.savePlaybackSettings(
             PlaybackSettings(
                 replayGainMode = ReplayGainMode.Track,
+                gaplessEnabled = false,
                 crossfadeDurationSeconds = 8,
                 volumePercent = 64,
                 debugLoggingEnabled = true,
@@ -109,10 +112,12 @@ class DesktopSettingsStoreTest {
         )
 
         assertEquals(ReplayGainMode.Track, store.loadPlaybackSettings().replayGainMode)
+        assertEquals(false, store.loadPlaybackSettings().gaplessEnabled)
         assertEquals(8, store.loadPlaybackSettings().crossfadeDurationSeconds)
         assertEquals(64, store.loadPlaybackSettings().volumePercent)
         assertEquals(true, store.loadPlaybackSettings().debugLoggingEnabled)
         assertEquals(true, path.readText().contains("replayGainMode"))
+        assertEquals(true, path.readText().contains("gaplessEnabled"))
         assertEquals(true, path.readText().contains("crossfadeDurationSeconds"))
         assertEquals(true, path.readText().contains("volumePercent"))
         assertEquals(true, path.readText().contains("debugLoggingEnabled"))

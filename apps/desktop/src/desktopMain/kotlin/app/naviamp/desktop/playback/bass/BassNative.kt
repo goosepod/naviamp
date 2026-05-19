@@ -1,14 +1,18 @@
 package app.naviamp.desktop.playback.bass
 
+import com.sun.jna.Callback
 import com.sun.jna.Function
 import com.sun.jna.Library
 import com.sun.jna.Native
 import com.sun.jna.Pointer
+import com.sun.jna.Structure
 import java.io.File
 
 class BassNative private constructor(
     private val directory: File,
     private val library: BassLibrary,
+    private val mixerLibrary: BassMixLibrary?,
+    private val mixerLoadError: Throwable?,
     private val platform: BassPlatform,
 ) {
     val version: Int
@@ -16,6 +20,15 @@ class BassNative private constructor(
 
     val libraryDirectory: File
         get() = directory
+
+    val supportsMixer: Boolean
+        get() = mixerLibrary != null
+
+    val mixerVersion: Int?
+        get() = mixerLibrary?.BASS_Mixer_GetVersion()
+
+    val mixerError: String?
+        get() = mixerLoadError?.message
 
     fun init(device: Int = -1, frequency: Int = 44_100): Result<Unit> =
         check(library.BASS_Init(device, frequency, flags = 0, window = null, clsid = null), "BASS_Init failed")
@@ -92,8 +105,63 @@ class BassNative private constructor(
             flags = BassFlags.StreamPrescan or BassFlags.StreamDecode or BassFlags.SampleFloat or BassFlags.SampleMono,
         )
 
+    fun createUrlDecodeStream(url: String): Result<Int> =
+        createUrlStream(
+            url = url,
+            flags = BassFlags.StreamDecode or BassFlags.SampleFloat,
+        )
+
+    fun createFilePlaybackDecodeStream(path: File): Result<Int> =
+        createFileStream(
+            path = path,
+            flags = BassFlags.StreamPrescan or BassFlags.StreamDecode or BassFlags.SampleFloat,
+        )
+
+    fun channelInfo(channel: Int): Result<BassChannelInfo> {
+        val info = BassChannelInfo()
+        return check(library.BASS_ChannelGetInfo(channel, info), "BASS_ChannelGetInfo failed")
+            .map { info }
+    }
+
+    fun createMixer(freq: Int, channels: Int): Result<Int> {
+        val mixer = mixerLibrary
+            ?: return Result.failure(IllegalStateException(mixerLoadError?.message ?: "BASSmix is unavailable."))
+        val handle = mixer.BASS_Mixer_StreamCreate(
+            freq,
+            channels,
+            BassFlags.SampleFloat or BassMixerFlags.Queue or BassMixerFlags.End,
+        )
+        return handleResult(handle, "BASS_Mixer_StreamCreate failed")
+    }
+
+    fun addMixerChannel(mixerHandle: Int, channel: Int): Result<Unit> {
+        val mixer = mixerLibrary
+            ?: return Result.failure(IllegalStateException(mixerLoadError?.message ?: "BASSmix is unavailable."))
+        return check(
+            mixer.BASS_Mixer_StreamAddChannel(mixerHandle, channel, BassMixerFlags.ChannelNoRampIn),
+            "BASS_Mixer_StreamAddChannel failed",
+        )
+    }
+
+    fun removeMixerChannel(channel: Int): Result<Unit> {
+        val mixer = mixerLibrary
+            ?: return Result.failure(IllegalStateException(mixerLoadError?.message ?: "BASSmix is unavailable."))
+        return check(mixer.BASS_Mixer_ChannelRemove(channel), "BASS_Mixer_ChannelRemove failed")
+    }
+
     fun play(channel: Int, restart: Boolean = false): Result<Unit> =
         check(library.BASS_ChannelPlay(channel, restart), "BASS_ChannelPlay failed")
+
+    fun setEndSync(channel: Int, callback: BassSyncCallback): Result<Int> {
+        val handle = library.BASS_ChannelSetSync(
+            channel,
+            BassSync.End or BassSync.Onetime,
+            0,
+            callback,
+            null,
+        )
+        return handleResult(handle, "BASS_ChannelSetSync end failed")
+    }
 
     fun pause(channel: Int): Result<Unit> =
         check(library.BASS_ChannelPause(channel), "BASS_ChannelPause failed")
@@ -232,7 +300,21 @@ class BassNative private constructor(
                     emptyMap<String, Any>()
                 }
                 val library = Native.load(libraryFile.absolutePath, BassLibrary::class.java, options) as BassLibrary
-                BassNative(directory = directory, library = library, platform = platform)
+                val mixerFile = File(directory, platform.libraryName("bassmix"))
+                val mixerResult = runCatching {
+                    if (mixerFile.isFile) {
+                        Native.load(mixerFile.absolutePath, BassMixLibrary::class.java, options) as BassMixLibrary
+                    } else {
+                        throw IllegalStateException("Could not find ${mixerFile.absolutePath}.")
+                    }
+                }
+                BassNative(
+                    directory = directory,
+                    library = library,
+                    mixerLibrary = mixerResult.getOrNull(),
+                    mixerLoadError = mixerResult.exceptionOrNull(),
+                    platform = platform,
+                )
             }
         }
     }
@@ -261,7 +343,9 @@ private interface BassLibrary : Library {
     fun BASS_ChannelPause(handle: Int): Boolean
     fun BASS_ChannelStop(handle: Int): Boolean
     fun BASS_ChannelIsActive(handle: Int): Int
+    fun BASS_ChannelGetInfo(handle: Int, info: BassChannelInfo): Boolean
     fun BASS_ChannelSetAttribute(handle: Int, attribute: Int, value: Float): Boolean
+    fun BASS_ChannelSetSync(handle: Int, type: Int, param: Long, proc: BassSyncCallback, user: Pointer?): Int
     fun BASS_ChannelGetLength(handle: Int, mode: Int): Long
     fun BASS_ChannelGetPosition(handle: Int, mode: Int): Long
     fun BASS_ChannelSetPosition(handle: Int, position: Long, mode: Int): Boolean
@@ -271,8 +355,38 @@ private interface BassLibrary : Library {
     fun BASS_ChannelGetData(handle: Int, buffer: FloatArray, length: Int): Int
 }
 
+private interface BassMixLibrary : Library {
+    fun BASS_Mixer_GetVersion(): Int
+    fun BASS_Mixer_StreamCreate(frequency: Int, channels: Int, flags: Int): Int
+    fun BASS_Mixer_StreamAddChannel(mixer: Int, channel: Int, flags: Int): Boolean
+    fun BASS_Mixer_ChannelRemove(channel: Int): Boolean
+}
+
+class BassChannelInfo : Structure() {
+    @JvmField var freq: Int = 0
+    @JvmField var chans: Int = 0
+    @JvmField var flags: Int = 0
+    @JvmField var ctype: Int = 0
+    @JvmField var origres: Int = 0
+    @JvmField var plugin: Int = 0
+    @JvmField var sample: Int = 0
+    @JvmField var filename: Pointer? = null
+
+    override fun getFieldOrder(): List<String> =
+        listOf("freq", "chans", "flags", "ctype", "origres", "plugin", "sample", "filename")
+}
+
+fun interface BassSyncCallback : Callback {
+    fun invoke(syncHandle: Int, channel: Int, data: Int, user: Pointer?)
+}
+
 private object BassPosition {
     const val Byte: Int = 0
+}
+
+private object BassSync {
+    const val End: Int = 2
+    const val Onetime: Int = Int.MIN_VALUE
 }
 
 private object BassAttributes {
@@ -285,6 +399,12 @@ object BassFlags {
     const val StreamPrescan: Int = 0x20000
     const val StreamDecode: Int = 0x200000
     const val StreamStatus: Int = 0x800000
+}
+
+private object BassMixerFlags {
+    const val Queue: Int = 0x8000
+    const val End: Int = 0x10000
+    const val ChannelNoRampIn: Int = 0x800000
 }
 
 private object BassConfig {

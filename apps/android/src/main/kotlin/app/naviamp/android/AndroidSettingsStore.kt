@@ -48,6 +48,7 @@ class AndroidSettingsStore(
     fun loadPlaybackSettings(): PlaybackSettings =
         PlaybackSettings(
             replayGainMode = enumPreference(KeyReplayGainMode, ReplayGainMode.Off),
+            gaplessEnabled = preferences.getBoolean(KeyGaplessEnabled, true),
             crossfadeDurationSeconds = preferences.getInt(KeyCrossfadeDurationSeconds, 0),
             debugLoggingEnabled = preferences.getBoolean(KeyDebugLoggingEnabled, false),
             lrclibLyricsEnabled = preferences.getBoolean(KeyLrclibLyricsEnabled, false),
@@ -67,6 +68,7 @@ class AndroidSettingsStore(
     fun savePlaybackSettings(settings: PlaybackSettings) {
         preferences.edit()
             .putString(KeyReplayGainMode, settings.replayGainMode.name)
+            .putBoolean(KeyGaplessEnabled, settings.gaplessEnabled)
             .putInt(KeyCrossfadeDurationSeconds, settings.crossfadeDurationSeconds)
             .putBoolean(KeyDebugLoggingEnabled, settings.debugLoggingEnabled)
             .putBoolean(KeyLrclibLyricsEnabled, settings.lrclibLyricsEnabled)
@@ -91,6 +93,7 @@ private const val KeyCustomCertificatePath = "custom_certificate_path"
 private const val KeyClientCertificatePath = "client_certificate_path"
 private const val KeyClientCertificatePassword = "client_certificate_password"
 private const val KeyReplayGainMode = "replay_gain_mode"
+private const val KeyGaplessEnabled = "gapless_enabled"
 private const val KeyCrossfadeDurationSeconds = "crossfade_duration_seconds"
 private const val KeyDebugLoggingEnabled = "debug_logging_enabled"
 private const val KeyLrclibLyricsEnabled = "lrclib_lyrics_enabled"

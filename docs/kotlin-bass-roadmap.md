@@ -96,11 +96,13 @@ Native scaffold lives in `native/bass-jni`.
 
 ## Phase 6: Gapless
 
-- [ ] Implement `QueueAwarePlaybackEngine.prepareNext` for BASS.
-- [ ] Use BASSmix or equivalent channel strategy to prepare the next stream before track end.
-- [ ] When audio prefetch caches upcoming tracks, also run sidecar prep for waveform generation, tag reading, provider/embedded lyrics, and LRCLIB fallback so Now Playing metadata is ready before playback starts.
-- [ ] Advance app queue state at the correct time without double-starting or losing play reporting.
-- [ ] Reset prepared-next state on seek, stop, queue jump, and source changes.
+- [x] Implement `QueueAwarePlaybackEngine.prepareNext` for BASS.
+- [x] Use BASSmix queued channels so BASS owns track-to-track transitions instead of waiting for app-level end polling.
+- [x] Adopt already-queued BASS sources when the app queue advances naturally, keeping UI state in sync without restarting audio.
+- [x] Prepare repeat-queue wraparound transitions so looping albums can queue the first track before the last track ends.
+- [x] When audio prefetch caches upcoming tracks, also run sidecar prep for waveform generation, tag reading, provider/embedded lyrics, and LRCLIB fallback so Now Playing metadata is ready before playback starts.
+- [x] Advance app queue state at the correct time without double-starting or losing play reporting.
+- [x] Reset prepared-next state on seek, stop, queue jump, and source changes.
 - [ ] Verify album playback with known gapless albums.
 
 ## Phase 7: Crossfade
@@ -149,6 +151,22 @@ Native scaffold lives in `native/bass-jni`.
 - [ ] Test sleep/wake, server disconnects, bad URLs, unsupported formats, and rapid track skipping.
 - [ ] Make BASS the default desktop engine after stability is proven.
 - [ ] Keep mpv fallback available until BASS covers the known edge cases.
+
+## Future Feature: Artist Popular Tracks
+
+- [ ] Add a local database model for artist popular-track metadata, including source, rank, fetched timestamp, and matched local track ID.
+- [ ] Use Deezer as an enrichment source for artist top tracks while keeping the local library as the source of playable truth.
+- [ ] Match Deezer popular tracks to local library tracks by normalized artist/title, with album and duration as secondary confidence checks when available.
+- [ ] Show a Popular Tracks section on artist detail screens when local matches exist.
+- [ ] Add actions for Play Popular Tracks, Add Popular Tracks to Queue, and Start Popular Tracks Radio.
+- [ ] For Popular Tracks Radio, seed playback from one popular local track, generate radio from each matched popular track, append the results, and dedupe the queue.
+
+## Future Feature: Queue Actions
+
+- [ ] Add first-class queue append operations for tracks, albums, artists, playlists, search results, radio seeds, and popular-track groups.
+- [ ] Add Add to Queue to overflow menus throughout the Kotlin UI, following the existing Kotlin menu/icon patterns.
+- [ ] Add direct Add to Queue buttons where the Kotlin UI already presents high-level album or artist actions.
+- [ ] Keep queue operations explicit: Play Now replaces the queue, Start Radio creates a generated queue, Add to Queue appends, and Play Next can be added later as an insert-after-current action.
 
 ## Open Questions
 

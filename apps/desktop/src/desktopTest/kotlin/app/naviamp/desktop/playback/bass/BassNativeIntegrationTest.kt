@@ -10,4 +10,12 @@ class BassNativeIntegrationTest {
 
         assertTrue(native.version > 0)
     }
+
+    @Test
+    fun loadsBundledBassmixWhenAvailable() {
+        val native = BassNative.load().getOrNull() ?: return
+
+        assertTrue(native.supportsMixer, native.mixerError ?: "BASSmix was not loaded")
+        assertTrue((native.mixerVersion ?: 0) > 0)
+    }
 }

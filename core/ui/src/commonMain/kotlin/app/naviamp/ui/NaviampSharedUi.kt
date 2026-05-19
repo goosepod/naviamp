@@ -315,6 +315,8 @@ fun NaviampSharedAppShell(
     editingConnection: Boolean,
     connectionForm: ConnectionFormState,
     playbackSettings: PlaybackSettings = PlaybackSettings(),
+    supportsGapless: Boolean = true,
+    supportsCrossfade: Boolean = false,
     query: String,
     home: SharedHomeUi,
     searchResults: SharedSearchResultsUi,
@@ -456,6 +458,8 @@ fun NaviampSharedAppShell(
                             nowPlaying = nowPlaying,
                             nowPlayingOpen = nowPlayingOpen,
                             playbackSettings = playbackSettings,
+                            supportsGapless = supportsGapless,
+                            supportsCrossfade = supportsCrossfade,
                             onEditConnection = onEditConnection,
                             onPlaybackSettingsChanged = onPlaybackSettingsChanged,
                             onQueryChanged = onQueryChanged,
@@ -647,6 +651,8 @@ private fun ConnectedContent(
     nowPlaying: NowPlayingUi?,
     nowPlayingOpen: Boolean,
     playbackSettings: PlaybackSettings,
+    supportsGapless: Boolean = true,
+    supportsCrossfade: Boolean = false,
     onEditConnection: () -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     onQueryChanged: (String) -> Unit,
@@ -696,6 +702,8 @@ private fun ConnectedContent(
         selectedRoute == SharedRoute.Settings -> SettingsContent(
             colors = colors,
             playbackSettings = playbackSettings,
+            supportsGapless = supportsGapless,
+            supportsCrossfade = supportsCrossfade,
             onEditConnection = onEditConnection,
             onPlaybackSettingsChanged = onPlaybackSettingsChanged,
         )
@@ -1356,12 +1364,16 @@ private fun FullNowPlaying(
 private fun SettingsContent(
     colors: NaviampColors,
     playbackSettings: PlaybackSettings,
+    supportsGapless: Boolean,
+    supportsCrossfade: Boolean,
     onEditConnection: () -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
 ) {
     NaviampSharedSettingsContent(
         colors = colors,
         playbackSettings = playbackSettings,
+        supportsGapless = supportsGapless,
+        supportsCrossfade = supportsCrossfade,
         onEditConnection = onEditConnection,
         onPlaybackSettingsChanged = onPlaybackSettingsChanged,
     )

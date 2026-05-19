@@ -183,3 +183,11 @@ BASS binaries are third-party redistributables from Un4seen. Keep the downloaded
 ## Waveform Generation
 
 Desktop waveform generation uses BASS decode streams against cached or downloaded audio files. It no longer shells out to mpv, and packaged desktop apps do not bundle an mpv executable for waveform generation.
+
+## Gapless Playback
+
+The BASS desktop engine implements `QueueAwarePlaybackEngine.prepareNext`. During normal queue playback, `PlaylistEngine` asks BASS to create the next stream shortly before the current track ends.
+
+For gapless playback, the engine uses BASSmix queued decode channels. The active track plays through a BASS mixer, and the prepared next track is queued into that mixer before the current source ends. When BASS advances to the queued source, the app adopts that source as the current track instead of stopping and reopening playback. Prepared streams are cleared on stop, seek, source changes, queue jumps, shuffle/restore changes, or when the next request no longer matches the prepared stream.
+
+Audio prefetch also performs sidecar prep for upcoming tracks after caching audio: waveform generation, local tag reading for embedded lyrics, provider lyrics, and LRCLIB fallback. Those steps are best-effort and do not fail the audio prefetch if one sidecar source is unavailable.

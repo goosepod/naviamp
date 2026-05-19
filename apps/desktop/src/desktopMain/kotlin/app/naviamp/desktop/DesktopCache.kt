@@ -318,6 +318,16 @@ class DesktopCache(
             lyrics
         }
 
+    suspend fun cacheEmbeddedLyrics(
+        sourceId: String,
+        trackId: TrackId,
+        lyrics: Lyrics,
+    ): Lyrics =
+        withContext(Dispatchers.IO) {
+            upsertLyrics(sourceId, trackId, lyrics)
+            lyrics
+        }
+
     suspend fun lrclibLyrics(
         sourceId: String,
         track: Track,

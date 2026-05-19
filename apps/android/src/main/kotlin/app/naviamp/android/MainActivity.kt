@@ -49,6 +49,7 @@ import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
+import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.lyrics.selectPreferredLyrics
 import app.naviamp.domain.queue.PlaybackQueue
@@ -877,6 +878,8 @@ private fun NaviampAndroidApp() {
             clientCertificatePassword = clientCertificatePassword,
         ),
         playbackSettings = playbackSettings,
+        supportsGapless = playbackEngine.supportsGapless,
+        supportsCrossfade = playbackEngine.supportsCrossfade,
         query = query,
         home = homeState.toSharedHomeUi(
             coverArtUrl = { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
@@ -980,8 +983,13 @@ private fun NaviampAndroidApp() {
         onEditConnection = { editingConnection = true },
         onCancelEditConnection = { editingConnection = false },
         onPlaybackSettingsChanged = { settings ->
-            playbackSettings = settings
-            settingsStore.savePlaybackSettings(settings)
+            val normalizedSettings = settings.copy(
+                replayGainMode = ReplayGainMode.Off,
+                gaplessEnabled = playbackEngine.supportsGapless && settings.gaplessEnabled,
+                crossfadeDurationSeconds = 0,
+            )
+            playbackSettings = normalizedSettings
+            settingsStore.savePlaybackSettings(normalizedSettings)
             lyricsByTrackId = emptyMap()
             lyricsStatusByTrackId = emptyMap()
             if (lyricsVisible) nowPlaying?.let(::loadLyrics)
