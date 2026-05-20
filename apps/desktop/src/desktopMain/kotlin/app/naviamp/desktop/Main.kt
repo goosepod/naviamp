@@ -109,7 +109,10 @@ import app.naviamp.ui.bytesLabel
 import app.naviamp.ui.durationLabel
 import app.naviamp.ui.label
 import app.naviamp.ui.nowPlayingAlbumLine
+import app.naviamp.ui.preloadJvmPlatformCoverArt
+import app.naviamp.ui.resetJvmPlatformCoverArtByteLoader
 import app.naviamp.ui.rememberPlatformCoverArtPlayerColors
+import app.naviamp.ui.setJvmPlatformCoverArtByteLoader
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -386,6 +389,13 @@ fun NaviampApp(
     DisposableEffect(playbackEngine) {
         onDispose {
             playbackEngine.stop()
+        }
+    }
+
+    DisposableEffect(sessionCache) {
+        setJvmPlatformCoverArtByteLoader { url -> sessionCache.imageBytes(url) }
+        onDispose {
+            resetJvmPlatformCoverArtByteLoader()
         }
     }
 
@@ -805,6 +815,25 @@ fun NaviampApp(
         }
         relatedTracks = withContext(Dispatchers.IO) {
             sessionCache.relatedLibraryTracks(sourceId, track, limit = 40)
+        }
+    }
+
+    LaunchedEffect(nowPlayingCoverArtUrl, playbackQueue, relatedTracks, connectedProvider) {
+        val provider = connectedProvider ?: return@LaunchedEffect
+        val urls = buildList {
+            nowPlayingCoverArtUrl?.let(::add)
+            playbackQueue.backTo().take(CoverArtPreloadHistoryLimit).forEach { track ->
+                track.coverArtId?.let { add(provider.coverArtUrl(it)) }
+            }
+            playbackQueue.upNext().take(CoverArtPreloadUpcomingLimit).forEach { track ->
+                track.coverArtId?.let { add(provider.coverArtUrl(it)) }
+            }
+            relatedTracks.take(CoverArtPreloadRelatedLimit).forEach { track ->
+                track.coverArtId?.let { add(provider.coverArtUrl(it)) }
+            }
+        }
+        withContext(Dispatchers.IO) {
+            preloadJvmPlatformCoverArt(urls)
         }
     }
 
@@ -2088,16 +2117,25 @@ fun NaviampApp(
                 val details = sessionCache.artist(provider, artist.id)
                 selectedArtistDetails = details
                 selectedArtistStatus = null
-                connectedSourceId?.let { sourceId ->
+                val sourceId = connectedSourceId
+                if (sourceId == null) {
+                    selectedArtistStatus = "Popular tracks unavailable: no connected media source."
+                } else {
                     runCatching {
                         popularTracksService.popularTracks(
                             sourceId = sourceId,
                             artist = details.artist,
-                            limit = 10,
+                            limit = PopularTracksFetchLimit,
                         )
                     }.onSuccess { matches ->
                         if (selectedArtist?.id == artist.id) {
-                            selectedArtistPopularTracks = matches.map { it.matchedTrack }
+                            selectedArtistPopularTracks = matches
+                                .map { it.matchedTrack }
+                                .take(PopularTracksDisplayLimit)
+                        }
+                    }.onFailure { error ->
+                        if (selectedArtist?.id == artist.id) {
+                            selectedArtistStatus = "Popular tracks unavailable: ${error.message ?: "unknown error"}"
                         }
                     }
                 }
@@ -2236,15 +2274,29 @@ fun NaviampApp(
         ),
         cacheStats = sessionCache.stats(),
         providerCapabilities = connectedProvider?.capabilities?.asStatsMap().orEmpty(),
-        apiCalls = NavidromeApiCallHistory.recent(50).map { call ->
-            ApiCallStats(
-                endpoint = call.endpoint,
-                sanitizedUrl = call.sanitizedUrl,
-                durationMillis = call.durationMillis,
-                success = call.success,
-                errorMessage = call.errorMessage,
-            )
-        },
+        apiCalls = (
+            NavidromeApiCallHistory.recent(50).map { call ->
+                ApiCallStats(
+                    source = "Navidrome",
+                    endpoint = call.endpoint,
+                    sanitizedUrl = call.sanitizedUrl,
+                    startedAtEpochMillis = call.startedAtEpochMillis,
+                    durationMillis = call.durationMillis,
+                    success = call.success,
+                    errorMessage = call.errorMessage,
+                )
+            } + DesktopPopularTracksApiCallHistory.recent(50).map { call ->
+                ApiCallStats(
+                    source = "Deezer",
+                    endpoint = call.endpoint,
+                    sanitizedUrl = call.sanitizedUrl,
+                    startedAtEpochMillis = call.startedAtEpochMillis,
+                    durationMillis = call.durationMillis,
+                    success = call.success,
+                    errorMessage = call.errorMessage,
+                )
+            }
+        ).sortedByDescending { it.startedAtEpochMillis }.take(50),
     )
 
     MaterialTheme(colorScheme = colorScheme) {
@@ -3125,3 +3177,8 @@ private fun WindowState.toWindowSettings(): WindowSettings =
 
 private const val PlayReportDurationFraction = 0.5
 private const val PlayReportMaxThresholdSeconds = 240.0
+private const val CoverArtPreloadHistoryLimit = 4
+private const val CoverArtPreloadUpcomingLimit = 20
+private const val CoverArtPreloadRelatedLimit = 12
+private const val PopularTracksFetchLimit = 25
+private const val PopularTracksDisplayLimit = 10

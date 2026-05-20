@@ -8,6 +8,26 @@
 #include <string>
 #include <vector>
 
+namespace {
+constexpr DWORD PLAYBACK_BUFFER_MILLIS = 1500;
+constexpr DWORD UPDATE_PERIOD_MILLIS = 10;
+constexpr DWORD DEVICE_BUFFER_MILLIS = 60;
+constexpr DWORD NETWORK_BUFFER_MILLIS = 5000;
+constexpr DWORD NETWORK_TIMEOUT_MILLIS = 15000;
+constexpr DWORD NETWORK_PREBUFFER_PERCENT = 75;
+
+void configure_playback_buffers() {
+    BASS_SetConfig(BASS_CONFIG_UPDATEPERIOD, UPDATE_PERIOD_MILLIS);
+    BASS_SetConfig(BASS_CONFIG_BUFFER, PLAYBACK_BUFFER_MILLIS);
+    BASS_SetConfig(BASS_CONFIG_DEV_BUFFER, DEVICE_BUFFER_MILLIS);
+    BASS_SetConfig(BASS_CONFIG_NET_BUFFER, NETWORK_BUFFER_MILLIS);
+    BASS_SetConfig(BASS_CONFIG_NET_PREBUF, NETWORK_PREBUFFER_PERCENT);
+    BASS_SetConfig(BASS_CONFIG_NET_PREBUF_WAIT, 1);
+    BASS_SetConfig(BASS_CONFIG_NET_TIMEOUT, NETWORK_TIMEOUT_MILLIS);
+    BASS_SetConfig(BASS_CONFIG_NET_READTIMEOUT, NETWORK_TIMEOUT_MILLIS);
+}
+}
+
 extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
     (void)vm;
     (void)reserved;
@@ -32,6 +52,7 @@ extern "C" JNIEXPORT jboolean JNICALL
 Java_app_naviamp_android_playback_AndroidBassJni_nativeInit(JNIEnv* env, jobject thiz) {
     (void)env;
     (void)thiz;
+    configure_playback_buffers();
     if (BASS_Init(-1, 44100, 0, nullptr, nullptr)) {
         return JNI_TRUE;
     }
@@ -223,6 +244,10 @@ Java_app_naviamp_android_playback_AndroidBassJni_nativeSeek(JNIEnv* env, jobject
     (void)env;
     (void)thiz;
     QWORD bytes = BASS_ChannelSeconds2Bytes(static_cast<DWORD>(stream), seconds);
+    if (bytes == static_cast<QWORD>(-1)) return JNI_FALSE;
+    if (BASS_Mixer_ChannelSetPosition(static_cast<DWORD>(stream), bytes, BASS_POS_BYTE | BASS_POS_MIXER_RESET)) {
+        return JNI_TRUE;
+    }
     return BASS_ChannelSetPosition(static_cast<DWORD>(stream), bytes, BASS_POS_BYTE) ? JNI_TRUE : JNI_FALSE;
 }
 

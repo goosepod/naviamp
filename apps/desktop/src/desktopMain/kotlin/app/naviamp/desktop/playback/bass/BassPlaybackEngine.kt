@@ -120,7 +120,7 @@ class BassPlaybackEngine(
                         lastMetadata = metadata
                         onMetadataChanged(metadata)
                     }
-                    currentVisualizerFrame = visualizerFrameFor(bass, sourceHandle)
+                    currentVisualizerFrame = visualizerFrameFor(bass, playbackHandle)
                     delay(100)
                 }
 

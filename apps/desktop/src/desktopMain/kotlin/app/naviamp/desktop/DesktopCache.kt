@@ -1,6 +1,7 @@
 package app.naviamp.desktop
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
+import app.cash.sqldelight.db.QueryResult
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.AlbumId
@@ -1255,9 +1256,59 @@ private fun createDatabase(path: Path): NaviampStorageDatabase {
     val driver = JdbcSqliteDriver("jdbc:sqlite:${path.toAbsolutePath()}")
     if (!exists) {
         NaviampStorageDatabase.Schema.create(driver)
+    } else {
+        val oldVersion = driver.databaseVersion()
+        val newVersion = NaviampStorageDatabase.Schema.version
+        if (oldVersion in 1 until newVersion) {
+            NaviampStorageDatabase.Schema.migrate(driver, oldVersion, newVersion)
+        }
     }
+    ensureArtistPopularTracksSchema(driver)
     driver.execute(null, "PRAGMA foreign_keys=ON", 0)
     return NaviampStorageDatabase(driver)
+}
+
+private fun JdbcSqliteDriver.databaseVersion(): Long =
+    executeQuery(null, "PRAGMA user_version", { cursor ->
+        QueryResult.Value(if (cursor.next().value) cursor.getLong(0) ?: 0L else 0L)
+    }, 0).value
+
+private fun ensureArtistPopularTracksSchema(driver: JdbcSqliteDriver) {
+    driver.execute(
+        null,
+        """
+        CREATE TABLE IF NOT EXISTS artist_popular_track (
+          source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+          remote_artist_id TEXT NOT NULL,
+          popular_source TEXT NOT NULL,
+          source_track_id TEXT NOT NULL,
+          rank INTEGER NOT NULL,
+          title TEXT NOT NULL,
+          album_title TEXT,
+          duration_seconds INTEGER,
+          matched_remote_track_id TEXT,
+          fetched_at_epoch_millis INTEGER NOT NULL,
+          PRIMARY KEY(source_id, remote_artist_id, popular_source, source_track_id)
+        )
+        """.trimIndent(),
+        0,
+    )
+    driver.execute(
+        null,
+        """
+        CREATE INDEX IF NOT EXISTS artist_popular_track_artist
+        ON artist_popular_track(source_id, remote_artist_id, popular_source, rank)
+        """.trimIndent(),
+        0,
+    )
+    driver.execute(
+        null,
+        """
+        CREATE INDEX IF NOT EXISTS artist_popular_track_match
+        ON artist_popular_track(source_id, matched_remote_track_id)
+        """.trimIndent(),
+        0,
+    )
 }
 
 private fun defaultCacheDatabasePath(): Path =

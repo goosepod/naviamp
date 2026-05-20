@@ -640,11 +640,15 @@ private fun NaviampAndroidApp() {
                                 popularTracksService.popularTracks(
                                     sourceId = sourceId,
                                     artist = detail.artist,
-                                    limit = 10,
+                                    limit = PopularTracksFetchLimit,
                                 )
                             }.onSuccess { matches ->
                                 artistPopularTracksByArtistId =
-                                    artistPopularTracksByArtistId + (artistId.value to matches.map { it.matchedTrack })
+                                    artistPopularTracksByArtistId + (
+                                        artistId.value to matches
+                                            .map { it.matchedTrack }
+                                            .take(PopularTracksDisplayLimit)
+                                        )
                             }
                         }
                     }
@@ -1649,3 +1653,5 @@ private fun ReplayGainMode.forEngine(playbackEngine: AndroidPlaybackEngine): Rep
 private const val PendingSeekToleranceSeconds = 2.0
 private const val PendingSeekStaleProgressWindowMillis = 1_500L
 private const val AndroidGaplessPrepareWindowSeconds = 2.0
+private const val PopularTracksFetchLimit = 25
+private const val PopularTracksDisplayLimit = 10

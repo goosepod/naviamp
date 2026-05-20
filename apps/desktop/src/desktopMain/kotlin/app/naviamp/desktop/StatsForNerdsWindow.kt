@@ -212,7 +212,7 @@ private fun ApiHistorySection(
             .padding(10.dp),
         verticalArrangement = Arrangement.spacedBy(5.dp),
     ) {
-        Text("Navidrome API Calls", color = appColors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+        Text("API Calls", color = appColors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
         if (calls.isEmpty()) {
             Text("No calls recorded yet.", color = appColors.secondaryText, fontSize = 11.sp)
             return@Column
@@ -223,6 +223,12 @@ private fun ApiHistorySection(
                 HorizontalDivider(color = appColors.border.copy(alpha = 0.45f), thickness = 0.5.dp)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    call.source,
+                    color = appColors.secondaryText,
+                    fontSize = 11.sp,
+                    modifier = Modifier.width(66.dp),
+                )
                 Text(
                     call.statusLabel,
                     color = if (call.success) appColors.secondaryText else MaterialTheme.colorScheme.error,
@@ -422,8 +428,10 @@ fun SavedMediaSource.toStats(): MediaSourceStats =
     )
 
 data class ApiCallStats(
+    val source: String,
     val endpoint: String,
     val sanitizedUrl: String,
+    val startedAtEpochMillis: Long,
     val durationMillis: Long,
     val success: Boolean,
     val errorMessage: String?,

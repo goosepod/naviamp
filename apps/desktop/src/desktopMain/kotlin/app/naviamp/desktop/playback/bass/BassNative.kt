@@ -30,8 +30,10 @@ class BassNative private constructor(
     val mixerError: String?
         get() = mixerLoadError?.message
 
-    fun init(device: Int = -1, frequency: Int = 44_100): Result<Unit> =
-        check(library.BASS_Init(device, frequency, flags = 0, window = null, clsid = null), "BASS_Init failed")
+    fun init(device: Int = -1, frequency: Int = 44_100): Result<Unit> {
+        configurePlaybackBuffers()
+        return check(library.BASS_Init(device, frequency, flags = 0, window = null, clsid = null), "BASS_Init failed")
+    }
 
     fun configureInternetStreams(): Result<Unit> {
         val required = listOf(
@@ -43,6 +45,10 @@ class BassNative private constructor(
         }
 
         setConfig(BassConfig.NetPlaylistDepth, 5)
+            .onFailure { return Result.failure(it) }
+        setConfig(BassConfig.NetBuffer, NetworkBufferMillis)
+            .onFailure { return Result.failure(it) }
+        setConfig(BassConfig.NetPrebuffer, NetworkPrebufferPercent)
             .onFailure { return Result.failure(it) }
         setConfig(BassConfig.NetTimeout, 15_000)
             .onFailure { return Result.failure(it) }
@@ -235,6 +241,17 @@ class BassNative private constructor(
 
     fun seek(channel: Int, seconds: Double): Result<Unit> {
         val bytes = library.BASS_ChannelSeconds2Bytes(channel, seconds)
+        val mixer = mixerLibrary
+        if (mixer != null && bytes >= 0L) {
+            val resetMixerBuffer = mixer.BASS_Mixer_ChannelSetPosition(
+                channel,
+                bytes,
+                BassPosition.Byte or BassPosition.MixerReset,
+            )
+            if (resetMixerBuffer) {
+                return Result.success(Unit)
+            }
+        }
         return check(
             library.BASS_ChannelSetPosition(channel, bytes, BassPosition.Byte),
             "BASS_ChannelSetPosition failed",
@@ -309,6 +326,16 @@ class BassNative private constructor(
 
     private fun setConfig(option: Int, value: Int): Result<Unit> =
         check(library.BASS_SetConfig(option, value), "BASS_SetConfig $option failed")
+
+    private fun configurePlaybackBuffers() {
+        setConfig(BassConfig.UpdatePeriod, UpdatePeriodMillis)
+        setConfig(BassConfig.Buffer, PlaybackBufferMillis)
+        setConfigIfSupported(BassConfig.DeviceBuffer, DeviceBufferMillis)
+    }
+
+    private fun setConfigIfSupported(option: Int, value: Int) {
+        library.BASS_SetConfig(option, value)
+    }
 
     private fun metaTag(channel: Int): String? =
         library.BASS_ChannelGetTags(channel, BassTags.Meta)
@@ -424,6 +451,7 @@ private interface BassMixLibrary : Library {
     fun BASS_Mixer_StreamCreate(frequency: Int, channels: Int, flags: Int): Int
     fun BASS_Mixer_StreamAddChannel(mixer: Int, channel: Int, flags: Int): Boolean
     fun BASS_Mixer_ChannelRemove(channel: Int): Boolean
+    fun BASS_Mixer_ChannelSetPosition(channel: Int, position: Long, mode: Int): Boolean
     fun BASS_Mixer_ChannelSetEnvelope(channel: Int, type: Int, nodes: BassMixerNode, count: Int): Boolean
 }
 
@@ -455,6 +483,7 @@ fun interface BassSyncCallback : Callback {
 
 private object BassPosition {
     const val Byte: Int = 0
+    const val MixerReset: Int = 0x10000
 }
 
 private object BassSync {
@@ -485,8 +514,13 @@ private object BassMixerEnvelope {
 }
 
 private object BassConfig {
+    const val Buffer: Int = 0
+    const val UpdatePeriod: Int = 1
     const val NetTimeout: Int = 11
+    const val NetBuffer: Int = 12
+    const val NetPrebuffer: Int = 15
     const val NetPlaylist: Int = 21
+    const val DeviceBuffer: Int = 27
     const val NetReadTimeout: Int = 37
     const val NetPlaylistDepth: Int = 59
     const val NetMeta: Int = 71
@@ -589,3 +623,8 @@ private fun parseIcyStreamTitle(meta: String): String? {
 }
 
 private const val MaxVolumeFactor = 4f
+private const val PlaybackBufferMillis = 1_500
+private const val UpdatePeriodMillis = 10
+private const val DeviceBufferMillis = 60
+private const val NetworkBufferMillis = 5_000
+private const val NetworkPrebufferPercent = 75
