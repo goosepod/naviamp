@@ -15,6 +15,7 @@ object NavigationIcons {
     val Info = NaviampIcons.Info
     val Album = NaviampIcons.Album
     val Artist = NaviampIcons.Artist
+    val Queue = NaviampIcons.Queue
     val Playlist = NaviampIcons.Playlist
     val InternetRadio = NaviampIcons.InternetRadio
     val Alphabetical = NaviampIcons.Alphabetical

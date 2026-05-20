@@ -53,6 +53,7 @@ fun PlaylistsPanel(
     onRenamePlaylist: (Playlist) -> Unit,
     onDeletePlaylist: (Playlist) -> Unit,
     onDownloadPlaylist: (Playlist) -> Unit,
+    onAddPlaylistToQueue: (Playlist) -> Unit,
     onAddPlaylistToPlaylist: (Playlist) -> Unit,
 ) {
     val sortedPlaylists = when (sortMode) {
@@ -111,6 +112,7 @@ fun PlaylistsPanel(
                 onRename = { onRenamePlaylist(playlist) },
                 onDelete = { onDeletePlaylist(playlist) },
                 onDownload = { onDownloadPlaylist(playlist) },
+                onAddToQueue = { onAddPlaylistToQueue(playlist) },
                 onAddToPlaylist = { onAddPlaylistToPlaylist(playlist) },
             )
         }
@@ -130,6 +132,7 @@ private fun PlaylistListRow(
     onRename: () -> Unit,
     onDelete: () -> Unit,
     onDownload: () -> Unit,
+    onAddToQueue: () -> Unit,
     onAddToPlaylist: () -> Unit,
 ) {
     MediaRow(appColors = appColors, onClick = onClick) {
@@ -157,6 +160,7 @@ private fun PlaylistListRow(
                 RowMenuItem("Rename playlist", NavigationIcons.Edit, onRename),
                 RowMenuItem("Delete playlist", NavigationIcons.Trash, onDelete),
                 RowMenuItem("Download playlist", NavigationIcons.Downloads, onDownload),
+                RowMenuItem("Add to queue", NavigationIcons.Queue, onAddToQueue),
                 RowMenuItem("Add to playlist", NavigationIcons.Playlist, onAddToPlaylist),
             ),
         )
@@ -176,10 +180,12 @@ fun PlaylistDetailPanel(
     onRenamePlaylist: () -> Unit,
     onDeletePlaylist: () -> Unit,
     onDownloadPlaylist: () -> Unit,
+    onAddPlaylistToQueue: () -> Unit,
     onAddPlaylistToPlaylist: () -> Unit,
     onPlayTrack: (Int) -> Unit,
     onTrackRadio: (Track) -> Unit,
     onDownloadTrack: (Track) -> Unit,
+    onAddTrackToQueue: (Track) -> Unit,
     onAddTrackToPlaylist: (Track) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -212,6 +218,7 @@ fun PlaylistDetailPanel(
                     DetailActionIconButton(appColors, NavigationIcons.Edit, "Rename playlist", playlist != null, onRenamePlaylist)
                     DetailActionIconButton(appColors, NavigationIcons.Trash, "Delete playlist", playlist != null, onDeletePlaylist)
                     DetailActionIconButton(appColors, NavigationIcons.Downloads, "Download playlist", tracks.isNotEmpty(), onDownloadPlaylist)
+                    DetailActionIconButton(appColors, NavigationIcons.Queue, "Add playlist to queue", tracks.isNotEmpty(), onAddPlaylistToQueue)
                     DetailActionIconButton(appColors, NavigationIcons.Playlist, "Add playlist to playlist", tracks.isNotEmpty(), onAddPlaylistToPlaylist)
                 }
             }
@@ -228,6 +235,7 @@ fun PlaylistDetailPanel(
                 onClick = { onPlayTrack(index) },
                 onStartRadio = { onTrackRadio(track) },
                 onDownload = { onDownloadTrack(track) },
+                onAddToQueue = { onAddTrackToQueue(track) },
                 onAddToPlaylist = { onAddTrackToPlaylist(track) },
             )
         }

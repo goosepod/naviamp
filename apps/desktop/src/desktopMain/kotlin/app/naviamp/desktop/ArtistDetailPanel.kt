@@ -40,10 +40,13 @@ fun ArtistDetailPanel(
     onPopularTracksRadio: (List<Track>) -> Unit,
     onPopularTracksAddToQueue: (List<Track>) -> Unit,
     onPopularTrackSelected: (Track) -> Unit,
+    onPopularTrackAddToQueue: (Track) -> Unit,
     onAddArtistToPlaylist: (Artist) -> Unit,
+    onAddArtistToQueue: (Artist) -> Unit,
     onAlbumSelected: (Album) -> Unit,
     onAlbumRadioSelected: (Album) -> Unit,
     onAlbumDownloadSelected: (Album) -> Unit,
+    onAlbumAddToQueue: (Album) -> Unit,
     onAlbumAddToPlaylist: (Album) -> Unit,
 ) {
     val effectiveArtist = artistDetails?.artist ?: artist
@@ -109,27 +112,36 @@ fun ArtistDetailPanel(
                         color = appColors.secondaryText,
                         fontSize = 12.sp,
                     )
-                    DetailActionIconButton(
-                        appColors = appColors,
-                        icon = TransportIcons.Radio,
-                        contentDescription = "Start artist radio",
-                        enabled = details.albums.isNotEmpty(),
-                        onClick = { effectiveArtist?.let(onArtistRadio) },
-                    )
-                    DetailActionIconButton(
-                        appColors = appColors,
-                        icon = NavigationIcons.Playlist,
-                        contentDescription = "Add artist to playlist",
-                        enabled = details.albums.isNotEmpty(),
-                        onClick = { effectiveArtist?.let(onAddArtistToPlaylist) },
-                    )
-                    DetailActionIconButton(
-                        appColors = appColors,
-                        icon = TransportIcons.Play,
-                        contentDescription = "Play popular tracks",
-                        enabled = popularTracks.isNotEmpty(),
-                        onClick = { onPopularTracksPlay(popularTracks) },
-                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        DetailActionIconButton(
+                            appColors = appColors,
+                            icon = TransportIcons.Radio,
+                            contentDescription = "Start artist radio",
+                            enabled = details.albums.isNotEmpty(),
+                            onClick = { effectiveArtist?.let(onArtistRadio) },
+                        )
+                        DetailActionIconButton(
+                            appColors = appColors,
+                            icon = NavigationIcons.Queue,
+                            contentDescription = "Add artist to queue",
+                            enabled = details.albums.isNotEmpty(),
+                            onClick = { effectiveArtist?.let(onAddArtistToQueue) },
+                        )
+                        DetailActionIconButton(
+                            appColors = appColors,
+                            icon = NavigationIcons.Playlist,
+                            contentDescription = "Add artist to playlist",
+                            enabled = details.albums.isNotEmpty(),
+                            onClick = { effectiveArtist?.let(onAddArtistToPlaylist) },
+                        )
+                        DetailActionIconButton(
+                            appColors = appColors,
+                            icon = TransportIcons.Play,
+                            contentDescription = "Play popular tracks",
+                            enabled = popularTracks.isNotEmpty(),
+                            onClick = { onPopularTracksPlay(popularTracks) },
+                        )
+                    }
                     details.info?.biography
                         ?.takeIf { it.isNotBlank() }
                         ?.let { biography ->
@@ -186,7 +198,7 @@ fun ArtistDetailPanel(
                     )
                     DetailActionIconButton(
                         appColors = appColors,
-                        icon = NavigationIcons.Playlist,
+                        icon = NavigationIcons.Queue,
                         contentDescription = "Add popular tracks to queue",
                         enabled = true,
                         onClick = { onPopularTracksAddToQueue(popularTracks) },
@@ -201,7 +213,7 @@ fun ArtistDetailPanel(
                             onClick = { onPopularTrackSelected(track) },
                             onStartRadio = { onPopularTracksRadio(listOf(track)) },
                             onDownload = {},
-                            onAddToPlaylist = {},
+                            onAddToQueue = { onPopularTrackAddToQueue(track) },
                         )
                     }
                 }
@@ -221,6 +233,7 @@ fun ArtistDetailPanel(
                         onClick = { onAlbumSelected(album) },
                         onStartRadio = { onAlbumRadioSelected(album) },
                         onDownload = { onAlbumDownloadSelected(album) },
+                        onAddToQueue = { onAlbumAddToQueue(album) },
                         onAddToPlaylist = { onAlbumAddToPlaylist(album) },
                     )
                 }

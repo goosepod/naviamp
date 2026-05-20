@@ -41,9 +41,11 @@ fun HomePanel(
     onAlbumSelected: (Album) -> Unit,
     onAlbumRadioSelected: (Album) -> Unit,
     onAlbumDownloadSelected: (Album) -> Unit,
+    onAlbumAddToQueue: (Album) -> Unit,
     onAlbumAddToPlaylist: (Album) -> Unit,
     onPlaylistSelected: (Playlist) -> Unit,
     onPlaylistDownloadSelected: (Playlist) -> Unit,
+    onPlaylistAddToQueue: (Playlist) -> Unit,
     onPlaylistAddToPlaylist: (Playlist) -> Unit,
     onRecentRadioSelected: (RecentRadioStream) -> Unit,
     onInternetRadioStationSelected: (InternetRadioStation) -> Unit,
@@ -92,6 +94,7 @@ fun HomePanel(
             onAlbumSelected = onAlbumSelected,
             onAlbumRadioSelected = onAlbumRadioSelected,
             onAlbumDownloadSelected = onAlbumDownloadSelected,
+            onAlbumAddToQueue = onAlbumAddToQueue,
             onAlbumAddToPlaylist = onAlbumAddToPlaylist,
         )
 
@@ -104,6 +107,7 @@ fun HomePanel(
                         coverArtUrl = coverArtUrl(playlist.coverArtId),
                         onClick = { onPlaylistSelected(playlist) },
                         onDownload = { onPlaylistDownloadSelected(playlist) },
+                        onAddToQueue = { onPlaylistAddToQueue(playlist) },
                         onAddToPlaylist = { onPlaylistAddToPlaylist(playlist) },
                     )
                 }
@@ -156,6 +160,7 @@ fun HomePanel(
             onAlbumSelected = onAlbumSelected,
             onAlbumRadioSelected = onAlbumRadioSelected,
             onAlbumDownloadSelected = onAlbumDownloadSelected,
+            onAlbumAddToQueue = onAlbumAddToQueue,
             onAlbumAddToPlaylist = onAlbumAddToPlaylist,
         )
 
@@ -167,6 +172,7 @@ fun HomePanel(
             onAlbumSelected = onAlbumSelected,
             onAlbumRadioSelected = onAlbumRadioSelected,
             onAlbumDownloadSelected = onAlbumDownloadSelected,
+            onAlbumAddToQueue = onAlbumAddToQueue,
             onAlbumAddToPlaylist = onAlbumAddToPlaylist,
         )
 
@@ -178,6 +184,7 @@ fun HomePanel(
             onAlbumSelected = onAlbumSelected,
             onAlbumRadioSelected = onAlbumRadioSelected,
             onAlbumDownloadSelected = onAlbumDownloadSelected,
+            onAlbumAddToQueue = onAlbumAddToQueue,
             onAlbumAddToPlaylist = onAlbumAddToPlaylist,
         )
 
@@ -190,6 +197,7 @@ fun HomePanel(
                 onAlbumSelected = onAlbumSelected,
                 onAlbumRadioSelected = onAlbumRadioSelected,
                 onAlbumDownloadSelected = onAlbumDownloadSelected,
+                onAlbumAddToQueue = onAlbumAddToQueue,
                 onAlbumAddToPlaylist = onAlbumAddToPlaylist,
             )
         }
@@ -202,6 +210,7 @@ fun HomePanel(
             onAlbumSelected = onAlbumSelected,
             onAlbumRadioSelected = onAlbumRadioSelected,
             onAlbumDownloadSelected = onAlbumDownloadSelected,
+            onAlbumAddToQueue = onAlbumAddToQueue,
             onAlbumAddToPlaylist = onAlbumAddToPlaylist,
         )
     }
@@ -216,6 +225,7 @@ private fun HomeAlbumSection(
     onAlbumSelected: (Album) -> Unit,
     onAlbumRadioSelected: (Album) -> Unit,
     onAlbumDownloadSelected: (Album) -> Unit,
+    onAlbumAddToQueue: (Album) -> Unit,
     onAlbumAddToPlaylist: (Album) -> Unit,
 ) {
     if (albums.isEmpty()) return
@@ -230,6 +240,7 @@ private fun HomeAlbumSection(
                 onClick = { onAlbumSelected(album) },
                 onStartRadio = { onAlbumRadioSelected(album) },
                 onDownload = { onAlbumDownloadSelected(album) },
+                onAddToQueue = { onAlbumAddToQueue(album) },
                 onAddToPlaylist = { onAlbumAddToPlaylist(album) },
             )
         }
@@ -288,6 +299,7 @@ private fun PlaylistRow(
     coverArtUrl: String?,
     onClick: () -> Unit,
     onDownload: () -> Unit,
+    onAddToQueue: () -> Unit,
     onAddToPlaylist: () -> Unit,
 ) {
     MediaRow(appColors = appColors, onClick = onClick) {
@@ -317,9 +329,10 @@ private fun PlaylistRow(
         Text("Playlist", color = appColors.mutedText, fontSize = 11.sp)
         RowOverflowMenu(
             appColors = appColors,
-            items = playlistRowActions(canDownload = true, canAddToPlaylist = true).mapNotNull { action ->
+            items = playlistRowActions(canDownload = true, canAddToQueue = true, canAddToPlaylist = true).mapNotNull { action ->
                 when (action.action) {
                     NaviampAction.DownloadPlaylist -> RowMenuItem(action.label, action.icon, onDownload, action.enabled)
+                    NaviampAction.AddToQueue -> RowMenuItem(action.label, action.icon, onAddToQueue, action.enabled)
                     NaviampAction.AddPlaylistToPlaylist -> RowMenuItem(action.label, action.icon, onAddToPlaylist, action.enabled)
                     else -> null
                 }

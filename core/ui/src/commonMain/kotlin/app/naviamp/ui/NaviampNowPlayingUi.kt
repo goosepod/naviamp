@@ -410,9 +410,9 @@ private fun NowPlayingDetails(
     val canSeek = nowPlaying.canSeek && nowPlaying.durationSeconds != null && !nowPlaying.isLive
     val canTogglePlayback = nowPlaying.canPlayPause
     val height = availableHeight ?: Dp.Unspecified
-    val showVolume = !compactLayout || height == Dp.Unspecified || height >= 520.dp
-    val showTrackExtras = !compactLayout || height == Dp.Unspecified || height >= 470.dp
-    val showTrackIdentity = !compactLayout || height == Dp.Unspecified || height >= 440.dp
+    val showVolume = !compactLayout || height == Dp.Unspecified || height >= 225.dp
+    val showTrackExtras = !compactLayout || height == Dp.Unspecified || height >= 195.dp
+    val showTrackIdentity = !compactLayout || height == Dp.Unspecified || height >= 165.dp
     val canSetTrackPreference = !nowPlaying.isLive && (nowPlaying.canFavorite || nowPlaying.canRate)
     val trackPreferenceLabel = when {
         nowPlaying.favoriteActive && nowPlaying.canRate -> "Dislike track"
@@ -666,7 +666,7 @@ private fun NowPlayingDetails(
             )
         }
 
-        if (compactLayout) {
+        if (compactLayout && mobileLayout) {
             Box(modifier = Modifier.weight(1f))
         }
 
@@ -1445,7 +1445,7 @@ private fun NowPlayingItemList(
                         onClick = { menuExpanded = true },
                         modifier = Modifier.size(28.dp),
                     ) {
-                        Icon(NaviampTransportIcons.Menu, contentDescription = "Track actions", tint = colors.secondaryText, modifier = Modifier.size(17.dp))
+                        Text("⋮", color = colors.secondaryText, fontSize = 15.sp)
                     }
                     NaviampDropdownMenu(
                         expanded = menuExpanded,

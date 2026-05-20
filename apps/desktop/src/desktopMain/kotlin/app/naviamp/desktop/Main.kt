@@ -951,7 +951,7 @@ fun NaviampApp(
         }
     }
 
-    suspend fun resolvePlaylistTargetTracks(
+    suspend fun resolveTargetTracks(
         provider: MediaProvider,
         target: AddToPlaylistTarget,
     ): List<Track> =
@@ -976,7 +976,7 @@ fun NaviampApp(
         coroutineScope.launch {
             try {
                 val trackIdsToAdd = withContext(Dispatchers.IO) {
-                    val targetIds = resolvePlaylistTargetTracks(provider, target).map { it.id }.distinct()
+                    val targetIds = resolveTargetTracks(provider, target).map { it.id }.distinct()
                     if (playlist == null) {
                         targetIds
                     } else {
@@ -1005,6 +1005,26 @@ fun NaviampApp(
                 refreshPlaylists()
             } catch (exception: Exception) {
                 addToPlaylistStatus = exception.message ?: "Could not add to playlist."
+            }
+        }
+    }
+
+    fun addTargetToQueue(target: AddToPlaylistTarget) {
+        val provider = connectedProvider ?: return
+        connectionStatus = "Loading tracks..."
+        coroutineScope.launch {
+            try {
+                val tracksToAdd = withContext(Dispatchers.IO) {
+                    resolveTargetTracks(provider, target)
+                }
+                if (tracksToAdd.isEmpty()) {
+                    connectionStatus = "No tracks found."
+                    return@launch
+                }
+                playlistEngine.appendTracks(tracksToAdd)
+                connectionStatus = "Added ${tracksToAdd.size} track${if (tracksToAdd.size == 1) "" else "s"} to queue."
+            } catch (exception: Exception) {
+                connectionStatus = exception.message ?: "Could not add to queue."
             }
         }
     }
@@ -2540,6 +2560,9 @@ fun NaviampApp(
                                     onAlbumDownloadSelected = { album ->
                                         downloadAlbum(album)
                                     },
+                                    onAlbumAddToQueue = { album ->
+                                        addTargetToQueue(AddToPlaylistTarget.AlbumTarget(album))
+                                    },
                                     onAlbumAddToPlaylist = { album ->
                                         openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(album))
                                     },
@@ -2548,6 +2571,9 @@ fun NaviampApp(
                                     },
                                     onPlaylistDownloadSelected = { playlist ->
                                         downloadPlaylist(playlist)
+                                    },
+                                    onPlaylistAddToQueue = { playlist ->
+                                        addTargetToQueue(AddToPlaylistTarget.PlaylistTarget(playlist))
                                     },
                                     onPlaylistAddToPlaylist = { playlist ->
                                         openAddToPlaylist(AddToPlaylistTarget.PlaylistTarget(playlist))
@@ -2598,9 +2624,19 @@ fun NaviampApp(
                                         selectedAlbumDetails?.let { downloadTracks(it.album.title, it.tracks) }
                                             ?: selectedAlbum?.let { downloadAlbum(it) }
                                     },
+                                    onAddAlbumToQueue = {
+                                        selectedAlbumDetails?.album?.let {
+                                            addTargetToQueue(AddToPlaylistTarget.AlbumTarget(it))
+                                        } ?: selectedAlbum?.let {
+                                            addTargetToQueue(AddToPlaylistTarget.AlbumTarget(it))
+                                        }
+                                    },
                                     onPlayTrack = { index -> playAlbumDetails(index = index) },
                                     onTrackRadio = { track -> playTrackRadio(track) },
                                     onDownloadTrack = { track -> downloadTrack(track) },
+                                    onAddTrackToQueue = { track ->
+                                        addTargetToQueue(AddToPlaylistTarget.TrackTarget(track))
+                                    },
                                     onAddAlbumToPlaylist = {
                                         selectedAlbumDetails?.album?.let {
                                             openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(it))
@@ -2633,12 +2669,21 @@ fun NaviampApp(
                                         val index = selectedArtistPopularTracks.indexOfFirst { it.id == track.id }.coerceAtLeast(0)
                                         playPopularTracks(selectedArtistPopularTracks, index)
                                     },
+                                    onPopularTrackAddToQueue = { track ->
+                                        addTargetToQueue(AddToPlaylistTarget.TrackTarget(track))
+                                    },
+                                    onAddArtistToQueue = { artist ->
+                                        addTargetToQueue(AddToPlaylistTarget.ArtistTarget(artist))
+                                    },
                                     onAddArtistToPlaylist = { artist ->
                                         openAddToPlaylist(AddToPlaylistTarget.ArtistTarget(artist))
                                     },
                                     onAlbumSelected = { album -> openAlbumDetails(album) },
                                     onAlbumRadioSelected = { album -> playAlbumRadio(album) },
                                     onAlbumDownloadSelected = { album -> downloadAlbum(album) },
+                                    onAlbumAddToQueue = { album ->
+                                        addTargetToQueue(AddToPlaylistTarget.AlbumTarget(album))
+                                    },
                                     onAlbumAddToPlaylist = { album ->
                                         openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(album))
                                     },
@@ -2659,6 +2704,9 @@ fun NaviampApp(
                                     onRenamePlaylist = { playlist -> playlistPendingRename = playlist },
                                     onDeletePlaylist = { playlist -> playlistPendingDelete = playlist },
                                     onDownloadPlaylist = { playlist -> downloadPlaylist(playlist) },
+                                    onAddPlaylistToQueue = { playlist ->
+                                        addTargetToQueue(AddToPlaylistTarget.PlaylistTarget(playlist))
+                                    },
                                     onAddPlaylistToPlaylist = { playlist ->
                                         openAddToPlaylist(AddToPlaylistTarget.PlaylistTarget(playlist))
                                     },
@@ -2679,6 +2727,11 @@ fun NaviampApp(
                                     onDownloadPlaylist = {
                                         selectedPlaylist?.let { downloadTracks(it.name, selectedPlaylistTracks) }
                                     },
+                                    onAddPlaylistToQueue = {
+                                        selectedPlaylist?.let {
+                                            addTargetToQueue(AddToPlaylistTarget.PlaylistTarget(it))
+                                        }
+                                    },
                                     onAddPlaylistToPlaylist = {
                                         selectedPlaylist?.let {
                                             openAddToPlaylist(AddToPlaylistTarget.PlaylistTarget(it))
@@ -2687,6 +2740,9 @@ fun NaviampApp(
                                     onPlayTrack = { index -> playPlaylistDetails(index = index) },
                                     onTrackRadio = { track -> playTrackRadio(track) },
                                     onDownloadTrack = { track -> downloadTrack(track) },
+                                    onAddTrackToQueue = { track ->
+                                        addTargetToQueue(AddToPlaylistTarget.TrackTarget(track))
+                                    },
                                     onAddTrackToPlaylist = { track ->
                                         openAddToPlaylist(AddToPlaylistTarget.TrackTarget(track))
                                     },
@@ -2722,12 +2778,18 @@ fun NaviampApp(
                                             onJumpToLetter = { letter -> jumpLibraryToLetter(letter) },
                                             onArtistSelected = { artist -> openArtistDetails(artist) },
                                             onArtistRadioSelected = { artist -> playArtistRadio(artist) },
+                                            onArtistAddToQueue = { artist ->
+                                                addTargetToQueue(AddToPlaylistTarget.ArtistTarget(artist))
+                                            },
                                             onArtistAddToPlaylist = { artist ->
                                                 openAddToPlaylist(AddToPlaylistTarget.ArtistTarget(artist))
                                             },
                                             onAlbumSelected = { album -> openAlbumDetails(album) },
                                             onAlbumRadioSelected = { album -> playAlbumRadio(album) },
                                             onAlbumDownloadSelected = { album -> downloadAlbum(album) },
+                                            onAlbumAddToQueue = { album ->
+                                                addTargetToQueue(AddToPlaylistTarget.AlbumTarget(album))
+                                            },
                                             onAlbumAddToPlaylist = { album ->
                                                 openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(album))
                                             },
@@ -2748,12 +2810,18 @@ fun NaviampApp(
                                         },
                                         onArtistSelected = { artist -> openArtistDetails(artist) },
                                         onArtistRadioSelected = { artist -> playArtistRadio(artist) },
+                                        onArtistAddToQueue = { artist ->
+                                            addTargetToQueue(AddToPlaylistTarget.ArtistTarget(artist))
+                                        },
                                         onArtistAddToPlaylist = { artist ->
                                             openAddToPlaylist(AddToPlaylistTarget.ArtistTarget(artist))
                                         },
                                         onAlbumSelected = { album -> openAlbumDetails(album) },
                                         onAlbumRadioSelected = { album -> playAlbumRadio(album) },
                                         onAlbumDownloadSelected = { album -> downloadAlbum(album) },
+                                        onAlbumAddToQueue = { album ->
+                                            addTargetToQueue(AddToPlaylistTarget.AlbumTarget(album))
+                                        },
                                         onAlbumAddToPlaylist = { album ->
                                             openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(album))
                                         },
@@ -2763,6 +2831,11 @@ fun NaviampApp(
                                         },
                                         onTrackDownloadSelected = { index ->
                                             searchResults.tracks.getOrNull(index)?.let { downloadTrack(it) }
+                                        },
+                                        onTrackAddToQueue = { index ->
+                                            searchResults.tracks.getOrNull(index)?.let {
+                                                addTargetToQueue(AddToPlaylistTarget.TrackTarget(it))
+                                            }
                                         },
                                         onTrackAddToPlaylist = { index ->
                                             searchResults.tracks.getOrNull(index)?.let {

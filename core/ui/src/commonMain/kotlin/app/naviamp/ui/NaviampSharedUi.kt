@@ -2119,6 +2119,19 @@ object NaviampIcons {
         moveTo(14.3f, 16.7f)
         lineTo(20.7f, 16.7f)
     }
+    val Queue = icon("Queue") {
+        moveTo(5f, 6.5f)
+        lineTo(15.5f, 6.5f)
+        moveTo(5f, 11.5f)
+        lineTo(13f, 11.5f)
+        moveTo(5f, 16.5f)
+        lineTo(11.5f, 16.5f)
+        moveTo(15.5f, 13.5f)
+        lineTo(19.5f, 16.5f)
+        lineTo(15.5f, 19.5f)
+        moveTo(14.5f, 16.5f)
+        lineTo(19.2f, 16.5f)
+    }
     val Library = icon("Library") {
         moveTo(8f, 5f)
         lineTo(8f, 16.2f)

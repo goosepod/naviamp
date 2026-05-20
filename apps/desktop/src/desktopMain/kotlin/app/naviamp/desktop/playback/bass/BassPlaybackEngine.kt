@@ -87,14 +87,25 @@ class BassPlaybackEngine(
         }
 
         job = scope.launch(Dispatchers.IO) {
+            var createdPlayback: CreatedPlayback? = null
             try {
                 ensureInitialized(bass)
-                val playbackHandle = if (bass.supportsMixer) {
-                    createMixerPlayback(bass, request, currentPlaybackId, onStateChanged).getOrThrow()
+                createdPlayback = if (bass.supportsMixer) {
+                    createMixerPlayback(bass, request).getOrThrow()
                 } else {
-                    createDirectPlayback(bass, request, currentPlaybackId, onStateChanged).getOrThrow()
+                    createDirectPlayback(bass, request).getOrThrow()
                 }
+                if (!isCurrentPlayback(currentPlaybackId)) {
+                    freeCreatedPlayback(bass, createdPlayback)
+                    createdPlayback = null
+                    return@launch
+                }
+                val playbackHandle = createdPlayback.playbackHandle
                 stream = playbackHandle
+                currentSourceStream = createdPlayback.sourceHandle
+                currentReplayGainAdjustment = createdPlayback.replayGainAdjustment
+                attachEndSync(bass, createdPlayback.sourceHandle, currentPlaybackId, onStateChanged)
+                createdPlayback = null
                 applyOutputVolume(bass)
                 request.startPositionSeconds
                     ?.takeIf { it > 0.0 }
@@ -127,6 +138,7 @@ class BassPlaybackEngine(
                     onStateChanged(PlaybackState.Finished)
                 }
             } catch (exception: Throwable) {
+                createdPlayback?.let { freeCreatedPlayback(bass, it) }
                 if (isCurrentPlayback(currentPlaybackId) && job?.isCancelled != true) {
                     val message = exception.message ?: "BASS playback failed."
                     lastError = message
@@ -365,21 +377,19 @@ class BassPlaybackEngine(
     private fun createDirectPlayback(
         bass: BassNative,
         request: PlaybackRequest,
-        currentPlaybackId: Int,
-        onStateChanged: (PlaybackState) -> Unit,
-    ): Result<Int> =
-        createStream(bass, request, decode = false).onSuccess { handle ->
-            currentSourceStream = handle
-            currentReplayGainAdjustment = replayGainAdjustment(request)
-            attachEndSync(bass, handle, currentPlaybackId, onStateChanged)
+    ): Result<CreatedPlayback> =
+        createStream(bass, request, decode = false).map { handle ->
+            CreatedPlayback(
+                playbackHandle = handle,
+                sourceHandle = handle,
+                replayGainAdjustment = replayGainAdjustment(request),
+            )
         }
 
     private fun createMixerPlayback(
         bass: BassNative,
         request: PlaybackRequest,
-        currentPlaybackId: Int,
-        onStateChanged: (PlaybackState) -> Unit,
-    ): Result<Int> =
+    ): Result<CreatedPlayback> =
         runCatching {
             val source = createQueuedSource(bass, request).getOrThrow()
             val info = bass.channelInfo(source).getOrThrow()
@@ -388,12 +398,14 @@ class BassPlaybackEngine(
                 channels = info.chans.takeIf { it > 0 } ?: 2,
                 queueSources = crossfadeDurationSeconds <= 0,
             ).getOrThrow()
-            currentReplayGainAdjustment = replayGainAdjustment(request)
-            applySourceReplayGain(bass, source, currentReplayGainAdjustment)
+            val adjustment = replayGainAdjustment(request)
+            applySourceReplayGain(bass, source, adjustment)
             bass.addMixerChannel(mixer, source).getOrThrow()
-            currentSourceStream = source
-            attachEndSync(bass, source, currentPlaybackId, onStateChanged)
-            mixer
+            CreatedPlayback(
+                playbackHandle = mixer,
+                sourceHandle = source,
+                replayGainAdjustment = adjustment,
+            )
         }
 
     private fun createQueuedSource(
@@ -581,6 +593,19 @@ class BassPlaybackEngine(
         currentVisualizerFrame = null
     }
 
+    private fun freeCreatedPlayback(
+        bass: BassNative,
+        created: CreatedPlayback,
+    ) {
+        listOf(created.playbackHandle, created.sourceHandle)
+            .filter { it != 0 }
+            .distinct()
+            .forEach { handle ->
+                runCatching { bass.removeMixerChannel(handle) }
+                bass.freeStream(handle).onFailure { lastError = it.message }
+            }
+    }
+
     private fun localFileFromUrl(url: String): File? =
         runCatching {
             val uri = URI(url)
@@ -647,6 +672,12 @@ private data class ReplayGainAdjustment(
             )
     }
 }
+
+private data class CreatedPlayback(
+    val playbackHandle: Int,
+    val sourceHandle: Int,
+    val replayGainAdjustment: ReplayGainAdjustment,
+)
 
 private fun Double.formatDb(): String =
     "%+.2f".format(this)

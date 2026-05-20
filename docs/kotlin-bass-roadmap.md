@@ -145,10 +145,11 @@ Native scaffold lives in `native/bass-jni`.
 ## Phase 10: Stabilization
 
 - [x] Run desktop tests.
-- [ ] Run manual playback smoke tests on macOS.
-- [ ] Run manual playback smoke tests on Windows.
-- [ ] Test cached audio, downloaded audio, direct provider streams, and internet radio.
-- [ ] Test sleep/wake, server disconnects, bad URLs, unsupported formats, rapid track skipping, and Android gapless/crossfade transitions on device/emulator.
+- [x] Run manual playback smoke tests on macOS.
+- [x] Run manual playback smoke tests on Windows.
+- [x] Test cached audio, downloaded audio, direct provider streams, and internet radio.
+- [ ] Test sleep/wake, server disconnects, bad URLs, unsupported formats, and Android gapless/crossfade transitions on device/emulator.
+- [x] Fix rapid skip stress case where crossfade could leave an older BASS source audible after quick forward/backward navigation.
 - [x] Make BASS the default desktop engine.
 - [x] Remove the active desktop mpv/JLayer fallback path.
 - [x] Remove Android Media3 playback fallback so Android remains fully BASS-backed.
@@ -182,6 +183,17 @@ Native scaffold lives in `native/bass-jni`.
 - [ ] Add Add to Queue to overflow menus throughout the Kotlin UI, following the existing Kotlin menu/icon patterns.
 - [ ] Add direct Add to Queue buttons where the Kotlin UI already presents high-level album or artist actions.
 - [ ] Keep queue operations explicit: Play Now replaces the queue, Start Radio creates a generated queue, Add to Queue appends, and Play Next can be added later as an insert-after-current action.
+
+Progress notes:
+- Desktop has a first Add to Queue pass for track, album, artist, playlist, search, library, playlist detail, album detail, home album, and popular-track surfaces.
+- Android already has popular-track group queue append; the broader Android row overflow pass still needs to follow the desktop action wiring.
+
+## Future Optimization: Radio Startup
+
+- [ ] Profile radio generation paths. Playback starts immediately from the seed track, but similar-track generation can take more than five seconds and should be made visibly faster.
+- [ ] Cache radio seed expansions where practical, especially for popular tracks, album radio, artist radio, and frequently replayed mixes.
+- [ ] Consider progressive radio queue loading: start playback with the seed track, append the first small batch as soon as it is available, then continue filling the queue in the background.
+- [ ] Surface radio generation status without blocking transport controls or making the app feel stalled.
 
 ## Open Questions
 

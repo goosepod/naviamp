@@ -13,6 +13,7 @@ enum class NaviampAction(
     DownloadAlbum("Download album", NaviampIcons.Downloads),
     DownloadPlaylist("Download playlist", NaviampIcons.Downloads),
     RemoveDownload("Remove download", NaviampIcons.Trash),
+    AddToQueue("Add to queue", NaviampIcons.Queue),
     AddToPlaylist("Add to playlist", NaviampIcons.Playlist),
     AddPlaylistToPlaylist("Add playlist to playlist", NaviampIcons.Playlist),
     RenamePlaylist("Rename playlist", NaviampIcons.Edit),
@@ -39,11 +40,13 @@ data class NaviampActionSpec(
 fun trackRowActions(
     canStartRadio: Boolean = false,
     canDownload: Boolean = false,
+    canAddToQueue: Boolean = false,
     canAddToPlaylist: Boolean = false,
 ): List<NaviampActionSpec> =
     listOfNotNull(
         NaviampAction.StartTrackRadio.takeIf { canStartRadio }?.toSpec(),
         NaviampAction.DownloadTrack.takeIf { canDownload }?.toSpec(),
+        NaviampAction.AddToQueue.takeIf { canAddToQueue }?.toSpec(),
         NaviampAction.AddToPlaylist.takeIf { canAddToPlaylist }?.toSpec(),
     )
 
@@ -57,31 +60,37 @@ fun queueRowActions(): List<NaviampActionSpec> =
 fun albumRowActions(
     canStartRadio: Boolean = false,
     canDownload: Boolean = false,
+    canAddToQueue: Boolean = false,
     canAddToPlaylist: Boolean = false,
 ): List<NaviampActionSpec> =
     listOfNotNull(
         NaviampAction.StartAlbumRadio.takeIf { canStartRadio }?.toSpec(),
         NaviampAction.DownloadAlbum.takeIf { canDownload }?.toSpec(),
+        NaviampAction.AddToQueue.takeIf { canAddToQueue }?.toSpec(),
         NaviampAction.AddToPlaylist.takeIf { canAddToPlaylist }?.toSpec(),
     )
 
 fun artistRowActions(
     canStartRadio: Boolean = false,
+    canAddToQueue: Boolean = false,
     canAddToPlaylist: Boolean = false,
 ): List<NaviampActionSpec> =
     listOfNotNull(
         NaviampAction.StartArtistRadio.takeIf { canStartRadio }?.toSpec(),
+        NaviampAction.AddToQueue.takeIf { canAddToQueue }?.toSpec(),
         NaviampAction.AddToPlaylist.takeIf { canAddToPlaylist }?.toSpec(),
     )
 
 fun playlistRowActions(
     canDownload: Boolean = false,
+    canAddToQueue: Boolean = false,
     canAddToPlaylist: Boolean = false,
     canRename: Boolean = false,
     canDelete: Boolean = false,
 ): List<NaviampActionSpec> =
     listOfNotNull(
         NaviampAction.DownloadPlaylist.takeIf { canDownload }?.toSpec(),
+        NaviampAction.AddToQueue.takeIf { canAddToQueue }?.toSpec(),
         NaviampAction.AddPlaylistToPlaylist.takeIf { canAddToPlaylist }?.toSpec(),
         NaviampAction.RenamePlaylist.takeIf { canRename }?.toSpec(),
         NaviampAction.DeletePlaylist.takeIf { canDelete }?.toSpec(),

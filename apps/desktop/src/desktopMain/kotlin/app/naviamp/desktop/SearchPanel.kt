@@ -27,14 +27,17 @@ fun SearchPanel(
     onQueryChanged: (String) -> Unit,
     onArtistSelected: (Artist) -> Unit,
     onArtistRadioSelected: (Artist) -> Unit,
+    onArtistAddToQueue: (Artist) -> Unit,
     onArtistAddToPlaylist: (Artist) -> Unit,
     onAlbumSelected: (Album) -> Unit,
     onAlbumRadioSelected: (Album) -> Unit,
     onAlbumDownloadSelected: (Album) -> Unit,
+    onAlbumAddToQueue: (Album) -> Unit,
     onAlbumAddToPlaylist: (Album) -> Unit,
     onTrackSelected: (Int) -> Unit,
     onTrackRadioSelected: (Int) -> Unit,
     onTrackDownloadSelected: (Int) -> Unit,
+    onTrackAddToQueue: (Int) -> Unit,
     onTrackAddToPlaylist: (Int) -> Unit,
 ) {
     val textFieldColors = OutlinedTextFieldDefaults.colors(
@@ -76,6 +79,7 @@ fun SearchPanel(
                         artist = artist,
                         onClick = { onArtistSelected(artist) },
                         onStartRadio = { onArtistRadioSelected(artist) },
+                        onAddToQueue = { onArtistAddToQueue(artist) },
                         onAddToPlaylist = { onArtistAddToPlaylist(artist) },
                     )
                 }
@@ -92,6 +96,7 @@ fun SearchPanel(
                         onClick = { onAlbumSelected(album) },
                         onStartRadio = { onAlbumRadioSelected(album) },
                         onDownload = { onAlbumDownloadSelected(album) },
+                        onAddToQueue = { onAlbumAddToQueue(album) },
                         onAddToPlaylist = { onAlbumAddToPlaylist(album) },
                     )
                 }
@@ -109,6 +114,7 @@ fun SearchPanel(
                         onClick = { onTrackSelected(index) },
                         onStartRadio = { onTrackRadioSelected(index) },
                         onDownload = { onTrackDownloadSelected(index) },
+                        onAddToQueue = { onTrackAddToQueue(index) },
                         onAddToPlaylist = { onTrackAddToPlaylist(index) },
                     )
                 }

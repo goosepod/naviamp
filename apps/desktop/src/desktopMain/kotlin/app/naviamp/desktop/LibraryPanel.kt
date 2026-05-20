@@ -48,10 +48,12 @@ fun LibraryPanel(
     onJumpToLetter: (Char) -> Unit,
     onArtistSelected: (Artist) -> Unit,
     onArtistRadioSelected: (Artist) -> Unit,
+    onArtistAddToQueue: (Artist) -> Unit,
     onArtistAddToPlaylist: (Artist) -> Unit,
     onAlbumSelected: (Album) -> Unit,
     onAlbumRadioSelected: (Album) -> Unit,
     onAlbumDownloadSelected: (Album) -> Unit,
+    onAlbumAddToQueue: (Album) -> Unit,
     onAlbumAddToPlaylist: (Album) -> Unit,
 ) {
     val textFieldColors = OutlinedTextFieldDefaults.colors(
@@ -130,6 +132,7 @@ fun LibraryPanel(
                             artist = artist,
                             onClick = { onArtistSelected(artist) },
                             onStartRadio = { onArtistRadioSelected(artist) },
+                            onAddToQueue = { onArtistAddToQueue(artist) },
                             onAddToPlaylist = { onArtistAddToPlaylist(artist) },
                         )
                     }
@@ -141,6 +144,7 @@ fun LibraryPanel(
                             onClick = { onAlbumSelected(album) },
                             onStartRadio = { onAlbumRadioSelected(album) },
                             onDownload = { onAlbumDownloadSelected(album) },
+                            onAddToQueue = { onAlbumAddToQueue(album) },
                             onAddToPlaylist = { onAlbumAddToPlaylist(album) },
                         )
                     }
