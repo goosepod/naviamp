@@ -351,18 +351,22 @@ fun NaviampSharedAppShell(
     onMixAlbumSelected: (SharedMediaItemUi) -> Unit = onAlbumSelected,
     onAlbumPlay: (SharedAlbumDetailUi, Boolean) -> Unit = { _, _ -> },
     onAlbumRadio: (SharedAlbumDetailUi) -> Unit = {},
+    onAlbumAddToQueue: (SharedAlbumDetailUi) -> Unit = {},
     onArtistSelected: (SharedMediaItemUi) -> Unit,
     onArtistRadio: (SharedArtistDetailUi) -> Unit = {},
     onArtistPopularPlay: (SharedArtistDetailUi) -> Unit = {},
     onArtistPopularRadio: (SharedArtistDetailUi) -> Unit = {},
     onArtistPopularAddToQueue: (SharedArtistDetailUi) -> Unit = {},
+    onArtistPopularTrackAddToQueue: (AndroidTrackRowUi) -> Unit = {},
     onPlaylistSelected: (SharedMediaItemUi) -> Unit,
     onPlaylistSortModeChanged: (SharedPlaylistSortMode) -> Unit = {},
     onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit = { _, _ -> },
+    onPlaylistAddToQueue: (SharedPlaylistDetailUi) -> Unit = {},
     onPlaylistRename: (SharedMediaItemUi, String) -> Unit = { _, _ -> },
     onPlaylistDelete: (SharedMediaItemUi) -> Unit = {},
     onPlaylistBack: () -> Unit = {},
     onPlaylistTrackSelected: (AndroidTrackRowUi) -> Unit = {},
+    onTrackAddToQueue: (AndroidTrackRowUi) -> Unit = {},
     onRadioStationSelected: (SharedMediaItemUi) -> Unit,
     onHomeStationSelected: (SharedHomeStationUi) -> Unit = {},
     onOpenNowPlaying: () -> Unit,
@@ -483,18 +487,22 @@ fun NaviampSharedAppShell(
                             onMixAlbumSelected = onMixAlbumSelected,
                             onAlbumPlay = onAlbumPlay,
                             onAlbumRadio = onAlbumRadio,
+                            onAlbumAddToQueue = onAlbumAddToQueue,
                             onArtistSelected = onArtistSelected,
                             onArtistRadio = onArtistRadio,
                             onArtistPopularPlay = onArtistPopularPlay,
                             onArtistPopularRadio = onArtistPopularRadio,
                             onArtistPopularAddToQueue = onArtistPopularAddToQueue,
+                            onArtistPopularTrackAddToQueue = onArtistPopularTrackAddToQueue,
                             onPlaylistSelected = onPlaylistSelected,
                             onPlaylistSortModeChanged = onPlaylistSortModeChanged,
                             onPlaylistPlay = onPlaylistPlay,
+                            onPlaylistAddToQueue = onPlaylistAddToQueue,
                             onPlaylistRename = onPlaylistRename,
                             onPlaylistDelete = onPlaylistDelete,
                             onPlaylistBack = onPlaylistBack,
                             onPlaylistTrackSelected = onPlaylistTrackSelected,
+                            onTrackAddToQueue = onTrackAddToQueue,
                             onRadioStationSelected = onRadioStationSelected,
                             onHomeStationSelected = onHomeStationSelected,
                             onOpenNowPlaying = onOpenNowPlaying,
@@ -699,18 +707,22 @@ private fun ConnectedContent(
     onMixAlbumSelected: (SharedMediaItemUi) -> Unit,
     onAlbumPlay: (SharedAlbumDetailUi, Boolean) -> Unit,
     onAlbumRadio: (SharedAlbumDetailUi) -> Unit,
+    onAlbumAddToQueue: (SharedAlbumDetailUi) -> Unit,
     onArtistSelected: (SharedMediaItemUi) -> Unit,
     onArtistRadio: (SharedArtistDetailUi) -> Unit,
     onArtistPopularPlay: (SharedArtistDetailUi) -> Unit,
     onArtistPopularRadio: (SharedArtistDetailUi) -> Unit,
     onArtistPopularAddToQueue: (SharedArtistDetailUi) -> Unit,
+    onArtistPopularTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
     onPlaylistSelected: (SharedMediaItemUi) -> Unit,
     onPlaylistSortModeChanged: (SharedPlaylistSortMode) -> Unit,
     onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit,
+    onPlaylistAddToQueue: (SharedPlaylistDetailUi) -> Unit,
     onPlaylistRename: (SharedMediaItemUi, String) -> Unit,
     onPlaylistDelete: (SharedMediaItemUi) -> Unit,
     onPlaylistBack: () -> Unit,
     onPlaylistTrackSelected: (AndroidTrackRowUi) -> Unit,
+    onTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
     onRadioStationSelected: (SharedMediaItemUi) -> Unit,
     onHomeStationSelected: (SharedHomeStationUi) -> Unit,
     onOpenNowPlaying: () -> Unit,
@@ -786,7 +798,9 @@ private fun ConnectedContent(
             onPlayAlbum = { onAlbumPlay(albumDetail, false) },
             onShuffleAlbum = { onAlbumPlay(albumDetail, true) },
             onAlbumRadio = { onAlbumRadio(albumDetail) },
+            onAlbumAddToQueue = { onAlbumAddToQueue(albumDetail) },
             onTrackSelected = onTrackSelected,
+            onTrackAddToQueue = onTrackAddToQueue,
         )
         artistDetail != null -> ArtistDetailContent(
             colors = colors,
@@ -797,6 +811,7 @@ private fun ConnectedContent(
             onPopularRadio = { onArtistPopularRadio(artistDetail) },
             onPopularAddToQueue = { onArtistPopularAddToQueue(artistDetail) },
             onPopularTrackSelected = onTrackSelected,
+            onPopularTrackAddToQueue = onArtistPopularTrackAddToQueue,
             onAlbumSelected = onAlbumSelected,
         )
         playlistDetail != null -> PlaylistDetailContent(
@@ -805,9 +820,11 @@ private fun ConnectedContent(
             onBack = onPlaylistBack,
             onPlayPlaylist = { onPlaylistPlay(playlistDetail.playlist, false) },
             onShufflePlaylist = { onPlaylistPlay(playlistDetail.playlist, true) },
+            onAddPlaylistToQueue = { onPlaylistAddToQueue(playlistDetail) },
             onRenamePlaylist = onPlaylistRename,
             onDeletePlaylist = onPlaylistDelete,
             onTrackSelected = onPlaylistTrackSelected,
+            onTrackAddToQueue = onTrackAddToQueue,
         )
         else -> when (selectedRoute) {
             SharedRoute.Home -> SharedHome(colors, home, onAlbumSelected, onMixAlbumSelected, onPlaylistSelected, onRadioStationSelected, onHomeStationSelected)
@@ -823,7 +840,7 @@ private fun ConnectedContent(
                 onPlaylistDelete = onPlaylistDelete,
             )
             SharedRoute.Library -> MediaListContent(colors, "Library", libraryArtists, "No library artists found.", onArtistSelected)
-            SharedRoute.Search -> SearchContent(colors, query, searchResults, onQueryChanged, onSearch, onTrackSelected, onAlbumSelected, onArtistSelected)
+            SharedRoute.Search -> SearchContent(colors, query, searchResults, onQueryChanged, onSearch, onTrackSelected, onTrackAddToQueue, onAlbumSelected, onArtistSelected)
             SharedRoute.Radio -> MediaListContent(colors, "Internet Radio", radioStationItems, "No stations found.", onRadioStationSelected)
             SharedRoute.Settings -> Unit
             SharedRoute.Downloads -> PlaceholderRoute(colors, selectedRoute)
@@ -882,6 +899,7 @@ private fun SearchContent(
     onQueryChanged: (String) -> Unit,
     onSearch: () -> Unit,
     onTrackSelected: (AndroidTrackRowUi) -> Unit,
+    onTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
     onArtistSelected: (SharedMediaItemUi) -> Unit,
 ) {
@@ -897,7 +915,7 @@ private fun SearchContent(
         if (results.tracks.isNotEmpty()) {
             SectionHeader("TRACKS", colors)
             results.tracks.forEach { track ->
-                TrackRow(track, colors, onTrackSelected)
+                TrackRow(track, colors, onTrackSelected, onAddToQueue = onTrackAddToQueue)
             }
         }
     }
@@ -1064,9 +1082,11 @@ private fun PlaylistDetailContent(
     onBack: () -> Unit,
     onPlayPlaylist: () -> Unit,
     onShufflePlaylist: () -> Unit,
+    onAddPlaylistToQueue: () -> Unit,
     onRenamePlaylist: (SharedMediaItemUi, String) -> Unit,
     onDeletePlaylist: (SharedMediaItemUi) -> Unit,
     onTrackSelected: (AndroidTrackRowUi) -> Unit,
+    onTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
 ) {
     var renameOpen by remember { mutableStateOf(false) }
     var deleteOpen by remember { mutableStateOf(false) }
@@ -1085,13 +1105,14 @@ private fun PlaylistDetailContent(
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampTransportIcons.Play, "Play playlist", onPlayPlaylist)
                     MiniPlayerIconButton(colors, detail.tracks.size > 1, NaviampTransportIcons.Shuffle, "Shuffle playlist", onShufflePlaylist)
+                    MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampIcons.Queue, "Add playlist to queue", onAddPlaylistToQueue)
                     MiniPlayerIconButton(colors, true, NaviampIcons.Edit, "Rename playlist", { renameOpen = true })
                     MiniPlayerIconButton(colors, true, NaviampIcons.Trash, "Delete playlist", { deleteOpen = true })
                 }
             }
         }
         detail.tracks.forEach { track ->
-            TrackRow(track, colors, onTrackSelected)
+            TrackRow(track, colors, onTrackSelected, onAddToQueue = onTrackAddToQueue)
         }
     }
 
@@ -1246,7 +1267,9 @@ private fun AlbumDetailContent(
     onPlayAlbum: () -> Unit,
     onShuffleAlbum: () -> Unit,
     onAlbumRadio: () -> Unit,
+    onAlbumAddToQueue: () -> Unit,
     onTrackSelected: (AndroidTrackRowUi) -> Unit,
+    onTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1274,11 +1297,12 @@ private fun AlbumDetailContent(
                     MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampTransportIcons.Play, "Play album", onPlayAlbum)
                     MiniPlayerIconButton(colors, detail.tracks.size > 1, NaviampTransportIcons.Shuffle, "Shuffle album", onShuffleAlbum)
                     MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampTransportIcons.Radio, "Start album radio", onAlbumRadio)
+                    MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampIcons.Queue, "Add album to queue", onAlbumAddToQueue)
                 }
             }
         }
         detail.tracks.forEachIndexed { index, track ->
-            TrackRow(track.copy(meta = (index + 1).toString()), colors, onTrackSelected)
+            TrackRow(track.copy(meta = (index + 1).toString()), colors, onTrackSelected, onAddToQueue = onTrackAddToQueue)
         }
     }
 }
@@ -1293,6 +1317,7 @@ private fun ArtistDetailContent(
     onPopularRadio: () -> Unit,
     onPopularAddToQueue: () -> Unit,
     onPopularTrackSelected: (AndroidTrackRowUi) -> Unit,
+    onPopularTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1306,7 +1331,7 @@ private fun ArtistDetailContent(
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     MiniPlayerIconButton(colors, detail.albums.isNotEmpty(), NaviampTransportIcons.Radio, "Start artist radio", onArtistRadio)
                     MiniPlayerIconButton(colors, detail.popularTracks.isNotEmpty(), NaviampTransportIcons.Play, "Play popular tracks", onPopularPlay)
-                    MiniPlayerIconButton(colors, detail.popularTracks.isNotEmpty(), NaviampIcons.Playlist, "Add popular tracks to queue", onPopularAddToQueue)
+                    MiniPlayerIconButton(colors, detail.popularTracks.isNotEmpty(), NaviampIcons.Queue, "Add popular tracks to queue", onPopularAddToQueue)
                 }
             }
         }
@@ -1321,10 +1346,15 @@ private fun ArtistDetailContent(
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     MiniPlayerIconButton(colors, true, NaviampTransportIcons.Play, "Play popular tracks", onPopularPlay)
                     MiniPlayerIconButton(colors, true, NaviampTransportIcons.Radio, "Start popular tracks radio", onPopularRadio)
-                    MiniPlayerIconButton(colors, true, NaviampIcons.Playlist, "Add popular tracks to queue", onPopularAddToQueue)
+                    MiniPlayerIconButton(colors, true, NaviampIcons.Queue, "Add popular tracks to queue", onPopularAddToQueue)
                 }
                 detail.popularTracks.forEachIndexed { index, track ->
-                    TrackRow(track.copy(meta = (index + 1).toString()), colors, onPopularTrackSelected)
+                    TrackRow(
+                        track.copy(meta = (index + 1).toString()),
+                        colors,
+                        onPopularTrackSelected,
+                        onAddToQueue = onPopularTrackAddToQueue,
+                    )
                 }
             }
         }
@@ -1563,7 +1593,12 @@ private fun MiniPlayerIconButton(
 }
 
 @Composable
-private fun TrackRow(track: AndroidTrackRowUi, colors: NaviampColors, onTrackSelected: (AndroidTrackRowUi) -> Unit) {
+private fun TrackRow(
+    track: AndroidTrackRowUi,
+    colors: NaviampColors,
+    onTrackSelected: (AndroidTrackRowUi) -> Unit,
+    onAddToQueue: ((AndroidTrackRowUi) -> Unit)? = null,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1579,6 +1614,18 @@ private fun TrackRow(track: AndroidTrackRowUi, colors: NaviampColors, onTrackSel
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(track.title, color = colors.primaryText, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(track.subtitle, color = colors.secondaryText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        onAddToQueue?.let { addToQueue ->
+            NaviampRowOverflowMenu(
+                colors = colors,
+                items = listOf(
+                    NaviampRowMenuItem(
+                        label = NaviampAction.AddToQueue.label,
+                        icon = NaviampAction.AddToQueue.icon,
+                        onClick = { addToQueue(track) },
+                    ),
+                ),
+            )
         }
     }
 }

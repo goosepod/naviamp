@@ -163,7 +163,7 @@ Native scaffold lives in `native/bass-jni`.
 - [x] Show a Popular Tracks section on artist detail screens when local matches exist.
 - [x] Add actions for Play Popular Tracks, Add Popular Tracks to Queue, and Start Popular Tracks Radio.
 - [x] For Popular Tracks Radio, seed playback from one popular local track, generate radio from each matched popular track, append the results, and dedupe the queue.
-- [ ] Add per-track overflow actions for individual popular tracks once the shared Add to Queue menu work lands.
+- [x] Add per-track overflow actions for individual popular tracks once the shared Add to Queue menu work lands.
 
 ## Future Feature: Cached Sidecar Prep
 
@@ -179,14 +179,14 @@ Native scaffold lives in `native/bass-jni`.
 
 ## Future Feature: Queue Actions
 
-- [ ] Add first-class queue append operations for tracks, albums, artists, playlists, search results, radio seeds, and popular-track groups.
-- [ ] Add Add to Queue to overflow menus throughout the Kotlin UI, following the existing Kotlin menu/icon patterns.
-- [ ] Add direct Add to Queue buttons where the Kotlin UI already presents high-level album or artist actions.
+- [x] Add first-class queue append operations for tracks, albums, artists, playlists, search results, radio seeds, and popular-track groups.
+- [x] Add Add to Queue to overflow menus throughout the Kotlin UI, following the existing Kotlin menu/icon patterns.
+- [x] Add direct Add to Queue buttons where the Kotlin UI already presents high-level album or artist actions.
 - [ ] Keep queue operations explicit: Play Now replaces the queue, Start Radio creates a generated queue, Add to Queue appends, and Play Next can be added later as an insert-after-current action.
 
 Progress notes:
 - Desktop has a first Add to Queue pass for track, album, artist, playlist, search, library, playlist detail, album detail, home album, and popular-track surfaces.
-- Android already has popular-track group queue append; the broader Android row overflow pass still needs to follow the desktop action wiring.
+- Android has Add to Queue for popular-track groups, individual track rows in search/album/playlist/popular tracks, and high-level album/playlist detail actions; broader artist/home row actions remain follow-up polish.
 
 ## Future Optimization: Radio Startup
 

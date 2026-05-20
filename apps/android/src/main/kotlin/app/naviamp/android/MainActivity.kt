@@ -253,6 +253,19 @@ private fun NaviampAndroidApp() {
         (activeQueue() + selectedPlaylistTracks + relatedTracks + allKnownTracks(searchResults, albumDetail))
             .firstOrNull { it.id.value == trackId }
 
+    fun appendTracksToQueue(tracksToAdd: List<Track>, label: String = "tracks") {
+        if (tracksToAdd.isEmpty()) {
+            status = "No tracks found."
+            return
+        }
+        val currentQueue = playbackQueue.tracks
+        playbackQueue = PlaybackQueue(
+            tracks = currentQueue + tracksToAdd,
+            currentIndex = playbackQueue.currentIndex.coerceAtLeast(0),
+        )
+        status = "Added ${tracksToAdd.size} $label to queue."
+    }
+
     fun nextQueueIndex(): Int? {
         val currentTrack = nowPlaying ?: return null
         val queue = activeQueue()
@@ -1222,6 +1235,9 @@ private fun NaviampAndroidApp() {
             val album = albumDetail?.album ?: return@NaviampSharedAppShell
             startAlbumRadio(album, loadedAlbumTracks)
         },
+        onAlbumAddToQueue = {
+            appendTracksToQueue(albumDetail?.tracks.orEmpty(), "album tracks")
+        },
         onArtistRadio = { detail ->
             val service = radioService() ?: return@NaviampSharedAppShell
             val artistId = app.naviamp.domain.ArtistId(detail.artist.id)
@@ -1264,12 +1280,15 @@ private fun NaviampAndroidApp() {
             if (popularTracks.isEmpty()) {
                 status = "No popular tracks matched your library."
             } else {
-                val currentQueue = playbackQueue.tracks
-                playbackQueue = PlaybackQueue(
-                    tracks = currentQueue + popularTracks.filterNot { track -> currentQueue.any { it.id == track.id } },
-                    currentIndex = playbackQueue.currentIndex.coerceAtLeast(0),
-                )
-                status = "Added ${popularTracks.size} popular tracks to queue."
+                appendTracksToQueue(popularTracks.filterNot { track -> playbackQueue.tracks.any { it.id == track.id } }, "popular tracks")
+            }
+        },
+        onArtistPopularTrackAddToQueue = { selectedTrack ->
+            val track = findKnownTrack(selectedTrack.id)
+            if (track == null) {
+                status = "Track not found."
+            } else {
+                appendTracksToQueue(listOf(track), "track")
             }
         },
         onArtistSelected = { selectedArtist ->
@@ -1283,6 +1302,9 @@ private fun NaviampAndroidApp() {
         onPlaylistPlay = { selectedPlaylist, shuffle ->
             homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }?.let { playPlaylist(it, shuffle) }
                 ?: run { status = "Playlist not found." }
+        },
+        onPlaylistAddToQueue = {
+            appendTracksToQueue(selectedPlaylistTracks, "playlist tracks")
         },
         onPlaylistRename = { selectedPlaylist, name ->
             homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }?.let { renamePlaylist(it, name) }
@@ -1305,6 +1327,14 @@ private fun NaviampAndroidApp() {
                 return@NaviampSharedAppShell
             }
             playTrack(track, selectedPlaylistTracks.ifEmpty { listOf(track) })
+        },
+        onTrackAddToQueue = { selectedTrack ->
+            val track = findKnownTrack(selectedTrack.id)
+            if (track == null) {
+                status = "Track not found."
+            } else {
+                appendTracksToQueue(listOf(track), "track")
+            }
         },
         onRadioStationSelected = { selectedStation ->
             val station = homeState.radioStations.firstOrNull { it.id == selectedStation.id }
