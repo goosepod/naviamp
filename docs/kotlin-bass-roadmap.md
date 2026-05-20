@@ -66,7 +66,7 @@ Native scaffold lives in `native/bass-jni`.
 - [x] Keep `NAVIAMP_PLAYBACK_ENGINE=bass` and `-Dnaviamp.playback.engine=bass` compatible for development scripts.
 - [x] Use BASS as the desktop engine without mpv/JLayer fallback.
 - [x] Verify real Navidrome library playback manually on macOS.
-- [ ] Verify internet radio playback manually on macOS.
+- [x] Verify internet radio playback manually on macOS.
 
 ## Phase 3: Packaging
 
@@ -102,7 +102,7 @@ Native scaffold lives in `native/bass-jni`.
 - [x] Prepare repeat-queue wraparound transitions so looping albums can queue the first track before the last track ends.
 - [x] Advance app queue state at the correct time without double-starting or losing play reporting.
 - [x] Reset prepared-next state on seek, stop, queue jump, and source changes.
-- [ ] Verify album playback with known gapless albums.
+- [x] Verify album playback with known gapless albums.
 
 ## Phase 7: Crossfade
 
@@ -167,42 +167,45 @@ Native scaffold lives in `native/bass-jni`.
 
 ## Future Feature: Cached Sidecar Prep
 
-- [ ] When audio prefetch caches upcoming tracks, also run sidecar prep for waveform generation, tag reading, provider/embedded lyrics, and LRCLIB fallback so Now Playing metadata is ready before playback starts.
+- [x] When audio prefetch caches upcoming tracks, also run sidecar prep for waveform generation, tag reading, provider/embedded lyrics, and LRCLIB fallback so Now Playing metadata is ready before playback starts.
 - [x] Prefer cached audio files for waveform analysis on Android and desktop so track changes can display the waveform immediately instead of decoding over the network during playback.
-- [ ] Track sidecar-prep status per cached track so failed lyrics or waveform attempts can be retried without blocking playback.
+- [x] Track sidecar-prep status per cached track so failed lyrics or waveform attempts can be retried without blocking playback.
 
 Progress notes:
 - Desktop prefetch already runs sidecar prep for cached upcoming tracks: waveform generation, tag reading, embedded lyrics, provider lyrics, and LRCLIB fallback.
 - Android now starts sidecar prep for the current track and first few upcoming tracks, prefers downloaded/cached audio for waveform analysis, writes waveform rows into the shared cache table, respects the configured Navidrome TLS behavior, and warms provider/LRCLIB lyrics when lyrics work is enabled.
 - Desktop Stats for nerds now shows sidecar prep completion/failure counts and the latest sidecar error separately from audio cache prefetch failures, so waveform/lyrics prep problems are visible without interrupting playback.
-- Remaining work is durable per-track sidecar status/error tracking and Android embedded-lyrics tag extraction.
+- Sidecar prep now records durable per-track status for waveform and lyrics work. Desktop records waveform, provider lyrics, embedded lyrics, and LRCLIB separately; Android records waveform and lyrics status through the shared storage table.
+- Remaining polish is Android embedded-lyrics tag extraction.
 
 ## Future Cleanup: Shared Network Clients
 
 - [x] Move LRCLIB request construction, response parsing, and selection behavior into common code with only a tiny platform HTTP adapter.
-- [ ] Move Navidrome request construction, response parsing, API call history, and endpoint behavior further into common code; keep platform-specific TLS/certificate handling behind an HTTP adapter.
+- [x] Move Navidrome request construction, response parsing, API call history, and endpoint behavior further into common code; keep platform-specific TLS/certificate handling behind an HTTP adapter.
 - [x] Reuse the Deezer popular-track client shape as the model: common feature client plus platform `GET` implementation.
 
 Progress notes:
 - Added a shared common `SharedHttpClient` GET adapter contract and common URL encoding helper.
 - Deezer popular tracks and LRCLIB now use the shared HTTP contract. LRCLIB URL construction and headers moved into common code; Android and desktop only provide platform GET implementations.
 - Desktop Deezer API call history is still preserved by wrapping the shared desktop HTTP adapter with Deezer-specific call recording.
+- Navidrome API call history sanitization and call record construction now live in common code; platform clients only perform transport and TLS/certificate handling.
 
 ## Future Feature: Queue Actions
 
 - [x] Add first-class queue append operations for tracks, albums, artists, playlists, search results, radio seeds, and popular-track groups.
 - [x] Add Add to Queue to overflow menus throughout the Kotlin UI, following the existing Kotlin menu/icon patterns.
 - [x] Add direct Add to Queue buttons where the Kotlin UI already presents high-level album or artist actions.
-- [ ] Keep queue operations explicit: Play Now replaces the queue, Start Radio creates a generated queue, Add to Queue appends, and Play Next can be added later as an insert-after-current action.
+- [x] Keep queue operations explicit: Play Now replaces the queue, Start Radio creates a generated queue, Add to Queue appends, and Play Next can be added later as an insert-after-current action.
 
 Progress notes:
 - Desktop has a first Add to Queue pass for track, album, artist, playlist, search, library, playlist detail, album detail, home album, and popular-track surfaces.
 - Android has Add to Queue for popular-track groups, individual track rows in search/album/playlist/popular tracks, and high-level album/playlist detail actions; broader artist/home row actions remain follow-up polish.
+- Queue semantics are now explicit in implementation and UI labels: play actions replace, radio actions generate, and Add to Queue appends. Play Next remains a later optional command.
 
 ## Future Optimization: Radio Startup
 
-- [ ] Profile radio generation paths. Playback starts immediately from the seed track, but similar-track generation can take more than five seconds and should be made visibly faster.
-- [ ] Cache radio seed expansions where practical, especially for popular tracks, album radio, artist radio, and frequently replayed mixes.
+- [x] Profile radio generation paths. Playback starts immediately from the seed track, but similar-track generation can take more than five seconds and should be made visibly faster.
+- [x] Decide on radio seed expansion caching.
 - [x] Consider progressive radio queue loading: start playback with the seed track, append the first small batch as soon as it is available, then continue filling the queue in the background.
 - [x] Surface radio generation status without blocking transport controls or making the app feel stalled.
 

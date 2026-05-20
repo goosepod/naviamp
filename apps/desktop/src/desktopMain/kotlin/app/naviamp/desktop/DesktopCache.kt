@@ -343,6 +343,26 @@ class DesktopCache(
             lyrics
         }
 
+    fun recordSidecarStatus(
+        sourceId: String,
+        trackId: TrackId,
+        quality: StreamQuality,
+        sidecarType: String,
+        success: Boolean,
+        errorMessage: String? = null,
+    ) {
+        queries.upsertCachedSidecarStatus(
+            source_id = sourceId,
+            remote_track_id = trackId.value,
+            quality_key = quality.cacheKey(),
+            sidecar_type = sidecarType,
+            status = if (success) SidecarStatusReady else SidecarStatusFailed,
+            attempts = 1,
+            last_error = errorMessage,
+            updated_at_epoch_millis = nowMillis(),
+        )
+    }
+
     suspend fun cachedLyrics(
         sourceId: String,
         trackId: TrackId,
@@ -883,6 +903,7 @@ class DesktopCache(
             queries.clearAudio()
             queries.clearLyrics()
             queries.clearLrclibLyrics()
+            queries.clearSidecarStatuses()
         }
         clearAudioFiles()
     }
@@ -1654,3 +1675,6 @@ private data class ReplayGainDto(
             )
     }
 }
+
+private const val SidecarStatusReady = "ready"
+private const val SidecarStatusFailed = "failed"

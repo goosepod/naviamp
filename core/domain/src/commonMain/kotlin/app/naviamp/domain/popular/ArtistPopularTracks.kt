@@ -42,7 +42,7 @@ interface ArtistPopularTracksRepository {
 
 class ArtistPopularTracksService(
     private val repository: ArtistPopularTracksRepository,
-    private val libraryTracksForArtist: (ArtistId, Long) -> List<Track>,
+    private val libraryTracksForArtist: suspend (ArtistId, Long) -> List<Track>,
     private val client: ArtistPopularTracksClient,
     private val nowMillis: () -> Long = { currentTimeMillis() },
 ) {

@@ -77,6 +77,10 @@ class AndroidSettingsStore(
             .apply()
     }
 
+    fun clear() {
+        preferences.edit().clear().apply()
+    }
+
     private inline fun <reified T : Enum<T>> enumPreference(key: String, defaultValue: T): T =
         preferences.getString(key, null)
             ?.let { value -> enumValues<T>().firstOrNull { it.name == value } }

@@ -385,6 +385,26 @@ class AndroidStorage(
         trimAudioWaveformStore()
     }
 
+    fun recordSidecarStatus(
+        sourceId: String,
+        trackId: TrackId,
+        quality: StreamQuality,
+        sidecarType: String,
+        success: Boolean,
+        errorMessage: String? = null,
+    ) {
+        queries.upsertCachedSidecarStatus(
+            source_id = sourceId,
+            remote_track_id = trackId.value,
+            quality_key = quality.cacheKey(),
+            sidecar_type = sidecarType,
+            status = if (success) SidecarStatusReady else SidecarStatusFailed,
+            attempts = 1,
+            last_error = errorMessage,
+            updated_at_epoch_millis = nowMillis(),
+        )
+    }
+
     override fun playbackHistory(sourceId: String, limit: Int): List<AndroidPlaybackHistoryItem> =
         queries.selectPlaybackHistory(sourceId, limit.toLong()).executeAsList().map { row ->
             AndroidPlaybackHistoryItem(row.toTrack(), row.played_at_epoch_millis)
@@ -583,6 +603,7 @@ class AndroidStorage(
             queries.clearAudio()
             queries.clearLyrics()
             queries.clearLrclibLyrics()
+            queries.clearSidecarStatuses()
         }
         clearFiles(audioCacheDirectory)
     }
@@ -918,3 +939,5 @@ private fun stableAudioFileName(sourceId: String, trackId: String, qualityKey: S
 private fun nowMillis(): Long = System.currentTimeMillis()
 
 private const val DatabaseName = "naviamp-storage.db"
+private const val SidecarStatusReady = "ready"
+private const val SidecarStatusFailed = "failed"

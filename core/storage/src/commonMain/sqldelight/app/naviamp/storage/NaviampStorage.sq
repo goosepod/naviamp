@@ -178,6 +178,18 @@ CREATE TABLE cached_lrclib_lyrics (
   PRIMARY KEY(source_id, remote_track_id)
 );
 
+CREATE TABLE cached_sidecar_status (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  remote_track_id TEXT NOT NULL,
+  quality_key TEXT NOT NULL,
+  sidecar_type TEXT NOT NULL,
+  status TEXT NOT NULL,
+  attempts INTEGER NOT NULL,
+  last_error TEXT,
+  updated_at_epoch_millis INTEGER NOT NULL,
+  PRIMARY KEY(source_id, remote_track_id, quality_key, sidecar_type)
+);
+
 CREATE TABLE playback_session (
   source_id TEXT NOT NULL PRIMARY KEY REFERENCES media_source(id) ON DELETE CASCADE,
   payload TEXT NOT NULL,
@@ -241,6 +253,9 @@ ON cached_lyrics(last_accessed_epoch_millis);
 
 CREATE INDEX cached_lrclib_lyrics_access
 ON cached_lrclib_lyrics(last_accessed_epoch_millis);
+
+CREATE INDEX cached_sidecar_status_track
+ON cached_sidecar_status(source_id, remote_track_id, quality_key);
 
 CREATE INDEX playback_history_source_played_at
 ON playback_history(source_id, played_at_epoch_millis);
@@ -831,6 +846,25 @@ SET last_accessed_epoch_millis = ?
 WHERE source_id = ?
 AND remote_track_id = ?;
 
+selectCachedSidecarStatus:
+SELECT *
+FROM cached_sidecar_status
+WHERE source_id = ?
+AND remote_track_id = ?
+AND quality_key = ?;
+
+upsertCachedSidecarStatus:
+INSERT OR REPLACE INTO cached_sidecar_status(
+  source_id,
+  remote_track_id,
+  quality_key,
+  sidecar_type,
+  status,
+  attempts,
+  last_error,
+  updated_at_epoch_millis
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
 upsertCachedLyrics:
 INSERT OR REPLACE INTO cached_lyrics(
   source_id,
@@ -922,6 +956,9 @@ DELETE FROM cached_lyrics;
 
 clearLrclibLyrics:
 DELETE FROM cached_lrclib_lyrics;
+
+clearSidecarStatuses:
+DELETE FROM cached_sidecar_status;
 
 clearPlaybackHistory:
 DELETE FROM playback_history;

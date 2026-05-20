@@ -449,31 +449,55 @@ class PlaylistEngine(
         var failed = 0
         var lastError: String? = null
 
-        fun recordFailure(error: Throwable) {
-            failed += 1
-            lastError = error.message ?: error::class.simpleName ?: "Sidecar prep failed."
+        fun errorMessage(error: Throwable): String =
+            error.message ?: error::class.simpleName ?: "Sidecar prep failed."
+
+        suspend fun runSidecar(sidecarType: String, block: suspend () -> Unit) {
+            runCatching { block() }
+                .onSuccess {
+                    audioCache.recordSidecarStatus(
+                        sourceId = sourceId,
+                        trackId = track.id,
+                        quality = quality,
+                        sidecarType = sidecarType,
+                        success = true,
+                    )
+                }
+                .onFailure { error ->
+                    val message = errorMessage(error)
+                    audioCache.recordSidecarStatus(
+                        sourceId = sourceId,
+                        trackId = track.id,
+                        quality = quality,
+                        sidecarType = sidecarType,
+                        success = false,
+                        errorMessage = message,
+                    )
+                    failed += 1
+                    lastError = message
+                }
         }
 
-        runCatching {
+        runSidecar("waveform") {
             audioCache.ensureAudioWaveform(
                 sourceId = sourceId,
                 trackId = track.id,
                 quality = quality,
             )
-        }.onFailure(::recordFailure)
-        runCatching {
+        }
+        runSidecar("provider_lyrics") {
             audioCache.providerLyrics(sourceId, provider, track.id)
-        }.onFailure(::recordFailure)
-        runCatching {
+        }
+        runSidecar("embedded_lyrics") {
             val embeddedLyrics = AudioTagReader().read(cachedAudio.path)
                 .let(::lyricsFromAudioTags)
             if (embeddedLyrics != null) {
                 audioCache.cacheEmbeddedLyrics(sourceId, track.id, embeddedLyrics)
             }
-        }.onFailure(::recordFailure)
-        runCatching {
+        }
+        runSidecar("lrclib_lyrics") {
             audioCache.lrclibLyrics(sourceId, track)
-        }.onFailure(::recordFailure)
+        }
 
         return SidecarPrepResult(failed = failed, lastError = lastError)
     }

@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -394,9 +396,20 @@ fun NaviampSharedAppShell(
     onQueueItemDownload: (NaviampNowPlayingItemUi) -> Unit = {},
     onToggleFavorite: () -> Unit = {},
     onRatingSelected: (Int?) -> Unit = {},
+    onClearCache: () -> Unit = {},
+    onClearLibrary: () -> Unit = {},
+    onResetDatabase: () -> Unit = {},
 ) {
     val colors = NaviampColors.Dark
     val showFullNowPlaying = connected && !editingConnection && !restoringConnection && nowPlayingOpen && nowPlaying != null
+    val routeUsesOwnScroll = connected &&
+        !editingConnection &&
+        !restoringConnection &&
+        !showFullNowPlaying &&
+        selectedRoute == SharedRoute.Library &&
+        albumDetail == null &&
+        artistDetail == null &&
+        playlistDetail == null
     val backgroundGradientColors = if (showFullNowPlaying) {
         rememberPlatformCoverArtGradientColors(nowPlaying.coverArtUrl, colors)
     } else {
@@ -426,7 +439,7 @@ fun NaviampSharedAppShell(
                     modifier = Modifier
                         .weight(1f)
                         .then(
-                            if (showFullNowPlaying) {
+                            if (showFullNowPlaying || routeUsesOwnScroll) {
                                 Modifier
                             } else {
                                 Modifier.verticalScroll(rememberScrollState())
@@ -480,6 +493,9 @@ fun NaviampSharedAppShell(
                             supportsCrossfade = supportsCrossfade,
                             onEditConnection = onEditConnection,
                             onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+                            onClearCache = onClearCache,
+                            onClearLibrary = onClearLibrary,
+                            onResetDatabase = onResetDatabase,
                             onQueryChanged = onQueryChanged,
                             onSearch = onSearch,
                             onTrackSelected = onTrackSelected,
@@ -750,6 +766,9 @@ private fun ConnectedContent(
     onQueueItemDownload: (NaviampNowPlayingItemUi) -> Unit,
     onToggleFavorite: () -> Unit,
     onRatingSelected: (Int?) -> Unit,
+    onClearCache: () -> Unit,
+    onClearLibrary: () -> Unit,
+    onResetDatabase: () -> Unit,
 ) {
     when {
         selectedRoute == SharedRoute.Settings -> SettingsContent(
@@ -760,6 +779,9 @@ private fun ConnectedContent(
                             supportsCrossfade = supportsCrossfade,
             onEditConnection = onEditConnection,
             onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+            onClearCache = onClearCache,
+            onClearLibrary = onClearLibrary,
+            onResetDatabase = onResetDatabase,
         )
         nowPlayingOpen && nowPlaying != null -> FullNowPlaying(
             nowPlaying = nowPlaying,
@@ -1248,13 +1270,27 @@ private fun MediaListContent(
     emptyText: String,
     onItemSelected: ((SharedMediaItemUi) -> Unit)? = null,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(title, color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        if (items.isEmpty()) {
-            Text(emptyText, color = colors.secondaryText, fontSize = 13.sp)
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        item {
+            Text(title, color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         }
-        items.forEach { item ->
-            SharedMediaRow(item = item, colors = colors, onClick = onItemSelected?.let { { it(item) } })
+        if (items.isEmpty()) {
+            item {
+                Text(emptyText, color = colors.secondaryText, fontSize = 13.sp)
+            }
+        }
+        items(
+            items = items,
+            key = { item -> item.id },
+        ) { item ->
+            SharedMediaRow(
+                item = item,
+                colors = colors,
+                onClick = onItemSelected?.let { { it(item) } },
+            )
         }
     }
 }
@@ -1472,6 +1508,9 @@ private fun SettingsContent(
     supportsCrossfade: Boolean,
     onEditConnection: () -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
+    onClearCache: () -> Unit,
+    onClearLibrary: () -> Unit,
+    onResetDatabase: () -> Unit,
 ) {
     NaviampSharedSettingsContent(
         colors = colors,
@@ -1482,6 +1521,83 @@ private fun SettingsContent(
         onEditConnection = onEditConnection,
         onPlaybackSettingsChanged = onPlaybackSettingsChanged,
     )
+    LocalDataActions(
+        colors = colors,
+        onClearCache = onClearCache,
+        onClearLibrary = onClearLibrary,
+        onResetDatabase = onResetDatabase,
+    )
+}
+
+@Composable
+private fun LocalDataActions(
+    colors: NaviampColors,
+    onClearCache: () -> Unit,
+    onClearLibrary: () -> Unit,
+    onResetDatabase: () -> Unit,
+) {
+    var confirmAction by remember { mutableStateOf<LocalDataAction?>(null) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SettingsSectionTitle("Local data", colors)
+        Text(
+            "Manage local cache, indexed library data, and database reset actions.",
+            color = colors.secondaryText,
+            fontSize = 12.sp,
+        )
+        PrimaryButton("Clear cache", colors, onClick = { confirmAction = LocalDataAction.ClearCache })
+        PrimaryButton("Clear library index", colors, onClick = { confirmAction = LocalDataAction.ClearLibrary })
+        PrimaryButton("Reset database", colors, onClick = { confirmAction = LocalDataAction.ResetDatabase })
+    }
+
+    confirmAction?.let { action ->
+        AlertDialog(
+            onDismissRequest = { confirmAction = null },
+            title = { Text(action.title) },
+            text = { Text(action.message) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmAction = null
+                        when (action) {
+                            LocalDataAction.ClearCache -> onClearCache()
+                            LocalDataAction.ClearLibrary -> onClearLibrary()
+                            LocalDataAction.ResetDatabase -> onResetDatabase()
+                        }
+                    },
+                ) {
+                    Text(action.confirmLabel)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmAction = null }) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
+}
+
+private enum class LocalDataAction(
+    val title: String,
+    val message: String,
+    val confirmLabel: String,
+) {
+    ClearCache(
+        title = "Clear Cache",
+        message = "This removes cached images, provider responses, prefetched audio, waveforms, and lyrics. Saved servers and the library index stay intact.",
+        confirmLabel = "Clear cache",
+    ),
+    ClearLibrary(
+        title = "Clear Library Index",
+        message = "This removes the local library index for the active server. You can sync the library again after this finishes.",
+        confirmLabel = "Clear library",
+    ),
+    ResetDatabase(
+        title = "Reset Database",
+        message = "This removes saved servers, local cache, downloads, library data, playback history, and local settings stored in the app database.",
+        confirmLabel = "Reset database",
+    ),
 }
 
 @Composable

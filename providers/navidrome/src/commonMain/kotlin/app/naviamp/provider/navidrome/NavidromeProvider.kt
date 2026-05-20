@@ -807,12 +807,58 @@ object NavidromeApiCallHistory {
         }
 }
 
+fun recordNavidromeApiCall(
+    url: String,
+    startedAt: Long,
+    durationMillis: Long,
+    success: Boolean,
+    errorMessage: String?,
+) {
+    NavidromeApiCallHistory.record(
+        NavidromeApiCall(
+            endpoint = url.substringBefore("?").trimEnd('/').substringAfterLast('/').ifBlank { "unknown" },
+            sanitizedUrl = url.sanitizedNavidromeUrl(),
+            startedAtEpochMillis = startedAt,
+            durationMillis = durationMillis.coerceAtLeast(0),
+            success = success,
+            errorMessage = errorMessage,
+        ),
+    )
+}
+
 class NavidromeException(message: String) : RuntimeException(message)
 
 private fun List<Pair<String, String>>.toQueryString(): String =
     joinToString("&") { (key, value) ->
         "${key.urlEncode()}=${value.urlEncode()}"
     }
+
+private fun String.sanitizedNavidromeUrl(): String =
+    runCatching {
+        val pathAndQuery = substringAfter("://", this).substringAfter("/", "")
+        val path = pathAndQuery.substringBefore("?")
+        val query = pathAndQuery.substringAfter("?", missingDelimiterValue = "")
+            .split("&")
+            .filter { it.isNotBlank() }
+            .joinToString("&") { rawParam ->
+                val key = rawParam.substringBefore("=")
+                if (key in SensitiveNavidromeQueryKeys) {
+                    "$key=<redacted>"
+                } else {
+                    rawParam
+                }
+            }
+        buildString {
+            append("/")
+            append(path)
+            if (query.isNotBlank()) {
+                append("?")
+                append(query)
+            }
+        }
+    }.getOrDefault("<unparseable url>")
+
+private val SensitiveNavidromeQueryKeys = setOf("u", "t", "s")
 
 private fun JsonObject.stringValue(key: String): String? =
     this[key]?.jsonPrimitive?.content
