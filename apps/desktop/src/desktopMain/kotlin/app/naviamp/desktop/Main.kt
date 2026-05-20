@@ -114,6 +114,9 @@ import app.naviamp.ui.resetJvmPlatformCoverArtByteLoader
 import app.naviamp.ui.rememberPlatformCoverArtPlayerColors
 import app.naviamp.ui.setJvmPlatformCoverArtByteLoader
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
@@ -1585,6 +1588,63 @@ fun NaviampApp(
         }
     }
 
+    fun generatedRadioQueue(seedTrack: Track, fetchedTracks: List<Track>): List<Track> =
+        (listOf(seedTrack) + fetchedTracks).distinctBy { it.id }
+
+    fun appendGeneratedRadioTracks(
+        radioSession: Int,
+        seedTrack: Track,
+        fetchedTracks: List<Track>,
+    ) {
+        val existingTrackIds = playlistEngine.queue.tracks.map { it.id }.toSet()
+        val newTracks = generatedRadioQueue(seedTrack, fetchedTracks).filterNot { track ->
+            track.id in existingTrackIds
+        }
+        if (radioQueueActive && radioSession == radioSessionId && newTracks.isNotEmpty()) {
+            playlistEngine.appendTracks(
+                tracks = newTracks,
+                maxHistory = RadioQueueHistoryLimit,
+            )
+        }
+    }
+
+    fun replaceGeneratedRadioUpcomingTracks(
+        radioSession: Int,
+        currentTrack: Track,
+        fetchedTracks: List<Track>,
+    ) {
+        if (radioQueueActive && radioSession == radioSessionId) {
+            playlistEngine.replaceUpcomingTracks(
+                currentTrack = currentTrack,
+                upcomingTracks = generatedRadioQueue(currentTrack, fetchedTracks).drop(1),
+                maxHistory = RadioQueueHistoryLimit,
+            )
+        }
+    }
+
+    fun appendGeneratedRadioUpcomingTracks(
+        radioSession: Int,
+        currentTrack: Track,
+        fetchedTracks: List<Track>,
+    ) {
+        val existingTrackIds = playlistEngine.queue.tracks.map { it.id }.toSet()
+        val newTracks = generatedRadioQueue(currentTrack, fetchedTracks).drop(1).filterNot { track ->
+            track.id in existingTrackIds
+        }
+        if (radioQueueActive && radioSession == radioSessionId && newTracks.isNotEmpty()) {
+            playlistEngine.appendTracks(
+                tracks = newTracks,
+                maxHistory = RadioQueueHistoryLimit,
+            )
+        }
+    }
+
+    fun finishRadioRefillIfCurrent(radioSession: Int) {
+        if (radioSession == radioSessionId) {
+            isRadioRefilling = false
+        }
+    }
+
     fun startSeededRadio(
         label: String,
         provider: NavidromeProvider,
@@ -1592,7 +1652,6 @@ fun NaviampApp(
         recentRadioStream: RecentRadioStream,
         loadRest: suspend (RadioService) -> List<Track>,
     ) {
-        val radioService = RadioService(provider)
         rememberRadioStream(recentRadioStream)
         connectionStatus = null
         radioSessionId += 1
@@ -1615,26 +1674,40 @@ fun NaviampApp(
         coroutineScope.launch {
             try {
                 val fetchedTracks = withContext(Dispatchers.IO) {
-                    loadRest(radioService)
+                    loadRest(RadioService(provider, count = InitialSimilarRadioCount))
                 }
-                val existingTrackIds = playlistEngine.queue.tracks.map { it.id }.toSet()
-                val newTracks = radioService.queue(seedTrack, fetchedTracks).filterNot { track ->
-                    track.id in existingTrackIds
-                }
-                if (radioQueueActive && activeRadioSessionId == radioSessionId && newTracks.isNotEmpty()) {
-                    playlistEngine.appendTracks(
-                        tracks = newTracks,
-                        maxHistory = RadioQueueHistoryLimit,
-                    )
-                }
+                appendGeneratedRadioTracks(
+                    radioSession = activeRadioSessionId,
+                    seedTrack = seedTrack,
+                    fetchedTracks = fetchedTracks,
+                )
             } catch (exception: Exception) {
                 if (activeRadioSessionId == radioSessionId) {
                     connectionStatus = exception.message ?: "Could not build $label."
                 }
-            } finally {
-                if (activeRadioSessionId == radioSessionId) {
-                    isRadioRefilling = false
+            }
+            if (activeRadioSessionId == radioSessionId) {
+                isRadioRefilling = false
+            }
+
+            SimilarRadioExpansionCounts.forEach { count ->
+                if (!radioQueueActive || activeRadioSessionId != radioSessionId) return@launch
+                val fetchedTracks = runCatching {
+                    withContext(Dispatchers.IO) {
+                        loadRest(RadioService(provider, count = count))
+                    }
+                }.getOrElse {
+                    return@forEach
                 }
+                appendGeneratedRadioTracks(
+                    radioSession = activeRadioSessionId,
+                    seedTrack = seedTrack,
+                    fetchedTracks = fetchedTracks,
+                )
+            }
+
+            if (activeRadioSessionId == radioSessionId) {
+                connectionStatus = null
             }
         }
     }
@@ -1653,7 +1726,12 @@ fun NaviampApp(
                 track = SavedTrack.fromTrack(seedTrack),
             ),
         ) { radioService ->
-            tracks.flatMap { track -> radioService.trackRadio(track.id) }
+            coroutineScope {
+                tracks.take(PopularRadioSeedLimit)
+                    .map { track -> async(Dispatchers.IO) { radioService.trackRadio(track.id) } }
+                    .awaitAll()
+                    .flatten()
+            }
         }
     }
 
@@ -1991,28 +2069,31 @@ fun NaviampApp(
         radioQueueActive = true
         isRadioRefilling = true
         lastRadioRefillSeedId = track.id.value
-        val radioService = RadioService(provider)
         coroutineScope.launch {
             try {
                 val fetchedTracks = withContext(Dispatchers.IO) {
-                    radioService.trackRadio(track.id)
+                    RadioService(provider, count = InitialSimilarRadioCount).trackRadio(track.id)
                 }
-                if (radioQueueActive && activeRadioSessionId == radioSessionId) {
-                    playlistEngine.replaceUpcomingTracks(
-                        currentTrack = track,
-                        upcomingTracks = radioService.queue(track, fetchedTracks).drop(1),
-                        maxHistory = RadioQueueHistoryLimit,
-                    )
-                    connectionStatus = null
-                }
+                replaceGeneratedRadioUpcomingTracks(activeRadioSessionId, track, fetchedTracks)
             } catch (exception: Exception) {
                 if (activeRadioSessionId == radioSessionId) {
                     connectionStatus = exception.message ?: "Could not build ${track.title} radio."
                 }
-            } finally {
-                if (activeRadioSessionId == radioSessionId) {
-                    isRadioRefilling = false
+            }
+            finishRadioRefillIfCurrent(activeRadioSessionId)
+            SimilarRadioExpansionCounts.forEach { count ->
+                if (!radioQueueActive || activeRadioSessionId != radioSessionId) return@launch
+                val fetchedTracks = runCatching {
+                    withContext(Dispatchers.IO) {
+                        RadioService(provider, count = count).trackRadio(track.id)
+                    }
+                }.getOrElse {
+                    return@forEach
                 }
+                appendGeneratedRadioUpcomingTracks(activeRadioSessionId, track, fetchedTracks)
+            }
+            if (activeRadioSessionId == radioSessionId) {
+                connectionStatus = null
             }
         }
     }
@@ -3155,6 +3236,9 @@ private const val PendingSeekStaleProgressWindowMillis = 1_500L
 private const val RadioRefillThreshold = 10
 private const val RadioRefillCount = 50
 private const val RadioQueueHistoryLimit = 25
+private const val PopularRadioSeedLimit = 5
+private const val InitialSimilarRadioCount = 10
+private val SimilarRadioExpansionCounts = listOf(25, 50)
 
 private fun DesktopCache.asHomeLibraryRepository(): HomeLibraryRepository =
     object : HomeLibraryRepository {

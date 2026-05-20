@@ -393,11 +393,15 @@ class PlaylistEngine(
             queued = upcoming.size,
             completed = 0,
             failed = 0,
+            sidecarCompleted = 0,
+            sidecarFailed = 0,
             lastError = null,
+            lastSidecarError = null,
         )
         audioPrefetchJob = scope.launch {
             upcoming.forEach { track ->
                 if (activeSessionId != sessionId) return@launch
+                var sidecarResult = SidecarPrepResult()
                 val result = runCatching {
                     val cachedAudio = audioCache.cacheAudioTrack(
                         sourceId = sourceId,
@@ -405,7 +409,7 @@ class PlaylistEngine(
                         track = track,
                         quality = currentQuality,
                     )
-                    runPrefetchSidecars(
+                    sidecarResult = runPrefetchSidecars(
                         audioCache = audioCache,
                         sourceId = sourceId,
                         provider = currentProvider,
@@ -415,7 +419,12 @@ class PlaylistEngine(
                     )
                 }
                 audioPrefetchStats = if (result.isSuccess) {
-                    audioPrefetchStats.copy(completed = audioPrefetchStats.completed + 1)
+                    audioPrefetchStats.copy(
+                        completed = audioPrefetchStats.completed + 1,
+                        sidecarCompleted = audioPrefetchStats.sidecarCompleted + if (sidecarResult.failed == 0) 1 else 0,
+                        sidecarFailed = audioPrefetchStats.sidecarFailed + if (sidecarResult.failed > 0) 1 else 0,
+                        lastSidecarError = sidecarResult.lastError ?: audioPrefetchStats.lastSidecarError,
+                    )
                 } else {
                     audioPrefetchStats.copy(
                         failed = audioPrefetchStats.failed + 1,
@@ -436,27 +445,37 @@ class PlaylistEngine(
         track: Track,
         quality: StreamQuality,
         cachedAudio: app.naviamp.desktop.CachedAudioFile,
-    ) {
+    ): SidecarPrepResult {
+        var failed = 0
+        var lastError: String? = null
+
+        fun recordFailure(error: Throwable) {
+            failed += 1
+            lastError = error.message ?: error::class.simpleName ?: "Sidecar prep failed."
+        }
+
         runCatching {
             audioCache.ensureAudioWaveform(
                 sourceId = sourceId,
                 trackId = track.id,
                 quality = quality,
             )
-        }
+        }.onFailure(::recordFailure)
         runCatching {
             audioCache.providerLyrics(sourceId, provider, track.id)
-        }
+        }.onFailure(::recordFailure)
         runCatching {
             val embeddedLyrics = AudioTagReader().read(cachedAudio.path)
                 .let(::lyricsFromAudioTags)
             if (embeddedLyrics != null) {
                 audioCache.cacheEmbeddedLyrics(sourceId, track.id, embeddedLyrics)
             }
-        }
+        }.onFailure(::recordFailure)
         runCatching {
             audioCache.lrclibLyrics(sourceId, track)
-        }
+        }.onFailure(::recordFailure)
+
+        return SidecarPrepResult(failed = failed, lastError = lastError)
     }
 
     private fun handlePlaybackState(
@@ -577,6 +596,14 @@ data class AudioPrefetchStats(
     val running: Boolean = false,
     val queued: Int = 0,
     val completed: Int = 0,
+    val failed: Int = 0,
+    val sidecarCompleted: Int = 0,
+    val sidecarFailed: Int = 0,
+    val lastError: String? = null,
+    val lastSidecarError: String? = null,
+)
+
+private data class SidecarPrepResult(
     val failed: Int = 0,
     val lastError: String? = null,
 )

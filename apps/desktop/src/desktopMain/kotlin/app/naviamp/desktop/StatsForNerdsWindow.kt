@@ -411,6 +411,9 @@ private fun AudioPrefetchStats.rows(): List<Pair<String, String>> =
         "Completed" to completed.toString(),
         "Failed" to failed.toString(),
         "Last error" to (lastError ?: "None"),
+        "Sidecar completed" to sidecarCompleted.toString(),
+        "Sidecar failed" to sidecarFailed.toString(),
+        "Last sidecar error" to (lastSidecarError ?: "None"),
     )
 
 fun SavedMediaSource.toStats(): MediaSourceStats =

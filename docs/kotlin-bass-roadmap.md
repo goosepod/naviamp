@@ -174,7 +174,8 @@ Native scaffold lives in `native/bass-jni`.
 Progress notes:
 - Desktop prefetch already runs sidecar prep for cached upcoming tracks: waveform generation, tag reading, embedded lyrics, provider lyrics, and LRCLIB fallback.
 - Android now starts sidecar prep for the current track and first few upcoming tracks, prefers downloaded/cached audio for waveform analysis, writes waveform rows into the shared cache table, respects the configured Navidrome TLS behavior, and warms provider/LRCLIB lyrics when lyrics work is enabled.
-- Remaining work is durable sidecar status/error tracking and Android embedded-lyrics tag extraction.
+- Desktop Stats for nerds now shows sidecar prep completion/failure counts and the latest sidecar error separately from audio cache prefetch failures, so waveform/lyrics prep problems are visible without interrupting playback.
+- Remaining work is durable per-track sidecar status/error tracking and Android embedded-lyrics tag extraction.
 
 ## Future Cleanup: Shared Network Clients
 
@@ -199,6 +200,11 @@ Progress notes:
 - [ ] Cache radio seed expansions where practical, especially for popular tracks, album radio, artist radio, and frequently replayed mixes.
 - [ ] Consider progressive radio queue loading: start playback with the seed track, append the first small batch as soon as it is available, then continue filling the queue in the background.
 - [ ] Surface radio generation status without blocking transport controls or making the app feel stalled.
+
+Progress notes:
+- Popular Tracks Radio now limits expansion to the first five popular-track seeds and fetches each seed radio in parallel on desktop and Android, instead of running each related-track request serially before adding the generated queue.
+- Seeded track/album/artist radio now requests only 10 similar tracks for the first response, starts with those results, then expands in the background with larger 25/50-count requests and appends only newly discovered tracks.
+- We are intentionally not adding persistent similar-track caching yet; repeated seeds would benefit, but one-off radio starts could grow the cache without much payoff.
 
 ## Open Questions
 

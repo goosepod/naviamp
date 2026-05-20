@@ -100,6 +100,9 @@ import app.naviamp.ui.toSharedPlaylistDetailUi
 import app.naviamp.ui.toSharedSearchResultsUi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -622,7 +625,7 @@ private fun NaviampAndroidApp() {
     playAdjacentTrackAction = ::playAdjacentTrack
 
     fun radioService(): RadioService? =
-        provider?.let(::RadioService)
+        provider?.let { RadioService(it, count = AndroidInitialSimilarRadioCount) }
 
     fun playRadioTracks(statusLabel: String, loadTracks: suspend (RadioService) -> List<Track>) {
         val activeProvider = provider ?: return
@@ -643,19 +646,32 @@ private fun NaviampAndroidApp() {
         }
     }
 
+    fun generatedRadioQueue(seedTrack: Track, fetchedTracks: List<Track>): List<Track> =
+        (listOf(seedTrack) + fetchedTracks).distinctBy { it.id }
+
+    fun appendGeneratedRadioTracks(seedTrack: Track, fetchedTracks: List<Track>) {
+        if (nowPlaying?.id != seedTrack.id) return
+        val existingTrackIds = playbackQueue.tracks.map { it.id }.toSet()
+        val newTracks = generatedRadioQueue(seedTrack, fetchedTracks).filterNot { track ->
+            track.id in existingTrackIds
+        }
+        if (newTracks.isNotEmpty()) {
+            playbackQueue = playbackQueue.copy(tracks = playbackQueue.tracks + newTracks)
+        }
+    }
+
     fun startSeededRadio(
         statusLabel: String,
         seedTrack: Track,
         loadRest: suspend (RadioService) -> List<Track>,
     ) {
         val activeProvider = provider ?: return
-        val service = RadioService(activeProvider)
         val seedQueue = listOf(seedTrack)
         playTrack(seedTrack, seedQueue)
         scope.launch {
-            runCatching { loadRest(service) }
+            runCatching { loadRest(RadioService(activeProvider, count = AndroidInitialSimilarRadioCount)) }
                 .onSuccess { fetchedTracks ->
-                    val queue = service.queue(seedTrack, fetchedTracks)
+                    val queue = generatedRadioQueue(seedTrack, fetchedTracks)
                         .ifEmpty { seedQueue }
                     if (nowPlaying?.id == seedTrack.id) {
                         playbackQueue = PlaybackQueue(tracks = queue, currentIndex = 0)
@@ -667,6 +683,16 @@ private fun NaviampAndroidApp() {
                         status = error.message ?: "Could not build $statusLabel."
                     }
                 }
+
+            AndroidSimilarRadioExpansionCounts.forEach { count ->
+                if (nowPlaying?.id != seedTrack.id) return@launch
+                val fetchedTracks = runCatching {
+                    loadRest(RadioService(activeProvider, count = count))
+                }.getOrElse {
+                    return@forEach
+                }
+                appendGeneratedRadioTracks(seedTrack, fetchedTracks)
+            }
         }
     }
 
@@ -1335,7 +1361,12 @@ private fun NaviampAndroidApp() {
                 return@NaviampSharedAppShell
             }
             startSeededRadio("${detail.artist.title} popular tracks radio", seedTrack) { radioService ->
-                popularTracks.flatMap { track -> radioService.trackRadio(track.id) }
+                coroutineScope {
+                    popularTracks.take(AndroidPopularRadioSeedLimit)
+                        .map { track -> async(Dispatchers.IO) { radioService.trackRadio(track.id) } }
+                        .awaitAll()
+                        .flatten()
+                }
             }
         },
         onArtistPopularAddToQueue = { detail ->
@@ -1506,19 +1537,29 @@ private fun NaviampAndroidApp() {
             visualizerVisible = !visualizerVisible
         },
         onTrackRadio = {
-            val service = radioService() ?: return@NaviampSharedAppShell
+            val activeProvider = provider ?: return@NaviampSharedAppShell
             val currentTrack = nowPlaying ?: return@NaviampSharedAppShell
             if (provider?.capabilities?.supportsTrackRadio != true) return@NaviampSharedAppShell
             scope.launch {
                 status = "Starting ${currentTrack.title} radio..."
-                runCatching { service.trackRadio(currentTrack.id) }
+                runCatching { RadioService(activeProvider, count = AndroidInitialSimilarRadioCount).trackRadio(currentTrack.id) }
                     .onSuccess { radioTracks ->
-                        val queue = service.queue(currentTrack, radioTracks)
+                        val queue = generatedRadioQueue(currentTrack, radioTracks)
                         val deduped = queue.drop(1)
                         playbackQueue = PlaybackQueue(tracks = queue, currentIndex = 0)
                         relatedTracks = deduped
                         shuffledUpNextSnapshot = null
                         status = "Track radio loaded."
+
+                        AndroidSimilarRadioExpansionCounts.forEach { count ->
+                            if (nowPlaying?.id != currentTrack.id) return@launch
+                            val fetchedTracks = runCatching {
+                                RadioService(activeProvider, count = count).trackRadio(currentTrack.id)
+                            }.getOrElse {
+                                return@forEach
+                            }
+                            appendGeneratedRadioTracks(currentTrack, fetchedTracks)
+                        }
                     }
                     .onFailure { error ->
                         status = error.message ?: "Could not start track radio."
@@ -1555,13 +1596,22 @@ private fun NaviampAndroidApp() {
         },
         onQueueItemRadio = { item ->
             findKnownTrack(item.id)?.let { track ->
-                val service = radioService() ?: return@let
+                val activeProvider = provider ?: return@let
                 if (provider?.capabilities?.supportsTrackRadio != true) return@let
                 scope.launch {
-                    runCatching { service.trackRadio(track.id) }
+                    runCatching { RadioService(activeProvider, count = AndroidInitialSimilarRadioCount).trackRadio(track.id) }
                         .onSuccess { radioTracks ->
-                            val queue = service.queue(track, radioTracks)
+                            val queue = generatedRadioQueue(track, radioTracks)
                             playTrack(track, queue)
+                            AndroidSimilarRadioExpansionCounts.forEach { count ->
+                                if (nowPlaying?.id != track.id) return@launch
+                                val fetchedTracks = runCatching {
+                                    RadioService(activeProvider, count = count).trackRadio(track.id)
+                                }.getOrElse {
+                                    return@forEach
+                                }
+                                appendGeneratedRadioTracks(track, fetchedTracks)
+                            }
                         }
                         .onFailure { error -> status = error.message ?: "Could not start track radio." }
                 }
@@ -1764,5 +1814,8 @@ private const val PendingSeekToleranceSeconds = 2.0
 private const val PendingSeekStaleProgressWindowMillis = 1_500L
 private const val AndroidGaplessPrepareWindowSeconds = 2.0
 private const val AndroidSidecarPrepDepth = 5
+private const val AndroidPopularRadioSeedLimit = 5
+private const val AndroidInitialSimilarRadioCount = 10
 private const val PopularTracksFetchLimit = 25
 private const val PopularTracksDisplayLimit = 10
+private val AndroidSimilarRadioExpansionCounts = listOf(25, 50)
