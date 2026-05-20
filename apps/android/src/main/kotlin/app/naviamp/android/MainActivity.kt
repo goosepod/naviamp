@@ -99,6 +99,7 @@ import app.naviamp.ui.toSharedMediaItemUi
 import app.naviamp.ui.toSharedPlaylistDetailUi
 import app.naviamp.ui.toSharedSearchResultsUi
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -206,6 +207,7 @@ private fun NaviampAndroidApp() {
     var lyricsByTrackId by remember { mutableStateOf<Map<String, Lyrics?>>(emptyMap()) }
     var lyricsStatusByTrackId by remember { mutableStateOf<Map<String, String?>>(emptyMap()) }
     var playlistActionStatus by remember { mutableStateOf<String?>(null) }
+    var sidecarPrepJob by remember { mutableStateOf<Job?>(null) }
 
     LaunchedEffect(bassLoadReport) {
         if (!bassLoadReport.available) {
@@ -347,6 +349,70 @@ private fun NaviampAndroidApp() {
         }
     }
 
+    suspend fun ensureWaveform(
+        activeProvider: NavidromeProvider,
+        sourceId: String?,
+        track: Track,
+    ): AudioWaveform? {
+        val quality = StreamQuality.Original
+        if (sourceId != null) {
+            storage.cachedAudioWaveform(sourceId, track.id, quality)?.let { return it }
+        }
+        waveformAnalyzer.applyTlsSettings(activeTlsSettings)
+        AndroidPlaybackTls.applyDefaults(activeTlsSettings)
+        val localFile = if (sourceId != null) {
+            storage.downloadedAudioFile(sourceId, track.id, quality)?.file
+                ?: storage.cacheAudioTrack(sourceId, activeProvider, track, quality).file
+        } else {
+            null
+        }
+        val waveform = waveformAnalyzer.analyze(
+            trackId = track.id.value,
+            streamUrl = localFile?.toURI()?.toString()
+                ?: activeProvider.streamUrl(StreamRequest(track.id, quality)),
+        )
+        if (waveform != null && sourceId != null && localFile != null) {
+            storage.upsertAudioWaveform(
+                sourceId = sourceId,
+                trackId = track.id,
+                quality = quality,
+                audioFile = localFile,
+                waveform = waveform,
+            )
+        }
+        return waveform
+    }
+
+    fun startSidecarPrep(
+        sessionToken: Long,
+        activeProvider: NavidromeProvider,
+        queue: PlaybackQueue,
+    ) {
+        sidecarPrepJob?.cancel()
+        val tracksToPrep = queue.tracks
+            .drop(queue.currentIndex.coerceAtLeast(0))
+            .take(AndroidSidecarPrepDepth)
+            .filterNot { it.isInternetRadioTrack() }
+        if (tracksToPrep.isEmpty()) return
+        val sourceId = activeSourceId
+        sidecarPrepJob = scope.launch {
+            tracksToPrep.forEach { track ->
+                if (sessionToken != playbackSessionToken) return@launch
+                runCatching {
+                    ensureWaveform(activeProvider, sourceId, track)
+                }.onSuccess { waveform ->
+                    if (waveform != null && sessionToken == playbackSessionToken) {
+                        waveformByTrackId = waveformByTrackId + (track.id.value to waveform)
+                    }
+                }
+                if (sessionToken != playbackSessionToken) return@launch
+                if (playbackSettings.lrclibLyricsEnabled || lyricsVisible) {
+                    loadLyrics(track)
+                }
+            }
+        }
+    }
+
     fun loadRelatedTracks(track: Track) {
         val activeProvider = provider ?: return
         if (!activeProvider.capabilities.supportsTrackRadio) {
@@ -362,6 +428,8 @@ private fun NaviampAndroidApp() {
 
     fun beginPlaybackSession(): Long {
         playbackSessionToken += 1
+        sidecarPrepJob?.cancel()
+        sidecarPrepJob = null
         preparedNextTrackId = null
         pendingSeekPositionSeconds = null
         pendingSeekIssuedAtMillis = null
@@ -441,6 +509,7 @@ private fun NaviampAndroidApp() {
                 val sessionToken = beginPlaybackSession()
                 loadRelatedTracks(track)
                 if (lyricsVisible && nowPlayingOpen) loadLyrics(track)
+                startSidecarPrep(sessionToken, activeProvider, playbackQueue)
                 playbackEngine.updateNotificationMetadata(
                     title = track.title,
                     subtitle = track.artistName,
@@ -466,12 +535,6 @@ private fun NaviampAndroidApp() {
                     onProgressChanged = { progress -> handlePlaybackProgressChanged(sessionToken, progress) },
                 )
                 status = "Loading ${track.title}..."
-                scope.launch {
-                    waveformAnalyzer.applyTlsSettings(activeTlsSettings)
-                    waveformAnalyzer.analyze(track.id.value, streamUrl)?.let { amplitudes ->
-                        waveformByTrackId = waveformByTrackId + (track.id.value to amplitudes)
-                    }
-                }
             }.onFailure { error ->
                 status = error.message ?: "Playback failed."
             }
@@ -1694,8 +1757,12 @@ private fun PlaybackProgress.mergeForAndroidPlayback(previous: PlaybackProgress)
 private fun ReplayGainMode.forEngine(playbackEngine: AndroidPlaybackEngine): ReplayGainMode =
     if (playbackEngine.supportsReplayGain) this else ReplayGainMode.Off
 
+private fun Track.isInternetRadioTrack(): Boolean =
+    id.value.startsWith("internet-radio:")
+
 private const val PendingSeekToleranceSeconds = 2.0
 private const val PendingSeekStaleProgressWindowMillis = 1_500L
 private const val AndroidGaplessPrepareWindowSeconds = 2.0
+private const val AndroidSidecarPrepDepth = 5
 private const val PopularTracksFetchLimit = 25
 private const val PopularTracksDisplayLimit = 10

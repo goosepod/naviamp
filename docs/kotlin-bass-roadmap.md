@@ -168,8 +168,13 @@ Native scaffold lives in `native/bass-jni`.
 ## Future Feature: Cached Sidecar Prep
 
 - [ ] When audio prefetch caches upcoming tracks, also run sidecar prep for waveform generation, tag reading, provider/embedded lyrics, and LRCLIB fallback so Now Playing metadata is ready before playback starts.
-- [ ] Prefer cached audio files for waveform analysis on Android and desktop so track changes can display the waveform immediately instead of decoding over the network during playback.
+- [x] Prefer cached audio files for waveform analysis on Android and desktop so track changes can display the waveform immediately instead of decoding over the network during playback.
 - [ ] Track sidecar-prep status per cached track so failed lyrics or waveform attempts can be retried without blocking playback.
+
+Progress notes:
+- Desktop prefetch already runs sidecar prep for cached upcoming tracks: waveform generation, tag reading, embedded lyrics, provider lyrics, and LRCLIB fallback.
+- Android now starts sidecar prep for the current track and first few upcoming tracks, prefers downloaded/cached audio for waveform analysis, writes waveform rows into the shared cache table, respects the configured Navidrome TLS behavior, and warms provider/LRCLIB lyrics when lyrics work is enabled.
+- Remaining work is durable sidecar status/error tracking and Android embedded-lyrics tag extraction.
 
 ## Future Cleanup: Shared Network Clients
 
