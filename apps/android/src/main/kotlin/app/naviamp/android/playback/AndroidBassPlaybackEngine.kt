@@ -176,8 +176,11 @@ class AndroidBassPlaybackEngine(
         onMetadataChanged = null
     }
 
-    override fun visualizerFrame(): PlaybackVisualizerFrame? =
-        currentVisualizerFrame
+    override fun visualizerFrame(): PlaybackVisualizerFrame? {
+        val handle = stream.takeIf { it != 0 } ?: return null
+        return bass.fft(handle, VisualizerBandCount).toVisualizerFrame()
+            .also { currentVisualizerFrame = it }
+    }
 
     override fun setCrossfadeDuration(seconds: Int) {
         crossfadeDurationSeconds = seconds.coerceIn(0, 12)
@@ -259,7 +262,6 @@ class AndroidBassPlaybackEngine(
                     lastMetadata = metadata
                     onMetadataChanged?.invoke(metadata)
                 }
-                currentVisualizerFrame = bass.fft(handle, VisualizerBandCount).toVisualizerFrame()
                 if (currentSourceStream != 0 && bass.activeState(currentSourceStream) == BassActiveStopped) {
                     onStateChanged?.invoke(PlaybackState.Finished)
                     return@launch

@@ -104,6 +104,7 @@ data class NaviampNowPlayingActions(
     val onAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit = {},
     val onCreatePlaylistAndAdd: (String) -> Unit = {},
     val onDownloadTrack: () -> Unit = {},
+    val onToggleVisualizer: () -> Unit = {},
     val onGoToAlbum: () -> Unit = {},
     val onGoToArtist: () -> Unit = {},
     val onToggleFavorite: () -> Unit = {},
@@ -136,11 +137,23 @@ fun NaviampNowPlayingPanel(
             .heightIn(min = 300.dp),
     ) {
         val wideLayout = maxWidth >= 780.dp
-        val compactStackLayout = !wideLayout && maxHeight < 600.dp
+        val viewportMaxHeight = maxHeight
+        val compactStackLayout = !wideLayout && viewportMaxHeight < 600.dp
+        val stackedArtSize = ((viewportMaxHeight * 0.45f) - 24.dp)
+            .coerceIn(150.dp, artSizeDefault)
+        val splitArtSize = ((viewportMaxHeight / 2f) - 28.dp)
+            .coerceIn(170.dp, artSizeDefault)
         val artSize = when {
-            wideLayout -> 350.dp
-            maxWidth < 380.dp -> 238.dp
+            wideLayout -> ((viewportMaxHeight * 0.58f) - 24.dp).coerceIn(170.dp, 350.dp)
+            compactStackLayout -> stackedArtSize
+            maxWidth < 380.dp -> splitArtSize.coerceAtMost(238.dp)
+            !wideLayout -> splitArtSize
             else -> artSizeDefault
+        }
+        val wideDetailsHeight = if (wideLayout) {
+            (viewportMaxHeight - artSize - 28.dp).coerceAtLeast(148.dp)
+        } else {
+            Dp.Unspecified
         }
 
         if (wideLayout) {
@@ -156,12 +169,27 @@ fun NaviampNowPlayingPanel(
                         .weight(0.9f)
                         .fillMaxHeight(),
                 ) {
-                    NowPlayingCoverArt(nowPlaying.coverArtUrl, colors, artSize, 8.dp)
+                    NowPlayingArtSurface(
+                        coverArtUrl = nowPlaying.coverArtUrl,
+                        colors = colors,
+                        size = artSize,
+                        cornerRadius = 8.dp,
+                        visualizerVisible = nowPlaying.visualizerVisible,
+                        visualizerAvailable = nowPlaying.visualizerAvailable,
+                        visualizerBands = nowPlaying.visualizerFrame?.bands.orEmpty(),
+                        visualizerActive = nowPlaying.isPlaying,
+                        onToggleVisualizer = actions.onToggleVisualizer,
+                    )
                     NowPlayingDetails(
                         nowPlaying = nowPlaying,
                         colors = colors,
                         actions = actions,
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        compactLayout = viewportMaxHeight < 640.dp,
+                        availableHeight = wideDetailsHeight,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(wideDetailsHeight)
+                            .padding(top = 8.dp),
                     )
                 }
                 NowPlayingSidePanel(
@@ -224,7 +252,17 @@ fun NaviampNowPlayingPanel(
                                     .height(artSize),
                             )
                         } else {
-                            NowPlayingCoverArt(nowPlaying.coverArtUrl, colors, artSize, 8.dp)
+                            NowPlayingArtSurface(
+                                coverArtUrl = nowPlaying.coverArtUrl,
+                                colors = colors,
+                                size = artSize,
+                                cornerRadius = 8.dp,
+                                visualizerVisible = nowPlaying.visualizerVisible,
+                                visualizerAvailable = nowPlaying.visualizerAvailable,
+                                visualizerBands = nowPlaying.visualizerFrame?.bands.orEmpty(),
+                                visualizerActive = nowPlaying.isPlaying,
+                                onToggleVisualizer = actions.onToggleVisualizer,
+                            )
                         }
                         NowPlayingDetails(
                             nowPlaying = nowPlaying,
@@ -256,7 +294,17 @@ fun NaviampNowPlayingPanel(
                                     .height(artSize),
                             )
                         } else {
-                            NowPlayingCoverArt(nowPlaying.coverArtUrl, colors, artSize, 8.dp)
+                            NowPlayingArtSurface(
+                                coverArtUrl = nowPlaying.coverArtUrl,
+                                colors = colors,
+                                size = artSize,
+                                cornerRadius = 8.dp,
+                                visualizerVisible = nowPlaying.visualizerVisible,
+                                visualizerAvailable = nowPlaying.visualizerAvailable,
+                                visualizerBands = nowPlaying.visualizerFrame?.bands.orEmpty(),
+                                visualizerActive = nowPlaying.isPlaying,
+                                onToggleVisualizer = actions.onToggleVisualizer,
+                            )
                         }
                     }
                     NowPlayingDetails(
@@ -289,14 +337,20 @@ fun NaviampNowPlayingPanel(
 }
 
 @Composable
-private fun NowPlayingCoverArt(
+private fun NowPlayingArtSurface(
     coverArtUrl: String?,
     colors: NaviampColors,
     size: Dp,
     cornerRadius: Dp,
+    visualizerVisible: Boolean,
+    visualizerAvailable: Boolean,
+    visualizerBands: List<Float>,
+    visualizerActive: Boolean,
+    onToggleVisualizer: () -> Unit,
 ) {
     val shadowMargin = 12.dp
     val shape = RoundedCornerShape(cornerRadius)
+    val toggleModifier = Modifier.clickable(enabled = visualizerAvailable, onClick = onToggleVisualizer)
 
     Box(
         contentAlignment = Alignment.Center,
@@ -308,7 +362,30 @@ private fun NowPlayingCoverArt(
                 .shadow(24.dp, shape, clip = false)
                 .shadow(7.dp, shape, clip = false),
         ) {
-            PlatformCoverArt(coverArtUrl, colors, size, cornerRadius)
+            if (visualizerVisible && visualizerAvailable) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(shape)
+                        .background(Color.Black.copy(alpha = 0.16f))
+                        .then(toggleModifier)
+                        .padding(18.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    LiveVisualizerSurface(
+                        bands = visualizerBands,
+                        active = visualizerActive,
+                        colors = colors,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(size * 0.42f),
+                    )
+                }
+            } else {
+                Box(modifier = toggleModifier) {
+                    PlatformCoverArt(coverArtUrl, colors, size, cornerRadius)
+                }
+            }
         }
     }
 }
@@ -436,15 +513,6 @@ private fun NowPlayingDetails(
                 modifier = Modifier.width(42.dp),
             )
         }
-        LiveVisualizerSurface(
-            bands = nowPlaying.visualizerFrame?.bands.orEmpty(),
-            active = nowPlaying.isPlaying,
-            colors = colors,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(if (compactLayout) 16.dp else 22.dp),
-        )
-
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(if (mobileLayout) 8.dp else 6.dp),
@@ -677,6 +745,8 @@ private fun NowPlayingDetails(
                         nowPlayingTrackMenuActions(
                             lyricsVisible = nowPlaying.lyricsVisible,
                             lyricsAvailable = nowPlaying.lyricsAvailable,
+                            visualizerVisible = nowPlaying.visualizerVisible,
+                            visualizerAvailable = nowPlaying.visualizerAvailable,
                             isLive = nowPlaying.isLive,
                             hasDetails = nowPlaying.detailSections.isNotEmpty(),
                             trackPreferenceLabel = trackPreferenceLabel,
@@ -693,6 +763,8 @@ private fun NowPlayingDetails(
                                     when (action.action) {
                                         NaviampAction.ShowLyrics,
                                         NaviampAction.HideLyrics -> actions.onToggleLyrics()
+                                        NaviampAction.ShowVisualizer,
+                                        NaviampAction.HideVisualizer -> actions.onToggleVisualizer()
                                         NaviampAction.DownloadTrack -> actions.onDownloadTrack()
                                         NaviampAction.TrackDetails -> trackDetailsOpen = true
                                         NaviampAction.TrackPreference -> cycleTrackPreference()

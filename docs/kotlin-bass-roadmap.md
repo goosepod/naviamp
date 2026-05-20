@@ -129,6 +129,7 @@ Native scaffold lives in `native/bass-jni`.
 - [x] Feed live visualizer data into shared UI state without coupling UI to BASS.
 - [x] Reintroduce a real music-reactive visualizer surface.
 - [x] Keep waveform scrubber separate from live visualization.
+- [x] Update Now Playing so the live visualizer is not always visible: tapping album art should replace it with the visualizer, tapping the visualizer should return to album art, and the bottom-right Now Playing overflow menu should include the same visualizer toggle.
 
 ## Phase 9.5: Android BASS
 

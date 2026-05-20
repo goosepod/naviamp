@@ -190,6 +190,7 @@ private fun NaviampAndroidApp() {
     var playbackState by remember { mutableStateOf<PlaybackState>(PlaybackState.Idle) }
     var playbackProgress by remember { mutableStateOf(PlaybackProgress.Unknown) }
     var visualizerFrame by remember { mutableStateOf<PlaybackVisualizerFrame?>(null) }
+    var visualizerVisible by remember { mutableStateOf(false) }
     var pendingSeekPositionSeconds by remember { mutableStateOf<Double?>(null) }
     var pendingSeekIssuedAtMillis by remember { mutableStateOf<Long?>(null) }
     var playbackSessionToken by remember { mutableStateOf(0L) }
@@ -212,13 +213,21 @@ private fun NaviampAndroidApp() {
         }
     }
 
-    LaunchedEffect(playbackEngine, playbackState) {
+    LaunchedEffect(nowPlaying?.id, nowPlayingStation?.id) {
+        visualizerFrame = null
+    }
+
+    LaunchedEffect(playbackEngine, playbackState, visualizerVisible, nowPlayingOpen) {
         val visualizerEngine = playbackEngine as? VisualizerPlaybackEngine
         if (visualizerEngine?.supportsVisualizer != true) {
             visualizerFrame = null
             return@LaunchedEffect
         }
-        while (playbackState == PlaybackState.Playing || playbackState == PlaybackState.Loading) {
+        if (!visualizerVisible || !nowPlayingOpen) {
+            visualizerFrame = null
+            return@LaunchedEffect
+        }
+        while (visualizerVisible && nowPlayingOpen && (playbackState == PlaybackState.Playing || playbackState == PlaybackState.Loading)) {
             visualizerFrame = visualizerEngine.visualizerFrame()
             delay(66)
         }
@@ -418,7 +427,7 @@ private fun NaviampAndroidApp() {
                 }
                 val sessionToken = beginPlaybackSession()
                 loadRelatedTracks(track)
-                if (lyricsVisible) loadLyrics(track)
+                if (lyricsVisible && nowPlayingOpen) loadLyrics(track)
                 playbackEngine.updateNotificationMetadata(
                     title = track.title,
                     subtitle = track.artistName,
@@ -1061,6 +1070,8 @@ private fun NaviampAndroidApp() {
                     coverArtUrl = track.coverArtUrl(provider),
                     waveform = waveformByTrackId[track.id.value],
                     visualizerFrame = visualizerFrame,
+                    visualizerAvailable = (playbackEngine as? VisualizerPlaybackEngine)?.supportsVisualizer == true,
+                    visualizerVisible = visualizerVisible,
                     positionSeconds = playbackProgress.positionSeconds,
                     durationSeconds = playbackProgress.durationSeconds,
                     volumePercent = volumePercent,
@@ -1080,7 +1091,7 @@ private fun NaviampAndroidApp() {
                     canFavorite = provider?.capabilities?.supportsTrackFavorites == true,
                     canRate = provider?.capabilities?.supportsTrackRatings == true,
                     lyricsAvailable = true,
-                    lyricsVisible = lyricsVisible,
+                    lyricsVisible = lyricsVisible && nowPlayingOpen,
                     lyricsStatus = lyricsStatus,
                     lyrics = lyrics,
                     menuEnabled = true,
@@ -1149,7 +1160,7 @@ private fun NaviampAndroidApp() {
             settingsStore.savePlaybackSettings(normalizedSettings)
             lyricsByTrackId = emptyMap()
             lyricsStatusByTrackId = emptyMap()
-            if (lyricsVisible) nowPlaying?.let(::loadLyrics)
+            if (lyricsVisible && nowPlayingOpen) nowPlaying?.let(::loadLyrics)
         },
         onQueryChanged = { contentState = contentState.copy(searchQuery = it) },
         onSearch = {
@@ -1397,6 +1408,9 @@ private fun NaviampAndroidApp() {
             if (lyricsVisible) {
                 nowPlaying?.let(::loadLyrics)
             }
+        },
+        onToggleVisualizer = {
+            visualizerVisible = !visualizerVisible
         },
         onTrackRadio = {
             val service = radioService() ?: return@NaviampSharedAppShell

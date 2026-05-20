@@ -120,7 +120,6 @@ class BassPlaybackEngine(
                         lastMetadata = metadata
                         onMetadataChanged(metadata)
                     }
-                    currentVisualizerFrame = visualizerFrameFor(bass, playbackHandle)
                     delay(100)
                 }
 
@@ -248,8 +247,12 @@ class BassPlaybackEngine(
         endSyncCallbacks.clear()
     }
 
-    override fun visualizerFrame(): PlaybackVisualizerFrame? =
-        currentVisualizerFrame
+    override fun visualizerFrame(): PlaybackVisualizerFrame? {
+        val bass = native ?: return null
+        val handle = stream.takeIf { it != 0 } ?: return null
+        return visualizerFrameFor(bass, handle)
+            .also { currentVisualizerFrame = it }
+    }
 
     override fun statsRows(): List<Pair<String, String>> =
         listOf(

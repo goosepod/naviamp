@@ -323,9 +323,11 @@ fun NaviampApp(
     var nowPlayingWaveformStatus by remember { mutableStateOf("No track") }
     var nowPlayingWaveformReloadToken by remember { mutableStateOf(0) }
     var nowPlayingVisualizerFrame by remember { mutableStateOf<PlaybackVisualizerFrame?>(null) }
+    var nowPlayingVisualizerVisible by remember { mutableStateOf(false) }
     var nowPlayingAudioTags by remember { mutableStateOf<List<AudioTag>?>(null) }
     var nowPlayingLyrics by remember { mutableStateOf<Lyrics?>(null) }
     var nowPlayingLyricsStatus by remember { mutableStateOf<String?>(null) }
+    var nowPlayingLyricsVisible by remember { mutableStateOf(false) }
     var nowPlayingInternetRadioStation by remember { mutableStateOf(restoredInternetRadioStation) }
     var nowPlayingStreamMetadata by remember { mutableStateOf(PlaybackStreamMetadata()) }
     var relatedTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
@@ -414,13 +416,21 @@ fun NaviampApp(
         playbackEngine.setVolume(playbackSettings.volumePercent.coerceIn(0, 100))
     }
 
-    LaunchedEffect(playbackEngine, playbackState) {
+    LaunchedEffect(nowPlayingTrack?.id) {
+        nowPlayingVisualizerFrame = null
+    }
+
+    LaunchedEffect(playbackEngine, playbackState, nowPlayingVisualizerVisible, appRoute) {
         val visualizerEngine = playbackEngine as? VisualizerPlaybackEngine
         if (visualizerEngine?.supportsVisualizer != true) {
             nowPlayingVisualizerFrame = null
             return@LaunchedEffect
         }
-        while (playbackState == PlaybackState.Playing || playbackState == PlaybackState.Loading) {
+        if (!nowPlayingVisualizerVisible || appRoute != AppRoute.Player) {
+            nowPlayingVisualizerFrame = null
+            return@LaunchedEffect
+        }
+        while (nowPlayingVisualizerVisible && appRoute == AppRoute.Player && (playbackState == PlaybackState.Playing || playbackState == PlaybackState.Loading)) {
             nowPlayingVisualizerFrame = visualizerEngine.visualizerFrame()
             kotlinx.coroutines.delay(66)
         }
@@ -710,7 +720,10 @@ fun NaviampApp(
         nowPlayingWaveformReloadToken,
         cacheSettings.audioCachingEnabled,
         playbackSettings.lrclibLyricsEnabled,
+        nowPlayingLyricsVisible,
+        appRoute,
     ) {
+        val lyricsVisibleForWork = nowPlayingLyricsVisible && appRoute == AppRoute.Player
         val track = nowPlayingTrack ?: run {
             nowPlayingWaveform = null
             nowPlayingWaveformStatus = "No track"
@@ -739,7 +752,9 @@ fun NaviampApp(
         }
         val quality = playbackEngine.streamQuality()
         nowPlayingWaveformStatus = "Loading"
-        nowPlayingLyricsStatus = if (playbackSettings.lrclibLyricsEnabled) {
+        nowPlayingLyricsStatus = if (!lyricsVisibleForWork) {
+            null
+        } else if (playbackSettings.lrclibLyricsEnabled) {
             "Grabbing lyrics..."
         } else {
             "Loading lyrics..."
@@ -780,10 +795,15 @@ fun NaviampApp(
                     else -> "Unavailable"
                 }
                 val tags = audioPath?.let { AudioTagReader().read(it) }.orEmpty()
-                val providerLyrics = sessionCache.providerLyrics(sourceId, provider, track.id)
-                val embeddedLyrics = lyricsFromAudioTags(tags)
+                val providerLyrics = if (lyricsVisibleForWork) {
+                    sessionCache.providerLyrics(sourceId, provider, track.id)
+                } else {
+                    null
+                }
+                val embeddedLyrics = if (lyricsVisibleForWork) lyricsFromAudioTags(tags) else null
                 val localLyrics = providerLyrics ?: embeddedLyrics
                 val lrclibLyrics = if (
+                    lyricsVisibleForWork &&
                     playbackSettings.lrclibLyricsEnabled &&
                     (localLyrics == null || !localLyrics.synced)
                 ) {
@@ -2359,6 +2379,9 @@ fun NaviampApp(
                                 nowPlayingAudioTags = nowPlayingAudioTags,
                                 nowPlayingLyrics = nowPlayingLyrics,
                                 nowPlayingLyricsStatus = nowPlayingLyricsStatus,
+                                lyricsVisible = nowPlayingLyricsVisible,
+                                visualizerAvailable = (playbackEngine as? VisualizerPlaybackEngine)?.supportsVisualizer == true,
+                                visualizerVisible = nowPlayingVisualizerVisible,
                                 coverArtUrl = nowPlayingCoverArtUrl,
                                 backTo = playbackQueue.backTo(),
                                 upNext = playbackQueue.upNext(),
@@ -2414,6 +2437,12 @@ fun NaviampApp(
                                         .copy(volumePercent = volumePercent)
                                         .forEngine(playbackEngine)
                                     settingsStore.savePlaybackSettings(playbackSettings)
+                                },
+                                onToggleLyrics = {
+                                    nowPlayingLyricsVisible = !nowPlayingLyricsVisible
+                                },
+                                onToggleVisualizer = {
+                                    nowPlayingVisualizerVisible = !nowPlayingVisualizerVisible
                                 },
                                 onToggleTrackFavorite = { track ->
                                     toggleTrackFavorite(track)
