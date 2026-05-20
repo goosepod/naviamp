@@ -198,12 +198,13 @@ Progress notes:
 
 - [ ] Profile radio generation paths. Playback starts immediately from the seed track, but similar-track generation can take more than five seconds and should be made visibly faster.
 - [ ] Cache radio seed expansions where practical, especially for popular tracks, album radio, artist radio, and frequently replayed mixes.
-- [ ] Consider progressive radio queue loading: start playback with the seed track, append the first small batch as soon as it is available, then continue filling the queue in the background.
-- [ ] Surface radio generation status without blocking transport controls or making the app feel stalled.
+- [x] Consider progressive radio queue loading: start playback with the seed track, append the first small batch as soon as it is available, then continue filling the queue in the background.
+- [x] Surface radio generation status without blocking transport controls or making the app feel stalled.
 
 Progress notes:
 - Popular Tracks Radio now limits expansion to the first five popular-track seeds and fetches each seed radio in parallel on desktop and Android, instead of running each related-track request serially before adding the generated queue.
 - Seeded track/album/artist radio now requests only 10 similar tracks for the first response, starts with those results, then expands in the background with larger 25/50-count requests and appends only newly discovered tracks.
+- Desktop and Android now show background radio queue-building status while expansion requests are still appending results, then clear back to the normal playback state.
 - We are intentionally not adding persistent similar-track caching yet; repeated seeds would benefit, but one-off radio starts could grow the cache without much payoff.
 
 ## Open Questions

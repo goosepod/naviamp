@@ -676,7 +676,7 @@ private fun NaviampAndroidApp() {
                     if (nowPlaying?.id == seedTrack.id) {
                         playbackQueue = PlaybackQueue(tracks = queue, currentIndex = 0)
                     }
-                    status = "Playing $statusLabel."
+                    status = "Building $statusLabel queue..."
                 }
                 .onFailure { error ->
                     if (nowPlaying?.id == seedTrack.id) {
@@ -692,6 +692,10 @@ private fun NaviampAndroidApp() {
                     return@forEach
                 }
                 appendGeneratedRadioTracks(seedTrack, fetchedTracks)
+                status = "Building $statusLabel queue (${playbackQueue.tracks.size} tracks)..."
+            }
+            if (nowPlaying?.id == seedTrack.id) {
+                status = "Playing $statusLabel."
             }
         }
     }
@@ -1549,7 +1553,7 @@ private fun NaviampAndroidApp() {
                         playbackQueue = PlaybackQueue(tracks = queue, currentIndex = 0)
                         relatedTracks = deduped
                         shuffledUpNextSnapshot = null
-                        status = "Track radio loaded."
+                        status = "Building ${currentTrack.title} radio queue..."
 
                         AndroidSimilarRadioExpansionCounts.forEach { count ->
                             if (nowPlaying?.id != currentTrack.id) return@launch
@@ -1559,6 +1563,10 @@ private fun NaviampAndroidApp() {
                                 return@forEach
                             }
                             appendGeneratedRadioTracks(currentTrack, fetchedTracks)
+                            status = "Building ${currentTrack.title} radio queue (${playbackQueue.tracks.size} tracks)..."
+                        }
+                        if (nowPlaying?.id == currentTrack.id) {
+                            status = "Track radio loaded."
                         }
                     }
                     .onFailure { error ->
@@ -1603,6 +1611,7 @@ private fun NaviampAndroidApp() {
                         .onSuccess { radioTracks ->
                             val queue = generatedRadioQueue(track, radioTracks)
                             playTrack(track, queue)
+                            status = "Building ${track.title} radio queue..."
                             AndroidSimilarRadioExpansionCounts.forEach { count ->
                                 if (nowPlaying?.id != track.id) return@launch
                                 val fetchedTracks = runCatching {
@@ -1611,6 +1620,10 @@ private fun NaviampAndroidApp() {
                                     return@forEach
                                 }
                                 appendGeneratedRadioTracks(track, fetchedTracks)
+                                status = "Building ${track.title} radio queue (${playbackQueue.tracks.size} tracks)..."
+                            }
+                            if (nowPlaying?.id == track.id) {
+                                status = "Track radio loaded."
                             }
                         }
                         .onFailure { error -> status = error.message ?: "Could not start track radio." }

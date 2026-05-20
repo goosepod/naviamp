@@ -1681,6 +1681,9 @@ fun NaviampApp(
                     seedTrack = seedTrack,
                     fetchedTracks = fetchedTracks,
                 )
+                if (activeRadioSessionId == radioSessionId) {
+                    connectionStatus = "Building $label queue..."
+                }
             } catch (exception: Exception) {
                 if (activeRadioSessionId == radioSessionId) {
                     connectionStatus = exception.message ?: "Could not build $label."
@@ -1704,6 +1707,9 @@ fun NaviampApp(
                     seedTrack = seedTrack,
                     fetchedTracks = fetchedTracks,
                 )
+                if (activeRadioSessionId == radioSessionId) {
+                    connectionStatus = "Building $label queue (${playlistEngine.queue.tracks.size} tracks)..."
+                }
             }
 
             if (activeRadioSessionId == radioSessionId) {
@@ -2075,6 +2081,9 @@ fun NaviampApp(
                     RadioService(provider, count = InitialSimilarRadioCount).trackRadio(track.id)
                 }
                 replaceGeneratedRadioUpcomingTracks(activeRadioSessionId, track, fetchedTracks)
+                if (activeRadioSessionId == radioSessionId) {
+                    connectionStatus = "Building ${track.title} radio queue..."
+                }
             } catch (exception: Exception) {
                 if (activeRadioSessionId == radioSessionId) {
                     connectionStatus = exception.message ?: "Could not build ${track.title} radio."
@@ -2091,6 +2100,9 @@ fun NaviampApp(
                     return@forEach
                 }
                 appendGeneratedRadioUpcomingTracks(activeRadioSessionId, track, fetchedTracks)
+                if (activeRadioSessionId == radioSessionId) {
+                    connectionStatus = "Building ${track.title} radio queue (${playlistEngine.queue.tracks.size} tracks)..."
+                }
             }
             if (activeRadioSessionId == radioSessionId) {
                 connectionStatus = null
