@@ -1,19 +1,20 @@
 package app.naviamp.android
 
-import app.naviamp.domain.popular.PopularTracksHttpClient
+import app.naviamp.domain.network.SharedHttpClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
 
-class AndroidPopularTracksHttpClient : PopularTracksHttpClient {
-    override suspend fun get(url: String): String? = withContext(Dispatchers.IO) {
+class AndroidSharedHttpClient : SharedHttpClient {
+    override suspend fun get(url: String, headers: Map<String, String>): String? = withContext(Dispatchers.IO) {
         val connection = (URL(url).openConnection() as HttpURLConnection).apply {
             connectTimeout = 10_000
             readTimeout = 10_000
             requestMethod = "GET"
-            setRequestProperty("Accept", "application/json")
-            setRequestProperty("User-Agent", "Naviamp/0.9.0")
+            headers.forEach { (name, value) -> setRequestProperty(name, value) }
+            if (!headers.containsKey("Accept")) setRequestProperty("Accept", "application/json")
+            if (!headers.containsKey("User-Agent")) setRequestProperty("User-Agent", "Naviamp/0.9.0")
         }
         try {
             if (connection.responseCode !in 200..299) return@withContext null
@@ -23,3 +24,5 @@ class AndroidPopularTracksHttpClient : PopularTracksHttpClient {
         }
     }
 }
+
+class AndroidPopularTracksHttpClient : SharedHttpClient by AndroidSharedHttpClient()

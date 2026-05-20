@@ -179,9 +179,14 @@ Progress notes:
 
 ## Future Cleanup: Shared Network Clients
 
-- [ ] Move LRCLIB request construction, response parsing, and selection behavior into common code with only a tiny platform HTTP adapter.
+- [x] Move LRCLIB request construction, response parsing, and selection behavior into common code with only a tiny platform HTTP adapter.
 - [ ] Move Navidrome request construction, response parsing, API call history, and endpoint behavior further into common code; keep platform-specific TLS/certificate handling behind an HTTP adapter.
-- [ ] Reuse the Deezer popular-track client shape as the model: common feature client plus platform `GET` implementation.
+- [x] Reuse the Deezer popular-track client shape as the model: common feature client plus platform `GET` implementation.
+
+Progress notes:
+- Added a shared common `SharedHttpClient` GET adapter contract and common URL encoding helper.
+- Deezer popular tracks and LRCLIB now use the shared HTTP contract. LRCLIB URL construction and headers moved into common code; Android and desktop only provide platform GET implementations.
+- Desktop Deezer API call history is still preserved by wrapping the shared desktop HTTP adapter with Deezer-specific call recording.
 
 ## Future Feature: Queue Actions
 

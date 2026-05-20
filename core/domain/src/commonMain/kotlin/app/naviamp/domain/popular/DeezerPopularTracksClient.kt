@@ -1,11 +1,13 @@
 package app.naviamp.domain.popular
 
+import app.naviamp.domain.network.SharedHttpClient
+import app.naviamp.domain.network.urlEncodedParameter
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 class DeezerPopularTracksClient(
-    private val httpClient: PopularTracksHttpClient,
+    private val httpClient: SharedHttpClient,
     private val baseUrl: String = "https://api.deezer.com",
 ) : ArtistPopularTracksClient {
     private val json = Json { ignoreUnknownKeys = true }
@@ -28,19 +30,13 @@ class DeezerPopularTracksClient(
 
     private suspend fun deezerArtistId(artistName: String): Long? {
         val query = artistName.trim().takeIf { it.isNotEmpty() } ?: return null
-        val response = httpClient.get("$baseUrl/search/artist?q=${query.urlEncoded()}")
+        val response = httpClient.get("$baseUrl/search/artist?q=${query.urlEncodedParameter()}")
             ?: return null
         val artists = json.decodeFromString<DeezerArtistSearchResponse>(response).data
         return artists.firstOrNull { it.name.equals(query, ignoreCase = true) }?.id
             ?: artists.firstOrNull()?.id
     }
 }
-
-interface PopularTracksHttpClient {
-    suspend fun get(url: String): String?
-}
-
-expect fun String.urlEncoded(): String
 
 @Serializable
 private data class DeezerArtistSearchResponse(
