@@ -23,6 +23,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.ConnectionValidation
+import app.naviamp.domain.provider.LibraryScanStatus
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.ProviderCapabilities
@@ -64,6 +65,17 @@ class NavidromeProvider(
         return ConnectionValidation(
             serverVersion = root.stringValue("serverVersion"),
             apiVersion = root.stringValue("version"),
+        )
+    }
+
+    override suspend fun libraryScanStatus(): LibraryScanStatus? {
+        val response = runCatching { get("getScanStatus.view") }.getOrNull() ?: return null
+        val scanStatus = response.subsonicResponse()["scanStatus"]?.jsonObject ?: return null
+        return LibraryScanStatus(
+            scanning = scanStatus.booleanValue("scanning"),
+            count = scanStatus.intValue("count"),
+            lastScan = scanStatus.stringValue("lastScan"),
+            folderCount = scanStatus.intValue("folderCount"),
         )
     }
 

@@ -88,6 +88,40 @@ Override the platform for packaging/copy verification with:
 ./gradlew -Pnaviamp.bass.platform=windows-x64 :apps:desktop:copyDesktopBass :apps:desktop:copyDesktopBassAppResources
 ```
 
+## Windows Local Build Workflow
+
+For local Windows testing, use the normal Compose distributable, not the release distributable:
+
+```powershell
+.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:createDistributable
+```
+
+This produces a packaged app at:
+
+```text
+apps/desktop/build/compose/binaries/main/app/Naviamp/Naviamp.exe
+```
+
+To produce a movable zip that keeps `Naviamp.exe`, `app/`, and `runtime/` together:
+
+```powershell
+.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:packageLocalDistributable
+```
+
+The zip is written to:
+
+```text
+apps/desktop/build/compose/distributions/Naviamp-windows-x64-local.zip
+```
+
+Use `createReleaseDistributable` only when testing the true release/proguard path. It is much slower because it runs ProGuard across the Compose Desktop dependency graph and can surface release-only keep-rule problems.
+
+## Library Refresh
+
+Desktop keeps a local library index so search, radio fallback, popular-track matching, and library browsing can work without repeatedly crawling the server. A full library import is intentionally not run on every startup once a usable index exists, because it can create sustained local database writes and make the UI feel sluggish.
+
+On connect, Naviamp checks Navidrome's lightweight `getScanStatus` endpoint and stores the last seen server scan signature. If the server scan signature changes later, the app reports that the library changed and leaves the full import to the manual refresh action. A full import still runs automatically when no usable local index exists.
+
 The packaged app launches directly through the Compose native launcher. BASS is loaded in-process from bundled resources; there are no terminal wrapper scripts or shell launchers required for BASS.
 
 BASS binaries are third-party redistributables from Un4seen. Keep the downloaded license/readme files with the vendor inputs when producing release packages, and verify the selected BASS license is compatible with the distribution type before shipping public builds.

@@ -125,7 +125,6 @@ import java.awt.Dimension
 import java.awt.Taskbar
 import java.time.Instant
 import java.time.LocalDate
-import java.util.concurrent.TimeUnit
 import javax.imageio.ImageIO
 import kotlin.math.abs
 
@@ -841,7 +840,7 @@ fun NaviampApp(
         }
     }
 
-    LaunchedEffect(nowPlayingCoverArtUrl, playbackQueue, relatedTracks, connectedProvider) {
+    LaunchedEffect(nowPlayingCoverArtUrl, playbackQueue, connectedProvider) {
         val provider = connectedProvider ?: return@LaunchedEffect
         val urls = buildList {
             nowPlayingCoverArtUrl?.let(::add)
@@ -849,9 +848,6 @@ fun NaviampApp(
                 track.coverArtId?.let { add(provider.coverArtUrl(it)) }
             }
             playbackQueue.upNext().take(CoverArtPreloadUpcomingLimit).forEach { track ->
-                track.coverArtId?.let { add(provider.coverArtUrl(it)) }
-            }
-            relatedTracks.take(CoverArtPreloadRelatedLimit).forEach { track ->
                 track.coverArtId?.let { add(provider.coverArtUrl(it)) }
             }
         }
@@ -1198,6 +1194,9 @@ fun NaviampApp(
                             }
                         },
                     )
+                    provider.libraryScanStatus()?.signature?.let { signature ->
+                        sessionCache.markLibraryScanChecked(sourceId, signature)
+                    }
                 }
                 refreshLibrarySnapshot()
                 libraryStatus = null
@@ -1205,6 +1204,43 @@ fun NaviampApp(
                 libraryStatus = exception.message ?: "Could not import library."
             } finally {
                 isLibrarySyncing = false
+            }
+        }
+    }
+
+    fun checkLibraryFreshness() {
+        val provider = connectedProvider ?: return
+        val sourceId = connectedSourceId ?: return
+        if (isLibrarySyncing) return
+        coroutineScope.launch {
+            val freshness = withContext(Dispatchers.IO) {
+                val scanStatus = provider.libraryScanStatus()
+                val signature = scanStatus?.signature
+                val source = sessionCache.mediaSource(sourceId)
+                LibraryFreshness(
+                    signature = signature,
+                    previousSignature = source?.lastLibraryScanSignature,
+                    scanning = scanStatus?.scanning == true,
+                )
+            }
+            val signature = freshness.signature ?: return@launch
+            when {
+                freshness.previousSignature == null -> {
+                    withContext(Dispatchers.IO) {
+                        sessionCache.markLibraryScanChecked(sourceId, signature)
+                    }
+                }
+                freshness.previousSignature != signature -> {
+                    libraryStatus = if (freshness.scanning) {
+                        "Navidrome is scanning. Refresh library after the scan finishes."
+                    } else {
+                        "Library changed on server. Refresh library to import updates."
+                    }
+                }
+                libraryStatus?.startsWith("Library changed on server") == true ||
+                    libraryStatus?.startsWith("Navidrome is scanning") == true -> {
+                    libraryStatus = null
+                }
             }
         }
     }
@@ -1327,6 +1363,7 @@ fun NaviampApp(
                 refreshPlaylists()
                 refreshInternetRadioStations()
                 startLibrarySync(force = !restoreSavedSession)
+                checkLibraryFreshness()
             } catch (exception: Exception) {
                 connectedProvider = null
                 appRoute = AppRoute.Settings
@@ -2428,6 +2465,16 @@ fun NaviampApp(
                     success = call.success,
                     errorMessage = call.errorMessage,
                 )
+            } + DesktopLrclibApiCallHistory.recent(50).map { call ->
+                ApiCallStats(
+                    source = "LRCLIB",
+                    endpoint = call.endpoint,
+                    sanitizedUrl = call.sanitizedUrl,
+                    startedAtEpochMillis = call.startedAtEpochMillis,
+                    durationMillis = call.durationMillis,
+                    success = call.success,
+                    errorMessage = call.errorMessage,
+                )
             }
         ).sortedByDescending { it.startedAtEpochMillis }.take(50),
     )
@@ -3230,17 +3277,11 @@ private const val PreviousRestartThresholdSeconds = 10.0
 private fun shouldAutoSyncLibrary(
     sourceId: String,
     cache: DesktopCache,
-    nowEpochMillis: Long = System.currentTimeMillis(),
 ): Boolean {
     val indexStats = cache.libraryIndexStats(sourceId)
-    if (!indexStats.hasUsableIndex) return true
-
-    val source = cache.mediaSource(sourceId) ?: return false
-    val lastCompleted = source.lastSyncCompletedAtEpochMillis ?: return true
-    return nowEpochMillis - lastCompleted > LibraryAutoSyncIntervalMillis
+    return !indexStats.hasUsableIndex
 }
 
-private val LibraryAutoSyncIntervalMillis = TimeUnit.HOURS.toMillis(24)
 private const val LibraryPageSize = 50
 private const val PlaybackPositionSaveThresholdSeconds = 5.0
 private const val PendingSeekToleranceSeconds = 2.0
@@ -3324,6 +3365,12 @@ private data class NowPlayingAnalysis(
     val lyrics: Lyrics?,
 )
 
+private data class LibraryFreshness(
+    val signature: String?,
+    val previousSignature: String?,
+    val scanning: Boolean,
+)
+
 private fun app.naviamp.domain.provider.ProviderCapabilities.asStatsMap(): Map<String, Boolean> =
     mapOf(
         "Streaming transcode" to supportsStreamingTranscode,
@@ -3375,8 +3422,7 @@ private fun WindowState.toWindowSettings(): WindowSettings =
 
 private const val PlayReportDurationFraction = 0.5
 private const val PlayReportMaxThresholdSeconds = 240.0
-private const val CoverArtPreloadHistoryLimit = 4
-private const val CoverArtPreloadUpcomingLimit = 20
-private const val CoverArtPreloadRelatedLimit = 12
+private const val CoverArtPreloadHistoryLimit = 1
+private const val CoverArtPreloadUpcomingLimit = 5
 private const val PopularTracksFetchLimit = 25
 private const val PopularTracksDisplayLimit = 10

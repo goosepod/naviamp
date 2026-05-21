@@ -1,5 +1,6 @@
 import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.Exec
+import org.gradle.api.tasks.bundling.Zip
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
@@ -154,6 +155,17 @@ tasks.matching {
 }.configureEach {
     dependsOn(copyDesktopBassAppResources)
     dependsOn(copyDesktopBassJniAppResources)
+}
+
+tasks.register<Zip>("packageLocalDistributable") {
+    group = "distribution"
+    description = "Builds and zips the local packaged desktop app without the release ProGuard step."
+    dependsOn("createDistributable")
+    archiveFileName.set(desktopBassPlatform.map { platform -> "Naviamp-$platform-local.zip" })
+    destinationDirectory.set(layout.buildDirectory.dir("compose/distributions"))
+    from(layout.buildDirectory.dir("compose/binaries/main/app/Naviamp")) {
+        into("Naviamp")
+    }
 }
 
 fun desktopNativePlatform(): String {

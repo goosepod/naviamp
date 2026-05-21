@@ -42,7 +42,6 @@ suspend fun preloadJvmPlatformCoverArt(urls: Iterable<String>) {
     urls.distinct().forEach { url ->
         runCatching {
             JvmCoverArtCache.image(url)
-            JvmCoverArtCache.playerColors(url)
         }
     }
 }

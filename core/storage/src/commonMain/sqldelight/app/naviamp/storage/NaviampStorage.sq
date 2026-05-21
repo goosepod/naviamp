@@ -32,7 +32,9 @@ CREATE TABLE media_source (
   created_at_epoch_millis INTEGER NOT NULL,
   last_connected_at_epoch_millis INTEGER,
   last_sync_started_at_epoch_millis INTEGER,
-  last_sync_completed_at_epoch_millis INTEGER
+  last_sync_completed_at_epoch_millis INTEGER,
+  last_library_scan_signature TEXT,
+  last_library_scan_checked_at_epoch_millis INTEGER
 );
 
 CREATE TABLE library_artist (
@@ -386,8 +388,10 @@ INSERT OR REPLACE INTO media_source(
   created_at_epoch_millis,
   last_connected_at_epoch_millis,
   last_sync_started_at_epoch_millis,
-  last_sync_completed_at_epoch_millis
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+  last_sync_completed_at_epoch_millis,
+  last_library_scan_signature,
+  last_library_scan_checked_at_epoch_millis
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 touchMediaSourceConnected:
 UPDATE media_source
@@ -406,6 +410,12 @@ WHERE id = ?;
 markMediaSourceSyncCompleted:
 UPDATE media_source
 SET last_sync_completed_at_epoch_millis = ?
+WHERE id = ?;
+
+markMediaSourceLibraryScanChecked:
+UPDATE media_source
+SET last_library_scan_signature = ?,
+    last_library_scan_checked_at_epoch_millis = ?
 WHERE id = ?;
 
 upsertLibraryArtist:

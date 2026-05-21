@@ -33,6 +33,8 @@ data class SavedMediaSource(
     val lastConnectedAtEpochMillis: Long?,
     val lastSyncStartedAtEpochMillis: Long?,
     val lastSyncCompletedAtEpochMillis: Long?,
+    val lastLibraryScanSignature: String? = null,
+    val lastLibraryScanCheckedAtEpochMillis: Long? = null,
 )
 
 fun normalizedBaseUrl(baseUrl: String): String =

@@ -307,6 +307,8 @@ data class MediaSourceStats(
     val lastConnectedAtEpochMillis: Long?,
     val lastSyncStartedAtEpochMillis: Long?,
     val lastSyncCompletedAtEpochMillis: Long?,
+    val lastLibraryScanSignature: String?,
+    val lastLibraryScanCheckedAtEpochMillis: Long?,
 ) {
     fun rows(): List<Pair<String, String>> =
         listOf(
@@ -320,6 +322,8 @@ data class MediaSourceStats(
             "Last connected" to lastConnectedAtEpochMillis.dateTimeLabel(),
             "Last sync started" to lastSyncStartedAtEpochMillis.dateTimeLabel(),
             "Last sync completed" to lastSyncCompletedAtEpochMillis.dateTimeLabel(),
+            "Last server scan" to (lastLibraryScanSignature ?: "Unknown"),
+            "Last server scan check" to lastLibraryScanCheckedAtEpochMillis.dateTimeLabel(),
         )
 }
 
@@ -428,6 +432,8 @@ fun SavedMediaSource.toStats(): MediaSourceStats =
         lastConnectedAtEpochMillis = lastConnectedAtEpochMillis,
         lastSyncStartedAtEpochMillis = lastSyncStartedAtEpochMillis,
         lastSyncCompletedAtEpochMillis = lastSyncCompletedAtEpochMillis,
+        lastLibraryScanSignature = lastLibraryScanSignature,
+        lastLibraryScanCheckedAtEpochMillis = lastLibraryScanCheckedAtEpochMillis,
     )
 
 data class ApiCallStats(

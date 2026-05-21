@@ -619,6 +619,8 @@ class DesktopCache(
             last_connected_at_epoch_millis = now,
             last_sync_started_at_epoch_millis = existing?.last_sync_started_at_epoch_millis,
             last_sync_completed_at_epoch_millis = existing?.last_sync_completed_at_epoch_millis,
+            last_library_scan_signature = existing?.last_library_scan_signature,
+            last_library_scan_checked_at_epoch_millis = existing?.last_library_scan_checked_at_epoch_millis,
         )
         return SavedMediaSource(
             id = id,
@@ -634,6 +636,8 @@ class DesktopCache(
             lastConnectedAtEpochMillis = now,
             lastSyncStartedAtEpochMillis = existing?.last_sync_started_at_epoch_millis,
             lastSyncCompletedAtEpochMillis = existing?.last_sync_completed_at_epoch_millis,
+            lastLibraryScanSignature = existing?.last_library_scan_signature,
+            lastLibraryScanCheckedAtEpochMillis = existing?.last_library_scan_checked_at_epoch_millis,
         )
     }
 
@@ -643,6 +647,10 @@ class DesktopCache(
 
     override fun markLibrarySyncCompleted(sourceId: String) {
         queries.markMediaSourceSyncCompleted(nowMillis(), sourceId)
+    }
+
+    fun markLibraryScanChecked(sourceId: String, signature: String) {
+        queries.markMediaSourceLibraryScanChecked(signature, nowMillis(), sourceId)
     }
 
     override fun upsertLibraryArtists(sourceId: String, artists: List<Artist>) {
@@ -1171,6 +1179,8 @@ private fun app.naviamp.storage.Media_source.toSavedMediaSource(): SavedMediaSou
         lastConnectedAtEpochMillis = last_connected_at_epoch_millis,
         lastSyncStartedAtEpochMillis = last_sync_started_at_epoch_millis,
         lastSyncCompletedAtEpochMillis = last_sync_completed_at_epoch_millis,
+        lastLibraryScanSignature = last_library_scan_signature,
+        lastLibraryScanCheckedAtEpochMillis = last_library_scan_checked_at_epoch_millis,
     )
 
 private fun app.naviamp.storage.Library_track.toTrack(): Track =
@@ -1274,6 +1284,7 @@ private fun app.naviamp.storage.Downloaded_audio.toTrack(): Track =
 private fun createDatabase(path: Path): NaviampStorageDatabase {
     Files.createDirectories(path.parent)
     val exists = path.exists()
+    registerSqliteDriver()
     val driver = JdbcSqliteDriver("jdbc:sqlite:${path.toAbsolutePath()}")
     if (!exists) {
         NaviampStorageDatabase.Schema.create(driver)
@@ -1284,14 +1295,40 @@ private fun createDatabase(path: Path): NaviampStorageDatabase {
             NaviampStorageDatabase.Schema.migrate(driver, oldVersion, newVersion)
         }
     }
+    ensureMediaSourceLibraryScanSchema(driver)
     ensureArtistPopularTracksSchema(driver)
     driver.execute(null, "PRAGMA foreign_keys=ON", 0)
     return NaviampStorageDatabase(driver)
 }
 
+private fun registerSqliteDriver() {
+    Class.forName("org.sqlite.JDBC")
+}
+
 private fun JdbcSqliteDriver.databaseVersion(): Long =
     executeQuery(null, "PRAGMA user_version", { cursor ->
         QueryResult.Value(if (cursor.next().value) cursor.getLong(0) ?: 0L else 0L)
+    }, 0).value
+
+private fun ensureMediaSourceLibraryScanSchema(driver: JdbcSqliteDriver) {
+    if (!driver.tableHasColumn("media_source", "last_library_scan_signature")) {
+        driver.execute(null, "ALTER TABLE media_source ADD COLUMN last_library_scan_signature TEXT", 0)
+    }
+    if (!driver.tableHasColumn("media_source", "last_library_scan_checked_at_epoch_millis")) {
+        driver.execute(null, "ALTER TABLE media_source ADD COLUMN last_library_scan_checked_at_epoch_millis INTEGER", 0)
+    }
+}
+
+private fun JdbcSqliteDriver.tableHasColumn(tableName: String, columnName: String): Boolean =
+    executeQuery(null, "PRAGMA table_info($tableName)", { cursor ->
+        var found = false
+        while (cursor.next().value) {
+            if (cursor.getString(1) == columnName) {
+                found = true
+                break
+            }
+        }
+        QueryResult.Value(found)
     }, 0).value
 
 private fun ensureArtistPopularTracksSchema(driver: JdbcSqliteDriver) {
