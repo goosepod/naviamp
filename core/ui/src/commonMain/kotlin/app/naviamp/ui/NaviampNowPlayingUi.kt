@@ -125,6 +125,7 @@ fun NaviampNowPlayingPanel(
     colors: NaviampColors,
     actions: NaviampNowPlayingActions,
     modifier: Modifier = Modifier,
+    visualizerBandsProvider: () -> List<Float> = { nowPlaying.visualizerFrame?.bands.orEmpty() },
 ) {
     var selectedTab by remember(nowPlaying.id, nowPlaying.isLive) { mutableStateOf(NaviampNowPlayingTab.UpNext) }
     val showStationList = nowPlaying.isLive
@@ -176,7 +177,7 @@ fun NaviampNowPlayingPanel(
                         cornerRadius = 8.dp,
                         visualizerVisible = nowPlaying.visualizerVisible,
                         visualizerAvailable = nowPlaying.visualizerAvailable,
-                        visualizerBands = nowPlaying.visualizerFrame?.bands.orEmpty(),
+                        visualizerBandsProvider = visualizerBandsProvider,
                         visualizerActive = nowPlaying.isPlaying,
                         onToggleVisualizer = actions.onToggleVisualizer,
                     )
@@ -259,7 +260,7 @@ fun NaviampNowPlayingPanel(
                                 cornerRadius = 8.dp,
                                 visualizerVisible = nowPlaying.visualizerVisible,
                                 visualizerAvailable = nowPlaying.visualizerAvailable,
-                                visualizerBands = nowPlaying.visualizerFrame?.bands.orEmpty(),
+                                visualizerBandsProvider = visualizerBandsProvider,
                                 visualizerActive = nowPlaying.isPlaying,
                                 onToggleVisualizer = actions.onToggleVisualizer,
                             )
@@ -301,7 +302,7 @@ fun NaviampNowPlayingPanel(
                                 cornerRadius = 8.dp,
                                 visualizerVisible = nowPlaying.visualizerVisible,
                                 visualizerAvailable = nowPlaying.visualizerAvailable,
-                                visualizerBands = nowPlaying.visualizerFrame?.bands.orEmpty(),
+                                visualizerBandsProvider = visualizerBandsProvider,
                                 visualizerActive = nowPlaying.isPlaying,
                                 onToggleVisualizer = actions.onToggleVisualizer,
                             )
@@ -344,7 +345,7 @@ private fun NowPlayingArtSurface(
     cornerRadius: Dp,
     visualizerVisible: Boolean,
     visualizerAvailable: Boolean,
-    visualizerBands: List<Float>,
+    visualizerBandsProvider: () -> List<Float>,
     visualizerActive: Boolean,
     onToggleVisualizer: () -> Unit,
 ) {
@@ -352,36 +353,34 @@ private fun NowPlayingArtSurface(
     val shape = RoundedCornerShape(cornerRadius)
     val toggleModifier = Modifier.clickable(enabled = visualizerAvailable, onClick = onToggleVisualizer)
 
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier.size(size + shadowMargin * 2),
-    ) {
+    if (visualizerVisible && visualizerAvailable) {
         Box(
+            contentAlignment = Alignment.Center,
             modifier = Modifier
-                .size(size)
-                .shadow(24.dp, shape, clip = false)
-                .shadow(7.dp, shape, clip = false),
+                .size(size + shadowMargin * 2)
+                .then(toggleModifier),
         ) {
-            if (visualizerVisible && visualizerAvailable) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(shape)
-                        .background(Color.Black.copy(alpha = 0.16f))
-                        .then(toggleModifier)
-                        .padding(18.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    LiveVisualizerSurface(
-                        bands = visualizerBands,
-                        active = visualizerActive,
-                        colors = colors,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(size * 0.42f),
-                    )
-                }
-            } else {
+            LiveVisualizerSurface(
+                bandsProvider = visualizerBandsProvider,
+                active = visualizerActive,
+                colors = colors,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(size * 0.42f)
+                    .padding(horizontal = 18.dp),
+            )
+        }
+    } else {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.size(size + shadowMargin * 2),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(size)
+                    .shadow(24.dp, shape, clip = false)
+                    .shadow(7.dp, shape, clip = false),
+            ) {
                 Box(modifier = toggleModifier) {
                     PlatformCoverArt(coverArtUrl, colors, size, cornerRadius)
                 }
@@ -832,12 +831,13 @@ private fun NowPlayingDetails(
 
 @Composable
 private fun LiveVisualizerSurface(
-    bands: List<Float>,
+    bandsProvider: () -> List<Float>,
     active: Boolean,
     colors: NaviampColors,
     modifier: Modifier = Modifier,
 ) {
     Canvas(modifier = modifier) {
+        val bands = bandsProvider()
         val visibleBands = minOf(bands.size, (size.width / 6f).toInt().coerceAtLeast(16))
         if (!active || visibleBands <= 0) {
             drawLine(

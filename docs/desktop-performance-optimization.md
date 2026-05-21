@@ -85,6 +85,20 @@ Implemented first pass:
 
 - Force `-Dskiko.renderApi=OPENGL` for Windows packaged desktop builds.
 
+### 3b. macOS packaged builds should stay on Metal
+
+macOS Compose Desktop should use Skiko Metal for the normal packaged app path. Keep this explicit so local packaged builds do not silently drift to a less efficient renderer while comparing idle CPU across platforms.
+
+Measured on `build/local-test/Naviamp.app`, idle after launch with no playback interaction:
+
+- `top`: about 0.1-0.2% CPU over a settled sample window.
+- `sample`: main thread parked in the AppKit event loop; Java, coroutine dispatcher, and Skiko threads were parked with no hot runnable app thread.
+
+Implemented first pass:
+
+- Force `-Dskiko.renderApi=METAL` for macOS packaged desktop builds.
+- Make local staging and local zip tasks platform-aware so macOS testing uses `Naviamp.app`, matching the Windows staged app workflow.
+
 ### 4. Cover-art decoding and palette extraction can be expensive
 
 The JVM cover art path decodes images and may extract palettes by sampling pixels. Recent changes reduced preloading, but this path still deserves measurement because album art changes and queue rows can trigger image work.
@@ -146,6 +160,9 @@ Useful probes to add:
 - [x] Identify Windows default Skiko renderer idle CPU burn.
 - [x] Force Windows packaged app to use Skiko OpenGL renderer.
 - [x] Re-test idle no-track scenario with packaged OpenGL renderer.
+- [x] Force macOS packaged app to use Skiko Metal renderer.
+- [x] Make local desktop staging/zip tasks work for macOS `.app` bundles.
+- [x] Re-test macOS idle no-track scenario with packaged Metal renderer.
 - [x] Throttle visible playback progress updates while preserving play reporting and saved-position checks.
 - [x] Re-test playing track on Player screen after progress throttling.
 - [ ] Confirm cover-art palette extraction is now-playing-only.

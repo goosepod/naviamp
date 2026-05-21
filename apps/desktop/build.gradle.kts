@@ -78,6 +78,15 @@ val copyDesktopBassJniAppResources by tasks.registering(Copy::class) {
     })
     onlyIf { desktopBassJniOutputFile.get().isFile }
 }
+val desktopPackagedAppName = desktopBassPlatform.map { platform ->
+    if (platform.startsWith("macos-")) "Naviamp.app" else "Naviamp"
+}
+val desktopPackagedAppDir = desktopPackagedAppName.flatMap { appName ->
+    layout.buildDirectory.dir("compose/binaries/main/app/$appName")
+}
+val desktopLocalTestAppDir = desktopPackagedAppName.flatMap { appName ->
+    rootProject.layout.buildDirectory.dir("local-test/$appName")
+}
 
 kotlin {
     jvm("desktop")
@@ -116,8 +125,13 @@ compose.desktop {
             "-Dapple.awt.application.name=Naviamp",
             "-Dsun.awt.application.name=Naviamp",
         )
-        if (desktopBassPlatform.get().startsWith("windows-")) {
-            jvmArgs += "-Dskiko.renderApi=OPENGL"
+        when {
+            desktopBassPlatform.get().startsWith("windows-") -> {
+                jvmArgs += "-Dskiko.renderApi=OPENGL"
+            }
+            desktopBassPlatform.get().startsWith("macos-") -> {
+                jvmArgs += "-Dskiko.renderApi=METAL"
+            }
         }
 
         buildTypes {
@@ -167,17 +181,17 @@ tasks.register<Zip>("packageLocalDistributable") {
     dependsOn("createDistributable")
     archiveFileName.set(desktopBassPlatform.map { platform -> "Naviamp-$platform-local.zip" })
     destinationDirectory.set(layout.buildDirectory.dir("compose/distributions"))
-    from(layout.buildDirectory.dir("compose/binaries/main/app/Naviamp")) {
-        into("Naviamp")
+    from(desktopPackagedAppDir) {
+        into(desktopPackagedAppName)
     }
 }
 
 tasks.register<Sync>("stageLocalTestApp") {
     group = "distribution"
-    description = "Builds the local packaged desktop app and stages it at build/local-test/Naviamp."
+    description = "Builds the local packaged desktop app and stages it under build/local-test."
     dependsOn("createDistributable")
-    from(layout.buildDirectory.dir("compose/binaries/main/app/Naviamp"))
-    into(rootProject.layout.buildDirectory.dir("local-test/Naviamp"))
+    from(desktopPackagedAppDir)
+    into(desktopLocalTestAppDir)
 }
 
 fun desktopNativePlatform(): String {

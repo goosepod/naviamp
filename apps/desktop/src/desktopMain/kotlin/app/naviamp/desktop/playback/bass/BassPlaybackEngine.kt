@@ -131,7 +131,7 @@ class BassPlaybackEngine(
                         lastMetadata = metadata
                         onMetadataChanged(metadata)
                     }
-                    delay(100)
+                    delay(PlaybackStatusPollIntervalMillis)
                 }
 
                 if (isCurrentPlayback(currentPlaybackId)) {
@@ -709,3 +709,4 @@ private const val EqualPowerEnvelopeSteps = 8
 private const val MaxReplayGainFactor = 4f
 private const val VisualizerBandCount = 32
 private const val VisualizerGain = 12f
+private const val PlaybackStatusPollIntervalMillis = 250L

@@ -512,7 +512,7 @@ fun NaviampApp(
         }
         while (nowPlayingVisualizerVisible && appRoute == AppRoute.Player && (playbackState == PlaybackState.Playing || playbackState == PlaybackState.Loading)) {
             nowPlayingVisualizerFrame = visualizerEngine.visualizerFrame()
-            kotlinx.coroutines.delay(66)
+            kotlinx.coroutines.delay(VisualizerFrameIntervalMillis)
         }
         nowPlayingVisualizerFrame = null
     }
@@ -829,6 +829,10 @@ fun NaviampApp(
             nowPlayingWaveformStatus = "Internet radio"
             nowPlayingAudioTags = null
             nowPlayingLyrics = null
+            nowPlayingLyricsStatus = null
+            return@LaunchedEffect
+        }
+        if (appRoute != AppRoute.Player) {
             nowPlayingLyricsStatus = null
             return@LaunchedEffect
         }
@@ -2692,7 +2696,7 @@ fun NaviampApp(
                                 supportsTrackRatings = connectedProvider?.capabilities?.supportsTrackRatings == true,
                                 nowPlayingTrack = nowPlayingTrack,
                                 nowPlayingWaveform = nowPlayingWaveform,
-                                nowPlayingVisualizerFrame = nowPlayingVisualizerFrame,
+                                visualizerBandsProvider = { nowPlayingVisualizerFrame?.bands.orEmpty() },
                                 nowPlayingAudioTags = nowPlayingAudioTags,
                                 nowPlayingLyrics = nowPlayingLyrics,
                                 nowPlayingLyricsStatus = nowPlayingLyricsStatus,
@@ -3450,6 +3454,7 @@ private const val LibraryPageSize = 50
 private const val PlaybackPositionSaveThresholdSeconds = 5.0
 private const val PlaybackProgressUiUpdateIntervalMillis = 500L
 private const val PlaybackProgressUiUpdateThresholdSeconds = 0.45
+private const val VisualizerFrameIntervalMillis = 125L
 private const val PendingSeekToleranceSeconds = 2.0
 private const val PendingSeekStaleProgressWindowMillis = 1_500L
 private const val RadioRefillThreshold = 10

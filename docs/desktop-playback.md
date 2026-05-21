@@ -131,6 +131,35 @@ apps/desktop/build/compose/distributions/Naviamp-windows-x64-local.zip
 
 Use `createReleaseDistributable` only when testing the true release/proguard path. It is much slower because it runs ProGuard across the Compose Desktop dependency graph and can surface release-only keep-rule problems.
 
+## macOS Local Build Workflow
+
+For local macOS testing, use the same normal Compose distributable path as Windows:
+
+```shell
+./gradlew --configure-on-demand -Pnaviamp.bass.platform=macos-arm64 -Pcompose.desktop.packaging.checkJdkVendor=false :apps:desktop:stageLocalTestApp
+open build/local-test/Naviamp.app
+```
+
+That task rebuilds the normal non-release `.app` bundle and syncs it into:
+
+```text
+build/local-test/Naviamp.app
+```
+
+Use this staged app for day-to-day CPU and playback testing. Treat `apps/desktop/build/compose/binaries/...` as Gradle internals.
+
+To produce a movable zip that keeps the `.app` bundle intact:
+
+```shell
+./gradlew --configure-on-demand -Pnaviamp.bass.platform=macos-arm64 -Pcompose.desktop.packaging.checkJdkVendor=false :apps:desktop:packageLocalDistributable
+```
+
+The zip is written to:
+
+```text
+apps/desktop/build/compose/distributions/Naviamp-macos-arm64-local.zip
+```
+
 ## Library Refresh
 
 Desktop keeps a local library index so search, radio fallback, popular-track matching, and library browsing can work without repeatedly crawling the server. A full library import is intentionally not run on every startup once a usable index exists, because it can create sustained local database writes and make the UI feel sluggish.
