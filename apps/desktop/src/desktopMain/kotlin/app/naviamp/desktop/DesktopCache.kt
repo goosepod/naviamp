@@ -1128,7 +1128,36 @@ data class CacheStats(
     val maxAudioBytes: Long,
     val maxAudioWaveformBytes: Long,
     val maxHotImageBytes: Long,
-)
+) {
+    companion object {
+        fun empty(): CacheStats =
+            CacheStats(
+                databasePath = "",
+                databaseBytes = 0L,
+                imageCount = 0L,
+                imageBytes = 0L,
+                responseCount = 0L,
+                audioCount = 0L,
+                audioBytes = 0L,
+                downloadCount = 0L,
+                downloadBytes = 0L,
+                audioWaveformCount = 0L,
+                audioWaveformBytes = 0L,
+                lyricsCount = 0L,
+                lyricsBytes = 0L,
+                mediaSourceCount = 0L,
+                libraryArtistCount = 0L,
+                libraryAlbumCount = 0L,
+                libraryTrackCount = 0L,
+                hotImageCount = 0,
+                hotImageBytes = 0L,
+                maxImageBytes = 0L,
+                maxAudioBytes = 0L,
+                maxAudioWaveformBytes = 0L,
+                maxHotImageBytes = 0L,
+            )
+    }
+}
 
 data class CachedAudioFile(
     val path: Path,

@@ -278,6 +278,7 @@ fun NaviampApp(
     val savedRecentRadioStreams = remember { settingsStore.loadRecentRadioStreams() }
     val savedRecentPlaylistIds = remember { settingsStore.loadRecentPlaylistIds() }
     val savedRecentInternetRadioStations = remember { settingsStore.loadRecentInternetRadioStations() }
+    var cacheStats by remember { mutableStateOf(CacheStats.empty()) }
     var connectedSourceId by remember { mutableStateOf(savedMediaSource?.id) }
     val deezerDiscoveryClient = remember { DeezerPopularTracksClient(DesktopPopularTracksHttpClient()) }
     val popularTracksService = remember(sessionCache) {
@@ -2518,8 +2519,12 @@ fun NaviampApp(
         }
     }
 
-    @Suppress("UNUSED_VARIABLE")
-    val statsForNerdsRefreshSnapshot = statsForNerdsRefreshTick
+    LaunchedEffect(showStatsForNerds, appRoute, statsForNerdsRefreshTick, downloadRefreshToken, mediaSourcesRevision) {
+        if (showStatsForNerds || appRoute == AppRoute.Settings || appRoute == AppRoute.Downloads) {
+            cacheStats = withContext(Dispatchers.IO) { sessionCache.stats() }
+        }
+    }
+
     val statsMediaSource = connectedSourceId?.let { sessionCache.mediaSource(it) } ?: sessionCache.latestMediaSource()
     val savedMediaSources = mediaSourcesRevision.let { sessionCache.mediaSources() }
     val streamQuality = playbackEngine.streamQuality()
@@ -2529,7 +2534,7 @@ fun NaviampApp(
                 sessionCache.cachedAudioMetadata(sourceId, track.id, streamQuality)
             }
         }
-    val statsForNerdsInfo = StatsForNerdsInfo(
+    val statsForNerdsInfo = if (showStatsForNerds) StatsForNerdsInfo(
         route = appRoute.name,
         os = "${System.getProperty("os.name")} ${System.getProperty("os.version")} (${System.getProperty("os.arch")})",
         javaVersion = System.getProperty("java.version"),
@@ -2566,7 +2571,7 @@ fun NaviampApp(
             internetRadioStation = nowPlayingInternetRadioStation,
             streamMetadata = nowPlayingStreamMetadata,
         ),
-        cacheStats = sessionCache.stats(),
+        cacheStats = cacheStats,
         providerCapabilities = connectedProvider?.capabilities?.asStatsMap().orEmpty(),
         apiCalls = (
             NavidromeApiCallHistory.recent(50).map { call ->
@@ -2601,13 +2606,13 @@ fun NaviampApp(
                 )
             }
         ).sortedByDescending { it.startedAtEpochMillis }.take(50),
-    )
+    ) else null
 
     MaterialTheme(colorScheme = colorScheme) {
-        if (showStatsForNerds) {
+        statsForNerdsInfo?.let { info ->
             StatsForNerdsWindow(
                 appColors = appColors,
-                info = statsForNerdsInfo,
+                info = info,
                 onClose = { showStatsForNerds = false },
             )
         }
@@ -3127,7 +3132,7 @@ fun NaviampApp(
                                         val downloads = remember(
                                             connectedSourceId,
                                             downloadRefreshToken,
-                                            statsForNerdsInfo.cacheStats.downloadCount,
+                                            cacheStats.downloadCount,
                                         ) {
                                             connectedSourceId
                                                 ?.let { sessionCache.downloadedTracks(it) }
@@ -3137,7 +3142,7 @@ fun NaviampApp(
                                             appColors = appColors,
                                             downloads = downloads,
                                             status = downloadStatus ?: connectionStatus,
-                                            downloadBytes = statsForNerdsInfo.cacheStats.downloadBytes,
+                                            downloadBytes = cacheStats.downloadBytes,
                                             maxDownloadBytes = cacheSettings.maxDownloadBytes,
                                             coverArtUrl = { coverArtId ->
                                                 coverArtId?.let { connectedProvider?.coverArtUrl(it) }
@@ -3167,7 +3172,7 @@ fun NaviampApp(
                                         connectionStatus = connectionStatus,
                                         playbackSettings = playbackSettings,
                                         cacheSettings = cacheSettings,
-                                        cacheStats = statsForNerdsInfo.cacheStats,
+                                        cacheStats = cacheStats,
                                         supportsReplayGain = playbackEngine.supportsReplayGain,
                                         supportsGapless = playbackEngine.supportsGapless,
                                         supportsCrossfade = playbackEngine.supportsCrossfade,
