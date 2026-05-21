@@ -25,6 +25,26 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jetbrains.skia.Image as SkiaImage
 import java.net.URI
+import java.util.LinkedHashMap
+
+@Volatile
+private var platformCoverArtByteLoader: suspend (String) -> ByteArray = ::defaultPlatformCoverArtBytes
+
+fun setJvmPlatformCoverArtByteLoader(loader: suspend (String) -> ByteArray) {
+    platformCoverArtByteLoader = loader
+}
+
+fun resetJvmPlatformCoverArtByteLoader() {
+    platformCoverArtByteLoader = ::defaultPlatformCoverArtBytes
+}
+
+suspend fun preloadJvmPlatformCoverArt(urls: Iterable<String>) {
+    urls.distinct().forEach { url ->
+        runCatching {
+            JvmCoverArtCache.image(url)
+        }
+    }
+}
 
 @Composable
 actual fun PlatformCoverArt(
@@ -33,7 +53,7 @@ actual fun PlatformCoverArt(
     size: Dp,
     cornerRadius: Dp,
 ) {
-    var image by remember { mutableStateOf<ImageBitmap?>(null) }
+    var image by remember(url) { mutableStateOf(url?.let { JvmCoverArtCache.cachedImage(it) }) }
 
     LaunchedEffect(url) {
         if (url == null) {
@@ -41,11 +61,7 @@ actual fun PlatformCoverArt(
             return@LaunchedEffect
         }
         image = runCatching {
-            withContext(Dispatchers.IO) {
-                URI(url).toURL().openStream().use { input ->
-                    SkiaImage.makeFromEncoded(input.readBytes()).toComposeImageBitmap()
-                }
-            }
+            JvmCoverArtCache.image(url)
         }.getOrNull()
     }
 
@@ -84,19 +100,19 @@ actual fun rememberPlatformCoverArtPlayerColors(
     url: String?,
     colors: NaviampColors,
 ): NaviampPlayerColors {
-    var playerColors by remember { mutableStateOf(NaviampPlayerColors.fallback(colors)) }
+    var playerColors by remember(url, colors) {
+        mutableStateOf(
+            url?.let { JvmCoverArtCache.cachedPlayerColors(it, colors) }
+                ?: NaviampPlayerColors.fallback(colors),
+        )
+    }
 
     LaunchedEffect(url) {
         playerColors = if (url == null) {
             NaviampPlayerColors.fallback(colors)
         } else {
             runCatching {
-                withContext(Dispatchers.IO) {
-                    URI(url).toURL().openStream().use { input ->
-                        naviampAlbumPalette(jvmRgbSamples(input.readBytes()))
-                            ?.let { NaviampPlayerColors.from(it, colors) }
-                    }
-                }
+                JvmCoverArtCache.playerColors(url, colors)
             }.getOrNull() ?: NaviampPlayerColors.fallback(colors)
         }
     }
@@ -127,4 +143,60 @@ private fun jvmRgbSamples(bytes: ByteArray): List<NaviampRgbSample> {
         y += stepY
     }
     return samples
+}
+
+private suspend fun defaultPlatformCoverArtBytes(url: String): ByteArray =
+    withContext(Dispatchers.IO) {
+        URI(url).toURL().openStream().use { input -> input.readBytes() }
+    }
+
+private object JvmCoverArtCache {
+    private const val MaxImages = 240
+    private const val MaxPalettes = 240
+
+    private val images = object : LinkedHashMap<String, ImageBitmap>(MaxImages, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ImageBitmap>?): Boolean =
+            size > MaxImages
+    }
+    private val palettes = object : LinkedHashMap<String, List<NaviampRgbSample>>(MaxPalettes, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<NaviampRgbSample>>?): Boolean =
+            size > MaxPalettes
+    }
+
+    fun cachedImage(url: String): ImageBitmap? =
+        synchronized(images) { images[url] }
+
+    fun cachedPlayerColors(url: String, colors: NaviampColors): NaviampPlayerColors? =
+        synchronized(palettes) { palettes[url] }
+            ?.let { naviampAlbumPalette(it) }
+            ?.let { NaviampPlayerColors.from(it, colors) }
+
+    suspend fun image(url: String): ImageBitmap =
+        cachedImage(url) ?: withContext(Dispatchers.IO) {
+            cachedImage(url) ?: SkiaImage.makeFromEncoded(platformCoverArtByteLoader(url))
+                .toComposeImageBitmap()
+                .also { image ->
+                    synchronized(images) {
+                        images[url] = image
+                    }
+                }
+        }
+
+    suspend fun playerColors(
+        url: String,
+        colors: NaviampColors = NaviampColors.Dark,
+    ): NaviampPlayerColors {
+        val samples = synchronized(palettes) { palettes[url] }
+            ?: withContext(Dispatchers.IO) {
+                synchronized(palettes) { palettes[url] } ?: jvmRgbSamples(platformCoverArtByteLoader(url))
+                    .also { loadedSamples ->
+                        synchronized(palettes) {
+                            palettes[url] = loadedSamples
+                        }
+                    }
+            }
+        return naviampAlbumPalette(samples)
+            ?.let { NaviampPlayerColors.from(it, colors) }
+            ?: NaviampPlayerColors.fallback(colors)
+    }
 }

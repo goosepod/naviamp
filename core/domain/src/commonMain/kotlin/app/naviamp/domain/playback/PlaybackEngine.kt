@@ -1,5 +1,6 @@
 package app.naviamp.domain.playback
 
+import app.naviamp.domain.ReplayGain
 import kotlinx.coroutines.CoroutineScope
 
 interface PlaybackEngine {
@@ -37,12 +38,36 @@ interface QueueAwarePlaybackEngine : PlaybackEngine {
     fun prepareNext(request: PlaybackRequest)
 }
 
+interface VisualizerPlaybackEngine : PlaybackEngine {
+    val supportsVisualizer: Boolean
+
+    fun visualizerFrame(): PlaybackVisualizerFrame?
+}
+
+data class PlaybackVisualizerFrame(
+    val bands: List<Float>,
+    val timestampMillis: Long,
+)
+
 data class PlaybackRequest(
     val url: String,
     val mediaId: String? = null,
     val replayGainMode: ReplayGainMode = ReplayGainMode.Off,
+    val replayGain: PlaybackReplayGain? = null,
     val startPositionSeconds: Double? = null,
 )
+
+data class PlaybackReplayGain(
+    val replayGain: ReplayGain,
+    val source: ReplayGainSource,
+)
+
+enum class ReplayGainSource(
+    val displayName: String,
+) {
+    Provider("Provider metadata"),
+    LocalTags("Local file tags"),
+}
 
 data class PlaybackStreamMetadata(
     val title: String? = null,
@@ -64,14 +89,18 @@ fun streamTitle(
     properties: Map<String, String>,
     fallbackTitle: String? = null,
 ): String? =
-    listOf(
-        properties["icy-title"],
-        properties["StreamTitle"],
-        properties["streamtitle"],
-        properties["title"],
-        properties["Title"],
+    listOfNotNull(
+        properties.valueIgnoringCase("icy-title"),
+        properties.valueIgnoringCase("StreamTitle"),
+        properties.valueIgnoringCase("streamtitle"),
+        properties.valueIgnoringCase("title"),
         fallbackTitle,
     ).firstOrNull { !it.isNullOrBlank() }?.trim()
+
+private fun Map<String, String>.valueIgnoringCase(key: String): String? {
+    get(key)?.let { return it }
+    return entries.firstOrNull { it.key.equals(key, ignoreCase = true) }?.value
+}
 
 enum class ReplayGainMode(
     val displayName: String,

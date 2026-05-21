@@ -1,15 +1,13 @@
 package app.naviamp.desktop
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Track
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
+import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.waveform.AudioWaveform
@@ -36,9 +34,13 @@ fun NowPlayingPanel(
     supportsTrackRatings: Boolean,
     nowPlayingTrack: Track?,
     nowPlayingWaveform: AudioWaveform?,
+    nowPlayingVisualizerFrame: PlaybackVisualizerFrame?,
     nowPlayingAudioTags: List<AudioTag>?,
     nowPlayingLyrics: Lyrics?,
     nowPlayingLyricsStatus: String?,
+    lyricsVisible: Boolean,
+    visualizerAvailable: Boolean,
+    visualizerVisible: Boolean,
     coverArtUrl: String?,
     backTo: List<Track>,
     upNext: List<Track>,
@@ -66,6 +68,8 @@ fun NowPlayingPanel(
     onToggleShuffle: () -> Unit,
     onCycleRepeatMode: () -> Unit,
     onVolumeChanged: (Int) -> Unit,
+    onToggleLyrics: () -> Unit,
+    onToggleVisualizer: () -> Unit,
     onToggleTrackFavorite: (Track) -> Unit,
     onTrackRatingSelected: (Track, Int?) -> Unit,
     onArtistSelected: (Track) -> Unit,
@@ -84,7 +88,6 @@ fun NowPlayingPanel(
     onRelatedTrackAddToPlaylist: (Track) -> Unit,
     onCollapseToHome: () -> Unit,
 ) {
-    var showLyrics by remember(nowPlayingTrack?.id) { mutableStateOf(false) }
     val isLiveStream = currentInternetRadioStationId != null
     val effectiveDurationSeconds = nowPlayingTrack?.durationSeconds?.toDouble()
         ?: playbackProgress.durationSeconds
@@ -136,6 +139,9 @@ fun NowPlayingPanel(
                 coverArtUrl = coverArtUrl,
                 playbackEngineName = playbackEngineName,
                 waveform = nowPlayingWaveform,
+                visualizerFrame = nowPlayingVisualizerFrame,
+                visualizerAvailable = visualizerAvailable,
+                visualizerVisible = visualizerVisible,
                 positionSeconds = playbackProgress.positionSeconds,
                 durationSeconds = effectiveDurationSeconds,
                 volumePercent = volumePercent,
@@ -155,7 +161,7 @@ fun NowPlayingPanel(
                 canFavorite = supportsTrackFavorites && !isLiveStream,
                 canRate = supportsTrackRatings && !isLiveStream,
                 lyricsAvailable = !isLiveStream,
-                lyricsVisible = showLyrics,
+                lyricsVisible = lyricsVisible,
                 lyricsStatus = nowPlayingLyricsStatus,
                 lyrics = nowPlayingLyrics,
                 menuEnabled = true,
@@ -210,7 +216,8 @@ fun NowPlayingPanel(
             onToggleShuffle = onToggleShuffle,
             onCycleRepeatMode = onCycleRepeatMode,
             onVolumeChanged = onVolumeChanged,
-            onToggleLyrics = { showLyrics = !showLyrics },
+            onToggleLyrics = onToggleLyrics,
+            onToggleVisualizer = onToggleVisualizer,
             onTrackRadio = { nowPlayingTrack?.let(onTrackRadioSelected) },
             onAddToPlaylist = { nowPlayingTrack?.let(onAddTrackToPlaylist) },
             onDownloadTrack = { nowPlayingTrack?.let(onDownloadTrackSelected) },

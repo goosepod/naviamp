@@ -35,10 +35,12 @@ fun AlbumDetailPanel(
     onShuffleAlbum: () -> Unit,
     onAlbumRadio: () -> Unit,
     onDownloadAlbum: () -> Unit,
+    onAddAlbumToQueue: () -> Unit,
     onAddAlbumToPlaylist: () -> Unit,
     onPlayTrack: (Int) -> Unit,
     onTrackRadio: (Track) -> Unit,
     onDownloadTrack: (Track) -> Unit,
+    onAddTrackToQueue: (Track) -> Unit,
     onAddTrackToPlaylist: (Track) -> Unit,
     onArtistSelected: (Track) -> Unit,
 ) {
@@ -146,6 +148,13 @@ fun AlbumDetailPanel(
                     )
                     DetailActionIconButton(
                         appColors = appColors,
+                        icon = NavigationIcons.Queue,
+                        contentDescription = "Add album to queue",
+                        enabled = albumDetails?.tracks?.isNotEmpty() == true,
+                        onClick = onAddAlbumToQueue,
+                    )
+                    DetailActionIconButton(
+                        appColors = appColors,
                         icon = NavigationIcons.Playlist,
                         contentDescription = "Add album to playlist",
                         enabled = albumDetails?.tracks?.isNotEmpty() == true,
@@ -180,6 +189,7 @@ fun AlbumDetailPanel(
                         onClick = { onPlayTrack(index) },
                         onStartRadio = { onTrackRadio(track) },
                         onDownload = { onDownloadTrack(track) },
+                        onAddToQueue = { onAddTrackToQueue(track) },
                         onAddToPlaylist = { onAddTrackToPlaylist(track) },
                     )
                 }

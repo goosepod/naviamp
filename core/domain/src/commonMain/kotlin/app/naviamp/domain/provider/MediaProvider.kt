@@ -23,6 +23,7 @@ interface MediaProvider {
         get() = id.value
 
     suspend fun validateConnection(): ConnectionValidation
+    suspend fun libraryScanStatus(): LibraryScanStatus? = null
     suspend fun recentlyAddedAlbums(limit: Int = 20): List<Album>
     suspend fun album(albumId: AlbumId): AlbumDetails
     suspend fun artist(artistId: ArtistId): ArtistDetails
@@ -116,3 +117,13 @@ data class ConnectionValidation(
     val serverVersion: String?,
     val apiVersion: String?,
 )
+
+data class LibraryScanStatus(
+    val scanning: Boolean?,
+    val count: Int?,
+    val lastScan: String?,
+    val folderCount: Int?,
+) {
+    val signature: String?
+        get() = lastScan?.takeIf { it.isNotBlank() }
+}

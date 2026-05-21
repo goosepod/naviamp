@@ -305,6 +305,30 @@ object NaviampTransportIcons {
             lineTo(13f, 16f)
         }
     }.build()
+
+    val Visualizer: ImageVector = ImageVector.Builder(
+        name = "Visualizer",
+        defaultWidth = IconSize,
+        defaultHeight = IconSize,
+        viewportWidth = Viewport,
+        viewportHeight = Viewport,
+    ).apply {
+        path(
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 1.9f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+        ) {
+            moveTo(5f, 14.5f)
+            lineTo(5f, 9.5f)
+            moveTo(9.7f, 18f)
+            lineTo(9.7f, 6f)
+            moveTo(14.3f, 16f)
+            lineTo(14.3f, 8f)
+            moveTo(19f, 13f)
+            lineTo(19f, 11f)
+        }
+    }.build()
 }
 
 private val IconSize = 24.dp

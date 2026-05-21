@@ -16,12 +16,14 @@ import app.naviamp.domain.Lyrics
 import app.naviamp.domain.LyricsSource
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.ProviderId
+import app.naviamp.domain.ReplayGain
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.ConnectionValidation
+import app.naviamp.domain.provider.LibraryScanStatus
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.ProviderCapabilities
@@ -29,6 +31,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
@@ -62,6 +65,17 @@ class NavidromeProvider(
         return ConnectionValidation(
             serverVersion = root.stringValue("serverVersion"),
             apiVersion = root.stringValue("version"),
+        )
+    }
+
+    override suspend fun libraryScanStatus(): LibraryScanStatus? {
+        val response = runCatching { get("getScanStatus.view") }.getOrNull() ?: return null
+        val scanStatus = response.subsonicResponse()["scanStatus"]?.jsonObject ?: return null
+        return LibraryScanStatus(
+            scanning = scanStatus.booleanValue("scanning"),
+            count = scanStatus.intValue("count"),
+            lastScan = scanStatus.stringValue("lastScan"),
+            folderCount = scanStatus.intValue("folderCount"),
         )
     }
 
@@ -723,10 +737,30 @@ class NavidromeProvider(
                 bitDepth = intValue("bitDepth"),
                 samplingRateHz = intValue("samplingRate"),
             ),
-            replayGain = null,
+            replayGain = replayGainValue(),
             favoritedAtIso8601 = stringValue("starred"),
             userRating = intValue("userRating")?.takeIf { it in 1..5 },
         )
+
+    private fun JsonObject.replayGainValue(): ReplayGain? {
+        val replayGain = this["replayGain"]?.jsonObject
+        fun value(vararg keys: String): Double? =
+            keys.firstNotNullOfOrNull { key ->
+                replayGain?.doubleValue(key) ?: doubleValue(key)
+            }
+
+        val trackGain = value("trackGain", "trackGainDb", "replayGainTrackGain", "replaygainTrackGain")
+        val albumGain = value("albumGain", "albumGainDb", "replayGainAlbumGain", "replaygainAlbumGain")
+        val trackPeak = value("trackPeak", "replayGainTrackPeak", "replaygainTrackPeak")
+        val albumPeak = value("albumPeak", "replayGainAlbumPeak", "replaygainAlbumPeak")
+        if (trackGain == null && albumGain == null && trackPeak == null && albumPeak == null) return null
+        return ReplayGain(
+            trackGainDb = trackGain,
+            albumGainDb = albumGain,
+            trackPeak = trackPeak,
+            albumPeak = albumPeak,
+        )
+    }
 
     private fun JsonObject.toLyrics(): Lyrics? {
         val lineArray = this["line"] as? JsonArray ?: return null
@@ -785,12 +819,58 @@ object NavidromeApiCallHistory {
         }
 }
 
+fun recordNavidromeApiCall(
+    url: String,
+    startedAt: Long,
+    durationMillis: Long,
+    success: Boolean,
+    errorMessage: String?,
+) {
+    NavidromeApiCallHistory.record(
+        NavidromeApiCall(
+            endpoint = url.substringBefore("?").trimEnd('/').substringAfterLast('/').ifBlank { "unknown" },
+            sanitizedUrl = url.sanitizedNavidromeUrl(),
+            startedAtEpochMillis = startedAt,
+            durationMillis = durationMillis.coerceAtLeast(0),
+            success = success,
+            errorMessage = errorMessage,
+        ),
+    )
+}
+
 class NavidromeException(message: String) : RuntimeException(message)
 
 private fun List<Pair<String, String>>.toQueryString(): String =
     joinToString("&") { (key, value) ->
         "${key.urlEncode()}=${value.urlEncode()}"
     }
+
+private fun String.sanitizedNavidromeUrl(): String =
+    runCatching {
+        val pathAndQuery = substringAfter("://", this).substringAfter("/", "")
+        val path = pathAndQuery.substringBefore("?")
+        val query = pathAndQuery.substringAfter("?", missingDelimiterValue = "")
+            .split("&")
+            .filter { it.isNotBlank() }
+            .joinToString("&") { rawParam ->
+                val key = rawParam.substringBefore("=")
+                if (key in SensitiveNavidromeQueryKeys) {
+                    "$key=<redacted>"
+                } else {
+                    rawParam
+                }
+            }
+        buildString {
+            append("/")
+            append(path)
+            if (query.isNotBlank()) {
+                append("?")
+                append(query)
+            }
+        }
+    }.getOrDefault("<unparseable url>")
+
+private val SensitiveNavidromeQueryKeys = setOf("u", "t", "s")
 
 private fun JsonObject.stringValue(key: String): String? =
     this[key]?.jsonPrimitive?.content
@@ -800,6 +880,9 @@ private fun JsonObject.intValue(key: String): Int? =
 
 private fun JsonObject.longValue(key: String): Long? =
     this[key]?.jsonPrimitive?.longOrNull ?: stringValue(key)?.toLongOrNull()
+
+private fun JsonObject.doubleValue(key: String): Double? =
+    this[key]?.jsonPrimitive?.doubleOrNull ?: stringValue(key)?.toDoubleOrNull()
 
 private fun JsonObject.booleanValue(key: String): Boolean? =
     this[key]?.jsonPrimitive?.booleanOrNull ?: stringValue(key)?.toBooleanStrictOrNull()

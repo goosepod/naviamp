@@ -1,36 +1,63 @@
 package app.naviamp.desktop
 
 import app.naviamp.domain.lyrics.LrclibLyricsProvider
-import app.naviamp.domain.lyrics.LrclibLyricsQuery
 import java.net.URI
-import java.net.URLEncoder
 import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
 
 class LrclibLyricsClient(
-    private val httpClient: HttpClient = HttpClient.newHttpClient(),
-    private val baseUrl: String = "https://lrclib.net",
-) : LrclibLyricsProvider() {
-    protected override suspend fun responseBody(query: LrclibLyricsQuery): String? {
-        val url = "$baseUrl/api/get?" + query.parameters.joinToString("&") { (key, value) ->
-            "${key}=${value.urlEncoded()}"
+    httpClient: HttpClient = HttpClient.newHttpClient(),
+    baseUrl: String = "https://lrclib.net",
+) : LrclibLyricsProvider(
+    DesktopSharedHttpClient(
+        httpClient = httpClient,
+        callRecorder = { call -> DesktopLrclibApiCallHistory.record(call.toLrclibCall()) },
+    ),
+    baseUrl,
+)
+
+data class DesktopLrclibApiCall(
+    val endpoint: String,
+    val sanitizedUrl: String,
+    val startedAtEpochMillis: Long,
+    val durationMillis: Long,
+    val success: Boolean,
+    val errorMessage: String?,
+)
+
+object DesktopLrclibApiCallHistory {
+    private const val MaxCalls = 150
+    private val lock = Any()
+    private val calls = ArrayDeque<DesktopLrclibApiCall>()
+
+    fun record(call: DesktopLrclibApiCall) {
+        synchronized(lock) {
+            calls.addLast(call)
+            while (calls.size > MaxCalls) {
+                calls.removeFirst()
+            }
         }
-
-        val request = HttpRequest.newBuilder(URI.create(url))
-            .header("Accept", "application/json")
-            .header("User-Agent", "Naviamp/0.9.0 (https://github.com/jbmcmichael/Naviamp)")
-            .GET()
-            .build()
-        val response = runCatching {
-            httpClient.send(request, HttpResponse.BodyHandlers.ofString())
-        }.getOrNull() ?: return null
-        if (response.statusCode() == 404) return null
-        if (response.statusCode() !in 200..299) return null
-
-        return response.body()
     }
+
+    fun recent(limit: Int = 50): List<DesktopLrclibApiCall> =
+        synchronized(lock) {
+            calls.takeLast(limit.coerceAtLeast(0)).asReversed()
+        }
 }
 
-private fun String.urlEncoded(): String =
-    URLEncoder.encode(this, Charsets.UTF_8)
+private fun DesktopSharedHttpCall.toLrclibCall(): DesktopLrclibApiCall =
+    DesktopLrclibApiCall(
+        endpoint = url.lrclibEndpointLabel(),
+        sanitizedUrl = url.sanitizedLrclibUrl(),
+        startedAtEpochMillis = startedAtEpochMillis,
+        durationMillis = durationMillis,
+        success = success,
+        errorMessage = errorMessage,
+    )
+
+private fun String.lrclibEndpointLabel(): String {
+    val path = runCatching { URI.create(this).path }.getOrNull().orEmpty().trim('/')
+    return path.ifBlank { "unknown" }
+}
+
+private fun String.sanitizedLrclibUrl(): String =
+    replace(Regex("""([?&](track_name|artist_name|album_name)=)[^&]+"""), "$1***")

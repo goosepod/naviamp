@@ -8,12 +8,18 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
+import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.waveform.AudioWaveform
 
-fun Artist.toSharedMediaItemUi(): SharedMediaItemUi =
-    SharedMediaItemUi(id = id.value, title = name, subtitle = "Artist")
+fun Artist.toSharedMediaItemUi(coverArtUrl: ((String?) -> String?)? = null): SharedMediaItemUi =
+    SharedMediaItemUi(
+        id = id.value,
+        title = name,
+        subtitle = "Artist",
+        coverArtUrl = coverArtUrl?.invoke(id.value),
+    )
 
 fun Album.toSharedMediaItemUi(coverArtUrl: (String?) -> String?): SharedMediaItemUi =
     SharedMediaItemUi(
@@ -21,7 +27,7 @@ fun Album.toSharedMediaItemUi(coverArtUrl: (String?) -> String?): SharedMediaIte
         title = title,
         subtitle = artistName,
         meta = releaseYear?.toString().orEmpty(),
-        coverArtUrl = coverArtUrl(coverArtId),
+        coverArtUrl = coverArtUrl(coverArtId ?: id.value),
     )
 
 fun Playlist.toSharedMediaItemUi(
@@ -40,12 +46,15 @@ fun Playlist.toSharedMediaItemUi(
 fun InternetRadioStation.toSharedMediaItemUi(): SharedMediaItemUi =
     SharedMediaItemUi(id = id, title = name, subtitle = homePageUrl ?: "Internet radio")
 
-fun Track.toAndroidTrackRowUi(coverArtUrl: (String?) -> String?): AndroidTrackRowUi =
+fun Track.toAndroidTrackRowUi(
+    coverArtUrl: (String?) -> String?,
+    fallbackCoverArtId: String? = null,
+): AndroidTrackRowUi =
     AndroidTrackRowUi(
         id = id.value,
         title = title,
         subtitle = listOfNotNull(artistName, albumTitle).joinToString(" - "),
-        coverArtUrl = coverArtUrl(coverArtId),
+        coverArtUrl = coverArtUrl(coverArtId ?: fallbackCoverArtId),
         meta = durationSeconds?.durationLabel().orEmpty(),
     )
 
@@ -85,11 +94,7 @@ fun Track.nowPlayingAlbumLine(): String =
     }.orEmpty()
 
 fun Track.nowPlayingAudioInfoLabel(playbackEngineName: String? = null): String =
-    if (playbackEngineName == "JLayer") {
-        "MP3  192 kbps"
-    } else {
-        audioInfo?.nowPlayingLabel().orEmpty()
-    }
+    audioInfo?.nowPlayingLabel().orEmpty()
 
 fun Track.toNowPlayingDetailSections(
     embeddedTags: List<Pair<String, String>>? = null,
@@ -162,6 +167,9 @@ data class NowPlayingTrackUiConfig(
     val coverArtUrl: String?,
     val playbackEngineName: String? = null,
     val waveform: AudioWaveform? = null,
+    val visualizerFrame: PlaybackVisualizerFrame? = null,
+    val visualizerAvailable: Boolean = false,
+    val visualizerVisible: Boolean = false,
     val positionSeconds: Double? = null,
     val durationSeconds: Double? = null,
     val volumePercent: Int = 100,
@@ -225,6 +233,9 @@ fun Track.toNowPlayingUi(config: NowPlayingTrackUiConfig): NowPlayingUi =
         albumLine = nowPlayingAlbumLine(),
         audioInfo = nowPlayingAudioInfoLabel(config.playbackEngineName),
         waveform = config.waveform,
+        visualizerFrame = config.visualizerFrame,
+        visualizerAvailable = config.visualizerAvailable,
+        visualizerVisible = config.visualizerVisible,
         positionSeconds = config.positionSeconds,
         durationSeconds = durationSeconds?.toDouble() ?: config.durationSeconds,
         volumePercent = config.volumePercent,
@@ -319,19 +330,23 @@ fun Playlist.toSharedPlaylistDetailUi(
 fun AlbumDetails.toSharedAlbumDetailUi(coverArtUrl: (String?) -> String?): SharedAlbumDetailUi =
     SharedAlbumDetailUi(
         album = album.toSharedMediaItemUi(coverArtUrl),
-        tracks = tracks.map { it.toAndroidTrackRowUi(coverArtUrl) },
+        tracks = tracks.map { it.toAndroidTrackRowUi(coverArtUrl, fallbackCoverArtId = album.coverArtId ?: album.id.value) },
         totalDurationLabel = tracks.totalDurationLabel(),
     )
 
-fun ArtistDetails.toSharedArtistDetailUi(coverArtUrl: (String?) -> String?): SharedArtistDetailUi =
+fun ArtistDetails.toSharedArtistDetailUi(
+    coverArtUrl: (String?) -> String?,
+    popularTracks: List<Track> = emptyList(),
+): SharedArtistDetailUi =
     SharedArtistDetailUi(
-        artist = artist.toSharedMediaItemUi(),
+        artist = artist.toSharedMediaItemUi(coverArtUrl),
         albums = albums.map { it.toSharedMediaItemUi(coverArtUrl) },
+        popularTracks = popularTracks.map { it.toAndroidTrackRowUi(coverArtUrl) },
     )
 
 fun MediaSearchResults.toSharedSearchResultsUi(coverArtUrl: (String?) -> String?): SharedSearchResultsUi =
     SharedSearchResultsUi(
-        artists = artists.map { it.toSharedMediaItemUi() },
+        artists = artists.map { it.toSharedMediaItemUi(coverArtUrl) },
         albums = albums.map { it.toSharedMediaItemUi(coverArtUrl) },
         tracks = tracks.map { it.toAndroidTrackRowUi(coverArtUrl) },
     )

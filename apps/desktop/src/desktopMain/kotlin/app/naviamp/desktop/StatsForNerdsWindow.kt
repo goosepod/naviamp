@@ -118,7 +118,7 @@ fun StatsForNerdsWindow(
                                 "Current index" to info.currentQueueIndex.toString(),
                                 "Capabilities" to info.playbackCapabilities,
                                 "Playback source" to info.cacheRuntime.playbackSource.label,
-                            ),
+                            ) + info.playbackEngineStats,
                         )
                         StatsSection(
                             appColors = appColors,
@@ -212,7 +212,7 @@ private fun ApiHistorySection(
             .padding(10.dp),
         verticalArrangement = Arrangement.spacedBy(5.dp),
     ) {
-        Text("Navidrome API Calls", color = appColors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+        Text("API Calls", color = appColors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
         if (calls.isEmpty()) {
             Text("No calls recorded yet.", color = appColors.secondaryText, fontSize = 11.sp)
             return@Column
@@ -223,6 +223,12 @@ private fun ApiHistorySection(
                 HorizontalDivider(color = appColors.border.copy(alpha = 0.45f), thickness = 0.5.dp)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    call.source,
+                    color = appColors.secondaryText,
+                    fontSize = 11.sp,
+                    modifier = Modifier.width(66.dp),
+                )
                 Text(
                     call.statusLabel,
                     color = if (call.success) appColors.secondaryText else MaterialTheme.colorScheme.error,
@@ -280,6 +286,7 @@ data class StatsForNerdsInfo(
     val librarySync: LibrarySyncStats,
     val playbackEngineName: String,
     val playbackCapabilities: String,
+    val playbackEngineStats: List<Pair<String, String>>,
     val queueSize: Int,
     val currentQueueIndex: Int,
     val cacheRuntime: CacheRuntimeStats,
@@ -300,6 +307,8 @@ data class MediaSourceStats(
     val lastConnectedAtEpochMillis: Long?,
     val lastSyncStartedAtEpochMillis: Long?,
     val lastSyncCompletedAtEpochMillis: Long?,
+    val lastLibraryScanSignature: String?,
+    val lastLibraryScanCheckedAtEpochMillis: Long?,
 ) {
     fun rows(): List<Pair<String, String>> =
         listOf(
@@ -313,6 +322,8 @@ data class MediaSourceStats(
             "Last connected" to lastConnectedAtEpochMillis.dateTimeLabel(),
             "Last sync started" to lastSyncStartedAtEpochMillis.dateTimeLabel(),
             "Last sync completed" to lastSyncCompletedAtEpochMillis.dateTimeLabel(),
+            "Last server scan" to (lastLibraryScanSignature ?: "Unknown"),
+            "Last server scan check" to lastLibraryScanCheckedAtEpochMillis.dateTimeLabel(),
         )
 }
 
@@ -404,6 +415,9 @@ private fun AudioPrefetchStats.rows(): List<Pair<String, String>> =
         "Completed" to completed.toString(),
         "Failed" to failed.toString(),
         "Last error" to (lastError ?: "None"),
+        "Sidecar completed" to sidecarCompleted.toString(),
+        "Sidecar failed" to sidecarFailed.toString(),
+        "Last sidecar error" to (lastSidecarError ?: "None"),
     )
 
 fun SavedMediaSource.toStats(): MediaSourceStats =
@@ -418,11 +432,15 @@ fun SavedMediaSource.toStats(): MediaSourceStats =
         lastConnectedAtEpochMillis = lastConnectedAtEpochMillis,
         lastSyncStartedAtEpochMillis = lastSyncStartedAtEpochMillis,
         lastSyncCompletedAtEpochMillis = lastSyncCompletedAtEpochMillis,
+        lastLibraryScanSignature = lastLibraryScanSignature,
+        lastLibraryScanCheckedAtEpochMillis = lastLibraryScanCheckedAtEpochMillis,
     )
 
 data class ApiCallStats(
+    val source: String,
     val endpoint: String,
     val sanitizedUrl: String,
+    val startedAtEpochMillis: Long,
     val durationMillis: Long,
     val success: Boolean,
     val errorMessage: String?,

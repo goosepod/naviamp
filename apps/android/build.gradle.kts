@@ -17,11 +17,28 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "0.9.0"
+        externalNativeBuild {
+            cmake {
+                arguments += "-DANDROID_STL=c++_shared"
+            }
+        }
     }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    sourceSets {
+        getByName("main") {
+            jniLibs.srcDir(project.layout.projectDirectory.dir("../../native/bass-jni/vendor/android"))
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = project.layout.projectDirectory.file("../../native/bass-jni/CMakeLists.txt").asFile
+        }
     }
 }
 
@@ -43,7 +60,5 @@ dependencies {
     implementation(compose.ui)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.media3.exoplayer)
-    implementation(libs.media3.session)
     implementation(libs.sqldelight.android.driver)
 }

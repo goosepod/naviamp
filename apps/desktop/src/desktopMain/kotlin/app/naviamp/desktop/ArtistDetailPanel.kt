@@ -24,20 +24,35 @@ import androidx.compose.ui.unit.sp
 import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
+import app.naviamp.domain.Track
+import app.naviamp.domain.popular.SimilarArtistMatch
 
 @Composable
 fun ArtistDetailPanel(
     appColors: AppColors,
     artist: Artist?,
     artistDetails: ArtistDetails?,
+    popularTracks: List<Track>,
+    similarArtists: List<SimilarArtistMatch>,
     status: String?,
+    similarArtistsStatus: String?,
     coverArtUrl: (String?) -> String?,
     onBack: () -> Unit,
     onArtistRadio: (Artist) -> Unit,
+    onFindSimilarArtists: (Artist) -> Unit,
+    onSimilarArtistSelected: (Artist) -> Unit,
+    onSimilarArtistExternalSelected: (String) -> Unit,
+    onPopularTracksPlay: (List<Track>) -> Unit,
+    onPopularTracksRadio: (List<Track>) -> Unit,
+    onPopularTracksAddToQueue: (List<Track>) -> Unit,
+    onPopularTrackSelected: (Track) -> Unit,
+    onPopularTrackAddToQueue: (Track) -> Unit,
     onAddArtistToPlaylist: (Artist) -> Unit,
+    onAddArtistToQueue: (Artist) -> Unit,
     onAlbumSelected: (Album) -> Unit,
     onAlbumRadioSelected: (Album) -> Unit,
     onAlbumDownloadSelected: (Album) -> Unit,
+    onAlbumAddToQueue: (Album) -> Unit,
     onAlbumAddToPlaylist: (Album) -> Unit,
 ) {
     val effectiveArtist = artistDetails?.artist ?: artist
@@ -103,20 +118,43 @@ fun ArtistDetailPanel(
                         color = appColors.secondaryText,
                         fontSize = 12.sp,
                     )
-                    DetailActionIconButton(
-                        appColors = appColors,
-                        icon = TransportIcons.Radio,
-                        contentDescription = "Start artist radio",
-                        enabled = details.albums.isNotEmpty(),
-                        onClick = { effectiveArtist?.let(onArtistRadio) },
-                    )
-                    DetailActionIconButton(
-                        appColors = appColors,
-                        icon = NavigationIcons.Playlist,
-                        contentDescription = "Add artist to playlist",
-                        enabled = details.albums.isNotEmpty(),
-                        onClick = { effectiveArtist?.let(onAddArtistToPlaylist) },
-                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        DetailActionIconButton(
+                            appColors = appColors,
+                            icon = TransportIcons.Radio,
+                            contentDescription = "Start artist radio",
+                            enabled = details.albums.isNotEmpty(),
+                            onClick = { effectiveArtist?.let(onArtistRadio) },
+                        )
+                        DetailActionIconButton(
+                            appColors = appColors,
+                            icon = NavigationIcons.Queue,
+                            contentDescription = "Add artist to queue",
+                            enabled = details.albums.isNotEmpty(),
+                            onClick = { effectiveArtist?.let(onAddArtistToQueue) },
+                        )
+                        DetailActionIconButton(
+                            appColors = appColors,
+                            icon = NavigationIcons.Playlist,
+                            contentDescription = "Add artist to playlist",
+                            enabled = details.albums.isNotEmpty(),
+                            onClick = { effectiveArtist?.let(onAddArtistToPlaylist) },
+                        )
+                        DetailActionIconButton(
+                            appColors = appColors,
+                            icon = TransportIcons.Play,
+                            contentDescription = "Play popular tracks",
+                            enabled = popularTracks.isNotEmpty(),
+                            onClick = { onPopularTracksPlay(popularTracks) },
+                        )
+                        DetailActionIconButton(
+                            appColors = appColors,
+                            icon = NavigationIcons.Artist,
+                            contentDescription = "Find similar artists",
+                            enabled = effectiveArtist != null,
+                            onClick = { effectiveArtist?.let(onFindSimilarArtists) },
+                        )
+                    }
                     details.info?.biography
                         ?.takeIf { it.isNotBlank() }
                         ?.let { biography ->
@@ -149,6 +187,83 @@ fun ArtistDetailPanel(
         }
 
         artistDetails?.let { details ->
+            if (similarArtists.isNotEmpty() || similarArtistsStatus != null) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "Similar Artists".uppercase(),
+                        color = appColors.primaryText,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                    )
+                    DetailActionIconButton(
+                        appColors = appColors,
+                        icon = NavigationIcons.Artist,
+                        contentDescription = "Refresh similar artists",
+                        enabled = effectiveArtist != null,
+                        onClick = { effectiveArtist?.let(onFindSimilarArtists) },
+                    )
+                }
+                similarArtistsStatus?.let {
+                    Text(it, color = appColors.secondaryText, fontSize = 11.sp)
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    similarArtists.forEach { similarArtist ->
+                        SimilarArtistRow(
+                            appColors = appColors,
+                            similarArtist = similarArtist,
+                            onSimilarArtistSelected = onSimilarArtistSelected,
+                            onSimilarArtistExternalSelected = onSimilarArtistExternalSelected,
+                        )
+                    }
+                }
+            }
+            if (popularTracks.isNotEmpty()) {
+                Text(
+                    "Popular Tracks".uppercase(),
+                    color = appColors.primaryText,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    DetailActionIconButton(
+                        appColors = appColors,
+                        icon = TransportIcons.Play,
+                        contentDescription = "Play popular tracks",
+                        enabled = true,
+                        onClick = { onPopularTracksPlay(popularTracks) },
+                    )
+                    DetailActionIconButton(
+                        appColors = appColors,
+                        icon = TransportIcons.Radio,
+                        contentDescription = "Start popular tracks radio",
+                        enabled = true,
+                        onClick = { onPopularTracksRadio(popularTracks) },
+                    )
+                    DetailActionIconButton(
+                        appColors = appColors,
+                        icon = NavigationIcons.Queue,
+                        contentDescription = "Add popular tracks to queue",
+                        enabled = true,
+                        onClick = { onPopularTracksAddToQueue(popularTracks) },
+                    )
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    popularTracks.forEach { track ->
+                        TrackRow(
+                            appColors = appColors,
+                            track = track,
+                            coverArtUrl = coverArtUrl(track.coverArtId),
+                            onClick = { onPopularTrackSelected(track) },
+                            onStartRadio = { onPopularTracksRadio(listOf(track)) },
+                            onDownload = {},
+                            onAddToQueue = { onPopularTrackAddToQueue(track) },
+                        )
+                    }
+                }
+            }
             Text(
                 "Albums".uppercase(),
                 color = appColors.primaryText,
@@ -164,10 +279,81 @@ fun ArtistDetailPanel(
                         onClick = { onAlbumSelected(album) },
                         onStartRadio = { onAlbumRadioSelected(album) },
                         onDownload = { onAlbumDownloadSelected(album) },
+                        onAddToQueue = { onAlbumAddToQueue(album) },
                         onAddToPlaylist = { onAlbumAddToPlaylist(album) },
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SimilarArtistRow(
+    appColors: AppColors,
+    similarArtist: SimilarArtistMatch,
+    onSimilarArtistSelected: (Artist) -> Unit,
+    onSimilarArtistExternalSelected: (String) -> Unit,
+) {
+    val localArtist = similarArtist.matchedArtist
+    val externalUrl = similarArtist.candidate.externalUrl
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = localArtist != null || externalUrl != null) {
+                when {
+                    localArtist != null -> onSimilarArtistSelected(localArtist)
+                    externalUrl != null -> onSimilarArtistExternalSelected(externalUrl)
+                }
+            },
+    ) {
+        CoverArtThumb(
+            appColors = appColors,
+            coverArtUrl = similarArtist.candidate.imageUrl,
+            size = 36.dp,
+            cornerRadius = 18.dp,
+        )
+        Column(
+            verticalArrangement = Arrangement.spacedBy(1.dp),
+            modifier = Modifier.weight(1f),
+        ) {
+            Text(
+                similarArtist.candidate.name,
+                color = appColors.primaryText,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                if (localArtist != null) "In library" else "Deezer",
+                color = appColors.secondaryText,
+                fontSize = 10.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (localArtist == null && externalUrl != null) {
+            IconButton(
+                onClick = { onSimilarArtistExternalSelected(externalUrl) },
+                modifier = Modifier.size(32.dp),
+            ) {
+                Icon(
+                    imageVector = NavigationIcons.ExternalLink,
+                    contentDescription = "Open Deezer artist page",
+                    tint = appColors.secondaryText,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+        } else {
+            Icon(
+                imageVector = NavigationIcons.ChevronRight,
+                contentDescription = null,
+                tint = appColors.secondaryText,
+                modifier = Modifier.size(16.dp),
+            )
         }
     }
 }

@@ -1,22 +1,19 @@
 package app.naviamp.desktop.playback
 
+import app.naviamp.desktop.playback.bass.BassPlaybackEngine
+import app.naviamp.desktop.playback.bass.BassNative
 import app.naviamp.domain.playback.PlaybackEngine
 
 object PlaybackEngineFactory {
     fun createDefault(): PlaybackEngine {
-        val mpv = MpvExecutableResolver().resolve()
-        return if (mpv != null) {
-            if (experimentalCrossfadeEnabled()) {
-                ExperimentalCrossfadeMpvPlaybackEngine(mpv.absolutePath)
-            } else {
-                MpvProcessPlaybackEngine(mpv.absolutePath)
-            }
-        } else {
-            JLayerPlaybackEngine()
+        val requestedEngine = requestedEngine()
+        if (requestedEngine.isNullOrBlank() || requestedEngine == "bass") {
+            return BassPlaybackEngine(BassNative.load())
         }
+        return BassPlaybackEngine(BassNative.load())
     }
 
-    private fun experimentalCrossfadeEnabled(): Boolean =
-        System.getProperty("naviamp.playback.engine") == "mpv-crossfade-prototype" ||
-            System.getenv("NAVIAMP_PLAYBACK_ENGINE") == "mpv-crossfade-prototype"
+    private fun requestedEngine(): String? =
+        System.getProperty("naviamp.playback.engine")
+            ?: System.getenv("NAVIAMP_PLAYBACK_ENGINE")
 }

@@ -1,6 +1,7 @@
 package app.naviamp.desktop
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
+import app.cash.sqldelight.db.QueryResult
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.AlbumId
@@ -27,6 +28,8 @@ import app.naviamp.domain.cache.LibraryIndexStats
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
+import app.naviamp.domain.popular.ArtistPopularTrackCandidate
+import app.naviamp.domain.popular.ArtistPopularTrackMatch
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.source.ConnectionTlsSettings
@@ -318,6 +321,16 @@ class DesktopCache(
             lyrics
         }
 
+    suspend fun cacheEmbeddedLyrics(
+        sourceId: String,
+        trackId: TrackId,
+        lyrics: Lyrics,
+    ): Lyrics =
+        withContext(Dispatchers.IO) {
+            upsertLyrics(sourceId, trackId, lyrics)
+            lyrics
+        }
+
     suspend fun lrclibLyrics(
         sourceId: String,
         track: Track,
@@ -329,6 +342,26 @@ class DesktopCache(
             upsertLrclibLyrics(sourceId, track.id, lyrics)
             lyrics
         }
+
+    fun recordSidecarStatus(
+        sourceId: String,
+        trackId: TrackId,
+        quality: StreamQuality,
+        sidecarType: String,
+        success: Boolean,
+        errorMessage: String? = null,
+    ) {
+        queries.upsertCachedSidecarStatus(
+            source_id = sourceId,
+            remote_track_id = trackId.value,
+            quality_key = quality.cacheKey(),
+            sidecar_type = sidecarType,
+            status = if (success) SidecarStatusReady else SidecarStatusFailed,
+            attempts = 1,
+            last_error = errorMessage,
+            updated_at_epoch_millis = nowMillis(),
+        )
+    }
 
     suspend fun cachedLyrics(
         sourceId: String,
@@ -586,6 +619,8 @@ class DesktopCache(
             last_connected_at_epoch_millis = now,
             last_sync_started_at_epoch_millis = existing?.last_sync_started_at_epoch_millis,
             last_sync_completed_at_epoch_millis = existing?.last_sync_completed_at_epoch_millis,
+            last_library_scan_signature = existing?.last_library_scan_signature,
+            last_library_scan_checked_at_epoch_millis = existing?.last_library_scan_checked_at_epoch_millis,
         )
         return SavedMediaSource(
             id = id,
@@ -601,6 +636,8 @@ class DesktopCache(
             lastConnectedAtEpochMillis = now,
             lastSyncStartedAtEpochMillis = existing?.last_sync_started_at_epoch_millis,
             lastSyncCompletedAtEpochMillis = existing?.last_sync_completed_at_epoch_millis,
+            lastLibraryScanSignature = existing?.last_library_scan_signature,
+            lastLibraryScanCheckedAtEpochMillis = existing?.last_library_scan_checked_at_epoch_millis,
         )
     }
 
@@ -610,6 +647,10 @@ class DesktopCache(
 
     override fun markLibrarySyncCompleted(sourceId: String) {
         queries.markMediaSourceSyncCompleted(nowMillis(), sourceId)
+    }
+
+    fun markLibraryScanChecked(sourceId: String, signature: String) {
+        queries.markMediaSourceLibraryScanChecked(signature, nowMillis(), sourceId)
     }
 
     override fun upsertLibraryArtists(sourceId: String, artists: List<Artist>) {
@@ -745,6 +786,38 @@ class DesktopCache(
             .executeAsList()
             .map { it.toTrack() }
 
+    override fun artistPopularTracks(sourceId: String, artistId: ArtistId, source: String): List<ArtistPopularTrackMatch> =
+        queries.selectArtistPopularTracks(sourceId, artistId.value, source)
+            .executeAsList()
+            .map { it.toPopularTrackMatch() }
+
+    override fun replaceArtistPopularTracks(
+        sourceId: String,
+        artistId: ArtistId,
+        source: String,
+        candidates: List<ArtistPopularTrackCandidate>,
+        matchedTracksBySourceTrackId: Map<String, Track>,
+        fetchedAtEpochMillis: Long,
+    ) {
+        queries.transaction {
+            queries.deleteArtistPopularTracks(sourceId, artistId.value, source)
+            candidates.forEach { candidate ->
+                queries.upsertArtistPopularTrack(
+                    source_id = sourceId,
+                    remote_artist_id = artistId.value,
+                    popular_source = source,
+                    source_track_id = candidate.sourceTrackId,
+                    rank = candidate.rank.toLong(),
+                    title = candidate.title,
+                    album_title = candidate.albumTitle,
+                    duration_seconds = candidate.durationSeconds?.toLong(),
+                    matched_remote_track_id = matchedTracksBySourceTrackId[candidate.sourceTrackId]?.id?.value,
+                    fetched_at_epoch_millis = fetchedAtEpochMillis,
+                )
+            }
+        }
+    }
+
     override fun relatedLibraryTracks(sourceId: String, track: Track, limit: Long): List<Track> {
         val albumTracks = track.albumId
             ?.let { libraryTracksForAlbum(sourceId, it, limit) }
@@ -838,6 +911,7 @@ class DesktopCache(
             queries.clearAudio()
             queries.clearLyrics()
             queries.clearLrclibLyrics()
+            queries.clearSidecarStatuses()
         }
         clearAudioFiles()
     }
@@ -850,10 +924,12 @@ class DesktopCache(
     override fun clearLibraryData(sourceId: String?) {
         queries.transaction {
             if (sourceId == null) {
+                queries.clearArtistPopularTracks()
                 queries.clearLibraryTracks()
                 queries.clearLibraryAlbums()
                 queries.clearLibraryArtists()
             } else {
+                queries.clearArtistPopularTracksForSource(sourceId)
                 queries.clearLibraryForSource(sourceId)
                 queries.clearLibraryAlbumsForSource(sourceId)
                 queries.clearLibraryArtistsForSource(sourceId)
@@ -1103,6 +1179,8 @@ private fun app.naviamp.storage.Media_source.toSavedMediaSource(): SavedMediaSou
         lastConnectedAtEpochMillis = last_connected_at_epoch_millis,
         lastSyncStartedAtEpochMillis = last_sync_started_at_epoch_millis,
         lastSyncCompletedAtEpochMillis = last_sync_completed_at_epoch_millis,
+        lastLibraryScanSignature = last_library_scan_signature,
+        lastLibraryScanCheckedAtEpochMillis = last_library_scan_checked_at_epoch_millis,
     )
 
 private fun app.naviamp.storage.Library_track.toTrack(): Track =
@@ -1132,6 +1210,46 @@ private fun app.naviamp.storage.Library_track.toTrack(): Track =
         replayGain = null,
         favoritedAtIso8601 = favorited_at_iso8601,
         userRating = user_rating?.toInt(),
+    )
+
+private fun app.naviamp.storage.SelectArtistPopularTracks.toPopularTrackMatch(): ArtistPopularTrackMatch =
+    ArtistPopularTrackMatch(
+        candidate = ArtistPopularTrackCandidate(
+            source = popular_source,
+            sourceTrackId = source_track_id,
+            rank = rank.toInt(),
+            title = popular_title,
+            albumTitle = popular_album_title,
+            durationSeconds = popular_duration_seconds?.toInt(),
+        ),
+        matchedTrack = Track(
+            id = TrackId(remote_track_id),
+            title = title,
+            artistId = remote_artist_id?.let { ArtistId(it) },
+            artistName = artist_name,
+            albumId = remote_album_id?.let { AlbumId(it) },
+            albumTitle = album_title,
+            albumReleaseYear = null,
+            durationSeconds = duration_seconds?.toInt(),
+            coverArtId = cover_art_id,
+            audioInfo = AudioInfo(
+                codec = audio_codec,
+                bitrateKbps = audio_bitrate_kbps?.toInt(),
+                contentType = audio_content_type,
+                bitDepth = audio_bit_depth?.toInt(),
+                samplingRateHz = audio_sampling_rate_hz?.toInt(),
+            ).takeIf {
+                it.codec != null ||
+                    it.bitrateKbps != null ||
+                    it.contentType != null ||
+                    it.bitDepth != null ||
+                    it.samplingRateHz != null
+            },
+            replayGain = null,
+            favoritedAtIso8601 = favorited_at_iso8601,
+            userRating = user_rating?.toInt(),
+        ),
+        fetchedAtEpochMillis = fetched_at_epoch_millis,
     )
 
 private fun app.naviamp.storage.Downloaded_audio.toTrack(): Track =
@@ -1166,12 +1284,89 @@ private fun app.naviamp.storage.Downloaded_audio.toTrack(): Track =
 private fun createDatabase(path: Path): NaviampStorageDatabase {
     Files.createDirectories(path.parent)
     val exists = path.exists()
+    registerSqliteDriver()
     val driver = JdbcSqliteDriver("jdbc:sqlite:${path.toAbsolutePath()}")
     if (!exists) {
         NaviampStorageDatabase.Schema.create(driver)
+    } else {
+        val oldVersion = driver.databaseVersion()
+        val newVersion = NaviampStorageDatabase.Schema.version
+        if (oldVersion in 1 until newVersion) {
+            NaviampStorageDatabase.Schema.migrate(driver, oldVersion, newVersion)
+        }
     }
+    ensureMediaSourceLibraryScanSchema(driver)
+    ensureArtistPopularTracksSchema(driver)
     driver.execute(null, "PRAGMA foreign_keys=ON", 0)
     return NaviampStorageDatabase(driver)
+}
+
+private fun registerSqliteDriver() {
+    Class.forName("org.sqlite.JDBC")
+}
+
+private fun JdbcSqliteDriver.databaseVersion(): Long =
+    executeQuery(null, "PRAGMA user_version", { cursor ->
+        QueryResult.Value(if (cursor.next().value) cursor.getLong(0) ?: 0L else 0L)
+    }, 0).value
+
+private fun ensureMediaSourceLibraryScanSchema(driver: JdbcSqliteDriver) {
+    if (!driver.tableHasColumn("media_source", "last_library_scan_signature")) {
+        driver.execute(null, "ALTER TABLE media_source ADD COLUMN last_library_scan_signature TEXT", 0)
+    }
+    if (!driver.tableHasColumn("media_source", "last_library_scan_checked_at_epoch_millis")) {
+        driver.execute(null, "ALTER TABLE media_source ADD COLUMN last_library_scan_checked_at_epoch_millis INTEGER", 0)
+    }
+}
+
+private fun JdbcSqliteDriver.tableHasColumn(tableName: String, columnName: String): Boolean =
+    executeQuery(null, "PRAGMA table_info($tableName)", { cursor ->
+        var found = false
+        while (cursor.next().value) {
+            if (cursor.getString(1) == columnName) {
+                found = true
+                break
+            }
+        }
+        QueryResult.Value(found)
+    }, 0).value
+
+private fun ensureArtistPopularTracksSchema(driver: JdbcSqliteDriver) {
+    driver.execute(
+        null,
+        """
+        CREATE TABLE IF NOT EXISTS artist_popular_track (
+          source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+          remote_artist_id TEXT NOT NULL,
+          popular_source TEXT NOT NULL,
+          source_track_id TEXT NOT NULL,
+          rank INTEGER NOT NULL,
+          title TEXT NOT NULL,
+          album_title TEXT,
+          duration_seconds INTEGER,
+          matched_remote_track_id TEXT,
+          fetched_at_epoch_millis INTEGER NOT NULL,
+          PRIMARY KEY(source_id, remote_artist_id, popular_source, source_track_id)
+        )
+        """.trimIndent(),
+        0,
+    )
+    driver.execute(
+        null,
+        """
+        CREATE INDEX IF NOT EXISTS artist_popular_track_artist
+        ON artist_popular_track(source_id, remote_artist_id, popular_source, rank)
+        """.trimIndent(),
+        0,
+    )
+    driver.execute(
+        null,
+        """
+        CREATE INDEX IF NOT EXISTS artist_popular_track_match
+        ON artist_popular_track(source_id, matched_remote_track_id)
+        """.trimIndent(),
+        0,
+    )
 }
 
 private fun defaultCacheDatabasePath(): Path =
@@ -1517,3 +1712,6 @@ private data class ReplayGainDto(
             )
     }
 }
+
+private const val SidecarStatusReady = "ready"
+private const val SidecarStatusFailed = "failed"

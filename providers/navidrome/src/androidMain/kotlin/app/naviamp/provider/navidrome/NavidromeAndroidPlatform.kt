@@ -129,15 +129,12 @@ class AndroidNavidromeHttpClient(
         success: Boolean,
         errorMessage: String?,
     ) {
-        NavidromeApiCallHistory.record(
-            NavidromeApiCall(
-                endpoint = url.substringBefore("?").trimEnd('/').substringAfterLast('/').ifBlank { "unknown" },
-                sanitizedUrl = url.sanitizedNavidromeUrl(),
-                startedAtEpochMillis = startedAt,
-                durationMillis = (System.currentTimeMillis() - startedAt).coerceAtLeast(0),
-                success = success,
-                errorMessage = errorMessage,
-            ),
+        recordNavidromeApiCall(
+            url = url,
+            startedAt = startedAt,
+            durationMillis = (System.currentTimeMillis() - startedAt).coerceAtLeast(0),
+            success = success,
+            errorMessage = errorMessage,
         )
     }
 
@@ -147,26 +144,4 @@ class AndroidNavidromeHttpClient(
         override fun getAcceptedIssuers(): Array<java.security.cert.X509Certificate> = emptyArray()
     }
 }
-
-private fun String.sanitizedNavidromeUrl(): String =
-    runCatching {
-        val uri = URI.create(this)
-        buildString {
-            append(uri.path)
-            val query = uri.rawQuery
-                ?.split("&")
-                ?.joinToString("&") { rawParam ->
-                    val key = rawParam.substringBefore("=")
-                    if (key in setOf("u", "t", "s")) {
-                        "$key=<redacted>"
-                    } else {
-                        rawParam
-                    }
-                }
-            if (!query.isNullOrBlank()) {
-                append("?")
-                append(query)
-            }
-        }
-    }.getOrDefault("<unparseable url>")
 

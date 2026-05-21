@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -60,6 +62,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.homeStations
 import app.naviamp.domain.waveform.AudioWaveform
+import app.naviamp.domain.playback.PlaybackVisualizerFrame
 
 data class NaviampColors(
     val background: Color = Color(0xFF101114),
@@ -150,6 +153,7 @@ data class SharedAlbumDetailUi(
 data class SharedArtistDetailUi(
     val artist: SharedMediaItemUi,
     val albums: List<SharedMediaItemUi>,
+    val popularTracks: List<AndroidTrackRowUi> = emptyList(),
 )
 
 data class SharedPlaylistDetailUi(
@@ -240,6 +244,9 @@ data class NowPlayingUi(
     val albumLine: String = "",
     val audioInfo: String = "",
     val waveform: AudioWaveform? = null,
+    val visualizerFrame: PlaybackVisualizerFrame? = null,
+    val visualizerAvailable: Boolean = false,
+    val visualizerVisible: Boolean = false,
     val positionSeconds: Double? = null,
     val durationSeconds: Double? = null,
     val volumePercent: Int = 100,
@@ -313,8 +320,12 @@ fun NaviampSharedAppShell(
     serverVersion: String?,
     connected: Boolean,
     editingConnection: Boolean,
+    restoringConnection: Boolean = false,
     connectionForm: ConnectionFormState,
     playbackSettings: PlaybackSettings = PlaybackSettings(),
+    supportsReplayGain: Boolean = false,
+    supportsGapless: Boolean = true,
+    supportsCrossfade: Boolean = false,
     query: String,
     home: SharedHomeUi,
     searchResults: SharedSearchResultsUi,
@@ -342,15 +353,22 @@ fun NaviampSharedAppShell(
     onMixAlbumSelected: (SharedMediaItemUi) -> Unit = onAlbumSelected,
     onAlbumPlay: (SharedAlbumDetailUi, Boolean) -> Unit = { _, _ -> },
     onAlbumRadio: (SharedAlbumDetailUi) -> Unit = {},
+    onAlbumAddToQueue: (SharedAlbumDetailUi) -> Unit = {},
     onArtistSelected: (SharedMediaItemUi) -> Unit,
     onArtistRadio: (SharedArtistDetailUi) -> Unit = {},
+    onArtistPopularPlay: (SharedArtistDetailUi) -> Unit = {},
+    onArtistPopularRadio: (SharedArtistDetailUi) -> Unit = {},
+    onArtistPopularAddToQueue: (SharedArtistDetailUi) -> Unit = {},
+    onArtistPopularTrackAddToQueue: (AndroidTrackRowUi) -> Unit = {},
     onPlaylistSelected: (SharedMediaItemUi) -> Unit,
     onPlaylistSortModeChanged: (SharedPlaylistSortMode) -> Unit = {},
     onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit = { _, _ -> },
+    onPlaylistAddToQueue: (SharedPlaylistDetailUi) -> Unit = {},
     onPlaylistRename: (SharedMediaItemUi, String) -> Unit = { _, _ -> },
     onPlaylistDelete: (SharedMediaItemUi) -> Unit = {},
     onPlaylistBack: () -> Unit = {},
     onPlaylistTrackSelected: (AndroidTrackRowUi) -> Unit = {},
+    onTrackAddToQueue: (AndroidTrackRowUi) -> Unit = {},
     onRadioStationSelected: (SharedMediaItemUi) -> Unit,
     onHomeStationSelected: (SharedHomeStationUi) -> Unit = {},
     onOpenNowPlaying: () -> Unit,
@@ -365,6 +383,7 @@ fun NaviampSharedAppShell(
     onToggleShuffle: () -> Unit = {},
     onCycleRepeatMode: () -> Unit = {},
     onToggleLyrics: () -> Unit = {},
+    onToggleVisualizer: () -> Unit = {},
     onTrackRadio: () -> Unit = {},
     onAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit = {},
     onCreatePlaylistAndAdd: (String) -> Unit = {},
@@ -377,9 +396,20 @@ fun NaviampSharedAppShell(
     onQueueItemDownload: (NaviampNowPlayingItemUi) -> Unit = {},
     onToggleFavorite: () -> Unit = {},
     onRatingSelected: (Int?) -> Unit = {},
+    onClearCache: () -> Unit = {},
+    onClearLibrary: () -> Unit = {},
+    onResetDatabase: () -> Unit = {},
 ) {
     val colors = NaviampColors.Dark
-    val showFullNowPlaying = connected && !editingConnection && nowPlayingOpen && nowPlaying != null
+    val showFullNowPlaying = connected && !editingConnection && !restoringConnection && nowPlayingOpen && nowPlaying != null
+    val routeUsesOwnScroll = connected &&
+        !editingConnection &&
+        !restoringConnection &&
+        !showFullNowPlaying &&
+        selectedRoute == SharedRoute.Library &&
+        albumDetail == null &&
+        artistDetail == null &&
+        playlistDetail == null
     val backgroundGradientColors = if (showFullNowPlaying) {
         rememberPlatformCoverArtGradientColors(nowPlaying.coverArtUrl, colors)
     } else {
@@ -409,7 +439,7 @@ fun NaviampSharedAppShell(
                     modifier = Modifier
                         .weight(1f)
                         .then(
-                            if (showFullNowPlaying) {
+                            if (showFullNowPlaying || routeUsesOwnScroll) {
                                 Modifier
                             } else {
                                 Modifier.verticalScroll(rememberScrollState())
@@ -421,7 +451,7 @@ fun NaviampSharedAppShell(
                         ),
                     verticalArrangement = if (showFullNowPlaying) Arrangement.spacedBy(0.dp) else Arrangement.spacedBy(14.dp),
                 ) {
-                    if (!showFullNowPlaying && (!connected || editingConnection)) {
+                    if (!showFullNowPlaying && (restoringConnection || !connected || editingConnection)) {
                         Text("Naviamp", color = colors.primaryText, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                         Text(status, color = colors.secondaryText, fontSize = 13.sp)
                         serverVersion?.let {
@@ -429,7 +459,9 @@ fun NaviampSharedAppShell(
                         }
                     }
 
-                    if (editingConnection || (!connected && selectedRoute != SharedRoute.Settings)) {
+                    if (restoringConnection && !editingConnection) {
+                        RestoringConnectionCard(status = status, colors = colors)
+                    } else if (editingConnection || (!connected && selectedRoute != SharedRoute.Settings)) {
                         ConnectionCard(
                             form = connectionForm,
                             colors = colors,
@@ -456,8 +488,14 @@ fun NaviampSharedAppShell(
                             nowPlaying = nowPlaying,
                             nowPlayingOpen = nowPlayingOpen,
                             playbackSettings = playbackSettings,
+                            supportsReplayGain = supportsReplayGain,
+                            supportsGapless = supportsGapless,
+                            supportsCrossfade = supportsCrossfade,
                             onEditConnection = onEditConnection,
                             onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+                            onClearCache = onClearCache,
+                            onClearLibrary = onClearLibrary,
+                            onResetDatabase = onResetDatabase,
                             onQueryChanged = onQueryChanged,
                             onSearch = onSearch,
                             onTrackSelected = onTrackSelected,
@@ -465,15 +503,22 @@ fun NaviampSharedAppShell(
                             onMixAlbumSelected = onMixAlbumSelected,
                             onAlbumPlay = onAlbumPlay,
                             onAlbumRadio = onAlbumRadio,
+                            onAlbumAddToQueue = onAlbumAddToQueue,
                             onArtistSelected = onArtistSelected,
                             onArtistRadio = onArtistRadio,
+                            onArtistPopularPlay = onArtistPopularPlay,
+                            onArtistPopularRadio = onArtistPopularRadio,
+                            onArtistPopularAddToQueue = onArtistPopularAddToQueue,
+                            onArtistPopularTrackAddToQueue = onArtistPopularTrackAddToQueue,
                             onPlaylistSelected = onPlaylistSelected,
                             onPlaylistSortModeChanged = onPlaylistSortModeChanged,
                             onPlaylistPlay = onPlaylistPlay,
+                            onPlaylistAddToQueue = onPlaylistAddToQueue,
                             onPlaylistRename = onPlaylistRename,
                             onPlaylistDelete = onPlaylistDelete,
                             onPlaylistBack = onPlaylistBack,
                             onPlaylistTrackSelected = onPlaylistTrackSelected,
+                            onTrackAddToQueue = onTrackAddToQueue,
                             onRadioStationSelected = onRadioStationSelected,
                             onHomeStationSelected = onHomeStationSelected,
                             onOpenNowPlaying = onOpenNowPlaying,
@@ -488,6 +533,7 @@ fun NaviampSharedAppShell(
                             onToggleShuffle = onToggleShuffle,
                             onCycleRepeatMode = onCycleRepeatMode,
                             onToggleLyrics = onToggleLyrics,
+                            onToggleVisualizer = onToggleVisualizer,
                             onTrackRadio = onTrackRadio,
                             onAddToPlaylist = onAddToPlaylist,
                             onCreatePlaylistAndAdd = onCreatePlaylistAndAdd,
@@ -504,7 +550,7 @@ fun NaviampSharedAppShell(
                     }
                 }
                 if (!showFullNowPlaying) {
-                    if (connected && !editingConnection && nowPlaying != null) {
+                    if (connected && !editingConnection && !restoringConnection && nowPlaying != null) {
                         NaviampMiniNowPlaying(
                             nowPlaying = nowPlaying,
                             colors = colors,
@@ -528,6 +574,24 @@ fun NaviampSharedAppShell(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun RestoringConnectionCard(
+    status: String,
+    colors: NaviampColors,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(colors.controlSurface.copy(alpha = 0.72f))
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text("Restoring connection", color = colors.primaryText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Text(status, color = colors.secondaryText, fontSize = 13.sp)
     }
 }
 
@@ -647,6 +711,9 @@ private fun ConnectedContent(
     nowPlaying: NowPlayingUi?,
     nowPlayingOpen: Boolean,
     playbackSettings: PlaybackSettings,
+    supportsReplayGain: Boolean = false,
+    supportsGapless: Boolean = true,
+    supportsCrossfade: Boolean = false,
     onEditConnection: () -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     onQueryChanged: (String) -> Unit,
@@ -656,15 +723,22 @@ private fun ConnectedContent(
     onMixAlbumSelected: (SharedMediaItemUi) -> Unit,
     onAlbumPlay: (SharedAlbumDetailUi, Boolean) -> Unit,
     onAlbumRadio: (SharedAlbumDetailUi) -> Unit,
+    onAlbumAddToQueue: (SharedAlbumDetailUi) -> Unit,
     onArtistSelected: (SharedMediaItemUi) -> Unit,
     onArtistRadio: (SharedArtistDetailUi) -> Unit,
+    onArtistPopularPlay: (SharedArtistDetailUi) -> Unit,
+    onArtistPopularRadio: (SharedArtistDetailUi) -> Unit,
+    onArtistPopularAddToQueue: (SharedArtistDetailUi) -> Unit,
+    onArtistPopularTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
     onPlaylistSelected: (SharedMediaItemUi) -> Unit,
     onPlaylistSortModeChanged: (SharedPlaylistSortMode) -> Unit,
     onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit,
+    onPlaylistAddToQueue: (SharedPlaylistDetailUi) -> Unit,
     onPlaylistRename: (SharedMediaItemUi, String) -> Unit,
     onPlaylistDelete: (SharedMediaItemUi) -> Unit,
     onPlaylistBack: () -> Unit,
     onPlaylistTrackSelected: (AndroidTrackRowUi) -> Unit,
+    onTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
     onRadioStationSelected: (SharedMediaItemUi) -> Unit,
     onHomeStationSelected: (SharedHomeStationUi) -> Unit,
     onOpenNowPlaying: () -> Unit,
@@ -679,6 +753,7 @@ private fun ConnectedContent(
     onToggleShuffle: () -> Unit,
     onCycleRepeatMode: () -> Unit,
     onToggleLyrics: () -> Unit,
+    onToggleVisualizer: () -> Unit,
     onTrackRadio: () -> Unit,
     onAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit,
     onCreatePlaylistAndAdd: (String) -> Unit,
@@ -691,13 +766,22 @@ private fun ConnectedContent(
     onQueueItemDownload: (NaviampNowPlayingItemUi) -> Unit,
     onToggleFavorite: () -> Unit,
     onRatingSelected: (Int?) -> Unit,
+    onClearCache: () -> Unit,
+    onClearLibrary: () -> Unit,
+    onResetDatabase: () -> Unit,
 ) {
     when {
         selectedRoute == SharedRoute.Settings -> SettingsContent(
-            colors = colors,
-            playbackSettings = playbackSettings,
+                            colors = colors,
+                            playbackSettings = playbackSettings,
+                            supportsReplayGain = supportsReplayGain,
+                            supportsGapless = supportsGapless,
+                            supportsCrossfade = supportsCrossfade,
             onEditConnection = onEditConnection,
             onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+            onClearCache = onClearCache,
+            onClearLibrary = onClearLibrary,
+            onResetDatabase = onResetDatabase,
         )
         nowPlayingOpen && nowPlaying != null -> FullNowPlaying(
             nowPlaying = nowPlaying,
@@ -713,6 +797,7 @@ private fun ConnectedContent(
             onToggleShuffle = onToggleShuffle,
             onCycleRepeatMode = onCycleRepeatMode,
             onToggleLyrics = onToggleLyrics,
+            onToggleVisualizer = onToggleVisualizer,
             onTrackRadio = onTrackRadio,
             onAddToPlaylist = onAddToPlaylist,
             onCreatePlaylistAndAdd = onCreatePlaylistAndAdd,
@@ -735,13 +820,20 @@ private fun ConnectedContent(
             onPlayAlbum = { onAlbumPlay(albumDetail, false) },
             onShuffleAlbum = { onAlbumPlay(albumDetail, true) },
             onAlbumRadio = { onAlbumRadio(albumDetail) },
+            onAlbumAddToQueue = { onAlbumAddToQueue(albumDetail) },
             onTrackSelected = onTrackSelected,
+            onTrackAddToQueue = onTrackAddToQueue,
         )
         artistDetail != null -> ArtistDetailContent(
             colors = colors,
             detail = artistDetail,
             onBack = onCloseNowPlaying,
             onArtistRadio = { onArtistRadio(artistDetail) },
+            onPopularPlay = { onArtistPopularPlay(artistDetail) },
+            onPopularRadio = { onArtistPopularRadio(artistDetail) },
+            onPopularAddToQueue = { onArtistPopularAddToQueue(artistDetail) },
+            onPopularTrackSelected = onTrackSelected,
+            onPopularTrackAddToQueue = onArtistPopularTrackAddToQueue,
             onAlbumSelected = onAlbumSelected,
         )
         playlistDetail != null -> PlaylistDetailContent(
@@ -750,9 +842,11 @@ private fun ConnectedContent(
             onBack = onPlaylistBack,
             onPlayPlaylist = { onPlaylistPlay(playlistDetail.playlist, false) },
             onShufflePlaylist = { onPlaylistPlay(playlistDetail.playlist, true) },
+            onAddPlaylistToQueue = { onPlaylistAddToQueue(playlistDetail) },
             onRenamePlaylist = onPlaylistRename,
             onDeletePlaylist = onPlaylistDelete,
             onTrackSelected = onPlaylistTrackSelected,
+            onTrackAddToQueue = onTrackAddToQueue,
         )
         else -> when (selectedRoute) {
             SharedRoute.Home -> SharedHome(colors, home, onAlbumSelected, onMixAlbumSelected, onPlaylistSelected, onRadioStationSelected, onHomeStationSelected)
@@ -768,7 +862,7 @@ private fun ConnectedContent(
                 onPlaylistDelete = onPlaylistDelete,
             )
             SharedRoute.Library -> MediaListContent(colors, "Library", libraryArtists, "No library artists found.", onArtistSelected)
-            SharedRoute.Search -> SearchContent(colors, query, searchResults, onQueryChanged, onSearch, onTrackSelected, onAlbumSelected, onArtistSelected)
+            SharedRoute.Search -> SearchContent(colors, query, searchResults, onQueryChanged, onSearch, onTrackSelected, onTrackAddToQueue, onAlbumSelected, onArtistSelected)
             SharedRoute.Radio -> MediaListContent(colors, "Internet Radio", radioStationItems, "No stations found.", onRadioStationSelected)
             SharedRoute.Settings -> Unit
             SharedRoute.Downloads -> PlaceholderRoute(colors, selectedRoute)
@@ -827,6 +921,7 @@ private fun SearchContent(
     onQueryChanged: (String) -> Unit,
     onSearch: () -> Unit,
     onTrackSelected: (AndroidTrackRowUi) -> Unit,
+    onTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
     onArtistSelected: (SharedMediaItemUi) -> Unit,
 ) {
@@ -842,7 +937,7 @@ private fun SearchContent(
         if (results.tracks.isNotEmpty()) {
             SectionHeader("TRACKS", colors)
             results.tracks.forEach { track ->
-                TrackRow(track, colors, onTrackSelected)
+                TrackRow(track, colors, onTrackSelected, onAddToQueue = onTrackAddToQueue)
             }
         }
     }
@@ -1009,9 +1104,11 @@ private fun PlaylistDetailContent(
     onBack: () -> Unit,
     onPlayPlaylist: () -> Unit,
     onShufflePlaylist: () -> Unit,
+    onAddPlaylistToQueue: () -> Unit,
     onRenamePlaylist: (SharedMediaItemUi, String) -> Unit,
     onDeletePlaylist: (SharedMediaItemUi) -> Unit,
     onTrackSelected: (AndroidTrackRowUi) -> Unit,
+    onTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
 ) {
     var renameOpen by remember { mutableStateOf(false) }
     var deleteOpen by remember { mutableStateOf(false) }
@@ -1030,13 +1127,14 @@ private fun PlaylistDetailContent(
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampTransportIcons.Play, "Play playlist", onPlayPlaylist)
                     MiniPlayerIconButton(colors, detail.tracks.size > 1, NaviampTransportIcons.Shuffle, "Shuffle playlist", onShufflePlaylist)
+                    MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampIcons.Queue, "Add playlist to queue", onAddPlaylistToQueue)
                     MiniPlayerIconButton(colors, true, NaviampIcons.Edit, "Rename playlist", { renameOpen = true })
                     MiniPlayerIconButton(colors, true, NaviampIcons.Trash, "Delete playlist", { deleteOpen = true })
                 }
             }
         }
         detail.tracks.forEach { track ->
-            TrackRow(track, colors, onTrackSelected)
+            TrackRow(track, colors, onTrackSelected, onAddToQueue = onTrackAddToQueue)
         }
     }
 
@@ -1172,13 +1270,27 @@ private fun MediaListContent(
     emptyText: String,
     onItemSelected: ((SharedMediaItemUi) -> Unit)? = null,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(title, color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        if (items.isEmpty()) {
-            Text(emptyText, color = colors.secondaryText, fontSize = 13.sp)
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        item {
+            Text(title, color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         }
-        items.forEach { item ->
-            SharedMediaRow(item = item, colors = colors, onClick = onItemSelected?.let { { it(item) } })
+        if (items.isEmpty()) {
+            item {
+                Text(emptyText, color = colors.secondaryText, fontSize = 13.sp)
+            }
+        }
+        items(
+            items = items,
+            key = { item -> item.id },
+        ) { item ->
+            SharedMediaRow(
+                item = item,
+                colors = colors,
+                onClick = onItemSelected?.let { { it(item) } },
+            )
         }
     }
 }
@@ -1191,7 +1303,9 @@ private fun AlbumDetailContent(
     onPlayAlbum: () -> Unit,
     onShuffleAlbum: () -> Unit,
     onAlbumRadio: () -> Unit,
+    onAlbumAddToQueue: () -> Unit,
     onTrackSelected: (AndroidTrackRowUi) -> Unit,
+    onTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1219,11 +1333,12 @@ private fun AlbumDetailContent(
                     MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampTransportIcons.Play, "Play album", onPlayAlbum)
                     MiniPlayerIconButton(colors, detail.tracks.size > 1, NaviampTransportIcons.Shuffle, "Shuffle album", onShuffleAlbum)
                     MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampTransportIcons.Radio, "Start album radio", onAlbumRadio)
+                    MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampIcons.Queue, "Add album to queue", onAlbumAddToQueue)
                 }
             }
         }
         detail.tracks.forEachIndexed { index, track ->
-            TrackRow(track.copy(meta = (index + 1).toString()), colors, onTrackSelected)
+            TrackRow(track.copy(meta = (index + 1).toString()), colors, onTrackSelected, onAddToQueue = onTrackAddToQueue)
         }
     }
 }
@@ -1234,6 +1349,11 @@ private fun ArtistDetailContent(
     detail: SharedArtistDetailUi,
     onBack: () -> Unit,
     onArtistRadio: () -> Unit,
+    onPopularPlay: () -> Unit,
+    onPopularRadio: () -> Unit,
+    onPopularAddToQueue: () -> Unit,
+    onPopularTrackSelected: (AndroidTrackRowUi) -> Unit,
+    onPopularTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1246,6 +1366,31 @@ private fun ArtistDetailContent(
                 Text("${detail.albums.size} albums", color = colors.secondaryText, fontSize = 13.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     MiniPlayerIconButton(colors, detail.albums.isNotEmpty(), NaviampTransportIcons.Radio, "Start artist radio", onArtistRadio)
+                    MiniPlayerIconButton(colors, detail.popularTracks.isNotEmpty(), NaviampTransportIcons.Play, "Play popular tracks", onPopularPlay)
+                    MiniPlayerIconButton(colors, detail.popularTracks.isNotEmpty(), NaviampIcons.Queue, "Add popular tracks to queue", onPopularAddToQueue)
+                }
+            }
+        }
+        if (detail.popularTracks.isNotEmpty()) {
+            Text(
+                "Popular Tracks".uppercase(),
+                color = colors.primaryText,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp,
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    MiniPlayerIconButton(colors, true, NaviampTransportIcons.Play, "Play popular tracks", onPopularPlay)
+                    MiniPlayerIconButton(colors, true, NaviampTransportIcons.Radio, "Start popular tracks radio", onPopularRadio)
+                    MiniPlayerIconButton(colors, true, NaviampIcons.Queue, "Add popular tracks to queue", onPopularAddToQueue)
+                }
+                detail.popularTracks.forEachIndexed { index, track ->
+                    TrackRow(
+                        track.copy(meta = (index + 1).toString()),
+                        colors,
+                        onPopularTrackSelected,
+                        onAddToQueue = onPopularTrackAddToQueue,
+                    )
                 }
             }
         }
@@ -1268,6 +1413,7 @@ private fun FullNowPlaying(
     onToggleShuffle: () -> Unit,
     onCycleRepeatMode: () -> Unit,
     onToggleLyrics: () -> Unit,
+    onToggleVisualizer: () -> Unit,
     onTrackRadio: () -> Unit,
     onAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit,
     onCreatePlaylistAndAdd: (String) -> Unit,
@@ -1298,6 +1444,7 @@ private fun FullNowPlaying(
                 onToggleShuffle = onToggleShuffle,
                 onCycleRepeatMode = onCycleRepeatMode,
                 onToggleLyrics = onToggleLyrics,
+                onToggleVisualizer = onToggleVisualizer,
                 onTrackRadio = onTrackRadio,
                 onAddToPlaylist = onAddToPlaylist,
                 onCreatePlaylistAndAdd = onCreatePlaylistAndAdd,
@@ -1356,15 +1503,101 @@ private fun FullNowPlaying(
 private fun SettingsContent(
     colors: NaviampColors,
     playbackSettings: PlaybackSettings,
+    supportsReplayGain: Boolean,
+    supportsGapless: Boolean,
+    supportsCrossfade: Boolean,
     onEditConnection: () -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
+    onClearCache: () -> Unit,
+    onClearLibrary: () -> Unit,
+    onResetDatabase: () -> Unit,
 ) {
     NaviampSharedSettingsContent(
         colors = colors,
         playbackSettings = playbackSettings,
+        supportsReplayGain = supportsReplayGain,
+        supportsGapless = supportsGapless,
+        supportsCrossfade = supportsCrossfade,
         onEditConnection = onEditConnection,
         onPlaybackSettingsChanged = onPlaybackSettingsChanged,
     )
+    LocalDataActions(
+        colors = colors,
+        onClearCache = onClearCache,
+        onClearLibrary = onClearLibrary,
+        onResetDatabase = onResetDatabase,
+    )
+}
+
+@Composable
+private fun LocalDataActions(
+    colors: NaviampColors,
+    onClearCache: () -> Unit,
+    onClearLibrary: () -> Unit,
+    onResetDatabase: () -> Unit,
+) {
+    var confirmAction by remember { mutableStateOf<LocalDataAction?>(null) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SettingsSectionTitle("Local data", colors)
+        Text(
+            "Manage local cache, indexed library data, and database reset actions.",
+            color = colors.secondaryText,
+            fontSize = 12.sp,
+        )
+        PrimaryButton("Clear cache", colors, onClick = { confirmAction = LocalDataAction.ClearCache })
+        PrimaryButton("Clear library index", colors, onClick = { confirmAction = LocalDataAction.ClearLibrary })
+        PrimaryButton("Reset database", colors, onClick = { confirmAction = LocalDataAction.ResetDatabase })
+    }
+
+    confirmAction?.let { action ->
+        AlertDialog(
+            onDismissRequest = { confirmAction = null },
+            title = { Text(action.title) },
+            text = { Text(action.message) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmAction = null
+                        when (action) {
+                            LocalDataAction.ClearCache -> onClearCache()
+                            LocalDataAction.ClearLibrary -> onClearLibrary()
+                            LocalDataAction.ResetDatabase -> onResetDatabase()
+                        }
+                    },
+                ) {
+                    Text(action.confirmLabel)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmAction = null }) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
+}
+
+private enum class LocalDataAction(
+    val title: String,
+    val message: String,
+    val confirmLabel: String,
+) {
+    ClearCache(
+        title = "Clear Cache",
+        message = "This removes cached images, provider responses, prefetched audio, waveforms, and lyrics. Saved servers and the library index stay intact.",
+        confirmLabel = "Clear cache",
+    ),
+    ClearLibrary(
+        title = "Clear Library Index",
+        message = "This removes the local library index for the active server. You can sync the library again after this finishes.",
+        confirmLabel = "Clear library",
+    ),
+    ResetDatabase(
+        title = "Reset Database",
+        message = "This removes saved servers, local cache, downloads, library data, playback history, and local settings stored in the app database.",
+        confirmLabel = "Reset database",
+    ),
 }
 
 @Composable
@@ -1476,7 +1709,12 @@ private fun MiniPlayerIconButton(
 }
 
 @Composable
-private fun TrackRow(track: AndroidTrackRowUi, colors: NaviampColors, onTrackSelected: (AndroidTrackRowUi) -> Unit) {
+private fun TrackRow(
+    track: AndroidTrackRowUi,
+    colors: NaviampColors,
+    onTrackSelected: (AndroidTrackRowUi) -> Unit,
+    onAddToQueue: ((AndroidTrackRowUi) -> Unit)? = null,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1492,6 +1730,18 @@ private fun TrackRow(track: AndroidTrackRowUi, colors: NaviampColors, onTrackSel
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(track.title, color = colors.primaryText, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(track.subtitle, color = colors.secondaryText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        onAddToQueue?.let { addToQueue ->
+            NaviampRowOverflowMenu(
+                colors = colors,
+                items = listOf(
+                    NaviampRowMenuItem(
+                        label = NaviampAction.AddToQueue.label,
+                        icon = NaviampAction.AddToQueue.icon,
+                        onClick = { addToQueue(track) },
+                    ),
+                ),
+            )
         }
     }
 }
@@ -2032,6 +2282,19 @@ object NaviampIcons {
         moveTo(14.3f, 16.7f)
         lineTo(20.7f, 16.7f)
     }
+    val Queue = icon("Queue") {
+        moveTo(5f, 6.5f)
+        lineTo(15.5f, 6.5f)
+        moveTo(5f, 11.5f)
+        lineTo(13f, 11.5f)
+        moveTo(5f, 16.5f)
+        lineTo(11.5f, 16.5f)
+        moveTo(15.5f, 13.5f)
+        lineTo(19.5f, 16.5f)
+        lineTo(15.5f, 19.5f)
+        moveTo(14.5f, 16.5f)
+        lineTo(19.2f, 16.5f)
+    }
     val Library = icon("Library") {
         moveTo(8f, 5f)
         lineTo(8f, 16.2f)
@@ -2227,6 +2490,21 @@ object NaviampIcons {
         moveTo(5.5f, 20f)
         curveTo(6.4f, 16.8f, 8.8f, 15f, 12f, 15f)
         curveTo(15.2f, 15f, 17.6f, 16.8f, 18.5f, 20f)
+    }
+    val ExternalLink = icon("ExternalLink") {
+        moveTo(9f, 7f)
+        lineTo(6.5f, 7f)
+        curveTo(5.7f, 7f, 5f, 7.7f, 5f, 8.5f)
+        lineTo(5f, 17.5f)
+        curveTo(5f, 18.3f, 5.7f, 19f, 6.5f, 19f)
+        lineTo(15.5f, 19f)
+        curveTo(16.3f, 19f, 17f, 18.3f, 17f, 17.5f)
+        lineTo(17f, 15f)
+        moveTo(13f, 5f)
+        lineTo(19f, 5f)
+        lineTo(19f, 11f)
+        moveTo(11f, 13f)
+        lineTo(18.5f, 5.5f)
     }
 
     private fun icon(name: String, block: androidx.compose.ui.graphics.vector.PathBuilder.() -> Unit): ImageVector =

@@ -49,6 +49,9 @@ fun NaviampSharedSettingsContent(
     playbackSettings: PlaybackSettings,
     onEditConnection: () -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
+    supportsReplayGain: Boolean = false,
+    supportsGapless: Boolean = true,
+    supportsCrossfade: Boolean = false,
     showQueueBehavior: Boolean = true,
     showDebugLogging: Boolean = true,
 ) {
@@ -58,8 +61,9 @@ fun NaviampSharedSettingsContent(
         NaviampPlaybackSettingsSection(
             colors = colors,
             playbackSettings = playbackSettings,
-            supportsReplayGain = false,
-            supportsCrossfade = false,
+            supportsReplayGain = supportsReplayGain,
+            supportsGapless = supportsGapless,
+            supportsCrossfade = supportsCrossfade,
             showReplayGain = true,
             showCrossfade = true,
             showQueueBehavior = showQueueBehavior,
@@ -75,6 +79,7 @@ fun NaviampPlaybackSettingsSection(
     colors: NaviampColors,
     playbackSettings: PlaybackSettings,
     supportsReplayGain: Boolean,
+    supportsGapless: Boolean,
     supportsCrossfade: Boolean,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     showReplayGain: Boolean = true,
@@ -106,6 +111,25 @@ fun NaviampPlaybackSettingsSection(
     }
     if (showCrossfade) {
         Text(
+            if (supportsGapless) "Gapless playback" else "Gapless playback unavailable with this playback engine",
+            color = colors.secondaryText,
+            fontSize = 12.sp,
+        )
+        SettingsCheckboxRow(
+            colors = colors,
+            checked = playbackSettings.gaplessEnabled && playbackSettings.crossfadeDurationSeconds == 0,
+            enabled = supportsGapless,
+            label = "Gapless",
+            onCheckedChange = { enabled ->
+                onPlaybackSettingsChanged(
+                    playbackSettings.copy(
+                        gaplessEnabled = enabled,
+                        crossfadeDurationSeconds = if (enabled) 0 else playbackSettings.crossfadeDurationSeconds,
+                    ),
+                )
+            },
+        )
+        Text(
             if (supportsCrossfade) "Crossfade" else "Crossfade unavailable with this playback engine",
             color = colors.secondaryText,
             fontSize = 12.sp,
@@ -116,7 +140,12 @@ fun NaviampPlaybackSettingsSection(
                     selected = playbackSettings.crossfadeDurationSeconds == seconds,
                     enabled = supportsCrossfade || seconds == 0,
                     onClick = {
-                        onPlaybackSettingsChanged(playbackSettings.copy(crossfadeDurationSeconds = seconds))
+                        onPlaybackSettingsChanged(
+                            playbackSettings.copy(
+                                crossfadeDurationSeconds = seconds,
+                                gaplessEnabled = if (seconds > 0) false else playbackSettings.gaplessEnabled,
+                            ),
+                        )
                     },
                     label = { Text(if (seconds == 0) "Off" else "${seconds}s", fontSize = 12.sp) },
                     modifier = Modifier.height(28.dp),
@@ -211,12 +240,14 @@ fun NaviampPlaybackSettingsSection(
 private fun SettingsCheckboxRow(
     colors: NaviampColors,
     checked: Boolean,
+    enabled: Boolean = true,
     label: String,
     onCheckedChange: (Boolean) -> Unit,
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
         Checkbox(
             checked = checked,
+            enabled = enabled,
             onCheckedChange = onCheckedChange,
         )
         Text(label, color = colors.secondaryText, fontSize = 12.sp)

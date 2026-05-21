@@ -1,6 +1,10 @@
 package app.naviamp.desktop.playback
 
+import app.naviamp.desktop.AudioTagReader
+import app.naviamp.desktop.AudioTag
 import app.naviamp.desktop.DesktopCache
+import app.naviamp.desktop.lyricsFromAudioTags
+import app.naviamp.domain.ReplayGain
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
@@ -8,15 +12,19 @@ import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.playback.CrossfadeSettings
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.playback.PlaybackReplayGain
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.ReplayGainMode
+import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class PlaylistEngine(
     private val playbackEngine: PlaybackEngine,
@@ -30,8 +38,10 @@ class PlaylistEngine(
     private var replayGainMode: ReplayGainMode = ReplayGainMode.Off
     private var callbacks: PlaylistCallbacks? = null
     private var crossfadeSettings = CrossfadeSettings()
+    private var gaplessEnabled = true
     private var repeatMode = RepeatMode.Off
     private var preparedNextIndex: Int? = null
+    private var currentTrackSidecarJob: Job? = null
     private var audioPrefetchJob: Job? = null
     private var sessionId = 0
     private var playbackSource: PlaybackSource = PlaybackSource.Unknown
@@ -60,6 +70,8 @@ class PlaylistEngine(
         this.replayGainMode = replayGainMode
         this.callbacks = callbacks
         sessionId += 1
+        currentTrackSidecarJob?.cancel()
+        currentTrackSidecarJob = null
         audioPrefetchJob?.cancel()
         audioPrefetchJob = null
         audioPrefetchStats = AudioPrefetchStats()
@@ -81,6 +93,8 @@ class PlaylistEngine(
         this.replayGainMode = replayGainMode
         this.callbacks = callbacks
         sessionId += 1
+        currentTrackSidecarJob?.cancel()
+        currentTrackSidecarJob = null
         audioPrefetchJob?.cancel()
         audioPrefetchJob = null
         audioPrefetchStats = AudioPrefetchStats()
@@ -93,6 +107,8 @@ class PlaylistEngine(
 
     fun clear() {
         sessionId += 1
+        currentTrackSidecarJob?.cancel()
+        currentTrackSidecarJob = null
         audioPrefetchJob?.cancel()
         audioPrefetchJob = null
         audioPrefetchStats = AudioPrefetchStats()
@@ -136,9 +152,17 @@ class PlaylistEngine(
         callbacks?.onQueueChanged(queue)
     }
 
+    fun setPlaybackTransitionSettings(
+        gaplessEnabled: Boolean,
+        crossfadeSettings: CrossfadeSettings,
+    ) {
+        this.gaplessEnabled = gaplessEnabled
+        this.crossfadeSettings = crossfadeSettings
+        (playbackEngine as? QueueAwarePlaybackEngine)?.setCrossfadeDuration(crossfadeSettings.durationSeconds)
+    }
+
     fun setCrossfadeSettings(settings: CrossfadeSettings) {
-        crossfadeSettings = settings
-        (playbackEngine as? QueueAwarePlaybackEngine)?.setCrossfadeDuration(settings.durationSeconds)
+        setPlaybackTransitionSettings(gaplessEnabled = settings.durationSeconds <= 0, crossfadeSettings = settings)
     }
 
     fun setRepeatMode(mode: RepeatMode) {
@@ -211,6 +235,8 @@ class PlaylistEngine(
         val currentProvider = provider ?: return
         val currentQuality = streamQuality ?: return
         val currentCallbacks = callbacks ?: return
+        currentTrackSidecarJob?.cancel()
+        currentTrackSidecarJob = null
         audioPrefetchJob?.cancel()
         audioPrefetchJob = null
 
@@ -223,8 +249,10 @@ class PlaylistEngine(
             try {
                 val playbackTarget = playbackTarget(currentProvider, track, currentQuality)
                 playbackSource = playbackTarget.source
+                val replayGain = replayGainForTrack(track, currentQuality)
                 val coverArtUrl = track.coverArtId?.let { currentProvider.coverArtUrl(it) }
                 currentCallbacks.onTrackStarted(track, coverArtUrl)
+                startCurrentTrackSidecars(scope, activeSessionId, track)
                 startAudioPrefetch(scope, activeSessionId)
                 playbackEngine.play(
                     scope = scope,
@@ -232,6 +260,7 @@ class PlaylistEngine(
                         url = playbackTarget.url,
                         mediaId = track.id.value,
                         replayGainMode = replayGainMode.forEngine(playbackEngine),
+                        replayGain = replayGain,
                         startPositionSeconds = startPositionSeconds?.takeIf { it > 0.0 },
                     ),
                     onStateChanged = { state ->
@@ -244,6 +273,13 @@ class PlaylistEngine(
                             if (activeSessionId == sessionId) {
                                 callbacks?.onPlaybackProgressChanged(progress)
                                 prepareNextIfNeeded(scope, progress, activeSessionId)
+                            }
+                        }
+                    },
+                    onMetadataChanged = { metadata ->
+                        scope.launch {
+                            if (activeSessionId == sessionId) {
+                                callbacks?.onMetadataChanged(metadata)
                             }
                         }
                     },
@@ -299,6 +335,43 @@ class PlaylistEngine(
         )
     }
 
+    private fun startCurrentTrackSidecars(
+        scope: CoroutineScope,
+        activeSessionId: Int,
+        track: Track,
+    ) {
+        if (!audioCachingEnabledProvider()) return
+        val audioCache = cache ?: return
+        val sourceId = sourceIdProvider() ?: return
+        val currentProvider = provider ?: return
+        val currentQuality = streamQuality ?: return
+
+        currentTrackSidecarJob?.cancel()
+        currentTrackSidecarJob = scope.launch {
+            runCatching {
+                val cachedAudio = audioCache.cacheAudioTrack(
+                    sourceId = sourceId,
+                    provider = currentProvider,
+                    track = track,
+                    quality = currentQuality,
+                )
+                if (activeSessionId == sessionId) {
+                    runPrefetchSidecars(
+                        audioCache = audioCache,
+                        sourceId = sourceId,
+                        provider = currentProvider,
+                        track = track,
+                        quality = currentQuality,
+                        cachedAudio = cachedAudio,
+                    )
+                    if (activeSessionId == sessionId) {
+                        callbacks?.onCurrentTrackSidecarsReady(track)
+                    }
+                }
+            }
+        }
+    }
+
     private fun startAudioPrefetch(scope: CoroutineScope, activeSessionId: Int) {
         audioPrefetchStats = AudioPrefetchStats(
             enabled = audioCachingEnabledProvider(),
@@ -320,21 +393,38 @@ class PlaylistEngine(
             queued = upcoming.size,
             completed = 0,
             failed = 0,
+            sidecarCompleted = 0,
+            sidecarFailed = 0,
             lastError = null,
+            lastSidecarError = null,
         )
         audioPrefetchJob = scope.launch {
             upcoming.forEach { track ->
                 if (activeSessionId != sessionId) return@launch
+                var sidecarResult = SidecarPrepResult()
                 val result = runCatching {
-                    audioCache.cacheAudioTrack(
+                    val cachedAudio = audioCache.cacheAudioTrack(
                         sourceId = sourceId,
                         provider = currentProvider,
                         track = track,
                         quality = currentQuality,
                     )
+                    sidecarResult = runPrefetchSidecars(
+                        audioCache = audioCache,
+                        sourceId = sourceId,
+                        provider = currentProvider,
+                        track = track,
+                        quality = currentQuality,
+                        cachedAudio = cachedAudio,
+                    )
                 }
                 audioPrefetchStats = if (result.isSuccess) {
-                    audioPrefetchStats.copy(completed = audioPrefetchStats.completed + 1)
+                    audioPrefetchStats.copy(
+                        completed = audioPrefetchStats.completed + 1,
+                        sidecarCompleted = audioPrefetchStats.sidecarCompleted + if (sidecarResult.failed == 0) 1 else 0,
+                        sidecarFailed = audioPrefetchStats.sidecarFailed + if (sidecarResult.failed > 0) 1 else 0,
+                        lastSidecarError = sidecarResult.lastError ?: audioPrefetchStats.lastSidecarError,
+                    )
                 } else {
                     audioPrefetchStats.copy(
                         failed = audioPrefetchStats.failed + 1,
@@ -346,6 +436,70 @@ class PlaylistEngine(
                 audioPrefetchStats = audioPrefetchStats.copy(running = false)
             }
         }
+    }
+
+    private suspend fun runPrefetchSidecars(
+        audioCache: DesktopCache,
+        sourceId: String,
+        provider: MediaProvider,
+        track: Track,
+        quality: StreamQuality,
+        cachedAudio: app.naviamp.desktop.CachedAudioFile,
+    ): SidecarPrepResult {
+        var failed = 0
+        var lastError: String? = null
+
+        fun errorMessage(error: Throwable): String =
+            error.message ?: error::class.simpleName ?: "Sidecar prep failed."
+
+        suspend fun runSidecar(sidecarType: String, block: suspend () -> Unit) {
+            runCatching { block() }
+                .onSuccess {
+                    audioCache.recordSidecarStatus(
+                        sourceId = sourceId,
+                        trackId = track.id,
+                        quality = quality,
+                        sidecarType = sidecarType,
+                        success = true,
+                    )
+                }
+                .onFailure { error ->
+                    val message = errorMessage(error)
+                    audioCache.recordSidecarStatus(
+                        sourceId = sourceId,
+                        trackId = track.id,
+                        quality = quality,
+                        sidecarType = sidecarType,
+                        success = false,
+                        errorMessage = message,
+                    )
+                    failed += 1
+                    lastError = message
+                }
+        }
+
+        runSidecar("waveform") {
+            audioCache.ensureAudioWaveform(
+                sourceId = sourceId,
+                trackId = track.id,
+                quality = quality,
+            )
+        }
+        runSidecar("provider_lyrics") {
+            audioCache.providerLyrics(sourceId, provider, track.id)
+        }
+        runSidecar("embedded_lyrics") {
+            val embeddedLyrics = AudioTagReader().read(cachedAudio.path)
+                .let(::lyricsFromAudioTags)
+            if (embeddedLyrics != null) {
+                audioCache.cacheEmbeddedLyrics(sourceId, track.id, embeddedLyrics)
+            }
+        }
+        runSidecar("lrclib_lyrics") {
+            audioCache.lrclibLyrics(sourceId, track)
+        }
+
+        return SidecarPrepResult(failed = failed, lastError = lastError)
     }
 
     private fun handlePlaybackState(
@@ -378,18 +532,21 @@ class PlaylistEngine(
         activeSessionId: Int,
     ) {
         val queueAwareEngine = playbackEngine as? QueueAwarePlaybackEngine ?: return
-        if (!crossfadeSettings.isActive || !playbackEngine.supportsCrossfade || !queue.hasNext()) return
+        val canPrepareForCrossfade = crossfadeSettings.isActive && playbackEngine.supportsCrossfade
+        val canPrepareForGapless = gaplessEnabled && playbackEngine.supportsGapless
+        val nextIndex = nextGaplessQueueIndex() ?: return
+        if (!canPrepareForCrossfade && !canPrepareForGapless) return
         val position = progress.positionSeconds ?: return
         val duration = progress.durationSeconds ?: return
-        val prepareWindowSeconds = maxOf(
-            crossfadeSettings.durationSeconds + 1.0,
-            CrossfadePrepareWindowSeconds,
-        )
+        val prepareWindowSeconds = if (canPrepareForCrossfade) {
+            crossfadeSettings.durationSeconds.toDouble()
+        } else {
+            GaplessPrepareWindowSeconds
+        }
         if (duration - position > prepareWindowSeconds) return
 
         val currentProvider = provider ?: return
         val currentQuality = streamQuality ?: return
-        val nextIndex = queue.currentIndex + 1
         if (preparedNextIndex == nextIndex) return
         preparedNextIndex = nextIndex
         val nextTrack = queue.tracks.getOrNull(nextIndex) ?: return
@@ -398,19 +555,49 @@ class PlaylistEngine(
             if (activeSessionId != sessionId) return@launch
             try {
                 val streamUrl = playbackTarget(currentProvider, nextTrack, currentQuality).url
+                val replayGain = replayGainForTrack(nextTrack, currentQuality)
                 if (activeSessionId == sessionId) {
-                    queueAwareEngine.prepareNext(
-                        PlaybackRequest(
-                            url = streamUrl,
-                            mediaId = nextTrack.id.value,
-                            replayGainMode = replayGainMode.forEngine(playbackEngine),
-                        ),
+                    val request = PlaybackRequest(
+                        url = streamUrl,
+                        mediaId = nextTrack.id.value,
+                        replayGainMode = replayGainMode.forEngine(playbackEngine),
+                        replayGain = replayGain,
                     )
+                    withContext(Dispatchers.IO) {
+                        queueAwareEngine.prepareNext(request)
+                    }
                 }
             } catch (_: Exception) {
                 preparedNextIndex = null
             }
         }
+    }
+
+    private fun nextGaplessQueueIndex(): Int? =
+        when {
+            repeatMode == RepeatMode.Track && queue.currentIndex in queue.tracks.indices -> queue.currentIndex
+            queue.hasNext() -> queue.currentIndex + 1
+            repeatMode == RepeatMode.Queue && queue.currentIndex in queue.tracks.indices && queue.tracks.isNotEmpty() -> 0
+            else -> null
+        }
+
+    private suspend fun replayGainForTrack(
+        track: Track,
+        quality: StreamQuality,
+    ): PlaybackReplayGain? {
+        track.replayGain?.takeIf { it.hasAnyValue() }?.let { replayGain ->
+            return PlaybackReplayGain(replayGain, ReplayGainSource.Provider)
+        }
+
+        val audioCache = cache ?: return null
+        val sourceId = sourceIdProvider() ?: return null
+        val audioPath = audioCache.downloadedAudioFile(sourceId, track.id, quality)?.path
+            ?: audioCache.cachedAudioFile(sourceId, track.id, quality)?.path
+            ?: return null
+        val replayGain = withContext(Dispatchers.IO) {
+            AudioTagReader().read(audioPath).replayGain()
+        } ?: return null
+        return PlaybackReplayGain(replayGain, ReplayGainSource.LocalTags)
     }
 }
 
@@ -434,6 +621,14 @@ data class AudioPrefetchStats(
     val queued: Int = 0,
     val completed: Int = 0,
     val failed: Int = 0,
+    val sidecarCompleted: Int = 0,
+    val sidecarFailed: Int = 0,
+    val lastError: String? = null,
+    val lastSidecarError: String? = null,
+)
+
+private data class SidecarPrepResult(
+    val failed: Int = 0,
     val lastError: String? = null,
 )
 
@@ -447,10 +642,40 @@ data class PlaylistCallbacks(
     val onQueueChanged: (PlaybackQueue) -> Unit,
     val onPlaybackStateChanged: (PlaybackState) -> Unit,
     val onPlaybackProgressChanged: (PlaybackProgress) -> Unit,
+    val onMetadataChanged: (app.naviamp.domain.playback.PlaybackStreamMetadata) -> Unit = {},
+    val onCurrentTrackSidecarsReady: (Track) -> Unit = {},
 )
 
 private fun ReplayGainMode.forEngine(playbackEngine: PlaybackEngine): ReplayGainMode =
     if (playbackEngine.supportsReplayGain) this else ReplayGainMode.Off
 
-private const val CrossfadePrepareWindowSeconds = 30.0
+private fun ReplayGain.hasAnyValue(): Boolean =
+    trackGainDb != null || albumGainDb != null || trackPeak != null || albumPeak != null
+
+private fun List<AudioTag>.replayGain(): ReplayGain? {
+    fun value(vararg keys: String): Double? {
+        val wanted = keys.map { it.normalizedReplayGainKey() }.toSet()
+        return firstNotNullOfOrNull { tag ->
+            tag.value.replayGainNumber()
+                ?.takeIf { tag.key.normalizedReplayGainKey() in wanted }
+        }
+    }
+
+    val replayGain = ReplayGain(
+        trackGainDb = value("REPLAYGAIN_TRACK_GAIN", "Replaygain Track Gain", "Track Gain"),
+        albumGainDb = value("REPLAYGAIN_ALBUM_GAIN", "Replaygain Album Gain", "Album Gain"),
+        trackPeak = value("REPLAYGAIN_TRACK_PEAK", "Replaygain Track Peak", "Track Peak"),
+        albumPeak = value("REPLAYGAIN_ALBUM_PEAK", "Replaygain Album Peak", "Album Peak"),
+    )
+    return replayGain.takeIf { it.hasAnyValue() }
+}
+
+private fun String.normalizedReplayGainKey(): String =
+    lowercase().filter { it.isLetterOrDigit() }
+
+private fun String.replayGainNumber(): Double? =
+    ReplayGainNumberRegex.find(this)?.value?.toDoubleOrNull()
+
+private const val GaplessPrepareWindowSeconds = 8.0
 private const val DefaultAudioPrefetchDepth = 10
+private val ReplayGainNumberRegex = Regex("""[-+]?\d+(?:\.\d+)?""")

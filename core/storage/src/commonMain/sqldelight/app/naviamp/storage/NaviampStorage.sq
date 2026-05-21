@@ -32,7 +32,9 @@ CREATE TABLE media_source (
   created_at_epoch_millis INTEGER NOT NULL,
   last_connected_at_epoch_millis INTEGER,
   last_sync_started_at_epoch_millis INTEGER,
-  last_sync_completed_at_epoch_millis INTEGER
+  last_sync_completed_at_epoch_millis INTEGER,
+  last_library_scan_signature TEXT,
+  last_library_scan_checked_at_epoch_millis INTEGER
 );
 
 CREATE TABLE library_artist (
@@ -80,6 +82,20 @@ CREATE TABLE library_track (
   user_rating INTEGER,
   updated_at_epoch_millis INTEGER NOT NULL,
   PRIMARY KEY(source_id, remote_track_id)
+);
+
+CREATE TABLE artist_popular_track (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  remote_artist_id TEXT NOT NULL,
+  popular_source TEXT NOT NULL,
+  source_track_id TEXT NOT NULL,
+  rank INTEGER NOT NULL,
+  title TEXT NOT NULL,
+  album_title TEXT,
+  duration_seconds INTEGER,
+  matched_remote_track_id TEXT,
+  fetched_at_epoch_millis INTEGER NOT NULL,
+  PRIMARY KEY(source_id, remote_artist_id, popular_source, source_track_id)
 );
 
 CREATE TABLE cached_audio (
@@ -164,6 +180,18 @@ CREATE TABLE cached_lrclib_lyrics (
   PRIMARY KEY(source_id, remote_track_id)
 );
 
+CREATE TABLE cached_sidecar_status (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  remote_track_id TEXT NOT NULL,
+  quality_key TEXT NOT NULL,
+  sidecar_type TEXT NOT NULL,
+  status TEXT NOT NULL,
+  attempts INTEGER NOT NULL,
+  last_error TEXT,
+  updated_at_epoch_millis INTEGER NOT NULL,
+  PRIMARY KEY(source_id, remote_track_id, quality_key, sidecar_type)
+);
+
 CREATE TABLE playback_session (
   source_id TEXT NOT NULL PRIMARY KEY REFERENCES media_source(id) ON DELETE CASCADE,
   payload TEXT NOT NULL,
@@ -207,6 +235,12 @@ ON library_track(source_id, search_title);
 CREATE INDEX library_track_source_artist
 ON library_track(source_id, search_artist_name);
 
+CREATE INDEX artist_popular_track_artist
+ON artist_popular_track(source_id, remote_artist_id, popular_source, rank);
+
+CREATE INDEX artist_popular_track_match
+ON artist_popular_track(source_id, matched_remote_track_id);
+
 CREATE INDEX cached_audio_source_access
 ON cached_audio(source_id, last_accessed_epoch_millis);
 
@@ -221,6 +255,9 @@ ON cached_lyrics(last_accessed_epoch_millis);
 
 CREATE INDEX cached_lrclib_lyrics_access
 ON cached_lrclib_lyrics(last_accessed_epoch_millis);
+
+CREATE INDEX cached_sidecar_status_track
+ON cached_sidecar_status(source_id, remote_track_id, quality_key);
 
 CREATE INDEX playback_history_source_played_at
 ON playback_history(source_id, played_at_epoch_millis);
@@ -351,8 +388,10 @@ INSERT OR REPLACE INTO media_source(
   created_at_epoch_millis,
   last_connected_at_epoch_millis,
   last_sync_started_at_epoch_millis,
-  last_sync_completed_at_epoch_millis
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+  last_sync_completed_at_epoch_millis,
+  last_library_scan_signature,
+  last_library_scan_checked_at_epoch_millis
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 touchMediaSourceConnected:
 UPDATE media_source
@@ -371,6 +410,12 @@ WHERE id = ?;
 markMediaSourceSyncCompleted:
 UPDATE media_source
 SET last_sync_completed_at_epoch_millis = ?
+WHERE id = ?;
+
+markMediaSourceLibraryScanChecked:
+UPDATE media_source
+SET last_library_scan_signature = ?,
+    last_library_scan_checked_at_epoch_millis = ?
 WHERE id = ?;
 
 upsertLibraryArtist:
@@ -480,6 +525,67 @@ WHERE source_id = ?
 AND remote_artist_id = ?
 ORDER BY search_album_title, search_title
 LIMIT ?;
+
+deleteArtistPopularTracks:
+DELETE FROM artist_popular_track
+WHERE source_id = ?
+AND remote_artist_id = ?
+AND popular_source = ?;
+
+upsertArtistPopularTrack:
+INSERT OR REPLACE INTO artist_popular_track(
+  source_id,
+  remote_artist_id,
+  popular_source,
+  source_track_id,
+  rank,
+  title,
+  album_title,
+  duration_seconds,
+  matched_remote_track_id,
+  fetched_at_epoch_millis
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+selectArtistPopularTracks:
+SELECT
+  artist_popular_track.source_id AS popular_source_id,
+  artist_popular_track.remote_artist_id AS popular_remote_artist_id,
+  artist_popular_track.popular_source,
+  artist_popular_track.source_track_id,
+  artist_popular_track.rank,
+  artist_popular_track.title AS popular_title,
+  artist_popular_track.album_title AS popular_album_title,
+  artist_popular_track.duration_seconds AS popular_duration_seconds,
+  artist_popular_track.matched_remote_track_id,
+  artist_popular_track.fetched_at_epoch_millis,
+  library_track.source_id,
+  library_track.remote_track_id,
+  library_track.remote_album_id,
+  library_track.remote_artist_id,
+  library_track.title,
+  library_track.artist_name,
+  library_track.album_title,
+  library_track.search_title,
+  library_track.search_artist_name,
+  library_track.search_album_title,
+  library_track.duration_seconds,
+  library_track.cover_art_id,
+  library_track.audio_codec,
+  library_track.audio_bitrate_kbps,
+  library_track.audio_content_type,
+  library_track.audio_bit_depth,
+  library_track.audio_sampling_rate_hz,
+  library_track.favorited_at_iso8601,
+  library_track.user_rating,
+  library_track.updated_at_epoch_millis
+FROM artist_popular_track
+JOIN library_track
+  ON library_track.source_id = artist_popular_track.source_id
+  AND library_track.remote_track_id = artist_popular_track.matched_remote_track_id
+WHERE artist_popular_track.source_id = ?
+AND artist_popular_track.remote_artist_id = ?
+AND artist_popular_track.popular_source = ?
+ORDER BY artist_popular_track.rank;
 
 searchLibraryArtists:
 SELECT *
@@ -750,6 +856,25 @@ SET last_accessed_epoch_millis = ?
 WHERE source_id = ?
 AND remote_track_id = ?;
 
+selectCachedSidecarStatus:
+SELECT *
+FROM cached_sidecar_status
+WHERE source_id = ?
+AND remote_track_id = ?
+AND quality_key = ?;
+
+upsertCachedSidecarStatus:
+INSERT OR REPLACE INTO cached_sidecar_status(
+  source_id,
+  remote_track_id,
+  quality_key,
+  sidecar_type,
+  status,
+  attempts,
+  last_error,
+  updated_at_epoch_millis
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
 upsertCachedLyrics:
 INSERT OR REPLACE INTO cached_lyrics(
   source_id,
@@ -809,6 +934,10 @@ clearLibraryForSource:
 DELETE FROM library_track
 WHERE source_id = ?;
 
+clearArtistPopularTracksForSource:
+DELETE FROM artist_popular_track
+WHERE source_id = ?;
+
 clearLibraryAlbumsForSource:
 DELETE FROM library_album
 WHERE source_id = ?;
@@ -838,11 +967,17 @@ DELETE FROM cached_lyrics;
 clearLrclibLyrics:
 DELETE FROM cached_lrclib_lyrics;
 
+clearSidecarStatuses:
+DELETE FROM cached_sidecar_status;
+
 clearPlaybackHistory:
 DELETE FROM playback_history;
 
 clearLibraryTracks:
 DELETE FROM library_track;
+
+clearArtistPopularTracks:
+DELETE FROM artist_popular_track;
 
 clearLibraryAlbums:
 DELETE FROM library_album;

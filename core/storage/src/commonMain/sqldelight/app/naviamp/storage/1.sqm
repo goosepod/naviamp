@@ -1,0 +1,19 @@
+CREATE TABLE artist_popular_track (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  remote_artist_id TEXT NOT NULL,
+  popular_source TEXT NOT NULL,
+  source_track_id TEXT NOT NULL,
+  rank INTEGER NOT NULL,
+  title TEXT NOT NULL,
+  album_title TEXT,
+  duration_seconds INTEGER,
+  matched_remote_track_id TEXT,
+  fetched_at_epoch_millis INTEGER NOT NULL,
+  PRIMARY KEY(source_id, remote_artist_id, popular_source, source_track_id)
+);
+
+CREATE INDEX artist_popular_track_artist
+ON artist_popular_track(source_id, remote_artist_id, popular_source, rank);
+
+CREATE INDEX artist_popular_track_match
+ON artist_popular_track(source_id, matched_remote_track_id);

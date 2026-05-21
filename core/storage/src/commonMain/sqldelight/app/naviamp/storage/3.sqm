@@ -1,0 +1,3 @@
+ALTER TABLE media_source ADD COLUMN last_library_scan_signature TEXT;
+
+ALTER TABLE media_source ADD COLUMN last_library_scan_checked_at_epoch_millis INTEGER;

@@ -75,6 +75,7 @@ fun ArtistRow(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
     onStartRadio: (() -> Unit)? = null,
+    onAddToQueue: (() -> Unit)? = null,
     onAddToPlaylist: (() -> Unit)? = null,
 ) {
     MediaRow(appColors = appColors, modifier = modifier, onClick = onClick) {
@@ -89,10 +90,12 @@ fun ArtistRow(
             appColors = appColors,
             items = artistRowActions(
                 canStartRadio = onStartRadio != null,
+                canAddToQueue = onAddToQueue != null,
                 canAddToPlaylist = onAddToPlaylist != null,
             ).mapNotNull { action ->
                 when (action.action) {
                     NaviampAction.StartArtistRadio -> onStartRadio?.let { action.toRowMenuItem(it) }
+                    NaviampAction.AddToQueue -> onAddToQueue?.let { action.toRowMenuItem(it) }
                     NaviampAction.AddToPlaylist -> onAddToPlaylist?.let { action.toRowMenuItem(it) }
                     else -> null
                 }
@@ -112,6 +115,7 @@ fun AlbumRow(
     onClick: (() -> Unit)? = null,
     onStartRadio: (() -> Unit)? = null,
     onDownload: (() -> Unit)? = null,
+    onAddToQueue: (() -> Unit)? = null,
     onAddToPlaylist: (() -> Unit)? = null,
 ) {
     MediaRow(
@@ -142,11 +146,13 @@ fun AlbumRow(
             items = albumRowActions(
                 canStartRadio = onStartRadio != null,
                 canDownload = onDownload != null,
+                canAddToQueue = onAddToQueue != null,
                 canAddToPlaylist = onAddToPlaylist != null,
             ).mapNotNull { action ->
                 when (action.action) {
                     NaviampAction.StartAlbumRadio -> onStartRadio?.let { action.toRowMenuItem(it) }
                     NaviampAction.DownloadAlbum -> onDownload?.let { action.toRowMenuItem(it) }
+                    NaviampAction.AddToQueue -> onAddToQueue?.let { action.toRowMenuItem(it) }
                     NaviampAction.AddToPlaylist -> onAddToPlaylist?.let { action.toRowMenuItem(it) }
                     else -> null
                 }
@@ -176,6 +182,7 @@ fun TrackRow(
     showMenu: Boolean = false,
     onStartRadio: (() -> Unit)? = null,
     onDownload: (() -> Unit)? = null,
+    onAddToQueue: (() -> Unit)? = null,
     onAddToPlaylist: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
 ) {
@@ -217,17 +224,19 @@ fun TrackRow(
             track = track,
             showDuration = showDuration,
         )
-        if (showMenu || onStartRadio != null || onDownload != null || onAddToPlaylist != null) {
+        if (showMenu || onStartRadio != null || onDownload != null || onAddToQueue != null || onAddToPlaylist != null) {
             RowOverflowMenu(
                 appColors = appColors,
                 items = trackRowActions(
                     canStartRadio = onStartRadio != null,
                     canDownload = onDownload != null,
+                    canAddToQueue = onAddToQueue != null,
                     canAddToPlaylist = onAddToPlaylist != null,
                 ).mapNotNull { action ->
                     when (action.action) {
                         NaviampAction.StartTrackRadio -> onStartRadio?.let { action.toRowMenuItem(it) }
                         NaviampAction.DownloadTrack -> onDownload?.let { action.toRowMenuItem(it) }
+                        NaviampAction.AddToQueue -> onAddToQueue?.let { action.toRowMenuItem(it) }
                         NaviampAction.AddToPlaylist -> onAddToPlaylist?.let { action.toRowMenuItem(it) }
                         else -> null
                     }

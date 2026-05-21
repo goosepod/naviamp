@@ -87,6 +87,7 @@ fun SettingsPanel(
     cacheSettings: CacheSettings,
     cacheStats: CacheStats,
     supportsReplayGain: Boolean,
+    supportsGapless: Boolean,
     supportsCrossfade: Boolean,
     onServerUrlChanged: (String) -> Unit,
     onConnectionNameChanged: (String) -> Unit,
@@ -168,6 +169,7 @@ fun SettingsPanel(
                 colors = appColors,
                 playbackSettings = playbackSettings,
                 supportsReplayGain = supportsReplayGain,
+                supportsGapless = supportsGapless,
                 supportsCrossfade = supportsCrossfade,
                 onPlaybackSettingsChanged = onPlaybackSettingsChanged,
             )

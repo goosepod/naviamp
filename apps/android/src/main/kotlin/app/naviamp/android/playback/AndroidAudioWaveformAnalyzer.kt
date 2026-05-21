@@ -1,150 +1,75 @@
 package app.naviamp.android.playback
 
 import android.content.Context
-import android.media.MediaCodec
-import android.media.MediaExtractor
-import android.media.MediaFormat
+import android.net.Uri
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.domain.waveform.DefaultWaveformBucketCount
-import app.naviamp.domain.waveform.normalizeWaveformPeaks
+import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.net.URL
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
-import kotlin.math.abs
 
 class AndroidAudioWaveformAnalyzer(
     context: Context,
+    private val bass: AndroidBassJni,
     private val bucketCount: Int = DefaultWaveformBucketCount,
 ) {
     private val cacheDirectory = File(context.cacheDir, "waveforms").apply { mkdirs() }
+    private var tlsSettings: NavidromeTlsSettings = NavidromeTlsSettings()
+
+    fun applyTlsSettings(tlsSettings: NavidromeTlsSettings) {
+        this.tlsSettings = tlsSettings
+    }
 
     suspend fun analyze(trackId: String, streamUrl: String): AudioWaveform? =
         withContext(Dispatchers.IO) {
-            val audioFile = downloadToCache(trackId, streamUrl) ?: return@withContext null
-            decodePeaks(audioFile)
+            val cached = cachedWaveform(trackId)
+            if (cached != null) return@withContext cached
+            bass.setVerifyNet(!tlsSettings.insecureSkipTlsVerification)
+            val stream = createDecodeStream(streamUrl)
+            if (stream == 0) return@withContext null
+            try {
+                val amplitudes = bass.decodeWaveform(stream, bucketCount)
+                    .takeIf { it.isNotEmpty() }
+                    ?.map { it.coerceIn(0f, 1f) }
+                    ?: return@withContext null
+                AudioWaveform(amplitudes).also { cacheWaveform(trackId, it) }
+            } finally {
+                bass.freeStream(stream)
+            }
         }
 
-    private fun downloadToCache(trackId: String, streamUrl: String): File? {
-        val target = File(cacheDirectory, "${trackId.safeFileName()}.audio")
-        if (target.exists() && target.length() > 0L) return target
-
-        val temporary = File(cacheDirectory, "${target.name}.tmp")
-        return runCatching {
-            URL(streamUrl).openStream().use { input ->
-                temporary.outputStream().use { output ->
-                    val buffer = ByteArray(64 * 1024)
-                    var totalBytes = 0L
-                    while (true) {
-                        val read = input.read(buffer)
-                        if (read < 0) break
-                        totalBytes += read
-                        if (totalBytes > MaxCachedAudioBytes) return@runCatching null
-                        output.write(buffer, 0, read)
-                    }
-                }
-            }
-            if (temporary.length() <= 0L) return@runCatching null
-            temporary.renameTo(target)
-            target
-        }.getOrNull().also {
-            if (it == null) temporary.delete()
+    private fun createDecodeStream(streamUrl: String): Int {
+        val localFile = localFileFromUrl(streamUrl)
+        return if (localFile != null) {
+            bass.createFileDecodeStream(localFile.absolutePath)
+        } else {
+            bass.createUrlDecodeStream(streamUrl)
         }
     }
 
-    private fun decodePeaks(audioFile: File): AudioWaveform? {
-        val extractor = MediaExtractor()
-        var codec: MediaCodec? = null
-        return try {
-            extractor.setDataSource(audioFile.absolutePath)
-            val trackIndex = (0 until extractor.trackCount).firstOrNull { index ->
-                extractor.getTrackFormat(index).getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true
-            } ?: return null
-            val format = extractor.getTrackFormat(trackIndex)
-            val mime = format.getString(MediaFormat.KEY_MIME) ?: return null
-            extractor.selectTrack(trackIndex)
+    private fun cachedWaveform(trackId: String): AudioWaveform? {
+        val cacheFile = File(cacheDirectory, "${trackId.safeFileName()}.$WaveformCacheVersion.waveform")
+        if (!cacheFile.isFile) return null
+        val amplitudes = cacheFile.readText()
+            .split(',')
+            .mapNotNull { it.toFloatOrNull()?.coerceIn(0f, 1f) }
+        return amplitudes.takeIf { it.isNotEmpty() }?.let(::AudioWaveform)
+    }
 
-            codec = MediaCodec.createDecoderByType(mime).apply {
-                configure(format, null, null, 0)
-                start()
-            }
-
-            val peaks = mutableListOf<Float>()
-            val bufferInfo = MediaCodec.BufferInfo()
-            var inputDone = false
-            var outputDone = false
-
-            while (!outputDone) {
-                if (!inputDone) {
-                    val inputIndex = codec.dequeueInputBuffer(10_000)
-                    if (inputIndex >= 0) {
-                        val inputBuffer = codec.getInputBuffer(inputIndex)
-                        val sampleSize = inputBuffer?.let { extractor.readSampleData(it, 0) } ?: -1
-                        if (sampleSize < 0) {
-                            codec.queueInputBuffer(
-                                inputIndex,
-                                0,
-                                0,
-                                0,
-                                MediaCodec.BUFFER_FLAG_END_OF_STREAM,
-                            )
-                            inputDone = true
-                        } else {
-                            codec.queueInputBuffer(
-                                inputIndex,
-                                0,
-                                sampleSize,
-                                extractor.sampleTime.coerceAtLeast(0L),
-                                0,
-                            )
-                            extractor.advance()
-                        }
-                    }
-                }
-
-                when (val outputIndex = codec.dequeueOutputBuffer(bufferInfo, 10_000)) {
-                    MediaCodec.INFO_TRY_AGAIN_LATER -> Unit
-                    MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> Unit
-                    else -> if (outputIndex >= 0) {
-                        codec.getOutputBuffer(outputIndex)?.let { outputBuffer ->
-                            if (bufferInfo.size > 0) {
-                                peaks += outputBuffer.peak(bufferInfo.offset, bufferInfo.size)
-                            }
-                        }
-                        outputDone = bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0
-                        codec.releaseOutputBuffer(outputIndex, false)
-                    }
-                }
-            }
-
-            normalizeWaveformPeaks(peaks, bucketCount)
-        } catch (_: Exception) {
-            null
-        } finally {
-            codec?.runCatching { stop() }
-            codec?.runCatching { release() }
-            extractor.release()
-        }
+    private fun cacheWaveform(trackId: String, waveform: AudioWaveform) {
+        File(cacheDirectory, "${trackId.safeFileName()}.$WaveformCacheVersion.waveform")
+            .writeText(waveform.amplitudes.joinToString(","))
     }
 }
 
-private fun ByteBuffer.peak(offset: Int, size: Int): Float {
-    val duplicate = duplicate()
-        .order(ByteOrder.LITTLE_ENDIAN)
-    duplicate.position(offset)
-    duplicate.limit(offset + size)
-
-    var peak = 0f
-    while (duplicate.remaining() >= 2) {
-        val sample = abs(duplicate.short.toInt()) / Short.MAX_VALUE.toFloat()
-        if (sample > peak) peak = sample
-    }
-    return peak.coerceIn(0f, 1f)
-}
+private fun localFileFromUrl(url: String): File? =
+    runCatching {
+        val uri = Uri.parse(url)
+        if (uri.scheme == "file") File(requireNotNull(uri.path)) else null
+    }.getOrNull()
 
 private fun String.safeFileName(): String =
     replace(Regex("[^A-Za-z0-9._-]"), "_").take(96).ifBlank { "track" }
 
-private const val MaxCachedAudioBytes = 120L * 1024L * 1024L
+private const val WaveformCacheVersion = "bass-v4"

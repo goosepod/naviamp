@@ -26,6 +26,7 @@ Current priorities:
 - Default bias: if behavior is not inherently tied to OS APIs, keep it platform-agnostic. Visual behavior, color derivation, layout decisions, screen state, queue/action models, and pure transformations should live in shared modules unless there is a concrete platform API boundary. If platform-specific-looking code is encountered during other work and cannot be moved immediately, add a note here so it is not forgotten.
 - Navidrome is the first provider, but the app should stay provider-oriented.
 - Playback uses mpv on desktop when available.
+- Playback direction has changed: BASS is the target engine for desktop and Android. The current Kotlin desktop BASS path starts with JNA, but production should move to JNI for visualizers, BASSmix, crossfade, gapless playback, and platform parity. mpv should not remain bundled once BASS is stable.
 - Audio/track caching is now a priority because it will matter for fast desktop skips, network handoff, and the future Android app.
 - Offline downloads are separate from cache files. They can reuse cache/download plumbing, but user-selected downloads should live in their own storage area and should not be evicted by normal cache cleanup.
 - The app should remember state across screens where it feels natural: search query/results, navigation, session queue, window size, and similar context.
@@ -47,6 +48,7 @@ Useful docs:
 
 - `docs/architecture.md`
 - `docs/desktop-playback.md`
+- `docs/kotlin-bass-roadmap.md`
 - `docs/roadmap.md`
 - `docs/setup.md`
 
@@ -487,7 +489,7 @@ Good next slices:
 - Phase 2C follow-up: harden audio cache behavior for mobile/offline use, including expiry rules, partial download cleanup, and provider-specific refresh hooks.
 - Downloads follow-up: add a clearer download queue/progress surface for multi-track jobs, plus downloaded indicators on rows/albums/playlists.
 - Lyrics follow-up: investigate whether LRCLIB synced lyrics can be written back to Navidrome-managed files or sidecar lyric metadata, and only add this as an explicit user-controlled action if Navidrome supports it safely.
-- Waveform follow-up: consider queue-aware/background waveform analysis for likely-upcoming tracks after measuring CPU impact.
+- Prefetch sidecar follow-up: because Naviamp already pre-caches upcoming audio, add a bounded background prep pass for those files: build waveform rows, read tags, fetch provider/embedded lyrics, and optionally run LRCLIB fallback before the track starts so Now Playing data appears instantly.
 - Queue actions follow-up: keep expanding per-row overflow menus in `UP NEXT`, `BACK TO`, and `RELATED` as new actions become useful.
 - Visualizer follow-up: prototype a real live PCM/FFT path in the experimental player, then wire the player UI to that capability once it behaves well.
 - Crossfade follow-up: revisit `ExperimentalCrossfadeMpvPlaybackEngine` with cached local next files, explicit transition reset on seek/pause/skip/queue clear, and configurable fade curves inspired by Feishin's web player.

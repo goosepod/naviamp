@@ -19,12 +19,17 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import app.naviamp.android.playback.AndroidAudioWaveformAnalyzer
-import app.naviamp.android.playback.AndroidMedia3PlaybackEngine
+import app.naviamp.android.playback.AndroidBassJni
+import app.naviamp.android.playback.AndroidBassPlaybackEngine
+import app.naviamp.android.playback.AndroidBassNativeLoader
+import app.naviamp.android.playback.AndroidPlaybackEngine
+import app.naviamp.android.playback.AndroidPlaybackTls
 import app.naviamp.android.playback.AndroidPlaybackNotificationControls
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
+import app.naviamp.domain.ArtistId
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Playlist
@@ -36,6 +41,7 @@ import app.naviamp.domain.app.NaviampNavigationState
 import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.ConnectionValidation
+import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.HomeDate
@@ -46,9 +52,17 @@ import app.naviamp.domain.home.parseHomeDecadeStationId
 import app.naviamp.domain.home.parseHomeGenreStationId
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
+import app.naviamp.domain.playback.PlaybackReplayGain
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
+import app.naviamp.domain.playback.PlaybackVisualizerFrame
+import app.naviamp.domain.playback.QueueAwarePlaybackEngine
+import app.naviamp.domain.playback.ReplayGainMode
+import app.naviamp.domain.playback.ReplayGainSource
+import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.label
+import app.naviamp.domain.popular.ArtistPopularTracksService
+import app.naviamp.domain.popular.DeezerPopularTracksClient
 import app.naviamp.domain.lyrics.selectPreferredLyrics
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
@@ -87,9 +101,14 @@ import app.naviamp.ui.toSharedMediaItemUi
 import app.naviamp.ui.toSharedPlaylistDetailUi
 import app.naviamp.ui.toSharedSearchResultsUi
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.time.LocalDate
@@ -111,14 +130,27 @@ class MainActivity : ComponentActivity() {
 private fun NaviampAndroidApp() {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    val playbackEngine = remember { AndroidMedia3PlaybackEngine(context) }
-    val waveformAnalyzer = remember { AndroidAudioWaveformAnalyzer(context) }
+    val bassLoadReport = remember { AndroidBassNativeLoader.loadBundledLibraries() }
+    val bassJni = remember {
+        AndroidBassJni.load().fold(
+            onSuccess = { it },
+            onFailure = { throw IllegalStateException("BASS is required for Android playback.", it) },
+        )
+    }
+    val playbackEngine: AndroidPlaybackEngine = remember { AndroidBassPlaybackEngine(context, bassJni) }
+    val waveformAnalyzer = remember { AndroidAudioWaveformAnalyzer(context, bassJni) }
     val lrclibLyricsClient = remember { AndroidLrclibLyricsClient() }
     val storage = remember { AndroidStorage(context) }
     val settingsStore = remember { AndroidSettingsStore(context) }
     val savedProviderSource = remember { storage.latestNavidromeSource() }
     val savedProviderConnection = savedProviderSource?.toNavidromeConnection()
     val savedConnection = remember { settingsStore.loadConnection(savedProviderConnection) }
+    val canAutoConnect = savedProviderConnection != null ||
+        (
+            savedConnection.serverUrl.isNotBlank() &&
+                savedConnection.username.isNotBlank() &&
+                savedConnection.password.isNotBlank()
+            )
     val savedPlaybackSettings = remember { settingsStore.loadPlaybackSettings() }
     var connectionName by remember { mutableStateOf(savedConnection.displayName) }
     var serverUrl by remember { mutableStateOf(savedConnection.serverUrl) }
@@ -141,10 +173,26 @@ private fun NaviampAndroidApp() {
     var recentPlaylistIds by remember { mutableStateOf<List<String>>(emptyList()) }
     var playlistTracksById by remember { mutableStateOf<Map<String, List<Track>>>(emptyMap()) }
     var editingConnection by remember { mutableStateOf(false) }
+    var restoringConnection by remember { mutableStateOf(canAutoConnect) }
     var navigationState by remember { mutableStateOf(NaviampNavigationState()) }
     val selectedRoute = navigationState.route.toSharedRoute()
     var provider by remember { mutableStateOf<NavidromeProvider?>(null) }
     var activeSourceId by remember { mutableStateOf<String?>(savedProviderSource?.id) }
+    val popularTracksService = remember(storage) {
+        ArtistPopularTracksService(
+            repository = storage,
+            libraryTracksForArtist = { artistId, limit ->
+                val sourceId = activeSourceId
+                val indexedTracks = sourceId
+                    ?.let { storage.libraryTracksForArtist(it, artistId, limit) }
+                    .orEmpty()
+                indexedTracks.ifEmpty {
+                    provider?.tracksForArtist(artistId, limit.coerceAtMost(AndroidPopularTrackFallbackLimit)).orEmpty()
+                }
+            },
+            client = DeezerPopularTracksClient(AndroidPopularTracksHttpClient()),
+        )
+    }
     var restoredStartPositionSeconds by remember { mutableStateOf<Double?>(null) }
     var activeTlsSettings by remember { mutableStateOf(NavidromeTlsSettings()) }
     var validation by remember { mutableStateOf<ConnectionValidation?>(null) }
@@ -156,19 +204,56 @@ private fun NaviampAndroidApp() {
     var nowPlayingOpen by remember { mutableStateOf(false) }
     var playbackState by remember { mutableStateOf<PlaybackState>(PlaybackState.Idle) }
     var playbackProgress by remember { mutableStateOf(PlaybackProgress.Unknown) }
+    var visualizerFrame by remember { mutableStateOf<PlaybackVisualizerFrame?>(null) }
+    var visualizerVisible by remember { mutableStateOf(false) }
     var pendingSeekPositionSeconds by remember { mutableStateOf<Double?>(null) }
     var pendingSeekIssuedAtMillis by remember { mutableStateOf<Long?>(null) }
     var playbackSessionToken by remember { mutableStateOf(0L) }
     var volumePercent by remember { mutableStateOf(100) }
     var waveformByTrackId by remember { mutableStateOf<Map<String, AudioWaveform>>(emptyMap()) }
     var playbackQueue by remember { mutableStateOf(PlaybackQueue()) }
+    var preparedNextTrackId by remember { mutableStateOf<String?>(null) }
     var shuffledUpNextSnapshot by remember { mutableStateOf<List<Track>?>(null) }
     var repeatMode by remember { mutableStateOf(RepeatMode.Off) }
     var relatedTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
+    var artistPopularTracksByArtistId by remember { mutableStateOf<Map<String, List<Track>>>(emptyMap()) }
     var lyricsVisible by remember { mutableStateOf(false) }
     var lyricsByTrackId by remember { mutableStateOf<Map<String, Lyrics?>>(emptyMap()) }
     var lyricsStatusByTrackId by remember { mutableStateOf<Map<String, String?>>(emptyMap()) }
     var playlistActionStatus by remember { mutableStateOf<String?>(null) }
+    var sidecarPrepJob by remember { mutableStateOf<Job?>(null) }
+
+    LaunchedEffect(bassLoadReport) {
+        if (!bassLoadReport.available) {
+            status = "BASS libraries are bundled but did not load on this device."
+        }
+    }
+
+    LaunchedEffect(nowPlaying?.id, nowPlayingStation?.id) {
+        visualizerFrame = null
+    }
+
+    LaunchedEffect(playbackEngine, playbackState, visualizerVisible, nowPlayingOpen) {
+        val visualizerEngine = playbackEngine as? VisualizerPlaybackEngine
+        if (visualizerEngine?.supportsVisualizer != true) {
+            visualizerFrame = null
+            return@LaunchedEffect
+        }
+        if (!visualizerVisible || !nowPlayingOpen) {
+            visualizerFrame = null
+            return@LaunchedEffect
+        }
+        while (visualizerVisible && nowPlayingOpen && (playbackState == PlaybackState.Playing || playbackState == PlaybackState.Loading)) {
+            visualizerFrame = visualizerEngine.visualizerFrame()
+            delay(66)
+        }
+        visualizerFrame = null
+    }
+
+    LaunchedEffect(playbackEngine, playbackSettings.crossfadeDurationSeconds) {
+        (playbackEngine as? QueueAwarePlaybackEngine)
+            ?.setCrossfadeDuration(playbackSettings.crossfadeDurationSeconds)
+    }
 
     DisposableEffect(playbackEngine) {
         onDispose {
@@ -183,6 +268,104 @@ private fun NaviampAndroidApp() {
     fun findKnownTrack(trackId: String): Track? =
         (activeQueue() + selectedPlaylistTracks + relatedTracks + allKnownTracks(searchResults, albumDetail))
             .firstOrNull { it.id.value == trackId }
+
+    fun appendTracksToQueue(tracksToAdd: List<Track>, label: String = "tracks") {
+        if (tracksToAdd.isEmpty()) {
+            status = "No tracks found."
+            return
+        }
+        val currentQueue = playbackQueue.tracks
+        playbackQueue = PlaybackQueue(
+            tracks = currentQueue + tracksToAdd,
+            currentIndex = playbackQueue.currentIndex.coerceAtLeast(0),
+        )
+        status = "Added ${tracksToAdd.size} $label to queue."
+    }
+
+    fun clearDerivedMediaState() {
+        waveformByTrackId = emptyMap()
+        lyricsByTrackId = emptyMap()
+        lyricsStatusByTrackId = emptyMap()
+        relatedTracks = emptyList()
+        artistPopularTracksByArtistId = emptyMap()
+        playlistTracksById = emptyMap()
+    }
+
+    fun clearAndroidFileCaches() {
+        deleteDirectoryContents(File(context.cacheDir, "cover-art"))
+        deleteDirectoryContents(File(context.cacheDir, "waveforms"))
+    }
+
+    fun resetPlaybackState() {
+        playbackEngine.stop()
+        sidecarPrepJob?.cancel()
+        sidecarPrepJob = null
+        playbackSessionToken += 1
+        playbackState = PlaybackState.Idle
+        playbackProgress = PlaybackProgress.Unknown
+        nowPlaying = null
+        nowPlayingStation = null
+        nowPlayingStreamMetadata = PlaybackStreamMetadata()
+        nowPlayingOpen = false
+        visualizerFrame = null
+        visualizerVisible = false
+        playbackQueue = PlaybackQueue()
+        preparedNextTrackId = null
+        shuffledUpNextSnapshot = null
+        restoredStartPositionSeconds = null
+    }
+
+    fun nextQueueIndex(): Int? {
+        val currentTrack = nowPlaying ?: return null
+        val queue = activeQueue()
+        val currentIndex = queue.indexOfFirst { it.id == currentTrack.id }
+        if (currentIndex < 0) return null
+        return when {
+            repeatMode == RepeatMode.Track -> currentIndex
+            currentIndex < queue.lastIndex -> currentIndex + 1
+            repeatMode == RepeatMode.Queue && queue.isNotEmpty() -> 0
+            else -> null
+        }
+    }
+
+    fun prepareNextIfNeeded(sessionToken: Long, progress: PlaybackProgress) {
+        val queueAwareEngine = playbackEngine as? QueueAwarePlaybackEngine ?: return
+        val canPrepareForCrossfade = playbackSettings.crossfadeDurationSeconds > 0 && playbackEngine.supportsCrossfade
+        val canPrepareForGapless = playbackSettings.gaplessEnabled && playbackEngine.supportsGapless
+        if (!canPrepareForCrossfade && !canPrepareForGapless) return
+        val position = progress.positionSeconds ?: return
+        val duration = progress.durationSeconds ?: return
+        val prepareWindowSeconds = if (canPrepareForCrossfade) {
+            playbackSettings.crossfadeDurationSeconds.toDouble()
+        } else {
+            AndroidGaplessPrepareWindowSeconds
+        }
+        if (duration - position > prepareWindowSeconds) return
+        val nextIndex = nextQueueIndex() ?: return
+        val nextTrack = activeQueue().getOrNull(nextIndex) ?: return
+        if (preparedNextTrackId == nextTrack.id.value) return
+        val activeProvider = provider ?: return
+        preparedNextTrackId = nextTrack.id.value
+        scope.launch {
+            runCatching {
+                activeProvider.streamUrl(StreamRequest(nextTrack.id, StreamQuality.Original))
+            }.onSuccess { streamUrl ->
+                if (sessionToken != playbackSessionToken) return@onSuccess
+                queueAwareEngine.prepareNext(
+                    PlaybackRequest(
+                        url = streamUrl,
+                        mediaId = nextTrack.id.value,
+                        replayGainMode = playbackSettings.replayGainMode.forEngine(playbackEngine),
+                        replayGain = nextTrack.replayGain?.let { PlaybackReplayGain(it, ReplayGainSource.Provider) },
+                    ),
+                )
+            }.onFailure {
+                if (preparedNextTrackId == nextTrack.id.value) {
+                    preparedNextTrackId = null
+                }
+            }
+        }
+    }
 
     fun loadLyrics(track: Track) {
         val activeProvider = provider ?: return
@@ -205,11 +388,115 @@ private fun NaviampAndroidApp() {
                 .onSuccess { lyrics ->
                     lyricsByTrackId = lyricsByTrackId + (track.id.value to lyrics)
                     lyricsStatusByTrackId = lyricsStatusByTrackId + (track.id.value to null)
+                    activeSourceId?.let { sourceId ->
+                        storage.recordSidecarStatus(
+                            sourceId = sourceId,
+                            trackId = track.id,
+                            quality = StreamQuality.Original,
+                            sidecarType = "lyrics",
+                            success = true,
+                        )
+                    }
                 }
                 .onFailure { error ->
                     lyricsByTrackId = lyricsByTrackId + (track.id.value to null)
-                    lyricsStatusByTrackId = lyricsStatusByTrackId + (track.id.value to (error.message ?: "Lyrics unavailable"))
+                    val message = error.message ?: "Lyrics unavailable"
+                    lyricsStatusByTrackId = lyricsStatusByTrackId + (track.id.value to message)
+                    activeSourceId?.let { sourceId ->
+                        storage.recordSidecarStatus(
+                            sourceId = sourceId,
+                            trackId = track.id,
+                            quality = StreamQuality.Original,
+                            sidecarType = "lyrics",
+                            success = false,
+                            errorMessage = message,
+                        )
+                    }
                 }
+        }
+    }
+
+    suspend fun ensureWaveform(
+        activeProvider: NavidromeProvider,
+        sourceId: String?,
+        track: Track,
+    ): AudioWaveform? {
+        val quality = StreamQuality.Original
+        if (sourceId != null) {
+            storage.cachedAudioWaveform(sourceId, track.id, quality)?.let { return it }
+        }
+        waveformAnalyzer.applyTlsSettings(activeTlsSettings)
+        AndroidPlaybackTls.applyDefaults(activeTlsSettings)
+        val localFile = if (sourceId != null) {
+            storage.downloadedAudioFile(sourceId, track.id, quality)?.file
+                ?: storage.cacheAudioTrack(sourceId, activeProvider, track, quality).file
+        } else {
+            null
+        }
+        val waveform = waveformAnalyzer.analyze(
+            trackId = track.id.value,
+            streamUrl = localFile?.toURI()?.toString()
+                ?: activeProvider.streamUrl(StreamRequest(track.id, quality)),
+        )
+        if (waveform != null && sourceId != null && localFile != null) {
+            storage.upsertAudioWaveform(
+                sourceId = sourceId,
+                trackId = track.id,
+                quality = quality,
+                audioFile = localFile,
+                waveform = waveform,
+            )
+        }
+        return waveform
+    }
+
+    fun startSidecarPrep(
+        sessionToken: Long,
+        activeProvider: NavidromeProvider,
+        queue: PlaybackQueue,
+    ) {
+        sidecarPrepJob?.cancel()
+        val tracksToPrep = queue.tracks
+            .drop(queue.currentIndex.coerceAtLeast(0))
+            .take(AndroidSidecarPrepDepth)
+            .filterNot { it.isInternetRadioTrack() }
+        if (tracksToPrep.isEmpty()) return
+        val sourceId = activeSourceId
+        sidecarPrepJob = scope.launch {
+            tracksToPrep.forEach { track ->
+                if (sessionToken != playbackSessionToken) return@launch
+                runCatching {
+                    ensureWaveform(activeProvider, sourceId, track)
+                }.onSuccess { waveform ->
+                    if (sourceId != null) {
+                        storage.recordSidecarStatus(
+                            sourceId = sourceId,
+                            trackId = track.id,
+                            quality = StreamQuality.Original,
+                            sidecarType = "waveform",
+                            success = true,
+                        )
+                    }
+                    if (waveform != null && sessionToken == playbackSessionToken) {
+                        waveformByTrackId = waveformByTrackId + (track.id.value to waveform)
+                    }
+                }.onFailure { error ->
+                    if (sourceId != null) {
+                        storage.recordSidecarStatus(
+                            sourceId = sourceId,
+                            trackId = track.id,
+                            quality = StreamQuality.Original,
+                            sidecarType = "waveform",
+                            success = false,
+                            errorMessage = error.message ?: "Waveform unavailable",
+                        )
+                    }
+                }
+                if (sessionToken != playbackSessionToken) return@launch
+                if (playbackSettings.lrclibLyricsEnabled || lyricsVisible) {
+                    loadLyrics(track)
+                }
+            }
         }
     }
 
@@ -228,6 +515,9 @@ private fun NaviampAndroidApp() {
 
     fun beginPlaybackSession(): Long {
         playbackSessionToken += 1
+        sidecarPrepJob?.cancel()
+        sidecarPrepJob = null
+        preparedNextTrackId = null
         pendingSeekPositionSeconds = null
         pendingSeekIssuedAtMillis = null
         playbackProgress = PlaybackProgress.Unknown
@@ -265,7 +555,10 @@ private fun NaviampAndroidApp() {
             pendingSeekIssuedAtMillis = null
         }
         playbackProgress = progress.mergeForAndroidPlayback(playbackProgress)
+        prepareNextIfNeeded(sessionToken, playbackProgress)
     }
+
+    var playAdjacentTrackAction: (Int) -> Unit = {}
 
     fun playTrack(
         track: Track,
@@ -273,6 +566,7 @@ private fun NaviampAndroidApp() {
         openNowPlaying: Boolean = true,
         startPositionSeconds: Double? = null,
     ) {
+        android.util.Log.i("NaviampBass", "playTrack requested id=${track.id.value} title=${track.title}")
         val activeProvider = provider
         if (activeProvider == null) {
             status = "Connect before playing a track."
@@ -301,7 +595,8 @@ private fun NaviampAndroidApp() {
                 }
                 val sessionToken = beginPlaybackSession()
                 loadRelatedTracks(track)
-                if (lyricsVisible) loadLyrics(track)
+                if (lyricsVisible && nowPlayingOpen) loadLyrics(track)
+                startSidecarPrep(sessionToken, activeProvider, playbackQueue)
                 playbackEngine.updateNotificationMetadata(
                     title = track.title,
                     subtitle = track.artistName,
@@ -309,21 +604,24 @@ private fun NaviampAndroidApp() {
                 )
                 playbackEngine.play(
                     scope = scope,
-                    request = PlaybackRequest(streamUrl, startPositionSeconds = startPositionSeconds),
+                    request = PlaybackRequest(
+                        url = streamUrl,
+                        mediaId = track.id.value,
+                        replayGainMode = playbackSettings.replayGainMode.forEngine(playbackEngine),
+                        replayGain = track.replayGain?.let { PlaybackReplayGain(it, ReplayGainSource.Provider) },
+                        startPositionSeconds = startPositionSeconds,
+                    ),
                     onStateChanged = { state ->
                         playbackState = state
-                        if (state is PlaybackState.Error) {
-                            status = state.message
+                        when (state) {
+                            PlaybackState.Finished -> playAdjacentTrackAction(1)
+                            is PlaybackState.Error -> status = state.message
+                            else -> Unit
                         }
                     },
                     onProgressChanged = { progress -> handlePlaybackProgressChanged(sessionToken, progress) },
                 )
                 status = "Loading ${track.title}..."
-                scope.launch {
-                    waveformAnalyzer.analyze(track.id.value, streamUrl)?.let { amplitudes ->
-                        waveformByTrackId = waveformByTrackId + (track.id.value to amplitudes)
-                    }
-                }
             }.onFailure { error ->
                 status = error.message ?: "Playback failed."
             }
@@ -408,9 +706,10 @@ private fun NaviampAndroidApp() {
         val nextTrack = knownTracks.getOrNull(nextIndex) ?: return
         playTrack(nextTrack, knownTracks, openNowPlaying = false)
     }
+    playAdjacentTrackAction = ::playAdjacentTrack
 
     fun radioService(): RadioService? =
-        provider?.let(::RadioService)
+        provider?.let { RadioService(it, count = AndroidInitialSimilarRadioCount) }
 
     fun playRadioTracks(statusLabel: String, loadTracks: suspend (RadioService) -> List<Track>) {
         val activeProvider = provider ?: return
@@ -431,30 +730,57 @@ private fun NaviampAndroidApp() {
         }
     }
 
+    fun generatedRadioQueue(seedTrack: Track, fetchedTracks: List<Track>): List<Track> =
+        (listOf(seedTrack) + fetchedTracks).distinctBy { it.id }
+
+    fun appendGeneratedRadioTracks(seedTrack: Track, fetchedTracks: List<Track>) {
+        if (nowPlaying?.id != seedTrack.id) return
+        val existingTrackIds = playbackQueue.tracks.map { it.id }.toSet()
+        val newTracks = generatedRadioQueue(seedTrack, fetchedTracks).filterNot { track ->
+            track.id in existingTrackIds
+        }
+        if (newTracks.isNotEmpty()) {
+            playbackQueue = playbackQueue.copy(tracks = playbackQueue.tracks + newTracks)
+        }
+    }
+
     fun startSeededRadio(
         statusLabel: String,
         seedTrack: Track,
         loadRest: suspend (RadioService) -> List<Track>,
     ) {
         val activeProvider = provider ?: return
-        val service = RadioService(activeProvider)
         val seedQueue = listOf(seedTrack)
         playTrack(seedTrack, seedQueue)
         scope.launch {
-            runCatching { loadRest(service) }
+            runCatching { loadRest(RadioService(activeProvider, count = AndroidInitialSimilarRadioCount)) }
                 .onSuccess { fetchedTracks ->
-                    val queue = service.queue(seedTrack, fetchedTracks)
+                    val queue = generatedRadioQueue(seedTrack, fetchedTracks)
                         .ifEmpty { seedQueue }
                     if (nowPlaying?.id == seedTrack.id) {
                         playbackQueue = PlaybackQueue(tracks = queue, currentIndex = 0)
                     }
-                    status = "Playing $statusLabel."
+                    status = "Building $statusLabel queue..."
                 }
                 .onFailure { error ->
                     if (nowPlaying?.id == seedTrack.id) {
                         status = error.message ?: "Could not build $statusLabel."
                     }
                 }
+
+            AndroidSimilarRadioExpansionCounts.forEach { count ->
+                if (nowPlaying?.id != seedTrack.id) return@launch
+                val fetchedTracks = runCatching {
+                    loadRest(RadioService(activeProvider, count = count))
+                }.getOrElse {
+                    return@forEach
+                }
+                appendGeneratedRadioTracks(seedTrack, fetchedTracks)
+                status = "Building $statusLabel queue (${playbackQueue.tracks.size} tracks)..."
+            }
+            if (nowPlaying?.id == seedTrack.id) {
+                status = "Playing $statusLabel."
+            }
         }
     }
 
@@ -498,6 +824,7 @@ private fun NaviampAndroidApp() {
 
     fun openArtistDetails(artistId: app.naviamp.domain.ArtistId, fallbackName: String? = null) {
         val activeProvider = provider ?: return
+        val sourceId = activeSourceId
         scope.launch {
             status = "Loading ${fallbackName ?: "artist"}..."
             runCatching { activeProvider.artist(artistId) }
@@ -506,6 +833,30 @@ private fun NaviampAndroidApp() {
                     nowPlayingOpen = false
                     navigationState = navigationState.copy(route = NaviampRoute.Library)
                     status = "Connected."
+                    if (sourceId != null) {
+                        scope.launch(Dispatchers.IO) {
+                            runCatching {
+                                popularTracksService.popularTracks(
+                                    sourceId = sourceId,
+                                    artist = detail.artist,
+                                    limit = PopularTracksFetchLimit,
+                                )
+                            }.onSuccess { matches ->
+                                withContext(Dispatchers.Main) {
+                                    artistPopularTracksByArtistId =
+                                        artistPopularTracksByArtistId + (
+                                            artistId.value to matches
+                                                .map { it.matchedTrack }
+                                                .take(PopularTracksDisplayLimit)
+                                            )
+                                }
+                            }.onFailure { error ->
+                                withContext(Dispatchers.Main) {
+                                    status = error.message ?: "Popular tracks unavailable."
+                                }
+                            }
+                        }
+                    }
                 }
                 .onFailure { error -> status = error.message ?: "Artist failed to load." }
         }
@@ -765,26 +1116,50 @@ private fun NaviampAndroidApp() {
                 val tlsSettings = connection.tlsSettings
                 val nextProvider = NavidromeProvider(connection)
                 playbackEngine.applyTlsSettings(tlsSettings)
+                AndroidPlaybackTls.applyDefaults(tlsSettings)
                 validation = nextProvider.validateConnection()
-                homeState = loadBrowseState(nextProvider)
-                preloadPlaylistTracks(nextProvider, homeState.playlists)
                 val mediaSource = storage.upsertNavidromeSource(
                     connection = connection,
                     cacheNamespace = nextProvider.cacheNamespace,
                     providerId = nextProvider.id.value,
                 )
+                homeState = loadBrowseState(nextProvider)
+                preloadPlaylistTracks(nextProvider, homeState.playlists)
                 provider = nextProvider
                 activeSourceId = mediaSource.id
                 activeTlsSettings = tlsSettings
                 restorePlaybackSession(mediaSource.id)
+                val libraryStats = storage.libraryIndexStats(mediaSource.id)
+                if (libraryStats.artistCount == 0L || libraryStats.albumCount == 0L) {
+                    scope.launch(Dispatchers.IO) {
+                        runCatching {
+                            syncAndroidLibrary(mediaSource.id, nextProvider, storage) { progress ->
+                                withContext(Dispatchers.Main) {
+                                    if (progress.artists != null) {
+                                        homeState = homeState.copy(artists = progress.artists)
+                                    }
+                                    if (nowPlaying == null && nowPlayingStation == null) {
+                                        status = progress.label
+                                    }
+                                }
+                            }
+                        }.onFailure { error ->
+                            withContext(Dispatchers.Main) {
+                                status = error.message ?: "Library index failed."
+                            }
+                        }
+                    }
+                }
             }.onSuccess {
                 if (nowPlaying == null && nowPlayingStation == null) {
                     status = "Connected."
                 }
+                restoringConnection = false
                 editingConnection = false
                 navigationState = navigationState.copy(route = NaviampRoute.Home)
             }.onFailure { error ->
                 status = error.message ?: "Connection failed."
+                restoringConnection = false
                 provider = null
                 validation = null
             }
@@ -824,6 +1199,7 @@ private fun NaviampAndroidApp() {
                 connectWithNavidromeConnection(connection)
             }.onFailure { error ->
                 status = error.message ?: "Connection failed."
+                restoringConnection = false
                 provider = null
                 validation = null
             }
@@ -858,6 +1234,7 @@ private fun NaviampAndroidApp() {
         serverVersion = validation?.serverVersion,
         connected = provider != null,
         editingConnection = editingConnection,
+        restoringConnection = restoringConnection,
         connectionForm = ConnectionFormState(
             displayName = connectionName,
             serverUrl = serverUrl,
@@ -869,13 +1246,18 @@ private fun NaviampAndroidApp() {
             clientCertificatePassword = clientCertificatePassword,
         ),
         playbackSettings = playbackSettings,
+        supportsReplayGain = playbackEngine.supportsReplayGain,
+        supportsGapless = playbackEngine.supportsGapless,
+        supportsCrossfade = playbackEngine.supportsCrossfade,
         query = query,
         home = homeState.toSharedHomeUi(
             coverArtUrl = { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
             playlistTracksById = playlistTracksById,
         ),
         searchResults = searchResults.toSharedSearchResultsUi { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
-        libraryArtists = homeState.artists.map { it.toSharedMediaItemUi() },
+        libraryArtists = homeState.artists.map { artist ->
+            artist.toSharedMediaItemUi { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } }
+        },
         playlistItems = homeState.playlists.map {
             it.toSharedMediaItemUi(
                 coverArtUrl = { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
@@ -886,7 +1268,10 @@ private fun NaviampAndroidApp() {
         playlistSortMode = playlistSortMode,
         radioStationItems = homeState.radioStations.map { it.toSharedMediaItemUi() },
         albumDetail = albumDetail?.toSharedAlbumDetailUi { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
-        artistDetail = artistDetail?.toSharedArtistDetailUi { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
+        artistDetail = artistDetail?.toSharedArtistDetailUi(
+            coverArtUrl = { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
+            popularTracks = artistPopularTracksByArtistId[artistDetail.artist.id.value].orEmpty(),
+        ),
         playlistDetail = selectedPlaylist?.toSharedPlaylistDetailUi(
             tracks = selectedPlaylistTracks,
             coverArtUrl = { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
@@ -901,6 +1286,9 @@ private fun NaviampAndroidApp() {
                     stateLabel = "${playbackState.label()} ${playbackProgress.positionSeconds?.toInt() ?: 0}s",
                     coverArtUrl = track.coverArtUrl(provider),
                     waveform = waveformByTrackId[track.id.value],
+                    visualizerFrame = visualizerFrame,
+                    visualizerAvailable = (playbackEngine as? VisualizerPlaybackEngine)?.supportsVisualizer == true,
+                    visualizerVisible = visualizerVisible,
                     positionSeconds = playbackProgress.positionSeconds,
                     durationSeconds = playbackProgress.durationSeconds,
                     volumePercent = volumePercent,
@@ -920,7 +1308,7 @@ private fun NaviampAndroidApp() {
                     canFavorite = provider?.capabilities?.supportsTrackFavorites == true,
                     canRate = provider?.capabilities?.supportsTrackRatings == true,
                     lyricsAvailable = true,
-                    lyricsVisible = lyricsVisible,
+                    lyricsVisible = lyricsVisible && nowPlayingOpen,
                     lyricsStatus = lyricsStatus,
                     lyrics = lyrics,
                     menuEnabled = true,
@@ -957,7 +1345,11 @@ private fun NaviampAndroidApp() {
         },
         nowPlayingOpen = nowPlayingOpen,
         selectedRoute = selectedRoute,
-        onRouteSelected = { route -> navigationState = navigationState.copy(route = route.toNaviampRoute()) },
+        onRouteSelected = { route ->
+            navigationState = navigationState.copy(route = route.toNaviampRoute())
+            contentState = contentState.clearDetails()
+            nowPlayingOpen = false
+        },
         onConnectionFormChanged = { form ->
             connectionName = form.displayName
             serverUrl = form.serverUrl
@@ -972,11 +1364,62 @@ private fun NaviampAndroidApp() {
         onEditConnection = { editingConnection = true },
         onCancelEditConnection = { editingConnection = false },
         onPlaybackSettingsChanged = { settings ->
-            playbackSettings = settings
-            settingsStore.savePlaybackSettings(settings)
+            val normalizedSettings = settings.copy(
+                replayGainMode = settings.replayGainMode.forEngine(playbackEngine),
+                gaplessEnabled = playbackEngine.supportsGapless && settings.gaplessEnabled,
+                crossfadeDurationSeconds = if (playbackEngine.supportsCrossfade) {
+                    settings.crossfadeDurationSeconds
+                } else {
+                    0
+                },
+            )
+            playbackSettings = normalizedSettings
+            settingsStore.savePlaybackSettings(normalizedSettings)
             lyricsByTrackId = emptyMap()
             lyricsStatusByTrackId = emptyMap()
-            if (lyricsVisible) nowPlaying?.let(::loadLyrics)
+            if (lyricsVisible && nowPlayingOpen) nowPlaying?.let(::loadLyrics)
+        },
+        onClearCache = {
+            storage.clearCacheData()
+            clearAndroidFileCaches()
+            clearDerivedMediaState()
+            status = "Cache cleared."
+        },
+        onClearLibrary = {
+            storage.clearLibraryData(activeSourceId)
+            homeState = HomeContent()
+            contentState = NaviampContentState()
+            tracks = emptyList()
+            recentPlaylistIds = emptyList()
+            clearDerivedMediaState()
+            status = "Library index cleared."
+        },
+        onResetDatabase = {
+            resetPlaybackState()
+            storage.clearAll()
+            settingsStore.clear()
+            clearAndroidFileCaches()
+            provider = null
+            activeSourceId = null
+            validation = null
+            activeTlsSettings = NavidromeTlsSettings()
+            homeState = HomeContent()
+            contentState = NaviampContentState()
+            tracks = emptyList()
+            recentPlaylistIds = emptyList()
+            connectionName = ""
+            serverUrl = ""
+            username = ""
+            password = ""
+            skipTlsVerification = false
+            customCertificatePath = ""
+            clientCertificatePath = ""
+            clientCertificatePassword = ""
+            editingConnection = true
+            restoringConnection = false
+            navigationState = NaviampNavigationState(route = NaviampRoute.Settings)
+            clearDerivedMediaState()
+            status = "Database reset."
         },
         onQueryChanged = { contentState = contentState.copy(searchQuery = it) },
         onSearch = {
@@ -997,6 +1440,7 @@ private fun NaviampAndroidApp() {
         onTrackSelected = { selectedTrack ->
             val currentTracks = activeQueue().takeIf { queue -> queue.any { it.id.value == selectedTrack.id } }
                 ?: relatedTracks.takeIf { queue -> queue.any { it.id.value == selectedTrack.id } }
+                ?: artistPopularTracksByArtistId.values.flatten().takeIf { queue -> queue.any { it.id.value == selectedTrack.id } }
                 ?: allKnownTracks(searchResults, albumDetail)
             val track = currentTracks.firstOrNull { it.id.value == selectedTrack.id } ?: findKnownTrack(selectedTrack.id)
             if (track == null) {
@@ -1037,6 +1481,9 @@ private fun NaviampAndroidApp() {
             val album = albumDetail?.album ?: return@NaviampSharedAppShell
             startAlbumRadio(album, loadedAlbumTracks)
         },
+        onAlbumAddToQueue = {
+            appendTracksToQueue(albumDetail?.tracks.orEmpty(), "album tracks")
+        },
         onArtistRadio = { detail ->
             val service = radioService() ?: return@NaviampSharedAppShell
             val artistId = app.naviamp.domain.ArtistId(detail.artist.id)
@@ -1057,6 +1504,44 @@ private fun NaviampAndroidApp() {
                 }
             }
         },
+        onArtistPopularPlay = { detail ->
+            val popularTracks = artistPopularTracksByArtistId[detail.artist.id].orEmpty()
+            popularTracks.firstOrNull()?.let { playTrack(it, popularTracks) }
+                ?: run { status = "No popular tracks matched your library." }
+        },
+        onArtistPopularRadio = { detail ->
+            val service = radioService() ?: return@NaviampSharedAppShell
+            val popularTracks = artistPopularTracksByArtistId[detail.artist.id].orEmpty()
+            val seedTrack = popularTracks.shuffled().firstOrNull()
+            if (seedTrack == null) {
+                status = "No popular tracks matched your library."
+                return@NaviampSharedAppShell
+            }
+            startSeededRadio("${detail.artist.title} popular tracks radio", seedTrack) { radioService ->
+                coroutineScope {
+                    popularTracks.take(AndroidPopularRadioSeedLimit)
+                        .map { track -> async(Dispatchers.IO) { radioService.trackRadio(track.id) } }
+                        .awaitAll()
+                        .flatten()
+                }
+            }
+        },
+        onArtistPopularAddToQueue = { detail ->
+            val popularTracks = artistPopularTracksByArtistId[detail.artist.id].orEmpty()
+            if (popularTracks.isEmpty()) {
+                status = "No popular tracks matched your library."
+            } else {
+                appendTracksToQueue(popularTracks.filterNot { track -> playbackQueue.tracks.any { it.id == track.id } }, "popular tracks")
+            }
+        },
+        onArtistPopularTrackAddToQueue = { selectedTrack ->
+            val track = findKnownTrack(selectedTrack.id)
+            if (track == null) {
+                status = "Track not found."
+            } else {
+                appendTracksToQueue(listOf(track), "track")
+            }
+        },
         onArtistSelected = { selectedArtist ->
             openArtistDetails(app.naviamp.domain.ArtistId(selectedArtist.id), selectedArtist.title)
         },
@@ -1068,6 +1553,9 @@ private fun NaviampAndroidApp() {
         onPlaylistPlay = { selectedPlaylist, shuffle ->
             homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }?.let { playPlaylist(it, shuffle) }
                 ?: run { status = "Playlist not found." }
+        },
+        onPlaylistAddToQueue = {
+            appendTracksToQueue(selectedPlaylistTracks, "playlist tracks")
         },
         onPlaylistRename = { selectedPlaylist, name ->
             homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }?.let { renamePlaylist(it, name) }
@@ -1090,6 +1578,14 @@ private fun NaviampAndroidApp() {
                 return@NaviampSharedAppShell
             }
             playTrack(track, selectedPlaylistTracks.ifEmpty { listOf(track) })
+        },
+        onTrackAddToQueue = { selectedTrack ->
+            val track = findKnownTrack(selectedTrack.id)
+            if (track == null) {
+                status = "Track not found."
+            } else {
+                appendTracksToQueue(listOf(track), "track")
+            }
         },
         onRadioStationSelected = { selectedStation ->
             val station = homeState.radioStations.firstOrNull { it.id == selectedStation.id }
@@ -1131,13 +1627,20 @@ private fun NaviampAndroidApp() {
         },
         onOpenNowPlaying = { nowPlayingOpen = true },
         onCloseNowPlaying = {
-            nowPlayingOpen = false
-            contentState = contentState.clearDetails()
+            if (nowPlayingOpen) {
+                nowPlayingOpen = false
+            } else {
+                contentState = contentState.clearDetails()
+            }
         },
         onPause = playbackEngine::pause,
         onResume = {
             when (playbackState) {
-                PlaybackState.Idle, PlaybackState.Stopped, PlaybackState.Finished -> {
+                PlaybackState.Idle,
+                PlaybackState.Stopped,
+                PlaybackState.Finished,
+                is PlaybackState.Error,
+                -> {
                     nowPlaying?.let { track ->
                         playTrack(
                             track = track,
@@ -1187,20 +1690,37 @@ private fun NaviampAndroidApp() {
                 nowPlaying?.let(::loadLyrics)
             }
         },
+        onToggleVisualizer = {
+            visualizerVisible = !visualizerVisible
+        },
         onTrackRadio = {
-            val service = radioService() ?: return@NaviampSharedAppShell
+            val activeProvider = provider ?: return@NaviampSharedAppShell
             val currentTrack = nowPlaying ?: return@NaviampSharedAppShell
             if (provider?.capabilities?.supportsTrackRadio != true) return@NaviampSharedAppShell
             scope.launch {
                 status = "Starting ${currentTrack.title} radio..."
-                runCatching { service.trackRadio(currentTrack.id) }
+                runCatching { RadioService(activeProvider, count = AndroidInitialSimilarRadioCount).trackRadio(currentTrack.id) }
                     .onSuccess { radioTracks ->
-                        val queue = service.queue(currentTrack, radioTracks)
+                        val queue = generatedRadioQueue(currentTrack, radioTracks)
                         val deduped = queue.drop(1)
                         playbackQueue = PlaybackQueue(tracks = queue, currentIndex = 0)
                         relatedTracks = deduped
                         shuffledUpNextSnapshot = null
-                        status = "Track radio loaded."
+                        status = "Building ${currentTrack.title} radio queue..."
+
+                        AndroidSimilarRadioExpansionCounts.forEach { count ->
+                            if (nowPlaying?.id != currentTrack.id) return@launch
+                            val fetchedTracks = runCatching {
+                                RadioService(activeProvider, count = count).trackRadio(currentTrack.id)
+                            }.getOrElse {
+                                return@forEach
+                            }
+                            appendGeneratedRadioTracks(currentTrack, fetchedTracks)
+                            status = "Building ${currentTrack.title} radio queue (${playbackQueue.tracks.size} tracks)..."
+                        }
+                        if (nowPlaying?.id == currentTrack.id) {
+                            status = "Track radio loaded."
+                        }
                     }
                     .onFailure { error ->
                         status = error.message ?: "Could not start track radio."
@@ -1237,13 +1757,27 @@ private fun NaviampAndroidApp() {
         },
         onQueueItemRadio = { item ->
             findKnownTrack(item.id)?.let { track ->
-                val service = radioService() ?: return@let
+                val activeProvider = provider ?: return@let
                 if (provider?.capabilities?.supportsTrackRadio != true) return@let
                 scope.launch {
-                    runCatching { service.trackRadio(track.id) }
+                    runCatching { RadioService(activeProvider, count = AndroidInitialSimilarRadioCount).trackRadio(track.id) }
                         .onSuccess { radioTracks ->
-                            val queue = service.queue(track, radioTracks)
+                            val queue = generatedRadioQueue(track, radioTracks)
                             playTrack(track, queue)
+                            status = "Building ${track.title} radio queue..."
+                            AndroidSimilarRadioExpansionCounts.forEach { count ->
+                                if (nowPlaying?.id != track.id) return@launch
+                                val fetchedTracks = runCatching {
+                                    RadioService(activeProvider, count = count).trackRadio(track.id)
+                                }.getOrElse {
+                                    return@forEach
+                                }
+                                appendGeneratedRadioTracks(track, fetchedTracks)
+                                status = "Building ${track.title} radio queue (${playbackQueue.tracks.size} tracks)..."
+                            }
+                            if (nowPlaying?.id == track.id) {
+                                status = "Track radio loaded."
+                            }
                         }
                         .onFailure { error -> status = error.message ?: "Could not start track radio." }
                 }
@@ -1294,14 +1828,51 @@ private fun NaviampAndroidApp() {
 
 private suspend fun loadBrowseState(provider: NavidromeProvider): HomeContent {
     val today = LocalDate.now()
-    return HomeService(
+    val home = HomeService(
         provider = provider,
         date = HomeDate(year = today.year, dayOfYear = today.dayOfYear),
     ).load()
+    val artists = runCatching { provider.artists(limit = AndroidLibraryArtistLimit) }
+        .getOrDefault(home.artists)
+    return home.copy(artists = artists)
 }
 
+private suspend fun syncAndroidLibrary(
+    sourceId: String,
+    provider: MediaProvider,
+    storage: AndroidStorage,
+    onProgress: suspend (AndroidLibrarySyncProgress) -> Unit = {},
+) {
+    storage.markLibrarySyncStarted(sourceId)
+    onProgress(AndroidLibrarySyncProgress(label = "Loading library artists..."))
+    val artists = provider.artists(limit = AndroidLibraryArtistLimit)
+    storage.upsertLibraryArtists(sourceId, artists)
+    onProgress(AndroidLibrarySyncProgress(label = "Indexed ${artists.size} artists.", artists = artists))
+
+    val albums = mutableListOf<Album>()
+    var offset = 0
+    while (true) {
+        onProgress(AndroidLibrarySyncProgress(label = "Loading library albums (${albums.size})..."))
+        val page = provider.albums(limit = AndroidLibraryAlbumPageSize, offset = offset)
+        if (page.isEmpty()) break
+        albums += page
+        storage.upsertLibraryAlbums(sourceId, page)
+        onProgress(AndroidLibrarySyncProgress(label = "Indexed ${albums.size} albums."))
+        if (page.size < AndroidLibraryAlbumPageSize) break
+        offset += AndroidLibraryAlbumPageSize
+    }
+
+    storage.markLibrarySyncCompleted(sourceId)
+    onProgress(AndroidLibrarySyncProgress(label = "Library indexed: ${artists.size} artists, ${albums.size} albums."))
+}
+
+private data class AndroidLibrarySyncProgress(
+    val label: String,
+    val artists: List<Artist>? = null,
+)
+
 private fun Track.coverArtUrl(provider: NavidromeProvider?): String? =
-    coverArtId?.let { provider?.coverArtUrl(it) }
+    (coverArtId ?: albumId?.value)?.let { provider?.coverArtUrl(it) }
 
 private fun allKnownTracks(
     searchResults: MediaSearchResults,
@@ -1436,5 +2007,42 @@ private fun PlaybackProgress.mergeForAndroidPlayback(previous: PlaybackProgress)
         durationSeconds = durationSeconds ?: previous.durationSeconds,
     )
 
+private fun ReplayGainMode.forEngine(playbackEngine: AndroidPlaybackEngine): ReplayGainMode =
+    if (playbackEngine.supportsReplayGain) this else ReplayGainMode.Off
+
+private fun Track.isInternetRadioTrack(): Boolean =
+    id.value.startsWith("internet-radio:")
+
+private suspend fun MediaProvider.tracksForArtist(artistId: ArtistId, limit: Long): List<Track> {
+    val tracks = mutableListOf<Track>()
+    artist(artistId)
+        .albums
+        .take(ProviderArtistPopularTrackAlbumFallbackLimit)
+        .forEach { albumSummary ->
+            if (tracks.size >= limit) return@forEach
+            val albumTracks = runCatching { album(albumSummary.id).tracks }.getOrDefault(emptyList())
+            tracks += albumTracks.take((limit - tracks.size).toInt())
+        }
+    return tracks
+}
+
+private fun deleteDirectoryContents(directory: File) {
+    if (!directory.exists()) return
+    directory.walkBottomUp()
+        .filter { it != directory }
+        .forEach { it.delete() }
+}
+
 private const val PendingSeekToleranceSeconds = 2.0
 private const val PendingSeekStaleProgressWindowMillis = 1_500L
+private const val AndroidGaplessPrepareWindowSeconds = 2.0
+private const val AndroidSidecarPrepDepth = 5
+private const val AndroidLibraryAlbumPageSize = 500
+private const val AndroidLibraryArtistLimit = 100_000
+private const val AndroidPopularRadioSeedLimit = 5
+private const val AndroidInitialSimilarRadioCount = 10
+private const val AndroidPopularTrackFallbackLimit = 120L
+private const val ProviderArtistPopularTrackAlbumFallbackLimit = 30
+private const val PopularTracksFetchLimit = 25
+private const val PopularTracksDisplayLimit = 10
+private val AndroidSimilarRadioExpansionCounts = listOf(25, 50)
