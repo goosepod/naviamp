@@ -16,18 +16,21 @@ This tracks the work needed to replace the current Compose Canvas visualizer wit
 - Desktop visualizer data is supplied by `apps/desktop/src/desktopMain/kotlin/app/naviamp/desktop/Main.kt`.
 - The current macOS optimized cadence samples visualizer frames every 125 ms.
 - Recent profiling shows the remaining visualizer cost is mostly Skiko/Metal drawing of the point/line shapes, not FFT extraction or lyrics.
+- The first GPU-backed baseline uses a JVM Skia runtime shader behind `PlatformLiveVisualizerSurface`, with Android still using the Canvas fallback.
+- An embedded desktop `SwingPanel`/`SkiaLayer` surface was tested and rejected for the Player art area because it did not compose cleanly on macOS: the surface showed white/black backing rectangles, swallowed clicks that should toggle back to album art, and could remain layered over album art after toggling.
 
 ## Phase 1: Renderer Spike For Current Visualizer
 
-- [ ] Pick the GPU rendering integration path for desktop Compose.
+- [x] Pick the GPU rendering integration path for the first desktop Compose spike.
   - Candidate: Skiko/Compose interop with a GPU surface.
   - Candidate: OpenGL/Metal/Vulkan bridge hidden behind a desktop renderer abstraction.
   - Candidate: multiplatform graphics layer if it keeps Android viable later.
-- [ ] Create a small desktop-only visualizer renderer abstraction.
-- [ ] Feed the current `PlaybackVisualizerFrame.bands` data into the renderer without making the full now-playing UI recompose.
-- [ ] Recreate the current visualizer as the first GPU visualizer.
-- [ ] Preserve click/tap behavior for toggling album art and visualizer.
-- [ ] Keep visualizer hidden-state cost at zero or near zero.
+- [x] Create a small platform visualizer renderer seam.
+- [x] Feed the current `PlaybackVisualizerFrame.bands` data into the renderer without making the full now-playing UI recompose.
+- [x] Recreate the current visualizer as the first GPU-backed visualizer baseline.
+- [x] Preserve click/tap behavior for toggling album art and visualizer.
+- [x] Keep visualizer hidden-state cost at zero or near zero.
+- [ ] Decide whether the shader baseline is enough, or replace it with a dedicated GPU surface/scene for the first production visualizer.
 
 ## Phase 2: Timing And Data Flow
 
