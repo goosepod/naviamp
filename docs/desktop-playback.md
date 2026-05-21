@@ -102,6 +102,21 @@ This produces a packaged app at:
 apps/desktop/build/compose/binaries/main/app/Naviamp/Naviamp.exe
 ```
 
+To avoid accidentally launching an older internal Compose output, use the staged local test app as the standard test location:
+
+```powershell
+.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:stageLocalTestApp
+.\build\local-test\Naviamp\Naviamp.exe
+```
+
+That task rebuilds the normal non-release distributable and syncs it into:
+
+```text
+build/local-test/Naviamp/Naviamp.exe
+```
+
+Use this folder for day-to-day testing. Treat `apps/desktop/build/compose/binaries/...` as Gradle internals.
+
 To produce a movable zip that keeps `Naviamp.exe`, `app/`, and `runtime/` together:
 
 ```powershell

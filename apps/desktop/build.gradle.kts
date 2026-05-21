@@ -1,5 +1,6 @@
 import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.Exec
+import org.gradle.api.tasks.Sync
 import org.gradle.api.tasks.bundling.Zip
 
 plugins {
@@ -166,6 +167,14 @@ tasks.register<Zip>("packageLocalDistributable") {
     from(layout.buildDirectory.dir("compose/binaries/main/app/Naviamp")) {
         into("Naviamp")
     }
+}
+
+tasks.register<Sync>("stageLocalTestApp") {
+    group = "distribution"
+    description = "Builds the local packaged desktop app and stages it at build/local-test/Naviamp."
+    dependsOn("createDistributable")
+    from(layout.buildDirectory.dir("compose/binaries/main/app/Naviamp"))
+    into(rootProject.layout.buildDirectory.dir("local-test/Naviamp"))
 }
 
 fun desktopNativePlatform(): String {
