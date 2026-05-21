@@ -2491,6 +2491,21 @@ object NaviampIcons {
         curveTo(6.4f, 16.8f, 8.8f, 15f, 12f, 15f)
         curveTo(15.2f, 15f, 17.6f, 16.8f, 18.5f, 20f)
     }
+    val ExternalLink = icon("ExternalLink") {
+        moveTo(9f, 7f)
+        lineTo(6.5f, 7f)
+        curveTo(5.7f, 7f, 5f, 7.7f, 5f, 8.5f)
+        lineTo(5f, 17.5f)
+        curveTo(5f, 18.3f, 5.7f, 19f, 6.5f, 19f)
+        lineTo(15.5f, 19f)
+        curveTo(16.3f, 19f, 17f, 18.3f, 17f, 17.5f)
+        lineTo(17f, 15f)
+        moveTo(13f, 5f)
+        lineTo(19f, 5f)
+        lineTo(19f, 11f)
+        moveTo(11f, 13f)
+        lineTo(18.5f, 5.5f)
+    }
 
     private fun icon(name: String, block: androidx.compose.ui.graphics.vector.PathBuilder.() -> Unit): ImageVector =
         ImageVector.Builder(

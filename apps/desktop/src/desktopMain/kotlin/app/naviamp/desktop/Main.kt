@@ -41,6 +41,10 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
+import com.sun.jna.Library
+import com.sun.jna.Native
+import com.sun.jna.Pointer
+import com.sun.jna.ptr.IntByReference
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Artist
@@ -76,6 +80,8 @@ import app.naviamp.domain.home.HomeService
 import app.naviamp.domain.lyrics.selectPreferredLyrics
 import app.naviamp.domain.popular.ArtistPopularTracksService
 import app.naviamp.domain.popular.DeezerPopularTracksClient
+import app.naviamp.domain.popular.SimilarArtistMatch
+import app.naviamp.domain.popular.SimilarArtistsService
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioService
@@ -122,7 +128,10 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.awt.Dimension
+import java.awt.Desktop
 import java.awt.Taskbar
+import java.awt.Window as AwtWindow
+import java.net.URI
 import java.time.Instant
 import java.time.LocalDate
 import javax.imageio.ImageIO
@@ -162,6 +171,10 @@ fun main() {
             },
             title = "Naviamp",
         ) {
+            val darkTitleBar = isSystemInDarkTheme()
+            LaunchedEffect(window, darkTitleBar) {
+                configureNativeTitleBar(window, darkTitleBar)
+            }
             window.minimumSize = Dimension(320, 430)
             NaviampApp(
                 playbackEngine = playbackEngine,
@@ -193,6 +206,58 @@ private fun configureDesktopAppearance() {
     }
 }
 
+private fun configureNativeTitleBar(window: AwtWindow, isDark: Boolean) {
+    configureMacTitleBar(window, isDark)
+    configureWindowsTitleBar(window, isDark)
+}
+
+private fun configureMacTitleBar(window: AwtWindow, isDark: Boolean) {
+    if (!System.getProperty("os.name").contains("Mac", ignoreCase = true)) return
+    runCatching {
+        val appearance = if (isDark) "NSAppearanceNameDarkAqua" else "NSAppearanceNameAqua"
+        javax.swing.SwingUtilities.getRootPane(window)
+            ?.putClientProperty("apple.awt.windowAppearance", appearance)
+    }
+}
+
+private fun configureWindowsTitleBar(window: AwtWindow, isDark: Boolean) {
+    if (!System.getProperty("os.name").contains("Windows", ignoreCase = true)) return
+    runCatching {
+        val hwnd = Native.getComponentPointer(window)
+        val value = IntByReference(if (isDark) 1 else 0)
+        WindowsDwmApi.instance.DwmSetWindowAttribute(
+            hwnd,
+            DwmWindowAttributeUseImmersiveDarkMode,
+            value.pointer,
+            Int.SIZE_BYTES,
+        )
+        WindowsDwmApi.instance.DwmSetWindowAttribute(
+            hwnd,
+            DwmWindowAttributeUseImmersiveDarkModeBefore20H1,
+            value.pointer,
+            Int.SIZE_BYTES,
+        )
+    }
+}
+
+private interface WindowsDwmApi : Library {
+    fun DwmSetWindowAttribute(
+        hwnd: Pointer,
+        dwAttribute: Int,
+        pvAttribute: Pointer,
+        cbAttribute: Int,
+    ): Int
+
+    companion object {
+        val instance: WindowsDwmApi by lazy {
+            Native.load("dwmapi", WindowsDwmApi::class.java)
+        }
+    }
+}
+
+private const val DwmWindowAttributeUseImmersiveDarkModeBefore20H1 = 19
+private const val DwmWindowAttributeUseImmersiveDarkMode = 20
+
 @Composable
 @Preview
 fun NaviampApp(
@@ -214,11 +279,18 @@ fun NaviampApp(
     val savedRecentPlaylistIds = remember { settingsStore.loadRecentPlaylistIds() }
     val savedRecentInternetRadioStations = remember { settingsStore.loadRecentInternetRadioStations() }
     var connectedSourceId by remember { mutableStateOf(savedMediaSource?.id) }
+    val deezerDiscoveryClient = remember { DeezerPopularTracksClient(DesktopPopularTracksHttpClient()) }
     val popularTracksService = remember(sessionCache) {
         ArtistPopularTracksService(
             repository = sessionCache,
             libraryTracksForArtist = { artistId, limit -> sessionCache.libraryTracksForArtist(connectedSourceId.orEmpty(), artistId, limit) },
-            client = DeezerPopularTracksClient(DesktopPopularTracksHttpClient()),
+            client = deezerDiscoveryClient,
+        )
+    }
+    val similarArtistsService = remember(sessionCache) {
+        SimilarArtistsService(
+            libraryArtistsSearch = { query, limit -> sessionCache.searchLibrary(connectedSourceId.orEmpty(), query, limit).artists },
+            client = deezerDiscoveryClient,
         )
     }
     var cacheSettings by remember {
@@ -294,6 +366,8 @@ fun NaviampApp(
     var selectedArtistDetails by remember { mutableStateOf<ArtistDetails?>(null) }
     var selectedArtistStatus by remember { mutableStateOf<String?>(null) }
     var selectedArtistPopularTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
+    var selectedArtistSimilarArtists by remember { mutableStateOf<List<SimilarArtistMatch>>(emptyList()) }
+    var selectedArtistSimilarArtistsStatus by remember { mutableStateOf<String?>(null) }
     var artistDetailBackRoute by remember { mutableStateOf(AppRoute.Search) }
     var searchQuery by remember { mutableStateOf(savedSearch.query) }
     var searchResults by remember { mutableStateOf(MediaSearchResults()) }
@@ -351,6 +425,7 @@ fun NaviampApp(
         mutableStateOf(settingsStore.loadPlaybackSettings().forEngine(playbackEngine))
     }
     var showStatsForNerds by remember { mutableStateOf(false) }
+    var statsForNerdsRefreshTick by remember { mutableIntStateOf(0) }
     var openPlayerOnTrackStart by remember { mutableStateOf(false) }
     var shuffledUpNextSnapshot by remember { mutableStateOf<List<Track>?>(null) }
     var repeatMode by remember { mutableStateOf(RepeatMode.Off) }
@@ -2270,6 +2345,44 @@ fun NaviampApp(
         connectionStatus = "Deleted ${source.displayName}."
     }
 
+    fun openExternalArtistUrl(url: String) {
+        runCatching {
+            if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+                Desktop.getDesktop().browse(URI.create(url))
+            }
+        }.onFailure { error ->
+            selectedArtistSimilarArtistsStatus = "Could not open external artist page: ${error.message ?: "unknown error"}"
+        }
+    }
+
+    fun findSimilarArtists(artist: Artist) {
+        selectedArtistSimilarArtistsStatus = "Finding similar artists..."
+        selectedArtistSimilarArtists = emptyList()
+        coroutineScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    similarArtistsService.similarArtists(
+                        artistName = artist.name,
+                        limit = SimilarArtistsFetchLimit,
+                    )
+                }
+            }.onSuccess { artists ->
+                if (selectedArtist?.id == artist.id) {
+                    selectedArtistSimilarArtists = artists.take(SimilarArtistsDisplayLimit)
+                    selectedArtistSimilarArtistsStatus = if (artists.isEmpty()) {
+                        "No similar artists found."
+                    } else {
+                        null
+                    }
+                }
+            }.onFailure { error ->
+                if (selectedArtist?.id == artist.id) {
+                    selectedArtistSimilarArtistsStatus = "Similar artists unavailable: ${error.message ?: "unknown error"}"
+                }
+            }
+        }
+    }
+
     fun openArtistDetails(artist: Artist, backRouteOverride: AppRoute? = null) {
         val provider = connectedProvider ?: return
         artistDetailBackRoute = backRouteOverride ?: when (appRoute) {
@@ -2280,6 +2393,8 @@ fun NaviampApp(
         selectedArtist = artist
         selectedArtistDetails = null
         selectedArtistPopularTracks = emptyList()
+        selectedArtistSimilarArtists = emptyList()
+        selectedArtistSimilarArtistsStatus = null
         selectedArtistStatus = "Loading..."
         appRoute = AppRoute.ArtistDetail
         coroutineScope.launch {
@@ -2396,6 +2511,15 @@ fun NaviampApp(
         libraryListState.scrollToItem(0)
     }
 
+    LaunchedEffect(showStatsForNerds) {
+        while (showStatsForNerds) {
+            delay(1_000)
+            statsForNerdsRefreshTick++
+        }
+    }
+
+    @Suppress("UNUSED_VARIABLE")
+    val statsForNerdsRefreshSnapshot = statsForNerdsRefreshTick
     val statsMediaSource = connectedSourceId?.let { sessionCache.mediaSource(it) } ?: sessionCache.latestMediaSource()
     val savedMediaSources = mediaSourcesRevision.let { sessionCache.mediaSources() }
     val streamQuality = playbackEngine.streamQuality()
@@ -2796,12 +2920,19 @@ fun NaviampApp(
                                     artist = selectedArtist,
                                     artistDetails = selectedArtistDetails,
                                     popularTracks = selectedArtistPopularTracks,
+                                    similarArtists = selectedArtistSimilarArtists,
                                     status = selectedArtistStatus,
+                                    similarArtistsStatus = selectedArtistSimilarArtistsStatus,
                                     coverArtUrl = { coverArtId ->
                                         coverArtId?.let { connectedProvider?.coverArtUrl(it) }
                                     },
                                     onBack = { appRoute = artistDetailBackRoute },
                                     onArtistRadio = { artist -> playArtistRadio(artist) },
+                                    onFindSimilarArtists = { artist -> findSimilarArtists(artist) },
+                                    onSimilarArtistSelected = { artist ->
+                                        openArtistDetails(artist, backRouteOverride = AppRoute.ArtistDetail)
+                                    },
+                                    onSimilarArtistExternalSelected = { url -> openExternalArtistUrl(url) },
                                     onPopularTracksPlay = { tracks -> playPopularTracks(tracks) },
                                     onPopularTracksRadio = { tracks -> playPopularTracksRadio(tracks) },
                                     onPopularTracksAddToQueue = { tracks -> addPopularTracksToQueue(tracks) },
@@ -3426,3 +3557,5 @@ private const val CoverArtPreloadHistoryLimit = 1
 private const val CoverArtPreloadUpcomingLimit = 5
 private const val PopularTracksFetchLimit = 25
 private const val PopularTracksDisplayLimit = 10
+private const val SimilarArtistsFetchLimit = 20
+private const val SimilarArtistsDisplayLimit = 10

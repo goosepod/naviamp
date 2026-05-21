@@ -25,6 +25,7 @@ import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.Track
+import app.naviamp.domain.popular.SimilarArtistMatch
 
 @Composable
 fun ArtistDetailPanel(
@@ -32,10 +33,15 @@ fun ArtistDetailPanel(
     artist: Artist?,
     artistDetails: ArtistDetails?,
     popularTracks: List<Track>,
+    similarArtists: List<SimilarArtistMatch>,
     status: String?,
+    similarArtistsStatus: String?,
     coverArtUrl: (String?) -> String?,
     onBack: () -> Unit,
     onArtistRadio: (Artist) -> Unit,
+    onFindSimilarArtists: (Artist) -> Unit,
+    onSimilarArtistSelected: (Artist) -> Unit,
+    onSimilarArtistExternalSelected: (String) -> Unit,
     onPopularTracksPlay: (List<Track>) -> Unit,
     onPopularTracksRadio: (List<Track>) -> Unit,
     onPopularTracksAddToQueue: (List<Track>) -> Unit,
@@ -141,6 +147,13 @@ fun ArtistDetailPanel(
                             enabled = popularTracks.isNotEmpty(),
                             onClick = { onPopularTracksPlay(popularTracks) },
                         )
+                        DetailActionIconButton(
+                            appColors = appColors,
+                            icon = NavigationIcons.Artist,
+                            contentDescription = "Find similar artists",
+                            enabled = effectiveArtist != null,
+                            onClick = { effectiveArtist?.let(onFindSimilarArtists) },
+                        )
                     }
                     details.info?.biography
                         ?.takeIf { it.isNotBlank() }
@@ -174,6 +187,39 @@ fun ArtistDetailPanel(
         }
 
         artistDetails?.let { details ->
+            if (similarArtists.isNotEmpty() || similarArtistsStatus != null) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "Similar Artists".uppercase(),
+                        color = appColors.primaryText,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                    )
+                    DetailActionIconButton(
+                        appColors = appColors,
+                        icon = NavigationIcons.Artist,
+                        contentDescription = "Refresh similar artists",
+                        enabled = effectiveArtist != null,
+                        onClick = { effectiveArtist?.let(onFindSimilarArtists) },
+                    )
+                }
+                similarArtistsStatus?.let {
+                    Text(it, color = appColors.secondaryText, fontSize = 11.sp)
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    similarArtists.forEach { similarArtist ->
+                        SimilarArtistRow(
+                            appColors = appColors,
+                            similarArtist = similarArtist,
+                            onSimilarArtistSelected = onSimilarArtistSelected,
+                            onSimilarArtistExternalSelected = onSimilarArtistExternalSelected,
+                        )
+                    }
+                }
+            }
             if (popularTracks.isNotEmpty()) {
                 Text(
                     "Popular Tracks".uppercase(),
@@ -238,6 +284,76 @@ fun ArtistDetailPanel(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SimilarArtistRow(
+    appColors: AppColors,
+    similarArtist: SimilarArtistMatch,
+    onSimilarArtistSelected: (Artist) -> Unit,
+    onSimilarArtistExternalSelected: (String) -> Unit,
+) {
+    val localArtist = similarArtist.matchedArtist
+    val externalUrl = similarArtist.candidate.externalUrl
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = localArtist != null || externalUrl != null) {
+                when {
+                    localArtist != null -> onSimilarArtistSelected(localArtist)
+                    externalUrl != null -> onSimilarArtistExternalSelected(externalUrl)
+                }
+            },
+    ) {
+        CoverArtThumb(
+            appColors = appColors,
+            coverArtUrl = similarArtist.candidate.imageUrl,
+            size = 36.dp,
+            cornerRadius = 18.dp,
+        )
+        Column(
+            verticalArrangement = Arrangement.spacedBy(1.dp),
+            modifier = Modifier.weight(1f),
+        ) {
+            Text(
+                similarArtist.candidate.name,
+                color = appColors.primaryText,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                if (localArtist != null) "In library" else "Deezer",
+                color = appColors.secondaryText,
+                fontSize = 10.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (localArtist == null && externalUrl != null) {
+            IconButton(
+                onClick = { onSimilarArtistExternalSelected(externalUrl) },
+                modifier = Modifier.size(32.dp),
+            ) {
+                Icon(
+                    imageVector = NavigationIcons.ExternalLink,
+                    contentDescription = "Open Deezer artist page",
+                    tint = appColors.secondaryText,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+        } else {
+            Icon(
+                imageVector = NavigationIcons.ChevronRight,
+                contentDescription = null,
+                tint = appColors.secondaryText,
+                modifier = Modifier.size(16.dp),
+            )
         }
     }
 }

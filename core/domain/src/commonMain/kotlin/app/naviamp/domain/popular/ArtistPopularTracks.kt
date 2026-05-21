@@ -19,8 +19,25 @@ data class ArtistPopularTrackMatch(
     val fetchedAtEpochMillis: Long,
 )
 
+data class SimilarArtistCandidate(
+    val source: String,
+    val sourceArtistId: String,
+    val name: String,
+    val imageUrl: String? = null,
+    val externalUrl: String? = null,
+)
+
+data class SimilarArtistMatch(
+    val candidate: SimilarArtistCandidate,
+    val matchedArtist: Artist? = null,
+)
+
 interface ArtistPopularTracksClient {
     suspend fun popularTracks(artistName: String, limit: Int = 10): List<ArtistPopularTrackCandidate>
+}
+
+interface SimilarArtistsClient {
+    suspend fun similarArtists(artistName: String, limit: Int = 10): List<SimilarArtistCandidate>
 }
 
 interface ArtistPopularTracksRepository {
@@ -72,6 +89,31 @@ class ArtistPopularTracksService(
     }
 }
 
+class SimilarArtistsService(
+    private val libraryArtistsSearch: suspend (String, Long) -> List<Artist>,
+    private val client: SimilarArtistsClient,
+) {
+    suspend fun similarArtists(
+        artistName: String,
+        limit: Int = 10,
+    ): List<SimilarArtistMatch> {
+        val candidates = client.similarArtists(artistName, limit)
+        if (candidates.isEmpty()) return emptyList()
+
+        val localArtistsByName = candidates
+            .flatMap { candidate -> libraryArtistsSearch(candidate.name, 8) }
+            .distinctBy { it.id }
+            .associateBy { it.name.artistSearchText() }
+
+        return candidates.map { candidate ->
+            SimilarArtistMatch(
+                candidate = candidate,
+                matchedArtist = localArtistsByName[candidate.name.artistSearchText()],
+            )
+        }
+    }
+}
+
 fun matchPopularTracks(
     candidates: List<ArtistPopularTrackCandidate>,
     libraryTracks: List<Track>,
@@ -107,6 +149,12 @@ private fun String.popularTrackSearchText(): String =
     lowercase()
         .replace(Regex("&"), " and ")
         .replace(Regex("\\([^)]*\\)|\\[[^]]*]"), " ")
+        .replace(Regex("[^a-z0-9]+"), " ")
+        .trim()
+
+private fun String.artistSearchText(): String =
+    lowercase()
+        .replace(Regex("&"), " and ")
         .replace(Regex("[^a-z0-9]+"), " ")
         .trim()
 

@@ -104,6 +104,7 @@ private fun String.deezerEndpointLabel(): String {
     return when {
         path == "search/artist" -> "search/artist"
         path.startsWith("artist/") && path.endsWith("/top") -> "artist/top"
+        path.startsWith("artist/") && path.endsWith("/related") -> "artist/related"
         else -> path.ifBlank { "unknown" }
     }
 }

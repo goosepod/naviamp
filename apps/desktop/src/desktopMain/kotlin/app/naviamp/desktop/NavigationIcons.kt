@@ -8,6 +8,7 @@ object NavigationIcons {
     val Search = NaviampIcons.Search
     val Downloads = NaviampIcons.Downloads
     val Settings = NaviampIcons.Settings
+    val ChevronRight = NaviampIcons.ChevronRight
     val ChevronDown = NaviampIcons.ChevronDown
     val Back = NaviampIcons.Back
     val Trash = NaviampIcons.Trash
@@ -15,6 +16,7 @@ object NavigationIcons {
     val Info = NaviampIcons.Info
     val Album = NaviampIcons.Album
     val Artist = NaviampIcons.Artist
+    val ExternalLink = NaviampIcons.ExternalLink
     val Queue = NaviampIcons.Queue
     val Playlist = NaviampIcons.Playlist
     val InternetRadio = NaviampIcons.InternetRadio
