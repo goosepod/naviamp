@@ -25,6 +25,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -442,6 +443,7 @@ fun NaviampApp(
     }
     var pendingSeekPositionSeconds by remember { mutableStateOf<Double?>(null) }
     var pendingSeekIssuedAtMillis by remember { mutableStateOf<Long?>(null) }
+    var lastPlaybackProgressUiUpdateMillis by remember { mutableLongStateOf(0L) }
     var playReportSessionId by remember { mutableStateOf(0) }
     var submittedPlayReportSessionId by remember { mutableStateOf<Int?>(null) }
     val coverArtPlayerColors = rememberPlatformCoverArtPlayerColors(nowPlayingCoverArtUrl, appColors)
@@ -775,10 +777,24 @@ fun NaviampApp(
                 pendingSeekPositionSeconds = null
                 pendingSeekIssuedAtMillis = null
             }
-            val mergedProgress = progress.mergeWith(playbackProgress)
-            playbackProgress = mergedProgress
+            val currentProgress = playbackProgress
+            val mergedProgress = progress.mergeWith(currentProgress)
             maybeSavePlaybackPosition(mergedProgress)
             maybeReportPlayed(mergedProgress)
+            val now = System.currentTimeMillis()
+            val currentPosition = currentProgress.positionSeconds
+            val mergedPosition = mergedProgress.positionSeconds
+            val shouldUpdateUiProgress =
+                pendingSeek != null ||
+                    mergedProgress.durationSeconds != currentProgress.durationSeconds ||
+                    currentPosition == null ||
+                    mergedPosition == null ||
+                    abs(mergedPosition - currentPosition) >= PlaybackProgressUiUpdateThresholdSeconds ||
+                    now - lastPlaybackProgressUiUpdateMillis >= PlaybackProgressUiUpdateIntervalMillis
+            if (shouldUpdateUiProgress) {
+                playbackProgress = mergedProgress
+                lastPlaybackProgressUiUpdateMillis = now
+            }
         },
         onMetadataChanged = { metadata ->
             nowPlayingStreamMetadata = metadata
@@ -1178,7 +1194,19 @@ fun NaviampApp(
                 playbackState = state
             },
             onProgressChanged = { progress ->
-                playbackProgress = progress.copy(durationSeconds = null)
+                val now = System.currentTimeMillis()
+                val liveProgress = progress.copy(durationSeconds = null)
+                val currentPosition = playbackProgress.positionSeconds
+                val livePosition = liveProgress.positionSeconds
+                if (
+                    currentPosition == null ||
+                    livePosition == null ||
+                    abs(livePosition - currentPosition) >= PlaybackProgressUiUpdateThresholdSeconds ||
+                    now - lastPlaybackProgressUiUpdateMillis >= PlaybackProgressUiUpdateIntervalMillis
+                ) {
+                    playbackProgress = liveProgress
+                    lastPlaybackProgressUiUpdateMillis = now
+                }
             },
             onMetadataChanged = { metadata ->
                 nowPlayingStreamMetadata = metadata
@@ -3420,6 +3448,8 @@ private fun shouldAutoSyncLibrary(
 
 private const val LibraryPageSize = 50
 private const val PlaybackPositionSaveThresholdSeconds = 5.0
+private const val PlaybackProgressUiUpdateIntervalMillis = 500L
+private const val PlaybackProgressUiUpdateThresholdSeconds = 0.45
 private const val PendingSeekToleranceSeconds = 2.0
 private const val PendingSeekStaleProgressWindowMillis = 1_500L
 private const val RadioRefillThreshold = 10

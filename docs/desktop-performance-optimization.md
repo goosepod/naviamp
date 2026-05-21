@@ -41,12 +41,22 @@ Implemented first pass:
 
 `BassPlaybackEngine` emits progress every 100 ms while a track is active. That is appropriate for a smooth scrub bar, but the current top-level state shape means one progress update can invalidate a broad part of `NaviampApp`.
 
-Planned exploration:
+Measured on `build/local-test/Naviamp`, Now Playing open with a song playing:
 
-- Confirm how much recomposes on each progress tick.
+- Before throttling: about 36% of one CPU core over a 15-second sample.
+- After throttling visible progress state to roughly twice per second: about 13% of one CPU core over a 15-second sample.
+- Disk I/O stayed at 0 MB/s.
+
+Implemented first pass:
+
+- Keep raw playback progress flowing to save-position and play-reporting logic.
+- Throttle visible Compose playback progress state to avoid redrawing the Now Playing details and waveform scrubber 10 times per second.
+
+Still planned:
+
 - Split frequently changing playback progress away from slow-changing app state.
-- Derive progress labels and fractions as close to the player UI as possible.
 - Consider reducing progress updates when the Player screen is not visible, while still keeping media/session save logic correct.
+- If playback CPU remains too high, separate the static waveform bars from the moving playhead so only the playhead redraws on progress changes.
 
 ### 3. Player title marquee animation may run continuously
 
@@ -135,7 +145,9 @@ Useful probes to add:
 - [x] Gate placeholder/empty `BouncingTitleText` marquee animation.
 - [x] Identify Windows default Skiko renderer idle CPU burn.
 - [x] Force Windows packaged app to use Skiko OpenGL renderer.
-- [ ] Re-test idle no-track scenario with packaged OpenGL renderer.
+- [x] Re-test idle no-track scenario with packaged OpenGL renderer.
+- [x] Throttle visible playback progress updates while preserving play reporting and saved-position checks.
+- [x] Re-test playing track on Player screen after progress throttling.
 - [ ] Confirm cover-art palette extraction is now-playing-only.
 - [ ] Add cover-art decode/cache hit counters if CPU remains high.
 - [ ] Audit sidecar task restart keys for waveform/tags/lyrics.
