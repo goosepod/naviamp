@@ -116,6 +116,9 @@ compose.desktop {
             "-Dapple.awt.application.name=Naviamp",
             "-Dsun.awt.application.name=Naviamp",
         )
+        if (desktopBassPlatform.get().startsWith("windows-")) {
+            jvmArgs += "-Dskiko.renderApi=OPENGL"
+        }
 
         buildTypes {
             release {

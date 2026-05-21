@@ -533,6 +533,7 @@ private fun NowPlayingDetails(
                         text = nowPlaying.title,
                         color = colors.primaryText,
                         fontSize = 15,
+                        marqueeEnabled = nowPlaying.id.isNotBlank(),
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Text(
@@ -1555,6 +1556,7 @@ private fun BouncingTitleText(
     text: String,
     color: Color,
     fontSize: Int,
+    marqueeEnabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val offset = remember(text) { Animatable(0f) }
@@ -1562,9 +1564,9 @@ private fun BouncingTitleText(
     var textWidth by remember(text, fontSize) { mutableStateOf(0) }
     val overflow = (textWidth - containerWidth).coerceAtLeast(0)
 
-    LaunchedEffect(text, overflow) {
+    LaunchedEffect(text, overflow, marqueeEnabled) {
         offset.snapTo(0f)
-        if (overflow > 0) {
+        if (marqueeEnabled && overflow > 0) {
             while (true) {
                 kotlinx.coroutines.delay(800)
                 offset.animateTo(

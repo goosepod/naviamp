@@ -52,11 +52,28 @@ Planned exploration:
 
 `BouncingTitleText` has an infinite loop while text overflows. If a long title is displayed, this animation can keep Compose active even when nothing else is changing.
 
-Planned fix:
+Implemented first pass:
 
-- Only animate marquee text when the Player or mini-player is visible.
-- Pause or slow the animation when the window is not focused.
+- Do not run the marquee for placeholder/empty Now Playing states.
+
+Still planned:
+
+- Only animate marquee text when actual track text needs it.
 - Consider replacing continuous bouncing with a slower, less frequent marquee cycle.
+
+### 3a. Windows Skiko Direct3D renderer can burn a full idle core
+
+On Windows, the default Skiko renderer pegged one native render thread at roughly one full CPU core while Naviamp was idle on the empty Now Playing route. The JVM thread dump showed Java/coroutine threads parked and no disk I/O, which pointed away from cache/import/playback code and toward native rendering.
+
+Measured on `build/local-test/Naviamp`:
+
+- Default renderer: about 100% of one CPU core while idle.
+- `SKIKO_RENDER_API=SOFTWARE`: 0% over a settled 10-second idle sample.
+- `SKIKO_RENDER_API=OPENGL`: 0% over a settled 10-second idle sample.
+
+Implemented first pass:
+
+- Force `-Dskiko.renderApi=OPENGL` for Windows packaged desktop builds.
 
 ### 4. Cover-art decoding and palette extraction can be expensive
 
@@ -115,7 +132,10 @@ Useful probes to add:
 - [ ] Measure CPU/disk after stats gating.
 - [ ] Isolate playback progress updates so they do not rebuild unrelated screens.
 - [ ] Consider lower-frequency progress updates when Player is not visible.
-- [ ] Gate or slow `BouncingTitleText` marquee animation.
+- [x] Gate placeholder/empty `BouncingTitleText` marquee animation.
+- [x] Identify Windows default Skiko renderer idle CPU burn.
+- [x] Force Windows packaged app to use Skiko OpenGL renderer.
+- [ ] Re-test idle no-track scenario with packaged OpenGL renderer.
 - [ ] Confirm cover-art palette extraction is now-playing-only.
 - [ ] Add cover-art decode/cache hit counters if CPU remains high.
 - [ ] Audit sidecar task restart keys for waveform/tags/lyrics.
