@@ -108,6 +108,8 @@ class AndroidStorage(
             last_connected_at_epoch_millis = now,
             last_sync_started_at_epoch_millis = existing?.last_sync_started_at_epoch_millis,
             last_sync_completed_at_epoch_millis = existing?.last_sync_completed_at_epoch_millis,
+            last_library_scan_signature = existing?.last_library_scan_signature,
+            last_library_scan_checked_at_epoch_millis = existing?.last_library_scan_checked_at_epoch_millis,
         )
         return MediaSourceIdentity(
             id = id,

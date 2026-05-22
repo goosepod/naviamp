@@ -23,6 +23,10 @@ kotlin {
             implementation(compose.runtime)
             implementation(compose.ui)
         }
+        jvmTest.dependencies {
+            implementation(compose.desktop.currentOs)
+            implementation(libs.kotlin.test)
+        }
     }
 }
 

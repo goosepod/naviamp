@@ -104,6 +104,18 @@ data class NaviampColors(
     }
 }
 
+enum class NaviampVisualizer(val label: String) {
+    ReactiveBars("Reactive bars"),
+    FluidGradient("Fluid gradient"),
+    AudioSphere("Audio sphere"),
+    AudioTunnel("Audio tunnel"),
+    RibbonTrail("Ribbon trail"),
+    FrequencyTerrain("Frequency terrain"),
+    ParticleField("Particle field"),
+    WaveInterference("Wave interference"),
+    VinylGroove("Vinyl groove"),
+}
+
 typealias ConnectionFormState = app.naviamp.domain.settings.ConnectionFormState
 typealias PlaybackSettings = app.naviamp.domain.settings.PlaybackSettings
 

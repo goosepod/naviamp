@@ -14,6 +14,8 @@ import app.naviamp.ui.NaviampMiniNowPlaying
 import app.naviamp.ui.NaviampNowPlayingActions
 import app.naviamp.ui.NaviampNowPlayingItemUi
 import app.naviamp.ui.NaviampNowPlayingPanel
+import app.naviamp.ui.NaviampPlayerColors
+import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.MiniNowPlayingUiConfig
 import app.naviamp.ui.NowPlayingRadioUiConfig
 import app.naviamp.ui.NowPlayingTrackUiConfig
@@ -34,6 +36,8 @@ fun NowPlayingPanel(
     nowPlayingTrack: Track?,
     nowPlayingWaveform: AudioWaveform?,
     visualizerBandsProvider: () -> List<Float>,
+    selectedVisualizer: NaviampVisualizer,
+    visualizerColors: NaviampPlayerColors,
     nowPlayingAudioTags: List<AudioTag>?,
     nowPlayingLyrics: Lyrics?,
     nowPlayingLyricsStatus: String?,
@@ -69,6 +73,7 @@ fun NowPlayingPanel(
     onVolumeChanged: (Int) -> Unit,
     onToggleLyrics: () -> Unit,
     onToggleVisualizer: () -> Unit,
+    onVisualizerSelected: (NaviampVisualizer) -> Unit,
     onToggleTrackFavorite: (Track) -> Unit,
     onTrackRatingSelected: (Track, Int?) -> Unit,
     onArtistSelected: (Track) -> Unit,
@@ -205,6 +210,8 @@ fun NowPlayingPanel(
         nowPlaying = nowPlayingUi,
         colors = appColors,
         visualizerBandsProvider = visualizerBandsProvider,
+        selectedVisualizer = selectedVisualizer,
+        visualizerColors = visualizerColors,
         actions = NaviampNowPlayingActions(
             onPause = onPause,
             onResume = onResume,
@@ -217,6 +224,7 @@ fun NowPlayingPanel(
             onVolumeChanged = onVolumeChanged,
             onToggleLyrics = onToggleLyrics,
             onToggleVisualizer = onToggleVisualizer,
+            onVisualizerSelected = onVisualizerSelected,
             onTrackRadio = { nowPlayingTrack?.let(onTrackRadioSelected) },
             onAddToPlaylist = { nowPlayingTrack?.let(onAddTrackToPlaylist) },
             onDownloadTrack = { nowPlayingTrack?.let(onDownloadTrackSelected) },

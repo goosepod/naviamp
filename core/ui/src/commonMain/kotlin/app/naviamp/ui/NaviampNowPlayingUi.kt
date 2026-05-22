@@ -56,6 +56,8 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -117,6 +119,7 @@ data class NaviampNowPlayingActions(
     val onQueueItemAddToPlaylist: (NaviampNowPlayingItemUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
     val onQueueItemCreatePlaylistAndAdd: (NaviampNowPlayingItemUi, String) -> Unit = { _, _ -> },
     val onQueueItemDownload: (NaviampNowPlayingItemUi) -> Unit = {},
+    val onVisualizerSelected: (NaviampVisualizer) -> Unit = {},
 )
 
 @Composable
@@ -126,6 +129,8 @@ fun NaviampNowPlayingPanel(
     actions: NaviampNowPlayingActions,
     modifier: Modifier = Modifier,
     visualizerBandsProvider: () -> List<Float> = { nowPlaying.visualizerFrame?.bands.orEmpty() },
+    selectedVisualizer: NaviampVisualizer = NaviampVisualizer.AudioSphere,
+    visualizerColors: NaviampPlayerColors = NaviampPlayerColors.fallback(colors),
 ) {
     var selectedTab by remember(nowPlaying.id, nowPlaying.isLive) { mutableStateOf(NaviampNowPlayingTab.UpNext) }
     val showStationList = nowPlaying.isLive
@@ -178,8 +183,11 @@ fun NaviampNowPlayingPanel(
                         visualizerVisible = nowPlaying.visualizerVisible,
                         visualizerAvailable = nowPlaying.visualizerAvailable,
                         visualizerBandsProvider = visualizerBandsProvider,
+                        selectedVisualizer = selectedVisualizer,
+                        visualizerColors = visualizerColors,
                         visualizerActive = nowPlaying.isPlaying,
                         onToggleVisualizer = actions.onToggleVisualizer,
+                        onVisualizerSelected = actions.onVisualizerSelected,
                     )
                     NowPlayingDetails(
                         nowPlaying = nowPlaying,
@@ -261,8 +269,11 @@ fun NaviampNowPlayingPanel(
                                 visualizerVisible = nowPlaying.visualizerVisible,
                                 visualizerAvailable = nowPlaying.visualizerAvailable,
                                 visualizerBandsProvider = visualizerBandsProvider,
+                                selectedVisualizer = selectedVisualizer,
+                                visualizerColors = visualizerColors,
                                 visualizerActive = nowPlaying.isPlaying,
                                 onToggleVisualizer = actions.onToggleVisualizer,
+                                onVisualizerSelected = actions.onVisualizerSelected,
                             )
                         }
                         NowPlayingDetails(
@@ -303,8 +314,11 @@ fun NaviampNowPlayingPanel(
                                 visualizerVisible = nowPlaying.visualizerVisible,
                                 visualizerAvailable = nowPlaying.visualizerAvailable,
                                 visualizerBandsProvider = visualizerBandsProvider,
+                                selectedVisualizer = selectedVisualizer,
+                                visualizerColors = visualizerColors,
                                 visualizerActive = nowPlaying.isPlaying,
                                 onToggleVisualizer = actions.onToggleVisualizer,
+                                onVisualizerSelected = actions.onVisualizerSelected,
                             )
                         }
                     }
@@ -346,29 +360,51 @@ private fun NowPlayingArtSurface(
     visualizerVisible: Boolean,
     visualizerAvailable: Boolean,
     visualizerBandsProvider: () -> List<Float>,
+    selectedVisualizer: NaviampVisualizer,
+    visualizerColors: NaviampPlayerColors,
     visualizerActive: Boolean,
     onToggleVisualizer: () -> Unit,
+    onVisualizerSelected: (NaviampVisualizer) -> Unit,
 ) {
     val shadowMargin = 12.dp
     val shape = RoundedCornerShape(cornerRadius)
     val toggleModifier = Modifier.clickable(enabled = visualizerAvailable, onClick = onToggleVisualizer)
+    var visualizerMenuExpanded by remember { mutableStateOf(false) }
 
     if (visualizerVisible && visualizerAvailable) {
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
-                .size(size + shadowMargin * 2)
+                .fillMaxWidth()
+                .height(size + shadowMargin * 2)
+                .visualizerContextMenu { visualizerMenuExpanded = true }
                 .then(toggleModifier),
         ) {
             LiveVisualizerSurface(
                 bandsProvider = visualizerBandsProvider,
+                visualizer = selectedVisualizer,
+                visualizerColors = visualizerColors,
                 active = visualizerActive,
                 colors = colors,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(size * 0.42f)
-                    .padding(horizontal = 18.dp),
+                    .fillMaxSize(),
             )
+            NaviampDropdownMenu(
+                expanded = visualizerMenuExpanded,
+                onDismissRequest = { visualizerMenuExpanded = false },
+                offset = DpOffset(8.dp, 8.dp),
+            ) {
+                NaviampVisualizer.entries.forEach { visualizer ->
+                    NaviampDropdownMenuItem(
+                        label = if (visualizer == selectedVisualizer) "${visualizer.label} ✓" else visualizer.label,
+                        enabled = visualizer != selectedVisualizer,
+                        onClick = {
+                            visualizerMenuExpanded = false
+                            onVisualizerSelected(visualizer)
+                        },
+                    )
+                }
+            }
         }
     } else {
         Box(
@@ -832,12 +868,16 @@ private fun NowPlayingDetails(
 @Composable
 private fun LiveVisualizerSurface(
     bandsProvider: () -> List<Float>,
+    visualizer: NaviampVisualizer,
+    visualizerColors: NaviampPlayerColors,
     active: Boolean,
     colors: NaviampColors,
     modifier: Modifier = Modifier,
 ) {
     PlatformLiveVisualizerSurface(
         bandsProvider = bandsProvider,
+        visualizer = visualizer,
+        visualizerColors = visualizerColors,
         active = active,
         colors = colors,
         modifier = modifier,
@@ -847,10 +887,25 @@ private fun LiveVisualizerSurface(
 @Composable
 internal expect fun PlatformLiveVisualizerSurface(
     bandsProvider: () -> List<Float>,
+    visualizer: NaviampVisualizer,
+    visualizerColors: NaviampPlayerColors,
     active: Boolean,
     colors: NaviampColors,
     modifier: Modifier = Modifier,
 )
+
+private fun Modifier.visualizerContextMenu(onOpen: () -> Unit): Modifier =
+    pointerInput(onOpen) {
+        awaitPointerEventScope {
+            while (true) {
+                val event = awaitPointerEvent()
+                if (event.type == PointerEventType.Press && event.buttons.isSecondaryPressed) {
+                    onOpen()
+                    event.changes.forEach { it.consume() }
+                }
+            }
+        }
+    }
 
 @Composable
 private fun WaveformScrubber(

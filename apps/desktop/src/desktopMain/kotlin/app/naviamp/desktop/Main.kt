@@ -112,6 +112,7 @@ import app.naviamp.provider.navidrome.NavidromeTls
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.ui.NaviampPlayerColors
+import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.bytesLabel
 import app.naviamp.ui.durationLabel
 import app.naviamp.ui.label
@@ -402,6 +403,7 @@ fun NaviampApp(
     var nowPlayingWaveformReloadToken by remember { mutableStateOf(0) }
     var nowPlayingVisualizerFrame by remember { mutableStateOf<PlaybackVisualizerFrame?>(null) }
     var nowPlayingVisualizerVisible by remember { mutableStateOf(false) }
+    var selectedVisualizer by remember { mutableStateOf(NaviampVisualizer.AudioSphere) }
     var nowPlayingAudioTags by remember { mutableStateOf<List<AudioTag>?>(null) }
     var nowPlayingLyrics by remember { mutableStateOf<Lyrics?>(null) }
     var nowPlayingLyricsStatus by remember { mutableStateOf<String?>(null) }
@@ -2700,6 +2702,8 @@ fun NaviampApp(
                                 nowPlayingTrack = nowPlayingTrack,
                                 nowPlayingWaveform = nowPlayingWaveform,
                                 visualizerBandsProvider = { nowPlayingVisualizerFrame?.bands.orEmpty() },
+                                selectedVisualizer = selectedVisualizer,
+                                visualizerColors = targetBackgroundColors,
                                 nowPlayingAudioTags = nowPlayingAudioTags,
                                 nowPlayingLyrics = nowPlayingLyrics,
                                 nowPlayingLyricsStatus = nowPlayingLyricsStatus,
@@ -2767,6 +2771,10 @@ fun NaviampApp(
                                 },
                                 onToggleVisualizer = {
                                     nowPlayingVisualizerVisible = !nowPlayingVisualizerVisible
+                                },
+                                onVisualizerSelected = { visualizer ->
+                                    selectedVisualizer = visualizer
+                                    nowPlayingVisualizerVisible = true
                                 },
                                 onToggleTrackFavorite = { track ->
                                     toggleTrackFavorite(track)
