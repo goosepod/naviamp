@@ -101,6 +101,7 @@ import app.naviamp.desktop.settings.SavedInternetRadioStation
 import app.naviamp.desktop.settings.SavedTrack
 import app.naviamp.desktop.settings.SearchSettings
 import app.naviamp.desktop.settings.UpNextSelectionBehavior
+import app.naviamp.desktop.settings.VisualizerSettings
 import app.naviamp.desktop.settings.WindowSettings
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.MediaProvider
@@ -275,6 +276,7 @@ fun NaviampApp(
         savedMediaSource?.toNavidromeConnection() ?: settingsStore.loadConnection()?.toConnection()
     }
     val savedPlaybackSession = remember { settingsStore.loadPlaybackSession() }
+    val savedVisualizer = remember { settingsStore.loadVisualizerSettings() }
     val savedNavigation = remember { settingsStore.loadNavigationSettings() }
     val savedSearch = remember { settingsStore.loadSearchSettings() }
     val savedRecentRadioStreams = remember { settingsStore.loadRecentRadioStreams() }
@@ -403,7 +405,13 @@ fun NaviampApp(
     var nowPlayingWaveformReloadToken by remember { mutableStateOf(0) }
     var nowPlayingVisualizerFrame by remember { mutableStateOf<PlaybackVisualizerFrame?>(null) }
     var nowPlayingVisualizerRequestedVisible by remember { mutableStateOf(false) }
-    var selectedVisualizer by remember { mutableStateOf(NaviampVisualizer.AudioSphere) }
+    var selectedVisualizer by remember {
+        mutableStateOf(
+            NaviampVisualizer.entries.firstOrNull { visualizer ->
+                visualizer.name == savedVisualizer.selectedVisualizer
+            } ?: NaviampVisualizer.AudioSphere,
+        )
+    }
     var nowPlayingAudioTags by remember { mutableStateOf<List<AudioTag>?>(null) }
     var nowPlayingLyrics by remember { mutableStateOf<Lyrics?>(null) }
     var nowPlayingLyricsStatus by remember { mutableStateOf<String?>(null) }
@@ -2776,6 +2784,9 @@ fun NaviampApp(
                                 },
                                 onVisualizerSelected = { visualizer ->
                                     selectedVisualizer = visualizer
+                                    settingsStore.saveVisualizerSettings(
+                                        VisualizerSettings(selectedVisualizer = visualizer.name),
+                                    )
                                     nowPlayingVisualizerRequestedVisible = true
                                 },
                                 onToggleTrackFavorite = { track ->
@@ -3467,7 +3478,7 @@ private const val LibraryPageSize = 50
 private const val PlaybackPositionSaveThresholdSeconds = 5.0
 private const val PlaybackProgressUiUpdateIntervalMillis = 500L
 private const val PlaybackProgressUiUpdateThresholdSeconds = 0.45
-private const val VisualizerFrameIntervalMillis = 125L
+private const val VisualizerFrameIntervalMillis = 125L // Audio analysis cadence; shader rendering uses the display frame clock.
 private const val PendingSeekToleranceSeconds = 2.0
 private const val PendingSeekStaleProgressWindowMillis = 1_500L
 private const val RadioRefillThreshold = 10

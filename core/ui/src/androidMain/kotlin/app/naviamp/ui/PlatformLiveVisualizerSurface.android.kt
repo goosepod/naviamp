@@ -8,6 +8,7 @@ import androidx.compose.ui.graphics.StrokeCap
 
 @Composable
 internal actual fun PlatformLiveVisualizerSurface(
+    coverArtUrl: String?,
     bandsProvider: () -> List<Float>,
     visualizer: NaviampVisualizer,
     visualizerColors: NaviampPlayerColors,

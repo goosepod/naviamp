@@ -34,9 +34,10 @@ This tracks the work needed to replace the current Compose Canvas visualizer wit
 
 ## Phase 2: Timing And Data Flow
 
-- [ ] Separate audio analysis cadence from render cadence.
+- [x] Separate audio analysis cadence from render cadence on desktop: BASS FFT sampling remains throttled while SkSL animation is driven by the display frame clock.
 - [x] Add interpolation/smoothing on the render side so 8 Hz audio frames can drive smoother visuals.
-- [ ] Target a measured 60 fps render path for active visualizers, with adaptive fallback only if profiling shows it is needed.
+- [x] Target display-refresh rendering for active desktop visualizers.
+- [ ] Add measured FPS/frame-time instrumentation so the 60 fps target is observable instead of judged by eye.
 - [x] Switch back to album art while playback is paused/stopped, then restore the visualizer automatically when playback resumes if the user had it enabled.
 - [ ] Add optional visual decay for buffering/loading transitions without continuing full-rate rendering indefinitely.
 - [ ] Add lifecycle handling so GPU resources are released when the visualizer leaves composition.
@@ -45,18 +46,18 @@ This tracks the work needed to replace the current Compose Canvas visualizer wit
 
 - [x] Define the first visualizer catalog entries.
 - [x] Add a visualizer selection control in the Player UI.
-- [ ] Persist the selected visualizer in settings.
+- [x] Persist the selected visualizer in settings.
 - [ ] Support per-visualizer settings without cluttering the Player screen.
 - [x] Add at least two follow-up GPU visualizer concepts after the current visualizer is ported.
-- [x] Current shader catalog: Reactive bars, Fluid gradient, Audio sphere, Audio tunnel, Ribbon trail, Frequency terrain, Particle field, Wave interference, Vinyl groove.
+- [x] Current shader catalog: Reactive bars, Fluid gradient, Audio sphere, Audio tunnel, Ribbon trail, Spectral ridge, Mountains, Frequency terrain, Particle field, Particle galaxy, Album art, Wave interference, Vinyl groove.
 
 ## Deferred Visualizer Concepts
 
 These are not implemented yet and should be treated as follow-up work rather than part of the current SkSL fragment-shader catalog.
 
-- FFT terrain/mountain with true time-history depth. The current Frequency terrain is a procedural shader approximation; the full version needs a retained FFT history texture or mesh buffer.
-- Particle galaxy with attractors, clustering, and richer emission behavior. The current Particle field is the first lightweight particle-style shader.
-- Album-art-integrated visualizer: reactive warping, depth/parallax from luminance, and particle emission from bright image regions. This needs album-art texture upload into the renderer.
+- Higher-resolution Mountains visualizer with richer history depth, camera controls, lighting, and quality settings. The current Mountains visualizer is a first retained-history shader backed by a small FFT history texture.
+- Particle galaxy quality controls for density/performance presets. The current Particle galaxy has the richer attractor, clustering, nebula, and emission behavior, but does not yet expose user-facing quality settings.
+- Album-art quality/performance controls. The current Album art visualizer uploads the cover image as a shader texture and supports reactive warping, luminance depth, chromatic shimmer, edge glow, and particle emission from bright regions.
 - Raymarching/SDF scenes: fractals, organic blobs, surreal geometry, and richer lighting. This is likely Phase 3+ because it has the highest GPU cost and needs performance gates.
 - Volumetric effects and full procedural 3D scenes. These should wait until the renderer abstraction can expose quality/performance settings.
 

@@ -193,6 +193,7 @@ fun NaviampNowPlayingPanel(
                         nowPlaying = nowPlaying,
                         colors = colors,
                         actions = actions,
+                        selectedVisualizer = selectedVisualizer,
                         compactLayout = viewportMaxHeight < 640.dp,
                         availableHeight = wideDetailsHeight,
                         modifier = Modifier
@@ -280,6 +281,7 @@ fun NaviampNowPlayingPanel(
                             nowPlaying = nowPlaying,
                             colors = colors,
                             actions = actions,
+                            selectedVisualizer = selectedVisualizer,
                             compactLayout = true,
                             availableHeight = viewportHeight,
                             modifier = Modifier
@@ -326,6 +328,7 @@ fun NaviampNowPlayingPanel(
                         nowPlaying = nowPlaying,
                         colors = colors,
                         actions = actions,
+                        selectedVisualizer = selectedVisualizer,
                         mobileLayout = true,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -381,6 +384,7 @@ private fun NowPlayingArtSurface(
                 .then(toggleModifier),
         ) {
             LiveVisualizerSurface(
+                coverArtUrl = coverArtUrl,
                 bandsProvider = visualizerBandsProvider,
                 visualizer = selectedVisualizer,
                 visualizerColors = visualizerColors,
@@ -394,16 +398,13 @@ private fun NowPlayingArtSurface(
                 onDismissRequest = { visualizerMenuExpanded = false },
                 offset = DpOffset(8.dp, 8.dp),
             ) {
-                NaviampVisualizer.entries.forEach { visualizer ->
-                    NaviampDropdownMenuItem(
-                        label = if (visualizer == selectedVisualizer) "${visualizer.label} ✓" else visualizer.label,
-                        enabled = visualizer != selectedVisualizer,
-                        onClick = {
-                            visualizerMenuExpanded = false
-                            onVisualizerSelected(visualizer)
-                        },
-                    )
-                }
+                VisualizerDropdownMenuItems(
+                    selectedVisualizer = selectedVisualizer,
+                    onVisualizerSelected = {
+                        visualizerMenuExpanded = false
+                        onVisualizerSelected(it)
+                    },
+                )
             }
         }
     } else {
@@ -426,16 +427,32 @@ private fun NowPlayingArtSurface(
 }
 
 @Composable
+private fun VisualizerDropdownMenuItems(
+    selectedVisualizer: NaviampVisualizer,
+    onVisualizerSelected: (NaviampVisualizer) -> Unit,
+) {
+    NaviampVisualizer.entries.forEach { visualizer ->
+        NaviampDropdownMenuItem(
+            label = if (visualizer == selectedVisualizer) "${visualizer.label} ✓" else visualizer.label,
+            enabled = visualizer != selectedVisualizer,
+            onClick = { onVisualizerSelected(visualizer) },
+        )
+    }
+}
+
+@Composable
 private fun NowPlayingDetails(
     nowPlaying: NowPlayingUi,
     colors: NaviampColors,
     actions: NaviampNowPlayingActions,
+    selectedVisualizer: NaviampVisualizer,
     mobileLayout: Boolean = false,
     compactLayout: Boolean = false,
     availableHeight: Dp? = null,
     modifier: Modifier = Modifier,
 ) {
     var actionMenuExpanded by remember { mutableStateOf(false) }
+    var visualizerMenuExpanded by remember { mutableStateOf(false) }
     var trackDetailsOpen by remember { mutableStateOf(false) }
     var playlistDialogOpen by remember { mutableStateOf<NaviampNowPlayingItemUi?>(null) }
     var scrubberValue by remember(nowPlaying.id) { mutableFloatStateOf(nowPlaying.progressFraction.toFloat()) }
@@ -801,6 +818,7 @@ private fun NowPlayingDetails(
                                         NaviampAction.HideLyrics -> actions.onToggleLyrics()
                                         NaviampAction.ShowVisualizer,
                                         NaviampAction.HideVisualizer -> actions.onToggleVisualizer()
+                                        NaviampAction.ChangeVisualizer -> visualizerMenuExpanded = true
                                         NaviampAction.DownloadTrack -> actions.onDownloadTrack()
                                         NaviampAction.TrackDetails -> trackDetailsOpen = true
                                         NaviampAction.TrackPreference -> cycleTrackPreference()
@@ -825,6 +843,19 @@ private fun NowPlayingDetails(
                                 },
                             )
                         }
+                    }
+                    NaviampDropdownMenu(
+                        expanded = visualizerMenuExpanded,
+                        onDismissRequest = { visualizerMenuExpanded = false },
+                        offset = DpOffset(0.dp, 6.dp),
+                    ) {
+                        VisualizerDropdownMenuItems(
+                            selectedVisualizer = selectedVisualizer,
+                            onVisualizerSelected = {
+                                visualizerMenuExpanded = false
+                                actions.onVisualizerSelected(it)
+                            },
+                        )
                     }
                 }
             }
@@ -867,6 +898,7 @@ private fun NowPlayingDetails(
 
 @Composable
 private fun LiveVisualizerSurface(
+    coverArtUrl: String?,
     bandsProvider: () -> List<Float>,
     visualizer: NaviampVisualizer,
     visualizerColors: NaviampPlayerColors,
@@ -875,6 +907,7 @@ private fun LiveVisualizerSurface(
     modifier: Modifier = Modifier,
 ) {
     PlatformLiveVisualizerSurface(
+        coverArtUrl = coverArtUrl,
         bandsProvider = bandsProvider,
         visualizer = visualizer,
         visualizerColors = visualizerColors,
@@ -886,6 +919,7 @@ private fun LiveVisualizerSurface(
 
 @Composable
 internal expect fun PlatformLiveVisualizerSurface(
+    coverArtUrl: String?,
     bandsProvider: () -> List<Float>,
     visualizer: NaviampVisualizer,
     visualizerColors: NaviampPlayerColors,

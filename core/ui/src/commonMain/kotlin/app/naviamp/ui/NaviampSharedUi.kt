@@ -110,8 +110,12 @@ enum class NaviampVisualizer(val label: String) {
     AudioSphere("Audio sphere"),
     AudioTunnel("Audio tunnel"),
     RibbonTrail("Ribbon trail"),
+    SpectralRidge("Spectral ridge"),
+    FftMountain("Mountains"),
     FrequencyTerrain("Frequency terrain"),
     ParticleField("Particle field"),
+    ParticleGalaxy("Particle galaxy"),
+    AlbumArtReactive("Album art"),
     WaveInterference("Wave interference"),
     VinylGroove("Vinyl groove"),
 }
