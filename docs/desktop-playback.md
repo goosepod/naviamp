@@ -129,7 +129,7 @@ The zip is written to:
 apps/desktop/build/compose/distributions/Naviamp-windows-x64-local.zip
 ```
 
-Use `createReleaseDistributable` only when testing the true release/proguard path. It is much slower because it runs ProGuard across the Compose Desktop dependency graph and can surface release-only keep-rule problems.
+Naviamp disables ProGuard for the Compose Desktop release build. The desktop app uses Compose Desktop plus native JNA/JNI playback bindings, and ProGuard can break runtime-only paths such as native method lookup, callback dispatch, and generated Compose bytecode even when compilation succeeds. `packageLocalDistributable` is still the preferred build for using the app locally because it is faster and stages from the same non-shrunk app layout.
 
 ## macOS Local Build Workflow
 
