@@ -402,7 +402,7 @@ fun NaviampApp(
     var nowPlayingWaveformStatus by remember { mutableStateOf("No track") }
     var nowPlayingWaveformReloadToken by remember { mutableStateOf(0) }
     var nowPlayingVisualizerFrame by remember { mutableStateOf<PlaybackVisualizerFrame?>(null) }
-    var nowPlayingVisualizerVisible by remember { mutableStateOf(false) }
+    var nowPlayingVisualizerRequestedVisible by remember { mutableStateOf(false) }
     var selectedVisualizer by remember { mutableStateOf(NaviampVisualizer.AudioSphere) }
     var nowPlayingAudioTags by remember { mutableStateOf<List<AudioTag>?>(null) }
     var nowPlayingLyrics by remember { mutableStateOf<Lyrics?>(null) }
@@ -412,6 +412,8 @@ fun NaviampApp(
     var nowPlayingStreamMetadata by remember { mutableStateOf(PlaybackStreamMetadata()) }
     var relatedTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
     var playbackState by remember { mutableStateOf<PlaybackState>(PlaybackState.Idle) }
+    val nowPlayingVisualizerVisible = nowPlayingVisualizerRequestedVisible &&
+        (playbackState == PlaybackState.Playing || playbackState == PlaybackState.Loading)
     var playbackProgress by remember { mutableStateOf(PlaybackProgress.Unknown) }
     var playbackQueue by remember {
         mutableStateOf(
@@ -2770,11 +2772,11 @@ fun NaviampApp(
                                     nowPlayingLyricsVisible = !nowPlayingLyricsVisible
                                 },
                                 onToggleVisualizer = {
-                                    nowPlayingVisualizerVisible = !nowPlayingVisualizerVisible
+                                    nowPlayingVisualizerRequestedVisible = !nowPlayingVisualizerRequestedVisible
                                 },
                                 onVisualizerSelected = { visualizer ->
                                     selectedVisualizer = visualizer
-                                    nowPlayingVisualizerVisible = true
+                                    nowPlayingVisualizerRequestedVisible = true
                                 },
                                 onToggleTrackFavorite = { track ->
                                     toggleTrackFavorite(track)

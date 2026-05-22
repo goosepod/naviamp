@@ -205,7 +205,9 @@ private fun NaviampAndroidApp() {
     var playbackState by remember { mutableStateOf<PlaybackState>(PlaybackState.Idle) }
     var playbackProgress by remember { mutableStateOf(PlaybackProgress.Unknown) }
     var visualizerFrame by remember { mutableStateOf<PlaybackVisualizerFrame?>(null) }
-    var visualizerVisible by remember { mutableStateOf(false) }
+    var visualizerRequestedVisible by remember { mutableStateOf(false) }
+    val visualizerVisible = visualizerRequestedVisible &&
+        (playbackState == PlaybackState.Playing || playbackState == PlaybackState.Loading)
     var pendingSeekPositionSeconds by remember { mutableStateOf<Double?>(null) }
     var pendingSeekIssuedAtMillis by remember { mutableStateOf<Long?>(null) }
     var playbackSessionToken by remember { mutableStateOf(0L) }
@@ -308,7 +310,7 @@ private fun NaviampAndroidApp() {
         nowPlayingStreamMetadata = PlaybackStreamMetadata()
         nowPlayingOpen = false
         visualizerFrame = null
-        visualizerVisible = false
+        visualizerRequestedVisible = false
         playbackQueue = PlaybackQueue()
         preparedNextTrackId = null
         shuffledUpNextSnapshot = null
@@ -1691,7 +1693,7 @@ private fun NaviampAndroidApp() {
             }
         },
         onToggleVisualizer = {
-            visualizerVisible = !visualizerVisible
+            visualizerRequestedVisible = !visualizerRequestedVisible
         },
         onTrackRadio = {
             val activeProvider = provider ?: return@NaviampSharedAppShell
