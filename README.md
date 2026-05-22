@@ -42,4 +42,16 @@ Planned local commands:
 
 The Gradle wrapper is committed to the repo. Use `./gradlew` instead of a system Gradle install for project commands.
 
+Memorable build shortcuts are available through `make`:
+
+```shell
+make help
+make macos-test
+make macos-standalone
+make android-debug
+make desktop-test
+```
+
+The Makefile is a thin wrapper over Gradle tasks. It is intended for local use and future Forgejo release jobs so release commands stay stable even if plugin task names change.
+
 See [docs/PROJECT_NOTES.md](docs/PROJECT_NOTES.md), [docs/setup.md](docs/setup.md), [docs/architecture.md](docs/architecture.md), [docs/roadmap.md](docs/roadmap.md), and [docs/learning-kotlin.md](docs/learning-kotlin.md).

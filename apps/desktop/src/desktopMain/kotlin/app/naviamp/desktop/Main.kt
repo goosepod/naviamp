@@ -832,10 +832,6 @@ fun NaviampApp(
             nowPlayingLyricsStatus = null
             return@LaunchedEffect
         }
-        if (appRoute != AppRoute.Player) {
-            nowPlayingLyricsStatus = null
-            return@LaunchedEffect
-        }
         val sourceId = connectedSourceId ?: run {
             nowPlayingWaveform = null
             nowPlayingWaveformStatus = "No source"
@@ -860,23 +856,24 @@ fun NaviampApp(
 
         val waveformTagsAndLyrics = withContext(Dispatchers.IO) {
             runCatching {
-                val downloadedFile = sessionCache.downloadedAudioFile(sourceId, track.id, quality)
-                val cachedFile = if (downloadedFile == null && cacheSettings.audioCachingEnabled) {
-                    sessionCache.cacheAudioTrack(
-                        sourceId = sourceId,
-                        provider = provider,
-                        track = track,
-                        quality = quality,
-                    )
-                } else {
-                    sessionCache.cachedAudioFile(sourceId, track.id, quality)
-                }
-                val audioPath = downloadedFile?.path ?: cachedFile?.path
-                val cachedWaveform = if (audioPath != null) sessionCache.cachedAudioWaveform(
+                val cachedWaveformBeforeAudio = sessionCache.cachedAudioWaveform(
                     sourceId = sourceId,
                     trackId = track.id,
                     quality = quality,
-                ) else null
+                )
+                val downloadedFile = sessionCache.downloadedAudioFile(sourceId, track.id, quality)
+                val cachedFile = sessionCache.cachedAudioFile(sourceId, track.id, quality)
+                val audioPath = downloadedFile?.path ?: cachedFile?.path
+                val cachedWaveform = cachedWaveformBeforeAudio
+                    ?: if (audioPath != null) {
+                        sessionCache.cachedAudioWaveform(
+                            sourceId = sourceId,
+                            trackId = track.id,
+                            quality = quality,
+                        )
+                    } else {
+                        null
+                    }
                 val waveform = cachedWaveform ?: if (audioPath != null && cacheSettings.audioCachingEnabled) {
                     sessionCache.ensureAudioWaveform(
                         sourceId = sourceId,
@@ -890,9 +887,12 @@ fun NaviampApp(
                     cachedWaveform != null -> "Cached"
                     waveform != null -> "Generated"
                     audioPath == null && !cacheSettings.audioCachingEnabled -> "Cache disabled"
+                    audioPath == null -> "Preparing"
                     else -> "Unavailable"
                 }
-                val tags = audioPath?.let { AudioTagReader().read(it) }.orEmpty()
+                val tags = audioPath
+                    ?.let { path -> runCatching { AudioTagReader().read(path) }.getOrDefault(emptyList()) }
+                    .orEmpty()
                 val providerLyrics = if (lyricsVisibleForWork) {
                     sessionCache.providerLyrics(sourceId, provider, track.id)
                 } else {
@@ -1806,6 +1806,9 @@ fun NaviampApp(
         isRadioRefilling = true
         lastRadioRefillSeedId = seedTrack.id.value
         openPlayerOnTrackStart = true
+        nowPlayingWaveform = null
+        nowPlayingWaveformStatus = "Waiting"
+        nowPlayingWaveformReloadToken += 1
         playlistEngine.playFrom(
             scope = coroutineScope,
             provider = provider,

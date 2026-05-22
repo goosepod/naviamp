@@ -87,6 +87,9 @@ val desktopPackagedAppDir = desktopPackagedAppName.flatMap { appName ->
 val desktopLocalTestAppDir = desktopPackagedAppName.flatMap { appName ->
     rootProject.layout.buildDirectory.dir("local-test/$appName")
 }
+val desktopReleaseAppDir = desktopPackagedAppName.flatMap { appName ->
+    rootProject.layout.buildDirectory.dir("release/$appName")
+}
 
 kotlin {
     jvm("desktop")
@@ -175,23 +178,70 @@ tasks.matching {
     dependsOn(copyDesktopBassJniAppResources)
 }
 
-tasks.register<Zip>("packageLocalDistributable") {
+fun Zip.packageDesktopApp(archiveNameSuffix: String) {
     group = "distribution"
-    description = "Builds and zips the local packaged desktop app without the release ProGuard step."
-    dependsOn("createDistributable")
-    archiveFileName.set(desktopBassPlatform.map { platform -> "Naviamp-$platform-local.zip" })
+    dependsOn("verifyDesktopDistributable")
+    archiveFileName.set(desktopBassPlatform.map { platform -> "Naviamp-$platform-$archiveNameSuffix.zip" })
     destinationDirectory.set(layout.buildDirectory.dir("compose/distributions"))
     from(desktopPackagedAppDir) {
         into(desktopPackagedAppName)
     }
 }
 
+tasks.register("verifyDesktopDistributable") {
+    group = "verification"
+    description = "Verifies that the desktop app image contains the native playback resources needed at runtime."
+    dependsOn("createDistributable")
+
+    doLast {
+        val platform = desktopBassPlatform.get()
+        val bassResourcesDir = desktopPackagedAppDir.get()
+            .dir("Contents/app/resources/playback/bass/$platform")
+            .asFile
+            .takeIf { platform.startsWith("macos-") }
+            ?: desktopPackagedAppDir.get()
+                .dir("app/resources/playback/bass/$platform")
+                .asFile
+        val requiredLibraries = buildList {
+            add(desktopLibraryName("bass", platform))
+            add(desktopLibraryName("bassmix", platform))
+            add(desktopLibraryName("bassflac", platform))
+            add(desktopLibraryName("bassopus", platform))
+            if (platform.startsWith("macos-")) {
+                add(desktopLibraryName("naviamp_bass", platform))
+            }
+        }
+        val missingLibraries = requiredLibraries.filterNot { bassResourcesDir.resolve(it).isFile }
+        check(missingLibraries.isEmpty()) {
+            "Desktop package is missing native playback resources in ${bassResourcesDir.absolutePath}: ${missingLibraries.joinToString()}"
+        }
+    }
+}
+
+tasks.register<Zip>("packageLocalDistributable") {
+    description = "Builds and zips the local packaged desktop app from the working non-ProGuard app image."
+    packageDesktopApp("local")
+}
+
+tasks.register<Zip>("packageReleaseDistributable") {
+    description = "Builds and zips the release desktop app from the working non-ProGuard app image."
+    packageDesktopApp("release")
+}
+
 tasks.register<Sync>("stageLocalTestApp") {
     group = "distribution"
     description = "Builds the local packaged desktop app and stages it under build/local-test."
-    dependsOn("createDistributable")
+    dependsOn("verifyDesktopDistributable")
     from(desktopPackagedAppDir)
     into(desktopLocalTestAppDir)
+}
+
+tasks.register<Sync>("stageReleaseApp") {
+    group = "distribution"
+    description = "Builds the release desktop app from the working non-ProGuard app image and stages it under build/release."
+    dependsOn("verifyDesktopDistributable")
+    from(desktopPackagedAppDir)
+    into(desktopReleaseAppDir)
 }
 
 fun desktopNativePlatform(): String {

@@ -1,0 +1,83 @@
+GRADLE ?= ./gradlew
+GRADLEW_BAT ?= ./gradlew.bat
+
+ANDROID_HOME ?= /Users/jbmcmichael/Library/Android/sdk
+GRADLE_COMMON = --configure-on-demand
+MACOS_DESKTOP_PROPS = -Pnaviamp.bass.platform=macos-arm64 -Pcompose.desktop.packaging.checkJdkVendor=false
+WINDOWS_DESKTOP_PROPS = -Pnaviamp.bass.platform=windows-x64
+
+.PHONY: help
+help:
+	@printf "Naviamp build shortcuts\n\n"
+	@printf "macOS:\n"
+	@printf "  make macos-test          Build, stage, and open build/local-test/Naviamp.app\n"
+	@printf "  make macos-standalone    Build release zip at apps/desktop/build/compose/distributions\n"
+	@printf "  make macos-stage         Build and stage build/release/Naviamp.app\n\n"
+	@printf "Windows, run on a Windows runner or shell:\n"
+	@printf "  make windows-test        Build and stage the Windows test app\n"
+	@printf "  make windows-standalone  Build Windows release zip\n"
+	@printf "  make windows-installer   Reserved for the future Windows installer task\n\n"
+	@printf "Android:\n"
+	@printf "  make android-debug       Build debug APK\n"
+	@printf "  make android-release     Build release APK/AAB tasks configured by Gradle\n\n"
+	@printf "Verification:\n"
+	@printf "  make clean               Run Gradle clean\n"
+	@printf "  make clean-generated     Run Gradle clean and remove root generated staging outputs\n"
+	@printf "  make desktop-test        Run desktop tests\n"
+
+.PHONY: clean
+clean:
+	ANDROID_HOME="$(ANDROID_HOME)" $(GRADLE) clean
+
+.PHONY: clean-generated
+clean-generated: clean
+	rm -rf build
+
+.PHONY: macos-test
+macos-test:
+	ANDROID_HOME="$(ANDROID_HOME)" $(GRADLE) $(GRADLE_COMMON) $(MACOS_DESKTOP_PROPS) :apps:desktop:stageLocalTestApp
+	-pkill -f "$(CURDIR)/build/local-test/Naviamp.app/Contents/MacOS/Naviamp"
+	open build/local-test/Naviamp.app
+
+.PHONY: macos-stage
+macos-stage:
+	ANDROID_HOME="$(ANDROID_HOME)" $(GRADLE) $(GRADLE_COMMON) $(MACOS_DESKTOP_PROPS) :apps:desktop:stageReleaseApp
+
+.PHONY: macos-standalone macos-release
+macos-standalone macos-release:
+	ANDROID_HOME="$(ANDROID_HOME)" $(GRADLE) $(GRADLE_COMMON) $(MACOS_DESKTOP_PROPS) :apps:desktop:packageReleaseDistributable
+
+.PHONY: windows-test
+windows-test:
+	@if uname -s | grep -Eq 'MINGW|MSYS|CYGWIN|Windows'; then \
+		$(GRADLEW_BAT) $(GRADLE_COMMON) "$(WINDOWS_DESKTOP_PROPS)" :apps:desktop:stageLocalTestApp; \
+	else \
+		printf "windows-test must run on Windows so jpackage can create a Windows app image.\n"; \
+		exit 1; \
+	fi
+
+.PHONY: windows-standalone windows-release
+windows-standalone windows-release:
+	@if uname -s | grep -Eq 'MINGW|MSYS|CYGWIN|Windows'; then \
+		$(GRADLEW_BAT) $(GRADLE_COMMON) "$(WINDOWS_DESKTOP_PROPS)" :apps:desktop:packageReleaseDistributable; \
+	else \
+		printf "windows-standalone must run on Windows so jpackage can create a Windows app image.\n"; \
+		exit 1; \
+	fi
+
+.PHONY: windows-installer
+windows-installer:
+	@printf "No Windows installer task exists yet. Use 'make windows-standalone' for the current release zip.\n"
+	@exit 1
+
+.PHONY: android-debug
+android-debug:
+	ANDROID_HOME="$(ANDROID_HOME)" $(GRADLE) $(GRADLE_COMMON) :apps:android:assembleDebug
+
+.PHONY: android-release
+android-release:
+	ANDROID_HOME="$(ANDROID_HOME)" $(GRADLE) $(GRADLE_COMMON) :apps:android:assembleRelease
+
+.PHONY: desktop-test
+desktop-test:
+	ANDROID_HOME="$(ANDROID_HOME)" $(GRADLE) desktopTest

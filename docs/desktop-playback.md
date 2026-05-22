@@ -84,7 +84,7 @@ When a format is not covered by BASS core or a packaged add-on on the current pl
 Override the platform for packaging/copy verification with:
 
 ```shell
-./gradlew -Pnaviamp.bass.platform=macos-arm64 :apps:desktop:packageDmg
+./gradlew -Pnaviamp.bass.platform=macos-arm64 :apps:desktop:packageReleaseDistributable
 ./gradlew -Pnaviamp.bass.platform=windows-x64 :apps:desktop:copyDesktopBass :apps:desktop:copyDesktopBassAppResources
 ```
 
@@ -129,7 +129,19 @@ The zip is written to:
 apps/desktop/build/compose/distributions/Naviamp-windows-x64-local.zip
 ```
 
-Naviamp disables ProGuard for the Compose Desktop release build. The desktop app uses Compose Desktop plus native JNA/JNI playback bindings, and ProGuard can break runtime-only paths such as native method lookup, callback dispatch, and generated Compose bytecode even when compilation succeeds. `packageLocalDistributable` is still the preferred build for using the app locally because it is faster and stages from the same non-shrunk app layout.
+For deployable test builds, use the explicit release zip task:
+
+```powershell
+.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:packageReleaseDistributable
+```
+
+That task deliberately uses the same non-ProGuard app image as local testing and writes:
+
+```text
+apps/desktop/build/compose/distributions/Naviamp-windows-x64-release.zip
+```
+
+Avoid Compose Desktop's `createReleaseDistributable`, `runRelease`, and `packageReleaseDistributionForCurrentOS` tasks for Naviamp deploy testing. The desktop app uses Compose Desktop plus native JNA/JNI playback bindings, and ProGuard can break runtime-only paths such as native method lookup, callback dispatch, and generated Compose bytecode even when compilation succeeds.
 
 ## macOS Local Build Workflow
 
@@ -158,6 +170,18 @@ The zip is written to:
 
 ```text
 apps/desktop/build/compose/distributions/Naviamp-macos-arm64-local.zip
+```
+
+For deployable test builds, use the explicit release zip task:
+
+```shell
+./gradlew --configure-on-demand -Pnaviamp.bass.platform=macos-arm64 -Pcompose.desktop.packaging.checkJdkVendor=false :apps:desktop:packageReleaseDistributable
+```
+
+That task deliberately uses the same non-ProGuard app image as local testing and writes:
+
+```text
+apps/desktop/build/compose/distributions/Naviamp-macos-arm64-release.zip
 ```
 
 ## Library Refresh
