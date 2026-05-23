@@ -152,6 +152,7 @@ private suspend fun defaultPlatformCoverArtBytes(url: String): ByteArray =
 
 private object JvmCoverArtCache {
     private const val MaxImages = 240
+    private const val MaxShaderImages = 48
     private const val MaxPalettes = 240
 
     private val images = object : LinkedHashMap<String, ImageBitmap>(MaxImages, 0.75f, true) {
@@ -161,6 +162,13 @@ private object JvmCoverArtCache {
     private val palettes = object : LinkedHashMap<String, List<NaviampRgbSample>>(MaxPalettes, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<NaviampRgbSample>>?): Boolean =
             size > MaxPalettes
+    }
+    private val shaderImages = object : LinkedHashMap<String, SkiaImage>(MaxShaderImages, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, SkiaImage>?): Boolean {
+            val shouldRemove = size > MaxShaderImages
+            if (shouldRemove) eldest?.value?.close()
+            return shouldRemove
+        }
     }
 
     fun cachedImage(url: String): ImageBitmap? =
@@ -178,6 +186,16 @@ private object JvmCoverArtCache {
                 .also { image ->
                     synchronized(images) {
                         images[url] = image
+                    }
+                }
+        }
+
+    suspend fun shaderImage(url: String): SkiaImage =
+        synchronized(shaderImages) { shaderImages[url] } ?: withContext(Dispatchers.IO) {
+            synchronized(shaderImages) { shaderImages[url] } ?: SkiaImage.makeFromEncoded(platformCoverArtByteLoader(url))
+                .also { image ->
+                    synchronized(shaderImages) {
+                        shaderImages[url] = image
                     }
                 }
         }
@@ -200,3 +218,6 @@ private object JvmCoverArtCache {
             ?: NaviampPlayerColors.fallback(colors)
     }
 }
+
+internal suspend fun jvmPlatformCoverArtShaderImage(url: String): SkiaImage =
+    JvmCoverArtCache.shaderImage(url)

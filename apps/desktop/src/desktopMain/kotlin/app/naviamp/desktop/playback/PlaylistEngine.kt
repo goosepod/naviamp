@@ -356,17 +356,22 @@ class PlaylistEngine(
                     quality = currentQuality,
                 )
                 if (activeSessionId == sessionId) {
-                    runPrefetchSidecars(
+                    runWaveformSidecar(
                         audioCache = audioCache,
                         sourceId = sourceId,
-                        provider = currentProvider,
                         track = track,
                         quality = currentQuality,
-                        cachedAudio = cachedAudio,
                     )
                     if (activeSessionId == sessionId) {
                         callbacks?.onCurrentTrackSidecarsReady(track)
                     }
+                    runMetadataSidecars(
+                        audioCache = audioCache,
+                        sourceId = sourceId,
+                        provider = currentProvider,
+                        track = track,
+                        cachedAudio = cachedAudio,
+                    )
                 }
             }
         }
@@ -500,6 +505,48 @@ class PlaylistEngine(
         }
 
         return SidecarPrepResult(failed = failed, lastError = lastError)
+    }
+
+    private suspend fun runWaveformSidecar(
+        audioCache: DesktopCache,
+        sourceId: String,
+        track: Track,
+        quality: StreamQuality,
+    ) {
+        audioCache.ensureAudioWaveform(
+            sourceId = sourceId,
+            trackId = track.id,
+            quality = quality,
+        )
+        audioCache.recordSidecarStatus(
+            sourceId = sourceId,
+            trackId = track.id,
+            quality = quality,
+            sidecarType = "waveform",
+            success = true,
+        )
+    }
+
+    private suspend fun runMetadataSidecars(
+        audioCache: DesktopCache,
+        sourceId: String,
+        provider: MediaProvider,
+        track: Track,
+        cachedAudio: app.naviamp.desktop.CachedAudioFile,
+    ) {
+        runCatching {
+            audioCache.providerLyrics(sourceId, provider, track.id)
+        }
+        runCatching {
+            val embeddedLyrics = AudioTagReader().read(cachedAudio.path)
+                .let(::lyricsFromAudioTags)
+            if (embeddedLyrics != null) {
+                audioCache.cacheEmbeddedLyrics(sourceId, track.id, embeddedLyrics)
+            }
+        }
+        runCatching {
+            audioCache.lrclibLyrics(sourceId, track)
+        }
     }
 
     private fun handlePlaybackState(

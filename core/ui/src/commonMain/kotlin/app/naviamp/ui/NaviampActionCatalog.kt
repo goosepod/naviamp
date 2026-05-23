@@ -26,6 +26,7 @@ enum class NaviampAction(
     ShowLyrics("Show lyrics", NaviampTransportIcons.Lyrics),
     HideLyrics("Hide lyrics", NaviampTransportIcons.Lyrics),
     ShowVisualizer("Show visualizer", NaviampTransportIcons.Visualizer),
+    ChangeVisualizer("Change visualizer", NaviampTransportIcons.Visualizer),
     HideVisualizer("Show album art", NaviampIcons.Album),
     TrackPreference("Track preference", NaviampTransportIcons.Heart),
 }
@@ -137,6 +138,7 @@ fun nowPlayingTrackMenuActions(
         } else {
             NaviampAction.ShowVisualizer.toSpec(enabled = visualizerAvailable)
         },
+        NaviampAction.ChangeVisualizer.toSpec(enabled = visualizerAvailable),
         NaviampAction.DownloadTrack.toSpec(enabled = !isLive),
         NaviampAction.TrackDetails.toSpec(enabled = hasDetails),
         NaviampAction.TrackPreference.toSpec(label = trackPreferenceLabel, enabled = canSetTrackPreference),

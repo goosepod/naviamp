@@ -104,6 +104,22 @@ data class NaviampColors(
     }
 }
 
+enum class NaviampVisualizer(val label: String) {
+    ReactiveBars("Reactive bars"),
+    FluidGradient("Fluid gradient"),
+    AudioSphere("Audio sphere"),
+    AudioTunnel("Audio tunnel"),
+    RibbonTrail("Ribbon trail"),
+    SpectralRidge("Spectral ridge"),
+    FftMountain("Mountains"),
+    FrequencyTerrain("Frequency terrain"),
+    ParticleField("Particle field"),
+    ParticleGalaxy("Particle galaxy"),
+    AlbumArtReactive("Album art"),
+    WaveInterference("Wave interference"),
+    VinylGroove("Vinyl groove"),
+}
+
 typealias ConnectionFormState = app.naviamp.domain.settings.ConnectionFormState
 typealias PlaybackSettings = app.naviamp.domain.settings.PlaybackSettings
 
@@ -410,8 +426,13 @@ fun NaviampSharedAppShell(
         albumDetail == null &&
         artistDetail == null &&
         playlistDetail == null
+    val nowPlayingPlayerColors = if (showFullNowPlaying) {
+        rememberPlatformCoverArtPlayerColors(nowPlaying.coverArtUrl, colors)
+    } else {
+        NaviampPlayerColors.fallback(colors)
+    }
     val backgroundGradientColors = if (showFullNowPlaying) {
-        rememberPlatformCoverArtGradientColors(nowPlaying.coverArtUrl, colors)
+        nowPlayingPlayerColors.gradientColors
     } else {
         listOf(colors.backgroundWarm, colors.background, colors.backgroundOlive)
     }
@@ -770,6 +791,12 @@ private fun ConnectedContent(
     onClearLibrary: () -> Unit,
     onResetDatabase: () -> Unit,
 ) {
+    val nowPlayingPlayerColors = if (nowPlayingOpen && nowPlaying != null) {
+        rememberPlatformCoverArtPlayerColors(nowPlaying.coverArtUrl, colors)
+    } else {
+        NaviampPlayerColors.fallback(colors)
+    }
+
     when {
         selectedRoute == SharedRoute.Settings -> SettingsContent(
                             colors = colors,
@@ -786,6 +813,7 @@ private fun ConnectedContent(
         nowPlayingOpen && nowPlaying != null -> FullNowPlaying(
             nowPlaying = nowPlaying,
             colors = colors,
+            playerColors = nowPlayingPlayerColors,
             onBack = onCloseNowPlaying,
             onPause = onPause,
             onResume = onResume,
@@ -1402,6 +1430,7 @@ private fun ArtistDetailContent(
 private fun FullNowPlaying(
     nowPlaying: NowPlayingUi,
     colors: NaviampColors,
+    playerColors: NaviampPlayerColors,
     onBack: () -> Unit,
     onPause: () -> Unit,
     onResume: () -> Unit,
@@ -1433,6 +1462,7 @@ private fun FullNowPlaying(
         NaviampNowPlayingPanel(
             nowPlaying = nowPlaying,
             colors = colors,
+            visualizerColors = playerColors,
             actions = NaviampNowPlayingActions(
                 onPause = onPause,
                 onResume = onResume,

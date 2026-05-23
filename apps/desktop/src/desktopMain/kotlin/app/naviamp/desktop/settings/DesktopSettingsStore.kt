@@ -52,6 +52,13 @@ class DesktopSettingsStore(
         saveSettings(loadSettings().copy(playback = playbackSettings))
     }
 
+    fun loadVisualizerSettings(): VisualizerSettings =
+        loadSettings().visualizer
+
+    fun saveVisualizerSettings(visualizerSettings: VisualizerSettings) {
+        saveSettings(loadSettings().copy(visualizer = visualizerSettings))
+    }
+
     fun loadCacheSettings(): CacheSettings =
         loadSettings().cache
 
@@ -135,6 +142,7 @@ class DesktopSettingsStore(
 data class DesktopSettings(
     val connection: SavedConnection? = null,
     val playback: PlaybackSettings = PlaybackSettings(),
+    val visualizer: VisualizerSettings = VisualizerSettings(),
     val cache: CacheSettings = CacheSettings(),
     val window: WindowSettings = WindowSettings(),
     val session: PlaybackSessionSettings? = null,
@@ -143,6 +151,11 @@ data class DesktopSettings(
     val recentRadioStreams: List<RecentRadioStream> = emptyList(),
     val recentPlaylistIds: List<String> = emptyList(),
     val recentInternetRadioStations: List<SavedInternetRadioStation> = emptyList(),
+)
+
+@Serializable
+data class VisualizerSettings(
+    val selectedVisualizer: String = "AudioSphere",
 )
 
 @Serializable
@@ -198,9 +211,10 @@ private fun String.looksLikeDesktopSettings(): Boolean =
     runCatching {
         val keys = Json.parseToJsonElement(this).jsonObject.keys
             "connection" in keys ||
-                "playback" in keys ||
-                "cache" in keys ||
-                "window" in keys ||
+            "playback" in keys ||
+            "visualizer" in keys ||
+            "cache" in keys ||
+            "window" in keys ||
             "session" in keys ||
             "navigation" in keys ||
             "search" in keys

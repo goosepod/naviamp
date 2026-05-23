@@ -1326,6 +1326,7 @@ private fun createDatabase(path: Path): NaviampStorageDatabase {
     }
     ensureMediaSourceLibraryScanSchema(driver)
     ensureArtistPopularTracksSchema(driver)
+    ensureCachedSidecarStatusSchema(driver)
     driver.execute(null, "PRAGMA foreign_keys=ON", 0)
     return NaviampStorageDatabase(driver)
 }
@@ -1393,6 +1394,34 @@ private fun ensureArtistPopularTracksSchema(driver: JdbcSqliteDriver) {
         """
         CREATE INDEX IF NOT EXISTS artist_popular_track_match
         ON artist_popular_track(source_id, matched_remote_track_id)
+        """.trimIndent(),
+        0,
+    )
+}
+
+private fun ensureCachedSidecarStatusSchema(driver: JdbcSqliteDriver) {
+    driver.execute(
+        null,
+        """
+        CREATE TABLE IF NOT EXISTS cached_sidecar_status (
+          source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+          remote_track_id TEXT NOT NULL,
+          quality_key TEXT NOT NULL,
+          sidecar_type TEXT NOT NULL,
+          status TEXT NOT NULL,
+          attempts INTEGER NOT NULL,
+          last_error TEXT,
+          updated_at_epoch_millis INTEGER NOT NULL,
+          PRIMARY KEY(source_id, remote_track_id, quality_key, sidecar_type)
+        )
+        """.trimIndent(),
+        0,
+    )
+    driver.execute(
+        null,
+        """
+        CREATE INDEX IF NOT EXISTS cached_sidecar_status_track
+        ON cached_sidecar_status(source_id, remote_track_id, quality_key)
         """.trimIndent(),
         0,
     )

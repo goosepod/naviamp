@@ -101,6 +101,7 @@ import app.naviamp.desktop.settings.SavedInternetRadioStation
 import app.naviamp.desktop.settings.SavedTrack
 import app.naviamp.desktop.settings.SearchSettings
 import app.naviamp.desktop.settings.UpNextSelectionBehavior
+import app.naviamp.desktop.settings.VisualizerSettings
 import app.naviamp.desktop.settings.WindowSettings
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.MediaProvider
@@ -112,6 +113,7 @@ import app.naviamp.provider.navidrome.NavidromeTls
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.ui.NaviampPlayerColors
+import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.bytesLabel
 import app.naviamp.ui.durationLabel
 import app.naviamp.ui.label
@@ -274,6 +276,7 @@ fun NaviampApp(
         savedMediaSource?.toNavidromeConnection() ?: settingsStore.loadConnection()?.toConnection()
     }
     val savedPlaybackSession = remember { settingsStore.loadPlaybackSession() }
+    val savedVisualizer = remember { settingsStore.loadVisualizerSettings() }
     val savedNavigation = remember { settingsStore.loadNavigationSettings() }
     val savedSearch = remember { settingsStore.loadSearchSettings() }
     val savedRecentRadioStreams = remember { settingsStore.loadRecentRadioStreams() }
@@ -401,7 +404,14 @@ fun NaviampApp(
     var nowPlayingWaveformStatus by remember { mutableStateOf("No track") }
     var nowPlayingWaveformReloadToken by remember { mutableStateOf(0) }
     var nowPlayingVisualizerFrame by remember { mutableStateOf<PlaybackVisualizerFrame?>(null) }
-    var nowPlayingVisualizerVisible by remember { mutableStateOf(false) }
+    var nowPlayingVisualizerRequestedVisible by remember { mutableStateOf(false) }
+    var selectedVisualizer by remember {
+        mutableStateOf(
+            NaviampVisualizer.entries.firstOrNull { visualizer ->
+                visualizer.name == savedVisualizer.selectedVisualizer
+            } ?: NaviampVisualizer.AudioSphere,
+        )
+    }
     var nowPlayingAudioTags by remember { mutableStateOf<List<AudioTag>?>(null) }
     var nowPlayingLyrics by remember { mutableStateOf<Lyrics?>(null) }
     var nowPlayingLyricsStatus by remember { mutableStateOf<String?>(null) }
@@ -410,6 +420,8 @@ fun NaviampApp(
     var nowPlayingStreamMetadata by remember { mutableStateOf(PlaybackStreamMetadata()) }
     var relatedTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
     var playbackState by remember { mutableStateOf<PlaybackState>(PlaybackState.Idle) }
+    val nowPlayingVisualizerVisible = nowPlayingVisualizerRequestedVisible &&
+        (playbackState == PlaybackState.Playing || playbackState == PlaybackState.Loading)
     var playbackProgress by remember { mutableStateOf(PlaybackProgress.Unknown) }
     var playbackQueue by remember {
         mutableStateOf(
@@ -832,10 +844,6 @@ fun NaviampApp(
             nowPlayingLyricsStatus = null
             return@LaunchedEffect
         }
-        if (appRoute != AppRoute.Player) {
-            nowPlayingLyricsStatus = null
-            return@LaunchedEffect
-        }
         val sourceId = connectedSourceId ?: run {
             nowPlayingWaveform = null
             nowPlayingWaveformStatus = "No source"
@@ -860,23 +868,24 @@ fun NaviampApp(
 
         val waveformTagsAndLyrics = withContext(Dispatchers.IO) {
             runCatching {
-                val downloadedFile = sessionCache.downloadedAudioFile(sourceId, track.id, quality)
-                val cachedFile = if (downloadedFile == null && cacheSettings.audioCachingEnabled) {
-                    sessionCache.cacheAudioTrack(
-                        sourceId = sourceId,
-                        provider = provider,
-                        track = track,
-                        quality = quality,
-                    )
-                } else {
-                    sessionCache.cachedAudioFile(sourceId, track.id, quality)
-                }
-                val audioPath = downloadedFile?.path ?: cachedFile?.path
-                val cachedWaveform = if (audioPath != null) sessionCache.cachedAudioWaveform(
+                val cachedWaveformBeforeAudio = sessionCache.cachedAudioWaveform(
                     sourceId = sourceId,
                     trackId = track.id,
                     quality = quality,
-                ) else null
+                )
+                val downloadedFile = sessionCache.downloadedAudioFile(sourceId, track.id, quality)
+                val cachedFile = sessionCache.cachedAudioFile(sourceId, track.id, quality)
+                val audioPath = downloadedFile?.path ?: cachedFile?.path
+                val cachedWaveform = cachedWaveformBeforeAudio
+                    ?: if (audioPath != null) {
+                        sessionCache.cachedAudioWaveform(
+                            sourceId = sourceId,
+                            trackId = track.id,
+                            quality = quality,
+                        )
+                    } else {
+                        null
+                    }
                 val waveform = cachedWaveform ?: if (audioPath != null && cacheSettings.audioCachingEnabled) {
                     sessionCache.ensureAudioWaveform(
                         sourceId = sourceId,
@@ -890,9 +899,12 @@ fun NaviampApp(
                     cachedWaveform != null -> "Cached"
                     waveform != null -> "Generated"
                     audioPath == null && !cacheSettings.audioCachingEnabled -> "Cache disabled"
+                    audioPath == null -> "Preparing"
                     else -> "Unavailable"
                 }
-                val tags = audioPath?.let { AudioTagReader().read(it) }.orEmpty()
+                val tags = audioPath
+                    ?.let { path -> runCatching { AudioTagReader().read(path) }.getOrDefault(emptyList()) }
+                    .orEmpty()
                 val providerLyrics = if (lyricsVisibleForWork) {
                     sessionCache.providerLyrics(sourceId, provider, track.id)
                 } else {
@@ -1806,6 +1818,9 @@ fun NaviampApp(
         isRadioRefilling = true
         lastRadioRefillSeedId = seedTrack.id.value
         openPlayerOnTrackStart = true
+        nowPlayingWaveform = null
+        nowPlayingWaveformStatus = "Waiting"
+        nowPlayingWaveformReloadToken += 1
         playlistEngine.playFrom(
             scope = coroutineScope,
             provider = provider,
@@ -2697,6 +2712,8 @@ fun NaviampApp(
                                 nowPlayingTrack = nowPlayingTrack,
                                 nowPlayingWaveform = nowPlayingWaveform,
                                 visualizerBandsProvider = { nowPlayingVisualizerFrame?.bands.orEmpty() },
+                                selectedVisualizer = selectedVisualizer,
+                                visualizerColors = targetBackgroundColors,
                                 nowPlayingAudioTags = nowPlayingAudioTags,
                                 nowPlayingLyrics = nowPlayingLyrics,
                                 nowPlayingLyricsStatus = nowPlayingLyricsStatus,
@@ -2763,7 +2780,14 @@ fun NaviampApp(
                                     nowPlayingLyricsVisible = !nowPlayingLyricsVisible
                                 },
                                 onToggleVisualizer = {
-                                    nowPlayingVisualizerVisible = !nowPlayingVisualizerVisible
+                                    nowPlayingVisualizerRequestedVisible = !nowPlayingVisualizerRequestedVisible
+                                },
+                                onVisualizerSelected = { visualizer ->
+                                    selectedVisualizer = visualizer
+                                    settingsStore.saveVisualizerSettings(
+                                        VisualizerSettings(selectedVisualizer = visualizer.name),
+                                    )
+                                    nowPlayingVisualizerRequestedVisible = true
                                 },
                                 onToggleTrackFavorite = { track ->
                                     toggleTrackFavorite(track)
@@ -3454,7 +3478,7 @@ private const val LibraryPageSize = 50
 private const val PlaybackPositionSaveThresholdSeconds = 5.0
 private const val PlaybackProgressUiUpdateIntervalMillis = 500L
 private const val PlaybackProgressUiUpdateThresholdSeconds = 0.45
-private const val VisualizerFrameIntervalMillis = 125L
+private const val VisualizerFrameIntervalMillis = 125L // Audio analysis cadence; shader rendering uses the display frame clock.
 private const val PendingSeekToleranceSeconds = 2.0
 private const val PendingSeekStaleProgressWindowMillis = 1_500L
 private const val RadioRefillThreshold = 10

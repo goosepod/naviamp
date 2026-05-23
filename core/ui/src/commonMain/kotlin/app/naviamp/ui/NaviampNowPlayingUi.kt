@@ -56,6 +56,8 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -117,6 +119,7 @@ data class NaviampNowPlayingActions(
     val onQueueItemAddToPlaylist: (NaviampNowPlayingItemUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
     val onQueueItemCreatePlaylistAndAdd: (NaviampNowPlayingItemUi, String) -> Unit = { _, _ -> },
     val onQueueItemDownload: (NaviampNowPlayingItemUi) -> Unit = {},
+    val onVisualizerSelected: (NaviampVisualizer) -> Unit = {},
 )
 
 @Composable
@@ -126,6 +129,8 @@ fun NaviampNowPlayingPanel(
     actions: NaviampNowPlayingActions,
     modifier: Modifier = Modifier,
     visualizerBandsProvider: () -> List<Float> = { nowPlaying.visualizerFrame?.bands.orEmpty() },
+    selectedVisualizer: NaviampVisualizer = NaviampVisualizer.AudioSphere,
+    visualizerColors: NaviampPlayerColors = NaviampPlayerColors.fallback(colors),
 ) {
     var selectedTab by remember(nowPlaying.id, nowPlaying.isLive) { mutableStateOf(NaviampNowPlayingTab.UpNext) }
     val showStationList = nowPlaying.isLive
@@ -178,13 +183,18 @@ fun NaviampNowPlayingPanel(
                         visualizerVisible = nowPlaying.visualizerVisible,
                         visualizerAvailable = nowPlaying.visualizerAvailable,
                         visualizerBandsProvider = visualizerBandsProvider,
+                        selectedVisualizer = selectedVisualizer,
+                        visualizerColors = visualizerColors,
                         visualizerActive = nowPlaying.isPlaying,
                         onToggleVisualizer = actions.onToggleVisualizer,
+                        onVisualizerSelected = actions.onVisualizerSelected,
                     )
                     NowPlayingDetails(
                         nowPlaying = nowPlaying,
                         colors = colors,
+                        playerColors = visualizerColors,
                         actions = actions,
+                        selectedVisualizer = selectedVisualizer,
                         compactLayout = viewportMaxHeight < 640.dp,
                         availableHeight = wideDetailsHeight,
                         modifier = Modifier
@@ -261,14 +271,19 @@ fun NaviampNowPlayingPanel(
                                 visualizerVisible = nowPlaying.visualizerVisible,
                                 visualizerAvailable = nowPlaying.visualizerAvailable,
                                 visualizerBandsProvider = visualizerBandsProvider,
+                                selectedVisualizer = selectedVisualizer,
+                                visualizerColors = visualizerColors,
                                 visualizerActive = nowPlaying.isPlaying,
                                 onToggleVisualizer = actions.onToggleVisualizer,
+                                onVisualizerSelected = actions.onVisualizerSelected,
                             )
                         }
                         NowPlayingDetails(
                             nowPlaying = nowPlaying,
                             colors = colors,
+                            playerColors = visualizerColors,
                             actions = actions,
+                            selectedVisualizer = selectedVisualizer,
                             compactLayout = true,
                             availableHeight = viewportHeight,
                             modifier = Modifier
@@ -303,15 +318,20 @@ fun NaviampNowPlayingPanel(
                                 visualizerVisible = nowPlaying.visualizerVisible,
                                 visualizerAvailable = nowPlaying.visualizerAvailable,
                                 visualizerBandsProvider = visualizerBandsProvider,
+                                selectedVisualizer = selectedVisualizer,
+                                visualizerColors = visualizerColors,
                                 visualizerActive = nowPlaying.isPlaying,
                                 onToggleVisualizer = actions.onToggleVisualizer,
+                                onVisualizerSelected = actions.onVisualizerSelected,
                             )
                         }
                     }
                     NowPlayingDetails(
                         nowPlaying = nowPlaying,
                         colors = colors,
+                        playerColors = visualizerColors,
                         actions = actions,
+                        selectedVisualizer = selectedVisualizer,
                         mobileLayout = true,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -346,29 +366,49 @@ private fun NowPlayingArtSurface(
     visualizerVisible: Boolean,
     visualizerAvailable: Boolean,
     visualizerBandsProvider: () -> List<Float>,
+    selectedVisualizer: NaviampVisualizer,
+    visualizerColors: NaviampPlayerColors,
     visualizerActive: Boolean,
     onToggleVisualizer: () -> Unit,
+    onVisualizerSelected: (NaviampVisualizer) -> Unit,
 ) {
     val shadowMargin = 12.dp
     val shape = RoundedCornerShape(cornerRadius)
     val toggleModifier = Modifier.clickable(enabled = visualizerAvailable, onClick = onToggleVisualizer)
+    var visualizerMenuExpanded by remember { mutableStateOf(false) }
 
     if (visualizerVisible && visualizerAvailable) {
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
-                .size(size + shadowMargin * 2)
+                .fillMaxWidth()
+                .height(size + shadowMargin * 2)
+                .visualizerContextMenu { visualizerMenuExpanded = true }
                 .then(toggleModifier),
         ) {
             LiveVisualizerSurface(
+                coverArtUrl = coverArtUrl,
                 bandsProvider = visualizerBandsProvider,
+                visualizer = selectedVisualizer,
+                visualizerColors = visualizerColors,
                 active = visualizerActive,
                 colors = colors,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(size * 0.42f)
-                    .padding(horizontal = 18.dp),
+                    .fillMaxSize(),
             )
+            NaviampDropdownMenu(
+                expanded = visualizerMenuExpanded,
+                onDismissRequest = { visualizerMenuExpanded = false },
+                offset = DpOffset(8.dp, 8.dp),
+            ) {
+                VisualizerDropdownMenuItems(
+                    selectedVisualizer = selectedVisualizer,
+                    onVisualizerSelected = {
+                        visualizerMenuExpanded = false
+                        onVisualizerSelected(it)
+                    },
+                )
+            }
         }
     } else {
         Box(
@@ -390,16 +430,33 @@ private fun NowPlayingArtSurface(
 }
 
 @Composable
+private fun VisualizerDropdownMenuItems(
+    selectedVisualizer: NaviampVisualizer,
+    onVisualizerSelected: (NaviampVisualizer) -> Unit,
+) {
+    NaviampVisualizer.entries.forEach { visualizer ->
+        NaviampDropdownMenuItem(
+            label = if (visualizer == selectedVisualizer) "${visualizer.label} ✓" else visualizer.label,
+            enabled = visualizer != selectedVisualizer,
+            onClick = { onVisualizerSelected(visualizer) },
+        )
+    }
+}
+
+@Composable
 private fun NowPlayingDetails(
     nowPlaying: NowPlayingUi,
     colors: NaviampColors,
+    playerColors: NaviampPlayerColors,
     actions: NaviampNowPlayingActions,
+    selectedVisualizer: NaviampVisualizer,
     mobileLayout: Boolean = false,
     compactLayout: Boolean = false,
     availableHeight: Dp? = null,
     modifier: Modifier = Modifier,
 ) {
     var actionMenuExpanded by remember { mutableStateOf(false) }
+    var visualizerMenuExpanded by remember { mutableStateOf(false) }
     var trackDetailsOpen by remember { mutableStateOf(false) }
     var playlistDialogOpen by remember { mutableStateOf<NaviampNowPlayingItemUi?>(null) }
     var scrubberValue by remember(nowPlaying.id) { mutableFloatStateOf(nowPlaying.progressFraction.toFloat()) }
@@ -413,6 +470,7 @@ private fun NowPlayingDetails(
     val showTrackExtras = !compactLayout || height == Dp.Unspecified || height >= 195.dp
     val showTrackIdentity = !compactLayout || height == Dp.Unspecified || height >= 165.dp
     val canSetTrackPreference = !nowPlaying.isLive && (nowPlaying.canFavorite || nowPlaying.canRate)
+    val controlColors = colors.copy(accent = playerColors.accent)
     val trackPreferenceLabel = when {
         nowPlaying.favoriteActive && nowPlaying.canRate -> "Dislike track"
         nowPlaying.favoriteActive -> "Remove favorite"
@@ -481,7 +539,7 @@ private fun NowPlayingDetails(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(2.dp)
-                            .background(colors.accent.copy(alpha = 0.7f)),
+                            .background(controlColors.accent.copy(alpha = 0.7f)),
                     )
                 }
             } else {
@@ -489,7 +547,7 @@ private fun NowPlayingDetails(
                     amplitudes = nowPlaying.waveform?.amplitudes.orEmpty(),
                     value = scrubberValue.coerceIn(0f, 1f),
                     enabled = canSeek,
-                    colors = colors,
+                    colors = controlColors,
                     onValueChange = {
                         isScrubbing = true
                         scrubberValue = it
@@ -599,23 +657,24 @@ private fun NowPlayingDetails(
                     volumeValue = it
                     actions.onVolumeChanged((it * 100).toInt().coerceIn(0, 100))
                 },
-                colors = colors,
+                colors = controlColors,
             )
         }
 
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(
-                top = if (mobileLayout) 0.dp else 6.dp,
-                bottom = if (mobileLayout) 0.dp else 4.dp,
-            ),
+            modifier = Modifier
+                .padding(
+                    top = if (mobileLayout) 0.dp else 6.dp,
+                    bottom = if (mobileLayout) 0.dp else 4.dp,
+                ),
         ) {
             NaviampTransportIconButton(
                 enabled = nowPlaying.shuffleEnabled,
                 icon = NaviampTransportIcons.Shuffle,
                 contentDescription = if (nowPlaying.shuffleActive) "Turn shuffle off" else "Shuffle Up Next",
-                colors = colors,
+                colors = controlColors,
                 selected = nowPlaying.shuffleActive,
                 buttonSize = 28.dp,
                 iconSize = 16.dp,
@@ -625,14 +684,14 @@ private fun NowPlayingDetails(
                 enabled = nowPlaying.hasPrevious,
                 icon = NaviampTransportIcons.Previous,
                 contentDescription = "Previous",
-                colors = colors,
+                colors = controlColors,
                 onClick = actions.onPrevious,
             )
             NaviampTransportIconButton(
                 enabled = canTogglePlayback,
                 icon = if (nowPlaying.isPlaying) NaviampTransportIcons.Pause else NaviampTransportIcons.Play,
                 contentDescription = if (nowPlaying.isPlaying) "Pause" else "Play",
-                colors = colors,
+                colors = controlColors,
                 prominent = true,
                 onClick = {
                     when {
@@ -646,7 +705,7 @@ private fun NowPlayingDetails(
                 enabled = nowPlaying.hasNext,
                 icon = NaviampTransportIcons.Next,
                 contentDescription = "Next",
-                colors = colors,
+                colors = controlColors,
                 onClick = actions.onNext,
             )
             NaviampTransportIconButton(
@@ -657,7 +716,7 @@ private fun NowPlayingDetails(
                     NaviampRepeatMode.Queue -> "Repeat queue"
                     NaviampRepeatMode.Track -> "Repeat current track"
                 },
-                colors = colors,
+                colors = controlColors,
                 selected = nowPlaying.repeatMode != NaviampRepeatMode.Off,
                 buttonSize = 28.dp,
                 iconSize = 16.dp,
@@ -673,7 +732,7 @@ private fun NowPlayingDetails(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(if (mobileLayout) 36.dp else 32.dp)
+                .height(if (mobileLayout) 46.dp else 44.dp)
                 .padding(bottom = 0.dp),
         ) {
             Row(modifier = Modifier.align(Alignment.CenterStart)) {
@@ -682,6 +741,8 @@ private fun NowPlayingDetails(
                     icon = NaviampTransportIcons.Radio,
                     contentDescription = "Start track radio",
                     colors = colors,
+                    buttonSize = 44.dp,
+                    iconSize = 26.dp,
                     onClick = actions.onTrackRadio,
                 )
                 NaviampTransportIconButton(
@@ -689,6 +750,8 @@ private fun NowPlayingDetails(
                     icon = NaviampIcons.Playlist,
                     contentDescription = "Add track to playlist",
                     colors = colors,
+                    buttonSize = 44.dp,
+                    iconSize = 26.dp,
                     onClick = {
                         if (nowPlaying.useInlinePlaylistPicker) {
                             playlistDialogOpen = NaviampNowPlayingItemUi(
@@ -706,14 +769,14 @@ private fun NowPlayingDetails(
             IconButton(
                 onClick = actions.onCollapse,
                 modifier = Modifier
-                    .size(28.dp)
+                    .size(44.dp)
                     .align(Alignment.Center),
             ) {
                 Icon(
                     imageVector = NaviampIcons.ChevronDown,
                     contentDescription = "Back",
                     tint = colors.secondaryText,
-                    modifier = Modifier.size(18.dp),
+                    modifier = Modifier.size(26.dp),
                 )
             }
             Row(
@@ -727,14 +790,18 @@ private fun NowPlayingDetails(
                     contentDescription = if (nowPlaying.lyricsVisible) "Hide lyrics" else "Show lyrics",
                     colors = colors,
                     selected = nowPlaying.lyricsVisible,
+                    buttonSize = 44.dp,
+                    iconSize = 26.dp,
                     onClick = actions.onToggleLyrics,
                 )
-                Box(modifier = Modifier.size(34.dp), contentAlignment = Alignment.Center) {
+                Box(modifier = Modifier.size(44.dp), contentAlignment = Alignment.Center) {
                     NaviampTransportIconButton(
                         enabled = nowPlaying.menuEnabled,
                         icon = NaviampTransportIcons.Menu,
                         contentDescription = "Track actions",
                         colors = colors,
+                        buttonSize = 44.dp,
+                        iconSize = 26.dp,
                         onClick = { actionMenuExpanded = true },
                     )
                     NaviampDropdownMenu(
@@ -765,6 +832,7 @@ private fun NowPlayingDetails(
                                         NaviampAction.HideLyrics -> actions.onToggleLyrics()
                                         NaviampAction.ShowVisualizer,
                                         NaviampAction.HideVisualizer -> actions.onToggleVisualizer()
+                                        NaviampAction.ChangeVisualizer -> visualizerMenuExpanded = true
                                         NaviampAction.DownloadTrack -> actions.onDownloadTrack()
                                         NaviampAction.TrackDetails -> trackDetailsOpen = true
                                         NaviampAction.TrackPreference -> cycleTrackPreference()
@@ -789,6 +857,19 @@ private fun NowPlayingDetails(
                                 },
                             )
                         }
+                    }
+                    NaviampDropdownMenu(
+                        expanded = visualizerMenuExpanded,
+                        onDismissRequest = { visualizerMenuExpanded = false },
+                        offset = DpOffset(0.dp, 6.dp),
+                    ) {
+                        VisualizerDropdownMenuItems(
+                            selectedVisualizer = selectedVisualizer,
+                            onVisualizerSelected = {
+                                visualizerMenuExpanded = false
+                                actions.onVisualizerSelected(it)
+                            },
+                        )
                     }
                 }
             }
@@ -831,46 +912,48 @@ private fun NowPlayingDetails(
 
 @Composable
 private fun LiveVisualizerSurface(
+    coverArtUrl: String?,
     bandsProvider: () -> List<Float>,
+    visualizer: NaviampVisualizer,
+    visualizerColors: NaviampPlayerColors,
     active: Boolean,
     colors: NaviampColors,
     modifier: Modifier = Modifier,
 ) {
-    Canvas(modifier = modifier) {
-        val bands = bandsProvider()
-        val visibleBands = minOf(bands.size, (size.width / 6f).toInt().coerceAtLeast(16))
-        if (!active || visibleBands <= 0) {
-            drawLine(
-                color = colors.primaryText.copy(alpha = 0.16f),
-                start = Offset(0f, size.height / 2f),
-                end = Offset(size.width, size.height / 2f),
-                strokeWidth = 1.4f,
-                cap = StrokeCap.Round,
-            )
-            return@Canvas
-        }
-        val step = size.width / visibleBands.toFloat()
-        val strokeWidth = (step * 0.48f).coerceIn(1.2f, 3.2f)
-        val centerY = size.height / 2f
-        repeat(visibleBands) { index ->
-            val sourceIndex = if (visibleBands == 1) {
-                0
-            } else {
-                ((index / (visibleBands - 1f)) * (bands.size - 1)).toInt()
+    PlatformLiveVisualizerSurface(
+        coverArtUrl = coverArtUrl,
+        bandsProvider = bandsProvider,
+        visualizer = visualizer,
+        visualizerColors = visualizerColors,
+        active = active,
+        colors = colors,
+        modifier = modifier,
+    )
+}
+
+@Composable
+internal expect fun PlatformLiveVisualizerSurface(
+    coverArtUrl: String?,
+    bandsProvider: () -> List<Float>,
+    visualizer: NaviampVisualizer,
+    visualizerColors: NaviampPlayerColors,
+    active: Boolean,
+    colors: NaviampColors,
+    modifier: Modifier = Modifier,
+)
+
+private fun Modifier.visualizerContextMenu(onOpen: () -> Unit): Modifier =
+    pointerInput(onOpen) {
+        awaitPointerEventScope {
+            while (true) {
+                val event = awaitPointerEvent()
+                if (event.type == PointerEventType.Press && event.buttons.isSecondaryPressed) {
+                    onOpen()
+                    event.changes.forEach { it.consume() }
+                }
             }
-            val amplitude = bands[sourceIndex].coerceIn(0f, 1f)
-            val barHeight = (2f + amplitude * (size.height - 2f)).coerceAtMost(size.height)
-            val x = index * step + step / 2f
-            drawLine(
-                color = colors.accent.copy(alpha = 0.30f + amplitude * 0.55f),
-                start = Offset(x, centerY - barHeight / 2f),
-                end = Offset(x, centerY + barHeight / 2f),
-                strokeWidth = strokeWidth,
-                cap = StrokeCap.Round,
-            )
         }
     }
-}
 
 @Composable
 private fun WaveformScrubber(
@@ -915,7 +998,7 @@ private fun WaveformScrubber(
                 val ratio = if (visibleBars == 1) 0f else index / (visibleBars - 1f)
                 val color = when {
                     !enabled -> colors.mutedText.copy(alpha = 0.28f)
-                    ratio <= value -> colors.primaryText.copy(alpha = 0.92f)
+                    ratio <= value -> colors.accent.copy(alpha = 0.94f)
                     else -> colors.primaryText.copy(alpha = 0.30f)
                 }
                 val x = index * step + step / 2f
@@ -993,7 +1076,7 @@ private fun RatingRow(
     ) {
         Text(
             if (favoriteActive) "♥" else "♡",
-            color = if (favoriteActive) colors.accent else colors.primaryText.copy(alpha = 0.72f),
+            color = if (favoriteActive) colors.primaryText else colors.primaryText.copy(alpha = 0.72f),
             fontSize = 16.sp,
             textAlign = TextAlign.Center,
             modifier = Modifier
@@ -1005,7 +1088,7 @@ private fun RatingRow(
                 val selected = (rating ?: 0) >= value
                 Text(
                     if (selected) "★" else "☆",
-                    color = if (selected) colors.accent else colors.primaryText.copy(alpha = 0.72f),
+                    color = if (selected) colors.primaryText else colors.primaryText.copy(alpha = 0.72f),
                     fontSize = 16.sp,
                     textAlign = TextAlign.Center,
                     modifier = Modifier
@@ -1042,7 +1125,7 @@ private fun VolumeRow(
         Icon(
             imageVector = NaviampTransportIcons.Volume,
             contentDescription = "Volume",
-            tint = colors.secondaryText,
+            tint = colors.primaryText.copy(alpha = 0.86f),
             modifier = Modifier.size(17.dp),
         )
         Canvas(
@@ -1079,7 +1162,7 @@ private fun VolumeRow(
                 cap = StrokeCap.Round,
             )
             drawLine(
-                color = colors.primaryText.copy(alpha = 0.88f),
+                color = colors.accent.copy(alpha = 0.92f),
                 start = Offset(0f, centerY),
                 end = Offset(endX, centerY),
                 strokeWidth = 4f,
@@ -1190,7 +1273,7 @@ private fun LyricsPanel(
     val activeLineIndex = remember(nowPlaying.lyricsLines, positionMillis, nowPlaying.lyricsOffsetMillis) {
         nowPlaying.lyricsLines.indexOfLast { line ->
             val startMillis = line.startMillis?.plus(nowPlaying.lyricsOffsetMillis)
-            startMillis != null && positionMillis != null && startMillis <= positionMillis + 250L
+            startMillis != null && positionMillis != null && startMillis <= positionMillis + LyricsAutoScrollLeadMillis
         }
     }
 
@@ -1249,6 +1332,8 @@ private fun LyricsPanel(
         }
     }
 }
+
+private const val LyricsAutoScrollLeadMillis = 100L
 
 @Composable
 private fun TrackDetailsDialog(
@@ -1520,8 +1605,8 @@ fun NaviampTransportIconButton(
             .clip(RoundedCornerShape(999.dp))
             .background(
                 when {
-                    prominent -> Color.White.copy(alpha = if (enabled) 0.18f else 0.08f)
-                    selected -> Color.White.copy(alpha = 0.12f)
+                    prominent -> colors.accent.copy(alpha = if (enabled) 0.28f else 0.10f)
+                    selected -> colors.accent.copy(alpha = 0.18f)
                     else -> Color.Transparent
                 },
             ),
