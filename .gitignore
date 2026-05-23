@@ -8,6 +8,7 @@ out/
 .DS_Store
 local.properties
 /.kotlin/
+**/.cxx/
 apps/desktop/vendor/mpv/*/mpv
 apps/desktop/vendor/mpv/*/mpv.exe
 apps/desktop/bin/

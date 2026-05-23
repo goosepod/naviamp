@@ -111,6 +111,25 @@ class AndroidStorage(
             last_library_scan_signature = existing?.last_library_scan_signature,
             last_library_scan_checked_at_epoch_millis = existing?.last_library_scan_checked_at_epoch_millis,
         )
+        queries.updateMediaSource(
+            id = id,
+            provider_id = providerId,
+            cache_namespace = cacheNamespace,
+            display_name = displayName,
+            base_url = connection.baseUrl,
+            username = connection.username,
+            token = connection.token,
+            salt = connection.salt,
+            insecure_skip_tls_verification = if (connection.tlsSettings.insecureSkipTlsVerification) 1 else 0,
+            custom_certificate_path = connection.tlsSettings.customCertificatePath?.takeIf { it.isNotBlank() },
+            client_certificate_keystore_path = connection.tlsSettings.clientCertificateKeyStorePath?.takeIf { it.isNotBlank() },
+            client_certificate_keystore_password = connection.tlsSettings.clientCertificateKeyStorePassword,
+            last_connected_at_epoch_millis = now,
+            last_sync_started_at_epoch_millis = existing?.last_sync_started_at_epoch_millis,
+            last_sync_completed_at_epoch_millis = existing?.last_sync_completed_at_epoch_millis,
+            last_library_scan_signature = existing?.last_library_scan_signature,
+            last_library_scan_checked_at_epoch_millis = existing?.last_library_scan_checked_at_epoch_millis,
+        )
         return MediaSourceIdentity(
             id = id,
             cacheNamespace = cacheNamespace,

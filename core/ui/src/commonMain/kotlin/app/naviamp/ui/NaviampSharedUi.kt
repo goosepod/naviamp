@@ -171,6 +171,17 @@ data class SharedArtistDetailUi(
     val artist: SharedMediaItemUi,
     val albums: List<SharedMediaItemUi>,
     val popularTracks: List<AndroidTrackRowUi> = emptyList(),
+    val similarArtists: List<SharedSimilarArtistUi> = emptyList(),
+    val similarArtistsStatus: String? = null,
+)
+
+data class SharedSimilarArtistUi(
+    val id: String,
+    val title: String,
+    val subtitle: String,
+    val imageUrl: String? = null,
+    val localArtistId: String? = null,
+    val externalUrl: String? = null,
 )
 
 data class SharedPlaylistDetailUi(
@@ -333,6 +344,7 @@ enum class SharedPlaylistSortMode(val label: String) {
 
 @Composable
 fun NaviampSharedAppShell(
+    modifier: Modifier = Modifier,
     status: String,
     serverVersion: String?,
     connected: Boolean,
@@ -377,6 +389,9 @@ fun NaviampSharedAppShell(
     onArtistPopularRadio: (SharedArtistDetailUi) -> Unit = {},
     onArtistPopularAddToQueue: (SharedArtistDetailUi) -> Unit = {},
     onArtistPopularTrackAddToQueue: (AndroidTrackRowUi) -> Unit = {},
+    onFindSimilarArtists: (SharedArtistDetailUi) -> Unit = {},
+    onSimilarArtistSelected: (SharedSimilarArtistUi) -> Unit = {},
+    onSimilarArtistExternalSelected: (String) -> Unit = {},
     onPlaylistSelected: (SharedMediaItemUi) -> Unit,
     onPlaylistSortModeChanged: (SharedPlaylistSortMode) -> Unit = {},
     onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit = { _, _ -> },
@@ -426,10 +441,9 @@ fun NaviampSharedAppShell(
         (
             albumDetail != null ||
                 artistDetail != null ||
-                (
-                    selectedRoute == SharedRoute.Library &&
-                        playlistDetail == null
-                    )
+                playlistDetail != null ||
+                selectedRoute == SharedRoute.Library ||
+                selectedRoute == SharedRoute.Radio
             )
     val nowPlayingPlayerColors = if (showFullNowPlaying) {
         rememberPlatformCoverArtPlayerColors(nowPlaying.coverArtUrl, colors)
@@ -460,7 +474,10 @@ fun NaviampSharedAppShell(
                     ),
                 ),
         ) {
-            Column(Modifier.fillMaxSize()) {
+            Column(
+                modifier
+                    .fillMaxSize(),
+            ) {
                 Column(
                     modifier = Modifier
                         .weight(1f)
@@ -536,6 +553,9 @@ fun NaviampSharedAppShell(
                             onArtistPopularRadio = onArtistPopularRadio,
                             onArtistPopularAddToQueue = onArtistPopularAddToQueue,
                             onArtistPopularTrackAddToQueue = onArtistPopularTrackAddToQueue,
+                            onFindSimilarArtists = onFindSimilarArtists,
+                            onSimilarArtistSelected = onSimilarArtistSelected,
+                            onSimilarArtistExternalSelected = onSimilarArtistExternalSelected,
                             onPlaylistSelected = onPlaylistSelected,
                             onPlaylistSortModeChanged = onPlaylistSortModeChanged,
                             onPlaylistPlay = onPlaylistPlay,
@@ -756,6 +776,9 @@ private fun ConnectedContent(
     onArtistPopularRadio: (SharedArtistDetailUi) -> Unit,
     onArtistPopularAddToQueue: (SharedArtistDetailUi) -> Unit,
     onArtistPopularTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
+    onFindSimilarArtists: (SharedArtistDetailUi) -> Unit,
+    onSimilarArtistSelected: (SharedSimilarArtistUi) -> Unit,
+    onSimilarArtistExternalSelected: (String) -> Unit,
     onPlaylistSelected: (SharedMediaItemUi) -> Unit,
     onPlaylistSortModeChanged: (SharedPlaylistSortMode) -> Unit,
     onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit,
@@ -803,18 +826,6 @@ private fun ConnectedContent(
     }
 
     when {
-        selectedRoute == SharedRoute.Settings -> SettingsContent(
-                            colors = colors,
-                            playbackSettings = playbackSettings,
-                            supportsReplayGain = supportsReplayGain,
-                            supportsGapless = supportsGapless,
-                            supportsCrossfade = supportsCrossfade,
-            onEditConnection = onEditConnection,
-            onPlaybackSettingsChanged = onPlaybackSettingsChanged,
-            onClearCache = onClearCache,
-            onClearLibrary = onClearLibrary,
-            onResetDatabase = onResetDatabase,
-        )
         nowPlayingOpen && nowPlaying != null -> FullNowPlaying(
             nowPlaying = nowPlaying,
             colors = colors,
@@ -846,6 +857,18 @@ private fun ConnectedContent(
             onTrackSelected = onTrackSelected,
             onRadioStationSelected = onRadioStationSelected,
         )
+        selectedRoute == SharedRoute.Settings -> SettingsContent(
+            colors = colors,
+            playbackSettings = playbackSettings,
+            supportsReplayGain = supportsReplayGain,
+            supportsGapless = supportsGapless,
+            supportsCrossfade = supportsCrossfade,
+            onEditConnection = onEditConnection,
+            onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+            onClearCache = onClearCache,
+            onClearLibrary = onClearLibrary,
+            onResetDatabase = onResetDatabase,
+        )
         albumDetail != null -> AlbumDetailContent(
             colors = colors,
             detail = albumDetail,
@@ -867,6 +890,9 @@ private fun ConnectedContent(
             onPopularAddToQueue = { onArtistPopularAddToQueue(artistDetail) },
             onPopularTrackSelected = onTrackSelected,
             onPopularTrackAddToQueue = onArtistPopularTrackAddToQueue,
+            onFindSimilarArtists = { onFindSimilarArtists(artistDetail) },
+            onSimilarArtistSelected = onSimilarArtistSelected,
+            onSimilarArtistExternalSelected = onSimilarArtistExternalSelected,
             onAlbumSelected = onAlbumSelected,
         )
         playlistDetail != null -> PlaylistDetailContent(
@@ -1407,6 +1433,9 @@ private fun ArtistDetailContent(
     onPopularAddToQueue: () -> Unit,
     onPopularTrackSelected: (AndroidTrackRowUi) -> Unit,
     onPopularTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
+    onFindSimilarArtists: () -> Unit,
+    onSimilarArtistSelected: (SharedSimilarArtistUi) -> Unit,
+    onSimilarArtistExternalSelected: (String) -> Unit,
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
 ) {
     Column(
@@ -1424,6 +1453,7 @@ private fun ArtistDetailContent(
                     MiniPlayerIconButton(colors, detail.albums.isNotEmpty(), NaviampTransportIcons.Radio, "Start artist radio", onArtistRadio)
                     MiniPlayerIconButton(colors, detail.popularTracks.isNotEmpty(), NaviampTransportIcons.Play, "Play popular tracks", onPopularPlay)
                     MiniPlayerIconButton(colors, detail.popularTracks.isNotEmpty(), NaviampIcons.Queue, "Add popular tracks to queue", onPopularAddToQueue)
+                    MiniPlayerIconButton(colors, true, NaviampIcons.Artist, "Find similar artists", onFindSimilarArtists)
                 }
             }
         }
@@ -1433,6 +1463,33 @@ private fun ArtistDetailContent(
                 .weight(1f)
                 .verticalScroll(rememberScrollState()),
         ) {
+            if (detail.similarArtists.isNotEmpty() || detail.similarArtistsStatus != null) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "Similar Artists".uppercase(),
+                        color = colors.primaryText,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                    )
+                    MiniPlayerIconButton(colors, true, NaviampIcons.Artist, "Refresh similar artists", onFindSimilarArtists)
+                }
+                detail.similarArtistsStatus?.let {
+                    Text(it, color = colors.secondaryText, fontSize = 11.sp)
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    detail.similarArtists.forEach { artist ->
+                        SimilarArtistRow(
+                            artist = artist,
+                            colors = colors,
+                            onSimilarArtistSelected = onSimilarArtistSelected,
+                            onSimilarArtistExternalSelected = onSimilarArtistExternalSelected,
+                        )
+                    }
+                }
+            }
             if (detail.popularTracks.isNotEmpty()) {
                 Text(
                     "Popular Tracks".uppercase(),
@@ -1456,7 +1513,87 @@ private fun ArtistDetailContent(
                     }
                 }
             }
-            MediaListContent(colors, "Albums", detail.albums, "No albums found.", onAlbumSelected)
+            Text("Albums", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            if (detail.albums.isEmpty()) {
+                Text("No albums found.", color = colors.secondaryText, fontSize = 13.sp)
+            } else {
+                detail.albums.forEach { album ->
+                    SharedMediaRow(
+                        item = album,
+                        colors = colors,
+                        onClick = { onAlbumSelected(album) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SimilarArtistRow(
+    artist: SharedSimilarArtistUi,
+    colors: NaviampColors,
+    onSimilarArtistSelected: (SharedSimilarArtistUi) -> Unit,
+    onSimilarArtistExternalSelected: (String) -> Unit,
+) {
+    val opensLocalArtist = artist.localArtistId != null
+    val externalUrl = artist.externalUrl
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(5.dp))
+            .background(Color.Black.copy(alpha = 0.12f))
+            .clickable(enabled = opensLocalArtist || externalUrl != null) {
+                if (opensLocalArtist) {
+                    onSimilarArtistSelected(artist)
+                } else if (externalUrl != null) {
+                    onSimilarArtistExternalSelected(externalUrl)
+                }
+            }
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+    ) {
+        PlatformCoverArt(artist.imageUrl, colors, 42.dp, 21.dp)
+        Column(
+            verticalArrangement = Arrangement.spacedBy(1.dp),
+            modifier = Modifier.weight(1f),
+        ) {
+            Text(
+                artist.title,
+                color = colors.primaryText,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                artist.subtitle,
+                color = colors.secondaryText,
+                fontSize = 11.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (!opensLocalArtist && externalUrl != null) {
+            IconButton(
+                onClick = { onSimilarArtistExternalSelected(externalUrl) },
+                modifier = Modifier.size(34.dp),
+            ) {
+                Icon(
+                    imageVector = NaviampIcons.ExternalLink,
+                    contentDescription = "Open external artist page",
+                    tint = colors.secondaryText,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+        } else {
+            Icon(
+                imageVector = NaviampIcons.ChevronRight,
+                contentDescription = null,
+                tint = colors.secondaryText,
+                modifier = Modifier.size(18.dp),
+            )
         }
     }
 }

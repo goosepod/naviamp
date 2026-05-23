@@ -60,9 +60,6 @@ class AndroidSettingsStore(
                 KeyUpNextSelectionBehavior,
                 UpNextSelectionBehavior.MoveSelectedToCurrent,
             ),
-        ).copy(
-            replayGainMode = ReplayGainMode.Off,
-            crossfadeDurationSeconds = 0,
         )
 
     fun savePlaybackSettings(settings: PlaybackSettings) {

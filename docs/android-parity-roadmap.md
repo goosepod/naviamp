@@ -2,6 +2,13 @@
 
 This branch tracks the work needed to make the Android app feel like the same product as the desktop app, both in behavior and in visual polish.
 
+## Maintenance Tenets
+
+- Keep Kotlin, Compose, Android Gradle Plugin, SQLDelight, coroutines, serialization, and AndroidX dependencies on the newest stable releases that build cleanly for the repo.
+- Prefer stable releases for daily-driver branches. Use EAP/beta toolchains only on short-lived experiment branches with an explicit rollback path.
+- Treat dependency freshness as product work, not chores: upgrade in small batches, run Android and desktop validation, and document any temporary pins so they do not become invisible tech debt.
+- When package upgrades expose deprecations, either fix them in the same slice when low-risk or add a named checklist item here.
+
 ## Current Baseline
 
 Android already uses the shared Compose UI shell for the main app surface, so many recent desktop visual changes should carry over automatically:
@@ -16,11 +23,19 @@ Android already uses the shared Compose UI shell for the main app surface, so ma
 
 ## Known Parity Gaps
 
+- [ ] **Dependency freshness**
+  - [x] Move Kotlin from `2.3.0` to stable `2.3.21`.
+  - [ ] Replace deprecated Compose dependency aliases in Android and shared UI build files with direct dependency coordinates.
+  - [ ] Add a recurring package review pass before Android parity milestones.
+
 - [ ] **Android release build confidence**
-  - Define the build command we will treat as canonical for local Android release validation.
-  - Verify BASS native libraries are packaged for supported ABIs.
+  - [x] Define the build command we will treat as canonical for local Android release validation: `.\gradlew.bat --configure-on-demand :apps:android:assembleRelease`.
+  - [x] Confirm the local unsigned release APK is produced at `apps/android/build/outputs/apk/release/android-release-unsigned.apk`.
+  - [x] Verify release packaging completes with BASS native build steps for `arm64-v8a`, `armeabi-v7a`, `x86`, and `x86_64`.
+  - [x] Verify BASS native libraries are packaged for supported ABIs by inspecting the APK contents.
+    `libbass*`, `libnaviamp_bass.so`, and `libc++_shared.so` are present for `arm64-v8a`, `armeabi-v7a`, `x86`, and `x86_64`.
   - Verify release/minified builds do not strip JNI entry points or Compose/shared UI code.
-  - Document APK/AAB output locations and install commands.
+  - Document APK/AAB output locations, signing expectations, and install commands.
 
 - [ ] **Now Playing visualizer parity**
   - Desktop has the GPU-backed visualizer catalog in `PlatformLiveVisualizerSurface.jvm.kt`.
@@ -30,15 +45,16 @@ Android already uses the shared Compose UI shell for the main app surface, so ma
 
 - [ ] **Playback settings parity**
   - `AndroidBassPlaybackEngine` reports `supportsReplayGain = true` and `supportsCrossfade = true`.
-  - `AndroidSettingsStore.loadPlaybackSettings()` currently forces `replayGainMode = Off` and `crossfadeDurationSeconds = 0`.
-  - Remove those forced overrides once Android ReplayGain and crossfade are verified on device.
+  - [x] `AndroidSettingsStore.loadPlaybackSettings()` no longer forces `replayGainMode = Off` and `crossfadeDurationSeconds = 0`.
   - Confirm gapless, crossfade, and ReplayGain behavior match desktop for local files, direct provider streams, and prepared-next transitions.
 
 - [ ] **Similar artists on Android**
   - Desktop has a Deezer-backed similar-artist flow with local library matching and external Deezer links.
-  - Shared artist UI currently exposes popular tracks but not similar artists.
-  - Move the similar-artist model/UI into shared code or create an Android-specific equivalent that matches the desktop design.
-  - Use a recognizable external-link icon for non-library artists.
+  - [x] Shared artist UI now exposes similar artists with image, local-library status, and external-link affordance.
+  - [x] Android wires Deezer similar artists through `SimilarArtistsService`.
+  - [x] Android local-library matches open the in-app artist detail page.
+  - [x] Android non-library matches open the Deezer artist page with a recognizable external-link icon.
+  - [ ] Verify Deezer related-artist quality and local matching on device with several artists.
 
 - [ ] **Stats and diagnostics parity**
   - Desktop has Stats for nerds with provider capabilities, API calls, cache stats, library sync stats, stream stats, playback engine diagnostics, Deezer calls, and LRCLIB calls.
@@ -86,8 +102,8 @@ Android already uses the shared Compose UI shell for the main app surface, so ma
 
 ## Validation Checklist
 
-- [ ] `:apps:android:assembleDebug`
-- [ ] Android release build command, once chosen
+- [x] `:apps:android:assembleDebug`
+- [x] Android release build command: `:apps:android:assembleRelease`
 - [ ] Install on device/emulator
 - [ ] Connect to Navidrome
 - [ ] Play direct original stream

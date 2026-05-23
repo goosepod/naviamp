@@ -56,7 +56,8 @@ Useful docs:
 
 - Use the Gradle wrapper, not a system Gradle install.
 - On Windows, set `JAVA_HOME` to the installed JDK before running Gradle if needed.
-- The project Kotlin version is aligned to `2.3.0` because resolved dependencies already pull `kotlin-stdlib:2.3.0`.
+- The project Kotlin version is aligned to the latest stable `2.3.x` line; as of this Android parity work it is `2.3.21`.
+- Dependency freshness is a project tenet. Prefer keeping Kotlin, Compose, Android Gradle Plugin, SQLDelight, coroutines, serialization, and AndroidX on current stable releases in small, validated batches so package drift does not become tech debt.
 - The old VS Code `fwcd.kotlin` language server may report false Kotlin metadata errors. This workspace disables that language server locally in `.vscode/settings.json`, which is gitignored.
 
 Common check command on this Windows machine:

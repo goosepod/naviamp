@@ -15,6 +15,11 @@ target_include_directories(naviamp_bass
 )
 
 if(ANDROID)
+    target_link_options(naviamp_bass PRIVATE
+        "-Wl,-z,max-page-size=16384"
+        "-Wl,-z,common-page-size=16384"
+    )
+
     add_library(bass SHARED IMPORTED)
     set_target_properties(bass PROPERTIES
         IMPORTED_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/vendor/android/${ANDROID_ABI}/libbass.so"

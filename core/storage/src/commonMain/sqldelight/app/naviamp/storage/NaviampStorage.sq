@@ -372,7 +372,7 @@ DELETE FROM playback_session
 WHERE source_id = ?;
 
 upsertMediaSource:
-INSERT OR REPLACE INTO media_source(
+INSERT OR IGNORE INTO media_source(
   id,
   provider_id,
   cache_namespace,
@@ -392,6 +392,26 @@ INSERT OR REPLACE INTO media_source(
   last_library_scan_signature,
   last_library_scan_checked_at_epoch_millis
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+updateMediaSource:
+UPDATE media_source
+SET provider_id = ?,
+    cache_namespace = ?,
+    display_name = ?,
+    base_url = ?,
+    username = ?,
+    token = ?,
+    salt = ?,
+    insecure_skip_tls_verification = ?,
+    custom_certificate_path = ?,
+    client_certificate_keystore_path = ?,
+    client_certificate_keystore_password = ?,
+    last_connected_at_epoch_millis = ?,
+    last_sync_started_at_epoch_millis = ?,
+    last_sync_completed_at_epoch_millis = ?,
+    last_library_scan_signature = ?,
+    last_library_scan_checked_at_epoch_millis = ?
+WHERE id = ?;
 
 touchMediaSourceConnected:
 UPDATE media_source

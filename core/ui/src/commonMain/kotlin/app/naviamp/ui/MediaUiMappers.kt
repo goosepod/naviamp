@@ -10,6 +10,7 @@ import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.provider.MediaSearchResults
+import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.waveform.AudioWaveform
 
@@ -348,11 +349,25 @@ fun AlbumDetails.toSharedAlbumDetailUi(
 fun ArtistDetails.toSharedArtistDetailUi(
     coverArtUrl: (String?) -> String?,
     popularTracks: List<Track> = emptyList(),
+    similarArtists: List<SimilarArtistMatch> = emptyList(),
+    similarArtistsStatus: String? = null,
 ): SharedArtistDetailUi =
     SharedArtistDetailUi(
         artist = artist.toSharedMediaItemUi(coverArtUrl),
         albums = albums.map { it.toSharedMediaItemUi(coverArtUrl) },
         popularTracks = popularTracks.map { it.toAndroidTrackRowUi(coverArtUrl) },
+        similarArtists = similarArtists.map { it.toSharedSimilarArtistUi() },
+        similarArtistsStatus = similarArtistsStatus,
+    )
+
+fun SimilarArtistMatch.toSharedSimilarArtistUi(): SharedSimilarArtistUi =
+    SharedSimilarArtistUi(
+        id = candidate.sourceArtistId,
+        title = candidate.name,
+        subtitle = if (matchedArtist != null) "In library" else "Deezer",
+        imageUrl = candidate.imageUrl,
+        localArtistId = matchedArtist?.id?.value,
+        externalUrl = candidate.externalUrl,
     )
 
 fun MediaSearchResults.toSharedSearchResultsUi(coverArtUrl: (String?) -> String?): SharedSearchResultsUi =

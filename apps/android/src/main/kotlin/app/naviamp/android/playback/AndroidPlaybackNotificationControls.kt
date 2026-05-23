@@ -5,6 +5,12 @@ object AndroidPlaybackNotificationControls {
     var isPlaying: Boolean = false
 
     @Volatile
+    var canFavorite: Boolean = false
+
+    @Volatile
+    var isFavorite: Boolean = false
+
+    @Volatile
     var onPlayPause: (() -> Unit)? = null
 
     @Volatile
@@ -14,13 +20,19 @@ object AndroidPlaybackNotificationControls {
     var onNext: (() -> Unit)? = null
 
     @Volatile
+    var onToggleFavorite: (() -> Unit)? = null
+
+    @Volatile
     var onStop: (() -> Unit)? = null
 
     fun clear() {
         isPlaying = false
+        canFavorite = false
+        isFavorite = false
         onPlayPause = null
         onPrevious = null
         onNext = null
+        onToggleFavorite = null
         onStop = null
     }
 }
