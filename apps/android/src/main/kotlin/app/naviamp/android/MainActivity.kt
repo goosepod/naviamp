@@ -82,6 +82,8 @@ import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.settings.PreviousButtonBehavior
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.provider.navidrome.NavidromeConnection
+import app.naviamp.provider.navidrome.NavidromeApiCall
+import app.naviamp.provider.navidrome.NavidromeApiCallHistory
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import app.naviamp.provider.navidrome.toNavidromeConnection
@@ -2322,6 +2324,10 @@ private fun androidDiagnostics(
                 ),
             ),
             NaviampDiagnosticsSectionUi(
+                title = "API calls",
+                rows = androidApiCallRows(),
+            ),
+            NaviampDiagnosticsSectionUi(
                 title = "Playback",
                 rows = listOf(
                     "Engine" to playbackEngine.name,
@@ -2369,6 +2375,40 @@ private fun androidDiagnostics(
             ),
         ),
     )
+
+private fun androidApiCallRows(): List<Pair<String, String>> =
+    buildList {
+        NavidromeApiCallHistory.recent(8).forEach { call ->
+            add("Navidrome ${call.endpoint}" to call.summary())
+        }
+        AndroidPopularTracksApiCallHistory.recent(8).forEach { call ->
+            add("Deezer ${call.endpoint}" to call.summary())
+        }
+        AndroidLrclibApiCallHistory.recent(8).forEach { call ->
+            add("LRCLIB ${call.endpoint}" to call.summary())
+        }
+    }.ifEmpty {
+        listOf("Recent calls" to "None yet")
+    }
+
+private fun NavidromeApiCall.summary(): String =
+    buildApiCallSummary(success = success, durationMillis = durationMillis, errorMessage = errorMessage, url = sanitizedUrl)
+
+private fun AndroidPopularTracksApiCall.summary(): String =
+    buildApiCallSummary(success = success, durationMillis = durationMillis, errorMessage = errorMessage, url = sanitizedUrl)
+
+private fun AndroidLrclibApiCall.summary(): String =
+    buildApiCallSummary(success = success, durationMillis = durationMillis, errorMessage = errorMessage, url = sanitizedUrl)
+
+private fun buildApiCallSummary(
+    success: Boolean,
+    durationMillis: Long,
+    errorMessage: String?,
+    url: String,
+): String =
+    "${if (success) "OK" else "ERR"} ${durationMillis} ms" +
+        errorMessage?.let { " - $it" }.orEmpty() +
+        "\n$url"
 
 private fun deleteDirectoryContents(directory: File) {
     if (!directory.exists()) return
