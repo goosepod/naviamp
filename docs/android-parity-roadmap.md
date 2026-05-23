@@ -61,7 +61,7 @@ Android already uses the shared Compose UI shell for the main app surface, so ma
   - [x] Add an Android diagnostics section under Settings.
   - [x] Include playback state, ReplayGain/crossfade settings, visualizer visibility, cache sizes, provider features, and library index counts.
   - [x] Include Navidrome, Deezer, and LRCLIB API calls where available.
-  - Include BASS load status and active stream info.
+  - [x] Include BASS load status and active stream info.
 
 - [ ] **Library sync and refresh parity**
   - Android indexes artists and albums, and stores media source scan signatures.

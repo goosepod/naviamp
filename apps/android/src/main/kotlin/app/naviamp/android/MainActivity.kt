@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import app.naviamp.android.playback.AndroidAudioWaveformAnalyzer
 import app.naviamp.android.playback.AndroidBassJni
+import app.naviamp.android.playback.AndroidBassLoadReport
 import app.naviamp.android.playback.AndroidBassPlaybackEngine
 import app.naviamp.android.playback.AndroidBassNativeLoader
 import app.naviamp.android.playback.AndroidPlaybackEngine
@@ -1472,6 +1473,7 @@ private fun NaviampAndroidApp(
         provider = provider,
         validation = validation,
         activeSourceId = activeSourceId,
+        bassLoadReport = bassLoadReport,
         playbackEngine = playbackEngine,
         playbackState = playbackState,
         playbackProgress = playbackProgress,
@@ -1479,6 +1481,7 @@ private fun NaviampAndroidApp(
         playbackSettings = playbackSettings,
         nowPlaying = nowPlaying,
         nowPlayingStation = nowPlayingStation,
+        nowPlayingStreamMetadata = nowPlayingStreamMetadata,
         nowPlayingOpen = nowPlayingOpen,
         visualizerVisible = visualizerVisible,
         activeTlsSettings = activeTlsSettings,
@@ -2298,6 +2301,7 @@ private fun androidDiagnostics(
     provider: MediaProvider?,
     validation: ConnectionValidation?,
     activeSourceId: String?,
+    bassLoadReport: AndroidBassLoadReport,
     playbackEngine: AndroidPlaybackEngine,
     playbackState: PlaybackState,
     playbackProgress: PlaybackProgress,
@@ -2305,6 +2309,7 @@ private fun androidDiagnostics(
     playbackSettings: PlaybackSettings,
     nowPlaying: Track?,
     nowPlayingStation: InternetRadioStation?,
+    nowPlayingStreamMetadata: PlaybackStreamMetadata,
     nowPlayingOpen: Boolean,
     visualizerVisible: Boolean,
     activeTlsSettings: NavidromeTlsSettings,
@@ -2328,11 +2333,23 @@ private fun androidDiagnostics(
                 rows = androidApiCallRows(),
             ),
             NaviampDiagnosticsSectionUi(
+                title = "BASS",
+                rows = listOf(
+                    "Available" to bassLoadReport.available.toString(),
+                    "Loaded libraries" to "${bassLoadReport.loadedLibraries.size}: ${bassLoadReport.loadedLibraries.joinToString(", ")}",
+                    "Failed libraries" to bassLoadReport.failedLibraries.ifEmpty { null }
+                        ?.joinToString(", ") { "${it.name}: ${it.message}" }
+                        .orEmpty()
+                        .ifBlank { "None" },
+                ),
+            ),
+            NaviampDiagnosticsSectionUi(
                 title = "Playback",
                 rows = listOf(
                     "Engine" to playbackEngine.name,
                     "State" to playbackState.label(),
                     "Now playing" to (nowPlaying?.title ?: nowPlayingStation?.name ?: "None"),
+                    "Stream title" to (nowPlayingStreamMetadata.title ?: "None"),
                     "Now Playing screen" to nowPlayingOpen.toString(),
                     "Queue" to "${playbackQueue.tracks.size} tracks, index ${playbackQueue.currentIndex}",
                     "Position" to playbackProgress.positionSeconds?.let { "%.1fs".format(it) }.orEmpty().ifBlank { "Unknown" },
