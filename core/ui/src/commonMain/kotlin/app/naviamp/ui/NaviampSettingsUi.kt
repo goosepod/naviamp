@@ -59,40 +59,140 @@ fun NaviampSharedSettingsContent(
     diagnostics: NaviampDiagnosticsUi = NaviampDiagnosticsUi(),
     onEditConnection: () -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
+    onClearCache: (() -> Unit)? = null,
+    onClearLibrary: (() -> Unit)? = null,
+    onResetDatabase: (() -> Unit)? = null,
     supportsReplayGain: Boolean = false,
     supportsGapless: Boolean = true,
     supportsCrossfade: Boolean = false,
     showQueueBehavior: Boolean = true,
     showDebugLogging: Boolean = true,
 ) {
+    var selectedCategory by remember { mutableStateOf<NaviampSettingsCategory?>(null) }
+
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("Settings", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        SettingsRow("Connection", "Edit Navidrome server and TLS options", colors, onEditConnection)
-        NaviampPlaybackSettingsSection(
-            colors = colors,
-            playbackSettings = playbackSettings,
-            supportsReplayGain = supportsReplayGain,
-            supportsGapless = supportsGapless,
-            supportsCrossfade = supportsCrossfade,
-            showReplayGain = true,
-            showCrossfade = true,
-            showQueueBehavior = showQueueBehavior,
-            showDebugLogging = showDebugLogging,
-            showLrclibLyrics = true,
-            onPlaybackSettingsChanged = onPlaybackSettingsChanged,
-        )
-        if (diagnostics.sections.isNotEmpty()) {
-            NaviampDiagnosticsSettingsSection(colors = colors, diagnostics = diagnostics)
+        selectedCategory?.let { category ->
+            SettingsDetailHeader(category = category, colors = colors, onBack = { selectedCategory = null })
+            when (category) {
+                NaviampSettingsCategory.Connections -> {
+                    SettingsSectionTitle("Connections", colors)
+                    SettingsRow("Navidrome server", "Edit server, credentials, and TLS options", colors, onEditConnection)
+                }
+                NaviampSettingsCategory.Playback -> NaviampPlaybackSettingsSection(
+                    colors = colors,
+                    playbackSettings = playbackSettings,
+                    supportsReplayGain = supportsReplayGain,
+                    supportsGapless = supportsGapless,
+                    supportsCrossfade = supportsCrossfade,
+                    showReplayGain = true,
+                    showCrossfade = true,
+                    showQueueBehavior = showQueueBehavior,
+                    showDebugLogging = showDebugLogging,
+                    showLrclibLyrics = true,
+                    onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+                )
+                NaviampSettingsCategory.Cache -> NaviampDiagnosticsSettingsSection(
+                    colors = colors,
+                    title = "Cache",
+                    diagnostics = NaviampDiagnosticsUi(
+                        diagnostics.sections.filter { section ->
+                            section.title == "Storage" || section.title == "Library sync"
+                        },
+                    ),
+                    emptyText = "Cache sizes will appear after the app initializes storage.",
+                )
+                NaviampSettingsCategory.LocalData -> SharedLocalDataActions(
+                    colors = colors,
+                    onClearCache = onClearCache,
+                    onClearLibrary = onClearLibrary,
+                    onResetDatabase = onResetDatabase,
+                )
+                NaviampSettingsCategory.Diagnostics -> NaviampDiagnosticsSettingsSection(
+                    colors = colors,
+                    title = "Diagnostics",
+                    diagnostics = diagnostics,
+                    emptyText = "Diagnostics will appear after the app initializes.",
+                )
+            }
+        } ?: run {
+            Text("Settings", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            NaviampSettingsCategory.entries.forEach { category ->
+                SettingsCategoryRow(
+                    category = category,
+                    colors = colors,
+                    enabled = when (category) {
+                        NaviampSettingsCategory.LocalData -> onClearCache != null || onClearLibrary != null || onResetDatabase != null
+                        else -> true
+                    },
+                    onClick = { selectedCategory = category },
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun SettingsDetailHeader(
+    category: NaviampSettingsCategory,
+    colors: NaviampColors,
+    onBack: () -> Unit,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        IconButton(onClick = onBack, modifier = Modifier.size(34.dp)) {
+            Icon(NaviampIcons.Back, contentDescription = "Back", tint = colors.primaryText)
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Text(category.label, color = colors.primaryText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text(category.subtitle, color = colors.secondaryText, fontSize = 12.sp)
+        }
+    }
+}
+
+@Composable
+private fun SettingsCategoryRow(
+    category: NaviampSettingsCategory,
+    colors: NaviampColors,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(vertical = 9.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = category.icon,
+            contentDescription = null,
+            tint = if (enabled) colors.secondaryText else colors.mutedText,
+            modifier = Modifier.size(20.dp),
+        )
+        Column(Modifier.weight(1f)) {
+            Text(category.label, color = if (enabled) colors.primaryText else colors.mutedText, fontSize = 15.sp)
+            Text(category.subtitle, color = colors.mutedText, fontSize = 12.sp)
+        }
+        Icon(NaviampIcons.ChevronRight, contentDescription = null, tint = colors.secondaryText, modifier = Modifier.size(18.dp))
     }
 }
 
 @Composable
 fun NaviampDiagnosticsSettingsSection(
     colors: NaviampColors,
+    title: String = "Diagnostics",
     diagnostics: NaviampDiagnosticsUi,
+    emptyText: String = "No diagnostics yet.",
 ) {
-    SettingsSectionTitle("Diagnostics", colors)
+    SettingsSectionTitle(title, colors)
+    if (diagnostics.sections.isEmpty()) {
+        Text(emptyText, color = colors.secondaryText, fontSize = 12.sp)
+        return
+    }
     diagnostics.sections.forEach { section ->
         Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Text(section.title, color = colors.secondaryText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
@@ -118,6 +218,98 @@ fun NaviampDiagnosticsSettingsSection(
             }
         }
     }
+}
+
+@Composable
+private fun SharedLocalDataActions(
+    colors: NaviampColors,
+    onClearCache: (() -> Unit)?,
+    onClearLibrary: (() -> Unit)?,
+    onResetDatabase: (() -> Unit)?,
+) {
+    var confirmAction by remember { mutableStateOf<SharedLocalDataAction?>(null) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SettingsSectionTitle("Local data", colors)
+        Text(
+            "Manage local cache, indexed library data, downloads, and app database storage.",
+            color = colors.secondaryText,
+            fontSize = 12.sp,
+        )
+        PrimarySettingsButton("Clear cache", colors, enabled = onClearCache != null) {
+            confirmAction = SharedLocalDataAction.ClearCache
+        }
+        PrimarySettingsButton("Clear library index", colors, enabled = onClearLibrary != null) {
+            confirmAction = SharedLocalDataAction.ClearLibrary
+        }
+        PrimarySettingsButton("Reset database", colors, enabled = onResetDatabase != null) {
+            confirmAction = SharedLocalDataAction.ResetDatabase
+        }
+    }
+
+    confirmAction?.let { action ->
+        AlertDialog(
+            onDismissRequest = { confirmAction = null },
+            title = { Text(action.title) },
+            text = { Text(action.message) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmAction = null
+                        when (action) {
+                            SharedLocalDataAction.ClearCache -> onClearCache?.invoke()
+                            SharedLocalDataAction.ClearLibrary -> onClearLibrary?.invoke()
+                            SharedLocalDataAction.ResetDatabase -> onResetDatabase?.invoke()
+                        }
+                    },
+                ) {
+                    Text(action.confirmLabel)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmAction = null }) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun PrimarySettingsButton(
+    label: String,
+    colors: NaviampColors,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    TextButton(
+        enabled = enabled,
+        onClick = onClick,
+    ) {
+        Text(label, color = if (enabled) colors.primaryText else colors.mutedText)
+    }
+}
+
+private enum class SharedLocalDataAction(
+    val title: String,
+    val message: String,
+    val confirmLabel: String,
+) {
+    ClearCache(
+        title = "Clear Cache",
+        message = "This removes cached images, provider responses, prefetched audio, waveforms, and lyrics. Saved servers and the library index stay intact.",
+        confirmLabel = "Clear cache",
+    ),
+    ClearLibrary(
+        title = "Clear Library Index",
+        message = "This removes the local library index for the active server. You can sync the library again after this finishes.",
+        confirmLabel = "Clear library",
+    ),
+    ResetDatabase(
+        title = "Reset Database",
+        message = "This removes saved servers, local cache, downloads, library data, playback history, and local settings stored in the app database.",
+        confirmLabel = "Reset database",
+    ),
 }
 
 @Composable

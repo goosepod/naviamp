@@ -152,6 +152,11 @@ data class AndroidTrackRowUi(
     val popular: Boolean = false,
 )
 
+data class NaviampDownloadedTrackUi(
+    val track: AndroidTrackRowUi,
+    val sizeBytes: Long,
+)
+
 data class SharedMediaItemUi(
     val id: String,
     val title: String,
@@ -372,6 +377,10 @@ fun NaviampSharedAppShell(
     libraryArtists: List<SharedMediaItemUi>,
     libraryQuery: String = "",
     librarySyncStatus: NaviampLibrarySyncStatusUi = NaviampLibrarySyncStatusUi(),
+    downloads: List<NaviampDownloadedTrackUi> = emptyList(),
+    downloadBytes: Long = 0L,
+    maxDownloadBytes: Long = 0L,
+    downloadStatus: String? = null,
     playlistItems: List<SharedMediaItemUi>,
     recentPlaylistIds: List<String> = emptyList(),
     playlistSortMode: SharedPlaylistSortMode = SharedPlaylistSortMode.Alphabetical,
@@ -393,6 +402,8 @@ fun NaviampSharedAppShell(
     onLibraryQueryChanged: (String) -> Unit = {},
     onRefreshLibrary: () -> Unit = {},
     onTrackSelected: (AndroidTrackRowUi) -> Unit,
+    onDownloadedTrackSelected: (NaviampDownloadedTrackUi) -> Unit = {},
+    onRemoveDownload: (NaviampDownloadedTrackUi) -> Unit = {},
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
     onMixAlbumSelected: (SharedMediaItemUi) -> Unit = onAlbumSelected,
     onAlbumPlay: (SharedAlbumDetailUi, Boolean) -> Unit = { _, _ -> },
@@ -538,6 +549,10 @@ fun NaviampSharedAppShell(
                             libraryArtists = libraryArtists,
                             libraryQuery = libraryQuery,
                             librarySyncStatus = librarySyncStatus,
+                            downloads = downloads,
+                            downloadBytes = downloadBytes,
+                            maxDownloadBytes = maxDownloadBytes,
+                            downloadStatus = downloadStatus,
                             playlistItems = playlistItems,
                             recentPlaylistIds = recentPlaylistIds,
                             playlistSortMode = playlistSortMode,
@@ -562,6 +577,8 @@ fun NaviampSharedAppShell(
                             onLibraryQueryChanged = onLibraryQueryChanged,
                             onRefreshLibrary = onRefreshLibrary,
                             onTrackSelected = onTrackSelected,
+                            onDownloadedTrackSelected = onDownloadedTrackSelected,
+                            onRemoveDownload = onRemoveDownload,
                             onAlbumSelected = onAlbumSelected,
                             onMixAlbumSelected = onMixAlbumSelected,
                             onAlbumPlay = onAlbumPlay,
@@ -769,6 +786,10 @@ private fun ConnectedContent(
     libraryArtists: List<SharedMediaItemUi>,
     libraryQuery: String,
     librarySyncStatus: NaviampLibrarySyncStatusUi,
+    downloads: List<NaviampDownloadedTrackUi>,
+    downloadBytes: Long,
+    maxDownloadBytes: Long,
+    downloadStatus: String?,
     playlistItems: List<SharedMediaItemUi>,
     recentPlaylistIds: List<String>,
     playlistSortMode: SharedPlaylistSortMode,
@@ -790,6 +811,8 @@ private fun ConnectedContent(
     onLibraryQueryChanged: (String) -> Unit,
     onRefreshLibrary: () -> Unit,
     onTrackSelected: (AndroidTrackRowUi) -> Unit,
+    onDownloadedTrackSelected: (NaviampDownloadedTrackUi) -> Unit,
+    onRemoveDownload: (NaviampDownloadedTrackUi) -> Unit,
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
     onMixAlbumSelected: (SharedMediaItemUi) -> Unit,
     onAlbumPlay: (SharedAlbumDetailUi, Boolean) -> Unit,
@@ -958,7 +981,15 @@ private fun ConnectedContent(
             SharedRoute.Search -> SearchContent(colors, query, searchResults, onQueryChanged, onSearch, onTrackSelected, onTrackAddToQueue, onAlbumSelected, onArtistSelected)
             SharedRoute.Radio -> MediaListContent(colors, "Internet Radio", radioStationItems, "No stations found.", onRadioStationSelected)
             SharedRoute.Settings -> Unit
-            SharedRoute.Downloads -> PlaceholderRoute(colors, selectedRoute)
+            SharedRoute.Downloads -> DownloadsContent(
+                colors = colors,
+                downloads = downloads,
+                status = downloadStatus,
+                downloadBytes = downloadBytes,
+                maxDownloadBytes = maxDownloadBytes,
+                onTrackSelected = onDownloadedTrackSelected,
+                onRemoveDownload = onRemoveDownload,
+            )
         }
     }
 }
@@ -1475,6 +1506,74 @@ private fun LibraryContent(
 }
 
 @Composable
+private fun DownloadsContent(
+    colors: NaviampColors,
+    downloads: List<NaviampDownloadedTrackUi>,
+    status: String?,
+    downloadBytes: Long,
+    maxDownloadBytes: Long,
+    onTrackSelected: (NaviampDownloadedTrackUi) -> Unit,
+    onRemoveDownload: (NaviampDownloadedTrackUi) -> Unit,
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("Downloads", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    "${downloads.size} files - ${downloadBytes.storageBytesLabel()} of ${maxDownloadBytes.storageBytesLabel()}",
+                    color = colors.secondaryText,
+                    fontSize = 12.sp,
+                )
+            }
+        }
+        status?.takeIf { it.isNotBlank() }?.let { message ->
+            item {
+                Text(message, color = colors.secondaryText, fontSize = 12.sp)
+            }
+        }
+        if (downloads.isEmpty()) {
+            item {
+                Text("Downloaded tracks will appear here.", color = colors.secondaryText, fontSize = 13.sp)
+            }
+        }
+        items(
+            items = downloads,
+            key = { item -> item.track.id },
+        ) { download ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onTrackSelected(download) }
+                    .padding(vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                PlatformCoverArt(download.track.coverArtUrl, colors, 38.dp, 4.dp)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(download.track.title, color = colors.primaryText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(download.track.subtitle, color = colors.secondaryText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                Text(download.sizeBytes.storageBytesLabel(), color = colors.mutedText, fontSize = 11.sp)
+                IconButton(
+                    onClick = { onRemoveDownload(download) },
+                    modifier = Modifier.size(34.dp),
+                ) {
+                    Icon(
+                        imageVector = NaviampIcons.Trash,
+                        contentDescription = "Remove download",
+                        tint = colors.mutedText,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun AlbumDetailContent(
     colors: NaviampColors,
     detail: SharedAlbumDetailUi,
@@ -1841,84 +1940,10 @@ private fun SettingsContent(
         supportsCrossfade = supportsCrossfade,
         onEditConnection = onEditConnection,
         onPlaybackSettingsChanged = onPlaybackSettingsChanged,
-    )
-    LocalDataActions(
-        colors = colors,
         onClearCache = onClearCache,
         onClearLibrary = onClearLibrary,
         onResetDatabase = onResetDatabase,
     )
-}
-
-@Composable
-private fun LocalDataActions(
-    colors: NaviampColors,
-    onClearCache: () -> Unit,
-    onClearLibrary: () -> Unit,
-    onResetDatabase: () -> Unit,
-) {
-    var confirmAction by remember { mutableStateOf<LocalDataAction?>(null) }
-
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SettingsSectionTitle("Local data", colors)
-        Text(
-            "Manage local cache, indexed library data, and database reset actions.",
-            color = colors.secondaryText,
-            fontSize = 12.sp,
-        )
-        PrimaryButton("Clear cache", colors, onClick = { confirmAction = LocalDataAction.ClearCache })
-        PrimaryButton("Clear library index", colors, onClick = { confirmAction = LocalDataAction.ClearLibrary })
-        PrimaryButton("Reset database", colors, onClick = { confirmAction = LocalDataAction.ResetDatabase })
-    }
-
-    confirmAction?.let { action ->
-        AlertDialog(
-            onDismissRequest = { confirmAction = null },
-            title = { Text(action.title) },
-            text = { Text(action.message) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        confirmAction = null
-                        when (action) {
-                            LocalDataAction.ClearCache -> onClearCache()
-                            LocalDataAction.ClearLibrary -> onClearLibrary()
-                            LocalDataAction.ResetDatabase -> onResetDatabase()
-                        }
-                    },
-                ) {
-                    Text(action.confirmLabel)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmAction = null }) {
-                    Text("Cancel")
-                }
-            },
-        )
-    }
-}
-
-private enum class LocalDataAction(
-    val title: String,
-    val message: String,
-    val confirmLabel: String,
-) {
-    ClearCache(
-        title = "Clear Cache",
-        message = "This removes cached images, provider responses, prefetched audio, waveforms, and lyrics. Saved servers and the library index stay intact.",
-        confirmLabel = "Clear cache",
-    ),
-    ClearLibrary(
-        title = "Clear Library Index",
-        message = "This removes the local library index for the active server. You can sync the library again after this finishes.",
-        confirmLabel = "Clear library",
-    ),
-    ResetDatabase(
-        title = "Reset Database",
-        message = "This removes saved servers, local cache, downloads, library data, playback history, and local settings stored in the app database.",
-        confirmLabel = "Reset database",
-    ),
 }
 
 @Composable

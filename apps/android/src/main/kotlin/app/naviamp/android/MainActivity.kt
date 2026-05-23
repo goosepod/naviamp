@@ -1,13 +1,11 @@
 package app.naviamp.android
 
 import android.Manifest
-import android.app.DownloadManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.Environment
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
@@ -92,6 +90,7 @@ import app.naviamp.ui.AndroidTrackRowUi
 import app.naviamp.ui.NaviampNowPlayingItemUi
 import app.naviamp.ui.NaviampDiagnosticsSectionUi
 import app.naviamp.ui.NaviampDiagnosticsUi
+import app.naviamp.ui.NaviampDownloadedTrackUi
 import app.naviamp.ui.NaviampLibrarySyncStatusUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampSharedAppShell
@@ -223,6 +222,9 @@ private fun NaviampAndroidApp(
     var playlistTracksById by remember { mutableStateOf<Map<String, List<Track>>>(emptyMap()) }
     var libraryQuery by remember { mutableStateOf("") }
     var storageStats by remember { mutableStateOf(storage.stats()) }
+    var downloadedTracks by remember { mutableStateOf<List<AndroidDownloadedTrack>>(emptyList()) }
+    var downloadStatus by remember { mutableStateOf<String?>(null) }
+    var downloadRefreshToken by remember { mutableStateOf(0) }
     var libraryStatus by remember { mutableStateOf<String?>(null) }
     var isLibrarySyncing by remember { mutableStateOf(false) }
     var editingConnection by remember { mutableStateOf(false) }
@@ -1244,35 +1246,45 @@ private fun NaviampAndroidApp(
 
     fun downloadTrack(track: Track) {
         val activeProvider = provider ?: return
+        val sourceId = activeSourceId ?: return
         scope.launch {
-            status = "Preparing ${track.title} download..."
+            downloadStatus = "Downloading ${track.title}..."
+            status = downloadStatus.orEmpty()
             runCatching {
-                activeProvider.streamUrl(StreamRequest(track.id, StreamQuality.Original))
-            }.onSuccess { streamUrl ->
-                val extension = track.audioInfo?.codec?.lowercase()?.let { codec ->
-                    when (codec) {
-                        "mpeg", "mp3" -> "mp3"
-                        "flac" -> "flac"
-                        "opus" -> "opus"
-                        "aac" -> "aac"
-                        else -> codec
-                    }
-                } ?: "audio"
-                val fileName = "${track.artistName} - ${track.title}"
-                    .replace(Regex("""[\\/:*?"<>|]"""), "_")
-                    .take(120)
-                    .ifBlank { track.id.value } + ".$extension"
-                val request = DownloadManager.Request(Uri.parse(streamUrl))
-                    .setTitle(track.title)
-                    .setDescription(track.artistName)
-                    .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                    .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
-                val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-                manager.enqueue(request)
-                status = "Downloading ${track.title}."
+                withContext(Dispatchers.IO) {
+                    storage.downloadAudioTrack(
+                        sourceId = sourceId,
+                        provider = activeProvider,
+                        track = track,
+                        quality = StreamQuality.Original,
+                        maxDownloadBytes = AndroidMaxDownloadBytes,
+                    )
+                }
+            }.onSuccess {
+                downloadRefreshToken += 1
+                storageStats = withContext(Dispatchers.IO) { storage.stats() }
+                downloadStatus = "Downloaded ${track.title}."
+                status = downloadStatus.orEmpty()
             }.onFailure { error ->
-                status = error.message ?: "Could not start download."
+                downloadStatus = error.message ?: "Could not download track."
+                status = downloadStatus.orEmpty()
             }
+        }
+    }
+
+    fun removeDownload(download: NaviampDownloadedTrackUi) {
+        val sourceId = activeSourceId ?: return
+        scope.launch {
+            val track = downloadedTracks.firstOrNull { it.track.id.value == download.track.id }?.track
+                ?: findKnownTrack(download.track.id)
+                ?: return@launch
+            withContext(Dispatchers.IO) {
+                storage.removeDownloadedAudio(sourceId, track.id, StreamQuality.Original)
+            }
+            downloadRefreshToken += 1
+            storageStats = withContext(Dispatchers.IO) { storage.stats() }
+            downloadStatus = "Removed ${track.title}."
+            status = downloadStatus.orEmpty()
         }
     }
 
@@ -1538,6 +1550,14 @@ private fun NaviampAndroidApp(
         }
     }
 
+    LaunchedEffect(activeSourceId, selectedRoute, downloadRefreshToken) {
+        val sourceId = activeSourceId ?: return@LaunchedEffect
+        if (selectedRoute != SharedRoute.Downloads) return@LaunchedEffect
+        downloadedTracks = withContext(Dispatchers.IO) {
+            storage.downloadedTracks(sourceId)
+        }
+    }
+
     val diagnostics = androidDiagnostics(
         storageStats = storageStats,
         provider = provider,
@@ -1594,6 +1614,17 @@ private fun NaviampAndroidApp(
             message = libraryStatus,
             isSyncing = isLibrarySyncing,
         ),
+        downloads = downloadedTracks.map { download ->
+            NaviampDownloadedTrackUi(
+                track = download.track.toAndroidTrackRowUi(
+                    coverArtUrl = { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
+                ),
+                sizeBytes = download.sizeBytes,
+            )
+        },
+        downloadBytes = storageStats.downloadBytes,
+        maxDownloadBytes = AndroidMaxDownloadBytes,
+        downloadStatus = downloadStatus,
         playlistItems = homeState.playlists.map {
             it.toSharedMediaItemUi(
                 coverArtUrl = { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
@@ -1800,6 +1831,14 @@ private fun NaviampAndroidApp(
                 return@NaviampSharedAppShell
             }
             playTrack(track, currentTracks)
+        },
+        onDownloadedTrackSelected = { download ->
+            val currentTracks = downloadedTracks.map { it.track }
+            val track = currentTracks.firstOrNull { it.id.value == download.track.id } ?: return@NaviampSharedAppShell
+            playTrack(track, currentTracks)
+        },
+        onRemoveDownload = { download ->
+            removeDownload(download)
         },
         onAlbumSelected = { selectedAlbum ->
             val activeProvider = provider ?: return@NaviampSharedAppShell
@@ -2525,6 +2564,7 @@ private const val AndroidGaplessPrepareWindowSeconds = 2.0
 private const val AndroidSidecarPrepDepth = 5
 private const val AndroidPlaybackSessionSaveIntervalMillis = 5_000L
 private const val AndroidLibraryFreshnessCheckIntervalMillis = 60_000L
+private const val AndroidMaxDownloadBytes = 2L * 1024L * 1024L * 1024L
 private const val AndroidLibraryAlbumPageSize = 500
 private const val AndroidLibraryArtistLimit = 100_000
 private const val AndroidPopularRadioSeedLimit = 5

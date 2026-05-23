@@ -62,6 +62,8 @@ Android already uses the shared Compose UI shell for the main app surface, so ma
   - [x] Include playback state, ReplayGain/crossfade settings, visualizer visibility, cache sizes, provider features, and library index counts.
   - [x] Include Navidrome, Deezer, and LRCLIB API calls where available.
   - [x] Include BASS load status and active stream info.
+  - [x] Move shared Settings to the same category drill-down model as desktop so Android does not collapse everything into one long page.
+  - [x] Surface cache/library sync sizes through the shared Settings cache category.
 
 - [ ] **Library sync and refresh parity**
   - Android indexes artists and albums, and stores media source scan signatures.
@@ -78,7 +80,8 @@ Android already uses the shared Compose UI shell for the main app surface, so ma
 
 - [ ] **Downloads and cache management parity**
   - Android can download audio into app storage and clear cache/download data.
-  - Verify Downloads route exposes downloaded tracks with the same actions as desktop.
+  - [x] Shared Downloads route exposes downloaded tracks with play and remove actions on Android.
+  - Verify Downloads route exposes all desktop actions, including add-to-playlist where applicable.
   - Confirm offline playback from downloaded files works after app restart and network loss.
   - Expose cache budgets and storage pressure clearly enough for Android users.
 
@@ -119,5 +122,7 @@ Android already uses the shared Compose UI shell for the main app surface, so ma
 - [ ] Similar artists on artist details
 - [ ] Downloads route and offline playback
 - [x] Settings diagnostics section
+- [x] Settings category drill-down
 - [x] Stats/diagnostics API call list
+- [x] Downloads route lists downloaded tracks
 - [ ] Now Playing portrait and landscape visual check
