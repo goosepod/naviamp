@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -26,6 +28,7 @@ import app.naviamp.domain.Artist
 import app.naviamp.domain.Track
 import app.naviamp.ui.NaviampAction
 import app.naviamp.ui.NaviampActionSpec
+import app.naviamp.ui.NaviampIcons
 import app.naviamp.ui.NaviampRowMenuItem
 import app.naviamp.ui.NaviampRowOverflowMenu
 import app.naviamp.ui.albumRowActions
@@ -73,12 +76,23 @@ fun ArtistRow(
     appColors: AppColors,
     artist: Artist,
     modifier: Modifier = Modifier,
+    coverArtUrl: String? = null,
+    showCoverArt: Boolean = false,
+    coverArtSize: Dp = 34.dp,
     onClick: (() -> Unit)? = null,
     onStartRadio: (() -> Unit)? = null,
     onAddToQueue: (() -> Unit)? = null,
     onAddToPlaylist: (() -> Unit)? = null,
 ) {
     MediaRow(appColors = appColors, modifier = modifier, onClick = onClick) {
+        if (showCoverArt) {
+            CoverArtThumb(
+                appColors = appColors,
+                coverArtUrl = coverArtUrl,
+                size = coverArtSize,
+                cornerRadius = coverArtSize / 2,
+            )
+        }
         MediaTextBlock(
             appColors = appColors,
             title = artist.name,
@@ -180,6 +194,8 @@ fun TrackRow(
     leadingContent: (@Composable RowScope.() -> Unit)? = null,
     showDuration: Boolean = true,
     showMenu: Boolean = false,
+    popular: Boolean = false,
+    reservePopularIndicatorSpace: Boolean = false,
     onStartRadio: (() -> Unit)? = null,
     onDownload: (() -> Unit)? = null,
     onAddToQueue: (() -> Unit)? = null,
@@ -196,12 +212,31 @@ fun TrackRow(
         verticalAlignment = verticalAlignment,
     ) {
         leadingContent?.invoke(this)
-        if (index != null) {
-            Text(
-                index.toString(),
-                color = appColors.mutedText,
-                modifier = Modifier.padding(top = 1.dp),
-            )
+        if (reservePopularIndicatorSpace || index != null) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                androidx.compose.foundation.layout.Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.width(11.dp),
+                ) {
+                    if (popular) {
+                        Icon(
+                            imageVector = NaviampIcons.Fire,
+                            contentDescription = "Popular on Deezer",
+                            tint = appColors.primaryText,
+                            modifier = Modifier.size(10.dp),
+                        )
+                    }
+                }
+                Text(
+                    index?.toString().orEmpty(),
+                    color = appColors.mutedText,
+                    fontSize = 13.sp,
+                    lineHeight = 16.sp,
+                )
+            }
         }
         if (showCoverArt) {
             CoverArtThumb(

@@ -149,6 +149,7 @@ data class AndroidTrackRowUi(
     val subtitle: String,
     val coverArtUrl: String? = null,
     val meta: String = "",
+    val popular: Boolean = false,
 )
 
 data class SharedMediaItemUi(
@@ -422,10 +423,14 @@ fun NaviampSharedAppShell(
         !editingConnection &&
         !restoringConnection &&
         !showFullNowPlaying &&
-        selectedRoute == SharedRoute.Library &&
-        albumDetail == null &&
-        artistDetail == null &&
-        playlistDetail == null
+        (
+            albumDetail != null ||
+                artistDetail != null ||
+                (
+                    selectedRoute == SharedRoute.Library &&
+                        playlistDetail == null
+                    )
+            )
     val nowPlayingPlayerColors = if (showFullNowPlaying) {
         rememberPlatformCoverArtPlayerColors(nowPlaying.coverArtUrl, colors)
     } else {
@@ -953,7 +958,10 @@ private fun SearchContent(
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
     onArtistSelected: (SharedMediaItemUi) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxSize(),
+    ) {
         Text("Search", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         NaviampTextField(query, onQueryChanged, "Search tracks", colors)
         PrimaryButton("Search", colors, onSearch, enabled = query.isNotBlank())
@@ -1335,7 +1343,10 @@ private fun AlbumDetailContent(
     onTrackSelected: (AndroidTrackRowUi) -> Unit,
     onTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxSize(),
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
                 Icon(NaviampIcons.Back, contentDescription = "Back", tint = colors.primaryText)
@@ -1365,8 +1376,22 @@ private fun AlbumDetailContent(
                 }
             }
         }
-        detail.tracks.forEachIndexed { index, track ->
-            TrackRow(track.copy(meta = (index + 1).toString()), colors, onTrackSelected, onAddToQueue = onTrackAddToQueue)
+        Column(
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState()),
+        ) {
+            val reservePopularIndicatorSpace = detail.tracks.any { it.popular }
+            detail.tracks.forEachIndexed { index, track ->
+                TrackRow(
+                    track.copy(meta = (index + 1).toString()),
+                    colors,
+                    onTrackSelected,
+                    onAddToQueue = onTrackAddToQueue,
+                    reservePopularIndicatorSpace = reservePopularIndicatorSpace,
+                )
+            }
         }
     }
 }
@@ -1384,7 +1409,10 @@ private fun ArtistDetailContent(
     onPopularTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxSize(),
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
                 Icon(NaviampIcons.Back, contentDescription = "Back", tint = colors.primaryText)
@@ -1399,30 +1427,37 @@ private fun ArtistDetailContent(
                 }
             }
         }
-        if (detail.popularTracks.isNotEmpty()) {
-            Text(
-                "Popular Tracks".uppercase(),
-                color = colors.primaryText,
-                fontWeight = FontWeight.Bold,
-                fontSize = 12.sp,
-            )
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    MiniPlayerIconButton(colors, true, NaviampTransportIcons.Play, "Play popular tracks", onPopularPlay)
-                    MiniPlayerIconButton(colors, true, NaviampTransportIcons.Radio, "Start popular tracks radio", onPopularRadio)
-                    MiniPlayerIconButton(colors, true, NaviampIcons.Queue, "Add popular tracks to queue", onPopularAddToQueue)
-                }
-                detail.popularTracks.forEachIndexed { index, track ->
-                    TrackRow(
-                        track.copy(meta = (index + 1).toString()),
-                        colors,
-                        onPopularTrackSelected,
-                        onAddToQueue = onPopularTrackAddToQueue,
-                    )
+        Column(
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState()),
+        ) {
+            if (detail.popularTracks.isNotEmpty()) {
+                Text(
+                    "Popular Tracks".uppercase(),
+                    color = colors.primaryText,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        MiniPlayerIconButton(colors, true, NaviampTransportIcons.Play, "Play popular tracks", onPopularPlay)
+                        MiniPlayerIconButton(colors, true, NaviampTransportIcons.Radio, "Start popular tracks radio", onPopularRadio)
+                        MiniPlayerIconButton(colors, true, NaviampIcons.Queue, "Add popular tracks to queue", onPopularAddToQueue)
+                    }
+                    detail.popularTracks.forEachIndexed { index, track ->
+                        TrackRow(
+                            track.copy(meta = (index + 1).toString()),
+                            colors,
+                            onPopularTrackSelected,
+                            onAddToQueue = onPopularTrackAddToQueue,
+                        )
+                    }
                 }
             }
+            MediaListContent(colors, "Albums", detail.albums, "No albums found.", onAlbumSelected)
         }
-        MediaListContent(colors, "Albums", detail.albums, "No albums found.", onAlbumSelected)
     }
 }
 
@@ -1744,6 +1779,7 @@ private fun TrackRow(
     colors: NaviampColors,
     onTrackSelected: (AndroidTrackRowUi) -> Unit,
     onAddToQueue: ((AndroidTrackRowUi) -> Unit)? = null,
+    reservePopularIndicatorSpace: Boolean = false,
 ) {
     Row(
         modifier = Modifier
@@ -1753,8 +1789,26 @@ private fun TrackRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        if (track.meta.isNotBlank()) {
-            Text(track.meta, color = colors.mutedText, fontSize = 11.sp, modifier = Modifier.width(20.dp))
+        if (reservePopularIndicatorSpace || track.meta.isNotBlank()) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.width(11.dp),
+                ) {
+                    if (track.popular) {
+                        Icon(
+                            imageVector = NaviampIcons.Fire,
+                            contentDescription = "Popular on Deezer",
+                            tint = colors.primaryText,
+                            modifier = Modifier.size(10.dp),
+                        )
+                    }
+                }
+                Text(track.meta, color = colors.mutedText, fontSize = 11.sp, lineHeight = 14.sp)
+            }
         }
         PlatformCoverArt(track.coverArtUrl, colors, 34.dp, 4.dp)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -2535,6 +2589,25 @@ object NaviampIcons {
         lineTo(19f, 11f)
         moveTo(11f, 13f)
         lineTo(18.5f, 5.5f)
+    }
+    val Fire = filledIcon("Fire") {
+        moveTo(12f, 22f)
+        curveTo(7.5f, 22f, 4f, 18.8f, 4f, 14.6f)
+        curveTo(4f, 11.6f, 5.6f, 9.2f, 8.3f, 7.1f)
+        curveTo(8.6f, 9.1f, 9.5f, 10.4f, 10.7f, 11f)
+        curveTo(10.2f, 7.5f, 11.8f, 4.2f, 15.5f, 2f)
+        curveTo(15.8f, 5.4f, 17.6f, 7.3f, 19.2f, 9.5f)
+        curveTo(20.3f, 11f, 20.8f, 12.7f, 20.8f, 14.6f)
+        curveTo(20.8f, 18.8f, 17.1f, 22f, 12f, 22f)
+        close()
+        moveTo(12.2f, 19.6f)
+        curveTo(14.3f, 19.6f, 15.9f, 18.2f, 15.9f, 16.3f)
+        curveTo(15.9f, 14.8f, 15f, 13.7f, 13.7f, 12.3f)
+        curveTo(13.5f, 13.6f, 12.8f, 14.6f, 11.8f, 15.2f)
+        curveTo(11.7f, 14f, 11.1f, 13f, 10.2f, 12.4f)
+        curveTo(8.9f, 13.5f, 8.2f, 14.8f, 8.2f, 16.3f)
+        curveTo(8.2f, 18.2f, 9.9f, 19.6f, 12.2f, 19.6f)
+        close()
     }
 
     private fun icon(name: String, block: androidx.compose.ui.graphics.vector.PathBuilder.() -> Unit): ImageVector =

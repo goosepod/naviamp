@@ -1,9 +1,12 @@
 package app.naviamp.desktop
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -30,6 +33,7 @@ fun AlbumDetailPanel(
     albumDetails: AlbumDetails?,
     status: String?,
     coverArtUrl: String?,
+    popularTrackIds: Set<String> = emptySet(),
     onBack: () -> Unit,
     onPlayAlbum: () -> Unit,
     onShuffleAlbum: () -> Unit,
@@ -44,7 +48,10 @@ fun AlbumDetailPanel(
     onAddTrackToPlaylist: (Track) -> Unit,
     onArtistSelected: (Track) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+        modifier = Modifier.fillMaxSize(),
+    ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(2.dp),
@@ -174,7 +181,13 @@ fun AlbumDetailPanel(
                 color = appColors.secondaryText,
                 modifier = Modifier.fillMaxWidth(),
             )
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                val reservePopularIndicatorSpace = details.tracks.any { it.id.value in popularTrackIds }
                 details.tracks.forEachIndexed { index, track ->
                     TrackRow(
                         appColors = appColors,
@@ -186,6 +199,8 @@ fun AlbumDetailPanel(
                         verticalPadding = 0.dp,
                         verticalAlignment = Alignment.Top,
                         showMenu = true,
+                        popular = track.id.value in popularTrackIds,
+                        reservePopularIndicatorSpace = reservePopularIndicatorSpace,
                         onClick = { onPlayTrack(index) },
                         onStartRadio = { onTrackRadio(track) },
                         onDownload = { onDownloadTrack(track) },

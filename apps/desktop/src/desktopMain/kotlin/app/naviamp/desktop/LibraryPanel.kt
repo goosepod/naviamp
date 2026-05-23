@@ -22,7 +22,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -55,6 +57,7 @@ fun LibraryPanel(
     onAlbumDownloadSelected: (Album) -> Unit,
     onAlbumAddToQueue: (Album) -> Unit,
     onAlbumAddToPlaylist: (Album) -> Unit,
+    onRefreshLibrary: () -> Unit,
 ) {
     val textFieldColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = appColors.primaryText,
@@ -72,8 +75,27 @@ fun LibraryPanel(
     ) {
         Text("Library", color = appColors.primaryText, style = MaterialTheme.typography.titleMedium)
 
-        status?.let {
-            Text(it, color = appColors.secondaryText, fontSize = 12.sp)
+        status?.let { message ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    message,
+                    color = appColors.secondaryText,
+                    fontSize = 12.sp,
+                    modifier = Modifier.weight(1f),
+                )
+                if (message.startsWith("Library changed on server")) {
+                    TextButton(
+                        enabled = !isSyncing,
+                        onClick = onRefreshLibrary,
+                    ) {
+                        Text(if (isSyncing) "Refreshing..." else "Refresh", fontSize = 12.sp)
+                    }
+                }
+            }
         }
 
         OutlinedTextField(
@@ -130,6 +152,8 @@ fun LibraryPanel(
                         ArtistRow(
                             appColors = appColors,
                             artist = artist,
+                            coverArtUrl = coverArtUrl(artist.id.value),
+                            showCoverArt = true,
                             onClick = { onArtistSelected(artist) },
                             onStartRadio = { onArtistRadioSelected(artist) },
                             onAddToQueue = { onArtistAddToQueue(artist) },

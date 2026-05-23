@@ -1,9 +1,12 @@
 package app.naviamp.desktop
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
@@ -61,7 +64,10 @@ fun ArtistDetailPanel(
         ?: artistDetails?.info?.smallImageUrl
     var biographyExpanded by remember(effectiveArtist?.id) { mutableStateOf(false) }
 
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier.fillMaxSize(),
+    ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(2.dp),
@@ -187,101 +193,109 @@ fun ArtistDetailPanel(
         }
 
         artistDetails?.let { details ->
-            if (similarArtists.isNotEmpty() || similarArtistsStatus != null) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                if (similarArtists.isNotEmpty() || similarArtistsStatus != null) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            "Similar Artists".uppercase(),
+                            color = appColors.primaryText,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                        )
+                        DetailActionIconButton(
+                            appColors = appColors,
+                            icon = NavigationIcons.Artist,
+                            contentDescription = "Refresh similar artists",
+                            enabled = effectiveArtist != null,
+                            onClick = { effectiveArtist?.let(onFindSimilarArtists) },
+                        )
+                    }
+                    similarArtistsStatus?.let {
+                        Text(it, color = appColors.secondaryText, fontSize = 11.sp)
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        similarArtists.forEach { similarArtist ->
+                            SimilarArtistRow(
+                                appColors = appColors,
+                                similarArtist = similarArtist,
+                                onSimilarArtistSelected = onSimilarArtistSelected,
+                                onSimilarArtistExternalSelected = onSimilarArtistExternalSelected,
+                            )
+                        }
+                    }
+                }
+                if (popularTracks.isNotEmpty()) {
                     Text(
-                        "Similar Artists".uppercase(),
+                        "Popular Tracks".uppercase(),
                         color = appColors.primaryText,
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp,
                     )
-                    DetailActionIconButton(
-                        appColors = appColors,
-                        icon = NavigationIcons.Artist,
-                        contentDescription = "Refresh similar artists",
-                        enabled = effectiveArtist != null,
-                        onClick = { effectiveArtist?.let(onFindSimilarArtists) },
-                    )
-                }
-                similarArtistsStatus?.let {
-                    Text(it, color = appColors.secondaryText, fontSize = 11.sp)
-                }
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    similarArtists.forEach { similarArtist ->
-                        SimilarArtistRow(
+                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                        DetailActionIconButton(
                             appColors = appColors,
-                            similarArtist = similarArtist,
-                            onSimilarArtistSelected = onSimilarArtistSelected,
-                            onSimilarArtistExternalSelected = onSimilarArtistExternalSelected,
+                            icon = TransportIcons.Play,
+                            contentDescription = "Play popular tracks",
+                            enabled = true,
+                            onClick = { onPopularTracksPlay(popularTracks) },
+                        )
+                        DetailActionIconButton(
+                            appColors = appColors,
+                            icon = TransportIcons.Radio,
+                            contentDescription = "Start popular tracks radio",
+                            enabled = true,
+                            onClick = { onPopularTracksRadio(popularTracks) },
+                        )
+                        DetailActionIconButton(
+                            appColors = appColors,
+                            icon = NavigationIcons.Queue,
+                            contentDescription = "Add popular tracks to queue",
+                            enabled = true,
+                            onClick = { onPopularTracksAddToQueue(popularTracks) },
                         )
                     }
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        popularTracks.forEach { track ->
+                            TrackRow(
+                                appColors = appColors,
+                                track = track,
+                                coverArtUrl = coverArtUrl(track.coverArtId),
+                                showCoverArt = true,
+                                onClick = { onPopularTrackSelected(track) },
+                                onStartRadio = { onPopularTracksRadio(listOf(track)) },
+                                onDownload = {},
+                                onAddToQueue = { onPopularTrackAddToQueue(track) },
+                            )
+                        }
+                    }
                 }
-            }
-            if (popularTracks.isNotEmpty()) {
                 Text(
-                    "Popular Tracks".uppercase(),
+                    "Albums".uppercase(),
                     color = appColors.primaryText,
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp,
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                    DetailActionIconButton(
-                        appColors = appColors,
-                        icon = TransportIcons.Play,
-                        contentDescription = "Play popular tracks",
-                        enabled = true,
-                        onClick = { onPopularTracksPlay(popularTracks) },
-                    )
-                    DetailActionIconButton(
-                        appColors = appColors,
-                        icon = TransportIcons.Radio,
-                        contentDescription = "Start popular tracks radio",
-                        enabled = true,
-                        onClick = { onPopularTracksRadio(popularTracks) },
-                    )
-                    DetailActionIconButton(
-                        appColors = appColors,
-                        icon = NavigationIcons.Queue,
-                        contentDescription = "Add popular tracks to queue",
-                        enabled = true,
-                        onClick = { onPopularTracksAddToQueue(popularTracks) },
-                    )
-                }
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    popularTracks.forEach { track ->
-                        TrackRow(
+                    details.albums.forEach { album ->
+                        AlbumRow(
                             appColors = appColors,
-                            track = track,
-                            coverArtUrl = coverArtUrl(track.coverArtId),
-                            onClick = { onPopularTrackSelected(track) },
-                            onStartRadio = { onPopularTracksRadio(listOf(track)) },
-                            onDownload = {},
-                            onAddToQueue = { onPopularTrackAddToQueue(track) },
+                            album = album,
+                            coverArtUrl = coverArtUrl(album.coverArtId),
+                            onClick = { onAlbumSelected(album) },
+                            onStartRadio = { onAlbumRadioSelected(album) },
+                            onDownload = { onAlbumDownloadSelected(album) },
+                            onAddToQueue = { onAlbumAddToQueue(album) },
+                            onAddToPlaylist = { onAlbumAddToPlaylist(album) },
                         )
                     }
-                }
-            }
-            Text(
-                "Albums".uppercase(),
-                color = appColors.primaryText,
-                fontWeight = FontWeight.Bold,
-                fontSize = 12.sp,
-            )
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                details.albums.forEach { album ->
-                    AlbumRow(
-                        appColors = appColors,
-                        album = album,
-                        coverArtUrl = coverArtUrl(album.coverArtId),
-                        onClick = { onAlbumSelected(album) },
-                        onStartRadio = { onAlbumRadioSelected(album) },
-                        onDownload = { onAlbumDownloadSelected(album) },
-                        onAddToQueue = { onAlbumAddToQueue(album) },
-                        onAddToPlaylist = { onAlbumAddToPlaylist(album) },
-                    )
                 }
             }
         }

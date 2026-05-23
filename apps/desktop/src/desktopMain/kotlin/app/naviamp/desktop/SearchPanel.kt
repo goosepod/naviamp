@@ -77,6 +77,8 @@ fun SearchPanel(
                     ArtistRow(
                         appColors = appColors,
                         artist = artist,
+                        coverArtUrl = coverArtUrl(artist.id.value),
+                        showCoverArt = true,
                         onClick = { onArtistSelected(artist) },
                         onStartRadio = { onArtistRadioSelected(artist) },
                         onAddToQueue = { onArtistAddToQueue(artist) },

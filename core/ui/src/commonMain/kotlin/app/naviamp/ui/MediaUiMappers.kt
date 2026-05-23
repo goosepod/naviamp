@@ -49,6 +49,7 @@ fun InternetRadioStation.toSharedMediaItemUi(): SharedMediaItemUi =
 fun Track.toAndroidTrackRowUi(
     coverArtUrl: (String?) -> String?,
     fallbackCoverArtId: String? = null,
+    popular: Boolean = false,
 ): AndroidTrackRowUi =
     AndroidTrackRowUi(
         id = id.value,
@@ -56,6 +57,7 @@ fun Track.toAndroidTrackRowUi(
         subtitle = listOfNotNull(artistName, albumTitle).joinToString(" - "),
         coverArtUrl = coverArtUrl(coverArtId ?: fallbackCoverArtId),
         meta = durationSeconds?.durationLabel().orEmpty(),
+        popular = popular,
     )
 
 fun Track.toNowPlayingItemUi(coverArtUrl: (String?) -> String?): NaviampNowPlayingItemUi =
@@ -327,10 +329,19 @@ fun Playlist.toSharedPlaylistDetailUi(
         tracks = tracks.map { it.toAndroidTrackRowUi(coverArtUrl) },
     )
 
-fun AlbumDetails.toSharedAlbumDetailUi(coverArtUrl: (String?) -> String?): SharedAlbumDetailUi =
+fun AlbumDetails.toSharedAlbumDetailUi(
+    coverArtUrl: (String?) -> String?,
+    popularTrackIds: Set<String> = emptySet(),
+): SharedAlbumDetailUi =
     SharedAlbumDetailUi(
         album = album.toSharedMediaItemUi(coverArtUrl),
-        tracks = tracks.map { it.toAndroidTrackRowUi(coverArtUrl, fallbackCoverArtId = album.coverArtId ?: album.id.value) },
+        tracks = tracks.map {
+            it.toAndroidTrackRowUi(
+                coverArtUrl,
+                fallbackCoverArtId = album.coverArtId ?: album.id.value,
+                popular = it.id.value in popularTrackIds,
+            )
+        },
         totalDurationLabel = tracks.totalDurationLabel(),
     )
 

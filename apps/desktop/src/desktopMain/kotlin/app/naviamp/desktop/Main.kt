@@ -2856,7 +2856,12 @@ fun NaviampApp(
                                 .weight(1f)
                                 .fillMaxWidth()
                                 .then(
-                                    if (appRoute == AppRoute.Library || appRoute == AppRoute.Settings) {
+                                    if (
+                                        appRoute == AppRoute.Library ||
+                                            appRoute == AppRoute.Settings ||
+                                            appRoute == AppRoute.AlbumDetail ||
+                                            appRoute == AppRoute.ArtistDetail
+                                    ) {
                                         Modifier
                                     } else {
                                         Modifier.verticalScroll(contentScrollState)
@@ -2938,6 +2943,7 @@ fun NaviampApp(
                                     coverArtUrl = (
                                         selectedAlbumDetails?.album?.coverArtId ?: selectedAlbum?.coverArtId
                                         )?.let { connectedProvider?.coverArtUrl(it) },
+                                    popularTrackIds = selectedArtistPopularTracks.map { it.id.value }.toSet(),
                                     onBack = { appRoute = albumDetailBackRoute },
                                     onPlayAlbum = { playAlbumDetails() },
                                     onShuffleAlbum = { playAlbumDetails(shuffle = true) },
@@ -3125,6 +3131,7 @@ fun NaviampApp(
                                             onAlbumAddToPlaylist = { album ->
                                                 openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(album))
                                             },
+                                            onRefreshLibrary = { startLibrarySync(force = true) },
                                         )
                                     }
                                     AppRoute.Search -> SearchPanel(

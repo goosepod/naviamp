@@ -1269,7 +1269,17 @@ private fun NaviampAndroidApp() {
         recentPlaylistIds = recentPlaylistIds,
         playlistSortMode = playlistSortMode,
         radioStationItems = homeState.radioStations.map { it.toSharedMediaItemUi() },
-        albumDetail = albumDetail?.toSharedAlbumDetailUi { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
+        albumDetail = albumDetail?.let { detail ->
+            detail.toSharedAlbumDetailUi(
+                coverArtUrl = { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
+                popularTrackIds = detail.tracks
+                    .mapNotNull { it.artistId?.value }
+                    .distinct()
+                    .flatMap { artistId -> artistPopularTracksByArtistId[artistId].orEmpty() }
+                    .map { it.id.value }
+                    .toSet(),
+            )
+        },
         artistDetail = artistDetail?.toSharedArtistDetailUi(
             coverArtUrl = { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
             popularTracks = artistPopularTracksByArtistId[artistDetail.artist.id.value].orEmpty(),
