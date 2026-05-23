@@ -58,10 +58,10 @@ Android already uses the shared Compose UI shell for the main app surface, so ma
 
 - [ ] **Stats and diagnostics parity**
   - Desktop has Stats for nerds with provider capabilities, API calls, cache stats, library sync stats, stream stats, playback engine diagnostics, Deezer calls, and LRCLIB calls.
-  - Android has storage stats and API clients but no comparable in-app diagnostics surface.
-  - Add a shared or Android diagnostics screen under Settings.
+  - [x] Add an Android diagnostics section under Settings.
+  - [x] Include playback state, ReplayGain/crossfade settings, visualizer visibility, cache sizes, provider features, and library index counts.
   - Include Navidrome, Deezer, and LRCLIB API calls where available.
-  - Include BASS load status, active stream info, ReplayGain state, visualizer mode, cache sizes, and library index counts.
+  - Include BASS load status and active stream info.
 
 - [ ] **Library sync and refresh parity**
   - Android indexes artists and albums, and stores media source scan signatures.
@@ -104,7 +104,7 @@ Android already uses the shared Compose UI shell for the main app surface, so ma
 
 - [x] `:apps:android:assembleDebug`
 - [x] Android release build command: `:apps:android:assembleRelease`
-- [ ] Install on device/emulator
+- [x] Install on device/emulator
 - [ ] Connect to Navidrome
 - [ ] Play direct original stream
 - [ ] Seek/scrub during playback
@@ -117,5 +117,6 @@ Android already uses the shared Compose UI shell for the main app surface, so ma
 - [ ] Popular tracks on artist details
 - [ ] Similar artists on artist details
 - [ ] Downloads route and offline playback
+- [x] Settings diagnostics section
 - [ ] Stats/diagnostics API call list
 - [ ] Now Playing portrait and landscape visual check

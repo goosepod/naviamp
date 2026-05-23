@@ -31,6 +31,15 @@ import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.PreviousButtonBehavior
 import app.naviamp.domain.settings.UpNextSelectionBehavior
 
+data class NaviampDiagnosticsUi(
+    val sections: List<NaviampDiagnosticsSectionUi> = emptyList(),
+)
+
+data class NaviampDiagnosticsSectionUi(
+    val title: String,
+    val rows: List<Pair<String, String>>,
+)
+
 enum class NaviampSettingsCategory(
     val label: String,
     val subtitle: String,
@@ -47,6 +56,7 @@ enum class NaviampSettingsCategory(
 fun NaviampSharedSettingsContent(
     colors: NaviampColors,
     playbackSettings: PlaybackSettings,
+    diagnostics: NaviampDiagnosticsUi = NaviampDiagnosticsUi(),
     onEditConnection: () -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     supportsReplayGain: Boolean = false,
@@ -71,6 +81,42 @@ fun NaviampSharedSettingsContent(
             showLrclibLyrics = true,
             onPlaybackSettingsChanged = onPlaybackSettingsChanged,
         )
+        if (diagnostics.sections.isNotEmpty()) {
+            NaviampDiagnosticsSettingsSection(colors = colors, diagnostics = diagnostics)
+        }
+    }
+}
+
+@Composable
+fun NaviampDiagnosticsSettingsSection(
+    colors: NaviampColors,
+    diagnostics: NaviampDiagnosticsUi,
+) {
+    SettingsSectionTitle("Diagnostics", colors)
+    diagnostics.sections.forEach { section ->
+        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text(section.title, color = colors.secondaryText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            section.rows.forEach { (label, value) ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.Top,
+                ) {
+                    Text(
+                        label,
+                        color = colors.mutedText,
+                        fontSize = 11.sp,
+                        modifier = Modifier.weight(0.42f),
+                    )
+                    Text(
+                        value,
+                        color = colors.primaryText,
+                        fontSize = 11.sp,
+                        modifier = Modifier.weight(0.58f),
+                    )
+                }
+            }
+        }
     }
 }
 

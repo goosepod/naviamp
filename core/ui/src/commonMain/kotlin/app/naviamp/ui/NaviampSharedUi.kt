@@ -352,6 +352,7 @@ fun NaviampSharedAppShell(
     restoringConnection: Boolean = false,
     connectionForm: ConnectionFormState,
     playbackSettings: PlaybackSettings = PlaybackSettings(),
+    diagnostics: NaviampDiagnosticsUi = NaviampDiagnosticsUi(),
     supportsReplayGain: Boolean = false,
     supportsGapless: Boolean = true,
     supportsCrossfade: Boolean = false,
@@ -531,6 +532,7 @@ fun NaviampSharedAppShell(
                             nowPlaying = nowPlaying,
                             nowPlayingOpen = nowPlayingOpen,
                             playbackSettings = playbackSettings,
+                            diagnostics = diagnostics,
                             supportsReplayGain = supportsReplayGain,
                             supportsGapless = supportsGapless,
                             supportsCrossfade = supportsCrossfade,
@@ -757,6 +759,7 @@ private fun ConnectedContent(
     nowPlaying: NowPlayingUi?,
     nowPlayingOpen: Boolean,
     playbackSettings: PlaybackSettings,
+    diagnostics: NaviampDiagnosticsUi,
     supportsReplayGain: Boolean = false,
     supportsGapless: Boolean = true,
     supportsCrossfade: Boolean = false,
@@ -860,6 +863,7 @@ private fun ConnectedContent(
         selectedRoute == SharedRoute.Settings -> SettingsContent(
             colors = colors,
             playbackSettings = playbackSettings,
+            diagnostics = diagnostics,
             supportsReplayGain = supportsReplayGain,
             supportsGapless = supportsGapless,
             supportsCrossfade = supportsCrossfade,
@@ -1705,6 +1709,7 @@ private fun FullNowPlaying(
 private fun SettingsContent(
     colors: NaviampColors,
     playbackSettings: PlaybackSettings,
+    diagnostics: NaviampDiagnosticsUi,
     supportsReplayGain: Boolean,
     supportsGapless: Boolean,
     supportsCrossfade: Boolean,
@@ -1717,6 +1722,7 @@ private fun SettingsContent(
     NaviampSharedSettingsContent(
         colors = colors,
         playbackSettings = playbackSettings,
+        diagnostics = diagnostics,
         supportsReplayGain = supportsReplayGain,
         supportsGapless = supportsGapless,
         supportsCrossfade = supportsCrossfade,

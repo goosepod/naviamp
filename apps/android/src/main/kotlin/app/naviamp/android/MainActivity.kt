@@ -77,6 +77,7 @@ import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.settings.ConnectionFormState
+import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.settings.PreviousButtonBehavior
 import app.naviamp.domain.waveform.AudioWaveform
@@ -86,6 +87,8 @@ import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.ui.AndroidTrackRowUi
 import app.naviamp.ui.NaviampNowPlayingItemUi
+import app.naviamp.ui.NaviampDiagnosticsSectionUi
+import app.naviamp.ui.NaviampDiagnosticsUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampSharedAppShell
 import app.naviamp.ui.NowPlayingRadioUiConfig
@@ -109,6 +112,7 @@ import app.naviamp.ui.toSharedArtistDetailUi
 import app.naviamp.ui.toSharedHomeUi
 import app.naviamp.ui.toSharedMediaItemUi
 import app.naviamp.ui.toSharedPlaylistDetailUi
+import app.naviamp.ui.bytesLabel
 import app.naviamp.ui.toSharedSearchResultsUi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -213,6 +217,7 @@ private fun NaviampAndroidApp(
     var playlistSortMode by remember { mutableStateOf(SharedPlaylistSortMode.Alphabetical) }
     var recentPlaylistIds by remember { mutableStateOf<List<String>>(emptyList()) }
     var playlistTracksById by remember { mutableStateOf<Map<String, List<Track>>>(emptyMap()) }
+    var storageStats by remember { mutableStateOf(storage.stats()) }
     var editingConnection by remember { mutableStateOf(false) }
     var restoringConnection by remember { mutableStateOf(canAutoConnect) }
     var navigationState by remember { mutableStateOf(NaviampNavigationState()) }
@@ -1452,6 +1457,32 @@ private fun NaviampAndroidApp(
         }
     }
 
+    LaunchedEffect(selectedRoute, activeSourceId, nowPlaying?.id, nowPlayingStation?.id) {
+        if (selectedRoute != SharedRoute.Settings) return@LaunchedEffect
+        while (true) {
+            storageStats = withContext(Dispatchers.IO) { storage.stats() }
+            delay(5_000)
+        }
+    }
+
+    val diagnostics = androidDiagnostics(
+        storageStats = storageStats,
+        provider = provider,
+        validation = validation,
+        activeSourceId = activeSourceId,
+        playbackEngine = playbackEngine,
+        playbackState = playbackState,
+        playbackProgress = playbackProgress,
+        playbackQueue = playbackQueue,
+        playbackSettings = playbackSettings,
+        nowPlaying = nowPlaying,
+        nowPlayingStation = nowPlayingStation,
+        nowPlayingOpen = nowPlayingOpen,
+        visualizerVisible = visualizerVisible,
+        activeTlsSettings = activeTlsSettings,
+        selectedRoute = selectedRoute,
+    )
+
     NaviampSharedAppShell(
         modifier = modifier,
         status = status,
@@ -1470,6 +1501,7 @@ private fun NaviampAndroidApp(
             clientCertificatePassword = clientCertificatePassword,
         ),
         playbackSettings = playbackSettings,
+        diagnostics = diagnostics,
         supportsReplayGain = playbackEngine.supportsReplayGain,
         supportsGapless = playbackEngine.supportsGapless,
         supportsCrossfade = playbackEngine.supportsCrossfade,
@@ -2258,6 +2290,85 @@ private suspend fun MediaProvider.tracksForArtist(artistId: ArtistId, limit: Lon
         }
     return tracks
 }
+
+private fun androidDiagnostics(
+    storageStats: AndroidStorageStats,
+    provider: MediaProvider?,
+    validation: ConnectionValidation?,
+    activeSourceId: String?,
+    playbackEngine: AndroidPlaybackEngine,
+    playbackState: PlaybackState,
+    playbackProgress: PlaybackProgress,
+    playbackQueue: PlaybackQueue,
+    playbackSettings: PlaybackSettings,
+    nowPlaying: Track?,
+    nowPlayingStation: InternetRadioStation?,
+    nowPlayingOpen: Boolean,
+    visualizerVisible: Boolean,
+    activeTlsSettings: NavidromeTlsSettings,
+    selectedRoute: SharedRoute,
+): NaviampDiagnosticsUi =
+    NaviampDiagnosticsUi(
+        sections = listOf(
+            NaviampDiagnosticsSectionUi(
+                title = "Connection",
+                rows = listOf(
+                    "Provider" to (provider?.displayName ?: "Not connected"),
+                    "Source ID" to (activeSourceId ?: "None"),
+                    "Server" to (validation?.serverVersion ?: "Unknown"),
+                    "API" to (validation?.apiVersion ?: "Unknown"),
+                    "Route" to selectedRoute.label,
+                    "Skip TLS verification" to activeTlsSettings.insecureSkipTlsVerification.toString(),
+                ),
+            ),
+            NaviampDiagnosticsSectionUi(
+                title = "Playback",
+                rows = listOf(
+                    "Engine" to playbackEngine.name,
+                    "State" to playbackState.label(),
+                    "Now playing" to (nowPlaying?.title ?: nowPlayingStation?.name ?: "None"),
+                    "Now Playing screen" to nowPlayingOpen.toString(),
+                    "Queue" to "${playbackQueue.tracks.size} tracks, index ${playbackQueue.currentIndex}",
+                    "Position" to playbackProgress.positionSeconds?.let { "%.1fs".format(it) }.orEmpty().ifBlank { "Unknown" },
+                    "Duration" to playbackProgress.durationSeconds?.let { "%.1fs".format(it) }.orEmpty().ifBlank { "Unknown" },
+                    "ReplayGain" to playbackSettings.replayGainMode.name,
+                    "Gapless" to playbackSettings.gaplessEnabled.toString(),
+                    "Crossfade" to "${playbackSettings.crossfadeDurationSeconds}s",
+                    "Visualizer" to visualizerVisible.toString(),
+                ),
+            ),
+            NaviampDiagnosticsSectionUi(
+                title = "Storage",
+                rows = listOf(
+                    "Database" to storageStats.databaseName,
+                    "Saved sources" to storageStats.mediaSourceCount.toString(),
+                    "Saved sessions" to storageStats.playbackSessionCount.toString(),
+                    "Library index" to "${storageStats.libraryArtistCount} artists, ${storageStats.libraryAlbumCount} albums, ${storageStats.libraryTrackCount} tracks",
+                    "Images" to "${storageStats.imageCount} (${storageStats.imageBytes.bytesLabel()})",
+                    "Provider responses" to storageStats.responseCount.toString(),
+                    "Audio cache" to "${storageStats.audioCount} (${storageStats.audioBytes.bytesLabel()})",
+                    "Downloads" to "${storageStats.downloadCount} (${storageStats.downloadBytes.bytesLabel()})",
+                    "Waveforms" to "${storageStats.audioWaveformCount} (${storageStats.audioWaveformBytes.bytesLabel()})",
+                    "Lyrics" to storageStats.lyricsBytes.bytesLabel(),
+                ),
+            ),
+            NaviampDiagnosticsSectionUi(
+                title = "Provider features",
+                rows = provider?.capabilities?.let { capabilities ->
+                    listOf(
+                        "Streaming transcode" to capabilities.supportsStreamingTranscode.toString(),
+                        "Download transcode" to capabilities.supportsDownloadTranscode.toString(),
+                        "Artist radio" to capabilities.supportsArtistRadio.toString(),
+                        "Album radio" to capabilities.supportsAlbumRadio.toString(),
+                        "Track radio" to capabilities.supportsTrackRadio.toString(),
+                        "Track favorites" to capabilities.supportsTrackFavorites.toString(),
+                        "Track ratings" to capabilities.supportsTrackRatings.toString(),
+                        "Play reporting" to capabilities.supportsPlayReporting.toString(),
+                    )
+                }.orEmpty(),
+            ),
+        ),
+    )
 
 private fun deleteDirectoryContents(directory: File) {
     if (!directory.exists()) return
