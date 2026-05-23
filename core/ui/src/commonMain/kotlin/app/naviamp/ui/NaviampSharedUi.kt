@@ -337,6 +337,16 @@ enum class SharedRoute(val label: String, val icon: ImageVector) {
     Settings("Settings", NaviampIcons.Settings),
 }
 
+data class NaviampLibrarySyncStatusUi(
+    val message: String? = null,
+    val isSyncing: Boolean = false,
+) {
+    val showRefresh: Boolean
+        get() = message?.startsWith("Library changed on server") == true ||
+            message?.startsWith("Navidrome is scanning") == true ||
+            isSyncing
+}
+
 enum class SharedPlaylistSortMode(val label: String) {
     Alphabetical("A-Z"),
     RecentlyPlayed("Recent"),
@@ -360,6 +370,8 @@ fun NaviampSharedAppShell(
     home: SharedHomeUi,
     searchResults: SharedSearchResultsUi,
     libraryArtists: List<SharedMediaItemUi>,
+    libraryQuery: String = "",
+    librarySyncStatus: NaviampLibrarySyncStatusUi = NaviampLibrarySyncStatusUi(),
     playlistItems: List<SharedMediaItemUi>,
     recentPlaylistIds: List<String> = emptyList(),
     playlistSortMode: SharedPlaylistSortMode = SharedPlaylistSortMode.Alphabetical,
@@ -378,6 +390,8 @@ fun NaviampSharedAppShell(
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit = {},
     onQueryChanged: (String) -> Unit,
     onSearch: () -> Unit,
+    onLibraryQueryChanged: (String) -> Unit = {},
+    onRefreshLibrary: () -> Unit = {},
     onTrackSelected: (AndroidTrackRowUi) -> Unit,
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
     onMixAlbumSelected: (SharedMediaItemUi) -> Unit = onAlbumSelected,
@@ -522,6 +536,8 @@ fun NaviampSharedAppShell(
                             query = query,
                             searchResults = searchResults,
                             libraryArtists = libraryArtists,
+                            libraryQuery = libraryQuery,
+                            librarySyncStatus = librarySyncStatus,
                             playlistItems = playlistItems,
                             recentPlaylistIds = recentPlaylistIds,
                             playlistSortMode = playlistSortMode,
@@ -543,6 +559,8 @@ fun NaviampSharedAppShell(
                             onResetDatabase = onResetDatabase,
                             onQueryChanged = onQueryChanged,
                             onSearch = onSearch,
+                            onLibraryQueryChanged = onLibraryQueryChanged,
+                            onRefreshLibrary = onRefreshLibrary,
                             onTrackSelected = onTrackSelected,
                             onAlbumSelected = onAlbumSelected,
                             onMixAlbumSelected = onMixAlbumSelected,
@@ -749,6 +767,8 @@ private fun ConnectedContent(
     query: String,
     searchResults: SharedSearchResultsUi,
     libraryArtists: List<SharedMediaItemUi>,
+    libraryQuery: String,
+    librarySyncStatus: NaviampLibrarySyncStatusUi,
     playlistItems: List<SharedMediaItemUi>,
     recentPlaylistIds: List<String>,
     playlistSortMode: SharedPlaylistSortMode,
@@ -767,6 +787,8 @@ private fun ConnectedContent(
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     onQueryChanged: (String) -> Unit,
     onSearch: () -> Unit,
+    onLibraryQueryChanged: (String) -> Unit,
+    onRefreshLibrary: () -> Unit,
     onTrackSelected: (AndroidTrackRowUi) -> Unit,
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
     onMixAlbumSelected: (SharedMediaItemUi) -> Unit,
@@ -924,7 +946,15 @@ private fun ConnectedContent(
                 onPlaylistRename = onPlaylistRename,
                 onPlaylistDelete = onPlaylistDelete,
             )
-            SharedRoute.Library -> MediaListContent(colors, "Library", libraryArtists, "No library artists found.", onArtistSelected)
+            SharedRoute.Library -> LibraryContent(
+                colors = colors,
+                items = libraryArtists,
+                query = libraryQuery,
+                syncStatus = librarySyncStatus,
+                onQueryChanged = onLibraryQueryChanged,
+                onRefreshLibrary = onRefreshLibrary,
+                onArtistSelected = onArtistSelected,
+            )
             SharedRoute.Search -> SearchContent(colors, query, searchResults, onQueryChanged, onSearch, onTrackSelected, onTrackAddToQueue, onAlbumSelected, onArtistSelected)
             SharedRoute.Radio -> MediaListContent(colors, "Internet Radio", radioStationItems, "No stations found.", onRadioStationSelected)
             SharedRoute.Settings -> Unit
@@ -1356,6 +1386,89 @@ private fun MediaListContent(
                 item = item,
                 colors = colors,
                 onClick = onItemSelected?.let { { it(item) } },
+            )
+        }
+    }
+}
+
+@Composable
+private fun LibraryContent(
+    colors: NaviampColors,
+    items: List<SharedMediaItemUi>,
+    query: String,
+    syncStatus: NaviampLibrarySyncStatusUi,
+    onQueryChanged: (String) -> Unit,
+    onRefreshLibrary: () -> Unit,
+    onArtistSelected: (SharedMediaItemUi) -> Unit,
+) {
+    val filteredItems = remember(items, query) {
+        val normalizedQuery = query.trim().lowercase()
+        if (normalizedQuery.isBlank()) {
+            items
+        } else {
+            items.filter { item ->
+                item.title.lowercase().contains(normalizedQuery) ||
+                    item.subtitle.lowercase().contains(normalizedQuery) ||
+                    item.meta.lowercase().contains(normalizedQuery)
+            }
+        }
+    }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        item {
+            Text("Library", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        }
+        item {
+            NaviampTextField(
+                value = query,
+                onValueChange = onQueryChanged,
+                label = "Search library artists",
+                colors = colors,
+            )
+        }
+        syncStatus.message?.let { message ->
+            item {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        message,
+                        color = colors.secondaryText,
+                        fontSize = 12.sp,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (syncStatus.showRefresh) {
+                        TextButton(
+                            enabled = !syncStatus.isSyncing,
+                            onClick = onRefreshLibrary,
+                        ) {
+                            Text(if (syncStatus.isSyncing) "Refreshing..." else "Refresh", fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
+        }
+        if (filteredItems.isEmpty()) {
+            item {
+                Text(
+                    if (query.isBlank()) "No library artists found." else "No library artists match.",
+                    color = colors.secondaryText,
+                    fontSize = 13.sp,
+                )
+            }
+        }
+        items(
+            items = filteredItems,
+            key = { item -> item.id },
+        ) { item ->
+            SharedMediaRow(
+                item = item,
+                colors = colors,
+                onClick = { onArtistSelected(item) },
             )
         }
     }

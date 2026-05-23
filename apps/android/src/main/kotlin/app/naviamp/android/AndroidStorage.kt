@@ -86,6 +86,11 @@ class AndroidStorage(
     fun latestNavidromeConnection(): NavidromeConnection? =
         latestNavidromeSource()?.toNavidromeConnection()
 
+    override fun mediaSource(sourceId: String): SavedMediaSource? =
+        queries.selectMediaSourceById(sourceId)
+            .executeAsOneOrNull()
+            ?.toSavedMediaSource()
+
     fun upsertNavidromeSource(connection: NavidromeConnection, cacheNamespace: String, providerId: String): MediaSourceIdentity {
         val now = System.currentTimeMillis()
         val existing = queries.selectMediaSourceByCacheNamespace(cacheNamespace).executeAsOneOrNull()
@@ -460,6 +465,10 @@ class AndroidStorage(
 
     override fun markLibrarySyncCompleted(sourceId: String) {
         queries.markMediaSourceSyncCompleted(nowMillis(), sourceId)
+    }
+
+    override fun markLibraryScanChecked(sourceId: String, signature: String) {
+        queries.markMediaSourceLibraryScanChecked(signature, nowMillis(), sourceId)
     }
 
     override fun upsertLibraryArtists(sourceId: String, artists: List<Artist>) {

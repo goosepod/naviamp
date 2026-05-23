@@ -92,6 +92,7 @@ import app.naviamp.ui.AndroidTrackRowUi
 import app.naviamp.ui.NaviampNowPlayingItemUi
 import app.naviamp.ui.NaviampDiagnosticsSectionUi
 import app.naviamp.ui.NaviampDiagnosticsUi
+import app.naviamp.ui.NaviampLibrarySyncStatusUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampSharedAppShell
 import app.naviamp.ui.NowPlayingRadioUiConfig
@@ -220,7 +221,10 @@ private fun NaviampAndroidApp(
     var playlistSortMode by remember { mutableStateOf(SharedPlaylistSortMode.Alphabetical) }
     var recentPlaylistIds by remember { mutableStateOf<List<String>>(emptyList()) }
     var playlistTracksById by remember { mutableStateOf<Map<String, List<Track>>>(emptyMap()) }
+    var libraryQuery by remember { mutableStateOf("") }
     var storageStats by remember { mutableStateOf(storage.stats()) }
+    var libraryStatus by remember { mutableStateOf<String?>(null) }
+    var isLibrarySyncing by remember { mutableStateOf(false) }
     var editingConnection by remember { mutableStateOf(false) }
     var restoringConnection by remember { mutableStateOf(canAutoConnect) }
     var navigationState by remember { mutableStateOf(NaviampNavigationState()) }
@@ -1316,6 +1320,82 @@ private fun NaviampAndroidApp(
         return true
     }
 
+    fun startAndroidLibrarySync(force: Boolean = false) {
+        val activeProvider = provider ?: return
+        val sourceId = activeSourceId ?: return
+        if (isLibrarySyncing) return
+        if (!force && storage.libraryIndexStats(sourceId).hasUsableIndex) {
+            libraryStatus = null
+            return
+        }
+        isLibrarySyncing = true
+        libraryStatus = "Starting library import..."
+        scope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    syncAndroidLibrary(sourceId, activeProvider, storage) { progress ->
+                        withContext(Dispatchers.Main) {
+                            if (progress.artists != null) {
+                                homeState = homeState.copy(artists = progress.artists)
+                            }
+                            libraryStatus = progress.label
+                            if (nowPlaying == null && nowPlayingStation == null) {
+                                status = progress.label
+                            }
+                        }
+                    }
+                    activeProvider.libraryScanStatus()?.signature?.let { signature ->
+                        storage.markLibraryScanChecked(sourceId, signature)
+                    }
+                }
+            }.onSuccess {
+                libraryStatus = null
+                if (nowPlaying == null && nowPlayingStation == null) {
+                    status = "Library refreshed."
+                }
+            }.onFailure { error ->
+                libraryStatus = error.message ?: "Could not import library."
+                status = libraryStatus.orEmpty()
+            }
+            isLibrarySyncing = false
+        }
+    }
+
+    fun checkAndroidLibraryFreshness() {
+        val activeProvider = provider ?: return
+        val sourceId = activeSourceId ?: return
+        if (isLibrarySyncing) return
+        scope.launch {
+            val freshness = withContext(Dispatchers.IO) {
+                val scanStatus = activeProvider.libraryScanStatus()
+                AndroidLibraryFreshness(
+                    signature = scanStatus?.signature,
+                    previousSignature = storage.mediaSource(sourceId)?.lastLibraryScanSignature,
+                    scanning = scanStatus?.scanning == true,
+                )
+            }
+            val signature = freshness.signature ?: return@launch
+            when {
+                freshness.previousSignature == null -> {
+                    withContext(Dispatchers.IO) {
+                        storage.markLibraryScanChecked(sourceId, signature)
+                    }
+                }
+                freshness.previousSignature != signature -> {
+                    libraryStatus = if (freshness.scanning) {
+                        "Navidrome is scanning. Refresh library after the scan finishes."
+                    } else {
+                        "Library changed on server. Refresh library to import updates."
+                    }
+                }
+                libraryStatus?.startsWith("Library changed on server") == true ||
+                    libraryStatus?.startsWith("Navidrome is scanning") == true -> {
+                    libraryStatus = null
+                }
+            }
+        }
+    }
+
     fun currentConnectionForm(): ConnectionFormState =
         ConnectionFormState(
             displayName = connectionName,
@@ -1348,27 +1428,6 @@ private fun NaviampAndroidApp(
                 activeSourceId = mediaSource.id
                 activeTlsSettings = tlsSettings
                 restorePlaybackSession(mediaSource.id)
-                val libraryStats = storage.libraryIndexStats(mediaSource.id)
-                if (libraryStats.artistCount == 0L || libraryStats.albumCount == 0L) {
-                    scope.launch(Dispatchers.IO) {
-                        runCatching {
-                            syncAndroidLibrary(mediaSource.id, nextProvider, storage) { progress ->
-                                withContext(Dispatchers.Main) {
-                                    if (progress.artists != null) {
-                                        homeState = homeState.copy(artists = progress.artists)
-                                    }
-                                    if (nowPlaying == null && nowPlayingStation == null) {
-                                        status = progress.label
-                                    }
-                                }
-                            }
-                        }.onFailure { error ->
-                            withContext(Dispatchers.Main) {
-                                status = error.message ?: "Library index failed."
-                            }
-                        }
-                    }
-                }
             }.onSuccess {
                 if (nowPlaying == null && nowPlayingStation == null) {
                     status = "Connected."
@@ -1376,6 +1435,8 @@ private fun NaviampAndroidApp(
                 restoringConnection = false
                 editingConnection = false
                 navigationState = navigationState.copy(route = NaviampRoute.Home)
+                startAndroidLibrarySync(force = false)
+                checkAndroidLibraryFreshness()
             }.onFailure { error ->
                 status = error.message ?: "Connection failed."
                 restoringConnection = false
@@ -1468,6 +1529,15 @@ private fun NaviampAndroidApp(
         }
     }
 
+    LaunchedEffect(provider, activeSourceId) {
+        if (provider == null || activeSourceId == null) return@LaunchedEffect
+        checkAndroidLibraryFreshness()
+        while (true) {
+            delay(AndroidLibraryFreshnessCheckIntervalMillis)
+            checkAndroidLibraryFreshness()
+        }
+    }
+
     val diagnostics = androidDiagnostics(
         storageStats = storageStats,
         provider = provider,
@@ -1519,6 +1589,11 @@ private fun NaviampAndroidApp(
         libraryArtists = homeState.artists.map { artist ->
             artist.toSharedMediaItemUi { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } }
         },
+        libraryQuery = libraryQuery,
+        librarySyncStatus = NaviampLibrarySyncStatusUi(
+            message = libraryStatus,
+            isSyncing = isLibrarySyncing,
+        ),
         playlistItems = homeState.playlists.map {
             it.toSharedMediaItemUi(
                 coverArtUrl = { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
@@ -1709,6 +1784,10 @@ private fun NaviampAndroidApp(
                     status = error.message ?: "Search failed."
                 }
             }
+        },
+        onLibraryQueryChanged = { libraryQuery = it },
+        onRefreshLibrary = {
+            startAndroidLibrarySync(force = true)
         },
         onTrackSelected = { selectedTrack ->
             val currentTracks = activeQueue().takeIf { queue -> queue.any { it.id.value == selectedTrack.id } }
@@ -2141,6 +2220,12 @@ private data class AndroidLibrarySyncProgress(
     val artists: List<Artist>? = null,
 )
 
+private data class AndroidLibraryFreshness(
+    val signature: String?,
+    val previousSignature: String?,
+    val scanning: Boolean,
+)
+
 private fun Track.coverArtUrl(provider: NavidromeProvider?): String? =
     (coverArtId ?: albumId?.value)?.let { provider?.coverArtUrl(it) }
 
@@ -2439,6 +2524,7 @@ private const val PendingSeekStaleProgressWindowMillis = 1_500L
 private const val AndroidGaplessPrepareWindowSeconds = 2.0
 private const val AndroidSidecarPrepDepth = 5
 private const val AndroidPlaybackSessionSaveIntervalMillis = 5_000L
+private const val AndroidLibraryFreshnessCheckIntervalMillis = 60_000L
 private const val AndroidLibraryAlbumPageSize = 500
 private const val AndroidLibraryArtistLimit = 100_000
 private const val AndroidPopularRadioSeedLimit = 5

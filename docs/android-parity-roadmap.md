@@ -65,9 +65,10 @@ Android already uses the shared Compose UI shell for the main app surface, so ma
 
 - [ ] **Library sync and refresh parity**
   - Android indexes artists and albums, and stores media source scan signatures.
-  - Confirm it uses the same lightweight scan-status refresh behavior as desktop.
-  - Add an obvious manual refresh/re-sync path for changed Navidrome libraries.
-  - Ensure Android does not run a full import on every startup once a usable index exists.
+  - [x] Use the same lightweight Navidrome scan-signature refresh behavior as desktop.
+  - [x] Add an obvious manual refresh/re-sync path for changed Navidrome libraries.
+  - [x] Ensure Android does not run a full import on every startup once a usable index exists.
+  - [x] Add a reusable shared Library search bar for filtering artists.
 
 - [ ] **Lyrics parity**
   - Android uses provider lyrics and LRCLIB fallback.

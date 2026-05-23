@@ -9,6 +9,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.popular.ArtistPopularTracksRepository
+import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.waveform.AudioWaveform
 
 interface ImageCacheRepository {
@@ -92,6 +93,10 @@ interface PlaybackHistoryRepository<HistoryItem> {
 }
 
 interface LocalLibraryIndexRepository : ArtistPopularTracksRepository {
+    fun mediaSource(sourceId: String): SavedMediaSource?
+
+    fun markLibraryScanChecked(sourceId: String, signature: String)
+
     fun markLibrarySyncStarted(sourceId: String)
 
     fun markLibrarySyncCompleted(sourceId: String)

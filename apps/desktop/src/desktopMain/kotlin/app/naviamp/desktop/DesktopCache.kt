@@ -163,7 +163,7 @@ class DesktopCache(
     fun mediaSources(): List<SavedMediaSource> =
         queries.selectMediaSources().executeAsList().map { it.toSavedMediaSource() }
 
-    fun mediaSource(sourceId: String): SavedMediaSource? =
+    override fun mediaSource(sourceId: String): SavedMediaSource? =
         queries.selectMediaSourceById(sourceId).executeAsOneOrNull()?.toSavedMediaSource()
 
     fun deleteMediaSource(sourceId: String) {
@@ -649,7 +649,7 @@ class DesktopCache(
         queries.markMediaSourceSyncCompleted(nowMillis(), sourceId)
     }
 
-    fun markLibraryScanChecked(sourceId: String, signature: String) {
+    override fun markLibraryScanChecked(sourceId: String, signature: String) {
         queries.markMediaSourceLibraryScanChecked(signature, nowMillis(), sourceId)
     }
 
