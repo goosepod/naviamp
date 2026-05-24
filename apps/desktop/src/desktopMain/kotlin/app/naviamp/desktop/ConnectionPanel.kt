@@ -126,7 +126,7 @@ fun ConnectionPanel(
                                 provider = connectedProvider,
                                 tracks = selectedTracks,
                                 index = 0,
-                                quality = playbackEngine.streamQuality(),
+                                quality = playbackSettings.streamQuality(playbackEngine),
                                 replayGainMode = playbackSettings.replayGainMode,
                                 callbacks = playlistCallbacks,
                             )
@@ -146,7 +146,7 @@ fun ConnectionPanel(
                                 provider = connectedProvider,
                                 tracks = selectedTracks.shuffled(),
                                 index = 0,
-                                quality = playbackEngine.streamQuality(),
+                                quality = playbackSettings.streamQuality(playbackEngine),
                                 replayGainMode = playbackSettings.replayGainMode,
                                 callbacks = playlistCallbacks,
                             )
@@ -168,7 +168,7 @@ fun ConnectionPanel(
                                     provider = connectedProvider,
                                     tracks = selectedTracks,
                                     index = index,
-                                    quality = playbackEngine.streamQuality(),
+                                    quality = playbackSettings.streamQuality(playbackEngine),
                                     replayGainMode = playbackSettings.replayGainMode,
                                     callbacks = playlistCallbacks,
                                 )

@@ -371,6 +371,7 @@ fun NaviampSharedAppShell(
     supportsReplayGain: Boolean = false,
     supportsGapless: Boolean = true,
     supportsCrossfade: Boolean = false,
+    showMobileNetworkQuality: Boolean = false,
     query: String,
     home: SharedHomeUi,
     searchResults: SharedSearchResultsUi,
@@ -384,12 +385,15 @@ fun NaviampSharedAppShell(
     playlistItems: List<SharedMediaItemUi>,
     recentPlaylistIds: List<String> = emptyList(),
     playlistSortMode: SharedPlaylistSortMode = SharedPlaylistSortMode.Alphabetical,
+    playlistChoices: List<NaviampPlaylistChoiceUi> = emptyList(),
+    playlistActionStatus: String? = null,
     radioStationItems: List<SharedMediaItemUi>,
     albumDetail: SharedAlbumDetailUi?,
     artistDetail: SharedArtistDetailUi?,
     playlistDetail: SharedPlaylistDetailUi? = null,
     nowPlaying: NowPlayingUi?,
     nowPlayingOpen: Boolean,
+    selectedVisualizer: NaviampVisualizer = NaviampVisualizer.AudioSphere,
     selectedRoute: SharedRoute,
     onRouteSelected: (SharedRoute) -> Unit,
     onConnectionFormChanged: (ConnectionFormState) -> Unit,
@@ -408,16 +412,33 @@ fun NaviampSharedAppShell(
     onMixAlbumSelected: (SharedMediaItemUi) -> Unit = onAlbumSelected,
     onAlbumPlay: (SharedAlbumDetailUi, Boolean) -> Unit = { _, _ -> },
     onAlbumRadio: (SharedAlbumDetailUi) -> Unit = {},
+    onAlbumDownload: (SharedAlbumDetailUi) -> Unit = {},
     onAlbumAddToQueue: (SharedAlbumDetailUi) -> Unit = {},
+    onAlbumAddToPlaylist: (SharedAlbumDetailUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
+    onAlbumCreatePlaylistAndAdd: (SharedAlbumDetailUi, String) -> Unit = { _, _ -> },
+    onAlbumTrackDownload: (AndroidTrackRowUi) -> Unit = {},
+    onAlbumTrackAddToPlaylist: (AndroidTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
+    onAlbumTrackCreatePlaylistAndAdd: (AndroidTrackRowUi, String) -> Unit = { _, _ -> },
     onArtistSelected: (SharedMediaItemUi) -> Unit,
     onArtistRadio: (SharedArtistDetailUi) -> Unit = {},
+    onArtistAddToQueue: (SharedArtistDetailUi) -> Unit = {},
+    onArtistAddToPlaylist: (SharedArtistDetailUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
+    onArtistCreatePlaylistAndAdd: (SharedArtistDetailUi, String) -> Unit = { _, _ -> },
     onArtistPopularPlay: (SharedArtistDetailUi) -> Unit = {},
     onArtistPopularRadio: (SharedArtistDetailUi) -> Unit = {},
     onArtistPopularAddToQueue: (SharedArtistDetailUi) -> Unit = {},
     onArtistPopularTrackAddToQueue: (AndroidTrackRowUi) -> Unit = {},
+    onArtistPopularTrackDownload: (AndroidTrackRowUi) -> Unit = {},
+    onArtistPopularTrackAddToPlaylist: (AndroidTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
+    onArtistPopularTrackCreatePlaylistAndAdd: (AndroidTrackRowUi, String) -> Unit = { _, _ -> },
     onFindSimilarArtists: (SharedArtistDetailUi) -> Unit = {},
     onSimilarArtistSelected: (SharedSimilarArtistUi) -> Unit = {},
     onSimilarArtistExternalSelected: (String) -> Unit = {},
+    onArtistAlbumRadio: (SharedMediaItemUi) -> Unit = {},
+    onArtistAlbumDownload: (SharedMediaItemUi) -> Unit = {},
+    onArtistAlbumAddToQueue: (SharedMediaItemUi) -> Unit = {},
+    onArtistAlbumAddToPlaylist: (SharedMediaItemUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
+    onArtistAlbumCreatePlaylistAndAdd: (SharedMediaItemUi, String) -> Unit = { _, _ -> },
     onPlaylistSelected: (SharedMediaItemUi) -> Unit,
     onPlaylistSortModeChanged: (SharedPlaylistSortMode) -> Unit = {},
     onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit = { _, _ -> },
@@ -442,6 +463,7 @@ fun NaviampSharedAppShell(
     onCycleRepeatMode: () -> Unit = {},
     onToggleLyrics: () -> Unit = {},
     onToggleVisualizer: () -> Unit = {},
+    onVisualizerSelected: (NaviampVisualizer) -> Unit = {},
     onTrackRadio: () -> Unit = {},
     onAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit = {},
     onCreatePlaylistAndAdd: (String) -> Unit = {},
@@ -471,16 +493,12 @@ fun NaviampSharedAppShell(
                 selectedRoute == SharedRoute.Library ||
                 selectedRoute == SharedRoute.Radio
             )
-    val nowPlayingPlayerColors = if (showFullNowPlaying) {
+    val nowPlayingPlayerColors = if (nowPlaying != null) {
         rememberPlatformCoverArtPlayerColors(nowPlaying.coverArtUrl, colors)
     } else {
         NaviampPlayerColors.fallback(colors)
     }
-    val backgroundGradientColors = if (showFullNowPlaying) {
-        nowPlayingPlayerColors.gradientColors
-    } else {
-        listOf(colors.backgroundWarm, colors.background, colors.backgroundOlive)
-    }
+    val backgroundGradientColors = nowPlayingPlayerColors.gradientColors
     MaterialTheme(
         colorScheme = darkColorScheme(
             background = colors.background,
@@ -556,17 +574,21 @@ fun NaviampSharedAppShell(
                             playlistItems = playlistItems,
                             recentPlaylistIds = recentPlaylistIds,
                             playlistSortMode = playlistSortMode,
+                            playlistChoices = playlistChoices,
+                            playlistActionStatus = playlistActionStatus,
                             radioStationItems = radioStationItems,
                             albumDetail = albumDetail,
                             artistDetail = artistDetail,
                             playlistDetail = playlistDetail,
                             nowPlaying = nowPlaying,
                             nowPlayingOpen = nowPlayingOpen,
+                            selectedVisualizer = selectedVisualizer,
                             playbackSettings = playbackSettings,
                             diagnostics = diagnostics,
                             supportsReplayGain = supportsReplayGain,
                             supportsGapless = supportsGapless,
                             supportsCrossfade = supportsCrossfade,
+                            showMobileNetworkQuality = showMobileNetworkQuality,
                             onEditConnection = onEditConnection,
                             onPlaybackSettingsChanged = onPlaybackSettingsChanged,
                             onClearCache = onClearCache,
@@ -583,16 +605,33 @@ fun NaviampSharedAppShell(
                             onMixAlbumSelected = onMixAlbumSelected,
                             onAlbumPlay = onAlbumPlay,
                             onAlbumRadio = onAlbumRadio,
+                            onAlbumDownload = onAlbumDownload,
                             onAlbumAddToQueue = onAlbumAddToQueue,
+                            onAlbumAddToPlaylist = onAlbumAddToPlaylist,
+                            onAlbumCreatePlaylistAndAdd = onAlbumCreatePlaylistAndAdd,
+                            onAlbumTrackDownload = onAlbumTrackDownload,
+                            onAlbumTrackAddToPlaylist = onAlbumTrackAddToPlaylist,
+                            onAlbumTrackCreatePlaylistAndAdd = onAlbumTrackCreatePlaylistAndAdd,
                             onArtistSelected = onArtistSelected,
                             onArtistRadio = onArtistRadio,
+                            onArtistAddToQueue = onArtistAddToQueue,
+                            onArtistAddToPlaylist = onArtistAddToPlaylist,
+                            onArtistCreatePlaylistAndAdd = onArtistCreatePlaylistAndAdd,
                             onArtistPopularPlay = onArtistPopularPlay,
                             onArtistPopularRadio = onArtistPopularRadio,
                             onArtistPopularAddToQueue = onArtistPopularAddToQueue,
                             onArtistPopularTrackAddToQueue = onArtistPopularTrackAddToQueue,
+                            onArtistPopularTrackDownload = onArtistPopularTrackDownload,
+                            onArtistPopularTrackAddToPlaylist = onArtistPopularTrackAddToPlaylist,
+                            onArtistPopularTrackCreatePlaylistAndAdd = onArtistPopularTrackCreatePlaylistAndAdd,
                             onFindSimilarArtists = onFindSimilarArtists,
                             onSimilarArtistSelected = onSimilarArtistSelected,
                             onSimilarArtistExternalSelected = onSimilarArtistExternalSelected,
+                            onArtistAlbumRadio = onArtistAlbumRadio,
+                            onArtistAlbumDownload = onArtistAlbumDownload,
+                            onArtistAlbumAddToQueue = onArtistAlbumAddToQueue,
+                            onArtistAlbumAddToPlaylist = onArtistAlbumAddToPlaylist,
+                            onArtistAlbumCreatePlaylistAndAdd = onArtistAlbumCreatePlaylistAndAdd,
                             onPlaylistSelected = onPlaylistSelected,
                             onPlaylistSortModeChanged = onPlaylistSortModeChanged,
                             onPlaylistPlay = onPlaylistPlay,
@@ -617,6 +656,7 @@ fun NaviampSharedAppShell(
                             onCycleRepeatMode = onCycleRepeatMode,
                             onToggleLyrics = onToggleLyrics,
                             onToggleVisualizer = onToggleVisualizer,
+                            onVisualizerSelected = onVisualizerSelected,
                             onTrackRadio = onTrackRadio,
                             onAddToPlaylist = onAddToPlaylist,
                             onCreatePlaylistAndAdd = onCreatePlaylistAndAdd,
@@ -793,17 +833,21 @@ private fun ConnectedContent(
     playlistItems: List<SharedMediaItemUi>,
     recentPlaylistIds: List<String>,
     playlistSortMode: SharedPlaylistSortMode,
+    playlistChoices: List<NaviampPlaylistChoiceUi>,
+    playlistActionStatus: String?,
     radioStationItems: List<SharedMediaItemUi>,
     albumDetail: SharedAlbumDetailUi?,
     artistDetail: SharedArtistDetailUi?,
     playlistDetail: SharedPlaylistDetailUi?,
     nowPlaying: NowPlayingUi?,
     nowPlayingOpen: Boolean,
+    selectedVisualizer: NaviampVisualizer,
     playbackSettings: PlaybackSettings,
     diagnostics: NaviampDiagnosticsUi,
     supportsReplayGain: Boolean = false,
     supportsGapless: Boolean = true,
     supportsCrossfade: Boolean = false,
+    showMobileNetworkQuality: Boolean = false,
     onEditConnection: () -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     onQueryChanged: (String) -> Unit,
@@ -817,16 +861,33 @@ private fun ConnectedContent(
     onMixAlbumSelected: (SharedMediaItemUi) -> Unit,
     onAlbumPlay: (SharedAlbumDetailUi, Boolean) -> Unit,
     onAlbumRadio: (SharedAlbumDetailUi) -> Unit,
+    onAlbumDownload: (SharedAlbumDetailUi) -> Unit,
     onAlbumAddToQueue: (SharedAlbumDetailUi) -> Unit,
+    onAlbumAddToPlaylist: (SharedAlbumDetailUi, NaviampPlaylistChoiceUi?) -> Unit,
+    onAlbumCreatePlaylistAndAdd: (SharedAlbumDetailUi, String) -> Unit,
+    onAlbumTrackDownload: (AndroidTrackRowUi) -> Unit,
+    onAlbumTrackAddToPlaylist: (AndroidTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
+    onAlbumTrackCreatePlaylistAndAdd: (AndroidTrackRowUi, String) -> Unit,
     onArtistSelected: (SharedMediaItemUi) -> Unit,
     onArtistRadio: (SharedArtistDetailUi) -> Unit,
+    onArtistAddToQueue: (SharedArtistDetailUi) -> Unit,
+    onArtistAddToPlaylist: (SharedArtistDetailUi, NaviampPlaylistChoiceUi?) -> Unit,
+    onArtistCreatePlaylistAndAdd: (SharedArtistDetailUi, String) -> Unit,
     onArtistPopularPlay: (SharedArtistDetailUi) -> Unit,
     onArtistPopularRadio: (SharedArtistDetailUi) -> Unit,
     onArtistPopularAddToQueue: (SharedArtistDetailUi) -> Unit,
     onArtistPopularTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
+    onArtistPopularTrackDownload: (AndroidTrackRowUi) -> Unit,
+    onArtistPopularTrackAddToPlaylist: (AndroidTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
+    onArtistPopularTrackCreatePlaylistAndAdd: (AndroidTrackRowUi, String) -> Unit,
     onFindSimilarArtists: (SharedArtistDetailUi) -> Unit,
     onSimilarArtistSelected: (SharedSimilarArtistUi) -> Unit,
     onSimilarArtistExternalSelected: (String) -> Unit,
+    onArtistAlbumRadio: (SharedMediaItemUi) -> Unit,
+    onArtistAlbumDownload: (SharedMediaItemUi) -> Unit,
+    onArtistAlbumAddToQueue: (SharedMediaItemUi) -> Unit,
+    onArtistAlbumAddToPlaylist: (SharedMediaItemUi, NaviampPlaylistChoiceUi?) -> Unit,
+    onArtistAlbumCreatePlaylistAndAdd: (SharedMediaItemUi, String) -> Unit,
     onPlaylistSelected: (SharedMediaItemUi) -> Unit,
     onPlaylistSortModeChanged: (SharedPlaylistSortMode) -> Unit,
     onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit,
@@ -851,6 +912,7 @@ private fun ConnectedContent(
     onCycleRepeatMode: () -> Unit,
     onToggleLyrics: () -> Unit,
     onToggleVisualizer: () -> Unit,
+    onVisualizerSelected: (NaviampVisualizer) -> Unit,
     onTrackRadio: () -> Unit,
     onAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit,
     onCreatePlaylistAndAdd: (String) -> Unit,
@@ -878,6 +940,7 @@ private fun ConnectedContent(
             nowPlaying = nowPlaying,
             colors = colors,
             playerColors = nowPlayingPlayerColors,
+            selectedVisualizer = selectedVisualizer,
             onBack = onCloseNowPlaying,
             onPause = onPause,
             onResume = onResume,
@@ -890,6 +953,7 @@ private fun ConnectedContent(
             onCycleRepeatMode = onCycleRepeatMode,
             onToggleLyrics = onToggleLyrics,
             onToggleVisualizer = onToggleVisualizer,
+            onVisualizerSelected = onVisualizerSelected,
             onTrackRadio = onTrackRadio,
             onAddToPlaylist = onAddToPlaylist,
             onCreatePlaylistAndAdd = onCreatePlaylistAndAdd,
@@ -912,6 +976,7 @@ private fun ConnectedContent(
             supportsReplayGain = supportsReplayGain,
             supportsGapless = supportsGapless,
             supportsCrossfade = supportsCrossfade,
+            showMobileNetworkQuality = showMobileNetworkQuality,
             onEditConnection = onEditConnection,
             onPlaybackSettingsChanged = onPlaybackSettingsChanged,
             onClearCache = onClearCache,
@@ -925,24 +990,45 @@ private fun ConnectedContent(
             onPlayAlbum = { onAlbumPlay(albumDetail, false) },
             onShuffleAlbum = { onAlbumPlay(albumDetail, true) },
             onAlbumRadio = { onAlbumRadio(albumDetail) },
+            onAlbumDownload = { onAlbumDownload(albumDetail) },
             onAlbumAddToQueue = { onAlbumAddToQueue(albumDetail) },
+            onAlbumAddToPlaylist = { playlist -> onAlbumAddToPlaylist(albumDetail, playlist) },
+            onAlbumCreatePlaylistAndAdd = { name -> onAlbumCreatePlaylistAndAdd(albumDetail, name) },
             onTrackSelected = onTrackSelected,
             onTrackAddToQueue = onTrackAddToQueue,
+            onTrackDownload = onAlbumTrackDownload,
+            onTrackAddToPlaylist = onAlbumTrackAddToPlaylist,
+            onTrackCreatePlaylistAndAdd = onAlbumTrackCreatePlaylistAndAdd,
+            playlistChoices = playlistChoices,
+            playlistActionStatus = playlistActionStatus,
         )
         artistDetail != null -> ArtistDetailContent(
             colors = colors,
             detail = artistDetail,
             onBack = onCloseNowPlaying,
             onArtistRadio = { onArtistRadio(artistDetail) },
+            onArtistAddToQueue = { onArtistAddToQueue(artistDetail) },
+            onArtistAddToPlaylist = { playlist -> onArtistAddToPlaylist(artistDetail, playlist) },
+            onArtistCreatePlaylistAndAdd = { name -> onArtistCreatePlaylistAndAdd(artistDetail, name) },
             onPopularPlay = { onArtistPopularPlay(artistDetail) },
             onPopularRadio = { onArtistPopularRadio(artistDetail) },
             onPopularAddToQueue = { onArtistPopularAddToQueue(artistDetail) },
             onPopularTrackSelected = onTrackSelected,
             onPopularTrackAddToQueue = onArtistPopularTrackAddToQueue,
+            onPopularTrackDownload = onArtistPopularTrackDownload,
+            onPopularTrackAddToPlaylist = onArtistPopularTrackAddToPlaylist,
+            onPopularTrackCreatePlaylistAndAdd = onArtistPopularTrackCreatePlaylistAndAdd,
             onFindSimilarArtists = { onFindSimilarArtists(artistDetail) },
             onSimilarArtistSelected = onSimilarArtistSelected,
             onSimilarArtistExternalSelected = onSimilarArtistExternalSelected,
             onAlbumSelected = onAlbumSelected,
+            onAlbumRadio = onArtistAlbumRadio,
+            onAlbumDownload = onArtistAlbumDownload,
+            onAlbumAddToQueue = onArtistAlbumAddToQueue,
+            onAlbumAddToPlaylist = onArtistAlbumAddToPlaylist,
+            onAlbumCreatePlaylistAndAdd = onArtistAlbumCreatePlaylistAndAdd,
+            playlistChoices = playlistChoices,
+            playlistActionStatus = playlistActionStatus,
         )
         playlistDetail != null -> PlaylistDetailContent(
             colors = colors,
@@ -1581,10 +1667,21 @@ private fun AlbumDetailContent(
     onPlayAlbum: () -> Unit,
     onShuffleAlbum: () -> Unit,
     onAlbumRadio: () -> Unit,
+    onAlbumDownload: () -> Unit,
     onAlbumAddToQueue: () -> Unit,
+    onAlbumAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit,
+    onAlbumCreatePlaylistAndAdd: (String) -> Unit,
     onTrackSelected: (AndroidTrackRowUi) -> Unit,
     onTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
+    onTrackDownload: (AndroidTrackRowUi) -> Unit,
+    onTrackAddToPlaylist: (AndroidTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
+    onTrackCreatePlaylistAndAdd: (AndroidTrackRowUi, String) -> Unit,
+    playlistChoices: List<NaviampPlaylistChoiceUi>,
+    playlistActionStatus: String?,
 ) {
+    var addAlbumToPlaylistOpen by remember(detail.album.id) { mutableStateOf(false) }
+    var trackForPlaylist by remember(detail.album.id) { mutableStateOf<AndroidTrackRowUi?>(null) }
+
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize(),
@@ -1614,7 +1711,11 @@ private fun AlbumDetailContent(
                     MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampTransportIcons.Play, "Play album", onPlayAlbum)
                     MiniPlayerIconButton(colors, detail.tracks.size > 1, NaviampTransportIcons.Shuffle, "Shuffle album", onShuffleAlbum)
                     MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampTransportIcons.Radio, "Start album radio", onAlbumRadio)
+                    MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampIcons.Downloads, "Download album", onAlbumDownload)
                     MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampIcons.Queue, "Add album to queue", onAlbumAddToQueue)
+                    MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampIcons.Playlist, "Add album to playlist") {
+                        addAlbumToPlaylistOpen = true
+                    }
                 }
             }
         }
@@ -1631,10 +1732,48 @@ private fun AlbumDetailContent(
                     colors,
                     onTrackSelected,
                     onAddToQueue = onTrackAddToQueue,
+                    onDownload = onTrackDownload,
+                    onAddToPlaylist = { selectedTrack -> trackForPlaylist = selectedTrack },
                     reservePopularIndicatorSpace = reservePopularIndicatorSpace,
                 )
             }
         }
+    }
+
+    if (addAlbumToPlaylistOpen) {
+        AddToPlaylistDialog(
+            title = detail.album.title,
+            colors = colors,
+            playlists = playlistChoices,
+            status = playlistActionStatus,
+            onDismissRequest = { addAlbumToPlaylistOpen = false },
+            onAddToExisting = { playlist ->
+                addAlbumToPlaylistOpen = false
+                onAlbumAddToPlaylist(playlist)
+            },
+            onCreateAndAdd = { name ->
+                addAlbumToPlaylistOpen = false
+                onAlbumCreatePlaylistAndAdd(name)
+            },
+        )
+    }
+
+    trackForPlaylist?.let { track ->
+        AddToPlaylistDialog(
+            title = track.title,
+            colors = colors,
+            playlists = playlistChoices,
+            status = playlistActionStatus,
+            onDismissRequest = { trackForPlaylist = null },
+            onAddToExisting = { playlist ->
+                trackForPlaylist = null
+                onTrackAddToPlaylist(track, playlist)
+            },
+            onCreateAndAdd = { name ->
+                trackForPlaylist = null
+                onTrackCreatePlaylistAndAdd(track, name)
+            },
+        )
     }
 }
 
@@ -1644,16 +1783,33 @@ private fun ArtistDetailContent(
     detail: SharedArtistDetailUi,
     onBack: () -> Unit,
     onArtistRadio: () -> Unit,
+    onArtistAddToQueue: () -> Unit,
+    onArtistAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit,
+    onArtistCreatePlaylistAndAdd: (String) -> Unit,
     onPopularPlay: () -> Unit,
     onPopularRadio: () -> Unit,
     onPopularAddToQueue: () -> Unit,
     onPopularTrackSelected: (AndroidTrackRowUi) -> Unit,
     onPopularTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
+    onPopularTrackDownload: (AndroidTrackRowUi) -> Unit,
+    onPopularTrackAddToPlaylist: (AndroidTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
+    onPopularTrackCreatePlaylistAndAdd: (AndroidTrackRowUi, String) -> Unit,
     onFindSimilarArtists: () -> Unit,
     onSimilarArtistSelected: (SharedSimilarArtistUi) -> Unit,
     onSimilarArtistExternalSelected: (String) -> Unit,
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
+    onAlbumRadio: (SharedMediaItemUi) -> Unit,
+    onAlbumDownload: (SharedMediaItemUi) -> Unit,
+    onAlbumAddToQueue: (SharedMediaItemUi) -> Unit,
+    onAlbumAddToPlaylist: (SharedMediaItemUi, NaviampPlaylistChoiceUi?) -> Unit,
+    onAlbumCreatePlaylistAndAdd: (SharedMediaItemUi, String) -> Unit,
+    playlistChoices: List<NaviampPlaylistChoiceUi>,
+    playlistActionStatus: String?,
 ) {
+    var addArtistToPlaylistOpen by remember(detail.artist.id) { mutableStateOf(false) }
+    var popularTrackForPlaylist by remember(detail.artist.id) { mutableStateOf<AndroidTrackRowUi?>(null) }
+    var albumForPlaylist by remember(detail.artist.id) { mutableStateOf<SharedMediaItemUi?>(null) }
+
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize(),
@@ -1667,6 +1823,10 @@ private fun ArtistDetailContent(
                 Text("${detail.albums.size} albums", color = colors.secondaryText, fontSize = 13.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     MiniPlayerIconButton(colors, detail.albums.isNotEmpty(), NaviampTransportIcons.Radio, "Start artist radio", onArtistRadio)
+                    MiniPlayerIconButton(colors, detail.albums.isNotEmpty(), NaviampIcons.Queue, "Add artist to queue", onArtistAddToQueue)
+                    MiniPlayerIconButton(colors, detail.albums.isNotEmpty(), NaviampIcons.Playlist, "Add artist to playlist") {
+                        addArtistToPlaylistOpen = true
+                    }
                     MiniPlayerIconButton(colors, detail.popularTracks.isNotEmpty(), NaviampTransportIcons.Play, "Play popular tracks", onPopularPlay)
                     MiniPlayerIconButton(colors, detail.popularTracks.isNotEmpty(), NaviampIcons.Queue, "Add popular tracks to queue", onPopularAddToQueue)
                     MiniPlayerIconButton(colors, true, NaviampIcons.Artist, "Find similar artists", onFindSimilarArtists)
@@ -1725,6 +1885,8 @@ private fun ArtistDetailContent(
                             colors,
                             onPopularTrackSelected,
                             onAddToQueue = onPopularTrackAddToQueue,
+                            onDownload = onPopularTrackDownload,
+                            onAddToPlaylist = { selectedTrack -> popularTrackForPlaylist = selectedTrack },
                         )
                     }
                 }
@@ -1738,10 +1900,78 @@ private fun ArtistDetailContent(
                         item = album,
                         colors = colors,
                         onClick = { onAlbumSelected(album) },
+                        menuItems = albumRowActions(
+                            canStartRadio = true,
+                            canDownload = true,
+                            canAddToQueue = true,
+                            canAddToPlaylist = true,
+                        ).mapNotNull { action ->
+                            when (action.action) {
+                                NaviampAction.StartAlbumRadio -> NaviampRowMenuItem(action.label, action.icon, { onAlbumRadio(album) }, action.enabled)
+                                NaviampAction.DownloadAlbum -> NaviampRowMenuItem(action.label, action.icon, { onAlbumDownload(album) }, action.enabled)
+                                NaviampAction.AddToQueue -> NaviampRowMenuItem(action.label, action.icon, { onAlbumAddToQueue(album) }, action.enabled)
+                                NaviampAction.AddToPlaylist -> NaviampRowMenuItem(action.label, action.icon, { albumForPlaylist = album }, action.enabled)
+                                else -> null
+                            }
+                        },
                     )
                 }
             }
         }
+    }
+
+    if (addArtistToPlaylistOpen) {
+        AddToPlaylistDialog(
+            title = detail.artist.title,
+            colors = colors,
+            playlists = playlistChoices,
+            status = playlistActionStatus,
+            onDismissRequest = { addArtistToPlaylistOpen = false },
+            onAddToExisting = { playlist ->
+                addArtistToPlaylistOpen = false
+                onArtistAddToPlaylist(playlist)
+            },
+            onCreateAndAdd = { name ->
+                addArtistToPlaylistOpen = false
+                onArtistCreatePlaylistAndAdd(name)
+            },
+        )
+    }
+
+    popularTrackForPlaylist?.let { track ->
+        AddToPlaylistDialog(
+            title = track.title,
+            colors = colors,
+            playlists = playlistChoices,
+            status = playlistActionStatus,
+            onDismissRequest = { popularTrackForPlaylist = null },
+            onAddToExisting = { playlist ->
+                popularTrackForPlaylist = null
+                onPopularTrackAddToPlaylist(track, playlist)
+            },
+            onCreateAndAdd = { name ->
+                popularTrackForPlaylist = null
+                onPopularTrackCreatePlaylistAndAdd(track, name)
+            },
+        )
+    }
+
+    albumForPlaylist?.let { album ->
+        AddToPlaylistDialog(
+            title = album.title,
+            colors = colors,
+            playlists = playlistChoices,
+            status = playlistActionStatus,
+            onDismissRequest = { albumForPlaylist = null },
+            onAddToExisting = { playlist ->
+                albumForPlaylist = null
+                onAlbumAddToPlaylist(album, playlist)
+            },
+            onCreateAndAdd = { name ->
+                albumForPlaylist = null
+                onAlbumCreatePlaylistAndAdd(album, name)
+            },
+        )
     }
 }
 
@@ -1819,6 +2049,7 @@ private fun FullNowPlaying(
     nowPlaying: NowPlayingUi,
     colors: NaviampColors,
     playerColors: NaviampPlayerColors,
+    selectedVisualizer: NaviampVisualizer,
     onBack: () -> Unit,
     onPause: () -> Unit,
     onResume: () -> Unit,
@@ -1831,6 +2062,7 @@ private fun FullNowPlaying(
     onCycleRepeatMode: () -> Unit,
     onToggleLyrics: () -> Unit,
     onToggleVisualizer: () -> Unit,
+    onVisualizerSelected: (NaviampVisualizer) -> Unit,
     onTrackRadio: () -> Unit,
     onAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit,
     onCreatePlaylistAndAdd: (String) -> Unit,
@@ -1850,6 +2082,7 @@ private fun FullNowPlaying(
         NaviampNowPlayingPanel(
             nowPlaying = nowPlaying,
             colors = colors,
+            selectedVisualizer = selectedVisualizer,
             visualizerColors = playerColors,
             actions = NaviampNowPlayingActions(
                 onPause = onPause,
@@ -1863,6 +2096,7 @@ private fun FullNowPlaying(
                 onCycleRepeatMode = onCycleRepeatMode,
                 onToggleLyrics = onToggleLyrics,
                 onToggleVisualizer = onToggleVisualizer,
+                onVisualizerSelected = onVisualizerSelected,
                 onTrackRadio = onTrackRadio,
                 onAddToPlaylist = onAddToPlaylist,
                 onCreatePlaylistAndAdd = onCreatePlaylistAndAdd,
@@ -1925,6 +2159,7 @@ private fun SettingsContent(
     supportsReplayGain: Boolean,
     supportsGapless: Boolean,
     supportsCrossfade: Boolean,
+    showMobileNetworkQuality: Boolean,
     onEditConnection: () -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     onClearCache: () -> Unit,
@@ -1938,6 +2173,7 @@ private fun SettingsContent(
         supportsReplayGain = supportsReplayGain,
         supportsGapless = supportsGapless,
         supportsCrossfade = supportsCrossfade,
+        showMobileNetworkQuality = showMobileNetworkQuality,
         onEditConnection = onEditConnection,
         onPlaybackSettingsChanged = onPlaybackSettingsChanged,
         onClearCache = onClearCache,
@@ -2060,6 +2296,8 @@ private fun TrackRow(
     colors: NaviampColors,
     onTrackSelected: (AndroidTrackRowUi) -> Unit,
     onAddToQueue: ((AndroidTrackRowUi) -> Unit)? = null,
+    onDownload: ((AndroidTrackRowUi) -> Unit)? = null,
+    onAddToPlaylist: ((AndroidTrackRowUi) -> Unit)? = null,
     reservePopularIndicatorSpace: Boolean = false,
 ) {
     Row(
@@ -2096,16 +2334,28 @@ private fun TrackRow(
             Text(track.title, color = colors.primaryText, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(track.subtitle, color = colors.secondaryText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        onAddToQueue?.let { addToQueue ->
+        val rowActions = trackRowActions(
+            canDownload = onDownload != null,
+            canAddToQueue = onAddToQueue != null,
+            canAddToPlaylist = onAddToPlaylist != null,
+        ).mapNotNull { action ->
+            when (action.action) {
+                NaviampAction.DownloadTrack -> onDownload?.let { download ->
+                    NaviampRowMenuItem(action.label, action.icon, { download(track) }, action.enabled)
+                }
+                NaviampAction.AddToQueue -> onAddToQueue?.let { addToQueue ->
+                    NaviampRowMenuItem(action.label, action.icon, { addToQueue(track) }, action.enabled)
+                }
+                NaviampAction.AddToPlaylist -> onAddToPlaylist?.let { addToPlaylist ->
+                    NaviampRowMenuItem(action.label, action.icon, { addToPlaylist(track) }, action.enabled)
+                }
+                else -> null
+            }
+        }
+        if (rowActions.isNotEmpty()) {
             NaviampRowOverflowMenu(
                 colors = colors,
-                items = listOf(
-                    NaviampRowMenuItem(
-                        label = NaviampAction.AddToQueue.label,
-                        icon = NaviampAction.AddToQueue.icon,
-                        onClick = { addToQueue(track) },
-                    ),
-                ),
+                items = rowActions,
             )
         }
     }
@@ -2264,6 +2514,7 @@ private fun SharedMediaRow(
     item: SharedMediaItemUi,
     colors: NaviampColors,
     onClick: (() -> Unit)? = null,
+    menuItems: List<NaviampRowMenuItem> = emptyList(),
 ) {
     Row(
         modifier = Modifier
@@ -2284,6 +2535,9 @@ private fun SharedMediaRow(
         }
         if (item.meta.isNotBlank()) {
             Text(item.meta, color = colors.mutedText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        if (menuItems.isNotEmpty()) {
+            NaviampRowOverflowMenu(colors = colors, items = menuItems)
         }
     }
 }

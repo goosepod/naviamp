@@ -856,7 +856,7 @@ fun NaviampApp(
             nowPlayingLyricsStatus = null
             return@LaunchedEffect
         }
-        val quality = playbackEngine.streamQuality()
+        val quality = playbackSettings.streamQuality(playbackEngine)
         nowPlayingWaveformStatus = "Loading"
         nowPlayingLyricsStatus = if (!lyricsVisibleForWork) {
             null
@@ -1455,7 +1455,7 @@ fun NaviampApp(
                             provider = provider,
                             tracks = tracks,
                             index = savedPlaybackSession.currentIndex,
-                            quality = playbackEngine.streamQuality(),
+                            quality = playbackSettings.streamQuality(playbackEngine),
                             replayGainMode = playbackSettings.replayGainMode,
                             callbacks = playlistCallbacks,
                         )
@@ -1528,7 +1528,7 @@ fun NaviampApp(
             provider = provider,
             tracks = if (shuffle) tracks.shuffled() else tracks,
             index = if (shuffle) 0 else index,
-            quality = playbackEngine.streamQuality(),
+            quality = playbackSettings.streamQuality(playbackEngine),
             replayGainMode = playbackSettings.replayGainMode,
             callbacks = playlistCallbacks,
         )
@@ -1546,7 +1546,7 @@ fun NaviampApp(
             provider = provider,
             tracks = tracks,
             index = index,
-            quality = playbackEngine.streamQuality(),
+            quality = playbackSettings.streamQuality(playbackEngine),
             replayGainMode = playbackSettings.replayGainMode,
             callbacks = playlistCallbacks,
         )
@@ -1564,7 +1564,7 @@ fun NaviampApp(
             provider = provider,
             tracks = tracks,
             index = index,
-            quality = playbackEngine.streamQuality(),
+            quality = playbackSettings.streamQuality(playbackEngine),
             replayGainMode = playbackSettings.replayGainMode,
             callbacks = playlistCallbacks,
         )
@@ -1581,7 +1581,7 @@ fun NaviampApp(
             provider = provider,
             tracks = tracks,
             index = index,
-            quality = playbackEngine.streamQuality(),
+            quality = playbackSettings.streamQuality(playbackEngine),
             replayGainMode = playbackSettings.replayGainMode,
             callbacks = playlistCallbacks,
         )
@@ -1626,7 +1626,7 @@ fun NaviampApp(
                             sourceId = sourceId,
                             provider = provider,
                             track = track,
-                            quality = playbackEngine.streamQuality(),
+                            quality = playbackSettings.streamQuality(playbackEngine),
                             maxDownloadBytes = cacheSettings.maxDownloadBytes,
                         )
                         completed += 1
@@ -1683,7 +1683,7 @@ fun NaviampApp(
 
     fun removeDownloadedTrack(download: DownloadedTrack) {
         val sourceId = connectedSourceId ?: return
-        sessionCache.removeDownloadedAudio(sourceId, download.track.id, playbackEngine.streamQuality())
+        sessionCache.removeDownloadedAudio(sourceId, download.track.id, playbackSettings.streamQuality(playbackEngine))
         downloadRefreshToken += 1
         downloadStatus = "Removed ${download.track.title}."
     }
@@ -1699,7 +1699,7 @@ fun NaviampApp(
             provider = provider,
             tracks = downloads.map { it.track },
             index = index,
-            quality = playbackEngine.streamQuality(),
+            quality = playbackSettings.streamQuality(playbackEngine),
             replayGainMode = playbackSettings.replayGainMode,
             callbacks = playlistCallbacks,
         )
@@ -1735,7 +1735,7 @@ fun NaviampApp(
                     provider = provider,
                     tracks = tracks,
                     index = 0,
-                    quality = playbackEngine.streamQuality(),
+                    quality = playbackSettings.streamQuality(playbackEngine),
                     replayGainMode = playbackSettings.replayGainMode,
                     callbacks = playlistCallbacks,
                 )
@@ -1826,7 +1826,7 @@ fun NaviampApp(
             provider = provider,
             tracks = listOf(seedTrack),
             index = 0,
-            quality = playbackEngine.streamQuality(),
+            quality = playbackSettings.streamQuality(playbackEngine),
             replayGainMode = playbackSettings.replayGainMode,
             callbacks = playlistCallbacks,
         )
@@ -1925,7 +1925,7 @@ fun NaviampApp(
                     provider = provider,
                     tracks = tracks,
                     index = 0,
-                    quality = playbackEngine.streamQuality(),
+                    quality = playbackSettings.streamQuality(playbackEngine),
                     replayGainMode = playbackSettings.replayGainMode,
                     callbacks = playlistCallbacks,
                 )
@@ -1967,7 +1967,7 @@ fun NaviampApp(
             provider = provider,
             tracks = tracks,
             index = index.coerceIn(tracks.indices),
-            quality = playbackEngine.streamQuality(),
+            quality = playbackSettings.streamQuality(playbackEngine),
             replayGainMode = playbackSettings.replayGainMode,
             callbacks = playlistCallbacks,
         )
@@ -2574,7 +2574,7 @@ fun NaviampApp(
 
     val statsMediaSource = connectedSourceId?.let { sessionCache.mediaSource(it) } ?: sessionCache.latestMediaSource()
     val savedMediaSources = mediaSourcesRevision.let { sessionCache.mediaSources() }
-    val streamQuality = playbackEngine.streamQuality()
+    val streamQuality = playbackSettings.streamQuality(playbackEngine)
     val currentAudioCacheMetadata = connectedSourceId
         ?.let { sourceId ->
             nowPlayingTrack?.let { track ->

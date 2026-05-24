@@ -5,6 +5,9 @@ import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.PreviousButtonBehavior
+import app.naviamp.domain.settings.StreamQualityMode
+import app.naviamp.domain.settings.StreamQualityPreference
+import app.naviamp.domain.settings.StreamingCodec
 import app.naviamp.domain.settings.UpNextSelectionBehavior
 import app.naviamp.provider.navidrome.NavidromeConnection
 
@@ -60,6 +63,29 @@ class AndroidSettingsStore(
                 KeyUpNextSelectionBehavior,
                 UpNextSelectionBehavior.MoveSelectedToCurrent,
             ),
+            wifiStreamingQuality = loadStreamQualityPreference(
+                modeKey = KeyWifiStreamQualityMode,
+                codecKey = KeyWifiStreamCodec,
+                bitrateKey = KeyWifiStreamBitrate,
+                defaultValue = StreamQualityPreference(),
+            ),
+            mobileStreamingQuality = loadStreamQualityPreference(
+                modeKey = KeyMobileStreamQualityMode,
+                codecKey = KeyMobileStreamCodec,
+                bitrateKey = KeyMobileStreamBitrate,
+                defaultValue = StreamQualityPreference(
+                    mode = StreamQualityMode.Transcode,
+                    codec = StreamingCodec.Opus,
+                    bitrateKbps = 192,
+                ),
+            ),
+            downloadQuality = loadStreamQualityPreference(
+                modeKey = KeyDownloadQualityMode,
+                codecKey = KeyDownloadCodec,
+                bitrateKey = KeyDownloadBitrate,
+                defaultValue = StreamQualityPreference(),
+            ),
+            allowMobileDownloads = preferences.getBoolean(KeyAllowMobileDownloads, false),
         )
 
     fun savePlaybackSettings(settings: PlaybackSettings) {
@@ -71,6 +97,34 @@ class AndroidSettingsStore(
             .putBoolean(KeyLrclibLyricsEnabled, settings.lrclibLyricsEnabled)
             .putString(KeyPreviousButtonBehavior, settings.previousButtonBehavior.name)
             .putString(KeyUpNextSelectionBehavior, settings.upNextSelectionBehavior.name)
+            .putStreamQualityPreference(
+                modeKey = KeyWifiStreamQualityMode,
+                codecKey = KeyWifiStreamCodec,
+                bitrateKey = KeyWifiStreamBitrate,
+                preference = settings.wifiStreamingQuality,
+            )
+            .putStreamQualityPreference(
+                modeKey = KeyMobileStreamQualityMode,
+                codecKey = KeyMobileStreamCodec,
+                bitrateKey = KeyMobileStreamBitrate,
+                preference = settings.mobileStreamingQuality,
+            )
+            .putStreamQualityPreference(
+                modeKey = KeyDownloadQualityMode,
+                codecKey = KeyDownloadCodec,
+                bitrateKey = KeyDownloadBitrate,
+                preference = settings.downloadQuality,
+            )
+            .putBoolean(KeyAllowMobileDownloads, settings.allowMobileDownloads)
+            .apply()
+    }
+
+    fun loadSelectedVisualizer(): String =
+        preferences.getString(KeySelectedVisualizer, null) ?: DefaultSelectedVisualizer
+
+    fun saveSelectedVisualizer(selectedVisualizer: String) {
+        preferences.edit()
+            .putString(KeySelectedVisualizer, selectedVisualizer)
             .apply()
     }
 
@@ -82,6 +136,30 @@ class AndroidSettingsStore(
         preferences.getString(key, null)
             ?.let { value -> enumValues<T>().firstOrNull { it.name == value } }
             ?: defaultValue
+
+    private fun loadStreamQualityPreference(
+        modeKey: String,
+        codecKey: String,
+        bitrateKey: String,
+        defaultValue: StreamQualityPreference,
+    ): StreamQualityPreference =
+        StreamQualityPreference(
+            mode = enumPreference(modeKey, defaultValue.mode),
+            codec = enumPreference(codecKey, defaultValue.codec),
+            bitrateKbps = preferences.getInt(bitrateKey, defaultValue.bitrateKbps),
+        ).normalized()
+}
+
+private fun android.content.SharedPreferences.Editor.putStreamQualityPreference(
+    modeKey: String,
+    codecKey: String,
+    bitrateKey: String,
+    preference: StreamQualityPreference,
+): android.content.SharedPreferences.Editor {
+    val normalized = preference.normalized()
+    return putString(modeKey, normalized.mode.name)
+        .putString(codecKey, normalized.codec.name)
+        .putInt(bitrateKey, normalized.bitrateKbps)
 }
 
 private const val PreferencesName = "naviamp_android_settings"
@@ -100,3 +178,15 @@ private const val KeyDebugLoggingEnabled = "debug_logging_enabled"
 private const val KeyLrclibLyricsEnabled = "lrclib_lyrics_enabled"
 private const val KeyPreviousButtonBehavior = "previous_button_behavior"
 private const val KeyUpNextSelectionBehavior = "up_next_selection_behavior"
+private const val KeyWifiStreamQualityMode = "wifi_stream_quality_mode"
+private const val KeyWifiStreamCodec = "wifi_stream_codec"
+private const val KeyWifiStreamBitrate = "wifi_stream_bitrate"
+private const val KeyMobileStreamQualityMode = "mobile_stream_quality_mode"
+private const val KeyMobileStreamCodec = "mobile_stream_codec"
+private const val KeyMobileStreamBitrate = "mobile_stream_bitrate"
+private const val KeyDownloadQualityMode = "download_quality_mode"
+private const val KeyDownloadCodec = "download_codec"
+private const val KeyDownloadBitrate = "download_bitrate"
+private const val KeyAllowMobileDownloads = "allow_mobile_downloads"
+private const val KeySelectedVisualizer = "selected_visualizer"
+private const val DefaultSelectedVisualizer = "AudioSphere"

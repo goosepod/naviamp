@@ -1386,7 +1386,7 @@ private fun TrackDetailsDialog(
 }
 
 @Composable
-private fun AddToPlaylistDialog(
+fun AddToPlaylistDialog(
     title: String,
     colors: NaviampColors,
     playlists: List<NaviampPlaylistChoiceUi>,

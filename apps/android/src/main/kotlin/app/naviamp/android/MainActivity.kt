@@ -1,6 +1,8 @@
 package app.naviamp.android
 
 import android.Manifest
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -79,6 +81,8 @@ import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.settings.PreviousButtonBehavior
+import app.naviamp.domain.settings.downloadStreamQuality
+import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeApiCall
@@ -94,6 +98,7 @@ import app.naviamp.ui.NaviampDownloadedTrackUi
 import app.naviamp.ui.NaviampLibrarySyncStatusUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampSharedAppShell
+import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.NowPlayingRadioUiConfig
 import app.naviamp.ui.NowPlayingTrackUiConfig
 import app.naviamp.ui.NowPlayingUi
@@ -277,6 +282,12 @@ private fun NaviampAndroidApp(
     var playbackProgress by remember { mutableStateOf(PlaybackProgress.Unknown) }
     var visualizerFrame by remember { mutableStateOf<PlaybackVisualizerFrame?>(null) }
     var visualizerRequestedVisible by remember { mutableStateOf(false) }
+    var selectedVisualizer by remember {
+        mutableStateOf(
+            NaviampVisualizer.entries.firstOrNull { it.name == settingsStore.loadSelectedVisualizer() }
+                ?: NaviampVisualizer.AudioSphere,
+        )
+    }
     val visualizerVisible = visualizerRequestedVisible &&
         (playbackState == PlaybackState.Playing || playbackState == PlaybackState.Loading)
     var pendingSeekPositionSeconds by remember { mutableStateOf<Double?>(null) }
@@ -420,6 +431,12 @@ private fun NaviampAndroidApp(
         }
     }
 
+    fun currentStreamQuality(): StreamQuality =
+        playbackSettings.streamQualityForNetwork(context.isActiveNetworkMobileData())
+
+    fun currentDownloadQuality(): StreamQuality =
+        playbackSettings.downloadStreamQuality()
+
     fun prepareNextIfNeeded(sessionToken: Long, progress: PlaybackProgress) {
         val queueAwareEngine = playbackEngine as? QueueAwarePlaybackEngine ?: return
         val canPrepareForCrossfade = playbackSettings.crossfadeDurationSeconds > 0 && playbackEngine.supportsCrossfade
@@ -440,7 +457,7 @@ private fun NaviampAndroidApp(
         preparedNextTrackId = nextTrack.id.value
         scope.launch {
             runCatching {
-                activeProvider.streamUrl(StreamRequest(nextTrack.id, StreamQuality.Original))
+                activeProvider.streamUrl(StreamRequest(nextTrack.id, currentStreamQuality()))
             }.onSuccess { streamUrl ->
                 if (sessionToken != playbackSessionToken) return@onSuccess
                 queueAwareEngine.prepareNext(
@@ -513,7 +530,7 @@ private fun NaviampAndroidApp(
         sourceId: String?,
         track: Track,
     ): AudioWaveform? {
-        val quality = StreamQuality.Original
+        val quality = currentStreamQuality()
         if (sourceId != null) {
             storage.cachedAudioWaveform(sourceId, track.id, quality)?.let { return it }
         }
@@ -557,6 +574,7 @@ private fun NaviampAndroidApp(
         sidecarPrepJob = scope.launch {
             tracksToPrep.forEach { track ->
                 if (sessionToken != playbackSessionToken) return@launch
+                val sidecarQuality = currentStreamQuality()
                 runCatching {
                     ensureWaveform(activeProvider, sourceId, track)
                 }.onSuccess { waveform ->
@@ -564,7 +582,7 @@ private fun NaviampAndroidApp(
                         storage.recordSidecarStatus(
                             sourceId = sourceId,
                             trackId = track.id,
-                            quality = StreamQuality.Original,
+                            quality = sidecarQuality,
                             sidecarType = "waveform",
                             success = true,
                         )
@@ -577,7 +595,7 @@ private fun NaviampAndroidApp(
                         storage.recordSidecarStatus(
                             sourceId = sourceId,
                             trackId = track.id,
-                            quality = StreamQuality.Original,
+                            quality = sidecarQuality,
                             sidecarType = "waveform",
                             success = false,
                             errorMessage = error.message ?: "Waveform unavailable",
@@ -705,7 +723,7 @@ private fun NaviampAndroidApp(
         scope.launch {
             status = "Loading ${track.title}..."
             runCatching {
-                activeProvider.streamUrl(StreamRequest(track.id, StreamQuality.Original))
+                activeProvider.streamUrl(StreamRequest(track.id, currentStreamQuality()))
             }.onSuccess { streamUrl ->
                 playbackEngine.applyTlsSettings(activeTlsSettings)
                 playbackQueue = PlaybackQueue(
@@ -1030,17 +1048,57 @@ private fun NaviampAndroidApp(
         updateNotificationFavoriteState()
     }
 
+    fun localArtistDetail(
+        sourceId: String,
+        artistId: app.naviamp.domain.ArtistId,
+        fallbackName: String?,
+    ): ArtistDetails? {
+        val tracks = storage.libraryTracksForArtist(sourceId, artistId, limit = 1_000)
+        if (tracks.isEmpty()) return fallbackName?.let { name ->
+            ArtistDetails(artist = Artist(artistId, name), albums = emptyList(), info = null)
+        }
+        val artistName = fallbackName ?: tracks.firstOrNull()?.artistName ?: "Unknown Artist"
+        val albums = tracks
+            .groupBy { track -> track.albumId?.value ?: track.albumTitle.orEmpty() }
+            .mapNotNull { (_, albumTracks) ->
+                val first = albumTracks.firstOrNull() ?: return@mapNotNull null
+                val albumId = first.albumId ?: return@mapNotNull null
+                Album(
+                    id = albumId,
+                    title = first.albumTitle ?: "Unknown Album",
+                    artistName = first.artistName,
+                    coverArtId = first.coverArtId,
+                    recentlyAddedAtIso8601 = null,
+                    releaseYear = first.albumReleaseYear,
+                )
+            }
+            .sortedWith(compareBy<Album> { it.releaseYear ?: Int.MAX_VALUE }.thenBy { it.title.lowercase() })
+        return ArtistDetails(
+            artist = Artist(artistId, artistName),
+            albums = albums,
+            info = null,
+        )
+    }
+
     fun openArtistDetails(artistId: app.naviamp.domain.ArtistId, fallbackName: String? = null) {
         val activeProvider = provider ?: return
         val sourceId = activeSourceId
         scope.launch {
             status = "Loading ${fallbackName ?: "artist"}..."
             runCatching { activeProvider.artist(artistId) }
+                .recoverCatching { error ->
+                    val fallbackDetail = sourceId?.let { localArtistDetail(it, artistId, fallbackName) }
+                    fallbackDetail ?: throw error
+                }
                 .onSuccess { detail ->
                     contentState = contentState.showArtist(detail)
                     nowPlayingOpen = false
                     navigationState = navigationState.copy(route = NaviampRoute.Library)
-                    status = "Connected."
+                    status = if (detail.albums.isEmpty()) {
+                        "No albums found for ${detail.artist.name}."
+                    } else {
+                        "Connected."
+                    }
                     if (sourceId != null) {
                         scope.launch(Dispatchers.IO) {
                             runCatching {
@@ -1244,10 +1302,53 @@ private fun NaviampAndroidApp(
         }
     }
 
+    fun addTracksToPlaylist(
+        tracksToAdd: List<Track>,
+        playlist: NaviampPlaylistChoiceUi?,
+        newPlaylistName: String? = null,
+        label: String = "tracks",
+    ) {
+        val activeProvider = provider ?: return
+        val uniqueTracks = tracksToAdd.distinctBy { it.id }
+        if (uniqueTracks.isEmpty()) {
+            status = "No tracks found."
+            return
+        }
+        playlistActionStatus = "Adding $label to playlist..."
+        scope.launch {
+            runCatching {
+                val ids = uniqueTracks.map { it.id }
+                if (playlist == null) {
+                    activeProvider.createPlaylist(newPlaylistName.orEmpty(), ids)
+                } else {
+                    val existingIds = activeProvider.playlistTracks(playlist.id).map { it.id }.toSet()
+                    val missingIds = ids.filterNot { it in existingIds }
+                    if (missingIds.isNotEmpty()) {
+                        activeProvider.addTracksToPlaylist(playlist.id, missingIds)
+                    }
+                }
+                activeProvider.playlists(limit = 500)
+            }.onSuccess { playlists ->
+                homeState = homeState.copy(playlists = playlists)
+                playlistActionStatus = null
+                status = "Added $label to playlist."
+            }.onFailure { error ->
+                playlistActionStatus = error.message ?: "Could not add $label to playlist."
+                status = playlistActionStatus.orEmpty()
+            }
+        }
+    }
+
     fun downloadTrack(track: Track) {
         val activeProvider = provider ?: return
         val sourceId = activeSourceId ?: return
         scope.launch {
+            if (context.isActiveNetworkMobileData() && !playbackSettings.allowMobileDownloads) {
+                downloadStatus = "Downloads over mobile data are disabled."
+                status = downloadStatus.orEmpty()
+                return@launch
+            }
+            val quality = currentDownloadQuality()
             downloadStatus = "Downloading ${track.title}..."
             status = downloadStatus.orEmpty()
             runCatching {
@@ -1256,7 +1357,7 @@ private fun NaviampAndroidApp(
                         sourceId = sourceId,
                         provider = activeProvider,
                         track = track,
-                        quality = StreamQuality.Original,
+                        quality = quality,
                         maxDownloadBytes = AndroidMaxDownloadBytes,
                     )
                 }
@@ -1272,6 +1373,47 @@ private fun NaviampAndroidApp(
         }
     }
 
+    fun downloadTracks(tracksToDownload: List<Track>, label: String = "tracks") {
+        val activeProvider = provider ?: return
+        val sourceId = activeSourceId ?: return
+        val uniqueTracks = tracksToDownload.distinctBy { it.id }
+        if (uniqueTracks.isEmpty()) {
+            status = "No tracks found."
+            return
+        }
+        scope.launch {
+            if (context.isActiveNetworkMobileData() && !playbackSettings.allowMobileDownloads) {
+                downloadStatus = "Downloads over mobile data are disabled."
+                status = downloadStatus.orEmpty()
+                return@launch
+            }
+            val quality = currentDownloadQuality()
+            downloadStatus = "Downloading $label..."
+            status = downloadStatus.orEmpty()
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    uniqueTracks.forEach { track ->
+                        storage.downloadAudioTrack(
+                            sourceId = sourceId,
+                            provider = activeProvider,
+                            track = track,
+                            quality = quality,
+                            maxDownloadBytes = AndroidMaxDownloadBytes,
+                        )
+                    }
+                }
+            }.onSuccess {
+                downloadRefreshToken += 1
+                storageStats = withContext(Dispatchers.IO) { storage.stats() }
+                downloadStatus = "Downloaded $label."
+                status = downloadStatus.orEmpty()
+            }.onFailure { error ->
+                downloadStatus = error.message ?: "Could not download $label."
+                status = downloadStatus.orEmpty()
+            }
+        }
+    }
+
     fun removeDownload(download: NaviampDownloadedTrackUi) {
         val sourceId = activeSourceId ?: return
         scope.launch {
@@ -1279,7 +1421,7 @@ private fun NaviampAndroidApp(
                 ?: findKnownTrack(download.track.id)
                 ?: return@launch
             withContext(Dispatchers.IO) {
-                storage.removeDownloadedAudio(sourceId, track.id, StreamQuality.Original)
+                storage.removeDownloadedAudioForTrack(sourceId, track.id)
             }
             downloadRefreshToken += 1
             storageStats = withContext(Dispatchers.IO) { storage.stats() }
@@ -1600,6 +1742,8 @@ private fun NaviampAndroidApp(
         supportsReplayGain = playbackEngine.supportsReplayGain,
         supportsGapless = playbackEngine.supportsGapless,
         supportsCrossfade = playbackEngine.supportsCrossfade,
+        showMobileNetworkQuality = true,
+        selectedVisualizer = selectedVisualizer,
         query = query,
         home = homeState.toSharedHomeUi(
             coverArtUrl = { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
@@ -1633,6 +1777,8 @@ private fun NaviampAndroidApp(
         },
         recentPlaylistIds = recentPlaylistIds,
         playlistSortMode = playlistSortMode,
+        playlistChoices = homeState.playlists.map { it.toPlaylistChoiceUi() },
+        playlistActionStatus = playlistActionStatus,
         radioStationItems = homeState.radioStations.map { it.toSharedMediaItemUi() },
         albumDetail = albumDetail?.let { detail ->
             detail.toSharedAlbumDetailUi(
@@ -1875,6 +2021,25 @@ private fun NaviampAndroidApp(
         onAlbumAddToQueue = {
             appendTracksToQueue(albumDetail?.tracks.orEmpty(), "album tracks")
         },
+        onAlbumDownload = {
+            downloadTracks(albumDetail?.tracks.orEmpty(), "album")
+        },
+        onAlbumAddToPlaylist = { _, playlist ->
+            addTracksToPlaylist(albumDetail?.tracks.orEmpty(), playlist, label = "album")
+        },
+        onAlbumCreatePlaylistAndAdd = { _, name ->
+            addTracksToPlaylist(albumDetail?.tracks.orEmpty(), playlist = null, newPlaylistName = name, label = "album")
+        },
+        onAlbumTrackDownload = { selectedTrack ->
+            findKnownTrack(selectedTrack.id)?.let(::downloadTrack) ?: run { status = "Track not found." }
+        },
+        onAlbumTrackAddToPlaylist = { selectedTrack, playlist ->
+            findKnownTrack(selectedTrack.id)?.let { addTrackToPlaylist(it, playlist) } ?: run { status = "Track not found." }
+        },
+        onAlbumTrackCreatePlaylistAndAdd = { selectedTrack, name ->
+            findKnownTrack(selectedTrack.id)?.let { addTrackToPlaylist(it, playlist = null, newPlaylistName = name) }
+                ?: run { status = "Track not found." }
+        },
         onArtistRadio = { detail ->
             val service = radioService() ?: return@NaviampSharedAppShell
             val artistId = app.naviamp.domain.ArtistId(detail.artist.id)
@@ -1893,6 +2058,39 @@ private fun NaviampAndroidApp(
                 }.onFailure { error ->
                     status = error.message ?: "Could not start artist radio."
                 }
+            }
+        },
+        onArtistAddToQueue = {
+            val albums = artistDetail?.albums.orEmpty()
+            val activeProvider = provider ?: return@NaviampSharedAppShell
+            scope.launch {
+                status = "Loading artist tracks..."
+                val artistTracks = albums.flatMap { album ->
+                    runCatching { activeProvider.album(album.id).tracks }.getOrDefault(emptyList())
+                }
+                appendTracksToQueue(artistTracks, "artist tracks")
+            }
+        },
+        onArtistAddToPlaylist = { _, playlist ->
+            val albums = artistDetail?.albums.orEmpty()
+            val activeProvider = provider ?: return@NaviampSharedAppShell
+            scope.launch {
+                status = "Loading artist tracks..."
+                val artistTracks = albums.flatMap { album ->
+                    runCatching { activeProvider.album(album.id).tracks }.getOrDefault(emptyList())
+                }
+                addTracksToPlaylist(artistTracks, playlist, label = "artist")
+            }
+        },
+        onArtistCreatePlaylistAndAdd = { _, name ->
+            val albums = artistDetail?.albums.orEmpty()
+            val activeProvider = provider ?: return@NaviampSharedAppShell
+            scope.launch {
+                status = "Loading artist tracks..."
+                val artistTracks = albums.flatMap { album ->
+                    runCatching { activeProvider.album(album.id).tracks }.getOrDefault(emptyList())
+                }
+                addTracksToPlaylist(artistTracks, playlist = null, newPlaylistName = name, label = "artist")
             }
         },
         onArtistPopularPlay = { detail ->
@@ -1933,6 +2131,16 @@ private fun NaviampAndroidApp(
                 appendTracksToQueue(listOf(track), "track")
             }
         },
+        onArtistPopularTrackDownload = { selectedTrack ->
+            findKnownTrack(selectedTrack.id)?.let(::downloadTrack) ?: run { status = "Track not found." }
+        },
+        onArtistPopularTrackAddToPlaylist = { selectedTrack, playlist ->
+            findKnownTrack(selectedTrack.id)?.let { addTrackToPlaylist(it, playlist) } ?: run { status = "Track not found." }
+        },
+        onArtistPopularTrackCreatePlaylistAndAdd = { selectedTrack, name ->
+            findKnownTrack(selectedTrack.id)?.let { addTrackToPlaylist(it, playlist = null, newPlaylistName = name) }
+                ?: run { status = "Track not found." }
+        },
         onFindSimilarArtists = { detail ->
             findSimilarArtists(app.naviamp.domain.ArtistId(detail.artist.id), detail.artist.title)
         },
@@ -1949,6 +2157,53 @@ private fun NaviampAndroidApp(
         },
         onArtistSelected = { selectedArtist ->
             openArtistDetails(app.naviamp.domain.ArtistId(selectedArtist.id), selectedArtist.title)
+        },
+        onArtistAlbumRadio = { selectedAlbum ->
+            val activeProvider = provider ?: return@NaviampSharedAppShell
+            scope.launch {
+                status = "Starting ${selectedAlbum.title} radio..."
+                runCatching { activeProvider.album(app.naviamp.domain.AlbumId(selectedAlbum.id)) }
+                    .onSuccess { detail -> startAlbumRadio(detail.album, detail.tracks) }
+                    .onFailure { error -> status = error.message ?: "Could not start album radio." }
+            }
+        },
+        onArtistAlbumDownload = { selectedAlbum ->
+            val activeProvider = provider ?: return@NaviampSharedAppShell
+            scope.launch {
+                status = "Loading ${selectedAlbum.title}..."
+                runCatching { activeProvider.album(app.naviamp.domain.AlbumId(selectedAlbum.id)).tracks }
+                    .onSuccess { albumTracks -> downloadTracks(albumTracks, selectedAlbum.title) }
+                    .onFailure { error -> status = error.message ?: "Could not load album." }
+            }
+        },
+        onArtistAlbumAddToQueue = { selectedAlbum ->
+            val activeProvider = provider ?: return@NaviampSharedAppShell
+            scope.launch {
+                status = "Loading ${selectedAlbum.title}..."
+                runCatching { activeProvider.album(app.naviamp.domain.AlbumId(selectedAlbum.id)).tracks }
+                    .onSuccess { albumTracks -> appendTracksToQueue(albumTracks, "album tracks") }
+                    .onFailure { error -> status = error.message ?: "Could not load album." }
+            }
+        },
+        onArtistAlbumAddToPlaylist = { selectedAlbum, playlist ->
+            val activeProvider = provider ?: return@NaviampSharedAppShell
+            scope.launch {
+                status = "Loading ${selectedAlbum.title}..."
+                runCatching { activeProvider.album(app.naviamp.domain.AlbumId(selectedAlbum.id)).tracks }
+                    .onSuccess { albumTracks -> addTracksToPlaylist(albumTracks, playlist, label = selectedAlbum.title) }
+                    .onFailure { error -> status = error.message ?: "Could not load album." }
+            }
+        },
+        onArtistAlbumCreatePlaylistAndAdd = { selectedAlbum, name ->
+            val activeProvider = provider ?: return@NaviampSharedAppShell
+            scope.launch {
+                status = "Loading ${selectedAlbum.title}..."
+                runCatching { activeProvider.album(app.naviamp.domain.AlbumId(selectedAlbum.id)).tracks }
+                    .onSuccess { albumTracks ->
+                        addTracksToPlaylist(albumTracks, playlist = null, newPlaylistName = name, label = selectedAlbum.title)
+                    }
+                    .onFailure { error -> status = error.message ?: "Could not load album." }
+            }
         },
         onPlaylistSelected = { selectedPlaylist ->
             homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }?.let { openPlaylistDetails(it) }
@@ -2094,6 +2349,10 @@ private fun NaviampAndroidApp(
         },
         onToggleVisualizer = {
             visualizerRequestedVisible = !visualizerRequestedVisible
+        },
+        onVisualizerSelected = { visualizer ->
+            selectedVisualizer = visualizer
+            settingsStore.saveSelectedVisualizer(visualizer.name)
         },
         onTrackRadio = {
             val activeProvider = provider ?: return@NaviampSharedAppShell
@@ -2267,6 +2526,15 @@ private data class AndroidLibraryFreshness(
 
 private fun Track.coverArtUrl(provider: NavidromeProvider?): String? =
     (coverArtId ?: albumId?.value)?.let { provider?.coverArtUrl(it) }
+
+private fun Context.isActiveNetworkMobileData(): Boolean {
+    val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return false
+    val network = connectivityManager.activeNetwork ?: return false
+    val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+    return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) &&
+        !capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) &&
+        !capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+}
 
 private fun allKnownTracks(
     searchResults: MediaSearchResults,

@@ -1,9 +1,11 @@
 package app.naviamp.desktop
 
-import app.naviamp.domain.AudioCodec
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.settings.PlaybackSettings
+import app.naviamp.domain.settings.StreamQualityMode
+import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.domain.waveform.playbackFraction
 
 fun PlaybackProgress.label(effectiveDurationSeconds: Double?): String {
@@ -22,14 +24,12 @@ fun PlaybackProgress.fraction(effectiveDurationSeconds: Double?): Double {
     return playbackFraction(positionSeconds, effectiveDurationSeconds)
 }
 
-fun PlaybackEngine.streamQuality(): StreamQuality =
-    if (prefersOriginalStream) {
-        StreamQuality.Original
+fun PlaybackSettings.streamQuality(playbackEngine: PlaybackEngine): StreamQuality =
+    if (playbackEngine.prefersOriginalStream) {
+        streamQualityForNetwork(isMobileData = false)
     } else {
-        StreamQuality.Transcoded(
-            codec = AudioCodec.Mp3,
-            bitrateKbps = 192,
-        )
+        copy(wifiStreamingQuality = wifiStreamingQuality.copy(mode = StreamQualityMode.Transcode))
+            .streamQualityForNetwork(isMobileData = false)
     }
 
 private fun Double.toTimeLabel(): String {

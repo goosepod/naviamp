@@ -41,11 +41,13 @@ Android already uses the shared Compose UI shell for the main app surface, so ma
   - Desktop has the GPU-backed visualizer catalog in `PlatformLiveVisualizerSurface.jvm.kt`.
   - Android currently renders a simple Canvas bar visualizer in `PlatformLiveVisualizerSurface.android.kt`.
   - Implement Android renderers for the shared `NaviampVisualizer` modes or deliberately map unsupported modes to a polished fallback.
-  - Persist selected visualizer on Android like desktop does through `VisualizerSettings`.
+  - [x] Persist selected visualizer on Android like desktop does through `VisualizerSettings`.
 
 - [ ] **Playback settings parity**
   - `AndroidBassPlaybackEngine` reports `supportsReplayGain = true` and `supportsCrossfade = true`.
   - [x] `AndroidSettingsStore.loadPlaybackSettings()` no longer forces `replayGainMode = Off` and `crossfadeDurationSeconds = 0`.
+  - [x] Add shared stream/download quality settings for full quality vs Navidrome transcode.
+  - [x] Add Android mobile-data policy controls for streaming quality and download allowance.
   - Confirm gapless, crossfade, and ReplayGain behavior match desktop for local files, direct provider streams, and prepared-next transitions.
 
 - [ ] **Similar artists on Android**
@@ -81,6 +83,8 @@ Android already uses the shared Compose UI shell for the main app surface, so ma
 - [ ] **Downloads and cache management parity**
   - Android can download audio into app storage and clear cache/download data.
   - [x] Shared Downloads route exposes downloaded tracks with play and remove actions on Android.
+  - [x] Downloads can save original or transcoded versions based on the shared download quality setting.
+  - [x] Android blocks mobile-data downloads unless explicitly allowed.
   - Verify Downloads route exposes all desktop actions, including add-to-playlist where applicable.
   - Confirm offline playback from downloaded files works after app restart and network loss.
   - Expose cache budgets and storage pressure clearly enough for Android users.
@@ -88,9 +92,17 @@ Android already uses the shared Compose UI shell for the main app surface, so ma
 - [ ] **Artist detail parity**
   - Shared artist detail supports popular tracks.
   - Desktop artist detail has richer controls and similar artists.
-  - Ensure Android artist radio, popular play/radio/add-to-queue, album navigation, and similar artists match desktop.
+  - [x] Android artist radio, popular play/radio/add-to-queue, album navigation, and similar artists match desktop.
+  - [x] Shared Android artist details expose add-artist-to-queue, add-artist-to-playlist, popular-track download/add-to-playlist, and album row radio/download/queue/playlist actions.
+  - [ ] Verify artist-level bulk actions against a large artist library on device.
+
+- [ ] **Album detail parity**
+  - [x] Shared album details expose play, shuffle, radio, download, add-to-queue, and add-to-playlist actions.
+  - [x] Shared album track rows expose download, add-to-queue, and add-to-playlist actions.
+  - [ ] Verify album bulk download/playlist actions on device.
 
 - [ ] **Polish and platform behavior**
+  - [x] Use the active Now Playing album-art gradient as the app background across routes, not only inside full Now Playing.
   - Verify full Now Playing layout on phone portrait, phone landscape, tablet portrait, and tablet landscape.
   - Check touch target sizes after the enlarged footer icon changes.
   - Confirm album-art palette extraction is fast enough on Android and cached correctly.
@@ -116,6 +128,9 @@ Android already uses the shared Compose UI shell for the main app surface, so ma
 - [ ] Gapless transition
 - [ ] Crossfade transition
 - [ ] ReplayGain Track and Album modes
+- [ ] Full-quality vs transcoded streaming on Wi-Fi/wired
+- [ ] Transcoded streaming on Android mobile data
+- [ ] Mobile-data download block/allow behavior
 - [ ] Lyrics from provider
 - [ ] LRCLIB fallback
 - [ ] Popular tracks on artist details

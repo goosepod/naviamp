@@ -5,7 +5,9 @@ import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.AudioInfo
+import app.naviamp.domain.AudioCodec
 import app.naviamp.domain.InternetRadioStation
+import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.playback.ReplayGainMode
@@ -33,7 +35,66 @@ data class PlaybackSettings(
     val lrclibLyricsEnabled: Boolean = false,
     val previousButtonBehavior: PreviousButtonBehavior = PreviousButtonBehavior.RestartThenPrevious,
     val upNextSelectionBehavior: UpNextSelectionBehavior = UpNextSelectionBehavior.MoveSelectedToCurrent,
+    val wifiStreamingQuality: StreamQualityPreference = StreamQualityPreference(),
+    val mobileStreamingQuality: StreamQualityPreference = StreamQualityPreference(
+        mode = StreamQualityMode.Transcode,
+        codec = StreamingCodec.Opus,
+        bitrateKbps = 192,
+    ),
+    val downloadQuality: StreamQualityPreference = StreamQualityPreference(),
+    val allowMobileDownloads: Boolean = false,
 )
+
+@Serializable
+data class StreamQualityPreference(
+    val mode: StreamQualityMode = StreamQualityMode.Original,
+    val codec: StreamingCodec = StreamingCodec.Mp3,
+    val bitrateKbps: Int = 192,
+) {
+    fun normalized(): StreamQualityPreference =
+        copy(
+            bitrateKbps = bitrateKbps.takeIf { it in StreamBitrateKbpsOptions } ?: 192,
+        )
+
+    fun toStreamQuality(): StreamQuality =
+        when (mode) {
+            StreamQualityMode.Original -> StreamQuality.Original
+            StreamQualityMode.Transcode -> StreamQuality.Transcoded(
+                codec = codec.toAudioCodec(),
+                bitrateKbps = normalized().bitrateKbps,
+            )
+        }
+}
+
+@Serializable
+enum class StreamQualityMode {
+    Original,
+    Transcode,
+}
+
+@Serializable
+enum class StreamingCodec {
+    Mp3,
+    Aac,
+    Opus,
+}
+
+val StreamBitrateKbpsOptions: List<Int> = listOf(128, 192, 256, 320)
+
+fun StreamingCodec.toAudioCodec(): AudioCodec =
+    when (this) {
+        StreamingCodec.Mp3 -> AudioCodec.Mp3
+        StreamingCodec.Aac -> AudioCodec.Aac
+        StreamingCodec.Opus -> AudioCodec.Opus
+    }
+
+fun PlaybackSettings.streamQualityForNetwork(isMobileData: Boolean): StreamQuality =
+    (if (isMobileData) mobileStreamingQuality else wifiStreamingQuality)
+        .normalized()
+        .toStreamQuality()
+
+fun PlaybackSettings.downloadStreamQuality(): StreamQuality =
+    downloadQuality.normalized().toStreamQuality()
 
 @Serializable
 enum class PreviousButtonBehavior {

@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -29,6 +31,10 @@ import androidx.compose.ui.unit.sp
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.PreviousButtonBehavior
+import app.naviamp.domain.settings.StreamBitrateKbpsOptions
+import app.naviamp.domain.settings.StreamQualityMode
+import app.naviamp.domain.settings.StreamQualityPreference
+import app.naviamp.domain.settings.StreamingCodec
 import app.naviamp.domain.settings.UpNextSelectionBehavior
 
 data class NaviampDiagnosticsUi(
@@ -67,6 +73,7 @@ fun NaviampSharedSettingsContent(
     supportsCrossfade: Boolean = false,
     showQueueBehavior: Boolean = true,
     showDebugLogging: Boolean = true,
+    showMobileNetworkQuality: Boolean = false,
 ) {
     var selectedCategory by remember { mutableStateOf<NaviampSettingsCategory?>(null) }
 
@@ -88,6 +95,7 @@ fun NaviampSharedSettingsContent(
                     showCrossfade = true,
                     showQueueBehavior = showQueueBehavior,
                     showDebugLogging = showDebugLogging,
+                    showMobileNetworkQuality = showMobileNetworkQuality,
                     showLrclibLyrics = true,
                     onPlaybackSettingsChanged = onPlaybackSettingsChanged,
                 )
@@ -325,10 +333,17 @@ fun NaviampPlaybackSettingsSection(
     showQueueBehavior: Boolean = true,
     showDebugLogging: Boolean = true,
     showLrclibLyrics: Boolean = true,
+    showMobileNetworkQuality: Boolean = false,
 ) {
     var upNextHelpOpen by remember { mutableStateOf(false) }
 
     SettingsSectionTitle("Playback", colors)
+    StreamingQualitySettings(
+        colors = colors,
+        playbackSettings = playbackSettings,
+        showMobileNetworkQuality = showMobileNetworkQuality,
+        onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+    )
     if (showReplayGain) {
         Text(
             if (supportsReplayGain) "ReplayGain" else "ReplayGain unavailable with this playback engine",
@@ -475,6 +490,119 @@ fun NaviampPlaybackSettingsSection(
 }
 
 @Composable
+private fun StreamingQualitySettings(
+    colors: NaviampColors,
+    playbackSettings: PlaybackSettings,
+    showMobileNetworkQuality: Boolean,
+    onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
+) {
+    SettingsSectionTitle("Streaming quality", colors)
+    StreamQualityPreferenceRow(
+        colors = colors,
+        label = "Wi-Fi / wired",
+        preference = playbackSettings.wifiStreamingQuality,
+        onPreferenceChanged = { preference ->
+            onPlaybackSettingsChanged(playbackSettings.copy(wifiStreamingQuality = preference))
+        },
+    )
+    if (showMobileNetworkQuality) {
+        StreamQualityPreferenceRow(
+            colors = colors,
+            label = "Mobile data",
+            preference = playbackSettings.mobileStreamingQuality,
+            onPreferenceChanged = { preference ->
+                onPlaybackSettingsChanged(playbackSettings.copy(mobileStreamingQuality = preference))
+            },
+        )
+    }
+    SettingsSectionTitle("Downloads", colors)
+    StreamQualityPreferenceRow(
+        colors = colors,
+        label = "Saved files",
+        preference = playbackSettings.downloadQuality,
+        onPreferenceChanged = { preference ->
+            onPlaybackSettingsChanged(playbackSettings.copy(downloadQuality = preference))
+        },
+    )
+    if (showMobileNetworkQuality) {
+        SettingsCheckboxRow(
+            colors = colors,
+            checked = playbackSettings.allowMobileDownloads,
+            label = "Allow downloads on mobile data",
+            onCheckedChange = { enabled ->
+                onPlaybackSettingsChanged(playbackSettings.copy(allowMobileDownloads = enabled))
+            },
+        )
+    }
+}
+
+@Composable
+private fun StreamQualityPreferenceRow(
+    colors: NaviampColors,
+    label: String,
+    preference: StreamQualityPreference,
+    onPreferenceChanged: (StreamQualityPreference) -> Unit,
+) {
+    val normalized = preference.normalized()
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(label, color = colors.secondaryText, fontSize = 12.sp)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            SettingsDropdown(
+                colors = colors,
+                label = normalized.mode.label,
+                options = StreamQualityMode.entries,
+                optionLabel = { it.label },
+                onOptionSelected = { mode -> onPreferenceChanged(normalized.copy(mode = mode)) },
+            )
+            if (normalized.mode == StreamQualityMode.Transcode) {
+                SettingsDropdown(
+                    colors = colors,
+                    label = normalized.codec.label,
+                    options = StreamingCodec.entries,
+                    optionLabel = { it.label },
+                    onOptionSelected = { codec -> onPreferenceChanged(normalized.copy(codec = codec)) },
+                )
+                SettingsDropdown(
+                    colors = colors,
+                    label = "${normalized.bitrateKbps} kbps",
+                    options = StreamBitrateKbpsOptions,
+                    optionLabel = { "$it kbps" },
+                    onOptionSelected = { bitrate -> onPreferenceChanged(normalized.copy(bitrateKbps = bitrate)) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun <T> SettingsDropdown(
+    colors: NaviampColors,
+    label: String,
+    options: List<T>,
+    optionLabel: (T) -> String,
+    onOptionSelected: (T) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    TextButton(onClick = { expanded = true }) {
+        Text(label, color = colors.primaryText, fontSize = 12.sp)
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(optionLabel(option)) },
+                    onClick = {
+                        expanded = false
+                        onOptionSelected(option)
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun SettingsCheckboxRow(
     colors: NaviampColors,
     checked: Boolean,
@@ -524,6 +652,19 @@ private val UpNextSelectionBehavior.label: String
     get() = when (this) {
         UpNextSelectionBehavior.MoveSelectedToCurrent -> "Move selected"
         UpNextSelectionBehavior.SkipToSelected -> "Skip to selected"
+    }
+
+private val StreamQualityMode.label: String
+    get() = when (this) {
+        StreamQualityMode.Original -> "Full quality"
+        StreamQualityMode.Transcode -> "Encode"
+    }
+
+private val StreamingCodec.label: String
+    get() = when (this) {
+        StreamingCodec.Mp3 -> "MP3"
+        StreamingCodec.Aac -> "AAC"
+        StreamingCodec.Opus -> "Opus"
     }
 
 private val CrossfadeDurationOptions = listOf(0, 3, 5, 8, 12)

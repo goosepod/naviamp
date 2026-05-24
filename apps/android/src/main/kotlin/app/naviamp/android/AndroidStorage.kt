@@ -374,6 +374,16 @@ class AndroidStorage(
         queries.deleteDownloadedAudio(sourceId, trackId.value, qualityKey)
     }
 
+    fun removeDownloadedAudioForTrack(sourceId: String, trackId: TrackId) {
+        queries.selectDownloadedAudio(sourceId)
+            .executeAsList()
+            .filter { row -> row.remote_track_id == trackId.value }
+            .forEach { row ->
+                File(row.file_path).delete()
+                queries.deleteDownloadedAudio(sourceId, trackId.value, row.quality_key)
+            }
+    }
+
     override suspend fun cachedAudioWaveform(
         sourceId: String,
         trackId: TrackId,
