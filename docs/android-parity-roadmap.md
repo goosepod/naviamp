@@ -114,6 +114,15 @@ Android already uses the shared Compose UI shell for the main app surface, so ma
   - Confirm album-art palette extraction is fast enough on Android and cached correctly.
   - Confirm notification controls, Android back behavior, and route restoration feel native.
 
+- [ ] **Android Auto**
+  - [x] Add the Android Auto media app descriptor and declare the playback service as a media browser service.
+  - [x] Reuse the existing Android playback media session so Android Auto can discover Naviamp and control current playback.
+  - [x] Expose an initial safe browse root with Now Playing, Library, Radio, and Downloads entries.
+  - [ ] Wire Library browsing to shared indexed artists, albums, playlists, and downloaded tracks.
+  - [ ] Wire Radio shortcuts to existing shared radio actions.
+  - [ ] Support Android Auto play-from-media-id for browsed tracks, albums, playlists, downloads, and radio seeds.
+  - [ ] Verify in Android Auto desktop head unit or a real vehicle once device testing resumes.
+
 ## First Implementation Order
 
 1. Validate Android release packaging and BASS/JNI keep rules.
@@ -121,6 +130,7 @@ Android already uses the shared Compose UI shell for the main app surface, so ma
 3. Bring similar artists into shared artist details.
 4. Add Android diagnostics/stats for API calls and playback/cache state.
 5. Upgrade Android visualizer rendering toward the desktop catalog.
+6. Expand Android Auto browsing and play-from-media-id using shared library/radio/download services.
 
 ## Validation Checklist
 
@@ -147,3 +157,6 @@ Android already uses the shared Compose UI shell for the main app surface, so ma
 - [x] Stats/diagnostics API call list
 - [x] Downloads route lists downloaded tracks
 - [ ] Now Playing portrait and landscape visual check
+- [ ] Android Auto discovers Naviamp
+- [ ] Android Auto notification/session controls work
+- [ ] Android Auto browse root loads safely

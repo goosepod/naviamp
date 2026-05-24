@@ -4,7 +4,6 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -12,19 +11,21 @@ import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.drawable.Icon
 import android.media.MediaMetadata
+import android.media.MediaDescription
+import android.media.browse.MediaBrowser
 import android.media.session.MediaSession
 import android.media.session.PlaybackState as AndroidPlaybackState
 import android.os.Build
-import android.os.IBinder
+import android.os.Bundle
+import android.service.media.MediaBrowserService
 import app.naviamp.android.R
 import app.naviamp.android.MainActivity
 import java.net.URL
 import kotlin.concurrent.thread
 
-class AndroidPlaybackForegroundService : Service() {
+class AndroidPlaybackForegroundService : MediaBrowserService() {
     private var mediaSession: MediaSession? = null
-
-    override fun onBind(intent: Intent?): IBinder? = null
+    private var browserSessionTokenSet = false
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
@@ -204,6 +205,13 @@ class AndroidPlaybackForegroundService : Service() {
                         AndroidPlaybackNotificationControls.onStop?.invoke()
                     }
 
+                    override fun onPlayFromMediaId(mediaId: String, extras: Bundle?) {
+                        if (mediaId == MediaIdNowPlaying && !AndroidPlaybackNotificationControls.isPlaying) {
+                            AndroidPlaybackNotificationControls.onPlayPause?.invoke()
+                            refreshNotification(null)
+                        }
+                    }
+
                     override fun onCustomAction(action: String, extras: android.os.Bundle?) {
                         if (action == ActionFavorite && AndroidPlaybackNotificationControls.canFavorite) {
                             AndroidPlaybackNotificationControls.isFavorite =
@@ -215,8 +223,43 @@ class AndroidPlaybackForegroundService : Service() {
                 },
             )
             isActive = true
+            if (!browserSessionTokenSet) {
+                setSessionToken(sessionToken)
+                browserSessionTokenSet = true
+            }
             mediaSession = this
         }
+
+    override fun onGetRoot(
+        clientPackageName: String,
+        clientUid: Int,
+        rootHints: Bundle?,
+    ): BrowserRoot = BrowserRoot(MediaIdRoot, null)
+
+    override fun onLoadChildren(
+        parentId: String,
+        result: Result<MutableList<MediaBrowser.MediaItem>>,
+    ) {
+        val children = when (parentId) {
+            MediaIdRoot -> mutableListOf(
+                currentNowPlayingItem(),
+                browsableItem(MediaIdLibrary, "Library", "Artists, albums, and tracks"),
+                browsableItem(MediaIdRadio, "Radio", "Library and artist radio"),
+                browsableItem(MediaIdDownloads, "Downloads", "Offline music"),
+            )
+            MediaIdLibrary -> mutableListOf(
+                browsableItem("$MediaIdLibrary.placeholder", "Library browsing coming soon", "Use the phone app while Android Auto browsing is wired up."),
+            )
+            MediaIdRadio -> mutableListOf(
+                browsableItem("$MediaIdRadio.placeholder", "Radio shortcuts coming soon", "Library radio and artist radio will live here."),
+            )
+            MediaIdDownloads -> mutableListOf(
+                browsableItem("$MediaIdDownloads.placeholder", "Downloads coming soon", "Offline Android Auto browsing will use downloaded tracks."),
+            )
+            else -> mutableListOf()
+        }
+        result.sendResult(children)
+    }
 
     private fun updateMediaSession(metadata: AndroidPlaybackNotificationMetadata, largeIcon: Bitmap?) {
         val session = ensureMediaSession()
@@ -260,6 +303,40 @@ class AndroidPlaybackForegroundService : Service() {
         )
     }
 
+    private fun currentNowPlayingItem(): MediaBrowser.MediaItem {
+        val title = currentMetadata.title?.takeIf { it.isNotBlank() } ?: "Nothing playing"
+        val subtitle = currentMetadata.subtitle?.takeIf { it.isNotBlank() } ?: "Open Naviamp on your phone to start playback"
+        return playableItem(MediaIdNowPlaying, title, subtitle)
+    }
+
+    private fun browsableItem(
+        mediaId: String,
+        title: String,
+        subtitle: String,
+    ): MediaBrowser.MediaItem =
+        MediaBrowser.MediaItem(
+            MediaDescription.Builder()
+                .setMediaId(mediaId)
+                .setTitle(title)
+                .setSubtitle(subtitle)
+                .build(),
+            MediaBrowser.MediaItem.FLAG_BROWSABLE,
+        )
+
+    private fun playableItem(
+        mediaId: String,
+        title: String,
+        subtitle: String,
+    ): MediaBrowser.MediaItem =
+        MediaBrowser.MediaItem(
+            MediaDescription.Builder()
+                .setMediaId(mediaId)
+                .setTitle(title)
+                .setSubtitle(subtitle)
+                .build(),
+            MediaBrowser.MediaItem.FLAG_PLAYABLE,
+        )
+
     private fun Intent?.toMetadata(): AndroidPlaybackNotificationMetadata {
         val nextCoverArtUrl = this?.getStringExtra(ExtraCoverArtUrl) ?: currentMetadata.coverArtUrl
         if (nextCoverArtUrl != currentMetadata.coverArtUrl) {
@@ -296,6 +373,11 @@ class AndroidPlaybackForegroundService : Service() {
         private const val ActionPrevious = "app.naviamp.android.playback.PREVIOUS"
         private const val ActionNext = "app.naviamp.android.playback.NEXT"
         private const val ActionFavorite = "app.naviamp.android.playback.FAVORITE"
+        private const val MediaIdRoot = "naviamp.root"
+        private const val MediaIdNowPlaying = "naviamp.now_playing"
+        private const val MediaIdLibrary = "naviamp.library"
+        private const val MediaIdRadio = "naviamp.radio"
+        private const val MediaIdDownloads = "naviamp.downloads"
         private const val ExtraTitle = "title"
         private const val ExtraSubtitle = "subtitle"
         private const val ExtraCoverArtUrl = "coverArtUrl"
