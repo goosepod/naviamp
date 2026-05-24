@@ -118,12 +118,17 @@ fun matchPopularTracks(
     candidates: List<ArtistPopularTrackCandidate>,
     libraryTracks: List<Track>,
 ): Map<String, Track> {
-    val tracksByTitle = libraryTracks
-        .groupBy { it.title.popularTrackSearchText() }
+    val tracksByTitle = libraryTracks.flatMap { track ->
+        track.title.popularTrackSearchKeys().map { key -> key to track }
+    }.groupBy(
+        keySelector = { it.first },
+        valueTransform = { it.second },
+    )
 
     return candidates.mapNotNull { candidate ->
-        val titleKey = candidate.title.popularTrackSearchText()
-        val matches = tracksByTitle[titleKey].orEmpty()
+        val matches = candidate.title.popularTrackSearchKeys()
+            .flatMap { key -> tracksByTitle[key].orEmpty() }
+            .distinctBy { it.id }
         val match = matches.bestMatchFor(candidate) ?: return@mapNotNull null
         candidate.sourceTrackId to match
     }.toMap()
@@ -149,8 +154,23 @@ private fun String.popularTrackSearchText(): String =
     lowercase()
         .replace(Regex("&"), " and ")
         .replace(Regex("\\([^)]*\\)|\\[[^]]*]"), " ")
+        .replace(Regex("\\b(feat|featuring|ft)\\.?\\b.*$"), " ")
+        .replace(Regex("\\s+[-–—]\\s+.*\\b(remaster|remastered|remix|edit|version|mono|stereo|live|explicit|clean|deluxe|bonus)\\b.*$"), " ")
+        .replace(Regex("\\b(\\d{4}\\s*)?(remaster(ed)?|radio edit|single version|album version|mono|stereo|explicit|clean)\\b"), " ")
         .replace(Regex("[^a-z0-9]+"), " ")
         .trim()
+
+private fun String.popularTrackSearchKeys(): Set<String> {
+    val primary = popularTrackSearchText()
+    if (primary.isBlank()) return emptySet()
+    val withoutTrailingVersion = primary
+        .replace(Regex("\\b(remaster(ed)?|remix|edit|version|mono|stereo|live|explicit|clean|deluxe|bonus)\\b.*$"), " ")
+        .replace(Regex("[^a-z0-9]+"), " ")
+        .trim()
+    return setOf(primary, withoutTrailingVersion)
+        .filter { it.length >= 2 }
+        .toSet()
+}
 
 private fun String.artistSearchText(): String =
     lowercase()

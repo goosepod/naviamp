@@ -123,6 +123,7 @@ data class InternetRadioStation(
 data class StreamRequest(
     val trackId: TrackId,
     val quality: StreamQuality,
+    val startPositionSeconds: Double? = null,
 )
 
 sealed interface StreamQuality {

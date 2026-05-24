@@ -153,6 +153,7 @@ data class AndroidTrackRowUi(
 )
 
 data class NaviampDownloadedTrackUi(
+    val id: String,
     val track: AndroidTrackRowUi,
     val sizeBytes: Long,
 )
@@ -176,6 +177,7 @@ data class SharedArtistDetailUi(
     val artist: SharedMediaItemUi,
     val albums: List<SharedMediaItemUi>,
     val popularTracks: List<AndroidTrackRowUi> = emptyList(),
+    val popularTracksStatus: String? = null,
     val similarArtists: List<SharedSimilarArtistUi> = emptyList(),
     val similarArtistsStatus: String? = null,
 )
@@ -407,6 +409,8 @@ fun NaviampSharedAppShell(
     onRefreshLibrary: () -> Unit = {},
     onTrackSelected: (AndroidTrackRowUi) -> Unit,
     onDownloadedTrackSelected: (NaviampDownloadedTrackUi) -> Unit = {},
+    onDownloadedTrackAddToPlaylist: (NaviampDownloadedTrackUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
+    onDownloadedTrackCreatePlaylistAndAdd: (NaviampDownloadedTrackUi, String) -> Unit = { _, _ -> },
     onRemoveDownload: (NaviampDownloadedTrackUi) -> Unit = {},
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
     onMixAlbumSelected: (SharedMediaItemUi) -> Unit = onAlbumSelected,
@@ -491,7 +495,8 @@ fun NaviampSharedAppShell(
                 artistDetail != null ||
                 playlistDetail != null ||
                 selectedRoute == SharedRoute.Library ||
-                selectedRoute == SharedRoute.Radio
+                selectedRoute == SharedRoute.Radio ||
+                selectedRoute == SharedRoute.Downloads
             )
     val nowPlayingPlayerColors = if (nowPlaying != null) {
         rememberPlatformCoverArtPlayerColors(nowPlaying.coverArtUrl, colors)
@@ -600,6 +605,8 @@ fun NaviampSharedAppShell(
                             onRefreshLibrary = onRefreshLibrary,
                             onTrackSelected = onTrackSelected,
                             onDownloadedTrackSelected = onDownloadedTrackSelected,
+                            onDownloadedTrackAddToPlaylist = onDownloadedTrackAddToPlaylist,
+                            onDownloadedTrackCreatePlaylistAndAdd = onDownloadedTrackCreatePlaylistAndAdd,
                             onRemoveDownload = onRemoveDownload,
                             onAlbumSelected = onAlbumSelected,
                             onMixAlbumSelected = onMixAlbumSelected,
@@ -856,6 +863,8 @@ private fun ConnectedContent(
     onRefreshLibrary: () -> Unit,
     onTrackSelected: (AndroidTrackRowUi) -> Unit,
     onDownloadedTrackSelected: (NaviampDownloadedTrackUi) -> Unit,
+    onDownloadedTrackAddToPlaylist: (NaviampDownloadedTrackUi, NaviampPlaylistChoiceUi?) -> Unit,
+    onDownloadedTrackCreatePlaylistAndAdd: (NaviampDownloadedTrackUi, String) -> Unit,
     onRemoveDownload: (NaviampDownloadedTrackUi) -> Unit,
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
     onMixAlbumSelected: (SharedMediaItemUi) -> Unit,
@@ -1074,6 +1083,10 @@ private fun ConnectedContent(
                 downloadBytes = downloadBytes,
                 maxDownloadBytes = maxDownloadBytes,
                 onTrackSelected = onDownloadedTrackSelected,
+                playlistChoices = playlistChoices,
+                playlistActionStatus = playlistActionStatus,
+                onAddToPlaylist = onDownloadedTrackAddToPlaylist,
+                onCreatePlaylistAndAdd = onDownloadedTrackCreatePlaylistAndAdd,
                 onRemoveDownload = onRemoveDownload,
             )
         }
@@ -1599,8 +1612,19 @@ private fun DownloadsContent(
     downloadBytes: Long,
     maxDownloadBytes: Long,
     onTrackSelected: (NaviampDownloadedTrackUi) -> Unit,
+    playlistChoices: List<NaviampPlaylistChoiceUi>,
+    playlistActionStatus: String?,
+    onAddToPlaylist: (NaviampDownloadedTrackUi, NaviampPlaylistChoiceUi?) -> Unit,
+    onCreatePlaylistAndAdd: (NaviampDownloadedTrackUi, String) -> Unit,
     onRemoveDownload: (NaviampDownloadedTrackUi) -> Unit,
 ) {
+    var downloadForPlaylist by remember { mutableStateOf<NaviampDownloadedTrackUi?>(null) }
+    val remainingBytes = (maxDownloadBytes - downloadBytes).coerceAtLeast(0L)
+    val usedPercent = if (maxDownloadBytes > 0L) {
+        ((downloadBytes.toDouble() / maxDownloadBytes.toDouble()) * 100.0).coerceIn(0.0, 100.0)
+    } else {
+        0.0
+    }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -1612,6 +1636,11 @@ private fun DownloadsContent(
                     "${downloads.size} files - ${downloadBytes.storageBytesLabel()} of ${maxDownloadBytes.storageBytesLabel()}",
                     color = colors.secondaryText,
                     fontSize = 12.sp,
+                )
+                Text(
+                    "${remainingBytes.storageBytesLabel()} remaining - ${usedPercent.oneDecimalLabel()}% used",
+                    color = colors.mutedText,
+                    fontSize = 11.sp,
                 )
             }
         }
@@ -1627,7 +1656,7 @@ private fun DownloadsContent(
         }
         items(
             items = downloads,
-            key = { item -> item.track.id },
+            key = { item -> item.id },
         ) { download ->
             Row(
                 modifier = Modifier
@@ -1643,19 +1672,46 @@ private fun DownloadsContent(
                     Text(download.track.subtitle, color = colors.secondaryText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 Text(download.sizeBytes.storageBytesLabel(), color = colors.mutedText, fontSize = 11.sp)
-                IconButton(
-                    onClick = { onRemoveDownload(download) },
-                    modifier = Modifier.size(34.dp),
-                ) {
-                    Icon(
-                        imageVector = NaviampIcons.Trash,
-                        contentDescription = "Remove download",
-                        tint = colors.mutedText,
-                        modifier = Modifier.size(18.dp),
-                    )
-                }
+                NaviampRowOverflowMenu(
+                    colors = colors,
+                    items = downloadRowActions(canRemove = true, canAddToPlaylist = true).mapNotNull { action ->
+                        when (action.action) {
+                            NaviampAction.AddToPlaylist -> NaviampRowMenuItem(
+                                label = action.label,
+                                icon = action.icon,
+                                onClick = { downloadForPlaylist = download },
+                                enabled = action.enabled,
+                            )
+                            NaviampAction.RemoveDownload -> NaviampRowMenuItem(
+                                label = action.label,
+                                icon = action.icon,
+                                onClick = { onRemoveDownload(download) },
+                                enabled = action.enabled,
+                            )
+                            else -> null
+                        }
+                    },
+                )
             }
         }
+    }
+
+    downloadForPlaylist?.let { download ->
+        AddToPlaylistDialog(
+            title = download.track.title,
+            colors = colors,
+            playlists = playlistChoices,
+            status = playlistActionStatus,
+            onDismissRequest = { downloadForPlaylist = null },
+            onAddToExisting = { playlist ->
+                downloadForPlaylist = null
+                onAddToPlaylist(download, playlist)
+            },
+            onCreateAndAdd = { name ->
+                downloadForPlaylist = null
+                onCreatePlaylistAndAdd(download, name)
+            },
+        )
     }
 }
 
@@ -1866,7 +1922,7 @@ private fun ArtistDetailContent(
                     }
                 }
             }
-            if (detail.popularTracks.isNotEmpty()) {
+            if (detail.popularTracks.isNotEmpty() || detail.popularTracksStatus != null) {
                 Text(
                     "Popular Tracks".uppercase(),
                     color = colors.primaryText,
@@ -1874,10 +1930,15 @@ private fun ArtistDetailContent(
                     fontSize = 12.sp,
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        MiniPlayerIconButton(colors, true, NaviampTransportIcons.Play, "Play popular tracks", onPopularPlay)
-                        MiniPlayerIconButton(colors, true, NaviampTransportIcons.Radio, "Start popular tracks radio", onPopularRadio)
-                        MiniPlayerIconButton(colors, true, NaviampIcons.Queue, "Add popular tracks to queue", onPopularAddToQueue)
+                    if (detail.popularTracks.isNotEmpty()) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            MiniPlayerIconButton(colors, true, NaviampTransportIcons.Play, "Play popular tracks", onPopularPlay)
+                            MiniPlayerIconButton(colors, true, NaviampTransportIcons.Radio, "Start popular tracks radio", onPopularRadio)
+                            MiniPlayerIconButton(colors, true, NaviampIcons.Queue, "Add popular tracks to queue", onPopularAddToQueue)
+                        }
+                    }
+                    detail.popularTracksStatus?.let { status ->
+                        Text(status, color = colors.secondaryText, fontSize = 11.sp)
                     }
                     detail.popularTracks.forEachIndexed { index, track ->
                         TrackRow(

@@ -42,6 +42,24 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun transcodedStreamUrlIncludesTimeOffset() = runTest {
+        val provider = NavidromeProvider(connection("https://music.example.test"))
+
+        val url = provider.streamUrl(
+            StreamRequest(
+                trackId = TrackId("abc123"),
+                quality = StreamQuality.Transcoded(AudioCodec.Opus, bitrateKbps = 128),
+                startPositionSeconds = 95.8,
+            ),
+        )
+
+        assertEquals(
+            "https://music.example.test/rest/stream.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=abc123&format=opus&maxBitRate=128&timeOffset=95",
+            url,
+        )
+    }
+
+    @Test
     fun coverArtUrlIncludesAuthentication() {
         val provider = NavidromeProvider(connection("https://music.example.test"))
 

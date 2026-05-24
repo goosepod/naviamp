@@ -486,7 +486,10 @@ class NavidromeProvider(
                     "maxBitRate" to quality.bitrateKbps.toString(),
                 )
             }
-        }
+        } + request.startPositionSeconds
+            ?.takeIf { it > 0.0 }
+            ?.let { mapOf("timeOffset" to it.toInt().toString()) }
+            .orEmpty()
 
         return url("stream.view", params)
     }

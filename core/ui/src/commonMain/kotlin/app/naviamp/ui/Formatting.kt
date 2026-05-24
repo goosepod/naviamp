@@ -67,6 +67,9 @@ fun Int.ratingLabel(): String =
 fun Double.twoDecimalLabel(): String =
     round(this * 100.0).div(100.0).toString()
 
+fun Double.oneDecimalLabel(): String =
+    "%.1f".format(this)
+
 fun Double.sixDecimalLabel(): String =
     round(this * 1_000_000.0).div(1_000_000.0).toString()
 

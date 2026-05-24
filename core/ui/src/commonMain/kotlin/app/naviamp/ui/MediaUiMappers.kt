@@ -7,6 +7,7 @@ import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Playlist
+import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.provider.MediaSearchResults
@@ -101,6 +102,7 @@ fun Track.nowPlayingAudioInfoLabel(playbackEngineName: String? = null): String =
 
 fun Track.toNowPlayingDetailSections(
     embeddedTags: List<Pair<String, String>>? = null,
+    streamQuality: StreamQuality? = null,
 ): List<NaviampDetailSectionUi> =
     buildList {
         add(
@@ -115,6 +117,17 @@ fun Track.toNowPlayingDetailSections(
                 ),
             ),
         )
+        streamQuality?.let { quality ->
+            add(
+                NaviampDetailSectionUi(
+                    title = "Stream",
+                    rows = listOf(
+                        "Transcoded" to if (quality is StreamQuality.Transcoded) "Yes" else "No",
+                        "Quality" to quality.label(),
+                    ),
+                ),
+            )
+        }
         if (embeddedTags != null) {
             add(
                 NaviampDetailSectionUi(
@@ -197,6 +210,7 @@ data class NowPlayingTrackUiConfig(
     val lyrics: Lyrics? = null,
     val menuEnabled: Boolean = false,
     val embeddedTags: List<Pair<String, String>>? = null,
+    val streamQuality: StreamQuality? = null,
     val playlistChoices: List<NaviampPlaylistChoiceUi> = emptyList(),
     val useInlinePlaylistPicker: Boolean = true,
     val playlistActionStatus: String? = null,
@@ -267,7 +281,10 @@ fun Track.toNowPlayingUi(config: NowPlayingTrackUiConfig): NowPlayingUi =
             NaviampLyricLineUi(startMillis = line.startMillis, text = line.text)
         },
         menuEnabled = config.menuEnabled,
-        detailSections = toNowPlayingDetailSections(config.embeddedTags),
+        detailSections = toNowPlayingDetailSections(
+            embeddedTags = config.embeddedTags,
+            streamQuality = config.streamQuality,
+        ),
         playlistChoices = config.playlistChoices,
         useInlinePlaylistPicker = config.useInlinePlaylistPicker,
         playlistActionStatus = config.playlistActionStatus,
@@ -349,6 +366,7 @@ fun AlbumDetails.toSharedAlbumDetailUi(
 fun ArtistDetails.toSharedArtistDetailUi(
     coverArtUrl: (String?) -> String?,
     popularTracks: List<Track> = emptyList(),
+    popularTracksStatus: String? = null,
     similarArtists: List<SimilarArtistMatch> = emptyList(),
     similarArtistsStatus: String? = null,
 ): SharedArtistDetailUi =
@@ -356,6 +374,7 @@ fun ArtistDetails.toSharedArtistDetailUi(
         artist = artist.toSharedMediaItemUi(coverArtUrl),
         albums = albums.map { it.toSharedMediaItemUi(coverArtUrl) },
         popularTracks = popularTracks.map { it.toAndroidTrackRowUi(coverArtUrl) },
+        popularTracksStatus = popularTracksStatus,
         similarArtists = similarArtists.map { it.toSharedSimilarArtistUi() },
         similarArtistsStatus = similarArtistsStatus,
     )

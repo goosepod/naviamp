@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Lyrics
+import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
@@ -62,6 +63,7 @@ fun NowPlayingPanel(
     playbackState: PlaybackState,
     playbackProgress: PlaybackProgress,
     volumePercent: Int,
+    streamQuality: StreamQuality,
     onPause: () -> Unit,
     onResume: () -> Unit,
     onPlayCurrent: () -> Unit,
@@ -168,6 +170,7 @@ fun NowPlayingPanel(
                 lyricsStatus = nowPlayingLyricsStatus,
                 lyrics = nowPlayingLyrics,
                 menuEnabled = true,
+                streamQuality = streamQuality,
                 embeddedTags = nowPlayingAudioTags?.map { it.key to it.value }
                     ?: listOf("Status" to "Loading from cached audio"),
                 useInlinePlaylistPicker = false,

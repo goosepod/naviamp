@@ -8,6 +8,7 @@ This branch tracks the work needed to make the Android app feel like the same pr
 - Prefer stable releases for daily-driver branches. Use EAP/beta toolchains only on short-lived experiment branches with an explicit rollback path.
 - Treat dependency freshness as product work, not chores: upgrade in small batches, run Android and desktop validation, and document any temporary pins so they do not become invisible tech debt.
 - When package upgrades expose deprecations, either fix them in the same slice when low-risk or add a named checklist item here.
+- Build shared behavior in common domain/UI first, then wire platform-specific details only where needed. Android parity work should also be reflected on desktop whenever the feature makes sense there.
 
 ## Current Baseline
 
@@ -26,7 +27,8 @@ Android already uses the shared Compose UI shell for the main app surface, so ma
 - [ ] **Dependency freshness**
   - [x] Move Kotlin from `2.3.0` to stable `2.3.21`.
   - [ ] Replace deprecated Compose dependency aliases in Android and shared UI build files with direct dependency coordinates.
-  - [ ] Add a recurring package review pass before Android parity milestones.
+  - [x] Add a recurring package review pass before Android parity milestones.
+    Before each Android parity milestone, run a dependency review against `gradle/libs.versions.toml`, prefer newest stable packages, and record any intentional pins in this section.
 
 - [ ] **Android release build confidence**
   - [x] Define the build command we will treat as canonical for local Android release validation: `.\gradlew.bat --configure-on-demand :apps:android:assembleRelease`.
@@ -34,14 +36,18 @@ Android already uses the shared Compose UI shell for the main app surface, so ma
   - [x] Verify release packaging completes with BASS native build steps for `arm64-v8a`, `armeabi-v7a`, `x86`, and `x86_64`.
   - [x] Verify BASS native libraries are packaged for supported ABIs by inspecting the APK contents.
     `libbass*`, `libnaviamp_bass.so`, and `libc++_shared.so` are present for `arm64-v8a`, `armeabi-v7a`, `x86`, and `x86_64`.
-  - Verify release/minified builds do not strip JNI entry points or Compose/shared UI code.
-  - Document APK/AAB output locations, signing expectations, and install commands.
+  - [x] Verify the local non-minified release build keeps JNI entry points, Compose/shared UI code, and packaged native libraries.
+  - [ ] Add a separate minified release validation pass before enabling Android shrink/minify for daily use.
+  - [x] Document APK/AAB output locations, signing expectations, and install commands.
+    Debug installs use `.\gradlew.bat --configure-on-demand :apps:android:installDebug`.
+    Local unsigned release APKs build to `apps/android/build/outputs/apk/release/android-release-unsigned.apk`.
+    Signed release artifacts still need a release keystore/signing config before distribution.
 
 - [ ] **Now Playing visualizer parity**
   - Desktop has the GPU-backed visualizer catalog in `PlatformLiveVisualizerSurface.jvm.kt`.
-  - Android currently renders a simple Canvas bar visualizer in `PlatformLiveVisualizerSurface.android.kt`.
-  - Implement Android renderers for the shared `NaviampVisualizer` modes or deliberately map unsupported modes to a polished fallback.
+  - [x] Android has Canvas renderers for every shared `NaviampVisualizer` mode as polished fallbacks to the desktop shader renderers.
   - [x] Persist selected visualizer on Android like desktop does through `VisualizerSettings`.
+  - [ ] Tune Android visualizer style and performance on device once phone testing resumes.
 
 - [ ] **Playback settings parity**
   - `AndroidBassPlaybackEngine` reports `supportsReplayGain = true` and `supportsCrossfade = true`.
@@ -76,8 +82,8 @@ Android already uses the shared Compose UI shell for the main app surface, so ma
 
 - [ ] **Lyrics parity**
   - Android uses provider lyrics and LRCLIB fallback.
-  - Embedded lyrics from downloaded/cached audio are not currently selected in the Android visible lyric path.
-  - Decide whether Android should read local audio tags for embedded lyrics like desktop sidecar prep.
+  - [x] Add a shared ID3v2 embedded lyrics parser for `USLT` and lyric-flavored `TXXX` frames.
+  - [x] Android reads embedded lyrics from already downloaded/cached audio and feeds them into the shared lyrics resolver.
   - Confirm the shortened synced-lyrics lead timing feels correct on Android touch screens.
 
 - [ ] **Downloads and cache management parity**
@@ -85,9 +91,9 @@ Android already uses the shared Compose UI shell for the main app surface, so ma
   - [x] Shared Downloads route exposes downloaded tracks with play and remove actions on Android.
   - [x] Downloads can save original or transcoded versions based on the shared download quality setting.
   - [x] Android blocks mobile-data downloads unless explicitly allowed.
-  - Verify Downloads route exposes all desktop actions, including add-to-playlist where applicable.
+  - [x] Verify Downloads route exposes all desktop actions, including add-to-playlist where applicable.
   - Confirm offline playback from downloaded files works after app restart and network loss.
-  - Expose cache budgets and storage pressure clearly enough for Android users.
+  - [x] Expose cache budgets and storage pressure clearly enough for Android users.
 
 - [ ] **Artist detail parity**
   - Shared artist detail supports popular tracks.

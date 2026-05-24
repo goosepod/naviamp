@@ -38,6 +38,7 @@ fun ArtistDetailPanel(
     popularTracks: List<Track>,
     similarArtists: List<SimilarArtistMatch>,
     status: String?,
+    popularTracksStatus: String?,
     similarArtistsStatus: String?,
     coverArtUrl: (String?) -> String?,
     onBack: () -> Unit,
@@ -232,35 +233,40 @@ fun ArtistDetailPanel(
                         }
                     }
                 }
-                if (popularTracks.isNotEmpty()) {
+                if (popularTracks.isNotEmpty() || popularTracksStatus != null) {
                     Text(
                         "Popular Tracks".uppercase(),
                         color = appColors.primaryText,
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp,
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                        DetailActionIconButton(
-                            appColors = appColors,
-                            icon = TransportIcons.Play,
-                            contentDescription = "Play popular tracks",
-                            enabled = true,
-                            onClick = { onPopularTracksPlay(popularTracks) },
-                        )
-                        DetailActionIconButton(
-                            appColors = appColors,
-                            icon = TransportIcons.Radio,
-                            contentDescription = "Start popular tracks radio",
-                            enabled = true,
-                            onClick = { onPopularTracksRadio(popularTracks) },
-                        )
-                        DetailActionIconButton(
-                            appColors = appColors,
-                            icon = NavigationIcons.Queue,
-                            contentDescription = "Add popular tracks to queue",
-                            enabled = true,
-                            onClick = { onPopularTracksAddToQueue(popularTracks) },
-                        )
+                    if (popularTracks.isNotEmpty()) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                            DetailActionIconButton(
+                                appColors = appColors,
+                                icon = TransportIcons.Play,
+                                contentDescription = "Play popular tracks",
+                                enabled = true,
+                                onClick = { onPopularTracksPlay(popularTracks) },
+                            )
+                            DetailActionIconButton(
+                                appColors = appColors,
+                                icon = TransportIcons.Radio,
+                                contentDescription = "Start popular tracks radio",
+                                enabled = true,
+                                onClick = { onPopularTracksRadio(popularTracks) },
+                            )
+                            DetailActionIconButton(
+                                appColors = appColors,
+                                icon = NavigationIcons.Queue,
+                                contentDescription = "Add popular tracks to queue",
+                                enabled = true,
+                                onClick = { onPopularTracksAddToQueue(popularTracks) },
+                            )
+                        }
+                    }
+                    popularTracksStatus?.let {
+                        Text(it, color = appColors.secondaryText, fontSize = 11.sp)
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         popularTracks.forEach { track ->

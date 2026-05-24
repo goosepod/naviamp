@@ -247,7 +247,7 @@ class PlaylistEngine(
 
         scope.launch {
             try {
-                val playbackTarget = playbackTarget(currentProvider, track, currentQuality)
+                val playbackTarget = playbackTarget(currentProvider, track, currentQuality, startPositionSeconds)
                 playbackSource = playbackTarget.source
                 val replayGain = replayGainForTrack(track, currentQuality)
                 val coverArtUrl = track.coverArtId?.let { currentProvider.coverArtUrl(it) }
@@ -298,6 +298,7 @@ class PlaylistEngine(
         provider: MediaProvider,
         track: Track,
         quality: StreamQuality,
+        startPositionSeconds: Double? = null,
     ): PlaybackTarget {
         val sourceId = sourceIdProvider()
         val downloaded = if (sourceId != null) {
@@ -329,6 +330,8 @@ class PlaylistEngine(
                 StreamRequest(
                     trackId = track.id,
                     quality = quality,
+                    startPositionSeconds = startPositionSeconds
+                        ?.takeIf { quality is StreamQuality.Transcoded },
                 ),
             ),
             source = if (audioCachingEnabledProvider()) PlaybackSource.ProviderStream else PlaybackSource.ProviderStreamCacheDisabled,

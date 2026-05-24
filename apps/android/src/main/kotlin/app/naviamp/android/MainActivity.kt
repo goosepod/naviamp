@@ -121,6 +121,7 @@ import app.naviamp.ui.toSharedHomeUi
 import app.naviamp.ui.toSharedMediaItemUi
 import app.naviamp.ui.toSharedPlaylistDetailUi
 import app.naviamp.ui.bytesLabel
+import app.naviamp.ui.label as streamQualityLabel
 import app.naviamp.ui.toSharedSearchResultsUi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -301,6 +302,7 @@ private fun NaviampAndroidApp(
     var repeatMode by remember { mutableStateOf(RepeatMode.Off) }
     var relatedTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
     var artistPopularTracksByArtistId by remember { mutableStateOf<Map<String, List<Track>>>(emptyMap()) }
+    var artistPopularTracksStatusByArtistId by remember { mutableStateOf<Map<String, String?>>(emptyMap()) }
     var artistSimilarArtistsByArtistId by remember { mutableStateOf<Map<String, List<SimilarArtistMatch>>>(emptyMap()) }
     var artistSimilarArtistsStatusByArtistId by remember { mutableStateOf<Map<String, String?>>(emptyMap()) }
     var lyricsVisible by remember { mutableStateOf(false) }
@@ -389,6 +391,7 @@ private fun NaviampAndroidApp(
         lyricsStatusByTrackId = emptyMap()
         relatedTracks = emptyList()
         artistPopularTracksByArtistId = emptyMap()
+        artistPopularTracksStatusByArtistId = emptyMap()
         artistSimilarArtistsByArtistId = emptyMap()
         artistSimilarArtistsStatusByArtistId = emptyMap()
         playlistTracksById = emptyMap()
@@ -482,15 +485,27 @@ private fun NaviampAndroidApp(
         lyricsStatusByTrackId = lyricsStatusByTrackId + (track.id.value to "Grabbing lyrics")
         scope.launch {
             runCatching {
+                val sourceId = activeSourceId
+                val quality = currentStreamQuality()
+                val audioFile = if (sourceId != null) {
+                    storage.downloadedAudioFile(sourceId, track.id, quality)?.file
+                        ?: storage.cachedAudioFile(sourceId, track.id, quality)?.file
+                } else {
+                    null
+                }
+                val embeddedLyrics = audioFile?.let(::embeddedLyricsFromAudioFile)
                 val localLyrics = activeProvider.lyrics(track.id)
-                val onlineLyrics = if (playbackSettings.lrclibLyricsEnabled && (localLyrics == null || !localLyrics.synced)) {
+                val onlineLyrics = if (
+                    playbackSettings.lrclibLyricsEnabled &&
+                    listOf(localLyrics, embeddedLyrics).none { it?.synced == true }
+                ) {
                     lrclibLyricsClient.lyrics(track)
                 } else {
                     null
                 }
                 selectPreferredLyrics(
                     providerLyrics = localLyrics,
-                    embeddedLyrics = null,
+                    embeddedLyrics = embeddedLyrics,
                     onlineLyrics = onlineLyrics,
                 )
             }
@@ -723,7 +738,14 @@ private fun NaviampAndroidApp(
         scope.launch {
             status = "Loading ${track.title}..."
             runCatching {
-                activeProvider.streamUrl(StreamRequest(track.id, currentStreamQuality()))
+                activeProvider.streamUrl(
+                    StreamRequest(
+                        trackId = track.id,
+                        quality = currentStreamQuality(),
+                        startPositionSeconds = startPositionSeconds
+                            ?.takeIf { currentStreamQuality() is StreamQuality.Transcoded },
+                    ),
+                )
             }.onSuccess { streamUrl ->
                 playbackEngine.applyTlsSettings(activeTlsSettings)
                 playbackQueue = PlaybackQueue(
@@ -832,6 +854,16 @@ private fun NaviampAndroidApp(
         )
         pendingSeekPositionSeconds = positionSeconds
         pendingSeekIssuedAtMillis = System.currentTimeMillis()
+        val currentTrack = nowPlaying
+        if (currentTrack != null && currentStreamQuality() is StreamQuality.Transcoded) {
+            playTrack(
+                track = currentTrack,
+                queue = playbackQueue.tracks.takeIf { it.isNotEmpty() },
+                openNowPlaying = false,
+                startPositionSeconds = positionSeconds,
+            )
+            return
+        }
         playbackEngine.seek(positionSeconds)
     }
 
@@ -1100,6 +1132,8 @@ private fun NaviampAndroidApp(
                         "Connected."
                     }
                     if (sourceId != null) {
+                        artistPopularTracksStatusByArtistId =
+                            artistPopularTracksStatusByArtistId + (artistId.value to "Loading popular tracks...")
                         scope.launch(Dispatchers.IO) {
                             runCatching {
                                 popularTracksService.popularTracks(
@@ -1108,20 +1142,33 @@ private fun NaviampAndroidApp(
                                     limit = PopularTracksFetchLimit,
                                 )
                             }.onSuccess { matches ->
+                                val matchedTracks = matches
+                                    .map { it.matchedTrack }
+                                    .take(PopularTracksDisplayLimit)
                                 withContext(Dispatchers.Main) {
                                     artistPopularTracksByArtistId =
-                                        artistPopularTracksByArtistId + (
-                                            artistId.value to matches
-                                                .map { it.matchedTrack }
-                                                .take(PopularTracksDisplayLimit)
+                                        artistPopularTracksByArtistId + (artistId.value to matchedTracks)
+                                    artistPopularTracksStatusByArtistId =
+                                        artistPopularTracksStatusByArtistId + (
+                                            artistId.value to matchedTracks
+                                                .takeIf { it.isEmpty() }
+                                                ?.let { "No Deezer popular tracks matched songs in your library." }
                                             )
                                 }
                             }.onFailure { error ->
                                 withContext(Dispatchers.Main) {
-                                    status = error.message ?: "Popular tracks unavailable."
+                                    artistPopularTracksStatusByArtistId =
+                                        artistPopularTracksStatusByArtistId + (
+                                            artistId.value to "Popular tracks unavailable: ${error.message ?: "unknown error"}"
+                                            )
                                 }
                             }
                         }
+                    } else {
+                        artistPopularTracksStatusByArtistId =
+                            artistPopularTracksStatusByArtistId + (
+                                artistId.value to "Popular tracks unavailable: no connected media source."
+                                )
                     }
                 }
                 .onFailure { error -> status = error.message ?: "Artist failed to load." }
@@ -1711,6 +1758,7 @@ private fun NaviampAndroidApp(
         playbackProgress = playbackProgress,
         playbackQueue = playbackQueue,
         playbackSettings = playbackSettings,
+        streamQuality = currentStreamQuality(),
         nowPlaying = nowPlaying,
         nowPlayingStation = nowPlayingStation,
         nowPlayingStreamMetadata = nowPlayingStreamMetadata,
@@ -1760,6 +1808,7 @@ private fun NaviampAndroidApp(
         ),
         downloads = downloadedTracks.map { download ->
             NaviampDownloadedTrackUi(
+                id = download.file.absolutePath,
                 track = download.track.toAndroidTrackRowUi(
                     coverArtUrl = { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
                 ),
@@ -1794,6 +1843,7 @@ private fun NaviampAndroidApp(
         artistDetail = artistDetail?.toSharedArtistDetailUi(
             coverArtUrl = { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
             popularTracks = artistPopularTracksByArtistId[artistDetail.artist.id.value].orEmpty(),
+            popularTracksStatus = artistPopularTracksStatusByArtistId[artistDetail.artist.id.value],
             similarArtists = artistSimilarArtistsByArtistId[artistDetail.artist.id.value].orEmpty(),
             similarArtistsStatus = artistSimilarArtistsStatusByArtistId[artistDetail.artist.id.value],
         ),
@@ -1837,6 +1887,7 @@ private fun NaviampAndroidApp(
                     lyricsStatus = lyricsStatus,
                     lyrics = lyrics,
                     menuEnabled = true,
+                    streamQuality = currentStreamQuality(),
                     playlistChoices = homeState.playlists.map { it.toPlaylistChoiceUi() },
                     playlistActionStatus = playlistActionStatus,
                     backTo = knownTracks
@@ -1982,6 +2033,18 @@ private fun NaviampAndroidApp(
             val currentTracks = downloadedTracks.map { it.track }
             val track = currentTracks.firstOrNull { it.id.value == download.track.id } ?: return@NaviampSharedAppShell
             playTrack(track, currentTracks)
+        },
+        onDownloadedTrackAddToPlaylist = { download, playlist ->
+            downloadedTracks.firstOrNull { it.file.absolutePath == download.id }
+                ?.track
+                ?.let { addTrackToPlaylist(it, playlist) }
+                ?: run { status = "Track not found." }
+        },
+        onDownloadedTrackCreatePlaylistAndAdd = { download, name ->
+            downloadedTracks.firstOrNull { it.file.absolutePath == download.id }
+                ?.track
+                ?.let { addTrackToPlaylist(it, playlist = null, newPlaylistName = name) }
+                ?: run { status = "Track not found." }
         },
         onRemoveDownload = { download ->
             removeDownload(download)
@@ -2699,6 +2762,7 @@ private fun androidDiagnostics(
     playbackProgress: PlaybackProgress,
     playbackQueue: PlaybackQueue,
     playbackSettings: PlaybackSettings,
+    streamQuality: StreamQuality,
     nowPlaying: Track?,
     nowPlayingStation: InternetRadioStation?,
     nowPlayingStreamMetadata: PlaybackStreamMetadata,
@@ -2746,6 +2810,8 @@ private fun androidDiagnostics(
                     "Queue" to "${playbackQueue.tracks.size} tracks, index ${playbackQueue.currentIndex}",
                     "Position" to playbackProgress.positionSeconds?.let { "%.1fs".format(it) }.orEmpty().ifBlank { "Unknown" },
                     "Duration" to playbackProgress.durationSeconds?.let { "%.1fs".format(it) }.orEmpty().ifBlank { "Unknown" },
+                    "Transcoded" to if (streamQuality is StreamQuality.Transcoded) "Yes" else "No",
+                    "Stream quality" to streamQuality.streamQualityLabel(),
                     "ReplayGain" to playbackSettings.replayGainMode.name,
                     "Gapless" to playbackSettings.gaplessEnabled.toString(),
                     "Crossfade" to "${playbackSettings.crossfadeDurationSeconds}s",

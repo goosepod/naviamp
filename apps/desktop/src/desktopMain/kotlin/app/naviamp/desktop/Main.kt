@@ -70,6 +70,7 @@ import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.PlaylistEngine
+import app.naviamp.desktop.playback.PlaybackSource
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.playback.mergeWith
@@ -371,6 +372,7 @@ fun NaviampApp(
     var selectedArtistDetails by remember { mutableStateOf<ArtistDetails?>(null) }
     var selectedArtistStatus by remember { mutableStateOf<String?>(null) }
     var selectedArtistPopularTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
+    var selectedArtistPopularTracksStatus by remember { mutableStateOf<String?>(null) }
     var selectedArtistSimilarArtists by remember { mutableStateOf<List<SimilarArtistMatch>>(emptyList()) }
     var selectedArtistSimilarArtistsStatus by remember { mutableStateOf<String?>(null) }
     var artistDetailBackRoute by remember { mutableStateOf(AppRoute.Search) }
@@ -625,6 +627,18 @@ fun NaviampApp(
         pendingSeekIssuedAtMillis = System.currentTimeMillis()
         playbackProgress = seekProgress
         maybeSavePlaybackPosition(seekProgress)
+        val streamQuality = playbackSettings.streamQuality(playbackEngine)
+        val playbackSource = playlistEngine.cacheRuntimeStats().playbackSource
+        if (
+            streamQuality is StreamQuality.Transcoded &&
+            (
+                playbackSource == PlaybackSource.ProviderStream ||
+                    playbackSource == PlaybackSource.ProviderStreamCacheDisabled
+                )
+        ) {
+            playlistEngine.playCurrent(coroutineScope, positionSeconds)
+            return
+        }
         playbackEngine.seek(positionSeconds)
     }
 
@@ -2441,6 +2455,7 @@ fun NaviampApp(
         selectedArtist = artist
         selectedArtistDetails = null
         selectedArtistPopularTracks = emptyList()
+        selectedArtistPopularTracksStatus = null
         selectedArtistSimilarArtists = emptyList()
         selectedArtistSimilarArtistsStatus = null
         selectedArtistStatus = "Loading..."
@@ -2452,8 +2467,9 @@ fun NaviampApp(
                 selectedArtistStatus = null
                 val sourceId = connectedSourceId
                 if (sourceId == null) {
-                    selectedArtistStatus = "Popular tracks unavailable: no connected media source."
+                    selectedArtistPopularTracksStatus = "Popular tracks unavailable: no connected media source."
                 } else {
+                    selectedArtistPopularTracksStatus = "Loading popular tracks..."
                     runCatching {
                         popularTracksService.popularTracks(
                             sourceId = sourceId,
@@ -2465,10 +2481,16 @@ fun NaviampApp(
                             selectedArtistPopularTracks = matches
                                 .map { it.matchedTrack }
                                 .take(PopularTracksDisplayLimit)
+                            selectedArtistPopularTracksStatus = if (matches.isEmpty()) {
+                                "No Deezer popular tracks matched songs in your library."
+                            } else {
+                                null
+                            }
                         }
                     }.onFailure { error ->
                         if (selectedArtist?.id == artist.id) {
-                            selectedArtistStatus = "Popular tracks unavailable: ${error.message ?: "unknown error"}"
+                            selectedArtistPopularTracksStatus =
+                                "Popular tracks unavailable: ${error.message ?: "unknown error"}"
                         }
                     }
                 }
@@ -2743,6 +2765,7 @@ fun NaviampApp(
                                 playbackState = playbackState,
                                 playbackProgress = playbackProgress,
                                 volumePercent = playbackSettings.volumePercent,
+                                streamQuality = playbackSettings.streamQuality(playbackEngine),
                                 supportsSeek = playbackEngine.supportsSeek &&
                                     nowPlayingTrack?.isInternetRadioTrack() != true,
                                 onPause = {
@@ -2989,6 +3012,7 @@ fun NaviampApp(
                                     popularTracks = selectedArtistPopularTracks,
                                     similarArtists = selectedArtistSimilarArtists,
                                     status = selectedArtistStatus,
+                                    popularTracksStatus = selectedArtistPopularTracksStatus,
                                     similarArtistsStatus = selectedArtistSimilarArtistsStatus,
                                     coverArtUrl = { coverArtId ->
                                         coverArtId?.let { connectedProvider?.coverArtUrl(it) }
@@ -3542,6 +3566,7 @@ private fun Track.toStreamStats(
         duration = durationLabel(),
         progress = playbackProgress.label(effectiveDurationSeconds),
         streamQuality = streamQuality.label(),
+        isTranscoded = if (streamQuality is StreamQuality.Transcoded) "Yes" else "No",
         replayGainMode = playbackSettings.replayGainMode.displayName,
         codec = audio?.codec ?: "Unknown",
         bitrate = audio?.bitrateKbps?.let { "$it kbps" } ?: "Unknown",
