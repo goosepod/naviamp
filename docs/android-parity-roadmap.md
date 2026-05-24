@@ -118,9 +118,12 @@ Android already uses the shared Compose UI shell for the main app surface, so ma
   - [x] Add the Android Auto media app descriptor and declare the playback service as a media browser service.
   - [x] Reuse the existing Android playback media session so Android Auto can discover Naviamp and control current playback.
   - [x] Expose an initial safe browse root with Now Playing, Library, Radio, and Downloads entries.
-  - [ ] Wire Library browsing to shared indexed artists, albums, playlists, and downloaded tracks.
-  - [ ] Wire Radio shortcuts to existing shared radio actions.
-  - [ ] Support Android Auto play-from-media-id for browsed tracks, albums, playlists, downloads, and radio seeds.
+  - [x] Document the local Desktop Head Unit launch flow: start Android Auto head unit server, then run `adb forward tcp:5277 tcp:5277` and `desktop-head-unit.exe`.
+  - [x] Wire first-pass Library browsing to indexed artists, albums, tracks, and downloaded tracks.
+  - [x] Wire the Library Radio shortcut to the existing shared radio action.
+  - [x] Support Android Auto play-from-media-id for browsed tracks, downloads, and Library Radio while the phone app process is active.
+  - [ ] Add playlist browsing once playlists are stored in the local index.
+  - [ ] Support Android Auto playback cold-start when the phone app has not registered playback callbacks yet.
   - [ ] Verify in Android Auto desktop head unit or a real vehicle once device testing resumes.
 
 ## First Implementation Order
@@ -159,4 +162,6 @@ Android already uses the shared Compose UI shell for the main app surface, so ma
 - [ ] Now Playing portrait and landscape visual check
 - [ ] Android Auto discovers Naviamp
 - [ ] Android Auto notification/session controls work
-- [ ] Android Auto browse root loads safely
+- [x] Android Auto browse root loads safely
+- [ ] Android Auto browses indexed artists, albums, tracks, downloads, and Library Radio
+- [ ] Android Auto starts playback from a browsed track/download/radio item

@@ -571,6 +571,9 @@ class AndroidStorage(
     override fun libraryTracksForAlbum(sourceId: String, albumId: AlbumId, limit: Long): List<Track> =
         queries.selectLibraryTracksForAlbum(sourceId, albumId.value, limit).executeAsList().map { it.toTrack() }
 
+    fun libraryTrack(sourceId: String, trackId: TrackId): Track? =
+        queries.selectLibraryTrackById(sourceId, trackId.value).executeAsOneOrNull()?.toTrack()
+
     override fun randomLibraryTrackForArtist(sourceId: String, artistId: ArtistId): Track? =
         queries.selectRandomLibraryTrackForArtist(sourceId, artistId.value).executeAsOneOrNull()?.toTrack()
 

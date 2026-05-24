@@ -26,6 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import app.naviamp.android.playback.AndroidAudioWaveformAnalyzer
+import app.naviamp.android.playback.AndroidAutoPlaybackControls
 import app.naviamp.android.playback.AndroidBassJni
 import app.naviamp.android.playback.AndroidBassLoadReport
 import app.naviamp.android.playback.AndroidBassPlaybackEngine
@@ -44,6 +45,7 @@ import app.naviamp.domain.Playlist
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
+import app.naviamp.domain.TrackId
 import app.naviamp.domain.app.NaviampContentState
 import app.naviamp.domain.app.NaviampNavigationState
 import app.naviamp.domain.app.NaviampRoute
@@ -361,6 +363,7 @@ private fun NaviampAndroidApp(
     DisposableEffect(playbackEngine) {
         onDispose {
             AndroidPlaybackNotificationControls.clear()
+            AndroidAutoPlaybackControls.clear()
             playbackEngine.release()
         }
     }
@@ -1075,6 +1078,39 @@ private fun NaviampAndroidApp(
     AndroidPlaybackNotificationControls.onNext = { playAdjacentTrack(1) }
     AndroidPlaybackNotificationControls.onToggleFavorite = { toggleCurrentFavorite() }
     AndroidPlaybackNotificationControls.onStop = { playbackEngine.stop() }
+    AndroidAutoPlaybackControls.onPlayMediaId = { mediaId ->
+        val sourceId = activeSourceId
+        when {
+            mediaId == AndroidAutoPlaybackControls.MediaIdRadioLibrary -> {
+                playRadioTracks("Library Radio") { radioService -> radioService.libraryRadio() }
+            }
+            mediaId.startsWith(AndroidAutoPlaybackControls.MediaIdTrackPrefix) && sourceId != null -> {
+                val trackId = Uri.decode(mediaId.removePrefix(AndroidAutoPlaybackControls.MediaIdTrackPrefix))
+                storage.libraryTrack(sourceId, TrackId(trackId))?.let { track ->
+                    val queue = track.albumId?.let { storage.libraryTracksForAlbum(sourceId, it, 200) }
+                        ?.takeIf { tracks -> tracks.any { it.id == track.id } }
+                        ?: track.artistId?.let { storage.libraryTracksForArtist(sourceId, it, 200) }
+                            ?.takeIf { tracks -> tracks.any { it.id == track.id } }
+                    playTrack(track, queue, openNowPlaying = false)
+                } ?: run {
+                    status = "Track is not available in the local library index."
+                }
+            }
+            mediaId.startsWith(AndroidAutoPlaybackControls.MediaIdDownloadPrefix) && sourceId != null -> {
+                val trackId = Uri.decode(mediaId.removePrefix(AndroidAutoPlaybackControls.MediaIdDownloadPrefix))
+                val download = storage.downloadedTracks(sourceId).firstOrNull { it.track.id.value == trackId }
+                if (download != null) {
+                    val queue = storage.downloadedTracks(sourceId).map { it.track }
+                    playTrack(download.track, queue, openNowPlaying = false)
+                } else {
+                    status = "Downloaded track is not available."
+                }
+            }
+            else -> {
+                status = "Open Naviamp on your phone before starting Android Auto playback."
+            }
+        }
+    }
 
     LaunchedEffect(nowPlaying?.id, nowPlaying?.favoritedAtIso8601, provider?.capabilities?.supportsTrackFavorites) {
         updateNotificationFavoriteState()

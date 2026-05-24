@@ -514,6 +514,13 @@ WHERE source_id = ?
 ORDER BY search_title
 LIMIT ? OFFSET ?;
 
+selectLibraryTrackById:
+SELECT *
+FROM library_track
+WHERE source_id = ?
+AND remote_track_id = ?
+LIMIT 1;
+
 selectRandomLibraryTrackForAlbum:
 SELECT *
 FROM library_track
