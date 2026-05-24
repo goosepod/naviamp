@@ -22,4 +22,8 @@ object AndroidAutoPlaybackControls {
     const val MediaIdAlbumPrefix = "naviamp.album:"
     const val MediaIdTrackPrefix = "naviamp.track:"
     const val MediaIdDownloadPrefix = "naviamp.download:"
+
+    const val CommandPlayPause = "play_pause"
+    const val CommandPrevious = "previous"
+    const val CommandNext = "next"
 }

@@ -122,8 +122,18 @@ Android already uses the shared Compose UI shell for the main app surface, so ma
   - [x] Wire first-pass Library browsing to indexed artists, albums, tracks, and downloaded tracks.
   - [x] Wire the Library Radio shortcut to the existing shared radio action.
   - [x] Support Android Auto play-from-media-id for browsed tracks, downloads, and Library Radio while the phone app process is active.
+  - [x] Add a cold-start handoff that launches the phone app with the selected Android Auto media id and plays once provider restoration completes.
+  - [x] Promote the Android BASS playback engine into a process-stable runtime so swiping away the phone UI does not immediately release playback.
+  - [x] Publish playback position and duration to the Android Auto media session so Auto can show a progress bar.
+  - [x] Keep progress ticks from republishing unchanged album-art metadata to reduce full-screen Android Auto artwork flicker.
+  - [x] Handle Android Auto seek commands through the shared Android seek path, including transcoded stream restart-on-seek behavior.
+  - [x] Show the last saved playback session as the Android Auto Now Playing/Resume item.
+  - [x] Resume the last saved queue/radio session from Android Auto play commands after a cold app launch.
+  - [x] Pause playback when Android reports the active audio route is disconnecting, so car/DHU disconnects do not intentionally continue on phone speakers.
   - [ ] Add playlist browsing once playlists are stored in the local index.
-  - [ ] Support Android Auto playback cold-start when the phone app has not registered playback callbacks yet.
+  - [ ] Verify cold-start Android Auto playback from a fully swiped-away app in DHU and a real vehicle.
+  - [ ] Verify Android Auto/DHU disconnect pause behavior; some projection disconnects may not send the standard noisy-audio broadcast.
+  - [ ] Move Android Auto playback ownership into a true long-lived playback service instead of retained activity callbacks.
   - [ ] Verify in Android Auto desktop head unit or a real vehicle once device testing resumes.
 
 ## First Implementation Order
@@ -161,7 +171,8 @@ Android already uses the shared Compose UI shell for the main app surface, so ma
 - [x] Downloads route lists downloaded tracks
 - [ ] Now Playing portrait and landscape visual check
 - [ ] Android Auto discovers Naviamp
-- [ ] Android Auto notification/session controls work
+- [x] Android Auto notification/session controls work
 - [x] Android Auto browse root loads safely
-- [ ] Android Auto browses indexed artists, albums, tracks, downloads, and Library Radio
-- [ ] Android Auto starts playback from a browsed track/download/radio item
+- [x] Android Auto browses indexed artists, albums, tracks, downloads, and Library Radio
+- [x] Android Auto starts playback from a browsed track/download/radio item
+- [x] Android Auto shows playback progress and sends seek commands

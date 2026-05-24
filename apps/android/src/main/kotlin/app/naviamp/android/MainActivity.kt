@@ -21,19 +21,16 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import app.naviamp.android.playback.AndroidAudioWaveformAnalyzer
 import app.naviamp.android.playback.AndroidAutoPlaybackControls
-import app.naviamp.android.playback.AndroidBassJni
 import app.naviamp.android.playback.AndroidBassLoadReport
-import app.naviamp.android.playback.AndroidBassPlaybackEngine
-import app.naviamp.android.playback.AndroidBassNativeLoader
 import app.naviamp.android.playback.AndroidPlaybackEngine
+import app.naviamp.android.playback.AndroidPlaybackForegroundService
 import app.naviamp.android.playback.AndroidPlaybackTls
 import app.naviamp.android.playback.AndroidPlaybackNotificationControls
+import app.naviamp.android.playback.AndroidPlaybackRuntime
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Artist
@@ -141,6 +138,8 @@ import kotlin.math.abs
 
 class MainActivity : ComponentActivity() {
     private var openNowPlayingRequest by mutableStateOf(0)
+    private var autoPlayMediaIdRequest by mutableStateOf<String?>(null)
+    private var autoCommandRequest by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -155,6 +154,10 @@ class MainActivity : ComponentActivity() {
         setContent {
             NaviampAndroidApp(
                 openNowPlayingRequest = openNowPlayingRequest,
+                autoPlayMediaIdRequest = autoPlayMediaIdRequest,
+                onAutoPlayMediaIdConsumed = { autoPlayMediaIdRequest = null },
+                autoCommandRequest = autoCommandRequest,
+                onAutoCommandConsumed = { autoCommandRequest = null },
                 modifier = Modifier
                     .systemBarsPadding()
                     .imePadding(),
@@ -171,30 +174,40 @@ class MainActivity : ComponentActivity() {
     private fun handleLaunchIntent(intent: Intent?) {
         if (intent?.getBooleanExtra(ExtraOpenNowPlaying, false) == true) {
             openNowPlayingRequest += 1
+            android.util.Log.i("NaviampAutoCommand", "Received open-now-playing request")
+        }
+        intent?.getStringExtra(ExtraAutoPlayMediaId)?.takeIf { it.isNotBlank() }?.let { mediaId ->
+            autoPlayMediaIdRequest = mediaId
+            android.util.Log.i("NaviampAutoCommand", "Received Auto mediaId=$mediaId")
+        }
+        intent?.getStringExtra(ExtraAutoCommand)?.takeIf { it.isNotBlank() }?.let { command ->
+            autoCommandRequest = command
+            android.util.Log.i("NaviampAutoCommand", "Received Auto command=$command")
         }
     }
 
     companion object {
         const val ExtraOpenNowPlaying = "app.naviamp.android.OPEN_NOW_PLAYING"
+        const val ExtraAutoPlayMediaId = "app.naviamp.android.AUTO_PLAY_MEDIA_ID"
+        const val ExtraAutoCommand = "app.naviamp.android.AUTO_COMMAND"
     }
 }
 
 @Composable
 private fun NaviampAndroidApp(
     openNowPlayingRequest: Int = 0,
+    autoPlayMediaIdRequest: String? = null,
+    onAutoPlayMediaIdConsumed: () -> Unit = {},
+    autoCommandRequest: String? = null,
+    onAutoCommandConsumed: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    val bassLoadReport = remember { AndroidBassNativeLoader.loadBundledLibraries() }
-    val bassJni = remember {
-        AndroidBassJni.load().fold(
-            onSuccess = { it },
-            onFailure = { throw IllegalStateException("BASS is required for Android playback.", it) },
-        )
-    }
-    val playbackEngine: AndroidPlaybackEngine = remember { AndroidBassPlaybackEngine(context, bassJni) }
-    val waveformAnalyzer = remember { AndroidAudioWaveformAnalyzer(context, bassJni) }
+    val playbackRuntime = remember { AndroidPlaybackRuntime.get(context) }
+    val scope = playbackRuntime.scope
+    val bassLoadReport = playbackRuntime.bassLoadReport
+    val playbackEngine: AndroidPlaybackEngine = playbackRuntime.playbackEngine
+    val waveformAnalyzer = playbackRuntime.waveformAnalyzer
     val lrclibLyricsClient = remember { AndroidLrclibLyricsClient() }
     val storage = remember { AndroidStorage(context) }
     val settingsStore = remember { AndroidSettingsStore(context) }
@@ -273,6 +286,8 @@ private fun NaviampAndroidApp(
     }
     var restoredStartPositionSeconds by remember { mutableStateOf<Double?>(null) }
     var pendingOpenNowPlayingFromIntent by remember { mutableStateOf(openNowPlayingRequest > 0) }
+    var pendingAutoPlayMediaId by remember { mutableStateOf(autoPlayMediaIdRequest) }
+    var pendingAutoCommand by remember { mutableStateOf(autoCommandRequest) }
     var activeTlsSettings by remember { mutableStateOf(NavidromeTlsSettings()) }
     var validation by remember { mutableStateOf<ConnectionValidation?>(null) }
     var status by remember { mutableStateOf("Connect to Navidrome to start Android playback.") }
@@ -313,6 +328,7 @@ private fun NaviampAndroidApp(
     var playlistActionStatus by remember { mutableStateOf<String?>(null) }
     var sidecarPrepJob by remember { mutableStateOf<Job?>(null) }
     var lastPlaybackSessionSaveAtMillis by remember { mutableStateOf(0L) }
+    var lastAndroidAutoProgressPublishAtMillis by remember { mutableStateOf(0L) }
 
     LaunchedEffect(bassLoadReport) {
         if (!bassLoadReport.available) {
@@ -355,6 +371,18 @@ private fun NaviampAndroidApp(
         }
     }
 
+    LaunchedEffect(autoPlayMediaIdRequest) {
+        if (!autoPlayMediaIdRequest.isNullOrBlank()) {
+            pendingAutoPlayMediaId = autoPlayMediaIdRequest
+        }
+    }
+
+    LaunchedEffect(autoCommandRequest) {
+        if (!autoCommandRequest.isNullOrBlank()) {
+            pendingAutoCommand = autoCommandRequest
+        }
+    }
+
     LaunchedEffect(playbackEngine, playbackSettings.crossfadeDurationSeconds) {
         (playbackEngine as? QueueAwarePlaybackEngine)
             ?.setCrossfadeDuration(playbackSettings.crossfadeDurationSeconds)
@@ -362,9 +390,8 @@ private fun NaviampAndroidApp(
 
     DisposableEffect(playbackEngine) {
         onDispose {
-            AndroidPlaybackNotificationControls.clear()
-            AndroidAutoPlaybackControls.clear()
-            playbackEngine.release()
+            // Playback intentionally outlives the activity so Android Auto and the notification
+            // remain useful after the phone UI is swiped away.
         }
     }
 
@@ -658,6 +685,9 @@ private fun NaviampAndroidApp(
             pendingSeekPositionSeconds = null
             pendingSeekIssuedAtMillis = null
             playbackProgress = PlaybackProgress.Unknown
+            AndroidPlaybackNotificationControls.positionMillis = null
+            AndroidPlaybackNotificationControls.durationMillis = null
+            AndroidPlaybackForegroundService.updateProgress(context, null, null)
             return
         }
         val pendingSeek = pendingSeekPositionSeconds
@@ -683,10 +713,22 @@ private fun NaviampAndroidApp(
             pendingSeekIssuedAtMillis = null
         }
         playbackProgress = progress.mergeForAndroidPlayback(playbackProgress)
+        val positionMillis = playbackProgress.positionSeconds?.secondsToMillis()
+        val durationMillis = playbackProgress.durationSeconds
+            ?.secondsToMillis()
+            ?: nowPlaying?.durationSeconds?.toDouble()?.secondsToMillis()
+        AndroidPlaybackNotificationControls.positionMillis = positionMillis
+        AndroidPlaybackNotificationControls.durationMillis = durationMillis
+        val nowMillis = System.currentTimeMillis()
+        if (nowMillis - lastAndroidAutoProgressPublishAtMillis >= AndroidAutoProgressPublishIntervalMillis) {
+            lastAndroidAutoProgressPublishAtMillis = nowMillis
+            AndroidPlaybackForegroundService.updateProgress(context, positionMillis, durationMillis)
+        }
         prepareNextIfNeeded(sessionToken, playbackProgress)
     }
 
     var playAdjacentTrackAction: (Int) -> Unit = {}
+    var restorePlaybackSessionAction: (String) -> Boolean = { false }
 
     fun savePlaybackSession() {
         val sourceId = activeSourceId ?: return
@@ -740,13 +782,17 @@ private fun NaviampAndroidApp(
             ?: listOf(track)
         scope.launch {
             status = "Loading ${track.title}..."
+            val streamQuality = currentStreamQuality()
+            val providerStartPositionSeconds = startPositionSeconds
+                ?.takeIf { streamQuality is StreamQuality.Transcoded }
+            val engineStartPositionSeconds = startPositionSeconds
+                ?.takeIf { streamQuality !is StreamQuality.Transcoded }
             runCatching {
                 activeProvider.streamUrl(
                     StreamRequest(
                         trackId = track.id,
-                        quality = currentStreamQuality(),
-                        startPositionSeconds = startPositionSeconds
-                            ?.takeIf { currentStreamQuality() is StreamQuality.Transcoded },
+                        quality = streamQuality,
+                        startPositionSeconds = providerStartPositionSeconds,
                     ),
                 )
             }.onSuccess { streamUrl ->
@@ -782,7 +828,7 @@ private fun NaviampAndroidApp(
                         mediaId = track.id.value,
                         replayGainMode = playbackSettings.replayGainMode.forEngine(playbackEngine),
                         replayGain = track.replayGain?.let { PlaybackReplayGain(it, ReplayGainSource.Provider) },
-                        startPositionSeconds = startPositionSeconds,
+                        startPositionSeconds = engineStartPositionSeconds,
                     ),
                     onStateChanged = { state ->
                         playbackState = state
@@ -855,6 +901,11 @@ private fun NaviampAndroidApp(
             positionSeconds = positionSeconds.coerceAtLeast(0.0),
             durationSeconds = durationSeconds,
         )
+        val positionMillis = playbackProgress.positionSeconds?.secondsToMillis()
+        val durationMillis = playbackProgress.durationSeconds?.secondsToMillis()
+        AndroidPlaybackNotificationControls.positionMillis = positionMillis
+        AndroidPlaybackNotificationControls.durationMillis = durationMillis
+        AndroidPlaybackForegroundService.updateProgress(context, positionMillis, durationMillis)
         pendingSeekPositionSeconds = positionSeconds
         pendingSeekIssuedAtMillis = System.currentTimeMillis()
         val currentTrack = nowPlaying
@@ -1068,21 +1119,89 @@ private fun NaviampAndroidApp(
         }
     }
 
-    AndroidPlaybackNotificationControls.onPlayPause = {
-        when (playbackState) {
-            PlaybackState.Playing -> playbackEngine.pause()
-            else -> playbackEngine.resume()
+    fun handleAutoPlayPauseCommand(): Boolean {
+        return when (playbackState) {
+            PlaybackState.Playing -> {
+                playbackEngine.pause()
+                true
+            }
+            PlaybackState.Paused -> {
+                playbackEngine.resume()
+                true
+            }
+            else -> {
+                if (nowPlaying == null && nowPlayingStation == null) {
+                    activeSourceId?.let { sourceId -> restorePlaybackSessionAction(sourceId) }
+                }
+                nowPlayingStation?.let { station ->
+                    playInternetRadioStation(station)
+                    return true
+                }
+                val currentTrack = nowPlaying ?: return false
+                playTrack(
+                    track = currentTrack,
+                    queue = playbackQueue.tracks.takeIf { it.isNotEmpty() },
+                    openNowPlaying = false,
+                    startPositionSeconds = restoredStartPositionSeconds,
+                )
+                restoredStartPositionSeconds = null
+                true
+            }
         }
+    }
+
+    fun handleAndroidAutoCommand(command: String): Boolean =
+        when (command) {
+            AndroidAutoPlaybackControls.CommandPlayPause -> handleAutoPlayPauseCommand()
+            AndroidAutoPlaybackControls.CommandPrevious -> {
+                playAdjacentTrack(-1)
+                nowPlaying != null
+            }
+            AndroidAutoPlaybackControls.CommandNext -> {
+                playAdjacentTrack(1)
+                nowPlaying != null
+            }
+            else -> false
+        }.also { handled ->
+            android.util.Log.i("NaviampAutoCommand", "Handled Auto command=$command handled=$handled state=$playbackState nowPlaying=${nowPlaying?.title}")
+        }
+
+    AndroidPlaybackNotificationControls.onPlayPause = {
+        handleAutoPlayPauseCommand()
     }
     AndroidPlaybackNotificationControls.onPrevious = { playAdjacentTrack(-1) }
     AndroidPlaybackNotificationControls.onNext = { playAdjacentTrack(1) }
     AndroidPlaybackNotificationControls.onToggleFavorite = { toggleCurrentFavorite() }
     AndroidPlaybackNotificationControls.onStop = { playbackEngine.stop() }
-    AndroidAutoPlaybackControls.onPlayMediaId = { mediaId ->
+    AndroidPlaybackNotificationControls.onSeekTo = seekHandler@{ positionMillis ->
+        val normalizedPositionMillis = normalizeAndroidAutoSeekPositionMillis(
+            rawPositionMillis = positionMillis,
+            durationSeconds = playbackProgress.durationSeconds ?: nowPlaying?.durationSeconds?.toDouble(),
+        )
+        android.util.Log.i(
+            "NaviampAutoSeek",
+            "Auto seek raw=$positionMillis normalized=$normalizedPositionMillis duration=${playbackProgress.durationSeconds ?: nowPlaying?.durationSeconds?.toDouble()}",
+        )
+        if (
+            normalizedPositionMillis == 0L &&
+            (playbackProgress.positionSeconds ?: 0.0) > AndroidAutoIgnoreZeroSeekAfterSeconds
+        ) {
+            android.util.Log.i(
+                "NaviampAutoSeek",
+                "Ignoring zero seek while currentPosition=${playbackProgress.positionSeconds}",
+            )
+            return@seekHandler
+        }
+        performSeek(normalizedPositionMillis / 1_000.0)
+    }
+
+    fun playAndroidAutoMediaId(mediaId: String): Boolean {
         val sourceId = activeSourceId
-        when {
+        val handled = when {
+            mediaId == AndroidAutoPlaybackControls.MediaIdNowPlaying -> handleAutoPlayPauseCommand()
             mediaId == AndroidAutoPlaybackControls.MediaIdRadioLibrary -> {
                 playRadioTracks("Library Radio") { radioService -> radioService.libraryRadio() }
+                true
             }
             mediaId.startsWith(AndroidAutoPlaybackControls.MediaIdTrackPrefix) && sourceId != null -> {
                 val trackId = Uri.decode(mediaId.removePrefix(AndroidAutoPlaybackControls.MediaIdTrackPrefix))
@@ -1092,8 +1211,10 @@ private fun NaviampAndroidApp(
                         ?: track.artistId?.let { storage.libraryTracksForArtist(sourceId, it, 200) }
                             ?.takeIf { tracks -> tracks.any { it.id == track.id } }
                     playTrack(track, queue, openNowPlaying = false)
+                    true
                 } ?: run {
                     status = "Track is not available in the local library index."
+                    false
                 }
             }
             mediaId.startsWith(AndroidAutoPlaybackControls.MediaIdDownloadPrefix) && sourceId != null -> {
@@ -1102,13 +1223,41 @@ private fun NaviampAndroidApp(
                 if (download != null) {
                     val queue = storage.downloadedTracks(sourceId).map { it.track }
                     playTrack(download.track, queue, openNowPlaying = false)
+                    true
                 } else {
                     status = "Downloaded track is not available."
+                    false
                 }
             }
             else -> {
                 status = "Open Naviamp on your phone before starting Android Auto playback."
+                false
             }
+        }
+        android.util.Log.i("NaviampAutoCommand", "Handled Auto mediaId=$mediaId handled=$handled state=$playbackState nowPlaying=${nowPlaying?.title}")
+        return handled
+    }
+    AndroidAutoPlaybackControls.onPlayMediaId = { mediaId ->
+        if (!playAndroidAutoMediaId(mediaId)) {
+            pendingAutoPlayMediaId = mediaId
+        }
+    }
+
+    LaunchedEffect(pendingAutoPlayMediaId, provider, activeSourceId) {
+        val mediaId = pendingAutoPlayMediaId ?: return@LaunchedEffect
+        if (provider == null || activeSourceId == null) return@LaunchedEffect
+        if (playAndroidAutoMediaId(mediaId)) {
+            pendingAutoPlayMediaId = null
+            onAutoPlayMediaIdConsumed()
+        }
+    }
+
+    LaunchedEffect(pendingAutoCommand, provider, activeSourceId, nowPlaying?.id, playbackQueue) {
+        val command = pendingAutoCommand ?: return@LaunchedEffect
+        if (provider == null || activeSourceId == null) return@LaunchedEffect
+        if (handleAndroidAutoCommand(command)) {
+            pendingAutoCommand = null
+            onAutoCommandConsumed()
         }
     }
 
@@ -1556,6 +1705,7 @@ private fun NaviampAndroidApp(
         status = "Restored ${currentTrack.title}. Press play to resume."
         return true
     }
+    restorePlaybackSessionAction = ::restorePlaybackSession
 
     fun startAndroidLibrarySync(force: Boolean = false) {
         val activeProvider = provider ?: return
@@ -2928,8 +3078,28 @@ private fun deleteDirectoryContents(directory: File) {
         .forEach { it.delete() }
 }
 
+private fun Double.secondsToMillis(): Long =
+    (coerceAtLeast(0.0) * 1_000.0).toLong()
+
+private fun normalizeAndroidAutoSeekPositionMillis(
+    rawPositionMillis: Long,
+    durationSeconds: Double?,
+): Long {
+    val raw = rawPositionMillis.coerceAtLeast(0L)
+    val duration = durationSeconds ?: return raw
+    if (raw == 0L) return 0L
+    val durationMillis = duration.secondsToMillis()
+    return if (raw <= duration.toLong() + 1L && durationMillis > 1_000L) {
+        raw.toDouble().secondsToMillis()
+    } else {
+        raw
+    }.coerceIn(0L, durationMillis)
+}
+
 private const val PendingSeekToleranceSeconds = 2.0
 private const val PendingSeekStaleProgressWindowMillis = 1_500L
+private const val AndroidAutoProgressPublishIntervalMillis = 1_000L
+private const val AndroidAutoIgnoreZeroSeekAfterSeconds = 3.0
 private const val AndroidGaplessPrepareWindowSeconds = 2.0
 private const val AndroidSidecarPrepDepth = 5
 private const val AndroidPlaybackSessionSaveIntervalMillis = 5_000L

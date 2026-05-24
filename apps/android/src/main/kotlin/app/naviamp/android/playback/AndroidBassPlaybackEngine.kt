@@ -148,8 +148,12 @@ class AndroidBassPlaybackEngine(
 
     override fun seek(positionSeconds: Double) {
         freePreparedStream()
-        (currentSourceStream.takeIf { it != 0 } ?: stream.takeIf { it != 0 })
-            ?.let { bass.seek(it, positionSeconds) }
+        val handle = currentSourceStream.takeIf { it != 0 } ?: stream.takeIf { it != 0 } ?: return
+        val success = bass.seek(handle, positionSeconds)
+        Log.i(
+            Tag,
+            "BASS seek requested handle=$handle seconds=$positionSeconds success=$success error=${bass.lastErrorCode}",
+        )
     }
 
     override fun setVolume(percent: Int) {
@@ -251,25 +255,28 @@ class AndroidBassPlaybackEngine(
             while (isActive && stream == handle) {
                 val active = bass.activeState(handle)
                 val progressHandle = currentSourceStream.takeIf { it != 0 } ?: handle
-                onProgressChanged?.invoke(
-                    PlaybackProgress(
-                        positionSeconds = bass.positionSeconds(progressHandle),
-                        durationSeconds = bass.durationSeconds(progressHandle),
-                    ),
+                val progress = PlaybackProgress(
+                    positionSeconds = bass.positionSeconds(progressHandle),
+                    durationSeconds = bass.durationSeconds(progressHandle),
                 )
+                onProgressChanged?.invoke(progress)
                 val metadata = PlaybackStreamMetadata.fromProperties(bass.streamTags(progressHandle).toStreamProperties())
                 if (metadata != lastMetadata) {
                     lastMetadata = metadata
                     onMetadataChanged?.invoke(metadata)
                 }
-                if (currentSourceStream != 0 && bass.activeState(currentSourceStream) == BassActiveStopped) {
+                if (currentSourceStream != 0 && bass.activeState(currentSourceStream) == BassActiveStopped && isAtEnd(progress)) {
+                    Log.i(Tag, "BASS source reached end position=${progress.positionSeconds} duration=${progress.durationSeconds}")
                     onStateChanged?.invoke(PlaybackState.Finished)
                     return@launch
                 }
                 when (active) {
                     BassActiveStopped -> {
-                        onStateChanged?.invoke(PlaybackState.Finished)
-                        return@launch
+                        if (isAtEnd(progress)) {
+                            Log.i(Tag, "BASS stream stopped position=${progress.positionSeconds} duration=${progress.durationSeconds}")
+                            onStateChanged?.invoke(PlaybackState.Finished)
+                            return@launch
+                        }
                     }
                     BassActivePlaying -> onStateChanged?.invoke(PlaybackState.Playing)
                     BassActiveStalled -> onStateChanged?.invoke(PlaybackState.Loading)
@@ -294,6 +301,12 @@ class AndroidBassPlaybackEngine(
         preparedStream = 0
         preparedRequest = null
         preparedReplayGainFactor = 1f
+    }
+
+    private fun isAtEnd(progress: PlaybackProgress): Boolean {
+        val position = progress.positionSeconds ?: return false
+        val duration = progress.durationSeconds ?: return false
+        return duration - position <= FinishedPositionToleranceSeconds
     }
 
     private fun applyVolume() {
@@ -420,4 +433,5 @@ private const val VisualizerBandCount = 32
 private const val VisualizerGain = 12f
 private const val DefaultMixerFrequency = 44_100
 private const val DefaultMixerChannels = 2
+private const val FinishedPositionToleranceSeconds = 0.75
 private const val Tag = "NaviampBass"
