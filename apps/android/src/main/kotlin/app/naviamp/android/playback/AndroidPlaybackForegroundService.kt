@@ -13,20 +13,22 @@ import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.drawable.Icon
 import android.media.AudioManager
-import android.media.MediaDescription
-import android.media.MediaMetadata
-import android.media.browse.MediaBrowser
-import android.media.session.MediaSession
 import android.net.Uri
-import android.media.session.PlaybackState as AndroidPlaybackState
 import android.os.Build
 import android.os.Bundle
-import android.service.media.MediaBrowserService
 import android.util.Log
+import android.support.v4.media.MediaBrowserCompat
+import android.support.v4.media.MediaDescriptionCompat
+import android.support.v4.media.MediaMetadataCompat
+import android.support.v4.media.session.MediaSessionCompat
+import android.support.v4.media.session.PlaybackStateCompat
+import androidx.media.MediaBrowserServiceCompat
+import androidx.media.utils.MediaConstants
 import app.naviamp.android.AndroidStorage
 import app.naviamp.android.AndroidSettingsStore
 import app.naviamp.android.R
 import app.naviamp.android.MainActivity
+import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistId
@@ -38,6 +40,7 @@ import app.naviamp.domain.TrackId
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
+import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.settings.RecentRadioKind
@@ -53,9 +56,8 @@ import java.net.URL
 import kotlin.concurrent.thread
 
 private const val VoiceArtistScanLimit = 5_000L
-
-class AndroidPlaybackForegroundService : MediaBrowserService() {
-    private var mediaSession: MediaSession? = null
+class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
+    private var mediaSession: MediaSessionCompat? = null
     private var browserSessionTokenSet = false
     private val noisyAudioReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -197,7 +199,9 @@ class AndroidPlaybackForegroundService : MediaBrowserService() {
             .addAction(favoriteAction)
             .setStyle(
                 Notification.MediaStyle()
-                    .setMediaSession(ensureMediaSession().sessionToken)
+                    .setMediaSession(
+                        ensureMediaSession().sessionToken.token as android.media.session.MediaSession.Token,
+                    )
                     .setShowActionsInCompactView(0, 1, 2),
             )
             .setColor(notificationColor)
@@ -544,6 +548,31 @@ class AndroidPlaybackForegroundService : MediaBrowserService() {
                 playServiceTrackQueue(storage, sourceId, queue, index)
                 true
             }
+            mediaId.startsWith(AndroidAutoPlaybackControls.MediaIdAlbumTrackPrefix) -> {
+                val parts = mediaId.removePrefix(AndroidAutoPlaybackControls.MediaIdAlbumTrackPrefix).mediaIdParts()
+                val albumId = parts.getOrNull(0).orEmpty()
+                val trackId = parts.getOrNull(1).orEmpty()
+                if (albumId.isBlank() || trackId.isBlank()) return false
+                val provider = NavidromeProvider(source.toNavidromeConnection())
+                AndroidPlaybackRuntime.get(applicationContext).scope.launch {
+                    runCatching { withContext(Dispatchers.IO) { provider.album(AlbumId(albumId)).tracks } }
+                        .onSuccess { tracks ->
+                            val index = tracks.indexOfFirst { it.id.value == trackId }
+                            if (index >= 0) {
+                                playServiceTrackQueue(storage, sourceId, tracks, index)
+                            } else {
+                                AndroidPlaybackNotificationControls.isPlaying = false
+                                updateMediaSessionPlaybackState()
+                            }
+                        }
+                        .onFailure { error ->
+                            Log.w("NaviampAutoCommand", "Could not start Auto album track=$trackId", error)
+                            AndroidPlaybackNotificationControls.isPlaying = false
+                            updateMediaSessionPlaybackState()
+                        }
+                }
+                true
+            }
             mediaId.startsWith(AndroidAutoPlaybackControls.MediaIdDownloadPrefix) -> {
                 val trackId = Uri.decode(mediaId.removePrefix(AndroidAutoPlaybackControls.MediaIdDownloadPrefix))
                 val downloads = storage.downloadedTracks(sourceId)
@@ -849,10 +878,10 @@ class AndroidPlaybackForegroundService : MediaBrowserService() {
         }
     }
 
-    private fun ensureMediaSession(): MediaSession =
-        mediaSession ?: MediaSession(this, "NaviampPlayback").apply {
+    private fun ensureMediaSession(): MediaSessionCompat =
+        mediaSession ?: MediaSessionCompat(this, "NaviampPlayback").apply {
             setCallback(
-                object : MediaSession.Callback() {
+                object : MediaSessionCompat.Callback() {
                     override fun onPlay() {
                         if (!AndroidPlaybackNotificationControls.isPlaying) {
                             AndroidPlaybackNotificationControls.onPlayPause?.invoke()
@@ -943,7 +972,7 @@ class AndroidPlaybackForegroundService : MediaBrowserService() {
                 setSessionToken(sessionToken)
                 browserSessionTokenSet = true
             }
-            mediaSession = this
+            this@AndroidPlaybackForegroundService.mediaSession = this
         }
 
     override fun onGetRoot(
@@ -952,14 +981,20 @@ class AndroidPlaybackForegroundService : MediaBrowserService() {
         rootHints: Bundle?,
     ): BrowserRoot {
         hydrateSavedPlaybackSession()
-        return BrowserRoot(AndroidAutoPlaybackControls.MediaIdRoot, null)
+        return BrowserRoot(
+            AndroidAutoPlaybackControls.MediaIdRoot,
+            Bundle().apply {
+                putBoolean(MediaConstants.BROWSER_SERVICE_EXTRAS_KEY_SEARCH_SUPPORTED, true)
+            },
+        )
     }
 
     override fun onLoadChildren(
         parentId: String,
-        result: Result<MutableList<MediaBrowser.MediaItem>>,
+        result: Result<MutableList<MediaBrowserCompat.MediaItem>>,
     ) {
         hydrateSavedPlaybackSession()
+        Log.i("NaviampAutoCommand", "Loading Auto children parent=$parentId")
         val storage = AndroidStorage(applicationContext)
         val sourceId = storage.latestNavidromeSource()?.id
         if (parentId == AndroidAutoPlaybackControls.MediaIdRadioStations) {
@@ -1019,46 +1054,62 @@ class AndroidPlaybackForegroundService : MediaBrowserService() {
             }
             return
         }
+        if (parentId == AndroidAutoPlaybackControls.MediaIdHomeRecentlyAdded) {
+            loadAsyncChildren(result) {
+                val source = storage.latestNavidromeSource() ?: return@loadAsyncChildren noSourceItems()
+                val provider = NavidromeProvider(source.toNavidromeConnection())
+                withContext(Dispatchers.IO) { provider.albumList(AlbumListType.Newest, AndroidAutoBrowseLimit) }
+                    .map(::albumItem)
+                    .toMutableList()
+            }
+            return
+        }
+        if (parentId == AndroidAutoPlaybackControls.MediaIdChartsAlbums) {
+            loadAsyncChildren(result) {
+                val source = storage.latestNavidromeSource() ?: return@loadAsyncChildren noSourceItems()
+                val provider = NavidromeProvider(source.toNavidromeConnection())
+                withContext(Dispatchers.IO) { provider.albumList(AlbumListType.Frequent, AndroidAutoBrowseLimit) }
+                    .map(::albumItem)
+                    .toMutableList()
+            }
+            return
+        }
         val children = when (parentId) {
             AndroidAutoPlaybackControls.MediaIdRoot -> mutableListOf(
-                currentNowPlayingItem(),
-                browsableItem(AndroidAutoPlaybackControls.MediaIdLibrary, "Library", "Artists, albums, and tracks"),
-                browsableItem(AndroidAutoPlaybackControls.MediaIdRadio, "Radio", "Library radio"),
-                browsableItem(AndroidAutoPlaybackControls.MediaIdDownloads, "Downloads", "Offline music"),
-                browsableItem(AndroidAutoPlaybackControls.MediaIdMore, "More", "Playlists and shortcuts"),
+                browsableItem(AndroidAutoPlaybackControls.MediaIdHome, "Home", "Mixes and recent music", iconName = "ic_auto_home"),
+                browsableItem(AndroidAutoPlaybackControls.MediaIdLibrary, "Library", "Browse your collection", iconName = "ic_auto_library"),
+                browsableItem(AndroidAutoPlaybackControls.MediaIdCharts, "Charts", "Top artists, albums, and tracks", iconName = "ic_auto_charts"),
+                browsableItem(AndroidAutoPlaybackControls.MediaIdRadioStations, "Radio", "Saved internet radio", iconName = "ic_auto_radio"),
+            )
+            AndroidAutoPlaybackControls.MediaIdHome -> mutableListOf(
+                browsableItem(AndroidAutoPlaybackControls.MediaIdHomeMixes, "Mixes For You", "Radio based on your library"),
+                browsableItem(AndroidAutoPlaybackControls.MediaIdHomeRecentPlays, "Recent Plays", "Recently played tracks and radio"),
+                browsableItem(AndroidAutoPlaybackControls.MediaIdHomeRecentlyAdded, "Recently Added in Music", "Newest albums"),
             )
             AndroidAutoPlaybackControls.MediaIdLibrary -> mutableListOf(
-                browsableItem(AndroidAutoPlaybackControls.MediaIdLibraryArtists, "Artists", "Browse indexed artists"),
+                browsableItem(AndroidAutoPlaybackControls.MediaIdLibraryArtists, "Artists A-Z", "Browse indexed artists"),
                 browsableItem(AndroidAutoPlaybackControls.MediaIdLibraryAlbums, "Albums", "Browse indexed albums"),
                 browsableItem(AndroidAutoPlaybackControls.MediaIdLibraryTracks, "Tracks", "Browse indexed tracks"),
             )
             AndroidAutoPlaybackControls.MediaIdLibraryArtists -> {
                 sourceId?.let { id ->
-                    storage.librarySnapshot(id, AndroidAutoBrowseLimit.toLong(), 0).artists.map { artist ->
-                        browsableItem(
-                            mediaId = AndroidAutoPlaybackControls.MediaIdArtistPrefix + listOf(
-                                Uri.encode(artist.id.value),
-                                Uri.encode(artist.name),
-                            ).joinToString(MediaIdPartSeparator),
-                            title = artist.name,
-                            subtitle = "Artist",
-                        )
-                    }.toMutableList()
+                    storage.librarySnapshot(id, VoiceArtistScanLimit, 0)
+                        .artists
+                        .groupBy { it.name.autoArtistGroupKey() }
+                        .toSortedMap(compareBy<String> { if (it == "#") "0" else it })
+                        .map { (group, artists) ->
+                            browsableItem(
+                                mediaId = "${AndroidAutoPlaybackControls.MediaIdArtistGroupPrefix}${Uri.encode(group)}",
+                                title = group,
+                                subtitle = "${artists.size} artists",
+                            )
+                        }
+                        .toMutableList()
                 } ?: noSourceItems()
             }
             AndroidAutoPlaybackControls.MediaIdLibraryAlbums -> {
                 sourceId?.let { id ->
-                    storage.librarySnapshot(id, AndroidAutoBrowseLimit.toLong(), 0).albums.map { album ->
-                        browsableItem(
-                            mediaId = AndroidAutoPlaybackControls.MediaIdAlbumPrefix + listOf(
-                                Uri.encode(album.id.value),
-                                Uri.encode(album.title),
-                                Uri.encode(album.artistName),
-                            ).joinToString(MediaIdPartSeparator),
-                            title = album.title,
-                            subtitle = listOfNotNull(album.artistName, album.releaseYear?.toString()).joinToString(" - "),
-                        )
-                    }.toMutableList()
+                    storage.librarySnapshot(id, AndroidAutoBrowseLimit.toLong(), 0).albums.map(::albumItem).toMutableList()
                 } ?: noSourceItems()
             }
             AndroidAutoPlaybackControls.MediaIdLibraryTracks -> {
@@ -1071,6 +1122,42 @@ class AndroidPlaybackForegroundService : MediaBrowserService() {
                 browsableItem(AndroidAutoPlaybackControls.MediaIdRadioRecent, "Recently Played Radio", "Radio you started from Naviamp"),
                 browsableItem(AndroidAutoPlaybackControls.MediaIdRadioStations, "Internet Radio", "Saved Navidrome stations"),
             )
+            AndroidAutoPlaybackControls.MediaIdHomeMixes -> mutableListOf(
+                playableItem(AndroidAutoPlaybackControls.MediaIdRadioLibrary, "Library Radio", "Random tracks from your library"),
+                browsableItem(AndroidAutoPlaybackControls.MediaIdRadioRecent, "Recently Played Radio", "Radio you started from Naviamp"),
+            )
+            AndroidAutoPlaybackControls.MediaIdHomeRecentPlays -> {
+                sourceId?.let { id ->
+                    val settingsStore = AndroidSettingsStore(applicationContext)
+                    val recentStreams = settingsStore.loadRecentRadioStreams().map { stream ->
+                        playableItem(
+                            mediaId = "${AndroidAutoPlaybackControls.MediaIdRecentRadioPrefix}${Uri.encode(stream.id)}",
+                            title = stream.label,
+                            subtitle = "Radio",
+                        )
+                    }
+                    val recentTracks = storage.playbackHistory(id, AndroidAutoBrowseLimit)
+                        .map { history -> trackItem(history.track) }
+                    (recentStreams + recentTracks).take(AndroidAutoBrowseLimit).toMutableList()
+                } ?: noSourceItems()
+            }
+            AndroidAutoPlaybackControls.MediaIdCharts -> mutableListOf(
+                browsableItem(AndroidAutoPlaybackControls.MediaIdChartsArtists, "Top Artists", "Library favorites"),
+                browsableItem(AndroidAutoPlaybackControls.MediaIdChartsAlbums, "Top Albums", "Frequently played albums"),
+                browsableItem(AndroidAutoPlaybackControls.MediaIdChartsTracks, "Top Tracks", "Recently played tracks"),
+            )
+            AndroidAutoPlaybackControls.MediaIdChartsArtists -> {
+                sourceId?.let { id ->
+                    storage.librarySnapshot(id, AndroidAutoBrowseLimit.toLong(), 0).artists.map(::artistItem).toMutableList()
+                } ?: noSourceItems()
+            }
+            AndroidAutoPlaybackControls.MediaIdChartsTracks -> {
+                sourceId?.let { id ->
+                    storage.playbackHistory(id, AndroidAutoBrowseLimit)
+                        .map { history -> trackItem(history.track) }
+                        .toMutableList()
+                } ?: noSourceItems()
+            }
             AndroidAutoPlaybackControls.MediaIdDownloads -> {
                 sourceId?.let { id ->
                     storage.downloadedTracks(id)
@@ -1092,6 +1179,17 @@ class AndroidPlaybackForegroundService : MediaBrowserService() {
                 browsableItem(AndroidAutoPlaybackControls.MediaIdLibraryTracks, "All Tracks", "Browse indexed tracks"),
             )
             else -> when {
+                parentId.startsWith(AndroidAutoPlaybackControls.MediaIdArtistGroupPrefix) -> {
+                    val group = Uri.decode(parentId.removePrefix(AndroidAutoPlaybackControls.MediaIdArtistGroupPrefix))
+                    sourceId?.let { id ->
+                        storage.librarySnapshot(id, VoiceArtistScanLimit, 0)
+                            .artists
+                            .filter { it.name.autoArtistGroupKey() == group }
+                            .take(AndroidAutoBrowseLimit)
+                            .map(::artistItem)
+                            .toMutableList()
+                    } ?: noSourceItems()
+                }
                 parentId.startsWith(AndroidAutoPlaybackControls.MediaIdPlaylistPrefix) -> {
                     val playlistId = Uri.decode(parentId.removePrefix(AndroidAutoPlaybackControls.MediaIdPlaylistPrefix))
                     loadAsyncChildren(result) {
@@ -1116,32 +1214,54 @@ class AndroidPlaybackForegroundService : MediaBrowserService() {
                     val parts = parentId.removePrefix(AndroidAutoPlaybackControls.MediaIdArtistPrefix).mediaIdParts()
                     val artistId = parts.getOrNull(0).orEmpty()
                     val artistName = parts.getOrNull(1)
-                    sourceId?.let { id ->
-                        storage.libraryTracksForArtist(id, ArtistId(artistId), AndroidAutoBrowseLimit.toLong())
+                    loadAsyncChildren(result) {
+                        val source = storage.latestNavidromeSource() ?: return@loadAsyncChildren noSourceItems()
+                        val provider = NavidromeProvider(source.toNavidromeConnection())
+                        val tracks = storage.libraryTracksForArtist(source.id, ArtistId(artistId), AndroidAutoBrowseLimit.toLong())
                             .ifEmpty {
                                 artistName?.let { name ->
-                                    storage.libraryTracksForArtistName(id, name, AndroidAutoBrowseLimit.toLong())
+                                    storage.libraryTracksForArtistName(source.id, name, AndroidAutoBrowseLimit.toLong())
                                 }.orEmpty()
                             }
-                            .map(::trackItem)
-                            .toMutableList()
-                    } ?: noSourceItems()
+                            .ifEmpty {
+                                runCatching {
+                                    withContext(Dispatchers.IO) { provider.artist(ArtistId(artistId)).albums.flatMap { album -> provider.album(album.id).tracks } }
+                                }.getOrDefault(emptyList())
+                            }
+                        tracks.take(AndroidAutoBrowseLimit).map(::trackItem).toMutableList()
+                    }
+                    return
                 }
                 parentId.startsWith(AndroidAutoPlaybackControls.MediaIdAlbumPrefix) -> {
                     val parts = parentId.removePrefix(AndroidAutoPlaybackControls.MediaIdAlbumPrefix).mediaIdParts()
                     val albumId = parts.getOrNull(0).orEmpty()
                     val albumTitle = parts.getOrNull(1)
                     val albumArtist = parts.getOrNull(2)
-                    sourceId?.let { id ->
-                        storage.libraryTracksForAlbum(id, AlbumId(albumId), AndroidAutoBrowseLimit.toLong())
+                    loadAsyncChildren(result) {
+                        val source = storage.latestNavidromeSource() ?: return@loadAsyncChildren noSourceItems()
+                        val provider = NavidromeProvider(source.toNavidromeConnection())
+                        val tracks = storage.libraryTracksForAlbum(source.id, AlbumId(albumId), AndroidAutoBrowseLimit.toLong())
                             .ifEmpty {
                                 albumTitle?.let { title ->
-                                    storage.libraryTracksForAlbumTitle(id, title, albumArtist, AndroidAutoBrowseLimit.toLong())
+                                    storage.libraryTracksForAlbumTitle(source.id, title, albumArtist, AndroidAutoBrowseLimit.toLong())
                                 }.orEmpty()
                             }
-                            .map(::trackItem)
-                            .toMutableList()
-                    } ?: noSourceItems()
+                            .ifEmpty {
+                                runCatching {
+                                    withContext(Dispatchers.IO) { provider.album(AlbumId(albumId)).tracks }
+                                }.getOrDefault(emptyList())
+                            }
+                        tracks.take(AndroidAutoBrowseLimit).map { track ->
+                            trackItem(
+                                track = track,
+                                mediaId = AndroidAutoPlaybackControls.MediaIdAlbumTrackPrefix + listOf(
+                                    Uri.encode(albumId),
+                                    Uri.encode(track.id.value),
+                                ).joinToString(MediaIdPartSeparator),
+                            )
+                        }.toMutableList()
+                    }
+                    return
                 }
                 else -> mutableListOf()
             }
@@ -1150,24 +1270,49 @@ class AndroidPlaybackForegroundService : MediaBrowserService() {
         sendChildren(parentId, children, result)
     }
 
+    override fun onLoadChildren(
+        parentId: String,
+        result: Result<MutableList<MediaBrowserCompat.MediaItem>>,
+        options: Bundle,
+    ) {
+        hydrateSavedPlaybackSession()
+        Log.i("NaviampAutoCommand", "Loading Auto children parent=$parentId options=${options.debugDescription()}")
+        options.autoSearchQuery()?.let { query ->
+            loadAsyncChildren(result) { autoSearchResults(query) }
+            return
+        }
+        onLoadChildren(parentId, result)
+    }
+
+    override fun onSearch(
+        query: String,
+        extras: Bundle?,
+        result: Result<MutableList<MediaBrowserCompat.MediaItem>>,
+    ) {
+        hydrateSavedPlaybackSession()
+        val searchQuery = query.ifBlank { extras?.autoSearchQuery().orEmpty() }
+        Log.i("NaviampAutoCommand", "Loading Auto search query=$searchQuery extras=${extras?.debugDescription().orEmpty()}")
+        loadAsyncChildren(result) { autoSearchResults(searchQuery) }
+    }
+
     private fun updateMediaSession(metadata: AndroidPlaybackNotificationMetadata, largeIcon: Bitmap?) {
         val session = ensureMediaSession()
         session.isActive = true
         currentMediaSessionDurationMillis = AndroidPlaybackNotificationControls.durationMillis
         publishAutoQueue(session)
         session.setMetadata(
-            MediaMetadata.Builder()
-                .putString(MediaMetadata.METADATA_KEY_TITLE, metadata.title.orEmpty())
-                .putString(MediaMetadata.METADATA_KEY_ARTIST, metadata.subtitle.orEmpty())
+            MediaMetadataCompat.Builder()
+                .putString(MediaMetadataCompat.METADATA_KEY_TITLE, metadata.title.orEmpty())
+                .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, metadata.subtitle.orEmpty())
                 .apply {
                     AndroidPlaybackNotificationControls.durationMillis?.takeIf { it > 0L }?.let { duration ->
-                        putLong(MediaMetadata.METADATA_KEY_DURATION, duration)
+                        putLong(MediaMetadataCompat.METADATA_KEY_DURATION, duration)
                     }
                 }
                 .apply {
                     largeIcon?.let { art ->
-                        putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART, art)
-                        putBitmap(MediaMetadata.METADATA_KEY_ART, art)
+                        putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, art)
+                        putBitmap(MediaMetadataCompat.METADATA_KEY_ART, art)
                     }
                 }
                 .build(),
@@ -1181,7 +1326,7 @@ class AndroidPlaybackForegroundService : MediaBrowserService() {
         session.setPlaybackState(buildPlaybackState(favoriteTitle, favoriteIcon))
     }
 
-    private fun publishAutoQueue(session: MediaSession) {
+    private fun publishAutoQueue(session: MediaSessionCompat) {
         val queue = currentAutoQueue
         val queueSignature = queue.joinToString("|") { it.id.value }
         if (queueSignature == lastPublishedAutoQueueSignature) return
@@ -1194,8 +1339,8 @@ class AndroidPlaybackForegroundService : MediaBrowserService() {
         session.setQueueTitle("Queue")
         session.setQueue(
             queue.mapIndexed { index, track ->
-                MediaSession.QueueItem(
-                    MediaDescription.Builder()
+                MediaSessionCompat.QueueItem(
+                    MediaDescriptionCompat.Builder()
                         .setMediaId("${AndroidAutoPlaybackControls.MediaIdTrackPrefix}${Uri.encode(track.id.value)}")
                         .setTitle(track.title)
                         .setSubtitle(track.artistName)
@@ -1222,34 +1367,34 @@ class AndroidPlaybackForegroundService : MediaBrowserService() {
     private fun buildPlaybackState(
         favoriteTitle: String,
         favoriteIcon: Int,
-    ): AndroidPlaybackState =
-        AndroidPlaybackState.Builder()
+    ): PlaybackStateCompat =
+        PlaybackStateCompat.Builder()
             .setActions(
-                AndroidPlaybackState.ACTION_PLAY or
-                    AndroidPlaybackState.ACTION_PAUSE or
-                    AndroidPlaybackState.ACTION_PLAY_PAUSE or
-                    AndroidPlaybackState.ACTION_SKIP_TO_PREVIOUS or
-                    AndroidPlaybackState.ACTION_SKIP_TO_NEXT or
-                    AndroidPlaybackState.ACTION_SKIP_TO_QUEUE_ITEM or
-                    AndroidPlaybackState.ACTION_PLAY_FROM_SEARCH or
-                    AndroidPlaybackState.ACTION_SEEK_TO or
-                    AndroidPlaybackState.ACTION_STOP,
+                PlaybackStateCompat.ACTION_PLAY or
+                    PlaybackStateCompat.ACTION_PAUSE or
+                    PlaybackStateCompat.ACTION_PLAY_PAUSE or
+                    PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
+                    PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
+                    PlaybackStateCompat.ACTION_SKIP_TO_QUEUE_ITEM or
+                    PlaybackStateCompat.ACTION_PLAY_FROM_SEARCH or
+                    PlaybackStateCompat.ACTION_SEEK_TO or
+                    PlaybackStateCompat.ACTION_STOP,
             )
             .addCustomAction(ActionFavorite, favoriteTitle, favoriteIcon)
             .setState(
                 if (AndroidPlaybackNotificationControls.isPlaying) {
-                    AndroidPlaybackState.STATE_PLAYING
+                    PlaybackStateCompat.STATE_PLAYING
                 } else {
-                    AndroidPlaybackState.STATE_PAUSED
+                    PlaybackStateCompat.STATE_PAUSED
                 },
                 AndroidPlaybackNotificationControls.positionMillis
-                    ?: AndroidPlaybackState.PLAYBACK_POSITION_UNKNOWN,
+                    ?: PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN,
                 if (AndroidPlaybackNotificationControls.isPlaying) 1f else 0f,
             )
             .setActiveQueueItemId(currentAutoQueueIndex.takeIf { it >= 0 }?.toLong() ?: -1L)
             .build()
 
-    private fun currentNowPlayingItem(): MediaBrowser.MediaItem {
+    private fun currentNowPlayingItem(): MediaBrowserCompat.MediaItem {
         val restored = restoredNowPlayingMetadata()
         val title = currentMetadata.title?.takeIf { it.isNotBlank() }
             ?: restored?.title
@@ -1310,34 +1455,79 @@ class AndroidPlaybackForegroundService : MediaBrowserService() {
     private fun trackItem(
         track: Track,
         mediaId: String = "${AndroidAutoPlaybackControls.MediaIdTrackPrefix}${Uri.encode(track.id.value)}",
-    ): MediaBrowser.MediaItem =
+    ): MediaBrowserCompat.MediaItem =
         playableItem(
             mediaId = mediaId,
             title = track.title,
             subtitle = listOfNotNull(track.artistName, track.albumTitle).joinToString(" - "),
         )
 
+    private fun artistItem(artist: Artist): MediaBrowserCompat.MediaItem =
+        browsableItem(
+            mediaId = AndroidAutoPlaybackControls.MediaIdArtistPrefix + listOf(
+                Uri.encode(artist.id.value),
+                Uri.encode(artist.name),
+            ).joinToString(MediaIdPartSeparator),
+            title = artist.name,
+            subtitle = "Artist",
+        )
+
+    private fun albumItem(album: Album): MediaBrowserCompat.MediaItem =
+        browsableItem(
+            mediaId = AndroidAutoPlaybackControls.MediaIdAlbumPrefix + listOf(
+                Uri.encode(album.id.value),
+                Uri.encode(album.title),
+                Uri.encode(album.artistName),
+            ).joinToString(MediaIdPartSeparator),
+            title = album.title,
+            subtitle = listOfNotNull(album.artistName, album.releaseYear?.toString()).joinToString(" - "),
+        )
+
+    private suspend fun autoSearchResults(query: String): MutableList<MediaBrowserCompat.MediaItem> =
+        withContext(Dispatchers.IO) {
+            val trimmed = query.trim()
+            if (trimmed.isBlank()) return@withContext mutableListOf()
+            val storage = AndroidStorage(applicationContext)
+            val source = storage.latestNavidromeSource() ?: return@withContext noSourceItems()
+            val local = storage.searchLibrary(source.id, trimmed, AndroidAutoBrowseLimit.toLong(), 0)
+            val provider = NavidromeProvider(source.toNavidromeConnection())
+            val remote = if (local.isEmpty) {
+                runCatching { provider.search(trimmed, AndroidAutoBrowseLimit) }.getOrNull()
+            } else {
+                null
+            }
+            buildList {
+                addAll(local.artists.ifEmpty { remote?.artists.orEmpty() }.take(8).map(::artistItem))
+                addAll(local.albums.ifEmpty { remote?.albums.orEmpty() }.take(12).map(::albumItem))
+                addAll(local.tracks.ifEmpty { remote?.tracks.orEmpty() }.take(AndroidAutoBrowseLimit).map(::trackItem))
+            }.toMutableList()
+        }
+
     private fun browsableItem(
         mediaId: String,
         title: String,
         subtitle: String,
-    ): MediaBrowser.MediaItem =
-        MediaBrowser.MediaItem(
-            MediaDescription.Builder()
+        iconName: String? = null,
+    ): MediaBrowserCompat.MediaItem =
+        MediaBrowserCompat.MediaItem(
+            MediaDescriptionCompat.Builder()
                 .setMediaId(mediaId)
                 .setTitle(title)
                 .setSubtitle(subtitle)
+                .apply {
+                    iconName?.let { setIconUri(Uri.parse("android.resource://$packageName/drawable/$it")) }
+                }
                 .build(),
-            MediaBrowser.MediaItem.FLAG_BROWSABLE,
+            MediaBrowserCompat.MediaItem.FLAG_BROWSABLE,
         )
 
     private fun playableItem(
         mediaId: String,
         title: String,
         subtitle: String,
-    ): MediaBrowser.MediaItem =
-        MediaBrowser.MediaItem(
-            MediaDescription.Builder()
+    ): MediaBrowserCompat.MediaItem =
+        MediaBrowserCompat.MediaItem(
+            MediaDescriptionCompat.Builder()
                 .setMediaId(mediaId)
                 .setTitle(title)
                 .setSubtitle(subtitle)
@@ -1347,17 +1537,17 @@ class AndroidPlaybackForegroundService : MediaBrowserService() {
                     }
                 }
                 .build(),
-            MediaBrowser.MediaItem.FLAG_PLAYABLE,
+            MediaBrowserCompat.MediaItem.FLAG_PLAYABLE,
         )
 
-    private fun noSourceItems(): MutableList<MediaBrowser.MediaItem> =
+    private fun noSourceItems(): MutableList<MediaBrowserCompat.MediaItem> =
         mutableListOf(
             browsableItem("naviamp.no_source", "Connect Naviamp first", "Open the phone app and connect to Navidrome."),
         )
 
     private fun loadAsyncChildren(
-        result: Result<MutableList<MediaBrowser.MediaItem>>,
-        load: suspend () -> MutableList<MediaBrowser.MediaItem>,
+        result: Result<MutableList<MediaBrowserCompat.MediaItem>>,
+        load: suspend () -> MutableList<MediaBrowserCompat.MediaItem>,
     ) {
         result.detach()
         AndroidPlaybackRuntime.get(applicationContext).scope.launch {
@@ -1370,8 +1560,8 @@ class AndroidPlaybackForegroundService : MediaBrowserService() {
 
     private fun sendChildren(
         parentId: String,
-        children: MutableList<MediaBrowser.MediaItem>,
-        result: Result<MutableList<MediaBrowser.MediaItem>>,
+        children: MutableList<MediaBrowserCompat.MediaItem>,
+        result: Result<MutableList<MediaBrowserCompat.MediaItem>>,
     ) {
         result.sendResult(
             children.ifEmpty {
@@ -1557,6 +1747,25 @@ private fun String.voiceSearchKey(): String =
         .replace("ph", "f")
         .replace(Regex("\\b(the|a|an)\\b"), " ")
         .filter { it.isLetterOrDigit() }
+
+private fun String.autoArtistGroupKey(): String {
+    val first = trim().firstOrNull { it.isLetterOrDigit() } ?: return "#"
+    return if (first.isLetter()) first.uppercaseChar().toString() else "#"
+}
+
+private fun Bundle.debugDescription(): String =
+    keySet().joinToString(prefix = "{", postfix = "}") { key -> "$key=${get(key)}" }
+
+private fun Bundle.autoSearchQuery(): String? {
+    val keys = keySet()
+    keys.firstOrNull { it.contains("search", ignoreCase = true) || it.contains("query", ignoreCase = true) }
+        ?.let { key -> (get(key) as? String)?.trim()?.takeIf { it.isNotBlank() } }
+        ?.let { return it }
+    return keys.asSequence()
+        .mapNotNull { key -> get(key) as? String }
+        .map { it.trim() }
+        .firstOrNull { it.isNotBlank() }
+}
 
 private fun AndroidStorage.savedCoverArtUrl(track: Track): String? {
     val coverArtId = track.coverArtId ?: track.albumId?.value ?: return null

@@ -54,6 +54,7 @@ dependencies {
     implementation(project(":core:ui"))
     implementation(project(":providers:navidrome"))
     implementation(libs.activity.compose)
+    implementation(libs.androidx.media)
     implementation(compose.foundation)
     implementation(compose.material3)
     implementation(compose.runtime)
