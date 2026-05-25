@@ -5,11 +5,15 @@ import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.PreviousButtonBehavior
+import app.naviamp.domain.settings.RecentRadioStream
+import app.naviamp.domain.settings.SavedInternetRadioStation
 import app.naviamp.domain.settings.StreamQualityMode
 import app.naviamp.domain.settings.StreamQualityPreference
 import app.naviamp.domain.settings.StreamingCodec
 import app.naviamp.domain.settings.UpNextSelectionBehavior
 import app.naviamp.provider.navidrome.NavidromeConnection
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.Json
 
 class AndroidSettingsStore(
     context: Context,
@@ -128,6 +132,30 @@ class AndroidSettingsStore(
             .apply()
     }
 
+    fun loadRecentRadioStreams(): List<RecentRadioStream> =
+        decodeList(KeyRecentRadioStreams, RecentRadioStream.serializer())
+
+    fun saveRecentRadioStreams(streams: List<RecentRadioStream>) {
+        preferences.edit()
+            .putString(
+                KeyRecentRadioStreams,
+                JsonSettings.encodeToString(ListSerializer(RecentRadioStream.serializer()), streams.take(12)),
+            )
+            .apply()
+    }
+
+    fun loadRecentInternetRadioStations(): List<SavedInternetRadioStation> =
+        decodeList(KeyRecentInternetRadioStations, SavedInternetRadioStation.serializer())
+
+    fun saveRecentInternetRadioStations(stations: List<SavedInternetRadioStation>) {
+        preferences.edit()
+            .putString(
+                KeyRecentInternetRadioStations,
+                JsonSettings.encodeToString(ListSerializer(SavedInternetRadioStation.serializer()), stations.take(12)),
+            )
+            .apply()
+    }
+
     fun clear() {
         preferences.edit().clear().apply()
     }
@@ -148,6 +176,16 @@ class AndroidSettingsStore(
             codec = enumPreference(codecKey, defaultValue.codec),
             bitrateKbps = preferences.getInt(bitrateKey, defaultValue.bitrateKbps),
         ).normalized()
+
+    private fun <T> decodeList(
+        key: String,
+        serializer: kotlinx.serialization.KSerializer<T>,
+    ): List<T> =
+        preferences.getString(key, null)
+            ?.let { json ->
+                runCatching { JsonSettings.decodeFromString(ListSerializer(serializer), json) }.getOrDefault(emptyList())
+            }
+            ?: emptyList()
 }
 
 private fun android.content.SharedPreferences.Editor.putStreamQualityPreference(
@@ -189,4 +227,10 @@ private const val KeyDownloadCodec = "download_codec"
 private const val KeyDownloadBitrate = "download_bitrate"
 private const val KeyAllowMobileDownloads = "allow_mobile_downloads"
 private const val KeySelectedVisualizer = "selected_visualizer"
+private const val KeyRecentRadioStreams = "recent_radio_streams"
+private const val KeyRecentInternetRadioStations = "recent_internet_radio_stations"
 private const val DefaultSelectedVisualizer = "AudioSphere"
+private val JsonSettings = Json {
+    ignoreUnknownKeys = true
+    encodeDefaults = true
+}

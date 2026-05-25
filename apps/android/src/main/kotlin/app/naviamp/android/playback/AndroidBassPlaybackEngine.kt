@@ -1,7 +1,11 @@
 package app.naviamp.android.playback
 
 import android.content.Context
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.net.Uri
+import android.os.Build
 import android.util.Log
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
@@ -26,6 +30,7 @@ class AndroidBassPlaybackEngine(
     private val bass: AndroidBassJni,
 ) : AndroidPlaybackEngine, QueueAwarePlaybackEngine, VisualizerPlaybackEngine {
     private val appContext = context.applicationContext
+    private val audioManager = appContext.getSystemService(AudioManager::class.java)
     private var stream: Int = 0
     private var currentSourceStream: Int = 0
     private var preparedStream: Int = 0
@@ -40,8 +45,30 @@ class AndroidBassPlaybackEngine(
     private var volumePercent: Int = 100
     private var replayGainFactor: Float = 1f
     private var tlsSettings: NavidromeTlsSettings = NavidromeTlsSettings()
+    private var audioFocusRequest: AudioFocusRequest? = null
+    private var pausedForTransientFocusLoss = false
     @Volatile
     private var currentVisualizerFrame: PlaybackVisualizerFrame? = null
+    private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
+        when (focusChange) {
+            AudioManager.AUDIOFOCUS_GAIN -> {
+                if (pausedForTransientFocusLoss) {
+                    pausedForTransientFocusLoss = false
+                    resumeAfterFocusGain()
+                }
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                pausedForTransientFocusLoss = AndroidPlaybackNotificationControls.isPlaying
+                pauseForFocusLoss()
+            }
+            AudioManager.AUDIOFOCUS_LOSS -> {
+                pausedForTransientFocusLoss = false
+                pauseForFocusLoss()
+                abandonAudioFocus()
+            }
+        }
+    }
 
     override val name: String = "BASS Android"
     override val supportsPause: Boolean = true
@@ -78,18 +105,22 @@ class AndroidBassPlaybackEngine(
         onProgressChanged: (PlaybackProgress) -> Unit,
         onMetadataChanged: (PlaybackStreamMetadata) -> Unit,
     ) {
+        this.onStateChanged = onStateChanged
+        this.onProgressChanged = onProgressChanged
+        this.onMetadataChanged = onMetadataChanged
+        if (!requestAudioFocus()) {
+            Log.w(Tag, "Audio focus request denied before playback")
+            onStateChanged(PlaybackState.Error("Audio focus is currently held by another app."))
+            AndroidPlaybackNotificationControls.isPlaying = false
+            AndroidPlaybackForegroundService.update(appContext, notificationMetadata)
+            return
+        }
         if (adoptPreparedStream(request, onStateChanged, onProgressChanged)) {
-            this.onStateChanged = onStateChanged
-            this.onProgressChanged = onProgressChanged
-            this.onMetadataChanged = onMetadataChanged
             AndroidPlaybackNotificationControls.isPlaying = true
             AndroidPlaybackForegroundService.update(appContext, notificationMetadata)
             return
         }
         stopStreamOnly()
-        this.onStateChanged = onStateChanged
-        this.onProgressChanged = onProgressChanged
-        this.onMetadataChanged = onMetadataChanged
         onStateChanged(PlaybackState.Loading)
         onProgressChanged(PlaybackProgress.Unknown)
         AndroidPlaybackNotificationControls.isPlaying = true
@@ -131,6 +162,8 @@ class AndroidBassPlaybackEngine(
     override fun pause() {
         val handle = stream
         if (handle != 0 && bass.pause(handle)) {
+            pausedForTransientFocusLoss = false
+            abandonAudioFocus()
             AndroidPlaybackNotificationControls.isPlaying = false
             AndroidPlaybackForegroundService.update(appContext, notificationMetadata)
             onStateChanged?.invoke(PlaybackState.Paused)
@@ -139,7 +172,7 @@ class AndroidBassPlaybackEngine(
 
     override fun resume() {
         val handle = stream
-        if (handle != 0 && bass.play(handle)) {
+        if (handle != 0 && requestAudioFocus() && bass.play(handle)) {
             AndroidPlaybackNotificationControls.isPlaying = true
             AndroidPlaybackForegroundService.update(appContext, notificationMetadata)
             onStateChanged?.invoke(PlaybackState.Playing)
@@ -164,6 +197,8 @@ class AndroidBassPlaybackEngine(
     override fun stop() {
         freePreparedStream()
         stopStreamOnly()
+        pausedForTransientFocusLoss = false
+        abandonAudioFocus()
         AndroidPlaybackNotificationControls.isPlaying = false
         AndroidPlaybackForegroundService.stop(appContext)
         onProgressChanged?.invoke(PlaybackProgress.Unknown)
@@ -172,6 +207,8 @@ class AndroidBassPlaybackEngine(
 
     override fun release() {
         stopStreamOnly()
+        pausedForTransientFocusLoss = false
+        abandonAudioFocus()
         AndroidPlaybackNotificationControls.clear()
         AndroidPlaybackForegroundService.stop(appContext)
         bass.free()
@@ -301,6 +338,59 @@ class AndroidBassPlaybackEngine(
         preparedStream = 0
         preparedRequest = null
         preparedReplayGainFactor = 1f
+    }
+
+    private fun pauseForFocusLoss() {
+        val handle = stream
+        if (handle != 0 && bass.pause(handle)) {
+            AndroidPlaybackNotificationControls.isPlaying = false
+            AndroidPlaybackForegroundService.update(appContext, notificationMetadata)
+            onStateChanged?.invoke(PlaybackState.Paused)
+        }
+    }
+
+    private fun resumeAfterFocusGain() {
+        val handle = stream
+        if (handle != 0 && bass.play(handle)) {
+            AndroidPlaybackNotificationControls.isPlaying = true
+            AndroidPlaybackForegroundService.update(appContext, notificationMetadata)
+            onStateChanged?.invoke(PlaybackState.Playing)
+        }
+    }
+
+    private fun requestAudioFocus(): Boolean {
+        val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val request = audioFocusRequest ?: AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                .setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .build(),
+                )
+                .setOnAudioFocusChangeListener(audioFocusChangeListener)
+                .setAcceptsDelayedFocusGain(false)
+                .setWillPauseWhenDucked(true)
+                .build()
+                .also { audioFocusRequest = it }
+            audioManager.requestAudioFocus(request)
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager.requestAudioFocus(
+                audioFocusChangeListener,
+                AudioManager.STREAM_MUSIC,
+                AudioManager.AUDIOFOCUS_GAIN,
+            )
+        }
+        return result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+    }
+
+    private fun abandonAudioFocus() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager.abandonAudioFocus(audioFocusChangeListener)
+        }
     }
 
     private fun isAtEnd(progress: PlaybackProgress): Boolean {

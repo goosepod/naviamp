@@ -553,6 +553,31 @@ AND remote_artist_id = ?
 ORDER BY search_album_title, search_title
 LIMIT ?;
 
+selectLibraryTracksForArtistName:
+SELECT *
+FROM library_track
+WHERE source_id = ?
+AND search_artist_name = ?
+ORDER BY search_album_title, search_title
+LIMIT ?;
+
+selectLibraryTracksForAlbumTitle:
+SELECT *
+FROM library_track
+WHERE source_id = ?
+AND search_album_title = ?
+ORDER BY search_title
+LIMIT ?;
+
+selectLibraryTracksForAlbumTitleAndArtist:
+SELECT *
+FROM library_track
+WHERE source_id = ?
+AND search_album_title = ?
+AND search_artist_name = ?
+ORDER BY search_title
+LIMIT ?;
+
 deleteArtistPopularTracks:
 DELETE FROM artist_popular_track
 WHERE source_id = ?

@@ -580,6 +580,24 @@ class AndroidStorage(
     override fun libraryTracksForArtist(sourceId: String, artistId: ArtistId, limit: Long): List<Track> =
         queries.selectLibraryTracksForArtist(sourceId, artistId.value, limit).executeAsList().map { it.toTrack() }
 
+    fun libraryTracksForArtistName(sourceId: String, artistName: String, limit: Long): List<Track> =
+        queries.selectLibraryTracksForArtistName(sourceId, artistName.searchText(), limit).executeAsList().map { it.toTrack() }
+
+    fun libraryTracksForAlbumTitle(
+        sourceId: String,
+        albumTitle: String,
+        artistName: String?,
+        limit: Long,
+    ): List<Track> {
+        val searchArtistName = artistName?.searchText()
+        val searchAlbumTitle = albumTitle.searchText()
+        return if (searchArtistName.isNullOrBlank()) {
+            queries.selectLibraryTracksForAlbumTitle(sourceId, searchAlbumTitle, limit)
+        } else {
+            queries.selectLibraryTracksForAlbumTitleAndArtist(sourceId, searchAlbumTitle, searchArtistName, limit)
+        }.executeAsList().map { it.toTrack() }
+    }
+
     override fun artistPopularTracks(sourceId: String, artistId: ArtistId, source: String): List<ArtistPopularTrackMatch> =
         queries.selectArtistPopularTracks(sourceId, artistId.value, source).executeAsList().map { it.toPopularTrackMatch() }
 
