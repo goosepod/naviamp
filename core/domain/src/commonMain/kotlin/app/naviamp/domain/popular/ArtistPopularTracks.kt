@@ -59,7 +59,7 @@ interface ArtistPopularTracksRepository {
 
 class ArtistPopularTracksService(
     private val repository: ArtistPopularTracksRepository,
-    private val libraryTracksForArtist: suspend (ArtistId, Long) -> List<Track>,
+    private val libraryTracksForArtist: suspend (Artist, Long) -> List<Track>,
     private val client: ArtistPopularTracksClient,
     private val nowMillis: () -> Long = { currentTimeMillis() },
 ) {
@@ -75,7 +75,7 @@ class ArtistPopularTracksService(
         val candidates = client.popularTracks(artist.name, limit)
         if (candidates.isEmpty()) return cached.take(limit)
 
-        val libraryTracks = libraryTracksForArtist(artist.id, 5_000)
+        val libraryTracks = libraryTracksForArtist(artist, 5_000)
         val matchedTracks = matchPopularTracks(candidates, libraryTracks)
         repository.replaceArtistPopularTracks(
             sourceId = sourceId,
@@ -126,9 +126,15 @@ fun matchPopularTracks(
     )
 
     return candidates.mapNotNull { candidate ->
-        val matches = candidate.title.popularTrackSearchKeys()
+        val candidateKeys = candidate.title.popularTrackSearchKeys()
+        val matches = candidateKeys
             .flatMap { key -> tracksByTitle[key].orEmpty() }
             .distinctBy { it.id }
+            .ifEmpty {
+                libraryTracks
+                    .filter { track -> candidateKeys.any { key -> track.title.popularTrackSearchKeys().any { it.fuzzyTitleMatches(key) } } }
+                    .distinctBy { it.id }
+            }
         val match = matches.bestMatchFor(candidate) ?: return@mapNotNull null
         candidate.sourceTrackId to match
     }.toMap()
@@ -170,6 +176,12 @@ private fun String.popularTrackSearchKeys(): Set<String> {
     return setOf(primary, withoutTrailingVersion)
         .filter { it.length >= 2 }
         .toSet()
+}
+
+private fun String.fuzzyTitleMatches(other: String): Boolean {
+    if (this == other) return true
+    if (length < 4 || other.length < 4) return false
+    return startsWith(other) || other.startsWith(this)
 }
 
 private fun String.artistSearchText(): String =

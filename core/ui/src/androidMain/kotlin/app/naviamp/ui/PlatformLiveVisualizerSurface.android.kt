@@ -1,10 +1,21 @@
 package app.naviamp.ui
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.BitmapShader
+import android.graphics.Canvas as AndroidCanvas
+import android.graphics.Paint
+import android.graphics.RuntimeShader
+import android.graphics.Shader
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Canvas
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
@@ -15,13 +26,228 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.net.URL
 
 @Composable
 internal actual fun PlatformLiveVisualizerSurface(
     coverArtUrl: String?,
+    bandsProvider: () -> List<Float>,
+    visualizer: NaviampVisualizer,
+    visualizerColors: NaviampPlayerColors,
+    active: Boolean,
+    colors: NaviampColors,
+    modifier: Modifier,
+) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        AndroidShaderVisualizerSurface(
+            coverArtUrl = coverArtUrl,
+            bandsProvider = bandsProvider,
+            visualizer = visualizer,
+            visualizerColors = visualizerColors,
+            active = active,
+            colors = colors,
+            modifier = modifier,
+        )
+        return
+    }
+    AndroidCanvasVisualizerSurface(
+        bandsProvider = bandsProvider,
+        visualizer = visualizer,
+        visualizerColors = visualizerColors,
+        active = active,
+        colors = colors,
+        modifier = modifier,
+    )
+}
+
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+@Composable
+private fun AndroidShaderVisualizerSurface(
+    coverArtUrl: String?,
+    bandsProvider: () -> List<Float>,
+    visualizer: NaviampVisualizer,
+    visualizerColors: NaviampPlayerColors,
+    active: Boolean,
+    colors: NaviampColors,
+    modifier: Modifier,
+) {
+    var frameMillis by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(active, visualizer) {
+        if (!active) {
+            frameMillis = 0L
+            return@LaunchedEffect
+        }
+        while (true) {
+            withFrameMillis { frameMillis = it }
+        }
+    }
+    var albumArtBitmap by remember(coverArtUrl) { mutableStateOf<Bitmap?>(null) }
+    LaunchedEffect(coverArtUrl, visualizer) {
+        albumArtBitmap = if (coverArtUrl != null && visualizer == NaviampVisualizer.AlbumArtReactive) {
+            withContext(Dispatchers.IO) {
+                runCatching { URL(coverArtUrl).openStream().use(BitmapFactory::decodeStream) }.getOrNull()
+            }
+        } else {
+            null
+        }
+    }
+    val renderer = remember(visualizer) { AndroidShaderVisualizerRenderer(visualizer) }
+    DisposableEffect(renderer) {
+        onDispose { renderer.close() }
+    }
+
+    Canvas(modifier = modifier) {
+        val bands = bandsProvider()
+        val visibleBands = minOf(bands.size, (size.width / 6f).toInt().coerceAtLeast(16))
+        if (visibleBands <= 0 || size.width <= 0f || size.height <= 0f) {
+            return@Canvas
+        }
+        drawIntoCanvas { canvas ->
+            renderer.draw(
+                canvas = canvas.nativeCanvas,
+                width = size.width,
+                height = size.height,
+                bands = bands,
+                visibleBands = visibleBands,
+                active = active,
+                colors = colors,
+                visualizerColors = visualizerColors,
+                albumArtBitmap = albumArtBitmap,
+                timeSeconds = frameMillis / 1000f,
+            )
+        }
+    }
+}
+
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+private class AndroidShaderVisualizerRenderer(
+    visualizer: NaviampVisualizer,
+) : AutoCloseable {
+    private val runtimeShader = RuntimeShader(visualizer.shaderSource)
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val uniformBands = FloatArray(AndroidVisualizerShaderBandCount)
+    private val smoothBands = FloatArray(AndroidVisualizerShaderBandCount)
+    private val historyPixels = IntArray(AndroidVisualizerHistoryColumns * AndroidVisualizerHistoryRows)
+    private val previousHistoryBands = FloatArray(AndroidVisualizerShaderBandCount)
+    private val historyBitmap = Bitmap.createBitmap(AndroidVisualizerHistoryColumns, AndroidVisualizerHistoryRows, Bitmap.Config.ARGB_8888)
+    private val historyShader = BitmapShader(historyBitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+    private val fallbackAlbumArtBitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888).apply {
+        eraseColor(android.graphics.Color.WHITE)
+    }
+    private val fallbackAlbumArtShader = BitmapShader(fallbackAlbumArtBitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+    private var albumArtBitmap: Bitmap? = null
+    private var albumArtShader: BitmapShader? = null
+    private var lastHistoryPushSeconds = -1f
+
+    fun draw(
+        canvas: AndroidCanvas,
+        width: Float,
+        height: Float,
+        bands: List<Float>,
+        visibleBands: Int,
+        active: Boolean,
+        colors: NaviampColors,
+        visualizerColors: NaviampPlayerColors,
+        albumArtBitmap: Bitmap?,
+        timeSeconds: Float,
+    ) {
+        repeat(AndroidVisualizerShaderBandCount) { index ->
+            val sourceIndex = if (AndroidVisualizerShaderBandCount == 1 || bands.isEmpty()) {
+                0
+            } else {
+                ((index / (AndroidVisualizerShaderBandCount - 1f)) * (bands.size - 1)).toInt()
+            }
+            val target = bands.getOrNull(sourceIndex)?.coerceIn(0f, 1f) ?: 0f
+            val rise = if (target > smoothBands[index]) 0.42f else 0.18f
+            smoothBands[index] += (target - smoothBands[index]) * rise
+            uniformBands[index] = smoothBands[index].coerceIn(0f, 1f)
+        }
+        updateHistoryTexture(timeSeconds, active)
+        val bass = uniformBands.take(8).average().toFloat().coerceIn(0f, 1f)
+        val mids = uniformBands.drop(8).take(12).average().toFloat().coerceIn(0f, 1f)
+        val highs = uniformBands.drop(20).average().toFloat().coerceIn(0f, 1f)
+
+        runtimeShader.setFloatUniform("iResolution", width, height)
+        runtimeShader.setFloatUniform("iTime", timeSeconds)
+        runtimeShader.setFloatUniform("iAccent", visualizerColors.accent.red, visualizerColors.accent.green, visualizerColors.accent.blue, visualizerColors.accent.alpha)
+        runtimeShader.setFloatUniform("iColorA", visualizerColors.backgroundStart.red, visualizerColors.backgroundStart.green, visualizerColors.backgroundStart.blue, 1f)
+        runtimeShader.setFloatUniform("iColorB", visualizerColors.backgroundMid.red, visualizerColors.backgroundMid.green, visualizerColors.backgroundMid.blue, 1f)
+        runtimeShader.setFloatUniform("iColorC", visualizerColors.backgroundEnd.red, visualizerColors.backgroundEnd.green, visualizerColors.backgroundEnd.blue, 1f)
+        runtimeShader.setFloatUniform("iReadable", colors.primaryText.red, colors.primaryText.green, colors.primaryText.blue, colors.primaryText.alpha)
+        runtimeShader.setFloatUniform(
+            "iIdle",
+            colors.primaryText.red,
+            colors.primaryText.green,
+            colors.primaryText.blue,
+            colors.primaryText.alpha * 0.16f,
+        )
+        runtimeShader.setFloatUniform("iActive", if (active) 1f else 0f)
+        runtimeShader.setFloatUniform("iVisibleBands", visibleBands.toFloat())
+        runtimeShader.setFloatUniform("iSourceBands", bands.size.toFloat().coerceAtLeast(1f))
+        runtimeShader.setFloatUniform("iEnergy", bass, mids, highs, uniformBands.average().toFloat().coerceIn(0f, 1f))
+        runtimeShader.setFloatUniform("iBands", uniformBands)
+        val albumShader = albumShaderFor(albumArtBitmap)
+        val albumBitmap = albumArtBitmap ?: fallbackAlbumArtBitmap
+        runtimeShader.setFloatUniform("iAlbumArtSize", albumBitmap.width.toFloat(), albumBitmap.height.toFloat())
+        runtimeShader.setInputShader("iHistory", historyShader)
+        runtimeShader.setInputShader("iAlbumArt", albumShader)
+        paint.shader = runtimeShader
+        canvas.drawRect(0f, 0f, width, height, paint)
+    }
+
+    override fun close() {
+        historyBitmap.recycle()
+        fallbackAlbumArtBitmap.recycle()
+    }
+
+    private fun albumShaderFor(bitmap: Bitmap?): Shader {
+        if (bitmap == null) return fallbackAlbumArtShader
+        if (albumArtBitmap !== bitmap) {
+            albumArtBitmap = bitmap
+            albumArtShader = BitmapShader(bitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+        }
+        return albumArtShader ?: fallbackAlbumArtShader
+    }
+
+    private fun updateHistoryTexture(timeSeconds: Float, active: Boolean) {
+        if (!active) return
+        if (lastHistoryPushSeconds >= 0f && timeSeconds - lastHistoryPushSeconds < AndroidVisualizerHistoryIntervalSeconds) return
+        val changed = uniformBands.indices.any { index ->
+            abs(uniformBands[index] - previousHistoryBands[index]) > 0.006f
+        }
+        if (!changed && lastHistoryPushSeconds >= 0f) return
+        lastHistoryPushSeconds = timeSeconds
+        repeat(AndroidVisualizerShaderBandCount) { index ->
+            previousHistoryBands[index] = uniformBands[index]
+        }
+
+        val rowWidth = AndroidVisualizerHistoryColumns
+        System.arraycopy(
+            historyPixels,
+            0,
+            historyPixels,
+            rowWidth,
+            rowWidth * (AndroidVisualizerHistoryRows - 1),
+        )
+        repeat(AndroidVisualizerHistoryColumns) { column ->
+            val sourceIndex = ((column / (AndroidVisualizerHistoryColumns - 1f)) * (AndroidVisualizerShaderBandCount - 1)).toInt()
+            val value = (uniformBands[sourceIndex].coerceIn(0f, 1f) * 255f).toInt().coerceIn(0, 255)
+            historyPixels[column] = android.graphics.Color.argb(255, value, value, value)
+        }
+        historyBitmap.setPixels(historyPixels, 0, rowWidth, 0, 0, AndroidVisualizerHistoryColumns, AndroidVisualizerHistoryRows)
+    }
+}
+
+@Composable
+private fun AndroidCanvasVisualizerSurface(
     bandsProvider: () -> List<Float>,
     visualizer: NaviampVisualizer,
     visualizerColors: NaviampPlayerColors,
@@ -67,6 +293,11 @@ internal actual fun PlatformLiveVisualizerSurface(
         }
     }
 }
+
+private const val AndroidVisualizerShaderBandCount = 32
+private const val AndroidVisualizerHistoryColumns = 32
+private const val AndroidVisualizerHistoryRows = 32
+private const val AndroidVisualizerHistoryIntervalSeconds = 0.075f
 
 private fun DrawScope.drawIdleLine(colors: NaviampColors) {
     drawLine(

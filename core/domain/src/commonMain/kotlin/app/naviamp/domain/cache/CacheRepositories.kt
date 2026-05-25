@@ -119,6 +119,8 @@ interface LocalLibraryIndexRepository : ArtistPopularTracksRepository {
 
     fun libraryTracksForArtist(sourceId: String, artistId: ArtistId, limit: Long = 50): List<Track>
 
+    fun libraryTracksForArtistName(sourceId: String, artistName: String, limit: Long = 50): List<Track>
+
     fun relatedLibraryTracks(sourceId: String, track: Track, limit: Long = 40): List<Track>
 
     fun libraryIndexStats(sourceId: String): LibraryIndexStats

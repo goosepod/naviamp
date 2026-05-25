@@ -289,7 +289,11 @@ fun NaviampApp(
     val popularTracksService = remember(sessionCache) {
         ArtistPopularTracksService(
             repository = sessionCache,
-            libraryTracksForArtist = { artistId, limit -> sessionCache.libraryTracksForArtist(connectedSourceId.orEmpty(), artistId, limit) },
+            libraryTracksForArtist = { artist, limit ->
+                val sourceId = connectedSourceId.orEmpty()
+                sessionCache.libraryTracksForArtist(sourceId, artist.id, limit)
+                    .ifEmpty { sessionCache.libraryTracksForArtistName(sourceId, artist.name, limit) }
+            },
             client = deezerDiscoveryClient,
         )
     }
@@ -376,6 +380,7 @@ fun NaviampApp(
     var selectedArtistSimilarArtists by remember { mutableStateOf<List<SimilarArtistMatch>>(emptyList()) }
     var selectedArtistSimilarArtistsStatus by remember { mutableStateOf<String?>(null) }
     var artistDetailBackRoute by remember { mutableStateOf(AppRoute.Search) }
+    var artistDetailBackStack by remember { mutableStateOf<List<Artist>>(emptyList()) }
     var searchQuery by remember { mutableStateOf(savedSearch.query) }
     var searchResults by remember { mutableStateOf(MediaSearchResults()) }
     var searchStatus by remember { mutableStateOf<String?>(null) }
@@ -2445,8 +2450,19 @@ fun NaviampApp(
         }
     }
 
-    fun openArtistDetails(artist: Artist, backRouteOverride: AppRoute? = null) {
+    fun openArtistDetails(
+        artist: Artist,
+        backRouteOverride: AppRoute? = null,
+        pushCurrentArtist: Boolean = true,
+    ) {
         val provider = connectedProvider ?: return
+        if (pushCurrentArtist && appRoute == AppRoute.ArtistDetail) {
+            selectedArtist
+                ?.takeIf { currentArtist -> currentArtist.id != artist.id }
+                ?.let { currentArtist -> artistDetailBackStack = artistDetailBackStack + currentArtist }
+        } else if (appRoute != AppRoute.ArtistDetail) {
+            artistDetailBackStack = emptyList()
+        }
         artistDetailBackRoute = backRouteOverride ?: when (appRoute) {
             AppRoute.ArtistDetail -> artistDetailBackRoute
             AppRoute.Player -> lastContentRoute
@@ -2482,7 +2498,7 @@ fun NaviampApp(
                                 .map { it.matchedTrack }
                                 .take(PopularTracksDisplayLimit)
                             selectedArtistPopularTracksStatus = if (matches.isEmpty()) {
-                                "No Deezer popular tracks matched songs in your library."
+                                "No popular tracks matched songs in your library."
                             } else {
                                 null
                             }
@@ -2509,6 +2525,20 @@ fun NaviampApp(
             ),
             backRouteOverride = backRouteOverride,
         )
+    }
+
+    fun closeArtistDetails() {
+        val previousArtist = artistDetailBackStack.lastOrNull()
+        if (previousArtist != null) {
+            artistDetailBackStack = artistDetailBackStack.dropLast(1)
+            openArtistDetails(
+                artist = previousArtist,
+                backRouteOverride = artistDetailBackRoute,
+                pushCurrentArtist = false,
+            )
+        } else {
+            appRoute = artistDetailBackRoute
+        }
     }
 
     fun openTrackAlbumDetails(track: Track) {
@@ -3017,11 +3047,11 @@ fun NaviampApp(
                                     coverArtUrl = { coverArtId ->
                                         coverArtId?.let { connectedProvider?.coverArtUrl(it) }
                                     },
-                                    onBack = { appRoute = artistDetailBackRoute },
+                                    onBack = { closeArtistDetails() },
                                     onArtistRadio = { artist -> playArtistRadio(artist) },
                                     onFindSimilarArtists = { artist -> findSimilarArtists(artist) },
                                     onSimilarArtistSelected = { artist ->
-                                        openArtistDetails(artist, backRouteOverride = AppRoute.ArtistDetail)
+                                        openArtistDetails(artist)
                                     },
                                     onSimilarArtistExternalSelected = { url -> openExternalArtistUrl(url) },
                                     onPopularTracksPlay = { tracks -> playPopularTracks(tracks) },

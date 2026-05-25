@@ -580,7 +580,7 @@ class AndroidStorage(
     override fun libraryTracksForArtist(sourceId: String, artistId: ArtistId, limit: Long): List<Track> =
         queries.selectLibraryTracksForArtist(sourceId, artistId.value, limit).executeAsList().map { it.toTrack() }
 
-    fun libraryTracksForArtistName(sourceId: String, artistName: String, limit: Long): List<Track> =
+    override fun libraryTracksForArtistName(sourceId: String, artistName: String, limit: Long): List<Track> =
         queries.selectLibraryTracksForArtistName(sourceId, artistName.searchText(), limit).executeAsList().map { it.toTrack() }
 
     fun libraryTracksForAlbumTitle(

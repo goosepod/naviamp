@@ -258,13 +258,18 @@ private fun NaviampAndroidApp(
     val popularTracksService = remember(storage, deezerDiscoveryClient) {
         ArtistPopularTracksService(
             repository = storage,
-            libraryTracksForArtist = { artistId, limit ->
+            libraryTracksForArtist = { artist, limit ->
                 val sourceId = activeSourceId
                 val indexedTracks = sourceId
-                    ?.let { storage.libraryTracksForArtist(it, artistId, limit) }
+                    ?.let { storage.libraryTracksForArtist(it, artist.id, limit) }
                     .orEmpty()
+                    .ifEmpty {
+                        sourceId
+                            ?.let { storage.libraryTracksForArtistName(it, artist.name, limit) }
+                            .orEmpty()
+                    }
                 indexedTracks.ifEmpty {
-                    provider?.tracksForArtist(artistId, limit.coerceAtMost(AndroidPopularTrackFallbackLimit)).orEmpty()
+                    provider?.tracksForArtist(artist.id, limit.coerceAtMost(AndroidPopularTrackFallbackLimit)).orEmpty()
                 }
             },
             client = deezerDiscoveryClient,
@@ -322,6 +327,7 @@ private fun NaviampAndroidApp(
     var artistPopularTracksStatusByArtistId by remember { mutableStateOf<Map<String, String?>>(emptyMap()) }
     var artistSimilarArtistsByArtistId by remember { mutableStateOf<Map<String, List<SimilarArtistMatch>>>(emptyMap()) }
     var artistSimilarArtistsStatusByArtistId by remember { mutableStateOf<Map<String, String?>>(emptyMap()) }
+    var artistDetailBackStack by remember { mutableStateOf<List<Artist>>(emptyList()) }
     var lyricsVisible by remember { mutableStateOf(false) }
     var lyricsByTrackId by remember { mutableStateOf<Map<String, Lyrics?>>(emptyMap()) }
     var lyricsStatusByTrackId by remember { mutableStateOf<Map<String, String?>>(emptyMap()) }
@@ -1037,7 +1043,15 @@ private fun NaviampAndroidApp(
     }
 
     fun closeActiveDetail() {
-        contentState = contentState.clearDetails()
+        val previousArtist = contentState.artistDetail
+            ?.let { artistDetailBackStack.lastOrNull() }
+        if (previousArtist != null) {
+            artistDetailBackStack = artistDetailBackStack.dropLast(1)
+            openArtistDetails(previousArtist.id, previousArtist.name, pushCurrentArtist = false)
+        } else {
+            contentState = contentState.clearDetails()
+            artistDetailBackStack = emptyList()
+        }
     }
 
     fun closeActivePlaylist() {
@@ -1297,9 +1311,19 @@ private fun NaviampAndroidApp(
         )
     }
 
-    fun openArtistDetails(artistId: app.naviamp.domain.ArtistId, fallbackName: String? = null) {
+    fun openArtistDetails(
+        artistId: app.naviamp.domain.ArtistId,
+        fallbackName: String? = null,
+        pushCurrentArtist: Boolean = true,
+    ) {
         val activeProvider = provider ?: return
         val sourceId = activeSourceId
+        if (pushCurrentArtist) {
+            contentState.artistDetail
+                ?.artist
+                ?.takeIf { currentArtist -> currentArtist.id != artistId }
+                ?.let { currentArtist -> artistDetailBackStack = artistDetailBackStack + currentArtist }
+        }
         scope.launch {
             status = "Loading ${fallbackName ?: "artist"}..."
             runCatching { activeProvider.artist(artistId) }
@@ -1337,7 +1361,7 @@ private fun NaviampAndroidApp(
                                         artistPopularTracksStatusByArtistId + (
                                             artistId.value to matchedTracks
                                                 .takeIf { it.isEmpty() }
-                                                ?.let { "No Deezer popular tracks matched songs in your library." }
+                                                ?.let { "No popular tracks matched songs in your library." }
                                             )
                                 }
                             }.onFailure { error ->

@@ -786,6 +786,11 @@ class DesktopCache(
             .executeAsList()
             .map { it.toTrack() }
 
+    override fun libraryTracksForArtistName(sourceId: String, artistName: String, limit: Long): List<Track> =
+        queries.selectLibraryTracksForArtistName(sourceId, artistName.searchText(), limit)
+            .executeAsList()
+            .map { it.toTrack() }
+
     override fun artistPopularTracks(sourceId: String, artistId: ArtistId, source: String): List<ArtistPopularTrackMatch> =
         queries.selectArtistPopularTracks(sourceId, artistId.value, source)
             .executeAsList()
