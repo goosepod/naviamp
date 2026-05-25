@@ -1,11 +1,14 @@
 package app.naviamp.ui
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.AlertDialog
@@ -23,7 +26,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.domain.smartplaylist.SmartPlaylistConditionDraft
@@ -63,27 +69,27 @@ fun SmartPlaylistBuilderDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 520.dp)
+                    .heightIn(max = 560.dp)
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text(
-                    "Build a Navidrome smart playlist from rules, sorting, limits, and visibility.",
-                    color = colors.secondaryText,
-                    fontSize = 12.sp,
-                )
-                SmartPlaylistTextField(
-                    value = draft.name,
-                    onValueChange = { draft = draft.copy(name = it) },
-                    label = "Name",
+                SmartPlaylistSection(
+                    title = "Details",
                     colors = colors,
-                )
-                SmartPlaylistTextField(
-                    value = draft.comment,
-                    onValueChange = { draft = draft.copy(comment = it) },
-                    label = "Comment",
-                    colors = colors,
-                )
+                ) {
+                    SmartPlaylistTextField(
+                        value = draft.name,
+                        onValueChange = { draft = draft.copy(name = it) },
+                        label = "Name",
+                        colors = colors,
+                    )
+                    SmartPlaylistTextField(
+                        value = draft.comment,
+                        onValueChange = { draft = draft.copy(comment = it) },
+                        label = "Comment",
+                        colors = colors,
+                    )
+                }
                 SmartPlaylistCustomControls(
                     colors = colors,
                     draft = draft,
@@ -92,15 +98,20 @@ fun SmartPlaylistBuilderDialog(
                 saveMessage?.let { message ->
                     Text(message, color = colors.secondaryText, fontSize = 12.sp)
                 }
-                Text("Generated JSON", color = colors.primaryText, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                OutlinedTextField(
-                    value = jsonPreview,
-                    onValueChange = {},
-                    readOnly = true,
-                    minLines = 8,
-                    maxLines = 12,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                SmartPlaylistSection(
+                    title = "Generated JSON",
+                    colors = colors,
+                ) {
+                    OutlinedTextField(
+                        value = jsonPreview,
+                        onValueChange = {},
+                        readOnly = true,
+                        minLines = 6,
+                        maxLines = 10,
+                        textStyle = TextStyle(fontSize = 12.sp),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
         },
         confirmButton = {
@@ -144,170 +155,183 @@ private fun SmartPlaylistCustomControls(
     draft: SmartPlaylistDraft,
     onDraftChange: (SmartPlaylistDraft) -> Unit,
 ) {
-    SmartPlaylistDropdown(
-        label = "Match",
-        value = when (draft.match) {
-            SmartPlaylistMatch.All -> "All rules"
-            SmartPlaylistMatch.Any -> "Any rule"
-        },
-        colors = colors,
-        options = listOf("All rules" to SmartPlaylistMatch.All, "Any rule" to SmartPlaylistMatch.Any),
-        onSelected = { onDraftChange(draft.copy(match = it)) },
-    )
-    draft.conditions.forEachIndexed { index, condition ->
-        SmartPlaylistRuleControls(
-            title = "Rule ${index + 1}",
+    SmartPlaylistSection(title = "Filters", colors = colors) {
+        SmartPlaylistDropdown(
+            label = "Match",
+            value = when (draft.match) {
+                SmartPlaylistMatch.All -> "All rules"
+                SmartPlaylistMatch.Any -> "Any rule"
+            },
             colors = colors,
-            condition = condition,
-            onConditionChange = { updatedCondition ->
-                onDraftChange(draft.copy(conditions = draft.conditions.updated(index, updatedCondition)))
-            },
-            onRemove = if (draft.conditions.size > 1) {
-                { onDraftChange(draft.copy(conditions = draft.conditions.filterIndexed { i, _ -> i != index })) }
-            } else {
-                null
-            },
+            options = listOf("All rules" to SmartPlaylistMatch.All, "Any rule" to SmartPlaylistMatch.Any),
+            onSelected = { onDraftChange(draft.copy(match = it)) },
         )
-    }
-    TextButton(
-        onClick = { onDraftChange(draft.copy(conditions = draft.conditions + SmartPlaylistConditionDraft())) },
-    ) {
-        Text("Add rule", color = colors.accent)
-    }
-
-    Text("Groups", color = colors.primaryText, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-    draft.groups.forEachIndexed { groupIndex, group ->
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Group ${groupIndex + 1}", color = colors.primaryText, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                TextButton(
-                    onClick = { onDraftChange(draft.copy(groups = draft.groups.filterIndexed { i, _ -> i != groupIndex })) },
-                ) {
-                    Text("Remove group", color = colors.secondaryText)
-                }
-            }
-            SmartPlaylistDropdown(
-                label = "Match",
-                value = when (group.match) {
-                    SmartPlaylistMatch.All -> "All group rules"
-                    SmartPlaylistMatch.Any -> "Any group rule"
-                },
+        draft.conditions.forEachIndexed { index, condition ->
+            SmartPlaylistRuleControls(
+                title = "Filter ${index + 1}",
                 colors = colors,
-                options = listOf("All group rules" to SmartPlaylistMatch.All, "Any group rule" to SmartPlaylistMatch.Any),
-                onSelected = { match ->
-                    onDraftChange(draft.copy(groups = draft.groups.updated(groupIndex, group.copy(match = match))))
+                condition = condition,
+                onConditionChange = { updatedCondition ->
+                    onDraftChange(draft.copy(conditions = draft.conditions.updated(index, updatedCondition)))
+                },
+                onRemove = if (draft.conditions.size > 1) {
+                    { onDraftChange(draft.copy(conditions = draft.conditions.filterIndexed { i, _ -> i != index })) }
+                } else {
+                    null
                 },
             )
-            group.conditions.forEachIndexed { conditionIndex, condition ->
-                SmartPlaylistRuleControls(
-                    title = "Group ${groupIndex + 1}.${conditionIndex + 1}",
-                    colors = colors,
-                    condition = condition,
-                    onConditionChange = { updatedCondition ->
-                        onDraftChange(
-                            draft.copy(
-                                groups = draft.groups.updated(
-                                    groupIndex,
-                                    group.copy(conditions = group.conditions.updated(conditionIndex, updatedCondition)),
-                                ),
-                            ),
-                        )
+        }
+        TextButton(
+            onClick = { onDraftChange(draft.copy(conditions = draft.conditions + SmartPlaylistConditionDraft())) },
+        ) {
+            Text("Add filter", color = colors.accent)
+        }
+    }
+
+    SmartPlaylistSection(title = "Groups", colors = colors) {
+        draft.groups.forEachIndexed { groupIndex, group ->
+            SmartPlaylistNestedSection(
+                title = "Group ${groupIndex + 1}",
+                colors = colors,
+                trailing = {
+                    TextButton(
+                        onClick = { onDraftChange(draft.copy(groups = draft.groups.filterIndexed { i, _ -> i != groupIndex })) },
+                    ) {
+                        Text("Remove", color = colors.secondaryText, fontSize = 12.sp)
+                    }
+                },
+            ) {
+                SmartPlaylistDropdown(
+                    label = "Match",
+                    value = when (group.match) {
+                        SmartPlaylistMatch.All -> "All group rules"
+                        SmartPlaylistMatch.Any -> "Any group rule"
                     },
-                    onRemove = if (group.conditions.size > 1) {
-                        {
+                    colors = colors,
+                    options = listOf("All group rules" to SmartPlaylistMatch.All, "Any group rule" to SmartPlaylistMatch.Any),
+                    onSelected = { match ->
+                        onDraftChange(draft.copy(groups = draft.groups.updated(groupIndex, group.copy(match = match))))
+                    },
+                )
+                group.conditions.forEachIndexed { conditionIndex, condition ->
+                    SmartPlaylistRuleControls(
+                        title = "Filter ${conditionIndex + 1}",
+                        colors = colors,
+                        condition = condition,
+                        onConditionChange = { updatedCondition ->
                             onDraftChange(
                                 draft.copy(
                                     groups = draft.groups.updated(
                                         groupIndex,
-                                        group.copy(conditions = group.conditions.filterIndexed { i, _ -> i != conditionIndex }),
+                                        group.copy(conditions = group.conditions.updated(conditionIndex, updatedCondition)),
                                     ),
                                 ),
                             )
-                        }
-                    } else {
-                        null
-                    },
-                )
-            }
-            TextButton(
-                onClick = {
-                    onDraftChange(
-                        draft.copy(
-                            groups = draft.groups.updated(
-                                groupIndex,
-                                group.copy(conditions = group.conditions + SmartPlaylistConditionDraft()),
-                            ),
-                        ),
+                        },
+                        onRemove = if (group.conditions.size > 1) {
+                            {
+                                onDraftChange(
+                                    draft.copy(
+                                        groups = draft.groups.updated(
+                                            groupIndex,
+                                            group.copy(conditions = group.conditions.filterIndexed { i, _ -> i != conditionIndex }),
+                                        ),
+                                    ),
+                                )
+                            }
+                        } else {
+                            null
+                        },
                     )
-                },
-            ) {
-                Text("Add group rule", color = colors.accent)
-            }
-        }
-    }
-    TextButton(
-        onClick = { onDraftChange(draft.copy(groups = draft.groups + SmartPlaylistGroupDraft())) },
-    ) {
-        Text("Add group", color = colors.accent)
-    }
-
-    Text("Sort", color = colors.primaryText, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-    draft.sort.forEachIndexed { index, sort ->
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            SmartPlaylistDropdown(
-                label = "Field",
-                value = sort.field.label,
-                colors = colors,
-                options = SmartPlaylistFieldCatalog.sortableFields.map { it.label to it },
-                onSelected = { field ->
-                    onDraftChange(draft.copy(sort = draft.sort.updated(index, sort.copy(field = field))))
-                },
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(
-                    checked = sort.descending,
-                    onCheckedChange = { checked ->
-                        onDraftChange(draft.copy(sort = draft.sort.updated(index, sort.copy(descending = checked))))
+                }
+                TextButton(
+                    onClick = {
+                        onDraftChange(
+                            draft.copy(
+                                groups = draft.groups.updated(
+                                    groupIndex,
+                                    group.copy(conditions = group.conditions + SmartPlaylistConditionDraft()),
+                                ),
+                            ),
+                        )
                     },
-                )
-                Text("Descending", color = colors.secondaryText, fontSize = 12.sp)
-                if (draft.sort.size > 1) {
-                    TextButton(
-                        onClick = { onDraftChange(draft.copy(sort = draft.sort.filterIndexed { i, _ -> i != index })) },
-                    ) {
-                        Text("Remove sort", color = colors.secondaryText)
-                    }
+                ) {
+                    Text("Add group filter", color = colors.accent)
                 }
             }
         }
+        TextButton(
+            onClick = { onDraftChange(draft.copy(groups = draft.groups + SmartPlaylistGroupDraft())) },
+        ) {
+            Text("Add group", color = colors.accent)
+        }
     }
-    TextButton(
-        onClick = { onDraftChange(draft.copy(sort = draft.sort + SmartPlaylistSortDraft())) },
-    ) {
-        Text("Add sort", color = colors.accent)
-    }
-    SmartPlaylistDropdown(
-        label = "Limit",
-        value = when (draft.limitMode) {
-            SmartPlaylistLimitMode.TrackCount -> "Track count"
-            SmartPlaylistLimitMode.Percent -> "Percent"
-        },
-        colors = colors,
-        options = listOf("Track count" to SmartPlaylistLimitMode.TrackCount, "Percent" to SmartPlaylistLimitMode.Percent),
-        onSelected = { onDraftChange(draft.copy(limitMode = it)) },
-    )
-    SmartPlaylistTextField(
-        value = draft.limit.toString(),
-        onValueChange = { onDraftChange(draft.copy(limit = it.toIntOrNull() ?: draft.limit)) },
-        label = if (draft.limitMode == SmartPlaylistLimitMode.Percent) "Limit percent" else "Track limit",
-        colors = colors,
-    )
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Checkbox(
-            checked = draft.isPublic,
-            onCheckedChange = { onDraftChange(draft.copy(isPublic = it)) },
+
+    SmartPlaylistSection(title = "Sort and Limit", colors = colors) {
+        draft.sort.forEachIndexed { index, sort ->
+            SmartPlaylistNestedSection(
+                title = "Sort ${index + 1}",
+                colors = colors,
+                trailing = if (draft.sort.size > 1) {
+                    {
+                        TextButton(
+                            onClick = { onDraftChange(draft.copy(sort = draft.sort.filterIndexed { i, _ -> i != index })) },
+                        ) {
+                            Text("Remove", color = colors.secondaryText, fontSize = 12.sp)
+                        }
+                    }
+                } else {
+                    null
+                },
+            ) {
+                SmartPlaylistDropdown(
+                    label = "Field",
+                    value = sort.field.label,
+                    colors = colors,
+                    options = SmartPlaylistFieldCatalog.sortableFields.map { it.label to it },
+                    onSelected = { field ->
+                        onDraftChange(draft.copy(sort = draft.sort.updated(index, sort.copy(field = field))))
+                    },
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = sort.descending,
+                        onCheckedChange = { checked ->
+                            onDraftChange(draft.copy(sort = draft.sort.updated(index, sort.copy(descending = checked))))
+                        },
+                    )
+                    Text("Descending", color = colors.secondaryText, fontSize = 12.sp)
+                }
+            }
+        }
+        TextButton(
+            onClick = { onDraftChange(draft.copy(sort = draft.sort + SmartPlaylistSortDraft())) },
+        ) {
+            Text("Add sort", color = colors.accent)
+        }
+        SmartPlaylistDropdown(
+            label = "Limit",
+            value = when (draft.limitMode) {
+                SmartPlaylistLimitMode.TrackCount -> "Track count"
+                SmartPlaylistLimitMode.Percent -> "Percent"
+            },
+            colors = colors,
+            options = listOf("Track count" to SmartPlaylistLimitMode.TrackCount, "Percent" to SmartPlaylistLimitMode.Percent),
+            onSelected = { onDraftChange(draft.copy(limitMode = it)) },
         )
-        Text("Public playlist", color = colors.secondaryText, fontSize = 12.sp)
+        SmartPlaylistTextField(
+            value = draft.limit.toString(),
+            onValueChange = { onDraftChange(draft.copy(limit = it.toIntOrNull() ?: draft.limit)) },
+            label = if (draft.limitMode == SmartPlaylistLimitMode.Percent) "Limit percent" else "Track limit",
+            colors = colors,
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+                checked = draft.isPublic,
+                onCheckedChange = { onDraftChange(draft.copy(isPublic = it)) },
+            )
+            Text("Public playlist", color = colors.secondaryText, fontSize = 12.sp)
+        }
     }
 }
 
@@ -319,8 +343,17 @@ private fun SmartPlaylistRuleControls(
     onConditionChange: (SmartPlaylistConditionDraft) -> Unit,
     onRemove: (() -> Unit)?,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(title, color = colors.primaryText, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+    SmartPlaylistNestedSection(
+        title = title,
+        colors = colors,
+        trailing = onRemove?.let { remove ->
+            {
+                TextButton(onClick = remove) {
+                    Text("Remove", color = colors.secondaryText, fontSize = 12.sp)
+                }
+            }
+        },
+    ) {
         SmartPlaylistDropdown(
             label = "Field",
             value = condition.field.label,
@@ -352,11 +385,50 @@ private fun SmartPlaylistRuleControls(
                 colors = colors,
             )
         }
-        onRemove?.let { remove ->
-            TextButton(onClick = remove) {
-                Text("Remove rule", color = colors.secondaryText)
-            }
+    }
+}
+
+@Composable
+private fun SmartPlaylistSection(
+    title: String,
+    colors: NaviampColors,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, colors.border.copy(alpha = 0.75f), RoundedCornerShape(8.dp))
+            .padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(title, color = colors.primaryText, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+        content()
+    }
+}
+
+@Composable
+private fun SmartPlaylistNestedSection(
+    title: String,
+    colors: NaviampColors,
+    trailing: (@Composable () -> Unit)? = null,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, colors.border.copy(alpha = 0.42f), RoundedCornerShape(6.dp))
+            .padding(8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(title, color = colors.primaryText, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            trailing?.invoke()
         }
+        content()
     }
 }
 
@@ -401,6 +473,7 @@ private fun SmartPlaylistTextField(
         onValueChange = onValueChange,
         label = { Text(label, color = colors.secondaryText) },
         singleLine = true,
+        textStyle = TextStyle(fontSize = 13.sp),
         modifier = Modifier.fillMaxWidth(),
     )
 }
@@ -414,20 +487,44 @@ private fun <T> SmartPlaylistDropdown(
     onSelected: (T) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    Box {
-        TextButton(onClick = { expanded = true }) {
-            Text("$label: $value", color = colors.secondaryText)
-        }
+    var query by remember(value) { mutableStateOf(value) }
+    val normalizedQuery = query.trim().takeUnless { it.equals(value, ignoreCase = true) }.orEmpty()
+    val visibleOptions = options
+        .filter { (optionLabel, _) -> normalizedQuery.isBlank() || optionLabel.contains(normalizedQuery, ignoreCase = true) }
+        .ifEmpty { options }
+    Box(modifier = Modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value = if (expanded) query else value,
+            onValueChange = {
+                query = it
+                expanded = true
+            },
+            label = { Text(label, color = colors.secondaryText) },
+            singleLine = true,
+            textStyle = TextStyle(fontSize = 13.sp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { focusState ->
+                    if (focusState.isFocused) {
+                        expanded = true
+                    }
+                },
+        )
         DropdownMenu(
             expanded = expanded,
-            onDismissRequest = { expanded = false },
+            onDismissRequest = {
+                expanded = false
+                query = value
+            },
             containerColor = colors.controlSurface,
+            modifier = Modifier.heightIn(max = 280.dp),
         ) {
-            options.forEach { (optionLabel, optionValue) ->
+            visibleOptions.forEach { (optionLabel, optionValue) ->
                 DropdownMenuItem(
                     text = { Text(optionLabel, color = colors.primaryText) },
                     onClick = {
                         expanded = false
+                        query = optionLabel
                         onSelected(optionValue)
                     },
                 )
