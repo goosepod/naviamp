@@ -27,14 +27,17 @@ import app.naviamp.domain.provider.LibraryScanStatus
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.ProviderCapabilities
+import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
+import kotlinx.serialization.json.put
 
 class NavidromeProvider(
     private val connection: NavidromeConnection,
@@ -54,6 +57,7 @@ class NavidromeProvider(
             supportsTrackFavorites = true,
             supportsTrackRatings = true,
             supportsPlayReporting = true,
+            supportsSmartPlaylists = true,
         )
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -265,6 +269,23 @@ class NavidromeProvider(
             id = trimmedName,
             name = trimmedName,
             trackCount = trackIds.size,
+        )
+    }
+
+    override suspend fun createSmartPlaylist(definition: SmartPlaylistDefinition): Playlist {
+        val body = definition.toNativePlaylistBody()
+        val response = postNativeJson(
+            endpoint = "playlist",
+            body = json.encodeToString(JsonObject.serializer(), body),
+        )
+        return response.toNativeDataObject().toPlaylist()
+    }
+
+    override suspend fun updateSmartPlaylist(playlistId: String, definition: SmartPlaylistDefinition) {
+        val body = definition.toNativePlaylistBody()
+        putNativeJson(
+            endpoint = "playlist/${playlistId.urlEncode()}",
+            body = json.encodeToString(JsonObject.serializer(), body),
         )
     }
 
@@ -639,6 +660,36 @@ class NavidromeProvider(
         return root
     }
 
+    private suspend fun postNativeJson(endpoint: String, body: String): JsonObject =
+        nativeJsonResponse(
+            httpClient.postJson(
+                url = nativeApiUrl(endpoint),
+                body = body,
+                headers = nativeAuthHeaders(),
+            ),
+        )
+
+    private suspend fun putNativeJson(endpoint: String, body: String): JsonObject =
+        nativeJsonResponse(
+            httpClient.putJson(
+                url = nativeApiUrl(endpoint),
+                body = body,
+                headers = nativeAuthHeaders(),
+            ),
+        )
+
+    private fun nativeJsonResponse(body: String): JsonObject =
+        json.parseToJsonElement(body).jsonObject
+
+    private fun JsonObject.toNativeDataObject(): JsonObject =
+        this["data"]?.jsonObject ?: this
+
+    private fun nativeAuthHeaders(): Map<String, String> {
+        val token = connection.nativeToken?.takeIf { it.isNotBlank() }
+            ?: throw NavidromeException("Reconnect to Navidrome with your password before saving smart playlists.")
+        return mapOf("x-nd-authorization" to "Bearer $token")
+    }
+
     private fun JsonObject.subsonicResponse(): JsonObject =
         this["subsonic-response"]?.jsonObject
             ?: throw NavidromeException("Response was not a Subsonic response.")
@@ -656,6 +707,17 @@ class NavidromeProvider(
         val allParams = authParams.toList() + params
         return "${connection.normalizedBaseUrl}/rest/$endpoint?${allParams.toQueryString()}"
     }
+
+    private fun nativeApiUrl(endpoint: String): String =
+        "${connection.normalizedBaseUrl}/api/${endpoint.trimStart('/')}"
+
+    private fun SmartPlaylistDefinition.toNativePlaylistBody(): JsonObject =
+        buildJsonObject {
+            put("name", name.trim())
+            comment?.trim()?.takeIf { it.isNotBlank() }?.let { put("comment", it) }
+            isPublic?.let { put("public", it) }
+            put("rules", toRulesJsonElement())
+        }
 
     private val authParams: Map<String, String>
         get() = mapOf(
@@ -791,9 +853,16 @@ class NavidromeProvider(
 
 interface NavidromeHttpClient {
     suspend fun get(url: String): String
+    suspend fun postJson(url: String, body: String, headers: Map<String, String> = emptyMap()): String {
+        throw UnsupportedOperationException("POST is not supported by this Navidrome HTTP client.")
+    }
+    suspend fun putJson(url: String, body: String, headers: Map<String, String> = emptyMap()): String {
+        throw UnsupportedOperationException("PUT is not supported by this Navidrome HTTP client.")
+    }
 }
 
 data class NavidromeApiCall(
+    val method: String,
     val endpoint: String,
     val sanitizedUrl: String,
     val startedAtEpochMillis: Long,
@@ -824,6 +893,7 @@ object NavidromeApiCallHistory {
 
 fun recordNavidromeApiCall(
     url: String,
+    method: String = "GET",
     startedAt: Long,
     durationMillis: Long,
     success: Boolean,
@@ -831,6 +901,7 @@ fun recordNavidromeApiCall(
 ) {
     NavidromeApiCallHistory.record(
         NavidromeApiCall(
+            method = method,
             endpoint = url.substringBefore("?").trimEnd('/').substringAfterLast('/').ifBlank { "unknown" },
             sanitizedUrl = url.sanitizedNavidromeUrl(),
             startedAtEpochMillis = startedAt,

@@ -71,6 +71,16 @@ class SmartPlaylistDefinitionTest {
     }
 
     @Test
+    fun buildsRulesObjectForNativeNavidromeApi() {
+        val rules = SmartPlaylistTemplates.recentlyPlayed(days = 7, limit = 25).toRulesJsonElement()
+
+        assertEquals(null, rules["name"])
+        assertEquals(7, rules["all"]?.jsonArray?.single()?.jsonObject?.get("inTheLast")?.jsonObject?.get("lastplayed")?.jsonPrimitive?.int)
+        assertEquals("-lastplayed", rules["sort"]?.jsonPrimitive?.content)
+        assertEquals(25, rules["limit"]?.jsonPrimitive?.int)
+    }
+
+    @Test
     fun rejectsInvalidLimits() {
         assertFailsWith<IllegalArgumentException> {
             SmartPlaylistDefinition(
@@ -94,5 +104,48 @@ class SmartPlaylistDefinitionTest {
             .copy(name = "Favorites: 80s / New Wave!")
 
         assertEquals("favorites-80s-new-wave.nsp", definition.defaultFileName())
+    }
+
+    @Test
+    fun buildsRecentlyAddedTemplate() {
+        val json = SmartPlaylistTemplates.recentlyAdded(days = 14, limit = 50).toJsonElement()
+        val inTheLast = json["all"]
+            ?.jsonArray
+            ?.single()
+            ?.jsonObject
+            ?.get("inTheLast")
+            ?.jsonObject
+
+        assertEquals(14, inTheLast?.get("dateadded")?.jsonPrimitive?.int)
+        assertEquals("-dateadded", json["sort"]?.jsonPrimitive?.content)
+        assertEquals(50, json["limit"]?.jsonPrimitive?.int)
+    }
+
+    @Test
+    fun buildsGenreRadioSeedTemplate() {
+        val json = SmartPlaylistTemplates.genreRadioSeedList(genre = "Shoegaze", limit = 40).toJsonElement()
+        val rules = json["all"]?.jsonArray.orEmpty()
+        val anyRules = rules[1].jsonObject["any"]?.jsonArray.orEmpty()
+
+        assertEquals("Shoegaze", rules[0].jsonObject["contains"]?.jsonObject?.get("genre")?.jsonPrimitive?.content)
+        assertEquals(true, anyRules[0].jsonObject["is"]?.jsonObject?.get("loved")?.jsonPrimitive?.boolean)
+        assertEquals("random", json["sort"]?.jsonPrimitive?.content)
+        assertEquals(40, json["limit"]?.jsonPrimitive?.int)
+    }
+
+    @Test
+    fun buildsHighRatedTemplateAsFourStarsOrBetter() {
+        val json = SmartPlaylistTemplates.highRated(minimumRating = 4).toJsonElement()
+        val ratingThreshold = json["all"]
+            ?.jsonArray
+            ?.single()
+            ?.jsonObject
+            ?.get("gt")
+            ?.jsonObject
+            ?.get("rating")
+            ?.jsonPrimitive
+            ?.int
+
+        assertEquals(3, ratingThreshold)
     }
 }

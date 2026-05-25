@@ -88,6 +88,7 @@ import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.source.SavedMediaSource
+import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.desktop.settings.DesktopSettingsStore
 import app.naviamp.desktop.settings.NavigationSettings
@@ -113,6 +114,7 @@ import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.NavidromeTls
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import app.naviamp.provider.navidrome.toNavidromeConnection
+import app.naviamp.provider.navidrome.withNativeTokenFromPassword
 import app.naviamp.ui.NaviampPlayerColors
 import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.bytesLabel
@@ -519,6 +521,22 @@ fun NaviampApp(
         nowPlayingVisualizerFrame = null
     }
 
+    LaunchedEffect(connectedProvider, nowPlayingTrack?.id, playbackState) {
+        val provider = connectedProvider ?: return@LaunchedEffect
+        val track = nowPlayingTrack ?: return@LaunchedEffect
+        if (!provider.capabilities.supportsPlayReporting || track.isInternetRadioTrack()) return@LaunchedEffect
+        if (playbackState != PlaybackState.Playing) return@LaunchedEffect
+
+        while (true) {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    provider.reportNowPlaying(track.id)
+                }
+            }
+            delay(NowPlayingHeartbeatIntervalMillis)
+        }
+    }
+
     LaunchedEffect(playbackEngine, playbackState, nowPlayingVisualizerVisible, appRoute) {
         val visualizerEngine = playbackEngine as? VisualizerPlaybackEngine
         if (visualizerEngine?.supportsVisualizer != true) {
@@ -674,6 +692,7 @@ fun NaviampApp(
     fun reportNowPlaying(track: Track) {
         val provider = connectedProvider ?: return
         if (!provider.capabilities.supportsPlayReporting) return
+        if (track.isInternetRadioTrack()) return
         coroutineScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
@@ -1077,6 +1096,106 @@ fun NaviampApp(
         }
     }
 
+    suspend fun refreshPlaylistDetailsFromServer(
+        provider: MediaProvider,
+        playlist: Playlist,
+        showLoadingStatus: Boolean,
+    ) {
+        if (showLoadingStatus) selectedPlaylistStatus = "Loading ${playlist.name}..."
+        val refreshedPlaylists = withContext(Dispatchers.IO) { provider.playlists(limit = 500) }
+        val refreshedPlaylist = refreshedPlaylists.firstOrNull { it.id == playlist.id } ?: playlist
+        val refreshedTracks = withContext(Dispatchers.IO) { provider.playlistTracks(refreshedPlaylist.id) }
+        val displayPlaylist = refreshedPlaylist.copy(trackCount = refreshedTracks.size)
+        playlists = refreshedPlaylists.map {
+            if (it.id == displayPlaylist.id) displayPlaylist else it
+        }
+        homeContent = homeContent.copy(
+            playlists = playlists.sortedWith(
+                compareBy<Playlist> {
+                    val index = recentPlaylistIds.indexOf(it.id)
+                    if (index == -1) Int.MAX_VALUE else index
+                }.thenBy { it.name.lowercase() },
+            ).take(6),
+            recentRadioStreams = recentRadioStreams,
+            recentInternetRadioStations = recentInternetRadioStations,
+        )
+        playlistTracksById = playlistTracksById + (displayPlaylist.id to refreshedTracks)
+        if (selectedPlaylist?.id == playlist.id) {
+            selectedPlaylist = displayPlaylist
+            selectedPlaylistTracks = refreshedTracks
+            selectedPlaylistStatus = null
+        }
+    }
+
+    LaunchedEffect(connectedProvider, appRoute, selectedPlaylist?.id) {
+        val provider = connectedProvider ?: return@LaunchedEffect
+        val playlist = selectedPlaylist ?: return@LaunchedEffect
+        if (appRoute != AppRoute.PlaylistDetail) return@LaunchedEffect
+
+        while (true) {
+            delay(PlaylistDetailRefreshIntervalMillis)
+            runCatching {
+                refreshPlaylistDetailsFromServer(
+                    provider = provider,
+                    playlist = playlist,
+                    showLoadingStatus = false,
+                )
+            }
+        }
+    }
+
+    suspend fun saveSmartPlaylist(definition: SmartPlaylistDefinition) {
+        var provider = connectedProvider
+            ?: throw IllegalStateException("Connect to Navidrome before saving smart playlists.")
+        playlistStatus = "Saving ${definition.name}..."
+        try {
+            val savedConnection = savedConnectionForLogin
+            if (savedConnection?.nativeToken.isNullOrBlank() && password.isNotBlank()) {
+                val refreshedConnection = withContext(Dispatchers.IO) {
+                    savedConnection!!.withNativeTokenFromPassword(password, required = true)
+                }
+                val refreshedProvider = NavidromeProvider(refreshedConnection)
+                connectedProvider = refreshedProvider
+                connectedSourceId = sessionCache.upsertNavidromeSource(refreshedConnection, refreshedProvider).id
+                savedConnectionForLogin = refreshedConnection
+                mediaSourcesRevision++
+                password = ""
+                provider = refreshedProvider
+                connectionStatus = "Smart playlist authentication refreshed."
+            }
+            val playlist = withContext(Dispatchers.IO) { provider.createSmartPlaylist(definition) }
+            val refreshedPlaylists = withContext(Dispatchers.IO) { provider.playlists(limit = 500) }
+            val refreshedPlaylist = refreshedPlaylists.firstOrNull { it.id == playlist.id }
+                ?: refreshedPlaylists.firstOrNull { it.name == playlist.name }
+                ?: playlist
+            val refreshedTracks = withContext(Dispatchers.IO) { provider.playlistTracks(refreshedPlaylist.id) }
+            val displayPlaylist = refreshedPlaylist.copy(trackCount = refreshedTracks.size)
+            playlistTracksById = playlistTracksById + (displayPlaylist.id to refreshedTracks)
+            playlists = (refreshedPlaylists.filterNot { it.id == displayPlaylist.id } + displayPlaylist)
+                .sortedBy { it.name.lowercase() }
+            homeContent = homeContent.copy(
+                playlists = playlists.sortedWith(
+                    compareBy<Playlist> {
+                        val index = recentPlaylistIds.indexOf(it.id)
+                        if (index == -1) Int.MAX_VALUE else index
+                    }.thenBy { it.name.lowercase() },
+                ).take(6),
+            )
+            playlistStatus = "Saved smart playlist ${displayPlaylist.name} with ${refreshedTracks.size} tracks."
+        } catch (error: Exception) {
+            val message = if (error.message == "Reconnect to Navidrome with your password before saving smart playlists.") {
+                "Edit this saved connection, enter your Navidrome password, then Save and connect before saving smart playlists."
+            } else {
+                error.message ?: "Could not save smart playlist."
+            }
+            playlistStatus = message
+            if (message != error.message) throw IllegalStateException(message)
+            throw error
+        } finally {
+            statsForNerdsRefreshTick++
+        }
+    }
+
     suspend fun resolveTargetTracks(
         provider: MediaProvider,
         target: AddToPlaylistTarget,
@@ -1433,7 +1552,7 @@ fun NaviampApp(
                 val reusableCredentials = savedConnectionForLogin?.takeIf {
                     it.baseUrl == serverUrl && it.username == username && password.isBlank()
                 }
-                val connection = reusableCredentials?.copy(
+                val connectionWithoutNativeRefresh = reusableCredentials?.copy(
                     displayName = resolvedConnectionDisplayName(),
                     tlsSettings = tlsSettings,
                 ) ?: NavidromeConnection.fromPassword(
@@ -1443,6 +1562,18 @@ fun NaviampApp(
                     displayName = resolvedConnectionDisplayName(),
                     tlsSettings = tlsSettings,
                 )
+                var smartPlaylistAuthWarning: String? = null
+                val connection = if (password.isNotBlank()) {
+                    runCatching {
+                        connectionWithoutNativeRefresh.withNativeTokenFromPassword(password, required = true)
+                    }.getOrElse { nativeAuthError ->
+                        smartPlaylistAuthWarning = nativeAuthError.message
+                            ?: "Could not authenticate with Navidrome's native API."
+                        connectionWithoutNativeRefresh
+                    }
+                } else {
+                    connectionWithoutNativeRefresh
+                }
                 NavidromeTls.applyJvmDefaults(connection.tlsSettings)
                 val provider = NavidromeProvider(connection)
                 val validation = provider.validateConnection()
@@ -1487,7 +1618,9 @@ fun NaviampApp(
                 }
                 settingsStore.clearConnection()
                 savedConnectionForLogin = connection
-                password = ""
+                if (connection.nativeToken?.isNotBlank() == true) {
+                    password = ""
+                }
                 isConnectionFormOpen = false
                 if (appRoute == AppRoute.Settings) {
                     appRoute = AppRoute.Home
@@ -1496,6 +1629,14 @@ fun NaviampApp(
                     append("Connected")
                     validation.serverVersion?.let { append(" to Navidrome $it") }
                     append(".")
+                    when {
+                        connection.nativeToken?.isNotBlank() == true -> append(" Smart playlist saves are enabled.")
+                        smartPlaylistAuthWarning != null -> {
+                            append(" Smart playlist saves are not enabled: ")
+                            append(smartPlaylistAuthWarning)
+                        }
+                        password.isBlank() -> append(" Smart playlist saves require editing this connection and entering your password.")
+                    }
                 }
                 refreshLibrarySnapshot()
                 loadHomeContent(provider)
@@ -1926,7 +2067,7 @@ fun NaviampApp(
         coroutineScope.launch {
             try {
                 val loadedTracks = withContext(Dispatchers.IO) {
-                    playlistTracksById[playlist.id] ?: provider.playlistTracks(playlist.id)
+                    provider.playlistTracks(playlist.id)
                 }
                 playlistTracksById = playlistTracksById + (playlist.id to loadedTracks)
                 val tracks = if (shuffle) loadedTracks.shuffled() else loadedTracks
@@ -1962,10 +2103,7 @@ fun NaviampApp(
         appRoute = AppRoute.PlaylistDetail
         coroutineScope.launch {
             try {
-                selectedPlaylistTracks = playlistTracksById[playlist.id]
-                    ?: withContext(Dispatchers.IO) { provider.playlistTracks(playlist.id) }
-                playlistTracksById = playlistTracksById + (playlist.id to selectedPlaylistTracks)
-                selectedPlaylistStatus = null
+                refreshPlaylistDetailsFromServer(provider, playlist, showLoadingStatus = false)
             } catch (exception: Exception) {
                 selectedPlaylistStatus = exception.message ?: "Could not load ${playlist.name}."
             }
@@ -2676,7 +2814,7 @@ fun NaviampApp(
             NavidromeApiCallHistory.recent(50).map { call ->
                 ApiCallStats(
                     source = "Navidrome",
-                    endpoint = call.endpoint,
+                    endpoint = "${call.method} ${call.endpoint}",
                     sanitizedUrl = call.sanitizedUrl,
                     startedAtEpochMillis = call.startedAtEpochMillis,
                     durationMillis = call.durationMillis,
@@ -3102,12 +3240,14 @@ fun NaviampApp(
                                     onAddPlaylistToPlaylist = { playlist ->
                                         openAddToPlaylist(AddToPlaylistTarget.PlaylistTarget(playlist))
                                     },
+                                    onSmartPlaylistSave = { definition -> saveSmartPlaylist(definition) },
                                 )
                                 AppRoute.PlaylistDetail -> PlaylistDetailPanel(
                                     appColors = appColors,
                                     playlist = selectedPlaylist,
                                     tracks = selectedPlaylistTracks,
                                     status = selectedPlaylistStatus ?: playlistStatus,
+                                    playlistCoverArtUrl = selectedPlaylist?.coverArtId?.let { connectedProvider?.coverArtUrl(it) },
                                     coverArtUrl = { coverArtId ->
                                         coverArtId?.let { connectedProvider?.coverArtUrl(it) }
                                     },
@@ -3540,6 +3680,8 @@ private const val PlaybackPositionSaveThresholdSeconds = 5.0
 private const val PlaybackProgressUiUpdateIntervalMillis = 500L
 private const val PlaybackProgressUiUpdateThresholdSeconds = 0.45
 private const val VisualizerFrameIntervalMillis = 125L // Audio analysis cadence; shader rendering uses the display frame clock.
+private const val NowPlayingHeartbeatIntervalMillis = 30_000L
+private const val PlaylistDetailRefreshIntervalMillis = 60_000L
 private const val PendingSeekToleranceSeconds = 2.0
 private const val PendingSeekStaleProgressWindowMillis = 1_500L
 private const val RadioRefillThreshold = 10

@@ -7,9 +7,16 @@ import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.provider.AlbumListType
+import app.naviamp.domain.smartplaylist.SmartPlaylistCondition
+import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
+import app.naviamp.domain.smartplaylist.SmartPlaylistFields
+import app.naviamp.domain.smartplaylist.SmartPlaylistOperator
+import app.naviamp.domain.smartplaylist.SmartPlaylistSort
+import app.naviamp.domain.smartplaylist.SmartPlaylistValue
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 
 class NavidromeProviderTest {
     @Test
@@ -470,6 +477,81 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun createSmartPlaylistUsesNavidromeNativePlaylistApi() = runTest {
+        val httpClient = RecordingNativeHttpClient(
+            """
+            {
+              "data": {
+                "id": "smart-1",
+                "name": "Road Smart",
+                "songCount": 12,
+                "duration": 3200
+              }
+            }
+            """.trimIndent(),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test", nativeToken = "native-token"),
+            httpClient = httpClient,
+        )
+
+        val playlist = provider.createSmartPlaylist(smartPlaylistDefinition())
+
+        assertEquals("smart-1", playlist.id)
+        assertEquals("Road Smart", playlist.name)
+        assertEquals("https://music.example.test/api/playlist", httpClient.postUrls.single())
+        assertEquals(mapOf("x-nd-authorization" to "Bearer native-token"), httpClient.postHeaders.single())
+        assertEquals(
+            """{"name":"Road Smart","comment":"Fresh tracks","public":true,"rules":{"all":[{"is":{"loved":true}}],"sort":"-rating","limit":25}}""",
+            httpClient.postBodies.single(),
+        )
+    }
+
+    @Test
+    fun updateSmartPlaylistUsesNavidromeNativePlaylistApi() = runTest {
+        val httpClient = RecordingNativeHttpClient("{}")
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test", nativeToken = "native-token"),
+            httpClient = httpClient,
+        )
+
+        provider.updateSmartPlaylist("smart playlist/1", smartPlaylistDefinition())
+
+        assertEquals("https://music.example.test/api/playlist/smart+playlist%2F1", httpClient.putUrls.single())
+        assertEquals(mapOf("x-nd-authorization" to "Bearer native-token"), httpClient.putHeaders.single())
+        assertEquals(
+            """{"name":"Road Smart","comment":"Fresh tracks","public":true,"rules":{"all":[{"is":{"loved":true}}],"sort":"-rating","limit":25}}""",
+            httpClient.putBodies.single(),
+        )
+    }
+
+    @Test
+    fun createSmartPlaylistRequiresNativeToken() = runTest {
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = RecordingNativeHttpClient("{}"),
+        )
+
+        val error = assertFailsWith<NavidromeException> {
+            provider.createSmartPlaylist(smartPlaylistDefinition())
+        }
+
+        assertEquals("Reconnect to Navidrome with your password before saving smart playlists.", error.message)
+    }
+
+    @Test
+    fun nativeAuthStoresTokenWhenLoginSucceeds() = runTest {
+        val httpClient = RecordingNativeHttpClient("""{"token":"native-token"}""")
+
+        val authenticated = connection("https://music.example.test/")
+            .withNativeTokenFromPassword("secret", httpClient)
+
+        assertEquals("native-token", authenticated.nativeToken)
+        assertEquals("https://music.example.test/auth/login", httpClient.postUrls.single())
+        assertEquals("""{"username":"demo","password":"secret"}""", httpClient.postBodies.single())
+    }
+
+    @Test
     fun addTracksToPlaylistUsesRepeatedSongIds() = runTest {
         val httpClient = RecordingHttpClient()
         val provider = NavidromeProvider(
@@ -830,12 +912,29 @@ class NavidromeProviderTest {
         )
     }
 
-    private fun connection(baseUrl: String): NavidromeConnection =
+    private fun smartPlaylistDefinition(): SmartPlaylistDefinition =
+        SmartPlaylistDefinition(
+            name = "Road Smart",
+            comment = "Fresh tracks",
+            rules = listOf(
+                SmartPlaylistCondition(
+                    operator = SmartPlaylistOperator.Is,
+                    field = SmartPlaylistFields.Loved,
+                    value = SmartPlaylistValue.Flag(true),
+                ),
+            ),
+            sort = listOf(SmartPlaylistSort(SmartPlaylistFields.Rating, descending = true)),
+            limit = 25,
+            isPublic = true,
+        )
+
+    private fun connection(baseUrl: String, nativeToken: String? = null): NavidromeConnection =
         NavidromeConnection(
             baseUrl = baseUrl,
             username = "demo",
             token = "token",
             salt = "salt",
+            nativeToken = nativeToken,
         )
 
     private class FakeHttpClient(private val response: String) : NavidromeHttpClient {
@@ -870,6 +969,31 @@ class NavidromeProviderTest {
                   }
                 }
             """.trimIndent()
+        }
+    }
+
+    private class RecordingNativeHttpClient(private val response: String) : NavidromeHttpClient {
+        val postUrls = mutableListOf<String>()
+        val postBodies = mutableListOf<String>()
+        val postHeaders = mutableListOf<Map<String, String>>()
+        val putUrls = mutableListOf<String>()
+        val putBodies = mutableListOf<String>()
+        val putHeaders = mutableListOf<Map<String, String>>()
+
+        override suspend fun get(url: String): String = response
+
+        override suspend fun postJson(url: String, body: String, headers: Map<String, String>): String {
+            postUrls += url
+            postBodies += body
+            postHeaders += headers
+            return response
+        }
+
+        override suspend fun putJson(url: String, body: String, headers: Map<String, String>): String {
+            putUrls += url
+            putBodies += body
+            putHeaders += headers
+            return response
         }
     }
 

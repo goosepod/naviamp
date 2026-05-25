@@ -31,6 +31,7 @@ class DesktopSettingsStore(
                     username = connection.username,
                     token = connection.token,
                     salt = connection.salt,
+                    nativeToken = connection.nativeToken,
                     displayName = connection.displayName,
                     insecureSkipTlsVerification = connection.tlsSettings.insecureSkipTlsVerification,
                     customCertificatePath = connection.tlsSettings.customCertificatePath,
@@ -170,6 +171,7 @@ data class SavedConnection(
     val username: String,
     val token: String,
     val salt: String,
+    val nativeToken: String? = null,
     val displayName: String? = null,
     val insecureSkipTlsVerification: Boolean = false,
     val customCertificatePath: String? = null,
@@ -182,6 +184,7 @@ data class SavedConnection(
             username = username,
             token = token,
             salt = salt,
+            nativeToken = nativeToken,
             displayName = displayName,
             tlsSettings = NavidromeTlsSettings(
                 insecureSkipTlsVerification = insecureSkipTlsVerification,

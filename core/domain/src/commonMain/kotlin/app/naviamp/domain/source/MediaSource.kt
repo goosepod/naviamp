@@ -28,6 +28,7 @@ data class SavedMediaSource(
     val username: String,
     val token: String,
     val salt: String,
+    val nativeToken: String? = null,
     val tlsSettings: ConnectionTlsSettings = ConnectionTlsSettings(),
     val createdAtEpochMillis: Long,
     val lastConnectedAtEpochMillis: Long?,

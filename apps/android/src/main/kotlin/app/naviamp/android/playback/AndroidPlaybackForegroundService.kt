@@ -91,6 +91,11 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         return super.onUnbind(intent)
     }
 
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        stopPlaybackAndService("task removed")
+        super.onTaskRemoved(rootIntent)
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ActionPlayPause -> {
@@ -121,8 +126,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             }
             ActionStop -> {
                 if (intent.getBooleanExtra(ExtraFromEngine, false).not()) {
-                    AndroidPlaybackNotificationControls.onStop?.invoke()
-                        ?: stopServiceOwnedPlayback("stop action")
+                    stopPlaybackForUserRequest("stop action")
                 }
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 mediaSession?.isActive = false
@@ -305,6 +309,18 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         AndroidPlaybackNotificationControls.isPlaying = false
         serviceOwnedPlayback = false
         updateMediaSessionPlaybackState()
+    }
+
+    private fun stopPlaybackForUserRequest(reason: String) {
+        AndroidPlaybackNotificationControls.onStop?.invoke()
+            ?: stopServiceOwnedPlayback(reason)
+    }
+
+    private fun stopPlaybackAndService(reason: String) {
+        stopPlaybackForUserRequest(reason)
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        mediaSession?.isActive = false
+        stopSelf()
     }
 
     private fun seekServiceOwnedPlayback(positionMillis: Long) {

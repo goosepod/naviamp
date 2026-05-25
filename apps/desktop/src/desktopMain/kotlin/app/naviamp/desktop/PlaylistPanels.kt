@@ -32,6 +32,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
+import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
+import app.naviamp.ui.SmartPlaylistBuilderDialog
 
 enum class PlaylistSortMode(val label: String) {
     Alphabetical("A-Z"),
@@ -55,7 +57,9 @@ fun PlaylistsPanel(
     onDownloadPlaylist: (Playlist) -> Unit,
     onAddPlaylistToQueue: (Playlist) -> Unit,
     onAddPlaylistToPlaylist: (Playlist) -> Unit,
+    onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit,
 ) {
+    var smartPlaylistBuilderOpen by remember { mutableStateOf(false) }
     val sortedPlaylists = when (sortMode) {
         PlaylistSortMode.Alphabetical -> playlists.sortedBy { it.name.lowercase() }
         PlaylistSortMode.RecentlyPlayed -> playlists.sortedWith(
@@ -74,6 +78,14 @@ fun PlaylistsPanel(
         ) {
             Text("Playlists", color = appColors.primaryText, style = MaterialTheme.typography.titleMedium)
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                IconButton(onClick = { smartPlaylistBuilderOpen = true }, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        NavigationIcons.Playlist,
+                        contentDescription = "Create smart playlist",
+                        tint = appColors.primaryText,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
                 PlaylistSortMode.entries.forEach { mode ->
                     FilterChip(
                         selected = sortMode == mode,
@@ -117,6 +129,16 @@ fun PlaylistsPanel(
             )
         }
     }
+    if (smartPlaylistBuilderOpen) {
+        SmartPlaylistBuilderDialog(
+            colors = appColors,
+            onDismissRequest = { smartPlaylistBuilderOpen = false },
+            onSave = { definition ->
+                onSmartPlaylistSave(definition)
+                smartPlaylistBuilderOpen = false
+            },
+        )
+    }
 }
 
 @Composable
@@ -136,10 +158,10 @@ private fun PlaylistListRow(
     onAddToPlaylist: () -> Unit,
 ) {
     MediaRow(appColors = appColors, onClick = onClick) {
-        if (tracks.isNotEmpty()) {
-            PlaylistCover(appColors = appColors, tracks = tracks, coverArtUrl = coverArtUrl, size = 38.dp)
-        } else {
+        if (playlistCoverArtUrl != null) {
             CoverArtThumb(appColors = appColors, coverArtUrl = playlistCoverArtUrl, size = 38.dp, cornerRadius = 4.dp)
+        } else {
+            PlaylistCover(appColors = appColors, tracks = tracks, coverArtUrl = coverArtUrl, size = 38.dp)
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -173,6 +195,7 @@ fun PlaylistDetailPanel(
     playlist: Playlist?,
     tracks: List<Track>,
     status: String?,
+    playlistCoverArtUrl: String?,
     coverArtUrl: (String?) -> String?,
     onBack: () -> Unit,
     onPlayPlaylist: () -> Unit,
@@ -208,7 +231,11 @@ fun PlaylistDetailPanel(
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            PlaylistCover(appColors = appColors, tracks = tracks, coverArtUrl = coverArtUrl, size = 96.dp)
+            if (playlistCoverArtUrl != null) {
+                CoverArtThumb(appColors = appColors, coverArtUrl = playlistCoverArtUrl, size = 96.dp, cornerRadius = 4.dp)
+            } else {
+                PlaylistCover(appColors = appColors, tracks = tracks, coverArtUrl = coverArtUrl, size = 96.dp)
+            }
             Column(verticalArrangement = Arrangement.spacedBy(3.dp), modifier = Modifier.weight(1f)) {
                 Text(playlist?.summaryLabel() ?: "${tracks.size} tracks", color = appColors.secondaryText, fontSize = 12.sp)
                 status?.let { Text(it, color = appColors.secondaryText, fontSize = 11.sp) }

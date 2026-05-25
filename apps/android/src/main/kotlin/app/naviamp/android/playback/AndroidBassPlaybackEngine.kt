@@ -6,6 +6,7 @@ import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
+import android.os.PowerManager
 import android.util.Log
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
@@ -47,6 +48,14 @@ class AndroidBassPlaybackEngine(
     private var tlsSettings: NavidromeTlsSettings = NavidromeTlsSettings()
     private var audioFocusRequest: AudioFocusRequest? = null
     private var pausedForTransientFocusLoss = false
+    private val playbackWakeLock: PowerManager.WakeLock by lazy {
+        appContext.getSystemService(PowerManager::class.java).newWakeLock(
+            PowerManager.PARTIAL_WAKE_LOCK,
+            "Naviamp:Playback",
+        ).apply {
+            setReferenceCounted(false)
+        }
+    }
     @Volatile
     private var currentVisualizerFrame: PlaybackVisualizerFrame? = null
     private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
@@ -116,6 +125,7 @@ class AndroidBassPlaybackEngine(
             return
         }
         if (adoptPreparedStream(request, onStateChanged, onProgressChanged)) {
+            acquirePlaybackWakeLock()
             AndroidPlaybackNotificationControls.isPlaying = true
             AndroidPlaybackForegroundService.update(appContext, notificationMetadata)
             return
@@ -147,11 +157,13 @@ class AndroidBassPlaybackEngine(
                 request.startPositionSeconds?.takeIf { it > 0.0 }?.let { seek(it) }
                 check(bass.play(handle)) { errorMessage("BASS_ChannelPlay failed") }
                 Log.i(Tag, "BASS playback started handle=$handle")
+                acquirePlaybackWakeLock()
                 onStateChanged(PlaybackState.Playing)
                 startProgressPolling(scope, handle)
             } catch (error: Throwable) {
                 val message = error.message ?: "BASS playback failed."
                 Log.w(Tag, message, error)
+                releasePlaybackWakeLock()
                 onStateChanged(PlaybackState.Error(message))
                 AndroidPlaybackNotificationControls.isPlaying = false
                 AndroidPlaybackForegroundService.update(appContext, notificationMetadata)
@@ -164,6 +176,7 @@ class AndroidBassPlaybackEngine(
         if (handle != 0 && bass.pause(handle)) {
             pausedForTransientFocusLoss = false
             abandonAudioFocus()
+            releasePlaybackWakeLock()
             AndroidPlaybackNotificationControls.isPlaying = false
             AndroidPlaybackForegroundService.update(appContext, notificationMetadata)
             onStateChanged?.invoke(PlaybackState.Paused)
@@ -173,6 +186,7 @@ class AndroidBassPlaybackEngine(
     override fun resume() {
         val handle = stream
         if (handle != 0 && requestAudioFocus() && bass.play(handle)) {
+            acquirePlaybackWakeLock()
             AndroidPlaybackNotificationControls.isPlaying = true
             AndroidPlaybackForegroundService.update(appContext, notificationMetadata)
             onStateChanged?.invoke(PlaybackState.Playing)
@@ -199,6 +213,7 @@ class AndroidBassPlaybackEngine(
         stopStreamOnly()
         pausedForTransientFocusLoss = false
         abandonAudioFocus()
+        releasePlaybackWakeLock()
         AndroidPlaybackNotificationControls.isPlaying = false
         AndroidPlaybackForegroundService.stop(appContext)
         onProgressChanged?.invoke(PlaybackProgress.Unknown)
@@ -209,6 +224,7 @@ class AndroidBassPlaybackEngine(
         stopStreamOnly()
         pausedForTransientFocusLoss = false
         abandonAudioFocus()
+        releasePlaybackWakeLock()
         AndroidPlaybackNotificationControls.clear()
         AndroidPlaybackForegroundService.stop(appContext)
         bass.free()
@@ -304,6 +320,7 @@ class AndroidBassPlaybackEngine(
                 }
                 if (currentSourceStream != 0 && bass.activeState(currentSourceStream) == BassActiveStopped && isAtEnd(progress)) {
                     Log.i(Tag, "BASS source reached end position=${progress.positionSeconds} duration=${progress.durationSeconds}")
+                    handlePlaybackFinished()
                     onStateChanged?.invoke(PlaybackState.Finished)
                     return@launch
                 }
@@ -311,6 +328,7 @@ class AndroidBassPlaybackEngine(
                     BassActiveStopped -> {
                         if (isAtEnd(progress)) {
                             Log.i(Tag, "BASS stream stopped position=${progress.positionSeconds} duration=${progress.durationSeconds}")
+                            handlePlaybackFinished()
                             onStateChanged?.invoke(PlaybackState.Finished)
                             return@launch
                         }
@@ -340,9 +358,16 @@ class AndroidBassPlaybackEngine(
         preparedReplayGainFactor = 1f
     }
 
+    private fun handlePlaybackFinished() {
+        releasePlaybackWakeLock()
+        AndroidPlaybackNotificationControls.isPlaying = false
+        AndroidPlaybackForegroundService.update(appContext, notificationMetadata)
+    }
+
     private fun pauseForFocusLoss() {
         val handle = stream
         if (handle != 0 && bass.pause(handle)) {
+            releasePlaybackWakeLock()
             AndroidPlaybackNotificationControls.isPlaying = false
             AndroidPlaybackForegroundService.update(appContext, notificationMetadata)
             onStateChanged?.invoke(PlaybackState.Paused)
@@ -352,6 +377,7 @@ class AndroidBassPlaybackEngine(
     private fun resumeAfterFocusGain() {
         val handle = stream
         if (handle != 0 && bass.play(handle)) {
+            acquirePlaybackWakeLock()
             AndroidPlaybackNotificationControls.isPlaying = true
             AndroidPlaybackForegroundService.update(appContext, notificationMetadata)
             onStateChanged?.invoke(PlaybackState.Playing)
@@ -390,6 +416,28 @@ class AndroidBassPlaybackEngine(
         } else {
             @Suppress("DEPRECATION")
             audioManager.abandonAudioFocus(audioFocusChangeListener)
+        }
+    }
+
+    private fun acquirePlaybackWakeLock() {
+        runCatching {
+            if (!playbackWakeLock.isHeld) {
+                playbackWakeLock.acquire()
+                Log.i(Tag, "Playback wake lock acquired")
+            }
+        }.onFailure { error ->
+            Log.w(Tag, "Could not acquire playback wake lock", error)
+        }
+    }
+
+    private fun releasePlaybackWakeLock() {
+        runCatching {
+            if (playbackWakeLock.isHeld) {
+                playbackWakeLock.release()
+                Log.i(Tag, "Playback wake lock released")
+            }
+        }.onFailure { error ->
+            Log.w(Tag, "Could not release playback wake lock", error)
         }
     }
 

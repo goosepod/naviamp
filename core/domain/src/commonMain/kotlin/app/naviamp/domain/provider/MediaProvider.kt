@@ -14,6 +14,7 @@ import app.naviamp.domain.ProviderId
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 
 interface MediaProvider {
     val id: ProviderId
@@ -38,6 +39,12 @@ interface MediaProvider {
     suspend fun playlistTracks(playlistId: String): List<Track> = emptyList()
     suspend fun createPlaylist(name: String, trackIds: List<TrackId>): Playlist {
         throw UnsupportedOperationException("Playlist creation is not supported by $displayName.")
+    }
+    suspend fun createSmartPlaylist(definition: SmartPlaylistDefinition): Playlist {
+        throw UnsupportedOperationException("Smart playlist creation is not supported by $displayName.")
+    }
+    suspend fun updateSmartPlaylist(playlistId: String, definition: SmartPlaylistDefinition) {
+        throw UnsupportedOperationException("Smart playlist edits are not supported by $displayName.")
     }
     suspend fun addTracksToPlaylist(playlistId: String, trackIds: List<TrackId>) {
         throw UnsupportedOperationException("Playlist edits are not supported by $displayName.")
@@ -111,6 +118,7 @@ data class ProviderCapabilities(
     val supportsTrackFavorites: Boolean = false,
     val supportsTrackRatings: Boolean = false,
     val supportsPlayReporting: Boolean = false,
+    val supportsSmartPlaylists: Boolean = false,
 )
 
 data class ConnectionValidation(

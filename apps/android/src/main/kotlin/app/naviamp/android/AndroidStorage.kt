@@ -105,6 +105,7 @@ class AndroidStorage(
             username = connection.username,
             token = connection.token,
             salt = connection.salt,
+            native_token = connection.nativeToken,
             insecure_skip_tls_verification = if (connection.tlsSettings.insecureSkipTlsVerification) 1 else 0,
             custom_certificate_path = connection.tlsSettings.customCertificatePath?.takeIf { it.isNotBlank() },
             client_certificate_keystore_path = connection.tlsSettings.clientCertificateKeyStorePath?.takeIf { it.isNotBlank() },
@@ -125,6 +126,7 @@ class AndroidStorage(
             username = connection.username,
             token = connection.token,
             salt = connection.salt,
+            native_token = connection.nativeToken,
             insecure_skip_tls_verification = if (connection.tlsSettings.insecureSkipTlsVerification) 1 else 0,
             custom_certificate_path = connection.tlsSettings.customCertificatePath?.takeIf { it.isNotBlank() },
             client_certificate_keystore_path = connection.tlsSettings.clientCertificateKeyStorePath?.takeIf { it.isNotBlank() },
@@ -843,6 +845,7 @@ private fun Media_source.toSavedMediaSource(): SavedMediaSource =
         username = username,
         token = token,
         salt = salt,
+        nativeToken = native_token,
         tlsSettings = ConnectionTlsSettings(
             insecureSkipTlsVerification = insecure_skip_tls_verification != 0L,
             customCertificatePath = custom_certificate_path,

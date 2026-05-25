@@ -3,9 +3,12 @@ package app.naviamp.domain.smartplaylist
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.long
 
 class SmartPlaylistDraftTest {
     @Test
@@ -39,7 +42,7 @@ class SmartPlaylistDraftTest {
 
         assertEquals("Green Day Favorites", json["name"]?.jsonPrimitive?.content)
         assertEquals("Green Day", rules[0].jsonObject["contains"]?.jsonObject?.get("artist")?.jsonPrimitive?.content)
-        assertEquals("true", rules[1].jsonObject["is"]?.jsonObject?.get("loved")?.jsonPrimitive?.content)
+        assertEquals(true, rules[1].jsonObject["is"]?.jsonObject?.get("loved")?.jsonPrimitive?.boolean)
         assertEquals("-year", json["sort"]?.jsonPrimitive?.content)
     }
 
@@ -73,5 +76,132 @@ class SmartPlaylistDraftTest {
         assertFailsWith<IllegalArgumentException> {
             draft.toDefinition()
         }
+    }
+
+    @Test
+    fun convertsGroupedDraftRules() {
+        val ratingField = SmartPlaylistFieldCatalog.fields.first { it.field == SmartPlaylistFields.Rating }
+        val lovedField = SmartPlaylistFieldCatalog.fields.first { it.field == SmartPlaylistFields.Loved }
+        val dateAddedField = SmartPlaylistFieldCatalog.fields.first { it.field == SmartPlaylistFields.DateAdded }
+        val draft = SmartPlaylistDraft(
+            name = "Fresh Good Songs",
+            match = SmartPlaylistMatch.All,
+            conditions = emptyList(),
+            groups = listOf(
+                SmartPlaylistGroupDraft(
+                    match = SmartPlaylistMatch.Any,
+                    conditions = listOf(
+                        SmartPlaylistConditionDraft(
+                            field = ratingField,
+                            operator = SmartPlaylistOperator.GreaterThan,
+                            value = "3",
+                        ),
+                        SmartPlaylistConditionDraft(
+                            field = lovedField,
+                            operator = SmartPlaylistOperator.Is,
+                            value = "true",
+                        ),
+                    ),
+                ),
+                SmartPlaylistGroupDraft(
+                    match = SmartPlaylistMatch.All,
+                    conditions = listOf(
+                        SmartPlaylistConditionDraft(
+                            field = dateAddedField,
+                            operator = SmartPlaylistOperator.InTheLast,
+                            value = "7",
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        val rules = draft.toDefinition().toJsonElement()["all"]?.jsonArray.orEmpty()
+
+        assertEquals(2, rules.size)
+        assertEquals(2, rules[0].jsonObject["any"]?.jsonArray?.size)
+        assertEquals(1, rules[1].jsonObject["all"]?.jsonArray?.size)
+        assertEquals(7, rules[1].jsonObject["all"]?.jsonArray?.get(0)?.jsonObject?.get("inTheLast")?.jsonObject?.get("dateadded")?.jsonPrimitive?.int)
+    }
+
+    @Test
+    fun parsesRelativeDatesAsDayCounts() {
+        val lastPlayedField = SmartPlaylistFieldCatalog.fields.first { it.field == SmartPlaylistFields.LastPlayed }
+        val condition = SmartPlaylistConditionDraft(
+            field = lastPlayedField,
+            operator = SmartPlaylistOperator.InTheLast,
+            value = "30",
+        ).toConditionOrNull()
+
+        val days = condition
+            ?.toJsonElement()
+            ?.get("inTheLast")
+            ?.jsonObject
+            ?.get("lastplayed")
+            ?.jsonPrimitive
+            ?.int
+
+        assertEquals(30, days)
+    }
+
+    @Test
+    fun playlistReferenceDraftUsesNavidromeIdKey() {
+        val playlistField = SmartPlaylistFieldCatalog.fields.first { it.valueType == SmartPlaylistValueType.PlaylistId }
+        val condition = SmartPlaylistConditionDraft(
+            field = playlistField,
+            operator = SmartPlaylistOperator.InPlaylist,
+            value = "playlist-1",
+        ).toConditionOrNull()
+
+        val playlistId = condition
+            ?.toJsonElement()
+            ?.get("inPlaylist")
+            ?.jsonObject
+            ?.get("id")
+            ?.jsonPrimitive
+            ?.content
+
+        assertEquals("playlist-1", playlistId)
+    }
+
+    @Test
+    fun catalogIncludesDocumentedNavidromeFields() {
+        val documentedFields = setOf(
+            SmartPlaylistFields.HasCoverArt,
+            SmartPlaylistFields.TrackNumber,
+            SmartPlaylistFields.OriginalDate,
+            SmartPlaylistFields.FilePath,
+            SmartPlaylistFields.Duration,
+            SmartPlaylistFields.AverageRating,
+            SmartPlaylistFields.AlbumLoved,
+            SmartPlaylistFields.ArtistPlayCount,
+            SmartPlaylistFields.MusicBrainzRecordingId,
+            SmartPlaylistFields.LibraryId,
+        )
+
+        assertEquals(
+            emptySet(),
+            documentedFields - SmartPlaylistFieldCatalog.fields.map { it.field }.toSet(),
+        )
+    }
+
+    @Test
+    fun parsesLargeNumericFields() {
+        val sizeField = SmartPlaylistFieldCatalog.fields.first { it.field == SmartPlaylistFields.Size }
+        val condition = SmartPlaylistConditionDraft(
+            field = sizeField,
+            operator = SmartPlaylistOperator.GreaterThan,
+            value = "4294967296",
+        ).toConditionOrNull()
+
+        val size = condition
+            ?.toJsonElement()
+            ?.get("gt")
+            ?.jsonObject
+            ?.get("size")
+            ?.jsonPrimitive
+            ?.long
+
+        assertEquals(4294967296L, size)
     }
 }

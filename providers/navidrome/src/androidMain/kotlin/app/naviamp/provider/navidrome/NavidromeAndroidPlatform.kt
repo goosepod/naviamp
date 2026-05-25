@@ -37,15 +37,37 @@ class AndroidNavidromeHttpClient(
     private val tlsSettings: NavidromeTlsSettings = NavidromeTlsSettings(),
 ) : NavidromeHttpClient {
     override suspend fun get(url: String): String =
+        request(url = url, method = "GET")
+
+    override suspend fun postJson(url: String, body: String, headers: Map<String, String>): String =
+        request(url = url, method = "POST", body = body, headers = headers)
+
+    override suspend fun putJson(url: String, body: String, headers: Map<String, String>): String =
+        request(url = url, method = "PUT", body = body, headers = headers)
+
+    private suspend fun request(
+        url: String,
+        method: String,
+        body: String? = null,
+        headers: Map<String, String> = emptyMap(),
+    ): String =
         withContext(Dispatchers.IO) {
             val startedAt = System.currentTimeMillis()
 
             try {
                 val connection = URI.create(url).toURL().openConnection() as HttpURLConnection
-                connection.requestMethod = "GET"
+                connection.requestMethod = method
                 connection.connectTimeout = 15_000
                 connection.readTimeout = 30_000
                 (connection as? HttpsURLConnection)?.applyTls(tlsSettings)
+                headers.forEach { (key, value) -> connection.setRequestProperty(key, value) }
+                if (body != null) {
+                    connection.doOutput = true
+                    connection.setRequestProperty("Content-Type", "application/json")
+                    connection.outputStream.use { output ->
+                        output.write(body.toByteArray(StandardCharsets.UTF_8))
+                    }
+                }
                 if (connection.responseCode !in 200..299) {
                     throw NavidromeException("Navidrome returned HTTP ${connection.responseCode}.")
                 }
@@ -53,6 +75,7 @@ class AndroidNavidromeHttpClient(
                     reader.readText()
                 }.also {
                     recordApiCall(
+                        method = method,
                         url = url,
                         startedAt = startedAt,
                         success = true,
@@ -61,6 +84,7 @@ class AndroidNavidromeHttpClient(
                 }
             } catch (exception: Exception) {
                 recordApiCall(
+                    method = method,
                     url = url,
                     startedAt = startedAt,
                     success = false,
@@ -124,6 +148,7 @@ class AndroidNavidromeHttpClient(
     }
 
     private fun recordApiCall(
+        method: String,
         url: String,
         startedAt: Long,
         success: Boolean,
@@ -131,6 +156,7 @@ class AndroidNavidromeHttpClient(
     ) {
         recordNavidromeApiCall(
             url = url,
+            method = method,
             startedAt = startedAt,
             durationMillis = (System.currentTimeMillis() - startedAt).coerceAtLeast(0),
             success = success,

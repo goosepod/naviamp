@@ -611,6 +611,7 @@ class DesktopCache(
             username = connection.username,
             token = connection.token,
             salt = connection.salt,
+            native_token = connection.nativeToken,
             insecure_skip_tls_verification = if (connection.tlsSettings.insecureSkipTlsVerification) 1 else 0,
             custom_certificate_path = connection.tlsSettings.customCertificatePath?.takeIf { it.isNotBlank() },
             client_certificate_keystore_path = connection.tlsSettings.clientCertificateKeyStorePath?.takeIf { it.isNotBlank() },
@@ -631,6 +632,7 @@ class DesktopCache(
             username = connection.username,
             token = connection.token,
             salt = connection.salt,
+            nativeToken = connection.nativeToken,
             tlsSettings = connection.tlsSettings,
             createdAtEpochMillis = existing?.created_at_epoch_millis ?: now,
             lastConnectedAtEpochMillis = now,
@@ -1203,6 +1205,7 @@ private fun app.naviamp.storage.Media_source.toSavedMediaSource(): SavedMediaSou
         username = username,
         token = token,
         salt = salt,
+        nativeToken = native_token,
         tlsSettings = ConnectionTlsSettings(
             insecureSkipTlsVerification = insecure_skip_tls_verification != 0L,
             customCertificatePath = custom_certificate_path,
@@ -1346,6 +1349,9 @@ private fun JdbcSqliteDriver.databaseVersion(): Long =
     }, 0).value
 
 private fun ensureMediaSourceLibraryScanSchema(driver: JdbcSqliteDriver) {
+    if (!driver.tableHasColumn("media_source", "native_token")) {
+        driver.execute(null, "ALTER TABLE media_source ADD COLUMN native_token TEXT", 0)
+    }
     if (!driver.tableHasColumn("media_source", "last_library_scan_signature")) {
         driver.execute(null, "ALTER TABLE media_source ADD COLUMN last_library_scan_signature TEXT", 0)
     }

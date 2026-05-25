@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -61,6 +60,7 @@ import androidx.compose.ui.unit.DpOffset
 import app.naviamp.domain.Track
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.homeStations
+import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 
@@ -449,6 +449,7 @@ fun NaviampSharedAppShell(
     onPlaylistAddToQueue: (SharedPlaylistDetailUi) -> Unit = {},
     onPlaylistRename: (SharedMediaItemUi, String) -> Unit = { _, _ -> },
     onPlaylistDelete: (SharedMediaItemUi) -> Unit = {},
+    onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit = {},
     onPlaylistBack: () -> Unit = {},
     onPlaylistTrackSelected: (AndroidTrackRowUi) -> Unit = {},
     onTrackAddToQueue: (AndroidTrackRowUi) -> Unit = {},
@@ -645,6 +646,7 @@ fun NaviampSharedAppShell(
                             onPlaylistAddToQueue = onPlaylistAddToQueue,
                             onPlaylistRename = onPlaylistRename,
                             onPlaylistDelete = onPlaylistDelete,
+                            onSmartPlaylistSave = onSmartPlaylistSave,
                             onPlaylistBack = onPlaylistBack,
                             onPlaylistTrackSelected = onPlaylistTrackSelected,
                             onTrackAddToQueue = onTrackAddToQueue,
@@ -903,6 +905,7 @@ private fun ConnectedContent(
     onPlaylistAddToQueue: (SharedPlaylistDetailUi) -> Unit,
     onPlaylistRename: (SharedMediaItemUi, String) -> Unit,
     onPlaylistDelete: (SharedMediaItemUi) -> Unit,
+    onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit,
     onPlaylistBack: () -> Unit,
     onPlaylistTrackSelected: (AndroidTrackRowUi) -> Unit,
     onTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
@@ -1063,6 +1066,7 @@ private fun ConnectedContent(
                 onPlaylistPlay = onPlaylistPlay,
                 onPlaylistRename = onPlaylistRename,
                 onPlaylistDelete = onPlaylistDelete,
+                onSmartPlaylistSave = onSmartPlaylistSave,
             )
             SharedRoute.Library -> LibraryContent(
                 colors = colors,
@@ -1180,9 +1184,11 @@ private fun PlaylistsContent(
     onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit,
     onPlaylistRename: (SharedMediaItemUi, String) -> Unit,
     onPlaylistDelete: (SharedMediaItemUi) -> Unit,
+    onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit,
 ) {
     var playlistToRename by remember { mutableStateOf<SharedMediaItemUi?>(null) }
     var playlistToDelete by remember { mutableStateOf<SharedMediaItemUi?>(null) }
+    var smartPlaylistBuilderOpen by remember { mutableStateOf(false) }
     val sortedPlaylists = when (sortMode) {
         SharedPlaylistSortMode.Alphabetical -> playlists.sortedBy { it.title.lowercase() }
         SharedPlaylistSortMode.RecentlyPlayed -> playlists.sortedWith(
@@ -1201,6 +1207,17 @@ private fun PlaylistsContent(
         ) {
             Text("Playlists", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                IconButton(
+                    onClick = { smartPlaylistBuilderOpen = true },
+                    modifier = Modifier.size(38.dp),
+                ) {
+                    Icon(
+                        NaviampIcons.Playlist,
+                        contentDescription = "Create smart playlist",
+                        tint = colors.primaryText,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
                 SharedPlaylistSortMode.entries.forEach { mode ->
                     PlaylistSortIconButton(
                         mode = mode,
@@ -1246,6 +1263,16 @@ private fun PlaylistsContent(
             onConfirm = {
                 playlistToDelete = null
                 onPlaylistDelete(playlist)
+            },
+        )
+    }
+    if (smartPlaylistBuilderOpen) {
+        SmartPlaylistBuilderDialog(
+            colors = colors,
+            onDismissRequest = { smartPlaylistBuilderOpen = false },
+            onSave = { definition ->
+                onSmartPlaylistSave(definition)
+                smartPlaylistBuilderOpen = false
             },
         )
     }
@@ -1301,7 +1328,7 @@ private fun PlaylistListRow(
     ) {
         PlaylistCoverFromUrls(
             colors = colors,
-            covers = playlist.coverArtUrls.ifEmpty { listOfNotNull(playlist.coverArtUrl) },
+            covers = listOfNotNull(playlist.coverArtUrl).ifEmpty { playlist.coverArtUrls },
             size = 38.dp,
         )
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -1347,7 +1374,13 @@ private fun PlaylistDetailContent(
             Text(detail.playlist.title, color = colors.primaryText, fontWeight = FontWeight.Bold, fontSize = 18.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            PlaylistCover(colors, detail.tracks, 96.dp)
+            PlaylistCoverFromUrls(
+                colors = colors,
+                covers = listOfNotNull(detail.playlist.coverArtUrl).ifEmpty {
+                    detail.tracks.mapNotNull { it.coverArtUrl }.distinct().take(4)
+                },
+                size = 96.dp,
+            )
             Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f)) {
                 Text(detail.playlist.subtitle, color = colors.secondaryText, fontSize = 12.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {

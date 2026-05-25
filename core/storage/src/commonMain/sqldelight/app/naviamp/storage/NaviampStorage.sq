@@ -25,6 +25,7 @@ CREATE TABLE media_source (
   username TEXT NOT NULL,
   token TEXT NOT NULL,
   salt TEXT NOT NULL,
+  native_token TEXT,
   insecure_skip_tls_verification INTEGER NOT NULL DEFAULT 0,
   custom_certificate_path TEXT,
   client_certificate_keystore_path TEXT,
@@ -381,6 +382,7 @@ INSERT OR IGNORE INTO media_source(
   username,
   token,
   salt,
+  native_token,
   insecure_skip_tls_verification,
   custom_certificate_path,
   client_certificate_keystore_path,
@@ -391,7 +393,7 @@ INSERT OR IGNORE INTO media_source(
   last_sync_completed_at_epoch_millis,
   last_library_scan_signature,
   last_library_scan_checked_at_epoch_millis
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 updateMediaSource:
 UPDATE media_source
@@ -402,6 +404,7 @@ SET provider_id = ?,
     username = ?,
     token = ?,
     salt = ?,
+    native_token = ?,
     insecure_skip_tls_verification = ?,
     custom_certificate_path = ?,
     client_certificate_keystore_path = ?,

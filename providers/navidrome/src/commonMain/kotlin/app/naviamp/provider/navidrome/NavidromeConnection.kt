@@ -13,6 +13,7 @@ data class NavidromeConnection(
     val username: String,
     val token: String,
     val salt: String,
+    val nativeToken: String? = null,
     val displayName: String? = null,
     val tlsSettings: NavidromeTlsSettings = NavidromeTlsSettings(),
 ) {
@@ -33,6 +34,7 @@ data class NavidromeConnection(
                 username = username,
                 token = navidromeMd5(password + salt),
                 salt = salt,
+                nativeToken = null,
                 displayName = displayName,
                 tlsSettings = tlsSettings,
             )
@@ -54,6 +56,7 @@ fun SavedMediaSource.toNavidromeConnection(): NavidromeConnection =
         username = username,
         token = token,
         salt = salt,
+        nativeToken = nativeToken,
         displayName = displayName,
         tlsSettings = tlsSettings,
     )

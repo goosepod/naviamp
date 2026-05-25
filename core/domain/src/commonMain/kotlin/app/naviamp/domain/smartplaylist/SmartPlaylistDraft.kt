@@ -5,6 +5,7 @@ data class SmartPlaylistDraft(
     val comment: String = "",
     val match: SmartPlaylistMatch = SmartPlaylistMatch.All,
     val conditions: List<SmartPlaylistConditionDraft> = listOf(SmartPlaylistConditionDraft()),
+    val groups: List<SmartPlaylistGroupDraft> = emptyList(),
     val sort: List<SmartPlaylistSortDraft> = listOf(SmartPlaylistSortDraft()),
     val limitMode: SmartPlaylistLimitMode = SmartPlaylistLimitMode.TrackCount,
     val limit: Int = 100,
@@ -12,18 +13,31 @@ data class SmartPlaylistDraft(
 ) {
     fun toDefinition(): SmartPlaylistDefinition {
         val validConditions = conditions.mapNotNull { it.toConditionOrNull() }
-        require(validConditions.isNotEmpty()) { "Add at least one complete rule." }
+        val validGroups = groups.mapNotNull { it.toRuleOrNull() }
+        val validRules = validConditions + validGroups
+        require(validRules.isNotEmpty()) { "Add at least one complete rule or group." }
 
         return SmartPlaylistDefinition(
             name = name,
             comment = comment,
             match = match,
-            rules = validConditions,
+            rules = validRules,
             sort = sort.mapNotNull { it.toSortOrNull() },
             limit = limit.takeIf { limitMode == SmartPlaylistLimitMode.TrackCount },
             limitPercent = limit.takeIf { limitMode == SmartPlaylistLimitMode.Percent },
             isPublic = isPublic,
         )
+    }
+}
+
+data class SmartPlaylistGroupDraft(
+    val match: SmartPlaylistMatch = SmartPlaylistMatch.Any,
+    val conditions: List<SmartPlaylistConditionDraft> = listOf(SmartPlaylistConditionDraft()),
+) {
+    fun toRuleOrNull(): SmartPlaylistGroup? {
+        val validConditions = conditions.mapNotNull { it.toConditionOrNull() }
+        if (validConditions.isEmpty()) return null
+        return SmartPlaylistGroup(match = match, rules = validConditions)
     }
 }
 
@@ -49,6 +63,9 @@ data class SmartPlaylistConditionDraft(
             val start = field.parseValue(first) ?: return null
             val end = field.parseValue(second) ?: return null
             return SmartPlaylistValue.Range(start, end)
+        }
+        if (operator == SmartPlaylistOperator.InTheLast || operator == SmartPlaylistOperator.NotInTheLast) {
+            return first.toIntOrNull()?.takeIf { it > 0 }?.let { SmartPlaylistValue.Number(it) }
         }
         return field.parseValue(first)
     }
@@ -78,7 +95,7 @@ data class SmartPlaylistFieldOption(
         if (rawValue.isBlank()) return null
         return when (valueType) {
             SmartPlaylistValueType.Text -> SmartPlaylistValue.Text(rawValue)
-            SmartPlaylistValueType.Integer -> rawValue.toIntOrNull()?.let { SmartPlaylistValue.Number(it) }
+            SmartPlaylistValueType.Integer -> rawValue.toLongOrNull()?.let { SmartPlaylistValue.Number(it) }
             SmartPlaylistValueType.Decimal -> rawValue.toDoubleOrNull()?.let { SmartPlaylistValue.Decimal(it) }
             SmartPlaylistValueType.Boolean -> parseBoolean(rawValue)?.let { SmartPlaylistValue.Flag(it) }
             SmartPlaylistValueType.Days -> rawValue.toIntOrNull()?.takeIf { it > 0 }?.let { SmartPlaylistValue.Number(it) }
@@ -135,10 +152,59 @@ object SmartPlaylistFieldCatalog {
         SmartPlaylistFieldOption(SmartPlaylistFields.Artist, "Artist", SmartPlaylistValueType.Text, textOperators),
         SmartPlaylistFieldOption(SmartPlaylistFields.Album, "Album", SmartPlaylistValueType.Text, textOperators),
         SmartPlaylistFieldOption(SmartPlaylistFields.Genre, "Genre", SmartPlaylistValueType.Text, textOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.SortTitle, "Sort Title", SmartPlaylistValueType.Text, textOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.SortArtist, "Sort Artist", SmartPlaylistValueType.Text, textOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.SortAlbum, "Sort Album", SmartPlaylistValueType.Text, textOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.SortAlbumArtist, "Sort Album Artist", SmartPlaylistValueType.Text, textOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.Comment, "Comment", SmartPlaylistValueType.Text, textOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.Lyrics, "Lyrics", SmartPlaylistValueType.Text, textOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.DiscSubtitle, "Disc Subtitle", SmartPlaylistValueType.Text, textOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.CatalogNumber, "Catalog Number", SmartPlaylistValueType.Text, textOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.FilePath, "File Path", SmartPlaylistValueType.Text, textOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.FileType, "File Type", SmartPlaylistValueType.Text, textOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.ExplicitStatus, "Explicit Status", SmartPlaylistValueType.Text, textOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.AlbumComment, "Album Comment", SmartPlaylistValueType.Text, textOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.MusicBrainzAlbumId, "MusicBrainz Album ID", SmartPlaylistValueType.Text, textOperators),
+        SmartPlaylistFieldOption(
+            SmartPlaylistFields.MusicBrainzAlbumArtistId,
+            "MusicBrainz Album Artist ID",
+            SmartPlaylistValueType.Text,
+            textOperators,
+        ),
+        SmartPlaylistFieldOption(SmartPlaylistFields.MusicBrainzArtistId, "MusicBrainz Artist ID", SmartPlaylistValueType.Text, textOperators),
+        SmartPlaylistFieldOption(
+            SmartPlaylistFields.MusicBrainzRecordingId,
+            "MusicBrainz Recording ID",
+            SmartPlaylistValueType.Text,
+            textOperators,
+        ),
+        SmartPlaylistFieldOption(
+            SmartPlaylistFields.MusicBrainzReleaseTrackId,
+            "MusicBrainz Release Track ID",
+            SmartPlaylistValueType.Text,
+            textOperators,
+        ),
+        SmartPlaylistFieldOption(
+            SmartPlaylistFields.MusicBrainzReleaseGroupId,
+            "MusicBrainz Release Group ID",
+            SmartPlaylistValueType.Text,
+            textOperators,
+        ),
         SmartPlaylistFieldOption(SmartPlaylistFields.Year, "Year", SmartPlaylistValueType.Integer, comparableOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.OriginalYear, "Original Year", SmartPlaylistValueType.Integer, comparableOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.ReleaseYear, "Release Year", SmartPlaylistValueType.Integer, comparableOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.TrackNumber, "Track Number", SmartPlaylistValueType.Integer, comparableOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.DiscNumber, "Disc Number", SmartPlaylistValueType.Integer, comparableOperators),
         SmartPlaylistFieldOption(SmartPlaylistFields.Rating, "Rating", SmartPlaylistValueType.Integer, comparableOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.AverageRating, "Average Rating", SmartPlaylistValueType.Integer, comparableOperators),
         SmartPlaylistFieldOption(SmartPlaylistFields.PlayCount, "Play Count", SmartPlaylistValueType.Integer, comparableOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.Size, "File Size", SmartPlaylistValueType.Integer, comparableOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.Duration, "Duration", SmartPlaylistValueType.Integer, comparableOperators),
         SmartPlaylistFieldOption(SmartPlaylistFields.Bitrate, "Bitrate", SmartPlaylistValueType.Integer, comparableOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.BitDepth, "Bit Depth", SmartPlaylistValueType.Integer, comparableOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.SampleRate, "Sample Rate", SmartPlaylistValueType.Integer, comparableOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.Bpm, "BPM", SmartPlaylistValueType.Integer, comparableOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.Channels, "Channels", SmartPlaylistValueType.Integer, comparableOperators),
         SmartPlaylistFieldOption(SmartPlaylistFields.Codec, "Codec", SmartPlaylistValueType.Text, textOperators),
         SmartPlaylistFieldOption(
             SmartPlaylistFields.Loved,
@@ -146,12 +212,83 @@ object SmartPlaylistFieldCatalog {
             SmartPlaylistValueType.Boolean,
             listOf(SmartPlaylistOperator.Is, SmartPlaylistOperator.IsNot),
         ),
+        SmartPlaylistFieldOption(
+            SmartPlaylistFields.HasCoverArt,
+            "Has Cover Art",
+            SmartPlaylistValueType.Boolean,
+            listOf(SmartPlaylistOperator.Is, SmartPlaylistOperator.IsNot),
+        ),
+        SmartPlaylistFieldOption(
+            SmartPlaylistFields.Compilation,
+            "Compilation",
+            SmartPlaylistValueType.Boolean,
+            listOf(SmartPlaylistOperator.Is, SmartPlaylistOperator.IsNot),
+        ),
+        SmartPlaylistFieldOption(
+            SmartPlaylistFields.Missing,
+            "Missing File",
+            SmartPlaylistValueType.Boolean,
+            listOf(SmartPlaylistOperator.Is, SmartPlaylistOperator.IsNot),
+        ),
+        SmartPlaylistFieldOption(
+            SmartPlaylistFields.AlbumRating,
+            "Album Rating",
+            SmartPlaylistValueType.Integer,
+            comparableOperators,
+        ),
+        SmartPlaylistFieldOption(
+            SmartPlaylistFields.AlbumLoved,
+            "Album Favorite",
+            SmartPlaylistValueType.Boolean,
+            listOf(SmartPlaylistOperator.Is, SmartPlaylistOperator.IsNot),
+        ),
+        SmartPlaylistFieldOption(
+            SmartPlaylistFields.AlbumPlayCount,
+            "Album Play Count",
+            SmartPlaylistValueType.Integer,
+            comparableOperators,
+        ),
+        SmartPlaylistFieldOption(
+            SmartPlaylistFields.ArtistRating,
+            "Artist Rating",
+            SmartPlaylistValueType.Integer,
+            comparableOperators,
+        ),
+        SmartPlaylistFieldOption(
+            SmartPlaylistFields.ArtistLoved,
+            "Artist Favorite",
+            SmartPlaylistValueType.Boolean,
+            listOf(SmartPlaylistOperator.Is, SmartPlaylistOperator.IsNot),
+        ),
+        SmartPlaylistFieldOption(
+            SmartPlaylistFields.ArtistPlayCount,
+            "Artist Play Count",
+            SmartPlaylistValueType.Integer,
+            comparableOperators,
+        ),
+        SmartPlaylistFieldOption(
+            SmartPlaylistFields.LibraryId,
+            "Library ID",
+            SmartPlaylistValueType.Integer,
+            comparableOperators,
+        ),
+        SmartPlaylistFieldOption(SmartPlaylistFields.Date, "Recording Date", SmartPlaylistValueType.Date, dateOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.OriginalDate, "Original Date", SmartPlaylistValueType.Date, dateOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.ReleaseDate, "Release Date", SmartPlaylistValueType.Date, dateOperators),
         SmartPlaylistFieldOption(SmartPlaylistFields.DateLoved, "Date Favorited", SmartPlaylistValueType.Date, dateOperators),
         SmartPlaylistFieldOption(SmartPlaylistFields.DateAdded, "Date Added", SmartPlaylistValueType.Date, dateOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.DateModified, "Date Modified", SmartPlaylistValueType.Date, dateOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.DateRated, "Date Rated", SmartPlaylistValueType.Date, dateOperators),
         SmartPlaylistFieldOption(SmartPlaylistFields.LastPlayed, "Last Played", SmartPlaylistValueType.Date, dateOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.AlbumLastPlayed, "Album Last Played", SmartPlaylistValueType.Date, dateOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.AlbumDateLoved, "Album Date Favorited", SmartPlaylistValueType.Date, dateOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.AlbumDateRated, "Album Date Rated", SmartPlaylistValueType.Date, dateOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.ArtistLastPlayed, "Artist Last Played", SmartPlaylistValueType.Date, dateOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.ArtistDateLoved, "Artist Date Favorited", SmartPlaylistValueType.Date, dateOperators),
+        SmartPlaylistFieldOption(SmartPlaylistFields.ArtistDateRated, "Artist Date Rated", SmartPlaylistValueType.Date, dateOperators),
         SmartPlaylistFieldOption(
-            "playlist",
-            "Playlist",
+            "id",
+            "Playlist ID",
             SmartPlaylistValueType.PlaylistId,
             listOf(SmartPlaylistOperator.InPlaylist, SmartPlaylistOperator.NotInPlaylist),
             sortable = false,
