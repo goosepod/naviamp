@@ -46,6 +46,7 @@ import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.settings.RecentRadioKind
 import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.domain.settings.SavedInternetRadioStation
+import app.naviamp.domain.settings.SavedTrack
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.toNavidromeConnection
 import kotlinx.coroutines.Dispatchers
@@ -626,6 +627,33 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 playServiceTrackQueue(storage, sourceId, queue, index)
                 true
             }
+            mediaId.startsWith(AndroidAutoPlaybackControls.MediaIdArtistTrackPrefix) -> {
+                val parts = mediaId.removePrefix(AndroidAutoPlaybackControls.MediaIdArtistTrackPrefix).mediaIdParts()
+                val artistId = parts.getOrNull(0).orEmpty()
+                val artistName = parts.getOrNull(1)
+                val trackId = parts.getOrNull(2).orEmpty()
+                if (trackId.isBlank()) return false
+                val provider = NavidromeProvider(source.toNavidromeConnection())
+                AndroidPlaybackRuntime.get(applicationContext).scope.launch {
+                    runCatching {
+                        loadServiceArtistTracks(storage, sourceId, provider, artistId, artistName)
+                            .firstOrNull { it.id.value == trackId }
+                            ?: storage.libraryTrack(sourceId, TrackId(trackId))
+                    }.onSuccess { track ->
+                        if (track != null) {
+                            playServiceTrackRadio(storage, sourceId, provider, track)
+                        } else {
+                            AndroidPlaybackNotificationControls.isPlaying = false
+                            updateMediaSessionPlaybackState()
+                        }
+                    }.onFailure { error ->
+                        Log.w("NaviampAutoCommand", "Could not start Auto artist track radio=$trackId", error)
+                        AndroidPlaybackNotificationControls.isPlaying = false
+                        updateMediaSessionPlaybackState()
+                    }
+                }
+                true
+            }
             mediaId.startsWith(AndroidAutoPlaybackControls.MediaIdAlbumTrackPrefix) -> {
                 val parts = mediaId.removePrefix(AndroidAutoPlaybackControls.MediaIdAlbumTrackPrefix).mediaIdParts()
                 val albumId = parts.getOrNull(0).orEmpty()
@@ -633,11 +661,10 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 if (albumId.isBlank() || trackId.isBlank()) return false
                 val provider = NavidromeProvider(source.toNavidromeConnection())
                 AndroidPlaybackRuntime.get(applicationContext).scope.launch {
-                    runCatching { withContext(Dispatchers.IO) { provider.album(AlbumId(albumId)).tracks } }
-                        .onSuccess { tracks ->
-                            val index = tracks.indexOfFirst { it.id.value == trackId }
-                            if (index >= 0) {
-                                playServiceTrackQueue(storage, sourceId, tracks, index)
+                    runCatching { provider.album(AlbumId(albumId)).tracks.firstOrNull { it.id.value == trackId } }
+                        .onSuccess { track ->
+                            if (track != null) {
+                                playServiceTrackRadio(storage, sourceId, provider, track)
                             } else {
                                 AndroidPlaybackNotificationControls.isPlaying = false
                                 updateMediaSessionPlaybackState()
@@ -648,6 +675,25 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                             AndroidPlaybackNotificationControls.isPlaying = false
                             updateMediaSessionPlaybackState()
                         }
+                }
+                true
+            }
+            mediaId.startsWith(AndroidAutoPlaybackControls.MediaIdArtistShufflePrefix) -> {
+                val parts = mediaId.removePrefix(AndroidAutoPlaybackControls.MediaIdArtistShufflePrefix).mediaIdParts()
+                val artistId = parts.getOrNull(0).orEmpty()
+                val artistName = parts.getOrNull(1)
+                if (artistId.isBlank() && artistName.isNullOrBlank()) return false
+                val provider = NavidromeProvider(source.toNavidromeConnection())
+                AndroidPlaybackRuntime.get(applicationContext).scope.launch {
+                    runCatching {
+                        loadServiceArtistTracks(storage, sourceId, provider, artistId, artistName)
+                    }.onSuccess { tracks ->
+                        playServiceTrackQueue(storage, sourceId, tracks.shuffled(), currentIndex = 0)
+                    }.onFailure { error ->
+                        Log.w("NaviampAutoCommand", "Could not shuffle Auto artist=$artistId", error)
+                        AndroidPlaybackNotificationControls.isPlaying = false
+                        updateMediaSessionPlaybackState()
+                    }
                 }
                 true
             }
@@ -843,6 +889,62 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                     withContext(Dispatchers.IO) { provider.album(AlbumId(albumId)).tracks }
                 }.getOrDefault(emptyList())
             }
+
+    private suspend fun loadServiceArtistTracks(
+        storage: AndroidStorage,
+        sourceId: String,
+        provider: NavidromeProvider,
+        artistId: String,
+        artistName: String?,
+    ): List<Track> =
+        artistId.takeIf { it.isNotBlank() }
+            ?.let { id -> storage.libraryTracksForArtist(sourceId, ArtistId(id), AndroidAutoBrowseLimit.toLong()) }
+            .orEmpty()
+            .ifEmpty {
+                artistName?.let { name ->
+                    storage.libraryTracksForArtistName(sourceId, name, AndroidAutoBrowseLimit.toLong())
+                }.orEmpty()
+            }
+            .ifEmpty {
+                artistId.takeIf { it.isNotBlank() }?.let { id ->
+                    runCatching {
+                        withContext(Dispatchers.IO) {
+                            provider.artist(ArtistId(id)).albums.flatMap { album -> provider.album(album.id).tracks }
+                        }
+                    }.getOrDefault(emptyList())
+                }.orEmpty()
+            }
+
+    private fun playServiceTrackRadio(
+        storage: AndroidStorage,
+        sourceId: String,
+        provider: NavidromeProvider,
+        seedTrack: Track,
+    ) {
+        rememberRecentRadioStream(
+            RecentRadioStream(
+                id = "track:${seedTrack.id.value}",
+                label = "${seedTrack.title} Radio",
+                kind = RecentRadioKind.Track,
+                track = SavedTrack.fromTrack(seedTrack),
+            ),
+        )
+        AndroidPlaybackRuntime.get(applicationContext).scope.launch {
+            runCatching { withContext(Dispatchers.IO) { RadioService(provider).trackRadio(seedTrack.id) } }
+                .onSuccess { tracks ->
+                    playServiceTrackQueue(
+                        storage = storage,
+                        sourceId = sourceId,
+                        tracks = (listOf(seedTrack) + tracks).distinctBy { it.id },
+                        currentIndex = 0,
+                    )
+                }
+                .onFailure { error ->
+                    Log.w("NaviampAutoCommand", "Could not start track radio=${seedTrack.id.value}", error)
+                    playServiceTrackQueue(storage, sourceId, listOf(seedTrack), currentIndex = 0)
+                }
+        }
+    }
 
     private fun playServiceRecentRadioStream(
         storage: AndroidStorage,
@@ -1363,18 +1465,29 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                     loadAsyncChildren(result) {
                         val source = storage.latestNavidromeSource() ?: return@loadAsyncChildren noSourceItems()
                         val provider = NavidromeProvider(source.toNavidromeConnection())
-                        val tracks = storage.libraryTracksForArtist(source.id, ArtistId(artistId), AndroidAutoBrowseLimit.toLong())
-                            .ifEmpty {
-                                artistName?.let { name ->
-                                    storage.libraryTracksForArtistName(source.id, name, AndroidAutoBrowseLimit.toLong())
-                                }.orEmpty()
+                        val tracks = loadServiceArtistTracks(storage, source.id, provider, artistId, artistName)
+                        (
+                            listOf(
+                                playableItem(
+                                    mediaId = AndroidAutoPlaybackControls.MediaIdArtistShufflePrefix + listOf(
+                                        Uri.encode(artistId),
+                                        Uri.encode(artistName.orEmpty()),
+                                    ).joinToString(MediaIdPartSeparator),
+                                    title = "Shuffle",
+                                    subtitle = "Shuffle ${artistName ?: "artist"}",
+                                    iconUri = autoDrawableUri("ic_shuffle_24"),
+                                ),
+                            ) + tracks.take(AndroidAutoBrowseLimit).map { track ->
+                                trackItem(
+                                    track = track,
+                                    mediaId = AndroidAutoPlaybackControls.MediaIdArtistTrackPrefix + listOf(
+                                        Uri.encode(artistId),
+                                        Uri.encode(artistName.orEmpty()),
+                                        Uri.encode(track.id.value),
+                                    ).joinToString(MediaIdPartSeparator),
+                                )
                             }
-                            .ifEmpty {
-                                runCatching {
-                                    withContext(Dispatchers.IO) { provider.artist(ArtistId(artistId)).albums.flatMap { album -> provider.album(album.id).tracks } }
-                                }.getOrDefault(emptyList())
-                            }
-                        tracks.take(AndroidAutoBrowseLimit).map(::trackItem).toMutableList()
+                        ).toMutableList()
                     }
                     return
                 }
@@ -1397,6 +1510,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                                     ).joinToString(MediaIdPartSeparator),
                                     title = "Shuffle",
                                     subtitle = "Shuffle ${albumTitle ?: "album"}",
+                                    iconUri = autoDrawableUri("ic_shuffle_24"),
                                 ),
                             ) + tracks.take(AndroidAutoBrowseLimit).map { track ->
                             trackItem(
@@ -1558,7 +1672,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             .addCustomAction(
                 ActionShuffle,
                 if (serviceShuffleEnabled) "Shuffle on" else "Shuffle off",
-                android.R.drawable.ic_menu_sort_by_size,
+                R.drawable.ic_shuffle_24,
             )
             .addCustomAction(
                 ActionRepeat,
@@ -1567,7 +1681,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                     ServiceRepeatMode.All -> "Repeat all"
                     ServiceRepeatMode.One -> "Repeat one"
                 },
-                android.R.drawable.ic_menu_revert,
+                R.drawable.ic_repeat_24,
             )
             .setState(
                 if (AndroidPlaybackNotificationControls.isPlaying) {
@@ -1705,7 +1819,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 .setTitle(title)
                 .setSubtitle(subtitle)
                 .apply {
-                    iconName?.let { setIconUri(Uri.parse("android.resource://$packageName/drawable/$it")) }
+                    iconName?.let { setIconUri(Uri.parse(autoDrawableUri(it))) }
                     iconUri?.let { setIconUri(Uri.parse(it)) }
                 }
                 .build(),
@@ -1737,6 +1851,9 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         mutableListOf(
             browsableItem("naviamp.no_source", "Connect Naviamp first", "Open the phone app and connect to Navidrome."),
         )
+
+    private fun autoDrawableUri(name: String): String =
+        "android.resource://$packageName/drawable/$name"
 
     private fun loadAsyncChildren(
         result: Result<MutableList<MediaBrowserCompat.MediaItem>>,

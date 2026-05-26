@@ -33,6 +33,8 @@ object AndroidAutoPlaybackControls {
 
     const val MediaIdArtistPrefix = "naviamp.artist:"
     const val MediaIdArtistGroupPrefix = "naviamp.artist.group:"
+    const val MediaIdArtistTrackPrefix = "naviamp.artist.track:"
+    const val MediaIdArtistShufflePrefix = "naviamp.artist.shuffle:"
     const val MediaIdAlbumPrefix = "naviamp.album:"
     const val MediaIdTrackPrefix = "naviamp.track:"
     const val MediaIdAlbumTrackPrefix = "naviamp.album.track:"

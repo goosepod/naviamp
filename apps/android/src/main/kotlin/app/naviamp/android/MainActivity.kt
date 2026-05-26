@@ -1086,6 +1086,12 @@ private fun NaviampAndroidApp(
         }
     }
 
+    fun startTrackRadio(track: Track) {
+        startSeededRadio("${track.title} radio", track) { radioService ->
+            radioService.trackRadio(track.id)
+        }
+    }
+
     fun startAlbumRadio(album: Album, loadedAlbumTracks: List<Track> = emptyList()) {
         val service = radioService() ?: return
         scope.launch {
@@ -2422,6 +2428,15 @@ private fun NaviampAndroidApp(
             queue.firstOrNull()?.let { playTrack(it, queue) }
                 ?: run { status = "Album is empty." }
         },
+        onAlbumTrackSelected = { selectedTrack ->
+            val track = albumDetail?.tracks?.firstOrNull { it.id.value == selectedTrack.id }
+                ?: findKnownTrack(selectedTrack.id)
+            if (track == null) {
+                status = "Track not found."
+            } else {
+                startTrackRadio(track)
+            }
+        },
         onAlbumRadio = { detail ->
             val loadedAlbumTracks = albumDetail?.tracks.orEmpty()
             val album = albumDetail?.album ?: return@NaviampSharedAppShell
@@ -2467,6 +2482,19 @@ private fun NaviampAndroidApp(
                 }.onFailure { error ->
                     status = error.message ?: "Could not start artist radio."
                 }
+            }
+        },
+        onArtistShuffle = {
+            val albums = artistDetail?.albums.orEmpty()
+            val activeProvider = provider ?: return@NaviampSharedAppShell
+            scope.launch {
+                status = "Loading artist tracks..."
+                val artistTracks = albums.flatMap { album ->
+                    runCatching { activeProvider.album(album.id).tracks }.getOrDefault(emptyList())
+                }.distinctBy { it.id }
+                val queue = artistTracks.shuffled()
+                queue.firstOrNull()?.let { playTrack(it, queue) }
+                    ?: run { status = "No artist tracks found." }
             }
         },
         onArtistAddToQueue = {
@@ -2522,6 +2550,15 @@ private fun NaviampAndroidApp(
                         .awaitAll()
                         .flatten()
                 }
+            }
+        },
+        onArtistPopularTrackSelected = { selectedTrack ->
+            val track = artistPopularTracksByArtistId.values.flatten().firstOrNull { it.id.value == selectedTrack.id }
+                ?: findKnownTrack(selectedTrack.id)
+            if (track == null) {
+                status = "Track not found."
+            } else {
+                startTrackRadio(track)
             }
         },
         onArtistPopularAddToQueue = { detail ->
