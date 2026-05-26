@@ -124,7 +124,7 @@ class AndroidBassPlaybackEngine(
             AndroidPlaybackForegroundService.update(appContext, notificationMetadata)
             return
         }
-        if (adoptPreparedStream(request, onStateChanged, onProgressChanged)) {
+        if (adoptPreparedStream(scope, request, onStateChanged, onProgressChanged)) {
             acquirePlaybackWakeLock()
             AndroidPlaybackNotificationControls.isPlaying = true
             AndroidPlaybackForegroundService.update(appContext, notificationMetadata)
@@ -460,6 +460,7 @@ class AndroidBassPlaybackEngine(
     }
 
     private fun adoptPreparedStream(
+        scope: CoroutineScope,
         request: PlaybackRequest,
         onStateChanged: (PlaybackState) -> Unit,
         onProgressChanged: (PlaybackProgress) -> Unit,
@@ -474,6 +475,7 @@ class AndroidBassPlaybackEngine(
         preparedReplayGainFactor = 1f
         onProgressChanged(PlaybackProgress.Unknown)
         onStateChanged(PlaybackState.Playing)
+        startProgressPolling(scope, stream)
         return true
     }
 
