@@ -14,6 +14,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
+import java.util.Locale
 import org.jetbrains.skia.ColorAlphaType
 import org.jetbrains.skia.ColorType
 import org.jetbrains.skia.FilterTileMode
@@ -73,6 +74,7 @@ internal actual fun PlatformLiveVisualizerSurface(
     }
 
     Canvas(modifier = modifier) {
+        val drawStartedNanos = System.nanoTime()
         val bands = bandsProvider()
         val visibleBands = minOf(bands.size, (size.width / 6f).toInt().coerceAtLeast(16))
         if (visibleBands <= 0 || size.width <= 0f || size.height <= 0f) {
@@ -92,6 +94,7 @@ internal actual fun PlatformLiveVisualizerSurface(
                 timeSeconds = frameMillis / 1000f,
             )
         }
+        renderer.recordDrawNanos(System.nanoTime() - drawStartedNanos, active)
     }
 }
 
@@ -109,6 +112,7 @@ private class ShaderVisualizerRenderer(
     private var historyShader: Shader? = null
     private var historyImage: Image? = null
     private var lastHistoryPushSeconds = -1f
+    private val perfLogger = JvmVisualizerPerfLogger("shader", visualizer)
 
     fun draw(
         canvas: org.jetbrains.skia.Canvas,
@@ -162,7 +166,7 @@ private class ShaderVisualizerRenderer(
             (albumArtImage?.width ?: 1).toFloat(),
             (albumArtImage?.height ?: 1).toFloat(),
         )
-        if (visualizer == NaviampVisualizer.SpectralRidge || visualizer == NaviampVisualizer.FftMountain) {
+        if (visualizer.usesHistoryShader) {
             historyShader?.let { builder.child("iHistory", it) }
         }
         var temporaryAlbumShader: Shader? = null
@@ -195,8 +199,12 @@ private class ShaderVisualizerRenderer(
         builder.close()
     }
 
+    fun recordDrawNanos(drawNanos: Long, active: Boolean) {
+        perfLogger.record(drawNanos, active)
+    }
+
     private fun updateHistoryTexture(timeSeconds: Float, active: Boolean) {
-        if (!active || (visualizer != NaviampVisualizer.SpectralRidge && visualizer != NaviampVisualizer.FftMountain)) return
+        if (!active || !visualizer.usesHistoryShader) return
         if (lastHistoryPushSeconds >= 0f && timeSeconds - lastHistoryPushSeconds < VisualizerHistoryIntervalSeconds) return
         val changed = uniformBands.indices.any { index ->
             kotlin.math.abs(uniformBands[index] - previousHistoryBands[index]) > 0.006f
@@ -233,7 +241,7 @@ private class ShaderVisualizerRenderer(
         val nextShader = nextImage.makeShader(
             FilterTileMode.CLAMP,
             FilterTileMode.CLAMP,
-            SamplingMode.LINEAR,
+            visualizer.historySamplingMode,
             null,
         )
         historyShader?.close()
@@ -301,4 +309,65 @@ private const val VisualizerShaderBandCount = 32
 private const val VisualizerHistoryColumns = 32
 private const val VisualizerHistoryRows = 32
 private const val VisualizerHistoryIntervalSeconds = 0.075f
+private const val VisualizerPerfLogIntervalMillis = 5_000L
+private const val VisualizerPerfLogProperty = "naviamp.visualizer.perf"
 
+private val NaviampVisualizer.usesHistoryShader: Boolean
+    get() = this == NaviampVisualizer.SpectralRidge ||
+        this == NaviampVisualizer.FftMountain ||
+        this == NaviampVisualizer.PixelRidge ||
+        this == NaviampVisualizer.PixelMountain
+
+private val NaviampVisualizer.historySamplingMode: SamplingMode
+    get() = when (this) {
+        NaviampVisualizer.PixelRidge,
+        NaviampVisualizer.PixelMountain -> SamplingMode.DEFAULT
+        else -> SamplingMode.LINEAR
+    }
+
+private class JvmVisualizerPerfLogger(
+    private val renderer: String,
+    private val visualizer: NaviampVisualizer,
+) {
+    private val enabled = System.getProperty(VisualizerPerfLogProperty).equals("true", ignoreCase = true)
+    private var windowStartedMillis = System.currentTimeMillis()
+    private var frameCount = 0
+    private var drawNanosTotal = 0L
+    private var maxDrawNanos = 0L
+
+    fun record(drawNanos: Long, active: Boolean) {
+        if (!enabled) return
+        if (!active) {
+            reset()
+            return
+        }
+        frameCount += 1
+        drawNanosTotal += drawNanos
+        maxDrawNanos = maxOf(maxDrawNanos, drawNanos)
+
+        val nowMillis = System.currentTimeMillis()
+        val elapsedMillis = nowMillis - windowStartedMillis
+        if (elapsedMillis < VisualizerPerfLogIntervalMillis || frameCount <= 0) return
+
+        val averageDrawMillis = drawNanosTotal / frameCount / 1_000_000.0
+        val maxDrawMillis = maxDrawNanos / 1_000_000.0
+        val fps = frameCount * 1_000.0 / elapsedMillis.toDouble()
+        println(
+            "NaviampVisualizerPerf ${visualizer.name} renderer=$renderer " +
+                "fps=${fps.formatVisualizerMetric()} " +
+                "avgDrawMs=${averageDrawMillis.formatVisualizerMetric()} " +
+                "maxDrawMs=${maxDrawMillis.formatVisualizerMetric()} frames=$frameCount",
+        )
+        reset(nowMillis)
+    }
+
+    private fun reset(startMillis: Long = System.currentTimeMillis()) {
+        windowStartedMillis = startMillis
+        frameCount = 0
+        drawNanosTotal = 0L
+        maxDrawNanos = 0L
+    }
+}
+
+private fun Double.formatVisualizerMetric(): String =
+    String.format(Locale.US, "%.2f", this)

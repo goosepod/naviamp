@@ -16,7 +16,9 @@ This tracks the work needed to replace the current Compose Canvas visualizer wit
 - Desktop visualizer data is supplied by `apps/desktop/src/desktopMain/kotlin/app/naviamp/desktop/Main.kt`.
 - The current macOS optimized cadence samples visualizer frames every 125 ms.
 - Recent profiling shows the remaining visualizer cost is mostly Skiko/Metal drawing of the point/line shapes, not FFT extraction or lyrics.
-- The first GPU-backed baseline uses a JVM Skia runtime shader behind `PlatformLiveVisualizerSurface`, with Android still using the Canvas fallback.
+- The first GPU-backed baseline uses a JVM Skia runtime shader behind `PlatformLiveVisualizerSurface`.
+- Android 13+ uses the shared SkSL catalog through Android `RuntimeShader`; older Android versions keep the Compose Canvas visualizer fallback.
+- Android visualizer debug builds log active renderer FPS and draw cost through the `NaviampVisualizerPerf` logcat tag while a visualizer is visible and playback is active.
 - An embedded desktop `SwingPanel`/`SkiaLayer` surface was tested and rejected for the Player art area because it did not compose cleanly on macOS: the surface showed white/black backing rectangles, swallowed clicks that should toggle back to album art, and could remain layered over album art after toggling.
 
 ## Phase 1: Renderer Spike For Current Visualizer
@@ -38,6 +40,9 @@ This tracks the work needed to replace the current Compose Canvas visualizer wit
 - [x] Add interpolation/smoothing on the render side so 8 Hz audio frames can drive smoother visuals.
 - [x] Target display-refresh rendering for active desktop visualizers.
 - [ ] Add measured FPS/frame-time instrumentation so the 60 fps target is observable instead of judged by eye.
+  - [x] Add Android debug logcat measurements for active visualizer renderer FPS and draw cost.
+  - [ ] Add desktop measurements using the same summary shape.
+  - [ ] Decide whether Android emulator FPS below display refresh is GPU/compositor bound, emulator bound, or caused by Compose invalidation cadence.
 - [x] Switch back to album art while playback is paused/stopped, then restore the visualizer automatically when playback resumes if the user had it enabled.
 - [ ] Add optional visual decay for buffering/loading transitions without continuing full-rate rendering indefinitely.
 - [ ] Add lifecycle handling so GPU resources are released when the visualizer leaves composition.
@@ -49,7 +54,7 @@ This tracks the work needed to replace the current Compose Canvas visualizer wit
 - [x] Persist the selected visualizer in settings.
 - [ ] Support per-visualizer settings without cluttering the Player screen.
 - [x] Add at least two follow-up GPU visualizer concepts after the current visualizer is ported.
-- [x] Current shader catalog: Reactive bars, Fluid gradient, Audio sphere, Audio tunnel, Ribbon trail, Spectral ridge, Mountains, Frequency terrain, Particle field, Particle galaxy, Album art, Wave interference, Vinyl groove.
+- [x] Current shader catalog: Reactive bars, Fluid gradient, Audio sphere, Audio tunnel, Ribbon trail, Spectral ridge, Mountains, Pixel ridge, Pixel mountains, Frequency terrain, Particle field, Particle galaxy, Album art, Wave interference, Vinyl groove.
 
 ## Deferred Visualizer Concepts
 
@@ -76,3 +81,4 @@ These are not implemented yet and should be treated as follow-up work rather tha
 - Should the first GPU renderer use the same 32-band data, or should the analyzer expose richer spectrum data?
 - How much motion should be generated from audio data versus visualizer-specific animation state?
 - What renderer backend gives the best balance of smooth visuals, packaging simplicity, and maintainability?
+- Should Android keep the same 125 ms FFT sampling cadence as desktop for all visualizers, or should expensive/high-motion presets opt into faster sampling behind a quality setting?

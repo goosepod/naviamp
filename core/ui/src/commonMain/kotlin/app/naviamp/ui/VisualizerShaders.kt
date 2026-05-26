@@ -9,6 +9,8 @@ internal val NaviampVisualizer.shaderSource: String
         NaviampVisualizer.RibbonTrail -> RibbonTrailShaderSkSL
         NaviampVisualizer.SpectralRidge -> SpectralRidgeShaderSkSL
         NaviampVisualizer.FftMountain -> FftMountainShaderSkSL
+        NaviampVisualizer.PixelRidge -> PixelRidgeShaderSkSL
+        NaviampVisualizer.PixelMountain -> PixelMountainShaderSkSL
         NaviampVisualizer.FrequencyTerrain -> FrequencyTerrainShaderSkSL
         NaviampVisualizer.ParticleField -> ParticleFieldShaderSkSL
         NaviampVisualizer.ParticleGalaxy -> ParticleGalaxyShaderSkSL
@@ -318,6 +320,56 @@ half4 main(float2 coord) {
 }
 """
 
+private const val PixelRidgeShaderSkSL = CommonShaderHeader + """
+uniform shader iHistory;
+
+float historyAt(float freq, float depth) {
+    float2 sampleCoord = float2(clamp(freq, 0.0, 1.0) * 31.0, clamp(depth, 0.0, 1.0) * 31.0);
+    return clamp(iHistory.eval(sampleCoord).r, 0.0, 1.0);
+}
+
+half4 main(float2 coord) {
+    float2 uv = coord / iResolution;
+    if (iActive < 0.5) {
+        float line = 1.0 - smoothstep(0.7, 1.9, abs(coord.y - iResolution.y * 0.5));
+        return premul(iIdle.rgb, iIdle.a * line);
+    }
+
+    float sceneMask = smoothstep(0.02, 0.12, uv.x) *
+        smoothstep(0.98, 0.88, uv.x) *
+        smoothstep(0.10, 0.22, uv.y) *
+        smoothstep(0.94, 0.76, uv.y);
+    float x = clamp(uv.x, 0.0, 1.0);
+    float travel = smoothstep(0.12, 0.92, uv.y);
+    float perspective = travel;
+    float centerPull = 1.0 - abs(x - 0.5) * 2.0;
+    float freq = clamp((x - 0.5) / (0.42 + perspective * 0.34) + 0.5, 0.0, 1.0);
+    float historyDepth = clamp((1.0 - travel) + sin(x * 7.0 + iTime * 0.9) * 0.015 * iEnergy.y, 0.0, 1.0);
+    float amp = historyAt(freq, historyDepth);
+    float ampLeft = historyAt(clamp(freq - 0.035, 0.0, 1.0), historyDepth);
+    float ampRight = historyAt(clamp(freq + 0.035, 0.0, 1.0), historyDepth);
+    float ampBack = historyAt(freq, clamp(historyDepth + 0.045, 0.0, 1.0));
+    float slope = abs(ampRight - ampLeft) + abs(amp - ampBack);
+    float floorY = mix(0.36, 0.82, perspective);
+    float ridgeY = floorY - amp * (0.18 + perspective * 0.36) - centerPull * amp * 0.055;
+    ridgeY = clamp(ridgeY, 0.16, 0.86);
+    float ridge = 1.0 - smoothstep(0.004, 0.026 + perspective * 0.028, abs(uv.y - ridgeY));
+    float fill = smoothstep(ridgeY + 0.018, ridgeY + 0.24, uv.y) *
+        smoothstep(0.90, 0.36, uv.y) * (0.10 + amp * 0.28);
+    float wireZ = 1.0 - smoothstep(0.0, 0.014, abs(fract(travel * 15.0 + iTime * (0.25 + iEnergy.x * 0.42)) - 0.5));
+    float wireX = 1.0 - smoothstep(0.0, 0.006, abs(fract(freq * 17.0) - 0.5));
+    float wire = (wireZ * 0.16 + wireX * 0.08) * smoothstep(0.08, 0.9, travel);
+    float fog = smoothstep(0.04, 0.88, perspective);
+    float light = clamp(0.48 + amp * 0.72 + slope * 1.6 + perspective * 0.28, 0.0, 1.45);
+    float alpha = clamp(ridge * (0.56 + amp * 0.36) + fill + wire, 0.0, 0.94) * sceneMask * fog;
+    float3 color = palette(fract(freq * 0.74 + historyDepth * 0.32 + amp * 0.18 + iTime * 0.018));
+    color = mix(color, iReadable.rgb, ridge * 0.18 + slope * 0.22);
+    color = mix(color, iAccent.rgb, iEnergy.z * 0.16 + amp * 0.10);
+    color *= light;
+    return premul(color, alpha);
+}
+"""
+
 private const val FftMountainShaderSkSL = CommonShaderHeader + """
 uniform shader iHistory;
 
@@ -358,6 +410,69 @@ half4 main(float2 coord) {
         float center = 1.0 - smoothstep(0.02, 0.78, abs(freq - 0.50));
         float sideFalloff = smoothstep(0.0, 0.08, freq) * smoothstep(1.0, 0.92, freq);
         float base = 0.13 + fr * 0.78;
+        float profile = pow(amp, 0.62) * (0.16 + perspective * 0.18) * sideFalloff;
+        profile += center * amp * (0.045 + perspective * 0.060);
+        float yLine = base - profile;
+        float slope = abs(ampR - ampL);
+        float line = 1.0 - smoothstep(0.0035, 0.011 + perspective * 0.004, abs(localY - yLine));
+        float bright = (0.30 + perspective * 0.38 + amp * 0.34 + slope * 0.85);
+        float rowFade = smoothstep(1.0, 0.76, fr) * smoothstep(0.0, 0.08, fr);
+        float a = line * bright * rowFade;
+        alpha += a;
+        float3 rowColor = mix(palette(fract(freq * 0.56 + fr * 0.34 + amp * 0.18)), iReadable.rgb, 0.30 + slope * 0.22);
+        color += rowColor * a;
+    }
+
+    float centerGlow = smoothstep(0.42, 0.0, abs(freq - 0.5)) *
+        smoothstep(0.88, 0.24, localY) *
+        iEnergy.w * 0.08;
+    alpha = clamp(alpha + centerGlow, 0.0, 0.92) * sceneMask;
+    color = alpha > 0.001 ? color / max(alpha, 0.001) : iReadable.rgb;
+    color = mix(color, iAccent.rgb, iEnergy.z * 0.10);
+    return premul(color, alpha);
+}
+"""
+
+private const val PixelMountainShaderSkSL = CommonShaderHeader + """
+uniform shader iHistory;
+
+float historyAt(float freq, float depth) {
+    float2 sampleCoord = float2(clamp(freq, 0.0, 1.0) * 31.0, clamp(depth, 0.0, 1.0) * 31.0);
+    return clamp(iHistory.eval(sampleCoord).r, 0.0, 1.0);
+}
+
+half4 main(float2 coord) {
+    float2 uv = coord / iResolution;
+    if (iActive < 0.5) {
+        float line = 1.0 - smoothstep(0.7, 1.9, abs(coord.y - iResolution.y * 0.5));
+        return premul(iIdle.rgb, iIdle.a * line);
+    }
+
+    float plotLeft = 0.18;
+    float plotRight = 0.82;
+    float plotTop = 0.17;
+    float plotBottom = 0.85;
+    float plotWidth = plotRight - plotLeft;
+    float plotHeight = plotBottom - plotTop;
+    float sceneMask = smoothstep(plotLeft - 0.06, plotLeft + 0.01, uv.x) *
+        smoothstep(plotRight + 0.06, plotRight - 0.01, uv.x) *
+        smoothstep(plotTop - 0.04, plotTop + 0.02, uv.y) *
+        smoothstep(plotBottom + 0.06, plotBottom - 0.02, uv.y);
+    float freq = clamp((uv.x - plotLeft) / plotWidth, 0.0, 1.0);
+    float localY = (uv.y - plotTop) / plotHeight;
+    float alpha = 0.0;
+    float3 color = float3(0.0);
+
+    for (int row = 0; row < 32; ++row) {
+        float fr = float(row) / 31.0;
+        float depth = fr;
+        float perspective = 1.0 - fr;
+        float amp = historyAt(freq, depth);
+        float ampL = historyAt(clamp(freq - 0.026, 0.0, 1.0), depth);
+        float ampR = historyAt(clamp(freq + 0.026, 0.0, 1.0), depth);
+        float center = 1.0 - smoothstep(0.02, 0.78, abs(freq - 0.50));
+        float sideFalloff = smoothstep(0.0, 0.08, freq) * smoothstep(1.0, 0.92, freq);
+        float base = 0.91 - fr * 0.78;
         float profile = pow(amp, 0.62) * (0.16 + perspective * 0.18) * sideFalloff;
         profile += center * amp * (0.045 + perspective * 0.060);
         float yLine = base - profile;

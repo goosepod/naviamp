@@ -377,7 +377,7 @@ private fun NaviampAndroidApp(
         }
         while (visualizerVisible && nowPlayingOpen && (playbackState == PlaybackState.Playing || playbackState == PlaybackState.Loading)) {
             visualizerFrame = visualizerEngine.visualizerFrame()
-            delay(66)
+            delay(AndroidVisualizerFrameIntervalMillis)
         }
         visualizerFrame = null
     }
@@ -2144,6 +2144,7 @@ private fun NaviampAndroidApp(
         supportsCrossfade = playbackEngine.supportsCrossfade,
         showMobileNetworkQuality = true,
         selectedVisualizer = selectedVisualizer,
+        visualizerBandsProvider = { visualizerFrame?.bands.orEmpty() },
         query = query,
         home = homeState.toSharedHomeUi(
             coverArtUrl = { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
@@ -2213,7 +2214,6 @@ private fun NaviampAndroidApp(
                     stateLabel = "${playbackState.label()} ${playbackProgress.positionSeconds?.toInt() ?: 0}s",
                     coverArtUrl = track.coverArtUrl(provider),
                     waveform = waveformByTrackId[track.id.value],
-                    visualizerFrame = visualizerFrame,
                     visualizerAvailable = (playbackEngine as? VisualizerPlaybackEngine)?.supportsVisualizer == true,
                     visualizerVisible = visualizerVisible,
                     positionSeconds = playbackProgress.positionSeconds,
@@ -3303,6 +3303,7 @@ private const val PendingSeekToleranceSeconds = 2.0
 private const val PendingSeekStaleProgressWindowMillis = 1_500L
 private const val AndroidAutoProgressPublishIntervalMillis = 1_000L
 private const val AndroidNowPlayingHeartbeatIntervalMillis = 30_000L
+private const val AndroidVisualizerFrameIntervalMillis = 125L
 private const val AndroidPlaylistDetailRefreshIntervalMillis = 60_000L
 private const val AndroidAutoIgnoreZeroSeekAfterSeconds = 3.0
 private const val AndroidGaplessPrepareWindowSeconds = 2.0

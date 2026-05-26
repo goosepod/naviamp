@@ -1,5 +1,6 @@
 package app.naviamp.ui
 
+import android.content.pm.ApplicationInfo
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.BitmapShader
@@ -8,6 +9,8 @@ import android.graphics.Paint
 import android.graphics.RuntimeShader
 import android.graphics.Shader
 import android.os.Build
+import android.os.SystemClock
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.DisposableEffect
@@ -28,6 +31,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.platform.LocalContext
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
@@ -35,6 +39,7 @@ import kotlin.math.sin
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.URL
+import java.util.Locale
 
 @Composable
 internal actual fun PlatformLiveVisualizerSurface(
@@ -46,6 +51,7 @@ internal actual fun PlatformLiveVisualizerSurface(
     colors: NaviampColors,
     modifier: Modifier,
 ) {
+    val performanceLoggingEnabled = LocalContext.current.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         AndroidShaderVisualizerSurface(
             coverArtUrl = coverArtUrl,
@@ -54,6 +60,7 @@ internal actual fun PlatformLiveVisualizerSurface(
             visualizerColors = visualizerColors,
             active = active,
             colors = colors,
+            performanceLoggingEnabled = performanceLoggingEnabled,
             modifier = modifier,
         )
         return
@@ -64,6 +71,7 @@ internal actual fun PlatformLiveVisualizerSurface(
         visualizerColors = visualizerColors,
         active = active,
         colors = colors,
+        performanceLoggingEnabled = performanceLoggingEnabled,
         modifier = modifier,
     )
 }
@@ -77,6 +85,7 @@ private fun AndroidShaderVisualizerSurface(
     visualizerColors: NaviampPlayerColors,
     active: Boolean,
     colors: NaviampColors,
+    performanceLoggingEnabled: Boolean,
     modifier: Modifier,
 ) {
     var frameMillis by remember { mutableLongStateOf(0L) }
@@ -99,12 +108,15 @@ private fun AndroidShaderVisualizerSurface(
             null
         }
     }
-    val renderer = remember(visualizer) { AndroidShaderVisualizerRenderer(visualizer) }
+    val renderer = remember(visualizer, performanceLoggingEnabled) {
+        AndroidShaderVisualizerRenderer(visualizer, performanceLoggingEnabled)
+    }
     DisposableEffect(renderer) {
         onDispose { renderer.close() }
     }
 
     Canvas(modifier = modifier) {
+        val drawStartedNanos = System.nanoTime()
         val bands = bandsProvider()
         val visibleBands = minOf(bands.size, (size.width / 6f).toInt().coerceAtLeast(16))
         if (visibleBands <= 0 || size.width <= 0f || size.height <= 0f) {
@@ -124,12 +136,14 @@ private fun AndroidShaderVisualizerSurface(
                 timeSeconds = frameMillis / 1000f,
             )
         }
+        renderer.recordDrawNanos(System.nanoTime() - drawStartedNanos, active)
     }
 }
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 private class AndroidShaderVisualizerRenderer(
     private val visualizer: NaviampVisualizer,
+    performanceLoggingEnabled: Boolean,
 ) : AutoCloseable {
     private val runtimeShader = RuntimeShader(visualizer.shaderSource)
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -138,14 +152,15 @@ private class AndroidShaderVisualizerRenderer(
     private val historyPixels = IntArray(AndroidVisualizerHistoryColumns * AndroidVisualizerHistoryRows)
     private val previousHistoryBands = FloatArray(AndroidVisualizerShaderBandCount)
     private val historyBitmap = Bitmap.createBitmap(AndroidVisualizerHistoryColumns, AndroidVisualizerHistoryRows, Bitmap.Config.ARGB_8888)
-    private val historyShader = BitmapShader(historyBitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+    private var historyShader = historyBitmap.newClampShader(visualizer.historyFilterMode)
     private val fallbackAlbumArtBitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888).apply {
         eraseColor(android.graphics.Color.WHITE)
     }
-    private val fallbackAlbumArtShader = BitmapShader(fallbackAlbumArtBitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+    private val fallbackAlbumArtShader = fallbackAlbumArtBitmap.newClampShader()
     private var albumArtBitmap: Bitmap? = null
     private var albumArtShader: BitmapShader? = null
     private var lastHistoryPushSeconds = -1f
+    private val perfLogger = AndroidVisualizerPerfLogger("shader", visualizer, performanceLoggingEnabled)
 
     fun draw(
         canvas: AndroidCanvas,
@@ -170,7 +185,9 @@ private class AndroidShaderVisualizerRenderer(
             smoothBands[index] += (target - smoothBands[index]) * rise
             uniformBands[index] = smoothBands[index].coerceIn(0f, 1f)
         }
-        updateHistoryTexture(timeSeconds, active)
+        if (visualizer.usesHistoryShader) {
+            updateHistoryTexture(timeSeconds, active)
+        }
         val bass = uniformBands.take(8).average().toFloat().coerceIn(0f, 1f)
         val mids = uniformBands.drop(8).take(12).average().toFloat().coerceIn(0f, 1f)
         val highs = uniformBands.drop(20).average().toFloat().coerceIn(0f, 1f)
@@ -196,7 +213,7 @@ private class AndroidShaderVisualizerRenderer(
         runtimeShader.setFloatUniform("iBands", uniformBands)
         val albumBitmap = albumArtBitmap ?: fallbackAlbumArtBitmap
         runtimeShader.setFloatUniform("iAlbumArtSize", albumBitmap.width.toFloat(), albumBitmap.height.toFloat())
-        if (visualizer == NaviampVisualizer.SpectralRidge || visualizer == NaviampVisualizer.FftMountain) {
+        if (visualizer.usesHistoryShader) {
             runtimeShader.setInputShader("iHistory", historyShader)
         }
         if (visualizer == NaviampVisualizer.AlbumArtReactive) {
@@ -211,11 +228,15 @@ private class AndroidShaderVisualizerRenderer(
         fallbackAlbumArtBitmap.recycle()
     }
 
+    fun recordDrawNanos(drawNanos: Long, active: Boolean) {
+        perfLogger.record(drawNanos, active)
+    }
+
     private fun albumShaderFor(bitmap: Bitmap?): Shader {
         if (bitmap == null) return fallbackAlbumArtShader
         if (albumArtBitmap !== bitmap) {
             albumArtBitmap = bitmap
-            albumArtShader = BitmapShader(bitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+            albumArtShader = bitmap.newClampShader()
         }
         return albumArtShader ?: fallbackAlbumArtShader
     }
@@ -246,8 +267,27 @@ private class AndroidShaderVisualizerRenderer(
             historyPixels[column] = android.graphics.Color.argb(255, value, value, value)
         }
         historyBitmap.setPixels(historyPixels, 0, rowWidth, 0, 0, AndroidVisualizerHistoryColumns, AndroidVisualizerHistoryRows)
+        historyShader = historyBitmap.newClampShader(visualizer.historyFilterMode)
     }
 }
+
+private val NaviampVisualizer.usesHistoryShader: Boolean
+    get() = this == NaviampVisualizer.SpectralRidge ||
+        this == NaviampVisualizer.FftMountain ||
+        this == NaviampVisualizer.PixelRidge ||
+        this == NaviampVisualizer.PixelMountain
+
+private val NaviampVisualizer.historyFilterMode: Int
+    get() = when (this) {
+        NaviampVisualizer.PixelRidge,
+        NaviampVisualizer.PixelMountain -> BitmapShader.FILTER_MODE_NEAREST
+        else -> BitmapShader.FILTER_MODE_LINEAR
+    }
+
+private fun Bitmap.newClampShader(filterMode: Int = BitmapShader.FILTER_MODE_LINEAR): BitmapShader =
+    BitmapShader(this, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP).apply {
+        setFilterMode(filterMode)
+    }
 
 @Composable
 private fun AndroidCanvasVisualizerSurface(
@@ -256,9 +296,13 @@ private fun AndroidCanvasVisualizerSurface(
     visualizerColors: NaviampPlayerColors,
     active: Boolean,
     colors: NaviampColors,
+    performanceLoggingEnabled: Boolean,
     modifier: Modifier,
 ) {
     var frameMillis by remember { mutableLongStateOf(0L) }
+    val perfLogger = remember(visualizer, performanceLoggingEnabled) {
+        AndroidVisualizerPerfLogger("canvas", visualizer, performanceLoggingEnabled)
+    }
     LaunchedEffect(active, visualizer) {
         if (!active) {
             frameMillis = 0L
@@ -269,10 +313,12 @@ private fun AndroidCanvasVisualizerSurface(
         }
     }
     Canvas(modifier = modifier) {
+        val drawStartedNanos = System.nanoTime()
         val bands = bandsProvider()
         val visibleBands = minOf(bands.size, (size.width / 6f).toInt().coerceAtLeast(16))
         if (!active || visibleBands <= 0) {
             drawIdleLine(colors)
+            perfLogger.record(System.nanoTime() - drawStartedNanos, active)
             return@Canvas
         }
 
@@ -287,6 +333,8 @@ private fun AndroidCanvasVisualizerSurface(
             NaviampVisualizer.RibbonTrail -> drawRibbonTrail(samples, visualizerColors, colors, timeSeconds)
             NaviampVisualizer.SpectralRidge,
             NaviampVisualizer.FftMountain,
+            NaviampVisualizer.PixelRidge,
+            NaviampVisualizer.PixelMountain,
             NaviampVisualizer.FrequencyTerrain -> drawFrequencyTerrain(samples, visualizerColors, colors)
             NaviampVisualizer.ParticleField,
             NaviampVisualizer.ParticleGalaxy -> drawParticleField(samples, visualizerColors, colors, timeSeconds, galaxy = visualizer == NaviampVisualizer.ParticleGalaxy)
@@ -294,6 +342,51 @@ private fun AndroidCanvasVisualizerSurface(
             NaviampVisualizer.WaveInterference -> drawWaveInterference(samples, visualizerColors, colors, timeSeconds)
             NaviampVisualizer.VinylGroove -> drawVinylGroove(samples, visualizerColors, colors, timeSeconds)
         }
+        perfLogger.record(System.nanoTime() - drawStartedNanos, active)
+    }
+}
+
+private class AndroidVisualizerPerfLogger(
+    private val renderer: String,
+    private val visualizer: NaviampVisualizer,
+    private val enabled: Boolean,
+) {
+    private var windowStartedMillis = SystemClock.elapsedRealtime()
+    private var frameCount = 0
+    private var drawNanosTotal = 0L
+    private var maxDrawNanos = 0L
+
+    fun record(drawNanos: Long, active: Boolean) {
+        if (!enabled) return
+        if (!active) {
+            reset()
+            return
+        }
+        frameCount += 1
+        drawNanosTotal += drawNanos
+        maxDrawNanos = maxOf(maxDrawNanos, drawNanos)
+
+        val nowMillis = SystemClock.elapsedRealtime()
+        val elapsedMillis = nowMillis - windowStartedMillis
+        if (elapsedMillis < AndroidVisualizerPerfLogIntervalMillis || frameCount <= 0) return
+
+        val averageDrawMillis = drawNanosTotal / frameCount / 1_000_000.0
+        val maxDrawMillis = maxDrawNanos / 1_000_000.0
+        val fps = frameCount * 1_000.0 / elapsedMillis.toDouble()
+        Log.i(
+            AndroidVisualizerPerfLogTag,
+            "${visualizer.name} renderer=$renderer fps=${fps.formatVisualizerMetric()} " +
+                "avgDrawMs=${averageDrawMillis.formatVisualizerMetric()} " +
+                "maxDrawMs=${maxDrawMillis.formatVisualizerMetric()} frames=$frameCount",
+        )
+        reset(nowMillis)
+    }
+
+    private fun reset(startMillis: Long = SystemClock.elapsedRealtime()) {
+        windowStartedMillis = startMillis
+        frameCount = 0
+        drawNanosTotal = 0L
+        maxDrawNanos = 0L
     }
 }
 
@@ -301,6 +394,11 @@ private const val AndroidVisualizerShaderBandCount = 32
 private const val AndroidVisualizerHistoryColumns = 32
 private const val AndroidVisualizerHistoryRows = 32
 private const val AndroidVisualizerHistoryIntervalSeconds = 0.075f
+private const val AndroidVisualizerPerfLogIntervalMillis = 5_000L
+private const val AndroidVisualizerPerfLogTag = "NaviampVisualizerPerf"
+
+private fun Double.formatVisualizerMetric(): String =
+    String.format(Locale.US, "%.2f", this)
 
 private fun DrawScope.drawIdleLine(colors: NaviampColors) {
     drawLine(
