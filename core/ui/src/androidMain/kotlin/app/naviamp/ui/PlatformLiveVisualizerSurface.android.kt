@@ -129,7 +129,7 @@ private fun AndroidShaderVisualizerSurface(
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 private class AndroidShaderVisualizerRenderer(
-    visualizer: NaviampVisualizer,
+    private val visualizer: NaviampVisualizer,
 ) : AutoCloseable {
     private val runtimeShader = RuntimeShader(visualizer.shaderSource)
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -194,11 +194,14 @@ private class AndroidShaderVisualizerRenderer(
         runtimeShader.setFloatUniform("iSourceBands", bands.size.toFloat().coerceAtLeast(1f))
         runtimeShader.setFloatUniform("iEnergy", bass, mids, highs, uniformBands.average().toFloat().coerceIn(0f, 1f))
         runtimeShader.setFloatUniform("iBands", uniformBands)
-        val albumShader = albumShaderFor(albumArtBitmap)
         val albumBitmap = albumArtBitmap ?: fallbackAlbumArtBitmap
         runtimeShader.setFloatUniform("iAlbumArtSize", albumBitmap.width.toFloat(), albumBitmap.height.toFloat())
-        runtimeShader.setInputShader("iHistory", historyShader)
-        runtimeShader.setInputShader("iAlbumArt", albumShader)
+        if (visualizer == NaviampVisualizer.SpectralRidge || visualizer == NaviampVisualizer.FftMountain) {
+            runtimeShader.setInputShader("iHistory", historyShader)
+        }
+        if (visualizer == NaviampVisualizer.AlbumArtReactive) {
+            runtimeShader.setInputShader("iAlbumArt", albumShaderFor(albumArtBitmap))
+        }
         paint.shader = runtimeShader
         canvas.drawRect(0f, 0f, width, height, paint)
     }
