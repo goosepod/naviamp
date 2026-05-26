@@ -101,26 +101,32 @@ fun NowPlayingPanel(
         playbackState != PlaybackState.Loading &&
         playbackState !is PlaybackState.Error &&
         (supportsPause || playbackState != PlaybackState.Playing)
-    val backToItems = backTo.mapIndexed { index, track ->
-        track.toNowPlayingItemUi(
-            id = "queue:${firstBackToQueueIndex - index}",
-            coverArtUrl = upNextCoverArtUrl(track),
-            meta = "",
-        )
+    val backToItems = remember(backTo, firstBackToQueueIndex, upNextCoverArtUrl) {
+        backTo.mapIndexed { index, track ->
+            track.toNowPlayingItemUi(
+                id = "queue:${firstBackToQueueIndex - index}",
+                coverArtUrl = upNextCoverArtUrl(track),
+                meta = "",
+            )
+        }
     }
-    val upNextItems = upNext.mapIndexed { index, track ->
-        track.toNowPlayingItemUi(
-            id = "queue:${firstUpNextQueueIndex + index}",
-            coverArtUrl = upNextCoverArtUrl(track),
-            meta = "",
-        )
+    val upNextItems = remember(upNext, firstUpNextQueueIndex, upNextCoverArtUrl) {
+        upNext.mapIndexed { index, track ->
+            track.toNowPlayingItemUi(
+                id = "queue:${firstUpNextQueueIndex + index}",
+                coverArtUrl = upNextCoverArtUrl(track),
+                meta = "",
+            )
+        }
     }
-    val relatedItems = relatedTracks.mapIndexed { index, track ->
-        track.toNowPlayingItemUi(
-            id = "related:$index",
-            coverArtUrl = relatedCoverArtUrl(track),
-            meta = "",
-        )
+    val relatedItems = remember(relatedTracks, relatedCoverArtUrl) {
+        relatedTracks.mapIndexed { index, track ->
+            track.toNowPlayingItemUi(
+                id = "related:$index",
+                coverArtUrl = relatedCoverArtUrl(track),
+                meta = "",
+            )
+        }
     }
     val itemTracks = remember(backTo, upNext, relatedTracks, firstBackToQueueIndex, firstUpNextQueueIndex) {
         buildMap {
@@ -129,15 +135,17 @@ fun NowPlayingPanel(
             relatedTracks.forEachIndexed { index, track -> put("related:$index", track) }
         }
     }
-    val radioStations = internetRadioStations
-        .sortedBy { it.name.lowercase() }
-        .map { station ->
-            NaviampNowPlayingItemUi(
-                id = station.id,
-                title = station.name,
-                subtitle = station.homePageUrl ?: station.streamUrl,
-            )
-        }
+    val radioStations = remember(internetRadioStations) {
+        internetRadioStations
+            .sortedBy { it.name.lowercase() }
+            .map { station ->
+                NaviampNowPlayingItemUi(
+                    id = station.id,
+                    title = station.name,
+                    subtitle = station.homePageUrl ?: station.streamUrl,
+                )
+            }
+    }
     val nowPlayingUi = if (nowPlayingTrack != null) {
         nowPlayingTrack.toNowPlayingUi(
             NowPlayingTrackUiConfig(

@@ -58,7 +58,8 @@ class AndroidStorage(
     DownloadRepository<AndroidDownloadedAudioFile, AndroidDownloadedTrack>,
     PlaybackHistoryRepository<AndroidPlaybackHistoryItem>,
     LocalLibraryIndexRepository,
-    CacheMaintenanceRepository<AndroidStorageStats> {
+    CacheMaintenanceRepository<AndroidStorageStats>,
+    AutoCloseable {
     private val appContext = context.applicationContext
     private val driver = AndroidSqliteDriver(
         schema = NaviampStorageDatabase.Schema,
@@ -77,6 +78,10 @@ class AndroidStorage(
     val audioCacheDirectory: File = File(appContext.cacheDir, "audio-cache")
     val downloadDirectory: File = File(appContext.filesDir, "downloads")
     private var maxAudioCacheBytes: Long = 2L * 1024L * 1024L * 1024L
+
+    override fun close() {
+        driver.close()
+    }
 
     fun latestNavidromeSource(): SavedMediaSource? =
         queries.selectLatestMediaSource()
