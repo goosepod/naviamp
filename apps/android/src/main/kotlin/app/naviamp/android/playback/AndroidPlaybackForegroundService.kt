@@ -105,14 +105,18 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 return START_STICKY
             }
             ActionPrevious -> {
-                AndroidPlaybackNotificationControls.onPrevious?.invoke()
-                    ?: playSavedSessionAdjacent(-1)
+                if (!playServiceOwnedAdjacent(-1)) {
+                    AndroidPlaybackNotificationControls.onPrevious?.invoke()
+                        ?: playSavedSessionAdjacent(-1)
+                }
                 refreshNotification(intent)
                 return START_STICKY
             }
             ActionNext -> {
-                AndroidPlaybackNotificationControls.onNext?.invoke()
-                    ?: playSavedSessionAdjacent(1)
+                if (!playServiceOwnedAdjacent(1)) {
+                    AndroidPlaybackNotificationControls.onNext?.invoke()
+                        ?: playSavedSessionAdjacent(1)
+                }
                 refreshNotification(intent)
                 return START_STICKY
             }
@@ -370,6 +374,30 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         playSavedSession(nextSession)
     }
 
+    private fun playServiceOwnedAdjacent(delta: Int): Boolean {
+        if (!serviceOwnedPlayback) return false
+        val queue = currentAutoQueue
+        if (queue.isEmpty() || currentAutoQueueIndex !in queue.indices) return false
+        val nextIndex = currentAutoQueueIndex + delta
+        if (nextIndex !in queue.indices) {
+            Log.i(
+                "NaviampAutoCommand",
+                "Service-owned queue has no adjacent track delta=$delta index=$currentAutoQueueIndex size=${queue.size}",
+            )
+            AndroidPlaybackNotificationControls.isPlaying = false
+            updateMediaSessionPlaybackState()
+            return true
+        }
+        val storage = AndroidStorage(applicationContext)
+        val sourceId = storage.latestNavidromeSource()?.id ?: return false
+        Log.i(
+            "NaviampAutoCommand",
+            "Service-owned queue advancing delta=$delta from=$currentAutoQueueIndex to=$nextIndex size=${queue.size}",
+        )
+        playServiceTrackQueue(storage, sourceId, queue, nextIndex)
+        return true
+    }
+
     private fun playSavedSession(existingSession: PlaybackSessionSettings? = null) {
         val storage = AndroidStorage(applicationContext)
         val source = storage.latestNavidromeSource() ?: return
@@ -443,7 +471,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                             updateMediaSessionPlaybackState()
                         }
                         if (state == PlaybackState.Finished) {
-                            playSavedSessionAdjacent(1)
+                            playServiceOwnedAdjacent(1)
                         }
                     },
                     onProgressChanged = { progress ->
@@ -915,14 +943,18 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                     }
 
                     override fun onSkipToPrevious() {
-                        AndroidPlaybackNotificationControls.onPrevious?.invoke()
-                            ?: playSavedSessionAdjacent(-1)
+                        if (!playServiceOwnedAdjacent(-1)) {
+                            AndroidPlaybackNotificationControls.onPrevious?.invoke()
+                                ?: playSavedSessionAdjacent(-1)
+                        }
                         refreshNotification(null)
                     }
 
                     override fun onSkipToNext() {
-                        AndroidPlaybackNotificationControls.onNext?.invoke()
-                            ?: playSavedSessionAdjacent(1)
+                        if (!playServiceOwnedAdjacent(1)) {
+                            AndroidPlaybackNotificationControls.onNext?.invoke()
+                                ?: playSavedSessionAdjacent(1)
+                        }
                         refreshNotification(null)
                     }
 
@@ -1435,7 +1467,6 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             subtitle = track.artistName ?: track.albumTitle,
             coverArtUrl = coverArtUrl,
         )
-        AndroidPlaybackNotificationControls.isPlaying = false
         AndroidPlaybackNotificationControls.positionMillis = session.positionSeconds
             ?.takeIf { it > 0.0 }
             ?.let { (it * 1_000.0).toLong() }
