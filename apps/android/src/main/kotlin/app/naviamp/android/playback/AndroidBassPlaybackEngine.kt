@@ -48,6 +48,7 @@ class AndroidBassPlaybackEngine(
     private var tlsSettings: NavidromeTlsSettings = NavidromeTlsSettings()
     private var audioFocusRequest: AudioFocusRequest? = null
     private var pausedForTransientFocusLoss = false
+    private var duckedForFocusLoss = false
     private val playbackWakeLock: PowerManager.WakeLock by lazy {
         appContext.getSystemService(PowerManager::class.java).newWakeLock(
             PowerManager.PARTIAL_WAKE_LOCK,
@@ -59,21 +60,34 @@ class AndroidBassPlaybackEngine(
     @Volatile
     private var currentVisualizerFrame: PlaybackVisualizerFrame? = null
     private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
+        Log.i(Tag, "Audio focus changed=${focusChange.audioFocusChangeName()}")
         when (focusChange) {
             AudioManager.AUDIOFOCUS_GAIN -> {
+                if (duckedForFocusLoss) {
+                    duckedForFocusLoss = false
+                    applyVolume()
+                    Log.i(Tag, "Restored playback volume after ducking")
+                }
                 if (pausedForTransientFocusLoss) {
                     pausedForTransientFocusLoss = false
                     resumeAfterFocusGain()
                 }
             }
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
                 pausedForTransientFocusLoss = AndroidPlaybackNotificationControls.isPlaying
-                pauseForFocusLoss()
+                pauseForFocusLoss("transient audio focus loss")
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                if (AndroidPlaybackNotificationControls.isPlaying) {
+                    duckedForFocusLoss = true
+                    applyVolume()
+                    Log.i(Tag, "Ducked playback for transient audio focus loss")
+                }
             }
             AudioManager.AUDIOFOCUS_LOSS -> {
                 pausedForTransientFocusLoss = false
-                pauseForFocusLoss()
+                duckedForFocusLoss = false
+                pauseForFocusLoss("audio focus loss")
                 abandonAudioFocus()
             }
         }
@@ -175,6 +189,7 @@ class AndroidBassPlaybackEngine(
         val handle = stream
         if (handle != 0 && bass.pause(handle)) {
             pausedForTransientFocusLoss = false
+            duckedForFocusLoss = false
             abandonAudioFocus()
             releasePlaybackWakeLock()
             AndroidPlaybackNotificationControls.isPlaying = false
@@ -186,6 +201,8 @@ class AndroidBassPlaybackEngine(
     override fun resume() {
         val handle = stream
         if (handle != 0 && requestAudioFocus() && bass.play(handle)) {
+            duckedForFocusLoss = false
+            applyVolume()
             acquirePlaybackWakeLock()
             AndroidPlaybackNotificationControls.isPlaying = true
             AndroidPlaybackForegroundService.update(appContext, notificationMetadata)
@@ -212,6 +229,7 @@ class AndroidBassPlaybackEngine(
         freePreparedStream()
         stopStreamOnly()
         pausedForTransientFocusLoss = false
+        duckedForFocusLoss = false
         abandonAudioFocus()
         releasePlaybackWakeLock()
         AndroidPlaybackNotificationControls.isPlaying = false
@@ -223,6 +241,7 @@ class AndroidBassPlaybackEngine(
     override fun release() {
         stopStreamOnly()
         pausedForTransientFocusLoss = false
+        duckedForFocusLoss = false
         abandonAudioFocus()
         releasePlaybackWakeLock()
         AndroidPlaybackNotificationControls.clear()
@@ -305,6 +324,7 @@ class AndroidBassPlaybackEngine(
         progressJob?.cancel()
         progressJob = scope.launch {
             var lastMetadata = PlaybackStreamMetadata()
+            var lastActiveState: Int? = null
             while (isActive && stream == handle) {
                 val active = bass.activeState(handle)
                 val progressHandle = currentSourceStream.takeIf { it != 0 } ?: handle
@@ -312,6 +332,14 @@ class AndroidBassPlaybackEngine(
                     positionSeconds = bass.positionSeconds(progressHandle),
                     durationSeconds = bass.durationSeconds(progressHandle),
                 )
+                if (active != lastActiveState) {
+                    lastActiveState = active
+                    Log.i(
+                        Tag,
+                        "BASS active=${active.bassActiveStateName()} handle=$handle source=$progressHandle " +
+                            "position=${progress.positionSeconds} duration=${progress.durationSeconds}",
+                    )
+                }
                 onProgressChanged?.invoke(progress)
                 val metadata = PlaybackStreamMetadata.fromProperties(bass.streamTags(progressHandle).toStreamProperties())
                 if (metadata != lastMetadata) {
@@ -364,9 +392,12 @@ class AndroidBassPlaybackEngine(
         AndroidPlaybackForegroundService.update(appContext, notificationMetadata)
     }
 
-    private fun pauseForFocusLoss() {
+    private fun pauseForFocusLoss(reason: String) {
         val handle = stream
         if (handle != 0 && bass.pause(handle)) {
+            duckedForFocusLoss = false
+            applyVolume()
+            Log.i(Tag, "Paused playback for $reason")
             releasePlaybackWakeLock()
             AndroidPlaybackNotificationControls.isPlaying = false
             AndroidPlaybackForegroundService.update(appContext, notificationMetadata)
@@ -377,6 +408,9 @@ class AndroidBassPlaybackEngine(
     private fun resumeAfterFocusGain() {
         val handle = stream
         if (handle != 0 && bass.play(handle)) {
+            duckedForFocusLoss = false
+            applyVolume()
+            Log.i(Tag, "Resumed playback after audio focus gain")
             acquirePlaybackWakeLock()
             AndroidPlaybackNotificationControls.isPlaying = true
             AndroidPlaybackForegroundService.update(appContext, notificationMetadata)
@@ -395,7 +429,7 @@ class AndroidBassPlaybackEngine(
                 )
                 .setOnAudioFocusChangeListener(audioFocusChangeListener)
                 .setAcceptsDelayedFocusGain(false)
-                .setWillPauseWhenDucked(true)
+                .setWillPauseWhenDucked(false)
                 .build()
                 .also { audioFocusRequest = it }
             audioManager.requestAudioFocus(request)
@@ -448,7 +482,7 @@ class AndroidBassPlaybackEngine(
     }
 
     private fun applyVolume() {
-        val userVolume = volumePercent / 100f
+        val userVolume = (volumePercent / 100f) * if (duckedForFocusLoss) FocusDuckVolumeFactor else 1f
         stream.takeIf { it != 0 }?.let { handle ->
             if (currentSourceStream != 0 && handle != currentSourceStream) {
                 bass.setVolume(handle, userVolume)
@@ -520,6 +554,24 @@ private fun localFileFromUrl(url: String): File? =
 private fun String.sanitizedForLog(): String =
     replace(Regex("""([?&](?:t|s|p)=)[^&]+"""), "$1***")
 
+private fun Int.audioFocusChangeName(): String =
+    when (this) {
+        AudioManager.AUDIOFOCUS_GAIN -> "GAIN"
+        AudioManager.AUDIOFOCUS_LOSS -> "LOSS"
+        AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> "LOSS_TRANSIENT"
+        AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> "LOSS_TRANSIENT_CAN_DUCK"
+        else -> toString()
+    }
+
+private fun Int.bassActiveStateName(): String =
+    when (this) {
+        BassActiveStopped -> "STOPPED"
+        BassActivePlaying -> "PLAYING"
+        BassActiveStalled -> "STALLED"
+        BassActivePaused -> "PAUSED"
+        else -> toString()
+    }
+
 private fun Array<String>.toStreamProperties(): Map<String, String> =
     buildMap {
         this@toStreamProperties.forEach { tag ->
@@ -571,6 +623,7 @@ private const val BassActiveStalled = 2
 private const val BassActivePaused = 3
 private const val VisualizerBandCount = 32
 private const val VisualizerGain = 12f
+private const val FocusDuckVolumeFactor = 0.25f
 private const val DefaultMixerFrequency = 44_100
 private const val DefaultMixerChannels = 2
 private const val FinishedPositionToleranceSeconds = 0.75
