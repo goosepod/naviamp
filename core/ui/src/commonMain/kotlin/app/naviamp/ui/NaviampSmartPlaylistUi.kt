@@ -50,10 +50,16 @@ import kotlinx.coroutines.launch
 @Composable
 fun SmartPlaylistBuilderDialog(
     colors: NaviampColors,
+    initialDraft: SmartPlaylistDraft = SmartPlaylistDraft(),
+    title: String = "Smart playlist",
+    saveLabel: String = "Save",
     onDismissRequest: () -> Unit,
     onSave: suspend (SmartPlaylistDefinition) -> Unit,
 ) {
-    var draft by remember { mutableStateOf(SmartPlaylistDraft()) }
+    var draft by remember(initialDraft) { mutableStateOf(initialDraft) }
+    var importJson by remember { mutableStateOf("") }
+    var importMessage by remember { mutableStateOf<String?>(null) }
+    var importOpen by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
     var saveMessage by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
@@ -64,7 +70,7 @@ fun SmartPlaylistBuilderDialog(
 
     AlertDialog(
         onDismissRequest = onDismissRequest,
-        title = { Text("Smart playlist") },
+        title = { Text(title) },
         text = {
             Column(
                 modifier = Modifier
@@ -89,6 +95,49 @@ fun SmartPlaylistBuilderDialog(
                         label = "Comment",
                         colors = colors,
                     )
+                }
+                SmartPlaylistSection(
+                    title = "Import",
+                    colors = colors,
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick = { importOpen = !importOpen }) {
+                            Text(if (importOpen) "Hide import" else "Import JSON", color = colors.accent)
+                        }
+                        importMessage?.let { message ->
+                            Text(message, color = colors.secondaryText, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                        }
+                    }
+                    if (importOpen) {
+                        OutlinedTextField(
+                            value = importJson,
+                            onValueChange = {
+                                importJson = it
+                                importMessage = null
+                            },
+                            label = { Text("Paste .nsp or Navidrome smart playlist JSON", color = colors.secondaryText) },
+                            minLines = 4,
+                            maxLines = 8,
+                            textStyle = TextStyle(fontSize = 12.sp),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        TextButton(
+                            enabled = importJson.isNotBlank(),
+                            onClick = {
+                                runCatching {
+                                    SmartPlaylistDefinition.fromNspJson(importJson)
+                                }.onSuccess { imported ->
+                                    draft = SmartPlaylistDraft.fromDefinition(imported)
+                                    importMessage = "Imported ${imported.name}."
+                                    importOpen = false
+                                }.onFailure { error ->
+                                    importMessage = error.message ?: "Could not import smart playlist JSON."
+                                }
+                            },
+                        ) {
+                            Text("Validate and load", color = colors.accent)
+                        }
+                    }
                 }
                 SmartPlaylistCustomControls(
                     colors = colors,
@@ -135,7 +184,7 @@ fun SmartPlaylistBuilderDialog(
                     }
                 },
             ) {
-                Text(if (saving) "Saving..." else "Save")
+                Text(if (saving) "Saving..." else saveLabel)
             }
         },
         dismissButton = {

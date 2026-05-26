@@ -39,6 +39,9 @@ class AndroidNavidromeHttpClient(
     override suspend fun get(url: String): String =
         request(url = url, method = "GET")
 
+    override suspend fun get(url: String, headers: Map<String, String>): String =
+        request(url = url, method = "GET", headers = headers)
+
     override suspend fun postJson(url: String, body: String, headers: Map<String, String>): String =
         request(url = url, method = "POST", body = body, headers = headers)
 

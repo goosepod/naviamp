@@ -204,4 +204,57 @@ class SmartPlaylistDraftTest {
 
         assertEquals(4294967296L, size)
     }
+
+    @Test
+    fun importsNspJsonToEditableDraft() {
+        val definition = SmartPlaylistDefinition.fromNspJson(
+            """
+            {
+              "name": "Fresh Good Songs",
+              "comment": "Imported",
+              "public": true,
+              "all": [
+                {
+                  "any": [
+                    { "gt": { "rating": 3 } },
+                    { "is": { "loved": true } }
+                  ]
+                },
+                { "inTheLast": { "dateadded": 7 } }
+              ],
+              "sort": "-rating,title",
+              "limit": 100
+            }
+            """.trimIndent(),
+        )
+
+        val draft = SmartPlaylistDraft.fromDefinition(definition)
+
+        assertEquals("Fresh Good Songs", draft.name)
+        assertEquals("Imported", draft.comment)
+        assertEquals(true, draft.isPublic)
+        assertEquals(1, draft.groups.size)
+        assertEquals("3", draft.groups.single().conditions.first().value)
+        assertEquals("7", draft.conditions.single().value)
+        assertEquals(2, draft.sort.size)
+        assertEquals("Rating", draft.sort.first().field.label)
+    }
+
+    @Test
+    fun rejectsUnsupportedImportedFields() {
+        val error = assertFailsWith<IllegalArgumentException> {
+            SmartPlaylistDefinition.fromNspJson(
+                """
+                {
+                  "name": "Custom",
+                  "all": [
+                    { "is": { "my_custom_tag": "yes" } }
+                  ]
+                }
+                """.trimIndent(),
+            )
+        }
+
+        assertEquals("Imported smart playlist field 'my_custom_tag' is not supported by the builder.", error.message)
+    }
 }

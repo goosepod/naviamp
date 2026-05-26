@@ -526,6 +526,40 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun smartPlaylistDefinitionUsesNavidromeNativePlaylistApi() = runTest {
+        val httpClient = RecordingNativeHttpClient(
+            """
+            {
+              "data": {
+                "id": "smart-1",
+                "name": "Road Smart",
+                "comment": "Fresh tracks",
+                "public": true,
+                "rules": {
+                  "all": [
+                    { "is": { "loved": true } }
+                  ],
+                  "sort": "-rating",
+                  "limit": 25
+                }
+              }
+            }
+            """.trimIndent(),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test", nativeToken = "native-token"),
+            httpClient = httpClient,
+        )
+
+        val definition = provider.smartPlaylistDefinition("smart playlist/1")
+
+        assertEquals("Road Smart", definition.name)
+        assertEquals("https://music.example.test/api/playlist/smart+playlist%2F1", httpClient.getUrls.single())
+        assertEquals(mapOf("x-nd-authorization" to "Bearer native-token"), httpClient.getHeaders.single())
+        assertEquals(25, definition.limit)
+    }
+
+    @Test
     fun createSmartPlaylistRequiresNativeToken() = runTest {
         val provider = NavidromeProvider(
             connection = connection("https://music.example.test"),
@@ -973,6 +1007,8 @@ class NavidromeProviderTest {
     }
 
     private class RecordingNativeHttpClient(private val response: String) : NavidromeHttpClient {
+        val getUrls = mutableListOf<String>()
+        val getHeaders = mutableListOf<Map<String, String>>()
         val postUrls = mutableListOf<String>()
         val postBodies = mutableListOf<String>()
         val postHeaders = mutableListOf<Map<String, String>>()
@@ -981,6 +1017,12 @@ class NavidromeProviderTest {
         val putHeaders = mutableListOf<Map<String, String>>()
 
         override suspend fun get(url: String): String = response
+
+        override suspend fun get(url: String, headers: Map<String, String>): String {
+            getUrls += url
+            getHeaders += headers
+            return response
+        }
 
         override suspend fun postJson(url: String, body: String, headers: Map<String, String>): String {
             postUrls += url

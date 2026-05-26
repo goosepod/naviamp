@@ -35,6 +35,8 @@ References:
 - [x] Add editable rule groups with per-group all/any matching.
 - [x] Refresh saved smart playlists from the server and prefer Navidrome playlist cover art when available.
 - [x] Re-fetch playlist details from Navidrome when opening/playing playlists and periodically while a detail view is open, so dynamic smart playlists can catch up as favorites, ratings, or recently added tracks change.
+- [x] Add shared JSON import/validation so `.nsp` or native Navidrome smart playlist JSON can be loaded into the builder before saving.
+- [x] Add desktop editing for existing Navidrome smart playlists by loading rules from the native `/api/playlist/{id}` endpoint and saving through update.
 
 ## UI Shape
 
@@ -54,4 +56,5 @@ Current limitations:
 - Playlist membership filters require manually entering the Navidrome playlist ID until playlist-picker integration is added.
 - Custom, user-defined Navidrome tags can be used by the rule model, but the builder does not yet expose an arbitrary custom-field row.
 - Existing saved connections that do not have a native token must reconnect with a password before saving smart playlists.
-- `.nsp` import remains a fallback workflow for servers or providers without a native smart-playlist save API.
+- `.nsp` import currently accepts pasted JSON in the shared builder. A native file picker can wrap the same shared parser per platform.
+- Editing existing smart playlists depends on Navidrome returning editable `rules` through the native playlist API. Regular playlists or smart playlists with unsupported custom fields will show a validation/load error.

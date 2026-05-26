@@ -21,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,7 +34,9 @@ import androidx.compose.ui.unit.sp
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
+import app.naviamp.domain.smartplaylist.SmartPlaylistDraft
 import app.naviamp.ui.SmartPlaylistBuilderDialog
+import kotlinx.coroutines.launch
 
 enum class PlaylistSortMode(val label: String) {
     Alphabetical("A-Z"),
@@ -58,8 +61,14 @@ fun PlaylistsPanel(
     onAddPlaylistToQueue: (Playlist) -> Unit,
     onAddPlaylistToPlaylist: (Playlist) -> Unit,
     onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit,
+    onSmartPlaylistUpdate: suspend (Playlist, SmartPlaylistDefinition) -> Unit,
+    onSmartPlaylistLoad: suspend (Playlist) -> SmartPlaylistDefinition,
 ) {
     var smartPlaylistBuilderOpen by remember { mutableStateOf(false) }
+    var smartPlaylistEditTarget by remember { mutableStateOf<Playlist?>(null) }
+    var smartPlaylistInitialDraft by remember { mutableStateOf(SmartPlaylistDraft()) }
+    var smartPlaylistLoadMessage by remember { mutableStateOf<String?>(null) }
+    val coroutineScope = rememberCoroutineScope()
     val sortedPlaylists = when (sortMode) {
         PlaylistSortMode.Alphabetical -> playlists.sortedBy { it.name.lowercase() }
         PlaylistSortMode.RecentlyPlayed -> playlists.sortedWith(
@@ -78,7 +87,14 @@ fun PlaylistsPanel(
         ) {
             Text("Playlists", color = appColors.primaryText, style = MaterialTheme.typography.titleMedium)
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                IconButton(onClick = { smartPlaylistBuilderOpen = true }, modifier = Modifier.size(32.dp)) {
+                IconButton(
+                    onClick = {
+                        smartPlaylistEditTarget = null
+                        smartPlaylistInitialDraft = SmartPlaylistDraft()
+                        smartPlaylistBuilderOpen = true
+                    },
+                    modifier = Modifier.size(32.dp),
+                ) {
                     Icon(
                         NavigationIcons.Playlist,
                         contentDescription = "Create smart playlist",
@@ -108,6 +124,9 @@ fun PlaylistsPanel(
         status?.let {
             Text(it, color = appColors.secondaryText, fontSize = 12.sp)
         }
+        smartPlaylistLoadMessage?.let {
+            Text(it, color = appColors.secondaryText, fontSize = 12.sp)
+        }
         if (sortedPlaylists.isEmpty()) {
             Text("No playlists yet.", color = appColors.secondaryText, fontSize = 12.sp)
         }
@@ -126,16 +145,44 @@ fun PlaylistsPanel(
                 onDownload = { onDownloadPlaylist(playlist) },
                 onAddToQueue = { onAddPlaylistToQueue(playlist) },
                 onAddToPlaylist = { onAddPlaylistToPlaylist(playlist) },
+                onEditSmartPlaylist = {
+                    coroutineScope.launch {
+                        runCatching {
+                            onSmartPlaylistLoad(playlist)
+                        }.onSuccess { definition ->
+                            smartPlaylistInitialDraft = SmartPlaylistDraft.fromDefinition(definition)
+                            smartPlaylistEditTarget = playlist
+                            smartPlaylistBuilderOpen = true
+                            smartPlaylistLoadMessage = null
+                        }.onFailure { error ->
+                            smartPlaylistLoadMessage = error.message ?: "Could not load smart playlist rules."
+                        }
+                    }
+                },
             )
         }
     }
     if (smartPlaylistBuilderOpen) {
+        val editTarget = smartPlaylistEditTarget
         SmartPlaylistBuilderDialog(
             colors = appColors,
-            onDismissRequest = { smartPlaylistBuilderOpen = false },
-            onSave = { definition ->
-                onSmartPlaylistSave(definition)
+            initialDraft = smartPlaylistInitialDraft,
+            title = if (editTarget == null) "Smart playlist" else "Edit smart playlist",
+            saveLabel = if (editTarget == null) "Save" else "Update",
+            onDismissRequest = {
                 smartPlaylistBuilderOpen = false
+                smartPlaylistEditTarget = null
+                smartPlaylistInitialDraft = SmartPlaylistDraft()
+            },
+            onSave = { definition ->
+                if (editTarget == null) {
+                    onSmartPlaylistSave(definition)
+                } else {
+                    onSmartPlaylistUpdate(editTarget, definition)
+                }
+                smartPlaylistBuilderOpen = false
+                smartPlaylistEditTarget = null
+                smartPlaylistInitialDraft = SmartPlaylistDraft()
             },
         )
     }
@@ -156,6 +203,7 @@ private fun PlaylistListRow(
     onDownload: () -> Unit,
     onAddToQueue: () -> Unit,
     onAddToPlaylist: () -> Unit,
+    onEditSmartPlaylist: () -> Unit,
 ) {
     MediaRow(appColors = appColors, onClick = onClick) {
         if (playlistCoverArtUrl != null) {
@@ -180,6 +228,7 @@ private fun PlaylistListRow(
             appColors = appColors,
             items = listOf(
                 RowMenuItem("Rename playlist", NavigationIcons.Edit, onRename),
+                RowMenuItem("Edit smart playlist", NavigationIcons.Playlist, onEditSmartPlaylist),
                 RowMenuItem("Delete playlist", NavigationIcons.Trash, onDelete),
                 RowMenuItem("Download playlist", NavigationIcons.Downloads, onDownload),
                 RowMenuItem("Add to queue", NavigationIcons.Queue, onAddToQueue),

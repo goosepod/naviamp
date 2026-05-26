@@ -28,6 +28,37 @@ data class SmartPlaylistDraft(
             isPublic = isPublic,
         )
     }
+
+    companion object {
+        fun fromDefinition(definition: SmartPlaylistDefinition): SmartPlaylistDraft {
+            val topLevelConditions = definition.rules.mapNotNull { it as? SmartPlaylistCondition }
+            val groups = definition.rules.mapNotNull { it as? SmartPlaylistGroup }.map { group ->
+                SmartPlaylistGroupDraft(
+                    match = group.match,
+                    conditions = group.rules.mapNotNull { rule ->
+                        (rule as? SmartPlaylistCondition)?.toDraft()
+                    }.ifEmpty { listOf(SmartPlaylistConditionDraft()) },
+                )
+            }
+            val limitMode = if (definition.limitPercent != null) {
+                SmartPlaylistLimitMode.Percent
+            } else {
+                SmartPlaylistLimitMode.TrackCount
+            }
+
+            return SmartPlaylistDraft(
+                name = definition.name,
+                comment = definition.comment.orEmpty(),
+                match = definition.match,
+                conditions = topLevelConditions.map { it.toDraft() }.ifEmpty { listOf(SmartPlaylistConditionDraft()) },
+                groups = groups,
+                sort = definition.sort.map { it.toDraft() }.ifEmpty { listOf(SmartPlaylistSortDraft()) },
+                limitMode = limitMode,
+                limit = definition.limitPercent ?: definition.limit ?: 100,
+                isPublic = definition.isPublic ?: false,
+            )
+        }
+    }
 }
 
 data class SmartPlaylistGroupDraft(
@@ -78,6 +109,37 @@ data class SmartPlaylistSortDraft(
     fun toSortOrNull(): SmartPlaylistSort? =
         field.takeIf { it.sortable }?.let { SmartPlaylistSort(it.field, descending) }
 }
+
+private fun SmartPlaylistCondition.toDraft(): SmartPlaylistConditionDraft {
+    val fieldOption = SmartPlaylistFieldCatalog.fields.first { it.field == field }
+    return SmartPlaylistConditionDraft(
+        field = fieldOption,
+        operator = operator,
+        value = value.firstDraftValue(),
+        secondValue = value.secondDraftValue(),
+    )
+}
+
+private fun SmartPlaylistSort.toDraft(): SmartPlaylistSortDraft =
+    SmartPlaylistSortDraft(
+        field = SmartPlaylistFieldCatalog.sortableFields.first { it.field == field },
+        descending = descending,
+    )
+
+private fun SmartPlaylistValue.firstDraftValue(): String =
+    when (this) {
+        is SmartPlaylistValue.Text -> value
+        is SmartPlaylistValue.Number -> value.toString()
+        is SmartPlaylistValue.Decimal -> value.toString()
+        is SmartPlaylistValue.Flag -> value.toString()
+        is SmartPlaylistValue.Range -> start.firstDraftValue()
+    }
+
+private fun SmartPlaylistValue.secondDraftValue(): String =
+    when (this) {
+        is SmartPlaylistValue.Range -> end.firstDraftValue()
+        else -> ""
+    }
 
 enum class SmartPlaylistLimitMode {
     TrackCount,

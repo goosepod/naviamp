@@ -46,6 +46,9 @@ interface MediaProvider {
     suspend fun updateSmartPlaylist(playlistId: String, definition: SmartPlaylistDefinition) {
         throw UnsupportedOperationException("Smart playlist edits are not supported by $displayName.")
     }
+    suspend fun smartPlaylistDefinition(playlistId: String): SmartPlaylistDefinition {
+        throw UnsupportedOperationException("Smart playlist loading is not supported by $displayName.")
+    }
     suspend fun addTracksToPlaylist(playlistId: String, trackIds: List<TrackId>) {
         throw UnsupportedOperationException("Playlist edits are not supported by $displayName.")
     }

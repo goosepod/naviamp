@@ -8,6 +8,13 @@ import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 
 private val SmartPlaylistJson = Json {
@@ -63,6 +70,34 @@ data class SmartPlaylistDefinition(
             .replace(Regex("[^a-z0-9]+"), "-")
             .trim('-')
             .ifBlank { "smart-playlist" } + ".nsp"
+
+    companion object {
+        fun fromNspJson(jsonText: String): SmartPlaylistDefinition {
+            val root = SmartPlaylistJson.parseToJsonElement(jsonText).jsonObject
+            return fromJsonObject(root["data"]?.jsonObject ?: root)
+        }
+
+        fun fromJsonObject(root: JsonObject): SmartPlaylistDefinition {
+            val rulesRoot = root["rules"]?.jsonObject ?: root
+            val match = rulesRoot.matchKey()
+            val rules = rulesRoot[match.jsonName]
+                ?.jsonArray
+                ?.map { it.toSmartPlaylistRule(groupDepth = 0) }
+                .orEmpty()
+            require(rules.isNotEmpty()) { "Imported smart playlist must contain all or any rules." }
+
+            return SmartPlaylistDefinition(
+                name = root.stringValue("name") ?: "Imported Smart Playlist",
+                comment = root.stringValue("comment"),
+                match = match,
+                rules = rules,
+                sort = rulesRoot.stringValue("sort")?.toSmartPlaylistSorts().orEmpty(),
+                limit = rulesRoot.longValue("limit")?.toInt(),
+                limitPercent = rulesRoot.longValue("limitPercent")?.toInt(),
+                isPublic = root.booleanValue("public"),
+            )
+        }
+    }
 }
 
 enum class SmartPlaylistMatch(val jsonName: String) {
@@ -392,3 +427,84 @@ private fun List<SmartPlaylistRule>.toJsonArray(): JsonArray =
     buildJsonArray {
         forEach { add(it.toJsonElement()) }
     }
+
+private fun JsonObject.matchKey(): SmartPlaylistMatch =
+    when {
+        "all" in this -> SmartPlaylistMatch.All
+        "any" in this -> SmartPlaylistMatch.Any
+        else -> throw IllegalArgumentException("Imported smart playlist must contain all or any rules.")
+    }
+
+private fun JsonElement.toSmartPlaylistRule(groupDepth: Int): SmartPlaylistRule {
+    val rule = jsonObject
+    val groupMatch = when {
+        "all" in rule -> SmartPlaylistMatch.All
+        "any" in rule -> SmartPlaylistMatch.Any
+        else -> null
+    }
+    if (groupMatch != null) {
+        require(groupDepth == 0) { "The builder supports one level of rule groups." }
+        val groupRules = rule[groupMatch.jsonName]
+            ?.jsonArray
+            ?.map { it.toSmartPlaylistRule(groupDepth = groupDepth + 1) }
+            .orEmpty()
+        require(groupRules.all { it is SmartPlaylistCondition }) {
+            "The builder supports condition-only groups."
+        }
+        return SmartPlaylistGroup(groupMatch, groupRules)
+    }
+
+    val operator = SmartPlaylistOperator.entries.firstOrNull { it.jsonName in rule }
+        ?: throw IllegalArgumentException("Imported smart playlist contains an unsupported operator.")
+    val operand = rule[operator.jsonName]?.jsonObject
+        ?: throw IllegalArgumentException("Imported smart playlist operator ${operator.jsonName} must contain a field object.")
+    require(operand.size == 1) { "Imported smart playlist condition must contain exactly one field." }
+    val field = operand.keys.single()
+    val fieldOption = SmartPlaylistFieldCatalog.fields.firstOrNull { it.field == field }
+        ?: throw IllegalArgumentException("Imported smart playlist field '$field' is not supported by the builder.")
+    require(operator in fieldOption.operators) {
+        "Imported smart playlist operator '${operator.jsonName}' is not supported for field '$field'."
+    }
+
+    return SmartPlaylistCondition(
+        operator = operator,
+        field = field,
+        value = operand.getValue(field).toSmartPlaylistValue(),
+    )
+}
+
+private fun JsonElement.toSmartPlaylistValue(): SmartPlaylistValue =
+    when (this) {
+        is JsonArray -> {
+            require(size == 2) { "Imported range values must contain exactly two entries." }
+            SmartPlaylistValue.Range(get(0).toSmartPlaylistValue(), get(1).toSmartPlaylistValue())
+        }
+        is JsonPrimitive -> {
+            booleanOrNull?.let { return SmartPlaylistValue.Flag(it) }
+            longOrNull?.let { return SmartPlaylistValue.Number(it) }
+            doubleOrNull?.let { return SmartPlaylistValue.Decimal(it) }
+            SmartPlaylistValue.Text(content)
+        }
+        else -> throw IllegalArgumentException("Imported smart playlist value type is not supported.")
+    }
+
+private fun String.toSmartPlaylistSorts(): List<SmartPlaylistSort> =
+    split(",")
+        .mapNotNull { raw ->
+            val trimmed = raw.trim()
+            if (trimmed.isBlank()) return@mapNotNull null
+            val descending = trimmed.startsWith("-")
+            val field = trimmed.trimStart('-')
+            SmartPlaylistFieldCatalog.sortableFields.firstOrNull { it.field == field }
+                ?: throw IllegalArgumentException("Imported smart playlist sort field '$field' is not supported by the builder.")
+            SmartPlaylistSort(field, descending)
+        }
+
+private fun JsonObject.stringValue(key: String): String? =
+    this[key]?.jsonPrimitive?.contentOrNull
+
+private fun JsonObject.longValue(key: String): Long? =
+    this[key]?.jsonPrimitive?.longOrNull
+
+private fun JsonObject.booleanValue(key: String): Boolean? =
+    this[key]?.jsonPrimitive?.booleanOrNull

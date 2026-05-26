@@ -289,6 +289,11 @@ class NavidromeProvider(
         )
     }
 
+    override suspend fun smartPlaylistDefinition(playlistId: String): SmartPlaylistDefinition {
+        val response = getNativeJson("playlist/${playlistId.urlEncode()}")
+        return SmartPlaylistDefinition.fromJsonObject(response.toNativeDataObject())
+    }
+
     override suspend fun addTracksToPlaylist(playlistId: String, trackIds: List<TrackId>) {
         if (trackIds.isEmpty()) return
         get(
@@ -669,6 +674,14 @@ class NavidromeProvider(
             ),
         )
 
+    private suspend fun getNativeJson(endpoint: String): JsonObject =
+        nativeJsonResponse(
+            httpClient.get(
+                url = nativeApiUrl(endpoint),
+                headers = nativeAuthHeaders(),
+            ),
+        )
+
     private suspend fun putNativeJson(endpoint: String, body: String): JsonObject =
         nativeJsonResponse(
             httpClient.putJson(
@@ -853,6 +866,7 @@ class NavidromeProvider(
 
 interface NavidromeHttpClient {
     suspend fun get(url: String): String
+    suspend fun get(url: String, headers: Map<String, String>): String = get(url)
     suspend fun postJson(url: String, body: String, headers: Map<String, String> = emptyMap()): String {
         throw UnsupportedOperationException("POST is not supported by this Navidrome HTTP client.")
     }

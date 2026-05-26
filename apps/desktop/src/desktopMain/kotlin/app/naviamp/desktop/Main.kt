@@ -1196,6 +1196,49 @@ fun NaviampApp(
         }
     }
 
+    suspend fun updateSmartPlaylist(playlist: Playlist, definition: SmartPlaylistDefinition) {
+        val provider = connectedProvider
+            ?: throw IllegalStateException("Connect to Navidrome before updating smart playlists.")
+        playlistStatus = "Updating ${definition.name}..."
+        try {
+            withContext(Dispatchers.IO) { provider.updateSmartPlaylist(playlist.id, definition) }
+            val refreshedPlaylists = withContext(Dispatchers.IO) { provider.playlists(limit = 500) }
+            val refreshedPlaylist = refreshedPlaylists.firstOrNull { it.id == playlist.id }
+                ?: playlist.copy(name = definition.name)
+            val refreshedTracks = withContext(Dispatchers.IO) { provider.playlistTracks(refreshedPlaylist.id) }
+            val displayPlaylist = refreshedPlaylist.copy(trackCount = refreshedTracks.size)
+            playlistTracksById = playlistTracksById + (displayPlaylist.id to refreshedTracks)
+            playlists = (refreshedPlaylists.filterNot { it.id == displayPlaylist.id } + displayPlaylist)
+                .sortedBy { it.name.lowercase() }
+            if (selectedPlaylist?.id == displayPlaylist.id) {
+                selectedPlaylist = displayPlaylist
+                selectedPlaylistTracks = refreshedTracks
+                selectedPlaylistStatus = null
+            }
+            playlistStatus = "Updated smart playlist ${displayPlaylist.name} with ${refreshedTracks.size} tracks."
+        } catch (error: Exception) {
+            playlistStatus = error.message ?: "Could not update smart playlist."
+            throw error
+        } finally {
+            statsForNerdsRefreshTick++
+        }
+    }
+
+    suspend fun loadSmartPlaylistDefinition(playlist: Playlist): SmartPlaylistDefinition {
+        val provider = connectedProvider
+            ?: throw IllegalStateException("Connect to Navidrome before editing smart playlists.")
+        playlistStatus = "Loading ${playlist.name} rules..."
+        return try {
+            withContext(Dispatchers.IO) { provider.smartPlaylistDefinition(playlist.id) }
+                .also { playlistStatus = null }
+        } catch (error: Exception) {
+            playlistStatus = error.message ?: "Could not load smart playlist rules."
+            throw error
+        } finally {
+            statsForNerdsRefreshTick++
+        }
+    }
+
     suspend fun resolveTargetTracks(
         provider: MediaProvider,
         target: AddToPlaylistTarget,
@@ -3241,6 +3284,8 @@ fun NaviampApp(
                                         openAddToPlaylist(AddToPlaylistTarget.PlaylistTarget(playlist))
                                     },
                                     onSmartPlaylistSave = { definition -> saveSmartPlaylist(definition) },
+                                    onSmartPlaylistUpdate = { playlist, definition -> updateSmartPlaylist(playlist, definition) },
+                                    onSmartPlaylistLoad = { playlist -> loadSmartPlaylistDefinition(playlist) },
                                 )
                                 AppRoute.PlaylistDetail -> PlaylistDetailPanel(
                                     appColors = appColors,
