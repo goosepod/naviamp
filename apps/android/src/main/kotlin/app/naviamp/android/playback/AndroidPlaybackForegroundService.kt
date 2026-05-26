@@ -380,12 +380,27 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         if (queue.isEmpty() || currentAutoQueueIndex !in queue.indices) return false
         val nextIndex = currentAutoQueueIndex + delta
         if (nextIndex !in queue.indices) {
+            val wrappedIndex = when {
+                delta > 0 && serviceRepeatMode == ServiceRepeatMode.All -> 0
+                delta < 0 && serviceRepeatMode == ServiceRepeatMode.All -> queue.lastIndex
+                else -> null
+            }
+            if (wrappedIndex == null) {
+                Log.i(
+                    "NaviampAutoCommand",
+                    "Service-owned queue has no adjacent track delta=$delta index=$currentAutoQueueIndex size=${queue.size}",
+                )
+                AndroidPlaybackNotificationControls.isPlaying = false
+                updateMediaSessionPlaybackState()
+                return true
+            }
+            val storage = AndroidStorage(applicationContext)
+            val sourceId = storage.latestNavidromeSource()?.id ?: return false
             Log.i(
                 "NaviampAutoCommand",
-                "Service-owned queue has no adjacent track delta=$delta index=$currentAutoQueueIndex size=${queue.size}",
+                "Service-owned queue wrapping delta=$delta from=$currentAutoQueueIndex to=$wrappedIndex size=${queue.size}",
             )
-            AndroidPlaybackNotificationControls.isPlaying = false
-            updateMediaSessionPlaybackState()
+            playServiceTrackQueue(storage, sourceId, queue, wrappedIndex)
             return true
         }
         val storage = AndroidStorage(applicationContext)
@@ -396,6 +411,19 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         )
         playServiceTrackQueue(storage, sourceId, queue, nextIndex)
         return true
+    }
+
+    private fun handleServiceTrackFinished() {
+        if (serviceRepeatMode == ServiceRepeatMode.One) {
+            val queue = currentAutoQueue
+            if (currentAutoQueueIndex in queue.indices) {
+                val storage = AndroidStorage(applicationContext)
+                val sourceId = storage.latestNavidromeSource()?.id ?: return
+                playServiceTrackQueue(storage, sourceId, queue, currentAutoQueueIndex)
+                return
+            }
+        }
+        playServiceOwnedAdjacent(1)
     }
 
     private fun playSavedSession(existingSession: PlaybackSessionSettings? = null) {
@@ -471,7 +499,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                             updateMediaSessionPlaybackState()
                         }
                         if (state == PlaybackState.Finished) {
-                            playServiceOwnedAdjacent(1)
+                            handleServiceTrackFinished()
                         }
                     },
                     onProgressChanged = { progress ->
@@ -493,6 +521,12 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         return when {
             mediaId == AndroidAutoPlaybackControls.MediaIdNowPlaying -> {
                 handleServiceAutoPlayPause()
+                true
+            }
+            mediaId.startsWith(AndroidAutoPlaybackControls.MediaIdQueueTrackPrefix) -> {
+                val index = Uri.decode(mediaId.removePrefix(AndroidAutoPlaybackControls.MediaIdQueueTrackPrefix)).toIntOrNull()
+                    ?: return false
+                playServiceAutoQueueItem(index)
                 true
             }
             mediaId == AndroidAutoPlaybackControls.MediaIdRadioLibrary -> {
@@ -614,6 +648,27 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                             AndroidPlaybackNotificationControls.isPlaying = false
                             updateMediaSessionPlaybackState()
                         }
+                }
+                true
+            }
+            mediaId.startsWith(AndroidAutoPlaybackControls.MediaIdAlbumShufflePrefix) -> {
+                val parts = mediaId.removePrefix(AndroidAutoPlaybackControls.MediaIdAlbumShufflePrefix).mediaIdParts()
+                val albumId = parts.getOrNull(0).orEmpty()
+                val albumTitle = parts.getOrNull(1)
+                val albumArtist = parts.getOrNull(2)
+                if (albumId.isBlank()) return false
+                val provider = NavidromeProvider(source.toNavidromeConnection())
+                AndroidPlaybackRuntime.get(applicationContext).scope.launch {
+                    runCatching {
+                        loadServiceAlbumTracks(storage, sourceId, provider, albumId, albumTitle, albumArtist)
+                    }.onSuccess { tracks ->
+                        val shuffled = tracks.shuffled()
+                        playServiceTrackQueue(storage, sourceId, shuffled, currentIndex = 0)
+                    }.onFailure { error ->
+                        Log.w("NaviampAutoCommand", "Could not shuffle Auto album=$albumId", error)
+                        AndroidPlaybackNotificationControls.isPlaying = false
+                        updateMediaSessionPlaybackState()
+                    }
                 }
                 true
             }
@@ -768,6 +823,26 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         val sourceId = storage.latestNavidromeSource()?.id ?: return
         playServiceTrackQueue(storage, sourceId, queue, index)
     }
+
+    private suspend fun loadServiceAlbumTracks(
+        storage: AndroidStorage,
+        sourceId: String,
+        provider: NavidromeProvider,
+        albumId: String,
+        albumTitle: String?,
+        albumArtist: String?,
+    ): List<Track> =
+        storage.libraryTracksForAlbum(sourceId, AlbumId(albumId), AndroidAutoBrowseLimit.toLong())
+            .ifEmpty {
+                albumTitle?.let { title ->
+                    storage.libraryTracksForAlbumTitle(sourceId, title, albumArtist, AndroidAutoBrowseLimit.toLong())
+                }.orEmpty()
+            }
+            .ifEmpty {
+                runCatching {
+                    withContext(Dispatchers.IO) { provider.album(AlbumId(albumId)).tracks }
+                }.getOrDefault(emptyList())
+            }
 
     private fun playServiceRecentRadioStream(
         storage: AndroidStorage,
@@ -1006,11 +1081,22 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                     }
 
                     override fun onCustomAction(action: String, extras: android.os.Bundle?) {
-                        if (action == ActionFavorite && AndroidPlaybackNotificationControls.canFavorite) {
-                            AndroidPlaybackNotificationControls.isFavorite =
-                                !AndroidPlaybackNotificationControls.isFavorite
-                            AndroidPlaybackNotificationControls.onToggleFavorite?.invoke()
-                            refreshNotification(null)
+                        when (action) {
+                            ActionFavorite -> if (AndroidPlaybackNotificationControls.canFavorite) {
+                                AndroidPlaybackNotificationControls.isFavorite =
+                                    !AndroidPlaybackNotificationControls.isFavorite
+                                AndroidPlaybackNotificationControls.onToggleFavorite?.invoke()
+                                refreshNotification(null)
+                            }
+                            ActionShuffle -> {
+                                toggleServiceShuffle()
+                                refreshNotification(null)
+                            }
+                            ActionRepeat -> {
+                                serviceRepeatMode = serviceRepeatMode.next()
+                                updateMediaSessionPlaybackState()
+                                refreshNotification(null)
+                            }
                         }
                     }
                 },
@@ -1084,6 +1170,17 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 )
             }
             sendChildren(parentId, (recentStreams + recentStations).toMutableList(), result)
+            return
+        }
+        if (parentId == AndroidAutoPlaybackControls.MediaIdQueue) {
+            val queue = currentAutoQueue
+            val children = queue.mapIndexed { index, track ->
+                trackItem(
+                    track = track,
+                    mediaId = "${AndroidAutoPlaybackControls.MediaIdQueueTrackPrefix}${Uri.encode(index.toString())}",
+                )
+            }.toMutableList()
+            sendChildren(parentId, children, result)
             return
         }
         if (parentId == AndroidAutoPlaybackControls.MediaIdPlaylists) {
@@ -1222,6 +1319,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             }
             AndroidAutoPlaybackControls.MediaIdMore -> mutableListOf(
                 currentNowPlayingItem(),
+                browsableItem(AndroidAutoPlaybackControls.MediaIdQueue, "Current queue", "${currentAutoQueue.size} tracks"),
                 browsableItem(AndroidAutoPlaybackControls.MediaIdPlaylists, "Playlists", "Saved Navidrome playlists"),
                 browsableItem(AndroidAutoPlaybackControls.MediaIdRadioStations, "Internet Radio", "Saved Navidrome stations"),
                 browsableItem(AndroidAutoPlaybackControls.MediaIdLibraryTracks, "All Tracks", "Browse indexed tracks"),
@@ -1288,18 +1386,19 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                     loadAsyncChildren(result) {
                         val source = storage.latestNavidromeSource() ?: return@loadAsyncChildren noSourceItems()
                         val provider = NavidromeProvider(source.toNavidromeConnection())
-                        val tracks = storage.libraryTracksForAlbum(source.id, AlbumId(albumId), AndroidAutoBrowseLimit.toLong())
-                            .ifEmpty {
-                                albumTitle?.let { title ->
-                                    storage.libraryTracksForAlbumTitle(source.id, title, albumArtist, AndroidAutoBrowseLimit.toLong())
-                                }.orEmpty()
-                            }
-                            .ifEmpty {
-                                runCatching {
-                                    withContext(Dispatchers.IO) { provider.album(AlbumId(albumId)).tracks }
-                                }.getOrDefault(emptyList())
-                            }
-                        tracks.take(AndroidAutoBrowseLimit).map { track ->
+                        val tracks = loadServiceAlbumTracks(storage, source.id, provider, albumId, albumTitle, albumArtist)
+                        (
+                            listOf(
+                                playableItem(
+                                    mediaId = AndroidAutoPlaybackControls.MediaIdAlbumShufflePrefix + listOf(
+                                        Uri.encode(albumId),
+                                        Uri.encode(albumTitle.orEmpty()),
+                                        Uri.encode(albumArtist.orEmpty()),
+                                    ).joinToString(MediaIdPartSeparator),
+                                    title = "Shuffle",
+                                    subtitle = "Shuffle ${albumTitle ?: "album"}",
+                                ),
+                            ) + tracks.take(AndroidAutoBrowseLimit).map { track ->
                             trackItem(
                                 track = track,
                                 mediaId = AndroidAutoPlaybackControls.MediaIdAlbumTrackPrefix + listOf(
@@ -1307,7 +1406,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                                     Uri.encode(track.id.value),
                                 ).joinToString(MediaIdPartSeparator),
                             )
-                        }.toMutableList()
+                        }).toMutableList()
                     }
                     return
                 }
@@ -1374,6 +1473,30 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         session.setPlaybackState(buildPlaybackState(favoriteTitle, favoriteIcon))
     }
 
+    private fun toggleServiceShuffle() {
+        serviceShuffleEnabled = !serviceShuffleEnabled
+        if (serviceShuffleEnabled) {
+            val queue = currentAutoQueue
+            if (queue.size > 2 && currentAutoQueueIndex in queue.indices) {
+                val current = queue[currentAutoQueueIndex]
+                currentAutoQueue = queue.take(currentAutoQueueIndex + 1) + queue.drop(currentAutoQueueIndex + 1).shuffled()
+                currentAutoQueueIndex = currentAutoQueue.indexOfFirst { it.id == current.id }.coerceAtLeast(0)
+                lastPublishedAutoQueueSignature = null
+                val storage = AndroidStorage(applicationContext)
+                val sourceId = storage.latestNavidromeSource()?.id
+                val session = PlaybackSessionSettings.fromTracks(
+                    tracks = currentAutoQueue,
+                    currentIndex = currentAutoQueueIndex,
+                    positionSeconds = AndroidPlaybackNotificationControls.positionMillis?.let { it / 1_000.0 },
+                )
+                if (sourceId != null && session != null) {
+                    storage.savePlaybackSession(sourceId, session)
+                }
+            }
+        }
+        updateMediaSession(currentMetadata, currentLargeIcon)
+    }
+
     private fun publishAutoQueue(session: MediaSessionCompat) {
         val queue = currentAutoQueue
         val queueSignature = queue.joinToString("|") { it.id.value }
@@ -1389,10 +1512,13 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             queue.mapIndexed { index, track ->
                 MediaSessionCompat.QueueItem(
                     MediaDescriptionCompat.Builder()
-                        .setMediaId("${AndroidAutoPlaybackControls.MediaIdTrackPrefix}${Uri.encode(track.id.value)}")
+                    .setMediaId("${AndroidAutoPlaybackControls.MediaIdTrackPrefix}${Uri.encode(track.id.value)}")
                         .setTitle(track.title)
                         .setSubtitle(track.artistName)
                         .setDescription(track.albumTitle)
+                        .apply {
+                            AndroidStorage(applicationContext).savedCoverArtUrl(track)?.let { setIconUri(Uri.parse(it)) }
+                        }
                         .build(),
                     index.toLong(),
                 )
@@ -1429,6 +1555,20 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                     PlaybackStateCompat.ACTION_STOP,
             )
             .addCustomAction(ActionFavorite, favoriteTitle, favoriteIcon)
+            .addCustomAction(
+                ActionShuffle,
+                if (serviceShuffleEnabled) "Shuffle on" else "Shuffle off",
+                android.R.drawable.ic_menu_sort_by_size,
+            )
+            .addCustomAction(
+                ActionRepeat,
+                when (serviceRepeatMode) {
+                    ServiceRepeatMode.Off -> "Repeat off"
+                    ServiceRepeatMode.All -> "Repeat all"
+                    ServiceRepeatMode.One -> "Repeat one"
+                },
+                android.R.drawable.ic_menu_revert,
+            )
             .setState(
                 if (AndroidPlaybackNotificationControls.isPlaying) {
                     PlaybackStateCompat.STATE_PLAYING
@@ -1507,6 +1647,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             mediaId = mediaId,
             title = track.title,
             subtitle = listOfNotNull(track.artistName, track.albumTitle).joinToString(" - "),
+            iconUri = AndroidStorage(applicationContext).savedCoverArtUrl(track),
         )
 
     private fun artistItem(artist: Artist): MediaBrowserCompat.MediaItem =
@@ -1528,6 +1669,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             ).joinToString(MediaIdPartSeparator),
             title = album.title,
             subtitle = listOfNotNull(album.artistName, album.releaseYear?.toString()).joinToString(" - "),
+            iconUri = AndroidStorage(applicationContext).savedCoverArtUrl(album),
         )
 
     private suspend fun autoSearchResults(query: String): MutableList<MediaBrowserCompat.MediaItem> =
@@ -1555,6 +1697,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         title: String,
         subtitle: String,
         iconName: String? = null,
+        iconUri: String? = null,
     ): MediaBrowserCompat.MediaItem =
         MediaBrowserCompat.MediaItem(
             MediaDescriptionCompat.Builder()
@@ -1563,6 +1706,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 .setSubtitle(subtitle)
                 .apply {
                     iconName?.let { setIconUri(Uri.parse("android.resource://$packageName/drawable/$it")) }
+                    iconUri?.let { setIconUri(Uri.parse(it)) }
                 }
                 .build(),
             MediaBrowserCompat.MediaItem.FLAG_BROWSABLE,
@@ -1572,6 +1716,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         mediaId: String,
         title: String,
         subtitle: String,
+        iconUri: String? = null,
     ): MediaBrowserCompat.MediaItem =
         MediaBrowserCompat.MediaItem(
             MediaDescriptionCompat.Builder()
@@ -1579,7 +1724,8 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 .setTitle(title)
                 .setSubtitle(subtitle)
                 .apply {
-                    currentMetadata.coverArtUrl?.takeIf { mediaId == AndroidAutoPlaybackControls.MediaIdNowPlaying }?.let {
+                    val artUri = iconUri ?: currentMetadata.coverArtUrl?.takeIf { mediaId == AndroidAutoPlaybackControls.MediaIdNowPlaying }
+                    artUri?.let {
                         setIconUri(Uri.parse(it))
                     }
                 }
@@ -1659,6 +1805,8 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         private const val ActionPrevious = "app.naviamp.android.playback.PREVIOUS"
         private const val ActionNext = "app.naviamp.android.playback.NEXT"
         private const val ActionFavorite = "app.naviamp.android.playback.FAVORITE"
+        private const val ActionShuffle = "app.naviamp.android.playback.SHUFFLE"
+        private const val ActionRepeat = "app.naviamp.android.playback.REPEAT"
         private const val ActionProgress = "app.naviamp.android.playback.PROGRESS"
         private const val AndroidAutoBrowseLimit = 50
         private const val MediaIdPartSeparator = "|"
@@ -1676,6 +1824,8 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         private var currentAutoQueue: List<Track> = emptyList()
         private var currentAutoQueueIndex: Int = -1
         private var lastPublishedAutoQueueSignature: String? = null
+        private var serviceShuffleEnabled = false
+        private var serviceRepeatMode = ServiceRepeatMode.Off
         private var lastServiceSessionSaveAtMillis = 0L
         private var lastServicePlaybackState: PlaybackState? = null
         private var pendingServiceSeekPositionSeconds: Double? = null
@@ -1719,6 +1869,19 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             )
         }
     }
+}
+
+private enum class ServiceRepeatMode {
+    Off,
+    All,
+    One;
+
+    fun next(): ServiceRepeatMode =
+        when (this) {
+            Off -> All
+            All -> One
+            One -> Off
+        }
 }
 
 private fun Bitmap.dominantColor(): Int {
@@ -1816,6 +1979,12 @@ private fun Bundle.autoSearchQuery(): String? {
 
 private fun AndroidStorage.savedCoverArtUrl(track: Track): String? {
     val coverArtId = track.coverArtId ?: track.albumId?.value ?: return null
+    val connection = latestNavidromeSource()?.toNavidromeConnection() ?: return null
+    return NavidromeProvider(connection).coverArtUrl(coverArtId)
+}
+
+private fun AndroidStorage.savedCoverArtUrl(album: Album): String? {
+    val coverArtId = album.coverArtId ?: album.id.value
     val connection = latestNavidromeSource()?.toNavidromeConnection() ?: return null
     return NavidromeProvider(connection).coverArtUrl(coverArtId)
 }

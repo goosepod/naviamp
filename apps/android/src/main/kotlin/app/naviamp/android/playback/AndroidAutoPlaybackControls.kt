@@ -10,6 +10,7 @@ object AndroidAutoPlaybackControls {
 
     const val MediaIdRoot = "naviamp.root"
     const val MediaIdNowPlaying = "naviamp.now_playing"
+    const val MediaIdQueue = "naviamp.queue"
     const val MediaIdHome = "naviamp.home"
     const val MediaIdHomeMixes = "naviamp.home.mixes"
     const val MediaIdHomeRecentPlays = "naviamp.home.recent_plays"
@@ -35,6 +36,8 @@ object AndroidAutoPlaybackControls {
     const val MediaIdAlbumPrefix = "naviamp.album:"
     const val MediaIdTrackPrefix = "naviamp.track:"
     const val MediaIdAlbumTrackPrefix = "naviamp.album.track:"
+    const val MediaIdAlbumShufflePrefix = "naviamp.album.shuffle:"
+    const val MediaIdQueueTrackPrefix = "naviamp.queue.track:"
     const val MediaIdDownloadPrefix = "naviamp.download:"
     const val MediaIdPlaylistPrefix = "naviamp.playlist:"
     const val MediaIdPlaylistTrackPrefix = "naviamp.playlist.track:"
