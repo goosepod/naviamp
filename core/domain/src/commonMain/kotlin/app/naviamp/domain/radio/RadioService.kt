@@ -8,6 +8,9 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.provider.MediaProvider
 
+fun generatedRadioQueue(seedTrack: Track, fetchedTracks: List<Track>): List<Track> =
+    (listOf(seedTrack) + fetchedTracks).distinctBy { it.id }
+
 class RadioService(
     private val provider: MediaProvider,
     private val count: Int = DefaultRadioCount,
@@ -46,7 +49,7 @@ class RadioService(
         provider.randomSongs(limit = count, fromYear = fromYear, toYear = toYear)
 
     fun queue(seedTrack: Track, fetchedTracks: List<Track>): List<Track> =
-        (listOf(seedTrack) + fetchedTracks).distinctBy { it.id }
+        generatedRadioQueue(seedTrack, fetchedTracks)
 
     private fun Track.matchesArtist(artistId: ArtistId, artistName: String): Boolean =
         this.artistId == artistId || this.artistName.equals(artistName, ignoreCase = true)

@@ -57,6 +57,9 @@ import app.naviamp.domain.Playlist
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.internetRadioStationId
+import app.naviamp.domain.internetRadioTrackId
+import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.playback.CrossfadeSettings
 import app.naviamp.domain.playback.PlaybackEngine
@@ -87,6 +90,11 @@ import app.naviamp.domain.popular.SimilarArtistsService
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioService
+import app.naviamp.domain.radio.generatedRadioTracksToAppend
+import app.naviamp.domain.radio.generatedRadioUpcomingTracks
+import app.naviamp.domain.radio.generatedRadioUpcomingTracksToAppend
+import app.naviamp.domain.radio.radioRefillSeedTrack
+import app.naviamp.domain.radio.radioTracksNotAlreadyQueued
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.waveform.AudioWaveform
@@ -108,6 +116,10 @@ import app.naviamp.desktop.settings.WindowSettings
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
+import app.naviamp.domain.provider.createPlaylistOrAddMissingTracks
+import app.naviamp.domain.settings.playbackSessionFromQueue
+import app.naviamp.domain.settings.restoredPlaybackQueue
+import app.naviamp.domain.settings.restoredTrackSession
 import app.naviamp.provider.navidrome.NavidromeApiCallHistory
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
@@ -320,11 +332,14 @@ fun NaviampApp(
     val librarySync = remember(sessionCache) { LibrarySync(sessionCache) }
     val libraryListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
-    val restoredTracks = remember(savedPlaybackSession) { savedPlaybackSession?.toTracks().orEmpty() }
+    val restoredTrackSession = remember(savedPlaybackSession) { savedPlaybackSession?.restoredTrackSession() }
+    val restoredTracks = remember(restoredTrackSession) { restoredTrackSession?.tracks.orEmpty() }
     val restoredInternetRadioStation = remember(savedPlaybackSession) {
         savedPlaybackSession?.internetRadioStation?.toStation()
     }
-    val restoredTrack = remember(savedPlaybackSession) { savedPlaybackSession?.currentTrack() }
+    val restoredTrack = remember(restoredTrackSession, savedPlaybackSession) {
+        restoredTrackSession?.currentTrack ?: savedPlaybackSession?.currentTrack()
+    }
     var serverUrl by remember { mutableStateOf(savedConnection?.baseUrl.orEmpty()) }
     var connectionName by remember { mutableStateOf(savedConnection?.displayName.orEmpty()) }
     var username by remember { mutableStateOf(savedConnection?.username.orEmpty()) }
@@ -433,16 +448,7 @@ fun NaviampApp(
         (playbackState == PlaybackState.Playing || playbackState == PlaybackState.Loading)
     var playbackProgress by remember { mutableStateOf(PlaybackProgress.Unknown) }
     var playbackQueue by remember {
-        mutableStateOf(
-            if (savedPlaybackSession != null && savedPlaybackSession.currentIndex in restoredTracks.indices) {
-                PlaybackQueue(
-                    tracks = restoredTracks,
-                    currentIndex = savedPlaybackSession.currentIndex,
-                )
-            } else {
-                PlaybackQueue()
-            },
-        )
+        mutableStateOf(savedPlaybackSession?.restoredPlaybackQueue() ?: PlaybackQueue())
     }
     var playbackSettings by remember {
         mutableStateOf(settingsStore.loadPlaybackSettings().forEngine(playbackEngine))
@@ -454,7 +460,7 @@ fun NaviampApp(
     var repeatMode by remember { mutableStateOf(RepeatMode.Off) }
     var radioQueueActive by remember { mutableStateOf(false) }
     var isRadioRefilling by remember { mutableStateOf(false) }
-    var lastRadioRefillSeedId by remember { mutableStateOf<String?>(null) }
+    var lastRadioRefillSeedId by remember { mutableStateOf<TrackId?>(null) }
     var radioSessionId by remember { mutableStateOf(0) }
     var restoredPlaybackPositionSeconds by remember {
         mutableStateOf(savedPlaybackSession?.positionSeconds?.takeIf { it > 0.0 })
@@ -599,11 +605,7 @@ fun NaviampApp(
         positionSeconds: Double? = playbackProgress.positionSeconds,
     ) {
         settingsStore.savePlaybackSession(
-            PlaybackSessionSettings.fromTracks(
-                tracks = queue.tracks,
-                currentIndex = queue.currentIndex,
-                positionSeconds = positionSeconds,
-            ),
+            playbackSessionFromQueue(queue, positionSeconds),
         )
     }
 
@@ -734,15 +736,17 @@ fun NaviampApp(
     }
 
     fun refillRadioIfNeeded(queue: PlaybackQueue) {
-        if (!radioQueueActive || isRadioRefilling) return
-        val remaining = queue.tracks.size - queue.currentIndex - 1
-        if (remaining > RadioRefillThreshold) return
-        val seedTrack = queue.tracks.getOrNull(queue.currentIndex) ?: return
-        if (lastRadioRefillSeedId == seedTrack.id.value) return
+        val seedTrack = radioRefillSeedTrack(
+            queue = queue,
+            refillThreshold = RadioRefillThreshold,
+            isActive = radioQueueActive,
+            isRefilling = isRadioRefilling,
+            lastRefillSeedTrackId = lastRadioRefillSeedId,
+        ) ?: return
         val provider = connectedProvider ?: return
 
         isRadioRefilling = true
-        lastRadioRefillSeedId = seedTrack.id.value
+        lastRadioRefillSeedId = seedTrack.id
         val activeRadioSessionId = radioSessionId
         coroutineScope.launch {
             try {
@@ -750,10 +754,7 @@ fun NaviampApp(
                 val fetchedTracks = withContext(Dispatchers.IO) {
                     radioService.trackRadio(seedTrack.id)
                 }
-                val existingTrackIds = playlistEngine.queue.tracks.map { it.id }.toSet()
-                val newTracks = fetchedTracks.filterNot { track ->
-                    track.id in existingTrackIds
-                }
+                val newTracks = radioTracksNotAlreadyQueued(fetchedTracks, playlistEngine.queue.tracks)
                 if (radioQueueActive && activeRadioSessionId == radioSessionId && newTracks.isNotEmpty()) {
                     playlistEngine.appendTracks(
                         tracks = newTracks,
@@ -1263,16 +1264,15 @@ fun NaviampApp(
         addToPlaylistStatus = "Loading tracks..."
         coroutineScope.launch {
             try {
-                val trackIdsToAdd = withContext(Dispatchers.IO) {
+                val result = withContext(Dispatchers.IO) {
                     val targetIds = resolveTargetTracks(provider, target).map { it.id }.distinct()
-                    if (playlist == null) {
-                        targetIds
-                    } else {
-                        val existingIds = provider.playlistTracks(playlist.id).map { it.id }.toSet()
-                        targetIds.filterNot { it in existingIds }
-                    }
+                    provider.createPlaylistOrAddMissingTracks(
+                        playlistId = playlist?.id,
+                        newPlaylistName = newPlaylistName,
+                        trackIds = targetIds,
+                    )
                 }
-                if (trackIdsToAdd.isEmpty()) {
+                if (result.requestedTrackCount == 0) {
                     addToPlaylistStatus = if (playlist == null) {
                         "No tracks found."
                     } else {
@@ -1280,16 +1280,13 @@ fun NaviampApp(
                     }
                     return@launch
                 }
-                withContext(Dispatchers.IO) {
-                    if (playlist != null) {
-                        provider.addTracksToPlaylist(playlist.id, trackIdsToAdd)
-                    } else {
-                        provider.createPlaylist(newPlaylistName.orEmpty(), trackIdsToAdd)
-                    }
+                if (result.addedTrackIds.isEmpty()) {
+                    addToPlaylistStatus = "Everything is already in ${playlist?.name.orEmpty()}."
+                    return@launch
                 }
                 addToPlaylistTarget = null
                 addToPlaylistStatus = null
-                connectionStatus = "Added ${trackIdsToAdd.size} track${if (trackIdsToAdd.size == 1) "" else "s"} to playlist."
+                connectionStatus = "Added ${result.addedTrackIds.size} track${if (result.addedTrackIds.size == 1) "" else "s"} to playlist."
                 refreshPlaylists()
             } catch (exception: Exception) {
                 addToPlaylistStatus = exception.message ?: "Could not add to playlist."
@@ -1358,7 +1355,7 @@ fun NaviampApp(
         clearShuffleSnapshot()
         playlistEngine.clear()
         val radioTrack = Track(
-            id = TrackId("internet-radio:${station.id}"),
+            id = internetRadioTrackId(station.id),
             title = station.name,
             artistName = "Internet Radio",
             albumTitle = station.homePageUrl ?: station.streamUrl,
@@ -1627,9 +1624,9 @@ fun NaviampApp(
                 connectedSourceId = sessionCache.upsertNavidromeSource(connection, provider).id
                 mediaSourcesRevision++
                 if (restoreSavedSession && savedPlaybackSession != null) {
-                    val tracks = savedPlaybackSession.toTracks()
-                    val currentTrack = savedPlaybackSession.currentTrack()
                     val internetRadioStation = savedPlaybackSession.internetRadioStation?.toStation()
+                    val restoredSession = savedPlaybackSession.restoredTrackSession()
+                    val currentTrack = restoredSession?.currentTrack ?: savedPlaybackSession.currentTrack()
                     if (internetRadioStation != null && currentTrack != null) {
                         nowPlayingInternetRadioStation = internetRadioStation
                         nowPlayingStreamMetadata = PlaybackStreamMetadata()
@@ -1643,19 +1640,19 @@ fun NaviampApp(
                         playbackProgress = PlaybackProgress.Unknown
                         playbackQueue = PlaybackQueue()
                         playbackState = PlaybackState.Idle
-                    } else if (tracks.isNotEmpty() && currentTrack != null) {
+                    } else if (restoredSession != null) {
                         playlistEngine.restore(
                             provider = provider,
-                            tracks = tracks,
-                            index = savedPlaybackSession.currentIndex,
+                            tracks = restoredSession.tracks,
+                            index = restoredSession.currentIndex,
                             quality = playbackSettings.streamQuality(playbackEngine),
                             replayGainMode = playbackSettings.replayGainMode,
                             callbacks = playlistCallbacks,
                         )
                         nowPlayingInternetRadioStation = null
                         nowPlayingStreamMetadata = PlaybackStreamMetadata()
-                        nowPlayingTrack = currentTrack
-                        nowPlayingCoverArtUrl = currentTrack.coverArtId?.let { provider.coverArtUrl(it) }
+                        nowPlayingTrack = restoredSession.currentTrack
+                        nowPlayingCoverArtUrl = restoredSession.currentTrack.coverArtId?.let { provider.coverArtUrl(it) }
                         playbackState = PlaybackState.Idle
                     }
                 }
@@ -1948,18 +1945,12 @@ fun NaviampApp(
         }
     }
 
-    fun generatedRadioQueue(seedTrack: Track, fetchedTracks: List<Track>): List<Track> =
-        (listOf(seedTrack) + fetchedTracks).distinctBy { it.id }
-
     fun appendGeneratedRadioTracks(
         radioSession: Int,
         seedTrack: Track,
         fetchedTracks: List<Track>,
     ) {
-        val existingTrackIds = playlistEngine.queue.tracks.map { it.id }.toSet()
-        val newTracks = generatedRadioQueue(seedTrack, fetchedTracks).filterNot { track ->
-            track.id in existingTrackIds
-        }
+        val newTracks = generatedRadioTracksToAppend(seedTrack, fetchedTracks, playlistEngine.queue.tracks)
         if (radioQueueActive && radioSession == radioSessionId && newTracks.isNotEmpty()) {
             playlistEngine.appendTracks(
                 tracks = newTracks,
@@ -1976,7 +1967,7 @@ fun NaviampApp(
         if (radioQueueActive && radioSession == radioSessionId) {
             playlistEngine.replaceUpcomingTracks(
                 currentTrack = currentTrack,
-                upcomingTracks = generatedRadioQueue(currentTrack, fetchedTracks).drop(1),
+                upcomingTracks = generatedRadioUpcomingTracks(currentTrack, fetchedTracks),
                 maxHistory = RadioQueueHistoryLimit,
             )
         }
@@ -1987,10 +1978,7 @@ fun NaviampApp(
         currentTrack: Track,
         fetchedTracks: List<Track>,
     ) {
-        val existingTrackIds = playlistEngine.queue.tracks.map { it.id }.toSet()
-        val newTracks = generatedRadioQueue(currentTrack, fetchedTracks).drop(1).filterNot { track ->
-            track.id in existingTrackIds
-        }
+        val newTracks = generatedRadioUpcomingTracksToAppend(currentTrack, fetchedTracks, playlistEngine.queue.tracks)
         if (radioQueueActive && radioSession == radioSessionId && newTracks.isNotEmpty()) {
             playlistEngine.appendTracks(
                 tracks = newTracks,
@@ -2019,7 +2007,7 @@ fun NaviampApp(
         radioQueueActive = true
         clearShuffleSnapshot()
         isRadioRefilling = true
-        lastRadioRefillSeedId = seedTrack.id.value
+        lastRadioRefillSeedId = seedTrack.id
         openPlayerOnTrackStart = true
         nowPlayingWaveform = null
         nowPlayingWaveformStatus = "Waiting"
@@ -2434,7 +2422,7 @@ fun NaviampApp(
         val activeRadioSessionId = radioSessionId
         radioQueueActive = true
         isRadioRefilling = true
-        lastRadioRefillSeedId = track.id.value
+        lastRadioRefillSeedId = track.id
         coroutineScope.launch {
             try {
                 val fetchedTracks = withContext(Dispatchers.IO) {
@@ -3703,12 +3691,6 @@ private fun PlaybackSettings.forEngine(playbackEngine: PlaybackEngine): Playback
         previousButtonBehavior = previousButtonBehavior,
         upNextSelectionBehavior = upNextSelectionBehavior,
     )
-
-private fun Track.isInternetRadioTrack(): Boolean =
-    id.value.startsWith("internet-radio:")
-
-private fun Track.internetRadioStationId(): String? =
-    id.value.takeIf { it.startsWith("internet-radio:") }?.removePrefix("internet-radio:")
 
 private const val PreviousRestartThresholdSeconds = 10.0
 

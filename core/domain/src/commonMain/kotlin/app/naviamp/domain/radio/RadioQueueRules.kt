@@ -1,0 +1,53 @@
+package app.naviamp.domain.radio
+
+import app.naviamp.domain.Track
+import app.naviamp.domain.TrackId
+import app.naviamp.domain.queue.PlaybackQueue
+
+fun radioTracksNotAlreadyQueued(
+    candidateTracks: List<Track>,
+    queuedTracks: List<Track>,
+): List<Track> {
+    val queuedTrackIds = queuedTracks.map { it.id }.toSet()
+    return candidateTracks.filterNot { track -> track.id in queuedTrackIds }
+}
+
+fun generatedRadioTracksToAppend(
+    seedTrack: Track,
+    fetchedTracks: List<Track>,
+    queuedTracks: List<Track>,
+): List<Track> =
+    radioTracksNotAlreadyQueued(
+        candidateTracks = generatedRadioQueue(seedTrack, fetchedTracks),
+        queuedTracks = queuedTracks,
+    )
+
+fun generatedRadioUpcomingTracks(
+    currentTrack: Track,
+    fetchedTracks: List<Track>,
+): List<Track> =
+    generatedRadioQueue(currentTrack, fetchedTracks).drop(1)
+
+fun generatedRadioUpcomingTracksToAppend(
+    currentTrack: Track,
+    fetchedTracks: List<Track>,
+    queuedTracks: List<Track>,
+): List<Track> =
+    radioTracksNotAlreadyQueued(
+        candidateTracks = generatedRadioUpcomingTracks(currentTrack, fetchedTracks),
+        queuedTracks = queuedTracks,
+    )
+
+fun radioRefillSeedTrack(
+    queue: PlaybackQueue,
+    refillThreshold: Int,
+    isActive: Boolean,
+    isRefilling: Boolean,
+    lastRefillSeedTrackId: TrackId?,
+): Track? {
+    if (!isActive || isRefilling) return null
+    val seedTrack = queue.current ?: return null
+    if (queue.upNext().size > refillThreshold) return null
+    if (lastRefillSeedTrackId == seedTrack.id) return null
+    return seedTrack
+}
