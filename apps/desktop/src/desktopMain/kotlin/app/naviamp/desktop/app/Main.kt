@@ -921,20 +921,13 @@ fun NaviampApp(
             libraryStatus = "Connect to Navidrome to import your library."
             return
         }
-        librarySnapshot = if (libraryQuery.isBlank()) {
-            sessionCache.librarySnapshot(sourceId, limit = libraryLimit.toLong(), offset = 0)
-        } else {
-            sessionCache.searchLibrary(sourceId, libraryQuery, limit = libraryLimit.toLong(), offset = 0)
-        }
+        librarySnapshot = sessionCache.librarySnapshotFor(sourceId, libraryQuery, libraryLimit)
     }
 
     fun loadMoreLibraryRows() {
-        val visibleCount = when (libraryTab) {
-            LibraryTab.Artists -> librarySnapshot.artists.size
-            LibraryTab.Albums -> librarySnapshot.albums.size
-        }
-        if (visibleCount < libraryLimit) return
-        libraryLimit += LibraryPageSize
+        val nextLimit = nextLibraryLimit(librarySnapshot, libraryTab, libraryLimit, LibraryPageSize)
+        if (nextLimit == libraryLimit) return
+        libraryLimit = nextLimit
         refreshLibrarySnapshot()
     }
 
@@ -942,7 +935,7 @@ fun NaviampApp(
         val sourceId = connectedSourceId ?: return
         if (libraryQuery.isNotBlank()) return
         val offset = sessionCache.libraryOffsetForLetter(sourceId, libraryTab, letter).toInt()
-        libraryLimit = ((offset / LibraryPageSize) + 1) * LibraryPageSize
+        libraryLimit = libraryLimitForOffset(offset, LibraryPageSize)
         refreshLibrarySnapshot()
         coroutineScope.launch {
             libraryListState.scrollToItem((offset + 1).coerceAtLeast(0))

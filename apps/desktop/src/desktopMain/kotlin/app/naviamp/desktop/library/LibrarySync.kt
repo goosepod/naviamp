@@ -1,6 +1,7 @@
 package app.naviamp.desktop
 
 import app.naviamp.domain.provider.MediaProvider
+import app.naviamp.domain.cache.LibrarySnapshot
 
 class LibrarySync(
     private val cache: DesktopCache,
@@ -55,6 +56,33 @@ class LibrarySync(
         )
     }
 }
+
+fun DesktopCache.librarySnapshotFor(
+    sourceId: String,
+    query: String,
+    limit: Int,
+): LibrarySnapshot =
+    if (query.isBlank()) {
+        librarySnapshot(sourceId, limit = limit.toLong(), offset = 0)
+    } else {
+        searchLibrary(sourceId, query, limit = limit.toLong(), offset = 0)
+    }
+
+fun nextLibraryLimit(
+    snapshot: LibrarySnapshot,
+    tab: LibraryTab,
+    currentLimit: Int,
+    pageSize: Int,
+): Int {
+    val visibleCount = when (tab) {
+        LibraryTab.Artists -> snapshot.artists.size
+        LibraryTab.Albums -> snapshot.albums.size
+    }
+    return if (visibleCount < currentLimit) currentLimit else currentLimit + pageSize
+}
+
+fun libraryLimitForOffset(offset: Int, pageSize: Int): Int =
+    ((offset / pageSize) + 1) * pageSize
 
 data class LibrarySyncProgress(
     val phase: String,

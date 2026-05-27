@@ -22,6 +22,7 @@ This tracks the work to give the Compose desktop app the same kind of maintainab
 - [ ] Split connection/provider setup out of `Main.kt`.
 - [ ] Split library sync/freshness helpers out of `Main.kt`.
   - [x] Move library freshness model/status decision into `library/LibrarySync.kt`.
+  - [x] Move library snapshot paging helpers into `library/LibrarySync.kt`.
 - [ ] Split playlist/download mutations out of `Main.kt`, keeping shared provider mutations in `core/domain`.
 - [ ] Split artist/album detail loading out of `Main.kt`.
 - [x] Split diagnostics/stats mapping out of `Main.kt`.
@@ -63,3 +64,4 @@ Package names are intentionally unchanged for this pass. The goal is to make the
 - `DesktopStatsMapping.kt` now owns playback capability and stream stats conversion for Stats for Nerds.
 - The abandoned Rust/Slint app was removed. BASS vendor libraries now live at `apps/desktop/vendor/bass/<platform>`.
 - Library freshness status decisions now live with library sync helpers and have desktop unit coverage.
+- Library snapshot paging decisions now live with library sync helpers and have desktop unit coverage.
