@@ -2055,42 +2055,6 @@ fun NaviampApp(
         }
     }
 
-    suspend fun artistRadioSeedTrack(
-        provider: NavidromeProvider,
-        artist: Artist,
-        sourceId: String?,
-    ): Track? =
-        runCatching {
-            sourceId?.let { localSourceId ->
-                sessionCache.randomLibraryTrackForArtist(localSourceId, artist.id)?.let { return@runCatching it }
-            }
-            val details = sessionCache.artist(provider, artist.id)
-            details.albums.shuffled().forEach { album ->
-                val tracks = sessionCache.album(provider, album.id).tracks
-                tracks.filter { it.artistId == artist.id }
-                    .randomOrNull()
-                    ?.let { return@runCatching it }
-                tracks.filter { it.artistName.equals(artist.name, ignoreCase = true) }
-                    .randomOrNull()
-                    ?.let { return@runCatching it }
-            }
-            null
-        }.getOrNull()
-
-    suspend fun albumRadioSeedTrack(
-        provider: NavidromeProvider,
-        album: Album,
-        sourceId: String?,
-        loadedAlbumTracks: List<Track> = emptyList(),
-    ): Track? =
-        runCatching {
-            loadedAlbumTracks.randomOrNull()?.let { return@runCatching it }
-            sourceId?.let { localSourceId ->
-                sessionCache.randomLibraryTrackForAlbum(localSourceId, album.id)?.let { return@runCatching it }
-            }
-            sessionCache.album(provider, album.id).tracks.randomOrNull()
-        }.getOrNull()
-
     fun playRandomAlbumRadio() {
         val provider = connectedProvider ?: return
         connectionStatus = "Starting random album radio..."
@@ -2104,7 +2068,7 @@ fun NaviampApp(
                 }
                 val sourceId = connectedSourceId
                 val seedTrack = withContext(Dispatchers.IO) {
-                    albumRadioSeedTrack(provider, album, sourceId)
+                    albumRadioSeedTrack(sessionCache, provider, album, sourceId)
                 } ?: run {
                     connectionStatus = "${album.title} did not return any tracks."
                     return@launch
@@ -2130,7 +2094,7 @@ fun NaviampApp(
         coroutineScope.launch {
             try {
                 val seedTrack = withContext(Dispatchers.IO) {
-                    artistRadioSeedTrack(provider, artist, sourceId)
+                    artistRadioSeedTrack(sessionCache, provider, artist, sourceId)
                 } ?: run {
                     connectionStatus = "${artist.name} radio did not find a seed track."
                     return@launch
@@ -2161,7 +2125,7 @@ fun NaviampApp(
         coroutineScope.launch {
             try {
                 val seedTrack = withContext(Dispatchers.IO) {
-                    albumRadioSeedTrack(provider, album, sourceId, loadedAlbumTracks)
+                    albumRadioSeedTrack(sessionCache, provider, album, sourceId, loadedAlbumTracks)
                 } ?: run {
                     connectionStatus = "${album.title} did not return any tracks."
                     return@launch
