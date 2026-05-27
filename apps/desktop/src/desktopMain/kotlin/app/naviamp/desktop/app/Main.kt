@@ -49,7 +49,6 @@ import app.naviamp.domain.Genre
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Playlist
-import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.internetRadioStationId
@@ -68,7 +67,6 @@ import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.PlaylistEngine
-import app.naviamp.desktop.playback.PlaybackSource
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.playback.mergeWith
@@ -534,11 +532,7 @@ fun NaviampApp(
     }
 
     fun cycleRepeatMode() {
-        repeatMode = when (repeatMode) {
-            RepeatMode.Off -> RepeatMode.Queue
-            RepeatMode.Queue -> RepeatMode.Track
-            RepeatMode.Track -> RepeatMode.Off
-        }
+        repeatMode = nextRepeatMode(repeatMode)
         playlistEngine.setRepeatMode(repeatMode)
     }
 
@@ -564,13 +558,7 @@ fun NaviampApp(
         maybeSavePlaybackPosition(seekProgress)
         val streamQuality = playbackSettings.streamQuality(playbackEngine)
         val playbackSource = playlistEngine.cacheRuntimeStats().playbackSource
-        if (
-            streamQuality is StreamQuality.Transcoded &&
-            (
-                playbackSource == PlaybackSource.ProviderStream ||
-                    playbackSource == PlaybackSource.ProviderStreamCacheDisabled
-                )
-        ) {
+        if (shouldReplayCurrentForSeek(streamQuality, playbackSource)) {
             playlistEngine.playCurrent(coroutineScope, positionSeconds)
             return
         }

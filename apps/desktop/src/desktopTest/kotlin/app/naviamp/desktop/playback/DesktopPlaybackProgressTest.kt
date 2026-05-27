@@ -1,6 +1,9 @@
 package app.naviamp.desktop
 
 import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.desktop.playback.PlaybackSource
+import app.naviamp.domain.AudioCodec
+import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.queue.PlaybackQueue
@@ -153,6 +156,23 @@ class DesktopPlaybackProgressTest {
                 restartThresholdSeconds = 10.0,
             ),
         )
+    }
+
+    @Test
+    fun repeatModeCyclesThroughQueueTrackAndOff() {
+        assertEquals(RepeatMode.Queue, nextRepeatMode(RepeatMode.Off))
+        assertEquals(RepeatMode.Track, nextRepeatMode(RepeatMode.Queue))
+        assertEquals(RepeatMode.Off, nextRepeatMode(RepeatMode.Track))
+    }
+
+    @Test
+    fun transcodedProviderStreamSeekReplaysCurrentTrack() {
+        val transcoded = StreamQuality.Transcoded(AudioCodec.Opus, bitrateKbps = 192)
+
+        assertEquals(true, shouldReplayCurrentForSeek(transcoded, PlaybackSource.ProviderStream))
+        assertEquals(true, shouldReplayCurrentForSeek(transcoded, PlaybackSource.ProviderStreamCacheDisabled))
+        assertEquals(false, shouldReplayCurrentForSeek(transcoded, PlaybackSource.CachedFile))
+        assertEquals(false, shouldReplayCurrentForSeek(StreamQuality.Original, PlaybackSource.ProviderStream))
     }
 
     private fun track(id: String): Track =

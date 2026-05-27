@@ -1,5 +1,7 @@
 package app.naviamp.desktop
 
+import app.naviamp.desktop.playback.PlaybackSource
+import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
@@ -82,3 +84,20 @@ fun shouldRestartInsteadOfPrevious(
 ): Boolean =
     previousButtonBehavior == PreviousButtonBehavior.RestartThenPrevious &&
         (positionSeconds ?: 0.0) > restartThresholdSeconds
+
+fun nextRepeatMode(mode: RepeatMode): RepeatMode =
+    when (mode) {
+        RepeatMode.Off -> RepeatMode.Queue
+        RepeatMode.Queue -> RepeatMode.Track
+        RepeatMode.Track -> RepeatMode.Off
+    }
+
+fun shouldReplayCurrentForSeek(
+    streamQuality: StreamQuality,
+    playbackSource: PlaybackSource,
+): Boolean =
+    streamQuality is StreamQuality.Transcoded &&
+        (
+            playbackSource == PlaybackSource.ProviderStream ||
+                playbackSource == PlaybackSource.ProviderStreamCacheDisabled
+            )
