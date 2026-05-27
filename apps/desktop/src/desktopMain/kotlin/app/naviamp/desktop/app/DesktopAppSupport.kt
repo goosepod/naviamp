@@ -31,14 +31,6 @@ fun PlaybackSettings.forEngine(playbackEngine: PlaybackEngine): PlaybackSettings
         upNextSelectionBehavior = upNextSelectionBehavior,
     )
 
-fun shouldAutoSyncLibrary(
-    sourceId: String,
-    cache: DesktopCache,
-): Boolean {
-    val indexStats = cache.libraryIndexStats(sourceId)
-    return !indexStats.hasUsableIndex
-}
-
 fun DesktopCache.asHomeLibraryRepository(): HomeLibraryRepository =
     object : HomeLibraryRepository {
         override fun albumYears(sourceId: String): List<HomeAlbumYear> =

@@ -1,11 +1,26 @@
 package app.naviamp.desktop
 
-import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.cache.LibrarySnapshot
+import app.naviamp.domain.provider.MediaProvider
 
 class LibrarySync(
     private val cache: DesktopCache,
 ) {
+    suspend fun syncAndMarkScanChecked(
+        sourceId: String,
+        provider: MediaProvider,
+        onProgress: suspend (LibrarySyncProgress) -> Unit = {},
+    ) {
+        sync(
+            sourceId = sourceId,
+            provider = provider,
+            onProgress = onProgress,
+        )
+        provider.libraryScanStatus()?.signature?.let { signature ->
+            cache.markLibraryScanChecked(sourceId, signature)
+        }
+    }
+
     suspend fun sync(
         sourceId: String,
         provider: MediaProvider,
@@ -84,6 +99,14 @@ fun nextLibraryLimit(
 fun libraryLimitForOffset(offset: Int, pageSize: Int): Int =
     ((offset / pageSize) + 1) * pageSize
 
+fun shouldAutoSyncLibrary(
+    sourceId: String,
+    cache: DesktopCache,
+): Boolean {
+    val indexStats = cache.libraryIndexStats(sourceId)
+    return !indexStats.hasUsableIndex
+}
+
 data class LibrarySyncProgress(
     val phase: String,
     val completed: Int,
@@ -102,6 +125,19 @@ data class LibraryFreshness(
     val previousSignature: String?,
     val scanning: Boolean,
 )
+
+suspend fun DesktopCache.libraryFreshnessFor(
+    sourceId: String,
+    provider: MediaProvider,
+): LibraryFreshness {
+    val scanStatus = provider.libraryScanStatus()
+    val source = mediaSource(sourceId)
+    return LibraryFreshness(
+        signature = scanStatus?.signature,
+        previousSignature = source?.lastLibraryScanSignature,
+        scanning = scanStatus?.scanning == true,
+    )
+}
 
 data class LibraryFreshnessUpdate(
     val signatureToMarkChecked: String? = null,

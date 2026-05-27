@@ -1345,7 +1345,7 @@ fun NaviampApp(
             val uiContext = coroutineContext
             try {
                 withContext(Dispatchers.IO) {
-                    librarySync.sync(
+                    librarySync.syncAndMarkScanChecked(
                         sourceId = sourceId,
                         provider = provider,
                         onProgress = { progress ->
@@ -1354,9 +1354,6 @@ fun NaviampApp(
                             }
                         },
                     )
-                    provider.libraryScanStatus()?.signature?.let { signature ->
-                        sessionCache.markLibraryScanChecked(sourceId, signature)
-                    }
                 }
                 refreshLibrarySnapshot()
                 libraryStatus = null
@@ -1374,14 +1371,7 @@ fun NaviampApp(
         if (isLibrarySyncing) return
         coroutineScope.launch {
             val freshness = withContext(Dispatchers.IO) {
-                val scanStatus = provider.libraryScanStatus()
-                val signature = scanStatus?.signature
-                val source = sessionCache.mediaSource(sourceId)
-                LibraryFreshness(
-                    signature = signature,
-                    previousSignature = source?.lastLibraryScanSignature,
-                    scanning = scanStatus?.scanning == true,
-                )
+                sessionCache.libraryFreshnessFor(sourceId, provider)
             }
             val update = freshness.evaluateLibraryFreshness(libraryStatus)
             update.signatureToMarkChecked?.let { signature ->
