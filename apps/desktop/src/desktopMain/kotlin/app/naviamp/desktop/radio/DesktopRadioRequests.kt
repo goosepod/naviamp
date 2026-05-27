@@ -1,6 +1,8 @@
 package app.naviamp.desktop
 
 import app.naviamp.desktop.settings.RecentRadioStream
+import app.naviamp.domain.Album
+import app.naviamp.domain.Artist
 import app.naviamp.domain.Genre
 import app.naviamp.domain.Track
 import app.naviamp.domain.radio.RadioService
@@ -49,6 +51,40 @@ fun trackRadioRequest(track: Track): DesktopSeededRadioRequest =
         seedTrack = track,
         recentRadioStream = trackRecentRadioStream(track),
         loadRest = { radioService -> radioService.trackRadio(track.id) },
+    )
+
+fun randomAlbumSeededRadioRequest(
+    album: Album,
+    seedTrack: Track,
+): DesktopSeededRadioRequest =
+    DesktopSeededRadioRequest(
+        label = "${album.title} radio",
+        seedTrack = seedTrack,
+        recentRadioStream = randomAlbumRecentRadioStream(album),
+        loadRest = { radioService -> radioService.albumRadio(album.id) },
+    )
+
+fun artistSeededRadioRequest(
+    artist: Artist,
+    seedTrack: Track,
+): DesktopSeededRadioRequest =
+    DesktopSeededRadioRequest(
+        label = "${artist.name} radio",
+        seedTrack = seedTrack,
+        recentRadioStream = artistRecentRadioStream(artist),
+        loadRest = { radioService -> radioService.artistRadio(artist.id) },
+    )
+
+fun albumSeededRadioRequest(
+    album: Album,
+    seedTrack: Track,
+    loadedAlbumTracks: List<Track> = emptyList(),
+): DesktopSeededRadioRequest =
+    DesktopSeededRadioRequest(
+        label = "${album.title} radio",
+        seedTrack = seedTrack,
+        recentRadioStream = albumRecentRadioStream(album),
+        loadRest = { radioService -> radioService.albumRadio(album.id, loadedAlbumTracks) },
     )
 
 fun popularTracksRadioRequest(

@@ -2062,14 +2062,7 @@ fun NaviampApp(
                     connectionStatus = "${album.title} did not return any tracks."
                     return@launch
                 }
-                startSeededRadio(
-                    label = "${album.title} radio",
-                    provider = provider,
-                    seedTrack = seedTrack,
-                    recentRadioStream = randomAlbumRecentRadioStream(album),
-                ) { radioService ->
-                    radioService.albumRadio(album.id)
-                }
+                startSeededRadio(provider, randomAlbumSeededRadioRequest(album, seedTrack))
             } catch (exception: Exception) {
                 connectionStatus = exception.message ?: "Could not start random album radio."
             }
@@ -2088,14 +2081,7 @@ fun NaviampApp(
                     connectionStatus = "${artist.name} radio did not find a seed track."
                     return@launch
                 }
-                startSeededRadio(
-                    label = "${artist.name} radio",
-                    provider = provider,
-                    seedTrack = seedTrack,
-                    recentRadioStream = artistRecentRadioStream(artist),
-                ) { radioService ->
-                    radioService.artistRadio(artist.id)
-                }
+                startSeededRadio(provider, artistSeededRadioRequest(artist, seedTrack))
             } catch (exception: Exception) {
                 connectionStatus = exception.message ?: "Could not start ${artist.name} radio."
             }
@@ -2119,14 +2105,7 @@ fun NaviampApp(
                     connectionStatus = "${album.title} did not return any tracks."
                     return@launch
                 }
-                startSeededRadio(
-                    label = "${album.title} radio",
-                    provider = provider,
-                    seedTrack = seedTrack,
-                    recentRadioStream = albumRecentRadioStream(album),
-                ) { radioService ->
-                    radioService.albumRadio(album.id, loadedAlbumTracks)
-                }
+                startSeededRadio(provider, albumSeededRadioRequest(album, seedTrack, loadedAlbumTracks))
             } catch (exception: Exception) {
                 connectionStatus = exception.message ?: "Could not start ${album.title} radio."
             }

@@ -1,6 +1,10 @@
 package app.naviamp.desktop
 
 import app.naviamp.desktop.settings.RecentRadioKind
+import app.naviamp.domain.Album
+import app.naviamp.domain.AlbumId
+import app.naviamp.domain.Artist
+import app.naviamp.domain.ArtistId
 import app.naviamp.domain.Genre
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
@@ -46,6 +50,38 @@ class DesktopRadioRequestsTest {
         assertTrue(popularRequest.seedTrack in tracks)
         assertEquals("${popularRequest.seedTrack.artistName} popular tracks radio", popularRequest.label)
         assertEquals(RecentRadioKind.Track, popularRequest.recentRadioStream.kind)
+    }
+
+    @Test
+    fun createsEntitySeededRadioRequests() {
+        val artist = Artist(id = ArtistId("artist-1"), name = "New Order")
+        val album = Album(
+            id = AlbumId("album-1"),
+            title = "Power, Corruption & Lies",
+            artistName = "New Order",
+            coverArtId = "cover-1",
+            recentlyAddedAtIso8601 = null,
+            releaseYear = 1983,
+        )
+        val seedTrack = track("track-1", title = "Age of Consent", artistName = "New Order")
+
+        val randomAlbum = randomAlbumSeededRadioRequest(album, seedTrack)
+        assertEquals("Power, Corruption & Lies radio", randomAlbum.label)
+        assertEquals(seedTrack, randomAlbum.seedTrack)
+        assertEquals("random-album:album-1", randomAlbum.recentRadioStream.id)
+        assertEquals(RecentRadioKind.RandomAlbum, randomAlbum.recentRadioStream.kind)
+
+        val artistRadio = artistSeededRadioRequest(artist, seedTrack)
+        assertEquals("New Order radio", artistRadio.label)
+        assertEquals(seedTrack, artistRadio.seedTrack)
+        assertEquals("artist:artist-1", artistRadio.recentRadioStream.id)
+        assertEquals(RecentRadioKind.Artist, artistRadio.recentRadioStream.kind)
+
+        val albumRadio = albumSeededRadioRequest(album, seedTrack)
+        assertEquals("Power, Corruption & Lies radio", albumRadio.label)
+        assertEquals(seedTrack, albumRadio.seedTrack)
+        assertEquals("album:album-1", albumRadio.recentRadioStream.id)
+        assertEquals(RecentRadioKind.Album, albumRadio.recentRadioStream.kind)
     }
 
     private fun track(
