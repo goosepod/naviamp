@@ -7,6 +7,7 @@ import app.naviamp.android.playback.AndroidBassLoadReport
 import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
+import app.naviamp.domain.playback.nextRepeatMode
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.PlaybackSettings
@@ -610,11 +611,7 @@ fun androidAppShellActions(
             },
             onToggleShuffle = handleShellToggleShuffle,
             onCycleRepeatMode = {
-                repeatMode = when (repeatMode) {
-                    RepeatMode.Off -> RepeatMode.Queue
-                    RepeatMode.Queue -> RepeatMode.Track
-                    RepeatMode.Track -> RepeatMode.Off
-                }
+                repeatMode = nextRepeatMode(repeatMode)
             },
             onToggleLyrics = {
                 lyricsVisible = !lyricsVisible

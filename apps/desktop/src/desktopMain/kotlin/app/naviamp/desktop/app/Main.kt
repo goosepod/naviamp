@@ -55,6 +55,8 @@ import app.naviamp.domain.internetRadioStationId
 import app.naviamp.domain.internetRadioTrackId
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.cache.LibrarySnapshot
+import app.naviamp.domain.library.evaluateLibraryFreshness
+import app.naviamp.domain.library.libraryLimitForOffset
 import app.naviamp.domain.playback.CrossfadeSettings
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackProgress
@@ -70,6 +72,12 @@ import app.naviamp.desktop.playback.PlaylistEngine
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.playback.mergeWith
+import app.naviamp.domain.playback.nextRepeatMode
+import app.naviamp.domain.playback.planPlaybackSeek
+import app.naviamp.domain.playback.shouldClearPendingSeek
+import app.naviamp.domain.playback.shouldIgnoreProgressForPendingSeek
+import app.naviamp.domain.playback.shouldRestartInsteadOfPrevious
+import app.naviamp.domain.playback.shouldSubmitPlayReport
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.home.HomeService
@@ -530,13 +538,13 @@ fun NaviampApp(
     fun performSeek(positionSeconds: Double) {
         val streamQuality = playbackSettings.streamQuality(playbackEngine)
         val playbackSource = playlistEngine.cacheRuntimeStats().playbackSource
-        val seekPlan = planDesktopSeek(
+        val seekPlan = planPlaybackSeek(
             isInternetRadioTrack = nowPlayingTrack?.isInternetRadioTrack() == true,
             positionSeconds = positionSeconds,
             currentProgress = playbackProgress,
             trackDurationSeconds = nowPlayingTrack?.durationSeconds,
             streamQuality = streamQuality,
-            playbackSource = playbackSource,
+            shouldReplayTranscodedStream = shouldReplayCurrentForSeek(playbackSource),
         ) ?: return
         pendingSeekPositionSeconds = positionSeconds
         pendingSeekIssuedAtMillis = System.currentTimeMillis()
@@ -565,7 +573,13 @@ fun NaviampApp(
     fun handlePreviousButton() {
         openPlayerOnTrackStart = false
         val positionSeconds = playbackProgress.positionSeconds ?: 0.0
-        if (shouldRestartInsteadOfPrevious(playbackSettings.previousButtonBehavior, positionSeconds)) {
+        if (
+            shouldRestartInsteadOfPrevious(
+                previousButtonBehavior = playbackSettings.previousButtonBehavior,
+                positionSeconds = positionSeconds,
+                restartThresholdSeconds = PreviousRestartThresholdSeconds,
+            )
+        ) {
             performSeek(0.0)
             return
         }
@@ -592,6 +606,7 @@ fun NaviampApp(
         if (
             !shouldSubmitPlayReport(
                 supportsPlayReporting = provider.capabilities.supportsPlayReporting,
+                isInternetRadioTrack = track.isInternetRadioTrack(),
                 activeSessionId = playReportSessionId,
                 submittedSessionId = submittedPlayReportSessionId,
                 positionSeconds = progress.positionSeconds,
@@ -1423,6 +1438,7 @@ fun NaviampApp(
                         playbackQueue = PlaybackQueue()
                         playbackState = PlaybackState.Idle
                     } else if (restoredSession != null) {
+                        playbackProgress = restoredSession.playbackProgress
                         playlistEngine.restore(
                             provider = provider,
                             tracks = restoredSession.tracks,
@@ -1430,6 +1446,7 @@ fun NaviampApp(
                             quality = playbackSettings.streamQuality(playbackEngine),
                             replayGainMode = playbackSettings.replayGainMode,
                             callbacks = playlistCallbacks,
+                            initialProgress = restoredSession.playbackProgress,
                         )
                         nowPlayingInternetRadioStation = null
                         nowPlayingStreamMetadata = PlaybackStreamMetadata()

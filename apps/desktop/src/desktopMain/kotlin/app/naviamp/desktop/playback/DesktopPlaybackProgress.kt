@@ -1,42 +1,12 @@
 package app.naviamp.desktop
 
 import app.naviamp.desktop.playback.PlaybackSource
-import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.playback.shouldRestartInsteadOfPrevious
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.PreviousButtonBehavior
 import kotlin.math.abs
-
-fun shouldIgnoreProgressForPendingSeek(
-    pendingSeekPositionSeconds: Double?,
-    pendingSeekIssuedAtMillis: Long?,
-    incomingPositionSeconds: Double?,
-    nowMillis: Long,
-    toleranceSeconds: Double = PendingSeekToleranceSeconds,
-    staleWindowMillis: Long = PendingSeekStaleProgressWindowMillis,
-): Boolean =
-    pendingSeekPositionSeconds != null &&
-        pendingSeekIssuedAtMillis != null &&
-        incomingPositionSeconds != null &&
-        abs(incomingPositionSeconds - pendingSeekPositionSeconds) > toleranceSeconds &&
-        nowMillis - pendingSeekIssuedAtMillis < staleWindowMillis
-
-fun shouldClearPendingSeek(
-    pendingSeekPositionSeconds: Double?,
-    pendingSeekIssuedAtMillis: Long?,
-    incomingPositionSeconds: Double?,
-    nowMillis: Long,
-    toleranceSeconds: Double = PendingSeekToleranceSeconds,
-    staleWindowMillis: Long = PendingSeekStaleProgressWindowMillis,
-): Boolean =
-    pendingSeekPositionSeconds != null &&
-        (
-            incomingPositionSeconds == null ||
-                pendingSeekIssuedAtMillis == null ||
-                abs(incomingPositionSeconds - pendingSeekPositionSeconds) <= toleranceSeconds ||
-                nowMillis - pendingSeekIssuedAtMillis >= staleWindowMillis
-            )
 
 fun shouldUpdatePlaybackProgressUi(
     pendingSeekPositionSeconds: Double?,
@@ -69,25 +39,6 @@ fun shouldSavePlaybackPosition(
     return lastSaved == null || abs(position - lastSaved) >= saveThresholdSeconds
 }
 
-fun playReportThresholdSeconds(durationSeconds: Double?): Double =
-    durationSeconds
-        ?.takeIf { it > 0.0 }
-        ?.let { minOf(it * PlayReportDurationFraction, PlayReportMaxThresholdSeconds) }
-        ?: PlayReportMaxThresholdSeconds
-
-fun shouldSubmitPlayReport(
-    supportsPlayReporting: Boolean,
-    activeSessionId: Int,
-    submittedSessionId: Int?,
-    positionSeconds: Double?,
-    durationSeconds: Double?,
-): Boolean {
-    if (!supportsPlayReporting) return false
-    if (submittedSessionId == activeSessionId) return false
-    val position = positionSeconds ?: return false
-    return position >= playReportThresholdSeconds(durationSeconds)
-}
-
 fun canUsePreviousButton(
     queue: PlaybackQueue,
     previousButtonBehavior: PreviousButtonBehavior,
@@ -108,50 +59,6 @@ fun canUseNextButton(
     queue.hasNext() ||
         (repeatMode == RepeatMode.Queue && queue.tracks.isNotEmpty())
 
-fun shouldRestartInsteadOfPrevious(
-    previousButtonBehavior: PreviousButtonBehavior,
-    positionSeconds: Double?,
-    restartThresholdSeconds: Double = PreviousRestartThresholdSeconds,
-): Boolean =
-    previousButtonBehavior == PreviousButtonBehavior.RestartThenPrevious &&
-        (positionSeconds ?: 0.0) > restartThresholdSeconds
-
-fun nextRepeatMode(mode: RepeatMode): RepeatMode =
-    when (mode) {
-        RepeatMode.Off -> RepeatMode.Queue
-        RepeatMode.Queue -> RepeatMode.Track
-        RepeatMode.Track -> RepeatMode.Off
-    }
-
-fun shouldReplayCurrentForSeek(
-    streamQuality: StreamQuality,
-    playbackSource: PlaybackSource,
-): Boolean =
-    streamQuality is StreamQuality.Transcoded &&
-        (
-            playbackSource == PlaybackSource.ProviderStream ||
-                playbackSource == PlaybackSource.ProviderStreamCacheDisabled
-            )
-
-data class DesktopSeekPlan(
-    val progress: PlaybackProgress,
-    val shouldReplayCurrent: Boolean,
-)
-
-fun planDesktopSeek(
-    isInternetRadioTrack: Boolean,
-    positionSeconds: Double,
-    currentProgress: PlaybackProgress,
-    trackDurationSeconds: Int?,
-    streamQuality: StreamQuality,
-    playbackSource: PlaybackSource,
-): DesktopSeekPlan? {
-    if (isInternetRadioTrack) return null
-    return DesktopSeekPlan(
-        progress = PlaybackProgress(
-            positionSeconds = positionSeconds,
-            durationSeconds = currentProgress.durationSeconds ?: trackDurationSeconds?.toDouble(),
-        ),
-        shouldReplayCurrent = shouldReplayCurrentForSeek(streamQuality, playbackSource),
-    )
-}
+fun shouldReplayCurrentForSeek(playbackSource: PlaybackSource): Boolean =
+    playbackSource == PlaybackSource.ProviderStream ||
+        playbackSource == PlaybackSource.ProviderStreamCacheDisabled

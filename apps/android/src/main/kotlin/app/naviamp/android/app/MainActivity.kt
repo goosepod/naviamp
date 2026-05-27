@@ -59,6 +59,8 @@ import app.naviamp.domain.home.HomeStationLibrary
 import app.naviamp.domain.home.HomeStationRandomAlbum
 import app.naviamp.domain.home.parseHomeDecadeStationId
 import app.naviamp.domain.home.parseHomeGenreStationId
+import app.naviamp.domain.library.LibraryFreshness
+import app.naviamp.domain.library.evaluateLibraryFreshness
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackReplayGain
@@ -70,6 +72,11 @@ import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.label
+import app.naviamp.domain.playback.planPlaybackSeek
+import app.naviamp.domain.playback.shouldClearPendingSeek
+import app.naviamp.domain.playback.shouldIgnoreProgressForPendingSeek
+import app.naviamp.domain.playback.shouldRestartInsteadOfPrevious
+import app.naviamp.domain.playback.shouldSubmitPlayReport
 import app.naviamp.domain.popular.ArtistPopularTracksService
 import app.naviamp.domain.popular.DeezerPopularTracksClient
 import app.naviamp.domain.popular.SimilarArtistMatch
@@ -81,7 +88,6 @@ import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.radio.generatedRadioQueue
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.PlaybackSettings
-import app.naviamp.domain.settings.PreviousButtonBehavior
 import app.naviamp.domain.settings.downloadStreamQuality
 import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
@@ -726,13 +732,20 @@ private fun NaviampAndroidApp(
 
     fun maybeReportPlayed(progress: PlaybackProgress) {
         val activeProvider = provider ?: return
-        if (!activeProvider.capabilities.supportsPlayReporting) return
-        if (submittedPlayReportSessionToken == playbackSessionToken) return
         val track = nowPlaying ?: return
-        if (track.isInternetRadioTrack()) return
-        val positionSeconds = progress.positionSeconds ?: return
         val durationSeconds = progress.durationSeconds ?: track.durationSeconds?.toDouble()
-        if (positionSeconds < playReportThresholdSeconds(durationSeconds)) return
+        if (
+            !shouldSubmitPlayReport(
+                supportsPlayReporting = activeProvider.capabilities.supportsPlayReporting,
+                isInternetRadioTrack = track.isInternetRadioTrack(),
+                activeSessionId = playbackSessionToken,
+                submittedSessionId = submittedPlayReportSessionToken,
+                positionSeconds = progress.positionSeconds,
+                durationSeconds = durationSeconds,
+            )
+        ) {
+            return
+        }
 
         val activeSessionToken = playbackSessionToken
         submittedPlayReportSessionToken = activeSessionToken
@@ -766,11 +779,14 @@ private fun NaviampAndroidApp(
         val progressPosition = progress.positionSeconds
         val nowMillis = System.currentTimeMillis()
         if (
-            pendingSeek != null &&
-            pendingSeekIssuedAt != null &&
-            progressPosition != null &&
-            abs(progressPosition - pendingSeek) > PendingSeekToleranceSeconds &&
-            nowMillis - pendingSeekIssuedAt < PendingSeekStaleProgressWindowMillis
+            shouldIgnoreProgressForPendingSeek(
+                pendingSeekPositionSeconds = pendingSeek,
+                pendingSeekIssuedAtMillis = pendingSeekIssuedAt,
+                incomingPositionSeconds = progressPosition,
+                nowMillis = nowMillis,
+                toleranceSeconds = PendingSeekToleranceSeconds,
+                staleWindowMillis = PendingSeekStaleProgressWindowMillis,
+            )
         ) {
             return
         }
@@ -790,11 +806,14 @@ private fun NaviampAndroidApp(
             return
         }
         if (
-            pendingSeek != null &&
-            (progressPosition == null ||
-                pendingSeekIssuedAt == null ||
-                abs(progressPosition - pendingSeek) <= PendingSeekToleranceSeconds ||
-                nowMillis - pendingSeekIssuedAt >= PendingSeekStaleProgressWindowMillis)
+            shouldClearPendingSeek(
+                pendingSeekPositionSeconds = pendingSeek,
+                pendingSeekIssuedAtMillis = pendingSeekIssuedAt,
+                incomingPositionSeconds = progressPosition,
+                nowMillis = nowMillis,
+                toleranceSeconds = PendingSeekToleranceSeconds,
+                staleWindowMillis = PendingSeekStaleProgressWindowMillis,
+            )
         ) {
             pendingSeekPositionSeconds = null
             pendingSeekIssuedAtMillis = null
@@ -987,11 +1006,16 @@ private fun NaviampAndroidApp(
     fun performSeek(positionSeconds: Double) {
         restoredStartPositionSeconds = null
         pendingRestoreStartPositionSeconds = null
-        val durationSeconds = playbackProgress.durationSeconds ?: nowPlaying?.durationSeconds?.toDouble()
-        playbackProgress = PlaybackProgress(
-            positionSeconds = positionSeconds.coerceAtLeast(0.0),
-            durationSeconds = durationSeconds,
-        )
+        val currentTrack = nowPlaying
+        val seekPlan = planPlaybackSeek(
+            isInternetRadioTrack = currentTrack?.isInternetRadioTrack() == true,
+            positionSeconds = positionSeconds,
+            currentProgress = playbackProgress,
+            trackDurationSeconds = currentTrack?.durationSeconds,
+            streamQuality = currentStreamQuality(),
+            shouldReplayTranscodedStream = true,
+        ) ?: return
+        playbackProgress = seekPlan.progress
         val positionMillis = playbackProgress.positionSeconds?.secondsToMillis()
         val durationMillis = playbackProgress.durationSeconds?.secondsToMillis()
         AndroidPlaybackNotificationControls.positionMillis = positionMillis
@@ -999,8 +1023,7 @@ private fun NaviampAndroidApp(
         AndroidPlaybackForegroundService.updateProgress(context, positionMillis, durationMillis)
         pendingSeekPositionSeconds = positionSeconds
         pendingSeekIssuedAtMillis = System.currentTimeMillis()
-        val currentTrack = nowPlaying
-        if (currentTrack != null && currentStreamQuality() is StreamQuality.Transcoded) {
+        if (currentTrack != null && seekPlan.shouldReplayCurrent) {
             playTrack(
                 track = currentTrack,
                 queue = playbackQueue.tracks.takeIf { it.isNotEmpty() },
@@ -1016,8 +1039,11 @@ private fun NaviampAndroidApp(
         val currentTrack = nowPlaying ?: return
         if (
             offset < 0 &&
-            playbackSettings.previousButtonBehavior == PreviousButtonBehavior.RestartThenPrevious &&
-            (playbackProgress.positionSeconds ?: 0.0) > 3.0
+            shouldRestartInsteadOfPrevious(
+                previousButtonBehavior = playbackSettings.previousButtonBehavior,
+                positionSeconds = playbackProgress.positionSeconds,
+                restartThresholdSeconds = 3.0,
+            )
         ) {
             performSeek(0.0)
             return
@@ -1677,30 +1703,23 @@ private fun NaviampAndroidApp(
         scope.launch {
             val freshness = withContext(Dispatchers.IO) {
                 val scanStatus = activeProvider.libraryScanStatus()
-                AndroidLibraryFreshness(
+                LibraryFreshness(
                     signature = scanStatus?.signature,
                     previousSignature = storage.mediaSource(sourceId)?.lastLibraryScanSignature,
                     scanning = scanStatus?.scanning == true,
                 )
             }
-            val signature = freshness.signature ?: return@launch
-            when {
-                freshness.previousSignature == null -> {
-                    withContext(Dispatchers.IO) {
-                        storage.markLibraryScanChecked(sourceId, signature)
-                    }
+            val update = freshness.evaluateLibraryFreshness(libraryStatus)
+            update.signatureToMarkChecked?.let { signature ->
+                withContext(Dispatchers.IO) {
+                    storage.markLibraryScanChecked(sourceId, signature)
                 }
-                freshness.previousSignature != signature -> {
-                    libraryStatus = if (freshness.scanning) {
-                        "Navidrome is scanning. Refresh library after the scan finishes."
-                    } else {
-                        "Library changed on server. Refresh library to import updates."
-                    }
-                }
-                libraryStatus?.startsWith("Library changed on server") == true ||
-                    libraryStatus?.startsWith("Navidrome is scanning") == true -> {
-                    libraryStatus = null
-                }
+            }
+            update.status?.let { status ->
+                libraryStatus = status
+            }
+            if (update.clearStatus) {
+                libraryStatus = null
             }
         }
     }

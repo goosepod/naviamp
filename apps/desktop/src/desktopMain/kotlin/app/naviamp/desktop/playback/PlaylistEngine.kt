@@ -86,6 +86,7 @@ class PlaylistEngine(
         quality: StreamQuality,
         replayGainMode: ReplayGainMode,
         callbacks: PlaylistCallbacks,
+        initialProgress: PlaybackProgress = PlaybackProgress.Unknown,
     ) {
         if (tracks.isEmpty() || index !in tracks.indices) return
         this.provider = provider
@@ -101,7 +102,7 @@ class PlaylistEngine(
         queue = PlaybackQueue(tracks = tracks, currentIndex = index)
         preparedNextIndex = null
         callbacks.onQueueChanged(queue)
-        callbacks.onPlaybackProgressChanged(PlaybackProgress.Unknown)
+        callbacks.onPlaybackProgressChanged(initialProgress)
         callbacks.onPlaybackStateChanged(PlaybackState.Idle)
     }
 

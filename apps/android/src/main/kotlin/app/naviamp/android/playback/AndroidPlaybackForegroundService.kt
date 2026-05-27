@@ -40,6 +40,8 @@ import app.naviamp.domain.TrackId
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
+import app.naviamp.domain.playback.hasPendingSeekReachedTarget
+import app.naviamp.domain.playback.shouldIgnoreProgressForPendingSeek
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.radio.RadioService
@@ -1074,17 +1076,23 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         if (progressPositionSeconds == null && progress.durationSeconds == null) return
         val pendingSeekPosition = pendingServiceSeekPositionSeconds
         if (
-            pendingSeekPosition != null &&
-            now - pendingServiceSeekAtMillis < ServiceSeekStaleProgressWindowMillis &&
-            progressPositionSeconds != null &&
-            kotlin.math.abs(progressPositionSeconds - pendingSeekPosition) > ServiceSeekToleranceSeconds
+            shouldIgnoreProgressForPendingSeek(
+                pendingSeekPositionSeconds = pendingSeekPosition,
+                pendingSeekIssuedAtMillis = pendingServiceSeekAtMillis,
+                incomingPositionSeconds = progressPositionSeconds,
+                nowMillis = now,
+                toleranceSeconds = ServiceSeekToleranceSeconds,
+                staleWindowMillis = ServiceSeekStaleProgressWindowMillis,
+            )
         ) {
             return
         }
         if (
-            pendingSeekPosition != null &&
-            progressPositionSeconds != null &&
-            kotlin.math.abs(progressPositionSeconds - pendingSeekPosition) <= ServiceSeekToleranceSeconds
+            hasPendingSeekReachedTarget(
+                pendingSeekPositionSeconds = pendingSeekPosition,
+                incomingPositionSeconds = progressPositionSeconds,
+                toleranceSeconds = ServiceSeekToleranceSeconds,
+            )
         ) {
             pendingServiceSeekPositionSeconds = null
         }

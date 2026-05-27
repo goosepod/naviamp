@@ -373,11 +373,6 @@ fun PlaybackProgress.mergeForAndroidPlayback(previous: PlaybackProgress): Playba
         durationSeconds = durationSeconds ?: previous.durationSeconds,
     )
 
-fun playReportThresholdSeconds(durationSeconds: Double?): Double =
-    durationSeconds
-        ?.let { minOf(it * PlayReportDurationFraction, PlayReportMaxThresholdSeconds) }
-        ?: PlayReportMaxThresholdSeconds
-
 fun ReplayGainMode.forEngine(playbackEngine: AndroidPlaybackEngine): ReplayGainMode =
     if (playbackEngine.supportsReplayGain) this else ReplayGainMode.Off
 

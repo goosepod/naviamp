@@ -53,9 +53,3 @@ data class AndroidLibrarySyncProgress(
     val label: String,
     val artists: List<Artist>? = null,
 )
-
-data class AndroidLibraryFreshness(
-    val signature: String?,
-    val previousSignature: String?,
-    val scanning: Boolean,
-)
