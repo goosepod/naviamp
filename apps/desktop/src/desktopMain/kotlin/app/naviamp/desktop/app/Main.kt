@@ -3564,10 +3564,3 @@ fun NaviampApp(
         }
     }
 }
-
-private data class NowPlayingAnalysis(
-    val waveform: AudioWaveform?,
-    val waveformStatus: String,
-    val audioTags: List<AudioTag>,
-    val lyrics: Lyrics?,
-)
