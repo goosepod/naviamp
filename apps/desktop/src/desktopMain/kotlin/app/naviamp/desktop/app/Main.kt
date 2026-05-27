@@ -95,7 +95,6 @@ import app.naviamp.desktop.settings.DesktopSettingsStore
 import app.naviamp.desktop.settings.NavigationSettings
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.desktop.settings.PlaybackSessionSettings
-import app.naviamp.desktop.settings.PreviousButtonBehavior
 import app.naviamp.desktop.settings.RecentRadioKind
 import app.naviamp.desktop.settings.RecentRadioStream
 import app.naviamp.desktop.settings.SavedAlbum
@@ -579,23 +578,22 @@ fun NaviampApp(
     }
 
     fun canUsePreviousButton(): Boolean =
-        playbackQueue.hasPrevious() ||
-            (
-                playbackSettings.previousButtonBehavior == PreviousButtonBehavior.RestartThenPrevious &&
-                    (playbackProgress.positionSeconds ?: 0.0) > PreviousRestartThresholdSeconds
-                )
+        canUsePreviousButton(
+            queue = playbackQueue,
+            previousButtonBehavior = playbackSettings.previousButtonBehavior,
+            positionSeconds = playbackProgress.positionSeconds,
+        )
 
     fun canUseNextButton(): Boolean =
-        playbackQueue.hasNext() ||
-            (repeatMode == RepeatMode.Queue && playbackQueue.tracks.isNotEmpty())
+        canUseNextButton(
+            queue = playbackQueue,
+            repeatMode = repeatMode,
+        )
 
     fun handlePreviousButton() {
         openPlayerOnTrackStart = false
         val positionSeconds = playbackProgress.positionSeconds ?: 0.0
-        if (
-            playbackSettings.previousButtonBehavior == PreviousButtonBehavior.RestartThenPrevious &&
-            positionSeconds > PreviousRestartThresholdSeconds
-        ) {
+        if (shouldRestartInsteadOfPrevious(playbackSettings.previousButtonBehavior, positionSeconds)) {
             performSeek(0.0)
             return
         }

@@ -1,6 +1,9 @@
 package app.naviamp.desktop
 
 import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.queue.RepeatMode
+import app.naviamp.domain.settings.PreviousButtonBehavior
 import kotlin.math.abs
 
 fun shouldIgnoreProgressForPendingSeek(
@@ -51,3 +54,31 @@ fun shouldUpdatePlaybackProgressUi(
         abs(mergedPosition - currentPosition) >= positionThresholdSeconds ||
         nowMillis - lastUiUpdateMillis >= updateIntervalMillis
 }
+
+fun canUsePreviousButton(
+    queue: PlaybackQueue,
+    previousButtonBehavior: PreviousButtonBehavior,
+    positionSeconds: Double?,
+    restartThresholdSeconds: Double = PreviousRestartThresholdSeconds,
+): Boolean =
+    queue.hasPrevious() ||
+        shouldRestartInsteadOfPrevious(
+            previousButtonBehavior = previousButtonBehavior,
+            positionSeconds = positionSeconds,
+            restartThresholdSeconds = restartThresholdSeconds,
+        )
+
+fun canUseNextButton(
+    queue: PlaybackQueue,
+    repeatMode: RepeatMode,
+): Boolean =
+    queue.hasNext() ||
+        (repeatMode == RepeatMode.Queue && queue.tracks.isNotEmpty())
+
+fun shouldRestartInsteadOfPrevious(
+    previousButtonBehavior: PreviousButtonBehavior,
+    positionSeconds: Double?,
+    restartThresholdSeconds: Double = PreviousRestartThresholdSeconds,
+): Boolean =
+    previousButtonBehavior == PreviousButtonBehavior.RestartThenPrevious &&
+        (positionSeconds ?: 0.0) > restartThresholdSeconds

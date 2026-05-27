@@ -20,6 +20,7 @@ This tracks the work to give the Compose desktop app the same kind of maintainab
 - [ ] Split desktop playback/session controller logic out of `Main.kt`.
   - [x] Move now-playing analysis model into `playback/`.
   - [x] Move playback progress pending-seek/UI update decisions into `playback/`.
+  - [x] Move previous/next button availability and restart decisions into `playback/`.
 - [ ] Split desktop radio orchestration out of `Main.kt`, keeping shared queue/refill rules in `core/domain`.
 - [ ] Split connection/provider setup out of `Main.kt`.
 - [ ] Split library sync/freshness helpers out of `Main.kt`.
@@ -69,3 +70,4 @@ Package names are intentionally unchanged for this pass. The goal is to make the
 - Library snapshot paging decisions now live with library sync helpers and have desktop unit coverage.
 - Now-playing sidecar analysis state now lives in the playback feature folder.
 - Playback progress pending-seek and UI update decisions now live in the playback feature folder with desktop unit coverage.
+- Previous/next control decisions now live in the playback feature folder with desktop unit coverage.
