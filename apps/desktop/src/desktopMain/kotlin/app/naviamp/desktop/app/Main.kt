@@ -88,8 +88,18 @@ import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.popular.SimilarArtistsService
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
+import app.naviamp.domain.radio.RadioRequest
 import app.naviamp.domain.radio.RecentRadioAction
+import app.naviamp.domain.radio.SeededRadioRequest
+import app.naviamp.domain.radio.albumSeededRadioRequest
+import app.naviamp.domain.radio.artistSeededRadioRequest
+import app.naviamp.domain.radio.decadeRadioRequest
+import app.naviamp.domain.radio.genreRadioRequest
+import app.naviamp.domain.radio.libraryRadioRequest
+import app.naviamp.domain.radio.popularTracksRadioRequest
+import app.naviamp.domain.radio.randomAlbumSeededRadioRequest
 import app.naviamp.domain.radio.recentRadioAction
+import app.naviamp.domain.radio.trackRadioRequest
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.waveform.AudioWaveform
@@ -1702,13 +1712,13 @@ fun NaviampApp(
         )
     }
 
-    fun playRadio(request: DesktopRadioRequest) {
+    fun playRadio(request: RadioRequest) {
         radioController.play(request)
     }
 
     fun startSeededRadio(
         provider: NavidromeProvider,
-        request: DesktopSeededRadioRequest,
+        request: SeededRadioRequest,
     ) {
         radioController.startSeeded(provider, request)
     }

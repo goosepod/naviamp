@@ -8,8 +8,11 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.radio.RadioRequest
 import app.naviamp.domain.radio.RadioService
+import app.naviamp.domain.radio.SeededRadioRequest
 import app.naviamp.domain.radio.radioRefillSeedTrack
+import app.naviamp.domain.radio.trackRadioRequest
 import app.naviamp.provider.navidrome.NavidromeProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -81,7 +84,7 @@ class DesktopRadioController(
         }
     }
 
-    fun play(request: DesktopRadioRequest) {
+    fun play(request: RadioRequest) {
         val provider = provider() ?: return
         val radioService = RadioService(provider)
         rememberRadioStream(request.recentRadioStream)
@@ -119,7 +122,7 @@ class DesktopRadioController(
 
     fun startSeeded(
         provider: NavidromeProvider,
-        request: DesktopSeededRadioRequest,
+        request: SeededRadioRequest,
     ) {
         rememberRadioStream(request.recentRadioStream)
         setConnectionStatus(null)

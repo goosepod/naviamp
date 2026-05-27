@@ -1,60 +1,50 @@
-package app.naviamp.desktop
+package app.naviamp.domain.radio
 
 import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
 import app.naviamp.domain.Genre
 import app.naviamp.domain.Track
-import app.naviamp.domain.radio.RadioService
-import app.naviamp.domain.radio.albumRecentRadioStream
-import app.naviamp.domain.radio.artistRecentRadioStream
-import app.naviamp.domain.radio.decadeRecentRadioStream
-import app.naviamp.domain.radio.genreRecentRadioStream
-import app.naviamp.domain.radio.libraryRecentRadioStream
-import app.naviamp.domain.radio.popularTracksRecentRadioStream
-import app.naviamp.domain.radio.randomAlbumRecentRadioStream
-import app.naviamp.domain.radio.trackRecentRadioStream
 import app.naviamp.domain.settings.RecentRadioStream
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 
-data class DesktopRadioRequest(
+data class RadioRequest(
     val label: String,
     val recentRadioStream: RecentRadioStream,
     val loadTracks: suspend (RadioService) -> List<Track>,
 )
 
-data class DesktopSeededRadioRequest(
+data class SeededRadioRequest(
     val label: String,
     val seedTrack: Track,
     val recentRadioStream: RecentRadioStream,
     val loadRest: suspend (RadioService) -> List<Track>,
 )
 
-fun libraryRadioRequest(): DesktopRadioRequest =
-    DesktopRadioRequest(
+fun libraryRadioRequest(): RadioRequest =
+    RadioRequest(
         label = "Library radio",
         recentRadioStream = libraryRecentRadioStream(),
         loadTracks = { radioService -> radioService.libraryRadio() },
     )
 
-fun genreRadioRequest(genre: Genre): DesktopRadioRequest =
-    DesktopRadioRequest(
+fun genreRadioRequest(genre: Genre): RadioRequest =
+    RadioRequest(
         label = "${genre.name} radio",
         recentRadioStream = genreRecentRadioStream(genre),
         loadTracks = { radioService -> radioService.genreRadio(genre.name) },
     )
 
-fun decadeRadioRequest(fromYear: Int, toYear: Int): DesktopRadioRequest =
-    DesktopRadioRequest(
+fun decadeRadioRequest(fromYear: Int, toYear: Int): RadioRequest =
+    RadioRequest(
         label = "$fromYear-$toYear radio",
         recentRadioStream = decadeRecentRadioStream(fromYear, toYear),
         loadTracks = { radioService -> radioService.decadeRadio(fromYear, toYear) },
     )
 
-fun trackRadioRequest(track: Track): DesktopSeededRadioRequest =
-    DesktopSeededRadioRequest(
+fun trackRadioRequest(track: Track): SeededRadioRequest =
+    SeededRadioRequest(
         label = "${track.title} radio",
         seedTrack = track,
         recentRadioStream = trackRecentRadioStream(track),
@@ -64,8 +54,8 @@ fun trackRadioRequest(track: Track): DesktopSeededRadioRequest =
 fun randomAlbumSeededRadioRequest(
     album: Album,
     seedTrack: Track,
-): DesktopSeededRadioRequest =
-    DesktopSeededRadioRequest(
+): SeededRadioRequest =
+    SeededRadioRequest(
         label = "${album.title} radio",
         seedTrack = seedTrack,
         recentRadioStream = randomAlbumRecentRadioStream(album),
@@ -75,8 +65,8 @@ fun randomAlbumSeededRadioRequest(
 fun artistSeededRadioRequest(
     artist: Artist,
     seedTrack: Track,
-): DesktopSeededRadioRequest =
-    DesktopSeededRadioRequest(
+): SeededRadioRequest =
+    SeededRadioRequest(
         label = "${artist.name} radio",
         seedTrack = seedTrack,
         recentRadioStream = artistRecentRadioStream(artist),
@@ -87,8 +77,8 @@ fun albumSeededRadioRequest(
     album: Album,
     seedTrack: Track,
     loadedAlbumTracks: List<Track> = emptyList(),
-): DesktopSeededRadioRequest =
-    DesktopSeededRadioRequest(
+): SeededRadioRequest =
+    SeededRadioRequest(
         label = "${album.title} radio",
         seedTrack = seedTrack,
         recentRadioStream = albumRecentRadioStream(album),
@@ -98,16 +88,16 @@ fun albumSeededRadioRequest(
 fun popularTracksRadioRequest(
     tracks: List<Track>,
     seedLimit: Int,
-): DesktopSeededRadioRequest? {
+): SeededRadioRequest? {
     val seedTrack = tracks.shuffled().firstOrNull() ?: return null
-    return DesktopSeededRadioRequest(
+    return SeededRadioRequest(
         label = "${seedTrack.artistName} popular tracks radio",
         seedTrack = seedTrack,
         recentRadioStream = popularTracksRecentRadioStream(seedTrack),
         loadRest = { radioService ->
             coroutineScope {
                 tracks.take(seedLimit)
-                    .map { track -> async(Dispatchers.IO) { radioService.trackRadio(track.id) } }
+                    .map { track -> async { radioService.trackRadio(track.id) } }
                     .awaitAll()
                     .flatten()
             }

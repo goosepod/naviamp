@@ -53,7 +53,7 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
   - [x] Make desktop and Android use the same search request/result mapping.
 
 - [ ] Radio behavior
-  - [ ] Promote radio request models from desktop `radio/` into `core/domain/radio`.
+  - [x] Promote radio request models from desktop `radio/` into `core/domain/radio`.
   - [x] Promote recent-radio stream/action resolution into shared code.
   - [ ] Promote seed-selection rules using storage/provider interfaces instead of `DesktopCache`.
   - [ ] Keep desktop/Android radio controllers as thin adapters around shared plans.
@@ -113,3 +113,4 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 - Generic library paging limit decisions now live in `core/domain`; desktop keeps only the adapter that maps the active library tab to a visible item count.
 - Search result counts, active-track selection, query normalization, debounce timing, and result limits now live in `core/domain`. Desktop and Android both use type-to-search behavior with the same request policy.
 - Recent-radio stream construction and saved-stream action resolution now live in `core/domain/radio`; desktop imports the shared action model and keeps only the platform controller wiring.
+- Radio request models and constructors now live in `core/domain/radio`; desktop still owns provider execution, coroutine dispatch, and playback queue mutation.
