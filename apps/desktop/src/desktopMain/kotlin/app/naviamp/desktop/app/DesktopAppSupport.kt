@@ -59,12 +59,6 @@ fun ProviderCapabilities.asStatsMap(): Map<String, Boolean> =
         "Play reporting" to supportsPlayReporting,
     )
 
-fun playReportThresholdSeconds(durationSeconds: Double?): Double =
-    durationSeconds
-        ?.takeIf { it > 0.0 }
-        ?.let { minOf(it * PlayReportDurationFraction, PlayReportMaxThresholdSeconds) }
-        ?: PlayReportMaxThresholdSeconds
-
 fun restoredRoute(
     savedRouteName: String?,
     hasConnection: Boolean,

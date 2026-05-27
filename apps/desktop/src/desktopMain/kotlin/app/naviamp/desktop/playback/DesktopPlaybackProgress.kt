@@ -69,6 +69,25 @@ fun shouldSavePlaybackPosition(
     return lastSaved == null || abs(position - lastSaved) >= saveThresholdSeconds
 }
 
+fun playReportThresholdSeconds(durationSeconds: Double?): Double =
+    durationSeconds
+        ?.takeIf { it > 0.0 }
+        ?.let { minOf(it * PlayReportDurationFraction, PlayReportMaxThresholdSeconds) }
+        ?: PlayReportMaxThresholdSeconds
+
+fun shouldSubmitPlayReport(
+    supportsPlayReporting: Boolean,
+    activeSessionId: Int,
+    submittedSessionId: Int?,
+    positionSeconds: Double?,
+    durationSeconds: Double?,
+): Boolean {
+    if (!supportsPlayReporting) return false
+    if (submittedSessionId == activeSessionId) return false
+    val position = positionSeconds ?: return false
+    return position >= playReportThresholdSeconds(durationSeconds)
+}
+
 fun canUsePreviousButton(
     queue: PlaybackQueue,
     previousButtonBehavior: PreviousButtonBehavior,

@@ -126,6 +126,58 @@ class DesktopPlaybackProgressTest {
     }
 
     @Test
+    fun playReportThresholdUsesHalfDurationCappedAtMaximum() {
+        assertEquals(50.0, playReportThresholdSeconds(100.0))
+        assertEquals(240.0, playReportThresholdSeconds(1_000.0))
+        assertEquals(240.0, playReportThresholdSeconds(null))
+        assertEquals(240.0, playReportThresholdSeconds(0.0))
+    }
+
+    @Test
+    fun playReportSubmissionRequiresSupportNewSessionAndThresholdProgress() {
+        assertEquals(
+            false,
+            shouldSubmitPlayReport(
+                supportsPlayReporting = false,
+                activeSessionId = 2,
+                submittedSessionId = null,
+                positionSeconds = 60.0,
+                durationSeconds = 100.0,
+            ),
+        )
+        assertEquals(
+            false,
+            shouldSubmitPlayReport(
+                supportsPlayReporting = true,
+                activeSessionId = 2,
+                submittedSessionId = 2,
+                positionSeconds = 60.0,
+                durationSeconds = 100.0,
+            ),
+        )
+        assertEquals(
+            false,
+            shouldSubmitPlayReport(
+                supportsPlayReporting = true,
+                activeSessionId = 2,
+                submittedSessionId = null,
+                positionSeconds = 49.0,
+                durationSeconds = 100.0,
+            ),
+        )
+        assertEquals(
+            true,
+            shouldSubmitPlayReport(
+                supportsPlayReporting = true,
+                activeSessionId = 2,
+                submittedSessionId = null,
+                positionSeconds = 50.0,
+                durationSeconds = 100.0,
+            ),
+        )
+    }
+
+    @Test
     fun previousButtonCanRestartCurrentTrackWhenConfigured() {
         val queue = PlaybackQueue(tracks = listOf(track("one")), currentIndex = 0)
 

@@ -601,12 +601,19 @@ fun NaviampApp(
 
     fun maybeReportPlayed(progress: PlaybackProgress) {
         val provider = connectedProvider ?: return
-        if (!provider.capabilities.supportsPlayReporting) return
-        if (submittedPlayReportSessionId == playReportSessionId) return
         val track = nowPlayingTrack ?: return
-        val positionSeconds = progress.positionSeconds ?: return
         val durationSeconds = progress.durationSeconds ?: track.durationSeconds?.toDouble()
-        if (positionSeconds < playReportThresholdSeconds(durationSeconds)) return
+        if (
+            !shouldSubmitPlayReport(
+                supportsPlayReporting = provider.capabilities.supportsPlayReporting,
+                activeSessionId = playReportSessionId,
+                submittedSessionId = submittedPlayReportSessionId,
+                positionSeconds = progress.positionSeconds,
+                durationSeconds = durationSeconds,
+            )
+        ) {
+            return
+        }
 
         val activeSessionId = playReportSessionId
         submittedPlayReportSessionId = activeSessionId
