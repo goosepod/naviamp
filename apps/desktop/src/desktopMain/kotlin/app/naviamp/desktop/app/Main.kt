@@ -81,9 +81,6 @@ import app.naviamp.domain.popular.SimilarArtistsService
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioService
-import app.naviamp.domain.radio.generatedRadioTracksToAppend
-import app.naviamp.domain.radio.generatedRadioUpcomingTracks
-import app.naviamp.domain.radio.generatedRadioUpcomingTracksToAppend
 import app.naviamp.domain.radio.radioRefillSeedTrack
 import app.naviamp.domain.radio.radioTracksNotAlreadyQueued
 import app.naviamp.domain.source.SavedMediaSource
@@ -1819,54 +1816,6 @@ fun NaviampApp(
         }
     }
 
-    fun appendGeneratedRadioTracks(
-        radioSession: Int,
-        seedTrack: Track,
-        fetchedTracks: List<Track>,
-    ) {
-        val newTracks = generatedRadioTracksToAppend(seedTrack, fetchedTracks, playlistEngine.queue.tracks)
-        if (radioQueueActive && radioSession == radioSessionId && newTracks.isNotEmpty()) {
-            playlistEngine.appendTracks(
-                tracks = newTracks,
-                maxHistory = RadioQueueHistoryLimit,
-            )
-        }
-    }
-
-    fun replaceGeneratedRadioUpcomingTracks(
-        radioSession: Int,
-        currentTrack: Track,
-        fetchedTracks: List<Track>,
-    ) {
-        if (radioQueueActive && radioSession == radioSessionId) {
-            playlistEngine.replaceUpcomingTracks(
-                currentTrack = currentTrack,
-                upcomingTracks = generatedRadioUpcomingTracks(currentTrack, fetchedTracks),
-                maxHistory = RadioQueueHistoryLimit,
-            )
-        }
-    }
-
-    fun appendGeneratedRadioUpcomingTracks(
-        radioSession: Int,
-        currentTrack: Track,
-        fetchedTracks: List<Track>,
-    ) {
-        val newTracks = generatedRadioUpcomingTracksToAppend(currentTrack, fetchedTracks, playlistEngine.queue.tracks)
-        if (radioQueueActive && radioSession == radioSessionId && newTracks.isNotEmpty()) {
-            playlistEngine.appendTracks(
-                tracks = newTracks,
-                maxHistory = RadioQueueHistoryLimit,
-            )
-        }
-    }
-
-    fun finishRadioRefillIfCurrent(radioSession: Int) {
-        if (radioSession == radioSessionId) {
-            isRadioRefilling = false
-        }
-    }
-
     fun startSeededRadio(
         label: String,
         provider: NavidromeProvider,
@@ -1902,9 +1851,13 @@ fun NaviampApp(
                     loadRest(RadioService(provider, count = InitialSimilarRadioCount))
                 }
                 appendGeneratedRadioTracks(
+                    playlistEngine = playlistEngine,
+                    radioQueueActive = radioQueueActive,
                     radioSession = activeRadioSessionId,
+                    currentRadioSession = radioSessionId,
                     seedTrack = seedTrack,
                     fetchedTracks = fetchedTracks,
+                    maxHistory = RadioQueueHistoryLimit,
                 )
                 if (activeRadioSessionId == radioSessionId) {
                     connectionStatus = "Building $label queue..."
@@ -1914,7 +1867,7 @@ fun NaviampApp(
                     connectionStatus = exception.message ?: "Could not build $label."
                 }
             }
-            if (activeRadioSessionId == radioSessionId) {
+            if (shouldFinishRadioRefillForSession(activeRadioSessionId, radioSessionId)) {
                 isRadioRefilling = false
             }
 
@@ -1928,9 +1881,13 @@ fun NaviampApp(
                     return@forEach
                 }
                 appendGeneratedRadioTracks(
+                    playlistEngine = playlistEngine,
+                    radioQueueActive = radioQueueActive,
                     radioSession = activeRadioSessionId,
+                    currentRadioSession = radioSessionId,
                     seedTrack = seedTrack,
                     fetchedTracks = fetchedTracks,
+                    maxHistory = RadioQueueHistoryLimit,
                 )
                 if (activeRadioSessionId == radioSessionId) {
                     connectionStatus = "Building $label queue (${playlistEngine.queue.tracks.size} tracks)..."
@@ -2257,7 +2214,15 @@ fun NaviampApp(
                 val fetchedTracks = withContext(Dispatchers.IO) {
                     RadioService(provider, count = InitialSimilarRadioCount).trackRadio(track.id)
                 }
-                replaceGeneratedRadioUpcomingTracks(activeRadioSessionId, track, fetchedTracks)
+                replaceGeneratedRadioUpcomingTracks(
+                    playlistEngine = playlistEngine,
+                    radioQueueActive = radioQueueActive,
+                    radioSession = activeRadioSessionId,
+                    currentRadioSession = radioSessionId,
+                    currentTrack = track,
+                    fetchedTracks = fetchedTracks,
+                    maxHistory = RadioQueueHistoryLimit,
+                )
                 if (activeRadioSessionId == radioSessionId) {
                     connectionStatus = "Building ${track.title} radio queue..."
                 }
@@ -2266,7 +2231,9 @@ fun NaviampApp(
                     connectionStatus = exception.message ?: "Could not build ${track.title} radio."
                 }
             }
-            finishRadioRefillIfCurrent(activeRadioSessionId)
+            if (shouldFinishRadioRefillForSession(activeRadioSessionId, radioSessionId)) {
+                isRadioRefilling = false
+            }
             SimilarRadioExpansionCounts.forEach { count ->
                 if (!radioQueueActive || activeRadioSessionId != radioSessionId) return@launch
                 val fetchedTracks = runCatching {
@@ -2276,7 +2243,15 @@ fun NaviampApp(
                 }.getOrElse {
                     return@forEach
                 }
-                appendGeneratedRadioUpcomingTracks(activeRadioSessionId, track, fetchedTracks)
+                appendGeneratedRadioUpcomingTracks(
+                    playlistEngine = playlistEngine,
+                    radioQueueActive = radioQueueActive,
+                    radioSession = activeRadioSessionId,
+                    currentRadioSession = radioSessionId,
+                    currentTrack = track,
+                    fetchedTracks = fetchedTracks,
+                    maxHistory = RadioQueueHistoryLimit,
+                )
                 if (activeRadioSessionId == radioSessionId) {
                     connectionStatus = "Building ${track.title} radio queue (${playlistEngine.queue.tracks.size} tracks)..."
                 }
