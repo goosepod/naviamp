@@ -544,19 +544,21 @@ fun NaviampApp(
     }
 
     fun performSeek(positionSeconds: Double) {
-        if (nowPlayingTrack?.isInternetRadioTrack() == true) return
-        val durationSeconds = playbackProgress.durationSeconds ?: nowPlayingTrack?.durationSeconds?.toDouble()
-        val seekProgress = PlaybackProgress(
-            positionSeconds = positionSeconds,
-            durationSeconds = durationSeconds,
-        )
-        pendingSeekPositionSeconds = positionSeconds
-        pendingSeekIssuedAtMillis = System.currentTimeMillis()
-        playbackProgress = seekProgress
-        maybeSavePlaybackPosition(seekProgress)
         val streamQuality = playbackSettings.streamQuality(playbackEngine)
         val playbackSource = playlistEngine.cacheRuntimeStats().playbackSource
-        if (shouldReplayCurrentForSeek(streamQuality, playbackSource)) {
+        val seekPlan = planDesktopSeek(
+            isInternetRadioTrack = nowPlayingTrack?.isInternetRadioTrack() == true,
+            positionSeconds = positionSeconds,
+            currentProgress = playbackProgress,
+            trackDurationSeconds = nowPlayingTrack?.durationSeconds,
+            streamQuality = streamQuality,
+            playbackSource = playbackSource,
+        ) ?: return
+        pendingSeekPositionSeconds = positionSeconds
+        pendingSeekIssuedAtMillis = System.currentTimeMillis()
+        playbackProgress = seekPlan.progress
+        maybeSavePlaybackPosition(seekPlan.progress)
+        if (seekPlan.shouldReplayCurrent) {
             playlistEngine.playCurrent(coroutineScope, positionSeconds)
             return
         }

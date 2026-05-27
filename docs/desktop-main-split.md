@@ -24,6 +24,7 @@ This tracks the work to give the Compose desktop app the same kind of maintainab
   - [x] Move repeat-mode cycling and provider-stream seek routing decisions into `playback/`.
   - [x] Move playback position save threshold decision into `playback/`.
   - [x] Move play-report threshold/submission decisions into `playback/`.
+  - [x] Move desktop seek planning into `playback/`.
 - [ ] Split desktop radio orchestration out of `Main.kt`, keeping shared queue/refill rules in `core/domain`.
 - [ ] Split connection/provider setup out of `Main.kt`.
 - [ ] Split library sync/freshness helpers out of `Main.kt`.
@@ -77,3 +78,4 @@ Package names are intentionally unchanged for this pass. The goal is to make the
 - Repeat-mode cycling and transcoded provider-stream seek routing decisions now live in the playback feature folder with desktop unit coverage.
 - Playback position save threshold decisions now live in the playback feature folder with desktop unit coverage.
 - Play-report threshold and submission-gating decisions now live in the playback feature folder with desktop unit coverage.
+- Desktop seek planning now lives in the playback feature folder with desktop unit coverage.

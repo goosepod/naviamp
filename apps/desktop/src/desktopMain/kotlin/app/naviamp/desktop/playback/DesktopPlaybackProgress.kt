@@ -132,3 +132,26 @@ fun shouldReplayCurrentForSeek(
             playbackSource == PlaybackSource.ProviderStream ||
                 playbackSource == PlaybackSource.ProviderStreamCacheDisabled
             )
+
+data class DesktopSeekPlan(
+    val progress: PlaybackProgress,
+    val shouldReplayCurrent: Boolean,
+)
+
+fun planDesktopSeek(
+    isInternetRadioTrack: Boolean,
+    positionSeconds: Double,
+    currentProgress: PlaybackProgress,
+    trackDurationSeconds: Int?,
+    streamQuality: StreamQuality,
+    playbackSource: PlaybackSource,
+): DesktopSeekPlan? {
+    if (isInternetRadioTrack) return null
+    return DesktopSeekPlan(
+        progress = PlaybackProgress(
+            positionSeconds = positionSeconds,
+            durationSeconds = currentProgress.durationSeconds ?: trackDurationSeconds?.toDouble(),
+        ),
+        shouldReplayCurrent = shouldReplayCurrentForSeek(streamQuality, playbackSource),
+    )
+}

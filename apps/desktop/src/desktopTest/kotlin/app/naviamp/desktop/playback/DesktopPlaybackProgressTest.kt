@@ -254,6 +254,48 @@ class DesktopPlaybackProgressTest {
         assertEquals(false, shouldReplayCurrentForSeek(StreamQuality.Original, PlaybackSource.ProviderStream))
     }
 
+    @Test
+    fun desktopSeekPlanSkipsInternetRadioAndPreservesDuration() {
+        assertEquals(
+            null,
+            planDesktopSeek(
+                isInternetRadioTrack = true,
+                positionSeconds = 30.0,
+                currentProgress = PlaybackProgress.Unknown,
+                trackDurationSeconds = 180,
+                streamQuality = StreamQuality.Original,
+                playbackSource = PlaybackSource.CachedFile,
+            ),
+        )
+
+        val plan = planDesktopSeek(
+            isInternetRadioTrack = false,
+            positionSeconds = 30.0,
+            currentProgress = PlaybackProgress(positionSeconds = 10.0, durationSeconds = null),
+            trackDurationSeconds = 180,
+            streamQuality = StreamQuality.Original,
+            playbackSource = PlaybackSource.CachedFile,
+        )
+
+        assertEquals(PlaybackProgress(positionSeconds = 30.0, durationSeconds = 180.0), plan?.progress)
+        assertEquals(false, plan?.shouldReplayCurrent)
+    }
+
+    @Test
+    fun desktopSeekPlanReplaysTranscodedProviderStream() {
+        val plan = planDesktopSeek(
+            isInternetRadioTrack = false,
+            positionSeconds = 30.0,
+            currentProgress = PlaybackProgress(positionSeconds = 10.0, durationSeconds = 200.0),
+            trackDurationSeconds = 180,
+            streamQuality = StreamQuality.Transcoded(AudioCodec.Opus, bitrateKbps = 192),
+            playbackSource = PlaybackSource.ProviderStream,
+        )
+
+        assertEquals(PlaybackProgress(positionSeconds = 30.0, durationSeconds = 200.0), plan?.progress)
+        assertEquals(true, plan?.shouldReplayCurrent)
+    }
+
     private fun track(id: String): Track =
         Track(
             id = TrackId(id),
