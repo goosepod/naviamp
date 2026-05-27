@@ -538,9 +538,7 @@ fun NaviampApp(
 
     fun maybeSavePlaybackPosition(progress: PlaybackProgress) {
         val positionSeconds = progress.positionSeconds ?: return
-        if (playbackQueue.currentIndex !in playbackQueue.tracks.indices) return
-        val lastSaved = lastSavedPlaybackPositionSeconds
-        if (lastSaved != null && abs(positionSeconds - lastSaved) < PlaybackPositionSaveThresholdSeconds) return
+        if (!shouldSavePlaybackPosition(playbackQueue, positionSeconds, lastSavedPlaybackPositionSeconds)) return
         lastSavedPlaybackPositionSeconds = positionSeconds
         savePlaybackSession(playbackQueue, positionSeconds)
     }

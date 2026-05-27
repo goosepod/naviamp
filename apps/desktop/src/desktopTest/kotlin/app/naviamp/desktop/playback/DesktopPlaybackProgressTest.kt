@@ -99,6 +99,33 @@ class DesktopPlaybackProgressTest {
     }
 
     @Test
+    fun playbackPositionSaveRequiresCurrentTrackAndThresholdMovement() {
+        val queue = PlaybackQueue(tracks = listOf(track("one")), currentIndex = 0)
+
+        assertEquals(false, shouldSavePlaybackPosition(queue, positionSeconds = null, lastSavedPositionSeconds = null))
+        assertEquals(false, shouldSavePlaybackPosition(PlaybackQueue(), positionSeconds = 10.0, lastSavedPositionSeconds = null))
+        assertEquals(true, shouldSavePlaybackPosition(queue, positionSeconds = 10.0, lastSavedPositionSeconds = null))
+        assertEquals(
+            false,
+            shouldSavePlaybackPosition(
+                queue = queue,
+                positionSeconds = 12.0,
+                lastSavedPositionSeconds = 10.0,
+                saveThresholdSeconds = 5.0,
+            ),
+        )
+        assertEquals(
+            true,
+            shouldSavePlaybackPosition(
+                queue = queue,
+                positionSeconds = 15.0,
+                lastSavedPositionSeconds = 10.0,
+                saveThresholdSeconds = 5.0,
+            ),
+        )
+    }
+
+    @Test
     fun previousButtonCanRestartCurrentTrackWhenConfigured() {
         val queue = PlaybackQueue(tracks = listOf(track("one")), currentIndex = 0)
 

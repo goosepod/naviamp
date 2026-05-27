@@ -57,6 +57,18 @@ fun shouldUpdatePlaybackProgressUi(
         nowMillis - lastUiUpdateMillis >= updateIntervalMillis
 }
 
+fun shouldSavePlaybackPosition(
+    queue: PlaybackQueue,
+    positionSeconds: Double?,
+    lastSavedPositionSeconds: Double?,
+    saveThresholdSeconds: Double = PlaybackPositionSaveThresholdSeconds,
+): Boolean {
+    val position = positionSeconds ?: return false
+    if (queue.currentIndex !in queue.tracks.indices) return false
+    val lastSaved = lastSavedPositionSeconds
+    return lastSaved == null || abs(position - lastSaved) >= saveThresholdSeconds
+}
+
 fun canUsePreviousButton(
     queue: PlaybackQueue,
     previousButtonBehavior: PreviousButtonBehavior,
