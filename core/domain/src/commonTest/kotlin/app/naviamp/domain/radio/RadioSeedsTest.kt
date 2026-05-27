@@ -1,4 +1,4 @@
-package app.naviamp.desktop
+package app.naviamp.domain.radio
 
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
@@ -12,7 +12,7 @@ import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class DesktopRadioSeedsTest {
+class RadioSeedsTest {
     @Test
     fun artistSeedPrefersLibraryTrackWhenAvailable() = runBlocking {
         val artist = artist()

@@ -55,7 +55,7 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 - [ ] Radio behavior
   - [x] Promote radio request models from desktop `radio/` into `core/domain/radio`.
   - [x] Promote recent-radio stream/action resolution into shared code.
-  - [ ] Promote seed-selection rules using storage/provider interfaces instead of `DesktopCache`.
+  - [x] Promote seed-selection rules using storage/provider interfaces instead of `DesktopCache`.
   - [ ] Keep desktop/Android radio controllers as thin adapters around shared plans.
   - [ ] Keep native playback queue mutation inside platform adapters.
 
@@ -114,3 +114,4 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 - Search result counts, active-track selection, query normalization, debounce timing, and result limits now live in `core/domain`. Desktop and Android both use type-to-search behavior with the same request policy.
 - Recent-radio stream construction and saved-stream action resolution now live in `core/domain/radio`; desktop imports the shared action model and keeps only the platform controller wiring.
 - Radio request models and constructors now live in `core/domain/radio`; desktop still owns provider execution, coroutine dispatch, and playback queue mutation.
+- Radio seed-selection rules now live in `core/domain/radio` behind storage/provider callbacks; desktop keeps only the adapter that reads `DesktopCache` and provider detail data.
