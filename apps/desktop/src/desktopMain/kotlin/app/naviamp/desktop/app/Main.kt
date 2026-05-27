@@ -1432,24 +1432,17 @@ fun NaviampApp(
                     scanning = scanStatus?.scanning == true,
                 )
             }
-            val signature = freshness.signature ?: return@launch
-            when {
-                freshness.previousSignature == null -> {
-                    withContext(Dispatchers.IO) {
-                        sessionCache.markLibraryScanChecked(sourceId, signature)
-                    }
+            val update = freshness.evaluateLibraryFreshness(libraryStatus)
+            update.signatureToMarkChecked?.let { signature ->
+                withContext(Dispatchers.IO) {
+                    sessionCache.markLibraryScanChecked(sourceId, signature)
                 }
-                freshness.previousSignature != signature -> {
-                    libraryStatus = if (freshness.scanning) {
-                        "Navidrome is scanning. Refresh library after the scan finishes."
-                    } else {
-                        "Library changed on server. Refresh library to import updates."
-                    }
-                }
-                libraryStatus?.startsWith("Library changed on server") == true ||
-                    libraryStatus?.startsWith("Navidrome is scanning") == true -> {
-                    libraryStatus = null
-                }
+            }
+            update.status?.let { status ->
+                libraryStatus = status
+            }
+            if (update.clearStatus) {
+                libraryStatus = null
             }
         }
     }
@@ -3584,10 +3577,4 @@ private data class NowPlayingAnalysis(
     val waveformStatus: String,
     val audioTags: List<AudioTag>,
     val lyrics: Lyrics?,
-)
-
-private data class LibraryFreshness(
-    val signature: String?,
-    val previousSignature: String?,
-    val scanning: Boolean,
 )

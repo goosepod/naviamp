@@ -21,6 +21,7 @@ This tracks the work to give the Compose desktop app the same kind of maintainab
 - [ ] Split desktop radio orchestration out of `Main.kt`, keeping shared queue/refill rules in `core/domain`.
 - [ ] Split connection/provider setup out of `Main.kt`.
 - [ ] Split library sync/freshness helpers out of `Main.kt`.
+  - [x] Move library freshness model/status decision into `library/LibrarySync.kt`.
 - [ ] Split playlist/download mutations out of `Main.kt`, keeping shared provider mutations in `core/domain`.
 - [ ] Split artist/album detail loading out of `Main.kt`.
 - [x] Split diagnostics/stats mapping out of `Main.kt`.
@@ -61,3 +62,4 @@ Package names are intentionally unchanged for this pass. The goal is to make the
 - Start with low-risk extractions, then move the state-heavy controller logic once the boundaries are clearer.
 - `DesktopStatsMapping.kt` now owns playback capability and stream stats conversion for Stats for Nerds.
 - The abandoned Rust/Slint app was removed. BASS vendor libraries now live at `apps/desktop/vendor/bass/<platform>`.
+- Library freshness status decisions now live with library sync helpers and have desktop unit coverage.
