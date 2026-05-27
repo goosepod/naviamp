@@ -25,13 +25,14 @@ This tracks the work to give the Compose desktop app the same kind of maintainab
   - [x] Move playback position save threshold decision into `playback/`.
   - [x] Move play-report threshold/submission decisions into `playback/`.
   - [x] Move desktop seek planning into `playback/`.
-- [ ] Split desktop radio orchestration out of `Main.kt`, keeping shared queue/refill rules in `core/domain`.
+- [x] Split desktop radio orchestration out of `Main.kt`, keeping shared queue/refill rules in `core/domain`.
   - [x] Move recent radio stream metadata builders into `radio/`.
   - [x] Move generated radio queue update helpers into `radio/`.
   - [x] Move album/artist radio seed selection into `radio/`.
   - [x] Move recent radio stream action resolution into `radio/`.
   - [x] Move radio request builders into `radio/`.
   - [x] Move seeded entity radio request builders into `radio/`.
+  - [x] Move desktop radio controller orchestration into `radio/`.
 - [ ] Split connection/provider setup out of `Main.kt`.
 - [ ] Split library sync/freshness helpers out of `Main.kt`.
   - [x] Move library freshness model/status decision into `library/LibrarySync.kt`.
@@ -91,3 +92,4 @@ Package names are intentionally unchanged for this pass. The goal is to make the
 - Recent radio stream action resolution now lives in the radio feature folder with desktop unit coverage.
 - Library, genre, decade, track, and popular-track radio request builders now live in the radio feature folder with desktop unit coverage.
 - Random-album, artist, and album seeded radio request builders now live in the radio feature folder with desktop unit coverage.
+- Desktop radio continuation, refill, seeded expansion, and current-track conversion orchestration now lives in the radio feature folder.

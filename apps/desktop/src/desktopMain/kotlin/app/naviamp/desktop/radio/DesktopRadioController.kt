@@ -1,0 +1,270 @@
+package app.naviamp.desktop
+
+import app.naviamp.desktop.playback.PlaylistCallbacks
+import app.naviamp.desktop.playback.PlaylistEngine
+import app.naviamp.desktop.settings.RecentRadioStream
+import app.naviamp.domain.StreamQuality
+import app.naviamp.domain.Track
+import app.naviamp.domain.TrackId
+import app.naviamp.domain.playback.ReplayGainMode
+import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.radio.RadioService
+import app.naviamp.domain.radio.radioRefillSeedTrack
+import app.naviamp.provider.navidrome.NavidromeProvider
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+class DesktopRadioController(
+    private val scope: CoroutineScope,
+    private val playlistEngine: PlaylistEngine,
+    private val provider: () -> NavidromeProvider?,
+    private val streamQuality: () -> StreamQuality,
+    private val replayGainMode: () -> ReplayGainMode,
+    private val playlistCallbacks: () -> PlaylistCallbacks,
+    private val rememberRadioStream: (RecentRadioStream) -> Unit,
+    private val clearShuffleSnapshot: () -> Unit,
+    private val resetNowPlayingSidecars: () -> Unit,
+    private val setConnectionStatus: (String?) -> Unit,
+    private val radioSessionId: () -> Int,
+    private val setRadioSessionId: (Int) -> Unit,
+    private val isRadioQueueActive: () -> Boolean,
+    private val setRadioQueueActive: (Boolean) -> Unit,
+    private val isRadioRefilling: () -> Boolean,
+    private val setRadioRefilling: (Boolean) -> Unit,
+    private val lastRadioRefillSeedId: () -> TrackId?,
+    private val setLastRadioRefillSeedId: (TrackId?) -> Unit,
+    private val setOpenPlayerOnTrackStart: (Boolean) -> Unit,
+) {
+    fun stopContinuation() {
+        setRadioSessionId(radioSessionId() + 1)
+        setRadioQueueActive(false)
+        setRadioRefilling(false)
+        setLastRadioRefillSeedId(null)
+    }
+
+    fun refillIfNeeded(queue: PlaybackQueue) {
+        val seedTrack = radioRefillSeedTrack(
+            queue = queue,
+            refillThreshold = RadioRefillThreshold,
+            isActive = isRadioQueueActive(),
+            isRefilling = isRadioRefilling(),
+            lastRefillSeedTrackId = lastRadioRefillSeedId(),
+        ) ?: return
+        val provider = provider() ?: return
+
+        setRadioRefilling(true)
+        setLastRadioRefillSeedId(seedTrack.id)
+        val activeRadioSessionId = radioSessionId()
+        scope.launch {
+            try {
+                val fetchedTracks = withContext(Dispatchers.IO) {
+                    RadioService(provider).trackRadio(seedTrack.id)
+                }
+                appendGeneratedRadioTracks(
+                    playlistEngine = playlistEngine,
+                    radioQueueActive = isRadioQueueActive(),
+                    radioSession = activeRadioSessionId,
+                    currentRadioSession = radioSessionId(),
+                    seedTrack = seedTrack,
+                    fetchedTracks = fetchedTracks,
+                    maxHistory = RadioQueueHistoryLimit,
+                )
+            } catch (exception: Exception) {
+                setConnectionStatus(exception.message ?: "Could not extend radio.")
+            } finally {
+                if (shouldFinishRadioRefillForSession(activeRadioSessionId, radioSessionId())) {
+                    setRadioRefilling(false)
+                }
+            }
+        }
+    }
+
+    fun play(request: DesktopRadioRequest) {
+        val provider = provider() ?: return
+        val radioService = RadioService(provider)
+        rememberRadioStream(request.recentRadioStream)
+        setConnectionStatus("Loading ${request.label}...")
+        scope.launch {
+            try {
+                val tracks = withContext(Dispatchers.IO) {
+                    request.loadTracks(radioService)
+                }
+                if (tracks.isEmpty()) {
+                    setConnectionStatus("${request.label} did not return any tracks.")
+                    return@launch
+                }
+                setConnectionStatus(null)
+                setRadioSessionId(radioSessionId() + 1)
+                setRadioQueueActive(true)
+                clearShuffleSnapshot()
+                setRadioRefilling(false)
+                setLastRadioRefillSeedId(null)
+                setOpenPlayerOnTrackStart(true)
+                playlistEngine.playFrom(
+                    scope = scope,
+                    provider = provider,
+                    tracks = tracks,
+                    index = 0,
+                    quality = streamQuality(),
+                    replayGainMode = replayGainMode(),
+                    callbacks = playlistCallbacks(),
+                )
+            } catch (exception: Exception) {
+                setConnectionStatus(exception.message ?: "Could not start ${request.label}.")
+            }
+        }
+    }
+
+    fun startSeeded(
+        provider: NavidromeProvider,
+        request: DesktopSeededRadioRequest,
+    ) {
+        rememberRadioStream(request.recentRadioStream)
+        setConnectionStatus(null)
+        setRadioSessionId(radioSessionId() + 1)
+        val activeRadioSessionId = radioSessionId()
+        setRadioQueueActive(true)
+        clearShuffleSnapshot()
+        setRadioRefilling(true)
+        setLastRadioRefillSeedId(request.seedTrack.id)
+        setOpenPlayerOnTrackStart(true)
+        resetNowPlayingSidecars()
+        playlistEngine.playFrom(
+            scope = scope,
+            provider = provider,
+            tracks = listOf(request.seedTrack),
+            index = 0,
+            quality = streamQuality(),
+            replayGainMode = replayGainMode(),
+            callbacks = playlistCallbacks(),
+        )
+
+        scope.launch {
+            try {
+                val fetchedTracks = withContext(Dispatchers.IO) {
+                    request.loadRest(RadioService(provider, count = InitialSimilarRadioCount))
+                }
+                appendGeneratedRadioTracks(
+                    playlistEngine = playlistEngine,
+                    radioQueueActive = isRadioQueueActive(),
+                    radioSession = activeRadioSessionId,
+                    currentRadioSession = radioSessionId(),
+                    seedTrack = request.seedTrack,
+                    fetchedTracks = fetchedTracks,
+                    maxHistory = RadioQueueHistoryLimit,
+                )
+                if (activeRadioSessionId == radioSessionId()) {
+                    setConnectionStatus("Building ${request.label} queue...")
+                }
+            } catch (exception: Exception) {
+                if (activeRadioSessionId == radioSessionId()) {
+                    setConnectionStatus(exception.message ?: "Could not build ${request.label}.")
+                }
+            }
+            if (shouldFinishRadioRefillForSession(activeRadioSessionId, radioSessionId())) {
+                setRadioRefilling(false)
+            }
+
+            SimilarRadioExpansionCounts.forEach { count ->
+                if (!isRadioQueueActive() || activeRadioSessionId != radioSessionId()) return@launch
+                val fetchedTracks = runCatching {
+                    withContext(Dispatchers.IO) {
+                        request.loadRest(RadioService(provider, count = count))
+                    }
+                }.getOrElse {
+                    return@forEach
+                }
+                appendGeneratedRadioTracks(
+                    playlistEngine = playlistEngine,
+                    radioQueueActive = isRadioQueueActive(),
+                    radioSession = activeRadioSessionId,
+                    currentRadioSession = radioSessionId(),
+                    seedTrack = request.seedTrack,
+                    fetchedTracks = fetchedTracks,
+                    maxHistory = RadioQueueHistoryLimit,
+                )
+                if (activeRadioSessionId == radioSessionId()) {
+                    setConnectionStatus("Building ${request.label} queue (${playlistEngine.queue.tracks.size} tracks)...")
+                }
+            }
+
+            if (activeRadioSessionId == radioSessionId()) {
+                setConnectionStatus(null)
+            }
+        }
+    }
+
+    fun convertCurrentTrackToRadio(
+        track: Track,
+        playTrackRadio: (Track) -> Unit,
+    ) {
+        val provider = provider() ?: return
+        val currentTrack = playlistEngine.queue.tracks.getOrNull(playlistEngine.queue.currentIndex)
+        if (currentTrack?.id != track.id) {
+            playTrackRadio(track)
+            return
+        }
+
+        val request = trackRadioRequest(track)
+        setConnectionStatus("Building ${track.title} radio...")
+        rememberRadioStream(request.recentRadioStream)
+        setRadioSessionId(radioSessionId() + 1)
+        val activeRadioSessionId = radioSessionId()
+        setRadioQueueActive(true)
+        setRadioRefilling(true)
+        setLastRadioRefillSeedId(track.id)
+        scope.launch {
+            try {
+                val fetchedTracks = withContext(Dispatchers.IO) {
+                    RadioService(provider, count = InitialSimilarRadioCount).trackRadio(track.id)
+                }
+                replaceGeneratedRadioUpcomingTracks(
+                    playlistEngine = playlistEngine,
+                    radioQueueActive = isRadioQueueActive(),
+                    radioSession = activeRadioSessionId,
+                    currentRadioSession = radioSessionId(),
+                    currentTrack = track,
+                    fetchedTracks = fetchedTracks,
+                    maxHistory = RadioQueueHistoryLimit,
+                )
+                if (activeRadioSessionId == radioSessionId()) {
+                    setConnectionStatus("Building ${track.title} radio queue...")
+                }
+            } catch (exception: Exception) {
+                if (activeRadioSessionId == radioSessionId()) {
+                    setConnectionStatus(exception.message ?: "Could not build ${track.title} radio.")
+                }
+            }
+            if (shouldFinishRadioRefillForSession(activeRadioSessionId, radioSessionId())) {
+                setRadioRefilling(false)
+            }
+            SimilarRadioExpansionCounts.forEach { count ->
+                if (!isRadioQueueActive() || activeRadioSessionId != radioSessionId()) return@launch
+                val fetchedTracks = runCatching {
+                    withContext(Dispatchers.IO) {
+                        RadioService(provider, count = count).trackRadio(track.id)
+                    }
+                }.getOrElse {
+                    return@forEach
+                }
+                appendGeneratedRadioUpcomingTracks(
+                    playlistEngine = playlistEngine,
+                    radioQueueActive = isRadioQueueActive(),
+                    radioSession = activeRadioSessionId,
+                    currentRadioSession = radioSessionId(),
+                    currentTrack = track,
+                    fetchedTracks = fetchedTracks,
+                    maxHistory = RadioQueueHistoryLimit,
+                )
+                if (activeRadioSessionId == radioSessionId()) {
+                    setConnectionStatus("Building ${track.title} radio queue (${playlistEngine.queue.tracks.size} tracks)...")
+                }
+            }
+            if (activeRadioSessionId == radioSessionId()) {
+                setConnectionStatus(null)
+            }
+        }
+    }
+}

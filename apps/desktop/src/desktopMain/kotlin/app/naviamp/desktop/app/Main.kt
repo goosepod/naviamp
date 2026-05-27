@@ -80,9 +80,6 @@ import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.popular.SimilarArtistsService
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
-import app.naviamp.domain.radio.RadioService
-import app.naviamp.domain.radio.radioRefillSeedTrack
-import app.naviamp.domain.radio.radioTracksNotAlreadyQueued
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.waveform.AudioWaveform
@@ -622,47 +619,45 @@ fun NaviampApp(
         }
     }
 
+    fun rememberRadioStream(stream: RecentRadioStream) {
+        recentRadioStreams = (listOf(stream) + recentRadioStreams.filterNot { it.id == stream.id }).take(12)
+        settingsStore.saveRecentRadioStreams(recentRadioStreams)
+        homeContent = homeContent.copy(recentRadioStreams = recentRadioStreams)
+    }
+
+    var playlistCallbacksRef: PlaylistCallbacks? = null
+    val radioController = DesktopRadioController(
+        scope = coroutineScope,
+        playlistEngine = playlistEngine,
+        provider = { connectedProvider },
+        streamQuality = { playbackSettings.streamQuality(playbackEngine) },
+        replayGainMode = { playbackSettings.replayGainMode },
+        playlistCallbacks = { playlistCallbacksRef ?: error("Playlist callbacks are not ready.") },
+        rememberRadioStream = ::rememberRadioStream,
+        clearShuffleSnapshot = ::clearShuffleSnapshot,
+        resetNowPlayingSidecars = {
+            nowPlayingWaveform = null
+            nowPlayingWaveformStatus = "Waiting"
+            nowPlayingWaveformReloadToken += 1
+        },
+        setConnectionStatus = { status -> connectionStatus = status },
+        radioSessionId = { radioSessionId },
+        setRadioSessionId = { sessionId -> radioSessionId = sessionId },
+        isRadioQueueActive = { radioQueueActive },
+        setRadioQueueActive = { isActive -> radioQueueActive = isActive },
+        isRadioRefilling = { isRadioRefilling },
+        setRadioRefilling = { isRefilling -> isRadioRefilling = isRefilling },
+        lastRadioRefillSeedId = { lastRadioRefillSeedId },
+        setLastRadioRefillSeedId = { trackId -> lastRadioRefillSeedId = trackId },
+        setOpenPlayerOnTrackStart = { shouldOpen -> openPlayerOnTrackStart = shouldOpen },
+    )
+
     fun stopRadioContinuation() {
-        radioSessionId += 1
-        radioQueueActive = false
-        isRadioRefilling = false
-        lastRadioRefillSeedId = null
+        radioController.stopContinuation()
     }
 
     fun refillRadioIfNeeded(queue: PlaybackQueue) {
-        val seedTrack = radioRefillSeedTrack(
-            queue = queue,
-            refillThreshold = RadioRefillThreshold,
-            isActive = radioQueueActive,
-            isRefilling = isRadioRefilling,
-            lastRefillSeedTrackId = lastRadioRefillSeedId,
-        ) ?: return
-        val provider = connectedProvider ?: return
-
-        isRadioRefilling = true
-        lastRadioRefillSeedId = seedTrack.id
-        val activeRadioSessionId = radioSessionId
-        coroutineScope.launch {
-            try {
-                val radioService = RadioService(provider)
-                val fetchedTracks = withContext(Dispatchers.IO) {
-                    radioService.trackRadio(seedTrack.id)
-                }
-                val newTracks = radioTracksNotAlreadyQueued(fetchedTracks, playlistEngine.queue.tracks)
-                if (radioQueueActive && activeRadioSessionId == radioSessionId && newTracks.isNotEmpty()) {
-                    playlistEngine.appendTracks(
-                        tracks = newTracks,
-                        maxHistory = RadioQueueHistoryLimit,
-                    )
-                }
-            } catch (exception: Exception) {
-                connectionStatus = exception.message ?: "Could not extend radio."
-            } finally {
-                if (activeRadioSessionId == radioSessionId) {
-                    isRadioRefilling = false
-                }
-            }
-        }
+        radioController.refillIfNeeded(queue)
     }
 
     val playlistCallbacks = PlaylistCallbacks(
@@ -737,6 +732,7 @@ fun NaviampApp(
             }
         },
     )
+    playlistCallbacksRef = playlistCallbacks
 
     LaunchedEffect(
         nowPlayingTrack?.id,
@@ -1191,12 +1187,6 @@ fun NaviampApp(
     fun markPlaylistPlayed(playlist: Playlist) {
         recentPlaylistIds = (listOf(playlist.id) + recentPlaylistIds).distinct().take(50)
         settingsStore.saveRecentPlaylistIds(recentPlaylistIds)
-    }
-
-    fun rememberRadioStream(stream: RecentRadioStream) {
-        recentRadioStreams = (listOf(stream) + recentRadioStreams.filterNot { it.id == stream.id }).take(12)
-        settingsStore.saveRecentRadioStreams(recentRadioStreams)
-        homeContent = homeContent.copy(recentRadioStreams = recentRadioStreams)
     }
 
     fun refreshInternetRadioStations() {
@@ -1772,154 +1762,29 @@ fun NaviampApp(
         )
     }
 
-    fun playRadio(
-        label: String,
-        recentRadioStream: RecentRadioStream,
-        loadTracks: suspend (RadioService) -> List<Track>,
-    ) {
-        val provider = connectedProvider ?: return
-        val radioService = RadioService(provider)
-        rememberRadioStream(recentRadioStream)
-        connectionStatus = "Loading $label..."
-        coroutineScope.launch {
-            try {
-                val tracks = withContext(Dispatchers.IO) {
-                    loadTracks(radioService)
-                }
-                if (tracks.isEmpty()) {
-                    connectionStatus = "$label did not return any tracks."
-                    return@launch
-                }
-                connectionStatus = null
-                radioSessionId += 1
-                radioQueueActive = true
-                clearShuffleSnapshot()
-                isRadioRefilling = false
-                lastRadioRefillSeedId = null
-                openPlayerOnTrackStart = true
-                playlistEngine.playFrom(
-                    scope = coroutineScope,
-                    provider = provider,
-                    tracks = tracks,
-                    index = 0,
-                    quality = playbackSettings.streamQuality(playbackEngine),
-                    replayGainMode = playbackSettings.replayGainMode,
-                    callbacks = playlistCallbacks,
-                )
-            } catch (exception: Exception) {
-                connectionStatus = exception.message ?: "Could not start $label."
-            }
-        }
-    }
-
     fun playRadio(request: DesktopRadioRequest) {
-        playRadio(
-            label = request.label,
-            recentRadioStream = request.recentRadioStream,
-            loadTracks = request.loadTracks,
-        )
-    }
-
-    fun startSeededRadio(
-        label: String,
-        provider: NavidromeProvider,
-        seedTrack: Track,
-        recentRadioStream: RecentRadioStream,
-        loadRest: suspend (RadioService) -> List<Track>,
-    ) {
-        rememberRadioStream(recentRadioStream)
-        connectionStatus = null
-        radioSessionId += 1
-        val activeRadioSessionId = radioSessionId
-        radioQueueActive = true
-        clearShuffleSnapshot()
-        isRadioRefilling = true
-        lastRadioRefillSeedId = seedTrack.id
-        openPlayerOnTrackStart = true
-        nowPlayingWaveform = null
-        nowPlayingWaveformStatus = "Waiting"
-        nowPlayingWaveformReloadToken += 1
-        playlistEngine.playFrom(
-            scope = coroutineScope,
-            provider = provider,
-            tracks = listOf(seedTrack),
-            index = 0,
-            quality = playbackSettings.streamQuality(playbackEngine),
-            replayGainMode = playbackSettings.replayGainMode,
-            callbacks = playlistCallbacks,
-        )
-
-        coroutineScope.launch {
-            try {
-                val fetchedTracks = withContext(Dispatchers.IO) {
-                    loadRest(RadioService(provider, count = InitialSimilarRadioCount))
-                }
-                appendGeneratedRadioTracks(
-                    playlistEngine = playlistEngine,
-                    radioQueueActive = radioQueueActive,
-                    radioSession = activeRadioSessionId,
-                    currentRadioSession = radioSessionId,
-                    seedTrack = seedTrack,
-                    fetchedTracks = fetchedTracks,
-                    maxHistory = RadioQueueHistoryLimit,
-                )
-                if (activeRadioSessionId == radioSessionId) {
-                    connectionStatus = "Building $label queue..."
-                }
-            } catch (exception: Exception) {
-                if (activeRadioSessionId == radioSessionId) {
-                    connectionStatus = exception.message ?: "Could not build $label."
-                }
-            }
-            if (shouldFinishRadioRefillForSession(activeRadioSessionId, radioSessionId)) {
-                isRadioRefilling = false
-            }
-
-            SimilarRadioExpansionCounts.forEach { count ->
-                if (!radioQueueActive || activeRadioSessionId != radioSessionId) return@launch
-                val fetchedTracks = runCatching {
-                    withContext(Dispatchers.IO) {
-                        loadRest(RadioService(provider, count = count))
-                    }
-                }.getOrElse {
-                    return@forEach
-                }
-                appendGeneratedRadioTracks(
-                    playlistEngine = playlistEngine,
-                    radioQueueActive = radioQueueActive,
-                    radioSession = activeRadioSessionId,
-                    currentRadioSession = radioSessionId,
-                    seedTrack = seedTrack,
-                    fetchedTracks = fetchedTracks,
-                    maxHistory = RadioQueueHistoryLimit,
-                )
-                if (activeRadioSessionId == radioSessionId) {
-                    connectionStatus = "Building $label queue (${playlistEngine.queue.tracks.size} tracks)..."
-                }
-            }
-
-            if (activeRadioSessionId == radioSessionId) {
-                connectionStatus = null
-            }
-        }
+        radioController.play(request)
     }
 
     fun startSeededRadio(
         provider: NavidromeProvider,
         request: DesktopSeededRadioRequest,
     ) {
-        startSeededRadio(
-            label = request.label,
-            provider = provider,
-            seedTrack = request.seedTrack,
-            recentRadioStream = request.recentRadioStream,
-            loadRest = request.loadRest,
-        )
+        radioController.startSeeded(provider, request)
     }
 
     fun playPopularTracksRadio(tracks: List<Track>) {
         val provider = connectedProvider ?: return
         startSeededRadio(provider, popularTracksRadioRequest(tracks, PopularRadioSeedLimit) ?: return)
+    }
+
+    fun playTrackRadio(track: Track) {
+        val provider = connectedProvider ?: return
+        startSeededRadio(provider, trackRadioRequest(track))
+    }
+
+    fun convertCurrentTrackToRadio(track: Track) {
+        radioController.convertCurrentTrackToRadio(track, ::playTrackRadio)
     }
 
     fun playPlaylist(playlist: Playlist, shuffle: Boolean = false) {
@@ -2108,81 +1973,6 @@ fun NaviampApp(
                 startSeededRadio(provider, albumSeededRadioRequest(album, seedTrack, loadedAlbumTracks))
             } catch (exception: Exception) {
                 connectionStatus = exception.message ?: "Could not start ${album.title} radio."
-            }
-        }
-    }
-
-    fun playTrackRadio(track: Track) {
-        val provider = connectedProvider ?: return
-        startSeededRadio(provider, trackRadioRequest(track))
-    }
-
-    fun convertCurrentTrackToRadio(track: Track) {
-        val provider = connectedProvider ?: return
-        val currentTrack = playlistEngine.queue.tracks.getOrNull(playlistEngine.queue.currentIndex)
-        if (currentTrack?.id != track.id) {
-            playTrackRadio(track)
-            return
-        }
-
-        connectionStatus = "Building ${track.title} radio..."
-        rememberRadioStream(
-            trackRecentRadioStream(track),
-        )
-        radioSessionId += 1
-        val activeRadioSessionId = radioSessionId
-        radioQueueActive = true
-        isRadioRefilling = true
-        lastRadioRefillSeedId = track.id
-        coroutineScope.launch {
-            try {
-                val fetchedTracks = withContext(Dispatchers.IO) {
-                    RadioService(provider, count = InitialSimilarRadioCount).trackRadio(track.id)
-                }
-                replaceGeneratedRadioUpcomingTracks(
-                    playlistEngine = playlistEngine,
-                    radioQueueActive = radioQueueActive,
-                    radioSession = activeRadioSessionId,
-                    currentRadioSession = radioSessionId,
-                    currentTrack = track,
-                    fetchedTracks = fetchedTracks,
-                    maxHistory = RadioQueueHistoryLimit,
-                )
-                if (activeRadioSessionId == radioSessionId) {
-                    connectionStatus = "Building ${track.title} radio queue..."
-                }
-            } catch (exception: Exception) {
-                if (activeRadioSessionId == radioSessionId) {
-                    connectionStatus = exception.message ?: "Could not build ${track.title} radio."
-                }
-            }
-            if (shouldFinishRadioRefillForSession(activeRadioSessionId, radioSessionId)) {
-                isRadioRefilling = false
-            }
-            SimilarRadioExpansionCounts.forEach { count ->
-                if (!radioQueueActive || activeRadioSessionId != radioSessionId) return@launch
-                val fetchedTracks = runCatching {
-                    withContext(Dispatchers.IO) {
-                        RadioService(provider, count = count).trackRadio(track.id)
-                    }
-                }.getOrElse {
-                    return@forEach
-                }
-                appendGeneratedRadioUpcomingTracks(
-                    playlistEngine = playlistEngine,
-                    radioQueueActive = radioQueueActive,
-                    radioSession = activeRadioSessionId,
-                    currentRadioSession = radioSessionId,
-                    currentTrack = track,
-                    fetchedTracks = fetchedTracks,
-                    maxHistory = RadioQueueHistoryLimit,
-                )
-                if (activeRadioSessionId == radioSessionId) {
-                    connectionStatus = "Building ${track.title} radio queue (${playlistEngine.queue.tracks.size} tracks)..."
-                }
-            }
-            if (activeRadioSessionId == radioSessionId) {
-                connectionStatus = null
             }
         }
     }
