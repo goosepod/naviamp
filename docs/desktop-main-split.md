@@ -4,11 +4,11 @@ This tracks the work to give the Compose desktop app the same kind of maintainab
 
 ## Goals
 
-- [ ] Reduce `apps/desktop/.../Main.kt` from a large all-in-one app module into focused desktop adapters.
-- [ ] Keep desktop behavior aligned with Android by reusing shared domain/UI helpers where possible.
-- [ ] Avoid moving desktop-only windowing, filesystem/cache, native playback, file pickers, or OS integration into common code.
-- [ ] Keep the packaged Windows app build green after each meaningful split.
-- [ ] Keep desktop files physically grouped by feature so related UI, controllers, and adapters are easy to find.
+- [x] Reduce `apps/desktop/.../Main.kt` from a large all-in-one app module into focused desktop adapters.
+- [x] Keep desktop behavior aligned with Android by reusing shared domain/UI helpers where possible.
+- [x] Avoid moving desktop-only windowing, filesystem/cache, native playback, file pickers, or OS integration into common code.
+- [x] Keep the packaged Windows app build green after each meaningful split.
+- [x] Keep desktop files physically grouped by feature so related UI, controllers, and adapters are easy to find.
 
 ## Planned Splits
 
@@ -17,7 +17,7 @@ This tracks the work to give the Compose desktop app the same kind of maintainab
 - [x] Split desktop constants and tiny app helpers out of `Main.kt`.
 - [x] Physically group already-split desktop files into feature folders.
 - [x] Remove abandoned Rust/Slint desktop experiment and keep BASS vendor files under the active Compose desktop app.
-- [ ] Split desktop playback/session controller logic out of `Main.kt`.
+- [x] Split desktop playback/session controller logic out of `Main.kt`.
   - [x] Move now-playing analysis model into `playback/`.
   - [x] Move playback progress pending-seek/UI update decisions into `playback/`.
   - [x] Move previous/next button availability and restart decisions into `playback/`.
@@ -47,7 +47,7 @@ This tracks the work to give the Compose desktop app the same kind of maintainab
 - [x] Split artist/album detail loading out of `Main.kt`.
   - [x] Move detail route/back-stack decisions, track-to-detail conversion, loading wrappers, and popular-track status helpers into `media/`.
 - [x] Split diagnostics/stats mapping out of `Main.kt`.
-- [ ] Re-check whether any remaining desktop logic belongs in shared `core/domain` or `core/ui`.
+- [x] Re-check whether any remaining desktop logic belongs in shared `core/domain` or `core/ui`.
 
 ## Physical Layout
 
@@ -83,6 +83,7 @@ Package names are intentionally unchanged for this pass. The goal is to make the
 - Unlike Android, this is not driven by ART/profile warnings. The desktop target is maintainability and shared behavior reuse.
 - Start with low-risk extractions, then move the state-heavy controller logic once the boundaries are clearer.
 - After this split is complete, use `docs/shared-core-extraction.md` to move duplicated desktop/Android product behavior into `core/domain` and `core/ui`.
+- Final architecture pass: remaining `Main.kt` code is primarily Compose state ownership, lifecycle effects, and feature/controller wiring. No additional small same-branch `core/domain` or `core/ui` moves were found; cross-platform DRY migration is tracked in `docs/shared-core-extraction.md`.
 - `DesktopStatsMapping.kt` now owns playback capability and stream stats conversion for Stats for Nerds.
 - The abandoned Rust/Slint app was removed. BASS vendor libraries now live at `apps/desktop/vendor/bass/<platform>`.
 - Library freshness status decisions now live with library sync helpers and have desktop unit coverage.

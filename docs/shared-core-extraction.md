@@ -20,7 +20,7 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 
 ## Migration Method
 
-- [ ] Finish the desktop `Main.kt` split enough that feature boundaries are clear.
+- [x] Finish the desktop `Main.kt` split enough that feature boundaries are clear.
 - [ ] For each feature, compare desktop and Android behavior before moving code.
 - [ ] Extract pure behavior into `core/domain` first, using interfaces or lambdas for platform storage/playback dependencies.
 - [ ] Move shared UI mapping into `core/ui` only after the domain behavior is stable.
@@ -94,3 +94,4 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 - This is the last major architecture pass after platform `Main`/`MainActivity` cleanup.
 - The goal is not to make desktop and Android identical internally; the goal is to make duplicated product decisions impossible by default.
 - A platform-local implementation should be the exception, and the reason should be documented next to the checklist item.
+- Desktop split prerequisite is complete. The final pass left desktop-local Compose state ownership, lifecycle effects, native playback/cache/filesystem adapters, and feature/controller wiring in `apps/desktop`; shared product behavior migrations should start from the feature checklist above.
