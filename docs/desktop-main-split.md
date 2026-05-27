@@ -30,6 +30,7 @@ This tracks the work to give the Compose desktop app the same kind of maintainab
   - [x] Move generated radio queue update helpers into `radio/`.
   - [x] Move album/artist radio seed selection into `radio/`.
   - [x] Move recent radio stream action resolution into `radio/`.
+  - [x] Move radio request builders into `radio/`.
 - [ ] Split connection/provider setup out of `Main.kt`.
 - [ ] Split library sync/freshness helpers out of `Main.kt`.
   - [x] Move library freshness model/status decision into `library/LibrarySync.kt`.
@@ -87,3 +88,4 @@ Package names are intentionally unchanged for this pass. The goal is to make the
 - Generated radio queue update session gates now live in the radio feature folder with desktop unit coverage.
 - Album and artist radio seed selection now lives in the radio feature folder with desktop unit coverage.
 - Recent radio stream action resolution now lives in the radio feature folder with desktop unit coverage.
+- Library, genre, decade, track, and popular-track radio request builders now live in the radio feature folder with desktop unit coverage.

@@ -116,9 +116,6 @@ import app.naviamp.ui.resetJvmPlatformCoverArtByteLoader
 import app.naviamp.ui.rememberPlatformCoverArtPlayerColors
 import app.naviamp.ui.setJvmPlatformCoverArtByteLoader
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
@@ -1815,6 +1812,14 @@ fun NaviampApp(
         }
     }
 
+    fun playRadio(request: DesktopRadioRequest) {
+        playRadio(
+            label = request.label,
+            recentRadioStream = request.recentRadioStream,
+            loadTracks = request.loadTracks,
+        )
+    }
+
     fun startSeededRadio(
         label: String,
         provider: NavidromeProvider,
@@ -1899,22 +1904,22 @@ fun NaviampApp(
         }
     }
 
+    fun startSeededRadio(
+        provider: NavidromeProvider,
+        request: DesktopSeededRadioRequest,
+    ) {
+        startSeededRadio(
+            label = request.label,
+            provider = provider,
+            seedTrack = request.seedTrack,
+            recentRadioStream = request.recentRadioStream,
+            loadRest = request.loadRest,
+        )
+    }
+
     fun playPopularTracksRadio(tracks: List<Track>) {
         val provider = connectedProvider ?: return
-        val seedTrack = tracks.shuffled().firstOrNull() ?: return
-        startSeededRadio(
-            label = "${seedTrack.artistName} popular tracks radio",
-            provider = provider,
-            seedTrack = seedTrack,
-            recentRadioStream = popularTracksRecentRadioStream(seedTrack),
-        ) { radioService ->
-            coroutineScope {
-                tracks.take(PopularRadioSeedLimit)
-                    .map { track -> async(Dispatchers.IO) { radioService.trackRadio(track.id) } }
-                    .awaitAll()
-                    .flatten()
-            }
-        }
+        startSeededRadio(provider, popularTracksRadioRequest(tracks, PopularRadioSeedLimit) ?: return)
     }
 
     fun playPlaylist(playlist: Playlist, shuffle: Boolean = false) {
@@ -2028,30 +2033,15 @@ fun NaviampApp(
     }
 
     fun playLibraryRadio() {
-        playRadio(
-            label = "Library radio",
-            recentRadioStream = libraryRecentRadioStream(),
-        ) { radioService ->
-            radioService.libraryRadio()
-        }
+        playRadio(libraryRadioRequest())
     }
 
     fun playGenreRadio(genre: Genre) {
-        playRadio(
-            label = "${genre.name} radio",
-            recentRadioStream = genreRecentRadioStream(genre),
-        ) { radioService ->
-            radioService.genreRadio(genre.name)
-        }
+        playRadio(genreRadioRequest(genre))
     }
 
     fun playDecadeRadio(fromYear: Int, toYear: Int) {
-        playRadio(
-            label = "$fromYear-$toYear radio",
-            recentRadioStream = decadeRecentRadioStream(fromYear, toYear),
-        ) { radioService ->
-            radioService.decadeRadio(fromYear, toYear)
-        }
+        playRadio(decadeRadioRequest(fromYear, toYear))
     }
 
     fun playRandomAlbumRadio() {
@@ -2145,14 +2135,7 @@ fun NaviampApp(
 
     fun playTrackRadio(track: Track) {
         val provider = connectedProvider ?: return
-        startSeededRadio(
-            label = "${track.title} radio",
-            provider = provider,
-            seedTrack = track,
-            recentRadioStream = trackRecentRadioStream(track),
-        ) { radioService ->
-            radioService.trackRadio(track.id)
-        }
+        startSeededRadio(provider, trackRadioRequest(track))
     }
 
     fun convertCurrentTrackToRadio(track: Track) {
