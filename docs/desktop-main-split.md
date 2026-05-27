@@ -26,6 +26,7 @@ This tracks the work to give the Compose desktop app the same kind of maintainab
   - [x] Move play-report threshold/submission decisions into `playback/`.
   - [x] Move desktop seek planning into `playback/`.
 - [ ] Split desktop radio orchestration out of `Main.kt`, keeping shared queue/refill rules in `core/domain`.
+  - [x] Move recent radio stream metadata builders into `radio/`.
 - [ ] Split connection/provider setup out of `Main.kt`.
 - [ ] Split library sync/freshness helpers out of `Main.kt`.
   - [x] Move library freshness model/status decision into `library/LibrarySync.kt`.
@@ -79,3 +80,4 @@ Package names are intentionally unchanged for this pass. The goal is to make the
 - Playback position save threshold decisions now live in the playback feature folder with desktop unit coverage.
 - Play-report threshold and submission-gating decisions now live in the playback feature folder with desktop unit coverage.
 - Desktop seek planning now lives in the playback feature folder with desktop unit coverage.
+- Recent radio stream metadata construction now lives in the radio feature folder with desktop unit coverage.

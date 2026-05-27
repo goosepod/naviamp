@@ -95,10 +95,7 @@ import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.desktop.settings.PlaybackSessionSettings
 import app.naviamp.desktop.settings.RecentRadioKind
 import app.naviamp.desktop.settings.RecentRadioStream
-import app.naviamp.desktop.settings.SavedAlbum
-import app.naviamp.desktop.settings.SavedArtist
 import app.naviamp.desktop.settings.SavedInternetRadioStation
-import app.naviamp.desktop.settings.SavedTrack
 import app.naviamp.desktop.settings.SearchSettings
 import app.naviamp.desktop.settings.UpNextSelectionBehavior
 import app.naviamp.desktop.settings.VisualizerSettings
@@ -1953,12 +1950,7 @@ fun NaviampApp(
             label = "${seedTrack.artistName} popular tracks radio",
             provider = provider,
             seedTrack = seedTrack,
-            recentRadioStream = RecentRadioStream(
-                id = "popular:${seedTrack.artistId?.value ?: seedTrack.artistName}",
-                label = "${seedTrack.artistName} popular tracks radio",
-                kind = RecentRadioKind.Track,
-                track = SavedTrack.fromTrack(seedTrack),
-            ),
+            recentRadioStream = popularTracksRecentRadioStream(seedTrack),
         ) { radioService ->
             coroutineScope {
                 tracks.take(PopularRadioSeedLimit)
@@ -2082,11 +2074,7 @@ fun NaviampApp(
     fun playLibraryRadio() {
         playRadio(
             label = "Library radio",
-            recentRadioStream = RecentRadioStream(
-                id = "library",
-                label = "Library radio",
-                kind = RecentRadioKind.Library,
-            ),
+            recentRadioStream = libraryRecentRadioStream(),
         ) { radioService ->
             radioService.libraryRadio()
         }
@@ -2095,12 +2083,7 @@ fun NaviampApp(
     fun playGenreRadio(genre: Genre) {
         playRadio(
             label = "${genre.name} radio",
-            recentRadioStream = RecentRadioStream(
-                id = "genre:${genre.name}",
-                label = "${genre.name} radio",
-                kind = RecentRadioKind.Genre,
-                genre = genre.name,
-            ),
+            recentRadioStream = genreRecentRadioStream(genre),
         ) { radioService ->
             radioService.genreRadio(genre.name)
         }
@@ -2109,13 +2092,7 @@ fun NaviampApp(
     fun playDecadeRadio(fromYear: Int, toYear: Int) {
         playRadio(
             label = "$fromYear-$toYear radio",
-            recentRadioStream = RecentRadioStream(
-                id = "decade:$fromYear:$toYear",
-                label = "$fromYear-$toYear radio",
-                kind = RecentRadioKind.Decade,
-                fromYear = fromYear,
-                toYear = toYear,
-            ),
+            recentRadioStream = decadeRecentRadioStream(fromYear, toYear),
         ) { radioService ->
             radioService.decadeRadio(fromYear, toYear)
         }
@@ -2179,12 +2156,7 @@ fun NaviampApp(
                     label = "${album.title} radio",
                     provider = provider,
                     seedTrack = seedTrack,
-                    recentRadioStream = RecentRadioStream(
-                        id = "random-album:${album.id.value}",
-                        label = "${album.title} radio",
-                        kind = RecentRadioKind.RandomAlbum,
-                        album = SavedAlbum.fromAlbum(album),
-                    ),
+                    recentRadioStream = randomAlbumRecentRadioStream(album),
                 ) { radioService ->
                     radioService.albumRadio(album.id)
                 }
@@ -2210,12 +2182,7 @@ fun NaviampApp(
                     label = "${artist.name} radio",
                     provider = provider,
                     seedTrack = seedTrack,
-                    recentRadioStream = RecentRadioStream(
-                        id = "artist:${artist.id.value}",
-                        label = "${artist.name} radio",
-                        kind = RecentRadioKind.Artist,
-                        artist = SavedArtist.fromArtist(artist),
-                    ),
+                    recentRadioStream = artistRecentRadioStream(artist),
                 ) { radioService ->
                     radioService.artistRadio(artist.id)
                 }
@@ -2246,12 +2213,7 @@ fun NaviampApp(
                     label = "${album.title} radio",
                     provider = provider,
                     seedTrack = seedTrack,
-                    recentRadioStream = RecentRadioStream(
-                        id = "album:${album.id.value}",
-                        label = "${album.title} radio",
-                        kind = RecentRadioKind.Album,
-                        album = SavedAlbum.fromAlbum(album),
-                    ),
+                    recentRadioStream = albumRecentRadioStream(album),
                 ) { radioService ->
                     radioService.albumRadio(album.id, loadedAlbumTracks)
                 }
@@ -2267,12 +2229,7 @@ fun NaviampApp(
             label = "${track.title} radio",
             provider = provider,
             seedTrack = track,
-            recentRadioStream = RecentRadioStream(
-                id = "track:${track.id.value}",
-                label = "${track.title} radio",
-                kind = RecentRadioKind.Track,
-                track = SavedTrack.fromTrack(track),
-            ),
+            recentRadioStream = trackRecentRadioStream(track),
         ) { radioService ->
             radioService.trackRadio(track.id)
         }
@@ -2288,12 +2245,7 @@ fun NaviampApp(
 
         connectionStatus = "Building ${track.title} radio..."
         rememberRadioStream(
-            RecentRadioStream(
-                id = "track:${track.id.value}",
-                label = "${track.title} radio",
-                kind = RecentRadioKind.Track,
-                track = SavedTrack.fromTrack(track),
-            ),
+            trackRecentRadioStream(track),
         )
         radioSessionId += 1
         val activeRadioSessionId = radioSessionId
