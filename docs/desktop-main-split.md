@@ -44,7 +44,8 @@ This tracks the work to give the Compose desktop app the same kind of maintainab
 - [x] Split playlist/download mutations out of `Main.kt`, keeping shared provider mutations in `core/domain`.
   - [x] Move desktop playlist mutation refresh/status helpers into `playlists/`.
   - [x] Move desktop download mutation status/playback helpers into `downloads/`.
-- [ ] Split artist/album detail loading out of `Main.kt`.
+- [x] Split artist/album detail loading out of `Main.kt`.
+  - [x] Move detail route/back-stack decisions, track-to-detail conversion, loading wrappers, and popular-track status helpers into `media/`.
 - [x] Split diagnostics/stats mapping out of `Main.kt`.
 - [ ] Re-check whether any remaining desktop logic belongs in shared `core/domain` or `core/ui`.
 
@@ -89,6 +90,7 @@ Package names are intentionally unchanged for this pass. The goal is to make the
 - Library auto-sync decisions, server scan signature marking, and freshness loading now live with library sync helpers.
 - Playlist mutation refresh/status helpers now live in the playlists feature folder with desktop unit coverage.
 - Download mutation status and downloaded-track playback helpers now live in the downloads feature folder with desktop unit coverage.
+- Artist/album detail route decisions, loading wrappers, track conversions, and popular-track status helpers now live in the media feature folder with desktop unit coverage.
 - Now-playing sidecar analysis state now lives in the playback feature folder.
 - Playback progress pending-seek and UI update decisions now live in the playback feature folder with desktop unit coverage.
 - Previous/next control decisions now live in the playback feature folder with desktop unit coverage.

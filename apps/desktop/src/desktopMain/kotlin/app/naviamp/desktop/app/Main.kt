@@ -1471,22 +1471,22 @@ fun NaviampApp(
 
     fun openAlbumDetails(album: Album, backRouteOverride: AppRoute? = null) {
         val provider = connectedProvider ?: return
-        albumDetailBackRoute = backRouteOverride ?: when (appRoute) {
-            AppRoute.AlbumDetail -> albumDetailBackRoute
-            AppRoute.ArtistDetail -> AppRoute.ArtistDetail
-            AppRoute.Player -> lastContentRoute
-            else -> appRoute
-        }
+        albumDetailBackRoute = resolveAlbumDetailBackRoute(
+            currentRoute = appRoute,
+            currentBackRoute = albumDetailBackRoute,
+            lastContentRoute = lastContentRoute,
+            backRouteOverride = backRouteOverride,
+        )
         selectedAlbum = album
         selectedAlbumDetails = null
         selectedAlbumStatus = "Loading..."
         appRoute = AppRoute.AlbumDetail
         coroutineScope.launch {
             try {
-                selectedAlbumDetails = sessionCache.album(provider, album.id)
+                selectedAlbumDetails = loadAlbumDetails(sessionCache, provider, album)
                 selectedAlbumStatus = null
             } catch (exception: Exception) {
-                selectedAlbumStatus = exception.message ?: "Could not load album."
+                selectedAlbumStatus = albumLoadErrorStatus(exception)
             }
         }
     }
@@ -2052,18 +2052,18 @@ fun NaviampApp(
         pushCurrentArtist: Boolean = true,
     ) {
         val provider = connectedProvider ?: return
-        if (pushCurrentArtist && appRoute == AppRoute.ArtistDetail) {
-            selectedArtist
-                ?.takeIf { currentArtist -> currentArtist.id != artist.id }
-                ?.let { currentArtist -> artistDetailBackStack = artistDetailBackStack + currentArtist }
-        } else if (appRoute != AppRoute.ArtistDetail) {
-            artistDetailBackStack = emptyList()
-        }
-        artistDetailBackRoute = backRouteOverride ?: when (appRoute) {
-            AppRoute.ArtistDetail -> artistDetailBackRoute
-            AppRoute.Player -> lastContentRoute
-            else -> appRoute
-        }
+        val navigation = artistDetailNavigation(
+            artist = artist,
+            currentArtist = selectedArtist,
+            currentRoute = appRoute,
+            currentBackStack = artistDetailBackStack,
+            currentBackRoute = artistDetailBackRoute,
+            lastContentRoute = lastContentRoute,
+            backRouteOverride = backRouteOverride,
+            pushCurrentArtist = pushCurrentArtist,
+        )
+        artistDetailBackStack = navigation.backStack
+        artistDetailBackRoute = navigation.backRoute
         selectedArtist = artist
         selectedArtistDetails = null
         selectedArtistPopularTracks = emptyList()
@@ -2074,14 +2074,14 @@ fun NaviampApp(
         appRoute = AppRoute.ArtistDetail
         coroutineScope.launch {
             try {
-                val details = sessionCache.artist(provider, artist.id)
+                val details = loadArtistDetails(sessionCache, provider, artist)
                 selectedArtistDetails = details
                 selectedArtistStatus = null
                 val sourceId = connectedSourceId
                 if (sourceId == null) {
-                    selectedArtistPopularTracksStatus = "Popular tracks unavailable: no connected media source."
+                    selectedArtistPopularTracksStatus = missingPopularTracksSourceStatus()
                 } else {
-                    selectedArtistPopularTracksStatus = "Loading popular tracks..."
+                    selectedArtistPopularTracksStatus = loadingPopularTracksStatus()
                     runCatching {
                         popularTracksService.popularTracks(
                             sourceId = sourceId,
@@ -2090,37 +2090,24 @@ fun NaviampApp(
                         )
                     }.onSuccess { matches ->
                         if (selectedArtist?.id == artist.id) {
-                            selectedArtistPopularTracks = matches
-                                .map { it.matchedTrack }
-                                .take(PopularTracksDisplayLimit)
-                            selectedArtistPopularTracksStatus = if (matches.isEmpty()) {
-                                "No popular tracks matched songs in your library."
-                            } else {
-                                null
-                            }
+                            val update = artistPopularTracksUpdate(matches, PopularTracksDisplayLimit)
+                            selectedArtistPopularTracks = update.tracks
+                            selectedArtistPopularTracksStatus = update.status
                         }
                     }.onFailure { error ->
                         if (selectedArtist?.id == artist.id) {
-                            selectedArtistPopularTracksStatus =
-                                "Popular tracks unavailable: ${error.message ?: "unknown error"}"
+                            selectedArtistPopularTracksStatus = popularTracksUnavailableStatus(error)
                         }
                     }
                 }
             } catch (exception: Exception) {
-                selectedArtistStatus = exception.message ?: "Could not load artist."
+                selectedArtistStatus = artistLoadErrorStatus(exception)
             }
         }
     }
 
     fun openTrackArtistDetails(track: Track, backRouteOverride: AppRoute = AppRoute.Player) {
-        val artistId = track.artistId ?: return
-        openArtistDetails(
-            artist = Artist(
-                id = artistId,
-                name = track.artistName,
-            ),
-            backRouteOverride = backRouteOverride,
-        )
+        openArtistDetails(trackArtist(track) ?: return, backRouteOverride = backRouteOverride)
     }
 
     fun closeArtistDetails() {
@@ -2138,18 +2125,7 @@ fun NaviampApp(
     }
 
     fun openTrackAlbumDetails(track: Track) {
-        val albumId = track.albumId ?: return
-        openAlbumDetails(
-            album = Album(
-                id = albumId,
-                title = track.albumTitle ?: "Album",
-                artistName = track.artistName,
-                coverArtId = track.coverArtId,
-                recentlyAddedAtIso8601 = null,
-                releaseYear = track.albumReleaseYear,
-            ),
-            backRouteOverride = AppRoute.Player,
-        )
+        openAlbumDetails(trackAlbum(track) ?: return, backRouteOverride = AppRoute.Player)
     }
 
     fun setTrackRating(track: Track, rating: Int?) {
