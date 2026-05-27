@@ -75,6 +75,7 @@ Package names are intentionally unchanged for this pass. The goal is to make the
 
 - Unlike Android, this is not driven by ART/profile warnings. The desktop target is maintainability and shared behavior reuse.
 - Start with low-risk extractions, then move the state-heavy controller logic once the boundaries are clearer.
+- After this split is complete, use `docs/shared-core-extraction.md` to move duplicated desktop/Android product behavior into `core/domain` and `core/ui`.
 - `DesktopStatsMapping.kt` now owns playback capability and stream stats conversion for Stats for Nerds.
 - The abandoned Rust/Slint app was removed. BASS vendor libraries now live at `apps/desktop/vendor/bass/<platform>`.
 - Library freshness status decisions now live with library sync helpers and have desktop unit coverage.
