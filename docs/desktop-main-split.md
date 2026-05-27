@@ -19,6 +19,7 @@ This tracks the work to give the Compose desktop app the same kind of maintainab
 - [x] Remove abandoned Rust/Slint desktop experiment and keep BASS vendor files under the active Compose desktop app.
 - [ ] Split desktop playback/session controller logic out of `Main.kt`.
   - [x] Move now-playing analysis model into `playback/`.
+  - [x] Move playback progress pending-seek/UI update decisions into `playback/`.
 - [ ] Split desktop radio orchestration out of `Main.kt`, keeping shared queue/refill rules in `core/domain`.
 - [ ] Split connection/provider setup out of `Main.kt`.
 - [ ] Split library sync/freshness helpers out of `Main.kt`.
@@ -67,3 +68,4 @@ Package names are intentionally unchanged for this pass. The goal is to make the
 - Library freshness status decisions now live with library sync helpers and have desktop unit coverage.
 - Library snapshot paging decisions now live with library sync helpers and have desktop unit coverage.
 - Now-playing sidecar analysis state now lives in the playback feature folder.
+- Playback progress pending-seek and UI update decisions now live in the playback feature folder with desktop unit coverage.

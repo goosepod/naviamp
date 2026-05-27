@@ -720,22 +720,11 @@ fun NaviampApp(
             val pendingSeek = pendingSeekPositionSeconds
             val pendingSeekIssuedAt = pendingSeekIssuedAtMillis
             val progressPosition = progress.positionSeconds
-            if (
-                pendingSeek != null &&
-                pendingSeekIssuedAt != null &&
-                progressPosition != null &&
-                abs(progressPosition - pendingSeek) > PendingSeekToleranceSeconds &&
-                System.currentTimeMillis() - pendingSeekIssuedAt < PendingSeekStaleProgressWindowMillis
-            ) {
+            val now = System.currentTimeMillis()
+            if (shouldIgnoreProgressForPendingSeek(pendingSeek, pendingSeekIssuedAt, progressPosition, now)) {
                 return@progressChanged
             }
-            if (
-                pendingSeek != null &&
-                (progressPosition == null ||
-                    pendingSeekIssuedAt == null ||
-                    abs(progressPosition - pendingSeek) <= PendingSeekToleranceSeconds ||
-                    System.currentTimeMillis() - pendingSeekIssuedAt >= PendingSeekStaleProgressWindowMillis)
-            ) {
+            if (shouldClearPendingSeek(pendingSeek, pendingSeekIssuedAt, progressPosition, now)) {
                 pendingSeekPositionSeconds = null
                 pendingSeekIssuedAtMillis = null
             }
@@ -743,17 +732,15 @@ fun NaviampApp(
             val mergedProgress = progress.mergeWith(currentProgress)
             maybeSavePlaybackPosition(mergedProgress)
             maybeReportPlayed(mergedProgress)
-            val now = System.currentTimeMillis()
-            val currentPosition = currentProgress.positionSeconds
-            val mergedPosition = mergedProgress.positionSeconds
-            val shouldUpdateUiProgress =
-                pendingSeek != null ||
-                    mergedProgress.durationSeconds != currentProgress.durationSeconds ||
-                    currentPosition == null ||
-                    mergedPosition == null ||
-                    abs(mergedPosition - currentPosition) >= PlaybackProgressUiUpdateThresholdSeconds ||
-                    now - lastPlaybackProgressUiUpdateMillis >= PlaybackProgressUiUpdateIntervalMillis
-            if (shouldUpdateUiProgress) {
+            if (
+                shouldUpdatePlaybackProgressUi(
+                    pendingSeekPositionSeconds = pendingSeek,
+                    currentProgress = currentProgress,
+                    mergedProgress = mergedProgress,
+                    nowMillis = now,
+                    lastUiUpdateMillis = lastPlaybackProgressUiUpdateMillis,
+                )
+            ) {
                 playbackProgress = mergedProgress
                 lastPlaybackProgressUiUpdateMillis = now
             }
