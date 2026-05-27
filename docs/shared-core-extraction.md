@@ -54,7 +54,7 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 
 - [ ] Radio behavior
   - [ ] Promote radio request models from desktop `radio/` into `core/domain/radio`.
-  - [ ] Promote recent-radio stream/action resolution into shared code.
+  - [x] Promote recent-radio stream/action resolution into shared code.
   - [ ] Promote seed-selection rules using storage/provider interfaces instead of `DesktopCache`.
   - [ ] Keep desktop/Android radio controllers as thin adapters around shared plans.
   - [ ] Keep native playback queue mutation inside platform adapters.
@@ -112,3 +112,4 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 - Library freshness status decisions now live in `core/domain` and are used by both desktop and Android. Provider scan reads and source metadata writes remain platform-local.
 - Generic library paging limit decisions now live in `core/domain`; desktop keeps only the adapter that maps the active library tab to a visible item count.
 - Search result counts, active-track selection, query normalization, debounce timing, and result limits now live in `core/domain`. Desktop and Android both use type-to-search behavior with the same request policy.
+- Recent-radio stream construction and saved-stream action resolution now live in `core/domain/radio`; desktop imports the shared action model and keeps only the platform controller wiring.

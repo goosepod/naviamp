@@ -1,11 +1,19 @@
 package app.naviamp.desktop
 
-import app.naviamp.desktop.settings.RecentRadioStream
 import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
 import app.naviamp.domain.Genre
 import app.naviamp.domain.Track
 import app.naviamp.domain.radio.RadioService
+import app.naviamp.domain.radio.albumRecentRadioStream
+import app.naviamp.domain.radio.artistRecentRadioStream
+import app.naviamp.domain.radio.decadeRecentRadioStream
+import app.naviamp.domain.radio.genreRecentRadioStream
+import app.naviamp.domain.radio.libraryRecentRadioStream
+import app.naviamp.domain.radio.popularTracksRecentRadioStream
+import app.naviamp.domain.radio.randomAlbumRecentRadioStream
+import app.naviamp.domain.radio.trackRecentRadioStream
+import app.naviamp.domain.settings.RecentRadioStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll

@@ -88,6 +88,8 @@ import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.popular.SimilarArtistsService
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
+import app.naviamp.domain.radio.RecentRadioAction
+import app.naviamp.domain.radio.recentRadioAction
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.waveform.AudioWaveform
@@ -1917,13 +1919,13 @@ fun NaviampApp(
 
     fun playRecentRadio(stream: RecentRadioStream) {
         when (val action = recentRadioAction(stream) ?: return) {
-            DesktopRecentRadioAction.PlayLibrary -> playLibraryRadio()
-            DesktopRecentRadioAction.PlayRandomAlbum -> playRandomAlbumRadio()
-            is DesktopRecentRadioAction.PlayGenre -> playGenreRadio(action.genre)
-            is DesktopRecentRadioAction.PlayDecade -> playDecadeRadio(action.fromYear, action.toYear)
-            is DesktopRecentRadioAction.PlayArtist -> playArtistRadio(action.artist)
-            is DesktopRecentRadioAction.PlayAlbum -> playAlbumRadio(action.album)
-            is DesktopRecentRadioAction.PlayTrack -> playTrackRadio(action.track)
+            RecentRadioAction.PlayLibrary -> playLibraryRadio()
+            RecentRadioAction.PlayRandomAlbum -> playRandomAlbumRadio()
+            is RecentRadioAction.PlayGenre -> playGenreRadio(action.genre)
+            is RecentRadioAction.PlayDecade -> playDecadeRadio(action.fromYear, action.toYear)
+            is RecentRadioAction.PlayArtist -> playArtistRadio(action.artist)
+            is RecentRadioAction.PlayAlbum -> playAlbumRadio(action.album)
+            is RecentRadioAction.PlayTrack -> playTrackRadio(action.track)
         }
     }
 
