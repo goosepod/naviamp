@@ -103,7 +103,6 @@ import app.naviamp.provider.navidrome.NavidromeApiCallHistory
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.NavidromeTls
-import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.provider.navidrome.withNativeTokenFromPassword
 import app.naviamp.ui.NaviampPlayerColors
@@ -1400,17 +1399,19 @@ fun NaviampApp(
         }
     }
 
-    fun connectionTlsSettings(): NavidromeTlsSettings =
-        NavidromeTlsSettings(
+    fun connectionTlsSettings() =
+        desktopConnectionTlsSettings(
             insecureSkipTlsVerification = insecureSkipTlsVerification,
-            customCertificatePath = customCertificatePath.trim().takeIf { !insecureSkipTlsVerification && it.isNotEmpty() },
-            clientCertificateKeyStorePath = clientCertificateKeyStorePath.trim().takeIf { it.isNotEmpty() },
-            clientCertificateKeyStorePassword = clientCertificateKeyStorePassword
-                .takeIf { clientCertificateKeyStorePath.trim().isNotEmpty() },
+            customCertificatePath = customCertificatePath,
+            clientCertificateKeyStorePath = clientCertificateKeyStorePath,
+            clientCertificateKeyStorePassword = clientCertificateKeyStorePassword,
         )
 
     fun resolvedConnectionDisplayName(): String =
-        connectionName.trim().takeIf { it.isNotEmpty() } ?: serverUrl.trim().trimEnd('/')
+        desktopConnectionDisplayName(
+            connectionName = connectionName,
+            serverUrl = serverUrl,
+        )
 
     fun connectToServer(restoreSavedSession: Boolean = false) {
         if (isConnecting) return
