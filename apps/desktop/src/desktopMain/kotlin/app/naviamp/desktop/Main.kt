@@ -39,13 +39,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
-import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
-import com.sun.jna.Library
-import com.sun.jna.Native
-import com.sun.jna.Pointer
-import com.sun.jna.ptr.IntByReference
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Artist
@@ -77,10 +72,8 @@ import app.naviamp.desktop.playback.PlaybackSource
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.playback.mergeWith
-import app.naviamp.domain.home.HomeAlbumYear
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.HomeDate
-import app.naviamp.domain.home.HomeLibraryRepository
 import app.naviamp.domain.home.HomeService
 import app.naviamp.domain.lyrics.selectPreferredLyrics
 import app.naviamp.domain.popular.ArtistPopularTracksService
@@ -112,7 +105,6 @@ import app.naviamp.desktop.settings.SavedTrack
 import app.naviamp.desktop.settings.SearchSettings
 import app.naviamp.desktop.settings.UpNextSelectionBehavior
 import app.naviamp.desktop.settings.VisualizerSettings
-import app.naviamp.desktop.settings.WindowSettings
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
@@ -147,12 +139,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.awt.Dimension
 import java.awt.Desktop
-import java.awt.Taskbar
-import java.awt.Window as AwtWindow
 import java.net.URI
 import java.time.Instant
 import java.time.LocalDate
-import javax.imageio.ImageIO
 import kotlin.math.abs
 
 fun main() {
@@ -201,80 +190,6 @@ fun main() {
         }
     }
 }
-
-private fun configureDesktopApplicationName() {
-    System.setProperty("compose.application.name", "Naviamp")
-    System.setProperty("apple.awt.application.name", "Naviamp")
-    System.setProperty("sun.awt.application.name", "Naviamp")
-}
-
-private fun configureDesktopIcon() {
-    runCatching {
-        if (!Taskbar.isTaskbarSupported()) return
-        val taskbar = Taskbar.getTaskbar()
-        if (!taskbar.isSupported(Taskbar.Feature.ICON_IMAGE)) return
-        val iconUrl = Thread.currentThread().contextClassLoader.getResource("icons/naviamp.png") ?: return
-        taskbar.iconImage = ImageIO.read(iconUrl)
-    }
-}
-
-private fun configureDesktopAppearance() {
-    if (System.getProperty("os.name").contains("Mac", ignoreCase = true)) {
-        System.setProperty("apple.awt.application.appearance", "system")
-    }
-}
-
-private fun configureNativeTitleBar(window: AwtWindow, isDark: Boolean) {
-    configureMacTitleBar(window, isDark)
-    configureWindowsTitleBar(window, isDark)
-}
-
-private fun configureMacTitleBar(window: AwtWindow, isDark: Boolean) {
-    if (!System.getProperty("os.name").contains("Mac", ignoreCase = true)) return
-    runCatching {
-        val appearance = if (isDark) "NSAppearanceNameDarkAqua" else "NSAppearanceNameAqua"
-        javax.swing.SwingUtilities.getRootPane(window)
-            ?.putClientProperty("apple.awt.windowAppearance", appearance)
-    }
-}
-
-private fun configureWindowsTitleBar(window: AwtWindow, isDark: Boolean) {
-    if (!System.getProperty("os.name").contains("Windows", ignoreCase = true)) return
-    runCatching {
-        val hwnd = Native.getComponentPointer(window)
-        val value = IntByReference(if (isDark) 1 else 0)
-        WindowsDwmApi.instance.DwmSetWindowAttribute(
-            hwnd,
-            DwmWindowAttributeUseImmersiveDarkMode,
-            value.pointer,
-            Int.SIZE_BYTES,
-        )
-        WindowsDwmApi.instance.DwmSetWindowAttribute(
-            hwnd,
-            DwmWindowAttributeUseImmersiveDarkModeBefore20H1,
-            value.pointer,
-            Int.SIZE_BYTES,
-        )
-    }
-}
-
-private interface WindowsDwmApi : Library {
-    fun DwmSetWindowAttribute(
-        hwnd: Pointer,
-        dwAttribute: Int,
-        pvAttribute: Pointer,
-        cbAttribute: Int,
-    ): Int
-
-    companion object {
-        val instance: WindowsDwmApi by lazy {
-            Native.load("dwmapi", WindowsDwmApi::class.java)
-        }
-    }
-}
-
-private const val DwmWindowAttributeUseImmersiveDarkModeBefore20H1 = 19
-private const val DwmWindowAttributeUseImmersiveDarkMode = 20
 
 @Composable
 @Preview
@@ -3668,64 +3583,6 @@ fun NaviampApp(
     }
 }
 
-private fun PlaybackSettings.forEngine(playbackEngine: PlaybackEngine): PlaybackSettings =
-    copy(
-        replayGainMode = if (playbackEngine.supportsReplayGain) {
-            replayGainMode
-        } else {
-            ReplayGainMode.Off
-        },
-        crossfadeDurationSeconds = if (playbackEngine.supportsCrossfade) {
-            if (gaplessEnabled) 0 else crossfadeDurationSeconds.coerceIn(0, 12)
-        } else {
-            0
-        },
-        gaplessEnabled = playbackEngine.supportsGapless && gaplessEnabled,
-        volumePercent = if (playbackEngine.supportsSoftwareVolume) {
-            volumePercent.coerceIn(0, 100)
-        } else {
-            100
-        },
-        debugLoggingEnabled = debugLoggingEnabled,
-        lrclibLyricsEnabled = lrclibLyricsEnabled,
-        previousButtonBehavior = previousButtonBehavior,
-        upNextSelectionBehavior = upNextSelectionBehavior,
-    )
-
-private const val PreviousRestartThresholdSeconds = 10.0
-
-private fun shouldAutoSyncLibrary(
-    sourceId: String,
-    cache: DesktopCache,
-): Boolean {
-    val indexStats = cache.libraryIndexStats(sourceId)
-    return !indexStats.hasUsableIndex
-}
-
-private const val LibraryPageSize = 50
-private const val PlaybackPositionSaveThresholdSeconds = 5.0
-private const val PlaybackProgressUiUpdateIntervalMillis = 500L
-private const val PlaybackProgressUiUpdateThresholdSeconds = 0.45
-private const val VisualizerFrameIntervalMillis = 125L // Audio analysis cadence; shader rendering uses the display frame clock.
-private const val NowPlayingHeartbeatIntervalMillis = 30_000L
-private const val PlaylistDetailRefreshIntervalMillis = 60_000L
-private const val PendingSeekToleranceSeconds = 2.0
-private const val PendingSeekStaleProgressWindowMillis = 1_500L
-private const val RadioRefillThreshold = 10
-private const val RadioRefillCount = 50
-private const val RadioQueueHistoryLimit = 25
-private const val PopularRadioSeedLimit = 5
-private const val InitialSimilarRadioCount = 10
-private val SimilarRadioExpansionCounts = listOf(25, 50)
-
-private fun DesktopCache.asHomeLibraryRepository(): HomeLibraryRepository =
-    object : HomeLibraryRepository {
-        override fun albumYears(sourceId: String): List<HomeAlbumYear> =
-            libraryAlbumYears(sourceId).map { year ->
-                HomeAlbumYear(year = year.year, albumCount = year.albumCount)
-            }
-    }
-
 private fun PlaybackEngine.capabilitiesLabel(): String =
     listOf(
         "pause" to supportsPause,
@@ -3797,60 +3654,3 @@ private data class LibraryFreshness(
     val scanning: Boolean,
 )
 
-private fun app.naviamp.domain.provider.ProviderCapabilities.asStatsMap(): Map<String, Boolean> =
-    mapOf(
-        "Streaming transcode" to supportsStreamingTranscode,
-        "Download transcode" to supportsDownloadTranscode,
-        "Artist radio" to supportsArtistRadio,
-        "Album radio" to supportsAlbumRadio,
-        "Track radio" to supportsTrackRadio,
-        "Track favorites" to supportsTrackFavorites,
-        "Track ratings" to supportsTrackRatings,
-        "Play reporting" to supportsPlayReporting,
-    )
-
-private fun playReportThresholdSeconds(durationSeconds: Double?): Double =
-    durationSeconds
-        ?.takeIf { it > 0.0 }
-        ?.let { minOf(it * PlayReportDurationFraction, PlayReportMaxThresholdSeconds) }
-        ?: PlayReportMaxThresholdSeconds
-
-private fun restoredRoute(
-    savedRouteName: String?,
-    hasConnection: Boolean,
-    hasRestoredTrack: Boolean,
-): AppRoute {
-    if (!hasConnection) return AppRoute.Settings
-    return when (val route = AppRoute.fromStoredName(savedRouteName)) {
-        AppRoute.Player -> if (hasRestoredTrack) AppRoute.Player else AppRoute.Home
-        AppRoute.AlbumDetail -> AppRoute.Home
-        AppRoute.ArtistDetail -> AppRoute.Search
-        AppRoute.PlaylistDetail -> AppRoute.Playlists
-        else -> route
-    }
-}
-
-private fun restoredLastContentRoute(savedRouteName: String?): AppRoute =
-    when (val route = AppRoute.fromStoredName(savedRouteName)) {
-        AppRoute.Player,
-        AppRoute.AlbumDetail,
-        AppRoute.ArtistDetail,
-        AppRoute.PlaylistDetail,
-        -> AppRoute.Home
-        else -> route
-    }
-
-private fun WindowState.toWindowSettings(): WindowSettings =
-    WindowSettings(
-        widthDp = size.width.value.coerceAtLeast(320f),
-        heightDp = size.height.value.coerceAtLeast(420f),
-    )
-
-private const val PlayReportDurationFraction = 0.5
-private const val PlayReportMaxThresholdSeconds = 240.0
-private const val CoverArtPreloadHistoryLimit = 1
-private const val CoverArtPreloadUpcomingLimit = 5
-private const val PopularTracksFetchLimit = 25
-private const val PopularTracksDisplayLimit = 10
-private const val SimilarArtistsFetchLimit = 20
-private const val SimilarArtistsDisplayLimit = 10
