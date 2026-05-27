@@ -13,7 +13,7 @@ plugins {
 val desktopBassPlatform = providers.gradleProperty("naviamp.bass.platform")
     .orElse(desktopNativePlatform())
 val desktopBassVendorDir = desktopBassPlatform.map { platform ->
-    layout.projectDirectory.dir("../desktop-slint/vendor/bass/$platform")
+    layout.projectDirectory.dir("vendor/bass/$platform")
 }
 val generatedDesktopBassResources = layout.buildDirectory.dir("generated/desktopBass")
 val copyDesktopBass by tasks.registering(Copy::class) {

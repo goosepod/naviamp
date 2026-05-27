@@ -6,7 +6,7 @@ This document tracks the plan for adding BASS to the Kotlin/Compose app while pr
 
 Use BASS as the desktop playback backend in the Kotlin app, behind the existing playback interface, so Naviamp can gain fast startup, broad codec support, gapless playback, crossfade, visualizers, and future native audio features without rebuilding the UI.
 
-The Rust/Slint app can remain a parallel experiment, but Kotlin/Compose is the reference UI.
+Kotlin/Compose is the reference desktop UI.
 
 ## Current State
 

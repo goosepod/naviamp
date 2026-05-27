@@ -108,6 +108,26 @@ This is the working history for reducing Android build/runtime warnings related 
   - [x] `AndroidDownloadController.kt`
   - [x] `AndroidArtistController.kt`
   - [x] `AndroidAppConstants.kt`
+- [x] Physically group Android files into feature folders that mirror the desktop organization where practical.
+
+## Physical Layout
+
+Android feature folders now sit under `apps/android/src/main/kotlin/app/naviamp/android/`:
+
+- `app/`: `MainActivity`, app shell/state/effects/support, and app constants.
+- `connection/`: provider connection controller.
+- `diagnostics/`: diagnostics/API-call reporting.
+- `discovery/`: external discovery clients, such as popular tracks lookup.
+- `downloads/`: download controller logic.
+- `library/`: library sync and freshness helpers.
+- `lyrics/`: embedded lyrics and LRCLIB clients.
+- `media/`: artist/album detail loading controllers.
+- `playback/`: playback engines, foreground service, controls, session controller, waveform analysis.
+- `radio/`: seeded radio orchestration and playlist parsing.
+- `settings/`: Android settings store.
+- `storage/`: Android storage adapters.
+
+Package names are intentionally unchanged for this pass. The source tree is grouped first; package renames can wait until the platform controller boundaries stop moving.
 
 ## Notes
 
