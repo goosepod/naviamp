@@ -33,12 +33,12 @@ The BASS engine resolves libraries in this order:
 1. JVM property: `-Dnaviamp.bass.dir=/path/to/bass`
 2. Environment variable: `NAVIAMP_BASS_DIR=/path/to/bass`
 3. Bundled desktop resources under `playback/bass/<platform>`
-4. Development vendor fallback under `apps/desktop-slint/vendor/bass/<platform>`
+4. Development vendor fallback under `apps/desktop/vendor/bass/<platform>`
 
 The desktop Gradle build copies the current platform BASS libraries from:
 
 ```text
-apps/desktop-slint/vendor/bass/<platform>
+apps/desktop/vendor/bass/<platform>
 ```
 
 into generated desktop resources at:

@@ -168,8 +168,19 @@ class AndroidBassPlaybackEngine(
                     stream = handle
                 }
                 applyVolume()
-                request.startPositionSeconds?.takeIf { it > 0.0 }?.let { seek(it) }
+                val startPositionSeconds = request.startPositionSeconds?.takeIf { it > 0.0 }
+                val seekedBeforePlay = startPositionSeconds?.let { seekStreamPosition(it) } ?: false
+                if (startPositionSeconds != null && !seekedBeforePlay) {
+                    setPlaybackMuted(true)
+                }
                 check(bass.play(handle)) { errorMessage("BASS_ChannelPlay failed") }
+                if (startPositionSeconds != null && !seekedBeforePlay) {
+                    val seekedAfterPlay = retryStartSeek(handle, startPositionSeconds)
+                    setPlaybackMuted(false)
+                    if (!seekedAfterPlay) {
+                        error("BASS start seek did not apply seconds=$startPositionSeconds")
+                    }
+                }
                 Log.i(Tag, "BASS playback started handle=$handle")
                 acquirePlaybackWakeLock()
                 onStateChanged(PlaybackState.Playing)
@@ -177,6 +188,7 @@ class AndroidBassPlaybackEngine(
             } catch (error: Throwable) {
                 val message = error.message ?: "BASS playback failed."
                 Log.w(Tag, message, error)
+                stopStreamOnly()
                 releasePlaybackWakeLock()
                 onStateChanged(PlaybackState.Error(message))
                 AndroidPlaybackNotificationControls.isPlaying = false
@@ -212,12 +224,29 @@ class AndroidBassPlaybackEngine(
 
     override fun seek(positionSeconds: Double) {
         freePreparedStream()
-        val handle = currentSourceStream.takeIf { it != 0 } ?: stream.takeIf { it != 0 } ?: return
+        seekStreamPosition(positionSeconds)
+    }
+
+    private fun seekStreamPosition(positionSeconds: Double): Boolean {
+        val handle = currentSourceStream.takeIf { it != 0 } ?: stream.takeIf { it != 0 } ?: return false
         val success = bass.seek(handle, positionSeconds)
         Log.i(
             Tag,
             "BASS seek requested handle=$handle seconds=$positionSeconds success=$success error=${bass.lastErrorCode}",
         )
+        return success
+    }
+
+    private suspend fun retryStartSeek(handle: Int, positionSeconds: Double): Boolean {
+        repeat(StartSeekRetryCount) { attempt ->
+            if (stream != handle) return false
+            delay(StartSeekRetryDelayMillis)
+            Log.i(Tag, "Retrying BASS start seek attempt=${attempt + 1} seconds=$positionSeconds")
+            if (seekStreamPosition(positionSeconds)) {
+                return true
+            }
+        }
+        return false
     }
 
     override fun setVolume(percent: Int) {
@@ -493,6 +522,19 @@ class AndroidBassPlaybackEngine(
         }
     }
 
+    private fun setPlaybackMuted(muted: Boolean) {
+        if (!muted) {
+            applyVolume()
+            return
+        }
+        stream.takeIf { it != 0 }?.let { handle ->
+            bass.setVolume(handle, 0f)
+        }
+        currentSourceStream.takeIf { it != 0 }?.let { source ->
+            bass.setVolume(source, 0f)
+        }
+    }
+
     private fun adoptPreparedStream(
         scope: CoroutineScope,
         request: PlaybackRequest,
@@ -627,4 +669,6 @@ private const val FocusDuckVolumeFactor = 0.25f
 private const val DefaultMixerFrequency = 44_100
 private const val DefaultMixerChannels = 2
 private const val FinishedPositionToleranceSeconds = 0.75
+private const val StartSeekRetryCount = 80
+private const val StartSeekRetryDelayMillis = 100L
 private const val Tag = "NaviampBass"

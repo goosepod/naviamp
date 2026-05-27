@@ -16,13 +16,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -30,6 +31,7 @@ import java.io.File
 import java.net.URL
 import java.security.MessageDigest
 import java.util.LinkedHashMap
+import kotlin.math.ceil
 
 @Composable
 actual fun PlatformCoverArt(
@@ -39,10 +41,13 @@ actual fun PlatformCoverArt(
     cornerRadius: Dp,
 ) {
     val context = LocalContext.current
+    val targetImageSizePx = with(LocalDensity.current) {
+        ceil(size.toPx()).toInt().coerceIn(MinCoverArtBitmapSidePx, MaxCoverArtBitmapSidePx)
+    }
     var image by remember { mutableStateOf<ImageBitmap?>(null) }
     val shape = RoundedCornerShape(cornerRadius)
 
-    LaunchedEffect(url) {
+    LaunchedEffect(url, targetImageSizePx) {
         if (url == null) {
             image = null
             return@LaunchedEffect
@@ -50,7 +55,7 @@ actual fun PlatformCoverArt(
         image = runCatching {
             withContext(Dispatchers.IO) {
                 AndroidCoverArtCache.imageBytes(context, url)
-                    ?.let { BitmapFactory.decodeByteArray(it, 0, it.size)?.asImageBitmap() }
+                    ?.let { decodeSampledBitmap(it, targetImageSizePx)?.asImageBitmap() }
             }
         }.getOrNull()
     }
@@ -107,7 +112,7 @@ actual fun rememberPlatformCoverArtPlayerColors(
             runCatching {
                 withContext(Dispatchers.IO) {
                     AndroidCoverArtCache.imageBytes(context, url)
-                        ?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }
+                        ?.let { decodeSampledBitmap(it, PaletteBitmapSidePx) }
                         ?.albumPalette()
                         ?.let { NaviampPlayerColors.from(it, colors) }
                 }
@@ -169,8 +174,36 @@ private object AndroidCoverArtCache {
     }
 }
 
+private const val MinCoverArtBitmapSidePx = 128
+private const val MaxCoverArtBitmapSidePx = 1024
+private const val PaletteBitmapSidePx = 128
+
 private fun isDecodableImage(bytes: ByteArray): Boolean =
-    BitmapFactory.decodeByteArray(bytes, 0, bytes.size) != null
+    BitmapFactory.Options().let { options ->
+        options.inJustDecodeBounds = true
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
+        options.outWidth > 0 && options.outHeight > 0
+    }
+
+internal fun decodeSampledBitmap(bytes: ByteArray, maxSidePx: Int): android.graphics.Bitmap? {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+
+    val options = BitmapFactory.Options().apply {
+        inSampleSize = sampleSizeFor(bounds.outWidth, bounds.outHeight, maxSidePx)
+    }
+    return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
+}
+
+private fun sampleSizeFor(width: Int, height: Int, maxSidePx: Int): Int {
+    var sampleSize = 1
+    val target = maxSidePx.coerceAtLeast(1)
+    while ((width / sampleSize) > target || (height / sampleSize) > target) {
+        sampleSize *= 2
+    }
+    return sampleSize
+}
 
 private fun String.sha256(): String =
     MessageDigest.getInstance("SHA-256")

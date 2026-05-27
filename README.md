@@ -61,8 +61,6 @@ native/           Native support code
 docs/             Architecture notes, roadmaps, performance notes, setup docs
 ```
 
-There is also an older Rust/Slint desktop experiment under `apps/desktop-slint`. The active direction is the Kotlin/Compose desktop app in `apps/desktop`.
-
 ## Technology
 
 - Kotlin Multiplatform for shared app code.

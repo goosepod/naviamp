@@ -2,7 +2,6 @@ package app.naviamp.ui
 
 import android.content.pm.ApplicationInfo
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.BitmapShader
 import android.graphics.Canvas as AndroidCanvas
 import android.graphics.Paint
@@ -102,7 +101,11 @@ private fun AndroidShaderVisualizerSurface(
     LaunchedEffect(coverArtUrl, visualizer) {
         albumArtBitmap = if (coverArtUrl != null && visualizer == NaviampVisualizer.AlbumArtReactive) {
             withContext(Dispatchers.IO) {
-                runCatching { URL(coverArtUrl).openStream().use(BitmapFactory::decodeStream) }.getOrNull()
+                runCatching {
+                    URL(coverArtUrl).openStream().use { input ->
+                        decodeSampledBitmap(input.readBytes(), AndroidVisualizerAlbumArtSidePx)
+                    }
+                }.getOrNull()
             }
         } else {
             null
@@ -288,6 +291,8 @@ private fun Bitmap.newClampShader(filterMode: Int = BitmapShader.FILTER_MODE_LIN
     BitmapShader(this, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP).apply {
         setFilterMode(filterMode)
     }
+
+private const val AndroidVisualizerAlbumArtSidePx = 1024
 
 @Composable
 private fun AndroidCanvasVisualizerSurface(
