@@ -90,7 +90,6 @@ import app.naviamp.desktop.settings.DesktopSettingsStore
 import app.naviamp.desktop.settings.NavigationSettings
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.desktop.settings.PlaybackSessionSettings
-import app.naviamp.desktop.settings.RecentRadioKind
 import app.naviamp.desktop.settings.RecentRadioStream
 import app.naviamp.desktop.settings.SavedInternetRadioStation
 import app.naviamp.desktop.settings.SearchSettings
@@ -2227,18 +2226,14 @@ fun NaviampApp(
     }
 
     fun playRecentRadio(stream: RecentRadioStream) {
-        when (stream.kind) {
-            RecentRadioKind.Library -> playLibraryRadio()
-            RecentRadioKind.RandomAlbum -> stream.album?.toAlbum()?.let { playAlbumRadio(it) } ?: playRandomAlbumRadio()
-            RecentRadioKind.Genre -> stream.genre?.let { playGenreRadio(Genre(it)) }
-            RecentRadioKind.Decade -> {
-                val fromYear = stream.fromYear ?: return
-                val toYear = stream.toYear ?: return
-                playDecadeRadio(fromYear, toYear)
-            }
-            RecentRadioKind.Artist -> stream.artist?.toArtist()?.let { playArtistRadio(it) }
-            RecentRadioKind.Album -> stream.album?.toAlbum()?.let { playAlbumRadio(it) }
-            RecentRadioKind.Track -> stream.track?.toTrack()?.let { playTrackRadio(it) }
+        when (val action = recentRadioAction(stream) ?: return) {
+            DesktopRecentRadioAction.PlayLibrary -> playLibraryRadio()
+            DesktopRecentRadioAction.PlayRandomAlbum -> playRandomAlbumRadio()
+            is DesktopRecentRadioAction.PlayGenre -> playGenreRadio(action.genre)
+            is DesktopRecentRadioAction.PlayDecade -> playDecadeRadio(action.fromYear, action.toYear)
+            is DesktopRecentRadioAction.PlayArtist -> playArtistRadio(action.artist)
+            is DesktopRecentRadioAction.PlayAlbum -> playAlbumRadio(action.album)
+            is DesktopRecentRadioAction.PlayTrack -> playTrackRadio(action.track)
         }
     }
 
