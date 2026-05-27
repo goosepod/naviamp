@@ -8,6 +8,13 @@ data class PlaylistTrackMutationResult(
     val createdPlaylist: Boolean,
 )
 
+data class AddToPlaylistMutationUpdate(
+    val closeDialog: Boolean,
+    val addToPlaylistStatus: String?,
+    val connectionStatus: String?,
+    val refreshPlaylists: Boolean,
+)
+
 suspend fun MediaProvider.createPlaylistOrAddMissingTracks(
     playlistId: String?,
     newPlaylistName: String?,
@@ -42,3 +49,32 @@ suspend fun MediaProvider.createPlaylistOrAddMissingTracks(
         createdPlaylist = false,
     )
 }
+
+fun addToPlaylistMutationUpdate(
+    result: PlaylistTrackMutationResult,
+    playlistName: String?,
+): AddToPlaylistMutationUpdate =
+    when {
+        result.requestedTrackCount == 0 -> AddToPlaylistMutationUpdate(
+            closeDialog = false,
+            addToPlaylistStatus = if (playlistName == null) {
+                "No tracks found."
+            } else {
+                "Everything is already in $playlistName."
+            },
+            connectionStatus = null,
+            refreshPlaylists = false,
+        )
+        result.addedTrackIds.isEmpty() -> AddToPlaylistMutationUpdate(
+            closeDialog = false,
+            addToPlaylistStatus = "Everything is already in ${playlistName.orEmpty()}.",
+            connectionStatus = null,
+            refreshPlaylists = false,
+        )
+        else -> AddToPlaylistMutationUpdate(
+            closeDialog = true,
+            addToPlaylistStatus = null,
+            connectionStatus = "Added ${result.addedTrackIds.size} track${if (result.addedTrackIds.size == 1) "" else "s"} to playlist.",
+            refreshPlaylists = true,
+        )
+    }

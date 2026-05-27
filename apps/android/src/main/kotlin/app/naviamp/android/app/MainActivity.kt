@@ -54,6 +54,7 @@ import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.SearchDebounceMillis
 import app.naviamp.domain.provider.SearchResultLimit
 import app.naviamp.domain.provider.allKnownTracks
+import app.naviamp.domain.provider.addToPlaylistMutationUpdate
 import app.naviamp.domain.provider.createPlaylistOrAddMissingTracks
 import app.naviamp.domain.provider.normalizedSearchQuery
 import app.naviamp.domain.provider.totalCount
@@ -1612,16 +1613,21 @@ private fun NaviampAndroidApp(
         playlistActionStatus = "Adding to playlist..."
         scope.launch {
             runCatching {
-                activeProvider.createPlaylistOrAddMissingTracks(
+                val result = activeProvider.createPlaylistOrAddMissingTracks(
                     playlistId = playlist?.id,
                     newPlaylistName = newPlaylistName,
                     trackIds = listOf(track.id),
                 )
-                activeProvider.playlists(limit = 500)
-            }.onSuccess { playlists ->
-                homeState = homeState.copy(playlists = playlists)
-                playlistActionStatus = null
-                status = "Added ${track.title} to playlist."
+                val update = addToPlaylistMutationUpdate(result, playlist?.name)
+                val playlists = if (update.refreshPlaylists) activeProvider.playlists(limit = 500) else null
+                update to playlists
+            }.onSuccess { (update, playlists) ->
+                if (playlists != null) {
+                    homeState = homeState.copy(playlists = playlists)
+                }
+                playlistActionStatus = update.addToPlaylistStatus
+                update.connectionStatus?.let { status = it }
+                    ?: update.addToPlaylistStatus?.let { status = it }
             }.onFailure { error ->
                 playlistActionStatus = error.message ?: "Could not add track to playlist."
                 status = playlistActionStatus.orEmpty()
@@ -1644,16 +1650,21 @@ private fun NaviampAndroidApp(
         playlistActionStatus = "Adding $label to playlist..."
         scope.launch {
             runCatching {
-                activeProvider.createPlaylistOrAddMissingTracks(
+                val result = activeProvider.createPlaylistOrAddMissingTracks(
                     playlistId = playlist?.id,
                     newPlaylistName = newPlaylistName,
                     trackIds = uniqueTracks.map { it.id },
                 )
-                activeProvider.playlists(limit = 500)
-            }.onSuccess { playlists ->
-                homeState = homeState.copy(playlists = playlists)
-                playlistActionStatus = null
-                status = "Added $label to playlist."
+                val update = addToPlaylistMutationUpdate(result, playlist?.name)
+                val playlists = if (update.refreshPlaylists) activeProvider.playlists(limit = 500) else null
+                update to playlists
+            }.onSuccess { (update, playlists) ->
+                if (playlists != null) {
+                    homeState = homeState.copy(playlists = playlists)
+                }
+                playlistActionStatus = update.addToPlaylistStatus
+                update.connectionStatus?.let { status = it }
+                    ?: update.addToPlaylistStatus?.let { status = it }
             }.onFailure { error ->
                 playlistActionStatus = error.message ?: "Could not add $label to playlist."
                 status = playlistActionStatus.orEmpty()

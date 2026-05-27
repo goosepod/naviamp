@@ -13,13 +13,6 @@ data class PlaylistDetailsRefresh(
     val tracks: List<Track>,
 )
 
-data class AddToPlaylistMutationUpdate(
-    val closeDialog: Boolean,
-    val addToPlaylistStatus: String?,
-    val connectionStatus: String?,
-    val refreshPlaylists: Boolean,
-)
-
 fun homePlaylists(
     playlists: List<Playlist>,
     recentPlaylistIds: List<String>,
@@ -116,35 +109,6 @@ suspend fun addTargetTracksToPlaylist(
         trackIds = targetIds,
     )
 }
-
-fun addToPlaylistMutationUpdate(
-    result: PlaylistTrackMutationResult,
-    playlist: Playlist?,
-): AddToPlaylistMutationUpdate =
-    when {
-        result.requestedTrackCount == 0 -> AddToPlaylistMutationUpdate(
-            closeDialog = false,
-            addToPlaylistStatus = if (playlist == null) {
-                "No tracks found."
-            } else {
-                "Everything is already in ${playlist.name}."
-            },
-            connectionStatus = null,
-            refreshPlaylists = false,
-        )
-        result.addedTrackIds.isEmpty() -> AddToPlaylistMutationUpdate(
-            closeDialog = false,
-            addToPlaylistStatus = "Everything is already in ${playlist?.name.orEmpty()}.",
-            connectionStatus = null,
-            refreshPlaylists = false,
-        )
-        else -> AddToPlaylistMutationUpdate(
-            closeDialog = true,
-            addToPlaylistStatus = null,
-            connectionStatus = "Added ${result.addedTrackIds.size} track${if (result.addedTrackIds.size == 1) "" else "s"} to playlist.",
-            refreshPlaylists = true,
-        )
-    }
 
 fun smartPlaylistSaveErrorMessage(error: Throwable): String =
     if (error.message == "Reconnect to Navidrome with your password before saving smart playlists.") {

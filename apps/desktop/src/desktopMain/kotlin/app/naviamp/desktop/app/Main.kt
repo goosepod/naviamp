@@ -117,6 +117,7 @@ import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.SearchDebounceMillis
 import app.naviamp.domain.provider.SearchResultLimit
+import app.naviamp.domain.provider.addToPlaylistMutationUpdate
 import app.naviamp.domain.provider.normalizedSearchQuery
 import app.naviamp.domain.settings.playbackSessionFromQueue
 import app.naviamp.domain.settings.restoredPlaybackQueue
@@ -1116,7 +1117,7 @@ fun NaviampApp(
                 val result = withContext(Dispatchers.IO) {
                     addTargetTracksToPlaylist(provider, target, playlist, newPlaylistName)
                 }
-                val update = addToPlaylistMutationUpdate(result, playlist)
+                val update = addToPlaylistMutationUpdate(result, playlist?.name)
                 if (update.closeDialog) addToPlaylistTarget = null
                 addToPlaylistStatus = update.addToPlaylistStatus
                 update.connectionStatus?.let { connectionStatus = it }
