@@ -35,6 +35,7 @@ This tracks the work to give the Compose desktop app the same kind of maintainab
   - [x] Move desktop radio controller orchestration into `radio/`.
 - [ ] Split connection/provider setup out of `Main.kt`.
   - [x] Move connection form display name and TLS settings helpers into `connection/`.
+  - [x] Move connection form reset/saved-source mapping into `connection/`.
 - [ ] Split library sync/freshness helpers out of `Main.kt`.
   - [x] Move library freshness model/status decision into `library/LibrarySync.kt`.
   - [x] Move library snapshot paging helpers into `library/LibrarySync.kt`.
@@ -96,3 +97,4 @@ Package names are intentionally unchanged for this pass. The goal is to make the
 - Random-album, artist, and album seeded radio request builders now live in the radio feature folder with desktop unit coverage.
 - Desktop radio continuation, refill, seeded expansion, and current-track conversion orchestration now lives in the radio feature folder.
 - Connection display name and TLS settings helpers now live in the connection feature folder with desktop unit coverage.
+- Connection form reset and saved-source field mapping now live in the connection feature folder with desktop unit coverage.

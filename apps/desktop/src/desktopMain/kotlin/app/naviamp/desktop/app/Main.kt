@@ -1413,6 +1413,18 @@ fun NaviampApp(
             serverUrl = serverUrl,
         )
 
+    fun applyConnectionFormState(formState: DesktopConnectionFormState) {
+        savedConnectionForLogin = formState.savedConnectionForLogin
+        serverUrl = formState.serverUrl
+        connectionName = formState.connectionName
+        username = formState.username
+        password = formState.password
+        insecureSkipTlsVerification = formState.insecureSkipTlsVerification
+        customCertificatePath = formState.customCertificatePath
+        clientCertificateKeyStorePath = formState.clientCertificateKeyStorePath
+        clientCertificateKeyStorePassword = formState.clientCertificateKeyStorePassword
+    }
+
     fun connectToServer(restoreSavedSession: Boolean = false) {
         if (isConnecting) return
         if (serverUrl.isBlank() || username.isBlank()) {
@@ -3010,52 +3022,18 @@ fun NaviampApp(
                                         },
                                         onConnect = { connectToServer() },
                                         onNewConnection = {
-                                            savedConnectionForLogin = null
+                                            applyConnectionFormState(newDesktopConnectionFormState())
                                             isConnectionFormOpen = true
-                                            serverUrl = ""
-                                            connectionName = ""
-                                            username = ""
-                                            password = ""
-                                            insecureSkipTlsVerification = false
-                                            customCertificatePath = ""
-                                            clientCertificateKeyStorePath = ""
-                                            clientCertificateKeyStorePassword = ""
                                             connectionStatus = null
                                         },
                                         onEditConnection = { source ->
-                                            val connection = source.toNavidromeConnection()
-                                            savedConnectionForLogin = connection
+                                            applyConnectionFormState(savedDesktopConnectionFormState(source))
                                             isConnectionFormOpen = true
-                                            serverUrl = connection.baseUrl
-                                            connectionName = connection.displayName
-                                                ?.takeUnless { it == connection.normalizedBaseUrl }
-                                                .orEmpty()
-                                            username = connection.username
-                                            password = ""
-                                            insecureSkipTlsVerification = connection.tlsSettings.insecureSkipTlsVerification
-                                            customCertificatePath = connection.tlsSettings.customCertificatePath.orEmpty()
-                                            clientCertificateKeyStorePath =
-                                                connection.tlsSettings.clientCertificateKeyStorePath.orEmpty()
-                                            clientCertificateKeyStorePassword =
-                                                connection.tlsSettings.clientCertificateKeyStorePassword.orEmpty()
                                             connectionStatus = "Editing saved connection. Leave password blank to reuse it."
                                         },
                                         onConnectSavedConnection = { source ->
-                                            val connection = source.toNavidromeConnection()
-                                            savedConnectionForLogin = connection
+                                            applyConnectionFormState(savedDesktopConnectionFormState(source))
                                             isConnectionFormOpen = false
-                                            serverUrl = connection.baseUrl
-                                            connectionName = connection.displayName
-                                                ?.takeUnless { it == connection.normalizedBaseUrl }
-                                                .orEmpty()
-                                            username = connection.username
-                                            password = ""
-                                            insecureSkipTlsVerification = connection.tlsSettings.insecureSkipTlsVerification
-                                            customCertificatePath = connection.tlsSettings.customCertificatePath.orEmpty()
-                                            clientCertificateKeyStorePath =
-                                                connection.tlsSettings.clientCertificateKeyStorePath.orEmpty()
-                                            clientCertificateKeyStorePassword =
-                                                connection.tlsSettings.clientCertificateKeyStorePassword.orEmpty()
                                             connectToServer()
                                         },
                                         onDeleteConnection = { source -> deleteConnection(source) },
