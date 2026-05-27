@@ -56,7 +56,17 @@ import app.naviamp.domain.provider.SearchResultLimit
 import app.naviamp.domain.provider.allKnownTracks
 import app.naviamp.domain.provider.addToPlaylistMutationUpdate
 import app.naviamp.domain.provider.createPlaylistOrAddMissingTracks
+import app.naviamp.domain.provider.normalizedPlaylistName
 import app.naviamp.domain.provider.normalizedSearchQuery
+import app.naviamp.domain.provider.playlistDeleteErrorMessage
+import app.naviamp.domain.provider.playlistDeleteLoadingStatus
+import app.naviamp.domain.provider.playlistDeletedStatus
+import app.naviamp.domain.provider.playlistRenameErrorMessage
+import app.naviamp.domain.provider.playlistRenameLoadingStatus
+import app.naviamp.domain.provider.playlistRenamedStatus
+import app.naviamp.domain.provider.recentPlaylistIdsAfterDelete
+import app.naviamp.domain.provider.renamedSelectedPlaylist
+import app.naviamp.domain.provider.selectedPlaylistAfterDelete
 import app.naviamp.domain.provider.totalCount
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.HomeDate
@@ -1516,22 +1526,29 @@ private fun NaviampAndroidApp(
 
     fun renamePlaylist(playlist: Playlist, name: String) {
         val activeProvider = provider ?: return
+        val requestedName = normalizedPlaylistName(name)
         scope.launch {
-            status = "Renaming ${playlist.name}..."
+            status = playlistRenameLoadingStatus(playlist)
             runCatching {
-                activeProvider.renamePlaylist(playlist.id, name.trim())
+                activeProvider.renamePlaylist(playlist.id, requestedName)
                 activeProvider.playlists(limit = 500)
             }.onSuccess { playlists ->
                 homeState = homeState.copy(playlists = playlists)
                 selectedPlaylist?.let { current ->
                     if (current.id == playlist.id) {
-                        val renamed = playlists.firstOrNull { it.id == playlist.id } ?: current.copy(name = name.trim())
-                        contentState = contentState.copy(selectedPlaylist = renamed)
+                        contentState = contentState.copy(
+                            selectedPlaylist = renamedSelectedPlaylist(
+                                current = current,
+                                playlistId = playlist.id,
+                                requestedName = requestedName,
+                                refreshedPlaylists = playlists,
+                            ),
+                        )
                     }
                 }
-                status = "Renamed playlist."
+                status = playlistRenamedStatus()
             }.onFailure { error ->
-                status = error.message ?: "Could not rename playlist."
+                status = playlistRenameErrorMessage(error)
             }
         }
     }
@@ -1539,7 +1556,7 @@ private fun NaviampAndroidApp(
     fun deletePlaylist(playlist: Playlist) {
         val activeProvider = provider ?: return
         scope.launch {
-            status = "Deleting ${playlist.name}..."
+            status = playlistDeleteLoadingStatus(playlist)
             runCatching {
                 activeProvider.deletePlaylist(playlist.id)
                 activeProvider.playlists(limit = 500)
@@ -1547,15 +1564,15 @@ private fun NaviampAndroidApp(
                 homeState = homeState.copy(playlists = playlists)
                 if (selectedPlaylist?.id == playlist.id) {
                     contentState = contentState.copy(
-                        selectedPlaylist = null,
+                        selectedPlaylist = selectedPlaylistAfterDelete(selectedPlaylist, playlist.id),
                         selectedPlaylistTracks = emptyList(),
                     )
                 }
                 playlistTracksById = playlistTracksById - playlist.id
-                recentPlaylistIds = recentPlaylistIds.filterNot { it == playlist.id }
-                status = "Deleted playlist."
+                recentPlaylistIds = recentPlaylistIdsAfterDelete(recentPlaylistIds, playlist.id)
+                status = playlistDeletedStatus()
             }.onFailure { error ->
-                status = error.message ?: "Could not delete playlist."
+                status = playlistDeleteErrorMessage(error)
             }
         }
     }

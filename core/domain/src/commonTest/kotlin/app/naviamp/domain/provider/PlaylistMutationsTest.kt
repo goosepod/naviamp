@@ -1,6 +1,7 @@
 package app.naviamp.domain.provider
 
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.Playlist
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -64,4 +65,30 @@ class PlaylistMutationsTest {
             ),
         )
     }
+
+    @Test
+    fun playlistRenameDeleteHelpersNormalizeStatusAndSelection() {
+        val current = playlist("one", "Old")
+        val renamed = playlist("one", "New")
+
+        assertEquals("New", normalizedPlaylistName("  New  "))
+        assertEquals("Renaming Old...", playlistRenameLoadingStatus(current))
+        assertEquals("Deleting Old...", playlistDeleteLoadingStatus(current))
+        assertEquals("Renamed playlist.", playlistRenamedStatus())
+        assertEquals("Deleted playlist.", playlistDeletedStatus())
+        assertEquals(renamed, renamedSelectedPlaylist(current, "one", "Fallback", listOf(renamed)))
+        assertEquals(
+            playlist("one", "Fallback"),
+            renamedSelectedPlaylist(current, "one", "Fallback", emptyList()),
+        )
+        assertEquals(null, selectedPlaylistAfterDelete(current, "one"))
+        assertEquals(listOf("two"), recentPlaylistIdsAfterDelete(listOf("one", "two"), "one"))
+    }
+
+    private fun playlist(id: String, name: String): Playlist =
+        Playlist(
+            id = id,
+            name = name,
+            trackCount = 0,
+        )
 }

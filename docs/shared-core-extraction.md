@@ -61,7 +61,7 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 
 - [ ] Playlist behavior
   - [x] Move playlist mutation planning into `core/domain`.
-  - [ ] Share create/add/rename/delete fallback and status decisions.
+  - [x] Share create/add/rename/delete fallback and status decisions.
   - [ ] Share smart playlist update/load orchestration where possible.
   - [ ] Keep platform-specific cache refresh and UI state wiring in app modules.
 
@@ -117,3 +117,4 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 - Radio seed-selection rules now live in `core/domain/radio` behind storage/provider callbacks; desktop keeps only the adapter that reads `DesktopCache` and provider detail data.
 - Radio session gating and generated queue append/replacement plans now live in `core/domain/radio`; desktop radio queue code now only applies those plans to `PlaylistEngine`.
 - Playlist create/add mutation planning and add-result status decisions now live in `core/domain/provider`; desktop and Android both use the shared outcome mapping before refreshing playlist lists.
+- Playlist rename/delete normalization, status, error fallback, selected-playlist update, and recent-playlist cleanup rules now live in `core/domain/provider`.

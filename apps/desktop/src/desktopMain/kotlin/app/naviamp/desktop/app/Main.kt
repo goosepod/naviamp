@@ -118,7 +118,17 @@ import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.SearchDebounceMillis
 import app.naviamp.domain.provider.SearchResultLimit
 import app.naviamp.domain.provider.addToPlaylistMutationUpdate
+import app.naviamp.domain.provider.normalizedPlaylistName
 import app.naviamp.domain.provider.normalizedSearchQuery
+import app.naviamp.domain.provider.playlistDeleteErrorMessage
+import app.naviamp.domain.provider.playlistDeleteLoadingStatus
+import app.naviamp.domain.provider.playlistDeletedStatus
+import app.naviamp.domain.provider.playlistRenameErrorMessage
+import app.naviamp.domain.provider.playlistRenameLoadingStatus
+import app.naviamp.domain.provider.playlistRenamedStatus
+import app.naviamp.domain.provider.recentPlaylistIdsAfterDelete
+import app.naviamp.domain.provider.renamedSelectedPlaylist
+import app.naviamp.domain.provider.selectedPlaylistAfterDelete
 import app.naviamp.domain.settings.playbackSessionFromQueue
 import app.naviamp.domain.settings.restoredPlaybackQueue
 import app.naviamp.domain.settings.restoredTrackSession
@@ -1809,41 +1819,49 @@ fun NaviampApp(
 
     fun renamePlaylist(playlist: Playlist, name: String) {
         val provider = connectedProvider ?: return
-        playlistStatus = "Renaming ${playlist.name}..."
+        val requestedName = normalizedPlaylistName(name)
+        playlistStatus = playlistRenameLoadingStatus(playlist)
         coroutineScope.launch {
             try {
                 withContext(Dispatchers.IO) {
-                    provider.renamePlaylist(playlist.id, name)
+                    provider.renamePlaylist(playlist.id, requestedName)
                 }
                 playlistPendingRename = null
-                playlistStatus = null
-                selectedPlaylist = selectedPlaylist?.takeIf { it.id == playlist.id }?.copy(name = name) ?: selectedPlaylist
+                playlistStatus = playlistRenamedStatus()
+                selectedPlaylist = renamedSelectedPlaylist(
+                    current = selectedPlaylist,
+                    playlistId = playlist.id,
+                    requestedName = requestedName,
+                    refreshedPlaylists = emptyList(),
+                )
                 refreshPlaylists()
             } catch (exception: Exception) {
-                playlistStatus = exception.message ?: "Could not rename playlist."
+                playlistStatus = playlistRenameErrorMessage(exception)
             }
         }
     }
 
     fun deletePlaylist(playlist: Playlist) {
         val provider = connectedProvider ?: return
-        playlistStatus = "Deleting ${playlist.name}..."
+        playlistStatus = playlistDeleteLoadingStatus(playlist)
         coroutineScope.launch {
             try {
                 withContext(Dispatchers.IO) {
                     provider.deletePlaylist(playlist.id)
                 }
                 playlistPendingDelete = null
-                if (selectedPlaylist?.id == playlist.id) {
-                    selectedPlaylist = null
+                val deletedSelectedPlaylist = selectedPlaylist?.id == playlist.id
+                selectedPlaylist = selectedPlaylistAfterDelete(selectedPlaylist, playlist.id)
+                if (deletedSelectedPlaylist) {
                     selectedPlaylistTracks = emptyList()
                     appRoute = AppRoute.Playlists
                 }
                 playlistTracksById = playlistTracksById - playlist.id
-                playlistStatus = null
+                recentPlaylistIds = recentPlaylistIdsAfterDelete(recentPlaylistIds, playlist.id)
+                playlistStatus = playlistDeletedStatus()
                 refreshPlaylists()
             } catch (exception: Exception) {
-                playlistStatus = exception.message ?: "Could not delete playlist."
+                playlistStatus = playlistDeleteErrorMessage(exception)
             }
         }
     }

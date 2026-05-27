@@ -1,5 +1,6 @@
 package app.naviamp.domain.provider
 
+import app.naviamp.domain.Playlist
 import app.naviamp.domain.TrackId
 
 data class PlaylistTrackMutationResult(
@@ -78,3 +79,47 @@ fun addToPlaylistMutationUpdate(
             refreshPlaylists = true,
         )
     }
+
+fun normalizedPlaylistName(name: String): String =
+    name.trim()
+
+fun playlistRenameLoadingStatus(playlist: Playlist): String =
+    "Renaming ${playlist.name}..."
+
+fun playlistDeleteLoadingStatus(playlist: Playlist): String =
+    "Deleting ${playlist.name}..."
+
+fun playlistRenamedStatus(): String =
+    "Renamed playlist."
+
+fun playlistDeletedStatus(): String =
+    "Deleted playlist."
+
+fun playlistRenameErrorMessage(error: Throwable): String =
+    error.message ?: "Could not rename playlist."
+
+fun playlistDeleteErrorMessage(error: Throwable): String =
+    error.message ?: "Could not delete playlist."
+
+fun renamedSelectedPlaylist(
+    current: Playlist?,
+    playlistId: String,
+    requestedName: String,
+    refreshedPlaylists: List<Playlist>,
+): Playlist? {
+    if (current?.id != playlistId) return current
+    return refreshedPlaylists.firstOrNull { it.id == playlistId }
+        ?: current.copy(name = requestedName)
+}
+
+fun selectedPlaylistAfterDelete(
+    current: Playlist?,
+    deletedPlaylistId: String,
+): Playlist? =
+    current?.takeUnless { it.id == deletedPlaylistId }
+
+fun recentPlaylistIdsAfterDelete(
+    recentPlaylistIds: List<String>,
+    deletedPlaylistId: String,
+): List<String> =
+    recentPlaylistIds.filterNot { it == deletedPlaylistId }
