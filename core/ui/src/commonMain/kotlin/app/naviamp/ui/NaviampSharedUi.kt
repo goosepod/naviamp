@@ -1174,7 +1174,6 @@ private fun SearchContent(
     ) {
         Text("Search", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         NaviampTextField(query, onQueryChanged, "Search tracks", colors)
-        PrimaryButton("Search", colors, onSearch, enabled = query.isNotBlank())
         if (query.isNotBlank() && results.isEmpty) {
             Text("No matches found.", color = colors.secondaryText, fontSize = 12.sp)
         }

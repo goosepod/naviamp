@@ -48,7 +48,9 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
   - [ ] Move paging/limit/snapshot planning into `core/domain`.
     - [x] Move generic library paging limit decisions into `core/domain`.
   - [ ] Move library search normalization/filtering/fallback decisions into shared code.
-  - [ ] Make desktop and Android use the same search request/result mapping.
+    - [x] Move shared search result count and active track selection helpers into `core/domain`.
+    - [x] Move shared query normalization, debounce, and result-limit policy into `core/domain`.
+  - [x] Make desktop and Android use the same search request/result mapping.
 
 - [ ] Radio behavior
   - [ ] Promote radio request models from desktop `radio/` into `core/domain/radio`.
@@ -109,3 +111,4 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 - Restored playback-session mapping was already shared in `core/domain`; it now has common tests for invalid sessions, queue restoration, restored progress, current-track fallback, and adjacent-track session updates.
 - Library freshness status decisions now live in `core/domain` and are used by both desktop and Android. Provider scan reads and source metadata writes remain platform-local.
 - Generic library paging limit decisions now live in `core/domain`; desktop keeps only the adapter that maps the active library tab to a visible item count.
+- Search result counts, active-track selection, query normalization, debounce timing, and result limits now live in `core/domain`. Desktop and Android both use type-to-search behavior with the same request policy.

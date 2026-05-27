@@ -51,7 +51,12 @@ import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
+import app.naviamp.domain.provider.SearchDebounceMillis
+import app.naviamp.domain.provider.SearchResultLimit
+import app.naviamp.domain.provider.allKnownTracks
 import app.naviamp.domain.provider.createPlaylistOrAddMissingTracks
+import app.naviamp.domain.provider.normalizedSearchQuery
+import app.naviamp.domain.provider.totalCount
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.home.HomeService
@@ -589,20 +594,38 @@ private fun NaviampAndroidApp(
         status = "Database reset."
     }
 
+    suspend fun performSearch(activeProvider: MediaProvider, searchQuery: String) {
+        status = "Searching..."
+        runCatching {
+            activeProvider.search(searchQuery, limit = SearchResultLimit)
+        }.onSuccess { results ->
+            contentState = contentState.clearDetails().copy(searchResults = results)
+            tracks = results.tracks
+            status = if (results.isEmpty) "No matches found." else "Found ${results.totalCount()} matches."
+        }.onFailure { error ->
+            status = error.message ?: "Search failed."
+        }
+    }
+
     fun handleSearch() {
         val activeProvider = provider ?: return
+        val searchQuery = normalizedSearchQuery(query) ?: return
         scope.launch {
-            status = "Searching..."
-            runCatching {
-                activeProvider.search(query, limit = 20)
-            }.onSuccess { results ->
-                contentState = contentState.clearDetails().copy(searchResults = results)
-                tracks = results.tracks
-                status = if (results.isEmpty) "No matches found." else "Found ${results.totalCount()} matches."
-            }.onFailure { error ->
-                status = error.message ?: "Search failed."
-            }
+            performSearch(activeProvider, searchQuery)
         }
+    }
+
+    LaunchedEffect(query, provider) {
+        val activeProvider = provider
+        val searchQuery = normalizedSearchQuery(query)
+        if (searchQuery == null) {
+            contentState = contentState.copy(searchResults = MediaSearchResults())
+            return@LaunchedEffect
+        }
+        if (activeProvider == null) return@LaunchedEffect
+
+        delay(SearchDebounceMillis)
+        performSearch(activeProvider, searchQuery)
     }
 
     suspend fun ensureWaveform(

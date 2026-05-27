@@ -358,15 +358,6 @@ fun Context.isActiveNetworkMobileData(): Boolean {
         !capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
 }
 
-fun allKnownTracks(
-    searchResults: MediaSearchResults,
-    albumDetail: AlbumDetails?,
-): List<Track> =
-    albumDetail?.tracks ?: searchResults.tracks
-
-fun MediaSearchResults.totalCount(): Int =
-    artists.size + albums.size + tracks.size
-
 fun PlaybackProgress.mergeForAndroidPlayback(previous: PlaybackProgress): PlaybackProgress =
     PlaybackProgress(
         positionSeconds = positionSeconds ?: previous.positionSeconds,

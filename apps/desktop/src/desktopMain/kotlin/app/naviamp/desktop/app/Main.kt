@@ -103,6 +103,9 @@ import app.naviamp.desktop.settings.VisualizerSettings
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
+import app.naviamp.domain.provider.SearchDebounceMillis
+import app.naviamp.domain.provider.SearchResultLimit
+import app.naviamp.domain.provider.normalizedSearchQuery
 import app.naviamp.domain.settings.playbackSessionFromQueue
 import app.naviamp.domain.settings.restoredPlaybackQueue
 import app.naviamp.domain.settings.restoredTrackSession
@@ -2167,8 +2170,8 @@ fun NaviampApp(
 
     LaunchedEffect(searchQuery, connectedProvider) {
         val provider = connectedProvider
-        val query = searchQuery.trim()
-        if (query.isEmpty()) {
+        val query = normalizedSearchQuery(searchQuery)
+        if (query == null) {
             searchResults = MediaSearchResults()
             searchStatus = if (provider == null) "Connect to Navidrome to search." else null
             isSearching = false
@@ -2181,11 +2184,11 @@ fun NaviampApp(
             return@LaunchedEffect
         }
 
-        delay(250)
+        delay(SearchDebounceMillis)
         isSearching = true
         searchStatus = null
         try {
-            searchResults = sessionCache.search(provider, query, limit = 12)
+            searchResults = sessionCache.search(provider, query, limit = SearchResultLimit)
         } catch (exception: Exception) {
             searchResults = MediaSearchResults()
             searchStatus = exception.message ?: "Search failed."
