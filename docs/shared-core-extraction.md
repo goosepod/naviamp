@@ -63,10 +63,10 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
   - [x] Move playlist mutation planning into `core/domain`.
   - [x] Share create/add/rename/delete fallback and status decisions.
   - [x] Share smart playlist update/load orchestration where possible.
-  - [ ] Keep platform-specific cache refresh and UI state wiring in app modules.
+  - [x] Keep platform-specific cache refresh and UI state wiring in app modules.
 
 - [ ] Downloads/cache behavior
-  - [ ] Move download eligibility and request planning into `core/domain`.
+  - [x] Move download eligibility and request planning into `core/domain`.
   - [ ] Keep actual filesystem paths, cache eviction, and platform storage adapters in app modules.
   - [ ] Share downloaded-track display/status mapping where possible.
 
@@ -119,3 +119,5 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 - Playlist create/add mutation planning and add-result status decisions now live in `core/domain/provider`; desktop and Android both use the shared outcome mapping before refreshing playlist lists.
 - Playlist rename/delete normalization, status, error fallback, selected-playlist update, and recent-playlist cleanup rules now live in `core/domain/provider`.
 - Smart playlist save/update refresh orchestration and save/update/load status/error messages now live in `core/domain/provider`. Desktop still owns password/native-token refresh before saving, and Android currently wires only the save flow.
+- Playlist cache refresh and UI state mutation remain platform-local after the shared mutation extraction because desktop and Android own different state containers and preload paths.
+- Download eligibility, mobile-data blocking, request track planning, status/error messages, and downloaded-track playback selection now live in `core/domain/cache`. Desktop and Android still own download execution, refresh tokens, storage statistics, and platform cache repositories.

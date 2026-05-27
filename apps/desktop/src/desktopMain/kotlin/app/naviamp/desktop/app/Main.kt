@@ -55,6 +55,14 @@ import app.naviamp.domain.internetRadioStationId
 import app.naviamp.domain.internetRadioTrackId
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.cache.LibrarySnapshot
+import app.naviamp.domain.cache.downloadBlockedStatus
+import app.naviamp.domain.cache.downloadCompletedStatus
+import app.naviamp.domain.cache.downloadConnectionRequiredStatus
+import app.naviamp.domain.cache.downloadErrorStatus
+import app.naviamp.domain.cache.downloadProgressStatus
+import app.naviamp.domain.cache.downloadStartingStatus
+import app.naviamp.domain.cache.downloadedTrackRemovedStatus
+import app.naviamp.domain.cache.planDownloadTracks
 import app.naviamp.domain.library.evaluateLibraryFreshness
 import app.naviamp.domain.library.libraryLimitForOffset
 import app.naviamp.domain.playback.CrossfadeSettings
@@ -1628,31 +1636,31 @@ fun NaviampApp(
     }
 
     fun downloadTracks(label: String, tracks: List<Track>) {
-        val provider = connectedProvider ?: run {
-            downloadStatus = downloadConnectionRequiredStatus()
+        val provider = connectedProvider
+        val sourceId = connectedSourceId
+        val plan = planDownloadTracks(
+            tracks = tracks,
+            hasProvider = provider != null,
+            hasSource = sourceId != null,
+        )
+        plan.blockedReason?.let { reason ->
+            downloadStatus = downloadBlockedStatus(reason, label)
             return
         }
-        val sourceId = connectedSourceId ?: run {
-            downloadStatus = downloadConnectionRequiredStatus()
-            return
-        }
-        if (tracks.isEmpty()) {
-            downloadStatus = emptyDownloadStatus(label)
-            return
-        }
+        val tracksToDownload = plan.tracks
         downloadStatus = downloadStartingStatus(label)
         coroutineScope.launch {
             var completed = 0
             val uiContext = coroutineContext
             try {
                 withContext(Dispatchers.IO) {
-                    tracks.forEachIndexed { index, track ->
+                    tracksToDownload.forEachIndexed { index, track ->
                         withContext(uiContext) {
-                            downloadStatus = downloadProgressStatus(label, index, tracks.size)
+                            downloadStatus = downloadProgressStatus(label, index, tracksToDownload.size)
                         }
                         sessionCache.downloadAudioTrack(
-                            sourceId = sourceId,
-                            provider = provider,
+                            sourceId = requireNotNull(sourceId),
+                            provider = requireNotNull(provider),
                             track = track,
                             quality = playbackSettings.streamQuality(playbackEngine),
                             maxDownloadBytes = cacheSettings.maxDownloadBytes,
@@ -1713,12 +1721,12 @@ fun NaviampApp(
         val sourceId = connectedSourceId ?: return
         sessionCache.removeDownloadedAudio(sourceId, download.track.id, playbackSettings.streamQuality(playbackEngine))
         downloadRefreshToken += 1
-        downloadStatus = downloadedTrackRemovedStatus(download)
+        downloadStatus = downloadedTrackRemovedStatus(download.track.title)
     }
 
     fun playDownloadedTrack(downloads: List<DownloadedTrack>, index: Int) {
         val provider = connectedProvider ?: return
-        val tracks = downloadTracksForPlayback(downloads, index) ?: return
+        val tracks = desktopDownloadTracksForPlayback(downloads, index) ?: return
         stopRadioContinuation()
         clearShuffleSnapshot()
         openPlayerOnTrackStart = true
