@@ -51,3 +51,51 @@ fun radioRefillSeedTrack(
     if (lastRefillSeedTrackId == seedTrack.id) return null
     return seedTrack
 }
+
+fun isCurrentRadioSession(
+    radioQueueActive: Boolean,
+    radioSession: Int,
+    currentRadioSession: Int,
+): Boolean =
+    radioQueueActive && radioSession == currentRadioSession
+
+fun generatedRadioAppendTracksForSession(
+    radioQueueActive: Boolean,
+    radioSession: Int,
+    currentRadioSession: Int,
+    seedTrack: Track,
+    fetchedTracks: List<Track>,
+    queuedTracks: List<Track>,
+): List<Track> {
+    if (!isCurrentRadioSession(radioQueueActive, radioSession, currentRadioSession)) return emptyList()
+    return generatedRadioTracksToAppend(seedTrack, fetchedTracks, queuedTracks)
+}
+
+fun generatedRadioUpcomingReplacementForSession(
+    radioQueueActive: Boolean,
+    radioSession: Int,
+    currentRadioSession: Int,
+    currentTrack: Track,
+    fetchedTracks: List<Track>,
+): List<Track>? {
+    if (!isCurrentRadioSession(radioQueueActive, radioSession, currentRadioSession)) return null
+    return generatedRadioUpcomingTracks(currentTrack, fetchedTracks)
+}
+
+fun generatedRadioUpcomingAppendTracksForSession(
+    radioQueueActive: Boolean,
+    radioSession: Int,
+    currentRadioSession: Int,
+    currentTrack: Track,
+    fetchedTracks: List<Track>,
+    queuedTracks: List<Track>,
+): List<Track> {
+    if (!isCurrentRadioSession(radioQueueActive, radioSession, currentRadioSession)) return emptyList()
+    return generatedRadioUpcomingTracksToAppend(currentTrack, fetchedTracks, queuedTracks)
+}
+
+fun shouldFinishRadioRefillForSession(
+    radioSession: Int,
+    currentRadioSession: Int,
+): Boolean =
+    radioSession == currentRadioSession

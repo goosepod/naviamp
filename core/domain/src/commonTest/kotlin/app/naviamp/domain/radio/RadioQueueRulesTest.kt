@@ -1,11 +1,11 @@
-package app.naviamp.desktop
+package app.naviamp.domain.radio
 
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class DesktopRadioQueueUpdatesTest {
+class RadioQueueRulesTest {
     @Test
     fun appendPlanRequiresCurrentActiveRadioSession() {
         val seed = track("seed")
