@@ -95,7 +95,6 @@ import app.naviamp.desktop.settings.VisualizerSettings
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
-import app.naviamp.domain.provider.createPlaylistOrAddMissingTracks
 import app.naviamp.domain.settings.playbackSessionFromQueue
 import app.naviamp.domain.settings.restoredPlaybackQueue
 import app.naviamp.domain.settings.restoredTrackSession
@@ -941,12 +940,7 @@ fun NaviampApp(
                 }
                 playlistStatus = null
                 homeContent = homeContent.copy(
-                    playlists = playlists.sortedWith(
-                        compareBy<Playlist> {
-                            val index = recentPlaylistIds.indexOf(it.id)
-                            if (index == -1) Int.MAX_VALUE else index
-                        }.thenBy { it.name.lowercase() },
-                    ).take(6),
+                    playlists = homePlaylists(playlists, recentPlaylistIds),
                     recentRadioStreams = recentRadioStreams,
                     recentInternetRadioStations = recentInternetRadioStations,
                 )
@@ -971,27 +965,17 @@ fun NaviampApp(
         showLoadingStatus: Boolean,
     ) {
         if (showLoadingStatus) selectedPlaylistStatus = "Loading ${playlist.name}..."
-        val refreshedPlaylists = withContext(Dispatchers.IO) { provider.playlists(limit = 500) }
-        val refreshedPlaylist = refreshedPlaylists.firstOrNull { it.id == playlist.id } ?: playlist
-        val refreshedTracks = withContext(Dispatchers.IO) { provider.playlistTracks(refreshedPlaylist.id) }
-        val displayPlaylist = refreshedPlaylist.copy(trackCount = refreshedTracks.size)
-        playlists = refreshedPlaylists.map {
-            if (it.id == displayPlaylist.id) displayPlaylist else it
-        }
+        val refresh = withContext(Dispatchers.IO) { refreshPlaylistDetails(provider, playlist) }
+        playlists = refresh.playlists
         homeContent = homeContent.copy(
-            playlists = playlists.sortedWith(
-                compareBy<Playlist> {
-                    val index = recentPlaylistIds.indexOf(it.id)
-                    if (index == -1) Int.MAX_VALUE else index
-                }.thenBy { it.name.lowercase() },
-            ).take(6),
+            playlists = homePlaylists(playlists, recentPlaylistIds),
             recentRadioStreams = recentRadioStreams,
             recentInternetRadioStations = recentInternetRadioStations,
         )
-        playlistTracksById = playlistTracksById + (displayPlaylist.id to refreshedTracks)
+        playlistTracksById = playlistTracksById + (refresh.displayPlaylist.id to refresh.tracks)
         if (selectedPlaylist?.id == playlist.id) {
-            selectedPlaylist = displayPlaylist
-            selectedPlaylistTracks = refreshedTracks
+            selectedPlaylist = refresh.displayPlaylist
+            selectedPlaylistTracks = refresh.tracks
             selectedPlaylistStatus = null
         }
     }
@@ -1032,31 +1016,15 @@ fun NaviampApp(
                 provider = refreshedProvider
                 connectionStatus = "Smart playlist authentication refreshed."
             }
-            val playlist = withContext(Dispatchers.IO) { provider.createSmartPlaylist(definition) }
-            val refreshedPlaylists = withContext(Dispatchers.IO) { provider.playlists(limit = 500) }
-            val refreshedPlaylist = refreshedPlaylists.firstOrNull { it.id == playlist.id }
-                ?: refreshedPlaylists.firstOrNull { it.name == playlist.name }
-                ?: playlist
-            val refreshedTracks = withContext(Dispatchers.IO) { provider.playlistTracks(refreshedPlaylist.id) }
-            val displayPlaylist = refreshedPlaylist.copy(trackCount = refreshedTracks.size)
-            playlistTracksById = playlistTracksById + (displayPlaylist.id to refreshedTracks)
-            playlists = (refreshedPlaylists.filterNot { it.id == displayPlaylist.id } + displayPlaylist)
-                .sortedBy { it.name.lowercase() }
+            val refresh = withContext(Dispatchers.IO) { saveSmartPlaylistAndRefresh(provider, definition) }
+            playlistTracksById = playlistTracksById + (refresh.displayPlaylist.id to refresh.tracks)
+            playlists = refresh.playlists
             homeContent = homeContent.copy(
-                playlists = playlists.sortedWith(
-                    compareBy<Playlist> {
-                        val index = recentPlaylistIds.indexOf(it.id)
-                        if (index == -1) Int.MAX_VALUE else index
-                    }.thenBy { it.name.lowercase() },
-                ).take(6),
+                playlists = homePlaylists(playlists, recentPlaylistIds),
             )
-            playlistStatus = "Saved smart playlist ${displayPlaylist.name} with ${refreshedTracks.size} tracks."
+            playlistStatus = smartPlaylistSavedStatus(refresh.displayPlaylist, refresh.tracks.size)
         } catch (error: Exception) {
-            val message = if (error.message == "Reconnect to Navidrome with your password before saving smart playlists.") {
-                "Edit this saved connection, enter your Navidrome password, then Save and connect before saving smart playlists."
-            } else {
-                error.message ?: "Could not save smart playlist."
-            }
+            val message = smartPlaylistSaveErrorMessage(error)
             playlistStatus = message
             if (message != error.message) throw IllegalStateException(message)
             throw error
@@ -1070,21 +1038,17 @@ fun NaviampApp(
             ?: throw IllegalStateException("Connect to Navidrome before updating smart playlists.")
         playlistStatus = "Updating ${definition.name}..."
         try {
-            withContext(Dispatchers.IO) { provider.updateSmartPlaylist(playlist.id, definition) }
-            val refreshedPlaylists = withContext(Dispatchers.IO) { provider.playlists(limit = 500) }
-            val refreshedPlaylist = refreshedPlaylists.firstOrNull { it.id == playlist.id }
-                ?: playlist.copy(name = definition.name)
-            val refreshedTracks = withContext(Dispatchers.IO) { provider.playlistTracks(refreshedPlaylist.id) }
-            val displayPlaylist = refreshedPlaylist.copy(trackCount = refreshedTracks.size)
-            playlistTracksById = playlistTracksById + (displayPlaylist.id to refreshedTracks)
-            playlists = (refreshedPlaylists.filterNot { it.id == displayPlaylist.id } + displayPlaylist)
-                .sortedBy { it.name.lowercase() }
-            if (selectedPlaylist?.id == displayPlaylist.id) {
-                selectedPlaylist = displayPlaylist
-                selectedPlaylistTracks = refreshedTracks
+            val refresh = withContext(Dispatchers.IO) {
+                updateSmartPlaylistAndRefresh(provider, playlist, definition)
+            }
+            playlistTracksById = playlistTracksById + (refresh.displayPlaylist.id to refresh.tracks)
+            playlists = refresh.playlists
+            if (selectedPlaylist?.id == refresh.displayPlaylist.id) {
+                selectedPlaylist = refresh.displayPlaylist
+                selectedPlaylistTracks = refresh.tracks
                 selectedPlaylistStatus = null
             }
-            playlistStatus = "Updated smart playlist ${displayPlaylist.name} with ${refreshedTracks.size} tracks."
+            playlistStatus = smartPlaylistUpdatedStatus(refresh.displayPlaylist, refresh.tracks.size)
         } catch (error: Exception) {
             playlistStatus = error.message ?: "Could not update smart playlist."
             throw error
@@ -1108,19 +1072,6 @@ fun NaviampApp(
         }
     }
 
-    suspend fun resolveTargetTracks(
-        provider: MediaProvider,
-        target: AddToPlaylistTarget,
-    ): List<Track> =
-        when (target) {
-            is AddToPlaylistTarget.TrackTarget -> listOf(target.track)
-            is AddToPlaylistTarget.AlbumTarget -> provider.album(target.album.id).tracks
-            is AddToPlaylistTarget.ArtistTarget -> provider.artist(target.artist.id).albums.flatMap { album ->
-                provider.album(album.id).tracks
-            }
-            is AddToPlaylistTarget.PlaylistTarget -> provider.playlistTracks(target.playlist.id)
-        }
-
     fun openAddToPlaylist(target: AddToPlaylistTarget) {
         addToPlaylistTarget = target
         addToPlaylistStatus = null
@@ -1133,29 +1084,13 @@ fun NaviampApp(
         coroutineScope.launch {
             try {
                 val result = withContext(Dispatchers.IO) {
-                    val targetIds = resolveTargetTracks(provider, target).map { it.id }.distinct()
-                    provider.createPlaylistOrAddMissingTracks(
-                        playlistId = playlist?.id,
-                        newPlaylistName = newPlaylistName,
-                        trackIds = targetIds,
-                    )
+                    addTargetTracksToPlaylist(provider, target, playlist, newPlaylistName)
                 }
-                if (result.requestedTrackCount == 0) {
-                    addToPlaylistStatus = if (playlist == null) {
-                        "No tracks found."
-                    } else {
-                        "Everything is already in ${playlist.name}."
-                    }
-                    return@launch
-                }
-                if (result.addedTrackIds.isEmpty()) {
-                    addToPlaylistStatus = "Everything is already in ${playlist?.name.orEmpty()}."
-                    return@launch
-                }
-                addToPlaylistTarget = null
-                addToPlaylistStatus = null
-                connectionStatus = "Added ${result.addedTrackIds.size} track${if (result.addedTrackIds.size == 1) "" else "s"} to playlist."
-                refreshPlaylists()
+                val update = addToPlaylistMutationUpdate(result, playlist)
+                if (update.closeDialog) addToPlaylistTarget = null
+                addToPlaylistStatus = update.addToPlaylistStatus
+                update.connectionStatus?.let { connectionStatus = it }
+                if (update.refreshPlaylists) refreshPlaylists()
             } catch (exception: Exception) {
                 addToPlaylistStatus = exception.message ?: "Could not add to playlist."
             }
@@ -1168,7 +1103,7 @@ fun NaviampApp(
         coroutineScope.launch {
             try {
                 val tracksToAdd = withContext(Dispatchers.IO) {
-                    resolveTargetTracks(provider, target)
+                    resolveAddToPlaylistTargetTracks(provider, target)
                 }
                 if (tracksToAdd.isEmpty()) {
                     connectionStatus = "No tracks found."
@@ -1641,18 +1576,18 @@ fun NaviampApp(
 
     fun downloadTracks(label: String, tracks: List<Track>) {
         val provider = connectedProvider ?: run {
-            downloadStatus = "Connect to Navidrome before downloading."
+            downloadStatus = downloadConnectionRequiredStatus()
             return
         }
         val sourceId = connectedSourceId ?: run {
-            downloadStatus = "Connect to Navidrome before downloading."
+            downloadStatus = downloadConnectionRequiredStatus()
             return
         }
         if (tracks.isEmpty()) {
-            downloadStatus = "$label did not return any tracks."
+            downloadStatus = emptyDownloadStatus(label)
             return
         }
-        downloadStatus = "Downloading $label..."
+        downloadStatus = downloadStartingStatus(label)
         coroutineScope.launch {
             var completed = 0
             val uiContext = coroutineContext
@@ -1660,7 +1595,7 @@ fun NaviampApp(
                 withContext(Dispatchers.IO) {
                     tracks.forEachIndexed { index, track ->
                         withContext(uiContext) {
-                            downloadStatus = "Downloading $label (${index + 1}/${tracks.size})..."
+                            downloadStatus = downloadProgressStatus(label, index, tracks.size)
                         }
                         sessionCache.downloadAudioTrack(
                             sourceId = sourceId,
@@ -1673,10 +1608,10 @@ fun NaviampApp(
                     }
                 }
                 downloadRefreshToken += 1
-                downloadStatus = "Downloaded $label ($completed tracks)."
+                downloadStatus = downloadCompletedStatus(label, completed)
             } catch (exception: Exception) {
                 downloadRefreshToken += 1
-                downloadStatus = exception.message ?: "Could not download $label."
+                downloadStatus = downloadErrorStatus(label, exception)
             }
         }
     }
@@ -1687,7 +1622,7 @@ fun NaviampApp(
 
     fun downloadAlbum(album: Album) {
         val provider = connectedProvider ?: run {
-            downloadStatus = "Connect to Navidrome before downloading."
+            downloadStatus = downloadConnectionRequiredStatus()
             return
         }
         downloadStatus = "Loading ${album.title}..."
@@ -1705,7 +1640,7 @@ fun NaviampApp(
 
     fun downloadPlaylist(playlist: Playlist) {
         val provider = connectedProvider ?: run {
-            downloadStatus = "Connect to Navidrome before downloading."
+            downloadStatus = downloadConnectionRequiredStatus()
             return
         }
         downloadStatus = "Loading ${playlist.name}..."
@@ -1725,19 +1660,19 @@ fun NaviampApp(
         val sourceId = connectedSourceId ?: return
         sessionCache.removeDownloadedAudio(sourceId, download.track.id, playbackSettings.streamQuality(playbackEngine))
         downloadRefreshToken += 1
-        downloadStatus = "Removed ${download.track.title}."
+        downloadStatus = downloadedTrackRemovedStatus(download)
     }
 
     fun playDownloadedTrack(downloads: List<DownloadedTrack>, index: Int) {
         val provider = connectedProvider ?: return
-        if (downloads.isEmpty() || index !in downloads.indices) return
+        val tracks = downloadTracksForPlayback(downloads, index) ?: return
         stopRadioContinuation()
         clearShuffleSnapshot()
         openPlayerOnTrackStart = true
         playlistEngine.playFrom(
             scope = coroutineScope,
             provider = provider,
-            tracks = downloads.map { it.track },
+            tracks = tracks,
             index = index,
             quality = playbackSettings.streamQuality(playbackEngine),
             replayGainMode = playbackSettings.replayGainMode,
