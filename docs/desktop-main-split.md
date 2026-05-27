@@ -33,9 +33,10 @@ This tracks the work to give the Compose desktop app the same kind of maintainab
   - [x] Move radio request builders into `radio/`.
   - [x] Move seeded entity radio request builders into `radio/`.
   - [x] Move desktop radio controller orchestration into `radio/`.
-- [ ] Split connection/provider setup out of `Main.kt`.
+- [x] Split connection/provider setup out of `Main.kt`.
   - [x] Move connection form display name and TLS settings helpers into `connection/`.
   - [x] Move connection form reset/saved-source mapping into `connection/`.
+  - [x] Move connection validation, prepared Navidrome connection, success-status, and delete decisions into `connection/`.
 - [ ] Split library sync/freshness helpers out of `Main.kt`.
   - [x] Move library freshness model/status decision into `library/LibrarySync.kt`.
   - [x] Move library snapshot paging helpers into `library/LibrarySync.kt`.
@@ -98,3 +99,4 @@ Package names are intentionally unchanged for this pass. The goal is to make the
 - Desktop radio continuation, refill, seeded expansion, and current-track conversion orchestration now lives in the radio feature folder.
 - Connection display name and TLS settings helpers now live in the connection feature folder with desktop unit coverage.
 - Connection form reset and saved-source field mapping now live in the connection feature folder with desktop unit coverage.
+- Connection form validation, prepared Navidrome connection/auth warning handling, success status text, and saved-connection delete decisions now live in the connection feature folder with desktop unit coverage.

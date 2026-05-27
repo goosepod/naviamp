@@ -100,7 +100,6 @@ import app.naviamp.domain.settings.playbackSessionFromQueue
 import app.naviamp.domain.settings.restoredPlaybackQueue
 import app.naviamp.domain.settings.restoredTrackSession
 import app.naviamp.provider.navidrome.NavidromeApiCallHistory
-import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.NavidromeTls
 import app.naviamp.provider.navidrome.toNavidromeConnection
@@ -1427,13 +1426,14 @@ fun NaviampApp(
 
     fun connectToServer(restoreSavedSession: Boolean = false) {
         if (isConnecting) return
-        if (serverUrl.isBlank() || username.isBlank()) {
-            connectionStatus = "Enter a server URL and username."
-            appRoute = AppRoute.Settings
-            return
-        }
-        if (password.isBlank() && savedConnectionForLogin == null) {
-            connectionStatus = "Enter a password for first-time setup."
+        val formError = desktopConnectionFormError(
+            serverUrl = serverUrl,
+            username = username,
+            password = password,
+            savedConnectionForLogin = savedConnectionForLogin,
+        )
+        if (formError != null) {
+            connectionStatus = formError
             appRoute = AppRoute.Settings
             return
         }
@@ -1459,31 +1459,18 @@ fun NaviampApp(
         coroutineScope.launch {
             try {
                 val tlsSettings = connectionTlsSettings()
-                val reusableCredentials = savedConnectionForLogin?.takeIf {
-                    it.baseUrl == serverUrl && it.username == username && password.isBlank()
-                }
-                val connectionWithoutNativeRefresh = reusableCredentials?.copy(
-                    displayName = resolvedConnectionDisplayName(),
-                    tlsSettings = tlsSettings,
-                ) ?: NavidromeConnection.fromPassword(
-                    baseUrl = serverUrl,
-                    username = username,
-                    password = password,
-                    displayName = resolvedConnectionDisplayName(),
-                    tlsSettings = tlsSettings,
+                val preparedConnection = prepareDesktopNavidromeConnection(
+                    DesktopConnectionRequest(
+                        serverUrl = serverUrl,
+                        username = username,
+                        password = password,
+                        displayName = resolvedConnectionDisplayName(),
+                        tlsSettings = tlsSettings,
+                        savedConnectionForLogin = savedConnectionForLogin,
+                    ),
                 )
-                var smartPlaylistAuthWarning: String? = null
-                val connection = if (password.isNotBlank()) {
-                    runCatching {
-                        connectionWithoutNativeRefresh.withNativeTokenFromPassword(password, required = true)
-                    }.getOrElse { nativeAuthError ->
-                        smartPlaylistAuthWarning = nativeAuthError.message
-                            ?: "Could not authenticate with Navidrome's native API."
-                        connectionWithoutNativeRefresh
-                    }
-                } else {
-                    connectionWithoutNativeRefresh
-                }
+                val connection = preparedConnection.connection
+                val smartPlaylistAuthWarning = preparedConnection.smartPlaylistAuthWarning
                 NavidromeTls.applyJvmDefaults(connection.tlsSettings)
                 val provider = NavidromeProvider(connection)
                 val validation = provider.validateConnection()
@@ -1535,19 +1522,12 @@ fun NaviampApp(
                 if (appRoute == AppRoute.Settings) {
                     appRoute = AppRoute.Home
                 }
-                connectionStatus = buildString {
-                    append("Connected")
-                    validation.serverVersion?.let { append(" to Navidrome $it") }
-                    append(".")
-                    when {
-                        connection.nativeToken?.isNotBlank() == true -> append(" Smart playlist saves are enabled.")
-                        smartPlaylistAuthWarning != null -> {
-                            append(" Smart playlist saves are not enabled: ")
-                            append(smartPlaylistAuthWarning)
-                        }
-                        password.isBlank() -> append(" Smart playlist saves require editing this connection and entering your password.")
-                    }
-                }
+                connectionStatus = desktopConnectionSuccessStatus(
+                    validation = validation,
+                    connection = connection,
+                    password = password,
+                    smartPlaylistAuthWarning = smartPlaylistAuthWarning,
+                )
                 refreshLibrarySnapshot()
                 loadHomeContent(provider)
                 refreshPlaylists()
@@ -2054,11 +2034,7 @@ fun NaviampApp(
         connectionStatus = "Local artist, album, and track index cleared."
     }
 
-    fun resetDatabase() {
-        sessionCache.clearAll()
-        settingsStore.clearConnection()
-        savedConnectionForLogin = null
-        mediaSourcesRevision++
+    fun clearActiveConnectionState() {
         connectedProvider = null
         connectedSourceId = null
         stopRadioContinuation()
@@ -2075,6 +2051,14 @@ fun NaviampApp(
         playbackProgress = PlaybackProgress.Unknown
         playbackQueue = PlaybackQueue()
         settingsStore.savePlaybackSession(null)
+    }
+
+    fun resetDatabase() {
+        sessionCache.clearAll()
+        settingsStore.clearConnection()
+        savedConnectionForLogin = null
+        mediaSourcesRevision++
+        clearActiveConnectionState()
         connectionStatus = "Database reset. Saved servers were removed."
         appRoute = AppRoute.Settings
     }
@@ -2082,31 +2066,21 @@ fun NaviampApp(
     fun deleteConnection(source: SavedMediaSource) {
         sessionCache.deleteMediaSource(source.id)
         mediaSourcesRevision++
+        val update = desktopDeletedConnectionUpdate(
+            source = source,
+            connectedSourceId = connectedSourceId,
+            savedConnectionForLogin = savedConnectionForLogin,
+        )
 
-        if (connectedSourceId == source.id) {
-            connectedProvider = null
-            connectedSourceId = null
-            stopRadioContinuation()
-            librarySnapshot = LibrarySnapshot()
-            libraryStatus = null
-            homeContent = HomeContent()
-            homeStatus = null
-            playlistEngine.clear()
-            playbackEngine.stop()
-            nowPlayingTrack = null
-            nowPlayingCoverArtUrl = null
-            nowPlayingLyricsStatus = null
-            playbackState = PlaybackState.Idle
-            playbackProgress = PlaybackProgress.Unknown
-            playbackQueue = PlaybackQueue()
-            settingsStore.savePlaybackSession(null)
+        if (update.clearConnectedSource) {
+            clearActiveConnectionState()
         }
 
-        if (savedConnectionForLogin?.baseUrl == source.baseUrl && savedConnectionForLogin?.username == source.username) {
+        if (update.clearSavedConnectionForLogin) {
             savedConnectionForLogin = null
         }
         isConnectionFormOpen = false
-        connectionStatus = "Deleted ${source.displayName}."
+        connectionStatus = update.status
     }
 
     fun openExternalArtistUrl(url: String) {

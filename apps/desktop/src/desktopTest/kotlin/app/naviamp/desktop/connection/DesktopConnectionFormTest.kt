@@ -1,7 +1,10 @@
 package app.naviamp.desktop
 
+import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.source.ConnectionTlsSettings
 import app.naviamp.domain.source.SavedMediaSource
+import app.naviamp.provider.navidrome.NavidromeConnection
+import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -88,6 +91,146 @@ class DesktopConnectionFormTest {
         assertEquals("Home Music", formState.connectionName)
     }
 
+    @Test
+    fun formErrorRequiresServerUsernameAndFirstPassword() {
+        assertEquals(
+            "Enter a server URL and username.",
+            desktopConnectionFormError("", "demo", "secret", null),
+        )
+        assertEquals(
+            "Enter a password for first-time setup.",
+            desktopConnectionFormError("https://music.example.test", "demo", "", null),
+        )
+        assertNull(
+            desktopConnectionFormError(
+                "https://music.example.test",
+                "demo",
+                "",
+                navidromeConnection(),
+            ),
+        )
+    }
+
+    @Test
+    fun prepareConnectionReusesSavedCredentialsWhenPasswordIsBlank() = runBlocking {
+        val savedConnection = navidromeConnection(token = "saved-token", nativeToken = "native")
+        val prepared = prepareDesktopNavidromeConnection(
+            DesktopConnectionRequest(
+                serverUrl = "https://music.example.test",
+                username = "demo",
+                password = "",
+                displayName = "Home Music",
+                tlsSettings = ConnectionTlsSettings(customCertificatePath = "/cert.pem"),
+                savedConnectionForLogin = savedConnection,
+            ),
+        )
+
+        assertEquals("saved-token", prepared.connection.token)
+        assertEquals("native", prepared.connection.nativeToken)
+        assertEquals("Home Music", prepared.connection.displayName)
+        assertEquals("/cert.pem", prepared.connection.tlsSettings.customCertificatePath)
+        assertNull(prepared.smartPlaylistAuthWarning)
+    }
+
+    @Test
+    fun prepareConnectionKeepsConnectionWhenNativeAuthFails() = runBlocking {
+        val prepared = prepareDesktopNavidromeConnection(
+            DesktopConnectionRequest(
+                serverUrl = "https://music.example.test",
+                username = "demo",
+                password = "secret",
+                displayName = "Home Music",
+                tlsSettings = ConnectionTlsSettings(),
+                savedConnectionForLogin = null,
+            ),
+            nativeTokenFromPassword = { _, _ -> error("native auth unavailable") },
+        )
+
+        assertNull(prepared.connection.nativeToken)
+        assertEquals("native auth unavailable", prepared.smartPlaylistAuthWarning)
+    }
+
+    @Test
+    fun prepareConnectionStoresNativeTokenWhenAuthSucceeds() = runBlocking {
+        val prepared = prepareDesktopNavidromeConnection(
+            DesktopConnectionRequest(
+                serverUrl = "https://music.example.test",
+                username = "demo",
+                password = "secret",
+                displayName = "Home Music",
+                tlsSettings = ConnectionTlsSettings(),
+                savedConnectionForLogin = null,
+            ),
+            nativeTokenFromPassword = { connection, _ -> connection.copy(nativeToken = "native") },
+        )
+
+        assertEquals("native", prepared.connection.nativeToken)
+        assertNull(prepared.smartPlaylistAuthWarning)
+    }
+
+    @Test
+    fun successStatusIncludesServerVersionAndSmartPlaylistState() {
+        val validation = ConnectionValidation(serverVersion = "0.55.0", apiVersion = "1.16.1")
+
+        assertEquals(
+            "Connected to Navidrome 0.55.0. Smart playlist saves are enabled.",
+            desktopConnectionSuccessStatus(
+                validation = validation,
+                connection = navidromeConnection(nativeToken = "native"),
+                password = "secret",
+                smartPlaylistAuthWarning = null,
+            ),
+        )
+        assertEquals(
+            "Connected to Navidrome 0.55.0. Smart playlist saves are not enabled: native auth unavailable",
+            desktopConnectionSuccessStatus(
+                validation = validation,
+                connection = navidromeConnection(),
+                password = "secret",
+                smartPlaylistAuthWarning = "native auth unavailable",
+            ),
+        )
+        assertEquals(
+            "Connected to Navidrome 0.55.0. Smart playlist saves require editing this connection and entering your password.",
+            desktopConnectionSuccessStatus(
+                validation = validation,
+                connection = navidromeConnection(),
+                password = "",
+                smartPlaylistAuthWarning = null,
+            ),
+        )
+    }
+
+    @Test
+    fun deletedConnectionUpdateIdentifiesActiveAndSavedConnectionMatches() {
+        val source = savedSource(displayName = "Home Music")
+
+        assertEquals(
+            DesktopDeletedConnectionUpdate(
+                clearConnectedSource = true,
+                clearSavedConnectionForLogin = true,
+                status = "Deleted Home Music.",
+            ),
+            desktopDeletedConnectionUpdate(
+                source = source,
+                connectedSourceId = "source",
+                savedConnectionForLogin = navidromeConnection(),
+            ),
+        )
+        assertEquals(
+            DesktopDeletedConnectionUpdate(
+                clearConnectedSource = false,
+                clearSavedConnectionForLogin = false,
+                status = "Deleted Home Music.",
+            ),
+            desktopDeletedConnectionUpdate(
+                source = source,
+                connectedSourceId = "other-source",
+                savedConnectionForLogin = navidromeConnection().copy(username = "other"),
+            ),
+        )
+    }
+
     private fun savedSource(
         displayName: String,
         tlsSettings: ConnectionTlsSettings = ConnectionTlsSettings(),
@@ -107,5 +250,18 @@ class DesktopConnectionFormTest {
             lastConnectedAtEpochMillis = 2L,
             lastSyncStartedAtEpochMillis = 3L,
             lastSyncCompletedAtEpochMillis = 4L,
+        )
+
+    private fun navidromeConnection(
+        token: String = "token",
+        nativeToken: String? = null,
+    ): NavidromeConnection =
+        NavidromeConnection(
+            baseUrl = "https://music.example.test",
+            username = "demo",
+            token = token,
+            salt = "salt",
+            nativeToken = nativeToken,
+            displayName = "Home Music",
         )
 }
