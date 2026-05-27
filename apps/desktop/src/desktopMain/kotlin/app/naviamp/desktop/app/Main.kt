@@ -128,7 +128,17 @@ import app.naviamp.domain.provider.playlistRenameLoadingStatus
 import app.naviamp.domain.provider.playlistRenamedStatus
 import app.naviamp.domain.provider.recentPlaylistIdsAfterDelete
 import app.naviamp.domain.provider.renamedSelectedPlaylist
+import app.naviamp.domain.provider.saveSmartPlaylistAndRefresh
 import app.naviamp.domain.provider.selectedPlaylistAfterDelete
+import app.naviamp.domain.provider.smartPlaylistLoadErrorMessage
+import app.naviamp.domain.provider.smartPlaylistLoadingRulesStatus
+import app.naviamp.domain.provider.smartPlaylistSaveErrorMessage
+import app.naviamp.domain.provider.smartPlaylistSavedStatus
+import app.naviamp.domain.provider.smartPlaylistSavingStatus
+import app.naviamp.domain.provider.smartPlaylistUpdateErrorMessage
+import app.naviamp.domain.provider.smartPlaylistUpdatedStatus
+import app.naviamp.domain.provider.smartPlaylistUpdatingStatus
+import app.naviamp.domain.provider.updateSmartPlaylistAndRefresh
 import app.naviamp.domain.settings.playbackSessionFromQueue
 import app.naviamp.domain.settings.restoredPlaybackQueue
 import app.naviamp.domain.settings.restoredTrackSession
@@ -1041,7 +1051,7 @@ fun NaviampApp(
     suspend fun saveSmartPlaylist(definition: SmartPlaylistDefinition) {
         var provider = connectedProvider
             ?: throw IllegalStateException("Connect to Navidrome before saving smart playlists.")
-        playlistStatus = "Saving ${definition.name}..."
+        playlistStatus = smartPlaylistSavingStatus(definition)
         try {
             val savedConnection = savedConnectionForLogin
             if (savedConnection?.nativeToken.isNullOrBlank() && password.isNotBlank()) {
@@ -1077,7 +1087,7 @@ fun NaviampApp(
     suspend fun updateSmartPlaylist(playlist: Playlist, definition: SmartPlaylistDefinition) {
         val provider = connectedProvider
             ?: throw IllegalStateException("Connect to Navidrome before updating smart playlists.")
-        playlistStatus = "Updating ${definition.name}..."
+        playlistStatus = smartPlaylistUpdatingStatus(definition)
         try {
             val refresh = withContext(Dispatchers.IO) {
                 updateSmartPlaylistAndRefresh(provider, playlist, definition)
@@ -1091,7 +1101,7 @@ fun NaviampApp(
             }
             playlistStatus = smartPlaylistUpdatedStatus(refresh.displayPlaylist, refresh.tracks.size)
         } catch (error: Exception) {
-            playlistStatus = error.message ?: "Could not update smart playlist."
+            playlistStatus = smartPlaylistUpdateErrorMessage(error)
             throw error
         } finally {
             statsForNerdsRefreshTick++
@@ -1101,12 +1111,12 @@ fun NaviampApp(
     suspend fun loadSmartPlaylistDefinition(playlist: Playlist): SmartPlaylistDefinition {
         val provider = connectedProvider
             ?: throw IllegalStateException("Connect to Navidrome before editing smart playlists.")
-        playlistStatus = "Loading ${playlist.name} rules..."
+        playlistStatus = smartPlaylistLoadingRulesStatus(playlist)
         return try {
             withContext(Dispatchers.IO) { provider.smartPlaylistDefinition(playlist.id) }
                 .also { playlistStatus = null }
         } catch (error: Exception) {
-            playlistStatus = error.message ?: "Could not load smart playlist rules."
+            playlistStatus = smartPlaylistLoadErrorMessage(error)
             throw error
         } finally {
             statsForNerdsRefreshTick++

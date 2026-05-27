@@ -3,15 +3,9 @@ package app.naviamp.desktop
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.provider.MediaProvider
+import app.naviamp.domain.provider.PlaylistDetailsRefresh
 import app.naviamp.domain.provider.PlaylistTrackMutationResult
 import app.naviamp.domain.provider.createPlaylistOrAddMissingTracks
-import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
-
-data class PlaylistDetailsRefresh(
-    val playlists: List<Playlist>,
-    val displayPlaylist: Playlist,
-    val tracks: List<Track>,
-)
 
 fun homePlaylists(
     playlists: List<Playlist>,
@@ -43,46 +37,6 @@ suspend fun refreshPlaylistDetails(
     )
 }
 
-suspend fun saveSmartPlaylistAndRefresh(
-    provider: MediaProvider,
-    definition: SmartPlaylistDefinition,
-    playlistLimit: Int = 500,
-): PlaylistDetailsRefresh {
-    val playlist = provider.createSmartPlaylist(definition)
-    val refreshedPlaylists = provider.playlists(limit = playlistLimit)
-    val refreshedPlaylist = refreshedPlaylists.firstOrNull { it.id == playlist.id }
-        ?: refreshedPlaylists.firstOrNull { it.name == playlist.name }
-        ?: playlist
-    val refreshedTracks = provider.playlistTracks(refreshedPlaylist.id)
-    val displayPlaylist = refreshedPlaylist.copy(trackCount = refreshedTracks.size)
-    return PlaylistDetailsRefresh(
-        playlists = (refreshedPlaylists.filterNot { it.id == displayPlaylist.id } + displayPlaylist)
-            .sortedBy { it.name.lowercase() },
-        displayPlaylist = displayPlaylist,
-        tracks = refreshedTracks,
-    )
-}
-
-suspend fun updateSmartPlaylistAndRefresh(
-    provider: MediaProvider,
-    playlist: Playlist,
-    definition: SmartPlaylistDefinition,
-    playlistLimit: Int = 500,
-): PlaylistDetailsRefresh {
-    provider.updateSmartPlaylist(playlist.id, definition)
-    val refreshedPlaylists = provider.playlists(limit = playlistLimit)
-    val refreshedPlaylist = refreshedPlaylists.firstOrNull { it.id == playlist.id }
-        ?: playlist.copy(name = definition.name)
-    val refreshedTracks = provider.playlistTracks(refreshedPlaylist.id)
-    val displayPlaylist = refreshedPlaylist.copy(trackCount = refreshedTracks.size)
-    return PlaylistDetailsRefresh(
-        playlists = (refreshedPlaylists.filterNot { it.id == displayPlaylist.id } + displayPlaylist)
-            .sortedBy { it.name.lowercase() },
-        displayPlaylist = displayPlaylist,
-        tracks = refreshedTracks,
-    )
-}
-
 suspend fun resolveAddToPlaylistTargetTracks(
     provider: MediaProvider,
     target: AddToPlaylistTarget,
@@ -109,16 +63,3 @@ suspend fun addTargetTracksToPlaylist(
         trackIds = targetIds,
     )
 }
-
-fun smartPlaylistSaveErrorMessage(error: Throwable): String =
-    if (error.message == "Reconnect to Navidrome with your password before saving smart playlists.") {
-        "Edit this saved connection, enter your Navidrome password, then Save and connect before saving smart playlists."
-    } else {
-        error.message ?: "Could not save smart playlist."
-    }
-
-fun smartPlaylistSavedStatus(displayPlaylist: Playlist, trackCount: Int): String =
-    "Saved smart playlist ${displayPlaylist.name} with $trackCount tracks."
-
-fun smartPlaylistUpdatedStatus(displayPlaylist: Playlist, trackCount: Int): String =
-    "Updated smart playlist ${displayPlaylist.name} with $trackCount tracks."

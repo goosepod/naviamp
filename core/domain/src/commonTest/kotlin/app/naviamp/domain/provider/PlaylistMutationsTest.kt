@@ -2,6 +2,7 @@ package app.naviamp.domain.provider
 
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.Playlist
+import app.naviamp.domain.smartplaylist.SmartPlaylistTemplates
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -83,6 +84,34 @@ class PlaylistMutationsTest {
         )
         assertEquals(null, selectedPlaylistAfterDelete(current, "one"))
         assertEquals(listOf("two"), recentPlaylistIdsAfterDelete(listOf("one", "two"), "one"))
+    }
+
+    @Test
+    fun smartPlaylistStatusMessagesIncludeTrackCount() {
+        val playlist = playlist("smart", "Smart")
+        val definition = SmartPlaylistTemplates.favorites().copy(name = "Smart")
+
+        assertEquals("Saving Smart...", smartPlaylistSavingStatus(definition))
+        assertEquals("Updating Smart...", smartPlaylistUpdatingStatus(definition))
+        assertEquals("Loading Smart rules...", smartPlaylistLoadingRulesStatus(playlist))
+        assertEquals(
+            "Saved smart playlist Smart with 3 tracks.",
+            smartPlaylistSavedStatus(playlist, trackCount = 3),
+        )
+        assertEquals(
+            "Updated smart playlist Smart with 4 tracks.",
+            smartPlaylistUpdatedStatus(playlist, trackCount = 4),
+        )
+    }
+
+    @Test
+    fun smartPlaylistSaveErrorExplainsMissingPasswordRecovery() {
+        assertEquals(
+            "Edit this saved connection, enter your Navidrome password, then Save and connect before saving smart playlists.",
+            smartPlaylistSaveErrorMessage(
+                IllegalStateException("Reconnect to Navidrome with your password before saving smart playlists."),
+            ),
+        )
     }
 
     private fun playlist(id: String, name: String): Playlist =

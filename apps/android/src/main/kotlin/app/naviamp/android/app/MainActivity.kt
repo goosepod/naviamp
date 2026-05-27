@@ -66,7 +66,11 @@ import app.naviamp.domain.provider.playlistRenameLoadingStatus
 import app.naviamp.domain.provider.playlistRenamedStatus
 import app.naviamp.domain.provider.recentPlaylistIdsAfterDelete
 import app.naviamp.domain.provider.renamedSelectedPlaylist
+import app.naviamp.domain.provider.saveSmartPlaylistAndRefresh
 import app.naviamp.domain.provider.selectedPlaylistAfterDelete
+import app.naviamp.domain.provider.smartPlaylistSaveErrorMessage
+import app.naviamp.domain.provider.smartPlaylistSavedStatus
+import app.naviamp.domain.provider.smartPlaylistSavingStatus
 import app.naviamp.domain.provider.totalCount
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.HomeDate
@@ -1604,23 +1608,15 @@ private fun NaviampAndroidApp(
     suspend fun saveSmartPlaylist(definition: SmartPlaylistDefinition) {
         val activeProvider = provider
             ?: throw IllegalStateException("Connect to Navidrome before saving smart playlists.")
-        status = "Saving ${definition.name}..."
+        status = smartPlaylistSavingStatus(definition)
         try {
-            val createdPlaylist = activeProvider.createSmartPlaylist(definition)
-            val playlists = activeProvider.playlists(limit = 500)
-            val refreshedPlaylist = playlists.firstOrNull { it.id == createdPlaylist.id }
-                ?: playlists.firstOrNull { it.name == createdPlaylist.name }
-                ?: createdPlaylist
-            val refreshedTracks = activeProvider.playlistTracks(refreshedPlaylist.id)
-            playlistTracksById = playlistTracksById + (refreshedPlaylist.id to refreshedTracks)
-            val displayPlaylists = playlists.map { playlist ->
-                if (playlist.id == refreshedPlaylist.id) playlist.copy(trackCount = refreshedTracks.size) else playlist
-            }
-            homeState = homeState.copy(playlists = displayPlaylists)
-            preloadPlaylistTracks(activeProvider, playlists)
-            status = "Saved smart playlist ${definition.name} with ${refreshedTracks.size} tracks."
+            val refresh = saveSmartPlaylistAndRefresh(activeProvider, definition)
+            playlistTracksById = playlistTracksById + (refresh.displayPlaylist.id to refresh.tracks)
+            homeState = homeState.copy(playlists = refresh.playlists)
+            preloadPlaylistTracks(activeProvider, refresh.playlists)
+            status = smartPlaylistSavedStatus(refresh.displayPlaylist, refresh.tracks.size)
         } catch (error: Exception) {
-            status = error.message ?: "Could not save smart playlist."
+            status = smartPlaylistSaveErrorMessage(error)
             throw error
         }
     }

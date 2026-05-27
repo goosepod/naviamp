@@ -20,30 +20,6 @@ class DesktopPlaylistMutationsTest {
         )
     }
 
-    @Test
-    fun smartPlaylistStatusMessagesIncludeTrackCount() {
-        val playlist = playlist("smart", "Smart")
-
-        assertEquals(
-            "Saved smart playlist Smart with 3 tracks.",
-            smartPlaylistSavedStatus(playlist, trackCount = 3),
-        )
-        assertEquals(
-            "Updated smart playlist Smart with 4 tracks.",
-            smartPlaylistUpdatedStatus(playlist, trackCount = 4),
-        )
-    }
-
-    @Test
-    fun smartPlaylistSaveErrorExplainsMissingPasswordRecovery() {
-        assertEquals(
-            "Edit this saved connection, enter your Navidrome password, then Save and connect before saving smart playlists.",
-            smartPlaylistSaveErrorMessage(
-                IllegalStateException("Reconnect to Navidrome with your password before saving smart playlists."),
-            ),
-        )
-    }
-
     private fun playlist(id: String, name: String): Playlist =
         Playlist(
             id = id,
