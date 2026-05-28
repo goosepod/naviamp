@@ -129,6 +129,23 @@ class PlaybackQueueTest {
         assertEquals(originalUpcoming.toSet(), queue.upNext().toSet())
     }
 
+    @Test
+    fun toggleUpcomingShuffleSwitchesBetweenShuffledAndRestoredQueue() {
+        val originalUpcoming = listOf(track("2"), track("3"), track("4"))
+        val queue = PlaybackQueue(
+            tracks = listOf(track("1")) + originalUpcoming,
+            currentIndex = 0,
+        )
+
+        val shuffled = assertNotNull(queue.toggleUpcomingShuffle(shuffledSnapshot = null))
+        assertEquals(originalUpcoming, shuffled.shuffledSnapshot)
+        assertEquals(originalUpcoming.toSet(), shuffled.queue.upNext().toSet())
+
+        val restored = assertNotNull(shuffled.queue.toggleUpcomingShuffle(shuffled.shuffledSnapshot))
+        assertEquals(null, restored.shuffledSnapshot)
+        assertEquals(originalUpcoming, restored.queue.upNext())
+    }
+
     private fun track(id: String): Track =
         Track(
             id = TrackId(id),

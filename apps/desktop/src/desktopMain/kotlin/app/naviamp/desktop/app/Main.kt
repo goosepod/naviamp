@@ -559,13 +559,7 @@ fun NaviampApp(
     }
 
     fun toggleShuffle() {
-        val snapshot = shuffledUpNextSnapshot
-        if (snapshot == null) {
-            shuffledUpNextSnapshot = playlistEngine.shuffleUpcoming()
-        } else {
-            playlistEngine.restoreUpcoming(snapshot)
-            shuffledUpNextSnapshot = null
-        }
+        shuffledUpNextSnapshot = playlistEngine.toggleUpcomingShuffle(shuffledUpNextSnapshot)
     }
 
     fun cycleRepeatMode() {

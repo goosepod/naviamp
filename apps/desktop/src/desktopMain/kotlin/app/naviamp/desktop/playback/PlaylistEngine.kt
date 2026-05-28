@@ -209,20 +209,12 @@ class PlaylistEngine(
         playQueueIndex(scope, queue.tracks, previousIndex, sessionId)
     }
 
-    fun shuffleUpcoming(): List<Track>? {
-        val originalUpcoming = queue.upNext()
-        if (originalUpcoming.size < 2 || queue.currentIndex !in queue.tracks.indices) return null
-        queue = queue.shuffleUpcoming()?.first ?: return null
+    fun toggleUpcomingShuffle(shuffledSnapshot: List<Track>?): List<Track>? {
+        val result = queue.toggleUpcomingShuffle(shuffledSnapshot) ?: return shuffledSnapshot
+        queue = result.queue
         preparedNextIndex = null
         callbacks?.onQueueChanged(queue)
-        return originalUpcoming
-    }
-
-    fun restoreUpcoming(tracks: List<Track>) {
-        if (queue.currentIndex !in queue.tracks.indices) return
-        queue = queue.restoreUpcoming(tracks)
-        preparedNextIndex = null
-        callbacks?.onQueueChanged(queue)
+        return result.shuffledSnapshot
     }
 
     private fun playQueueIndex(

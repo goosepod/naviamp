@@ -1935,16 +1935,10 @@ private fun NaviampAndroidApp(
         val queue = activeQueue()
         val currentIndex = queue.indexOfFirst { it.id == currentTrack.id }
         if (currentIndex < 0) return
-        val snapshot = shuffledUpNextSnapshot
         val queueState = PlaybackQueue(tracks = queue, currentIndex = currentIndex)
-        if (snapshot == null) {
-            val shuffled = queueState.shuffleUpcoming() ?: return
-            playbackQueue = shuffled.first
-            shuffledUpNextSnapshot = shuffled.second
-        } else {
-            playbackQueue = queueState.restoreUpcoming(snapshot)
-            shuffledUpNextSnapshot = null
-        }
+        val toggled = queueState.toggleUpcomingShuffle(shuffledUpNextSnapshot) ?: return
+        playbackQueue = toggled.queue
+        shuffledUpNextSnapshot = toggled.shuffledSnapshot
     }
 
     fun startTrackRadioQueue(track: Track, playSeed: Boolean) {

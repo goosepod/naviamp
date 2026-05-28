@@ -151,6 +151,14 @@ data class PlaybackQueue(
         ) to originalUpcoming
     }
 
+    fun toggleUpcomingShuffle(shuffledSnapshot: List<Track>?): UpcomingShuffleToggle? =
+        if (shuffledSnapshot == null) {
+            val (queue, snapshot) = shuffleUpcoming() ?: return null
+            UpcomingShuffleToggle(queue = queue, shuffledSnapshot = snapshot)
+        } else {
+            UpcomingShuffleToggle(queue = restoreUpcoming(shuffledSnapshot), shuffledSnapshot = null)
+        }
+
     fun restoreUpcoming(tracks: List<Track>): PlaybackQueue {
         if (currentIndex !in this.tracks.indices) return this
         return copy(
@@ -181,3 +189,8 @@ data class PlaybackQueue(
         }
     }
 }
+
+data class UpcomingShuffleToggle(
+    val queue: PlaybackQueue,
+    val shuffledSnapshot: List<Track>?,
+)

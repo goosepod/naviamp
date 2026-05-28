@@ -31,9 +31,10 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 ## Feature Checklist
 
 - [ ] Playback/session behavior
-  - [ ] Move queue navigation and repeat/shuffle decisions into `core/domain`.
+  - [x] Move queue navigation and repeat/shuffle decisions into `core/domain`.
     - [x] Move repeat-mode cycling and previous-button restart decisions into `core/domain`.
     - [x] Move adjacent queue index, repeat-track, and repeat-queue wrap decisions into `PlaybackQueue`.
+    - [x] Move Up Next shuffle/restore toggle decisions into `PlaybackQueue`.
   - [ ] Move seek planning and provider-stream replay decisions into `core/domain`.
     - [x] Move seek progress seeding, radio seek blocking, and transcoded replay planning into `core/domain`.
   - [x] Move playback progress, pending-seek, and UI update gating into shared code where Android has matching behavior.
@@ -110,6 +111,7 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 - Progress missing-field merging and desktop playback UI update gating now live in `core/domain`; Android keeps immediate Compose progress updates while sharing the missing-field merge behavior.
 - Play-report threshold and submission eligibility now live in `core/domain` and are used by both desktop and Android. Provider calls, coroutine dispatch, and failure rollback remain platform-local; desktop now shares Android's explicit internet-radio exclusion for played reports.
 - Repeat-mode cycling and previous-button restart eligibility now live in `core/domain`. Desktop and Android still pass their existing restart thresholds because those values differ today.
+- Queue adjacent-index and Up Next shuffle/restore decisions now live in `core/domain/queue`; desktop and Android still own playback engine mutation, active queue fallback, and UI snapshot storage.
 - Seek planning now lives in `core/domain`: shared code seeds optimistic progress, preserves known duration, blocks radio seeks, and decides whether a transcoded seek should replay the current item. Desktop still maps its local `PlaybackSource` to the replay flag, while Android preserves its existing rule that transcoded streams replay on seek.
 - Restored playback-session mapping was already shared in `core/domain`; it now has common tests for invalid sessions, queue restoration, restored progress, current-track fallback, and adjacent-track session updates.
 - Library freshness status decisions now live in `core/domain` and are used by both desktop and Android. Provider scan reads and source metadata writes remain platform-local.
