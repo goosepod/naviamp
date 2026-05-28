@@ -81,7 +81,7 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 
 - [ ] Home and navigation state
   - [x] Share home content request planning and aggregation rules.
-  - [ ] Share route persistence/restoration mapping.
+  - [x] Share route persistence/restoration mapping.
   - [ ] Keep platform navigation containers and window/back-stack integration platform-local.
 
 - [ ] Settings and preferences
@@ -131,5 +131,6 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 - Album detail fallback construction from local library tracks plus album detail loading/error status now live in `core/domain/media`; desktop and Android both keep provider/cache reads local and share the fallback mapping.
 - Artist popular-track and similar-artist fetch/display limits, loading/error statuses, and result-to-screen update mapping now live in `core/domain/media`; desktop and Android still own service execution and platform state updates.
 - Home content request planning and aggregation now live in `core/domain/home`; Android uses the same `HomeService` aggregation path with a platform-supplied artist limit instead of patching artists after load.
+- Route persistence/restoration mapping now lives in `core/domain/app`; desktop maps the shared restore result back to its local route enum, including the legacy `InternetRadio` stored name, while platform navigation containers stay local.
 - Artist/album detail visual composition and navigation state remain outside domain: desktop keeps its Compose detail panels and back-route state in `apps/desktop`, Android keeps app back-stack state in `apps/android`, and shared UI models/layout stay in `core/ui`.
 - Desktop compile currently warns about deprecated Compose desktop `Preview` import and string-based `painterResource` usage in `apps/desktop/.../app/Main.kt`; fix as a separate warning-cleanup slice so resource packaging changes stay isolated.

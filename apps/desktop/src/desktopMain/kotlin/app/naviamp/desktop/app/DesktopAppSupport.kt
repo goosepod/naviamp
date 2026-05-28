@@ -1,11 +1,14 @@
 package app.naviamp.desktop
 
 import app.naviamp.desktop.settings.PlaybackSettings
+import app.naviamp.domain.app.NaviampRoute
+import app.naviamp.domain.app.restoredNavigationRoute
 import app.naviamp.domain.home.HomeAlbumYear
 import app.naviamp.domain.home.HomeLibraryRepository
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.provider.ProviderCapabilities
+import app.naviamp.domain.app.restoredLastContentRoute as restoredSharedLastContentRoute
 
 fun PlaybackSettings.forEngine(playbackEngine: PlaybackEngine): PlaybackSettings =
     copy(
@@ -55,23 +58,27 @@ fun restoredRoute(
     savedRouteName: String?,
     hasConnection: Boolean,
     hasRestoredTrack: Boolean,
-): AppRoute {
-    if (!hasConnection) return AppRoute.Settings
-    return when (val route = AppRoute.fromStoredName(savedRouteName)) {
-        AppRoute.Player -> if (hasRestoredTrack) AppRoute.Player else AppRoute.Home
-        AppRoute.AlbumDetail -> AppRoute.Home
-        AppRoute.ArtistDetail -> AppRoute.Search
-        AppRoute.PlaylistDetail -> AppRoute.Playlists
-        else -> route
-    }
-}
+): AppRoute =
+    restoredNavigationRoute(
+        savedRouteName = savedRouteName,
+        hasConnection = hasConnection,
+        hasRestoredTrack = hasRestoredTrack,
+    ).toAppRoute()
 
 fun restoredLastContentRoute(savedRouteName: String?): AppRoute =
-    when (val route = AppRoute.fromStoredName(savedRouteName)) {
-        AppRoute.Player,
-        AppRoute.AlbumDetail,
-        AppRoute.ArtistDetail,
-        AppRoute.PlaylistDetail,
-        -> AppRoute.Home
-        else -> route
+    restoredSharedLastContentRoute(savedRouteName).toAppRoute()
+
+private fun NaviampRoute.toAppRoute(): AppRoute =
+    when (this) {
+        NaviampRoute.Player -> AppRoute.Player
+        NaviampRoute.Home -> AppRoute.Home
+        NaviampRoute.Playlists -> AppRoute.Playlists
+        NaviampRoute.PlaylistDetail -> AppRoute.PlaylistDetail
+        NaviampRoute.AlbumDetail -> AppRoute.AlbumDetail
+        NaviampRoute.ArtistDetail -> AppRoute.ArtistDetail
+        NaviampRoute.Library -> AppRoute.Library
+        NaviampRoute.Search -> AppRoute.Search
+        NaviampRoute.Radio -> AppRoute.InternetRadio
+        NaviampRoute.Downloads -> AppRoute.Downloads
+        NaviampRoute.Settings -> AppRoute.Settings
     }
