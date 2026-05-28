@@ -99,7 +99,7 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 - [x] `./gradlew :core:domain:allTests`
 - [x] `./gradlew :core:ui:allTests`
 - [x] `./gradlew :apps:desktop:compileKotlinDesktop :apps:desktop:desktopTest`
-- [ ] `./gradlew :apps:android:assembleDebug`
+- [x] `./gradlew :apps:android:assembleDebug`
 
 ## Notes
 
