@@ -73,11 +73,11 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
   - [x] Keep actual filesystem paths, cache eviction, and platform storage adapters in app modules.
   - [x] Share downloaded-track display/status mapping where possible.
 
-- [ ] Artist/album/detail behavior
+- [x] Artist/album/detail behavior
   - [x] Move artist detail loading fallback rules into `core/domain`.
   - [x] Move album detail loading fallback rules into `core/domain`.
   - [x] Share popular-track/similar-artist request planning and result mapping.
-  - [ ] Keep visual layout and navigation state in platform UI layers.
+  - [x] Keep visual layout and navigation state in platform UI layers.
 
 - [ ] Home and navigation state
   - [ ] Share home content request planning and aggregation rules.
@@ -130,4 +130,5 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 - Artist detail fallback construction from the local library index, loading status, loaded-empty status, and error fallback now live in `core/domain/media`; desktop and Android both use the shared fallback while keeping cache/provider calls platform-local.
 - Album detail fallback construction from local library tracks plus album detail loading/error status now live in `core/domain/media`; desktop and Android both keep provider/cache reads local and share the fallback mapping.
 - Artist popular-track and similar-artist fetch/display limits, loading/error statuses, and result-to-screen update mapping now live in `core/domain/media`; desktop and Android still own service execution and platform state updates.
+- Artist/album detail visual composition and navigation state remain outside domain: desktop keeps its Compose detail panels and back-route state in `apps/desktop`, Android keeps app back-stack state in `apps/android`, and shared UI models/layout stay in `core/ui`.
 - Desktop compile currently warns about deprecated Compose desktop `Preview` import and string-based `painterResource` usage in `apps/desktop/.../app/Main.kt`; fix as a separate warning-cleanup slice so resource packaging changes stay isolated.
