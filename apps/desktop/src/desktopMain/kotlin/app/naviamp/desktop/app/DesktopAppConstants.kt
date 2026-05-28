@@ -20,7 +20,3 @@ val SimilarRadioExpansionCounts = listOf(25, 50)
 
 const val CoverArtPreloadHistoryLimit = 1
 const val CoverArtPreloadUpcomingLimit = 5
-const val PopularTracksFetchLimit = 25
-const val PopularTracksDisplayLimit = 10
-const val SimilarArtistsFetchLimit = 20
-const val SimilarArtistsDisplayLimit = 10

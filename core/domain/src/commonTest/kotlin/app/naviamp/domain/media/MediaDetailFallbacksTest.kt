@@ -7,6 +7,10 @@ import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.popular.ArtistPopularTrackCandidate
+import app.naviamp.domain.popular.ArtistPopularTrackMatch
+import app.naviamp.domain.popular.SimilarArtistCandidate
+import app.naviamp.domain.popular.SimilarArtistMatch
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -139,6 +143,54 @@ class MediaDetailFallbacksTest {
     }
 
     @Test
+    fun popularTracksUpdateLimitsTracksAndReportsEmptyMatches() {
+        val matches = listOf(popularMatch("one"), popularMatch("two"), popularMatch("three"))
+
+        assertEquals(
+            ArtistPopularTracksUpdate(
+                tracks = matches.take(2).map { it.matchedTrack },
+                status = null,
+            ),
+            artistPopularTracksUpdate(matches, displayLimit = 2),
+        )
+        assertEquals(
+            ArtistPopularTracksUpdate(
+                tracks = emptyList(),
+                status = "No popular tracks matched songs in your library.",
+            ),
+            artistPopularTracksUpdate(emptyList(), displayLimit = 2),
+        )
+        assertEquals("Loading popular tracks...", loadingPopularTracksStatus())
+        assertEquals(
+            "Popular tracks unavailable: no connected media source.",
+            missingPopularTracksSourceStatus(),
+        )
+        assertEquals("Popular tracks unavailable: unknown error", popularTracksUnavailableStatus(RuntimeException()))
+    }
+
+    @Test
+    fun similarArtistsUpdateLimitsArtistsAndReportsEmptyMatches() {
+        val artists = listOf(similarArtist("one"), similarArtist("two"), similarArtist("three"))
+
+        assertEquals(
+            SimilarArtistsUpdate(
+                artists = artists.take(2),
+                status = null,
+            ),
+            similarArtistsUpdate(artists, displayLimit = 2),
+        )
+        assertEquals(
+            SimilarArtistsUpdate(
+                artists = emptyList(),
+                status = "No similar artists found.",
+            ),
+            similarArtistsUpdate(emptyList(), displayLimit = 2),
+        )
+        assertEquals("Finding similar artists...", loadingSimilarArtistsStatus())
+        assertEquals("Similar artists unavailable: unknown error", similarArtistsUnavailableStatus(RuntimeException()))
+    }
+
+    @Test
     fun albumDetailStatusHelpersMatchSharedCopy() {
         assertEquals("Loading album...", albumDetailLoadingStatus(null))
         assertEquals("Loading Album...", albumDetailLoadingStatus("Album"))
@@ -165,5 +217,27 @@ class MediaDetailFallbacksTest {
             coverArtId = "cover-$id",
             audioInfo = null,
             replayGain = null,
+        )
+
+    private fun popularMatch(id: String): ArtistPopularTrackMatch =
+        ArtistPopularTrackMatch(
+            candidate = ArtistPopularTrackCandidate(
+                source = "test",
+                sourceTrackId = id,
+                rank = 1,
+                title = "Track $id",
+            ),
+            matchedTrack = track(id, albumId = "album", albumTitle = "Album", releaseYear = 2020),
+            fetchedAtEpochMillis = 1L,
+        )
+
+    private fun similarArtist(id: String): SimilarArtistMatch =
+        SimilarArtistMatch(
+            candidate = SimilarArtistCandidate(
+                source = "test",
+                sourceArtistId = id,
+                name = "Artist $id",
+            ),
+            matchedArtist = Artist(ArtistId(id), "Artist $id"),
         )
 }

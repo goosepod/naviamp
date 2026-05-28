@@ -76,7 +76,7 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 - [ ] Artist/album/detail behavior
   - [x] Move artist detail loading fallback rules into `core/domain`.
   - [x] Move album detail loading fallback rules into `core/domain`.
-  - [ ] Share popular-track/similar-artist request planning and result mapping.
+  - [x] Share popular-track/similar-artist request planning and result mapping.
   - [ ] Keep visual layout and navigation state in platform UI layers.
 
 - [ ] Home and navigation state
@@ -129,4 +129,5 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 - Downloaded-track display mapping now lives in `core/ui`; desktop and Android both map platform download records into `NaviampDownloadedTrackUi` before rendering.
 - Artist detail fallback construction from the local library index, loading status, loaded-empty status, and error fallback now live in `core/domain/media`; desktop and Android both use the shared fallback while keeping cache/provider calls platform-local.
 - Album detail fallback construction from local library tracks plus album detail loading/error status now live in `core/domain/media`; desktop and Android both keep provider/cache reads local and share the fallback mapping.
+- Artist popular-track and similar-artist fetch/display limits, loading/error statuses, and result-to-screen update mapping now live in `core/domain/media`; desktop and Android still own service execution and platform state updates.
 - Desktop compile currently warns about deprecated Compose desktop `Preview` import and string-based `painterResource` usage in `apps/desktop/.../app/Main.kt`; fix as a separate warning-cleanup slice so resource packaging changes stay isolated.

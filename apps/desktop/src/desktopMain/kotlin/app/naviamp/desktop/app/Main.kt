@@ -91,6 +91,17 @@ import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.home.HomeService
 import app.naviamp.domain.lyrics.selectPreferredLyrics
+import app.naviamp.domain.media.ArtistDetailPopularTracksDisplayLimit
+import app.naviamp.domain.media.ArtistDetailPopularTracksFetchLimit
+import app.naviamp.domain.media.ArtistDetailSimilarArtistsDisplayLimit
+import app.naviamp.domain.media.ArtistDetailSimilarArtistsFetchLimit
+import app.naviamp.domain.media.artistPopularTracksUpdate
+import app.naviamp.domain.media.loadingPopularTracksStatus
+import app.naviamp.domain.media.loadingSimilarArtistsStatus
+import app.naviamp.domain.media.missingPopularTracksSourceStatus
+import app.naviamp.domain.media.popularTracksUnavailableStatus
+import app.naviamp.domain.media.similarArtistsUnavailableStatus
+import app.naviamp.domain.media.similarArtistsUpdate
 import app.naviamp.domain.popular.ArtistPopularTracksService
 import app.naviamp.domain.popular.DeezerPopularTracksClient
 import app.naviamp.domain.popular.SimilarArtistMatch
@@ -2086,28 +2097,25 @@ fun NaviampApp(
     }
 
     fun findSimilarArtists(artist: Artist) {
-        selectedArtistSimilarArtistsStatus = "Finding similar artists..."
+        selectedArtistSimilarArtistsStatus = loadingSimilarArtistsStatus()
         selectedArtistSimilarArtists = emptyList()
         coroutineScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
                     similarArtistsService.similarArtists(
                         artistName = artist.name,
-                        limit = SimilarArtistsFetchLimit,
+                        limit = ArtistDetailSimilarArtistsFetchLimit,
                     )
                 }
             }.onSuccess { artists ->
                 if (selectedArtist?.id == artist.id) {
-                    selectedArtistSimilarArtists = artists.take(SimilarArtistsDisplayLimit)
-                    selectedArtistSimilarArtistsStatus = if (artists.isEmpty()) {
-                        "No similar artists found."
-                    } else {
-                        null
-                    }
+                    val update = similarArtistsUpdate(artists, ArtistDetailSimilarArtistsDisplayLimit)
+                    selectedArtistSimilarArtists = update.artists
+                    selectedArtistSimilarArtistsStatus = update.status
                 }
             }.onFailure { error ->
                 if (selectedArtist?.id == artist.id) {
-                    selectedArtistSimilarArtistsStatus = "Similar artists unavailable: ${error.message ?: "unknown error"}"
+                    selectedArtistSimilarArtistsStatus = similarArtistsUnavailableStatus(error)
                 }
             }
         }
@@ -2153,11 +2161,11 @@ fun NaviampApp(
                         popularTracksService.popularTracks(
                             sourceId = sourceId,
                             artist = details.artist,
-                            limit = PopularTracksFetchLimit,
+                            limit = ArtistDetailPopularTracksFetchLimit,
                         )
                     }.onSuccess { matches ->
                         if (selectedArtist?.id == artist.id) {
-                            val update = artistPopularTracksUpdate(matches, PopularTracksDisplayLimit)
+                            val update = artistPopularTracksUpdate(matches, ArtistDetailPopularTracksDisplayLimit)
                             selectedArtistPopularTracks = update.tracks
                             selectedArtistPopularTracksStatus = update.status
                         }

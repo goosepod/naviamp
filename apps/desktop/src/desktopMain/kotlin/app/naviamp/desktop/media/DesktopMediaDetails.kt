@@ -9,17 +9,11 @@ import app.naviamp.domain.media.albumDetailLoadErrorStatus
 import app.naviamp.domain.media.albumDetailsFromLibraryTracks
 import app.naviamp.domain.media.artistDetailLoadErrorStatus
 import app.naviamp.domain.media.artistDetailsFromLibraryTracks
-import app.naviamp.domain.popular.ArtistPopularTrackMatch
 import app.naviamp.domain.provider.MediaProvider
 
 data class ArtistDetailNavigation(
     val backStack: List<Artist>,
     val backRoute: AppRoute,
-)
-
-data class ArtistPopularTracksUpdate(
-    val tracks: List<Track>,
-    val status: String?,
 )
 
 fun resolveAlbumDetailBackRoute(
@@ -124,30 +118,6 @@ fun trackAlbum(track: Track): Album? =
             releaseYear = track.albumReleaseYear,
         )
     }
-
-fun missingPopularTracksSourceStatus(): String =
-    "Popular tracks unavailable: no connected media source."
-
-fun loadingPopularTracksStatus(): String =
-    "Loading popular tracks..."
-
-fun artistPopularTracksUpdate(
-    matches: List<ArtistPopularTrackMatch>,
-    displayLimit: Int,
-): ArtistPopularTracksUpdate =
-    ArtistPopularTracksUpdate(
-        tracks = matches
-            .map { it.matchedTrack }
-            .take(displayLimit),
-        status = if (matches.isEmpty()) {
-            "No popular tracks matched songs in your library."
-        } else {
-            null
-        },
-    )
-
-fun popularTracksUnavailableStatus(error: Throwable): String =
-    "Popular tracks unavailable: ${error.message ?: "unknown error"}"
 
 fun albumLoadErrorStatus(error: Throwable): String =
     albumDetailLoadErrorStatus(error)

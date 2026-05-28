@@ -6,8 +6,6 @@ import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
-import app.naviamp.domain.popular.ArtistPopularTrackCandidate
-import app.naviamp.domain.popular.ArtistPopularTrackMatch
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -119,35 +117,9 @@ class DesktopMediaDetailsTest {
     }
 
     @Test
-    fun popularTracksUpdateLimitsTracksAndReportsEmptyMatches() {
-        val matches = listOf(match("one"), match("two"), match("three"))
-
-        assertEquals(
-            ArtistPopularTracksUpdate(
-                tracks = matches.take(2).map { it.matchedTrack },
-                status = null,
-            ),
-            artistPopularTracksUpdate(matches, displayLimit = 2),
-        )
-        assertEquals(
-            ArtistPopularTracksUpdate(
-                tracks = emptyList(),
-                status = "No popular tracks matched songs in your library.",
-            ),
-            artistPopularTracksUpdate(emptyList(), displayLimit = 2),
-        )
-    }
-
-    @Test
     fun detailStatusHelpersUseFallbackMessages() {
         assertEquals("Could not load album.", albumLoadErrorStatus(Exception()))
         assertEquals("Could not load artist.", artistLoadErrorStatus(Exception()))
-        assertEquals("Popular tracks unavailable: unknown error", popularTracksUnavailableStatus(Exception()))
-        assertEquals(
-            "Popular tracks unavailable: no connected media source.",
-            missingPopularTracksSourceStatus(),
-        )
-        assertEquals("Loading popular tracks...", loadingPopularTracksStatus())
     }
 
     private fun artist(id: String): Artist =
@@ -176,15 +148,4 @@ class DesktopMediaDetailsTest {
             replayGain = null,
         )
 
-    private fun match(id: String): ArtistPopularTrackMatch =
-        ArtistPopularTrackMatch(
-            candidate = ArtistPopularTrackCandidate(
-                source = "test",
-                sourceTrackId = id,
-                rank = 1,
-                title = "Track $id",
-            ),
-            matchedTrack = track().copy(id = TrackId(id), title = "Track $id"),
-            fetchedAtEpochMillis = 1L,
-        )
 }

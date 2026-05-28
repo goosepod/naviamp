@@ -7,6 +7,23 @@ import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.Track
+import app.naviamp.domain.popular.ArtistPopularTrackMatch
+import app.naviamp.domain.popular.SimilarArtistMatch
+
+const val ArtistDetailPopularTracksFetchLimit = 25
+const val ArtistDetailPopularTracksDisplayLimit = 10
+const val ArtistDetailSimilarArtistsFetchLimit = 20
+const val ArtistDetailSimilarArtistsDisplayLimit = 10
+
+data class ArtistPopularTracksUpdate(
+    val tracks: List<Track>,
+    val status: String?,
+)
+
+data class SimilarArtistsUpdate(
+    val artists: List<SimilarArtistMatch>,
+    val status: String?,
+)
 
 fun albumDetailsFromLibraryTracks(
     albumId: AlbumId,
@@ -72,6 +89,45 @@ fun artistDetailLoadedStatus(detail: ArtistDetails): String =
 
 fun artistDetailLoadErrorStatus(error: Throwable): String =
     error.message ?: "Could not load artist."
+
+fun missingPopularTracksSourceStatus(): String =
+    "Popular tracks unavailable: no connected media source."
+
+fun loadingPopularTracksStatus(): String =
+    "Loading popular tracks..."
+
+fun artistPopularTracksUpdate(
+    matches: List<ArtistPopularTrackMatch>,
+    displayLimit: Int = ArtistDetailPopularTracksDisplayLimit,
+): ArtistPopularTracksUpdate =
+    ArtistPopularTracksUpdate(
+        tracks = matches
+            .map { it.matchedTrack }
+            .take(displayLimit),
+        status = if (matches.isEmpty()) {
+            "No popular tracks matched songs in your library."
+        } else {
+            null
+        },
+    )
+
+fun popularTracksUnavailableStatus(error: Throwable): String =
+    "Popular tracks unavailable: ${error.message ?: "unknown error"}"
+
+fun loadingSimilarArtistsStatus(): String =
+    "Finding similar artists..."
+
+fun similarArtistsUpdate(
+    artists: List<SimilarArtistMatch>,
+    displayLimit: Int = ArtistDetailSimilarArtistsDisplayLimit,
+): SimilarArtistsUpdate =
+    SimilarArtistsUpdate(
+        artists = artists.take(displayLimit),
+        status = if (artists.isEmpty()) "No similar artists found." else null,
+    )
+
+fun similarArtistsUnavailableStatus(error: Throwable): String =
+    "Similar artists unavailable: ${error.message ?: "unknown error"}"
 
 fun albumDetailLoadingStatus(fallbackTitle: String?): String =
     "Loading ${fallbackTitle ?: "album"}..."
