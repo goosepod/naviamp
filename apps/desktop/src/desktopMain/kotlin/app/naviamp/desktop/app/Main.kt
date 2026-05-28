@@ -85,6 +85,8 @@ import app.naviamp.domain.playback.planPlaybackSeek
 import app.naviamp.domain.playback.shouldClearPendingSeek
 import app.naviamp.domain.playback.shouldIgnoreProgressForPendingSeek
 import app.naviamp.domain.playback.shouldRestartInsteadOfPrevious
+import app.naviamp.domain.playback.canReportPlaybackTrack
+import app.naviamp.domain.playback.shouldReportNowPlaying
 import app.naviamp.domain.playback.shouldSubmitPlayReport
 import app.naviamp.domain.playback.shouldUpdatePlaybackProgressUi
 import app.naviamp.domain.home.HomeContent
@@ -488,8 +490,15 @@ fun NaviampApp(
     LaunchedEffect(connectedProvider, nowPlayingTrack?.id, playbackState) {
         val provider = connectedProvider ?: return@LaunchedEffect
         val track = nowPlayingTrack ?: return@LaunchedEffect
-        if (!provider.capabilities.supportsPlayReporting || track.isInternetRadioTrack()) return@LaunchedEffect
-        if (playbackState != PlaybackState.Playing) return@LaunchedEffect
+        if (
+            !shouldReportNowPlaying(
+                supportsPlayReporting = provider.capabilities.supportsPlayReporting,
+                isInternetRadioTrack = track.isInternetRadioTrack(),
+                playbackState = playbackState,
+            )
+        ) {
+            return@LaunchedEffect
+        }
 
         while (true) {
             runCatching {
@@ -640,8 +649,14 @@ fun NaviampApp(
 
     fun reportNowPlaying(track: Track) {
         val provider = connectedProvider ?: return
-        if (!provider.capabilities.supportsPlayReporting) return
-        if (track.isInternetRadioTrack()) return
+        if (
+            !canReportPlaybackTrack(
+                supportsPlayReporting = provider.capabilities.supportsPlayReporting,
+                isInternetRadioTrack = track.isInternetRadioTrack(),
+            )
+        ) {
+            return
+        }
         coroutineScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {

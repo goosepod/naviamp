@@ -13,6 +13,59 @@ class PlaybackReportDecisionsTest {
     }
 
     @Test
+    fun playbackTrackReportingRequiresProviderSupportAndNonRadioTrack() {
+        assertEquals(
+            false,
+            canReportPlaybackTrack(
+                supportsPlayReporting = false,
+                isInternetRadioTrack = false,
+            ),
+        )
+        assertEquals(
+            false,
+            canReportPlaybackTrack(
+                supportsPlayReporting = true,
+                isInternetRadioTrack = true,
+            ),
+        )
+        assertEquals(
+            true,
+            canReportPlaybackTrack(
+                supportsPlayReporting = true,
+                isInternetRadioTrack = false,
+            ),
+        )
+    }
+
+    @Test
+    fun nowPlayingReportRequiresReportablePlayingTrack() {
+        assertEquals(
+            false,
+            shouldReportNowPlaying(
+                supportsPlayReporting = true,
+                isInternetRadioTrack = false,
+                playbackState = PlaybackState.Paused,
+            ),
+        )
+        assertEquals(
+            false,
+            shouldReportNowPlaying(
+                supportsPlayReporting = true,
+                isInternetRadioTrack = true,
+                playbackState = PlaybackState.Playing,
+            ),
+        )
+        assertEquals(
+            true,
+            shouldReportNowPlaying(
+                supportsPlayReporting = true,
+                isInternetRadioTrack = false,
+                playbackState = PlaybackState.Playing,
+            ),
+        )
+    }
+
+    @Test
     fun playReportSubmissionRequiresSupportNewSessionPlayableTrackAndThresholdProgress() {
         assertEquals(
             false,

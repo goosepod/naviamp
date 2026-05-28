@@ -13,6 +13,22 @@ fun playReportThresholdSeconds(
         ?.let { minOf(it * durationFraction, maxThresholdSeconds) }
         ?: maxThresholdSeconds
 
+fun canReportPlaybackTrack(
+    supportsPlayReporting: Boolean,
+    isInternetRadioTrack: Boolean,
+): Boolean =
+    supportsPlayReporting && !isInternetRadioTrack
+
+fun shouldReportNowPlaying(
+    supportsPlayReporting: Boolean,
+    isInternetRadioTrack: Boolean,
+    playbackState: PlaybackState,
+): Boolean =
+    canReportPlaybackTrack(
+        supportsPlayReporting = supportsPlayReporting,
+        isInternetRadioTrack = isInternetRadioTrack,
+    ) && playbackState == PlaybackState.Playing
+
 fun <SessionId> shouldSubmitPlayReport(
     supportsPlayReporting: Boolean,
     isInternetRadioTrack: Boolean,
@@ -23,8 +39,7 @@ fun <SessionId> shouldSubmitPlayReport(
     durationFraction: Double = DefaultPlayReportDurationFraction,
     maxThresholdSeconds: Double = DefaultPlayReportMaxThresholdSeconds,
 ): Boolean {
-    if (!supportsPlayReporting) return false
-    if (isInternetRadioTrack) return false
+    if (!canReportPlaybackTrack(supportsPlayReporting, isInternetRadioTrack)) return false
     if (submittedSessionId == activeSessionId) return false
     val position = positionSeconds ?: return false
     return position >= playReportThresholdSeconds(

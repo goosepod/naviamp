@@ -30,19 +30,20 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 
 ## Feature Checklist
 
-- [ ] Playback/session behavior
+- [x] Playback/session behavior
   - [x] Move queue navigation and repeat/shuffle decisions into `core/domain`.
     - [x] Move repeat-mode cycling and previous-button restart decisions into `core/domain`.
     - [x] Move adjacent queue index, repeat-track, and repeat-queue wrap decisions into `PlaybackQueue`.
     - [x] Move Up Next shuffle/restore toggle decisions into `PlaybackQueue`.
-  - [ ] Move seek planning and provider-stream replay decisions into `core/domain`.
+  - [x] Move seek planning and provider-stream replay decisions into `core/domain`.
     - [x] Move seek progress seeding, radio seek blocking, and transcoded replay planning into `core/domain`.
   - [x] Move playback progress, pending-seek, and UI update gating into shared code where Android has matching behavior.
     - [x] Move pending-seek stale-progress filtering and target detection into `core/domain`.
     - [x] Move missing-field progress merge and desktop UI update gating into `core/domain`.
-  - [ ] Move play-report and now-playing report thresholds/eligibility into `core/domain`.
+  - [x] Move play-report and now-playing report thresholds/eligibility into `core/domain`.
     - [x] Move play-report threshold and submission eligibility into `core/domain`.
-  - [ ] Share restored session validation and playback-session mapping.
+    - [x] Move now-playing heartbeat eligibility into `core/domain`.
+  - [x] Share restored session validation and playback-session mapping.
     - [x] Cover restored session validation, queue mapping, progress mapping, and adjacent-track session changes with common tests.
 
 - [ ] Library and search behavior
@@ -110,6 +111,7 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 - Pending-seek stale-progress filtering and target detection now live in `core/domain` and are used by desktop, Android app playback progress handling, and Android foreground service progress handling. The foreground service keeps its narrower clear behavior by sharing only the target-detection helper.
 - Progress missing-field merging and desktop playback UI update gating now live in `core/domain`; Android keeps immediate Compose progress updates while sharing the missing-field merge behavior.
 - Play-report threshold and submission eligibility now live in `core/domain` and are used by both desktop and Android. Provider calls, coroutine dispatch, and failure rollback remain platform-local; desktop now shares Android's explicit internet-radio exclusion for played reports.
+- Now-playing heartbeat eligibility now lives in `core/domain` and is used by both desktop and Android. Provider calls, heartbeat timing, and coroutine dispatch remain platform-local.
 - Repeat-mode cycling and previous-button restart eligibility now live in `core/domain`. Desktop and Android still pass their existing restart thresholds because those values differ today.
 - Queue adjacent-index and Up Next shuffle/restore decisions now live in `core/domain/queue`; desktop and Android still own playback engine mutation, active queue fallback, and UI snapshot storage.
 - Seek planning now lives in `core/domain`: shared code seeds optimistic progress, preserves known duration, blocks radio seeks, and decides whether a transcoded seek should replay the current item. Desktop still maps its local `PlaybackSource` to the replay flag, while Android preserves its existing rule that transcoded streams replay on seek.

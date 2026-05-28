@@ -97,6 +97,7 @@ import app.naviamp.domain.playback.planPlaybackSeek
 import app.naviamp.domain.playback.shouldClearPendingSeek
 import app.naviamp.domain.playback.shouldIgnoreProgressForPendingSeek
 import app.naviamp.domain.playback.shouldRestartInsteadOfPrevious
+import app.naviamp.domain.playback.canReportPlaybackTrack
 import app.naviamp.domain.playback.shouldSubmitPlayReport
 import app.naviamp.domain.popular.ArtistPopularTracksService
 import app.naviamp.domain.popular.DeezerPopularTracksClient
@@ -750,7 +751,14 @@ private fun NaviampAndroidApp(
 
     fun reportNowPlaying(track: Track) {
         val activeProvider = provider ?: return
-        if (!activeProvider.capabilities.supportsPlayReporting || track.isInternetRadioTrack()) return
+        if (
+            !canReportPlaybackTrack(
+                supportsPlayReporting = activeProvider.capabilities.supportsPlayReporting,
+                isInternetRadioTrack = track.isInternetRadioTrack(),
+            )
+        ) {
+            return
+        }
         scope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
