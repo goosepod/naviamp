@@ -90,7 +90,7 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
   - [x] Keep platform storage backends local.
 
 - [ ] UI models
-  - [ ] Move duplicated display models into `core/ui`.
+  - [x] Move duplicated display models into `core/ui`.
   - [ ] Share action availability mapping for media rows, now playing, radio, playlists, and search.
   - [ ] Keep final Compose layouts platform-local when screen density/lifecycle differs.
 
@@ -136,5 +136,6 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 - Playback settings validation and effective-setting derivation now live in `core/domain/settings`; desktop and Android share capability-based ReplayGain, gapless/crossfade, software-volume, and stream-quality normalization before applying or saving settings.
 - Portable settings/session serialization models live in `core/domain/settings`, including playback, cache, navigation, search, recent radio, saved media, playback session, and visualizer selection. Desktop still owns the JSON file envelope and window/connection persistence; Android still owns SharedPreferences keys and source-specific playback session storage.
 - Settings storage backends remain platform-owned: desktop keeps filesystem paths, JSON envelope migration, and window/connection persistence in `apps/desktop`; Android keeps SharedPreferences keys, Android connection form persistence, and source-scoped playback session storage in `apps/android`.
+- Duplicated playback display helpers now live in `core/ui`; desktop uses the shared playback progress timeline label, position label, nullable duration label, and progress fraction helpers while retaining only its desktop-specific stream-quality engine preference helper locally.
 - Artist/album detail visual composition and navigation state remain outside domain: desktop keeps its Compose detail panels and back-route state in `apps/desktop`, Android keeps app back-stack state in `apps/android`, and shared UI models/layout stay in `core/ui`.
 - Desktop compile currently warns about deprecated Compose desktop `Preview` import and string-based `painterResource` usage in `apps/desktop/.../app/Main.kt`; fix as a separate warning-cleanup slice so resource packaging changes stay isolated.
