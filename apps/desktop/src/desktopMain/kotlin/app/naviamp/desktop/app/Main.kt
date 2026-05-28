@@ -2141,7 +2141,7 @@ fun NaviampApp(
         appRoute = AppRoute.ArtistDetail
         coroutineScope.launch {
             try {
-                val details = loadArtistDetails(sessionCache, provider, artist)
+                val details = loadArtistDetails(sessionCache, provider, artist, connectedSourceId)
                 selectedArtistDetails = details
                 selectedArtistStatus = null
                 val sourceId = connectedSourceId

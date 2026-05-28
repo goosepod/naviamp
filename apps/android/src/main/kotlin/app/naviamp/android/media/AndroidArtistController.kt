@@ -5,10 +5,12 @@ import android.content.Intent
 import android.net.Uri
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumId
-import app.naviamp.domain.Artist
-import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.app.NaviampRoute
+import app.naviamp.domain.media.artistDetailLoadErrorStatus
+import app.naviamp.domain.media.artistDetailLoadedStatus
+import app.naviamp.domain.media.artistDetailLoadingStatus
+import app.naviamp.domain.media.artistDetailsFromLibraryTracks
 import app.naviamp.domain.popular.ArtistPopularTracksService
 import app.naviamp.domain.popular.SimilarArtistsService
 import app.naviamp.domain.Track
@@ -17,39 +19,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
-fun localAndroidArtistDetail(
-    storage: AndroidStorage,
-    sourceId: String,
-    artistId: ArtistId,
-    fallbackName: String?,
-): ArtistDetails? {
-    val tracks = storage.libraryTracksForArtist(sourceId, artistId, limit = 1_000)
-    if (tracks.isEmpty()) return fallbackName?.let { name ->
-        ArtistDetails(artist = Artist(artistId, name), albums = emptyList(), info = null)
-    }
-    val artistName = fallbackName ?: tracks.firstOrNull()?.artistName ?: "Unknown Artist"
-    val albums = tracks
-        .groupBy { track -> track.albumId?.value ?: track.albumTitle.orEmpty() }
-        .mapNotNull { (_, albumTracks) ->
-            val first = albumTracks.firstOrNull() ?: return@mapNotNull null
-            val albumId = first.albumId ?: return@mapNotNull null
-            Album(
-                id = albumId,
-                title = first.albumTitle ?: "Unknown Album",
-                artistName = first.artistName,
-                coverArtId = first.coverArtId,
-                recentlyAddedAtIso8601 = null,
-                releaseYear = first.albumReleaseYear,
-            )
-        }
-        .sortedWith(compareBy<Album> { it.releaseYear ?: Int.MAX_VALUE }.thenBy { it.title.lowercase() })
-    return ArtistDetails(
-        artist = Artist(artistId, artistName),
-        albums = albums,
-        info = null,
-    )
-}
 
 fun openAndroidArtistDetails(
     scope: CoroutineScope,
@@ -72,21 +41,23 @@ fun openAndroidArtistDetails(
     }
     scope.launch {
         with(state) {
-            status = "Loading ${fallbackName ?: "artist"}..."
+            status = artistDetailLoadingStatus(fallbackName)
             runCatching { activeProvider.artist(artistId) }
                 .recoverCatching { error ->
-                    val fallbackDetail = sourceId?.let { localAndroidArtistDetail(storage, it, artistId, fallbackName) }
+                    val fallbackDetail = sourceId?.let {
+                        artistDetailsFromLibraryTracks(
+                            artistId = artistId,
+                            fallbackName = fallbackName,
+                            tracks = storage.libraryTracksForArtist(it, artistId, limit = 1_000),
+                        )
+                    }
                     fallbackDetail ?: throw error
                 }
                 .onSuccess { detail ->
                     contentState = contentState.showArtist(detail)
                     nowPlayingOpen = false
                     navigationState = navigationState.copy(route = NaviampRoute.Library)
-                    status = if (detail.albums.isEmpty()) {
-                        "No albums found for ${detail.artist.name}."
-                    } else {
-                        "Connected."
-                    }
+                    status = artistDetailLoadedStatus(detail)
                     if (sourceId != null) {
                         artistPopularTracksStatusByArtistId =
                             artistPopularTracksStatusByArtistId + (artistId.value to "Loading popular tracks...")
@@ -127,7 +98,7 @@ fun openAndroidArtistDetails(
                                 )
                     }
                 }
-                .onFailure { error -> status = error.message ?: "Artist failed to load." }
+                .onFailure { error -> status = artistDetailLoadErrorStatus(error) }
         }
     }
 }

@@ -34,7 +34,6 @@ import app.naviamp.android.playback.AndroidPlaybackRuntime
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Artist
-import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Lyrics
@@ -1399,14 +1398,6 @@ private fun NaviampAndroidApp(
 
     LaunchedEffect(nowPlaying?.id, nowPlaying?.favoritedAtIso8601, provider?.capabilities?.supportsTrackFavorites) {
         updateNotificationFavoriteState()
-    }
-
-    fun localArtistDetail(
-        sourceId: String,
-        artistId: app.naviamp.domain.ArtistId,
-        fallbackName: String?,
-    ): ArtistDetails? {
-        return localAndroidArtistDetail(storage, sourceId, artistId, fallbackName)
     }
 
     fun openArtistDetails(
