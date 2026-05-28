@@ -62,6 +62,17 @@ fun Track.toAndroidTrackRowUi(
         popular = popular,
     )
 
+fun Track.toDownloadedTrackUi(
+    id: String,
+    sizeBytes: Long,
+    coverArtUrl: (String?) -> String?,
+): NaviampDownloadedTrackUi =
+    NaviampDownloadedTrackUi(
+        id = id,
+        track = toAndroidTrackRowUi(coverArtUrl),
+        sizeBytes = sizeBytes,
+    )
+
 fun Track.toNowPlayingItemUi(coverArtUrl: (String?) -> String?): NaviampNowPlayingItemUi =
     NaviampNowPlayingItemUi(
         id = id.value,

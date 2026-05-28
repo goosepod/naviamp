@@ -162,6 +162,7 @@ import app.naviamp.ui.preloadJvmPlatformCoverArt
 import app.naviamp.ui.resetJvmPlatformCoverArtByteLoader
 import app.naviamp.ui.rememberPlatformCoverArtPlayerColors
 import app.naviamp.ui.setJvmPlatformCoverArtByteLoader
+import app.naviamp.ui.toDownloadedTrackUi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -2897,19 +2898,37 @@ fun NaviampApp(
                                                 ?.let { sessionCache.downloadedTracks(it) }
                                                 .orEmpty()
                                         }
+                                        val downloadedTrackById = remember(downloads) {
+                                            downloads.associateBy { it.path.toString() }
+                                        }
+                                        val downloadItems = remember(downloads, connectedProvider) {
+                                            downloads.map { download ->
+                                                download.track.toDownloadedTrackUi(
+                                                    id = download.path.toString(),
+                                                    sizeBytes = download.sizeBytes,
+                                                    coverArtUrl = { coverArtId ->
+                                                        coverArtId?.let { connectedProvider?.coverArtUrl(it) }
+                                                    },
+                                                )
+                                            }
+                                        }
                                         DownloadsPanel(
                                             appColors = appColors,
-                                            downloads = downloads,
+                                            downloads = downloadItems,
                                             status = downloadStatus ?: connectionStatus,
                                             downloadBytes = cacheStats.downloadBytes,
                                             maxDownloadBytes = cacheSettings.maxDownloadBytes,
-                                            coverArtUrl = { coverArtId ->
-                                                coverArtId?.let { connectedProvider?.coverArtUrl(it) }
+                                            onTrackSelected = { download ->
+                                                val index = downloadItems.indexOfFirst { it.id == download.id }
+                                                if (index >= 0) playDownloadedTrack(downloads, index)
                                             },
-                                            onTrackSelected = { index -> playDownloadedTrack(downloads, index) },
-                                            onRemoveDownload = { download -> removeDownloadedTrack(download) },
+                                            onRemoveDownload = { download ->
+                                                downloadedTrackById[download.id]?.let(::removeDownloadedTrack)
+                                            },
                                             onTrackAddToPlaylist = { download ->
-                                                openAddToPlaylist(AddToPlaylistTarget.TrackTarget(download.track))
+                                                downloadedTrackById[download.id]?.let {
+                                                    openAddToPlaylist(AddToPlaylistTarget.TrackTarget(it.track))
+                                                }
                                             },
                                         )
                                     }

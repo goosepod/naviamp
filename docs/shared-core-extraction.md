@@ -70,8 +70,8 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 
 - [ ] Downloads/cache behavior
   - [x] Move download eligibility and request planning into `core/domain`.
-  - [ ] Keep actual filesystem paths, cache eviction, and platform storage adapters in app modules.
-  - [ ] Share downloaded-track display/status mapping where possible.
+  - [x] Keep actual filesystem paths, cache eviction, and platform storage adapters in app modules.
+  - [x] Share downloaded-track display/status mapping where possible.
 
 - [ ] Artist/album/detail behavior
   - [ ] Move artist detail loading fallback rules into `core/domain`.
@@ -126,4 +126,5 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 - Smart playlist save/update refresh orchestration and save/update/load status/error messages now live in `core/domain/provider`. Desktop still owns password/native-token refresh before saving, and Android currently wires only the save flow.
 - Playlist cache refresh and UI state mutation remain platform-local after the shared mutation extraction because desktop and Android own different state containers and preload paths.
 - Download eligibility, mobile-data blocking, request track planning, status/error messages, and downloaded-track playback selection now live in `core/domain/cache`. Desktop and Android still own download execution, refresh tokens, storage statistics, and platform cache repositories.
+- Downloaded-track display mapping now lives in `core/ui`; desktop and Android both map platform download records into `NaviampDownloadedTrackUi` before rendering.
 - Desktop compile currently warns about deprecated Compose desktop `Preview` import and string-based `painterResource` usage in `apps/desktop/.../app/Main.kt`; fix as a separate warning-cleanup slice so resource packaging changes stay isolated.

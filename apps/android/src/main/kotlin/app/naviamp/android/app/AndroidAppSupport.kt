@@ -62,7 +62,7 @@ import app.naviamp.ui.SharedPlaylistSortMode
 import app.naviamp.ui.SharedRoute
 import app.naviamp.ui.SharedSearchResultsUi
 import app.naviamp.ui.SharedSimilarArtistUi
-import app.naviamp.ui.toAndroidTrackRowUi
+import app.naviamp.ui.toDownloadedTrackUi
 import app.naviamp.ui.toNowPlayingItemUi
 import app.naviamp.ui.toNowPlayingStationUi
 import app.naviamp.ui.toNowPlayingUi
@@ -224,10 +224,10 @@ fun androidShellModels(
             isSyncing = isLibrarySyncing,
         ),
         downloads = downloadedTracks.map { download ->
-            NaviampDownloadedTrackUi(
+            download.track.toDownloadedTrackUi(
                 id = download.file.absolutePath,
-                track = download.track.toAndroidTrackRowUi(coverArtUrl),
                 sizeBytes = download.sizeBytes,
+                coverArtUrl = coverArtUrl,
             )
         },
         playlistItems = homeState.playlists.map {
