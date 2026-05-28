@@ -80,6 +80,7 @@ import app.naviamp.domain.home.parseHomeDecadeStationId
 import app.naviamp.domain.home.parseHomeGenreStationId
 import app.naviamp.domain.library.LibraryFreshness
 import app.naviamp.domain.library.evaluateLibraryFreshness
+import app.naviamp.domain.media.albumDetailLoadErrorStatus
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackReplayGain
@@ -1820,7 +1821,7 @@ private fun NaviampAndroidApp(
     }
 
     fun handleShellAlbumSelected(selectedAlbum: SharedMediaItemUi) {
-        openAndroidAlbumDetails(scope, appState, selectedAlbum)
+        openAndroidAlbumDetails(scope, appState, storage, selectedAlbum)
     }
 
     fun handleShellArtistRadio(detail: SharedArtistDetailUi) {
@@ -1980,12 +1981,25 @@ private fun NaviampAndroidApp(
         val albumId = nowPlaying?.albumId ?: return
         scope.launch {
             runCatching { activeProvider.album(albumId) }
+                .recoverCatching { error ->
+                    activeSourceId
+                        ?.let { sourceId ->
+                            albumDetailsFromAndroidTrackFallback(
+                                storage = storage,
+                                sourceId = sourceId,
+                                albumId = albumId,
+                                fallbackTitle = nowPlaying?.albumTitle,
+                                fallbackArtistName = nowPlaying?.artistName,
+                            )
+                        }
+                        ?: throw error
+                }
                 .onSuccess { detail ->
                     contentState = contentState.showAlbum(detail)
                     nowPlayingOpen = false
                     navigationState = navigationState.copy(route = NaviampRoute.Library)
                 }
-                .onFailure { error -> status = error.message ?: "Album failed to load." }
+                .onFailure { error -> status = albumDetailLoadErrorStatus(error) }
         }
     }
 
@@ -2123,7 +2137,7 @@ private fun NaviampAndroidApp(
     }
 
     fun loadArtistAlbumTracks(selectedAlbum: SharedMediaItemUi, action: (List<Track>) -> Unit) {
-        loadAndroidArtistAlbumTracks(scope, appState, selectedAlbum, action)
+        loadAndroidArtistAlbumTracks(scope, appState, storage, selectedAlbum, action)
     }
 
     fun handleArtistAlbumRadio(selectedAlbum: SharedMediaItemUi) {

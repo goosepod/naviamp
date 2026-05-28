@@ -1542,7 +1542,7 @@ fun NaviampApp(
         appRoute = AppRoute.AlbumDetail
         coroutineScope.launch {
             try {
-                selectedAlbumDetails = loadAlbumDetails(sessionCache, provider, album)
+                selectedAlbumDetails = loadAlbumDetails(sessionCache, provider, album, connectedSourceId)
                 selectedAlbumStatus = null
             } catch (exception: Exception) {
                 selectedAlbumStatus = albumLoadErrorStatus(exception)

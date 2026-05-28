@@ -1,6 +1,7 @@
 package app.naviamp.domain.media
 
 import app.naviamp.domain.Album
+import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistId
@@ -11,6 +12,46 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 class MediaDetailFallbacksTest {
+    @Test
+    fun albumDetailsFromLibraryTracksReturnsNullWithoutTracks() {
+        assertNull(
+            albumDetailsFromLibraryTracks(
+                albumId = AlbumId("album"),
+                fallbackTitle = "Album",
+                fallbackArtistName = "Artist",
+                tracks = emptyList(),
+            ),
+        )
+    }
+
+    @Test
+    fun albumDetailsFromLibraryTracksBuildsDetailFromFirstTrack() {
+        val tracks = listOf(
+            track("one", albumId = "album", albumTitle = "Track Album", releaseYear = 2020),
+            track("two", albumId = "album", albumTitle = "Track Album", releaseYear = 2020),
+        )
+
+        assertEquals(
+            AlbumDetails(
+                album = Album(
+                    id = AlbumId("album"),
+                    title = "Fallback Album",
+                    artistName = "Fallback Artist",
+                    coverArtId = "cover-one",
+                    recentlyAddedAtIso8601 = null,
+                    releaseYear = 2020,
+                ),
+                tracks = tracks,
+            ),
+            albumDetailsFromLibraryTracks(
+                albumId = AlbumId("album"),
+                fallbackTitle = "Fallback Album",
+                fallbackArtistName = "Fallback Artist",
+                tracks = tracks,
+            ),
+        )
+    }
+
     @Test
     fun artistDetailsFromLibraryTracksReturnsNullWithoutTracksOrName() {
         assertNull(
@@ -95,6 +136,15 @@ class MediaDetailFallbacksTest {
         )
         assertEquals("Could not load artist.", artistDetailLoadErrorStatus(RuntimeException()))
         assertEquals("network failed", artistDetailLoadErrorStatus(RuntimeException("network failed")))
+    }
+
+    @Test
+    fun albumDetailStatusHelpersMatchSharedCopy() {
+        assertEquals("Loading album...", albumDetailLoadingStatus(null))
+        assertEquals("Loading Album...", albumDetailLoadingStatus("Album"))
+        assertEquals("Connected.", albumDetailLoadedStatus())
+        assertEquals("Could not load album.", albumDetailLoadErrorStatus(RuntimeException()))
+        assertEquals("network failed", albumDetailLoadErrorStatus(RuntimeException("network failed")))
     }
 
     private fun track(

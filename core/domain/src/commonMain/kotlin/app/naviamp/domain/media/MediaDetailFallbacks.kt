@@ -1,10 +1,31 @@
 package app.naviamp.domain.media
 
 import app.naviamp.domain.Album
+import app.naviamp.domain.AlbumDetails
+import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.Track
+
+fun albumDetailsFromLibraryTracks(
+    albumId: AlbumId,
+    fallbackTitle: String?,
+    fallbackArtistName: String?,
+    tracks: List<Track>,
+): AlbumDetails? {
+    if (tracks.isEmpty()) return null
+    val first = tracks.first()
+    val album = Album(
+        id = albumId,
+        title = fallbackTitle ?: first.albumTitle ?: "Unknown Album",
+        artistName = fallbackArtistName ?: first.artistName,
+        coverArtId = first.coverArtId,
+        recentlyAddedAtIso8601 = null,
+        releaseYear = first.albumReleaseYear,
+    )
+    return AlbumDetails(album = album, tracks = tracks)
+}
 
 fun artistDetailsFromLibraryTracks(
     artistId: ArtistId,
@@ -51,3 +72,12 @@ fun artistDetailLoadedStatus(detail: ArtistDetails): String =
 
 fun artistDetailLoadErrorStatus(error: Throwable): String =
     error.message ?: "Could not load artist."
+
+fun albumDetailLoadingStatus(fallbackTitle: String?): String =
+    "Loading ${fallbackTitle ?: "album"}..."
+
+fun albumDetailLoadedStatus(): String =
+    "Connected."
+
+fun albumDetailLoadErrorStatus(error: Throwable): String =
+    error.message ?: "Could not load album."

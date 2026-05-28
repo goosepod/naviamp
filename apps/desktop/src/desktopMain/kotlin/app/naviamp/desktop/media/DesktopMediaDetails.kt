@@ -5,6 +5,8 @@ import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.Track
+import app.naviamp.domain.media.albumDetailLoadErrorStatus
+import app.naviamp.domain.media.albumDetailsFromLibraryTracks
 import app.naviamp.domain.media.artistDetailLoadErrorStatus
 import app.naviamp.domain.media.artistDetailsFromLibraryTracks
 import app.naviamp.domain.popular.ArtistPopularTrackMatch
@@ -68,8 +70,21 @@ suspend fun loadAlbumDetails(
     cache: DesktopCache,
     provider: MediaProvider,
     album: Album,
+    sourceId: String?,
 ): AlbumDetails =
-    cache.album(provider, album.id)
+    runCatching {
+        cache.album(provider, album.id)
+    }.recoverCatching { error ->
+        val fallbackDetail = sourceId?.let {
+            albumDetailsFromLibraryTracks(
+                albumId = album.id,
+                fallbackTitle = album.title,
+                fallbackArtistName = album.artistName,
+                tracks = cache.libraryTracksForAlbum(it, album.id, limit = 1_000),
+            )
+        }
+        fallbackDetail ?: throw error
+    }.getOrThrow()
 
 suspend fun loadArtistDetails(
     cache: DesktopCache,
@@ -135,7 +150,7 @@ fun popularTracksUnavailableStatus(error: Throwable): String =
     "Popular tracks unavailable: ${error.message ?: "unknown error"}"
 
 fun albumLoadErrorStatus(error: Throwable): String =
-    error.message ?: "Could not load album."
+    albumDetailLoadErrorStatus(error)
 
 fun artistLoadErrorStatus(error: Throwable): String =
     artistDetailLoadErrorStatus(error)
