@@ -151,6 +151,11 @@ data class CacheSettings(
 }
 
 @Serializable
+data class VisualizerSettings(
+    val selectedVisualizer: String = DefaultSelectedVisualizer,
+)
+
+@Serializable
 data class NavigationSettings(
     val route: String = "Home",
     val lastContentRoute: String = "Home",
@@ -184,6 +189,8 @@ enum class RecentRadioKind {
     Album,
     Track,
 }
+
+const val DefaultSelectedVisualizer = "AudioSphere"
 
 @Serializable
 data class SavedArtist(

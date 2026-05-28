@@ -4,6 +4,7 @@ typealias PlaybackSettings = app.naviamp.domain.settings.PlaybackSettings
 typealias PreviousButtonBehavior = app.naviamp.domain.settings.PreviousButtonBehavior
 typealias UpNextSelectionBehavior = app.naviamp.domain.settings.UpNextSelectionBehavior
 typealias CacheSettings = app.naviamp.domain.settings.CacheSettings
+typealias VisualizerSettings = app.naviamp.domain.settings.VisualizerSettings
 typealias NavigationSettings = app.naviamp.domain.settings.NavigationSettings
 typealias SearchSettings = app.naviamp.domain.settings.SearchSettings
 typealias RecentRadioStream = app.naviamp.domain.settings.RecentRadioStream

@@ -86,7 +86,7 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 
 - [ ] Settings and preferences
   - [x] Share playback settings validation and effective-settings derivation.
-  - [ ] Share session/settings serialization models where they are not platform-specific.
+  - [x] Share session/settings serialization models where they are not platform-specific.
   - [ ] Keep platform storage backends local.
 
 - [ ] UI models
@@ -134,5 +134,6 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 - Route persistence/restoration mapping now lives in `core/domain/app`; desktop maps the shared restore result back to its local route enum, including the legacy `InternetRadio` stored name, while platform navigation containers stay local.
 - Navigation containers remain platform-owned: desktop keeps bottom navigation, selected-detail route projection, and window route state in `apps/desktop`, while Android keeps `BackHandler`, activity back-stack behavior, and shell route mutation in `apps/android`. Shared code stops at route enums, stored-route parsing, and safe restore targets.
 - Playback settings validation and effective-setting derivation now live in `core/domain/settings`; desktop and Android share capability-based ReplayGain, gapless/crossfade, software-volume, and stream-quality normalization before applying or saving settings.
+- Portable settings/session serialization models live in `core/domain/settings`, including playback, cache, navigation, search, recent radio, saved media, playback session, and visualizer selection. Desktop still owns the JSON file envelope and window/connection persistence; Android still owns SharedPreferences keys and source-specific playback session storage.
 - Artist/album detail visual composition and navigation state remain outside domain: desktop keeps its Compose detail panels and back-route state in `apps/desktop`, Android keeps app back-stack state in `apps/android`, and shared UI models/layout stay in `core/ui`.
 - Desktop compile currently warns about deprecated Compose desktop `Preview` import and string-based `painterResource` usage in `apps/desktop/.../app/Main.kt`; fix as a separate warning-cleanup slice so resource packaging changes stay isolated.

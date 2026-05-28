@@ -12,6 +12,7 @@ import app.naviamp.domain.provider.allKnownTracks
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.PlaybackSettings
+import app.naviamp.domain.settings.VisualizerSettings
 import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.ui.AndroidTrackRowUi
@@ -623,7 +624,7 @@ fun androidAppShellActions(
             onToggleVisualizer = { visualizerRequestedVisible = !visualizerRequestedVisible },
             onVisualizerSelected = { visualizer ->
                 selectedVisualizer = visualizer
-                settingsStore.saveSelectedVisualizer(visualizer.name)
+                settingsStore.saveVisualizerSettings(VisualizerSettings(selectedVisualizer = visualizer.name))
             },
             onTrackRadio = handleShellTrackRadio,
             onAddToPlaylist = handleNowPlayingAddToPlaylist,

@@ -267,7 +267,9 @@ private fun NaviampAndroidApp(
         initialOpenNowPlayingRequest = openNowPlayingRequest,
         initialAutoPlayMediaIdRequest = autoPlayMediaIdRequest,
         initialAutoCommandRequest = autoCommandRequest,
-        initialSelectedVisualizer = NaviampVisualizer.entries.firstOrNull { it.name == settingsStore.loadSelectedVisualizer() }
+        initialSelectedVisualizer = NaviampVisualizer.entries.firstOrNull {
+            it.name == settingsStore.loadVisualizerSettings().selectedVisualizer
+        }
             ?: NaviampVisualizer.AudioSphere,
     )
     with(appState) {
