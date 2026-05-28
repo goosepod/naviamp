@@ -57,7 +57,7 @@ fun canUseNextButton(
     repeatMode: RepeatMode,
 ): Boolean =
     queue.hasNext() ||
-        (repeatMode == RepeatMode.Queue && queue.tracks.isNotEmpty())
+        queue.nextIndex(repeatMode = repeatMode, repeatTrack = false) != null
 
 fun shouldReplayCurrentForSeek(playbackSource: PlaybackSource): Boolean =
     playbackSource == PlaybackSource.ProviderStream ||

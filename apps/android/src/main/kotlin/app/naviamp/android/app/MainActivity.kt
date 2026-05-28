@@ -377,12 +377,8 @@ private fun NaviampAndroidApp(
         val queue = activeQueue()
         val currentIndex = queue.indexOfFirst { it.id == currentTrack.id }
         if (currentIndex < 0) return null
-        return when {
-            repeatMode == RepeatMode.Track -> currentIndex
-            currentIndex < queue.lastIndex -> currentIndex + 1
-            repeatMode == RepeatMode.Queue && queue.isNotEmpty() -> 0
-            else -> null
-        }
+        return PlaybackQueue(tracks = queue, currentIndex = currentIndex)
+            .nextIndex(repeatMode = repeatMode)
     }
 
     fun currentStreamQuality(): StreamQuality =
@@ -1089,12 +1085,9 @@ private fun NaviampAndroidApp(
         val knownTracks = activeQueue()
         val currentIndex = knownTracks.indexOfFirst { it.id == currentTrack.id }
         if (currentIndex < 0) return
-        val nextIndex = when {
-            repeatMode == RepeatMode.Track -> currentIndex
-            offset > 0 && currentIndex == knownTracks.lastIndex && repeatMode == RepeatMode.Queue -> 0
-            offset < 0 && currentIndex == 0 && repeatMode == RepeatMode.Queue -> knownTracks.lastIndex
-            else -> currentIndex + offset
-        }
+        val nextIndex = PlaybackQueue(tracks = knownTracks, currentIndex = currentIndex)
+            .adjacentIndex(offset = offset, repeatMode = repeatMode)
+            ?: return
         val nextTrack = knownTracks.getOrNull(nextIndex) ?: return
         playTrack(nextTrack, knownTracks, openNowPlaying = false)
     }

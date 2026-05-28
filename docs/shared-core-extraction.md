@@ -33,6 +33,7 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 - [ ] Playback/session behavior
   - [ ] Move queue navigation and repeat/shuffle decisions into `core/domain`.
     - [x] Move repeat-mode cycling and previous-button restart decisions into `core/domain`.
+    - [x] Move adjacent queue index, repeat-track, and repeat-queue wrap decisions into `PlaybackQueue`.
   - [ ] Move seek planning and provider-stream replay decisions into `core/domain`.
     - [x] Move seek progress seeding, radio seek blocking, and transcoded replay planning into `core/domain`.
   - [ ] Move playback progress, pending-seek, and UI update gating into shared code where Android has matching behavior.
@@ -121,3 +122,4 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 - Smart playlist save/update refresh orchestration and save/update/load status/error messages now live in `core/domain/provider`. Desktop still owns password/native-token refresh before saving, and Android currently wires only the save flow.
 - Playlist cache refresh and UI state mutation remain platform-local after the shared mutation extraction because desktop and Android own different state containers and preload paths.
 - Download eligibility, mobile-data blocking, request track planning, status/error messages, and downloaded-track playback selection now live in `core/domain/cache`. Desktop and Android still own download execution, refresh tokens, storage statistics, and platform cache repositories.
+- Desktop compile currently warns about deprecated Compose desktop `Preview` import and string-based `painterResource` usage in `apps/desktop/.../app/Main.kt`; fix as a separate warning-cleanup slice so resource packaging changes stay isolated.

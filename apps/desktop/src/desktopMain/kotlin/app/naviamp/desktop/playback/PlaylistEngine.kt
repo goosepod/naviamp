@@ -171,11 +171,7 @@ class PlaylistEngine(
     }
 
     fun next(scope: CoroutineScope) {
-        val nextIndex = when {
-            queue.hasNext() -> queue.currentIndex + 1
-            repeatMode == RepeatMode.Queue && queue.tracks.isNotEmpty() -> 0
-            else -> return
-        }
+        val nextIndex = queue.nextIndex(repeatMode = repeatMode, repeatTrack = false) ?: return
         sessionId += 1
         playQueueIndex(scope, queue.tracks, nextIndex, sessionId)
     }
@@ -204,9 +200,13 @@ class PlaylistEngine(
     }
 
     fun previous(scope: CoroutineScope) {
-        if (!queue.hasPrevious()) return
+        val previousIndex = queue.previousIndex(
+            repeatMode = repeatMode,
+            repeatTrack = false,
+            wrapQueue = false,
+        ) ?: return
         sessionId += 1
-        playQueueIndex(scope, queue.tracks, queue.currentIndex - 1, sessionId)
+        playQueueIndex(scope, queue.tracks, previousIndex, sessionId)
     }
 
     fun shuffleUpcoming(): List<Track>? {
@@ -561,12 +561,7 @@ class PlaylistEngine(
         if (activeSessionId != sessionId) return
 
         if (state == PlaybackState.Finished) {
-            val nextIndex = when {
-                repeatMode == RepeatMode.Track && queue.currentIndex in queue.tracks.indices -> queue.currentIndex
-                queue.hasNext() -> queue.currentIndex + 1
-                repeatMode == RepeatMode.Queue && queue.tracks.isNotEmpty() -> 0
-                else -> null
-            }
+            val nextIndex = queue.nextIndex(repeatMode = repeatMode)
             if (nextIndex != null) {
                 playQueueIndex(scope, queue.tracks, nextIndex, activeSessionId)
                 return
@@ -625,12 +620,7 @@ class PlaylistEngine(
     }
 
     private fun nextGaplessQueueIndex(): Int? =
-        when {
-            repeatMode == RepeatMode.Track && queue.currentIndex in queue.tracks.indices -> queue.currentIndex
-            queue.hasNext() -> queue.currentIndex + 1
-            repeatMode == RepeatMode.Queue && queue.currentIndex in queue.tracks.indices && queue.tracks.isNotEmpty() -> 0
-            else -> null
-        }
+        queue.nextIndex(repeatMode = repeatMode)
 
     private suspend fun replayGainForTrack(
         track: Track,
