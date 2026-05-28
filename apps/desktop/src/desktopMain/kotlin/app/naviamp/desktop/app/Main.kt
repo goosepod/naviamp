@@ -159,6 +159,7 @@ import app.naviamp.domain.provider.smartPlaylistUpdateErrorMessage
 import app.naviamp.domain.provider.smartPlaylistUpdatedStatus
 import app.naviamp.domain.provider.smartPlaylistUpdatingStatus
 import app.naviamp.domain.provider.updateSmartPlaylistAndRefresh
+import app.naviamp.domain.settings.effectiveForEngine
 import app.naviamp.domain.settings.playbackSessionFromQueue
 import app.naviamp.domain.settings.restoredPlaybackQueue
 import app.naviamp.domain.settings.restoredTrackSession
@@ -408,7 +409,7 @@ fun NaviampApp(
         mutableStateOf(savedPlaybackSession?.restoredPlaybackQueue() ?: PlaybackQueue())
     }
     var playbackSettings by remember {
-        mutableStateOf(settingsStore.loadPlaybackSettings().forEngine(playbackEngine))
+        mutableStateOf(settingsStore.loadPlaybackSettings().effectiveForEngine(playbackEngine))
     }
     var showStatsForNerds by remember { mutableStateOf(false) }
     var statsForNerdsRefreshTick by remember { mutableIntStateOf(0) }
@@ -2473,7 +2474,7 @@ fun NaviampApp(
                                 onVolumeChanged = { volumePercent ->
                                     playbackSettings = playbackSettings
                                         .copy(volumePercent = volumePercent)
-                                        .forEngine(playbackEngine)
+                                        .effectiveForEngine(playbackEngine)
                                     settingsStore.savePlaybackSettings(playbackSettings)
                                 },
                                 onToggleLyrics = {
@@ -3007,7 +3008,7 @@ fun NaviampApp(
                                         onDeleteConnection = { source -> deleteConnection(source) },
                                         onCancelConnectionForm = { isConnectionFormOpen = false },
                                         onPlaybackSettingsChanged = { settings ->
-                                            playbackSettings = settings.forEngine(playbackEngine)
+                                            playbackSettings = settings.effectiveForEngine(playbackEngine)
                                             settingsStore.savePlaybackSettings(playbackSettings)
                                         },
                                         onCacheSettingsChanged = { settings ->

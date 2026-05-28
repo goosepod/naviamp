@@ -110,6 +110,7 @@ import app.naviamp.domain.radio.generatedRadioQueue
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.downloadStreamQuality
+import app.naviamp.domain.settings.effectiveForEngine
 import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.waveform.AudioWaveform
@@ -256,7 +257,7 @@ private fun NaviampAndroidApp(
                 savedConnection.username.isNotBlank() &&
                 savedConnection.password.isNotBlank()
             )
-    val savedPlaybackSettings = remember { settingsStore.loadPlaybackSettings() }
+    val savedPlaybackSettings = remember { settingsStore.loadPlaybackSettings().effectiveForEngine(playbackEngine) }
     val appState = rememberAndroidAppState(
         savedConnection = savedConnection,
         savedPlaybackSettings = savedPlaybackSettings,
@@ -467,7 +468,7 @@ private fun NaviampAndroidApp(
                     PlaybackRequest(
                         url = streamUrl,
                         mediaId = nextTrack.id.value,
-                        replayGainMode = playbackSettings.replayGainMode.forEngine(playbackEngine),
+                        replayGainMode = playbackSettings.replayGainMode,
                         replayGain = nextTrack.replayGain?.let { PlaybackReplayGain(it, ReplayGainSource.Provider) },
                     ),
                 )
@@ -545,15 +546,7 @@ private fun NaviampAndroidApp(
     }
 
     fun handlePlaybackSettingsChanged(settings: PlaybackSettings) {
-        val normalizedSettings = settings.copy(
-            replayGainMode = settings.replayGainMode.forEngine(playbackEngine),
-            gaplessEnabled = playbackEngine.supportsGapless && settings.gaplessEnabled,
-            crossfadeDurationSeconds = if (playbackEngine.supportsCrossfade) {
-                settings.crossfadeDurationSeconds
-            } else {
-                0
-            },
-        )
+        val normalizedSettings = settings.effectiveForEngine(playbackEngine)
         playbackSettings = normalizedSettings
         settingsStore.savePlaybackSettings(normalizedSettings)
         lyricsByTrackId = emptyMap()
@@ -970,7 +963,7 @@ private fun NaviampAndroidApp(
                     request = PlaybackRequest(
                         url = streamUrl,
                         mediaId = track.id.value,
-                        replayGainMode = playbackSettings.replayGainMode.forEngine(playbackEngine),
+                        replayGainMode = playbackSettings.replayGainMode,
                         replayGain = track.replayGain?.let { PlaybackReplayGain(it, ReplayGainSource.Provider) },
                         startPositionSeconds = engineStartPositionSeconds,
                     ),

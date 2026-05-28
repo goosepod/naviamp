@@ -1,38 +1,11 @@
 package app.naviamp.desktop
 
-import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.domain.app.restoredNavigationRoute
 import app.naviamp.domain.home.HomeAlbumYear
 import app.naviamp.domain.home.HomeLibraryRepository
-import app.naviamp.domain.playback.PlaybackEngine
-import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.provider.ProviderCapabilities
 import app.naviamp.domain.app.restoredLastContentRoute as restoredSharedLastContentRoute
-
-fun PlaybackSettings.forEngine(playbackEngine: PlaybackEngine): PlaybackSettings =
-    copy(
-        replayGainMode = if (playbackEngine.supportsReplayGain) {
-            replayGainMode
-        } else {
-            ReplayGainMode.Off
-        },
-        crossfadeDurationSeconds = if (playbackEngine.supportsCrossfade) {
-            if (gaplessEnabled) 0 else crossfadeDurationSeconds.coerceIn(0, 12)
-        } else {
-            0
-        },
-        gaplessEnabled = playbackEngine.supportsGapless && gaplessEnabled,
-        volumePercent = if (playbackEngine.supportsSoftwareVolume) {
-            volumePercent.coerceIn(0, 100)
-        } else {
-            100
-        },
-        debugLoggingEnabled = debugLoggingEnabled,
-        lrclibLyricsEnabled = lrclibLyricsEnabled,
-        previousButtonBehavior = previousButtonBehavior,
-        upNextSelectionBehavior = upNextSelectionBehavior,
-    )
 
 fun DesktopCache.asHomeLibraryRepository(): HomeLibraryRepository =
     object : HomeLibraryRepository {

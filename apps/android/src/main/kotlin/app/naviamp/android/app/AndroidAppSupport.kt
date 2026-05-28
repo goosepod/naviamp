@@ -28,7 +28,6 @@ import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
-import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.provider.MediaProvider
@@ -357,9 +356,6 @@ fun Context.isActiveNetworkMobileData(): Boolean {
         !capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) &&
         !capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
 }
-
-fun ReplayGainMode.forEngine(playbackEngine: AndroidPlaybackEngine): ReplayGainMode =
-    if (playbackEngine.supportsReplayGain) this else ReplayGainMode.Off
 
 suspend fun MediaProvider.tracksForArtist(artistId: ArtistId, limit: Long): List<Track> {
     val tracks = mutableListOf<Track>()

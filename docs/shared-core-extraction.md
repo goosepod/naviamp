@@ -85,7 +85,7 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
   - [x] Keep platform navigation containers and window/back-stack integration platform-local.
 
 - [ ] Settings and preferences
-  - [ ] Share playback settings validation and effective-settings derivation.
+  - [x] Share playback settings validation and effective-settings derivation.
   - [ ] Share session/settings serialization models where they are not platform-specific.
   - [ ] Keep platform storage backends local.
 
@@ -133,5 +133,6 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 - Home content request planning and aggregation now live in `core/domain/home`; Android uses the same `HomeService` aggregation path with a platform-supplied artist limit instead of patching artists after load.
 - Route persistence/restoration mapping now lives in `core/domain/app`; desktop maps the shared restore result back to its local route enum, including the legacy `InternetRadio` stored name, while platform navigation containers stay local.
 - Navigation containers remain platform-owned: desktop keeps bottom navigation, selected-detail route projection, and window route state in `apps/desktop`, while Android keeps `BackHandler`, activity back-stack behavior, and shell route mutation in `apps/android`. Shared code stops at route enums, stored-route parsing, and safe restore targets.
+- Playback settings validation and effective-setting derivation now live in `core/domain/settings`; desktop and Android share capability-based ReplayGain, gapless/crossfade, software-volume, and stream-quality normalization before applying or saving settings.
 - Artist/album detail visual composition and navigation state remain outside domain: desktop keeps its Compose detail panels and back-route state in `apps/desktop`, Android keeps app back-stack state in `apps/android`, and shared UI models/layout stay in `core/ui`.
 - Desktop compile currently warns about deprecated Compose desktop `Preview` import and string-based `painterResource` usage in `apps/desktop/.../app/Main.kt`; fix as a separate warning-cleanup slice so resource packaging changes stay isolated.
