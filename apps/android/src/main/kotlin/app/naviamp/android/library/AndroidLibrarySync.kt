@@ -14,10 +14,8 @@ suspend fun loadBrowseState(provider: NavidromeProvider): HomeContent {
     val home = HomeService(
         provider = provider,
         date = HomeDate(year = today.year, dayOfYear = today.dayOfYear),
-    ).load()
-    val artists = runCatching { provider.artists(limit = AndroidLibraryArtistLimit) }
-        .getOrDefault(home.artists)
-    return home.copy(artists = artists)
+    ).load(artistLimit = AndroidLibraryArtistLimit)
+    return home
 }
 
 suspend fun syncAndroidLibrary(
