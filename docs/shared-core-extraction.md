@@ -55,12 +55,12 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
     - [x] Move shared query normalization, debounce, and result-limit policy into `core/domain`.
   - [x] Make desktop and Android use the same search request/result mapping.
 
-- [ ] Radio behavior
+- [x] Radio behavior
   - [x] Promote radio request models from desktop `radio/` into `core/domain/radio`.
   - [x] Promote recent-radio stream/action resolution into shared code.
   - [x] Promote seed-selection rules using storage/provider interfaces instead of `DesktopCache`.
   - [x] Keep desktop/Android radio controllers as thin adapters around shared plans.
-  - [ ] Keep native playback queue mutation inside platform adapters.
+  - [x] Keep native playback queue mutation inside platform adapters.
 
 - [ ] Playlist behavior
   - [x] Move playlist mutation planning into `core/domain`.
@@ -121,6 +121,7 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 - Radio request models and constructors now live in `core/domain/radio`; desktop still owns provider execution, coroutine dispatch, and playback queue mutation.
 - Radio seed-selection rules now live in `core/domain/radio` behind storage/provider callbacks; desktop keeps only the adapter that reads `DesktopCache` and provider detail data.
 - Radio session gating and generated queue append/replacement plans now live in `core/domain/radio`; desktop radio queue code now only applies those plans to `PlaylistEngine`.
+- Native playback queue mutation intentionally remains platform-local for radio: desktop applies shared plans through `PlaylistEngine`, while Android applies shared plans to `AndroidAppState`/service playback state so each platform preserves its playback engine and lifecycle ownership.
 - Playlist create/add mutation planning and add-result status decisions now live in `core/domain/provider`; desktop and Android both use the shared outcome mapping before refreshing playlist lists.
 - Playlist rename/delete normalization, status, error fallback, selected-playlist update, and recent-playlist cleanup rules now live in `core/domain/provider`.
 - Smart playlist save/update refresh orchestration and save/update/load status/error messages now live in `core/domain/provider`. Desktop still owns password/native-token refresh before saving, and Android currently wires only the save flow.
