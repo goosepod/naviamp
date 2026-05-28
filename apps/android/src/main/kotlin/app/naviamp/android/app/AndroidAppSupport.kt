@@ -358,12 +358,6 @@ fun Context.isActiveNetworkMobileData(): Boolean {
         !capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
 }
 
-fun PlaybackProgress.mergeForAndroidPlayback(previous: PlaybackProgress): PlaybackProgress =
-    PlaybackProgress(
-        positionSeconds = positionSeconds ?: previous.positionSeconds,
-        durationSeconds = durationSeconds ?: previous.durationSeconds,
-    )
-
 fun ReplayGainMode.forEngine(playbackEngine: AndroidPlaybackEngine): ReplayGainMode =
     if (playbackEngine.supportsReplayGain) this else ReplayGainMode.Off
 

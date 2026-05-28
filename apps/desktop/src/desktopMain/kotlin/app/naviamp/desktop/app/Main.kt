@@ -86,6 +86,7 @@ import app.naviamp.domain.playback.shouldClearPendingSeek
 import app.naviamp.domain.playback.shouldIgnoreProgressForPendingSeek
 import app.naviamp.domain.playback.shouldRestartInsteadOfPrevious
 import app.naviamp.domain.playback.shouldSubmitPlayReport
+import app.naviamp.domain.playback.shouldUpdatePlaybackProgressUi
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.home.HomeService
@@ -773,6 +774,8 @@ fun NaviampApp(
                     mergedProgress = mergedProgress,
                     nowMillis = now,
                     lastUiUpdateMillis = lastPlaybackProgressUiUpdateMillis,
+                    positionThresholdSeconds = PlaybackProgressUiUpdateThresholdSeconds,
+                    updateIntervalMillis = PlaybackProgressUiUpdateIntervalMillis,
                 )
             ) {
                 playbackProgress = mergedProgress

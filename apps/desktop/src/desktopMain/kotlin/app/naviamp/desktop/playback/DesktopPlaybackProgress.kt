@@ -8,25 +8,6 @@ import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.PreviousButtonBehavior
 import kotlin.math.abs
 
-fun shouldUpdatePlaybackProgressUi(
-    pendingSeekPositionSeconds: Double?,
-    currentProgress: PlaybackProgress,
-    mergedProgress: PlaybackProgress,
-    nowMillis: Long,
-    lastUiUpdateMillis: Long,
-    positionThresholdSeconds: Double = PlaybackProgressUiUpdateThresholdSeconds,
-    updateIntervalMillis: Long = PlaybackProgressUiUpdateIntervalMillis,
-): Boolean {
-    val currentPosition = currentProgress.positionSeconds
-    val mergedPosition = mergedProgress.positionSeconds
-    return pendingSeekPositionSeconds != null ||
-        mergedProgress.durationSeconds != currentProgress.durationSeconds ||
-        currentPosition == null ||
-        mergedPosition == null ||
-        abs(mergedPosition - currentPosition) >= positionThresholdSeconds ||
-        nowMillis - lastUiUpdateMillis >= updateIntervalMillis
-}
-
 fun shouldSavePlaybackPosition(
     queue: PlaybackQueue,
     positionSeconds: Double?,

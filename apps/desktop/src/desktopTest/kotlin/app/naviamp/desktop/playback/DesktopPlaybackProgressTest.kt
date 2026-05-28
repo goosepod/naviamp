@@ -12,46 +12,6 @@ import kotlin.test.assertEquals
 
 class DesktopPlaybackProgressTest {
     @Test
-    fun updatesUiForLargeProgressMovementOrDurationChange() {
-        assertEquals(
-            false,
-            shouldUpdatePlaybackProgressUi(
-                pendingSeekPositionSeconds = null,
-                currentProgress = PlaybackProgress(positionSeconds = 10.0, durationSeconds = 200.0),
-                mergedProgress = PlaybackProgress(positionSeconds = 10.2, durationSeconds = 200.0),
-                nowMillis = 1_200,
-                lastUiUpdateMillis = 1_000,
-                positionThresholdSeconds = 1.0,
-                updateIntervalMillis = 1_000,
-            ),
-        )
-        assertEquals(
-            true,
-            shouldUpdatePlaybackProgressUi(
-                pendingSeekPositionSeconds = null,
-                currentProgress = PlaybackProgress(positionSeconds = 10.0, durationSeconds = 200.0),
-                mergedProgress = PlaybackProgress(positionSeconds = 12.0, durationSeconds = 200.0),
-                nowMillis = 1_200,
-                lastUiUpdateMillis = 1_000,
-                positionThresholdSeconds = 1.0,
-                updateIntervalMillis = 1_000,
-            ),
-        )
-        assertEquals(
-            true,
-            shouldUpdatePlaybackProgressUi(
-                pendingSeekPositionSeconds = null,
-                currentProgress = PlaybackProgress(positionSeconds = 10.0, durationSeconds = 200.0),
-                mergedProgress = PlaybackProgress(positionSeconds = 10.2, durationSeconds = 201.0),
-                nowMillis = 1_200,
-                lastUiUpdateMillis = 1_000,
-                positionThresholdSeconds = 1.0,
-                updateIntervalMillis = 1_000,
-            ),
-        )
-    }
-
-    @Test
     fun playbackPositionSaveRequiresCurrentTrackAndThresholdMovement() {
         val queue = PlaybackQueue(tracks = listOf(track("one")), currentIndex = 0)
 

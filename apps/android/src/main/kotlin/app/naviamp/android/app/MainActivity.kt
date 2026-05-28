@@ -92,6 +92,7 @@ import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.label
+import app.naviamp.domain.playback.mergeMissingWith
 import app.naviamp.domain.playback.planPlaybackSeek
 import app.naviamp.domain.playback.shouldClearPendingSeek
 import app.naviamp.domain.playback.shouldIgnoreProgressForPendingSeek
@@ -859,7 +860,7 @@ private fun NaviampAndroidApp(
         ) {
             pendingRestoreStartPositionSeconds = null
         }
-        playbackProgress = progress.mergeForAndroidPlayback(playbackProgress)
+        playbackProgress = progress.mergeMissingWith(playbackProgress)
         maybeReportPlayed(playbackProgress)
         val positionMillis = playbackProgress.positionSeconds?.secondsToMillis()
         val durationMillis = playbackProgress.durationSeconds
