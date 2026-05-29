@@ -1,6 +1,7 @@
 package app.naviamp.domain.app
 
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -11,5 +12,15 @@ class AppStateEffectsTest {
         assertTrue(shouldRefreshStorageStats(NaviampRoute.Settings))
         assertTrue(shouldRefreshStorageStats(NaviampRoute.Downloads))
         assertFalse(shouldRefreshStorageStats(NaviampRoute.Home))
+    }
+
+    @Test
+    fun dataMaintenanceStatusMessagesCanUseCompactOrDetailedText() {
+        assertEquals("Cache cleared.", cacheDataClearedStatus())
+        assertEquals("Image, provider response, audio, and waveform cache cleared.", cacheDataClearedStatus(detailed = true))
+        assertEquals("Library index cleared.", libraryIndexClearedStatus())
+        assertEquals("Local artist, album, and track index cleared.", libraryIndexClearedStatus(detailed = true))
+        assertEquals("Database reset.", databaseResetStatus())
+        assertEquals("Database reset. Saved servers were removed.", databaseResetStatus(savedServersRemoved = true))
     }
 }

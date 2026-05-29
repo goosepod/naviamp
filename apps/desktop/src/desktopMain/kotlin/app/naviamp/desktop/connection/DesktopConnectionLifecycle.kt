@@ -1,6 +1,7 @@
 package app.naviamp.desktop
 
 import app.naviamp.domain.Track
+import app.naviamp.domain.app.databaseResetStatus
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.playback.PlaybackEngine
@@ -203,7 +204,7 @@ class DesktopConnectionLifecycleController(
         setSavedConnectionForLogin(null)
         incrementMediaSourcesRevision()
         clearActiveConnectionState()
-        setConnectionStatus("Database reset. Saved servers were removed.")
+        setConnectionStatus(databaseResetStatus(savedServersRemoved = true))
         setAppRoute(AppRoute.Settings)
     }
 

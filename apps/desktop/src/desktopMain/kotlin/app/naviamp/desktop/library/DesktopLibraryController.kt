@@ -1,6 +1,8 @@
 package app.naviamp.desktop
 
 import androidx.compose.foundation.lazy.LazyListState
+import app.naviamp.domain.app.cacheDataClearedStatus
+import app.naviamp.domain.app.libraryIndexClearedStatus
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.library.evaluateLibraryFreshness
 import app.naviamp.domain.library.libraryConnectionRequiredStatus
@@ -119,7 +121,7 @@ class DesktopLibraryController(
 
     fun clearCacheData() {
         cache.clearCacheData()
-        setConnectionStatus("Image, provider response, audio, and waveform cache cleared.")
+        setConnectionStatus(cacheDataClearedStatus(detailed = true))
     }
 
     fun clearLibraryData() {
@@ -127,6 +129,6 @@ class DesktopLibraryController(
             cache.clearLibraryData(activeSourceId)
         } ?: cache.clearLibraryData(null)
         setLibrarySnapshot(LibrarySnapshot())
-        setConnectionStatus("Local artist, album, and track index cleared.")
+        setConnectionStatus(libraryIndexClearedStatus(detailed = true))
     }
 }

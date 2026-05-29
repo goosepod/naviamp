@@ -124,6 +124,9 @@ Branch: `codex/desktop-main-reduction`
 - [x] Share playlist-detail auto-refresh orchestration.
   - selected playlist/provider gating and refresh-loop error swallowing now live in common playlist helpers
   - desktop keeps route gating and desktop state application, while Android keeps its content/navigation state application
+- [x] Share data-maintenance status text.
+  - cache clear, library index clear, and database reset status messages now come from common app helpers
+  - platforms still own storage deletion, playback stopping, file-cache cleanup, and UI state resets
 
 ## Shared-Code Watchlist
 
@@ -148,6 +151,7 @@ Branch: `codex/desktop-main-reduction`
 - Now-playing waveform/lyrics status rules, online-lyrics decisions, sidecar prep filtering, and cover-art preload queue-window planning are shared through `core/domain`; desktop keeps JVM audio-tag/waveform/cache plumbing in `DesktopNowPlayingController`.
 - Search query normalization, debounce timing, disconnected/blank-query handling, loading/searching state, and result wrapping/status rules are shared through `core/domain`; desktop keeps settings/cache wiring in `DesktopSearchController`, and Android uses the same `SearchSessionController`.
 - Playlist detail refresh shaping, selected-playlist state updates, refresh cadence, and auto-refresh loop orchestration are shared through `core/domain`; platforms inject their selected route/state and provider refresh application.
+- Cache clear, library index clear, and database reset status text is shared through `core/domain`; storage deletion and platform UI reset wiring remain local.
 - Remaining connection startup still differs by platform because desktop owns BASS/JVM TLS defaults, `DesktopCache`, window route state, and playlist engine restoration, while Android owns foreground service/playback runtime, `AndroidStorage`, and activity navigation state.
 - Before extracting each helper from `DesktopNaviampApp.kt`, compare Android equivalents and move pure request/status/state-transition rules into `core/domain`, `core/ui`, or `providers/navidrome` instead of creating a new desktop-only duplicate.
 
@@ -161,6 +165,7 @@ Branch: `codex/desktop-main-reduction`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :providers:navidrome:allTests :apps:desktop:desktopTest :apps:android:assembleDebug`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop`
+- [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`

@@ -46,6 +46,9 @@ import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.app.NaviampContentState
 import app.naviamp.domain.app.NaviampNavigationState
 import app.naviamp.domain.app.NaviampRoute
+import app.naviamp.domain.app.cacheDataClearedStatus
+import app.naviamp.domain.app.databaseResetStatus
+import app.naviamp.domain.app.libraryIndexClearedStatus
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaProvider
@@ -596,7 +599,7 @@ private fun NaviampAndroidApp(
         storage.clearCacheData()
         clearAndroidFileCaches()
         clearDerivedMediaState()
-        status = "Cache cleared."
+        status = cacheDataClearedStatus()
     }
 
     fun handleClearLibrary() {
@@ -606,7 +609,7 @@ private fun NaviampAndroidApp(
         tracks = emptyList()
         recentPlaylistIds = emptyList()
         clearDerivedMediaState()
-        status = "Library index cleared."
+        status = libraryIndexClearedStatus()
     }
 
     fun handleResetDatabase() {
@@ -634,7 +637,7 @@ private fun NaviampAndroidApp(
         restoringConnection = false
         navigationState = NaviampNavigationState(route = NaviampRoute.Settings)
         clearDerivedMediaState()
-        status = "Database reset."
+        status = databaseResetStatus()
     }
 
     val searchSessionController = SearchSessionController(
