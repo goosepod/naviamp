@@ -1,6 +1,5 @@
 package app.naviamp.desktop
 
-import androidx.compose.desktop.ui.tooling.preview.Preview
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
@@ -35,7 +34,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
@@ -134,6 +132,8 @@ import app.naviamp.desktop.settings.SavedInternetRadioStation
 import app.naviamp.desktop.settings.SearchSettings
 import app.naviamp.desktop.settings.UpNextSelectionBehavior
 import app.naviamp.desktop.settings.VisualizerSettings
+import app.naviamp.desktop.generated.resources.Res
+import app.naviamp.desktop.generated.resources.naviamp
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
@@ -182,6 +182,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.jetbrains.compose.resources.painterResource
 import java.awt.Dimension
 import java.awt.Desktop
 import java.net.URI
@@ -201,7 +202,7 @@ fun main() {
             size = DpSize(windowSettings.widthDp.dp, windowSettings.heightDp.dp),
         )
         val playbackEngine = remember { PlaybackEngineFactory.createDefault() }
-        val appIcon = painterResource("icons/naviamp.png")
+        val appIcon = painterResource(Res.drawable.naviamp)
         LaunchedEffect(windowState) {
             snapshotFlow { windowState.size }
                 .distinctUntilChanged()
@@ -237,7 +238,6 @@ fun main() {
 }
 
 @Composable
-@Preview
 fun NaviampApp(
     playbackEngine: PlaybackEngine = remember { PlaybackEngineFactory.createDefault() },
     settingsStore: DesktopSettingsStore = remember { DesktopSettingsStore() },
