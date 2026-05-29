@@ -1,5 +1,8 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
+val composeVersion = libs.versions.compose.get()
+val composeMaterial3Version = "1.8.2"
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -55,10 +58,10 @@ dependencies {
     implementation(project(":providers:navidrome"))
     implementation(libs.activity.compose)
     implementation(libs.androidx.media)
-    implementation(compose.foundation)
-    implementation(compose.material3)
-    implementation(compose.runtime)
-    implementation(compose.ui)
+    implementation("org.jetbrains.compose.foundation:foundation:$composeVersion")
+    implementation("org.jetbrains.compose.material3:material3:$composeMaterial3Version")
+    implementation("org.jetbrains.compose.runtime:runtime:$composeVersion")
+    implementation("org.jetbrains.compose.ui:ui:$composeVersion")
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.sqldelight.android.driver)

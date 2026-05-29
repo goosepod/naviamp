@@ -26,7 +26,7 @@ Android already uses the shared Compose UI shell for the main app surface, so ma
 
 - [ ] **Dependency freshness**
   - [x] Move Kotlin from `2.3.0` to stable `2.3.21`.
-  - [ ] Replace deprecated Compose dependency aliases in Android and shared UI build files with direct dependency coordinates.
+  - [x] Replace deprecated Compose dependency aliases in Android and shared UI build files with direct dependency coordinates.
   - [x] Add a recurring package review pass before Android parity milestones.
     Before each Android parity milestone, run a dependency review against `gradle/libs.versions.toml`, prefer newest stable packages, and record any intentional pins in this section.
 
