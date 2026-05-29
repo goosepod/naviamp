@@ -56,6 +56,7 @@ import app.naviamp.domain.provider.allKnownTracks
 import app.naviamp.domain.provider.addToPlaylistMutationUpdate
 import app.naviamp.domain.provider.createPlaylistOrAddTracks
 import app.naviamp.domain.provider.normalizedPlaylistName
+import app.naviamp.domain.provider.playlistDetailAutoRefreshTarget
 import app.naviamp.domain.provider.playlistDeleteErrorMessage
 import app.naviamp.domain.provider.playlistDeleteLoadingStatus
 import app.naviamp.domain.provider.playlistDeleteStateUpdate
@@ -68,6 +69,7 @@ import app.naviamp.domain.provider.playlistRenamedStatus
 import app.naviamp.domain.provider.playlistsNeedingTrackPreload
 import app.naviamp.domain.provider.recentPlaylistIdsAfterPlayed
 import app.naviamp.domain.provider.renamedSelectedPlaylist
+import app.naviamp.domain.provider.runPlaylistDetailAutoRefresh
 import app.naviamp.domain.provider.queueAppendPlan
 import app.naviamp.domain.provider.refreshPlaylistDetails
 import app.naviamp.domain.provider.selectedPlaylistTracksForPlayback
@@ -1488,18 +1490,21 @@ private fun NaviampAndroidApp(
     }
 
     LaunchedEffect(provider, selectedPlaylist?.id) {
-        val activeProvider = provider ?: return@LaunchedEffect
-        val playlist = selectedPlaylist ?: return@LaunchedEffect
-
-        while (true) {
-            delay(PlaylistDetailRefreshIntervalMillis)
-            runCatching {
-                refreshPlaylistDetailsFromServer(
-                    activeProvider = activeProvider,
-                    playlist = playlist,
-                    showLoadingStatus = false,
-                )
-            }
+        val target = playlistDetailAutoRefreshTarget(
+            provider = provider,
+            playlist = selectedPlaylist,
+        ) ?: return@LaunchedEffect
+        runPlaylistDetailAutoRefresh(
+            target = target,
+            waitForNextRefresh = {
+                delay(PlaylistDetailRefreshIntervalMillis)
+            },
+        ) { activeProvider, playlist ->
+            refreshPlaylistDetailsFromServer(
+                activeProvider = activeProvider,
+                playlist = playlist,
+                showLoadingStatus = false,
+            )
         }
     }
 

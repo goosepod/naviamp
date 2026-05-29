@@ -103,6 +103,7 @@ import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.PlaylistDetailRefreshIntervalMillis
 import app.naviamp.domain.provider.addToPlaylistMutationUpdate
 import app.naviamp.domain.provider.normalizedPlaylistName
+import app.naviamp.domain.provider.playlistDetailAutoRefreshTarget
 import app.naviamp.domain.provider.playlistDeleteErrorMessage
 import app.naviamp.domain.provider.playlistDeleteLoadingStatus
 import app.naviamp.domain.provider.playlistDeletedStatus
@@ -116,6 +117,7 @@ import app.naviamp.domain.provider.renamedSelectedPlaylist
 import app.naviamp.domain.provider.refreshPlaylistDetails
 import app.naviamp.domain.provider.saveSmartPlaylistAndRefresh
 import app.naviamp.domain.provider.selectedPlaylistAfterDelete
+import app.naviamp.domain.provider.runPlaylistDetailAutoRefresh
 import app.naviamp.domain.provider.smartPlaylistLoadErrorMessage
 import app.naviamp.domain.provider.smartPlaylistLoadingRulesStatus
 import app.naviamp.domain.provider.smartPlaylistSaveErrorMessage
@@ -1028,19 +1030,22 @@ fun NaviampApp(
     }
 
     LaunchedEffect(connectedProvider, appRoute, selectedPlaylist?.id) {
-        val provider = connectedProvider ?: return@LaunchedEffect
-        val playlist = selectedPlaylist ?: return@LaunchedEffect
-        if (appRoute != AppRoute.PlaylistDetail) return@LaunchedEffect
-
-        while (true) {
-            delay(PlaylistDetailRefreshIntervalMillis)
-            runCatching {
-                refreshPlaylistDetailsFromServer(
-                    provider = provider,
-                    playlist = playlist,
-                    showLoadingStatus = false,
-                )
-            }
+        val target = playlistDetailAutoRefreshTarget(
+            provider = connectedProvider,
+            playlist = selectedPlaylist,
+            enabled = appRoute == AppRoute.PlaylistDetail,
+        ) ?: return@LaunchedEffect
+        runPlaylistDetailAutoRefresh(
+            target = target,
+            waitForNextRefresh = {
+                delay(PlaylistDetailRefreshIntervalMillis)
+            },
+        ) { provider, playlist ->
+            refreshPlaylistDetailsFromServer(
+                provider = provider,
+                playlist = playlist,
+                showLoadingStatus = false,
+            )
         }
     }
 

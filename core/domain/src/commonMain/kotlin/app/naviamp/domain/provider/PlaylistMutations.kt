@@ -31,6 +31,11 @@ data class PlaylistDetailsStateUpdate(
     val playlistTracksById: Map<String, List<Track>>,
 )
 
+data class PlaylistDetailAutoRefreshTarget<Provider : Any>(
+    val provider: Provider,
+    val playlist: Playlist,
+)
+
 data class PlaylistDeleteStateUpdate(
     val selectedPlaylist: Playlist?,
     val selectedPlaylistTracks: List<Track>,
@@ -73,6 +78,30 @@ fun playlistsNeedingTrackPreload(
     playlists.take(limit).filter { playlist ->
         playlistTracksById[playlist.id].isNullOrEmpty()
     }
+
+fun <Provider : Any> playlistDetailAutoRefreshTarget(
+    provider: Provider?,
+    playlist: Playlist?,
+    enabled: Boolean = true,
+): PlaylistDetailAutoRefreshTarget<Provider>? =
+    if (enabled && provider != null && playlist != null) {
+        PlaylistDetailAutoRefreshTarget(provider, playlist)
+    } else {
+        null
+    }
+
+suspend fun <Provider : Any> runPlaylistDetailAutoRefresh(
+    target: PlaylistDetailAutoRefreshTarget<Provider>,
+    waitForNextRefresh: suspend () -> Unit,
+    refresh: suspend (provider: Provider, playlist: Playlist) -> Unit,
+) {
+    while (true) {
+        waitForNextRefresh()
+        runCatching {
+            refresh(target.provider, target.playlist)
+        }
+    }
+}
 
 suspend fun MediaProvider.refreshPlaylistDetails(
     playlist: Playlist,

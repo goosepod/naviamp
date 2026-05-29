@@ -14,6 +14,7 @@ import app.naviamp.domain.TrackId
 import app.naviamp.domain.smartplaylist.SmartPlaylistTemplates
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 
 class PlaylistMutationsTest {
     @Test
@@ -132,6 +133,47 @@ class PlaylistMutationsTest {
                 playlistTracksById = mapOf("one" to listOf(track("one"))),
             ),
         )
+    }
+
+    @Test
+    fun playlistDetailAutoRefreshTargetRequiresProviderPlaylistAndEnabledState() {
+        val provider = Any()
+        val playlist = playlist("one", "One")
+
+        assertEquals(
+            PlaylistDetailAutoRefreshTarget(provider, playlist),
+            playlistDetailAutoRefreshTarget(provider, playlist),
+        )
+        assertEquals(null, playlistDetailAutoRefreshTarget(null, playlist))
+        assertEquals(null, playlistDetailAutoRefreshTarget(provider, null))
+        assertEquals(null, playlistDetailAutoRefreshTarget(provider, playlist, enabled = false))
+    }
+
+    @Test
+    fun playlistDetailAutoRefreshRunsAfterWaitAndContinuesAfterRefreshFailure() = kotlinx.coroutines.test.runTest {
+        val provider = Any()
+        val playlist = playlist("one", "One")
+        val target = PlaylistDetailAutoRefreshTarget(provider, playlist)
+        var waits = 0
+        var refreshes = 0
+
+        assertFailsWith<StopAutoRefresh> {
+            runPlaylistDetailAutoRefresh(
+                target = target,
+                waitForNextRefresh = {
+                    waits += 1
+                    if (waits > 2) throw StopAutoRefresh()
+                },
+                refresh = { activeProvider, activePlaylist ->
+                    assertEquals(provider, activeProvider)
+                    assertEquals(playlist, activePlaylist)
+                    refreshes += 1
+                    if (refreshes == 1) error("Transient refresh failure")
+                },
+            )
+        }
+        assertEquals(3, waits)
+        assertEquals(2, refreshes)
     }
 
     @Test
@@ -294,6 +336,8 @@ class PlaylistMutationsTest {
             audioInfo = null,
             replayGain = null,
         )
+
+    private class StopAutoRefresh : RuntimeException()
 
     private class FakePlaylistProvider(
         private val playlists: List<Playlist>,
