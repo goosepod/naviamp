@@ -89,17 +89,6 @@ import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.home.HomeService
 import app.naviamp.domain.lyrics.selectPreferredLyrics
-import app.naviamp.domain.media.ArtistDetailPopularTracksDisplayLimit
-import app.naviamp.domain.media.ArtistDetailPopularTracksFetchLimit
-import app.naviamp.domain.media.ArtistDetailSimilarArtistsDisplayLimit
-import app.naviamp.domain.media.ArtistDetailSimilarArtistsFetchLimit
-import app.naviamp.domain.media.artistPopularTracksUpdate
-import app.naviamp.domain.media.loadingPopularTracksStatus
-import app.naviamp.domain.media.loadingSimilarArtistsStatus
-import app.naviamp.domain.media.missingPopularTracksSourceStatus
-import app.naviamp.domain.media.popularTracksUnavailableStatus
-import app.naviamp.domain.media.similarArtistsUnavailableStatus
-import app.naviamp.domain.media.similarArtistsUpdate
 import app.naviamp.domain.popular.ArtistPopularTracksService
 import app.naviamp.domain.popular.DeezerPopularTracksClient
 import app.naviamp.domain.popular.SimilarArtistMatch
@@ -186,8 +175,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.awt.Desktop
-import java.net.URI
 import java.time.LocalDate
 import kotlin.math.abs
 
@@ -909,6 +896,30 @@ fun NaviampApp(
         setSelectedPlaylistStatus = { status -> selectedPlaylistStatus = status },
         setPlaylistStatus = { status -> playlistStatus = status },
         setConnectionStatus = { status -> connectionStatus = status },
+    )
+
+    val artistController = DesktopArtistController(
+        scope = coroutineScope,
+        sessionCache = sessionCache,
+        provider = { connectedProvider },
+        sourceId = { connectedSourceId },
+        currentRoute = { appRoute },
+        lastContentRoute = { lastContentRoute },
+        setRoute = { route -> appRoute = route },
+        selectedArtist = { selectedArtist },
+        setSelectedArtist = { artist -> selectedArtist = artist },
+        setSelectedArtistDetails = { details -> selectedArtistDetails = details },
+        setSelectedArtistStatus = { status -> selectedArtistStatus = status },
+        setSelectedArtistPopularTracks = { tracks -> selectedArtistPopularTracks = tracks },
+        setSelectedArtistPopularTracksStatus = { status -> selectedArtistPopularTracksStatus = status },
+        setSelectedArtistSimilarArtists = { artists -> selectedArtistSimilarArtists = artists },
+        setSelectedArtistSimilarArtistsStatus = { status -> selectedArtistSimilarArtistsStatus = status },
+        artistDetailBackRoute = { artistDetailBackRoute },
+        setArtistDetailBackRoute = { route -> artistDetailBackRoute = route },
+        artistDetailBackStack = { artistDetailBackStack },
+        setArtistDetailBackStack = { stack -> artistDetailBackStack = stack },
+        popularTracksService = popularTracksService,
+        similarArtistsService = similarArtistsService,
     )
 
     LaunchedEffect(
@@ -1677,38 +1688,11 @@ fun NaviampApp(
     }
 
     fun openExternalArtistUrl(url: String) {
-        runCatching {
-            if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
-                Desktop.getDesktop().browse(URI.create(url))
-            }
-        }.onFailure { error ->
-            selectedArtistSimilarArtistsStatus = "Could not open external artist page: ${error.message ?: "unknown error"}"
-        }
+        artistController.openExternalArtistUrl(url)
     }
 
     fun findSimilarArtists(artist: Artist) {
-        selectedArtistSimilarArtistsStatus = loadingSimilarArtistsStatus()
-        selectedArtistSimilarArtists = emptyList()
-        coroutineScope.launch {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    similarArtistsService.similarArtists(
-                        artistName = artist.name,
-                        limit = ArtistDetailSimilarArtistsFetchLimit,
-                    )
-                }
-            }.onSuccess { artists ->
-                if (selectedArtist?.id == artist.id) {
-                    val update = similarArtistsUpdate(artists, ArtistDetailSimilarArtistsDisplayLimit)
-                    selectedArtistSimilarArtists = update.artists
-                    selectedArtistSimilarArtistsStatus = update.status
-                }
-            }.onFailure { error ->
-                if (selectedArtist?.id == artist.id) {
-                    selectedArtistSimilarArtistsStatus = similarArtistsUnavailableStatus(error)
-                }
-            }
-        }
+        artistController.findSimilarArtists(artist)
     }
 
     fun openArtistDetails(
@@ -1716,77 +1700,15 @@ fun NaviampApp(
         backRouteOverride: AppRoute? = null,
         pushCurrentArtist: Boolean = true,
     ) {
-        val provider = connectedProvider ?: return
-        val navigation = artistDetailNavigation(
-            artist = artist,
-            currentArtist = selectedArtist,
-            currentRoute = appRoute,
-            currentBackStack = artistDetailBackStack,
-            currentBackRoute = artistDetailBackRoute,
-            lastContentRoute = lastContentRoute,
-            backRouteOverride = backRouteOverride,
-            pushCurrentArtist = pushCurrentArtist,
-        )
-        artistDetailBackStack = navigation.backStack
-        artistDetailBackRoute = navigation.backRoute
-        selectedArtist = artist
-        selectedArtistDetails = null
-        selectedArtistPopularTracks = emptyList()
-        selectedArtistPopularTracksStatus = null
-        selectedArtistSimilarArtists = emptyList()
-        selectedArtistSimilarArtistsStatus = null
-        selectedArtistStatus = "Loading..."
-        appRoute = AppRoute.ArtistDetail
-        coroutineScope.launch {
-            try {
-                val details = loadArtistDetails(sessionCache, provider, artist, connectedSourceId)
-                selectedArtistDetails = details
-                selectedArtistStatus = null
-                val sourceId = connectedSourceId
-                if (sourceId == null) {
-                    selectedArtistPopularTracksStatus = missingPopularTracksSourceStatus()
-                } else {
-                    selectedArtistPopularTracksStatus = loadingPopularTracksStatus()
-                    runCatching {
-                        popularTracksService.popularTracks(
-                            sourceId = sourceId,
-                            artist = details.artist,
-                            limit = ArtistDetailPopularTracksFetchLimit,
-                        )
-                    }.onSuccess { matches ->
-                        if (selectedArtist?.id == artist.id) {
-                            val update = artistPopularTracksUpdate(matches, ArtistDetailPopularTracksDisplayLimit)
-                            selectedArtistPopularTracks = update.tracks
-                            selectedArtistPopularTracksStatus = update.status
-                        }
-                    }.onFailure { error ->
-                        if (selectedArtist?.id == artist.id) {
-                            selectedArtistPopularTracksStatus = popularTracksUnavailableStatus(error)
-                        }
-                    }
-                }
-            } catch (exception: Exception) {
-                selectedArtistStatus = artistLoadErrorStatus(exception)
-            }
-        }
+        artistController.openArtistDetails(artist, backRouteOverride, pushCurrentArtist)
     }
 
     fun openTrackArtistDetails(track: Track, backRouteOverride: AppRoute = AppRoute.Player) {
-        openArtistDetails(trackArtist(track) ?: return, backRouteOverride = backRouteOverride)
+        artistController.openTrackArtistDetails(track, backRouteOverride)
     }
 
     fun closeArtistDetails() {
-        val previousArtist = artistDetailBackStack.lastOrNull()
-        if (previousArtist != null) {
-            artistDetailBackStack = artistDetailBackStack.dropLast(1)
-            openArtistDetails(
-                artist = previousArtist,
-                backRouteOverride = artistDetailBackRoute,
-                pushCurrentArtist = false,
-            )
-        } else {
-            appRoute = artistDetailBackRoute
-        }
+        artistController.closeArtistDetails()
     }
 
     fun openTrackAlbumDetails(track: Track) {
