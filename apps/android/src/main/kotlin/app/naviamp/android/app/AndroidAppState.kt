@@ -1,10 +1,9 @@
 package app.naviamp.android
 
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.ViewModel
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
@@ -125,20 +124,21 @@ class AndroidAppState(
     var lastAndroidAutoProgressPublishAtMillis by mutableStateOf(0L)
 }
 
-@Composable
-fun rememberAndroidAppState(
-    savedConnection: ConnectionFormState,
-    savedPlaybackSettings: PlaybackSettings,
-    canAutoConnect: Boolean,
-    savedSourceId: String?,
-    initialStorageStats: AndroidStorageStats,
-    initialOpenNowPlayingRequest: Int,
-    initialAutoPlayMediaIdRequest: String?,
-    initialAutoCommandRequest: String?,
-    initialSelectedVisualizer: NaviampVisualizer,
-): AndroidAppState =
-    remember {
-        AndroidAppState(
+class AndroidAppStateViewModel : ViewModel() {
+    private var retainedState: AndroidAppState? = null
+
+    fun appState(
+        savedConnection: ConnectionFormState,
+        savedPlaybackSettings: PlaybackSettings,
+        canAutoConnect: Boolean,
+        savedSourceId: String?,
+        initialStorageStats: AndroidStorageStats,
+        initialOpenNowPlayingRequest: Int,
+        initialAutoPlayMediaIdRequest: String?,
+        initialAutoCommandRequest: String?,
+        initialSelectedVisualizer: NaviampVisualizer,
+    ): AndroidAppState =
+        retainedState ?: AndroidAppState(
             savedConnection = savedConnection,
             savedPlaybackSettings = savedPlaybackSettings,
             canAutoConnect = canAutoConnect,
@@ -148,5 +148,5 @@ fun rememberAndroidAppState(
             initialAutoPlayMediaIdRequest = initialAutoPlayMediaIdRequest,
             initialAutoCommandRequest = initialAutoCommandRequest,
             initialSelectedVisualizer = initialSelectedVisualizer,
-        )
-    }
+        ).also { retainedState = it }
+}
