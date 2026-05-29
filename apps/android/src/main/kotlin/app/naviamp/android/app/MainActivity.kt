@@ -13,7 +13,6 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.viewModels
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.runtime.Composable
@@ -172,7 +171,6 @@ import java.time.LocalDate
 import kotlin.math.abs
 
 class MainActivity : ComponentActivity() {
-    private val appStateViewModel: AndroidAppStateViewModel by viewModels()
     private var openNowPlayingRequest by mutableStateOf(0)
     private var autoPlayMediaIdRequest by mutableStateOf<String?>(null)
     private var autoCommandRequest by mutableStateOf<String?>(null)
@@ -189,7 +187,6 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             NaviampAndroidApp(
-                appStateViewModel = appStateViewModel,
                 openNowPlayingRequest = openNowPlayingRequest,
                 autoPlayMediaIdRequest = autoPlayMediaIdRequest,
                 onAutoPlayMediaIdConsumed = { autoPlayMediaIdRequest = null },
@@ -232,7 +229,6 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun NaviampAndroidApp(
-    appStateViewModel: AndroidAppStateViewModel,
     openNowPlayingRequest: Int = 0,
     autoPlayMediaIdRequest: String? = null,
     onAutoPlayMediaIdConsumed: () -> Unit = {},
@@ -263,7 +259,7 @@ private fun NaviampAndroidApp(
                 savedConnection.password.isNotBlank()
             )
     val savedPlaybackSettings = remember { settingsStore.loadPlaybackSettings().effectiveForEngine(playbackEngine) }
-    val appState = appStateViewModel.appState(
+    val appState = rememberAndroidAppState(
         savedConnection = savedConnection,
         savedPlaybackSettings = savedPlaybackSettings,
         canAutoConnect = canAutoConnect,
