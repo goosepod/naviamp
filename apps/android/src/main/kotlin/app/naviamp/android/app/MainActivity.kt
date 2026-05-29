@@ -49,14 +49,13 @@ import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaProvider
-import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.PlaylistDetailRefreshIntervalMillis
 import app.naviamp.domain.provider.SearchDebounceMillis
+import app.naviamp.domain.provider.SearchSessionController
 import app.naviamp.domain.provider.allKnownTracks
 import app.naviamp.domain.provider.addToPlaylistMutationUpdate
 import app.naviamp.domain.provider.createPlaylistOrAddTracks
 import app.naviamp.domain.provider.normalizedPlaylistName
-import app.naviamp.domain.provider.normalizedSearchQuery
 import app.naviamp.domain.provider.playlistDeleteErrorMessage
 import app.naviamp.domain.provider.playlistDeleteLoadingStatus
 import app.naviamp.domain.provider.playlistDeleteStateUpdate
@@ -73,7 +72,6 @@ import app.naviamp.domain.provider.queueAppendPlan
 import app.naviamp.domain.provider.refreshPlaylistDetails
 import app.naviamp.domain.provider.selectedPlaylistTracksForPlayback
 import app.naviamp.domain.provider.saveSmartPlaylistAndRefresh
-import app.naviamp.domain.provider.searchResultsUpdate
 import app.naviamp.domain.provider.smartPlaylistSaveErrorMessage
 import app.naviamp.domain.provider.smartPlaylistSavedStatus
 import app.naviamp.domain.provider.smartPlaylistSavingStatus
@@ -637,35 +635,34 @@ private fun NaviampAndroidApp(
         status = "Database reset."
     }
 
-    suspend fun performSearch(activeProvider: MediaProvider, searchQuery: String) {
-        status = "Searching..."
-        val update = searchResultsUpdate(searchQuery) { query, limit ->
-            activeProvider.search(query, limit = limit)
-        }
-        contentState = contentState.clearDetails().copy(searchResults = update.results)
-        tracks = update.results.tracks
-        status = update.status.orEmpty()
+    val searchSessionController = SearchSessionController(
+        provider = { provider },
+        setResults = { results ->
+            contentState = contentState.clearDetails().copy(searchResults = results)
+            tracks = results.tracks
+        },
+        setStatus = { searchStatus -> status = searchStatus.orEmpty() },
+        disconnectedStatus = null,
+        loadingStatus = "Searching...",
+        clearWhenProviderMissing = false,
+    ) { activeProvider, searchQuery, limit ->
+        activeProvider.search(searchQuery, limit = limit)
+    }
+
+    suspend fun performSearch(searchQuery: String) {
+        searchSessionController.load(searchQuery)
     }
 
     fun handleSearch() {
-        val activeProvider = provider ?: return
-        val searchQuery = normalizedSearchQuery(query) ?: return
         scope.launch {
-            performSearch(activeProvider, searchQuery)
+            performSearch(query)
         }
     }
 
     LaunchedEffect(query, provider) {
-        val activeProvider = provider
-        val searchQuery = normalizedSearchQuery(query)
-        if (searchQuery == null) {
-            contentState = contentState.copy(searchResults = MediaSearchResults())
-            return@LaunchedEffect
+        searchSessionController.load(query) {
+            delay(SearchDebounceMillis)
         }
-        if (activeProvider == null) return@LaunchedEffect
-
-        delay(SearchDebounceMillis)
-        performSearch(activeProvider, searchQuery)
     }
 
     suspend fun ensureWaveform(
