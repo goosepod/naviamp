@@ -3,15 +3,26 @@ package app.naviamp.desktop
 import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.PlaylistEngine
 import app.naviamp.desktop.settings.RecentRadioStream
+import app.naviamp.domain.Album
+import app.naviamp.domain.Artist
+import app.naviamp.domain.Genre
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.playback.ReplayGainMode
+import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.radio.RadioRequest
 import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.radio.SeededRadioRequest
+import app.naviamp.domain.radio.albumSeededRadioRequest
+import app.naviamp.domain.radio.artistSeededRadioRequest
+import app.naviamp.domain.radio.decadeRadioRequest
+import app.naviamp.domain.radio.genreRadioRequest
+import app.naviamp.domain.radio.libraryRadioRequest
+import app.naviamp.domain.radio.popularTracksRadioRequest
 import app.naviamp.domain.radio.radioRefillSeedTrack
+import app.naviamp.domain.radio.randomAlbumSeededRadioRequest
 import app.naviamp.domain.radio.shouldFinishRadioRefillForSession
 import app.naviamp.domain.radio.trackRadioRequest
 import app.naviamp.provider.navidrome.NavidromeProvider
@@ -22,8 +33,10 @@ import kotlinx.coroutines.withContext
 
 class DesktopRadioController(
     private val scope: CoroutineScope,
+    private val sessionCache: DesktopCache,
     private val playlistEngine: PlaylistEngine,
     private val provider: () -> NavidromeProvider?,
+    private val sourceId: () -> String?,
     private val streamQuality: () -> StreamQuality,
     private val replayGainMode: () -> ReplayGainMode,
     private val playlistCallbacks: () -> PlaylistCallbacks,
@@ -117,6 +130,88 @@ class DesktopRadioController(
                 )
             } catch (exception: Exception) {
                 setConnectionStatus(exception.message ?: "Could not start ${request.label}.")
+            }
+        }
+    }
+
+    fun playLibrary() {
+        play(libraryRadioRequest())
+    }
+
+    fun playGenre(genre: Genre) {
+        play(genreRadioRequest(genre))
+    }
+
+    fun playDecade(fromYear: Int, toYear: Int) {
+        play(decadeRadioRequest(fromYear, toYear))
+    }
+
+    fun playPopularTracks(tracks: List<Track>) {
+        val activeProvider = provider() ?: return
+        startSeeded(activeProvider, popularTracksRadioRequest(tracks, PopularRadioSeedLimit) ?: return)
+    }
+
+    fun playTrack(track: Track) {
+        val activeProvider = provider() ?: return
+        startSeeded(activeProvider, trackRadioRequest(track))
+    }
+
+    fun playRandomAlbum() {
+        val activeProvider = provider() ?: return
+        setConnectionStatus("Starting random album radio...")
+        scope.launch {
+            try {
+                val album = withContext(Dispatchers.IO) {
+                    activeProvider.albumList(AlbumListType.Random, limit = 1).firstOrNull()
+                } ?: run {
+                    setConnectionStatus("Random album radio did not find an album.")
+                    return@launch
+                }
+                val seedTrack = withContext(Dispatchers.IO) {
+                    albumRadioSeedTrack(sessionCache, activeProvider, album, sourceId())
+                } ?: run {
+                    setConnectionStatus("${album.title} did not return any tracks.")
+                    return@launch
+                }
+                startSeeded(activeProvider, randomAlbumSeededRadioRequest(album, seedTrack))
+            } catch (exception: Exception) {
+                setConnectionStatus(exception.message ?: "Could not start random album radio.")
+            }
+        }
+    }
+
+    fun playArtist(artist: Artist) {
+        val activeProvider = provider() ?: return
+        setConnectionStatus("Starting ${artist.name} radio...")
+        scope.launch {
+            try {
+                val seedTrack = withContext(Dispatchers.IO) {
+                    artistRadioSeedTrack(sessionCache, activeProvider, artist, sourceId())
+                } ?: run {
+                    setConnectionStatus("${artist.name} radio did not find a seed track.")
+                    return@launch
+                }
+                startSeeded(activeProvider, artistSeededRadioRequest(artist, seedTrack))
+            } catch (exception: Exception) {
+                setConnectionStatus(exception.message ?: "Could not start ${artist.name} radio.")
+            }
+        }
+    }
+
+    fun playAlbum(album: Album, loadedAlbumTracks: List<Track> = emptyList()) {
+        val activeProvider = provider() ?: return
+        setConnectionStatus("Starting ${album.title} radio...")
+        scope.launch {
+            try {
+                val seedTrack = withContext(Dispatchers.IO) {
+                    albumRadioSeedTrack(sessionCache, activeProvider, album, sourceId(), loadedAlbumTracks)
+                } ?: run {
+                    setConnectionStatus("${album.title} did not return any tracks.")
+                    return@launch
+                }
+                startSeeded(activeProvider, albumSeededRadioRequest(album, seedTrack, loadedAlbumTracks))
+            } catch (exception: Exception) {
+                setConnectionStatus(exception.message ?: "Could not start ${album.title} radio.")
             }
         }
     }

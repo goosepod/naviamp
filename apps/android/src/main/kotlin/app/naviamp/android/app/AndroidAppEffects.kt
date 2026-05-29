@@ -6,6 +6,11 @@ import androidx.compose.runtime.LaunchedEffect
 import app.naviamp.android.playback.AndroidBassLoadReport
 import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.domain.isInternetRadioTrack
+import app.naviamp.domain.app.StorageStatsRefreshIntervalMillis
+import app.naviamp.domain.app.shouldRefreshStorageStats
+import app.naviamp.domain.library.LibraryFreshnessCheckIntervalMillis
+import app.naviamp.domain.playback.DefaultNowPlayingHeartbeatIntervalMillis
+import app.naviamp.domain.playback.DefaultVisualizerFrameIntervalMillis
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
@@ -54,7 +59,7 @@ fun AndroidAppRuntimeEffects(
                         activeProvider.reportNowPlaying(track.id)
                     }
                 }
-                delay(AndroidNowPlayingHeartbeatIntervalMillis)
+                delay(DefaultNowPlayingHeartbeatIntervalMillis)
             }
         }
 
@@ -70,7 +75,7 @@ fun AndroidAppRuntimeEffects(
             }
             while (visualizerVisible && nowPlayingOpen && (playbackState == PlaybackState.Playing || playbackState == PlaybackState.Loading)) {
                 visualizerFrame = visualizerEngine.visualizerFrame()
-                delay(AndroidVisualizerFrameIntervalMillis)
+                delay(DefaultVisualizerFrameIntervalMillis)
             }
             visualizerFrame = null
         }
@@ -148,10 +153,10 @@ fun AndroidAppPersistenceEffects(
         }
 
         LaunchedEffect(selectedRoute, activeSourceId, nowPlaying?.id, nowPlayingStation?.id) {
-            if (selectedRoute != SharedRoute.Settings) return@LaunchedEffect
+            if (!shouldRefreshStorageStats(navigationState.route)) return@LaunchedEffect
             while (true) {
                 storageStats = withContext(Dispatchers.IO) { storage.stats() }
-                delay(5_000)
+                delay(StorageStatsRefreshIntervalMillis)
             }
         }
 
@@ -159,7 +164,7 @@ fun AndroidAppPersistenceEffects(
             if (provider == null || activeSourceId == null) return@LaunchedEffect
             checkAndroidLibraryFreshness()
             while (true) {
-                delay(AndroidLibraryFreshnessCheckIntervalMillis)
+                delay(LibraryFreshnessCheckIntervalMillis)
                 checkAndroidLibraryFreshness()
             }
         }

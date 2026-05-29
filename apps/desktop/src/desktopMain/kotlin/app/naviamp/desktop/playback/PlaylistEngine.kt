@@ -6,18 +6,24 @@ import app.naviamp.desktop.DesktopCache
 import app.naviamp.desktop.lyricsFromAudioTags
 import app.naviamp.domain.ReplayGain
 import app.naviamp.domain.StreamQuality
-import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.playback.CrossfadeSettings
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.playback.PlaybackQueueController
+import app.naviamp.domain.playback.PlaybackQueueSelection
 import app.naviamp.domain.playback.PlaybackReplayGain
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
+import app.naviamp.domain.playback.playbackTargetPlan
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.ReplayGainSource
+import app.naviamp.domain.playback.SidecarTypeEmbeddedLyrics
+import app.naviamp.domain.playback.SidecarTypeLrclibLyrics
+import app.naviamp.domain.playback.SidecarTypeProviderLyrics
+import app.naviamp.domain.playback.SidecarTypeWaveform
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import kotlinx.coroutines.CoroutineScope
@@ -39,16 +45,14 @@ class PlaylistEngine(
     private var callbacks: PlaylistCallbacks? = null
     private var crossfadeSettings = CrossfadeSettings()
     private var gaplessEnabled = true
-    private var repeatMode = RepeatMode.Off
-    private var preparedNextIndex: Int? = null
     private var currentTrackSidecarJob: Job? = null
     private var audioPrefetchJob: Job? = null
-    private var sessionId = 0
+    private val queueController = PlaybackQueueController()
     private var playbackSource: PlaybackSource = PlaybackSource.Unknown
     private var audioPrefetchStats = AudioPrefetchStats()
 
-    var queue: PlaybackQueue = PlaybackQueue()
-        private set
+    val queue: PlaybackQueue
+        get() = queueController.queue
 
     fun cacheRuntimeStats(): CacheRuntimeStats =
         CacheRuntimeStats(
@@ -69,14 +73,15 @@ class PlaylistEngine(
         this.streamQuality = quality
         this.replayGainMode = replayGainMode
         this.callbacks = callbacks
-        sessionId += 1
         currentTrackSidecarJob?.cancel()
         currentTrackSidecarJob = null
         audioPrefetchJob?.cancel()
         audioPrefetchJob = null
         audioPrefetchStats = AudioPrefetchStats()
 
-        playQueueIndex(scope, tracks, index, sessionId)
+        queueController.start(tracks, index)?.let { selection ->
+            playQueueSelection(scope, selection)
+        }
     }
 
     fun restore(
@@ -88,33 +93,29 @@ class PlaylistEngine(
         callbacks: PlaylistCallbacks,
         initialProgress: PlaybackProgress = PlaybackProgress.Unknown,
     ) {
-        if (tracks.isEmpty() || index !in tracks.indices) return
+        if (!queueController.restore(tracks, index)) return
         this.provider = provider
         this.streamQuality = quality
         this.replayGainMode = replayGainMode
         this.callbacks = callbacks
-        sessionId += 1
         currentTrackSidecarJob?.cancel()
         currentTrackSidecarJob = null
         audioPrefetchJob?.cancel()
         audioPrefetchJob = null
         audioPrefetchStats = AudioPrefetchStats()
-        queue = PlaybackQueue(tracks = tracks, currentIndex = index)
-        preparedNextIndex = null
         callbacks.onQueueChanged(queue)
         callbacks.onPlaybackProgressChanged(initialProgress)
         callbacks.onPlaybackStateChanged(PlaybackState.Idle)
     }
 
     fun clear() {
-        sessionId += 1
+        queueController.clear()
         currentTrackSidecarJob?.cancel()
         currentTrackSidecarJob = null
         audioPrefetchJob?.cancel()
         audioPrefetchJob = null
         audioPrefetchStats = AudioPrefetchStats()
         playbackSource = PlaybackSource.Unknown
-        queue = PlaybackQueue()
         playbackEngine.stop()
         callbacks?.onQueueChanged(queue)
     }
@@ -126,22 +127,18 @@ class PlaylistEngine(
     }
 
     fun updateTrack(updatedTrack: Track) {
-        val updatedTracks = queue.tracks.map { track ->
-            if (track.id == updatedTrack.id) updatedTrack else track
+        queueController.updateTrack(updatedTrack)?.let { updatedQueue ->
+            callbacks?.onQueueChanged(updatedQueue)
         }
-        if (updatedTracks == queue.tracks) return
-        queue = queue.copy(tracks = updatedTracks)
-        callbacks?.onQueueChanged(queue)
     }
 
     fun appendTracks(
         tracks: List<Track>,
         maxHistory: Int? = null,
     ) {
-        if (tracks.isEmpty()) return
-
-        queue = queue.appendTracks(tracks, maxHistory)
-        callbacks?.onQueueChanged(queue)
+        queueController.appendTracks(tracks, maxHistory)?.let { updatedQueue ->
+            callbacks?.onQueueChanged(updatedQueue)
+        }
     }
 
     fun replaceUpcomingTracks(
@@ -149,8 +146,9 @@ class PlaylistEngine(
         upcomingTracks: List<Track>,
         maxHistory: Int? = null,
     ) {
-        queue = queue.replaceUpcomingTracks(currentTrack, upcomingTracks, maxHistory)
-        callbacks?.onQueueChanged(queue)
+        callbacks?.onQueueChanged(
+            queueController.replaceUpcomingTracks(currentTrack, upcomingTracks, maxHistory),
+        )
     }
 
     fun setPlaybackTransitionSettings(
@@ -167,25 +165,25 @@ class PlaylistEngine(
     }
 
     fun setRepeatMode(mode: RepeatMode) {
-        repeatMode = mode
+        queueController.setRepeatMode(mode)
     }
 
     fun next(scope: CoroutineScope) {
-        val nextIndex = queue.nextIndex(repeatMode = repeatMode, repeatTrack = false) ?: return
-        sessionId += 1
-        playQueueIndex(scope, queue.tracks, nextIndex, sessionId)
+        queueController.next()?.let { selection ->
+            playQueueSelection(scope, selection)
+        }
     }
 
     fun playCurrent(scope: CoroutineScope) {
-        if (queue.currentIndex !in queue.tracks.indices) return
-        sessionId += 1
-        playQueueIndex(scope, queue.tracks, queue.currentIndex, sessionId)
+        queueController.playCurrent()?.let { selection ->
+            playQueueSelection(scope, selection)
+        }
     }
 
     fun playCurrent(scope: CoroutineScope, startPositionSeconds: Double?) {
-        if (queue.currentIndex !in queue.tracks.indices) return
-        sessionId += 1
-        playQueueIndex(scope, queue.tracks, queue.currentIndex, sessionId, startPositionSeconds)
+        queueController.playCurrent()?.let { selection ->
+            playQueueSelection(scope, selection, startPositionSeconds)
+        }
     }
 
     fun jumpTo(
@@ -193,38 +191,30 @@ class PlaylistEngine(
         index: Int,
         moveSelectedToCurrent: Boolean = true,
     ) {
-        if (index !in queue.tracks.indices || index == queue.currentIndex) return
-        sessionId += 1
-        val nextQueue = queue.jumpTo(index, moveSelectedToCurrent)
-        playQueueIndex(scope, nextQueue.tracks, nextQueue.currentIndex, sessionId)
+        queueController.jumpTo(index, moveSelectedToCurrent)?.let { selection ->
+            playQueueSelection(scope, selection)
+        }
     }
 
     fun previous(scope: CoroutineScope) {
-        val previousIndex = queue.previousIndex(
-            repeatMode = repeatMode,
-            repeatTrack = false,
-            wrapQueue = false,
-        ) ?: return
-        sessionId += 1
-        playQueueIndex(scope, queue.tracks, previousIndex, sessionId)
+        queueController.previous()?.let { selection ->
+            playQueueSelection(scope, selection)
+        }
     }
 
     fun toggleUpcomingShuffle(shuffledSnapshot: List<Track>?): List<Track>? {
-        val result = queue.toggleUpcomingShuffle(shuffledSnapshot) ?: return shuffledSnapshot
-        queue = result.queue
-        preparedNextIndex = null
-        callbacks?.onQueueChanged(queue)
+        val result = queueController.toggleUpcomingShuffle(shuffledSnapshot) ?: return shuffledSnapshot
+        callbacks?.onQueueChanged(result.queue)
         return result.shuffledSnapshot
     }
 
-    private fun playQueueIndex(
+    private fun playQueueSelection(
         scope: CoroutineScope,
-        tracks: List<Track>,
-        index: Int,
-        activeSessionId: Int,
+        selection: PlaybackQueueSelection,
         startPositionSeconds: Double? = null,
     ) {
-        val track = tracks.getOrNull(index) ?: return
+        val track = selection.track ?: return
+        val activeSessionId = selection.sessionId
         val currentProvider = provider ?: return
         val currentQuality = streamQuality ?: return
         val currentCallbacks = callbacks ?: return
@@ -233,8 +223,6 @@ class PlaylistEngine(
         audioPrefetchJob?.cancel()
         audioPrefetchJob = null
 
-        queue = PlaybackQueue(tracks = tracks, currentIndex = index)
-        preparedNextIndex = null
         currentCallbacks.onQueueChanged(queue)
         currentCallbacks.onPlaybackProgressChanged(PlaybackProgress.Unknown)
 
@@ -263,7 +251,7 @@ class PlaylistEngine(
                     },
                     onProgressChanged = { progress ->
                         scope.launch {
-                            if (activeSessionId == sessionId) {
+                            if (activeSessionId == queueController.playbackSessionId) {
                                 callbacks?.onPlaybackProgressChanged(progress)
                                 prepareNextIfNeeded(scope, progress, activeSessionId)
                             }
@@ -271,14 +259,14 @@ class PlaylistEngine(
                     },
                     onMetadataChanged = { metadata ->
                         scope.launch {
-                            if (activeSessionId == sessionId) {
+                            if (activeSessionId == queueController.playbackSessionId) {
                                 callbacks?.onMetadataChanged(metadata)
                             }
                         }
                     },
                 )
             } catch (exception: Exception) {
-                if (activeSessionId == sessionId) {
+                if (activeSessionId == queueController.playbackSessionId) {
                     currentCallbacks.onPlaybackStateChanged(
                         PlaybackState.Error(exception.message ?: "Playback failed."),
                     )
@@ -318,15 +306,14 @@ class PlaylistEngine(
             )
         }
 
+        val plan = playbackTargetPlan(
+            track = track,
+            quality = quality,
+            startPositionSeconds = startPositionSeconds,
+            hasLocalAudio = false,
+        )
         return PlaybackTarget(
-            url = provider.streamUrl(
-                StreamRequest(
-                    trackId = track.id,
-                    quality = quality,
-                    startPositionSeconds = startPositionSeconds
-                        ?.takeIf { quality is StreamQuality.Transcoded },
-                ),
-            ),
+            url = provider.streamUrl(plan.providerStreamRequest),
             source = if (audioCachingEnabledProvider()) PlaybackSource.ProviderStream else PlaybackSource.ProviderStreamCacheDisabled,
         )
     }
@@ -351,14 +338,14 @@ class PlaylistEngine(
                     track = track,
                     quality = currentQuality,
                 )
-                if (activeSessionId == sessionId) {
+                if (activeSessionId == queueController.playbackSessionId) {
                     runWaveformSidecar(
                         audioCache = audioCache,
                         sourceId = sourceId,
                         track = track,
                         quality = currentQuality,
                     )
-                    if (activeSessionId == sessionId) {
+                    if (activeSessionId == queueController.playbackSessionId) {
                         callbacks?.onCurrentTrackSidecarsReady(track)
                     }
                     runMetadataSidecars(
@@ -401,7 +388,7 @@ class PlaylistEngine(
         )
         audioPrefetchJob = scope.launch {
             upcoming.forEach { track ->
-                if (activeSessionId != sessionId) return@launch
+                if (activeSessionId != queueController.playbackSessionId) return@launch
                 var sidecarResult = SidecarPrepResult()
                 val result = runCatching {
                     val cachedAudio = audioCache.cacheAudioTrack(
@@ -433,7 +420,7 @@ class PlaylistEngine(
                     )
                 }
             }
-            if (activeSessionId == sessionId) {
+            if (activeSessionId == queueController.playbackSessionId) {
                 audioPrefetchStats = audioPrefetchStats.copy(running = false)
             }
         }
@@ -479,24 +466,24 @@ class PlaylistEngine(
                 }
         }
 
-        runSidecar("waveform") {
+        runSidecar(SidecarTypeWaveform) {
             audioCache.ensureAudioWaveform(
                 sourceId = sourceId,
                 trackId = track.id,
                 quality = quality,
             )
         }
-        runSidecar("provider_lyrics") {
+        runSidecar(SidecarTypeProviderLyrics) {
             audioCache.providerLyrics(sourceId, provider, track.id)
         }
-        runSidecar("embedded_lyrics") {
+        runSidecar(SidecarTypeEmbeddedLyrics) {
             val embeddedLyrics = AudioTagReader().read(cachedAudio.path)
                 .let(::lyricsFromAudioTags)
             if (embeddedLyrics != null) {
                 audioCache.cacheEmbeddedLyrics(sourceId, track.id, embeddedLyrics)
             }
         }
-        runSidecar("lrclib_lyrics") {
+        runSidecar(SidecarTypeLrclibLyrics) {
             audioCache.lrclibLyrics(sourceId, track)
         }
 
@@ -518,7 +505,7 @@ class PlaylistEngine(
             sourceId = sourceId,
             trackId = track.id,
             quality = quality,
-            sidecarType = "waveform",
+            sidecarType = SidecarTypeWaveform,
             success = true,
         )
     }
@@ -550,12 +537,12 @@ class PlaylistEngine(
         state: PlaybackState,
         activeSessionId: Int,
     ) {
-        if (activeSessionId != sessionId) return
+        if (activeSessionId != queueController.playbackSessionId) return
 
         if (state == PlaybackState.Finished) {
-            val nextIndex = queue.nextIndex(repeatMode = repeatMode)
-            if (nextIndex != null) {
-                playQueueIndex(scope, queue.tracks, nextIndex, activeSessionId)
+            val selection = queueController.finishedSelection()
+            if (selection != null) {
+                playQueueSelection(scope, selection)
                 return
             }
             callbacks?.onPlaybackStateChanged(state)
@@ -572,7 +559,7 @@ class PlaylistEngine(
         val queueAwareEngine = playbackEngine as? QueueAwarePlaybackEngine ?: return
         val canPrepareForCrossfade = crossfadeSettings.isActive && playbackEngine.supportsCrossfade
         val canPrepareForGapless = gaplessEnabled && playbackEngine.supportsGapless
-        val nextIndex = nextGaplessQueueIndex() ?: return
+        val nextIndex = queueController.nextGaplessQueueIndex() ?: return
         if (!canPrepareForCrossfade && !canPrepareForGapless) return
         val position = progress.positionSeconds ?: return
         val duration = progress.durationSeconds ?: return
@@ -585,16 +572,16 @@ class PlaylistEngine(
 
         val currentProvider = provider ?: return
         val currentQuality = streamQuality ?: return
-        if (preparedNextIndex == nextIndex) return
-        preparedNextIndex = nextIndex
+        if (!queueController.shouldPrepareNext(nextIndex)) return
+        queueController.markPreparedNext(nextIndex)
         val nextTrack = queue.tracks.getOrNull(nextIndex) ?: return
 
         scope.launch {
-            if (activeSessionId != sessionId) return@launch
+            if (activeSessionId != queueController.playbackSessionId) return@launch
             try {
                 val streamUrl = playbackTarget(currentProvider, nextTrack, currentQuality).url
                 val replayGain = replayGainForTrack(nextTrack, currentQuality)
-                if (activeSessionId == sessionId) {
+                if (activeSessionId == queueController.playbackSessionId) {
                     val request = PlaybackRequest(
                         url = streamUrl,
                         mediaId = nextTrack.id.value,
@@ -606,13 +593,10 @@ class PlaylistEngine(
                     }
                 }
             } catch (_: Exception) {
-                preparedNextIndex = null
+                queueController.clearPreparedNext()
             }
         }
     }
-
-    private fun nextGaplessQueueIndex(): Int? =
-        queue.nextIndex(repeatMode = repeatMode)
 
     private suspend fun replayGainForTrack(
         track: Track,

@@ -1,5 +1,8 @@
 package app.naviamp.domain.playback
 
+import app.naviamp.domain.Track
+import app.naviamp.domain.TrackId
+import app.naviamp.domain.queue.PlaybackQueue
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -68,6 +71,57 @@ class PlaybackProgressTest {
                 lastUiUpdateMillis = 1_000,
                 positionThresholdSeconds = 1.0,
                 updateIntervalMillis = 1_000,
+            ),
+        )
+    }
+
+    @Test
+    fun playbackPositionSaveRequiresCurrentTrackAndThresholdMovement() {
+        val queue = PlaybackQueue(tracks = listOf(track("one")), currentIndex = 0)
+
+        assertEquals(
+            false,
+            shouldSavePlaybackPosition(
+                queue = queue,
+                positionSeconds = null,
+                lastSavedPositionSeconds = null,
+                saveThresholdSeconds = 5.0,
+            ),
+        )
+        assertEquals(
+            false,
+            shouldSavePlaybackPosition(
+                queue = PlaybackQueue(),
+                positionSeconds = 10.0,
+                lastSavedPositionSeconds = null,
+                saveThresholdSeconds = 5.0,
+            ),
+        )
+        assertEquals(
+            true,
+            shouldSavePlaybackPosition(
+                queue = queue,
+                positionSeconds = 10.0,
+                lastSavedPositionSeconds = null,
+                saveThresholdSeconds = 5.0,
+            ),
+        )
+        assertEquals(
+            false,
+            shouldSavePlaybackPosition(
+                queue = queue,
+                positionSeconds = 12.0,
+                lastSavedPositionSeconds = 10.0,
+                saveThresholdSeconds = 5.0,
+            ),
+        )
+        assertEquals(
+            true,
+            shouldSavePlaybackPosition(
+                queue = queue,
+                positionSeconds = 15.0,
+                lastSavedPositionSeconds = 10.0,
+                saveThresholdSeconds = 5.0,
             ),
         )
     }
@@ -206,4 +260,16 @@ class PlaybackProgressTest {
 
         assertEquals(41.4, merged.positionSeconds)
     }
+
+    private fun track(id: String): Track =
+        Track(
+            id = TrackId(id),
+            title = "Track $id",
+            artistName = "Artist",
+            albumTitle = "Album",
+            durationSeconds = 180,
+            coverArtId = null,
+            audioInfo = null,
+            replayGain = null,
+        )
 }

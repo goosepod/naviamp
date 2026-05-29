@@ -5,10 +5,11 @@ import app.naviamp.android.playback.AndroidPlaybackTls
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.domain.settings.ConnectionFormState
+import app.naviamp.domain.settings.connectionFormError
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeConnectionLoginRequest
 import app.naviamp.provider.navidrome.NavidromeProvider
-import app.naviamp.provider.navidrome.NavidromeTlsSettings
+import app.naviamp.provider.navidrome.navidromeTlsSettingsFromForm
 import app.naviamp.provider.navidrome.prepareNavidromeConnection
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -94,12 +95,20 @@ fun startNavidromeConnectionFromForm(
     connectWithNavidromeConnection: (NavidromeConnection) -> Unit,
 ) {
     val connectionForm = state.currentConnectionForm()
-    val tlsSettings = NavidromeTlsSettings(
+    val formError = connectionFormError(
+        form = connectionForm,
+        hasSavedConnectionForLogin = savedProviderConnection != null,
+    )
+    if (formError != null) {
+        state.status = formError
+        state.restoringConnection = false
+        return
+    }
+    val tlsSettings = navidromeTlsSettingsFromForm(
         insecureSkipTlsVerification = connectionForm.skipTlsVerification,
-        customCertificatePath = connectionForm.customCertificatePath.trim().takeIf { it.isNotEmpty() },
-        clientCertificateKeyStorePath = connectionForm.clientCertificatePath.trim().takeIf { it.isNotEmpty() },
-        clientCertificateKeyStorePassword = connectionForm.clientCertificatePassword
-            .takeIf { connectionForm.clientCertificatePath.trim().isNotEmpty() },
+        customCertificatePath = connectionForm.customCertificatePath,
+        clientCertificateKeyStorePath = connectionForm.clientCertificatePath,
+        clientCertificateKeyStorePassword = connectionForm.clientCertificatePassword,
     )
     scope.launch {
         runCatching {

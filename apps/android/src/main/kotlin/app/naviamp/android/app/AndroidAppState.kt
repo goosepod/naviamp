@@ -106,7 +106,6 @@ class AndroidAppState(
     var volumePercent by mutableStateOf(100)
     var waveformByTrackId by mutableStateOf<Map<String, AudioWaveform>>(emptyMap())
     var playbackQueue by mutableStateOf(PlaybackQueue())
-    var preparedNextTrackId by mutableStateOf<String?>(null)
     var shuffledUpNextSnapshot by mutableStateOf<List<Track>?>(null)
     var repeatMode by mutableStateOf(RepeatMode.Off)
     var relatedTracks by mutableStateOf<List<Track>>(emptyList())

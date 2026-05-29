@@ -38,12 +38,14 @@ import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.hasPendingSeekReachedTarget
 import app.naviamp.domain.playback.shouldIgnoreProgressForPendingSeek
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.settings.RecentRadioKind
@@ -70,6 +72,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     private var serviceStorageInstance: AndroidStorage? = null
     private val serviceStorage: AndroidStorage
         get() = serviceStorageInstance ?: AndroidStorage(applicationContext).also { serviceStorageInstance = it }
+    private val autoQueueController = PlaybackQueueController()
     private val noisyAudioReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action != AudioManager.ACTION_AUDIO_BECOMING_NOISY) return
@@ -380,52 +383,51 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         playSavedSession(nextSession)
     }
 
+    private fun syncAutoQueue(queue: PlaybackQueue) {
+        autoQueueController.replaceQueue(queue)
+        currentAutoQueue = autoQueueController.queue.tracks
+        currentAutoQueueIndex = autoQueueController.queue.currentIndex
+    }
+
+    private fun serviceRepeatModeForQueue(): RepeatMode =
+        when (serviceRepeatMode) {
+            ServiceRepeatMode.Off -> RepeatMode.Off
+            ServiceRepeatMode.All -> RepeatMode.Queue
+            ServiceRepeatMode.One -> RepeatMode.Track
+        }
+
     private fun playServiceOwnedAdjacent(delta: Int): Boolean {
         if (!serviceOwnedPlayback) return false
-        val queue = currentAutoQueue
-        if (queue.isEmpty() || currentAutoQueueIndex !in queue.indices) return false
-        val nextIndex = currentAutoQueueIndex + delta
-        if (nextIndex !in queue.indices) {
-            val wrappedIndex = when {
-                delta > 0 && serviceRepeatMode == ServiceRepeatMode.All -> 0
-                delta < 0 && serviceRepeatMode == ServiceRepeatMode.All -> queue.lastIndex
-                else -> null
-            }
-            if (wrappedIndex == null) {
-                Log.i(
-                    "NaviampAutoCommand",
-                    "Service-owned queue has no adjacent track delta=$delta index=$currentAutoQueueIndex size=${queue.size}",
-                )
-                AndroidPlaybackNotificationControls.isPlaying = false
-                updateMediaSessionPlaybackState()
-                return true
-            }
-            val storage = serviceStorage
-            val sourceId = storage.latestNavidromeSource()?.id ?: return false
+        autoQueueController.replaceQueue(PlaybackQueue(currentAutoQueue, currentAutoQueueIndex))
+        autoQueueController.setRepeatMode(serviceRepeatModeForQueue())
+        val selection = autoQueueController.adjacent(offset = delta)
+        if (selection == null) {
             Log.i(
                 "NaviampAutoCommand",
-                "Service-owned queue wrapping delta=$delta from=$currentAutoQueueIndex to=$wrappedIndex size=${queue.size}",
+                "Service-owned queue has no adjacent track delta=$delta index=$currentAutoQueueIndex size=${currentAutoQueue.size}",
             )
-            playServiceTrackQueue(storage, sourceId, queue, wrappedIndex)
+            AndroidPlaybackNotificationControls.isPlaying = false
+            updateMediaSessionPlaybackState()
             return true
         }
         val storage = serviceStorage
         val sourceId = storage.latestNavidromeSource()?.id ?: return false
         Log.i(
             "NaviampAutoCommand",
-            "Service-owned queue advancing delta=$delta from=$currentAutoQueueIndex to=$nextIndex size=${queue.size}",
+            "Service-owned queue advancing delta=$delta from=$currentAutoQueueIndex to=${selection.queue.currentIndex} size=${selection.queue.tracks.size}",
         )
-        playServiceTrackQueue(storage, sourceId, queue, nextIndex)
+        playServiceTrackQueue(storage, sourceId, selection.queue.tracks, selection.queue.currentIndex)
         return true
     }
 
     private fun handleServiceTrackFinished() {
         if (serviceRepeatMode == ServiceRepeatMode.One) {
-            val queue = currentAutoQueue
-            if (currentAutoQueueIndex in queue.indices) {
+            autoQueueController.replaceQueue(PlaybackQueue(currentAutoQueue, currentAutoQueueIndex))
+            val selection = autoQueueController.playCurrent()
+            if (selection != null) {
                 val storage = serviceStorage
                 val sourceId = storage.latestNavidromeSource()?.id ?: return
-                playServiceTrackQueue(storage, sourceId, queue, currentAutoQueueIndex)
+                playServiceTrackQueue(storage, sourceId, selection.queue.tracks, selection.queue.currentIndex)
                 return
             }
         }
@@ -442,8 +444,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         }
         val restoredSession = session.restoredTrackSession() ?: return
         val track = restoredSession.currentTrack
-        currentAutoQueue = restoredSession.tracks
-        currentAutoQueueIndex = restoredSession.currentIndex
+        syncAutoQueue(PlaybackQueue(restoredSession.tracks, restoredSession.currentIndex))
         val connection = source.toNavidromeConnection()
         val provider = NavidromeProvider(connection)
         val runtime = AndroidPlaybackRuntime.get(applicationContext)
@@ -860,12 +861,8 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         currentIndex: Int,
     ) {
         if (tracks.isEmpty()) return
-        val session = playbackSessionFromQueue(
-            PlaybackQueue(
-                tracks = tracks,
-                currentIndex = currentIndex.coerceIn(tracks.indices),
-            ),
-        ) ?: return
+        syncAutoQueue(PlaybackQueue(tracks = tracks, currentIndex = currentIndex.coerceIn(tracks.indices)))
+        val session = playbackSessionFromQueue(autoQueueController.queue) ?: return
         storage.savePlaybackSession(sourceId, session)
         playSavedSession(session)
     }
@@ -1003,8 +1000,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         AndroidPlaybackNotificationControls.positionMillis = 0L
         AndroidPlaybackNotificationControls.durationMillis = null
         serviceOwnedPlayback = true
-        currentAutoQueue = emptyList()
-        currentAutoQueueIndex = -1
+        syncAutoQueue(PlaybackQueue())
         currentMetadata = AndroidPlaybackNotificationMetadata(
             title = station.name,
             subtitle = "Internet radio",
@@ -1604,19 +1600,16 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     private fun toggleServiceShuffle() {
         serviceShuffleEnabled = !serviceShuffleEnabled
         if (serviceShuffleEnabled) {
-            val queue = currentAutoQueue
-            if (queue.size > 2 && currentAutoQueueIndex in queue.indices) {
-                val current = queue[currentAutoQueueIndex]
-                currentAutoQueue = queue.take(currentAutoQueueIndex + 1) + queue.drop(currentAutoQueueIndex + 1).shuffled()
-                currentAutoQueueIndex = currentAutoQueue.indexOfFirst { it.id == current.id }.coerceAtLeast(0)
+            autoQueueController.replaceQueue(PlaybackQueue(currentAutoQueue, currentAutoQueueIndex))
+            val shuffled = autoQueueController.toggleUpcomingShuffle(shuffledSnapshot = null)
+            if (shuffled != null) {
+                currentAutoQueue = shuffled.queue.tracks
+                currentAutoQueueIndex = shuffled.queue.currentIndex
                 lastPublishedAutoQueueSignature = null
                 val storage = serviceStorage
                 val sourceId = storage.latestNavidromeSource()?.id
                 val session = playbackSessionFromQueue(
-                    queue = PlaybackQueue(
-                        tracks = currentAutoQueue,
-                        currentIndex = currentAutoQueueIndex,
-                    ),
+                    queue = autoQueueController.queue,
                     positionSeconds = AndroidPlaybackNotificationControls.positionMillis?.let { it / 1_000.0 },
                 )
                 if (sourceId != null && session != null) {
@@ -1730,8 +1723,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         val session = storage.loadPlaybackSession(sourceId) ?: return
         val restoredSession = session.restoredTrackSession() ?: return
         val track = restoredSession.currentTrack
-        currentAutoQueue = restoredSession.tracks
-        currentAutoQueueIndex = restoredSession.currentIndex
+        syncAutoQueue(PlaybackQueue(restoredSession.tracks, restoredSession.currentIndex))
         val coverArtUrl = storage.savedCoverArtUrl(track)
         currentMetadata = AndroidPlaybackNotificationMetadata(
             title = track.title,

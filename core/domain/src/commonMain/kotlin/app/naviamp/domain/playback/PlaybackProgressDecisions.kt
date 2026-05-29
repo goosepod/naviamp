@@ -1,5 +1,6 @@
 package app.naviamp.domain.playback
 
+import app.naviamp.domain.queue.PlaybackQueue
 import kotlin.math.abs
 
 const val DefaultPendingSeekToleranceSeconds = 2.0
@@ -28,6 +29,18 @@ fun shouldUpdatePlaybackProgressUi(
         mergedPosition == null ||
         abs(mergedPosition - currentPosition) >= positionThresholdSeconds ||
         nowMillis - lastUiUpdateMillis >= updateIntervalMillis
+}
+
+fun shouldSavePlaybackPosition(
+    queue: PlaybackQueue,
+    positionSeconds: Double?,
+    lastSavedPositionSeconds: Double?,
+    saveThresholdSeconds: Double,
+): Boolean {
+    val position = positionSeconds ?: return false
+    if (queue.currentIndex !in queue.tracks.indices) return false
+    val lastSaved = lastSavedPositionSeconds
+    return lastSaved == null || abs(position - lastSaved) >= saveThresholdSeconds
 }
 
 fun shouldIgnoreProgressForPendingSeek(

@@ -2,6 +2,7 @@ package app.naviamp.desktop
 
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.library.LibraryFreshness
+import app.naviamp.domain.library.shouldAutoSyncLibrary as shouldAutoSyncLibraryIndex
 import app.naviamp.domain.library.nextLibraryLimit as nextLibraryPageLimit
 import app.naviamp.domain.provider.MediaProvider
 
@@ -107,7 +108,7 @@ fun shouldAutoSyncLibrary(
     cache: DesktopCache,
 ): Boolean {
     val indexStats = cache.libraryIndexStats(sourceId)
-    return !indexStats.hasUsableIndex
+    return shouldAutoSyncLibraryIndex(indexStats)
 }
 
 data class LibrarySyncProgress(

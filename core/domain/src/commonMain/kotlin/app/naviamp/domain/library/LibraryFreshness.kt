@@ -1,5 +1,9 @@
 package app.naviamp.domain.library
 
+import app.naviamp.domain.cache.LibraryIndexStats
+
+const val LibraryFreshnessCheckIntervalMillis = 60_000L
+
 data class LibraryFreshness(
     val signature: String?,
     val previousSignature: String?,
@@ -28,3 +32,18 @@ fun LibraryFreshness.evaluateLibraryFreshness(currentStatus: String?): LibraryFr
         else -> LibraryFreshnessUpdate()
     }
 }
+
+fun shouldAutoSyncLibrary(indexStats: LibraryIndexStats): Boolean =
+    !indexStats.hasUsableIndex
+
+fun libraryConnectionRequiredStatus(): String =
+    "Connect to Navidrome to import your library."
+
+fun librarySyncStartingStatus(): String =
+    "Starting library import..."
+
+fun librarySyncCompletedStatus(): String =
+    "Library refreshed."
+
+fun librarySyncErrorStatus(error: Throwable): String =
+    error.message ?: "Could not import library."

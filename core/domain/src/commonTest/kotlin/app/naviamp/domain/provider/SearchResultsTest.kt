@@ -38,6 +38,36 @@ class SearchResultsTest {
     }
 
     @Test
+    fun searchResultsStatusReportsEmptyMatchesAndErrors() {
+        assertEquals("No matches found.", searchResultsStatus(MediaSearchResults()))
+        assertEquals(
+            "Found 1 matches.",
+            searchResultsStatus(MediaSearchResults(tracks = listOf(track("one")))),
+        )
+        assertEquals("Search failed.", searchErrorStatus(IllegalStateException()))
+    }
+
+    @Test
+    fun searchResultsUpdateWrapsSuccessAndFailure() = kotlinx.coroutines.test.runTest {
+        val track = track("one")
+
+        assertEquals(
+            SearchResultsUpdate(
+                results = MediaSearchResults(tracks = listOf(track)),
+                status = "Found 1 matches.",
+            ),
+            searchResultsUpdate("query") { _, _ -> MediaSearchResults(tracks = listOf(track)) },
+        )
+        assertEquals(
+            SearchResultsUpdate(
+                results = MediaSearchResults(),
+                status = "Boom",
+            ),
+            searchResultsUpdate("query") { _, _ -> error("Boom") },
+        )
+    }
+
+    @Test
     fun allKnownTracksPrefersAlbumDetailTracksWhenPresent() {
         val searchTrack = track("search")
         val albumTrack = track("album")

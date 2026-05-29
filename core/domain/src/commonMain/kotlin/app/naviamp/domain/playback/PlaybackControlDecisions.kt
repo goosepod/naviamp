@@ -1,6 +1,7 @@
 package app.naviamp.domain.playback
 
 import app.naviamp.domain.queue.RepeatMode
+import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.settings.PreviousButtonBehavior
 
 fun shouldRestartInsteadOfPrevious(
@@ -17,3 +18,23 @@ fun nextRepeatMode(mode: RepeatMode): RepeatMode =
         RepeatMode.Queue -> RepeatMode.Track
         RepeatMode.Track -> RepeatMode.Off
     }
+
+fun canUsePreviousButton(
+    queue: PlaybackQueue,
+    previousButtonBehavior: PreviousButtonBehavior,
+    positionSeconds: Double?,
+    restartThresholdSeconds: Double,
+): Boolean =
+    queue.hasPrevious() ||
+        shouldRestartInsteadOfPrevious(
+            previousButtonBehavior = previousButtonBehavior,
+            positionSeconds = positionSeconds,
+            restartThresholdSeconds = restartThresholdSeconds,
+        )
+
+fun canUseNextButton(
+    queue: PlaybackQueue,
+    repeatMode: RepeatMode,
+): Boolean =
+    queue.hasNext() ||
+        queue.nextIndex(repeatMode = repeatMode, repeatTrack = false) != null

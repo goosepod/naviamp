@@ -13,6 +13,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.ui.SharedBottomNavigationBar
 import app.naviamp.ui.SharedRoute
 
@@ -91,6 +92,21 @@ private fun SharedRoute.toAppRoute(): AppRoute =
         SharedRoute.Radio -> AppRoute.InternetRadio
         SharedRoute.Downloads -> AppRoute.Downloads
         SharedRoute.Settings -> AppRoute.Settings
+    }
+
+fun AppRoute.toNaviampRoute(): NaviampRoute =
+    when (this) {
+        AppRoute.Player -> NaviampRoute.Player
+        AppRoute.Home -> NaviampRoute.Home
+        AppRoute.Playlists -> NaviampRoute.Playlists
+        AppRoute.PlaylistDetail -> NaviampRoute.PlaylistDetail
+        AppRoute.AlbumDetail -> NaviampRoute.AlbumDetail
+        AppRoute.ArtistDetail -> NaviampRoute.ArtistDetail
+        AppRoute.Library -> NaviampRoute.Library
+        AppRoute.Search -> NaviampRoute.Search
+        AppRoute.InternetRadio -> NaviampRoute.Radio
+        AppRoute.Downloads -> NaviampRoute.Downloads
+        AppRoute.Settings -> NaviampRoute.Settings
     }
 
 @Composable
