@@ -13,6 +13,35 @@ import kotlin.test.assertEquals
 
 class RecentRadioStreamsTest {
     @Test
+    fun recentRadioStreamsMoveSelectedStreamToFront() {
+        val selected = genreRecentRadioStream(Genre("Shoegaze"))
+        val recent = recentRadioStreamsWith(
+            listOf(
+                libraryRecentRadioStream(),
+                selected.copy(label = "Old label"),
+                decadeRecentRadioStream(1980, 1989),
+            ),
+            selected,
+        )
+
+        assertEquals(
+            listOf("genre:Shoegaze", "library", "decade:1980:1989"),
+            recent.map { it.id },
+        )
+        assertEquals("Shoegaze radio", recent.first().label)
+    }
+
+    @Test
+    fun recentRadioStreamsAreLimited() {
+        val streams = (1..14).map { genreRecentRadioStream(Genre("Genre $it")) }
+        val recent = recentRadioStreamsWith(streams, libraryRecentRadioStream())
+
+        assertEquals(MaxRecentRadioStreams, recent.size)
+        assertEquals("library", recent.first().id)
+        assertEquals("genre:Genre 11", recent.last().id)
+    }
+
+    @Test
     fun createsLibraryGenreAndDecadeStreams() {
         assertEquals(
             RecentRadioKind.Library,

@@ -91,6 +91,7 @@ import app.naviamp.domain.radio.libraryRadioRequest
 import app.naviamp.domain.radio.popularTracksRadioRequest
 import app.naviamp.domain.radio.randomAlbumSeededRadioRequest
 import app.naviamp.domain.radio.recentRadioAction
+import app.naviamp.domain.radio.recentRadioStreamsWith
 import app.naviamp.domain.radio.trackRadioRequest
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
@@ -555,7 +556,7 @@ fun NaviampApp(
     }
 
     fun rememberRadioStream(stream: RecentRadioStream) {
-        recentRadioStreams = (listOf(stream) + recentRadioStreams.filterNot { it.id == stream.id }).take(12)
+        recentRadioStreams = recentRadioStreamsWith(recentRadioStreams, stream)
         settingsStore.saveRecentRadioStreams(recentRadioStreams)
         homeContent = homeContent.copy(recentRadioStreams = recentRadioStreams)
     }
