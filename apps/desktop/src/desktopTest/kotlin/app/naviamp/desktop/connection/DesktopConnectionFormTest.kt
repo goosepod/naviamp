@@ -1,11 +1,18 @@
 package app.naviamp.desktop
 
+import app.naviamp.domain.InternetRadioStation
+import app.naviamp.domain.Track
+import app.naviamp.domain.TrackId
 import app.naviamp.domain.provider.ConnectionValidation
+import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.source.ConnectionTlsSettings
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.provider.navidrome.NavidromeConnection
+import app.naviamp.provider.navidrome.NavidromeProvider
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
+import kotlin.test.assertTrue
 import kotlin.test.assertNull
 
 class DesktopConnectionFormTest {
@@ -173,6 +180,44 @@ class DesktopConnectionFormTest {
         )
     }
 
+    @Test
+    fun restoredPlaybackSessionPlansTrackQueueWithCoverArtUrl() {
+        val track = track(id = "track-1", coverArtId = "cover-1")
+        val plan = restoredDesktopPlaybackSession(
+            savedPlaybackSession = PlaybackSessionSettings.fromTracks(
+                tracks = listOf(track),
+                currentIndex = 0,
+                positionSeconds = 42.0,
+            ),
+            provider = NavidromeProvider(navidromeConnection()),
+        )
+
+        val queuePlan = assertIs<DesktopRestoredPlaybackSession.TrackQueue>(plan)
+        assertEquals(track.id, queuePlan.session.currentTrack.id)
+        assertEquals(42.0, queuePlan.session.playbackProgress.positionSeconds)
+        assertTrue(queuePlan.coverArtUrl.orEmpty().startsWith("https://music.example.test/rest/getCoverArt.view?"))
+        assertTrue(queuePlan.coverArtUrl.orEmpty().contains("id=cover-1"))
+    }
+
+    @Test
+    fun restoredPlaybackSessionPrefersInternetRadioWhenPresent() {
+        val plan = restoredDesktopPlaybackSession(
+            savedPlaybackSession = PlaybackSessionSettings.fromInternetRadioStation(
+                InternetRadioStation(
+                    id = "station-1",
+                    name = "Deep Space",
+                    streamUrl = "https://radio.example.test/stream.mp3",
+                    homePageUrl = "https://radio.example.test",
+                ),
+            ),
+            provider = NavidromeProvider(navidromeConnection()),
+        )
+
+        val radioPlan = assertIs<DesktopRestoredPlaybackSession.InternetRadio>(plan)
+        assertEquals("station-1", radioPlan.station.id)
+        assertEquals("Deep Space", radioPlan.track.title)
+    }
+
     private fun savedSource(
         displayName: String,
         tlsSettings: ConnectionTlsSettings = ConnectionTlsSettings(),
@@ -205,5 +250,20 @@ class DesktopConnectionFormTest {
             salt = "salt",
             nativeToken = nativeToken,
             displayName = "Home Music",
+        )
+
+    private fun track(
+        id: String,
+        coverArtId: String? = null,
+    ): Track =
+        Track(
+            id = TrackId(id),
+            title = "Track $id",
+            artistName = "Artist",
+            albumTitle = "Album",
+            durationSeconds = 180,
+            coverArtId = coverArtId,
+            audioInfo = null,
+            replayGain = null,
         )
 }

@@ -160,9 +160,6 @@ import app.naviamp.domain.settings.restoredPlaybackQueue
 import app.naviamp.domain.settings.restoredTrackSession
 import app.naviamp.provider.navidrome.NavidromeApiCallHistory
 import app.naviamp.provider.navidrome.NavidromeProvider
-import app.naviamp.provider.navidrome.NavidromeTls
-import app.naviamp.provider.navidrome.NavidromeConnectionLoginRequest
-import app.naviamp.provider.navidrome.prepareNavidromeConnection
 import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.provider.navidrome.withNativeTokenFromPassword
 import app.naviamp.ui.NaviampPlayerColors
@@ -1412,62 +1409,56 @@ fun NaviampApp(
 
         coroutineScope.launch {
             try {
-                val tlsSettings = connectionTlsSettings()
-                val preparedConnection = prepareNavidromeConnection(
-                    NavidromeConnectionLoginRequest(
-                        baseUrl = serverUrl,
-                        username = username,
-                        password = password,
-                        displayName = resolvedConnectionDisplayName(),
-                        tlsSettings = tlsSettings,
-                        savedConnectionForLogin = savedConnectionForLogin,
-                        nativeAuthRequired = true,
-                    ),
+                val session = openDesktopConnectionSession(
+                    serverUrl = serverUrl,
+                    username = username,
+                    password = password,
+                    displayName = resolvedConnectionDisplayName(),
+                    tlsSettings = connectionTlsSettings(),
+                    savedConnectionForLogin = savedConnectionForLogin,
+                    sessionCache = sessionCache,
+                    clearProviderData = !restoreSavedSession,
                 )
-                val connection = preparedConnection.connection
-                val smartPlaylistAuthWarning = preparedConnection.nativeAuthErrorMessage
-                NavidromeTls.applyJvmDefaults(connection.tlsSettings)
-                val provider = NavidromeProvider(connection)
-                val validation = provider.validateConnection()
-                if (!restoreSavedSession) {
-                    sessionCache.clearProviderData()
-                }
+                val connection = session.connection
+                val provider = session.provider
                 connectedProvider = provider
-                connectedSourceId = sessionCache.upsertNavidromeSource(connection, provider).id
+                connectedSourceId = session.sourceId
                 mediaSourcesRevision++
-                if (restoreSavedSession && savedPlaybackSession != null) {
-                    val internetRadioStation = savedPlaybackSession.internetRadioStation?.toStation()
-                    val restoredSession = savedPlaybackSession.restoredTrackSession()
-                    val currentTrack = restoredSession?.currentTrack ?: savedPlaybackSession.currentTrack()
-                    if (internetRadioStation != null && currentTrack != null) {
-                        nowPlayingInternetRadioStation = internetRadioStation
-                        nowPlayingStreamMetadata = PlaybackStreamMetadata()
-                        nowPlayingTrack = currentTrack
-                        nowPlayingCoverArtUrl = null
-                        nowPlayingWaveform = null
-                        nowPlayingWaveformStatus = "Internet radio"
-                        nowPlayingAudioTags = null
-                        nowPlayingLyrics = null
-                        nowPlayingLyricsStatus = null
-                        playbackProgress = PlaybackProgress.Unknown
-                        playbackQueue = PlaybackQueue()
-                        playbackState = PlaybackState.Idle
-                    } else if (restoredSession != null) {
-                        playbackProgress = restoredSession.playbackProgress
-                        playlistEngine.restore(
-                            provider = provider,
-                            tracks = restoredSession.tracks,
-                            index = restoredSession.currentIndex,
-                            quality = playbackSettings.streamQuality(playbackEngine),
-                            replayGainMode = playbackSettings.replayGainMode,
-                            callbacks = playlistCallbacks,
-                            initialProgress = restoredSession.playbackProgress,
-                        )
-                        nowPlayingInternetRadioStation = null
-                        nowPlayingStreamMetadata = PlaybackStreamMetadata()
-                        nowPlayingTrack = restoredSession.currentTrack
-                        nowPlayingCoverArtUrl = restoredSession.currentTrack.coverArtId?.let { provider.coverArtUrl(it) }
-                        playbackState = PlaybackState.Idle
+                if (restoreSavedSession) {
+                    val restoredSession = restoredDesktopPlaybackSession(savedPlaybackSession, provider)
+                    when (restoredSession) {
+                        is DesktopRestoredPlaybackSession.InternetRadio -> {
+                            nowPlayingInternetRadioStation = restoredSession.station
+                            nowPlayingStreamMetadata = PlaybackStreamMetadata()
+                            nowPlayingTrack = restoredSession.track
+                            nowPlayingCoverArtUrl = null
+                            nowPlayingWaveform = null
+                            nowPlayingWaveformStatus = "Internet radio"
+                            nowPlayingAudioTags = null
+                            nowPlayingLyrics = null
+                            nowPlayingLyricsStatus = null
+                            playbackProgress = PlaybackProgress.Unknown
+                            playbackQueue = PlaybackQueue()
+                            playbackState = PlaybackState.Idle
+                        }
+                        is DesktopRestoredPlaybackSession.TrackQueue -> {
+                            playbackProgress = restoredSession.session.playbackProgress
+                            playlistEngine.restore(
+                                provider = provider,
+                                tracks = restoredSession.session.tracks,
+                                index = restoredSession.session.currentIndex,
+                                quality = playbackSettings.streamQuality(playbackEngine),
+                                replayGainMode = playbackSettings.replayGainMode,
+                                callbacks = playlistCallbacks,
+                                initialProgress = restoredSession.session.playbackProgress,
+                            )
+                            nowPlayingInternetRadioStation = null
+                            nowPlayingStreamMetadata = PlaybackStreamMetadata()
+                            nowPlayingTrack = restoredSession.session.currentTrack
+                            nowPlayingCoverArtUrl = restoredSession.coverArtUrl
+                            playbackState = PlaybackState.Idle
+                        }
+                        null -> Unit
                     }
                 }
                 settingsStore.clearConnection()
@@ -1480,10 +1471,10 @@ fun NaviampApp(
                     appRoute = AppRoute.Home
                 }
                 connectionStatus = desktopConnectionSuccessStatus(
-                    validation = validation,
+                    validation = session.validation,
                     connection = connection,
                     password = password,
-                    smartPlaylistAuthWarning = smartPlaylistAuthWarning,
+                    smartPlaylistAuthWarning = session.smartPlaylistAuthWarning,
                 )
                 refreshLibrarySnapshot()
                 loadHomeContent(provider)

@@ -26,7 +26,7 @@ Branch: `codex/desktop-main-reduction`
 
 ## Planned Work
 
-- [ ] Extract desktop connection/session startup orchestration from `DesktopNaviampApp.kt`.
+- [x] Extract desktop connection/session startup orchestration from `DesktopNaviampApp.kt`.
   - `connectToServer`
   - saved-session restore wiring
   - connection success/error state updates
