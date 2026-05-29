@@ -115,6 +115,9 @@ Branch: `codex/desktop-main-reduction`
 - [x] Extract desktop now-playing sidecar orchestration from `DesktopNaviampApp.kt`.
   - waveform/audio-tag/lyrics analysis, related-track loading, and JVM cover-art preloading now live in `DesktopNowPlayingController`
   - cover-art preload queue-window planning is shared through `core/domain`
+- [x] Extract desktop search orchestration from `DesktopNaviampApp.kt`.
+  - query persistence, debounce, disconnected/blank-query handling, cache-backed search, and search status updates now live in `DesktopSearchController`
+  - result wrapping, status text, debounce timing, and query normalization remain shared through `core/domain`
 
 ## Shared-Code Watchlist
 
@@ -137,6 +140,7 @@ Branch: `codex/desktop-main-reduction`
 - Recent generated-radio stream ordering/limits are shared through `core/domain` alongside the existing recent-stream creation/action helpers.
 - Home content composition remains shared through `HomeService`; desktop now keeps platform state wiring in `DesktopHomeController`.
 - Now-playing waveform/lyrics status rules, online-lyrics decisions, sidecar prep filtering, and cover-art preload queue-window planning are shared through `core/domain`; desktop keeps JVM audio-tag/waveform/cache plumbing in `DesktopNowPlayingController`.
+- Search query normalization, debounce timing, and result wrapping/status rules are shared through `core/domain`; desktop now keeps only settings/cache/provider wiring in `DesktopSearchController`.
 - Remaining connection startup still differs by platform because desktop owns BASS/JVM TLS defaults, `DesktopCache`, window route state, and playlist engine restoration, while Android owns foreground service/playback runtime, `AndroidStorage`, and activity navigation state.
 - Before extracting each helper from `DesktopNaviampApp.kt`, compare Android equivalents and move pure request/status/state-transition rules into `core/domain`, `core/ui`, or `providers/navidrome` instead of creating a new desktop-only duplicate.
 
@@ -151,6 +155,7 @@ Branch: `codex/desktop-main-reduction`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop`
+- [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop`

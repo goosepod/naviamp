@@ -95,17 +95,14 @@ import app.naviamp.desktop.settings.NavigationSettings
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.desktop.settings.PlaybackSessionSettings
 import app.naviamp.desktop.settings.RecentRadioStream
-import app.naviamp.desktop.settings.SearchSettings
 import app.naviamp.desktop.settings.UpNextSelectionBehavior
 import app.naviamp.desktop.settings.VisualizerSettings
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.PlaylistDetailRefreshIntervalMillis
-import app.naviamp.domain.provider.SearchDebounceMillis
 import app.naviamp.domain.provider.addToPlaylistMutationUpdate
 import app.naviamp.domain.provider.normalizedPlaylistName
-import app.naviamp.domain.provider.normalizedSearchQuery
 import app.naviamp.domain.provider.playlistDeleteErrorMessage
 import app.naviamp.domain.provider.playlistDeleteLoadingStatus
 import app.naviamp.domain.provider.playlistDeletedStatus
@@ -119,7 +116,6 @@ import app.naviamp.domain.provider.renamedSelectedPlaylist
 import app.naviamp.domain.provider.refreshPlaylistDetails
 import app.naviamp.domain.provider.saveSmartPlaylistAndRefresh
 import app.naviamp.domain.provider.selectedPlaylistAfterDelete
-import app.naviamp.domain.provider.searchResultsUpdate
 import app.naviamp.domain.provider.smartPlaylistLoadErrorMessage
 import app.naviamp.domain.provider.smartPlaylistLoadingRulesStatus
 import app.naviamp.domain.provider.smartPlaylistSaveErrorMessage
@@ -804,6 +800,16 @@ fun NaviampApp(
         setConnectionStatus = { status -> connectionStatus = status },
     )
 
+    val searchController = DesktopSearchController(
+        settingsStore = settingsStore,
+        sessionCache = sessionCache,
+        provider = { connectedProvider },
+        setQuery = { query -> searchQuery = query },
+        setResults = { results -> searchResults = results },
+        setStatus = { status -> searchStatus = status },
+        setSearching = { searching -> isSearching = searching },
+    )
+
     val downloadsController = DesktopDownloadsController(
         scope = coroutineScope,
         sessionCache = sessionCache,
@@ -1320,34 +1326,7 @@ fun NaviampApp(
     }
 
     LaunchedEffect(searchQuery, connectedProvider) {
-        val provider = connectedProvider
-        val query = normalizedSearchQuery(searchQuery)
-        if (query == null) {
-            searchResults = MediaSearchResults()
-            searchStatus = if (provider == null) "Connect to Navidrome to search." else null
-            isSearching = false
-            return@LaunchedEffect
-        }
-        if (provider == null) {
-            searchResults = MediaSearchResults()
-            searchStatus = "Connect to Navidrome to search."
-            isSearching = false
-            return@LaunchedEffect
-        }
-
-        delay(SearchDebounceMillis)
-        isSearching = true
-        searchStatus = null
-        val update = searchResultsUpdate(
-            query = query,
-            emptyStatus = null,
-            matchedStatus = null,
-        ) { searchQuery, limit ->
-            sessionCache.search(provider, searchQuery, limit = limit)
-        }
-        searchResults = update.results
-        searchStatus = update.status
-        isSearching = false
+        searchController.loadSearchResults(searchQuery)
     }
 
     LaunchedEffect(libraryQuery, connectedSourceId) {
@@ -1946,10 +1925,7 @@ fun NaviampApp(
                                         coverArtUrl = { coverArtId ->
                                             coverArtId?.let { connectedProvider?.coverArtUrl(it) }
                                         },
-                                        onQueryChanged = {
-                                            searchQuery = it
-                                            settingsStore.saveSearchSettings(SearchSettings(query = it))
-                                        },
+                                        onQueryChanged = searchController::updateQuery,
                                         onArtistSelected = { artist -> openArtistDetails(artist) },
                                         onArtistRadioSelected = { artist -> playArtistRadio(artist) },
                                         onArtistAddToQueue = { artist ->
