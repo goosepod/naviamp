@@ -11,6 +11,7 @@ import app.naviamp.domain.settings.StreamQualityMode
 import app.naviamp.domain.settings.StreamQualityPreference
 import app.naviamp.domain.settings.StreamingCodec
 import app.naviamp.domain.settings.UpNextSelectionBehavior
+import app.naviamp.domain.settings.VisualizerSettings
 import app.naviamp.provider.navidrome.NavidromeConnection
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
@@ -123,12 +124,15 @@ class AndroidSettingsStore(
             .apply()
     }
 
-    fun loadSelectedVisualizer(): String =
-        preferences.getString(KeySelectedVisualizer, null) ?: DefaultSelectedVisualizer
+    fun loadVisualizerSettings(): VisualizerSettings =
+        VisualizerSettings(
+            selectedVisualizer = preferences.getString(KeySelectedVisualizer, null)
+                ?: VisualizerSettings().selectedVisualizer,
+        )
 
-    fun saveSelectedVisualizer(selectedVisualizer: String) {
+    fun saveVisualizerSettings(settings: VisualizerSettings) {
         preferences.edit()
-            .putString(KeySelectedVisualizer, selectedVisualizer)
+            .putString(KeySelectedVisualizer, settings.selectedVisualizer)
             .apply()
     }
 
@@ -229,7 +233,6 @@ private const val KeyAllowMobileDownloads = "allow_mobile_downloads"
 private const val KeySelectedVisualizer = "selected_visualizer"
 private const val KeyRecentRadioStreams = "recent_radio_streams"
 private const val KeyRecentInternetRadioStations = "recent_internet_radio_stations"
-private const val DefaultSelectedVisualizer = "AudioSphere"
 private val JsonSettings = Json {
     ignoreUnknownKeys = true
     encodeDefaults = true

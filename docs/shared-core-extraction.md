@@ -4,12 +4,12 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 
 ## Goals
 
-- [ ] Make desktop and Android share product behavior by default.
-- [ ] Keep platform modules focused on platform state, UI composition, native playback, storage adapters, filesystem access, permissions, and OS integration.
-- [ ] Move duplicate desktop/Android fixes into common code so playback, library, search, radio, playlist, and detail-loading behavior is fixed once.
-- [ ] Preserve platform-specific escape hatches only where there is a real platform constraint.
-- [ ] Add common tests for every moved rule before deleting platform-local copies.
-- [ ] Keep desktop and Android builds green after each feature migration.
+- [x] Make desktop and Android share product behavior by default.
+- [x] Keep platform modules focused on platform state, UI composition, native playback, storage adapters, filesystem access, permissions, and OS integration.
+- [x] Move duplicate desktop/Android fixes into common code so playback, library, search, radio, playlist, and detail-loading behavior is fixed once.
+- [x] Preserve platform-specific escape hatches only where there is a real platform constraint.
+- [x] Add common tests for every moved rule before deleting platform-local copies.
+- [x] Keep desktop and Android builds green after each feature migration.
 
 ## Placement Rules
 
@@ -21,77 +21,127 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 ## Migration Method
 
 - [x] Finish the desktop `Main.kt` split enough that feature boundaries are clear.
-- [ ] For each feature, compare desktop and Android behavior before moving code.
-- [ ] Extract pure behavior into `core/domain` first, using interfaces or lambdas for platform storage/playback dependencies.
-- [ ] Move shared UI mapping into `core/ui` only after the domain behavior is stable.
-- [ ] Replace desktop and Android local logic with thin adapters over the shared core API.
-- [ ] Move existing platform tests down to common tests where possible.
-- [ ] Leave a short note in this doc when behavior intentionally remains platform-specific.
+- [x] For each feature, compare desktop and Android behavior before moving code.
+- [x] Extract pure behavior into `core/domain` first, using interfaces or lambdas for platform storage/playback dependencies.
+- [x] Move shared UI mapping into `core/ui` only after the domain behavior is stable.
+- [x] Replace desktop and Android local logic with thin adapters over the shared core API.
+- [x] Move existing platform tests down to common tests where possible.
+- [x] Leave a short note in this doc when behavior intentionally remains platform-specific.
 
 ## Feature Checklist
 
-- [ ] Playback/session behavior
-  - [ ] Move queue navigation and repeat/shuffle decisions into `core/domain`.
-  - [ ] Move seek planning and provider-stream replay decisions into `core/domain`.
-  - [ ] Move playback progress, pending-seek, and UI update gating into shared code where Android has matching behavior.
-  - [ ] Move play-report and now-playing report thresholds/eligibility into `core/domain`.
-  - [ ] Share restored session validation and playback-session mapping.
+- [x] Playback/session behavior
+  - [x] Move queue navigation and repeat/shuffle decisions into `core/domain`.
+    - [x] Move repeat-mode cycling and previous-button restart decisions into `core/domain`.
+    - [x] Move adjacent queue index, repeat-track, and repeat-queue wrap decisions into `PlaybackQueue`.
+    - [x] Move Up Next shuffle/restore toggle decisions into `PlaybackQueue`.
+  - [x] Move seek planning and provider-stream replay decisions into `core/domain`.
+    - [x] Move seek progress seeding, radio seek blocking, and transcoded replay planning into `core/domain`.
+  - [x] Move playback progress, pending-seek, and UI update gating into shared code where Android has matching behavior.
+    - [x] Move pending-seek stale-progress filtering and target detection into `core/domain`.
+    - [x] Move missing-field progress merge and desktop UI update gating into `core/domain`.
+  - [x] Move play-report and now-playing report thresholds/eligibility into `core/domain`.
+    - [x] Move play-report threshold and submission eligibility into `core/domain`.
+    - [x] Move now-playing heartbeat eligibility into `core/domain`.
+  - [x] Share restored session validation and playback-session mapping.
+    - [x] Cover restored session validation, queue mapping, progress mapping, and adjacent-track session changes with common tests.
 
-- [ ] Library and search behavior
-  - [ ] Move library freshness/status decisions into `core/domain`.
-  - [ ] Move paging/limit/snapshot planning into `core/domain`.
-  - [ ] Move library search normalization/filtering/fallback decisions into shared code.
-  - [ ] Make desktop and Android use the same search request/result mapping.
+- [x] Library and search behavior
+  - [x] Move library freshness/status decisions into `core/domain`.
+    - [x] Move library freshness status decisions into `core/domain`.
+  - [x] Move paging/limit/snapshot planning into `core/domain`.
+    - [x] Move generic library paging limit decisions into `core/domain`.
+  - [x] Move library search normalization/filtering/fallback decisions into shared code.
+    - [x] Move shared search result count and active track selection helpers into `core/domain`.
+    - [x] Move shared query normalization, debounce, and result-limit policy into `core/domain`.
+  - [x] Make desktop and Android use the same search request/result mapping.
 
-- [ ] Radio behavior
-  - [ ] Promote radio request models from desktop `radio/` into `core/domain/radio`.
-  - [ ] Promote recent-radio stream/action resolution into shared code.
-  - [ ] Promote seed-selection rules using storage/provider interfaces instead of `DesktopCache`.
-  - [ ] Keep desktop/Android radio controllers as thin adapters around shared plans.
-  - [ ] Keep native playback queue mutation inside platform adapters.
+- [x] Radio behavior
+  - [x] Promote radio request models from desktop `radio/` into `core/domain/radio`.
+  - [x] Promote recent-radio stream/action resolution into shared code.
+  - [x] Promote seed-selection rules using storage/provider interfaces instead of `DesktopCache`.
+  - [x] Keep desktop/Android radio controllers as thin adapters around shared plans.
+  - [x] Keep native playback queue mutation inside platform adapters.
 
-- [ ] Playlist behavior
-  - [ ] Move playlist mutation planning into `core/domain`.
-  - [ ] Share create/add/rename/delete fallback and status decisions.
-  - [ ] Share smart playlist update/load orchestration where possible.
-  - [ ] Keep platform-specific cache refresh and UI state wiring in app modules.
+- [x] Playlist behavior
+  - [x] Move playlist mutation planning into `core/domain`.
+  - [x] Share create/add/rename/delete fallback and status decisions.
+  - [x] Share smart playlist update/load orchestration where possible.
+  - [x] Keep platform-specific cache refresh and UI state wiring in app modules.
 
-- [ ] Downloads/cache behavior
-  - [ ] Move download eligibility and request planning into `core/domain`.
-  - [ ] Keep actual filesystem paths, cache eviction, and platform storage adapters in app modules.
-  - [ ] Share downloaded-track display/status mapping where possible.
+- [x] Downloads/cache behavior
+  - [x] Move download eligibility and request planning into `core/domain`.
+  - [x] Keep actual filesystem paths, cache eviction, and platform storage adapters in app modules.
+  - [x] Share downloaded-track display/status mapping where possible.
 
-- [ ] Artist/album/detail behavior
-  - [ ] Move artist detail loading fallback rules into `core/domain`.
-  - [ ] Move album detail loading fallback rules into `core/domain`.
-  - [ ] Share popular-track/similar-artist request planning and result mapping.
-  - [ ] Keep visual layout and navigation state in platform UI layers.
+- [x] Artist/album/detail behavior
+  - [x] Move artist detail loading fallback rules into `core/domain`.
+  - [x] Move album detail loading fallback rules into `core/domain`.
+  - [x] Share popular-track/similar-artist request planning and result mapping.
+  - [x] Keep visual layout and navigation state in platform UI layers.
 
-- [ ] Home and navigation state
-  - [ ] Share home content request planning and aggregation rules.
-  - [ ] Share route persistence/restoration mapping.
-  - [ ] Keep platform navigation containers and window/back-stack integration platform-local.
+- [x] Home and navigation state
+  - [x] Share home content request planning and aggregation rules.
+  - [x] Share route persistence/restoration mapping.
+  - [x] Keep platform navigation containers and window/back-stack integration platform-local.
 
-- [ ] Settings and preferences
-  - [ ] Share playback settings validation and effective-settings derivation.
-  - [ ] Share session/settings serialization models where they are not platform-specific.
-  - [ ] Keep platform storage backends local.
+- [x] Settings and preferences
+  - [x] Share playback settings validation and effective-settings derivation.
+  - [x] Share session/settings serialization models where they are not platform-specific.
+  - [x] Keep platform storage backends local.
 
-- [ ] UI models
-  - [ ] Move duplicated display models into `core/ui`.
-  - [ ] Share action availability mapping for media rows, now playing, radio, playlists, and search.
-  - [ ] Keep final Compose layouts platform-local when screen density/lifecycle differs.
+- [x] UI models
+  - [x] Move duplicated display models into `core/ui`.
+  - [x] Share action availability mapping for media rows, now playing, radio, playlists, and search.
+  - [x] Keep final Compose layouts platform-local when screen density/lifecycle differs.
 
 ## Verification
 
-- [ ] `./gradlew :core:domain:allTests`
-- [ ] `./gradlew :core:ui:allTests`
-- [ ] `./gradlew :apps:desktop:compileKotlinDesktop :apps:desktop:desktopTest`
-- [ ] `./gradlew :apps:android:assembleDebug`
+- [x] `./gradlew :core:domain:allTests`
+- [x] `./gradlew :core:ui:allTests`
+- [x] `./gradlew :apps:desktop:compileKotlinDesktop :apps:desktop:desktopTest`
+- [x] `./gradlew :apps:android:assembleDebug`
 
 ## Notes
 
+- Shared core extraction is complete as of this checklist pass. Remaining work should move to warning cleanup, platform polish, Android parity verification, or feature-specific roadmaps rather than this shared-core architecture list.
 - This is the last major architecture pass after platform `Main`/`MainActivity` cleanup.
 - The goal is not to make desktop and Android identical internally; the goal is to make duplicated product decisions impossible by default.
 - A platform-local implementation should be the exception, and the reason should be documented next to the checklist item.
 - Desktop split prerequisite is complete. The final pass left desktop-local Compose state ownership, lifecycle effects, native playback/cache/filesystem adapters, and feature/controller wiring in `apps/desktop`; shared product behavior migrations should start from the feature checklist above.
+- Pending-seek stale-progress filtering and target detection now live in `core/domain` and are used by desktop, Android app playback progress handling, and Android foreground service progress handling. The foreground service keeps its narrower clear behavior by sharing only the target-detection helper.
+- Progress missing-field merging and desktop playback UI update gating now live in `core/domain`; Android keeps immediate Compose progress updates while sharing the missing-field merge behavior.
+- Play-report threshold and submission eligibility now live in `core/domain` and are used by both desktop and Android. Provider calls, coroutine dispatch, and failure rollback remain platform-local; desktop now shares Android's explicit internet-radio exclusion for played reports.
+- Now-playing heartbeat eligibility now lives in `core/domain` and is used by both desktop and Android. Provider calls, heartbeat timing, and coroutine dispatch remain platform-local.
+- Repeat-mode cycling and previous-button restart eligibility now live in `core/domain`. Desktop and Android still pass their existing restart thresholds because those values differ today.
+- Queue adjacent-index and Up Next shuffle/restore decisions now live in `core/domain/queue`; desktop and Android still own playback engine mutation, active queue fallback, and UI snapshot storage.
+- Seek planning now lives in `core/domain`: shared code seeds optimistic progress, preserves known duration, blocks radio seeks, and decides whether a transcoded seek should replay the current item. Desktop still maps its local `PlaybackSource` to the replay flag, while Android preserves its existing rule that transcoded streams replay on seek.
+- Restored playback-session mapping was already shared in `core/domain`; it now has common tests for invalid sessions, queue restoration, restored progress, current-track fallback, and adjacent-track session updates.
+- Library freshness status decisions now live in `core/domain` and are used by both desktop and Android. Provider scan reads and source metadata writes remain platform-local.
+- Generic library paging limit decisions now live in `core/domain`; desktop keeps only the adapter that maps the active library tab to a visible item count.
+- Search result counts, active-track selection, query normalization, debounce timing, and result limits now live in `core/domain`. Desktop and Android both use type-to-search behavior with the same request policy.
+- Recent-radio stream construction and saved-stream action resolution now live in `core/domain/radio`; desktop imports the shared action model and keeps only the platform controller wiring.
+- Radio request models and constructors now live in `core/domain/radio`; desktop still owns provider execution, coroutine dispatch, and playback queue mutation.
+- Radio seed-selection rules now live in `core/domain/radio` behind storage/provider callbacks; desktop keeps only the adapter that reads `DesktopCache` and provider detail data.
+- Radio session gating and generated queue append/replacement plans now live in `core/domain/radio`; desktop radio queue code now only applies those plans to `PlaylistEngine`.
+- Native playback queue mutation intentionally remains platform-local for radio: desktop applies shared plans through `PlaylistEngine`, while Android applies shared plans to `AndroidAppState`/service playback state so each platform preserves its playback engine and lifecycle ownership.
+- Playlist create/add mutation planning and add-result status decisions now live in `core/domain/provider`; desktop and Android both use the shared outcome mapping before refreshing playlist lists.
+- Playlist rename/delete normalization, status, error fallback, selected-playlist update, and recent-playlist cleanup rules now live in `core/domain/provider`.
+- Smart playlist save/update refresh orchestration and save/update/load status/error messages now live in `core/domain/provider`. Desktop still owns password/native-token refresh before saving, and Android currently wires only the save flow.
+- Playlist cache refresh and UI state mutation remain platform-local after the shared mutation extraction because desktop and Android own different state containers and preload paths.
+- Download eligibility, mobile-data blocking, request track planning, status/error messages, and downloaded-track playback selection now live in `core/domain/cache`. Desktop and Android still own download execution, refresh tokens, storage statistics, and platform cache repositories.
+- Downloaded-track display mapping now lives in `core/ui`; desktop and Android both map platform download records into `NaviampDownloadedTrackUi` before rendering.
+- Artist detail fallback construction from the local library index, loading status, loaded-empty status, and error fallback now live in `core/domain/media`; desktop and Android both use the shared fallback while keeping cache/provider calls platform-local.
+- Album detail fallback construction from local library tracks plus album detail loading/error status now live in `core/domain/media`; desktop and Android both keep provider/cache reads local and share the fallback mapping.
+- Artist popular-track and similar-artist fetch/display limits, loading/error statuses, and result-to-screen update mapping now live in `core/domain/media`; desktop and Android still own service execution and platform state updates.
+- Home content request planning and aggregation now live in `core/domain/home`; Android uses the same `HomeService` aggregation path with a platform-supplied artist limit instead of patching artists after load.
+- Route persistence/restoration mapping now lives in `core/domain/app`; desktop maps the shared restore result back to its local route enum, including the legacy `InternetRadio` stored name, while platform navigation containers stay local.
+- Navigation containers remain platform-owned: desktop keeps bottom navigation, selected-detail route projection, and window route state in `apps/desktop`, while Android keeps `BackHandler`, activity back-stack behavior, and shell route mutation in `apps/android`. Shared code stops at route enums, stored-route parsing, and safe restore targets.
+- Playback settings validation and effective-setting derivation now live in `core/domain/settings`; desktop and Android share capability-based ReplayGain, gapless/crossfade, software-volume, and stream-quality normalization before applying or saving settings.
+- Portable settings/session serialization models live in `core/domain/settings`, including playback, cache, navigation, search, recent radio, saved media, playback session, and visualizer selection. Desktop still owns the JSON file envelope and window/connection persistence; Android still owns SharedPreferences keys and source-specific playback session storage.
+- Settings storage backends remain platform-owned: desktop keeps filesystem paths, JSON envelope migration, and window/connection persistence in `apps/desktop`; Android keeps SharedPreferences keys, Android connection form persistence, and source-scoped playback session storage in `apps/android`.
+- Duplicated playback display helpers now live in `core/ui`; desktop uses the shared playback progress timeline label, position label, nullable duration label, and progress fraction helpers while retaining only its desktop-specific stream-quality engine preference helper locally.
+- Action availability mapping now lives in `core/ui` through the shared action catalog for track, album, artist, playlist, download, station, and now-playing menus. Desktop playlist list/detail controls use the shared playlist action specs, including smart playlist edit availability, while platform panels still wire callbacks locally.
+- Final Compose layout ownership stays platform-aware: `core/ui` keeps reusable shared models, action catalogs, and shared surfaces such as now-playing/settings/mobile shell components, while desktop keeps its dense desktop panels, window menus, and desktop route composition in `apps/desktop`, and Android keeps lifecycle/activity shell integration in `apps/android`.
+- Artist/album detail visual composition and navigation state remain outside domain: desktop keeps its Compose detail panels and back-route state in `apps/desktop`, Android keeps app back-stack state in `apps/android`, and shared UI models/layout stay in `core/ui`.
+- Desktop warning cleanup is complete: the app window icon now uses Compose resources, the old desktop preview annotation was removed, and the existing classpath/native package icons stay in place for taskbar and distribution metadata.

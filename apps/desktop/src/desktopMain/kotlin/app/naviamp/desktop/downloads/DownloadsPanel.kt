@@ -19,20 +19,20 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.ui.NaviampAction
+import app.naviamp.ui.NaviampDownloadedTrackUi
 import app.naviamp.ui.downloadRowActions
 import app.naviamp.ui.storageBytesLabel
 
 @Composable
 fun DownloadsPanel(
     appColors: AppColors,
-    downloads: List<DownloadedTrack>,
+    downloads: List<NaviampDownloadedTrackUi>,
     status: String?,
     downloadBytes: Long,
     maxDownloadBytes: Long,
-    coverArtUrl: (String?) -> String?,
-    onTrackSelected: (Int) -> Unit,
-    onRemoveDownload: (DownloadedTrack) -> Unit,
-    onTrackAddToPlaylist: (DownloadedTrack) -> Unit,
+    onTrackSelected: (NaviampDownloadedTrackUi) -> Unit,
+    onRemoveDownload: (NaviampDownloadedTrackUi) -> Unit,
+    onTrackAddToPlaylist: (NaviampDownloadedTrackUi) -> Unit,
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -72,17 +72,17 @@ fun DownloadsPanel(
                 fontSize = 12.sp,
             )
         } else {
-            downloads.forEachIndexed { index, download ->
+            downloads.forEach { download ->
                 val rowActions = downloadRowActions(canRemove = true, canAddToPlaylist = true)
                 val removeAction = rowActions.first { it.action == NaviampAction.RemoveDownload }
                 MediaRow(
                     appColors = appColors,
-                    onClick = { onTrackSelected(index) },
+                    onClick = { onTrackSelected(download) },
                     verticalPadding = 3.dp,
                 ) {
                     CoverArtThumb(
                         appColors = appColors,
-                        coverArtUrl = coverArtUrl(download.track.coverArtId),
+                        coverArtUrl = download.track.coverArtUrl,
                         size = 34.dp,
                         cornerRadius = 4.dp,
                     )
@@ -96,18 +96,14 @@ fun DownloadsPanel(
                             fontSize = 13.sp,
                         )
                         Text(
-                            download.track.artistName,
+                            download.track.subtitle,
                             color = appColors.secondaryText,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             fontSize = 11.sp,
                         )
                     }
-                    TrackMetadataTrailing(
-                        appColors = appColors,
-                        track = download.track,
-                        showDuration = true,
-                    )
+                    Text(download.track.meta, color = appColors.mutedText, fontSize = 11.sp)
                     Text(
                         download.sizeBytes.storageBytesLabel(),
                         color = appColors.mutedText,

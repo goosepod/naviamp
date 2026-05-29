@@ -35,7 +35,11 @@ import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.smartplaylist.SmartPlaylistDraft
+import app.naviamp.ui.NaviampAction
+import app.naviamp.ui.NaviampActionSpec
 import app.naviamp.ui.SmartPlaylistBuilderDialog
+import app.naviamp.ui.playlistRowActions
+import app.naviamp.ui.toSpec
 import kotlinx.coroutines.launch
 
 enum class PlaylistSortMode(val label: String) {
@@ -226,14 +230,24 @@ private fun PlaylistListRow(
         DetailActionIconButton(appColors, TransportIcons.Shuffle, "Shuffle playlist", playlist.trackCount > 1, onShuffle)
         RowOverflowMenu(
             appColors = appColors,
-            items = listOf(
-                RowMenuItem("Rename playlist", NavigationIcons.Edit, onRename),
-                RowMenuItem("Edit smart playlist", NavigationIcons.Playlist, onEditSmartPlaylist),
-                RowMenuItem("Delete playlist", NavigationIcons.Trash, onDelete),
-                RowMenuItem("Download playlist", NavigationIcons.Downloads, onDownload),
-                RowMenuItem("Add to queue", NavigationIcons.Queue, onAddToQueue),
-                RowMenuItem("Add to playlist", NavigationIcons.Playlist, onAddToPlaylist),
-            ),
+            items = playlistRowActions(
+                canDownload = true,
+                canAddToQueue = true,
+                canAddToPlaylist = true,
+                canRename = true,
+                canEditSmartPlaylist = true,
+                canDelete = true,
+            ).mapNotNull { action ->
+                when (action.action) {
+                    NaviampAction.RenamePlaylist -> action.toPlaylistRowMenuItem(onRename)
+                    NaviampAction.EditSmartPlaylist -> action.toPlaylistRowMenuItem(onEditSmartPlaylist)
+                    NaviampAction.DeletePlaylist -> action.toPlaylistRowMenuItem(onDelete)
+                    NaviampAction.DownloadPlaylist -> action.toPlaylistRowMenuItem(onDownload)
+                    NaviampAction.AddToQueue -> action.toPlaylistRowMenuItem(onAddToQueue)
+                    NaviampAction.AddPlaylistToPlaylist -> action.toPlaylistRowMenuItem(onAddToPlaylist)
+                    else -> null
+                }
+            },
         )
     }
 }
@@ -289,13 +303,25 @@ fun PlaylistDetailPanel(
                 Text(playlist?.summaryLabel() ?: "${tracks.size} tracks", color = appColors.secondaryText, fontSize = 12.sp)
                 status?.let { Text(it, color = appColors.secondaryText, fontSize = 11.sp) }
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    val playlistActions = playlistRowActions(
+                        canDownload = tracks.isNotEmpty(),
+                        canAddToQueue = tracks.isNotEmpty(),
+                        canAddToPlaylist = tracks.isNotEmpty(),
+                        canRename = playlist != null,
+                        canDelete = playlist != null,
+                    )
+                    val renameAction = playlistActions.playlistAction(NaviampAction.RenamePlaylist)
+                    val deleteAction = playlistActions.playlistAction(NaviampAction.DeletePlaylist)
+                    val downloadAction = playlistActions.playlistAction(NaviampAction.DownloadPlaylist)
+                    val addToQueueAction = playlistActions.playlistAction(NaviampAction.AddToQueue)
+                    val addToPlaylistAction = playlistActions.playlistAction(NaviampAction.AddPlaylistToPlaylist)
                     DetailActionIconButton(appColors, TransportIcons.Play, "Play playlist", tracks.isNotEmpty(), onPlayPlaylist)
                     DetailActionIconButton(appColors, TransportIcons.Shuffle, "Shuffle playlist", tracks.size > 1, onShufflePlaylist)
-                    DetailActionIconButton(appColors, NavigationIcons.Edit, "Rename playlist", playlist != null, onRenamePlaylist)
-                    DetailActionIconButton(appColors, NavigationIcons.Trash, "Delete playlist", playlist != null, onDeletePlaylist)
-                    DetailActionIconButton(appColors, NavigationIcons.Downloads, "Download playlist", tracks.isNotEmpty(), onDownloadPlaylist)
-                    DetailActionIconButton(appColors, NavigationIcons.Queue, "Add playlist to queue", tracks.isNotEmpty(), onAddPlaylistToQueue)
-                    DetailActionIconButton(appColors, NavigationIcons.Playlist, "Add playlist to playlist", tracks.isNotEmpty(), onAddPlaylistToPlaylist)
+                    DetailActionIconButton(appColors, renameAction.icon, renameAction.label, renameAction.enabled, onRenamePlaylist)
+                    DetailActionIconButton(appColors, deleteAction.icon, deleteAction.label, deleteAction.enabled, onDeletePlaylist)
+                    DetailActionIconButton(appColors, downloadAction.icon, downloadAction.label, downloadAction.enabled, onDownloadPlaylist)
+                    DetailActionIconButton(appColors, addToQueueAction.icon, addToQueueAction.label, addToQueueAction.enabled, onAddPlaylistToQueue)
+                    DetailActionIconButton(appColors, addToPlaylistAction.icon, addToPlaylistAction.label, addToPlaylistAction.enabled, onAddPlaylistToPlaylist)
                 }
             }
         }
@@ -317,6 +343,12 @@ fun PlaylistDetailPanel(
         }
     }
 }
+
+private fun NaviampActionSpec.toPlaylistRowMenuItem(onClick: () -> Unit): RowMenuItem =
+    RowMenuItem(label = label, icon = icon, onClick = onClick, enabled = enabled)
+
+private fun List<NaviampActionSpec>.playlistAction(action: NaviampAction): NaviampActionSpec =
+    firstOrNull { it.action == action } ?: action.toSpec(enabled = false)
 
 @Composable
 fun PlaylistCover(

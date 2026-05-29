@@ -9,6 +9,7 @@ import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
+import app.naviamp.domain.playback.shouldReportNowPlaying
 import app.naviamp.ui.SharedRoute
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -37,8 +38,15 @@ fun AndroidAppRuntimeEffects(
         LaunchedEffect(provider, nowPlaying?.id, playbackState) {
             val activeProvider = provider ?: return@LaunchedEffect
             val track = nowPlaying ?: return@LaunchedEffect
-            if (!activeProvider.capabilities.supportsPlayReporting || track.isInternetRadioTrack()) return@LaunchedEffect
-            if (playbackState != PlaybackState.Playing) return@LaunchedEffect
+            if (
+                !shouldReportNowPlaying(
+                    supportsPlayReporting = activeProvider.capabilities.supportsPlayReporting,
+                    isInternetRadioTrack = track.isInternetRadioTrack(),
+                    playbackState = playbackState,
+                )
+            ) {
+                return@LaunchedEffect
+            }
 
             while (true) {
                 runCatching {

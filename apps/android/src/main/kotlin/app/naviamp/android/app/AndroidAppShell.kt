@@ -7,9 +7,12 @@ import app.naviamp.android.playback.AndroidBassLoadReport
 import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
+import app.naviamp.domain.playback.nextRepeatMode
+import app.naviamp.domain.provider.allKnownTracks
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.PlaybackSettings
+import app.naviamp.domain.settings.VisualizerSettings
 import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.ui.AndroidTrackRowUi
@@ -610,11 +613,7 @@ fun androidAppShellActions(
             },
             onToggleShuffle = handleShellToggleShuffle,
             onCycleRepeatMode = {
-                repeatMode = when (repeatMode) {
-                    RepeatMode.Off -> RepeatMode.Queue
-                    RepeatMode.Queue -> RepeatMode.Track
-                    RepeatMode.Track -> RepeatMode.Off
-                }
+                repeatMode = nextRepeatMode(repeatMode)
             },
             onToggleLyrics = {
                 lyricsVisible = !lyricsVisible
@@ -625,7 +624,7 @@ fun androidAppShellActions(
             onToggleVisualizer = { visualizerRequestedVisible = !visualizerRequestedVisible },
             onVisualizerSelected = { visualizer ->
                 selectedVisualizer = visualizer
-                settingsStore.saveSelectedVisualizer(visualizer.name)
+                settingsStore.saveVisualizerSettings(VisualizerSettings(selectedVisualizer = visualizer.name))
             },
             onTrackRadio = handleShellTrackRadio,
             onAddToPlaylist = handleNowPlayingAddToPlaylist,

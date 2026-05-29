@@ -5,6 +5,165 @@ import kotlin.test.assertEquals
 
 class PlaybackProgressTest {
     @Test
+    fun mergeMissingWithKeepsPreviousValuesOnlyForUnknownFields() {
+        val merged = PlaybackProgress(
+            positionSeconds = null,
+            durationSeconds = 240.0,
+        ).mergeMissingWith(
+            PlaybackProgress(
+                positionSeconds = 42.0,
+                durationSeconds = 180.0,
+            ),
+        )
+
+        assertEquals(42.0, merged.positionSeconds)
+        assertEquals(240.0, merged.durationSeconds)
+    }
+
+    @Test
+    fun progressUiUpdateRequiresMeaningfulMovementDurationChangeOrInterval() {
+        assertEquals(
+            false,
+            shouldUpdatePlaybackProgressUi(
+                pendingSeekPositionSeconds = null,
+                currentProgress = PlaybackProgress(positionSeconds = 10.0, durationSeconds = 200.0),
+                mergedProgress = PlaybackProgress(positionSeconds = 10.2, durationSeconds = 200.0),
+                nowMillis = 1_200,
+                lastUiUpdateMillis = 1_000,
+                positionThresholdSeconds = 1.0,
+                updateIntervalMillis = 1_000,
+            ),
+        )
+        assertEquals(
+            true,
+            shouldUpdatePlaybackProgressUi(
+                pendingSeekPositionSeconds = null,
+                currentProgress = PlaybackProgress(positionSeconds = 10.0, durationSeconds = 200.0),
+                mergedProgress = PlaybackProgress(positionSeconds = 12.0, durationSeconds = 200.0),
+                nowMillis = 1_200,
+                lastUiUpdateMillis = 1_000,
+                positionThresholdSeconds = 1.0,
+                updateIntervalMillis = 1_000,
+            ),
+        )
+        assertEquals(
+            true,
+            shouldUpdatePlaybackProgressUi(
+                pendingSeekPositionSeconds = null,
+                currentProgress = PlaybackProgress(positionSeconds = 10.0, durationSeconds = 200.0),
+                mergedProgress = PlaybackProgress(positionSeconds = 10.2, durationSeconds = 201.0),
+                nowMillis = 1_200,
+                lastUiUpdateMillis = 1_000,
+                positionThresholdSeconds = 1.0,
+                updateIntervalMillis = 1_000,
+            ),
+        )
+        assertEquals(
+            true,
+            shouldUpdatePlaybackProgressUi(
+                pendingSeekPositionSeconds = 60.0,
+                currentProgress = PlaybackProgress(positionSeconds = 10.0, durationSeconds = 200.0),
+                mergedProgress = PlaybackProgress(positionSeconds = 10.2, durationSeconds = 200.0),
+                nowMillis = 1_200,
+                lastUiUpdateMillis = 1_000,
+                positionThresholdSeconds = 1.0,
+                updateIntervalMillis = 1_000,
+            ),
+        )
+    }
+
+    @Test
+    fun ignoresStaleEngineProgressSoonAfterSeek() {
+        assertEquals(
+            true,
+            shouldIgnoreProgressForPendingSeek(
+                pendingSeekPositionSeconds = 60.0,
+                pendingSeekIssuedAtMillis = 1_000,
+                incomingPositionSeconds = 12.0,
+                nowMillis = 1_500,
+                toleranceSeconds = 1.0,
+                staleWindowMillis = 2_000,
+            ),
+        )
+    }
+
+    @Test
+    fun acceptsEngineProgressAfterSeekWindowExpires() {
+        assertEquals(
+            false,
+            shouldIgnoreProgressForPendingSeek(
+                pendingSeekPositionSeconds = 60.0,
+                pendingSeekIssuedAtMillis = 1_000,
+                incomingPositionSeconds = 12.0,
+                nowMillis = 3_500,
+                toleranceSeconds = 1.0,
+                staleWindowMillis = 2_000,
+            ),
+        )
+    }
+
+    @Test
+    fun clearsPendingSeekWhenIncomingProgressReachesTarget() {
+        assertEquals(
+            true,
+            shouldClearPendingSeek(
+                pendingSeekPositionSeconds = 60.0,
+                pendingSeekIssuedAtMillis = 1_000,
+                incomingPositionSeconds = 60.5,
+                nowMillis = 1_500,
+                toleranceSeconds = 1.0,
+                staleWindowMillis = 2_000,
+            ),
+        )
+    }
+
+    @Test
+    fun clearsPendingSeekWhenProgressIsUnknownOrWindowExpires() {
+        assertEquals(
+            true,
+            shouldClearPendingSeek(
+                pendingSeekPositionSeconds = 60.0,
+                pendingSeekIssuedAtMillis = 1_000,
+                incomingPositionSeconds = null,
+                nowMillis = 1_500,
+                toleranceSeconds = 1.0,
+                staleWindowMillis = 2_000,
+            ),
+        )
+        assertEquals(
+            true,
+            shouldClearPendingSeek(
+                pendingSeekPositionSeconds = 60.0,
+                pendingSeekIssuedAtMillis = 1_000,
+                incomingPositionSeconds = 12.0,
+                nowMillis = 3_000,
+                toleranceSeconds = 1.0,
+                staleWindowMillis = 2_000,
+            ),
+        )
+    }
+
+    @Test
+    fun detectsWhenPendingSeekReachedTarget() {
+        assertEquals(
+            true,
+            hasPendingSeekReachedTarget(
+                pendingSeekPositionSeconds = 60.0,
+                incomingPositionSeconds = 60.5,
+                toleranceSeconds = 1.0,
+            ),
+        )
+        assertEquals(
+            false,
+            hasPendingSeekReachedTarget(
+                pendingSeekPositionSeconds = 60.0,
+                incomingPositionSeconds = 58.0,
+                toleranceSeconds = 1.0,
+            ),
+        )
+    }
+
+    @Test
     fun mergeWithKeepsPreviousValuesWhenCurrentReadIsUnknown() {
         val previous = PlaybackProgress(
             positionSeconds = 42.0,

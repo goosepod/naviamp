@@ -11,6 +11,7 @@ import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.internetRadioTrackId
+import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.ReplayGainMode
 import kotlinx.serialization.Serializable
 
@@ -45,6 +46,31 @@ data class PlaybackSettings(
     val downloadQuality: StreamQualityPreference = StreamQualityPreference(),
     val allowMobileDownloads: Boolean = false,
 )
+
+fun PlaybackSettings.effectiveForEngine(playbackEngine: PlaybackEngine): PlaybackSettings {
+    val effectiveGapless = playbackEngine.supportsGapless && gaplessEnabled
+    return copy(
+        replayGainMode = if (playbackEngine.supportsReplayGain) {
+            replayGainMode
+        } else {
+            ReplayGainMode.Off
+        },
+        gaplessEnabled = effectiveGapless,
+        crossfadeDurationSeconds = if (playbackEngine.supportsCrossfade) {
+            if (effectiveGapless) 0 else crossfadeDurationSeconds.coerceIn(0, 12)
+        } else {
+            0
+        },
+        volumePercent = if (playbackEngine.supportsSoftwareVolume) {
+            volumePercent.coerceIn(0, 100)
+        } else {
+            100
+        },
+        wifiStreamingQuality = wifiStreamingQuality.normalized(),
+        mobileStreamingQuality = mobileStreamingQuality.normalized(),
+        downloadQuality = downloadQuality.normalized(),
+    )
+}
 
 @Serializable
 data class StreamQualityPreference(
@@ -125,6 +151,11 @@ data class CacheSettings(
 }
 
 @Serializable
+data class VisualizerSettings(
+    val selectedVisualizer: String = DefaultSelectedVisualizer,
+)
+
+@Serializable
 data class NavigationSettings(
     val route: String = "Home",
     val lastContentRoute: String = "Home",
@@ -158,6 +189,8 @@ enum class RecentRadioKind {
     Album,
     Track,
 }
+
+const val DefaultSelectedVisualizer = "AudioSphere"
 
 @Serializable
 data class SavedArtist(

@@ -155,11 +155,6 @@ data class DesktopSettings(
 )
 
 @Serializable
-data class VisualizerSettings(
-    val selectedVisualizer: String = "AudioSphere",
-)
-
-@Serializable
 data class WindowSettings(
     val widthDp: Float = 950f,
     val heightDp: Float = 640f,

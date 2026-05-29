@@ -1,35 +1,11 @@
 package app.naviamp.desktop
 
-import app.naviamp.desktop.settings.PlaybackSettings
+import app.naviamp.domain.app.NaviampRoute
+import app.naviamp.domain.app.restoredNavigationRoute
 import app.naviamp.domain.home.HomeAlbumYear
 import app.naviamp.domain.home.HomeLibraryRepository
-import app.naviamp.domain.playback.PlaybackEngine
-import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.provider.ProviderCapabilities
-
-fun PlaybackSettings.forEngine(playbackEngine: PlaybackEngine): PlaybackSettings =
-    copy(
-        replayGainMode = if (playbackEngine.supportsReplayGain) {
-            replayGainMode
-        } else {
-            ReplayGainMode.Off
-        },
-        crossfadeDurationSeconds = if (playbackEngine.supportsCrossfade) {
-            if (gaplessEnabled) 0 else crossfadeDurationSeconds.coerceIn(0, 12)
-        } else {
-            0
-        },
-        gaplessEnabled = playbackEngine.supportsGapless && gaplessEnabled,
-        volumePercent = if (playbackEngine.supportsSoftwareVolume) {
-            volumePercent.coerceIn(0, 100)
-        } else {
-            100
-        },
-        debugLoggingEnabled = debugLoggingEnabled,
-        lrclibLyricsEnabled = lrclibLyricsEnabled,
-        previousButtonBehavior = previousButtonBehavior,
-        upNextSelectionBehavior = upNextSelectionBehavior,
-    )
+import app.naviamp.domain.app.restoredLastContentRoute as restoredSharedLastContentRoute
 
 fun DesktopCache.asHomeLibraryRepository(): HomeLibraryRepository =
     object : HomeLibraryRepository {
@@ -55,23 +31,27 @@ fun restoredRoute(
     savedRouteName: String?,
     hasConnection: Boolean,
     hasRestoredTrack: Boolean,
-): AppRoute {
-    if (!hasConnection) return AppRoute.Settings
-    return when (val route = AppRoute.fromStoredName(savedRouteName)) {
-        AppRoute.Player -> if (hasRestoredTrack) AppRoute.Player else AppRoute.Home
-        AppRoute.AlbumDetail -> AppRoute.Home
-        AppRoute.ArtistDetail -> AppRoute.Search
-        AppRoute.PlaylistDetail -> AppRoute.Playlists
-        else -> route
-    }
-}
+): AppRoute =
+    restoredNavigationRoute(
+        savedRouteName = savedRouteName,
+        hasConnection = hasConnection,
+        hasRestoredTrack = hasRestoredTrack,
+    ).toAppRoute()
 
 fun restoredLastContentRoute(savedRouteName: String?): AppRoute =
-    when (val route = AppRoute.fromStoredName(savedRouteName)) {
-        AppRoute.Player,
-        AppRoute.AlbumDetail,
-        AppRoute.ArtistDetail,
-        AppRoute.PlaylistDetail,
-        -> AppRoute.Home
-        else -> route
+    restoredSharedLastContentRoute(savedRouteName).toAppRoute()
+
+private fun NaviampRoute.toAppRoute(): AppRoute =
+    when (this) {
+        NaviampRoute.Player -> AppRoute.Player
+        NaviampRoute.Home -> AppRoute.Home
+        NaviampRoute.Playlists -> AppRoute.Playlists
+        NaviampRoute.PlaylistDetail -> AppRoute.PlaylistDetail
+        NaviampRoute.AlbumDetail -> AppRoute.AlbumDetail
+        NaviampRoute.ArtistDetail -> AppRoute.ArtistDetail
+        NaviampRoute.Library -> AppRoute.Library
+        NaviampRoute.Search -> AppRoute.Search
+        NaviampRoute.Radio -> AppRoute.InternetRadio
+        NaviampRoute.Downloads -> AppRoute.Downloads
+        NaviampRoute.Settings -> AppRoute.Settings
     }

@@ -1,7 +1,5 @@
-package app.naviamp.desktop
+package app.naviamp.domain.radio
 
-import app.naviamp.desktop.settings.RecentRadioKind
-import app.naviamp.desktop.settings.RecentRadioStream
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Artist
@@ -9,20 +7,22 @@ import app.naviamp.domain.ArtistId
 import app.naviamp.domain.Genre
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.settings.RecentRadioKind
+import app.naviamp.domain.settings.RecentRadioStream
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 
-class DesktopRecentRadioActionsTest {
+class RecentRadioActionsTest {
     @Test
     fun resolvesSimpleRecentRadioActions() {
         assertEquals(
-            DesktopRecentRadioAction.PlayLibrary,
+            RecentRadioAction.PlayLibrary,
             recentRadioAction(libraryRecentRadioStream()),
         )
         assertEquals(
-            DesktopRecentRadioAction.PlayRandomAlbum,
+            RecentRadioAction.PlayRandomAlbum,
             recentRadioAction(
                 RecentRadioStream(
                     id = "random-album",
@@ -32,12 +32,12 @@ class DesktopRecentRadioActionsTest {
             ),
         )
 
-        val genre = assertIs<DesktopRecentRadioAction.PlayGenre>(
+        val genre = assertIs<RecentRadioAction.PlayGenre>(
             recentRadioAction(genreRecentRadioStream(Genre("Post-punk"))),
         )
         assertEquals("Post-punk", genre.genre.name)
 
-        val decade = assertIs<DesktopRecentRadioAction.PlayDecade>(
+        val decade = assertIs<RecentRadioAction.PlayDecade>(
             recentRadioAction(decadeRecentRadioStream(1980, 1989)),
         )
         assertEquals(1980, decade.fromYear)
@@ -46,22 +46,22 @@ class DesktopRecentRadioActionsTest {
 
     @Test
     fun resolvesEntityBackedRecentRadioActions() {
-        val artistAction = assertIs<DesktopRecentRadioAction.PlayArtist>(
+        val artistAction = assertIs<RecentRadioAction.PlayArtist>(
             recentRadioAction(artistRecentRadioStream(artist())),
         )
         assertEquals("artist-1", artistAction.artist.id.value)
 
-        val albumAction = assertIs<DesktopRecentRadioAction.PlayAlbum>(
+        val albumAction = assertIs<RecentRadioAction.PlayAlbum>(
             recentRadioAction(albumRecentRadioStream(album())),
         )
         assertEquals("album-1", albumAction.album.id.value)
 
-        val randomAlbumAction = assertIs<DesktopRecentRadioAction.PlayAlbum>(
+        val randomAlbumAction = assertIs<RecentRadioAction.PlayAlbum>(
             recentRadioAction(randomAlbumRecentRadioStream(album())),
         )
         assertEquals("album-1", randomAlbumAction.album.id.value)
 
-        val trackAction = assertIs<DesktopRecentRadioAction.PlayTrack>(
+        val trackAction = assertIs<RecentRadioAction.PlayTrack>(
             recentRadioAction(trackRecentRadioStream(track())),
         )
         assertEquals("track-1", trackAction.track.id.value)

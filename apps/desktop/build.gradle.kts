@@ -105,6 +105,7 @@ kotlin {
                 implementation(project(":providers:navidrome"))
                 implementation(compose.desktop.currentOs)
                 implementation(compose.material3)
+                implementation(compose.components.resources)
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.serialization.json)
                 implementation(libs.jna)
@@ -118,6 +119,11 @@ kotlin {
             }
         }
     }
+}
+
+compose.resources {
+    generateResClass = always
+    packageOfResClass = "app.naviamp.desktop.generated.resources"
 }
 
 compose.desktop {

@@ -1,8 +1,6 @@
 package app.naviamp.desktop
 
 import app.naviamp.domain.Playlist
-import app.naviamp.domain.TrackId
-import app.naviamp.domain.provider.PlaylistTrackMutationResult
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -18,70 +16,6 @@ class DesktopPlaylistMutationsTest {
             homePlaylists(
                 playlists = listOf(beta, recent, alpha),
                 recentPlaylistIds = listOf("recent"),
-            ),
-        )
-    }
-
-    @Test
-    fun addToPlaylistMutationUpdateReportsNoTracks() {
-        assertEquals(
-            AddToPlaylistMutationUpdate(
-                closeDialog = false,
-                addToPlaylistStatus = "No tracks found.",
-                connectionStatus = null,
-                refreshPlaylists = false,
-            ),
-            addToPlaylistMutationUpdate(
-                result = PlaylistTrackMutationResult(
-                    requestedTrackCount = 0,
-                    addedTrackIds = emptyList(),
-                    createdPlaylist = false,
-                ),
-                playlist = null,
-            ),
-        )
-    }
-
-    @Test
-    fun addToPlaylistMutationUpdateClosesDialogWhenTracksAdded() {
-        assertEquals(
-            AddToPlaylistMutationUpdate(
-                closeDialog = true,
-                addToPlaylistStatus = null,
-                connectionStatus = "Added 2 tracks to playlist.",
-                refreshPlaylists = true,
-            ),
-            addToPlaylistMutationUpdate(
-                result = PlaylistTrackMutationResult(
-                    requestedTrackCount = 2,
-                    addedTrackIds = listOf(TrackId("one"), TrackId("two")),
-                    createdPlaylist = false,
-                ),
-                playlist = playlist("playlist", "Playlist"),
-            ),
-        )
-    }
-
-    @Test
-    fun smartPlaylistStatusMessagesIncludeTrackCount() {
-        val playlist = playlist("smart", "Smart")
-
-        assertEquals(
-            "Saved smart playlist Smart with 3 tracks.",
-            smartPlaylistSavedStatus(playlist, trackCount = 3),
-        )
-        assertEquals(
-            "Updated smart playlist Smart with 4 tracks.",
-            smartPlaylistUpdatedStatus(playlist, trackCount = 4),
-        )
-    }
-
-    @Test
-    fun smartPlaylistSaveErrorExplainsMissingPasswordRecovery() {
-        assertEquals(
-            "Edit this saved connection, enter your Navidrome password, then Save and connect before saving smart playlists.",
-            smartPlaylistSaveErrorMessage(
-                IllegalStateException("Reconnect to Navidrome with your password before saving smart playlists."),
             ),
         )
     }

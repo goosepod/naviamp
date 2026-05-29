@@ -67,6 +67,7 @@ class HomeService(
     suspend fun load(
         recentRadioStreams: List<RecentRadioStream> = emptyList(),
         recentInternetRadioStations: List<InternetRadioStation> = emptyList(),
+        artistLimit: Int = HomeDefaultArtistLimit,
     ): HomeContent {
         val genres = runCatching { provider.genres(limit = 12) }
             .getOrDefault(emptyList())
@@ -80,7 +81,7 @@ class HomeService(
             recentAlbums = runCatching { provider.albumList(AlbumListType.Recent, limit = 6) }.getOrDefault(emptyList()),
             frequentAlbums = runCatching { provider.albumList(AlbumListType.Frequent, limit = 6) }.getOrDefault(emptyList()),
             randomAlbums = runCatching { provider.albumList(AlbumListType.Random, limit = 6) }.getOrDefault(emptyList()),
-            artists = runCatching { provider.artists(limit = 50) }.getOrDefault(emptyList()),
+            artists = runCatching { provider.artists(limit = artistLimit) }.getOrDefault(emptyList()),
             playlists = runCatching { provider.playlists(limit = 50) }.getOrDefault(emptyList()),
             recentRadioStreams = recentRadioStreams,
             radioStations = runCatching { provider.internetRadioStations() }.getOrDefault(emptyList()),
@@ -218,6 +219,7 @@ private fun Int.floorMod(divisor: Int): Int =
 
 const val HomeStationLibrary = "library"
 const val HomeStationRandomAlbum = "random-album"
+const val HomeDefaultArtistLimit = 50
 
 private const val HomeStationGenrePrefix = "genre:"
 private const val HomeStationDecadePrefix = "decade:"

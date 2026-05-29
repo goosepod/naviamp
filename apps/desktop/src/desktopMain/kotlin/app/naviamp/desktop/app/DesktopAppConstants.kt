@@ -18,11 +18,5 @@ const val PopularRadioSeedLimit = 5
 const val InitialSimilarRadioCount = 10
 val SimilarRadioExpansionCounts = listOf(25, 50)
 
-const val PlayReportDurationFraction = 0.5
-const val PlayReportMaxThresholdSeconds = 240.0
 const val CoverArtPreloadHistoryLimit = 1
 const val CoverArtPreloadUpcomingLimit = 5
-const val PopularTracksFetchLimit = 25
-const val PopularTracksDisplayLimit = 10
-const val SimilarArtistsFetchLimit = 20
-const val SimilarArtistsDisplayLimit = 10

@@ -1,14 +1,14 @@
-package app.naviamp.desktop
+package app.naviamp.domain.radio
 
-import app.naviamp.desktop.settings.RecentRadioKind
-import app.naviamp.desktop.settings.RecentRadioStream
-import app.naviamp.desktop.settings.SavedAlbum
-import app.naviamp.desktop.settings.SavedArtist
-import app.naviamp.desktop.settings.SavedTrack
 import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
 import app.naviamp.domain.Genre
 import app.naviamp.domain.Track
+import app.naviamp.domain.settings.RecentRadioKind
+import app.naviamp.domain.settings.RecentRadioStream
+import app.naviamp.domain.settings.SavedAlbum
+import app.naviamp.domain.settings.SavedArtist
+import app.naviamp.domain.settings.SavedTrack
 
 fun libraryRecentRadioStream(): RecentRadioStream =
     RecentRadioStream(

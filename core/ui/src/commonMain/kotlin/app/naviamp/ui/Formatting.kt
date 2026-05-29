@@ -3,6 +3,8 @@ package app.naviamp.ui
 import app.naviamp.domain.AudioInfo
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
+import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.waveform.playbackFraction
 import kotlin.math.round
 
 fun Track.durationLabel(): String =
@@ -21,6 +23,18 @@ fun Int.durationLabel(): String {
 
 fun Double?.durationLabel(): String =
     this?.toTimeLabel() ?: "--:--"
+
+fun PlaybackProgress.label(effectiveDurationSeconds: Double?): String {
+    val position = positionSeconds.durationLabel()
+    val duration = effectiveDurationSeconds.durationLabel()
+    return "$position / $duration"
+}
+
+fun PlaybackProgress.positionLabel(): String =
+    positionSeconds.durationLabel()
+
+fun PlaybackProgress.fraction(effectiveDurationSeconds: Double?): Double =
+    playbackFraction(positionSeconds, effectiveDurationSeconds)
 
 fun Long.bytesLabel(): String {
     val kib = 1024.0

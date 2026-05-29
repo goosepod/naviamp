@@ -28,7 +28,6 @@ import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
-import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.provider.MediaProvider
@@ -62,7 +61,7 @@ import app.naviamp.ui.SharedPlaylistSortMode
 import app.naviamp.ui.SharedRoute
 import app.naviamp.ui.SharedSearchResultsUi
 import app.naviamp.ui.SharedSimilarArtistUi
-import app.naviamp.ui.toAndroidTrackRowUi
+import app.naviamp.ui.toDownloadedTrackUi
 import app.naviamp.ui.toNowPlayingItemUi
 import app.naviamp.ui.toNowPlayingStationUi
 import app.naviamp.ui.toNowPlayingUi
@@ -224,10 +223,10 @@ fun androidShellModels(
             isSyncing = isLibrarySyncing,
         ),
         downloads = downloadedTracks.map { download ->
-            NaviampDownloadedTrackUi(
+            download.track.toDownloadedTrackUi(
                 id = download.file.absolutePath,
-                track = download.track.toAndroidTrackRowUi(coverArtUrl),
                 sizeBytes = download.sizeBytes,
+                coverArtUrl = coverArtUrl,
             )
         },
         playlistItems = homeState.playlists.map {
@@ -357,29 +356,6 @@ fun Context.isActiveNetworkMobileData(): Boolean {
         !capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) &&
         !capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
 }
-
-fun allKnownTracks(
-    searchResults: MediaSearchResults,
-    albumDetail: AlbumDetails?,
-): List<Track> =
-    albumDetail?.tracks ?: searchResults.tracks
-
-fun MediaSearchResults.totalCount(): Int =
-    artists.size + albums.size + tracks.size
-
-fun PlaybackProgress.mergeForAndroidPlayback(previous: PlaybackProgress): PlaybackProgress =
-    PlaybackProgress(
-        positionSeconds = positionSeconds ?: previous.positionSeconds,
-        durationSeconds = durationSeconds ?: previous.durationSeconds,
-    )
-
-fun playReportThresholdSeconds(durationSeconds: Double?): Double =
-    durationSeconds
-        ?.let { minOf(it * PlayReportDurationFraction, PlayReportMaxThresholdSeconds) }
-        ?: PlayReportMaxThresholdSeconds
-
-fun ReplayGainMode.forEngine(playbackEngine: AndroidPlaybackEngine): ReplayGainMode =
-    if (playbackEngine.supportsReplayGain) this else ReplayGainMode.Off
 
 suspend fun MediaProvider.tracksForArtist(artistId: ArtistId, limit: Long): List<Track> {
     val tracks = mutableListOf<Track>()

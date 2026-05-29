@@ -1,6 +1,8 @@
 package app.naviamp.desktop
 
 import app.naviamp.domain.cache.LibrarySnapshot
+import app.naviamp.domain.library.LibraryFreshness
+import app.naviamp.domain.library.nextLibraryLimit as nextLibraryPageLimit
 import app.naviamp.domain.provider.MediaProvider
 
 class LibrarySync(
@@ -93,11 +95,12 @@ fun nextLibraryLimit(
         LibraryTab.Artists -> snapshot.artists.size
         LibraryTab.Albums -> snapshot.albums.size
     }
-    return if (visibleCount < currentLimit) currentLimit else currentLimit + pageSize
+    return nextLibraryPageLimit(
+        visibleCount = visibleCount,
+        currentLimit = currentLimit,
+        pageSize = pageSize,
+    )
 }
-
-fun libraryLimitForOffset(offset: Int, pageSize: Int): Int =
-    ((offset / pageSize) + 1) * pageSize
 
 fun shouldAutoSyncLibrary(
     sourceId: String,
@@ -120,12 +123,6 @@ data class LibrarySyncProgress(
         }
 }
 
-data class LibraryFreshness(
-    val signature: String?,
-    val previousSignature: String?,
-    val scanning: Boolean,
-)
-
 suspend fun DesktopCache.libraryFreshnessFor(
     sourceId: String,
     provider: MediaProvider,
@@ -137,27 +134,4 @@ suspend fun DesktopCache.libraryFreshnessFor(
         previousSignature = source?.lastLibraryScanSignature,
         scanning = scanStatus?.scanning == true,
     )
-}
-
-data class LibraryFreshnessUpdate(
-    val signatureToMarkChecked: String? = null,
-    val status: String? = null,
-    val clearStatus: Boolean = false,
-)
-
-fun LibraryFreshness.evaluateLibraryFreshness(currentStatus: String?): LibraryFreshnessUpdate {
-    val currentSignature = signature ?: return LibraryFreshnessUpdate()
-    return when {
-        previousSignature == null -> LibraryFreshnessUpdate(signatureToMarkChecked = currentSignature)
-        previousSignature != currentSignature -> LibraryFreshnessUpdate(
-            status = if (scanning) {
-                "Navidrome is scanning. Refresh library after the scan finishes."
-            } else {
-                "Library changed on server. Refresh library to import updates."
-            },
-        )
-        currentStatus?.startsWith("Library changed on server") == true ||
-            currentStatus?.startsWith("Navidrome is scanning") == true -> LibraryFreshnessUpdate(clearStatus = true)
-        else -> LibraryFreshnessUpdate()
-    }
 }

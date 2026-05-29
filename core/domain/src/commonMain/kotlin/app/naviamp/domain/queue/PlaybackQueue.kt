@@ -36,22 +36,59 @@ data class PlaybackQueue(
         currentIndex in tracks.indices && currentIndex > 0
 
     fun next(repeatMode: RepeatMode = RepeatMode.Off): PlaybackQueue {
-        val nextIndex = when {
-            hasNext() -> currentIndex + 1
-            repeatMode == RepeatMode.Queue && tracks.isNotEmpty() -> 0
-            else -> return this
-        }
-        return copy(currentIndex = nextIndex)
+        val targetIndex = nextIndex(repeatMode = repeatMode, repeatTrack = false) ?: return this
+        return copy(currentIndex = targetIndex)
     }
 
     fun previous(repeatMode: RepeatMode = RepeatMode.Off): PlaybackQueue {
-        val previousIndex = when {
-            hasPrevious() -> currentIndex - 1
-            repeatMode == RepeatMode.Queue && tracks.isNotEmpty() -> tracks.lastIndex
-            else -> return this
-        }
-        return copy(currentIndex = previousIndex)
+        val targetIndex = previousIndex(repeatMode = repeatMode, repeatTrack = false) ?: return this
+        return copy(currentIndex = targetIndex)
     }
+
+    fun adjacentIndex(
+        offset: Int,
+        repeatMode: RepeatMode = RepeatMode.Off,
+        repeatTrack: Boolean = true,
+        wrapQueue: Boolean = true,
+    ): Int? {
+        if (offset == 0) return currentIndex.takeIf { it in tracks.indices }
+        if (currentIndex !in tracks.indices) return null
+        if (repeatTrack && repeatMode == RepeatMode.Track) return currentIndex
+
+        val nextIndex = currentIndex + offset
+        if (nextIndex in tracks.indices) return nextIndex
+        if (!wrapQueue || repeatMode != RepeatMode.Queue || tracks.isEmpty()) return null
+
+        return when {
+            offset > 0 && currentIndex == tracks.lastIndex -> 0
+            offset < 0 && currentIndex == 0 -> tracks.lastIndex
+            else -> null
+        }
+    }
+
+    fun nextIndex(
+        repeatMode: RepeatMode = RepeatMode.Off,
+        repeatTrack: Boolean = true,
+        wrapQueue: Boolean = true,
+    ): Int? =
+        adjacentIndex(
+            offset = 1,
+            repeatMode = repeatMode,
+            repeatTrack = repeatTrack,
+            wrapQueue = wrapQueue,
+        )
+
+    fun previousIndex(
+        repeatMode: RepeatMode = RepeatMode.Off,
+        repeatTrack: Boolean = true,
+        wrapQueue: Boolean = true,
+    ): Int? =
+        adjacentIndex(
+            offset = -1,
+            repeatMode = repeatMode,
+            repeatTrack = repeatTrack,
+            wrapQueue = wrapQueue,
+        )
 
     fun withTracks(
         tracks: List<Track>,
@@ -114,6 +151,14 @@ data class PlaybackQueue(
         ) to originalUpcoming
     }
 
+    fun toggleUpcomingShuffle(shuffledSnapshot: List<Track>?): UpcomingShuffleToggle? =
+        if (shuffledSnapshot == null) {
+            val (queue, snapshot) = shuffleUpcoming() ?: return null
+            UpcomingShuffleToggle(queue = queue, shuffledSnapshot = snapshot)
+        } else {
+            UpcomingShuffleToggle(queue = restoreUpcoming(shuffledSnapshot), shuffledSnapshot = null)
+        }
+
     fun restoreUpcoming(tracks: List<Track>): PlaybackQueue {
         if (currentIndex !in this.tracks.indices) return this
         return copy(
@@ -144,3 +189,8 @@ data class PlaybackQueue(
         }
     }
 }
+
+data class UpcomingShuffleToggle(
+    val queue: PlaybackQueue,
+    val shuffledSnapshot: List<Track>?,
+)

@@ -5,17 +5,15 @@ import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.Track
-import app.naviamp.domain.popular.ArtistPopularTrackMatch
+import app.naviamp.domain.media.albumDetailLoadErrorStatus
+import app.naviamp.domain.media.albumDetailsFromLibraryTracks
+import app.naviamp.domain.media.artistDetailLoadErrorStatus
+import app.naviamp.domain.media.artistDetailsFromLibraryTracks
 import app.naviamp.domain.provider.MediaProvider
 
 data class ArtistDetailNavigation(
     val backStack: List<Artist>,
     val backRoute: AppRoute,
-)
-
-data class ArtistPopularTracksUpdate(
-    val tracks: List<Track>,
-    val status: String?,
 )
 
 fun resolveAlbumDetailBackRoute(
@@ -66,15 +64,40 @@ suspend fun loadAlbumDetails(
     cache: DesktopCache,
     provider: MediaProvider,
     album: Album,
+    sourceId: String?,
 ): AlbumDetails =
-    cache.album(provider, album.id)
+    runCatching {
+        cache.album(provider, album.id)
+    }.recoverCatching { error ->
+        val fallbackDetail = sourceId?.let {
+            albumDetailsFromLibraryTracks(
+                albumId = album.id,
+                fallbackTitle = album.title,
+                fallbackArtistName = album.artistName,
+                tracks = cache.libraryTracksForAlbum(it, album.id, limit = 1_000),
+            )
+        }
+        fallbackDetail ?: throw error
+    }.getOrThrow()
 
 suspend fun loadArtistDetails(
     cache: DesktopCache,
     provider: MediaProvider,
     artist: Artist,
+    sourceId: String?,
 ): ArtistDetails =
-    cache.artist(provider, artist.id)
+    runCatching {
+        cache.artist(provider, artist.id)
+    }.recoverCatching { error ->
+        val fallbackDetail = sourceId?.let {
+            artistDetailsFromLibraryTracks(
+                artistId = artist.id,
+                fallbackName = artist.name,
+                tracks = cache.libraryTracksForArtist(it, artist.id, limit = 1_000),
+            )
+        }
+        fallbackDetail ?: throw error
+    }.getOrThrow()
 
 fun trackArtist(track: Track): Artist? =
     track.artistId?.let { artistId ->
@@ -96,32 +119,8 @@ fun trackAlbum(track: Track): Album? =
         )
     }
 
-fun missingPopularTracksSourceStatus(): String =
-    "Popular tracks unavailable: no connected media source."
-
-fun loadingPopularTracksStatus(): String =
-    "Loading popular tracks..."
-
-fun artistPopularTracksUpdate(
-    matches: List<ArtistPopularTrackMatch>,
-    displayLimit: Int,
-): ArtistPopularTracksUpdate =
-    ArtistPopularTracksUpdate(
-        tracks = matches
-            .map { it.matchedTrack }
-            .take(displayLimit),
-        status = if (matches.isEmpty()) {
-            "No popular tracks matched songs in your library."
-        } else {
-            null
-        },
-    )
-
-fun popularTracksUnavailableStatus(error: Throwable): String =
-    "Popular tracks unavailable: ${error.message ?: "unknown error"}"
-
 fun albumLoadErrorStatus(error: Throwable): String =
-    error.message ?: "Could not load album."
+    albumDetailLoadErrorStatus(error)
 
 fun artistLoadErrorStatus(error: Throwable): String =
-    error.message ?: "Could not load artist."
+    artistDetailLoadErrorStatus(error)
