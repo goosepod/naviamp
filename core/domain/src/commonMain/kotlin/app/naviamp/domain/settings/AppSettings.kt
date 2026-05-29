@@ -47,6 +47,11 @@ data class PlaybackSettings(
     val allowMobileDownloads: Boolean = false,
 )
 
+data class PlaybackSettingsChange(
+    val settings: PlaybackSettings,
+    val shouldReloadLyricsSidecars: Boolean,
+)
+
 fun PlaybackSettings.effectiveForEngine(playbackEngine: PlaybackEngine): PlaybackSettings {
     val effectiveGapless = playbackEngine.supportsGapless && gaplessEnabled
     return copy(
@@ -69,6 +74,18 @@ fun PlaybackSettings.effectiveForEngine(playbackEngine: PlaybackEngine): Playbac
         wifiStreamingQuality = wifiStreamingQuality.normalized(),
         mobileStreamingQuality = mobileStreamingQuality.normalized(),
         downloadQuality = downloadQuality.normalized(),
+    )
+}
+
+fun playbackSettingsChange(
+    requested: PlaybackSettings,
+    playbackEngine: PlaybackEngine,
+    previous: PlaybackSettings?,
+): PlaybackSettingsChange {
+    val effective = requested.effectiveForEngine(playbackEngine)
+    return PlaybackSettingsChange(
+        settings = effective,
+        shouldReloadLyricsSidecars = previous?.lrclibLyricsEnabled != effective.lrclibLyricsEnabled,
     )
 }
 

@@ -140,6 +140,7 @@ import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.downloadStreamQuality
 import app.naviamp.domain.settings.effectiveForEngine
+import app.naviamp.domain.settings.playbackSettingsChange
 import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.waveform.AudioWaveform
@@ -587,12 +588,14 @@ private fun NaviampAndroidApp(
     }
 
     fun handlePlaybackSettingsChanged(settings: PlaybackSettings) {
-        val normalizedSettings = settings.effectiveForEngine(playbackEngine)
-        playbackSettings = normalizedSettings
-        settingsStore.savePlaybackSettings(normalizedSettings)
-        lyricsByTrackId = emptyMap()
-        lyricsStatusByTrackId = emptyMap()
-        if (lyricsVisible && nowPlayingOpen) nowPlaying?.let(::loadLyrics)
+        val change = playbackSettingsChange(settings, playbackEngine, previous = playbackSettings)
+        playbackSettings = change.settings
+        settingsStore.savePlaybackSettings(change.settings)
+        if (change.shouldReloadLyricsSidecars) {
+            lyricsByTrackId = emptyMap()
+            lyricsStatusByTrackId = emptyMap()
+            if (lyricsVisible && nowPlayingOpen) nowPlaying?.let(::loadLyrics)
+        }
     }
 
     fun handleClearCache() {

@@ -128,6 +128,7 @@ import app.naviamp.domain.provider.smartPlaylistUpdatedStatus
 import app.naviamp.domain.provider.smartPlaylistUpdatingStatus
 import app.naviamp.domain.provider.updateSmartPlaylistAndRefresh
 import app.naviamp.domain.settings.effectiveForEngine
+import app.naviamp.domain.settings.playbackSettingsChange
 import app.naviamp.domain.settings.restoredPlaybackQueue
 import app.naviamp.domain.settings.restoredTrackSession
 import app.naviamp.provider.navidrome.NavidromeApiCallHistory
@@ -1553,9 +1554,11 @@ fun NaviampApp(
                                     cycleRepeatMode()
                                 },
                                 onVolumeChanged = { volumePercent ->
-                                    playbackSettings = playbackSettings
-                                        .copy(volumePercent = volumePercent)
-                                        .effectiveForEngine(playbackEngine)
+                                    playbackSettings = playbackSettingsChange(
+                                        requested = playbackSettings.copy(volumePercent = volumePercent),
+                                        playbackEngine = playbackEngine,
+                                        previous = playbackSettings,
+                                    ).settings
                                     settingsStore.savePlaybackSettings(playbackSettings)
                                 },
                                 onToggleLyrics = {
@@ -2086,7 +2089,13 @@ fun NaviampApp(
                                         onDeleteConnection = { source -> deleteConnection(source) },
                                         onCancelConnectionForm = { isConnectionFormOpen = false },
                                         onPlaybackSettingsChanged = { settings ->
-                                            playbackSettings = settings.effectiveForEngine(playbackEngine)
+                                            val change = playbackSettingsChange(settings, playbackEngine, previous = playbackSettings)
+                                            playbackSettings = change.settings
+                                            if (change.shouldReloadLyricsSidecars) {
+                                                nowPlayingLyrics = null
+                                                nowPlayingLyricsStatus = null
+                                                nowPlayingWaveformReloadToken += 1
+                                            }
                                             settingsStore.savePlaybackSettings(playbackSettings)
                                         },
                                         onCacheSettingsChanged = { settings ->
