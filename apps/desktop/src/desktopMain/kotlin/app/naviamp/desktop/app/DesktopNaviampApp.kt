@@ -63,17 +63,9 @@ import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.PlaylistEngine
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.playback.mergeWith
-import app.naviamp.domain.playback.nextRepeatMode
-import app.naviamp.domain.playback.canUseNextButton
-import app.naviamp.domain.playback.canUsePreviousButton
-import app.naviamp.domain.playback.planPlaybackSeek
 import app.naviamp.domain.playback.shouldClearPendingSeek
 import app.naviamp.domain.playback.shouldIgnoreProgressForPendingSeek
-import app.naviamp.domain.playback.shouldRestartInsteadOfPrevious
-import app.naviamp.domain.playback.canReportPlaybackTrack
 import app.naviamp.domain.playback.shouldReportNowPlaying
-import app.naviamp.domain.playback.shouldSavePlaybackPosition
-import app.naviamp.domain.playback.shouldSubmitPlayReport
 import app.naviamp.domain.playback.shouldUpdatePlaybackProgressUi
 import app.naviamp.domain.playback.lyricsLoadingStatus
 import app.naviamp.domain.playback.shouldLoadOnlineLyrics
@@ -144,7 +136,6 @@ import app.naviamp.domain.provider.smartPlaylistUpdatingStatus
 import app.naviamp.domain.provider.updateSmartPlaylistAndRefresh
 import app.naviamp.domain.settings.effectiveForEngine
 import app.naviamp.domain.settings.connectionFormError
-import app.naviamp.domain.settings.playbackSessionFromQueue
 import app.naviamp.domain.settings.restoredPlaybackQueue
 import app.naviamp.domain.settings.restoredTrackSession
 import app.naviamp.provider.navidrome.NavidromeApiCallHistory
@@ -496,145 +487,74 @@ fun NaviampApp(
         }
     }
 
+    val playbackController = DesktopPlaybackController(
+        scope = coroutineScope,
+        settingsStore = settingsStore,
+        playbackEngine = playbackEngine,
+        playlistEngine = playlistEngine,
+        provider = { connectedProvider },
+        playbackSettings = { playbackSettings },
+        playbackQueue = { playbackQueue },
+        playbackProgress = { playbackProgress },
+        setPlaybackProgress = { progress -> playbackProgress = progress },
+        nowPlayingTrack = { nowPlayingTrack },
+        repeatMode = { repeatMode },
+        setRepeatMode = { mode -> repeatMode = mode },
+        shuffledUpNextSnapshot = { shuffledUpNextSnapshot },
+        setShuffledUpNextSnapshot = { snapshot -> shuffledUpNextSnapshot = snapshot },
+        lastSavedPlaybackPositionSeconds = { lastSavedPlaybackPositionSeconds },
+        setLastSavedPlaybackPositionSeconds = { position -> lastSavedPlaybackPositionSeconds = position },
+        playReportSessionId = { playReportSessionId },
+        submittedPlayReportSessionId = { submittedPlayReportSessionId },
+        setSubmittedPlayReportSessionId = { sessionId -> submittedPlayReportSessionId = sessionId },
+        setPendingSeekPositionSeconds = { position -> pendingSeekPositionSeconds = position },
+        setPendingSeekIssuedAtMillis = { millis -> pendingSeekIssuedAtMillis = millis },
+        setOpenPlayerOnTrackStart = { shouldOpen -> openPlayerOnTrackStart = shouldOpen },
+    )
+
     fun savePlaybackSession(
         queue: PlaybackQueue,
         positionSeconds: Double? = playbackProgress.positionSeconds,
     ) {
-        settingsStore.savePlaybackSession(
-            playbackSessionFromQueue(queue, positionSeconds),
-        )
+        playbackController.savePlaybackSession(queue, positionSeconds)
     }
 
     fun clearShuffleSnapshot() {
-        shuffledUpNextSnapshot = null
+        playbackController.clearShuffleSnapshot()
     }
 
     fun toggleShuffle() {
-        shuffledUpNextSnapshot = playlistEngine.toggleUpcomingShuffle(shuffledUpNextSnapshot)
+        playbackController.toggleShuffle()
     }
 
     fun cycleRepeatMode() {
-        repeatMode = nextRepeatMode(repeatMode)
-        playlistEngine.setRepeatMode(repeatMode)
+        playbackController.cycleRepeatMode()
     }
 
     fun maybeSavePlaybackPosition(progress: PlaybackProgress) {
-        val positionSeconds = progress.positionSeconds ?: return
-        if (
-            !shouldSavePlaybackPosition(
-                queue = playbackQueue,
-                positionSeconds = positionSeconds,
-                lastSavedPositionSeconds = lastSavedPlaybackPositionSeconds,
-                saveThresholdSeconds = PlaybackPositionSaveThresholdSeconds,
-            )
-        ) {
-            return
-        }
-        lastSavedPlaybackPositionSeconds = positionSeconds
-        savePlaybackSession(playbackQueue, positionSeconds)
+        playbackController.maybeSavePlaybackPosition(progress)
     }
 
     fun performSeek(positionSeconds: Double) {
-        val streamQuality = playbackSettings.streamQuality(playbackEngine)
-        val playbackSource = playlistEngine.cacheRuntimeStats().playbackSource
-        val seekPlan = planPlaybackSeek(
-            isInternetRadioTrack = nowPlayingTrack?.isInternetRadioTrack() == true,
-            positionSeconds = positionSeconds,
-            currentProgress = playbackProgress,
-            trackDurationSeconds = nowPlayingTrack?.durationSeconds,
-            streamQuality = streamQuality,
-            shouldReplayTranscodedStream = shouldReplayCurrentForSeek(playbackSource),
-        ) ?: return
-        pendingSeekPositionSeconds = positionSeconds
-        pendingSeekIssuedAtMillis = System.currentTimeMillis()
-        playbackProgress = seekPlan.progress
-        maybeSavePlaybackPosition(seekPlan.progress)
-        if (seekPlan.shouldReplayCurrent) {
-            playlistEngine.playCurrent(coroutineScope, positionSeconds)
-            return
-        }
-        playbackEngine.seek(positionSeconds)
+        playbackController.performSeek(positionSeconds)
     }
 
     fun canUsePreviousButton(): Boolean =
-        canUsePreviousButton(
-            queue = playbackQueue,
-            previousButtonBehavior = playbackSettings.previousButtonBehavior,
-            positionSeconds = playbackProgress.positionSeconds,
-            restartThresholdSeconds = PreviousRestartThresholdSeconds,
-        )
+        playbackController.canUsePreviousButton()
 
     fun canUseNextButton(): Boolean =
-        canUseNextButton(
-            queue = playbackQueue,
-            repeatMode = repeatMode,
-        )
+        playbackController.canUseNextButton()
 
     fun handlePreviousButton() {
-        openPlayerOnTrackStart = false
-        val positionSeconds = playbackProgress.positionSeconds ?: 0.0
-        if (
-            shouldRestartInsteadOfPrevious(
-                previousButtonBehavior = playbackSettings.previousButtonBehavior,
-                positionSeconds = positionSeconds,
-                restartThresholdSeconds = PreviousRestartThresholdSeconds,
-            )
-        ) {
-            performSeek(0.0)
-            return
-        }
-        playlistEngine.previous(coroutineScope)
+        playbackController.handlePreviousButton()
     }
 
     fun reportNowPlaying(track: Track) {
-        val provider = connectedProvider ?: return
-        if (
-            !canReportPlaybackTrack(
-                supportsPlayReporting = provider.capabilities.supportsPlayReporting,
-                isInternetRadioTrack = track.isInternetRadioTrack(),
-            )
-        ) {
-            return
-        }
-        coroutineScope.launch {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    provider.reportNowPlaying(track.id)
-                }
-            }
-        }
+        playbackController.reportNowPlaying(track)
     }
 
     fun maybeReportPlayed(progress: PlaybackProgress) {
-        val provider = connectedProvider ?: return
-        val track = nowPlayingTrack ?: return
-        val durationSeconds = progress.durationSeconds ?: track.durationSeconds?.toDouble()
-        if (
-            !shouldSubmitPlayReport(
-                supportsPlayReporting = provider.capabilities.supportsPlayReporting,
-                isInternetRadioTrack = track.isInternetRadioTrack(),
-                activeSessionId = playReportSessionId,
-                submittedSessionId = submittedPlayReportSessionId,
-                positionSeconds = progress.positionSeconds,
-                durationSeconds = durationSeconds,
-            )
-        ) {
-            return
-        }
-
-        val activeSessionId = playReportSessionId
-        submittedPlayReportSessionId = activeSessionId
-        coroutineScope.launch {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    provider.reportPlayed(track.id, System.currentTimeMillis())
-                }
-            }.onFailure {
-                if (submittedPlayReportSessionId == activeSessionId) {
-                    submittedPlayReportSessionId = null
-                }
-            }
-        }
+        playbackController.maybeReportPlayed(progress)
     }
 
     fun rememberRadioStream(stream: RecentRadioStream) {
