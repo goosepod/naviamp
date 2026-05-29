@@ -135,13 +135,10 @@ import app.naviamp.domain.provider.smartPlaylistUpdatedStatus
 import app.naviamp.domain.provider.smartPlaylistUpdatingStatus
 import app.naviamp.domain.provider.updateSmartPlaylistAndRefresh
 import app.naviamp.domain.settings.effectiveForEngine
-import app.naviamp.domain.settings.connectionFormError
 import app.naviamp.domain.settings.restoredPlaybackQueue
 import app.naviamp.domain.settings.restoredTrackSession
 import app.naviamp.provider.navidrome.NavidromeApiCallHistory
 import app.naviamp.provider.navidrome.NavidromeProvider
-import app.naviamp.provider.navidrome.navidromeConnectionSuccessStatus
-import app.naviamp.provider.navidrome.navidromeTlsSettingsFromForm
 import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.provider.navidrome.withNativeTokenFromPassword
 import app.naviamp.ui.NaviampPlayerColors
@@ -635,12 +632,21 @@ fun NaviampApp(
         radioController.stopContinuation()
     }
 
+    var refreshLibrarySnapshotAction: () -> Unit = {}
+    var loadHomeContentAction: (NavidromeProvider) -> Unit = {}
+    var refreshPlaylistsAction: () -> Unit = {}
+    var refreshInternetRadioStationsAction: () -> Unit = {}
+    var startLibrarySyncAction: (Boolean) -> Unit = {}
+    var checkLibraryFreshnessAction: () -> Unit = {}
+
     val connectionLifecycleController = DesktopConnectionLifecycleController(
+        scope = coroutineScope,
         sessionCache = sessionCache,
         settingsStore = settingsStore,
         playbackEngine = playbackEngine,
         playlistEngine = playlistEngine,
         stopRadioContinuation = ::stopRadioContinuation,
+        clearShuffleSnapshot = ::clearShuffleSnapshot,
         applyClearedConnectionState = { state ->
             connectedProvider = state.connectedProvider
             connectedSourceId = state.connectedSourceId
@@ -655,6 +661,43 @@ fun NaviampApp(
             playbackProgress = state.playbackProgress
             playbackQueue = state.playbackQueue
         },
+        serverUrl = { serverUrl },
+        username = { username },
+        password = { password },
+        clearPassword = { password = "" },
+        connectionName = { connectionName },
+        insecureSkipTlsVerification = { insecureSkipTlsVerification },
+        customCertificatePath = { customCertificatePath },
+        clientCertificateKeyStorePath = { clientCertificateKeyStorePath },
+        clientCertificateKeyStorePassword = { clientCertificateKeyStorePassword },
+        isConnecting = { isConnecting },
+        setConnecting = { connecting -> isConnecting = connecting },
+        savedPlaybackSession = { savedPlaybackSession },
+        playlistCallbacks = { playlistCallbacksRef ?: error("Playlist callbacks are not ready.") },
+        streamQuality = { playbackSettings.streamQuality(playbackEngine) },
+        replayGainMode = { playbackSettings.replayGainMode },
+        setConnectedProvider = { provider -> connectedProvider = provider },
+        setConnectedSourceId = { sourceId -> connectedSourceId = sourceId },
+        setHomeContent = { content -> homeContent = content },
+        setHomeStatus = { status -> homeStatus = status },
+        setNowPlayingInternetRadioStation = { station -> nowPlayingInternetRadioStation = station },
+        setNowPlayingStreamMetadata = { metadata -> nowPlayingStreamMetadata = metadata },
+        setNowPlayingTrack = { track -> nowPlayingTrack = track },
+        setNowPlayingCoverArtUrl = { url -> nowPlayingCoverArtUrl = url },
+        setNowPlayingWaveform = { waveform -> nowPlayingWaveform = waveform },
+        setNowPlayingWaveformStatus = { status -> nowPlayingWaveformStatus = status },
+        setNowPlayingAudioTags = { tags -> nowPlayingAudioTags = tags },
+        setNowPlayingLyrics = { lyrics -> nowPlayingLyrics = lyrics },
+        setNowPlayingLyricsStatus = { status -> nowPlayingLyricsStatus = status },
+        setPlaybackState = { state -> playbackState = state },
+        setPlaybackProgress = { progress -> playbackProgress = progress },
+        setPlaybackQueue = { queue -> playbackQueue = queue },
+        refreshLibrarySnapshot = { refreshLibrarySnapshotAction() },
+        loadHomeContent = { provider -> loadHomeContentAction(provider) },
+        refreshPlaylists = { refreshPlaylistsAction() },
+        refreshInternetRadioStations = { refreshInternetRadioStationsAction() },
+        startLibrarySync = { force -> startLibrarySyncAction(force) },
+        checkLibraryFreshness = { checkLibraryFreshnessAction() },
         connectedSourceId = { connectedSourceId },
         savedConnectionForLogin = { savedConnectionForLogin },
         setSavedConnectionForLogin = { connection -> savedConnectionForLogin = connection },
@@ -662,6 +705,7 @@ fun NaviampApp(
         setConnectionFormOpen = { isOpen -> isConnectionFormOpen = isOpen },
         setConnectionStatus = { status -> connectionStatus = status },
         setAppRoute = { route -> appRoute = route },
+        appRoute = { appRoute },
     )
 
     fun refillRadioIfNeeded(queue: PlaybackQueue) {
@@ -1171,20 +1215,6 @@ fun NaviampApp(
         libraryController.checkLibraryFreshness()
     }
 
-    fun connectionTlsSettings() =
-        navidromeTlsSettingsFromForm(
-            insecureSkipTlsVerification = insecureSkipTlsVerification,
-            customCertificatePath = customCertificatePath,
-            clientCertificateKeyStorePath = clientCertificateKeyStorePath,
-            clientCertificateKeyStorePassword = clientCertificateKeyStorePassword,
-        )
-
-    fun resolvedConnectionDisplayName(): String =
-        desktopConnectionDisplayName(
-            connectionName = connectionName,
-            serverUrl = serverUrl,
-        )
-
     fun applyConnectionFormState(formState: DesktopConnectionFormState) {
         savedConnectionForLogin = formState.savedConnectionForLogin
         serverUrl = formState.serverUrl
@@ -1198,120 +1228,7 @@ fun NaviampApp(
     }
 
     fun connectToServer(restoreSavedSession: Boolean = false) {
-        if (isConnecting) return
-        val formError = connectionFormError(
-            serverUrl = serverUrl,
-            username = username,
-            password = password,
-            hasSavedConnectionForLogin = savedConnectionForLogin != null,
-        )
-        if (formError != null) {
-            connectionStatus = formError
-            appRoute = AppRoute.Settings
-            return
-        }
-
-        isConnecting = true
-        connectionStatus = "Connecting to Navidrome..."
-        if (!restoreSavedSession) {
-            homeContent = HomeContent()
-            homeStatus = null
-            stopRadioContinuation()
-            clearShuffleSnapshot()
-            playlistEngine.clear()
-            playbackEngine.stop()
-            nowPlayingTrack = null
-            nowPlayingCoverArtUrl = null
-            nowPlayingLyricsStatus = null
-            playbackState = PlaybackState.Idle
-            playbackProgress = PlaybackProgress.Unknown
-            playbackQueue = PlaybackQueue()
-            settingsStore.savePlaybackSession(null)
-        }
-
-        coroutineScope.launch {
-            try {
-                val session = openDesktopConnectionSession(
-                    serverUrl = serverUrl,
-                    username = username,
-                    password = password,
-                    displayName = resolvedConnectionDisplayName(),
-                    tlsSettings = connectionTlsSettings(),
-                    savedConnectionForLogin = savedConnectionForLogin,
-                    sessionCache = sessionCache,
-                    clearProviderData = !restoreSavedSession,
-                )
-                val connection = session.connection
-                val provider = session.provider
-                connectedProvider = provider
-                connectedSourceId = session.sourceId
-                mediaSourcesRevision++
-                if (restoreSavedSession) {
-                    val restoredSession = restoredDesktopPlaybackSession(savedPlaybackSession, provider)
-                    when (restoredSession) {
-                        is DesktopRestoredPlaybackSession.InternetRadio -> {
-                            nowPlayingInternetRadioStation = restoredSession.station
-                            nowPlayingStreamMetadata = PlaybackStreamMetadata()
-                            nowPlayingTrack = restoredSession.track
-                            nowPlayingCoverArtUrl = null
-                            nowPlayingWaveform = null
-                            nowPlayingWaveformStatus = "Internet radio"
-                            nowPlayingAudioTags = null
-                            nowPlayingLyrics = null
-                            nowPlayingLyricsStatus = null
-                            playbackProgress = PlaybackProgress.Unknown
-                            playbackQueue = PlaybackQueue()
-                            playbackState = PlaybackState.Idle
-                        }
-                        is DesktopRestoredPlaybackSession.TrackQueue -> {
-                            playbackProgress = restoredSession.session.playbackProgress
-                            playlistEngine.restore(
-                                provider = provider,
-                                tracks = restoredSession.session.tracks,
-                                index = restoredSession.session.currentIndex,
-                                quality = playbackSettings.streamQuality(playbackEngine),
-                                replayGainMode = playbackSettings.replayGainMode,
-                                callbacks = playlistCallbacks,
-                                initialProgress = restoredSession.session.playbackProgress,
-                            )
-                            nowPlayingInternetRadioStation = null
-                            nowPlayingStreamMetadata = PlaybackStreamMetadata()
-                            nowPlayingTrack = restoredSession.session.currentTrack
-                            nowPlayingCoverArtUrl = restoredSession.coverArtUrl
-                            playbackState = PlaybackState.Idle
-                        }
-                        null -> Unit
-                    }
-                }
-                settingsStore.clearConnection()
-                savedConnectionForLogin = connection
-                if (connection.nativeToken?.isNotBlank() == true) {
-                    password = ""
-                }
-                isConnectionFormOpen = false
-                if (appRoute == AppRoute.Settings) {
-                    appRoute = AppRoute.Home
-                }
-                connectionStatus = navidromeConnectionSuccessStatus(
-                    validation = session.validation,
-                    connection = connection,
-                    password = password,
-                    smartPlaylistAuthWarning = session.smartPlaylistAuthWarning,
-                )
-                refreshLibrarySnapshot()
-                loadHomeContent(provider)
-                refreshPlaylists()
-                refreshInternetRadioStations()
-                startLibrarySync(force = !restoreSavedSession)
-                checkLibraryFreshness()
-            } catch (exception: Exception) {
-                connectedProvider = null
-                appRoute = AppRoute.Settings
-                connectionStatus = exception.message ?: "Could not connect to Navidrome."
-            } finally {
-                isConnecting = false
-            }
-        }
+        connectionLifecycleController.connectToServer(restoreSavedSession)
     }
 
     fun openAlbumDetails(album: Album, backRouteOverride: AppRoute? = null) {
@@ -1505,6 +1422,13 @@ fun NaviampApp(
     fun setTrackRating(track: Track, rating: Int?) {
         mediaActionsController.setTrackRating(track, rating)
     }
+
+    refreshLibrarySnapshotAction = ::refreshLibrarySnapshot
+    loadHomeContentAction = ::loadHomeContent
+    refreshPlaylistsAction = ::refreshPlaylists
+    refreshInternetRadioStationsAction = ::refreshInternetRadioStations
+    startLibrarySyncAction = { force -> startLibrarySync(force) }
+    checkLibraryFreshnessAction = ::checkLibraryFreshness
 
     LaunchedEffect(Unit) {
         if (savedConnection != null) {

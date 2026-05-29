@@ -103,6 +103,9 @@ Branch: `codex/desktop-main-reduction`
 - [x] Extract desktop album-detail orchestration from `DesktopNaviampApp.kt`.
   - album detail route selection, provider load, local-library fallback, and track-to-album navigation now live in `DesktopAlbumController`
   - shared album fallback and status rules remain in `core/domain`
+- [x] Fold remaining desktop connection startup into `DesktopConnectionLifecycleController`.
+  - form validation, TLS/display-name preparation, connect coroutine, saved-session restore, post-connect refresh triggers, and error handling now live with connection lifecycle orchestration
+  - shared connection form validation, TLS normalization, success status, and restore planning remain in common/provider helpers
 
 ## Shared-Code Watchlist
 
@@ -121,6 +124,7 @@ Branch: `codex/desktop-main-reduction`
 - Internet-radio live playback is desktop-local, while station-to-track shaping, stream-title handling, and recent-station ordering stay shared through `core/domain`.
 - Playback button rules, seek planning, playback-position save decisions, and play-report thresholds are shared through `core/domain`; desktop now keeps only the platform wiring in `DesktopPlaybackController`.
 - Album detail fallback and load-status rules are shared through `core/domain`; desktop route wiring now lives in `DesktopAlbumController`.
+- Desktop connection startup still owns desktop-specific state wiring, but pure validation/TLS/status/restore rules stay shared through `core/domain` and `providers/navidrome`.
 - Remaining connection startup still differs by platform because desktop owns BASS/JVM TLS defaults, `DesktopCache`, window route state, and playlist engine restoration, while Android owns foreground service/playback runtime, `AndroidStorage`, and activity navigation state.
 - Before extracting each helper from `DesktopNaviampApp.kt`, compare Android equivalents and move pure request/status/state-transition rules into `core/domain`, `core/ui`, or `providers/navidrome` instead of creating a new desktop-only duplicate.
 
@@ -133,6 +137,7 @@ Branch: `codex/desktop-main-reduction`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop :apps:android:assembleDebug`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :providers:navidrome:allTests :apps:desktop:desktopTest :apps:android:assembleDebug`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`
+- [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop`
