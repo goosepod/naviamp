@@ -15,3 +15,4 @@ val SimilarRadioExpansionCounts = listOf(25, 50)
 
 const val CoverArtPreloadHistoryLimit = 1
 const val CoverArtPreloadUpcomingLimit = 5
+const val RelatedTracksLimit = 40L

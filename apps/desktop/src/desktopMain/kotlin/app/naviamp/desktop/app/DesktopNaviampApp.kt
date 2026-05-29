@@ -67,11 +67,7 @@ import app.naviamp.domain.playback.shouldClearPendingSeek
 import app.naviamp.domain.playback.shouldIgnoreProgressForPendingSeek
 import app.naviamp.domain.playback.shouldReportNowPlaying
 import app.naviamp.domain.playback.shouldUpdatePlaybackProgressUi
-import app.naviamp.domain.playback.lyricsLoadingStatus
-import app.naviamp.domain.playback.shouldLoadOnlineLyrics
-import app.naviamp.domain.playback.waveformStatus
 import app.naviamp.domain.home.HomeContent
-import app.naviamp.domain.lyrics.selectPreferredLyrics
 import app.naviamp.domain.popular.ArtistPopularTracksService
 import app.naviamp.domain.popular.DeezerPopularTracksClient
 import app.naviamp.domain.popular.SimilarArtistMatch
@@ -142,7 +138,6 @@ import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.provider.navidrome.withNativeTokenFromPassword
 import app.naviamp.ui.NaviampPlayerColors
 import app.naviamp.ui.NaviampVisualizer
-import app.naviamp.ui.preloadJvmPlatformCoverArt
 import app.naviamp.ui.resetJvmPlatformCoverArtByteLoader
 import app.naviamp.ui.rememberPlatformCoverArtPlayerColors
 import app.naviamp.ui.setJvmPlatformCoverArtByteLoader
@@ -936,6 +931,26 @@ fun NaviampApp(
         setHomeStatus = { status -> homeStatus = status },
     )
 
+    val nowPlayingController = DesktopNowPlayingController(
+        sessionCache = sessionCache,
+        playbackEngine = playbackEngine,
+        provider = { connectedProvider },
+        sourceId = { connectedSourceId },
+        playbackSettings = { playbackSettings },
+        cacheSettings = { cacheSettings },
+        appRoute = { appRoute },
+        lyricsVisible = { nowPlayingLyricsVisible },
+        playbackQueue = { playbackQueue },
+        nowPlayingTrack = { nowPlayingTrack },
+        nowPlayingCoverArtUrl = { nowPlayingCoverArtUrl },
+        setNowPlayingWaveform = { waveform -> nowPlayingWaveform = waveform },
+        setNowPlayingWaveformStatus = { status -> nowPlayingWaveformStatus = status },
+        setNowPlayingAudioTags = { tags -> nowPlayingAudioTags = tags },
+        setNowPlayingLyrics = { lyrics -> nowPlayingLyrics = lyrics },
+        setNowPlayingLyricsStatus = { status -> nowPlayingLyricsStatus = status },
+        setRelatedTracks = { tracks -> relatedTracks = tracks },
+    )
+
     val libraryController = DesktopLibraryController(
         scope = coroutineScope,
         cache = sessionCache,
@@ -967,134 +982,15 @@ fun NaviampApp(
         nowPlayingLyricsVisible,
         appRoute,
     ) {
-        val lyricsVisibleForWork = nowPlayingLyricsVisible && appRoute == AppRoute.Player
-        val track = nowPlayingTrack ?: run {
-            nowPlayingWaveform = null
-            nowPlayingWaveformStatus = "No track"
-            nowPlayingLyricsStatus = null
-            return@LaunchedEffect
-        }
-        if (track.isInternetRadioTrack()) {
-            nowPlayingWaveform = null
-            nowPlayingWaveformStatus = "Internet radio"
-            nowPlayingAudioTags = null
-            nowPlayingLyrics = null
-            nowPlayingLyricsStatus = null
-            return@LaunchedEffect
-        }
-        val sourceId = connectedSourceId ?: run {
-            nowPlayingWaveform = null
-            nowPlayingWaveformStatus = "No source"
-            nowPlayingLyricsStatus = null
-            return@LaunchedEffect
-        }
-        val provider = connectedProvider ?: run {
-            nowPlayingWaveform = null
-            nowPlayingWaveformStatus = "No provider"
-            nowPlayingLyricsStatus = null
-            return@LaunchedEffect
-        }
-        val quality = playbackSettings.streamQuality(playbackEngine)
-        nowPlayingWaveformStatus = "Loading"
-        nowPlayingLyricsStatus = if (lyricsVisibleForWork) lyricsLoadingStatus(playbackSettings.lrclibLyricsEnabled) else null
-
-        val waveformTagsAndLyrics = withContext(Dispatchers.IO) {
-            runCatching {
-                val cachedWaveformBeforeAudio = sessionCache.cachedAudioWaveform(
-                    sourceId = sourceId,
-                    trackId = track.id,
-                    quality = quality,
-                )
-                val downloadedFile = sessionCache.downloadedAudioFile(sourceId, track.id, quality)
-                val cachedFile = sessionCache.cachedAudioFile(sourceId, track.id, quality)
-                val audioPath = downloadedFile?.path ?: cachedFile?.path
-                val cachedWaveform = cachedWaveformBeforeAudio
-                    ?: if (audioPath != null) {
-                        sessionCache.cachedAudioWaveform(
-                            sourceId = sourceId,
-                            trackId = track.id,
-                            quality = quality,
-                        )
-                    } else {
-                        null
-                    }
-                val waveform = cachedWaveform ?: if (audioPath != null && cacheSettings.audioCachingEnabled) {
-                    sessionCache.ensureAudioWaveform(
-                        sourceId = sourceId,
-                        trackId = track.id,
-                        quality = quality,
-                    )
-                } else {
-                    null
-                }
-                val waveformStatus = waveformStatus(
-                    cachedWaveformAvailable = cachedWaveform != null,
-                    generatedWaveformAvailable = waveform != null,
-                    audioAvailable = audioPath != null,
-                    audioCachingEnabled = cacheSettings.audioCachingEnabled,
-                )
-                val tags = audioPath
-                    ?.let { path -> runCatching { AudioTagReader().read(path) }.getOrDefault(emptyList()) }
-                    .orEmpty()
-                val providerLyrics = if (lyricsVisibleForWork) {
-                    sessionCache.providerLyrics(sourceId, provider, track.id)
-                } else {
-                    null
-                }
-                val embeddedLyrics = if (lyricsVisibleForWork) lyricsFromAudioTags(tags) else null
-                val lrclibLyrics = if (
-                    lyricsVisibleForWork &&
-                    shouldLoadOnlineLyrics(
-                        onlineLyricsEnabled = playbackSettings.lrclibLyricsEnabled,
-                        providerLyrics = providerLyrics,
-                        embeddedLyrics = embeddedLyrics,
-                    )
-                ) {
-                    sessionCache.lrclibLyrics(sourceId, track)
-                } else {
-                    null
-                }
-                val lyrics = selectPreferredLyrics(
-                    providerLyrics = providerLyrics,
-                    embeddedLyrics = embeddedLyrics,
-                    onlineLyrics = lrclibLyrics,
-                )
-                NowPlayingAnalysis(waveform, waveformStatus, tags, lyrics)
-            }.getOrNull()
-        }
-        nowPlayingWaveform = waveformTagsAndLyrics?.waveform
-        nowPlayingWaveformStatus = waveformTagsAndLyrics?.waveformStatus ?: "Unavailable"
-        nowPlayingAudioTags = waveformTagsAndLyrics?.audioTags
-        nowPlayingLyrics = waveformTagsAndLyrics?.lyrics
-        nowPlayingLyricsStatus = null
+        nowPlayingController.loadNowPlayingAnalysis()
     }
 
     LaunchedEffect(nowPlayingTrack?.id, connectedSourceId) {
-        val track = nowPlayingTrack
-        val sourceId = connectedSourceId
-        if (track == null || sourceId == null || track.isInternetRadioTrack()) {
-            relatedTracks = emptyList()
-            return@LaunchedEffect
-        }
-        relatedTracks = withContext(Dispatchers.IO) {
-            sessionCache.relatedLibraryTracks(sourceId, track, limit = 40)
-        }
+        nowPlayingController.loadRelatedTracks()
     }
 
     LaunchedEffect(nowPlayingCoverArtUrl, playbackQueue, connectedProvider) {
-        val provider = connectedProvider ?: return@LaunchedEffect
-        val urls = buildList {
-            nowPlayingCoverArtUrl?.let(::add)
-            playbackQueue.backTo().take(CoverArtPreloadHistoryLimit).forEach { track ->
-                track.coverArtId?.let { add(provider.coverArtUrl(it)) }
-            }
-            playbackQueue.upNext().take(CoverArtPreloadUpcomingLimit).forEach { track ->
-                track.coverArtId?.let { add(provider.coverArtUrl(it)) }
-            }
-        }
-        withContext(Dispatchers.IO) {
-            preloadJvmPlatformCoverArt(urls)
-        }
+        nowPlayingController.preloadCoverArt()
     }
 
     fun refreshLibrarySnapshot() {

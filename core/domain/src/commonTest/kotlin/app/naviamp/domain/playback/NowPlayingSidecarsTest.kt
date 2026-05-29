@@ -62,14 +62,40 @@ class NowPlayingSidecarsTest {
         )
     }
 
-    private fun track(id: String): Track =
+    @Test
+    fun coverArtPreloadUrlsIncludeCurrentHistoryAndUpcomingWindows() {
+        val one = track("one", coverArtId = "art-one")
+        val two = track("two", coverArtId = "art-two")
+        val three = track("three", coverArtId = "art-three")
+        val four = track("four", coverArtId = "art-four")
+        val queue = PlaybackQueue(
+            tracks = listOf(one, two, three, four),
+            currentIndex = 2,
+        )
+
+        assertEquals(
+            listOf("current", "cover://art-two", "cover://art-four"),
+            coverArtPreloadUrls(
+                queue = queue,
+                currentCoverArtUrl = "current",
+                historyLimit = 1,
+                upcomingLimit = 1,
+                coverArtUrl = { coverArtId -> "cover://$coverArtId" },
+            ),
+        )
+    }
+
+    private fun track(
+        id: String,
+        coverArtId: String? = null,
+    ): Track =
         Track(
             id = TrackId(id),
             title = "Track $id",
             artistName = "Artist",
             albumTitle = "Album",
             durationSeconds = 180,
-            coverArtId = null,
+            coverArtId = coverArtId,
             audioInfo = null,
             replayGain = null,
         )

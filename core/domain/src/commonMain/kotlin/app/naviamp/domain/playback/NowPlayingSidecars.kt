@@ -65,3 +65,22 @@ fun sidecarPrepPlan(
         tracks = sidecarPrepTracks(queue, depth),
         loadLyrics = onlineLyricsEnabled || lyricsVisible,
     )
+
+fun coverArtPreloadUrls(
+    queue: PlaybackQueue,
+    currentCoverArtUrl: String?,
+    historyLimit: Int,
+    upcomingLimit: Int,
+    coverArtUrl: (String) -> String,
+): List<String> =
+    buildList {
+        currentCoverArtUrl?.let(::add)
+        queue.backTo()
+            .take(historyLimit.coerceAtLeast(0))
+            .mapNotNull { track -> track.coverArtId?.let(coverArtUrl) }
+            .forEach(::add)
+        queue.upNext()
+            .take(upcomingLimit.coerceAtLeast(0))
+            .mapNotNull { track -> track.coverArtId?.let(coverArtUrl) }
+            .forEach(::add)
+    }
