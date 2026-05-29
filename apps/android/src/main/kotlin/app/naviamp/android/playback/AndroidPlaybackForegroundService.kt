@@ -47,10 +47,10 @@ import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioService
+import app.naviamp.domain.radio.recentSavedInternetRadioStationsWith
 import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.settings.RecentRadioKind
 import app.naviamp.domain.settings.RecentRadioStream
-import app.naviamp.domain.settings.SavedInternetRadioStation
 import app.naviamp.domain.settings.SavedTrack
 import app.naviamp.domain.settings.adjacentTrackSession
 import app.naviamp.domain.settings.playbackSessionFromQueue
@@ -1056,9 +1056,12 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
 
     private fun rememberRecentInternetRadioStation(station: InternetRadioStation) {
         val settingsStore = AndroidSettingsStore(applicationContext)
-        val saved = SavedInternetRadioStation.fromStation(station)
-        val recent = (listOf(saved) + settingsStore.loadRecentInternetRadioStations().filterNot { it.id == saved.id }).take(12)
-        settingsStore.saveRecentInternetRadioStations(recent)
+        settingsStore.saveRecentInternetRadioStations(
+            recentSavedInternetRadioStationsWith(
+                settingsStore.loadRecentInternetRadioStations(),
+                station,
+            ),
+        )
     }
 
     private fun handleServicePlaybackProgress(

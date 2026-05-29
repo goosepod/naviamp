@@ -45,7 +45,6 @@ import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.internetRadioStationId
-import app.naviamp.domain.internetRadioTrackId
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.app.shouldRefreshStorageStats
@@ -114,10 +113,14 @@ import app.naviamp.domain.radio.albumSeededRadioRequest
 import app.naviamp.domain.radio.artistSeededRadioRequest
 import app.naviamp.domain.radio.decadeRadioRequest
 import app.naviamp.domain.radio.genreRadioRequest
+import app.naviamp.domain.radio.internetRadioTrack
+import app.naviamp.domain.radio.internetRadioTrackWithMetadata
 import app.naviamp.domain.radio.libraryRadioRequest
 import app.naviamp.domain.radio.popularTracksRadioRequest
 import app.naviamp.domain.radio.randomAlbumSeededRadioRequest
+import app.naviamp.domain.radio.recentInternetRadioStationsWith
 import app.naviamp.domain.radio.recentRadioAction
+import app.naviamp.domain.radio.recentSavedInternetRadioStationsWith
 import app.naviamp.domain.radio.trackRadioRequest
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
@@ -127,7 +130,6 @@ import app.naviamp.desktop.settings.NavigationSettings
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.desktop.settings.PlaybackSessionSettings
 import app.naviamp.desktop.settings.RecentRadioStream
-import app.naviamp.desktop.settings.SavedInternetRadioStation
 import app.naviamp.desktop.settings.SearchSettings
 import app.naviamp.desktop.settings.UpNextSelectionBehavior
 import app.naviamp.desktop.settings.VisualizerSettings
@@ -1176,10 +1178,12 @@ fun NaviampApp(
     }
 
     fun rememberInternetRadioStation(station: InternetRadioStation) {
-        recentInternetRadioStations = (listOf(station) + recentInternetRadioStations.filterNot { it.id == station.id })
-            .take(12)
+        recentInternetRadioStations = recentInternetRadioStationsWith(recentInternetRadioStations, station)
         settingsStore.saveRecentInternetRadioStations(
-            recentInternetRadioStations.map { SavedInternetRadioStation.fromStation(it) },
+            recentSavedInternetRadioStationsWith(
+                settingsStore.loadRecentInternetRadioStations(),
+                station,
+            ),
         )
         homeContent = homeContent.copy(recentInternetRadioStations = recentInternetRadioStations)
     }
@@ -1189,16 +1193,7 @@ fun NaviampApp(
         stopRadioContinuation()
         clearShuffleSnapshot()
         playlistEngine.clear()
-        val radioTrack = Track(
-            id = internetRadioTrackId(station.id),
-            title = station.name,
-            artistName = "Internet Radio",
-            albumTitle = station.homePageUrl ?: station.streamUrl,
-            durationSeconds = null,
-            coverArtId = null,
-            audioInfo = null,
-            replayGain = null,
-        )
+        val radioTrack = internetRadioTrack(station)
         nowPlayingTrack = radioTrack
         nowPlayingCoverArtUrl = null
         nowPlayingWaveform = null
@@ -1239,13 +1234,7 @@ fun NaviampApp(
             },
             onMetadataChanged = { metadata ->
                 nowPlayingStreamMetadata = metadata
-                metadata.title?.takeIf { it.isNotBlank() }?.let { streamTitle ->
-                    nowPlayingTrack = radioTrack.copy(
-                        title = streamTitle,
-                        artistName = station.name,
-                        albumTitle = "Internet Radio",
-                    )
-                }
+                nowPlayingTrack = internetRadioTrackWithMetadata(radioTrack, station, metadata)
             },
         )
     }

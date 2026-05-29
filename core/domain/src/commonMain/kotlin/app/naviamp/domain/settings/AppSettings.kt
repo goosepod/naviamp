@@ -10,9 +10,9 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
-import app.naviamp.domain.internetRadioTrackId
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.ReplayGainMode
+import app.naviamp.domain.radio.internetRadioTrack
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -299,16 +299,7 @@ data class PlaybackSessionSettings(
 }
 
 private fun SavedInternetRadioStation.toTrack(): Track =
-    Track(
-        id = internetRadioTrackId(id),
-        title = name,
-        artistName = "Internet Radio",
-        albumTitle = homePageUrl ?: streamUrl,
-        durationSeconds = null,
-        coverArtId = null,
-        audioInfo = null,
-        replayGain = null,
-    )
+    internetRadioTrack(toStation())
 
 @Serializable
 data class SavedTrack(

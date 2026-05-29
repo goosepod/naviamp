@@ -132,6 +132,7 @@ import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.radio.generatedRadioQueue
+import app.naviamp.domain.radio.recentSavedInternetRadioStationsWith
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.downloadStreamQuality
@@ -1026,6 +1027,14 @@ private fun NaviampAndroidApp(
 
     fun playInternetRadioStation(station: InternetRadioStation) {
         val sessionToken = beginPlaybackSession()
+        val recentStations = recentSavedInternetRadioStationsWith(
+            settingsStore.loadRecentInternetRadioStations(),
+            station,
+        )
+        settingsStore.saveRecentInternetRadioStations(recentStations)
+        homeState = homeState.copy(
+            recentInternetRadioStations = recentStations.map { it.toStation() },
+        )
         nowPlaying = null
         AndroidPlaybackNotificationControls.canFavorite = false
         AndroidPlaybackNotificationControls.isFavorite = false

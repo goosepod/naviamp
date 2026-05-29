@@ -85,6 +85,9 @@ Branch: `codex/desktop-main-reduction`
   - shared library sync status, auto-sync gate, and freshness polling interval
   - shared stats refresh route/interval rules
   - shared now-playing sidecar status, lyrics, waveform, and queue prep decisions
+- [x] Extract shared internet-radio playback helpers.
+  - station-to-track shaping and stream-title metadata updates now live in `core/domain`
+  - recent internet-radio station de-duplication/limits are shared by desktop and Android
 
 ## Shared-Code Watchlist
 
@@ -97,6 +100,7 @@ Branch: `codex/desktop-main-reduction`
 - Search result wrapping/status text and storage stats refresh route/interval decisions are now shared through `core/domain`.
 - Library sync status text, initial auto-sync decision, and library freshness polling cadence are now shared through `core/domain`.
 - Now-playing sidecar type keys, lyrics loading/error rules, waveform status labels, online-lyrics fetch decisions, and sidecar queue filtering are now shared through `core/domain`.
+- Internet-radio station track shaping, metadata title updates, and recent-station ordering/limits are now shared through `core/domain`.
 - Remaining connection startup still differs by platform because desktop owns BASS/JVM TLS defaults, `DesktopCache`, window route state, and playlist engine restoration, while Android owns foreground service/playback runtime, `AndroidStorage`, and activity navigation state.
 - Before extracting each helper from `DesktopNaviampApp.kt`, compare Android equivalents and move pure request/status/state-transition rules into `core/domain`, `core/ui`, or `providers/navidrome` instead of creating a new desktop-only duplicate.
 
@@ -108,6 +112,7 @@ Branch: `codex/desktop-main-reduction`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:desktopTest`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop :apps:android:assembleDebug`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :providers:navidrome:allTests :apps:desktop:desktopTest :apps:android:assembleDebug`
+- [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`
 
 ## Follow-Up Ideas
 
