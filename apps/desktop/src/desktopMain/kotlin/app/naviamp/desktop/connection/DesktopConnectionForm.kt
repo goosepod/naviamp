@@ -6,7 +6,6 @@ import app.naviamp.domain.source.resolvedConnectionDisplayName
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import app.naviamp.provider.navidrome.toNavidromeConnection
-import app.naviamp.provider.navidrome.withNativeTokenFromPassword
 
 data class DesktopConnectionFormState(
     val savedConnectionForLogin: NavidromeConnection? = null,
@@ -18,20 +17,6 @@ data class DesktopConnectionFormState(
     val customCertificatePath: String = "",
     val clientCertificateKeyStorePath: String = "",
     val clientCertificateKeyStorePassword: String = "",
-)
-
-data class DesktopConnectionRequest(
-    val serverUrl: String,
-    val username: String,
-    val password: String,
-    val displayName: String,
-    val tlsSettings: NavidromeTlsSettings,
-    val savedConnectionForLogin: NavidromeConnection?,
-)
-
-data class DesktopPreparedConnection(
-    val connection: NavidromeConnection,
-    val smartPlaylistAuthWarning: String?,
 )
 
 data class DesktopDeletedConnectionUpdate(
@@ -108,43 +93,6 @@ fun desktopDeletedConnectionUpdate(
             savedConnectionForLogin.username == source.username,
         status = "Deleted ${source.displayName}.",
     )
-
-suspend fun prepareDesktopNavidromeConnection(
-    request: DesktopConnectionRequest,
-    nativeTokenFromPassword: suspend (NavidromeConnection, String) -> NavidromeConnection = { connection, password ->
-        connection.withNativeTokenFromPassword(password, required = true)
-    },
-): DesktopPreparedConnection {
-    val reusableCredentials = request.savedConnectionForLogin?.takeIf {
-        it.baseUrl == request.serverUrl && it.username == request.username && request.password.isBlank()
-    }
-    val connectionWithoutNativeRefresh = reusableCredentials?.copy(
-        displayName = request.displayName,
-        tlsSettings = request.tlsSettings,
-    ) ?: NavidromeConnection.fromPassword(
-        baseUrl = request.serverUrl,
-        username = request.username,
-        password = request.password,
-        displayName = request.displayName,
-        tlsSettings = request.tlsSettings,
-    )
-    var smartPlaylistAuthWarning: String? = null
-    val connection = if (request.password.isNotBlank()) {
-        runCatching {
-            nativeTokenFromPassword(connectionWithoutNativeRefresh, request.password)
-        }.getOrElse { nativeAuthError ->
-            smartPlaylistAuthWarning = nativeAuthError.message
-                ?: "Could not authenticate with Navidrome's native API."
-            connectionWithoutNativeRefresh
-        }
-    } else {
-        connectionWithoutNativeRefresh
-    }
-    return DesktopPreparedConnection(
-        connection = connection,
-        smartPlaylistAuthWarning = smartPlaylistAuthWarning,
-    )
-}
 
 fun desktopConnectionSuccessStatus(
     validation: ConnectionValidation,

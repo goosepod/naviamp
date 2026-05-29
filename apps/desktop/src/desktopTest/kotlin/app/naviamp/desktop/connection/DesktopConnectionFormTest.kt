@@ -4,7 +4,6 @@ import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.source.ConnectionTlsSettings
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.provider.navidrome.NavidromeConnection
-import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -109,63 +108,6 @@ class DesktopConnectionFormTest {
                 navidromeConnection(),
             ),
         )
-    }
-
-    @Test
-    fun prepareConnectionReusesSavedCredentialsWhenPasswordIsBlank() = runBlocking {
-        val savedConnection = navidromeConnection(token = "saved-token", nativeToken = "native")
-        val prepared = prepareDesktopNavidromeConnection(
-            DesktopConnectionRequest(
-                serverUrl = "https://music.example.test",
-                username = "demo",
-                password = "",
-                displayName = "Home Music",
-                tlsSettings = ConnectionTlsSettings(customCertificatePath = "/cert.pem"),
-                savedConnectionForLogin = savedConnection,
-            ),
-        )
-
-        assertEquals("saved-token", prepared.connection.token)
-        assertEquals("native", prepared.connection.nativeToken)
-        assertEquals("Home Music", prepared.connection.displayName)
-        assertEquals("/cert.pem", prepared.connection.tlsSettings.customCertificatePath)
-        assertNull(prepared.smartPlaylistAuthWarning)
-    }
-
-    @Test
-    fun prepareConnectionKeepsConnectionWhenNativeAuthFails() = runBlocking {
-        val prepared = prepareDesktopNavidromeConnection(
-            DesktopConnectionRequest(
-                serverUrl = "https://music.example.test",
-                username = "demo",
-                password = "secret",
-                displayName = "Home Music",
-                tlsSettings = ConnectionTlsSettings(),
-                savedConnectionForLogin = null,
-            ),
-            nativeTokenFromPassword = { _, _ -> error("native auth unavailable") },
-        )
-
-        assertNull(prepared.connection.nativeToken)
-        assertEquals("native auth unavailable", prepared.smartPlaylistAuthWarning)
-    }
-
-    @Test
-    fun prepareConnectionStoresNativeTokenWhenAuthSucceeds() = runBlocking {
-        val prepared = prepareDesktopNavidromeConnection(
-            DesktopConnectionRequest(
-                serverUrl = "https://music.example.test",
-                username = "demo",
-                password = "secret",
-                displayName = "Home Music",
-                tlsSettings = ConnectionTlsSettings(),
-                savedConnectionForLogin = null,
-            ),
-            nativeTokenFromPassword = { connection, _ -> connection.copy(nativeToken = "native") },
-        )
-
-        assertEquals("native", prepared.connection.nativeToken)
-        assertNull(prepared.smartPlaylistAuthWarning)
     }
 
     @Test

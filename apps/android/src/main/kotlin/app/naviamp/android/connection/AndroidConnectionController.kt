@@ -6,9 +6,10 @@ import app.naviamp.domain.Playlist
 import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.provider.navidrome.NavidromeConnection
+import app.naviamp.provider.navidrome.NavidromeConnectionLoginRequest
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
-import app.naviamp.provider.navidrome.withNativeTokenFromPassword
+import app.naviamp.provider.navidrome.prepareNavidromeConnection
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -102,28 +103,16 @@ fun startNavidromeConnectionFromForm(
     )
     scope.launch {
         runCatching {
-            val displayName = connectionForm.displayName.trim().takeIf { it.isNotEmpty() }
-            val connection = if (connectionForm.password.isBlank() && savedProviderConnection != null) {
-                savedProviderConnection.copy(
-                    baseUrl = connectionForm.serverUrl,
-                    username = connectionForm.username,
-                    displayName = displayName,
-                    tlsSettings = tlsSettings,
-                )
-            } else {
-                NavidromeConnection.fromPassword(
+            prepareNavidromeConnection(
+                NavidromeConnectionLoginRequest(
                     baseUrl = connectionForm.serverUrl,
                     username = connectionForm.username,
                     password = connectionForm.password,
-                    displayName = displayName,
+                    displayName = connectionForm.displayName.trim().takeIf { it.isNotEmpty() },
                     tlsSettings = tlsSettings,
-                )
-            }
-            if (connectionForm.password.isNotBlank()) {
-                connection.withNativeTokenFromPassword(connectionForm.password)
-            } else {
-                connection
-            }
+                    savedConnectionForLogin = savedProviderConnection,
+                ),
+            ).connection
         }.onSuccess { connection ->
             settingsStore.saveConnection(connectionForm)
             connectWithNavidromeConnection(connection)

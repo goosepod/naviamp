@@ -161,6 +161,8 @@ import app.naviamp.domain.settings.restoredTrackSession
 import app.naviamp.provider.navidrome.NavidromeApiCallHistory
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.NavidromeTls
+import app.naviamp.provider.navidrome.NavidromeConnectionLoginRequest
+import app.naviamp.provider.navidrome.prepareNavidromeConnection
 import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.provider.navidrome.withNativeTokenFromPassword
 import app.naviamp.ui.NaviampPlayerColors
@@ -1411,18 +1413,19 @@ fun NaviampApp(
         coroutineScope.launch {
             try {
                 val tlsSettings = connectionTlsSettings()
-                val preparedConnection = prepareDesktopNavidromeConnection(
-                    DesktopConnectionRequest(
-                        serverUrl = serverUrl,
+                val preparedConnection = prepareNavidromeConnection(
+                    NavidromeConnectionLoginRequest(
+                        baseUrl = serverUrl,
                         username = username,
                         password = password,
                         displayName = resolvedConnectionDisplayName(),
                         tlsSettings = tlsSettings,
                         savedConnectionForLogin = savedConnectionForLogin,
+                        nativeAuthRequired = true,
                     ),
                 )
                 val connection = preparedConnection.connection
-                val smartPlaylistAuthWarning = preparedConnection.smartPlaylistAuthWarning
+                val smartPlaylistAuthWarning = preparedConnection.nativeAuthErrorMessage
                 NavidromeTls.applyJvmDefaults(connection.tlsSettings)
                 val provider = NavidromeProvider(connection)
                 val validation = provider.validateConnection()
