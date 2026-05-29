@@ -4,12 +4,12 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 
 ## Goals
 
-- [ ] Make desktop and Android share product behavior by default.
-- [ ] Keep platform modules focused on platform state, UI composition, native playback, storage adapters, filesystem access, permissions, and OS integration.
-- [ ] Move duplicate desktop/Android fixes into common code so playback, library, search, radio, playlist, and detail-loading behavior is fixed once.
-- [ ] Preserve platform-specific escape hatches only where there is a real platform constraint.
-- [ ] Add common tests for every moved rule before deleting platform-local copies.
-- [ ] Keep desktop and Android builds green after each feature migration.
+- [x] Make desktop and Android share product behavior by default.
+- [x] Keep platform modules focused on platform state, UI composition, native playback, storage adapters, filesystem access, permissions, and OS integration.
+- [x] Move duplicate desktop/Android fixes into common code so playback, library, search, radio, playlist, and detail-loading behavior is fixed once.
+- [x] Preserve platform-specific escape hatches only where there is a real platform constraint.
+- [x] Add common tests for every moved rule before deleting platform-local copies.
+- [x] Keep desktop and Android builds green after each feature migration.
 
 ## Placement Rules
 
@@ -21,12 +21,12 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 ## Migration Method
 
 - [x] Finish the desktop `Main.kt` split enough that feature boundaries are clear.
-- [ ] For each feature, compare desktop and Android behavior before moving code.
-- [ ] Extract pure behavior into `core/domain` first, using interfaces or lambdas for platform storage/playback dependencies.
-- [ ] Move shared UI mapping into `core/ui` only after the domain behavior is stable.
-- [ ] Replace desktop and Android local logic with thin adapters over the shared core API.
-- [ ] Move existing platform tests down to common tests where possible.
-- [ ] Leave a short note in this doc when behavior intentionally remains platform-specific.
+- [x] For each feature, compare desktop and Android behavior before moving code.
+- [x] Extract pure behavior into `core/domain` first, using interfaces or lambdas for platform storage/playback dependencies.
+- [x] Move shared UI mapping into `core/ui` only after the domain behavior is stable.
+- [x] Replace desktop and Android local logic with thin adapters over the shared core API.
+- [x] Move existing platform tests down to common tests where possible.
+- [x] Leave a short note in this doc when behavior intentionally remains platform-specific.
 
 ## Feature Checklist
 
@@ -46,12 +46,12 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
   - [x] Share restored session validation and playback-session mapping.
     - [x] Cover restored session validation, queue mapping, progress mapping, and adjacent-track session changes with common tests.
 
-- [ ] Library and search behavior
-  - [ ] Move library freshness/status decisions into `core/domain`.
+- [x] Library and search behavior
+  - [x] Move library freshness/status decisions into `core/domain`.
     - [x] Move library freshness status decisions into `core/domain`.
-  - [ ] Move paging/limit/snapshot planning into `core/domain`.
+  - [x] Move paging/limit/snapshot planning into `core/domain`.
     - [x] Move generic library paging limit decisions into `core/domain`.
-  - [ ] Move library search normalization/filtering/fallback decisions into shared code.
+  - [x] Move library search normalization/filtering/fallback decisions into shared code.
     - [x] Move shared search result count and active track selection helpers into `core/domain`.
     - [x] Move shared query normalization, debounce, and result-limit policy into `core/domain`.
   - [x] Make desktop and Android use the same search request/result mapping.
@@ -63,13 +63,13 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
   - [x] Keep desktop/Android radio controllers as thin adapters around shared plans.
   - [x] Keep native playback queue mutation inside platform adapters.
 
-- [ ] Playlist behavior
+- [x] Playlist behavior
   - [x] Move playlist mutation planning into `core/domain`.
   - [x] Share create/add/rename/delete fallback and status decisions.
   - [x] Share smart playlist update/load orchestration where possible.
   - [x] Keep platform-specific cache refresh and UI state wiring in app modules.
 
-- [ ] Downloads/cache behavior
+- [x] Downloads/cache behavior
   - [x] Move download eligibility and request planning into `core/domain`.
   - [x] Keep actual filesystem paths, cache eviction, and platform storage adapters in app modules.
   - [x] Share downloaded-track display/status mapping where possible.
@@ -80,17 +80,17 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
   - [x] Share popular-track/similar-artist request planning and result mapping.
   - [x] Keep visual layout and navigation state in platform UI layers.
 
-- [ ] Home and navigation state
+- [x] Home and navigation state
   - [x] Share home content request planning and aggregation rules.
   - [x] Share route persistence/restoration mapping.
   - [x] Keep platform navigation containers and window/back-stack integration platform-local.
 
-- [ ] Settings and preferences
+- [x] Settings and preferences
   - [x] Share playback settings validation and effective-settings derivation.
   - [x] Share session/settings serialization models where they are not platform-specific.
   - [x] Keep platform storage backends local.
 
-- [ ] UI models
+- [x] UI models
   - [x] Move duplicated display models into `core/ui`.
   - [x] Share action availability mapping for media rows, now playing, radio, playlists, and search.
   - [x] Keep final Compose layouts platform-local when screen density/lifecycle differs.
@@ -104,6 +104,7 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 
 ## Notes
 
+- Shared core extraction is complete as of this checklist pass. Remaining work should move to warning cleanup, platform polish, Android parity verification, or feature-specific roadmaps rather than this shared-core architecture list.
 - This is the last major architecture pass after platform `Main`/`MainActivity` cleanup.
 - The goal is not to make desktop and Android identical internally; the goal is to make duplicated product decisions impossible by default.
 - A platform-local implementation should be the exception, and the reason should be documented next to the checklist item.
