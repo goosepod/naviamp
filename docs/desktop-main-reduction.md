@@ -100,6 +100,9 @@ Branch: `codex/desktop-main-reduction`
 - [x] Extract desktop playback-control orchestration from `DesktopNaviampApp.kt`.
   - shuffle/repeat controls, session position saves, seek handling, previous/next eligibility, now-playing reports, and played reports now live in `DesktopPlaybackController`
   - shared playback control, seek, progress-save, and report-submission rules remain in `core/domain`
+- [x] Extract desktop album-detail orchestration from `DesktopNaviampApp.kt`.
+  - album detail route selection, provider load, local-library fallback, and track-to-album navigation now live in `DesktopAlbumController`
+  - shared album fallback and status rules remain in `core/domain`
 
 ## Shared-Code Watchlist
 
@@ -117,6 +120,7 @@ Branch: `codex/desktop-main-reduction`
 - Library auto-sync gating, freshness polling updates, sync status text, and paging limits are shared through `core/domain`; platforms keep their storage-specific sync runners.
 - Internet-radio live playback is desktop-local, while station-to-track shaping, stream-title handling, and recent-station ordering stay shared through `core/domain`.
 - Playback button rules, seek planning, playback-position save decisions, and play-report thresholds are shared through `core/domain`; desktop now keeps only the platform wiring in `DesktopPlaybackController`.
+- Album detail fallback and load-status rules are shared through `core/domain`; desktop route wiring now lives in `DesktopAlbumController`.
 - Remaining connection startup still differs by platform because desktop owns BASS/JVM TLS defaults, `DesktopCache`, window route state, and playlist engine restoration, while Android owns foreground service/playback runtime, `AndroidStorage`, and activity navigation state.
 - Before extracting each helper from `DesktopNaviampApp.kt`, compare Android equivalents and move pure request/status/state-transition rules into `core/domain`, `core/ui`, or `providers/navidrome` instead of creating a new desktop-only duplicate.
 
@@ -129,6 +133,7 @@ Branch: `codex/desktop-main-reduction`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop :apps:android:assembleDebug`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :providers:navidrome:allTests :apps:desktop:desktopTest :apps:android:assembleDebug`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`
+- [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop`

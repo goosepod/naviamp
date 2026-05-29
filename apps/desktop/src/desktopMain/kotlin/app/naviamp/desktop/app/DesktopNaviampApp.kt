@@ -869,6 +869,21 @@ fun NaviampApp(
         similarArtistsService = similarArtistsService,
     )
 
+    val albumController = DesktopAlbumController(
+        scope = coroutineScope,
+        sessionCache = sessionCache,
+        provider = { connectedProvider },
+        sourceId = { connectedSourceId },
+        currentRoute = { appRoute },
+        lastContentRoute = { lastContentRoute },
+        albumDetailBackRoute = { albumDetailBackRoute },
+        setAlbumDetailBackRoute = { route -> albumDetailBackRoute = route },
+        setRoute = { route -> appRoute = route },
+        setSelectedAlbum = { album -> selectedAlbum = album },
+        setSelectedAlbumDetails = { details -> selectedAlbumDetails = details },
+        setSelectedAlbumStatus = { status -> selectedAlbumStatus = status },
+    )
+
     val libraryController = DesktopLibraryController(
         scope = coroutineScope,
         cache = sessionCache,
@@ -1300,25 +1315,7 @@ fun NaviampApp(
     }
 
     fun openAlbumDetails(album: Album, backRouteOverride: AppRoute? = null) {
-        val provider = connectedProvider ?: return
-        albumDetailBackRoute = resolveAlbumDetailBackRoute(
-            currentRoute = appRoute,
-            currentBackRoute = albumDetailBackRoute,
-            lastContentRoute = lastContentRoute,
-            backRouteOverride = backRouteOverride,
-        )
-        selectedAlbum = album
-        selectedAlbumDetails = null
-        selectedAlbumStatus = "Loading..."
-        appRoute = AppRoute.AlbumDetail
-        coroutineScope.launch {
-            try {
-                selectedAlbumDetails = loadAlbumDetails(sessionCache, provider, album, connectedSourceId)
-                selectedAlbumStatus = null
-            } catch (exception: Exception) {
-                selectedAlbumStatus = albumLoadErrorStatus(exception)
-            }
-        }
+        albumController.openAlbumDetails(album, backRouteOverride)
     }
 
     fun playAlbumDetails(shuffle: Boolean = false, index: Int = 0) {
@@ -1502,7 +1499,7 @@ fun NaviampApp(
     }
 
     fun openTrackAlbumDetails(track: Track) {
-        openAlbumDetails(trackAlbum(track) ?: return, backRouteOverride = AppRoute.Player)
+        albumController.openTrackAlbumDetails(track)
     }
 
     fun setTrackRating(track: Track, rating: Int?) {
