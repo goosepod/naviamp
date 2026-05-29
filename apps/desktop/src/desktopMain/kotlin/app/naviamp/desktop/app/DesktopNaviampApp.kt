@@ -71,8 +71,6 @@ import app.naviamp.domain.playback.lyricsLoadingStatus
 import app.naviamp.domain.playback.shouldLoadOnlineLyrics
 import app.naviamp.domain.playback.waveformStatus
 import app.naviamp.domain.home.HomeContent
-import app.naviamp.domain.home.HomeDate
-import app.naviamp.domain.home.HomeService
 import app.naviamp.domain.lyrics.selectPreferredLyrics
 import app.naviamp.domain.popular.ArtistPopularTracksService
 import app.naviamp.domain.popular.DeezerPopularTracksClient
@@ -153,7 +151,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.time.LocalDate
 
 @Composable
 fun NaviampApp(
@@ -929,6 +926,16 @@ fun NaviampApp(
         setSelectedAlbumStatus = { status -> selectedAlbumStatus = status },
     )
 
+    val homeController = DesktopHomeController(
+        scope = coroutineScope,
+        sessionCache = sessionCache,
+        sourceId = { connectedSourceId },
+        recentRadioStreams = { recentRadioStreams },
+        recentInternetRadioStations = { recentInternetRadioStations },
+        setHomeContent = { content -> homeContent = content },
+        setHomeStatus = { status -> homeStatus = status },
+    )
+
     val libraryController = DesktopLibraryController(
         scope = coroutineScope,
         cache = sessionCache,
@@ -1103,28 +1110,7 @@ fun NaviampApp(
     }
 
     fun loadHomeContent(provider: NavidromeProvider) {
-        val sourceId = connectedSourceId
-        homeStatus = "Loading home..."
-        coroutineScope.launch {
-            try {
-                val content = withContext(Dispatchers.IO) {
-                    val today = LocalDate.now()
-                    HomeService(
-                        provider = provider,
-                        libraryRepository = sessionCache.asHomeLibraryRepository(),
-                        sourceId = sourceId,
-                        date = HomeDate(year = today.year, dayOfYear = today.dayOfYear),
-                    ).load(
-                        recentRadioStreams = recentRadioStreams,
-                        recentInternetRadioStations = recentInternetRadioStations,
-                    )
-                }
-                homeContent = content
-                homeStatus = null
-            } catch (exception: Exception) {
-                homeStatus = exception.message ?: "Could not load home."
-            }
-        }
+        homeController.loadHomeContent(provider)
     }
 
     fun refreshPlaylists() {

@@ -109,6 +109,9 @@ Branch: `codex/desktop-main-reduction`
 - [x] Share recent generated-radio stream ordering.
   - recent radio stream de-duplication/limits now live in `core/domain`
   - desktop and Android foreground-service radio history use the shared helper
+- [x] Extract desktop home-content orchestration from `DesktopNaviampApp.kt`.
+  - async `HomeService` loading, home status, source id, recent radio inputs, and desktop cache repository wiring now live in `DesktopHomeController`
+  - `HomeService` remains shared between platforms
 
 ## Shared-Code Watchlist
 
@@ -129,6 +132,7 @@ Branch: `codex/desktop-main-reduction`
 - Album detail fallback and load-status rules are shared through `core/domain`; desktop route wiring now lives in `DesktopAlbumController`.
 - Desktop connection startup still owns desktop-specific state wiring, but pure validation/TLS/status/restore rules stay shared through `core/domain` and `providers/navidrome`.
 - Recent generated-radio stream ordering/limits are shared through `core/domain` alongside the existing recent-stream creation/action helpers.
+- Home content composition remains shared through `HomeService`; desktop now keeps platform state wiring in `DesktopHomeController`.
 - Remaining connection startup still differs by platform because desktop owns BASS/JVM TLS defaults, `DesktopCache`, window route state, and playlist engine restoration, while Android owns foreground service/playback runtime, `AndroidStorage`, and activity navigation state.
 - Before extracting each helper from `DesktopNaviampApp.kt`, compare Android equivalents and move pure request/status/state-transition rules into `core/domain`, `core/ui`, or `providers/navidrome` instead of creating a new desktop-only duplicate.
 
@@ -141,6 +145,7 @@ Branch: `codex/desktop-main-reduction`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop :apps:android:assembleDebug`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :providers:navidrome:allTests :apps:desktop:desktopTest :apps:android:assembleDebug`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`
+- [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop`
