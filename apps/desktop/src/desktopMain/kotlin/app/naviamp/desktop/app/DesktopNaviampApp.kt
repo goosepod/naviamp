@@ -48,11 +48,6 @@ import app.naviamp.domain.internetRadioStationId
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.app.shouldRefreshStorageStats
-import app.naviamp.domain.library.evaluateLibraryFreshness
-import app.naviamp.domain.library.libraryConnectionRequiredStatus
-import app.naviamp.domain.library.libraryLimitForOffset
-import app.naviamp.domain.library.librarySyncErrorStatus
-import app.naviamp.domain.library.librarySyncStartingStatus
 import app.naviamp.domain.playback.CrossfadeSettings
 import app.naviamp.domain.playback.DefaultNowPlayingHeartbeatIntervalMillis
 import app.naviamp.domain.playback.DefaultVisualizerFrameIntervalMillis
@@ -922,6 +917,26 @@ fun NaviampApp(
         similarArtistsService = similarArtistsService,
     )
 
+    val libraryController = DesktopLibraryController(
+        scope = coroutineScope,
+        cache = sessionCache,
+        librarySync = librarySync,
+        provider = { connectedProvider },
+        sourceId = { connectedSourceId },
+        libraryQuery = { libraryQuery },
+        libraryTab = { libraryTab },
+        libraryLimit = { libraryLimit },
+        setLibraryLimit = { limit -> libraryLimit = limit },
+        librarySnapshot = { librarySnapshot },
+        setLibrarySnapshot = { snapshot -> librarySnapshot = snapshot },
+        libraryStatus = { libraryStatus },
+        setLibraryStatus = { status -> libraryStatus = status },
+        setConnectionStatus = { status -> connectionStatus = status },
+        isLibrarySyncing = { isLibrarySyncing },
+        setLibrarySyncing = { syncing -> isLibrarySyncing = syncing },
+        listState = libraryListState,
+    )
+
     LaunchedEffect(
         nowPlayingTrack?.id,
         connectedSourceId,
@@ -1064,31 +1079,15 @@ fun NaviampApp(
     }
 
     fun refreshLibrarySnapshot() {
-        val sourceId = connectedSourceId
-        if (sourceId == null) {
-            librarySnapshot = LibrarySnapshot()
-            libraryStatus = libraryConnectionRequiredStatus()
-            return
-        }
-        librarySnapshot = sessionCache.librarySnapshotFor(sourceId, libraryQuery, libraryLimit)
+        libraryController.refreshLibrarySnapshot()
     }
 
     fun loadMoreLibraryRows() {
-        val nextLimit = nextLibraryLimit(librarySnapshot, libraryTab, libraryLimit, LibraryPageSize)
-        if (nextLimit == libraryLimit) return
-        libraryLimit = nextLimit
-        refreshLibrarySnapshot()
+        libraryController.loadMoreLibraryRows()
     }
 
     fun jumpLibraryToLetter(letter: Char) {
-        val sourceId = connectedSourceId ?: return
-        if (libraryQuery.isNotBlank()) return
-        val offset = sessionCache.libraryOffsetForLetter(sourceId, libraryTab, letter).toInt()
-        libraryLimit = libraryLimitForOffset(offset, LibraryPageSize)
-        refreshLibrarySnapshot()
-        coroutineScope.launch {
-            libraryListState.scrollToItem((offset + 1).coerceAtLeast(0))
-        }
+        libraryController.jumpLibraryToLetter(letter)
     }
 
     fun loadHomeContent(provider: NavidromeProvider) {
@@ -1305,60 +1304,11 @@ fun NaviampApp(
     }
 
     fun startLibrarySync(force: Boolean = false) {
-        val provider = connectedProvider ?: return
-        val sourceId = connectedSourceId ?: return
-        if (isLibrarySyncing) return
-        if (!force && !shouldAutoSyncLibrary(sourceId, sessionCache)) {
-            libraryStatus = null
-            return
-        }
-        isLibrarySyncing = true
-        libraryStatus = librarySyncStartingStatus()
-        coroutineScope.launch {
-            val uiContext = coroutineContext
-            try {
-                withContext(Dispatchers.IO) {
-                    librarySync.syncAndMarkScanChecked(
-                        sourceId = sourceId,
-                        provider = provider,
-                        onProgress = { progress ->
-                            withContext(uiContext) {
-                                libraryStatus = progress.label()
-                            }
-                        },
-                    )
-                }
-                refreshLibrarySnapshot()
-                libraryStatus = null
-            } catch (exception: Exception) {
-                libraryStatus = librarySyncErrorStatus(exception)
-            } finally {
-                isLibrarySyncing = false
-            }
-        }
+        libraryController.startLibrarySync(force)
     }
 
     fun checkLibraryFreshness() {
-        val provider = connectedProvider ?: return
-        val sourceId = connectedSourceId ?: return
-        if (isLibrarySyncing) return
-        coroutineScope.launch {
-            val freshness = withContext(Dispatchers.IO) {
-                sessionCache.libraryFreshnessFor(sourceId, provider)
-            }
-            val update = freshness.evaluateLibraryFreshness(libraryStatus)
-            update.signatureToMarkChecked?.let { signature ->
-                withContext(Dispatchers.IO) {
-                    sessionCache.markLibraryScanChecked(sourceId, signature)
-                }
-            }
-            update.status?.let { status ->
-                libraryStatus = status
-            }
-            if (update.clearStatus) {
-                libraryStatus = null
-            }
-        }
+        libraryController.checkLibraryFreshness()
     }
 
     fun connectionTlsSettings() =
@@ -1663,16 +1613,11 @@ fun NaviampApp(
     }
 
     fun clearCacheData() {
-        sessionCache.clearCacheData()
-        connectionStatus = "Image, provider response, audio, and waveform cache cleared."
+        libraryController.clearCacheData()
     }
 
     fun clearLibraryData() {
-        connectedSourceId?.let { sourceId ->
-            sessionCache.clearLibraryData(sourceId)
-        } ?: sessionCache.clearLibraryData(null)
-        librarySnapshot = LibrarySnapshot()
-        connectionStatus = "Local artist, album, and track index cleared."
+        libraryController.clearLibraryData()
     }
 
     fun clearActiveConnectionState() {
