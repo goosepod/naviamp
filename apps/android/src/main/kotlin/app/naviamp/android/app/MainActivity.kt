@@ -110,7 +110,7 @@ import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.playback.planPlaybackSeek
-import app.naviamp.domain.playback.playbackTargetPlan
+import app.naviamp.domain.playback.planPlaybackStart
 import app.naviamp.domain.playback.shouldRestartInsteadOfPrevious
 import app.naviamp.domain.playback.canReportPlaybackTrack
 import app.naviamp.domain.playback.shouldSubmitPlayReport
@@ -853,10 +853,6 @@ private fun NaviampAndroidApp(
             status = "Connect before playing a track."
             return
         }
-        val nextQueue = queue
-            ?.takeIf { tracks -> tracks.any { it.id == track.id } }
-            ?: activeQueue().takeIf { tracks -> tracks.any { it.id == track.id } }
-            ?: listOf(track)
         scope.launch {
             status = "Loading ${track.title}..."
             val streamQuality = currentStreamQuality()
@@ -864,20 +860,22 @@ private fun NaviampAndroidApp(
                 storage.downloadedAudioFile(sourceId, track.id, streamQuality)?.file
                     ?: storage.cachedAudioFile(sourceId, track.id, streamQuality)?.file
             }
-            val targetPlan = playbackTargetPlan(
+            val startPlan = planPlaybackStart(
                 track = track,
+                requestedQueue = queue,
+                activeQueue = activeQueue(),
                 quality = streamQuality,
                 startPositionSeconds = startPositionSeconds,
                 hasLocalAudio = localAudioFile != null,
             )
             runCatching {
                 localAudioFile?.toURI()?.toString()
-                    ?: activeProvider.streamUrl(targetPlan.providerStreamRequest)
+                    ?: activeProvider.streamUrl(startPlan.target.providerStreamRequest)
             }.onSuccess { streamUrl ->
                 playbackEngine.applyTlsSettings(activeTlsSettings)
                 playbackQueueController.start(
-                    tracks = nextQueue,
-                    index = nextQueue.indexOfFirst { it.id == track.id }.takeIf { it >= 0 } ?: 0,
+                    tracks = startPlan.queue,
+                    index = startPlan.queueIndex,
                 )
                 playbackQueue = playbackQueueController.queue
                 shuffledUpNextSnapshot = null
@@ -886,14 +884,13 @@ private fun NaviampAndroidApp(
                     radioRefilling = false
                     lastRadioRefillSeedId = null
                 }
-                val restoredStartPosition = targetPlan.engineStartPositionSeconds?.takeIf { it > 0.0 }
                 val sessionToken = beginAndroidPlaybackSession(
                     state = appState,
                     playbackQueueController = playbackQueueController,
-                    resetProgress = restoredStartPosition == null,
+                    resetProgress = startPlan.shouldResetProgress,
                 )
-                restoredStartPosition?.let { restoredPosition ->
-                    playbackProgress = PlaybackProgress(
+                startPlan.restoredStartPositionSeconds?.let { restoredPosition ->
+                    playbackProgress = startPlan.initialProgress ?: PlaybackProgress(
                         positionSeconds = restoredPosition,
                         durationSeconds = track.durationSeconds?.toDouble(),
                     )
@@ -939,7 +936,7 @@ private fun NaviampAndroidApp(
                         mediaId = track.id.value,
                         replayGainMode = playbackSettings.replayGainMode,
                         replayGain = track.replayGain?.let { PlaybackReplayGain(it, ReplayGainSource.Provider) },
-                        startPositionSeconds = targetPlan.engineStartPositionSeconds,
+                        startPositionSeconds = startPlan.target.engineStartPositionSeconds,
                     ),
                     onStateChanged = { state ->
                         playbackState = state

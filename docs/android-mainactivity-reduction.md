@@ -23,6 +23,10 @@ Branch: `codex/desktop-main-reduction`
 - [x] Moved playback progress update decisions into shared domain via `planPlaybackProgressUpdate`.
   - Android now applies a shared progress plan, then performs Android-only notification, foreground-service, play-report, and gapless/crossfade side effects.
   - Verification: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:assembleDebug`.
+- [x] Moved playback start queue/target/restored-progress planning into shared domain via `planPlaybackStart`.
+  - Android now uses a shared plan for queue choice, selected index, provider stream request, engine start position, and initial restored progress.
+  - `MainActivity.kt`: 2,267 -> 2,264 lines.
+  - Verification: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:assembleDebug`.
 
 ## Goals
 
