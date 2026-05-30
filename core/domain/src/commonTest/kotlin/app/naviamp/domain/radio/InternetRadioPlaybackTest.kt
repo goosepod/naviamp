@@ -4,6 +4,8 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.internetRadioTrackId
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackStreamMetadata
+import app.naviamp.domain.network.SharedHttpClient
+import app.naviamp.domain.network.SharedHttpResponse
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.settings.SavedInternetRadioStation
 import kotlin.test.Test
@@ -91,6 +93,34 @@ class InternetRadioPlaybackTest {
         assertEquals(true, plan.replayGainOff)
     }
 
+    @Test
+    fun radioPlaylistParserFindsPlsFileEntry() {
+        val body = """
+            [playlist]
+            NumberOfEntries=1
+            File1=https://stream.example/live.mp3
+        """.trimIndent()
+
+        assertEquals("https://stream.example/live.mp3", parseRadioPlaylist(body))
+    }
+
+    @Test
+    fun radioStreamResolverReturnsDirectAudioResponseUrl() = kotlinx.coroutines.test.runTest {
+        val resolver = InternetRadioStreamResolver(
+            FakeHttpClient(
+                SharedHttpResponse(
+                    url = "https://radio.example/listen",
+                    finalUrl = "https://cdn.radio.example/live.mp3",
+                    statusCode = 200,
+                    contentType = "audio/mpeg",
+                    body = ByteArray(0),
+                ),
+            ),
+        )
+
+        assertEquals("https://cdn.radio.example/live.mp3", resolver.resolve("https://radio.example/listen"))
+    }
+
     private fun station(
         id: String,
         name: String = "Station $id",
@@ -103,4 +133,24 @@ class InternetRadioPlaybackTest {
             streamUrl = streamUrl,
             homePageUrl = homePageUrl,
         )
+
+    private class FakeHttpClient(private val response: SharedHttpResponse) : SharedHttpClient {
+        override suspend fun get(url: String, headers: Map<String, String>): String? =
+            response.bodyText()
+
+        override suspend fun getBytes(url: String, headers: Map<String, String>): ByteArray? =
+            response.body
+
+        override suspend fun getResponse(url: String, headers: Map<String, String>): SharedHttpResponse =
+            response
+
+        override suspend fun download(
+            url: String,
+            headers: Map<String, String>,
+            writeChunk: suspend (bytes: ByteArray, count: Int) -> Unit,
+        ): Boolean {
+            writeChunk(response.body, response.body.size)
+            return true
+        }
+    }
 }

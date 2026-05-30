@@ -28,6 +28,7 @@ import app.naviamp.domain.cache.LibraryIndexStats
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
+import app.naviamp.domain.network.KtorSharedHttpClient
 import app.naviamp.domain.popular.ArtistPopularTrackCandidate
 import app.naviamp.domain.popular.ArtistPopularTrackMatch
 import app.naviamp.domain.provider.MediaProvider
@@ -46,7 +47,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import java.net.URI
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
@@ -76,6 +76,7 @@ class DesktopCache(
     private val queries = database.naviampStorageQueries
     private val hotImages = object : LinkedHashMap<String, ByteArray>(16, 0.75f, true) {}
     private var hotImageBytes: Long = 0
+    private val httpClient = KtorSharedHttpClient()
 
     override suspend fun imageBytes(url: String): ByteArray {
         hotImage(url)?.let { return it }
@@ -88,9 +89,7 @@ class DesktopCache(
                 return@withContext bytes
             }
 
-            val bytes = URI.create(url).toURL().openStream().use { stream ->
-                stream.readBytes()
-            }
+            val bytes = httpClient.getBytes(url) ?: throw IllegalStateException("Could not download image.")
             queries.upsertImage(
                 url = url,
                 bytes = bytes,
@@ -472,8 +471,11 @@ class DesktopCache(
                     quality = quality,
                 ),
             )
-            URI.create(streamUrl).toURL().openStream().use { input ->
-                Files.copy(input, temp, StandardCopyOption.REPLACE_EXISTING)
+            Files.newOutputStream(temp).use { output ->
+                val downloaded = httpClient.download(streamUrl) { bytes, count ->
+                    output.write(bytes, 0, count)
+                }
+                if (!downloaded) throw IllegalStateException("Could not cache audio track.")
             }
             moveDownloadedAudio(temp, target)
 
@@ -520,8 +522,11 @@ class DesktopCache(
                 ),
             )
             try {
-                URI.create(streamUrl).toURL().openStream().use { input ->
-                    Files.copy(input, temp, StandardCopyOption.REPLACE_EXISTING)
+                Files.newOutputStream(temp).use { output ->
+                    val downloaded = httpClient.download(streamUrl) { bytes, count ->
+                        output.write(bytes, 0, count)
+                    }
+                    if (!downloaded) throw IllegalStateException("Could not download audio track.")
                 }
                 val size = Files.size(temp)
                 val currentDownloadBytes = queries.downloadedAudioSize().executeAsOne()

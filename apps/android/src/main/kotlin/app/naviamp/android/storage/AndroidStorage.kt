@@ -22,6 +22,7 @@ import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.PlaybackHistoryRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
+import app.naviamp.domain.network.KtorSharedHttpClient
 import app.naviamp.domain.popular.ArtistPopularTrackCandidate
 import app.naviamp.domain.popular.ArtistPopularTrackMatch
 import app.naviamp.domain.provider.MediaProvider
@@ -46,7 +47,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
-import java.net.URI
 import java.security.MessageDigest
 
 class AndroidStorage(
@@ -74,6 +74,7 @@ class AndroidStorage(
         ignoreUnknownKeys = true
         encodeDefaults = true
     }
+    private val httpClient = KtorSharedHttpClient()
 
     val audioCacheDirectory: File = File(appContext.cacheDir, "audio-cache")
     val downloadDirectory: File = File(appContext.filesDir, "downloads")
@@ -176,7 +177,7 @@ class AndroidStorage(
                 return@withContext bytes
             }
 
-            val bytes = URI.create(url).toURL().openStream().use { it.readBytes() }
+            val bytes = httpClient.getBytes(url) ?: throw IllegalStateException("Could not download image.")
             queries.upsertImage(
                 url = url,
                 bytes = bytes,
@@ -281,8 +282,11 @@ class AndroidStorage(
             val temp = File(audioCacheDirectory, "${target.name}.tmp")
             val streamUrl = provider.streamUrl(StreamRequest(track.id, quality))
             try {
-                URI.create(streamUrl).toURL().openStream().use { input ->
-                    temp.outputStream().use { output -> input.copyTo(output) }
+                temp.outputStream().use { output ->
+                    val downloaded = httpClient.download(streamUrl) { bytes, count ->
+                        output.write(bytes, 0, count)
+                    }
+                    if (!downloaded) throw IllegalStateException("Could not cache audio track.")
                 }
                 moveDownloadedAudio(temp, target)
                 val now = nowMillis()
@@ -344,8 +348,11 @@ class AndroidStorage(
             val temp = File(downloadDirectory, "${target.name}.tmp")
             val streamUrl = provider.streamUrl(StreamRequest(track.id, quality))
             try {
-                URI.create(streamUrl).toURL().openStream().use { input ->
-                    temp.outputStream().use { output -> input.copyTo(output) }
+                temp.outputStream().use { output ->
+                    val downloaded = httpClient.download(streamUrl) { bytes, count ->
+                        output.write(bytes, 0, count)
+                    }
+                    if (!downloaded) throw IllegalStateException("Could not download audio track.")
                 }
                 val size = temp.length()
                 val currentDownloadBytes = queries.downloadedAudioSize().executeAsOne()

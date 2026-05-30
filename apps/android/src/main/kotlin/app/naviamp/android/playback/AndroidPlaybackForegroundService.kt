@@ -47,6 +47,7 @@ import app.naviamp.domain.playback.shouldIgnoreProgressForPendingSeek
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
+import app.naviamp.domain.network.KtorSharedHttpClient
 import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.radio.recentRadioStreamsWith
 import app.naviamp.domain.radio.recentSavedInternetRadioStationsWith
@@ -62,8 +63,8 @@ import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.toNavidromeConnection
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import java.net.URL
 import kotlin.concurrent.thread
 
 private const val VoiceArtistScanLimit = 5_000L
@@ -71,6 +72,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     private var mediaSession: MediaSessionCompat? = null
     private var browserSessionTokenSet = false
     private var serviceStorageInstance: AndroidStorage? = null
+    private val notificationArtHttpClient = KtorSharedHttpClient()
     private val serviceStorage: AndroidStorage
         get() = serviceStorageInstance ?: AndroidStorage(applicationContext).also { serviceStorageInstance = it }
     private val autoQueueController = PlaybackQueueController()
@@ -269,8 +271,10 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     private fun loadCoverArtAsync(coverArtUrl: String, metadata: AndroidPlaybackNotificationMetadata) {
         thread(name = "naviamp-notification-art") {
             val bitmap = runCatching {
-                URL(coverArtUrl).openStream().use { input ->
-                    decodeSampledBitmap(input.readBytes(), NotificationCoverArtSidePx)
+                runBlocking {
+                    notificationArtHttpClient
+                        .getBytes(coverArtUrl)
+                        ?.let { decodeSampledBitmap(it, NotificationCoverArtSidePx) }
                 }
             }.getOrNull() ?: return@thread
             if (currentMetadata.coverArtUrl != coverArtUrl) return@thread

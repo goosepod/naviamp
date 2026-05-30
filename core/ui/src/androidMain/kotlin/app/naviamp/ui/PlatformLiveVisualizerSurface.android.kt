@@ -35,9 +35,9 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
+import app.naviamp.domain.network.KtorSharedHttpClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.net.URL
 import java.util.Locale
 
 @Composable
@@ -102,9 +102,9 @@ private fun AndroidShaderVisualizerSurface(
         albumArtBitmap = if (coverArtUrl != null && visualizer == NaviampVisualizer.AlbumArtReactive) {
             withContext(Dispatchers.IO) {
                 runCatching {
-                    URL(coverArtUrl).openStream().use { input ->
-                        decodeSampledBitmap(input.readBytes(), AndroidVisualizerAlbumArtSidePx)
-                    }
+                    AndroidVisualizerHttpClient
+                        .getBytes(coverArtUrl)
+                        ?.let { decodeSampledBitmap(it, AndroidVisualizerAlbumArtSidePx) }
                 }.getOrNull()
             }
         } else {
@@ -142,6 +142,8 @@ private fun AndroidShaderVisualizerSurface(
         renderer.recordDrawNanos(System.nanoTime() - drawStartedNanos, active)
     }
 }
+
+private val AndroidVisualizerHttpClient = KtorSharedHttpClient()
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 private class AndroidShaderVisualizerRenderer(

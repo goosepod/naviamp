@@ -25,10 +25,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
+import app.naviamp.domain.network.KtorSharedHttpClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.net.URL
 import java.security.MessageDigest
 import java.util.LinkedHashMap
 import kotlin.math.ceil
@@ -128,7 +128,9 @@ private object AndroidCoverArtCache {
     private val hotImages = object : LinkedHashMap<String, ByteArray>(16, 0.75f, true) {}
     private var hotBytes = 0L
 
-    fun imageBytes(context: Context, url: String): ByteArray? {
+    private val httpClient = KtorSharedHttpClient()
+
+    suspend fun imageBytes(context: Context, url: String): ByteArray? {
         synchronized(this) {
             hotImages[url]?.let { bytes ->
                 if (isDecodableImage(bytes)) return bytes
@@ -149,9 +151,7 @@ private object AndroidCoverArtCache {
             runCatching { cacheFile.delete() }
         }
 
-        return runCatching {
-            URL(url).openStream().use { input -> input.readBytes() }
-        }.getOrNull()?.takeIf(::isDecodableImage)?.also { bytes ->
+        return httpClient.getBytes(url)?.takeIf(::isDecodableImage)?.also { bytes ->
             runCatching {
                 cacheFile.parentFile?.mkdirs()
                 cacheFile.writeBytes(bytes)

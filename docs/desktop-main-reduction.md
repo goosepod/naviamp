@@ -125,6 +125,7 @@ Branch: `codex/desktop-main-reduction`
 - [x] Start moving shared HTTP callers to Ktor.
   - LRCLIB and Deezer now use `KtorSharedHttpClient` from `core/domain`
   - Navidrome now uses shared `KtorNavidromeHttpClient` request execution, with platform files limited to Ktor CIO TLS setup
+  - shared Ktor byte/streaming helpers now cover image cache, cover art, Android notification/visualizer art, audio cache/download, and internet-radio playlist resolution
 - [x] Extract desktop home-content orchestration from `DesktopNaviampApp.kt`.
   - async `HomeService` loading, home status, source id, recent radio inputs, and desktop cache repository wiring now live in `DesktopHomeController`
   - `HomeService` remains shared between platforms

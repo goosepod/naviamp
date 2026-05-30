@@ -21,10 +21,10 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
+import app.naviamp.domain.network.KtorSharedHttpClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jetbrains.skia.Image as SkiaImage
-import java.net.URI
 import java.util.LinkedHashMap
 
 @Volatile
@@ -147,8 +147,10 @@ private fun jvmRgbSamples(bytes: ByteArray): List<NaviampRgbSample> {
 
 private suspend fun defaultPlatformCoverArtBytes(url: String): ByteArray =
     withContext(Dispatchers.IO) {
-        URI(url).toURL().openStream().use { input -> input.readBytes() }
+        DefaultPlatformCoverArtHttpClient.getBytes(url) ?: ByteArray(0)
     }
+
+private val DefaultPlatformCoverArtHttpClient = KtorSharedHttpClient()
 
 private object JvmCoverArtCache {
     private const val MaxImages = 240
