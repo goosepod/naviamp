@@ -14,6 +14,13 @@ Branch: `codex/desktop-main-reduction`
 
 `MainActivity.kt` is the first target. `AndroidPlaybackForegroundService.kt` deserves its own worksheet after the activity is slimmer because service, Android Auto, media session, and cold-start playback ownership are tangled enough to review separately.
 
+## Progress
+
+- [x] Extracted playback session startup and playback progress handling into `AndroidPlaybackOrchestration.kt`.
+  - `MainActivity.kt`: 2,348 -> 2,267 lines.
+  - Verification: `.\gradlew.bat :apps:android:assembleDebug`.
+  - Remaining playback work: move `playTrack`, seek handling, adjacent navigation, and prefetch/sidecar orchestration behind a cohesive playback controller.
+
 ## Goals
 
 - [ ] Reduce `MainActivity.kt` by extracting cohesive feature controllers and effect runners.

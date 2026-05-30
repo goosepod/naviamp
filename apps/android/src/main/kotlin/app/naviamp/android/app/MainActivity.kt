@@ -97,8 +97,6 @@ import app.naviamp.domain.media.albumDetailLoadErrorStatus
 import app.naviamp.domain.media.favoriteTrackUpdate
 import app.naviamp.domain.media.ratedTrackUpdate
 import app.naviamp.domain.media.withUpdatedTrack
-import app.naviamp.domain.playback.DefaultPendingSeekStaleProgressWindowMillis
-import app.naviamp.domain.playback.DefaultPendingSeekToleranceSeconds
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackRequest
@@ -111,11 +109,8 @@ import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.label
-import app.naviamp.domain.playback.mergeMissingWith
 import app.naviamp.domain.playback.planPlaybackSeek
 import app.naviamp.domain.playback.playbackTargetPlan
-import app.naviamp.domain.playback.shouldClearPendingSeek
-import app.naviamp.domain.playback.shouldIgnoreProgressForPendingSeek
 import app.naviamp.domain.playback.shouldRestartInsteadOfPrevious
 import app.naviamp.domain.playback.canReportPlaybackTrack
 import app.naviamp.domain.playback.shouldSubmitPlayReport
@@ -772,22 +767,6 @@ private fun NaviampAndroidApp(
         }
     }
 
-    fun beginPlaybackSession(resetProgress: Boolean = true): Long {
-        playbackSessionToken += 1
-        submittedPlayReportSessionToken = null
-        audioPrefetchJob?.cancel()
-        audioPrefetchJob = null
-        sidecarPrepJob?.cancel()
-        sidecarPrepJob = null
-        playbackQueueController.clearPreparedNext()
-        pendingSeekPositionSeconds = null
-        pendingSeekIssuedAtMillis = null
-        if (resetProgress) {
-            playbackProgress = PlaybackProgress.Unknown
-        }
-        return playbackSessionToken
-    }
-
     fun reportNowPlaying(track: Track) {
         val activeProvider = provider ?: return
         if (
@@ -840,81 +819,14 @@ private fun NaviampAndroidApp(
     }
 
     fun handlePlaybackProgressChanged(sessionToken: Long, progress: PlaybackProgress) {
-        if (sessionToken != playbackSessionToken) return
-        if (progress.positionSeconds == null && progress.durationSeconds == null) {
-            if (pendingRestoreStartPositionSeconds != null) return
-            pendingSeekPositionSeconds = null
-            pendingSeekIssuedAtMillis = null
-            playbackProgress = PlaybackProgress.Unknown
-            AndroidPlaybackNotificationControls.positionMillis = null
-            AndroidPlaybackNotificationControls.durationMillis = null
-            AndroidPlaybackForegroundService.updateProgress(context, null, null)
-            return
-        }
-        val pendingSeek = pendingSeekPositionSeconds
-        val pendingSeekIssuedAt = pendingSeekIssuedAtMillis
-        val progressPosition = progress.positionSeconds
-        val nowMillis = System.currentTimeMillis()
-        if (
-            shouldIgnoreProgressForPendingSeek(
-                pendingSeekPositionSeconds = pendingSeek,
-                pendingSeekIssuedAtMillis = pendingSeekIssuedAt,
-                incomingPositionSeconds = progressPosition,
-                nowMillis = nowMillis,
-                toleranceSeconds = DefaultPendingSeekToleranceSeconds,
-                staleWindowMillis = DefaultPendingSeekStaleProgressWindowMillis,
-            )
-        ) {
-            return
-        }
-        var pendingRestoreStart = pendingRestoreStartPositionSeconds
-        if (
-            pendingRestoreStart != null &&
-            (pendingSeekIssuedAt == null || nowMillis - pendingSeekIssuedAt >= DefaultPendingSeekStaleProgressWindowMillis)
-        ) {
-            pendingRestoreStartPositionSeconds = null
-            pendingRestoreStart = null
-        }
-        if (
-            pendingRestoreStart != null &&
-            progressPosition != null &&
-            progressPosition < pendingRestoreStart - DefaultPendingSeekToleranceSeconds
-        ) {
-            return
-        }
-        if (
-            shouldClearPendingSeek(
-                pendingSeekPositionSeconds = pendingSeek,
-                pendingSeekIssuedAtMillis = pendingSeekIssuedAt,
-                incomingPositionSeconds = progressPosition,
-                nowMillis = nowMillis,
-                toleranceSeconds = DefaultPendingSeekToleranceSeconds,
-                staleWindowMillis = DefaultPendingSeekStaleProgressWindowMillis,
-            )
-        ) {
-            pendingSeekPositionSeconds = null
-            pendingSeekIssuedAtMillis = null
-        }
-        if (
-            pendingRestoreStart != null &&
-            progressPosition != null &&
-            progressPosition >= pendingRestoreStart - DefaultPendingSeekToleranceSeconds
-        ) {
-            pendingRestoreStartPositionSeconds = null
-        }
-        playbackProgress = progress.mergeMissingWith(playbackProgress)
-        maybeReportPlayed(playbackProgress)
-        val positionMillis = playbackProgress.positionSeconds?.secondsToMillis()
-        val durationMillis = playbackProgress.durationSeconds
-            ?.secondsToMillis()
-            ?: nowPlaying?.durationSeconds?.toDouble()?.secondsToMillis()
-        AndroidPlaybackNotificationControls.positionMillis = positionMillis
-        AndroidPlaybackNotificationControls.durationMillis = durationMillis
-        if (nowMillis - lastAndroidAutoProgressPublishAtMillis >= AndroidAutoProgressPublishIntervalMillis) {
-            lastAndroidAutoProgressPublishAtMillis = nowMillis
-            AndroidPlaybackForegroundService.updateProgress(context, positionMillis, durationMillis)
-        }
-        prepareNextIfNeeded(sessionToken, playbackProgress)
+        handleAndroidPlaybackProgressChanged(
+            context = context,
+            state = appState,
+            sessionToken = sessionToken,
+            progress = progress,
+            maybeReportPlayed = ::maybeReportPlayed,
+            prepareNextIfNeeded = ::prepareNextIfNeeded,
+        )
     }
 
     var playAdjacentTrackAction: (Int) -> Unit = {}
@@ -975,7 +887,11 @@ private fun NaviampAndroidApp(
                     lastRadioRefillSeedId = null
                 }
                 val restoredStartPosition = targetPlan.engineStartPositionSeconds?.takeIf { it > 0.0 }
-                val sessionToken = beginPlaybackSession(resetProgress = restoredStartPosition == null)
+                val sessionToken = beginAndroidPlaybackSession(
+                    state = appState,
+                    playbackQueueController = playbackQueueController,
+                    resetProgress = restoredStartPosition == null,
+                )
                 restoredStartPosition?.let { restoredPosition ->
                     playbackProgress = PlaybackProgress(
                         positionSeconds = restoredPosition,
@@ -1043,7 +959,10 @@ private fun NaviampAndroidApp(
     }
 
     fun playInternetRadioStation(station: InternetRadioStation) {
-        val sessionToken = beginPlaybackSession()
+        val sessionToken = beginAndroidPlaybackSession(
+            state = appState,
+            playbackQueueController = playbackQueueController,
+        )
         val recentStations = recentSavedInternetRadioStationsWith(
             settingsStore.loadRecentInternetRadioStations(),
             station,
