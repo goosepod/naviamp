@@ -81,11 +81,12 @@ Branch: `codex/desktop-main-reduction`
 
 ## Suggested Order
 
-1. Extract playback orchestration first because it is the highest-risk and largest remaining workflow.
-2. Expand `AndroidRadioController` while the shared tail-refill work is fresh.
-3. Split internet-radio live playback because it is distinct from generated radio.
-4. Move media and playlist actions after playback/radio boundaries are stable.
-5. Clean route/effect wiring last so it can use the new controller APIs.
+1. For every slice, identify the platform-agnostic plan/reducer first and put it in `core/domain`, `core/ui`, or a provider module before adding Android adapter code.
+2. Continue playback orchestration because it is the highest-risk and largest remaining workflow: `playTrack`, seek handling, adjacent navigation, prefetch, sidecars, and state callbacks.
+3. Expand `AndroidRadioController` while the shared tail-refill work is fresh.
+4. Split internet-radio live playback because it is distinct from generated radio.
+5. Move media and playlist actions after playback/radio boundaries are stable.
+6. Clean route/effect wiring last so it can use the new controller APIs.
 
 ## Verification
 
