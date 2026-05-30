@@ -561,6 +561,7 @@ fun NaviampApp(
         sourceId = { connectedSourceId },
         streamQuality = { playbackSettings.streamQuality(playbackEngine) },
         replayGainMode = { playbackSettings.replayGainMode },
+        repeatMode = { repeatMode },
         playlistCallbacks = { playlistCallbacksRef ?: error("Playlist callbacks are not ready.") },
         rememberRadioStream = ::rememberRadioStream,
         clearShuffleSnapshot = ::clearShuffleSnapshot,

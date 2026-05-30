@@ -109,6 +109,10 @@ Branch: `codex/desktop-main-reduction`
 - [x] Share recent generated-radio stream ordering.
   - recent radio stream de-duplication/limits now live in `core/domain`
   - desktop and Android foreground-service radio history use the shared helper
+- [x] Share generated-radio continuation refill behavior.
+  - refill seeding now uses the last queued track instead of the current track
+  - refill is skipped when repeat mode is enabled
+  - Android now keeps generated track/album/artist radio queues active and refills near the queue tail like desktop
 - [x] Extract desktop home-content orchestration from `DesktopNaviampApp.kt`.
   - async `HomeService` loading, home status, source id, recent radio inputs, and desktop cache repository wiring now live in `DesktopHomeController`
   - `HomeService` remains shared between platforms
@@ -150,6 +154,7 @@ Branch: `codex/desktop-main-reduction`
 - Album detail fallback and load-status rules are shared through `core/domain`; desktop route wiring now lives in `DesktopAlbumController`.
 - Desktop connection startup still owns desktop-specific state wiring, but pure validation/TLS/status/restore rules stay shared through `core/domain` and `providers/navidrome`.
 - Recent generated-radio stream ordering/limits are shared through `core/domain` alongside the existing recent-stream creation/action helpers.
+- Generated-radio refill seed selection is shared through `core/domain`; desktop and Android both use the same tail-track/repeat-off rule before platform-specific provider calls and queue mutation.
 - Home content composition remains shared through `HomeService`; desktop now keeps platform state wiring in `DesktopHomeController`.
 - Now-playing waveform/lyrics status rules, online-lyrics decisions, sidecar prep filtering, and cover-art preload queue-window planning are shared through `core/domain`; desktop keeps JVM audio-tag/waveform/cache plumbing in `DesktopNowPlayingController`.
 - Search query normalization, debounce timing, disconnected/blank-query handling, loading/searching state, and result wrapping/status rules are shared through `core/domain`; desktop keeps settings/cache wiring in `DesktopSearchController`, and Android uses the same `SearchSessionController`.
@@ -169,6 +174,9 @@ Branch: `codex/desktop-main-reduction`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :providers:navidrome:allTests :apps:desktop:desktopTest :apps:android:assembleDebug`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop`
+- [x] `.\gradlew.bat :core:domain:allTests`
+- [x] `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`
+- [x] `.\gradlew.bat :apps:android:assembleDebug`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`

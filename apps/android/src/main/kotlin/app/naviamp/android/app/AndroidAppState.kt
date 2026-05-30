@@ -12,6 +12,7 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
+import app.naviamp.domain.TrackId
 import app.naviamp.domain.app.NaviampContentState
 import app.naviamp.domain.app.NaviampNavigationState
 import app.naviamp.domain.playback.PlaybackProgress
@@ -108,6 +109,9 @@ class AndroidAppState(
     var playbackQueue by mutableStateOf(PlaybackQueue())
     var shuffledUpNextSnapshot by mutableStateOf<List<Track>?>(null)
     var repeatMode by mutableStateOf(RepeatMode.Off)
+    var radioQueueActive by mutableStateOf(false)
+    var radioRefilling by mutableStateOf(false)
+    var lastRadioRefillSeedId by mutableStateOf<TrackId?>(null)
     var relatedTracks by mutableStateOf<List<Track>>(emptyList())
     var artistPopularTracksByArtistId by mutableStateOf<Map<String, List<Track>>>(emptyMap())
     var artistPopularTracksStatusByArtistId by mutableStateOf<Map<String, String?>>(emptyMap())

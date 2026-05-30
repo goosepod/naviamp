@@ -12,6 +12,7 @@ import app.naviamp.domain.TrackId
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioRequest
 import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.radio.SeededRadioRequest
@@ -39,6 +40,7 @@ class DesktopRadioController(
     private val sourceId: () -> String?,
     private val streamQuality: () -> StreamQuality,
     private val replayGainMode: () -> ReplayGainMode,
+    private val repeatMode: () -> RepeatMode,
     private val playlistCallbacks: () -> PlaylistCallbacks,
     private val rememberRadioStream: (RecentRadioStream) -> Unit,
     private val clearShuffleSnapshot: () -> Unit,
@@ -65,6 +67,7 @@ class DesktopRadioController(
         val seedTrack = radioRefillSeedTrack(
             queue = queue,
             refillThreshold = RadioRefillThreshold,
+            repeatMode = repeatMode(),
             isActive = isRadioQueueActive(),
             isRefilling = isRadioRefilling(),
             lastRefillSeedTrackId = lastRadioRefillSeedId(),

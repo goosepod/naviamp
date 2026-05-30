@@ -33,6 +33,9 @@ fun startAndroidSeededRadio(
 ) {
     val activeProvider = state.provider ?: return
     val seedQueue = listOf(seedTrack)
+    state.radioQueueActive = true
+    state.radioRefilling = true
+    state.lastRadioRefillSeedId = seedTrack.id
     playTrack(seedTrack, seedQueue)
     scope.launch {
         with(state) {
@@ -51,6 +54,7 @@ fun startAndroidSeededRadio(
                     }
                 }
 
+            radioRefilling = false
             AndroidSimilarRadioExpansionCounts.forEach { count ->
                 if (nowPlaying?.id != seedTrack.id) return@launch
                 val fetchedTracks = runCatching {
