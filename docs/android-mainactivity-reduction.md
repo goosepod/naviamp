@@ -45,6 +45,11 @@ Branch: `codex/desktop-main-reduction`
   - `planPlaybackTrackStartEffects` now describes cross-platform follow-up effects for session saving, radio refill, related tracks, prefetch, sidecars, notification metadata, media id, start position, and finished-track adjacency.
   - Android and desktop remain platform executors for the plan.
   - Verification: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:assembleDebug`, `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
+- [x] Added a shared internet-radio start plan and moved Android live-radio playback into the playback adapter.
+  - `planInternetRadioStart` now owns recent-station ordering, default queue/progress/metadata state, station notification metadata, radio-continuation cleanup, and session/status effects.
+  - Android now delegates `playInternetRadioStation` to `playAndroidInternetRadioStation`; desktop internet-radio playback consumes the same shared start plan.
+  - `MainActivity.kt`: 2,181 -> 2,135 lines.
+  - Verification: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:assembleDebug`, `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 ## Goals
 
@@ -76,7 +81,7 @@ Branch: `codex/desktop-main-reduction`
   - Keep provider execution and queue-controller mutation in Android radio adapter.
   - Shared-code checks: generated-radio queue construction, tail refill, recent-radio actions, seed selection, and request models should remain shared.
 
-- [ ] **Internet radio playback controller**
+- [x] **Internet radio playback controller**
   - Move `playInternetRadioStation`, live stream URL resolution, stream metadata notification updates, recent-station persistence, and station state reset into an Android internet-radio controller.
   - Shared-code checks: station-to-track shaping, stream-title metadata update, recent-station ordering, and URL/playlist parsing are already shared or isolated.
 

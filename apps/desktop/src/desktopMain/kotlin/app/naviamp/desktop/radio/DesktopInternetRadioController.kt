@@ -19,6 +19,7 @@ import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.radio.internetRadioTrack
 import app.naviamp.domain.radio.internetRadioTrackWithMetadata
+import app.naviamp.domain.radio.planInternetRadioStart
 import app.naviamp.domain.radio.recentInternetRadioStationsWith
 import app.naviamp.domain.radio.recentSavedInternetRadioStationsWith
 import app.naviamp.domain.waveform.AudioWaveform
@@ -95,9 +96,16 @@ class DesktopInternetRadioController(
     }
 
     fun playStation(station: InternetRadioStation) {
-        rememberStation(station)
-        stopRadioContinuation()
-        clearShuffleSnapshot()
+        val plan = planInternetRadioStart(
+            station = station,
+            recentStations = recentStations(),
+            recentSavedStations = settingsStore.loadRecentInternetRadioStations(),
+        )
+        setRecentStations(plan.recentStations)
+        settingsStore.saveRecentInternetRadioStations(plan.recentSavedStations)
+        setHomeContent(homeContent().copy(recentInternetRadioStations = plan.recentStations))
+        if (plan.clearRadioContinuation) stopRadioContinuation()
+        if (plan.clearShuffleSnapshot) clearShuffleSnapshot()
         playlistEngine.clear()
         val radioTrack = internetRadioTrack(station)
         setNowPlayingTrack(radioTrack)
@@ -107,17 +115,20 @@ class DesktopInternetRadioController(
         setNowPlayingAudioTags(null)
         setNowPlayingLyrics(null)
         setNowPlayingLyricsStatus(null)
-        setNowPlayingStation(station)
-        setNowPlayingStreamMetadata(PlaybackStreamMetadata())
-        setPlaybackProgress(PlaybackProgress.Unknown)
-        setPlaybackQueue(PlaybackQueue())
-        settingsStore.savePlaybackSession(PlaybackSessionSettings.fromInternetRadioStation(station))
-        setAppRoute(AppRoute.Player)
+        setNowPlayingStation(plan.station)
+        setNowPlayingStreamMetadata(plan.streamMetadata)
+        setPlaybackProgress(plan.playbackProgress)
+        setPlaybackQueue(plan.playbackQueue)
+        setStatus(plan.status)
+        if (plan.savePlaybackSession) {
+            settingsStore.savePlaybackSession(PlaybackSessionSettings.fromInternetRadioStation(station))
+        }
+        if (plan.openNowPlaying) setAppRoute(AppRoute.Player)
         playbackEngine.play(
             scope = scope,
             request = PlaybackRequest(
                 url = station.streamUrl,
-                mediaId = station.id,
+                mediaId = plan.engineMediaId,
                 replayGainMode = ReplayGainMode.Off,
             ),
             onStateChanged = { state ->

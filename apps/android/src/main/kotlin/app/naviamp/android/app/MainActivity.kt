@@ -130,7 +130,6 @@ import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.radio.generatedRadioQueue
-import app.naviamp.domain.radio.recentSavedInternetRadioStationsWith
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.downloadStreamQuality
@@ -872,61 +871,16 @@ private fun NaviampAndroidApp(
     }
 
     fun playInternetRadioStation(station: InternetRadioStation) {
-        val sessionToken = beginAndroidPlaybackSession(
+        playAndroidInternetRadioStation(
+            scope = scope,
             state = appState,
+            settingsStore = settingsStore,
+            playbackEngine = playbackEngine,
             playbackQueueController = playbackQueueController,
+            station = station,
+            savePlaybackSessionThrottled = ::savePlaybackSessionThrottled,
+            handlePlaybackProgressChanged = ::handlePlaybackProgressChanged,
         )
-        val recentStations = recentSavedInternetRadioStationsWith(
-            settingsStore.loadRecentInternetRadioStations(),
-            station,
-        )
-        settingsStore.saveRecentInternetRadioStations(recentStations)
-        homeState = homeState.copy(
-            recentInternetRadioStations = recentStations.map { it.toStation() },
-        )
-        nowPlaying = null
-        AndroidPlaybackNotificationControls.canFavorite = false
-        AndroidPlaybackNotificationControls.isFavorite = false
-        nowPlayingStation = station
-        nowPlayingStreamMetadata = PlaybackStreamMetadata()
-        nowPlayingOpen = true
-        status = "Loading ${station.name}..."
-        savePlaybackSessionThrottled(force = true)
-        playbackEngine.applyTlsSettings(activeTlsSettings)
-        playbackEngine.updateNotificationMetadata(
-            title = station.name,
-            subtitle = "Internet radio",
-            coverArtUrl = null,
-        )
-        scope.launch {
-            runCatching {
-                resolveInternetRadioStreamUrl(station.streamUrl.trim())
-            }.onSuccess { streamUrl ->
-                playbackEngine.play(
-                    scope = scope,
-                    request = PlaybackRequest(streamUrl),
-                    onStateChanged = { state ->
-                        playbackState = state
-                        if (state is PlaybackState.Error) {
-                            status = state.message
-                        }
-                    },
-                    onProgressChanged = { progress -> handlePlaybackProgressChanged(sessionToken, progress) },
-                    onMetadataChanged = { metadata ->
-                        nowPlayingStreamMetadata = metadata
-                        metadata.title?.takeIf { it.isNotBlank() }?.let { streamTitle ->
-                            playbackEngine.updateNotificationMetadata(
-                                title = streamTitle,
-                                subtitle = station.name,
-                                coverArtUrl = null,
-                            )
-                        }
-                    },
-                )
-            }.onFailure { error ->
-                status = error.message ?: "Radio stream failed."
-            }
-        }
     }
 
     fun performSeek(positionSeconds: Double) {

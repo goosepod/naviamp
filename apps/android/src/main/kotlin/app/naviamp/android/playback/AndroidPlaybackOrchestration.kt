@@ -4,6 +4,7 @@ import android.content.Context
 import app.naviamp.android.playback.AndroidPlaybackForegroundService
 import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.android.playback.AndroidPlaybackNotificationControls
+import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.playback.PlaybackProgress
@@ -16,8 +17,10 @@ import app.naviamp.domain.playback.planPlaybackProgressUpdate
 import app.naviamp.domain.playback.planPlaybackStart
 import app.naviamp.domain.playback.planPlaybackTrackStartEffects
 import app.naviamp.domain.playback.planPlaybackTrackStarted
+import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.radio.planInternetRadioStart
 import app.naviamp.provider.navidrome.NavidromeProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -189,6 +192,87 @@ fun playAndroidTrack(
             }.onFailure { error ->
                 status = error.message ?: "Playback failed."
             }
+        }
+    }
+}
+
+fun playAndroidInternetRadioStation(
+    scope: CoroutineScope,
+    state: AndroidAppState,
+    settingsStore: AndroidSettingsStore,
+    playbackEngine: AndroidPlaybackEngine,
+    playbackQueueController: PlaybackQueueController,
+    station: InternetRadioStation,
+    savePlaybackSessionThrottled: (force: Boolean) -> Unit,
+    handlePlaybackProgressChanged: (Long, PlaybackProgress) -> Unit,
+) {
+    val sessionToken = beginAndroidPlaybackSession(
+        state = state,
+        playbackQueueController = playbackQueueController,
+    )
+    val plan = planInternetRadioStart(
+        station = station,
+        recentStations = state.homeState.recentInternetRadioStations,
+        recentSavedStations = settingsStore.loadRecentInternetRadioStations(),
+    )
+    settingsStore.saveRecentInternetRadioStations(plan.recentSavedStations)
+    state.homeState = state.homeState.copy(recentInternetRadioStations = plan.recentStations)
+    if (plan.clearShuffleSnapshot) state.shuffledUpNextSnapshot = null
+    if (plan.clearRadioContinuation) {
+        state.radioQueueActive = false
+        state.radioRefilling = false
+        state.lastRadioRefillSeedId = null
+    }
+    state.nowPlaying = plan.nowPlayingTrack
+    AndroidPlaybackNotificationControls.canFavorite = plan.canFavorite
+    AndroidPlaybackNotificationControls.isFavorite = plan.isFavorite
+    state.nowPlayingStation = plan.station
+    state.nowPlayingStreamMetadata = plan.streamMetadata
+    state.playbackProgress = plan.playbackProgress
+    playbackQueueController.clear()
+    state.playbackQueue = plan.playbackQueue
+    if (plan.openNowPlaying) state.nowPlayingOpen = true
+    state.status = plan.status
+    if (plan.savePlaybackSession) {
+        savePlaybackSessionThrottled(true)
+    }
+    playbackEngine.applyTlsSettings(state.activeTlsSettings)
+    playbackEngine.updateNotificationMetadata(
+        title = plan.notificationTitle,
+        subtitle = plan.notificationSubtitle,
+        coverArtUrl = plan.notificationCoverArtUrl,
+    )
+    scope.launch {
+        runCatching {
+            resolveInternetRadioStreamUrl(station.streamUrl.trim())
+        }.onSuccess { streamUrl ->
+            playbackEngine.play(
+                scope = scope,
+                request = PlaybackRequest(
+                    url = streamUrl,
+                    mediaId = plan.engineMediaId,
+                    replayGainMode = if (plan.replayGainOff) ReplayGainMode.Off else state.playbackSettings.replayGainMode,
+                ),
+                onStateChanged = { playbackState ->
+                    state.playbackState = playbackState
+                    if (playbackState is PlaybackState.Error) {
+                        state.status = playbackState.message
+                    }
+                },
+                onProgressChanged = { progress -> handlePlaybackProgressChanged(sessionToken, progress) },
+                onMetadataChanged = { metadata ->
+                    state.nowPlayingStreamMetadata = metadata
+                    metadata.title?.takeIf { it.isNotBlank() }?.let { streamTitle ->
+                        playbackEngine.updateNotificationMetadata(
+                            title = streamTitle,
+                            subtitle = station.name,
+                            coverArtUrl = null,
+                        )
+                    }
+                },
+            )
+        }.onFailure { error ->
+            state.status = error.message ?: "Radio stream failed."
         }
     }
 }

@@ -2,7 +2,9 @@ package app.naviamp.domain.radio
 
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.internetRadioTrackId
+import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackStreamMetadata
+import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.settings.SavedInternetRadioStation
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -57,6 +59,36 @@ class InternetRadioPlaybackTest {
         assertEquals(MaxRecentInternetRadioStations, recent.size)
         assertEquals("15", recent.first().id)
         assertEquals("11", recent.last().id)
+    }
+
+    @Test
+    fun internetRadioStartPlanBuildsRecentStateAndPlaybackEffects() {
+        val selected = station("two")
+        val plan = planInternetRadioStart(
+            station = selected,
+            recentStations = listOf(station("one"), selected.copy(name = "Old Name")),
+            recentSavedStations = listOf(SavedInternetRadioStation.fromStation(station("one"))),
+        )
+
+        assertEquals(listOf("two", "one"), plan.recentStations.map { it.id })
+        assertEquals(listOf("two", "one"), plan.recentSavedStations.map { it.id })
+        assertEquals(null, plan.nowPlayingTrack)
+        assertEquals(selected, plan.station)
+        assertEquals(PlaybackStreamMetadata(), plan.streamMetadata)
+        assertEquals(PlaybackProgress.Unknown, plan.playbackProgress)
+        assertEquals(PlaybackQueue(), plan.playbackQueue)
+        assertEquals(true, plan.openNowPlaying)
+        assertEquals(false, plan.canFavorite)
+        assertEquals(false, plan.isFavorite)
+        assertEquals(true, plan.clearShuffleSnapshot)
+        assertEquals(true, plan.clearRadioContinuation)
+        assertEquals(true, plan.savePlaybackSession)
+        assertEquals("Loading Station two...", plan.status)
+        assertEquals("Station two", plan.notificationTitle)
+        assertEquals("Internet radio", plan.notificationSubtitle)
+        assertEquals(null, plan.notificationCoverArtUrl)
+        assertEquals("two", plan.engineMediaId)
+        assertEquals(true, plan.replayGainOff)
     }
 
     private fun station(
