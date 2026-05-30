@@ -1,21 +1,17 @@
 package app.naviamp.provider.navidrome
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.cio.CIO
+import io.ktor.network.tls.CertificateAndKey
 import java.io.FileInputStream
-import java.net.HttpURLConnection
-import java.net.URI
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import java.security.Key
 import java.security.KeyStore
 import java.security.MessageDigest
-import java.security.SecureRandom
+import java.security.PrivateKey
 import java.security.cert.CertificateFactory
-import javax.net.ssl.HostnameVerifier
-import javax.net.ssl.HttpsURLConnection
-import javax.net.ssl.KeyManager
-import javax.net.ssl.KeyManagerFactory
-import javax.net.ssl.SSLContext
+import java.security.cert.X509Certificate
 import javax.net.ssl.TrustManager
 import javax.net.ssl.TrustManagerFactory
 import javax.net.ssl.X509TrustManager
@@ -31,146 +27,73 @@ actual fun String.urlEncode(): String =
     URLEncoder.encode(this, StandardCharsets.UTF_8.name())
 
 actual fun createDefaultNavidromeHttpClient(tlsSettings: NavidromeTlsSettings): NavidromeHttpClient =
-    AndroidNavidromeHttpClient(tlsSettings)
+    KtorNavidromeHttpClient(createDefaultNavidromeKtorClient(tlsSettings))
 
-class AndroidNavidromeHttpClient(
-    private val tlsSettings: NavidromeTlsSettings = NavidromeTlsSettings(),
-) : NavidromeHttpClient {
-    override suspend fun get(url: String): String =
-        request(url = url, method = "GET")
+actual fun createDefaultNavidromeKtorClient(tlsSettings: NavidromeTlsSettings): HttpClient =
+    HttpClient(CIO) {
+        expectSuccess = false
+        engine {
+            if (tlsSettings != NavidromeTlsSettings()) {
+                https {
+                    tlsSettings.trustManager()?.let { trustManager = it }
+                    tlsSettings.certificateAndKey()?.let { certificates.add(it) }
+                }
+            }
+        }
+        install(io.ktor.client.plugins.HttpTimeout) {
+            connectTimeoutMillis = 15_000
+            requestTimeoutMillis = 30_000
+            socketTimeoutMillis = 30_000
+        }
+    }
 
-    override suspend fun get(url: String, headers: Map<String, String>): String =
-        request(url = url, method = "GET", headers = headers)
+internal actual fun navidromeCurrentTimeMillis(): Long = System.currentTimeMillis()
 
-    override suspend fun postJson(url: String, body: String, headers: Map<String, String>): String =
-        request(url = url, method = "POST", body = body, headers = headers)
+private fun NavidromeTlsSettings.trustManager(): TrustManager? =
+    trustManagers()?.firstOrNull()
 
-    override suspend fun putJson(url: String, body: String, headers: Map<String, String>): String =
-        request(url = url, method = "PUT", body = body, headers = headers)
-
-    private suspend fun request(
-        url: String,
-        method: String,
-        body: String? = null,
-        headers: Map<String, String> = emptyMap(),
-    ): String =
-        withContext(Dispatchers.IO) {
-            val startedAt = System.currentTimeMillis()
-
-            try {
-                val connection = URI.create(url).toURL().openConnection() as HttpURLConnection
-                connection.requestMethod = method
-                connection.connectTimeout = 15_000
-                connection.readTimeout = 30_000
-                (connection as? HttpsURLConnection)?.applyTls(tlsSettings)
-                headers.forEach { (key, value) -> connection.setRequestProperty(key, value) }
-                if (body != null) {
-                    connection.doOutput = true
-                    connection.setRequestProperty("Content-Type", "application/json")
-                    connection.outputStream.use { output ->
-                        output.write(body.toByteArray(StandardCharsets.UTF_8))
+private fun NavidromeTlsSettings.trustManagers(): Array<TrustManager>? =
+    when {
+        insecureSkipTlsVerification -> arrayOf(TrustAllCertificates)
+        hasCustomCertificate -> {
+            val keyStore = KeyStore.getInstance(KeyStore.getDefaultType()).apply {
+                load(null, null)
+                FileInputStream(customCertificatePath!!).use { input ->
+                    val certificates = CertificateFactory.getInstance("X.509").generateCertificates(input)
+                    certificates.forEachIndexed { index, certificate ->
+                        setCertificateEntry("naviamp-custom-$index", certificate)
                     }
                 }
-                if (connection.responseCode !in 200..299) {
-                    throw NavidromeException("Navidrome returned HTTP ${connection.responseCode}.")
-                }
-                connection.inputStream.bufferedReader(StandardCharsets.UTF_8).use { reader ->
-                    reader.readText()
-                }.also {
-                    recordApiCall(
-                        method = method,
-                        url = url,
-                        startedAt = startedAt,
-                        success = true,
-                        errorMessage = null,
-                    )
-                }
-            } catch (exception: Exception) {
-                recordApiCall(
-                    method = method,
-                    url = url,
-                    startedAt = startedAt,
-                    success = false,
-                    errorMessage = exception.message ?: exception::class.simpleName,
-                )
-                throw exception
+            }
+            TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm()).run {
+                init(keyStore)
+                trustManagers
             }
         }
+        else -> null
+    }
 
-    private fun HttpsURLConnection.applyTls(tlsSettings: NavidromeTlsSettings) {
-        if (tlsSettings == NavidromeTlsSettings()) return
-        sslSocketFactory = createSslContext(tlsSettings).socketFactory
-        if (tlsSettings.insecureSkipTlsVerification) {
-            hostnameVerifier = HostnameVerifier { _, _ -> true }
+private fun NavidromeTlsSettings.certificateAndKey(): CertificateAndKey? {
+    if (!hasClientCertificate) return null
+    val password = clientCertificateKeyStorePassword.orEmpty().toCharArray()
+    val keyStore = KeyStore.getInstance("PKCS12").apply {
+        FileInputStream(clientCertificateKeyStorePath!!).use { input ->
+            load(input, password)
         }
     }
+    val alias = keyStore.aliases().asSequence().firstOrNull { keyStore.isKeyEntry(it) } ?: return null
+    val key: Key = keyStore.getKey(alias, password) ?: return null
+    val privateKey = key as? PrivateKey ?: return null
+    val certificateChain = keyStore.getCertificateChain(alias)
+        ?.mapNotNull { it as? X509Certificate }
+        ?.toTypedArray()
+        ?: return null
+    return CertificateAndKey(certificateChain, privateKey)
+}
 
-    private fun createSslContext(tlsSettings: NavidromeTlsSettings): SSLContext {
-        val context = SSLContext.getInstance("TLS")
-        context.init(
-            tlsSettings.keyManagers(),
-            tlsSettings.trustManagers(),
-            SecureRandom(),
-        )
-        return context
-    }
-
-    private fun NavidromeTlsSettings.trustManagers(): Array<TrustManager>? =
-        when {
-            insecureSkipTlsVerification -> arrayOf(TrustAllCertificates)
-            hasCustomCertificate -> {
-                val keyStore = KeyStore.getInstance(KeyStore.getDefaultType()).apply {
-                    load(null, null)
-                    FileInputStream(customCertificatePath!!).use { input ->
-                        val certificates = CertificateFactory.getInstance("X.509").generateCertificates(input)
-                        certificates.forEachIndexed { index, certificate ->
-                            setCertificateEntry("naviamp-custom-$index", certificate)
-                        }
-                    }
-                }
-                TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm()).run {
-                    init(keyStore)
-                    trustManagers
-                }
-            }
-            else -> null
-        }
-
-    private fun NavidromeTlsSettings.keyManagers(): Array<KeyManager>? {
-        if (!hasClientCertificate) return null
-        val password = clientCertificateKeyStorePassword.orEmpty().toCharArray()
-        val keyStore = KeyStore.getInstance("PKCS12").apply {
-            FileInputStream(clientCertificateKeyStorePath!!).use { input ->
-                load(input, password)
-            }
-        }
-        return KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm()).run {
-            init(keyStore, password)
-            keyManagers
-        }
-    }
-
-    private fun recordApiCall(
-        method: String,
-        url: String,
-        startedAt: Long,
-        success: Boolean,
-        errorMessage: String?,
-    ) {
-        recordNavidromeApiCall(
-            url = url,
-            method = method,
-            startedAt = startedAt,
-            durationMillis = (System.currentTimeMillis() - startedAt).coerceAtLeast(0),
-            success = success,
-            errorMessage = errorMessage,
-        )
-    }
-
-    private object TrustAllCertificates : X509TrustManager {
-        override fun checkClientTrusted(chain: Array<java.security.cert.X509Certificate>, authType: String) = Unit
-        override fun checkServerTrusted(chain: Array<java.security.cert.X509Certificate>, authType: String) = Unit
-        override fun getAcceptedIssuers(): Array<java.security.cert.X509Certificate> = emptyArray()
-    }
+private object TrustAllCertificates : X509TrustManager {
+    override fun checkClientTrusted(chain: Array<java.security.cert.X509Certificate>, authType: String) = Unit
+    override fun checkServerTrusted(chain: Array<java.security.cert.X509Certificate>, authType: String) = Unit
+    override fun getAcceptedIssuers(): Array<java.security.cert.X509Certificate> = emptyArray()
 }
 
