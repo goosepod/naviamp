@@ -30,6 +30,9 @@ Branch: `codex/desktop-main-reduction`
 - [x] Moved adjacent-track navigation decisions into shared domain via `planPlaybackAdjacentAction`.
   - Android now applies shared actions for previous-button restart, adjacent queue selection, repeat wrapping, and no-op cases.
   - Verification: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:assembleDebug`.
+- [x] Expanded the shared seek plan with post-seek application fields used by Android and desktop.
+  - Android and desktop now use shared pending-seek position and restored-start clearing guidance when applying seeks.
+  - Verification: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:assembleDebug`, `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 ## Goals
 

@@ -99,15 +99,15 @@ class DesktopPlaybackController(
             streamQuality = streamQuality,
             shouldReplayTranscodedStream = shouldReplayCurrentForSeek(playbackSource),
         ) ?: return
-        setPendingSeekPositionSeconds(positionSeconds)
+        setPendingSeekPositionSeconds(seekPlan.pendingSeekPositionSeconds)
         setPendingSeekIssuedAtMillis(System.currentTimeMillis())
         setPlaybackProgress(seekPlan.progress)
         maybeSavePlaybackPosition(seekPlan.progress)
         if (seekPlan.shouldReplayCurrent) {
-            playlistEngine.playCurrent(scope, positionSeconds)
+            playlistEngine.playCurrent(scope, seekPlan.pendingSeekPositionSeconds)
             return
         }
-        playbackEngine.seek(positionSeconds)
+        playbackEngine.seek(seekPlan.pendingSeekPositionSeconds)
     }
 
     fun canUsePreviousButton(): Boolean =

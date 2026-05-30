@@ -1015,8 +1015,6 @@ private fun NaviampAndroidApp(
     }
 
     fun performSeek(positionSeconds: Double) {
-        restoredStartPositionSeconds = null
-        pendingRestoreStartPositionSeconds = null
         val currentTrack = nowPlaying
         val seekPlan = planPlaybackSeek(
             isInternetRadioTrack = currentTrack?.isInternetRadioTrack() == true,
@@ -1026,24 +1024,28 @@ private fun NaviampAndroidApp(
             streamQuality = currentStreamQuality(),
             shouldReplayTranscodedStream = true,
         ) ?: return
+        if (seekPlan.shouldClearRestoredStartPosition) {
+            restoredStartPositionSeconds = null
+            pendingRestoreStartPositionSeconds = null
+        }
         playbackProgress = seekPlan.progress
         val positionMillis = playbackProgress.positionSeconds?.secondsToMillis()
         val durationMillis = playbackProgress.durationSeconds?.secondsToMillis()
         AndroidPlaybackNotificationControls.positionMillis = positionMillis
         AndroidPlaybackNotificationControls.durationMillis = durationMillis
         AndroidPlaybackForegroundService.updateProgress(context, positionMillis, durationMillis)
-        pendingSeekPositionSeconds = positionSeconds
+        pendingSeekPositionSeconds = seekPlan.pendingSeekPositionSeconds
         pendingSeekIssuedAtMillis = System.currentTimeMillis()
         if (currentTrack != null && seekPlan.shouldReplayCurrent) {
             playTrack(
                 track = currentTrack,
                 queue = playbackQueue.tracks.takeIf { it.isNotEmpty() },
                 openNowPlaying = false,
-                startPositionSeconds = positionSeconds,
+                startPositionSeconds = seekPlan.pendingSeekPositionSeconds,
             )
             return
         }
-        playbackEngine.seek(positionSeconds)
+        playbackEngine.seek(seekPlan.pendingSeekPositionSeconds)
     }
 
     fun playAdjacentTrack(offset: Int) {
