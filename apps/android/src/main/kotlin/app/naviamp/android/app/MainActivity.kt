@@ -109,9 +109,10 @@ import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.label
+import app.naviamp.domain.playback.PlaybackAdjacentAction
+import app.naviamp.domain.playback.planPlaybackAdjacentAction
 import app.naviamp.domain.playback.planPlaybackSeek
 import app.naviamp.domain.playback.planPlaybackStart
-import app.naviamp.domain.playback.shouldRestartInsteadOfPrevious
 import app.naviamp.domain.playback.canReportPlaybackTrack
 import app.naviamp.domain.playback.shouldSubmitPlayReport
 import app.naviamp.domain.playback.SidecarTypeLyrics
@@ -1046,26 +1047,25 @@ private fun NaviampAndroidApp(
     }
 
     fun playAdjacentTrack(offset: Int) {
-        val currentTrack = nowPlaying ?: return
-        if (
-            offset < 0 &&
-            shouldRestartInsteadOfPrevious(
+        when (
+            val action = planPlaybackAdjacentAction(
+                currentTrack = nowPlaying,
+                activeQueue = activeQueue(),
+                offset = offset,
+                repeatMode = repeatMode,
                 previousButtonBehavior = playbackSettings.previousButtonBehavior,
                 positionSeconds = playbackProgress.positionSeconds,
                 restartThresholdSeconds = 3.0,
             )
         ) {
-            performSeek(0.0)
-            return
+            PlaybackAdjacentAction.None -> Unit
+            PlaybackAdjacentAction.RestartCurrent -> performSeek(0.0)
+            is PlaybackAdjacentAction.PlayTrack -> playTrack(
+                action.track,
+                action.queue,
+                openNowPlaying = false,
+            )
         }
-        val knownTracks = activeQueue()
-        val currentIndex = knownTracks.indexOfFirst { it.id == currentTrack.id }
-        if (currentIndex < 0) return
-        val nextIndex = PlaybackQueue(tracks = knownTracks, currentIndex = currentIndex)
-            .adjacentIndex(offset = offset, repeatMode = repeatMode)
-            ?: return
-        val nextTrack = knownTracks.getOrNull(nextIndex) ?: return
-        playTrack(nextTrack, knownTracks, openNowPlaying = false)
     }
     playAdjacentTrackAction = ::playAdjacentTrack
 
