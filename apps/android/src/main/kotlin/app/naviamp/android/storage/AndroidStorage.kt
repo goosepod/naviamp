@@ -34,6 +34,7 @@ import app.naviamp.domain.source.stableMediaSourceId
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.domain.waveform.waveformCacheKey
 import app.naviamp.provider.navidrome.NavidromeConnection
+import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.resolvedDisplayName
 import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.storage.Downloaded_audio
@@ -282,12 +283,7 @@ class AndroidStorage(
             val temp = File(audioCacheDirectory, "${target.name}.tmp")
             val streamUrl = provider.streamUrl(StreamRequest(track.id, quality))
             try {
-                temp.outputStream().use { output ->
-                    val downloaded = httpClient.download(streamUrl) { bytes, count ->
-                        output.write(bytes, 0, count)
-                    }
-                    if (!downloaded) throw IllegalStateException("Could not cache audio track.")
-                }
+                downloadToFile(provider, streamUrl, temp, "Could not cache audio track.", httpClient)
                 moveDownloadedAudio(temp, target)
                 val now = nowMillis()
                 val size = target.length()
@@ -348,12 +344,7 @@ class AndroidStorage(
             val temp = File(downloadDirectory, "${target.name}.tmp")
             val streamUrl = provider.streamUrl(StreamRequest(track.id, quality))
             try {
-                temp.outputStream().use { output ->
-                    val downloaded = httpClient.download(streamUrl) { bytes, count ->
-                        output.write(bytes, 0, count)
-                    }
-                    if (!downloaded) throw IllegalStateException("Could not download audio track.")
-                }
+                downloadToFile(provider, streamUrl, temp, "Could not download audio track.", httpClient)
                 val size = temp.length()
                 val currentDownloadBytes = queries.downloadedAudioSize().executeAsOne()
                 if (currentDownloadBytes + size > maxDownloadBytes.coerceAtLeast(0)) {
@@ -995,6 +986,23 @@ private fun moveDownloadedAudio(temp: File, target: File) {
     if (!temp.renameTo(target)) {
         temp.copyTo(target, overwrite = true)
         temp.delete()
+    }
+}
+
+private suspend fun downloadToFile(
+    provider: MediaProvider,
+    url: String,
+    target: File,
+    errorMessage: String,
+    httpClient: KtorSharedHttpClient,
+) {
+    target.outputStream().use { output ->
+        val downloaded = if (provider is NavidromeProvider && provider.ownsUrl(url)) {
+            provider.download(url) { bytes, count -> output.write(bytes, 0, count) }
+        } else {
+            httpClient.download(url) { bytes, count -> output.write(bytes, 0, count) }
+        }
+        if (!downloaded) throw IllegalStateException(errorMessage)
     }
 }
 

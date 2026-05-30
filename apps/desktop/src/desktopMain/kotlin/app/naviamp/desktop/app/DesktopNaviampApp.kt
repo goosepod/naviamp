@@ -372,8 +372,13 @@ fun NaviampApp(
         }
     }
 
-    DisposableEffect(sessionCache) {
-        setJvmPlatformCoverArtByteLoader { url -> sessionCache.imageBytes(url) }
+    DisposableEffect(sessionCache, connectedProvider) {
+        setJvmPlatformCoverArtByteLoader { url ->
+            connectedProvider
+                ?.takeIf { it.ownsUrl(url) }
+                ?.bytes(url)
+                ?: sessionCache.imageBytes(url)
+        }
         onDispose {
             resetJvmPlatformCoverArtByteLoader()
         }

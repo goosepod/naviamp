@@ -33,6 +33,22 @@ import java.security.MessageDigest
 import java.util.LinkedHashMap
 import kotlin.math.ceil
 
+@Volatile
+private var androidPlatformCoverArtByteLoader: (suspend (String) -> ByteArray?)? = null
+
+fun setAndroidPlatformCoverArtByteLoader(loader: suspend (String) -> ByteArray?) {
+    androidPlatformCoverArtByteLoader = loader
+}
+
+fun resetAndroidPlatformCoverArtByteLoader() {
+    androidPlatformCoverArtByteLoader = null
+}
+
+internal suspend fun androidPlatformCoverArtBytes(url: String): ByteArray? =
+    androidPlatformCoverArtByteLoader?.invoke(url) ?: AndroidCoverArtHttpClient.getBytes(url)
+
+private val AndroidCoverArtHttpClient = KtorSharedHttpClient()
+
 @Composable
 actual fun PlatformCoverArt(
     url: String?,
@@ -128,8 +144,6 @@ private object AndroidCoverArtCache {
     private val hotImages = object : LinkedHashMap<String, ByteArray>(16, 0.75f, true) {}
     private var hotBytes = 0L
 
-    private val httpClient = KtorSharedHttpClient()
-
     suspend fun imageBytes(context: Context, url: String): ByteArray? {
         synchronized(this) {
             hotImages[url]?.let { bytes ->
@@ -151,7 +165,7 @@ private object AndroidCoverArtCache {
             runCatching { cacheFile.delete() }
         }
 
-        return httpClient.getBytes(url)?.takeIf(::isDecodableImage)?.also { bytes ->
+        return androidPlatformCoverArtBytes(url)?.takeIf(::isDecodableImage)?.also { bytes ->
             runCatching {
                 cacheFile.parentFile?.mkdirs()
                 cacheFile.writeBytes(bytes)

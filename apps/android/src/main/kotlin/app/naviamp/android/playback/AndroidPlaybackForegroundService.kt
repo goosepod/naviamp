@@ -272,8 +272,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         thread(name = "naviamp-notification-art") {
             val bitmap = runCatching {
                 runBlocking {
-                    notificationArtHttpClient
-                        .getBytes(coverArtUrl)
+                    notificationCoverArtBytes(coverArtUrl)
                         ?.let { decodeSampledBitmap(it, NotificationCoverArtSidePx) }
                 }
             }.getOrNull() ?: return@thread
@@ -281,6 +280,16 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             val manager = getSystemService(NotificationManager::class.java)
             manager.notify(NotificationId, buildNotification(metadata, largeIcon = bitmap))
         }
+    }
+
+    private suspend fun notificationCoverArtBytes(url: String): ByteArray? {
+        val provider = serviceStorage.latestNavidromeSource()
+            ?.toNavidromeConnection()
+            ?.let(::NavidromeProvider)
+        return provider
+            ?.takeIf { it.ownsUrl(url) }
+            ?.bytes(url)
+            ?: notificationArtHttpClient.getBytes(url)
     }
 
     private fun launchMainActivityForAutoMediaId(mediaId: String) {

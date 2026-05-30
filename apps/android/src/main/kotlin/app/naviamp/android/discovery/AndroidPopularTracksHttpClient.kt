@@ -6,6 +6,10 @@ import app.naviamp.domain.network.SharedHttpClient
 
 class AndroidPopularTracksHttpClient : SharedHttpClient by KtorSharedHttpClient(
     callRecorder = { call -> AndroidPopularTracksApiCallHistory.record(call.toPopularTracksCall()) },
+    defaultHeaders = mapOf(
+        "Accept" to "application/json",
+        "User-Agent" to "Naviamp/0.9.0 (https://github.com/jbmcmichael/Naviamp)",
+    ),
 )
 
 data class AndroidPopularTracksApiCall(

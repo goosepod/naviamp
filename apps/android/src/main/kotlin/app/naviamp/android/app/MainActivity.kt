@@ -178,6 +178,8 @@ import app.naviamp.ui.toSharedMediaItemUi
 import app.naviamp.ui.toSharedPlaylistDetailUi
 import app.naviamp.ui.bytesLabel
 import app.naviamp.ui.label as streamQualityLabel
+import app.naviamp.ui.resetAndroidPlatformCoverArtByteLoader
+import app.naviamp.ui.setAndroidPlatformCoverArtByteLoader
 import app.naviamp.ui.toSharedSearchResultsUi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -296,6 +298,14 @@ private fun NaviampAndroidApp(
     )
     val playbackQueueController = remember { PlaybackQueueController(appState.playbackQueue) }
     with(appState) {
+    DisposableEffect(provider) {
+        setAndroidPlatformCoverArtByteLoader { url ->
+            provider
+                ?.takeIf { it.ownsUrl(url) }
+                ?.bytes(url)
+        }
+        onDispose { resetAndroidPlatformCoverArtByteLoader() }
+    }
     val deezerDiscoveryClient = remember { DeezerPopularTracksClient(AndroidPopularTracksHttpClient()) }
     val popularTracksService = remember(storage, deezerDiscoveryClient) {
         ArtistPopularTracksService(

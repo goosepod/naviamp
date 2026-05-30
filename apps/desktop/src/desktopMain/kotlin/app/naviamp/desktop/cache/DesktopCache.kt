@@ -40,6 +40,7 @@ import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.domain.waveform.AudioWaveformCacheMetadata
 import app.naviamp.domain.waveform.waveformCacheKey
 import app.naviamp.provider.navidrome.NavidromeConnection
+import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.resolvedDisplayName
 import app.naviamp.storage.NaviampStorageDatabase
 import kotlinx.coroutines.Dispatchers
@@ -471,12 +472,7 @@ class DesktopCache(
                     quality = quality,
                 ),
             )
-            Files.newOutputStream(temp).use { output ->
-                val downloaded = httpClient.download(streamUrl) { bytes, count ->
-                    output.write(bytes, 0, count)
-                }
-                if (!downloaded) throw IllegalStateException("Could not cache audio track.")
-            }
+            downloadToFile(provider, streamUrl, temp, "Could not cache audio track.", httpClient)
             moveDownloadedAudio(temp, target)
 
             val now = nowMillis()
@@ -522,12 +518,7 @@ class DesktopCache(
                 ),
             )
             try {
-                Files.newOutputStream(temp).use { output ->
-                    val downloaded = httpClient.download(streamUrl) { bytes, count ->
-                        output.write(bytes, 0, count)
-                    }
-                    if (!downloaded) throw IllegalStateException("Could not download audio track.")
-                }
+                downloadToFile(provider, streamUrl, temp, "Could not download audio track.", httpClient)
                 val size = Files.size(temp)
                 val currentDownloadBytes = queries.downloadedAudioSize().executeAsOne()
                 if (currentDownloadBytes + size > maxDownloadBytes.coerceAtLeast(0)) {
@@ -1784,6 +1775,23 @@ private data class ReplayGainDto(
                 trackPeak = replayGain.trackPeak,
                 albumPeak = replayGain.albumPeak,
             )
+    }
+}
+
+private suspend fun downloadToFile(
+    provider: MediaProvider,
+    url: String,
+    target: Path,
+    errorMessage: String,
+    httpClient: KtorSharedHttpClient,
+) {
+    Files.newOutputStream(target).use { output ->
+        val downloaded = if (provider is NavidromeProvider && provider.ownsUrl(url)) {
+            provider.download(url) { bytes, count -> output.write(bytes, 0, count) }
+        } else {
+            httpClient.download(url) { bytes, count -> output.write(bytes, 0, count) }
+        }
+        if (!downloaded) throw IllegalStateException(errorMessage)
     }
 }
 
