@@ -116,6 +116,9 @@ Branch: `codex/desktop-main-reduction`
 - [x] Trim desktop app-composition wrapper functions.
   - removed the first batch of one-line local delegates in `DesktopNaviampApp.kt`
   - UI callbacks now call feature controllers directly where there is no local state adaptation
+- [x] Move Android generated-radio refill orchestration out of `MainActivity.kt`.
+  - tail-refill application now lives in `AndroidRadioController`
+  - seeded track/album radio setup now passes the shared queue controller into the radio adapter
 - [x] Extract desktop home-content orchestration from `DesktopNaviampApp.kt`.
   - async `HomeService` loading, home status, source id, recent radio inputs, and desktop cache repository wiring now live in `DesktopHomeController`
   - `HomeService` remains shared between platforms
@@ -179,6 +182,7 @@ Branch: `codex/desktop-main-reduction`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop`
 - [x] `.\gradlew.bat :core:domain:allTests`
 - [x] `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`
+- [x] `.\gradlew.bat :apps:android:assembleDebug`
 - [x] `.\gradlew.bat :apps:android:assembleDebug`
 - [x] `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`

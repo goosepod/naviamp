@@ -2,23 +2,80 @@ package app.naviamp.android
 
 import app.naviamp.domain.Album
 import app.naviamp.domain.Track
+import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.radio.generatedRadioTracksToAppend
 import app.naviamp.domain.radio.generatedRadioQueue
+import app.naviamp.domain.radio.radioRefillSeedTrack
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 fun appendAndroidGeneratedRadioTracks(
     state: AndroidAppState,
+    queueController: PlaybackQueueController,
     seedTrack: Track,
     fetchedTracks: List<Track>,
 ) {
     with(state) {
         if (nowPlaying?.id != seedTrack.id) return
+        val previousQueue = playbackQueue
         val newTracks = generatedRadioTracksToAppend(seedTrack, fetchedTracks, playbackQueue.tracks)
         if (newTracks.isNotEmpty()) {
             playbackQueue = playbackQueue.copy(tracks = playbackQueue.tracks + newTracks)
+        }
+        if (playbackQueue != previousQueue) {
+            queueController.replaceQueue(playbackQueue, clearPreparedNext = false)
+        }
+    }
+}
+
+fun refillAndroidRadioIfNeeded(
+    scope: CoroutineScope,
+    state: AndroidAppState,
+    queue: PlaybackQueue,
+    queueController: PlaybackQueueController,
+) {
+    val seedTrack = radioRefillSeedTrack(
+        queue = queue,
+        refillThreshold = AndroidRadioRefillThreshold,
+        repeatMode = state.repeatMode,
+        isActive = state.radioQueueActive,
+        isRefilling = state.radioRefilling,
+        lastRefillSeedTrackId = state.lastRadioRefillSeedId,
+    ) ?: return
+    val activeProvider = state.provider ?: return
+
+    state.radioRefilling = true
+    state.lastRadioRefillSeedId = seedTrack.id
+    scope.launch {
+        try {
+            val fetchedTracks = withContext(Dispatchers.IO) {
+                RadioService(activeProvider, count = AndroidRadioRefillCount).trackRadio(seedTrack.id)
+            }
+            val newTracks = generatedRadioTracksToAppend(
+                seedTrack = seedTrack,
+                fetchedTracks = fetchedTracks,
+                queuedTracks = state.playbackQueue.tracks,
+            )
+            if (state.radioQueueActive && newTracks.isNotEmpty()) {
+                queueController.replaceQueue(state.playbackQueue, clearPreparedNext = false)
+                queueController.appendTracks(
+                    tracks = newTracks,
+                    maxHistory = AndroidRadioQueueHistoryLimit,
+                )?.let { updatedQueue ->
+                    state.playbackQueue = updatedQueue
+                }
+                state.status = "Extending radio queue (${state.playbackQueue.tracks.size} tracks)..."
+            }
+        } catch (error: Exception) {
+            state.status = error.message ?: "Could not extend radio."
+        } finally {
+            if (state.lastRadioRefillSeedId == seedTrack.id) {
+                state.radioRefilling = false
+            }
         }
     }
 }
@@ -26,6 +83,7 @@ fun appendAndroidGeneratedRadioTracks(
 fun startAndroidSeededRadio(
     scope: CoroutineScope,
     state: AndroidAppState,
+    queueController: PlaybackQueueController,
     statusLabel: String,
     seedTrack: Track,
     playTrack: (Track, List<Track>) -> Unit,
@@ -62,7 +120,7 @@ fun startAndroidSeededRadio(
                 }.getOrElse {
                     return@forEach
                 }
-                appendAndroidGeneratedRadioTracks(state, seedTrack, fetchedTracks)
+                appendAndroidGeneratedRadioTracks(state, queueController, seedTrack, fetchedTracks)
                 status = "Building $statusLabel queue (${playbackQueue.tracks.size} tracks)..."
             }
             if (nowPlaying?.id == seedTrack.id) {
@@ -75,12 +133,14 @@ fun startAndroidSeededRadio(
 fun startAndroidTrackRadio(
     scope: CoroutineScope,
     state: AndroidAppState,
+    queueController: PlaybackQueueController,
     track: Track,
     playTrack: (Track, List<Track>) -> Unit,
 ) {
     startAndroidSeededRadio(
         scope = scope,
         state = state,
+        queueController = queueController,
         statusLabel = "${track.title} radio",
         seedTrack = track,
         playTrack = playTrack,
@@ -92,6 +152,7 @@ fun startAndroidTrackRadio(
 fun startAndroidAlbumRadio(
     scope: CoroutineScope,
     state: AndroidAppState,
+    queueController: PlaybackQueueController,
     album: Album,
     loadedAlbumTracks: List<Track> = emptyList(),
     playTrack: (Track, List<Track>) -> Unit,
@@ -107,6 +168,7 @@ fun startAndroidAlbumRadio(
                 startAndroidSeededRadio(
                     scope = scope,
                     state = state,
+                    queueController = queueController,
                     statusLabel = "${album.title} radio",
                     seedTrack = seedTrack,
                     playTrack = playTrack,

@@ -135,8 +135,6 @@ import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.radio.generatedRadioQueue
-import app.naviamp.domain.radio.generatedRadioTracksToAppend
-import app.naviamp.domain.radio.radioRefillSeedTrack
 import app.naviamp.domain.radio.recentSavedInternetRadioStationsWith
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.PlaybackSettings
@@ -930,49 +928,6 @@ private fun NaviampAndroidApp(
         saveAndroidPlaybackSessionThrottled(appState, storage, force)
     }
 
-    fun refillRadioIfNeeded(queue: PlaybackQueue) {
-        val seedTrack = radioRefillSeedTrack(
-            queue = queue,
-            refillThreshold = AndroidRadioRefillThreshold,
-            repeatMode = repeatMode,
-            isActive = radioQueueActive,
-            isRefilling = radioRefilling,
-            lastRefillSeedTrackId = lastRadioRefillSeedId,
-        ) ?: return
-        val activeProvider = provider ?: return
-
-        radioRefilling = true
-        lastRadioRefillSeedId = seedTrack.id
-        scope.launch {
-            try {
-                val fetchedTracks = withContext(Dispatchers.IO) {
-                    RadioService(activeProvider, count = AndroidRadioRefillCount).trackRadio(seedTrack.id)
-                }
-                val newTracks = generatedRadioTracksToAppend(
-                    seedTrack = seedTrack,
-                    fetchedTracks = fetchedTracks,
-                    queuedTracks = playbackQueue.tracks,
-                )
-                if (radioQueueActive && newTracks.isNotEmpty()) {
-                    playbackQueueController.replaceQueue(playbackQueue, clearPreparedNext = false)
-                    playbackQueueController.appendTracks(
-                        tracks = newTracks,
-                        maxHistory = AndroidRadioQueueHistoryLimit,
-                    )?.let { updatedQueue ->
-                        playbackQueue = updatedQueue
-                    }
-                    status = "Extending radio queue (${playbackQueue.tracks.size} tracks)..."
-                }
-            } catch (error: Exception) {
-                status = error.message ?: "Could not extend radio."
-            } finally {
-                if (lastRadioRefillSeedId == seedTrack.id) {
-                    radioRefilling = false
-                }
-            }
-        }
-    }
-
     fun playTrack(
         track: Track,
         queue: List<Track>? = null,
@@ -1046,7 +1001,12 @@ private fun NaviampAndroidApp(
                     nowPlayingOpen = true
                 }
                 reportNowPlaying(track)
-                refillRadioIfNeeded(playbackQueue)
+                refillAndroidRadioIfNeeded(
+                    scope = scope,
+                    state = appState,
+                    queue = playbackQueue,
+                    queueController = playbackQueueController,
+                )
                 loadRelatedTracks(track)
                 if (lyricsVisible && nowPlayingOpen) loadLyrics(track)
                 startAudioPrefetch(sessionToken, activeProvider, playbackQueue)
@@ -1215,14 +1175,6 @@ private fun NaviampAndroidApp(
         }
     }
 
-    fun appendGeneratedRadioTracks(seedTrack: Track, fetchedTracks: List<Track>) {
-        val previousQueue = playbackQueue
-        appendAndroidGeneratedRadioTracks(appState, seedTrack, fetchedTracks)
-        if (playbackQueue != previousQueue) {
-            playbackQueueController.replaceQueue(playbackQueue, clearPreparedNext = false)
-        }
-    }
-
     fun startSeededRadio(
         statusLabel: String,
         seedTrack: Track,
@@ -1231,6 +1183,7 @@ private fun NaviampAndroidApp(
         startAndroidSeededRadio(
             scope = scope,
             state = appState,
+            queueController = playbackQueueController,
             statusLabel = statusLabel,
             seedTrack = seedTrack,
             playTrack = { track, queue -> playTrack(track, queue, keepRadioQueueActive = true) },
@@ -1242,6 +1195,7 @@ private fun NaviampAndroidApp(
         startAndroidTrackRadio(
             scope = scope,
             state = appState,
+            queueController = playbackQueueController,
             track = track,
             playTrack = { seedTrack, queue -> playTrack(seedTrack, queue, keepRadioQueueActive = true) },
         )
@@ -1251,6 +1205,7 @@ private fun NaviampAndroidApp(
         startAndroidAlbumRadio(
             scope = scope,
             state = appState,
+            queueController = playbackQueueController,
             album = album,
             loadedAlbumTracks = loadedAlbumTracks,
             playTrack = { seedTrack, queue -> playTrack(seedTrack, queue, keepRadioQueueActive = true) },
@@ -2077,7 +2032,7 @@ private fun NaviampAndroidApp(
                         }.getOrElse {
                             return@forEach
                         }
-                        appendGeneratedRadioTracks(track, fetchedTracks)
+                        appendAndroidGeneratedRadioTracks(appState, playbackQueueController, track, fetchedTracks)
                         status = "Building ${track.title} radio queue (${playbackQueue.tracks.size} tracks)..."
                     }
                     if (nowPlaying?.id == track.id) {
