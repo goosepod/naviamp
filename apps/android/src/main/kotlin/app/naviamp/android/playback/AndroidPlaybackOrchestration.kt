@@ -3,13 +3,9 @@ package app.naviamp.android
 import android.content.Context
 import app.naviamp.android.playback.AndroidPlaybackForegroundService
 import app.naviamp.android.playback.AndroidPlaybackNotificationControls
-import app.naviamp.domain.playback.DefaultPendingSeekStaleProgressWindowMillis
-import app.naviamp.domain.playback.DefaultPendingSeekToleranceSeconds
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackQueueController
-import app.naviamp.domain.playback.mergeMissingWith
-import app.naviamp.domain.playback.shouldClearPendingSeek
-import app.naviamp.domain.playback.shouldIgnoreProgressForPendingSeek
+import app.naviamp.domain.playback.planPlaybackProgressUpdate
 
 fun beginAndroidPlaybackSession(
     state: AndroidAppState,
@@ -42,9 +38,21 @@ fun handleAndroidPlaybackProgressChanged(
     prepareNextIfNeeded: (Long, PlaybackProgress) -> Unit,
 ) {
     with(state) {
-        if (sessionToken != playbackSessionToken) return
-        if (progress.positionSeconds == null && progress.durationSeconds == null) {
-            if (pendingRestoreStartPositionSeconds != null) return
+        val nowMillis = System.currentTimeMillis()
+        val plan = planPlaybackProgressUpdate(
+            sessionToken = sessionToken,
+            activeSessionToken = playbackSessionToken,
+            incomingProgress = progress,
+            currentProgress = playbackProgress,
+            pendingSeekPositionSeconds = pendingSeekPositionSeconds,
+            pendingSeekIssuedAtMillis = pendingSeekIssuedAtMillis,
+            pendingRestoreStartPositionSeconds = pendingRestoreStartPositionSeconds,
+            nowMillis = nowMillis,
+            lastExternalProgressPublishAtMillis = lastAndroidAutoProgressPublishAtMillis,
+            externalProgressPublishIntervalMillis = AndroidAutoProgressPublishIntervalMillis,
+        )
+        if (plan.ignore) return
+        if (plan.resetToUnknown) {
             pendingSeekPositionSeconds = null
             pendingSeekIssuedAtMillis = null
             playbackProgress = PlaybackProgress.Unknown
@@ -53,69 +61,25 @@ fun handleAndroidPlaybackProgressChanged(
             AndroidPlaybackForegroundService.updateProgress(context, null, null)
             return
         }
-        val pendingSeek = pendingSeekPositionSeconds
-        val pendingSeekIssuedAt = pendingSeekIssuedAtMillis
-        val progressPosition = progress.positionSeconds
-        val nowMillis = System.currentTimeMillis()
-        if (
-            shouldIgnoreProgressForPendingSeek(
-                pendingSeekPositionSeconds = pendingSeek,
-                pendingSeekIssuedAtMillis = pendingSeekIssuedAt,
-                incomingPositionSeconds = progressPosition,
-                nowMillis = nowMillis,
-                toleranceSeconds = DefaultPendingSeekToleranceSeconds,
-                staleWindowMillis = DefaultPendingSeekStaleProgressWindowMillis,
-            )
-        ) {
-            return
-        }
-        var pendingRestoreStart = pendingRestoreStartPositionSeconds
-        if (
-            pendingRestoreStart != null &&
-            (pendingSeekIssuedAt == null || nowMillis - pendingSeekIssuedAt >= DefaultPendingSeekStaleProgressWindowMillis)
-        ) {
-            pendingRestoreStartPositionSeconds = null
-            pendingRestoreStart = null
-        }
-        if (
-            pendingRestoreStart != null &&
-            progressPosition != null &&
-            progressPosition < pendingRestoreStart - DefaultPendingSeekToleranceSeconds
-        ) {
-            return
-        }
-        if (
-            shouldClearPendingSeek(
-                pendingSeekPositionSeconds = pendingSeek,
-                pendingSeekIssuedAtMillis = pendingSeekIssuedAt,
-                incomingPositionSeconds = progressPosition,
-                nowMillis = nowMillis,
-                toleranceSeconds = DefaultPendingSeekToleranceSeconds,
-                staleWindowMillis = DefaultPendingSeekStaleProgressWindowMillis,
-            )
-        ) {
+        if (plan.clearPendingSeek) {
             pendingSeekPositionSeconds = null
             pendingSeekIssuedAtMillis = null
         }
-        if (
-            pendingRestoreStart != null &&
-            progressPosition != null &&
-            progressPosition >= pendingRestoreStart - DefaultPendingSeekToleranceSeconds
-        ) {
+        if (plan.clearPendingRestoreStart) {
             pendingRestoreStartPositionSeconds = null
         }
-        playbackProgress = progress.mergeMissingWith(playbackProgress)
-        maybeReportPlayed(playbackProgress)
+        playbackProgress = plan.progress ?: return
+        if (plan.shouldReportPlayed) maybeReportPlayed(playbackProgress)
         val positionMillis = playbackProgress.positionSeconds?.secondsToMillis()
         val durationMillis = playbackProgress.durationSeconds
             ?.secondsToMillis()
             ?: nowPlaying?.durationSeconds?.toDouble()?.secondsToMillis()
         AndroidPlaybackNotificationControls.positionMillis = positionMillis
         AndroidPlaybackNotificationControls.durationMillis = durationMillis
-        if (nowMillis - lastAndroidAutoProgressPublishAtMillis >= AndroidAutoProgressPublishIntervalMillis) {
+        if (plan.shouldPublishExternalProgress) {
             lastAndroidAutoProgressPublishAtMillis = nowMillis
             AndroidPlaybackForegroundService.updateProgress(context, positionMillis, durationMillis)
         }
-        prepareNextIfNeeded(sessionToken, playbackProgress)
+        if (plan.shouldPrepareNext) prepareNextIfNeeded(sessionToken, playbackProgress)
     }
 }

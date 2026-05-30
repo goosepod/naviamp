@@ -20,12 +20,16 @@ Branch: `codex/desktop-main-reduction`
   - `MainActivity.kt`: 2,348 -> 2,267 lines.
   - Verification: `.\gradlew.bat :apps:android:assembleDebug`.
   - Remaining playback work: move `playTrack`, seek handling, adjacent navigation, and prefetch/sidecar orchestration behind a cohesive playback controller.
+- [x] Moved playback progress update decisions into shared domain via `planPlaybackProgressUpdate`.
+  - Android now applies a shared progress plan, then performs Android-only notification, foreground-service, play-report, and gapless/crossfade side effects.
+  - Verification: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:assembleDebug`.
 
 ## Goals
 
 - [ ] Reduce `MainActivity.kt` by extracting cohesive feature controllers and effect runners.
 - [ ] Keep Android behavior aligned with desktop and shared core by default.
 - [ ] Move duplicated Android/desktop product rules into `core/domain`, `core/ui`, or provider modules before adding platform-local helpers.
+- [ ] Prefer shared plan/reducer APIs for product behavior; keep platform files as adapters that apply those plans to lifecycle, storage, engine, and OS side effects.
 - [ ] Keep Android route/shell composition readable and mostly declarative.
 - [ ] Keep every extraction verified with Android debug or release compile/build, plus common tests when shared rules move.
 
@@ -34,6 +38,7 @@ Branch: `codex/desktop-main-reduction`
 - Do not move Android lifecycle, `ActivityResultLauncher`, permissions, intents, foreground-service binding, Android Auto handoff, notification, or platform storage APIs into common code.
 - Do not add another giant controller. Feature controllers should map to existing folders: `playback/`, `radio/`, `media/`, `library/`, `downloads/`, `connection/`, `app/`.
 - Keep shared behavior pure or dependency-injected. Provider calls, cache reads/writes, coroutine scope ownership, and Compose state assignment can remain platform-local.
+- Platform-specific helpers should be thin application layers over common plans whenever the same behavior exists or could exist on desktop.
 - Prefer small compile-green slices over broad rewrites.
 - Before each extraction, compare the desktop controller for matching behavior and move common decision/status/planning rules down when both platforms need them.
 
