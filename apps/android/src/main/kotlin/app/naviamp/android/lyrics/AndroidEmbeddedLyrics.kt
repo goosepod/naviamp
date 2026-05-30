@@ -1,7 +1,7 @@
 package app.naviamp.android
 
 import app.naviamp.domain.Lyrics
-import app.naviamp.domain.lyrics.embeddedLyricsFromId3v2
+import app.naviamp.domain.audio.embeddedLyricsFromAudioBytes
 import java.io.File
 
 fun embeddedLyricsFromAudioFile(file: File): Lyrics? =
@@ -10,7 +10,7 @@ fun embeddedLyricsFromAudioFile(file: File): Lyrics? =
         file.inputStream().use { input ->
             val buffer = ByteArray(MaxEmbeddedLyricsProbeBytes)
             val read = input.read(buffer)
-            if (read <= 0) null else embeddedLyricsFromId3v2(buffer.copyOf(read))
+            if (read <= 0) null else embeddedLyricsFromAudioBytes(buffer.copyOf(read))
         }
     }.getOrNull()
 

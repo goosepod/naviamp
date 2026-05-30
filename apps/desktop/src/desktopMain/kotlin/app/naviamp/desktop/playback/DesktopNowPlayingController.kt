@@ -2,6 +2,7 @@ package app.naviamp.desktop
 
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Track
+import app.naviamp.domain.audio.lyricsFromAudioTags
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.lyrics.selectPreferredLyrics
 import app.naviamp.domain.playback.PlaybackEngine

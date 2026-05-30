@@ -1,15 +1,12 @@
-package app.naviamp.desktop
+package app.naviamp.domain.audio
 
-import kotlin.io.path.createTempFile
-import kotlin.io.path.writeBytes
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class AudioTagReaderTest {
+class AudioTagParserTest {
     @Test
-    fun `reads and orders id3 text frames`() {
-        val path = createTempFile("naviamp-tags", ".mp3")
-        path.writeBytes(
+    fun readsAndOrdersId3TextFrames() {
+        val tags = audioTagsFromAudioBytes(
             id3Tag(
                 textFrame("TCON", "Rock") +
                     textFrame("TALB", "The Album") +
@@ -18,8 +15,6 @@ class AudioTagReaderTest {
                     textFrame("TXXX", "CATALOGNUMBER\u0000ABC-123"),
             ),
         )
-
-        val tags = AudioTagReader().read(path)
 
         assertEquals(
             listOf(
@@ -34,9 +29,8 @@ class AudioTagReaderTest {
     }
 
     @Test
-    fun `reads and orders flac vorbis comments`() {
-        val path = createTempFile("naviamp-tags", ".flac")
-        path.writeBytes(
+    fun readsAndOrdersFlacVorbisComments() {
+        val tags = audioTagsFromAudioBytes(
             flacVorbisCommentBlock(
                 listOf(
                     "MUSICBRAINZ_RELEASEGROUPID=release-group",
@@ -47,8 +41,6 @@ class AudioTagReaderTest {
                 ),
             ),
         )
-
-        val tags = AudioTagReader().read(path)
 
         assertEquals(
             listOf(
@@ -61,6 +53,19 @@ class AudioTagReaderTest {
             tags,
         )
     }
+
+    @Test
+    fun extractsReplayGainFromTags() {
+        val replayGain = replayGainFromAudioTags(
+            listOf(
+                AudioTag("REPLAYGAIN_TRACK_GAIN", "-7.25 dB"),
+                AudioTag("REPLAYGAIN_ALBUM_PEAK", "0.982"),
+            ),
+        )
+
+        assertEquals(-7.25, replayGain?.trackGainDb)
+        assertEquals(0.982, replayGain?.albumPeak)
+    }
 }
 
 private fun id3Tag(frames: ByteArray): ByteArray =
@@ -70,13 +75,13 @@ private fun id3Tag(frames: ByteArray): ByteArray =
         frames
 
 private fun textFrame(id: String, value: String): ByteArray {
-    val data = byteArrayOf(3) + value.toByteArray(Charsets.UTF_8)
+    val data = byteArrayOf(3) + value.encodeToByteArray()
     return id.asciiBytes() + data.size.intBeBytes() + byteArrayOf(0, 0) + data
 }
 
 private fun flacVorbisCommentBlock(comments: List<String>): ByteArray {
-    val vendor = "Naviamp test".toByteArray(Charsets.UTF_8)
-    val commentBytes = comments.map { it.toByteArray(Charsets.UTF_8) }
+    val vendor = "Naviamp test".encodeToByteArray()
+    val commentBytes = comments.map { it.encodeToByteArray() }
     val payload = vendor.size.intLeBytes() +
         vendor +
         commentBytes.size.intLeBytes() +
@@ -90,7 +95,7 @@ private fun flacVorbisCommentBlock(comments: List<String>): ByteArray {
 }
 
 private fun String.asciiBytes(): ByteArray =
-    toByteArray(Charsets.ISO_8859_1)
+    ByteArray(length) { index -> this[index].code.toByte() }
 
 private fun Int.synchsafeBytes(): ByteArray =
     byteArrayOf(
