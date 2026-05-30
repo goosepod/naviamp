@@ -44,7 +44,7 @@ class MediaUiMappersTest {
             artist = Artist(ArtistId("artist-1"), "Artist One"),
             albums = emptyList(),
             info = ArtistInfo(
-                biography = null,
+                biography = "Artist biography",
                 smallImageUrl = "https://images.test/small.jpg",
                 mediumImageUrl = "https://images.test/medium.jpg",
                 largeImageUrl = "https://images.test/large.jpg",
@@ -54,5 +54,6 @@ class MediaUiMappersTest {
         )
 
         assertEquals("https://images.test/large.jpg", ui.artist.coverArtUrl)
+        assertEquals("Artist biography", ui.biography)
     }
 }

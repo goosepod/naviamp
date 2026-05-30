@@ -389,6 +389,7 @@ fun ArtistDetails.toSharedArtistDetailUi(
                 ?: coverArtUrl(artist.id.value),
         ),
         albums = albums.map { it.toSharedMediaItemUi(coverArtUrl) },
+        biography = info?.biography,
         popularTracks = popularTracks.map { it.toAndroidTrackRowUi(coverArtUrl) },
         popularTracksStatus = popularTracksStatus,
         similarArtists = similarArtists.map { it.toSharedSimilarArtistUi() },

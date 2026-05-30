@@ -50,6 +50,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
@@ -178,6 +179,7 @@ data class SharedAlbumDetailUi(
 data class SharedArtistDetailUi(
     val artist: SharedMediaItemUi,
     val albums: List<SharedMediaItemUi>,
+    val biography: String? = null,
     val popularTracks: List<AndroidTrackRowUi> = emptyList(),
     val popularTracksStatus: String? = null,
     val similarArtists: List<SharedSimilarArtistUi> = emptyList(),
@@ -1914,6 +1916,7 @@ private fun ArtistDetailContent(
     var addArtistToPlaylistOpen by remember(detail.artist.id) { mutableStateOf(false) }
     var popularTrackForPlaylist by remember(detail.artist.id) { mutableStateOf<AndroidTrackRowUi?>(null) }
     var albumForPlaylist by remember(detail.artist.id) { mutableStateOf<SharedMediaItemUi?>(null) }
+    var biographyExpanded by remember(detail.artist.id) { mutableStateOf(false) }
 
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -1923,7 +1926,8 @@ private fun ArtistDetailContent(
             IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
                 Icon(NaviampIcons.Back, contentDescription = "Back", tint = colors.primaryText)
             }
-            Column {
+            PlatformCoverArt(detail.artist.coverArtUrl, colors, 64.dp, 32.dp)
+            Column(modifier = Modifier.weight(1f)) {
                 Text(detail.artist.title, color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text("${detail.albums.size} albums", color = colors.secondaryText, fontSize = 13.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -1937,6 +1941,33 @@ private fun ArtistDetailContent(
                     MiniPlayerIconButton(colors, detail.popularTracks.isNotEmpty(), NaviampIcons.Queue, "Add popular tracks to queue", onPopularAddToQueue)
                     MiniPlayerIconButton(colors, true, NaviampIcons.Artist, "Find similar artists", onFindSimilarArtists)
                 }
+                detail.biography
+                    ?.normalizedBiography()
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { biography ->
+                        val showMoreLink = biography.length > 260
+                        Text(
+                            biography,
+                            color = colors.secondaryText,
+                            maxLines = if (biographyExpanded) Int.MAX_VALUE else 3,
+                            overflow = TextOverflow.Ellipsis,
+                            style = TextStyle(
+                                fontSize = 11.sp,
+                                lineHeight = 13.sp,
+                            ),
+                        )
+                        if (showMoreLink) {
+                            Text(
+                                if (biographyExpanded) "Less" else "More...",
+                                color = colors.primaryText,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.clickable {
+                                    biographyExpanded = !biographyExpanded
+                                },
+                            )
+                        }
+                    }
             }
         }
         Column(
@@ -3289,3 +3320,13 @@ object NaviampIcons {
             }
         }.build()
 }
+
+private fun String.normalizedBiography(): String =
+    trim()
+        .replace(Regex("[\\t ]+"), " ")
+        .split(Regex("\\R\\s*\\R+"))
+        .joinToString("\n\n") { paragraph ->
+            paragraph
+                .replace(Regex("\\s*\\R\\s*"), " ")
+                .trim()
+        }
