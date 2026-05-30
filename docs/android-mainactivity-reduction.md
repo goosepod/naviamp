@@ -92,7 +92,8 @@ Branch: `codex/desktop-main-reduction`
 - [ ] **Playlist orchestration controller**
   - Move playlist play/open/refresh/preload, selected-playlist detail state, playlist delete/rename/create/add flows, and smart-playlist callbacks out of `MainActivity.kt`.
   - Shared-code checks: playlist mutation planning, detail refresh shaping, recent-playlist cleanup, and queue append planning already belong in `core/domain`.
-  - Add cross-platform playback-action feedback while extracting this slice: slow playlist play should show a loading/pending indication, suppress repeated taps for the same pending action, and clear on playback start or error on both Android and desktop.
+  - Cross-platform playback-action feedback is now started in `core/domain`: slow playlist play shows pending text, suppresses stacked taps, and clears on playback start or empty-playlist completion on Android and desktop.
+  - Playlist screens now expose a repeat-icon random-order start beside Play, using the shared shuffled playlist playback path.
 
 - [ ] **Library and search orchestration cleanup**
   - Move remaining library query/snapshot/page-jump/search result loading state wiring out of `MainActivity.kt` if it is still inline after playback/media splits.
@@ -118,14 +119,15 @@ Branch: `codex/desktop-main-reduction`
 
 ## Verification
 
-- [ ] `.\gradlew.bat :core:domain:allTests`
+- [x] `.\gradlew.bat :core:domain:allTests`
 - [ ] `.\gradlew.bat :apps:android:assembleDebug`
 - [ ] `.\gradlew.bat :apps:android:compileReleaseKotlin`
-- [ ] `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`
+- [x] `.\gradlew.bat :apps:android:compileDebugKotlin`
+- [x] `.\gradlew.bat :apps:desktop:compileKotlinDesktop "-Pnaviamp.bass.platform=windows-x64"`
 
 ## Notes
 
 - `Main.kt` on desktop is currently small enough; the ongoing size problem is `DesktopNaviampApp.kt`, Android `MainActivity.kt`, and Android `AndroidPlaybackForegroundService.kt`.
 - `AndroidPlaybackForegroundService.kt` should be handled after `MainActivity.kt`, likely with separate service/runtime/media-session/Android Auto controllers.
 - The artist-selection feature idea remains parked in `docs/desktop-main-reduction.md` until the current size-reduction pass is stable enough for feature work.
-- Playlist play can silently queue duplicate starts if provider track loading is slow; solve as a shared pending/loading playback-action model, not as Android-only UI state.
+- Playlist play duplicate-start suppression now has a shared pending/loading playback-action model; album/radio can reuse it when those starts need the same feedback.

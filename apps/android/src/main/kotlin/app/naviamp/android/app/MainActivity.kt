@@ -58,6 +58,7 @@ import app.naviamp.domain.provider.SearchSessionController
 import app.naviamp.domain.provider.allKnownTracks
 import app.naviamp.domain.provider.addToPlaylistMutationUpdate
 import app.naviamp.domain.provider.createPlaylistOrAddTracks
+import app.naviamp.domain.provider.clearPendingPlaybackAction
 import app.naviamp.domain.provider.normalizedPlaylistName
 import app.naviamp.domain.provider.playlistDetailAutoRefreshTarget
 import app.naviamp.domain.provider.playlistDeleteErrorMessage
@@ -65,6 +66,7 @@ import app.naviamp.domain.provider.playlistDeleteLoadingStatus
 import app.naviamp.domain.provider.playlistDeleteStateUpdate
 import app.naviamp.domain.provider.playlistDeletedStatus
 import app.naviamp.domain.provider.playlistDetailsStateUpdate
+import app.naviamp.domain.provider.playlistPlaybackAction
 import app.naviamp.domain.provider.playlistPlaybackTracks
 import app.naviamp.domain.provider.playlistRenameErrorMessage
 import app.naviamp.domain.provider.playlistRenameLoadingStatus
@@ -77,6 +79,7 @@ import app.naviamp.domain.provider.queueAppendPlan
 import app.naviamp.domain.provider.refreshPlaylistDetails
 import app.naviamp.domain.provider.selectedPlaylistTracksForPlayback
 import app.naviamp.domain.provider.saveSmartPlaylistAndRefresh
+import app.naviamp.domain.provider.shouldStartPlaybackAction
 import app.naviamp.domain.provider.smartPlaylistSaveErrorMessage
 import app.naviamp.domain.provider.smartPlaylistSavedStatus
 import app.naviamp.domain.provider.smartPlaylistSavingStatus
@@ -1353,31 +1356,48 @@ private fun NaviampAndroidApp(
 
     fun playPlaylist(playlist: Playlist, shuffle: Boolean) {
         val activeProvider = provider ?: return
+        val playbackAction = playlistPlaybackAction(playlist, shuffle)
+        if (!shouldStartPlaybackAction(pendingPlaybackAction)) {
+            playlistActionStatus = pendingPlaybackAction?.status
+            status = pendingPlaybackAction?.status ?: status
+            return
+        }
+        pendingPlaybackAction = playbackAction
+        playlistActionStatus = playbackAction.status
+        status = playbackAction.status
         scope.launch {
-            status = "Loading ${playlist.name}..."
-            val loadedTracks = if (selectedPlaylist?.id == playlist.id && selectedPlaylistTracks.isNotEmpty()) {
-                emptyList()
-            } else {
-                runCatching { activeProvider.playlistTracks(playlist.id) }
-                    .onSuccess {
-                        playlistTracksById = playlistTracksById + (playlist.id to it)
-                        contentState = contentState.showPlaylist(playlist, it)
-                        tracks = it
-                    }
-                    .getOrDefault(emptyList())
-            }
-            val playlistTracks = selectedPlaylistTracksForPlayback(
-                selectedPlaylist = selectedPlaylist,
-                selectedPlaylistTracks = selectedPlaylistTracks,
-                playlist = playlist,
-                loadedTracks = loadedTracks,
-            )
-            val queue = playlistPlaybackTracks(playlistTracks, shuffle)
-            queue.firstOrNull()?.let { firstTrack ->
-                recentPlaylistIds = recentPlaylistIdsAfterPlayed(recentPlaylistIds, playlist.id, limit = 20)
-                playTrack(firstTrack, queue)
-            } ?: run {
-                status = "Playlist is empty."
+            try {
+                val loadedTracks = if (selectedPlaylist?.id == playlist.id && selectedPlaylistTracks.isNotEmpty()) {
+                    emptyList()
+                } else {
+                    runCatching { activeProvider.playlistTracks(playlist.id) }
+                        .onSuccess {
+                            playlistTracksById = playlistTracksById + (playlist.id to it)
+                            contentState = contentState.showPlaylist(playlist, it)
+                            tracks = it
+                        }
+                        .getOrElse { error ->
+                            status = error.message ?: "Could not play ${playlist.name}."
+                            return@launch
+                        }
+                }
+                val playlistTracks = selectedPlaylistTracksForPlayback(
+                    selectedPlaylist = selectedPlaylist,
+                    selectedPlaylistTracks = selectedPlaylistTracks,
+                    playlist = playlist,
+                    loadedTracks = loadedTracks,
+                )
+                val queue = playlistPlaybackTracks(playlistTracks, shuffle)
+                queue.firstOrNull()?.let { firstTrack ->
+                    recentPlaylistIds = recentPlaylistIdsAfterPlayed(recentPlaylistIds, playlist.id, limit = 20)
+                    playlistActionStatus = null
+                    playTrack(firstTrack, queue)
+                } ?: run {
+                    playlistActionStatus = null
+                    status = "Playlist is empty."
+                }
+            } finally {
+                pendingPlaybackAction = clearPendingPlaybackAction(pendingPlaybackAction, playbackAction)
             }
         }
     }

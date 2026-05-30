@@ -227,7 +227,7 @@ private fun PlaylistListRow(
             Text(playlist.summaryLabel(), color = appColors.secondaryText, fontSize = 11.sp)
         }
         DetailActionIconButton(appColors, TransportIcons.Play, "Play playlist", true, onPlay)
-        DetailActionIconButton(appColors, TransportIcons.Shuffle, "Shuffle playlist", playlist.trackCount > 1, onShuffle)
+        DetailActionIconButton(appColors, TransportIcons.Repeat, "Play playlist in random order", playlist.trackCount > 1, onShuffle)
         RowOverflowMenu(
             appColors = appColors,
             items = playlistRowActions(
@@ -316,7 +316,7 @@ fun PlaylistDetailPanel(
                     val addToQueueAction = playlistActions.playlistAction(NaviampAction.AddToQueue)
                     val addToPlaylistAction = playlistActions.playlistAction(NaviampAction.AddPlaylistToPlaylist)
                     DetailActionIconButton(appColors, TransportIcons.Play, "Play playlist", tracks.isNotEmpty(), onPlayPlaylist)
-                    DetailActionIconButton(appColors, TransportIcons.Shuffle, "Shuffle playlist", tracks.size > 1, onShufflePlaylist)
+                    DetailActionIconButton(appColors, TransportIcons.Repeat, "Play playlist in random order", tracks.size > 1, onShufflePlaylist)
                     DetailActionIconButton(appColors, renameAction.icon, renameAction.label, renameAction.enabled, onRenamePlaylist)
                     DetailActionIconButton(appColors, deleteAction.icon, deleteAction.label, deleteAction.enabled, onDeletePlaylist)
                     DetailActionIconButton(appColors, downloadAction.icon, downloadAction.label, downloadAction.enabled, onDownloadPlaylist)

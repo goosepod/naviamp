@@ -51,6 +51,11 @@ data class QueueAppendPlan(
     val status: String,
 )
 
+data class PendingPlaybackAction(
+    val key: String,
+    val status: String,
+)
+
 fun homePlaylists(
     playlists: List<Playlist>,
     recentPlaylistIds: List<String>,
@@ -141,6 +146,28 @@ fun playlistPlaybackTracks(
     shuffle: Boolean,
 ): List<Track> =
     if (shuffle) tracks.shuffled() else tracks
+
+fun playlistPlaybackAction(
+    playlist: Playlist,
+    shuffle: Boolean,
+): PendingPlaybackAction =
+    PendingPlaybackAction(
+        key = "playlist:${playlist.id}:${if (shuffle) "shuffle" else "play"}",
+        status = if (shuffle) {
+            "Starting ${playlist.name} in random order..."
+        } else {
+            "Loading ${playlist.name}..."
+        },
+    )
+
+fun shouldStartPlaybackAction(pending: PendingPlaybackAction?): Boolean =
+    pending == null
+
+fun clearPendingPlaybackAction(
+    pending: PendingPlaybackAction?,
+    completed: PendingPlaybackAction,
+): PendingPlaybackAction? =
+    pending?.takeUnless { it.key == completed.key }
 
 fun selectedPlaylistTracksForPlayback(
     selectedPlaylist: Playlist?,

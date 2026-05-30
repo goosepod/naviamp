@@ -7,13 +7,16 @@ import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.addToPlaylistMutationUpdate
+import app.naviamp.domain.provider.clearPendingPlaybackAction
 import app.naviamp.domain.provider.homePlaylists
 import app.naviamp.domain.provider.normalizedPlaylistName
+import app.naviamp.domain.provider.PendingPlaybackAction
 import app.naviamp.domain.provider.playlistDeleteErrorMessage
 import app.naviamp.domain.provider.playlistDeleteLoadingStatus
 import app.naviamp.domain.provider.playlistDeleteStateUpdate
 import app.naviamp.domain.provider.playlistDeletedStatus
 import app.naviamp.domain.provider.playlistDetailsStateUpdate
+import app.naviamp.domain.provider.playlistPlaybackAction
 import app.naviamp.domain.provider.playlistPlaybackTracks
 import app.naviamp.domain.provider.playlistRenameErrorMessage
 import app.naviamp.domain.provider.playlistRenameLoadingStatus
@@ -23,6 +26,7 @@ import app.naviamp.domain.provider.queueAppendPlan
 import app.naviamp.domain.provider.recentPlaylistIdsAfterPlayed
 import app.naviamp.domain.provider.refreshPlaylistDetails
 import app.naviamp.domain.provider.renamedSelectedPlaylist
+import app.naviamp.domain.provider.shouldStartPlaybackAction
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.desktop.playback.PlaylistCallbacks
@@ -55,6 +59,8 @@ class DesktopPlaylistsController(
     private val setSelectedPlaylist: (Playlist?) -> Unit,
     private val selectedPlaylistTracks: () -> List<Track>,
     private val setSelectedPlaylistTracks: (List<Track>) -> Unit,
+    private val pendingPlaybackAction: () -> PendingPlaybackAction?,
+    private val setPendingPlaybackAction: (PendingPlaybackAction?) -> Unit,
     private val setSelectedPlaylistStatus: (String?) -> Unit,
     private val setPlaylistStatus: (String?) -> Unit,
     private val setAddToPlaylistTarget: (AddToPlaylistTarget?) -> Unit,
@@ -168,7 +174,13 @@ class DesktopPlaylistsController(
 
     fun playPlaylist(playlist: Playlist, shuffle: Boolean = false) {
         val activeProvider = provider() ?: return
-        setConnectionStatus("Loading ${playlist.name}...")
+        val playbackAction = playlistPlaybackAction(playlist, shuffle)
+        if (!shouldStartPlaybackAction(pendingPlaybackAction())) {
+            pendingPlaybackAction()?.status?.let(setConnectionStatus)
+            return
+        }
+        setPendingPlaybackAction(playbackAction)
+        setConnectionStatus(playbackAction.status)
         scope.launch {
             try {
                 val loadedTracks = withContext(Dispatchers.IO) {
@@ -181,9 +193,12 @@ class DesktopPlaylistsController(
                     return@launch
                 }
                 setConnectionStatus(null)
+                setPendingPlaybackAction(clearPendingPlaybackAction(pendingPlaybackAction(), playbackAction))
                 playTracks(playlist, activeProvider, tracks, index = 0)
             } catch (exception: Exception) {
                 setConnectionStatus(exception.message ?: "Could not play ${playlist.name}.")
+            } finally {
+                setPendingPlaybackAction(clearPendingPlaybackAction(pendingPlaybackAction(), playbackAction))
             }
         }
     }
@@ -206,14 +221,23 @@ class DesktopPlaylistsController(
     fun playPlaylistDetails(index: Int = 0, shuffle: Boolean = false) {
         val activeProvider = provider() ?: return
         val playlist = selectedPlaylist() ?: return
+        val playbackAction = playlistPlaybackAction(playlist, shuffle)
+        if (!shouldStartPlaybackAction(pendingPlaybackAction())) {
+            pendingPlaybackAction()?.status?.let(setSelectedPlaylistStatus)
+            return
+        }
         val tracks = playlistPlaybackTracks(selectedPlaylistTracks(), shuffle)
         if (tracks.isEmpty()) return
+        setPendingPlaybackAction(playbackAction)
+        setSelectedPlaylistStatus(playbackAction.status)
         playTracks(
             playlist = playlist,
             activeProvider = activeProvider,
             tracks = tracks,
             index = index.coerceIn(tracks.indices),
         )
+        setSelectedPlaylistStatus(null)
+        setPendingPlaybackAction(clearPendingPlaybackAction(pendingPlaybackAction(), playbackAction))
     }
 
     fun renamePlaylist(playlist: Playlist, name: String) {

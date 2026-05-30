@@ -196,6 +196,20 @@ class PlaylistMutationsTest {
     }
 
     @Test
+    fun playlistPlaybackActionReportsLoadingAndSuppressesOverlappingStarts() {
+        val playlist = playlist("one", "Road Mix")
+        val play = playlistPlaybackAction(playlist, shuffle = false)
+        val shuffle = playlistPlaybackAction(playlist, shuffle = true)
+
+        assertEquals(PendingPlaybackAction("playlist:one:play", "Loading Road Mix..."), play)
+        assertEquals(PendingPlaybackAction("playlist:one:shuffle", "Starting Road Mix in random order..."), shuffle)
+        assertEquals(true, shouldStartPlaybackAction(null))
+        assertEquals(false, shouldStartPlaybackAction(play))
+        assertEquals(null, clearPendingPlaybackAction(play, play))
+        assertEquals(play, clearPendingPlaybackAction(play, shuffle))
+    }
+
+    @Test
     fun addToPlaylistMutationUpdateReportsNoTracks() {
         assertEquals(
             AddToPlaylistMutationUpdate(

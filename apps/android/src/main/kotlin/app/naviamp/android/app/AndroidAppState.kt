@@ -21,6 +21,7 @@ import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaSearchResults
+import app.naviamp.domain.provider.PendingPlaybackAction
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
@@ -122,6 +123,7 @@ class AndroidAppState(
     var lyricsByTrackId by mutableStateOf<Map<String, Lyrics?>>(emptyMap())
     var lyricsStatusByTrackId by mutableStateOf<Map<String, String?>>(emptyMap())
     var playlistActionStatus by mutableStateOf<String?>(null)
+    var pendingPlaybackAction by mutableStateOf<PendingPlaybackAction?>(null)
     var audioPrefetchJob by mutableStateOf<Job?>(null)
     var sidecarPrepJob by mutableStateOf<Job?>(null)
     var lastPlaybackSessionSaveAtMillis by mutableStateOf(0L)

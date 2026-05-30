@@ -147,11 +147,12 @@ Branch: `codex/desktop-main-reduction`
 - [x] Share playback-settings change planning.
   - engine capability normalization and lyrics-sidecar reload decisions now live in common settings helpers
   - desktop and Android keep their own persistence and lyrics reload/cache invalidation wiring
-- [ ] Add shared feedback for long-running playback actions.
+- [x] Add shared feedback for long-running playback actions.
   - Repro observed on Android playlists: tapping play on a playlist with slow track loading showed no feedback, repeated taps queued repeated work, and playback began multiple times once the first playlist load completed.
   - Desktop should get the same behavior, not a separate local fix.
-  - Shared-code target: a common playback/playlist action pending model or plan for "loading playlist/album/radio before playback", including labels, duplicate-click suppression, completion/error clearing, and optional mini-player/loading overlay text.
-  - Platform adapters should only apply the shared pending state to Compose UI and platform playback start calls.
+  - Shared playlist pending action model now lives in `core/domain`, including status text, duplicate-click suppression, and completion clearing.
+  - Android and desktop playlist playback now show pending feedback and ignore stacked playlist-start taps while a previous start is still resolving.
+  - Playlist screens also expose a repeat-icon random-order start beside Play, sharing the same shuffled playlist path on both platforms.
 
 ## Shared-Code Watchlist
 
@@ -179,7 +180,7 @@ Branch: `codex/desktop-main-reduction`
 - Playlist detail refresh shaping, selected-playlist state updates, refresh cadence, and auto-refresh loop orchestration are shared through `core/domain`; platforms inject their selected route/state and provider refresh application.
 - Cache clear, library index clear, and database reset status text is shared through `core/domain`; storage deletion and platform UI reset wiring remain local.
 - Playback settings normalization and lyrics-sidecar reload decisions are shared through `core/domain`; platforms keep settings persistence and UI/cache invalidation wiring.
-- Playlist/album/radio play actions still need shared pending/loading feedback so slow provider calls acknowledge the tap, suppress duplicate starts, and behave consistently on desktop and Android.
+- Playlist playback pending/loading feedback is shared through `core/domain` and applied on desktop and Android; album/radio can reuse the same pending-action model if those slow starts need visible feedback next.
 - Remaining connection startup still differs by platform because desktop owns BASS/JVM TLS defaults, `DesktopCache`, window route state, and playlist engine restoration, while Android owns foreground service/playback runtime, `AndroidStorage`, and activity navigation state.
 - Before extracting each helper from `DesktopNaviampApp.kt`, compare Android equivalents and move pure request/status/state-transition rules into `core/domain`, `core/ui`, or `providers/navidrome` instead of creating a new desktop-only duplicate.
 
@@ -193,6 +194,9 @@ Branch: `codex/desktop-main-reduction`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :providers:navidrome:allTests :apps:desktop:desktopTest :apps:android:assembleDebug`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop`
+- [x] `.\gradlew.bat :core:domain:allTests`
+- [x] `.\gradlew.bat :apps:android:compileDebugKotlin`
+- [x] `.\gradlew.bat :apps:desktop:compileKotlinDesktop "-Pnaviamp.bass.platform=windows-x64"`
 - [x] `.\gradlew.bat :core:domain:allTests`
 - [x] `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`
 - [x] `.\gradlew.bat :apps:android:assembleDebug`

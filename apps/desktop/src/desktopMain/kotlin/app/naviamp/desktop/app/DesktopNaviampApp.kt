@@ -70,6 +70,7 @@ import app.naviamp.domain.playback.shouldIgnoreProgressForPendingSeek
 import app.naviamp.domain.playback.shouldReportNowPlaying
 import app.naviamp.domain.playback.shouldUpdatePlaybackProgressUi
 import app.naviamp.domain.home.HomeContent
+import app.naviamp.domain.provider.PendingPlaybackAction
 import app.naviamp.domain.popular.ArtistPopularTracksService
 import app.naviamp.domain.popular.DeezerPopularTracksClient
 import app.naviamp.domain.popular.SimilarArtistMatch
@@ -237,6 +238,7 @@ fun NaviampApp(
     var homeStatus by remember { mutableStateOf<String?>(null) }
     var playlists by remember { mutableStateOf<List<Playlist>>(emptyList()) }
     var playlistStatus by remember { mutableStateOf<String?>(null) }
+    var pendingPlaybackAction by remember { mutableStateOf<PendingPlaybackAction?>(null) }
     var playlistSortMode by remember { mutableStateOf(PlaylistSortMode.Alphabetical) }
     var recentPlaylistIds by remember { mutableStateOf(savedRecentPlaylistIds) }
     var selectedPlaylist by remember { mutableStateOf<Playlist?>(null) }
@@ -872,6 +874,8 @@ fun NaviampApp(
         setSelectedPlaylist = { playlist -> selectedPlaylist = playlist },
         selectedPlaylistTracks = { selectedPlaylistTracks },
         setSelectedPlaylistTracks = { tracks -> selectedPlaylistTracks = tracks },
+        pendingPlaybackAction = { pendingPlaybackAction },
+        setPendingPlaybackAction = { action -> pendingPlaybackAction = action },
         setSelectedPlaylistStatus = { status -> selectedPlaylistStatus = status },
         setPlaylistStatus = { status -> playlistStatus = status },
         setAddToPlaylistTarget = { target -> addToPlaylistTarget = target },
