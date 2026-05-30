@@ -12,6 +12,7 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import io.ktor.utils.io.readAvailable
+import kotlinx.coroutines.CancellationException
 
 class KtorNavidromeHttpClient(
     private val client: HttpClient = createDefaultNavidromeKtorClient(NavidromeTlsSettings()),
@@ -70,6 +71,7 @@ class KtorNavidromeHttpClient(
                 )
             }
         }.getOrElse { error ->
+            if (error is CancellationException) throw error
             recordApiCall(
                 method = method.value,
                 url = url,
@@ -128,6 +130,7 @@ class KtorNavidromeHttpClient(
                 )
             }
         }.getOrElse { error ->
+            if (error is CancellationException) throw error
             recordApiCall(
                 method = HttpMethod.Get.value,
                 url = url,
@@ -180,6 +183,7 @@ class KtorNavidromeHttpClient(
             )
             true
         }.getOrElse { error ->
+            if (error is CancellationException) throw error
             recordApiCall(
                 method = HttpMethod.Get.value,
                 url = url,

@@ -44,6 +44,7 @@ import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.resolvedDisplayName
 import app.naviamp.storage.NaviampStorageDatabase
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -82,7 +83,7 @@ class DesktopCache(
     override suspend fun imageBytes(url: String): ByteArray {
         hotImage(url)?.let { return it }
 
-        return withContext(Dispatchers.IO) {
+        return withContext(Dispatchers.IO + NonCancellable) {
             val now = nowMillis()
             queries.selectImage(url).executeAsOneOrNull()?.let { bytes ->
                 queries.touchImage(now, url)

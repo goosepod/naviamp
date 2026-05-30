@@ -27,6 +27,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import app.naviamp.domain.network.KtorSharedHttpClient
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.security.MessageDigest
@@ -165,12 +166,14 @@ private object AndroidCoverArtCache {
             runCatching { cacheFile.delete() }
         }
 
-        return androidPlatformCoverArtBytes(url)?.takeIf(::isDecodableImage)?.also { bytes ->
-            runCatching {
-                cacheFile.parentFile?.mkdirs()
-                cacheFile.writeBytes(bytes)
+        return withContext(Dispatchers.IO + NonCancellable) {
+            androidPlatformCoverArtBytes(url)?.takeIf(::isDecodableImage)?.also { bytes ->
+                runCatching {
+                    cacheFile.parentFile?.mkdirs()
+                    cacheFile.writeBytes(bytes)
+                }
+                putHot(url, bytes)
             }
-            putHot(url, bytes)
         }
     }
 
