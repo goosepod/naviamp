@@ -41,6 +41,10 @@ Branch: `codex/desktop-main-reduction`
   - `MainActivity.kt` now delegates `playTrack` to `playAndroidTrack`, while the adapter applies the shared start and track-start plans.
   - `MainActivity.kt`: 2,274 -> 2,181 lines.
   - Verification: `.\gradlew.bat :apps:android:assembleDebug`.
+- [x] Added a shared track-start effects plan used by Android and desktop.
+  - `planPlaybackTrackStartEffects` now describes cross-platform follow-up effects for session saving, radio refill, related tracks, prefetch, sidecars, notification metadata, media id, start position, and finished-track adjacency.
+  - Android and desktop remain platform executors for the plan.
+  - Verification: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:assembleDebug`, `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 ## Goals
 

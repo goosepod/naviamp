@@ -33,6 +33,44 @@ data class PlaybackTrackStartedPlan(
     val shouldLoadLyrics: Boolean,
 )
 
+data class PlaybackTrackStartEffectsPlan(
+    val presentation: PlaybackTrackStartedPlan,
+    val clearRadioContinuation: Boolean,
+    val savePlaybackSession: Boolean,
+    val refillRadioQueue: Boolean,
+    val loadRelatedTracks: Boolean,
+    val startAudioPrefetch: Boolean,
+    val startSidecarPrep: Boolean,
+    val updateNotificationMetadata: Boolean,
+    val notificationTitle: String?,
+    val notificationSubtitle: String?,
+    val engineMediaId: String?,
+    val engineStartPositionSeconds: Double?,
+    val finishedAdjacentOffset: Int?,
+)
+
+fun planPlaybackTrackStartEffects(
+    track: Track,
+    presentation: PlaybackTrackStartedPlan,
+    startPlan: PlaybackStartPlan? = null,
+    keepRadioQueueActive: Boolean,
+): PlaybackTrackStartEffectsPlan =
+    PlaybackTrackStartEffectsPlan(
+        presentation = presentation,
+        clearRadioContinuation = !keepRadioQueueActive,
+        savePlaybackSession = true,
+        refillRadioQueue = true,
+        loadRelatedTracks = true,
+        startAudioPrefetch = true,
+        startSidecarPrep = true,
+        updateNotificationMetadata = true,
+        notificationTitle = track.title,
+        notificationSubtitle = track.artistName,
+        engineMediaId = track.id.value,
+        engineStartPositionSeconds = startPlan?.target?.engineStartPositionSeconds,
+        finishedAdjacentOffset = 1,
+    )
+
 fun planPlaybackTrackStarted(
     previousTrack: Track?,
     track: Track,

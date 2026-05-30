@@ -154,6 +154,68 @@ class PlaybackTargetPlanTest {
         assertEquals(false, plan.shouldLoadLyrics)
     }
 
+    @Test
+    fun trackStartEffectsPlanKeepsPlatformWorkAsExplicitEffects() {
+        val target = track("one")
+        val startPlan = planPlaybackStart(
+            track = target,
+            requestedQueue = null,
+            activeQueue = emptyList(),
+            quality = StreamQuality.Original,
+            startPositionSeconds = 42.0,
+            hasLocalAudio = false,
+        )
+        val presentation = planPlaybackTrackStarted(
+            previousTrack = null,
+            track = target,
+            openNowPlaying = true,
+            nowPlayingOpen = false,
+            lyricsVisible = true,
+            supportsTrackFavorites = true,
+        )
+        val effects = planPlaybackTrackStartEffects(
+            track = target,
+            presentation = presentation,
+            startPlan = startPlan,
+            keepRadioQueueActive = false,
+        )
+
+        assertEquals(presentation, effects.presentation)
+        assertEquals(true, effects.clearRadioContinuation)
+        assertEquals(true, effects.savePlaybackSession)
+        assertEquals(true, effects.refillRadioQueue)
+        assertEquals(true, effects.loadRelatedTracks)
+        assertEquals(true, effects.startAudioPrefetch)
+        assertEquals(true, effects.startSidecarPrep)
+        assertEquals(true, effects.updateNotificationMetadata)
+        assertEquals("Track one", effects.notificationTitle)
+        assertEquals("Artist", effects.notificationSubtitle)
+        assertEquals("one", effects.engineMediaId)
+        assertEquals(42.0, effects.engineStartPositionSeconds)
+        assertEquals(1, effects.finishedAdjacentOffset)
+    }
+
+    @Test
+    fun trackStartEffectsPlanCanPreserveRadioContinuation() {
+        val target = track("one")
+        val presentation = planPlaybackTrackStarted(
+            previousTrack = null,
+            track = target,
+            openNowPlaying = false,
+            nowPlayingOpen = false,
+            lyricsVisible = false,
+            supportsTrackFavorites = false,
+        )
+        val effects = planPlaybackTrackStartEffects(
+            track = target,
+            presentation = presentation,
+            keepRadioQueueActive = true,
+        )
+
+        assertEquals(false, effects.clearRadioContinuation)
+        assertEquals(null, effects.engineStartPositionSeconds)
+    }
+
     private fun track(id: String): Track =
         Track(
             id = TrackId(id),

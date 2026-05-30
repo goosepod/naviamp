@@ -14,6 +14,7 @@ import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.planPlaybackProgressUpdate
 import app.naviamp.domain.playback.planPlaybackStart
+import app.naviamp.domain.playback.planPlaybackTrackStartEffects
 import app.naviamp.domain.playback.planPlaybackTrackStarted
 import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.queue.PlaybackQueue
@@ -105,8 +106,14 @@ fun playAndroidTrack(
                     lyricsVisible = lyricsVisible,
                     supportsTrackFavorites = activeProvider.capabilities.supportsTrackFavorites,
                 )
-                if (trackStartedPlan.clearShuffleSnapshot) shuffledUpNextSnapshot = null
-                if (!keepRadioQueueActive) {
+                val effectsPlan = planPlaybackTrackStartEffects(
+                    track = track,
+                    presentation = trackStartedPlan,
+                    startPlan = startPlan,
+                    keepRadioQueueActive = keepRadioQueueActive,
+                )
+                if (effectsPlan.presentation.clearShuffleSnapshot) shuffledUpNextSnapshot = null
+                if (effectsPlan.clearRadioContinuation) {
                     radioQueueActive = false
                     radioRefilling = false
                     lastRadioRefillSeedId = null
@@ -131,43 +138,47 @@ fun playAndroidTrack(
                     AndroidPlaybackNotificationControls.durationMillis = track.durationSeconds?.toDouble()?.secondsToMillis()
                 }
                 nowPlaying = track
-                AndroidPlaybackNotificationControls.canFavorite = trackStartedPlan.canFavoriteTrack
-                AndroidPlaybackNotificationControls.isFavorite = trackStartedPlan.isFavoriteTrack
-                if (trackStartedPlan.clearInternetRadioNowPlaying) nowPlayingStation = null
-                if (trackStartedPlan.resetStreamMetadata) nowPlayingStreamMetadata = PlaybackStreamMetadata()
-                savePlaybackSessionThrottled(true)
-                if (trackStartedPlan.shouldOpenNowPlaying) {
+                AndroidPlaybackNotificationControls.canFavorite = effectsPlan.presentation.canFavoriteTrack
+                AndroidPlaybackNotificationControls.isFavorite = effectsPlan.presentation.isFavoriteTrack
+                if (effectsPlan.presentation.clearInternetRadioNowPlaying) nowPlayingStation = null
+                if (effectsPlan.presentation.resetStreamMetadata) nowPlayingStreamMetadata = PlaybackStreamMetadata()
+                if (effectsPlan.savePlaybackSession) savePlaybackSessionThrottled(true)
+                if (effectsPlan.presentation.shouldOpenNowPlaying) {
                     nowPlayingOpen = true
                 }
-                if (trackStartedPlan.shouldReportNowPlaying) reportNowPlaying(track)
-                refillAndroidRadioIfNeeded(
-                    scope = scope,
-                    state = state,
-                    queue = playbackQueue,
-                    queueController = playbackQueueController,
-                )
-                loadRelatedTracks(track)
-                if (trackStartedPlan.shouldLoadLyrics) loadLyrics(track)
-                startAudioPrefetch(sessionToken, activeProvider, playbackQueue)
-                startSidecarPrep(sessionToken, activeProvider, playbackQueue)
-                playbackEngine.updateNotificationMetadata(
-                    title = track.title,
-                    subtitle = track.artistName,
-                    coverArtUrl = track.coverArtUrl(activeProvider),
-                )
+                if (effectsPlan.presentation.shouldReportNowPlaying) reportNowPlaying(track)
+                if (effectsPlan.refillRadioQueue) {
+                    refillAndroidRadioIfNeeded(
+                        scope = scope,
+                        state = state,
+                        queue = playbackQueue,
+                        queueController = playbackQueueController,
+                    )
+                }
+                if (effectsPlan.loadRelatedTracks) loadRelatedTracks(track)
+                if (effectsPlan.presentation.shouldLoadLyrics) loadLyrics(track)
+                if (effectsPlan.startAudioPrefetch) startAudioPrefetch(sessionToken, activeProvider, playbackQueue)
+                if (effectsPlan.startSidecarPrep) startSidecarPrep(sessionToken, activeProvider, playbackQueue)
+                if (effectsPlan.updateNotificationMetadata) {
+                    playbackEngine.updateNotificationMetadata(
+                        title = effectsPlan.notificationTitle,
+                        subtitle = effectsPlan.notificationSubtitle,
+                        coverArtUrl = track.coverArtUrl(activeProvider),
+                    )
+                }
                 playbackEngine.play(
                     scope = scope,
                     request = PlaybackRequest(
                         url = streamUrl,
-                        mediaId = track.id.value,
+                        mediaId = effectsPlan.engineMediaId,
                         replayGainMode = playbackSettings.replayGainMode,
                         replayGain = track.replayGain?.let { PlaybackReplayGain(it, ReplayGainSource.Provider) },
-                        startPositionSeconds = startPlan.target.engineStartPositionSeconds,
+                        startPositionSeconds = effectsPlan.engineStartPositionSeconds,
                     ),
                     onStateChanged = { playbackState ->
                         state.playbackState = playbackState
                         when (playbackState) {
-                            PlaybackState.Finished -> playAdjacentTrack(1)
+                            PlaybackState.Finished -> effectsPlan.finishedAdjacentOffset?.let(playAdjacentTrack)
                             is PlaybackState.Error -> status = playbackState.message
                             else -> Unit
                         }
