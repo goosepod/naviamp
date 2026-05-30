@@ -19,6 +19,45 @@ data class PlaybackStartPlan(
     val shouldResetProgress: Boolean = restoredStartPositionSeconds == null
 }
 
+data class PlaybackTrackStartedPlan(
+    val trackChanged: Boolean,
+    val clearShuffleSnapshot: Boolean,
+    val clearInternetRadioNowPlaying: Boolean,
+    val resetStreamMetadata: Boolean,
+    val resetProgress: Boolean,
+    val resetSidecars: Boolean,
+    val shouldOpenNowPlaying: Boolean,
+    val shouldReportNowPlaying: Boolean,
+    val canFavoriteTrack: Boolean,
+    val isFavoriteTrack: Boolean,
+    val shouldLoadLyrics: Boolean,
+)
+
+fun planPlaybackTrackStarted(
+    previousTrack: Track?,
+    track: Track,
+    openNowPlaying: Boolean,
+    nowPlayingOpen: Boolean,
+    lyricsVisible: Boolean,
+    supportsTrackFavorites: Boolean,
+): PlaybackTrackStartedPlan {
+    val trackChanged = previousTrack?.id != track.id
+    val nextNowPlayingOpen = nowPlayingOpen || openNowPlaying
+    return PlaybackTrackStartedPlan(
+        trackChanged = trackChanged,
+        clearShuffleSnapshot = trackChanged,
+        clearInternetRadioNowPlaying = true,
+        resetStreamMetadata = true,
+        resetProgress = true,
+        resetSidecars = trackChanged,
+        shouldOpenNowPlaying = openNowPlaying,
+        shouldReportNowPlaying = true,
+        canFavoriteTrack = supportsTrackFavorites,
+        isFavoriteTrack = track.favoritedAtIso8601 != null,
+        shouldLoadLyrics = lyricsVisible && nextNowPlayingOpen,
+    )
+}
+
 fun planPlaybackStart(
     track: Track,
     requestedQueue: List<Track>?,

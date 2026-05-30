@@ -113,6 +113,7 @@ import app.naviamp.domain.playback.PlaybackAdjacentAction
 import app.naviamp.domain.playback.planPlaybackAdjacentAction
 import app.naviamp.domain.playback.planPlaybackSeek
 import app.naviamp.domain.playback.planPlaybackStart
+import app.naviamp.domain.playback.planPlaybackTrackStarted
 import app.naviamp.domain.playback.canReportPlaybackTrack
 import app.naviamp.domain.playback.shouldSubmitPlayReport
 import app.naviamp.domain.playback.SidecarTypeLyrics
@@ -879,7 +880,15 @@ private fun NaviampAndroidApp(
                     index = startPlan.queueIndex,
                 )
                 playbackQueue = playbackQueueController.queue
-                shuffledUpNextSnapshot = null
+                val trackStartedPlan = planPlaybackTrackStarted(
+                    previousTrack = nowPlaying,
+                    track = track,
+                    openNowPlaying = openNowPlaying,
+                    nowPlayingOpen = nowPlayingOpen,
+                    lyricsVisible = lyricsVisible,
+                    supportsTrackFavorites = activeProvider.capabilities.supportsTrackFavorites,
+                )
+                if (trackStartedPlan.clearShuffleSnapshot) shuffledUpNextSnapshot = null
                 if (!keepRadioQueueActive) {
                     radioQueueActive = false
                     radioRefilling = false
@@ -905,16 +914,15 @@ private fun NaviampAndroidApp(
                     AndroidPlaybackNotificationControls.durationMillis = track.durationSeconds?.toDouble()?.secondsToMillis()
                 }
                 nowPlaying = track
-                AndroidPlaybackNotificationControls.canFavorite =
-                    activeProvider.capabilities.supportsTrackFavorites
-                AndroidPlaybackNotificationControls.isFavorite = track.favoritedAtIso8601 != null
-                nowPlayingStation = null
-                nowPlayingStreamMetadata = PlaybackStreamMetadata()
+                AndroidPlaybackNotificationControls.canFavorite = trackStartedPlan.canFavoriteTrack
+                AndroidPlaybackNotificationControls.isFavorite = trackStartedPlan.isFavoriteTrack
+                if (trackStartedPlan.clearInternetRadioNowPlaying) nowPlayingStation = null
+                if (trackStartedPlan.resetStreamMetadata) nowPlayingStreamMetadata = PlaybackStreamMetadata()
                 savePlaybackSessionThrottled(force = true)
-                if (openNowPlaying) {
+                if (trackStartedPlan.shouldOpenNowPlaying) {
                     nowPlayingOpen = true
                 }
-                reportNowPlaying(track)
+                if (trackStartedPlan.shouldReportNowPlaying) reportNowPlaying(track)
                 refillAndroidRadioIfNeeded(
                     scope = scope,
                     state = appState,
@@ -922,7 +930,7 @@ private fun NaviampAndroidApp(
                     queueController = playbackQueueController,
                 )
                 loadRelatedTracks(track)
-                if (lyricsVisible && nowPlayingOpen) loadLyrics(track)
+                if (trackStartedPlan.shouldLoadLyrics) loadLyrics(track)
                 startAudioPrefetch(sessionToken, activeProvider, playbackQueue)
                 startSidecarPrep(sessionToken, activeProvider, playbackQueue)
                 playbackEngine.updateNotificationMetadata(

@@ -63,6 +63,7 @@ import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.PlaylistEngine
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.playback.mergeWith
+import app.naviamp.domain.playback.planPlaybackTrackStarted
 import app.naviamp.domain.playback.shouldClearPendingSeek
 import app.naviamp.domain.playback.shouldIgnoreProgressForPendingSeek
 import app.naviamp.domain.playback.shouldReportNowPlaying
@@ -707,18 +708,25 @@ fun NaviampApp(
 
     val playlistCallbacks = PlaylistCallbacks(
         onTrackStarted = { track, coverArtUrl ->
-            val trackChanged = nowPlayingTrack?.id != track.id
-            if (trackChanged) {
+            val trackStartedPlan = planPlaybackTrackStarted(
+                previousTrack = nowPlayingTrack,
+                track = track,
+                openNowPlaying = openPlayerOnTrackStart,
+                nowPlayingOpen = appRoute == AppRoute.Player,
+                lyricsVisible = false,
+                supportsTrackFavorites = connectedProvider?.capabilities?.supportsTrackFavorites == true,
+            )
+            if (trackStartedPlan.clearShuffleSnapshot) {
                 clearShuffleSnapshot()
             }
-            nowPlayingInternetRadioStation = null
-            nowPlayingStreamMetadata = PlaybackStreamMetadata()
+            if (trackStartedPlan.clearInternetRadioNowPlaying) nowPlayingInternetRadioStation = null
+            if (trackStartedPlan.resetStreamMetadata) nowPlayingStreamMetadata = PlaybackStreamMetadata()
             nowPlayingTrack = track
             nowPlayingCoverArtUrl = coverArtUrl
             playReportSessionId += 1
             submittedPlayReportSessionId = null
-            reportNowPlaying(track)
-            if (trackChanged) {
+            if (trackStartedPlan.shouldReportNowPlaying) reportNowPlaying(track)
+            if (trackStartedPlan.resetSidecars) {
                 nowPlayingWaveform = null
                 nowPlayingWaveformStatus = "Waiting"
                 nowPlayingAudioTags = null
@@ -726,9 +734,9 @@ fun NaviampApp(
                 nowPlayingLyricsStatus = null
                 nowPlayingWaveformReloadToken += 1
             }
-            playbackProgress = PlaybackProgress.Unknown
+            if (trackStartedPlan.resetProgress) playbackProgress = PlaybackProgress.Unknown
             refillRadioIfNeeded(playlistEngine.queue)
-            if (openPlayerOnTrackStart) {
+            if (trackStartedPlan.shouldOpenNowPlaying) {
                 appRoute = AppRoute.Player
             }
         },

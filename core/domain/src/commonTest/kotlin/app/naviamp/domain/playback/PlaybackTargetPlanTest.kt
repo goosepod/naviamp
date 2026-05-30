@@ -109,6 +109,51 @@ class PlaybackTargetPlanTest {
         assertEquals(false, plan.shouldResetProgress)
     }
 
+    @Test
+    fun trackStartedPlanResetsChangedTrackStateAndOpensRequestedNowPlaying() {
+        val plan = planPlaybackTrackStarted(
+            previousTrack = track("one"),
+            track = track("two", favorited = true),
+            openNowPlaying = true,
+            nowPlayingOpen = false,
+            lyricsVisible = true,
+            supportsTrackFavorites = true,
+        )
+
+        assertEquals(true, plan.trackChanged)
+        assertEquals(true, plan.clearShuffleSnapshot)
+        assertEquals(true, plan.clearInternetRadioNowPlaying)
+        assertEquals(true, plan.resetStreamMetadata)
+        assertEquals(true, plan.resetProgress)
+        assertEquals(true, plan.resetSidecars)
+        assertEquals(true, plan.shouldOpenNowPlaying)
+        assertEquals(true, plan.shouldReportNowPlaying)
+        assertEquals(true, plan.canFavoriteTrack)
+        assertEquals(true, plan.isFavoriteTrack)
+        assertEquals(true, plan.shouldLoadLyrics)
+    }
+
+    @Test
+    fun trackStartedPlanKeepsSameTrackSidecarsAndSkipsHiddenLyrics() {
+        val currentTrack = track("one")
+        val plan = planPlaybackTrackStarted(
+            previousTrack = currentTrack,
+            track = currentTrack,
+            openNowPlaying = false,
+            nowPlayingOpen = false,
+            lyricsVisible = true,
+            supportsTrackFavorites = false,
+        )
+
+        assertEquals(false, plan.trackChanged)
+        assertEquals(false, plan.clearShuffleSnapshot)
+        assertEquals(false, plan.resetSidecars)
+        assertEquals(false, plan.shouldOpenNowPlaying)
+        assertEquals(false, plan.canFavoriteTrack)
+        assertEquals(false, plan.isFavoriteTrack)
+        assertEquals(false, plan.shouldLoadLyrics)
+    }
+
     private fun track(id: String): Track =
         Track(
             id = TrackId(id),
@@ -119,5 +164,19 @@ class PlaybackTargetPlanTest {
             coverArtId = null,
             audioInfo = null,
             replayGain = null,
+            favoritedAtIso8601 = null,
+        )
+
+    private fun track(id: String, favorited: Boolean): Track =
+        Track(
+            id = TrackId(id),
+            title = "Track $id",
+            artistName = "Artist",
+            albumTitle = "Album",
+            durationSeconds = 180,
+            coverArtId = null,
+            audioInfo = null,
+            replayGain = null,
+            favoritedAtIso8601 = if (favorited) "2026-05-30T00:00:00Z" else null,
         )
 }

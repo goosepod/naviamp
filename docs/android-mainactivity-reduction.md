@@ -33,6 +33,10 @@ Branch: `codex/desktop-main-reduction`
 - [x] Expanded the shared seek plan with post-seek application fields used by Android and desktop.
   - Android and desktop now use shared pending-seek position and restored-start clearing guidance when applying seeks.
   - Verification: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:assembleDebug`, `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
+- [x] Moved track-start presentation decisions into shared domain via `planPlaybackTrackStarted`.
+  - Android and desktop now share decisions for changed-track sidecars, stream metadata reset, live-radio now-playing cleanup, player opening, play reporting, favorite state, and lyrics loading.
+  - `MainActivity.kt`: 2,264 -> 2,274 lines while the shared plan is introduced; the later Android playback adapter extraction should reclaim this wiring.
+  - Verification: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:assembleDebug`, `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 ## Goals
 
