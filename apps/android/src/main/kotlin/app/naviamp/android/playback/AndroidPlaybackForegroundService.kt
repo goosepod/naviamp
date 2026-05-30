@@ -28,6 +28,7 @@ import app.naviamp.android.AndroidStorage
 import app.naviamp.android.AndroidSettingsStore
 import app.naviamp.android.R
 import app.naviamp.android.MainActivity
+import app.naviamp.android.resolveInternetRadioStreamUrl
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Artist
@@ -62,7 +63,6 @@ import app.naviamp.provider.navidrome.toNavidromeConnection
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.concurrent.thread
 
@@ -2143,92 +2143,3 @@ private fun AndroidStorage.savedCoverArtUrl(album: Album): String? {
     val connection = latestNavidromeSource()?.toNavidromeConnection() ?: return null
     return NavidromeProvider(connection).coverArtUrl(coverArtId)
 }
-
-private suspend fun resolveInternetRadioStreamUrl(stationUrl: String): String =
-    withContext(Dispatchers.IO) {
-        val connection = (URL(stationUrl).openConnection() as HttpURLConnection).apply {
-            instanceFollowRedirects = true
-            connectTimeout = 10_000
-            readTimeout = 10_000
-            setRequestProperty("User-Agent", "Naviamp Android")
-            setRequestProperty("Icy-MetaData", "1")
-        }
-        val contentType = connection.contentType.orEmpty().lowercase()
-        val resolvedUrl = connection.url.toString()
-        if (!looksLikePlaylistUrl(resolvedUrl) &&
-            !contentType.isPlaylistContentType() &&
-            (contentType.startsWith("audio/") || contentType.contains("ogg"))
-        ) {
-            connection.disconnect()
-            return@withContext resolvedUrl
-        }
-
-        val body = connection.inputStream.bufferedReader().use { it.readText().take(128_000) }
-        connection.disconnect()
-
-        parseRadioPlaylist(body)
-            ?: if (looksLikeDirectAudioUrl(resolvedUrl)) resolvedUrl else stationUrl
-    }
-
-private fun parseRadioPlaylist(body: String): String? {
-    val lines = body.lineSequence()
-        .map { it.trim() }
-        .filter { it.isNotBlank() }
-        .toList()
-
-    lines.firstNotNullOfOrNull { line ->
-        val equalsIndex = line.indexOf('=')
-        if (equalsIndex > 0 && line.substring(0, equalsIndex).trim().lowercase().startsWith("file")) {
-            line.substring(equalsIndex + 1).trim().takeIf { it.startsWith("http", ignoreCase = true) }
-        } else {
-            null
-        }
-    }?.let { return it }
-
-    lines.firstOrNull { line ->
-        line.startsWith("http", ignoreCase = true) && !line.startsWith("#")
-    }?.let { return it }
-
-    Regex("<location>(.*?)</location>", RegexOption.IGNORE_CASE)
-        .find(body)
-        ?.groupValues
-        ?.getOrNull(1)
-        ?.trim()
-        ?.takeIf { it.startsWith("http", ignoreCase = true) }
-        ?.let { return it }
-
-    Regex("https?://[^\\s\"'<>]+", RegexOption.IGNORE_CASE)
-        .find(body)
-        ?.value
-        ?.let { return it }
-
-    return null
-}
-
-private fun looksLikeDirectAudioUrl(url: String): Boolean {
-    val normalized = url.substringBefore('?').lowercase()
-    return normalized.endsWith(".mp3") ||
-        normalized.endsWith(".ogg") ||
-        normalized.endsWith(".opus") ||
-        normalized.endsWith(".aac") ||
-        normalized.endsWith(".m4a") ||
-        normalized.endsWith(".flac")
-}
-
-private fun looksLikePlaylistUrl(url: String): Boolean {
-    val normalized = url.substringBefore('?').lowercase()
-    return normalized.endsWith(".pls") ||
-        normalized.endsWith(".m3u") ||
-        normalized.endsWith(".m3u8") ||
-        normalized.endsWith(".xspf") ||
-        normalized.endsWith(".asx")
-}
-
-private fun String.isPlaylistContentType(): Boolean =
-    contains("mpegurl") ||
-        contains("scpls") ||
-        contains("pls") ||
-        contains("xspf") ||
-        contains("asx") ||
-        contains("text/plain") ||
-        contains("xml")
