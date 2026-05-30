@@ -321,7 +321,14 @@ private fun NaviampAndroidApp(
                             .orEmpty()
                     }
                 indexedTracks.ifEmpty {
-                    provider?.tracksForArtist(artist.id, limit.coerceAtMost(AndroidPopularTrackFallbackLimit)).orEmpty()
+                    provider
+                        ?.tracksForArtist(artist.id, limit.coerceAtMost(AndroidPopularTrackFallbackLimit))
+                        .orEmpty()
+                        .also { fetchedTracks ->
+                            if (sourceId != null && fetchedTracks.isNotEmpty()) {
+                                storage.upsertLibraryTracks(sourceId, fetchedTracks)
+                            }
+                        }
                 }
             },
             client = deezerDiscoveryClient,
