@@ -118,10 +118,13 @@ Branch: `codex/desktop-main-reduction`
   - UI callbacks now call feature controllers directly where there is no local state adaptation
 - [x] Move Android generated-radio refill orchestration out of `MainActivity.kt`.
   - tail-refill application now lives in `AndroidRadioController`
+  - seeded track/album radio setup now passes the shared queue controller into the radio adapter
 - [x] Collapse duplicated lyrics/audio-tag logic into shared core.
   - shared audio tag parsing, embedded/tag lyrics extraction, ReplayGain tag extraction, LRCLIB response parsing, and LRCLIB diagnostics now live under `core/domain`
   - Android and desktop retain only platform file-probe and HTTP transport wrappers
-  - seeded track/album radio setup now passes the shared queue controller into the radio adapter
+- [x] Start moving shared HTTP callers to Ktor.
+  - LRCLIB and Deezer now use `KtorSharedHttpClient` from `core/domain`
+  - Navidrome remains on platform adapters until custom TLS and client certificate behavior can be migrated safely
 - [x] Extract desktop home-content orchestration from `DesktopNaviampApp.kt`.
   - async `HomeService` loading, home status, source id, recent radio inputs, and desktop cache repository wiring now live in `DesktopHomeController`
   - `HomeService` remains shared between platforms

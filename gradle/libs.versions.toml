@@ -6,6 +6,7 @@ activity-compose = "1.12.0"
 androidx-media = "1.7.0"
 kotlinx-coroutines = "1.10.2"
 kotlinx-serialization = "1.10.0"
+ktor = "3.5.0"
 jna = "5.17.0"
 sqldelight = "2.3.2"
 
@@ -16,6 +17,8 @@ androidx-media = { module = "androidx.media:media", version.ref = "androidx-medi
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
 jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
 sqldelight-sqlite-driver = { module = "app.cash.sqldelight:sqlite-driver", version.ref = "sqldelight" }
 sqldelight-android-driver = { module = "app.cash.sqldelight:android-driver", version.ref = "sqldelight" }

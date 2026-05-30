@@ -108,6 +108,7 @@ kotlin {
                 implementation(compose.components.resources)
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.serialization.json)
+                implementation(libs.ktor.client.cio)
                 implementation(libs.jna)
                 implementation(libs.sqldelight.sqlite.driver)
             }

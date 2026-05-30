@@ -64,5 +64,6 @@ dependencies {
     implementation("org.jetbrains.compose.ui:ui:$composeVersion")
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.ktor.client.cio)
     implementation(libs.sqldelight.android.driver)
 }

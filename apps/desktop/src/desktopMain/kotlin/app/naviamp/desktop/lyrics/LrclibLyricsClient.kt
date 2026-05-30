@@ -1,18 +1,21 @@
 package app.naviamp.desktop
 
+import app.naviamp.domain.network.KtorSharedHttpClient
+import app.naviamp.domain.network.SharedHttpCall
 import app.naviamp.domain.lyrics.LrclibLyricsProvider
 import app.naviamp.domain.lyrics.LrclibApiCall
 import app.naviamp.domain.lyrics.LrclibApiCallHistory
 import app.naviamp.domain.lyrics.lrclibApiCall
-import java.net.http.HttpClient
 
 class LrclibLyricsClient(
-    httpClient: HttpClient = HttpClient.newHttpClient(),
     baseUrl: String = "https://lrclib.net",
 ) : LrclibLyricsProvider(
-    DesktopSharedHttpClient(
-        httpClient = httpClient,
+    KtorSharedHttpClient(
         callRecorder = { call -> DesktopLrclibApiCallHistory.record(call.toLrclibCall()) },
+        defaultHeaders = mapOf(
+            "Accept" to "application/json",
+            "User-Agent" to "Naviamp/0.9.0 (https://github.com/jbmcmichael/Naviamp)",
+        ),
     ),
     baseUrl,
 )
@@ -30,7 +33,7 @@ object DesktopLrclibApiCallHistory {
         synchronized(history) { history.recent(limit) }
 }
 
-private fun DesktopSharedHttpCall.toLrclibCall(): DesktopLrclibApiCall =
+private fun SharedHttpCall.toLrclibCall(): DesktopLrclibApiCall =
     lrclibApiCall(
         url = url,
         startedAtEpochMillis = startedAtEpochMillis,

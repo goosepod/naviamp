@@ -1,64 +1,16 @@
 package app.naviamp.desktop
 
+import app.naviamp.domain.network.KtorSharedHttpClient
+import app.naviamp.domain.network.SharedHttpCall
 import app.naviamp.domain.network.SharedHttpClient
-import java.net.URI
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
 
-class DesktopPopularTracksHttpClient(
-    httpClient: HttpClient = HttpClient.newHttpClient(),
-) : SharedHttpClient by DesktopSharedHttpClient(
-    httpClient = httpClient,
+class DesktopPopularTracksHttpClient : SharedHttpClient by KtorSharedHttpClient(
     callRecorder = { call -> DesktopPopularTracksApiCallHistory.record(call.toPopularTracksCall()) },
+    defaultHeaders = mapOf(
+        "Accept" to "application/json",
+        "User-Agent" to "Naviamp/0.9.0 (https://github.com/jbmcmichael/Naviamp)",
+    ),
 )
-
-class DesktopSharedHttpClient(
-    private val httpClient: HttpClient = HttpClient.newHttpClient(),
-    private val callRecorder: ((DesktopSharedHttpCall) -> Unit)? = null,
-) : SharedHttpClient {
-    override suspend fun get(url: String, headers: Map<String, String>): String? {
-        val startedAt = System.currentTimeMillis()
-        val request = HttpRequest.newBuilder(URI.create(url)).apply {
-            val mergedHeaders = mapOf(
-                "Accept" to "application/json",
-                "User-Agent" to "Naviamp/0.9.0 (https://github.com/jbmcmichael/Naviamp)",
-            ) + headers
-            mergedHeaders.forEach { (name, value) -> header(name, value) }
-            GET()
-        }.build()
-        val responseResult = runCatching {
-            httpClient.send(request, HttpResponse.BodyHandlers.ofString())
-        }
-        val response = responseResult.getOrNull()
-        val errorMessage = responseResult.exceptionOrNull()?.message
-            ?: response?.statusCode()
-                ?.takeUnless { it in 200..299 }
-                ?.let { "HTTP $it." }
-        callRecorder?.invoke(
-            DesktopSharedHttpCall(
-                url = url,
-                startedAtEpochMillis = startedAt,
-                durationMillis = (System.currentTimeMillis() - startedAt).coerceAtLeast(0),
-                statusCode = response?.statusCode(),
-                errorMessage = errorMessage,
-            )
-        )
-        if (response == null || response.statusCode() !in 200..299) return null
-        return response.body()
-    }
-}
-
-data class DesktopSharedHttpCall(
-    val url: String,
-    val startedAtEpochMillis: Long,
-    val durationMillis: Long,
-    val statusCode: Int?,
-    val errorMessage: String?,
-) {
-    val success: Boolean
-        get() = statusCode != null && statusCode in 200..299
-}
 
 data class DesktopPopularTracksApiCall(
     val endpoint: String,
@@ -86,10 +38,10 @@ object DesktopPopularTracksApiCallHistory {
     fun recent(limit: Int = 50): List<DesktopPopularTracksApiCall> =
         synchronized(lock) {
             calls.takeLast(limit.coerceAtLeast(0)).asReversed()
-    }
+        }
 }
 
-private fun DesktopSharedHttpCall.toPopularTracksCall(): DesktopPopularTracksApiCall =
+private fun SharedHttpCall.toPopularTracksCall(): DesktopPopularTracksApiCall =
     DesktopPopularTracksApiCall(
         endpoint = url.deezerEndpointLabel(),
         sanitizedUrl = url.sanitizedDeezerUrl(),
@@ -100,7 +52,11 @@ private fun DesktopSharedHttpCall.toPopularTracksCall(): DesktopPopularTracksApi
     )
 
 private fun String.deezerEndpointLabel(): String {
-    val path = runCatching { URI.create(this).path }.getOrNull().orEmpty().trim('/')
+    val withoutQuery = substringBefore('?')
+    val path = withoutQuery
+        .substringAfter("://", withoutQuery)
+        .substringAfter('/', "")
+        .trim('/')
     return when {
         path == "search/artist" -> "search/artist"
         path.startsWith("artist/") && path.endsWith("/top") -> "artist/top"

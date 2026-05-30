@@ -1,5 +1,7 @@
 package app.naviamp.android
 
+import app.naviamp.domain.network.KtorSharedHttpClient
+import app.naviamp.domain.network.SharedHttpCall
 import app.naviamp.domain.lyrics.LrclibLyricsProvider
 import app.naviamp.domain.lyrics.LrclibApiCall
 import app.naviamp.domain.lyrics.LrclibApiCallHistory
@@ -8,7 +10,7 @@ import app.naviamp.domain.lyrics.lrclibApiCall
 class AndroidLrclibLyricsClient(
     baseUrl: String = "https://lrclib.net",
 ) : LrclibLyricsProvider(
-    AndroidSharedHttpClient(
+    KtorSharedHttpClient(
         callRecorder = { call -> AndroidLrclibApiCallHistory.record(call.toLrclibCall()) },
     ),
     baseUrl,
@@ -27,7 +29,7 @@ object AndroidLrclibApiCallHistory {
         synchronized(history) { history.recent(limit) }
 }
 
-private fun AndroidSharedHttpCall.toLrclibCall(): AndroidLrclibApiCall =
+private fun SharedHttpCall.toLrclibCall(): AndroidLrclibApiCall =
     lrclibApiCall(
         url = url,
         startedAtEpochMillis = startedAtEpochMillis,
