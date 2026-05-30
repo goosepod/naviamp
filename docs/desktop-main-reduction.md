@@ -113,6 +113,9 @@ Branch: `codex/desktop-main-reduction`
   - refill seeding now uses the last queued track instead of the current track
   - refill is skipped when repeat mode is enabled
   - Android now keeps generated track/album/artist radio queues active and refills near the queue tail like desktop
+- [x] Trim desktop app-composition wrapper functions.
+  - removed the first batch of one-line local delegates in `DesktopNaviampApp.kt`
+  - UI callbacks now call feature controllers directly where there is no local state adaptation
 - [x] Extract desktop home-content orchestration from `DesktopNaviampApp.kt`.
   - async `HomeService` loading, home status, source id, recent radio inputs, and desktop cache repository wiring now live in `DesktopHomeController`
   - `HomeService` remains shared between platforms
@@ -177,6 +180,7 @@ Branch: `codex/desktop-main-reduction`
 - [x] `.\gradlew.bat :core:domain:allTests`
 - [x] `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`
 - [x] `.\gradlew.bat :apps:android:assembleDebug`
+- [x] `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`
