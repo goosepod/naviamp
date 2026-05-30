@@ -92,6 +92,7 @@ Branch: `codex/desktop-main-reduction`
 - [ ] **Playlist orchestration controller**
   - Move playlist play/open/refresh/preload, selected-playlist detail state, playlist delete/rename/create/add flows, and smart-playlist callbacks out of `MainActivity.kt`.
   - Shared-code checks: playlist mutation planning, detail refresh shaping, recent-playlist cleanup, and queue append planning already belong in `core/domain`.
+  - Add cross-platform playback-action feedback while extracting this slice: slow playlist play should show a loading/pending indication, suppress repeated taps for the same pending action, and clear on playback start or error on both Android and desktop.
 
 - [ ] **Library and search orchestration cleanup**
   - Move remaining library query/snapshot/page-jump/search result loading state wiring out of `MainActivity.kt` if it is still inline after playback/media splits.
@@ -127,3 +128,4 @@ Branch: `codex/desktop-main-reduction`
 - `Main.kt` on desktop is currently small enough; the ongoing size problem is `DesktopNaviampApp.kt`, Android `MainActivity.kt`, and Android `AndroidPlaybackForegroundService.kt`.
 - `AndroidPlaybackForegroundService.kt` should be handled after `MainActivity.kt`, likely with separate service/runtime/media-session/Android Auto controllers.
 - The artist-selection feature idea remains parked in `docs/desktop-main-reduction.md` until the current size-reduction pass is stable enough for feature work.
+- Playlist play can silently queue duplicate starts if provider track loading is slow; solve as a shared pending/loading playback-action model, not as Android-only UI state.

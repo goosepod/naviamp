@@ -147,6 +147,11 @@ Branch: `codex/desktop-main-reduction`
 - [x] Share playback-settings change planning.
   - engine capability normalization and lyrics-sidecar reload decisions now live in common settings helpers
   - desktop and Android keep their own persistence and lyrics reload/cache invalidation wiring
+- [ ] Add shared feedback for long-running playback actions.
+  - Repro observed on Android playlists: tapping play on a playlist with slow track loading showed no feedback, repeated taps queued repeated work, and playback began multiple times once the first playlist load completed.
+  - Desktop should get the same behavior, not a separate local fix.
+  - Shared-code target: a common playback/playlist action pending model or plan for "loading playlist/album/radio before playback", including labels, duplicate-click suppression, completion/error clearing, and optional mini-player/loading overlay text.
+  - Platform adapters should only apply the shared pending state to Compose UI and platform playback start calls.
 
 ## Shared-Code Watchlist
 
@@ -174,6 +179,7 @@ Branch: `codex/desktop-main-reduction`
 - Playlist detail refresh shaping, selected-playlist state updates, refresh cadence, and auto-refresh loop orchestration are shared through `core/domain`; platforms inject their selected route/state and provider refresh application.
 - Cache clear, library index clear, and database reset status text is shared through `core/domain`; storage deletion and platform UI reset wiring remain local.
 - Playback settings normalization and lyrics-sidecar reload decisions are shared through `core/domain`; platforms keep settings persistence and UI/cache invalidation wiring.
+- Playlist/album/radio play actions still need shared pending/loading feedback so slow provider calls acknowledge the tap, suppress duplicate starts, and behave consistently on desktop and Android.
 - Remaining connection startup still differs by platform because desktop owns BASS/JVM TLS defaults, `DesktopCache`, window route state, and playlist engine restoration, while Android owns foreground service/playback runtime, `AndroidStorage`, and activity navigation state.
 - Before extracting each helper from `DesktopNaviampApp.kt`, compare Android equivalents and move pure request/status/state-transition rules into `core/domain`, `core/ui`, or `providers/navidrome` instead of creating a new desktop-only duplicate.
 
