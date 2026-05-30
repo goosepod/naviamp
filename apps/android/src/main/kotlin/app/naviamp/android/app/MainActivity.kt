@@ -112,8 +112,6 @@ import app.naviamp.domain.playback.label
 import app.naviamp.domain.playback.PlaybackAdjacentAction
 import app.naviamp.domain.playback.planPlaybackAdjacentAction
 import app.naviamp.domain.playback.planPlaybackSeek
-import app.naviamp.domain.playback.planPlaybackStart
-import app.naviamp.domain.playback.planPlaybackTrackStarted
 import app.naviamp.domain.playback.canReportPlaybackTrack
 import app.naviamp.domain.playback.shouldSubmitPlayReport
 import app.naviamp.domain.playback.SidecarTypeLyrics
@@ -849,119 +847,28 @@ private fun NaviampAndroidApp(
         startPositionSeconds: Double? = null,
         keepRadioQueueActive: Boolean = false,
     ) {
-        android.util.Log.i("NaviampBass", "playTrack requested id=${track.id.value} title=${track.title}")
-        val activeProvider = provider
-        if (activeProvider == null) {
-            status = "Connect before playing a track."
-            return
-        }
-        scope.launch {
-            status = "Loading ${track.title}..."
-            val streamQuality = currentStreamQuality()
-            val localAudioFile = activeSourceId?.let { sourceId ->
-                storage.downloadedAudioFile(sourceId, track.id, streamQuality)?.file
-                    ?: storage.cachedAudioFile(sourceId, track.id, streamQuality)?.file
-            }
-            val startPlan = planPlaybackStart(
-                track = track,
-                requestedQueue = queue,
-                activeQueue = activeQueue(),
-                quality = streamQuality,
-                startPositionSeconds = startPositionSeconds,
-                hasLocalAudio = localAudioFile != null,
-            )
-            runCatching {
-                localAudioFile?.toURI()?.toString()
-                    ?: activeProvider.streamUrl(startPlan.target.providerStreamRequest)
-            }.onSuccess { streamUrl ->
-                playbackEngine.applyTlsSettings(activeTlsSettings)
-                playbackQueueController.start(
-                    tracks = startPlan.queue,
-                    index = startPlan.queueIndex,
-                )
-                playbackQueue = playbackQueueController.queue
-                val trackStartedPlan = planPlaybackTrackStarted(
-                    previousTrack = nowPlaying,
-                    track = track,
-                    openNowPlaying = openNowPlaying,
-                    nowPlayingOpen = nowPlayingOpen,
-                    lyricsVisible = lyricsVisible,
-                    supportsTrackFavorites = activeProvider.capabilities.supportsTrackFavorites,
-                )
-                if (trackStartedPlan.clearShuffleSnapshot) shuffledUpNextSnapshot = null
-                if (!keepRadioQueueActive) {
-                    radioQueueActive = false
-                    radioRefilling = false
-                    lastRadioRefillSeedId = null
-                }
-                val sessionToken = beginAndroidPlaybackSession(
-                    state = appState,
-                    playbackQueueController = playbackQueueController,
-                    resetProgress = startPlan.shouldResetProgress,
-                )
-                startPlan.restoredStartPositionSeconds?.let { restoredPosition ->
-                    playbackProgress = startPlan.initialProgress ?: PlaybackProgress(
-                        positionSeconds = restoredPosition,
-                        durationSeconds = track.durationSeconds?.toDouble(),
-                    )
-                    pendingSeekPositionSeconds = restoredPosition
-                    pendingSeekIssuedAtMillis = System.currentTimeMillis()
-                    pendingRestoreStartPositionSeconds = restoredPosition
-                    AndroidPlaybackNotificationControls.positionMillis = restoredPosition.secondsToMillis()
-                    AndroidPlaybackNotificationControls.durationMillis = track.durationSeconds?.toDouble()?.secondsToMillis()
-                } ?: run {
-                    AndroidPlaybackNotificationControls.positionMillis = null
-                    AndroidPlaybackNotificationControls.durationMillis = track.durationSeconds?.toDouble()?.secondsToMillis()
-                }
-                nowPlaying = track
-                AndroidPlaybackNotificationControls.canFavorite = trackStartedPlan.canFavoriteTrack
-                AndroidPlaybackNotificationControls.isFavorite = trackStartedPlan.isFavoriteTrack
-                if (trackStartedPlan.clearInternetRadioNowPlaying) nowPlayingStation = null
-                if (trackStartedPlan.resetStreamMetadata) nowPlayingStreamMetadata = PlaybackStreamMetadata()
-                savePlaybackSessionThrottled(force = true)
-                if (trackStartedPlan.shouldOpenNowPlaying) {
-                    nowPlayingOpen = true
-                }
-                if (trackStartedPlan.shouldReportNowPlaying) reportNowPlaying(track)
-                refillAndroidRadioIfNeeded(
-                    scope = scope,
-                    state = appState,
-                    queue = playbackQueue,
-                    queueController = playbackQueueController,
-                )
-                loadRelatedTracks(track)
-                if (trackStartedPlan.shouldLoadLyrics) loadLyrics(track)
-                startAudioPrefetch(sessionToken, activeProvider, playbackQueue)
-                startSidecarPrep(sessionToken, activeProvider, playbackQueue)
-                playbackEngine.updateNotificationMetadata(
-                    title = track.title,
-                    subtitle = track.artistName,
-                    coverArtUrl = track.coverArtUrl(activeProvider),
-                )
-                playbackEngine.play(
-                    scope = scope,
-                    request = PlaybackRequest(
-                        url = streamUrl,
-                        mediaId = track.id.value,
-                        replayGainMode = playbackSettings.replayGainMode,
-                        replayGain = track.replayGain?.let { PlaybackReplayGain(it, ReplayGainSource.Provider) },
-                        startPositionSeconds = startPlan.target.engineStartPositionSeconds,
-                    ),
-                    onStateChanged = { state ->
-                        playbackState = state
-                        when (state) {
-                            PlaybackState.Finished -> playAdjacentTrackAction(1)
-                            is PlaybackState.Error -> status = state.message
-                            else -> Unit
-                        }
-                    },
-                    onProgressChanged = { progress -> handlePlaybackProgressChanged(sessionToken, progress) },
-                )
-                status = "Loading ${track.title}..."
-            }.onFailure { error ->
-                status = error.message ?: "Playback failed."
-            }
-        }
+        playAndroidTrack(
+            scope = scope,
+            state = appState,
+            storage = storage,
+            playbackEngine = playbackEngine,
+            playbackQueueController = playbackQueueController,
+            track = track,
+            queue = queue,
+            openNowPlaying = openNowPlaying,
+            startPositionSeconds = startPositionSeconds,
+            keepRadioQueueActive = keepRadioQueueActive,
+            activeQueue = ::activeQueue,
+            currentStreamQuality = ::currentStreamQuality,
+            savePlaybackSessionThrottled = ::savePlaybackSessionThrottled,
+            reportNowPlaying = ::reportNowPlaying,
+            loadRelatedTracks = ::loadRelatedTracks,
+            loadLyrics = ::loadLyrics,
+            startAudioPrefetch = ::startAudioPrefetch,
+            startSidecarPrep = ::startSidecarPrep,
+            handlePlaybackProgressChanged = ::handlePlaybackProgressChanged,
+            playAdjacentTrack = playAdjacentTrackAction,
+        )
     }
 
     fun playInternetRadioStation(station: InternetRadioStation) {

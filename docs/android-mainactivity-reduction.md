@@ -37,6 +37,10 @@ Branch: `codex/desktop-main-reduction`
   - Android and desktop now share decisions for changed-track sidecars, stream metadata reset, live-radio now-playing cleanup, player opening, play reporting, favorite state, and lyrics loading.
   - `MainActivity.kt`: 2,264 -> 2,274 lines while the shared plan is introduced; the later Android playback adapter extraction should reclaim this wiring.
   - Verification: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:assembleDebug`, `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
+- [x] Moved Android track playback orchestration into the Android playback adapter.
+  - `MainActivity.kt` now delegates `playTrack` to `playAndroidTrack`, while the adapter applies the shared start and track-start plans.
+  - `MainActivity.kt`: 2,274 -> 2,181 lines.
+  - Verification: `.\gradlew.bat :apps:android:assembleDebug`.
 
 ## Goals
 
