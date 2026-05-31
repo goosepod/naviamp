@@ -58,31 +58,9 @@ import app.naviamp.domain.provider.SearchSessionController
 import app.naviamp.domain.provider.allKnownTracks
 import app.naviamp.domain.provider.addToPlaylistMutationUpdate
 import app.naviamp.domain.provider.createPlaylistOrAddTracks
-import app.naviamp.domain.provider.clearPendingPlaybackAction
-import app.naviamp.domain.provider.normalizedPlaylistName
 import app.naviamp.domain.provider.playlistDetailAutoRefreshTarget
-import app.naviamp.domain.provider.playlistDeleteErrorMessage
-import app.naviamp.domain.provider.playlistDeleteLoadingStatus
-import app.naviamp.domain.provider.playlistDeleteStateUpdate
-import app.naviamp.domain.provider.playlistDeletedStatus
-import app.naviamp.domain.provider.playlistDetailsStateUpdate
-import app.naviamp.domain.provider.playlistPlaybackAction
-import app.naviamp.domain.provider.playlistPlaybackTracks
-import app.naviamp.domain.provider.playlistRenameErrorMessage
-import app.naviamp.domain.provider.playlistRenameLoadingStatus
-import app.naviamp.domain.provider.playlistRenamedStatus
-import app.naviamp.domain.provider.playlistsNeedingTrackPreload
-import app.naviamp.domain.provider.recentPlaylistIdsAfterPlayed
-import app.naviamp.domain.provider.renamedSelectedPlaylist
 import app.naviamp.domain.provider.runPlaylistDetailAutoRefresh
 import app.naviamp.domain.provider.queueAppendPlan
-import app.naviamp.domain.provider.refreshPlaylistDetails
-import app.naviamp.domain.provider.selectedPlaylistTracksForPlayback
-import app.naviamp.domain.provider.saveSmartPlaylistAndRefresh
-import app.naviamp.domain.provider.shouldStartPlaybackAction
-import app.naviamp.domain.provider.smartPlaylistSaveErrorMessage
-import app.naviamp.domain.provider.smartPlaylistSavedStatus
-import app.naviamp.domain.provider.smartPlaylistSavingStatus
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.home.HomeService
@@ -1283,34 +1261,6 @@ private fun NaviampAndroidApp(
         openAndroidExternalArtistUrl(context, appState, url)
     }
 
-    suspend fun refreshPlaylistDetailsFromServer(
-        activeProvider: NavidromeProvider,
-        playlist: Playlist,
-        showLoadingStatus: Boolean,
-    ) {
-        if (showLoadingStatus) status = "Loading ${playlist.name}..."
-        val refresh = withContext(Dispatchers.IO) { activeProvider.refreshPlaylistDetails(playlist) }
-        val update = playlistDetailsStateUpdate(
-            currentSelectedPlaylist = selectedPlaylist,
-            currentSelectedPlaylistTracks = selectedPlaylistTracks,
-            currentPlaylistTracksById = playlistTracksById,
-            refresh = refresh,
-            requestedPlaylistId = playlist.id,
-        )
-        homeState = homeState.copy(
-            playlists = update.playlists,
-        )
-        playlistTracksById = update.playlistTracksById
-        if (selectedPlaylist?.id == playlist.id) {
-            contentState = contentState.showPlaylist(
-                playlist = requireNotNull(update.selectedPlaylist),
-                tracks = update.selectedPlaylistTracks,
-            )
-            tracks = update.selectedPlaylistTracks
-            if (showLoadingStatus) status = "Connected."
-        }
-    }
-
     LaunchedEffect(provider, selectedPlaylist?.id) {
         val target = playlistDetailAutoRefreshTarget(
             provider = provider,
@@ -1322,7 +1272,8 @@ private fun NaviampAndroidApp(
                 delay(PlaylistDetailRefreshIntervalMillis)
             },
         ) { activeProvider, playlist ->
-            refreshPlaylistDetailsFromServer(
+            refreshAndroidPlaylistDetailsFromServer(
+                state = appState,
                 activeProvider = activeProvider,
                 playlist = playlist,
                 showLoadingStatus = false,
@@ -1331,173 +1282,31 @@ private fun NaviampAndroidApp(
     }
 
     fun openPlaylistDetails(playlist: Playlist) {
-        val activeProvider = provider ?: return
-        contentState = contentState.showPlaylist(playlist)
-        navigationState = navigationState.copy(route = NaviampRoute.Playlists)
-        nowPlayingOpen = false
-        recentPlaylistIds = recentPlaylistIdsAfterPlayed(recentPlaylistIds, playlist.id, limit = 20)
-        scope.launch {
-            status = "Loading ${playlist.name}..."
-            runCatching {
-                refreshPlaylistDetailsFromServer(
-                    activeProvider = activeProvider,
-                    playlist = playlist,
-                    showLoadingStatus = false,
-                )
-            }.onSuccess {
-                    status = "Connected."
-                }
-                .onFailure { error ->
-                    contentState = contentState.showPlaylist(playlist)
-                    status = error.message ?: "Playlist failed to load."
-                }
-        }
+        openAndroidPlaylistDetails(scope, appState, playlist)
     }
 
     fun playPlaylist(playlist: Playlist, shuffle: Boolean) {
-        val activeProvider = provider ?: return
-        val playbackAction = playlistPlaybackAction(playlist, shuffle)
-        if (!shouldStartPlaybackAction(pendingPlaybackAction)) {
-            playlistActionStatus = pendingPlaybackAction?.status
-            status = pendingPlaybackAction?.status ?: status
-            return
-        }
-        pendingPlaybackAction = playbackAction
-        playlistActionStatus = playbackAction.status
-        status = playbackAction.status
-        scope.launch {
-            try {
-                val loadedTracks = if (selectedPlaylist?.id == playlist.id && selectedPlaylistTracks.isNotEmpty()) {
-                    emptyList()
-                } else {
-                    runCatching { activeProvider.playlistTracks(playlist.id) }
-                        .onSuccess {
-                            playlistTracksById = playlistTracksById + (playlist.id to it)
-                            contentState = contentState.showPlaylist(playlist, it)
-                            tracks = it
-                        }
-                        .getOrElse { error ->
-                            status = error.message ?: "Could not play ${playlist.name}."
-                            return@launch
-                        }
-                }
-                val playlistTracks = selectedPlaylistTracksForPlayback(
-                    selectedPlaylist = selectedPlaylist,
-                    selectedPlaylistTracks = selectedPlaylistTracks,
-                    playlist = playlist,
-                    loadedTracks = loadedTracks,
-                )
-                val queue = playlistPlaybackTracks(playlistTracks, shuffle)
-                queue.firstOrNull()?.let { firstTrack ->
-                    recentPlaylistIds = recentPlaylistIdsAfterPlayed(recentPlaylistIds, playlist.id, limit = 20)
-                    playlistActionStatus = null
-                    playTrack(firstTrack, queue)
-                } ?: run {
-                    playlistActionStatus = null
-                    status = "Playlist is empty."
-                }
-            } finally {
-                pendingPlaybackAction = clearPendingPlaybackAction(pendingPlaybackAction, playbackAction)
-            }
-        }
+        playAndroidPlaylist(scope, appState, playlist, shuffle, ::playTrack)
     }
 
     fun renamePlaylist(playlist: Playlist, name: String) {
-        val activeProvider = provider ?: return
-        val requestedName = normalizedPlaylistName(name)
-        scope.launch {
-            status = playlistRenameLoadingStatus(playlist)
-            runCatching {
-                activeProvider.renamePlaylist(playlist.id, requestedName)
-                activeProvider.playlists(limit = 500)
-            }.onSuccess { playlists ->
-                homeState = homeState.copy(playlists = playlists)
-                selectedPlaylist?.let { current ->
-                    if (current.id == playlist.id) {
-                        contentState = contentState.copy(
-                            selectedPlaylist = renamedSelectedPlaylist(
-                                current = current,
-                                playlistId = playlist.id,
-                                requestedName = requestedName,
-                                refreshedPlaylists = playlists,
-                            ),
-                        )
-                    }
-                }
-                status = playlistRenamedStatus()
-            }.onFailure { error ->
-                status = playlistRenameErrorMessage(error)
-            }
-        }
+        renameAndroidPlaylist(scope, appState, playlist, name)
     }
 
     fun deletePlaylist(playlist: Playlist) {
-        val activeProvider = provider ?: return
-        scope.launch {
-            status = playlistDeleteLoadingStatus(playlist)
-            runCatching {
-                activeProvider.deletePlaylist(playlist.id)
-                activeProvider.playlists(limit = 500)
-            }.onSuccess { playlists ->
-                homeState = homeState.copy(playlists = playlists)
-                val update = playlistDeleteStateUpdate(
-                    currentSelectedPlaylist = selectedPlaylist,
-                    currentSelectedPlaylistTracks = selectedPlaylistTracks,
-                    currentPlaylistTracksById = playlistTracksById,
-                    currentRecentPlaylistIds = recentPlaylistIds,
-                    deletedPlaylistId = playlist.id,
-                )
-                if (update.deletedSelectedPlaylist) {
-                    contentState = contentState.copy(
-                        selectedPlaylist = update.selectedPlaylist,
-                        selectedPlaylistTracks = update.selectedPlaylistTracks,
-                    )
-                }
-                playlistTracksById = update.playlistTracksById
-                recentPlaylistIds = update.recentPlaylistIds
-                status = playlistDeletedStatus()
-            }.onFailure { error ->
-                status = playlistDeleteErrorMessage(error)
-            }
-        }
+        deleteAndroidPlaylist(scope, appState, playlist)
     }
 
     fun preloadPlaylistTracks(activeProvider: NavidromeProvider, playlists: List<Playlist>) {
-        scope.launch {
-            playlistsNeedingTrackPreload(playlists, playlistTracksById).forEach { playlist ->
-                runCatching { activeProvider.playlistTracks(playlist.id) }
-                    .onSuccess { tracks ->
-                        playlistTracksById = playlistTracksById + (playlist.id to tracks)
-                    }
-            }
-        }
+        preloadAndroidPlaylistTracks(scope, appState, activeProvider, playlists)
     }
 
     fun refreshAndroidPlaylists() {
-        val activeProvider = provider ?: return
-        scope.launch {
-            runCatching { activeProvider.playlists(limit = 500) }
-                .onSuccess { playlists ->
-                    homeState = homeState.copy(playlists = playlists)
-                    preloadPlaylistTracks(activeProvider, playlists)
-                }
-        }
+        refreshAndroidPlaylists(scope, appState)
     }
 
     suspend fun saveSmartPlaylist(definition: SmartPlaylistDefinition) {
-        val activeProvider = provider
-            ?: throw IllegalStateException("Connect to Navidrome before saving smart playlists.")
-        status = smartPlaylistSavingStatus(definition)
-        try {
-            val refresh = saveSmartPlaylistAndRefresh(activeProvider, definition)
-            playlistTracksById = playlistTracksById + (refresh.displayPlaylist.id to refresh.tracks)
-            homeState = homeState.copy(playlists = refresh.playlists)
-            preloadPlaylistTracks(activeProvider, refresh.playlists)
-            status = smartPlaylistSavedStatus(refresh.displayPlaylist, refresh.tracks.size)
-        } catch (error: Exception) {
-            status = smartPlaylistSaveErrorMessage(error)
-            throw error
-        }
+        saveAndroidSmartPlaylist(scope, appState, definition)
     }
 
     fun addTrackToPlaylist(track: Track, playlist: NaviampPlaylistChoiceUi?, newPlaylistName: String? = null) {

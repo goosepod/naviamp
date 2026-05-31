@@ -50,6 +50,11 @@ Branch: `codex/desktop-main-reduction`
   - Android now delegates `playInternetRadioStation` to `playAndroidInternetRadioStation`; desktop internet-radio playback consumes the same shared start plan.
   - `MainActivity.kt`: 2,181 -> 2,135 lines.
   - Verification: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:assembleDebug`, `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
+- [x] Moved Android playlist orchestration into a playlist controller.
+  - `AndroidPlaylistsController.kt` now owns playlist open/detail refresh, play/shuffle start, rename/delete, preload/refresh, and smart-playlist save wiring.
+  - Android playlist behavior remains backed by shared `core/domain` helpers for refresh shaping, recent ordering, mutation status, pending playback feedback, and smart-playlist save status.
+  - `MainActivity.kt`: 2,135 -> 1,979 lines.
+  - Verification: `.\gradlew.bat :apps:android:compileDebugKotlin`.
 
 ## Goals
 
@@ -89,11 +94,12 @@ Branch: `codex/desktop-main-reduction`
   - Move favorite/rating updates, track metadata propagation, album/artist popular-track play/add/radio/download callbacks, and known-track lookup helpers out of `MainActivity.kt`.
   - Shared-code checks: metadata propagation, action availability, favorite/rating mutation planning, and display models should stay in shared domain/UI where possible.
 
-- [ ] **Playlist orchestration controller**
+- [x] **Playlist orchestration controller**
   - Move playlist play/open/refresh/preload, selected-playlist detail state, playlist delete/rename/create/add flows, and smart-playlist callbacks out of `MainActivity.kt`.
   - Shared-code checks: playlist mutation planning, detail refresh shaping, recent-playlist cleanup, and queue append planning already belong in `core/domain`.
   - Cross-platform playback-action feedback is now started in `core/domain`: slow playlist play shows pending text, suppresses stacked taps, and clears on playback start or empty-playlist completion on Android and desktop.
   - Playlist screens now expose a shuffle-icon random-order start beside Play, using the shared shuffled playlist playback path.
+  - Remaining add-to-playlist dialog flows still live in `MainActivity.kt`; extract those with media actions so track/album/artist/playlist sources can share one adapter shape.
 
 - [ ] **Library and search orchestration cleanup**
   - Move remaining library query/snapshot/page-jump/search result loading state wiring out of `MainActivity.kt` if it is still inline after playback/media splits.
