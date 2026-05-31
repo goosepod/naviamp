@@ -55,6 +55,11 @@ Branch: `codex/desktop-main-reduction`
   - Android playlist behavior remains backed by shared `core/domain` helpers for refresh shaping, recent ordering, mutation status, pending playback feedback, and smart-playlist save status.
   - `MainActivity.kt`: 2,135 -> 1,979 lines.
   - Verification: `.\gradlew.bat :apps:android:compileDebugKotlin`.
+- [x] Moved Android media action wiring into a media controller.
+  - `AndroidMediaActionsController.kt` now owns queue append, add-to-playlist, favorite/rating, and local metadata update wiring.
+  - Shared rules remain in `core/domain`: queue append planning, playlist mutation status, favorite update, rating update, and track metadata propagation helpers.
+  - `MainActivity.kt`: 1,979 -> 1,868 lines.
+  - Verification: `.\gradlew.bat :apps:android:compileDebugKotlin`.
 
 ## Goals
 
@@ -90,9 +95,10 @@ Branch: `codex/desktop-main-reduction`
   - Move `playInternetRadioStation`, live stream URL resolution, stream metadata notification updates, recent-station persistence, and station state reset into an Android internet-radio controller.
   - Shared-code checks: station-to-track shaping, stream-title metadata update, recent-station ordering, and URL/playlist parsing are already shared or isolated.
 
-- [ ] **Android media action controller**
+- [x] **Android media action controller**
   - Move favorite/rating updates, track metadata propagation, album/artist popular-track play/add/radio/download callbacks, and known-track lookup helpers out of `MainActivity.kt`.
   - Shared-code checks: metadata propagation, action availability, favorite/rating mutation planning, and display models should stay in shared domain/UI where possible.
+  - First slice complete for queue append, add-to-playlist, favorite/rating, and metadata propagation. Track lookup wrappers and album/artist popular-track callback wrappers remain in `MainActivity.kt` and can be folded into this controller next.
 
 - [x] **Playlist orchestration controller**
   - Move playlist play/open/refresh/preload, selected-playlist detail state, playlist delete/rename/create/add flows, and smart-playlist callbacks out of `MainActivity.kt`.
@@ -130,6 +136,7 @@ Branch: `codex/desktop-main-reduction`
 - [ ] `.\gradlew.bat :apps:android:compileReleaseKotlin`
 - [x] `.\gradlew.bat :apps:android:compileDebugKotlin`
 - [x] `.\gradlew.bat :apps:desktop:compileKotlinDesktop "-Pnaviamp.bass.platform=windows-x64"`
+- [x] `.\gradlew.bat :apps:android:compileDebugKotlin`
 
 ## Notes
 

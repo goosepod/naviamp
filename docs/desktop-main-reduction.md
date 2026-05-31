@@ -156,6 +156,9 @@ Branch: `codex/desktop-main-reduction`
 - [x] Move Android playlist orchestration out of `MainActivity.kt`.
   - `AndroidPlaylistsController.kt` mirrors the desktop playlist-controller boundary for playlist detail refresh, play/shuffle start, rename/delete, preload/refresh, and smart-playlist save wiring.
   - Shared playlist decision/status rules remain in `core/domain`; Android keeps only provider calls, coroutine scope, and state assignment.
+- [x] Move Android media action wiring out of `MainActivity.kt`.
+  - Queue append, add-to-playlist, favorite/rating, and metadata propagation now live in `AndroidMediaActionsController`.
+  - The controller applies shared domain helpers for action plans/statuses and keeps Android notification/state updates local.
 
 ## Shared-Code Watchlist
 
@@ -185,6 +188,7 @@ Branch: `codex/desktop-main-reduction`
 - Playback settings normalization and lyrics-sidecar reload decisions are shared through `core/domain`; platforms keep settings persistence and UI/cache invalidation wiring.
 - Playlist playback pending/loading feedback is shared through `core/domain` and applied on desktop and Android; album/radio can reuse the same pending-action model if those slow starts need visible feedback next.
 - Android playlist orchestration now follows the same controller-over-shared-rules pattern as desktop; add-to-playlist flows remain in `MainActivity.kt` until media action extraction.
+- Android media action wiring now follows the same controller-over-shared-rules pattern as desktop; remaining media callback wrappers can be folded down next.
 - Remaining connection startup still differs by platform because desktop owns BASS/JVM TLS defaults, `DesktopCache`, window route state, and playlist engine restoration, while Android owns foreground service/playback runtime, `AndroidStorage`, and activity navigation state.
 - Before extracting each helper from `DesktopNaviampApp.kt`, compare Android equivalents and move pure request/status/state-transition rules into `core/domain`, `core/ui`, or `providers/navidrome` instead of creating a new desktop-only duplicate.
 
@@ -199,6 +203,7 @@ Branch: `codex/desktop-main-reduction`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop`
 - [x] `.\gradlew.bat :core:domain:allTests`
+- [x] `.\gradlew.bat :apps:android:compileDebugKotlin`
 - [x] `.\gradlew.bat :apps:android:compileDebugKotlin`
 - [x] `.\gradlew.bat :apps:desktop:compileKotlinDesktop "-Pnaviamp.bass.platform=windows-x64"`
 - [x] `.\gradlew.bat :apps:android:compileDebugKotlin`

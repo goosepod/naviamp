@@ -56,8 +56,6 @@ import app.naviamp.domain.provider.PlaylistDetailRefreshIntervalMillis
 import app.naviamp.domain.provider.SearchDebounceMillis
 import app.naviamp.domain.provider.SearchSessionController
 import app.naviamp.domain.provider.allKnownTracks
-import app.naviamp.domain.provider.addToPlaylistMutationUpdate
-import app.naviamp.domain.provider.createPlaylistOrAddTracks
 import app.naviamp.domain.provider.playlistDetailAutoRefreshTarget
 import app.naviamp.domain.provider.runPlaylistDetailAutoRefresh
 import app.naviamp.domain.provider.queueAppendPlan
@@ -75,9 +73,6 @@ import app.naviamp.domain.library.librarySyncErrorStatus
 import app.naviamp.domain.library.librarySyncStartingStatus
 import app.naviamp.domain.library.shouldAutoSyncLibrary
 import app.naviamp.domain.media.albumDetailLoadErrorStatus
-import app.naviamp.domain.media.favoriteTrackUpdate
-import app.naviamp.domain.media.ratedTrackUpdate
-import app.naviamp.domain.media.withUpdatedTrack
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackRequest
@@ -347,20 +342,7 @@ private fun NaviampAndroidApp(
             .firstOrNull { it.id.value == trackId }
 
     fun appendTracksToQueue(tracksToAdd: List<Track>, label: String = "tracks") {
-        val plan = queueAppendPlan(tracks = tracksToAdd, label = label)
-        status = plan.status
-        if (plan.tracks.isEmpty()) {
-            return
-        }
-        playbackQueueController.replaceQueue(playbackQueue)
-        if (playbackQueue.currentIndex < 0 && playbackQueue.tracks.isEmpty()) {
-            playbackQueueController.replaceQueue(PlaybackQueue(plan.tracks, currentIndex = 0))
-            playbackQueue = playbackQueueController.queue
-        } else {
-            playbackQueueController.appendTracks(plan.tracks)?.let { queue ->
-                playbackQueue = queue
-            }
-        }
+        appendAndroidTracksToQueue(appState, playbackQueueController, tracksToAdd, label)
     }
 
     fun clearDerivedMediaState() {
@@ -1045,46 +1027,15 @@ private fun NaviampAndroidApp(
     }
 
     fun updateNotificationFavoriteState(track: Track? = nowPlaying) {
-        AndroidPlaybackNotificationControls.canFavorite =
-            track != null && provider?.capabilities?.supportsTrackFavorites == true
-        AndroidPlaybackNotificationControls.isFavorite = track?.favoritedAtIso8601 != null
+        updateAndroidNotificationFavoriteState(appState, track)
     }
 
     fun applyTrackMetadataUpdate(updatedTrack: Track) {
-        val updatedNowPlaying = nowPlaying.withUpdatedTrack(updatedTrack)
-        val currentAlbumDetail = albumDetail
-        nowPlaying = updatedNowPlaying
-        tracks = tracks.withUpdatedTrack(updatedTrack)
-        contentState = contentState.copy(
-            searchResults = searchResults.withUpdatedTrack(updatedTrack),
-            albumDetail = currentAlbumDetail?.withUpdatedTrack(updatedTrack),
-        )
-        if (updatedNowPlaying?.id == updatedTrack.id) {
-            updateNotificationFavoriteState(updatedNowPlaying)
-            playbackEngine.updateNotificationMetadata(
-                title = updatedNowPlaying.title,
-                subtitle = updatedNowPlaying.artistName,
-                coverArtUrl = provider?.let { updatedNowPlaying.coverArtUrl(it) },
-            )
-        }
+        applyAndroidTrackMetadataUpdate(appState, playbackEngine, updatedTrack)
     }
 
     fun toggleCurrentFavorite() {
-        val activeProvider = provider ?: return
-        val currentTrack = nowPlaying ?: return
-        if (!activeProvider.capabilities.supportsTrackFavorites) return
-        scope.launch {
-            val favorite = currentTrack.favoritedAtIso8601 == null
-            AndroidPlaybackNotificationControls.isFavorite = favorite
-            runCatching {
-                favoriteTrackUpdate(activeProvider, currentTrack, favoritedAtIso8601 = "android-local")
-            }.onSuccess {
-                it?.let(::applyTrackMetadataUpdate)
-            }.onFailure { error ->
-                AndroidPlaybackNotificationControls.isFavorite = !favorite
-                status = error.message ?: "Could not update favorite."
-            }
-        }
+        toggleAndroidCurrentFavorite(scope, appState, playbackEngine)
     }
 
     fun handleAutoPlayPauseCommand(): Boolean {
@@ -1310,30 +1261,7 @@ private fun NaviampAndroidApp(
     }
 
     fun addTrackToPlaylist(track: Track, playlist: NaviampPlaylistChoiceUi?, newPlaylistName: String? = null) {
-        val activeProvider = provider ?: return
-        playlistActionStatus = "Adding to playlist..."
-        scope.launch {
-            runCatching {
-                val result = activeProvider.createPlaylistOrAddTracks(
-                    playlistId = playlist?.id,
-                    newPlaylistName = newPlaylistName,
-                    tracks = listOf(track),
-                )
-                val update = addToPlaylistMutationUpdate(result, playlist?.name)
-                val playlists = if (update.refreshPlaylists) activeProvider.playlists(limit = 500) else null
-                update to playlists
-            }.onSuccess { (update, playlists) ->
-                if (playlists != null) {
-                    homeState = homeState.copy(playlists = playlists)
-                }
-                playlistActionStatus = update.addToPlaylistStatus
-                update.connectionStatus?.let { status = it }
-                    ?: update.addToPlaylistStatus?.let { status = it }
-            }.onFailure { error ->
-                playlistActionStatus = error.message ?: "Could not add track to playlist."
-                status = playlistActionStatus.orEmpty()
-            }
-        }
+        addAndroidTrackToPlaylist(scope, appState, track, playlist, newPlaylistName)
     }
 
     fun addTracksToPlaylist(
@@ -1342,35 +1270,7 @@ private fun NaviampAndroidApp(
         newPlaylistName: String? = null,
         label: String = "tracks",
     ) {
-        val activeProvider = provider ?: return
-        val uniqueTracks = tracksToAdd.distinctBy { it.id }
-        if (uniqueTracks.isEmpty()) {
-            status = "No tracks found."
-            return
-        }
-        playlistActionStatus = "Adding $label to playlist..."
-        scope.launch {
-            runCatching {
-                val result = activeProvider.createPlaylistOrAddTracks(
-                    playlistId = playlist?.id,
-                    newPlaylistName = newPlaylistName,
-                    tracks = uniqueTracks,
-                )
-                val update = addToPlaylistMutationUpdate(result, playlist?.name)
-                val playlists = if (update.refreshPlaylists) activeProvider.playlists(limit = 500) else null
-                update to playlists
-            }.onSuccess { (update, playlists) ->
-                if (playlists != null) {
-                    homeState = homeState.copy(playlists = playlists)
-                }
-                playlistActionStatus = update.addToPlaylistStatus
-                update.connectionStatus?.let { status = it }
-                    ?: update.addToPlaylistStatus?.let { status = it }
-            }.onFailure { error ->
-                playlistActionStatus = error.message ?: "Could not add $label to playlist."
-                status = playlistActionStatus.orEmpty()
-            }
-        }
+        addAndroidTracksToPlaylist(scope, appState, tracksToAdd, playlist, newPlaylistName, label)
     }
 
     fun downloadTrack(track: Track) {
@@ -1714,18 +1614,7 @@ private fun NaviampAndroidApp(
     }
 
     fun handleShellRatingSelected(rating: Int?) {
-        val activeProvider = provider ?: return
-        val currentTrack = nowPlaying ?: return
-        if (!activeProvider.capabilities.supportsTrackRatings) return
-        scope.launch {
-            runCatching {
-                ratedTrackUpdate(activeProvider, currentTrack, rating)
-            }.onSuccess {
-                it?.let(::applyTrackMetadataUpdate)
-            }.onFailure { error ->
-                status = error.message ?: "Could not update rating."
-            }
-        }
+        setAndroidCurrentTrackRating(scope, appState, playbackEngine, rating)
     }
 
     fun handleDownloadedTrackSelected(download: NaviampDownloadedTrackUi) {
