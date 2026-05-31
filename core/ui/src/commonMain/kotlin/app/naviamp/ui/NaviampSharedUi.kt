@@ -1358,7 +1358,7 @@ private fun PlaylistListRow(
             Text(playlist.subtitle, color = colors.secondaryText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         MiniPlayerIconButton(colors, true, NaviampTransportIcons.Play, "Play playlist", onPlay)
-        MiniPlayerIconButton(colors, playlist.meta != "1 track", NaviampTransportIcons.Repeat, "Play playlist in random order", onShuffle)
+        MiniPlayerIconButton(colors, playlist.meta != "1 track", NaviampTransportIcons.Shuffle, "Play playlist in random order", onShuffle)
         NaviampRowOverflowMenu(
             colors = colors,
             items = playlistRowActions(canRename = true, canDelete = true).mapNotNull { action ->
@@ -1407,7 +1407,7 @@ private fun PlaylistDetailContent(
                 Text(detail.playlist.subtitle, color = colors.secondaryText, fontSize = 12.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampTransportIcons.Play, "Play playlist", onPlayPlaylist)
-                    MiniPlayerIconButton(colors, detail.tracks.size > 1, NaviampTransportIcons.Repeat, "Play playlist in random order", onShufflePlaylist)
+                    MiniPlayerIconButton(colors, detail.tracks.size > 1, NaviampTransportIcons.Shuffle, "Play playlist in random order", onShufflePlaylist)
                     MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampIcons.Queue, "Add playlist to queue", onAddPlaylistToQueue)
                     MiniPlayerIconButton(colors, true, NaviampIcons.Edit, "Rename playlist", { renameOpen = true })
                     MiniPlayerIconButton(colors, true, NaviampIcons.Trash, "Delete playlist", { deleteOpen = true })

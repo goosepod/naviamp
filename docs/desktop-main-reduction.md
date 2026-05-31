@@ -152,7 +152,7 @@ Branch: `codex/desktop-main-reduction`
   - Desktop should get the same behavior, not a separate local fix.
   - Shared playlist pending action model now lives in `core/domain`, including status text, duplicate-click suppression, and completion clearing.
   - Android and desktop playlist playback now show pending feedback and ignore stacked playlist-start taps while a previous start is still resolving.
-  - Playlist screens also expose a repeat-icon random-order start beside Play, sharing the same shuffled playlist path on both platforms.
+  - Playlist screens also expose a shuffle-icon random-order start beside Play, sharing the same shuffled playlist path on both platforms.
 
 ## Shared-Code Watchlist
 

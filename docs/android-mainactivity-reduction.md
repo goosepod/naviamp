@@ -93,7 +93,7 @@ Branch: `codex/desktop-main-reduction`
   - Move playlist play/open/refresh/preload, selected-playlist detail state, playlist delete/rename/create/add flows, and smart-playlist callbacks out of `MainActivity.kt`.
   - Shared-code checks: playlist mutation planning, detail refresh shaping, recent-playlist cleanup, and queue append planning already belong in `core/domain`.
   - Cross-platform playback-action feedback is now started in `core/domain`: slow playlist play shows pending text, suppresses stacked taps, and clears on playback start or empty-playlist completion on Android and desktop.
-  - Playlist screens now expose a repeat-icon random-order start beside Play, using the shared shuffled playlist playback path.
+  - Playlist screens now expose a shuffle-icon random-order start beside Play, using the shared shuffled playlist playback path.
 
 - [ ] **Library and search orchestration cleanup**
   - Move remaining library query/snapshot/page-jump/search result loading state wiring out of `MainActivity.kt` if it is still inline after playback/media splits.
