@@ -60,6 +60,11 @@ Branch: `codex/desktop-main-reduction`
   - Shared rules remain in `core/domain`: queue append planning, playlist mutation status, favorite update, rating update, and track metadata propagation helpers.
   - `MainActivity.kt`: 1,979 -> 1,868 lines.
   - Verification: `.\gradlew.bat :apps:android:compileDebugKotlin`.
+- [x] Expanded Android radio controller ownership.
+  - Track-radio queue starts from the Now Playing and queue-item radio actions now delegate to `AndroidRadioController`.
+  - Shared generated-radio queue and append/refill rules remain in `core/domain`.
+  - `MainActivity.kt`: 1,868 -> 1,837 lines.
+  - Verification: `.\gradlew.bat :apps:android:installDebug`.
 
 ## Goals
 
@@ -90,6 +95,7 @@ Branch: `codex/desktop-main-reduction`
   - Continue moving radio helpers out of `MainActivity.kt`: library/genre/decade/random-album/artist/popular/recent radio dispatch, track-radio queue conversion, and shell queue-item radio.
   - Keep provider execution and queue-controller mutation in Android radio adapter.
   - Shared-code checks: generated-radio queue construction, tail refill, recent-radio actions, seed selection, and request models should remain shared.
+  - Track-radio queue conversion and shell queue-item radio are now in the Android radio adapter; home/library/genre/decade/popular/recent radio dispatch still needs follow-up.
 
 - [x] **Internet radio playback controller**
   - Move `playInternetRadioStation`, live stream URL resolution, stream metadata notification updates, recent-station persistence, and station state reset into an Android internet-radio controller.
@@ -135,6 +141,7 @@ Branch: `codex/desktop-main-reduction`
 - [ ] `.\gradlew.bat :apps:android:assembleDebug`
 - [ ] `.\gradlew.bat :apps:android:compileReleaseKotlin`
 - [x] `.\gradlew.bat :apps:android:compileDebugKotlin`
+- [x] `.\gradlew.bat :apps:android:installDebug`
 - [x] `.\gradlew.bat :apps:desktop:compileKotlinDesktop "-Pnaviamp.bass.platform=windows-x64"`
 - [x] `.\gradlew.bat :apps:android:compileDebugKotlin`
 

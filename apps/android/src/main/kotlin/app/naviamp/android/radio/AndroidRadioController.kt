@@ -149,6 +149,57 @@ fun startAndroidTrackRadio(
     }
 }
 
+fun startAndroidTrackRadioQueue(
+    scope: CoroutineScope,
+    state: AndroidAppState,
+    queueController: PlaybackQueueController,
+    track: Track,
+    playSeed: Boolean,
+    playTrack: (Track, List<Track>) -> Unit,
+) {
+    val activeProvider = state.provider ?: return
+    if (state.provider?.capabilities?.supportsTrackRadio != true) return
+    state.radioQueueActive = true
+    state.radioRefilling = true
+    state.lastRadioRefillSeedId = track.id
+    scope.launch {
+        with(state) {
+            status = "Starting ${track.title} radio..."
+            runCatching { RadioService(activeProvider, count = AndroidInitialSimilarRadioCount).trackRadio(track.id) }
+                .onSuccess { radioTracks ->
+                    val queue = generatedRadioQueue(track, radioTracks)
+                    if (playSeed) {
+                        playTrack(track, queue)
+                    } else {
+                        queueController.replaceQueue(PlaybackQueue(tracks = queue, currentIndex = 0))
+                        playbackQueue = queueController.queue
+                        relatedTracks = queue.drop(1)
+                        shuffledUpNextSnapshot = null
+                    }
+                    status = "Building ${track.title} radio queue..."
+                    radioRefilling = false
+                    AndroidSimilarRadioExpansionCounts.forEach { count ->
+                        if (nowPlaying?.id != track.id) return@launch
+                        val fetchedTracks = runCatching {
+                            RadioService(activeProvider, count = count).trackRadio(track.id)
+                        }.getOrElse {
+                            return@forEach
+                        }
+                        appendAndroidGeneratedRadioTracks(state, queueController, track, fetchedTracks)
+                        status = "Building ${track.title} radio queue (${playbackQueue.tracks.size} tracks)..."
+                    }
+                    if (nowPlaying?.id == track.id) {
+                        status = "Track radio loaded."
+                    }
+                }
+                .onFailure { error ->
+                    radioRefilling = false
+                    status = error.message ?: "Could not start track radio."
+                }
+        }
+    }
+}
+
 fun startAndroidAlbumRadio(
     scope: CoroutineScope,
     state: AndroidAppState,

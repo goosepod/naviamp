@@ -159,6 +159,9 @@ Branch: `codex/desktop-main-reduction`
 - [x] Move Android media action wiring out of `MainActivity.kt`.
   - Queue append, add-to-playlist, favorite/rating, and metadata propagation now live in `AndroidMediaActionsController`.
   - The controller applies shared domain helpers for action plans/statuses and keeps Android notification/state updates local.
+- [x] Continue Android radio controller expansion.
+  - Track-radio queue starts and queue-item radio now live in `AndroidRadioController`.
+  - Generated-radio queue construction and expansion continue to use shared `core/domain` radio helpers.
 
 ## Shared-Code Watchlist
 
@@ -189,6 +192,7 @@ Branch: `codex/desktop-main-reduction`
 - Playlist playback pending/loading feedback is shared through `core/domain` and applied on desktop and Android; album/radio can reuse the same pending-action model if those slow starts need visible feedback next.
 - Android playlist orchestration now follows the same controller-over-shared-rules pattern as desktop; add-to-playlist flows remain in `MainActivity.kt` until media action extraction.
 - Android media action wiring now follows the same controller-over-shared-rules pattern as desktop; remaining media callback wrappers can be folded down next.
+- Android generated-radio queue starts are further centralized in the radio adapter; home station and artist/popular radio dispatch remain in `MainActivity.kt` for a later slice.
 - Remaining connection startup still differs by platform because desktop owns BASS/JVM TLS defaults, `DesktopCache`, window route state, and playlist engine restoration, while Android owns foreground service/playback runtime, `AndroidStorage`, and activity navigation state.
 - Before extracting each helper from `DesktopNaviampApp.kt`, compare Android equivalents and move pure request/status/state-transition rules into `core/domain`, `core/ui`, or `providers/navidrome` instead of creating a new desktop-only duplicate.
 
@@ -204,6 +208,7 @@ Branch: `codex/desktop-main-reduction`
 - [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests :apps:desktop:compileKotlinDesktop`
 - [x] `.\gradlew.bat :core:domain:allTests`
 - [x] `.\gradlew.bat :apps:android:compileDebugKotlin`
+- [x] `.\gradlew.bat :apps:android:installDebug`
 - [x] `.\gradlew.bat :apps:android:compileDebugKotlin`
 - [x] `.\gradlew.bat :apps:desktop:compileKotlinDesktop "-Pnaviamp.bass.platform=windows-x64"`
 - [x] `.\gradlew.bat :apps:android:compileDebugKotlin`

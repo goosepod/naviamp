@@ -105,7 +105,6 @@ import app.naviamp.domain.lyrics.selectPreferredLyrics
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioService
-import app.naviamp.domain.radio.generatedRadioQueue
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.downloadStreamQuality
@@ -1536,45 +1535,14 @@ private fun NaviampAndroidApp(
     }
 
     fun startTrackRadioQueue(track: Track, playSeed: Boolean) {
-        val activeProvider = provider ?: return
-        if (provider?.capabilities?.supportsTrackRadio != true) return
-        radioQueueActive = true
-        radioRefilling = true
-        lastRadioRefillSeedId = track.id
-        scope.launch {
-            status = "Starting ${track.title} radio..."
-            runCatching { RadioService(activeProvider, count = AndroidInitialSimilarRadioCount).trackRadio(track.id) }
-                .onSuccess { radioTracks ->
-                    val queue = generatedRadioQueue(track, radioTracks)
-                    if (playSeed) {
-                        playTrack(track, queue, keepRadioQueueActive = true)
-                    } else {
-                        playbackQueueController.replaceQueue(PlaybackQueue(tracks = queue, currentIndex = 0))
-                        playbackQueue = playbackQueueController.queue
-                        relatedTracks = queue.drop(1)
-                        shuffledUpNextSnapshot = null
-                    }
-                    status = "Building ${track.title} radio queue..."
-                    radioRefilling = false
-                    AndroidSimilarRadioExpansionCounts.forEach { count ->
-                        if (nowPlaying?.id != track.id) return@launch
-                        val fetchedTracks = runCatching {
-                            RadioService(activeProvider, count = count).trackRadio(track.id)
-                        }.getOrElse {
-                            return@forEach
-                        }
-                        appendAndroidGeneratedRadioTracks(appState, playbackQueueController, track, fetchedTracks)
-                        status = "Building ${track.title} radio queue (${playbackQueue.tracks.size} tracks)..."
-                    }
-                    if (nowPlaying?.id == track.id) {
-                        status = "Track radio loaded."
-                    }
-                }
-                .onFailure { error ->
-                    radioRefilling = false
-                    status = error.message ?: "Could not start track radio."
-                }
-        }
+        startAndroidTrackRadioQueue(
+            scope = scope,
+            state = appState,
+            queueController = playbackQueueController,
+            track = track,
+            playSeed = playSeed,
+            playTrack = { seedTrack, queue -> playTrack(seedTrack, queue, keepRadioQueueActive = true) },
+        )
     }
 
     fun handleShellTrackRadio() {
