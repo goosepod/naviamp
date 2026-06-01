@@ -59,12 +59,6 @@ import app.naviamp.domain.provider.runPlaylistDetailAutoRefresh
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.home.HomeService
-import app.naviamp.domain.library.LibraryFreshness
-import app.naviamp.domain.library.evaluateLibraryFreshness
-import app.naviamp.domain.library.librarySyncCompletedStatus
-import app.naviamp.domain.library.librarySyncErrorStatus
-import app.naviamp.domain.library.librarySyncStartingStatus
-import app.naviamp.domain.library.shouldAutoSyncLibrary
 import app.naviamp.domain.media.albumDetailLoadErrorStatus
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackQueueController
@@ -1247,75 +1241,6 @@ private fun NaviampAndroidApp(
     }
     restorePlaybackSessionAction = ::restorePlaybackSession
 
-    fun startAndroidLibrarySync(force: Boolean = false) {
-        val activeProvider = provider ?: return
-        val sourceId = activeSourceId ?: return
-        if (isLibrarySyncing) return
-        if (!force && !shouldAutoSyncLibrary(storage.libraryIndexStats(sourceId))) {
-            libraryStatus = null
-            return
-        }
-        isLibrarySyncing = true
-        libraryStatus = librarySyncStartingStatus()
-        scope.launch {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    syncAndroidLibrary(sourceId, activeProvider, storage) { progress ->
-                        withContext(Dispatchers.Main) {
-                            if (progress.artists != null) {
-                                homeState = homeState.copy(artists = progress.artists)
-                            }
-                            libraryStatus = progress.label
-                            if (nowPlaying == null && nowPlayingStation == null) {
-                                status = progress.label
-                            }
-                        }
-                    }
-                    activeProvider.libraryScanStatus()?.signature?.let { signature ->
-                        storage.markLibraryScanChecked(sourceId, signature)
-                    }
-                }
-            }.onSuccess {
-                libraryStatus = null
-                if (nowPlaying == null && nowPlayingStation == null) {
-                    status = librarySyncCompletedStatus()
-                }
-            }.onFailure { error ->
-                libraryStatus = librarySyncErrorStatus(error)
-                status = libraryStatus.orEmpty()
-            }
-            isLibrarySyncing = false
-        }
-    }
-
-    fun checkAndroidLibraryFreshness() {
-        val activeProvider = provider ?: return
-        val sourceId = activeSourceId ?: return
-        if (isLibrarySyncing) return
-        scope.launch {
-            val freshness = withContext(Dispatchers.IO) {
-                val scanStatus = activeProvider.libraryScanStatus()
-                LibraryFreshness(
-                    signature = scanStatus?.signature,
-                    previousSignature = storage.mediaSource(sourceId)?.lastLibraryScanSignature,
-                    scanning = scanStatus?.scanning == true,
-                )
-            }
-            val update = freshness.evaluateLibraryFreshness(libraryStatus)
-            update.signatureToMarkChecked?.let { signature ->
-                withContext(Dispatchers.IO) {
-                    storage.markLibraryScanChecked(sourceId, signature)
-                }
-            }
-            update.status?.let { status ->
-                libraryStatus = status
-            }
-            if (update.clearStatus) {
-                libraryStatus = null
-            }
-        }
-    }
-
     fun connectWithNavidromeConnection(connection: NavidromeConnection) {
         startNavidromeConnection(
             scope = scope,
@@ -1325,8 +1250,8 @@ private fun NaviampAndroidApp(
             playbackEngine = playbackEngine,
             preloadPlaylistTracks = ::preloadPlaylistTracks,
             restorePlaybackSession = ::restorePlaybackSession,
-            startAndroidLibrarySync = ::startAndroidLibrarySync,
-            checkAndroidLibraryFreshness = ::checkAndroidLibraryFreshness,
+            startAndroidLibrarySync = { force -> startAndroidLibrarySync(scope, appState, storage, force) },
+            checkAndroidLibraryFreshness = { checkAndroidLibraryFreshness(scope, appState, storage) },
         )
     }
 
@@ -1355,7 +1280,7 @@ private fun NaviampAndroidApp(
         state = appState,
         storage = storage,
         savePlaybackSessionThrottled = ::savePlaybackSessionThrottled,
-        checkAndroidLibraryFreshness = ::checkAndroidLibraryFreshness,
+        checkAndroidLibraryFreshness = { checkAndroidLibraryFreshness(scope, appState, storage) },
     )
 
     val shellUiState = rememberAndroidAppShellUiState(
@@ -1663,7 +1588,7 @@ private fun NaviampAndroidApp(
         handleClearLibrary = ::handleClearLibrary,
         handleResetDatabase = ::handleResetDatabase,
         handleSearch = ::handleSearch,
-        startAndroidLibrarySync = ::startAndroidLibrarySync,
+        startAndroidLibrarySync = { force -> startAndroidLibrarySync(scope, appState, storage, force) },
         handleShellTrackSelected = ::handleShellTrackSelected,
         handleDownloadedTrackSelected = ::handleDownloadedTrackSelected,
         handleDownloadedTrackAddToPlaylist = ::handleDownloadedTrackAddToPlaylist,

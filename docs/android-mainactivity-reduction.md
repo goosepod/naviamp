@@ -85,6 +85,11 @@ Branch: `codex/desktop-main-reduction`
   - Shared queue and playlist mutation behavior still flows through `core/domain`; the Android helper only bridges shared UI row ids to Android state and platform actions.
   - `MainActivity.kt`: 1,737 -> 1,730 lines.
   - Verification: `.\gradlew.bat :apps:android:compileDebugKotlin`.
+- [x] Moved Android library sync and freshness orchestration into a library controller.
+  - `AndroidLibraryController.kt` now owns sync startup, progress application, scan-signature freshness checks, and library status updates.
+  - Shared sync/freshness decisions remain in `core/domain/library`; Android only applies provider, storage, coroutine, and UI-state effects.
+  - `MainActivity.kt`: 1,730 -> 1,655 lines.
+  - Verification: `.\gradlew.bat :apps:android:compileDebugKotlin`.
 
 ## Goals
 
@@ -136,6 +141,7 @@ Branch: `codex/desktop-main-reduction`
 - [ ] **Library and search orchestration cleanup**
   - Move remaining library query/snapshot/page-jump/search result loading state wiring out of `MainActivity.kt` if it is still inline after playback/media splits.
   - Shared-code checks: search session orchestration, query normalization, debounce, paging limits, freshness polling, and sync status rules should remain common.
+  - Library sync/freshness orchestration is now in `AndroidLibraryController`; search orchestration and cache/index reset actions still need a follow-up pass.
 
 - [ ] **Route/back-stack/effect cleanup**
   - Move `handleAndroidBack`, route-clear helpers, auto-command effects, and startup/restoration effects into focused app-level helpers where lifecycle-safe.
@@ -163,6 +169,7 @@ Branch: `codex/desktop-main-reduction`
 - [x] `.\gradlew.bat :apps:android:compileDebugKotlin`
 - [x] `.\gradlew.bat :apps:android:installDebug`
 - [x] `.\gradlew.bat :apps:desktop:compileKotlinDesktop "-Pnaviamp.bass.platform=windows-x64"`
+- [x] `.\gradlew.bat :apps:android:compileDebugKotlin`
 - [x] `.\gradlew.bat :apps:android:compileDebugKotlin`
 - [x] `.\gradlew.bat :apps:android:compileDebugKotlin`
 - [x] `.\gradlew.bat :apps:android:compileDebugKotlin`
