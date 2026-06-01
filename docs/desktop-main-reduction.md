@@ -141,6 +141,10 @@ Branch: `codex/desktop-main-reduction`
 - [x] Move Android search orchestration out of `MainActivity.kt`.
   - `AndroidSearchController` now mirrors the desktop search-controller boundary over shared `SearchSessionController`
   - Android keeps only provider-search injection, debounced/manual load wiring, and state assignment
+- [x] Capture shared storage/cache/download architecture direction.
+  - Added `docs/shared-storage-cache-architecture.md`.
+  - The target is shared storage/cache/download/session/sidecar interfaces with desktop and Android engines selected at composition time.
+  - This reframes `DesktopCache` and `AndroidStorage` as concrete engines/adapters, not product-level boundaries.
 - [x] Share playlist-detail auto-refresh orchestration.
   - selected playlist/provider gating and refresh-loop error swallowing now live in common playlist helpers
   - desktop keeps route gating and desktop state application, while Android keeps its content/navigation state application
@@ -165,6 +169,16 @@ Branch: `codex/desktop-main-reduction`
 - [x] Continue Android radio controller expansion.
   - Track-radio queue starts and queue-item radio now live in `AndroidRadioController`.
   - Generated-radio queue construction and expansion continue to use shared `core/domain` radio helpers.
+
+## Architecture Refactor Backlog
+
+- [ ] Split `DesktopCache` and `AndroidStorage` into narrow shared-port implementations instead of broad do-everything classes.
+- [ ] Introduce shared low-level byte/object store ports for cache/download file operations.
+- [ ] Introduce shared repository ports for media sources, provider responses, local library index, audio assets, sidecars, playback sessions, and maintenance stats.
+- [ ] Build a shared download service over `DownloadRepository` and platform byte/file stores so desktop and Android use one download flow.
+- [ ] Build a shared audio playback-source resolver for downloaded file, cached file, or provider stream selection.
+- [ ] Build shared sidecar storage services for lyrics, waveform, embedded tag status, and audio metadata.
+- [ ] Add fake/in-memory storage engines for common tests.
 
 ## Shared-Code Watchlist
 
@@ -197,6 +211,7 @@ Branch: `codex/desktop-main-reduction`
 - Android media action wiring now follows the same controller-over-shared-rules pattern as desktop; remaining media callback wrappers can be folded down next.
 - Android generated-radio queue starts are further centralized in the radio adapter; home station and artist/popular radio dispatch remain in `MainActivity.kt` for a later slice.
 - Android search orchestration now follows the same controller-over-shared-session pattern as desktop search.
+- Storage/cache/download work should now follow `docs/shared-storage-cache-architecture.md`: shared ports first, platform engines second.
 - Remaining connection startup still differs by platform because desktop owns BASS/JVM TLS defaults, `DesktopCache`, window route state, and playlist engine restoration, while Android owns foreground service/playback runtime, `AndroidStorage`, and activity navigation state.
 - Before extracting each helper from `DesktopNaviampApp.kt`, compare Android equivalents and move pure request/status/state-transition rules into `core/domain`, `core/ui`, or `providers/navidrome` instead of creating a new desktop-only duplicate.
 

@@ -106,6 +106,7 @@ Branch: `codex/desktop-main-reduction`
 - [ ] Reduce `MainActivity.kt` by extracting cohesive feature controllers and effect runners.
 - [ ] Keep Android behavior aligned with desktop and shared core by default.
 - [ ] Move duplicated Android/desktop product rules into `core/domain`, `core/ui`, or provider modules before adding platform-local helpers.
+- [ ] Treat Android storage/cache/download code as one platform engine behind shared storage/cache/download ports, not as a separate product implementation.
 - [ ] Prefer shared plan/reducer APIs for product behavior; keep platform files as adapters that apply those plans to lifecycle, storage, engine, and OS side effects.
 - [ ] Keep Android route/shell composition readable and mostly declarative.
 - [ ] Keep every extraction verified with Android debug or release compile/build, plus common tests when shared rules move.
@@ -162,6 +163,12 @@ Branch: `codex/desktop-main-reduction`
   - Re-run Android build validation.
   - Update this worksheet with new line counts and any remaining high-risk blocks.
 
+- [ ] **Shared storage/cache/download interface pass**
+  - Follow `docs/shared-storage-cache-architecture.md`.
+  - Replace direct `AndroidStorage` dependencies in controllers with narrow shared repository interfaces where practical.
+  - Keep Android `Context`, app-private directories, SQLDelight Android driver, storage permissions/policies, and mobile-network checks Android-local.
+  - Move shared download, cache, sidecar, library-index, playback-session, and playback-source decisions into shared services.
+
 ## Suggested Order
 
 1. For every slice, identify the platform-agnostic plan/reducer first and put it in `core/domain`, `core/ui`, or a provider module before adding Android adapter code.
@@ -195,3 +202,4 @@ Branch: `codex/desktop-main-reduction`
 - The artist-selection feature idea remains parked in `docs/desktop-main-reduction.md` until the current size-reduction pass is stable enough for feature work.
 - Playlist play duplicate-start suppression now has a shared pending/loading playback-action model; album/radio can reuse it when those starts need the same feedback.
 - Cross-platform agnosticism is the guiding constraint for this pass: platform controllers should only apply lifecycle/storage/playback side effects, while product decisions and reusable rules should move into `core/domain`, `core/ui`, or shared provider modules whenever both desktop and Android need them.
+- The storage/cache/download direction is documented in `docs/shared-storage-cache-architecture.md`: Android should provide platform engines behind shared interfaces, not maintain a separate product-level storage model.

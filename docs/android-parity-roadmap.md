@@ -92,6 +92,8 @@ Android already uses the shared Compose UI shell for the main app surface, so ma
   - [x] Downloads can save original or transcoded versions based on the shared download quality setting.
   - [x] Android blocks mobile-data downloads unless explicitly allowed.
   - [x] Verify Downloads route exposes all desktop actions, including add-to-playlist where applicable.
+  - [ ] Move downloads/cache/storage toward shared interfaces with Android and desktop engines behind the same capability contracts.
+  - [ ] Use shared download/cache services so desktop and Android apply the same product rules for download planning, status, stats, and playback-source resolution.
   - Confirm offline playback from downloaded files works after app restart and network loss.
   - [x] Expose cache budgets and storage pressure clearly enough for Android users.
 
