@@ -138,6 +138,9 @@ Branch: `codex/desktop-main-reduction`
 - [x] Move shared search session orchestration out of `DesktopSearchController`.
   - normalized-query handling, disconnected/blank-query behavior, loading/searching state, and result/status application now live in common `SearchSessionController`
   - desktop injects settings persistence plus `DesktopCache.search`; Android injects its `MediaProvider.search` flow
+- [x] Move Android search orchestration out of `MainActivity.kt`.
+  - `AndroidSearchController` now mirrors the desktop search-controller boundary over shared `SearchSessionController`
+  - Android keeps only provider-search injection, debounced/manual load wiring, and state assignment
 - [x] Share playlist-detail auto-refresh orchestration.
   - selected playlist/provider gating and refresh-loop error swallowing now live in common playlist helpers
   - desktop keeps route gating and desktop state application, while Android keeps its content/navigation state application
@@ -193,6 +196,7 @@ Branch: `codex/desktop-main-reduction`
 - Android playlist orchestration now follows the same controller-over-shared-rules pattern as desktop; add-to-playlist flows remain in `MainActivity.kt` until media action extraction.
 - Android media action wiring now follows the same controller-over-shared-rules pattern as desktop; remaining media callback wrappers can be folded down next.
 - Android generated-radio queue starts are further centralized in the radio adapter; home station and artist/popular radio dispatch remain in `MainActivity.kt` for a later slice.
+- Android search orchestration now follows the same controller-over-shared-session pattern as desktop search.
 - Remaining connection startup still differs by platform because desktop owns BASS/JVM TLS defaults, `DesktopCache`, window route state, and playlist engine restoration, while Android owns foreground service/playback runtime, `AndroidStorage`, and activity navigation state.
 - Before extracting each helper from `DesktopNaviampApp.kt`, compare Android equivalents and move pure request/status/state-transition rules into `core/domain`, `core/ui`, or `providers/navidrome` instead of creating a new desktop-only duplicate.
 

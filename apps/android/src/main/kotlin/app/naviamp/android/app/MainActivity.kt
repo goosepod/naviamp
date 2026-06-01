@@ -44,10 +44,7 @@ import app.naviamp.domain.TrackId
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.domain.provider.ConnectionValidation
-import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.PlaylistDetailRefreshIntervalMillis
-import app.naviamp.domain.provider.SearchDebounceMillis
-import app.naviamp.domain.provider.SearchSessionController
 import app.naviamp.domain.provider.allKnownTracks
 import app.naviamp.domain.provider.playlistDetailAutoRefreshTarget
 import app.naviamp.domain.provider.runPlaylistDetailAutoRefresh
@@ -525,34 +522,14 @@ private fun NaviampAndroidApp(
         )
     }
 
-    val searchSessionController = SearchSessionController(
-        provider = { provider },
-        setResults = { results ->
-            contentState = contentState.clearDetails().copy(searchResults = results)
-            tracks = results.tracks
-        },
-        setStatus = { searchStatus -> status = searchStatus.orEmpty() },
-        disconnectedStatus = null,
-        loadingStatus = "Searching...",
-        clearWhenProviderMissing = false,
-    ) { activeProvider, searchQuery, limit ->
-        activeProvider.search(searchQuery, limit = limit)
-    }
-
-    suspend fun performSearch(searchQuery: String) {
-        searchSessionController.load(searchQuery)
-    }
+    val searchController = remember(appState) { AndroidSearchController(appState) }
 
     fun handleSearch() {
-        scope.launch {
-            performSearch(query)
-        }
+        searchController.launchSearch(scope)
     }
 
     LaunchedEffect(query, provider) {
-        searchSessionController.load(query) {
-            delay(SearchDebounceMillis)
-        }
+        searchController.load(query, debounce = true)
     }
 
     suspend fun ensureWaveform(
