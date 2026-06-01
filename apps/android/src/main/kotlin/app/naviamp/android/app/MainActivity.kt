@@ -1509,23 +1509,17 @@ private fun NaviampAndroidApp(
     }
 
     fun handleDownloadedTrackSelected(download: NaviampDownloadedTrackUi) {
-        val currentTracks = downloadedTracks.map { it.track }
-        val track = currentTracks.firstOrNull { it.id.value == download.track.id } ?: return
-        playTrack(track, currentTracks)
+        playAndroidDownloadedTrack(appState, download) { track, queue -> playTrack(track, queue) }
     }
 
     fun handleDownloadedTrackAddToPlaylist(download: NaviampDownloadedTrackUi, playlist: NaviampPlaylistChoiceUi?) {
-        downloadedTracks.firstOrNull { it.file.absolutePath == download.id }
-            ?.track
-            ?.let { addTrackToPlaylist(it, playlist) }
-            ?: run { status = "Track not found." }
+        withAndroidDownloadedTrack(appState, download) { track -> addTrackToPlaylist(track, playlist) }
     }
 
     fun handleDownloadedTrackCreatePlaylistAndAdd(download: NaviampDownloadedTrackUi, name: String) {
-        downloadedTracks.firstOrNull { it.file.absolutePath == download.id }
-            ?.track
-            ?.let { addTrackToPlaylist(it, playlist = null, newPlaylistName = name) }
-            ?: run { status = "Track not found." }
+        withAndroidDownloadedTrack(appState, download) { track ->
+            addTrackToPlaylist(track, playlist = null, newPlaylistName = name)
+        }
     }
 
     fun handleMixAlbumSelected(selectedAlbum: SharedMediaItemUi) {
@@ -1558,16 +1552,17 @@ private fun NaviampAndroidApp(
     }
 
     fun handleAlbumTrackDownload(selectedTrack: AndroidTrackRowUi) {
-        findKnownTrack(selectedTrack.id)?.let(::downloadTrack) ?: run { status = "Track not found." }
+        withAndroidKnownTrack(appState, selectedTrack, activeQueue(), ::downloadTrack)
     }
 
     fun handleAlbumTrackAddToPlaylist(selectedTrack: AndroidTrackRowUi, playlist: NaviampPlaylistChoiceUi?) {
-        findKnownTrack(selectedTrack.id)?.let { addTrackToPlaylist(it, playlist) } ?: run { status = "Track not found." }
+        withAndroidKnownTrack(appState, selectedTrack, activeQueue()) { track -> addTrackToPlaylist(track, playlist) }
     }
 
     fun handleAlbumTrackCreatePlaylistAndAdd(selectedTrack: AndroidTrackRowUi, name: String) {
-        findKnownTrack(selectedTrack.id)?.let { addTrackToPlaylist(it, playlist = null, newPlaylistName = name) }
-            ?: run { status = "Track not found." }
+        withAndroidKnownTrack(appState, selectedTrack, activeQueue()) { track ->
+            addTrackToPlaylist(track, playlist = null, newPlaylistName = name)
+        }
     }
 
     fun handleArtistPopularPlay(detail: SharedArtistDetailUi) {
@@ -1583,25 +1578,23 @@ private fun NaviampAndroidApp(
     }
 
     fun handleTrackAddToQueue(selectedTrack: AndroidTrackRowUi) {
-        val track = findKnownTrack(selectedTrack.id)
-        if (track == null) {
-            status = "Track not found."
-        } else {
+        withAndroidKnownTrack(appState, selectedTrack, activeQueue()) { track ->
             appendTracksToQueue(listOf(track), "track")
         }
     }
 
     fun handleTrackDownload(selectedTrack: AndroidTrackRowUi) {
-        findKnownTrack(selectedTrack.id)?.let(::downloadTrack) ?: run { status = "Track not found." }
+        withAndroidKnownTrack(appState, selectedTrack, activeQueue(), ::downloadTrack)
     }
 
     fun handleTrackAddToPlaylist(selectedTrack: AndroidTrackRowUi, playlist: NaviampPlaylistChoiceUi?) {
-        findKnownTrack(selectedTrack.id)?.let { addTrackToPlaylist(it, playlist) } ?: run { status = "Track not found." }
+        withAndroidKnownTrack(appState, selectedTrack, activeQueue()) { track -> addTrackToPlaylist(track, playlist) }
     }
 
     fun handleTrackCreatePlaylistAndAdd(selectedTrack: AndroidTrackRowUi, name: String) {
-        findKnownTrack(selectedTrack.id)?.let { addTrackToPlaylist(it, playlist = null, newPlaylistName = name) }
-            ?: run { status = "Track not found." }
+        withAndroidKnownTrack(appState, selectedTrack, activeQueue()) { track ->
+            addTrackToPlaylist(track, playlist = null, newPlaylistName = name)
+        }
     }
 
     fun handleSimilarArtistSelected(similarArtist: SharedSimilarArtistUi) {

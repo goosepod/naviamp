@@ -12,6 +12,8 @@ import app.naviamp.domain.provider.allKnownTracks
 import app.naviamp.domain.provider.createPlaylistOrAddTracks
 import app.naviamp.domain.provider.queueAppendPlan
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.ui.AndroidTrackRowUi
+import app.naviamp.ui.NaviampDownloadedTrackUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -64,6 +66,43 @@ fun appendAndroidTracksToQueue(
             state.playbackQueue = queue
         }
     }
+}
+
+fun withAndroidKnownTrack(
+    state: AndroidAppState,
+    selectedTrack: AndroidTrackRowUi,
+    activeQueue: List<Track>,
+    action: (Track) -> Unit,
+) {
+    val track = findAndroidKnownTrack(state, selectedTrack.id, activeQueue)
+    if (track == null) {
+        state.status = "Track not found."
+    } else {
+        action(track)
+    }
+}
+
+fun withAndroidDownloadedTrack(
+    state: AndroidAppState,
+    download: NaviampDownloadedTrackUi,
+    action: (Track) -> Unit,
+) {
+    val track = state.downloadedTracks.firstOrNull { it.file.absolutePath == download.id }?.track
+    if (track == null) {
+        state.status = "Track not found."
+    } else {
+        action(track)
+    }
+}
+
+fun playAndroidDownloadedTrack(
+    state: AndroidAppState,
+    download: NaviampDownloadedTrackUi,
+    playTrack: (Track, List<Track>) -> Unit,
+) {
+    val currentTracks = state.downloadedTracks.map { it.track }
+    val track = currentTracks.firstOrNull { it.id.value == download.track.id } ?: return
+    playTrack(track, currentTracks)
 }
 
 fun playAndroidArtistPopularTracks(
