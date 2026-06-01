@@ -4,7 +4,12 @@ import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.Track
+import app.naviamp.domain.home.HomeStationLibrary
+import app.naviamp.domain.home.HomeStationRandomAlbum
+import app.naviamp.domain.home.parseHomeDecadeStationId
+import app.naviamp.domain.home.parseHomeGenreStationId
 import app.naviamp.domain.playback.PlaybackQueueController
+import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.radio.generatedRadioTracksToAppend
@@ -151,6 +156,68 @@ fun startAndroidTrackRadio(
         playTrack = playTrack,
     ) { radioService ->
         radioService.trackRadio(track.id)
+    }
+}
+
+fun startAndroidRadioTracks(
+    scope: CoroutineScope,
+    state: AndroidAppState,
+    statusLabel: String,
+    playTrack: (Track, List<Track>) -> Unit,
+    loadTracks: suspend (RadioService) -> List<Track>,
+) {
+    val activeProvider = state.provider ?: return
+    val service = RadioService(activeProvider)
+    scope.launch {
+        state.status = "Starting $statusLabel..."
+        runCatching { loadTracks(service) }
+            .onSuccess { radioTracks ->
+                val queue = radioTracks.distinctBy { it.id }
+                val firstTrack = queue.firstOrNull()
+                if (firstTrack == null) {
+                    state.status = "No tracks found for $statusLabel."
+                } else {
+                    playTrack(firstTrack, queue)
+                }
+            }
+            .onFailure { error -> state.status = error.message ?: "Could not start $statusLabel." }
+    }
+}
+
+fun startAndroidHomeStationRadio(
+    scope: CoroutineScope,
+    state: AndroidAppState,
+    stationId: String,
+    stationTitle: String,
+    playTrack: (Track, List<Track>) -> Unit,
+) {
+    when {
+        stationId == HomeStationLibrary -> {
+            startAndroidRadioTracks(scope, state, "Library Radio", playTrack) { radioService ->
+                radioService.libraryRadio()
+            }
+        }
+        stationId == HomeStationRandomAlbum -> {
+            startAndroidRadioTracks(scope, state, "Random Album Radio", playTrack) { radioService ->
+                val album = state.homeState.randomAlbums.firstOrNull()
+                    ?: state.provider?.albumList(AlbumListType.Random, limit = 1)?.firstOrNull()
+                album?.let { radioService.albumRadio(it.id) }.orEmpty()
+            }
+        }
+        parseHomeGenreStationId(stationId) != null -> {
+            val genre = parseHomeGenreStationId(stationId).orEmpty()
+            startAndroidRadioTracks(scope, state, "${genre} Radio", playTrack) { radioService ->
+                radioService.genreRadio(genre)
+            }
+        }
+        parseHomeDecadeStationId(stationId) != null -> {
+            val decade = parseHomeDecadeStationId(stationId)
+            if (decade != null) {
+                startAndroidRadioTracks(scope, state, stationTitle, playTrack) { radioService ->
+                    radioService.decadeRadio(decade.fromYear, decade.toYear)
+                }
+            }
+        }
     }
 }
 
