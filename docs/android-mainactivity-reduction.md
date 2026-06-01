@@ -65,6 +65,11 @@ Branch: `codex/desktop-main-reduction`
   - Shared generated-radio queue and append/refill rules remain in `core/domain`.
   - `MainActivity.kt`: 1,868 -> 1,837 lines.
   - Verification: `.\gradlew.bat :apps:android:installDebug`.
+- [x] Moved Android artist radio dispatch into the radio controller.
+  - Artist-radio and popular-tracks-radio starts now delegate to `AndroidRadioController`, keeping `MainActivity.kt` as a thin shared-UI callback adapter.
+  - The moved paths still build generated queues through the shared radio queue helpers.
+  - `MainActivity.kt`: 1,837 -> 1,817 lines.
+  - Verification: `.\gradlew.bat :apps:android:compileDebugKotlin`.
 
 ## Goals
 
@@ -95,7 +100,7 @@ Branch: `codex/desktop-main-reduction`
   - Continue moving radio helpers out of `MainActivity.kt`: library/genre/decade/random-album/artist/popular/recent radio dispatch, track-radio queue conversion, and shell queue-item radio.
   - Keep provider execution and queue-controller mutation in Android radio adapter.
   - Shared-code checks: generated-radio queue construction, tail refill, recent-radio actions, seed selection, and request models should remain shared.
-  - Track-radio queue conversion and shell queue-item radio are now in the Android radio adapter; home/library/genre/decade/popular/recent radio dispatch still needs follow-up.
+  - Track-radio queue conversion, shell queue-item radio, artist radio, and popular-track radio are now in the Android radio adapter; home/library/genre/decade/random-album/recent radio dispatch still needs follow-up.
 
 - [x] **Internet radio playback controller**
   - Move `playInternetRadioStation`, live stream URL resolution, stream metadata notification updates, recent-station persistence, and station state reset into an Android internet-radio controller.
@@ -143,6 +148,7 @@ Branch: `codex/desktop-main-reduction`
 - [x] `.\gradlew.bat :apps:android:compileDebugKotlin`
 - [x] `.\gradlew.bat :apps:android:installDebug`
 - [x] `.\gradlew.bat :apps:desktop:compileKotlinDesktop "-Pnaviamp.bass.platform=windows-x64"`
+- [x] `.\gradlew.bat :apps:android:compileDebugKotlin`
 - [x] `.\gradlew.bat :apps:android:compileDebugKotlin`
 
 ## Notes

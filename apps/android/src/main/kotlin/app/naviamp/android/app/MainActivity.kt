@@ -33,7 +33,6 @@ import app.naviamp.android.playback.AndroidPlaybackNotificationControls
 import app.naviamp.android.playback.AndroidPlaybackRuntime
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
-import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Lyrics
@@ -158,9 +157,6 @@ import app.naviamp.ui.setAndroidPlatformCoverArtByteLoader
 import app.naviamp.ui.toSharedSearchResultsUi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -1426,24 +1422,16 @@ private fun NaviampAndroidApp(
     }
 
     fun handleShellArtistRadio(detail: SharedArtistDetailUi) {
-        val service = radioService() ?: return
         val artistId = app.naviamp.domain.ArtistId(detail.artist.id)
-        val artist = artistDetail?.artist ?: Artist(artistId, detail.artist.title)
-        scope.launch {
-            status = "Starting ${detail.artist.title} radio..."
-            runCatching { service.artistSeed(artist, artistDetail?.albums.orEmpty()) }
-                .onSuccess { seedTrack ->
-                    if (seedTrack == null) {
-                        status = "${detail.artist.title} radio did not find a seed track."
-                    } else {
-                        startSeededRadio("${detail.artist.title} radio", seedTrack) { radioService ->
-                            radioService.artistRadio(artistId)
-                        }
-                    }
-                }.onFailure { error ->
-                    status = error.message ?: "Could not start artist radio."
-                }
-        }
+        startAndroidArtistRadio(
+            scope = scope,
+            state = appState,
+            queueController = playbackQueueController,
+            artistId = artistId,
+            artistTitle = detail.artist.title,
+            artist = artistDetail?.artist ?: app.naviamp.domain.Artist(artistId, detail.artist.title),
+            playTrack = { seedTrack, queue -> playTrack(seedTrack, queue, keepRadioQueueActive = true) },
+        )
     }
 
     fun loadArtistTracks(action: (List<Track>) -> Unit) {
@@ -1459,21 +1447,14 @@ private fun NaviampAndroidApp(
     }
 
     fun handleShellArtistPopularRadio(detail: SharedArtistDetailUi) {
-        val service = radioService() ?: return
-        val popularTracks = artistPopularTracksByArtistId[detail.artist.id].orEmpty()
-        val seedTrack = popularTracks.shuffled().firstOrNull()
-        if (seedTrack == null) {
-            status = "No popular tracks matched your library."
-            return
-        }
-        startSeededRadio("${detail.artist.title} popular tracks radio", seedTrack) { radioService ->
-            coroutineScope {
-                popularTracks.take(AndroidPopularRadioSeedLimit)
-                    .map { track -> async(Dispatchers.IO) { radioService.trackRadio(track.id) } }
-                    .awaitAll()
-                    .flatten()
-            }
-        }
+        startAndroidPopularTracksRadio(
+            scope = scope,
+            state = appState,
+            queueController = playbackQueueController,
+            artistTitle = detail.artist.title,
+            popularTracks = artistPopularTracksByArtistId[detail.artist.id].orEmpty(),
+            playTrack = { seedTrack, queue -> playTrack(seedTrack, queue, keepRadioQueueActive = true) },
+        )
     }
 
     fun handleShellHomeStationSelected(station: SharedHomeStationUi) {

@@ -1,6 +1,8 @@
 package app.naviamp.android
 
 import app.naviamp.domain.Album
+import app.naviamp.domain.Artist
+import app.naviamp.domain.ArtistId
 import app.naviamp.domain.Track
 import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.queue.PlaybackQueue
@@ -10,6 +12,9 @@ import app.naviamp.domain.radio.generatedRadioQueue
 import app.naviamp.domain.radio.radioRefillSeedTrack
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -146,6 +151,74 @@ fun startAndroidTrackRadio(
         playTrack = playTrack,
     ) { radioService ->
         radioService.trackRadio(track.id)
+    }
+}
+
+fun startAndroidArtistRadio(
+    scope: CoroutineScope,
+    state: AndroidAppState,
+    queueController: PlaybackQueueController,
+    artistId: ArtistId,
+    artistTitle: String,
+    artist: Artist,
+    playTrack: (Track, List<Track>) -> Unit,
+) {
+    val activeProvider = state.provider ?: return
+    scope.launch {
+        with(state) {
+            status = "Starting $artistTitle radio..."
+            runCatching {
+                RadioService(activeProvider, count = AndroidInitialSimilarRadioCount)
+                    .artistSeed(artist, artistDetail?.albums.orEmpty())
+            }.onSuccess { seedTrack ->
+                if (seedTrack == null) {
+                    status = "$artistTitle radio did not find a seed track."
+                } else {
+                    startAndroidSeededRadio(
+                        scope = scope,
+                        state = state,
+                        queueController = queueController,
+                        statusLabel = "$artistTitle radio",
+                        seedTrack = seedTrack,
+                        playTrack = playTrack,
+                    ) { radioService ->
+                        radioService.artistRadio(artistId)
+                    }
+                }
+            }.onFailure { error ->
+                status = error.message ?: "Could not start artist radio."
+            }
+        }
+    }
+}
+
+fun startAndroidPopularTracksRadio(
+    scope: CoroutineScope,
+    state: AndroidAppState,
+    queueController: PlaybackQueueController,
+    artistTitle: String,
+    popularTracks: List<Track>,
+    playTrack: (Track, List<Track>) -> Unit,
+) {
+    val seedTrack = popularTracks.shuffled().firstOrNull()
+    if (seedTrack == null) {
+        state.status = "No popular tracks matched your library."
+        return
+    }
+    startAndroidSeededRadio(
+        scope = scope,
+        state = state,
+        queueController = queueController,
+        statusLabel = "$artistTitle popular tracks radio",
+        seedTrack = seedTrack,
+        playTrack = playTrack,
+    ) { radioService ->
+        coroutineScope {
+            popularTracks.take(AndroidPopularRadioSeedLimit)
+                .map { track -> async(Dispatchers.IO) { radioService.trackRadio(track.id) } }
+                .awaitAll()
+                .flatten()
+        }
     }
 }
 
