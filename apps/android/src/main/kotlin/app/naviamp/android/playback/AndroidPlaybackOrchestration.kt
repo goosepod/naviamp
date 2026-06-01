@@ -19,6 +19,7 @@ import app.naviamp.domain.playback.planPlaybackTrackStartEffects
 import app.naviamp.domain.playback.planPlaybackTrackStarted
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.ReplayGainSource
+import app.naviamp.domain.playback.resolvePlaybackAudioSource
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.radio.planInternetRadioStart
 import app.naviamp.provider.navidrome.NavidromeProvider
@@ -79,20 +80,29 @@ fun playAndroidTrack(
         with(state) {
             status = "Loading ${track.title}..."
             val streamQuality = currentStreamQuality()
-            val localAudioFile = activeSourceId?.let { sourceId ->
-                storage.downloadedAudioFile(sourceId, track.id, streamQuality)?.file
-                    ?: storage.cachedAudioFile(sourceId, track.id, streamQuality)?.file
-            }
+            val audioSourcePlan = resolvePlaybackAudioSource(
+                sourceId = activeSourceId,
+                track = track,
+                quality = streamQuality,
+                audioCachingEnabled = true,
+                startPositionSeconds = startPositionSeconds,
+                downloadedAudio = { sourceId, trackId, requestedQuality ->
+                    storage.downloadedAudioFile(sourceId, trackId, requestedQuality)?.file
+                },
+                cachedAudio = { sourceId, trackId, requestedQuality ->
+                    storage.cachedAudioFile(sourceId, trackId, requestedQuality)?.file
+                },
+            )
             val startPlan = planPlaybackStart(
                 track = track,
                 requestedQueue = queue,
                 activeQueue = activeQueue(),
                 quality = streamQuality,
                 startPositionSeconds = startPositionSeconds,
-                hasLocalAudio = localAudioFile != null,
+                hasLocalAudio = audioSourcePlan.hasLocalAudio,
             )
             runCatching {
-                localAudioFile?.toURI()?.toString()
+                audioSourcePlan.localAudio?.toURI()?.toString()
                     ?: activeProvider.streamUrl(startPlan.target.providerStreamRequest)
             }.onSuccess { streamUrl ->
                 playbackEngine.applyTlsSettings(activeTlsSettings)

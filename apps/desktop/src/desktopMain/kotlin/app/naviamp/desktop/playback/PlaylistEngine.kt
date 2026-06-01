@@ -16,8 +16,8 @@ import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackQueueSelection
 import app.naviamp.domain.playback.PlaybackReplayGain
 import app.naviamp.domain.playback.PlaybackRequest
+import app.naviamp.domain.playback.PlaybackSource
 import app.naviamp.domain.playback.PlaybackState
-import app.naviamp.domain.playback.playbackTargetPlan
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.ReplayGainSource
@@ -25,6 +25,7 @@ import app.naviamp.domain.playback.SidecarTypeEmbeddedLyrics
 import app.naviamp.domain.playback.SidecarTypeLrclibLyrics
 import app.naviamp.domain.playback.SidecarTypeProviderLyrics
 import app.naviamp.domain.playback.SidecarTypeWaveform
+import app.naviamp.domain.playback.resolvePlaybackAudioSource
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import kotlinx.coroutines.CoroutineScope
@@ -282,40 +283,28 @@ class PlaylistEngine(
         quality: StreamQuality,
         startPositionSeconds: Double? = null,
     ): PlaybackTarget {
-        val sourceId = sourceIdProvider()
-        val downloaded = if (sourceId != null) {
-            cache?.downloadedAudioFile(sourceId, track.id, quality)
-        } else {
-            null
-        }
-        if (downloaded != null) {
-            return PlaybackTarget(
-                url = downloaded.path.toUri().toString(),
-                source = PlaybackSource.DownloadedFile,
-            )
-        }
-
-        val cached = if (sourceId != null && audioCachingEnabledProvider()) {
-            cache?.cachedAudioFile(sourceId, track.id, quality)
-        } else {
-            null
-        }
-        if (cached != null) {
-            return PlaybackTarget(
-                url = cached.path.toUri().toString(),
-                source = PlaybackSource.CachedFile,
-            )
-        }
-
-        val plan = playbackTargetPlan(
+        val plan = resolvePlaybackAudioSource(
+            sourceId = sourceIdProvider(),
             track = track,
             quality = quality,
+            audioCachingEnabled = audioCachingEnabledProvider(),
             startPositionSeconds = startPositionSeconds,
-            hasLocalAudio = false,
+            downloadedAudio = { sourceId, trackId, requestedQuality ->
+                cache?.downloadedAudioFile(sourceId, trackId, requestedQuality)?.path
+            },
+            cachedAudio = { sourceId, trackId, requestedQuality ->
+                cache?.cachedAudioFile(sourceId, trackId, requestedQuality)?.path
+            },
         )
+        plan.localAudio?.let { path ->
+            return PlaybackTarget(
+                url = path.toUri().toString(),
+                source = plan.source,
+            )
+        }
         return PlaybackTarget(
-            url = provider.streamUrl(plan.providerStreamRequest),
-            source = if (audioCachingEnabledProvider()) PlaybackSource.ProviderStream else PlaybackSource.ProviderStreamCacheDisabled,
+            url = provider.streamUrl(plan.target.providerStreamRequest),
+            source = plan.source,
         )
     }
 
@@ -623,14 +612,6 @@ data class CacheRuntimeStats(
     val playbackSource: PlaybackSource = PlaybackSource.Unknown,
     val prefetch: AudioPrefetchStats = AudioPrefetchStats(),
 )
-
-enum class PlaybackSource(val label: String) {
-    Unknown("Unknown"),
-    DownloadedFile("Downloaded file"),
-    CachedFile("Cached file"),
-    ProviderStream("Provider stream"),
-    ProviderStreamCacheDisabled("Provider stream (cache disabled)"),
-}
 
 data class AudioPrefetchStats(
     val enabled: Boolean = false,

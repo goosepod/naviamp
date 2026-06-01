@@ -1,6 +1,6 @@
 package app.naviamp.desktop
 
-import app.naviamp.desktop.playback.PlaybackSource
+import app.naviamp.domain.playback.PlaybackSource
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

@@ -1,6 +1,6 @@
 package app.naviamp.desktop
 
-import app.naviamp.desktop.playback.PlaybackSource
+import app.naviamp.domain.playback.PlaybackSource
 
 fun shouldReplayCurrentForSeek(playbackSource: PlaybackSource): Boolean =
     playbackSource == PlaybackSource.ProviderStream ||

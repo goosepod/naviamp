@@ -4,6 +4,17 @@ This worksheet tracks the next architecture goal: platform-agnostic storage, cac
 
 The intended shape is the same idea as a PHP app using one cache/storage interface with different local/prod drivers. Naviamp should let shared services ask for bytes, metadata, cached provider responses, downloads, local library rows, and sidecars without knowing whether the backing engine is Android app storage, desktop disk, SQLite, S3, Redis, or a future platform store.
 
+## Next Up
+
+- [x] Create this worksheet as the active tracker for storage/cache/download architecture.
+- [x] Extract shared downloaded/cached/provider-stream playback-source resolution.
+- [ ] Replace remaining direct playback audio lookup call sites with the shared resolver.
+  - Android foreground service cold-start playback path.
+  - Audio prefetch/sidecar prep paths that repeat downloaded-vs-cached lookup.
+- [ ] Split shared audio asset lookup ports away from `DesktopCache` and `AndroidStorage`.
+- [ ] Extract shared download orchestration over narrow download/audio repositories.
+- [ ] Extract shared provider-response cache orchestration so desktop and Android get the same cached/live behavior.
+
 ## Decision
 
 - Product behavior should depend on shared ports/interfaces, not on `DesktopCache` or `AndroidStorage` directly.
@@ -172,3 +183,10 @@ Then higher-level repositories can be composed from those stores:
 4. Point desktop `PlaylistEngine` and Android playback start at the shared resolver.
 
 This is a strong first slice because playback-source selection currently affects both platforms and is visible to users.
+
+## Progress
+
+- 2026-05-31: Added shared playback-source resolver in `core/domain/playback`.
+  - Desktop `PlaylistEngine` now uses the shared resolver for downloaded file, cached file, and provider stream selection.
+  - Android foreground app playback now uses the same resolver for downloaded file, cached file, and provider stream selection.
+  - Platform code still owns path/file URI conversion, which keeps OS-specific storage details out of common code.
