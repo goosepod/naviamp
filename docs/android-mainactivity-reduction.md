@@ -90,6 +90,11 @@ Branch: `codex/desktop-main-reduction`
   - Shared sync/freshness decisions remain in `core/domain/library`; Android only applies provider, storage, coroutine, and UI-state effects.
   - `MainActivity.kt`: 1,730 -> 1,655 lines.
   - Verification: `.\gradlew.bat :apps:android:compileDebugKotlin`.
+- [x] Moved Android maintenance/reset actions into an app controller.
+  - `AndroidMaintenanceController.kt` now owns cache clearing, library-index clearing, database reset, derived-media cleanup, file-cache cleanup, and playback-state reset.
+  - Shared reset/status wording remains in `core/domain/app`; Android only applies local storage, file, playback-engine, queue, and settings effects.
+  - `MainActivity.kt`: 1,655 -> 1,583 lines.
+  - Verification: `.\gradlew.bat :apps:android:compileDebugKotlin`.
 
 ## Goals
 
@@ -141,7 +146,7 @@ Branch: `codex/desktop-main-reduction`
 - [ ] **Library and search orchestration cleanup**
   - Move remaining library query/snapshot/page-jump/search result loading state wiring out of `MainActivity.kt` if it is still inline after playback/media splits.
   - Shared-code checks: search session orchestration, query normalization, debounce, paging limits, freshness polling, and sync status rules should remain common.
-  - Library sync/freshness orchestration is now in `AndroidLibraryController`; search orchestration and cache/index reset actions still need a follow-up pass.
+  - Library sync/freshness orchestration is now in `AndroidLibraryController`; cache/index reset actions are now in `AndroidMaintenanceController`; search orchestration still needs a follow-up pass.
 
 - [ ] **Route/back-stack/effect cleanup**
   - Move `handleAndroidBack`, route-clear helpers, auto-command effects, and startup/restoration effects into focused app-level helpers where lifecycle-safe.
@@ -169,6 +174,7 @@ Branch: `codex/desktop-main-reduction`
 - [x] `.\gradlew.bat :apps:android:compileDebugKotlin`
 - [x] `.\gradlew.bat :apps:android:installDebug`
 - [x] `.\gradlew.bat :apps:desktop:compileKotlinDesktop "-Pnaviamp.bass.platform=windows-x64"`
+- [x] `.\gradlew.bat :apps:android:compileDebugKotlin`
 - [x] `.\gradlew.bat :apps:android:compileDebugKotlin`
 - [x] `.\gradlew.bat :apps:android:compileDebugKotlin`
 - [x] `.\gradlew.bat :apps:android:compileDebugKotlin`

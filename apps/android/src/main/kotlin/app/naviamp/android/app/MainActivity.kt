@@ -42,12 +42,7 @@ import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.isInternetRadioTrack
-import app.naviamp.domain.app.NaviampContentState
-import app.naviamp.domain.app.NaviampNavigationState
 import app.naviamp.domain.app.NaviampRoute
-import app.naviamp.domain.app.cacheDataClearedStatus
-import app.naviamp.domain.app.databaseResetStatus
-import app.naviamp.domain.app.libraryIndexClearedStatus
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.PlaylistDetailRefreshIntervalMillis
@@ -56,7 +51,6 @@ import app.naviamp.domain.provider.SearchSessionController
 import app.naviamp.domain.provider.allKnownTracks
 import app.naviamp.domain.provider.playlistDetailAutoRefreshTarget
 import app.naviamp.domain.provider.runPlaylistDetailAutoRefresh
-import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.home.HomeService
 import app.naviamp.domain.media.albumDetailLoadErrorStatus
@@ -65,7 +59,6 @@ import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackReplayGain
 import app.naviamp.domain.playback.PlaybackState
-import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.ReplayGainMode
@@ -104,7 +97,6 @@ import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeApiCall
 import app.naviamp.provider.navidrome.NavidromeApiCallHistory
 import app.naviamp.provider.navidrome.NavidromeProvider
-import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.ui.AndroidTrackRowUi
 import app.naviamp.ui.NaviampNowPlayingItemUi
@@ -327,44 +319,6 @@ private fun NaviampAndroidApp(
         appendAndroidTracksToQueue(appState, playbackQueueController, tracksToAdd, label)
     }
 
-    fun clearDerivedMediaState() {
-        waveformByTrackId = emptyMap()
-        lyricsByTrackId = emptyMap()
-        lyricsStatusByTrackId = emptyMap()
-        relatedTracks = emptyList()
-        artistPopularTracksByArtistId = emptyMap()
-        artistPopularTracksStatusByArtistId = emptyMap()
-        artistSimilarArtistsByArtistId = emptyMap()
-        artistSimilarArtistsStatusByArtistId = emptyMap()
-        playlistTracksById = emptyMap()
-    }
-
-    fun clearAndroidFileCaches() {
-        deleteDirectoryContents(File(context.cacheDir, "cover-art"))
-        deleteDirectoryContents(File(context.cacheDir, "waveforms"))
-    }
-
-    fun resetPlaybackState() {
-        playbackEngine.stop()
-        audioPrefetchJob?.cancel()
-        audioPrefetchJob = null
-        sidecarPrepJob?.cancel()
-        sidecarPrepJob = null
-        playbackSessionToken += 1
-        playbackState = PlaybackState.Idle
-        playbackProgress = PlaybackProgress.Unknown
-        nowPlaying = null
-        nowPlayingStation = null
-        nowPlayingStreamMetadata = PlaybackStreamMetadata()
-        nowPlayingOpen = false
-        visualizerFrame = null
-        visualizerRequestedVisible = false
-        playbackQueueController.clear()
-        playbackQueue = playbackQueueController.queue
-        shuffledUpNextSnapshot = null
-        restoredStartPositionSeconds = null
-    }
-
     fun nextQueueIndex(): Int? {
         val currentTrack = nowPlaying ?: return null
         val queue = activeQueue()
@@ -553,48 +507,22 @@ private fun NaviampAndroidApp(
     }
 
     fun handleClearCache() {
-        storage.clearCacheData()
-        clearAndroidFileCaches()
-        clearDerivedMediaState()
-        status = cacheDataClearedStatus()
+        handleAndroidClearCache(context, appState, storage)
     }
 
     fun handleClearLibrary() {
-        storage.clearLibraryData(activeSourceId)
-        homeState = HomeContent()
-        contentState = NaviampContentState()
-        tracks = emptyList()
-        recentPlaylistIds = emptyList()
-        clearDerivedMediaState()
-        status = libraryIndexClearedStatus()
+        handleAndroidClearLibrary(appState, storage)
     }
 
     fun handleResetDatabase() {
-        resetPlaybackState()
-        storage.clearAll()
-        settingsStore.clear()
-        clearAndroidFileCaches()
-        provider = null
-        activeSourceId = null
-        validation = null
-        activeTlsSettings = NavidromeTlsSettings()
-        homeState = HomeContent()
-        contentState = NaviampContentState()
-        tracks = emptyList()
-        recentPlaylistIds = emptyList()
-        connectionName = ""
-        serverUrl = ""
-        username = ""
-        password = ""
-        skipTlsVerification = false
-        customCertificatePath = ""
-        clientCertificatePath = ""
-        clientCertificatePassword = ""
-        editingConnection = true
-        restoringConnection = false
-        navigationState = NaviampNavigationState(route = NaviampRoute.Settings)
-        clearDerivedMediaState()
-        status = databaseResetStatus()
+        handleAndroidResetDatabase(
+            context = context,
+            state = appState,
+            storage = storage,
+            settingsStore = settingsStore,
+            playbackEngine = playbackEngine,
+            queueController = playbackQueueController,
+        )
     }
 
     val searchSessionController = SearchSessionController(
