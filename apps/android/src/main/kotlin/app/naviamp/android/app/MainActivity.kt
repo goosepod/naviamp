@@ -56,7 +56,6 @@ import app.naviamp.domain.provider.SearchSessionController
 import app.naviamp.domain.provider.allKnownTracks
 import app.naviamp.domain.provider.playlistDetailAutoRefreshTarget
 import app.naviamp.domain.provider.runPlaylistDetailAutoRefresh
-import app.naviamp.domain.provider.queueAppendPlan
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.home.HomeService
@@ -328,8 +327,7 @@ private fun NaviampAndroidApp(
         playbackQueue.tracks.ifEmpty { allKnownTracks(searchResults, albumDetail) }
 
     fun findKnownTrack(trackId: String): Track? =
-        (activeQueue() + selectedPlaylistTracks + relatedTracks + allKnownTracks(searchResults, albumDetail))
-            .firstOrNull { it.id.value == trackId }
+        findAndroidKnownTrack(appState, trackId, activeQueue())
 
     fun appendTracksToQueue(tracksToAdd: List<Track>, label: String = "tracks") {
         appendAndroidTracksToQueue(appState, playbackQueueController, tracksToAdd, label)
@@ -1369,15 +1367,12 @@ private fun NaviampAndroidApp(
     )
 
     fun handleShellTrackSelected(selectedTrack: AndroidTrackRowUi) {
-        val currentTracks = activeQueue().takeIf { queue -> queue.any { it.id.value == selectedTrack.id } }
-            ?: relatedTracks.takeIf { queue -> queue.any { it.id.value == selectedTrack.id } }
-            ?: artistPopularTracksByArtistId.values.flatten().takeIf { queue -> queue.any { it.id.value == selectedTrack.id } }
-            ?: allKnownTracks(searchResults, albumDetail)
-        val track = currentTracks.firstOrNull { it.id.value == selectedTrack.id } ?: findKnownTrack(selectedTrack.id)
-        if (track == null) {
+        val playback = selectedAndroidTrackPlayback(appState, selectedTrack.id, activeQueue())
+        if (playback == null) {
             status = "Track not found."
             return
         }
+        val (track, currentTracks) = playback
         playTrack(track, currentTracks)
     }
 
@@ -1576,37 +1571,15 @@ private fun NaviampAndroidApp(
     }
 
     fun handleArtistPopularPlay(detail: SharedArtistDetailUi) {
-        val popularTracks = artistPopularTracksByArtistId[detail.artist.id].orEmpty()
-        popularTracks.firstOrNull()?.let { playTrack(it, popularTracks) }
-            ?: run { status = "No popular tracks matched your library." }
+        playAndroidArtistPopularTracks(appState, detail.artist.id) { track, queue -> playTrack(track, queue) }
     }
 
     fun handleArtistPopularTrackSelected(selectedTrack: AndroidTrackRowUi) {
-        val track = artistPopularTracksByArtistId.values.flatten().firstOrNull { it.id.value == selectedTrack.id }
-            ?: findKnownTrack(selectedTrack.id)
-        if (track == null) {
-            status = "Track not found."
-        } else {
-            startTrackRadio(track)
-        }
+        startAndroidArtistPopularTrackRadio(appState, selectedTrack.id, activeQueue(), ::startTrackRadio)
     }
 
     fun handleArtistPopularAddToQueue(detail: SharedArtistDetailUi) {
-        val popularTracks = artistPopularTracksByArtistId[detail.artist.id].orEmpty()
-        if (popularTracks.isEmpty()) {
-            status = "No popular tracks matched your library."
-        } else {
-            val plan = queueAppendPlan(
-                tracks = popularTracks,
-                label = "popular tracks",
-                existingTracks = playbackQueue.tracks,
-                deduplicateExisting = true,
-            )
-            status = plan.status
-            if (plan.tracks.isNotEmpty()) {
-                appendTracksToQueue(plan.tracks, "popular tracks")
-            }
-        }
+        appendAndroidArtistPopularTracksToQueue(appState, playbackQueueController, detail.artist.id)
     }
 
     fun handleTrackAddToQueue(selectedTrack: AndroidTrackRowUi) {

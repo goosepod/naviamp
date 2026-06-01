@@ -75,6 +75,11 @@ Branch: `codex/desktop-main-reduction`
   - Home-station parsing remains in shared domain; Android only applies provider calls and playback startup.
   - `MainActivity.kt`: 1,817 -> 1,764 lines.
   - Verification: `.\gradlew.bat :apps:android:compileDebugKotlin`.
+- [x] Centralized Android media track lookup and artist-popular callbacks.
+  - `AndroidMediaActionsController.kt` now owns known-track lookup, selected-track playback targeting, artist popular play, popular-track radio start, and popular-track queue append.
+  - The moved paths keep shared behavior in play through `core/domain` helpers like `allKnownTracks` and `queueAppendPlan`; Android remains the adapter that applies state and playback effects.
+  - `MainActivity.kt`: 1,764 -> 1,737 lines.
+  - Verification: `.\gradlew.bat :apps:android:compileDebugKotlin`.
 
 ## Goals
 
@@ -114,7 +119,7 @@ Branch: `codex/desktop-main-reduction`
 - [x] **Android media action controller**
   - Move favorite/rating updates, track metadata propagation, album/artist popular-track play/add/radio/download callbacks, and known-track lookup helpers out of `MainActivity.kt`.
   - Shared-code checks: metadata propagation, action availability, favorite/rating mutation planning, and display models should stay in shared domain/UI where possible.
-  - First slice complete for queue append, add-to-playlist, favorite/rating, and metadata propagation. Track lookup wrappers and album/artist popular-track callback wrappers remain in `MainActivity.kt` and can be folded into this controller next.
+  - Queue append, add-to-playlist, favorite/rating, metadata propagation, known-track lookup, selected-track playback targeting, and artist popular play/radio/add-to-queue wrappers are now in the media controller. Album/download playlist wrappers still need a follow-up pass.
 
 - [x] **Playlist orchestration controller**
   - Move playlist play/open/refresh/preload, selected-playlist detail state, playlist delete/rename/create/add flows, and smart-playlist callbacks out of `MainActivity.kt`.
@@ -156,6 +161,7 @@ Branch: `codex/desktop-main-reduction`
 - [x] `.\gradlew.bat :apps:android:compileDebugKotlin`
 - [x] `.\gradlew.bat :apps:android:compileDebugKotlin`
 - [x] `.\gradlew.bat :apps:android:compileDebugKotlin`
+- [x] `.\gradlew.bat :apps:android:compileDebugKotlin`
 
 ## Notes
 
@@ -163,3 +169,4 @@ Branch: `codex/desktop-main-reduction`
 - `AndroidPlaybackForegroundService.kt` should be handled after `MainActivity.kt`, likely with separate service/runtime/media-session/Android Auto controllers.
 - The artist-selection feature idea remains parked in `docs/desktop-main-reduction.md` until the current size-reduction pass is stable enough for feature work.
 - Playlist play duplicate-start suppression now has a shared pending/loading playback-action model; album/radio can reuse it when those starts need the same feedback.
+- Cross-platform agnosticism is the guiding constraint for this pass: platform controllers should only apply lifecycle/storage/playback side effects, while product decisions and reusable rules should move into `core/domain`, `core/ui`, or shared provider modules whenever both desktop and Android need them.

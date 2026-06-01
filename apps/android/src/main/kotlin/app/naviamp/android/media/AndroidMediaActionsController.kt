@@ -8,12 +8,41 @@ import app.naviamp.domain.media.ratedTrackUpdate
 import app.naviamp.domain.media.withUpdatedTrack
 import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.provider.addToPlaylistMutationUpdate
+import app.naviamp.domain.provider.allKnownTracks
 import app.naviamp.domain.provider.createPlaylistOrAddTracks
 import app.naviamp.domain.provider.queueAppendPlan
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+
+fun findAndroidKnownTrack(
+    state: AndroidAppState,
+    trackId: String,
+    activeQueue: List<Track>,
+): Track? =
+    (
+        activeQueue +
+            state.selectedPlaylistTracks +
+            state.relatedTracks +
+            state.artistPopularTracksByArtistId.values.flatten() +
+            allKnownTracks(state.searchResults, state.albumDetail)
+        ).firstOrNull { it.id.value == trackId }
+
+fun selectedAndroidTrackPlayback(
+    state: AndroidAppState,
+    trackId: String,
+    activeQueue: List<Track>,
+): Pair<Track, List<Track>>? {
+    val currentTracks = activeQueue.takeIf { queue -> queue.any { it.id.value == trackId } }
+        ?: state.relatedTracks.takeIf { queue -> queue.any { it.id.value == trackId } }
+        ?: state.artistPopularTracksByArtistId.values.flatten().takeIf { queue -> queue.any { it.id.value == trackId } }
+        ?: allKnownTracks(state.searchResults, state.albumDetail)
+    val track = currentTracks.firstOrNull { it.id.value == trackId }
+        ?: findAndroidKnownTrack(state, trackId, activeQueue)
+        ?: return null
+    return track to currentTracks
+}
 
 fun appendAndroidTracksToQueue(
     state: AndroidAppState,
@@ -34,6 +63,52 @@ fun appendAndroidTracksToQueue(
         playbackQueueController.appendTracks(plan.tracks)?.let { queue ->
             state.playbackQueue = queue
         }
+    }
+}
+
+fun playAndroidArtistPopularTracks(
+    state: AndroidAppState,
+    artistId: String,
+    playTrack: (Track, List<Track>) -> Unit,
+) {
+    val popularTracks = state.artistPopularTracksByArtistId[artistId].orEmpty()
+    popularTracks.firstOrNull()?.let { playTrack(it, popularTracks) }
+        ?: run { state.status = "No popular tracks matched your library." }
+}
+
+fun startAndroidArtistPopularTrackRadio(
+    state: AndroidAppState,
+    trackId: String,
+    activeQueue: List<Track>,
+    startTrackRadio: (Track) -> Unit,
+) {
+    val track = findAndroidKnownTrack(state, trackId, activeQueue)
+    if (track == null) {
+        state.status = "Track not found."
+    } else {
+        startTrackRadio(track)
+    }
+}
+
+fun appendAndroidArtistPopularTracksToQueue(
+    state: AndroidAppState,
+    playbackQueueController: PlaybackQueueController,
+    artistId: String,
+) {
+    val popularTracks = state.artistPopularTracksByArtistId[artistId].orEmpty()
+    if (popularTracks.isEmpty()) {
+        state.status = "No popular tracks matched your library."
+        return
+    }
+    val plan = queueAppendPlan(
+        tracks = popularTracks,
+        label = "popular tracks",
+        existingTracks = state.playbackQueue.tracks,
+        deduplicateExisting = true,
+    )
+    state.status = plan.status
+    if (plan.tracks.isNotEmpty()) {
+        appendAndroidTracksToQueue(state, playbackQueueController, plan.tracks, "popular tracks")
     }
 }
 
