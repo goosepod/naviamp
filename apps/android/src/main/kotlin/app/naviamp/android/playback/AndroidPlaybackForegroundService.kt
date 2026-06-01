@@ -35,7 +35,6 @@ import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.StreamQuality
-import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.playback.PlaybackProgress
@@ -43,6 +42,7 @@ import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.hasPendingSeekReachedTarget
+import app.naviamp.domain.playback.resolvePlaybackAudioSource
 import app.naviamp.domain.playback.shouldIgnoreProgressForPendingSeek
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.queue.PlaybackQueue
@@ -493,14 +493,23 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
 
         runtime.scope.launch {
             runCatching {
-                provider.streamUrl(
-                    StreamRequest(
-                        trackId = track.id,
-                        quality = quality,
-                        startPositionSeconds = null,
-                    ),
+                val audioSourcePlan = resolvePlaybackAudioSource(
+                    sourceId = source.id,
+                    track = track,
+                    quality = quality,
+                    audioCachingEnabled = true,
+                    startPositionSeconds = startPositionSeconds,
+                    downloadedAudio = { sourceId, trackId, requestedQuality ->
+                        storage.downloadedAudioFile(sourceId, trackId, requestedQuality)?.file
+                    },
+                    cachedAudio = { sourceId, trackId, requestedQuality ->
+                        storage.cachedAudioFile(sourceId, trackId, requestedQuality)?.file
+                    },
                 )
-            }.onSuccess { streamUrl ->
+                val streamUrl = audioSourcePlan.localAudio?.toURI()?.toString()
+                    ?: provider.streamUrl(audioSourcePlan.target.providerStreamRequest)
+                streamUrl to audioSourcePlan.target.engineStartPositionSeconds
+            }.onSuccess { playbackTarget ->
                 runtime.playbackEngine.updateNotificationMetadata(
                     title = track.title,
                     subtitle = track.artistName,
@@ -509,10 +518,10 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 runtime.playbackEngine.play(
                     scope = runtime.scope,
                     request = PlaybackRequest(
-                        url = streamUrl,
+                        url = playbackTarget.first,
                         mediaId = track.id.value,
                         replayGainMode = playbackSettings.replayGainMode,
-                        startPositionSeconds = startPositionSeconds,
+                        startPositionSeconds = playbackTarget.second,
                     ),
                     onStateChanged = { state ->
                         if (state != lastServicePlaybackState) {

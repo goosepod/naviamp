@@ -74,6 +74,7 @@ import app.naviamp.domain.playback.lyricsUnavailableStatus
 import app.naviamp.domain.playback.shouldLoadOnlineLyrics
 import app.naviamp.domain.playback.sidecarPrepPlan
 import app.naviamp.domain.playback.waveformUnavailableStatus
+import app.naviamp.domain.playback.resolvePlaybackAudioSource
 import app.naviamp.domain.popular.ArtistPopularTracksService
 import app.naviamp.domain.popular.DeezerPopularTracksClient
 import app.naviamp.domain.popular.SimilarArtistMatch
@@ -342,8 +343,18 @@ private fun NaviampAndroidApp(
         quality: StreamQuality,
     ): File? {
         if (track.isInternetRadioTrack()) return null
-        storage.downloadedAudioFile(sourceId, track.id, quality)?.file?.let { return it }
-        storage.cachedAudioFile(sourceId, track.id, quality)?.file?.let { return it }
+        resolvePlaybackAudioSource(
+            sourceId = sourceId,
+            track = track,
+            quality = quality,
+            audioCachingEnabled = true,
+            downloadedAudio = { activeSourceId, trackId, requestedQuality ->
+                storage.downloadedAudioFile(activeSourceId, trackId, requestedQuality)?.file
+            },
+            cachedAudio = { activeSourceId, trackId, requestedQuality ->
+                storage.cachedAudioFile(activeSourceId, trackId, requestedQuality)?.file
+            },
+        ).localAudio?.let { return it }
 
         val cacheKey = "${sourceId}:${track.id.value}:$quality"
         if (!audioCacheKeysInFlight.add(cacheKey)) {
@@ -404,10 +415,25 @@ private fun NaviampAndroidApp(
         val nextTrack = activeQueue().getOrNull(nextIndex) ?: return
         if (!playbackQueueController.shouldPrepareNext(nextIndex)) return
         val activeProvider = provider ?: return
+        val sourceId = activeSourceId
         playbackQueueController.markPreparedNext(nextIndex)
         scope.launch {
             runCatching {
-                activeProvider.streamUrl(StreamRequest(nextTrack.id, currentStreamQuality()))
+                val quality = currentStreamQuality()
+                val audioSourcePlan = resolvePlaybackAudioSource(
+                    sourceId = sourceId,
+                    track = nextTrack,
+                    quality = quality,
+                    audioCachingEnabled = true,
+                    downloadedAudio = { activeSourceId, trackId, requestedQuality ->
+                        storage.downloadedAudioFile(activeSourceId, trackId, requestedQuality)?.file
+                    },
+                    cachedAudio = { activeSourceId, trackId, requestedQuality ->
+                        storage.cachedAudioFile(activeSourceId, trackId, requestedQuality)?.file
+                    },
+                )
+                audioSourcePlan.localAudio?.toURI()?.toString()
+                    ?: activeProvider.streamUrl(audioSourcePlan.target.providerStreamRequest)
             }.onSuccess { streamUrl ->
                 if (sessionToken != playbackSessionToken) return@onSuccess
                 queueAwareEngine.prepareNext(
@@ -432,12 +458,18 @@ private fun NaviampAndroidApp(
             runCatching {
                 val sourceId = activeSourceId
                 val quality = currentStreamQuality()
-                val audioFile = if (sourceId != null) {
-                    storage.downloadedAudioFile(sourceId, track.id, quality)?.file
-                        ?: storage.cachedAudioFile(sourceId, track.id, quality)?.file
-                } else {
-                    null
-                }
+                val audioFile = resolvePlaybackAudioSource(
+                    sourceId = sourceId,
+                    track = track,
+                    quality = quality,
+                    audioCachingEnabled = true,
+                    downloadedAudio = { activeSourceId, trackId, requestedQuality ->
+                        storage.downloadedAudioFile(activeSourceId, trackId, requestedQuality)?.file
+                    },
+                    cachedAudio = { activeSourceId, trackId, requestedQuality ->
+                        storage.cachedAudioFile(activeSourceId, trackId, requestedQuality)?.file
+                    },
+                ).localAudio
                 val embeddedLyrics = audioFile?.let(::embeddedLyricsFromAudioFile)
                 val localLyrics = activeProvider.lyrics(track.id)
                 val onlineLyrics = if (

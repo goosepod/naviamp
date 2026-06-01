@@ -8,9 +8,13 @@ The intended shape is the same idea as a PHP app using one cache/storage interfa
 
 - [x] Create this worksheet as the active tracker for storage/cache/download architecture.
 - [x] Extract shared downloaded/cached/provider-stream playback-source resolution.
-- [ ] Replace remaining direct playback audio lookup call sites with the shared resolver.
+- [x] Replace remaining direct playback audio lookup call sites with the shared resolver.
   - Android foreground service cold-start playback path.
-  - Audio prefetch/sidecar prep paths that repeat downloaded-vs-cached lookup.
+  - Android prepare-next, audio prefetch, waveform, and lyrics lookup paths.
+- [ ] Sweep remaining local-audio lookup sites for places that should become narrower repository ports instead of concrete storage calls.
+  - Desktop now-playing sidecar analysis.
+  - Desktop replay gain tag lookup.
+  - Storage internals that can stay engine-owned.
 - [ ] Split shared audio asset lookup ports away from `DesktopCache` and `AndroidStorage`.
 - [ ] Extract shared download orchestration over narrow download/audio repositories.
 - [ ] Extract shared provider-response cache orchestration so desktop and Android get the same cached/live behavior.
@@ -190,3 +194,6 @@ This is a strong first slice because playback-source selection currently affects
   - Desktop `PlaylistEngine` now uses the shared resolver for downloaded file, cached file, and provider stream selection.
   - Android foreground app playback now uses the same resolver for downloaded file, cached file, and provider stream selection.
   - Platform code still owns path/file URI conversion, which keeps OS-specific storage details out of common code.
+- 2026-05-31: Extended the shared resolver through Android service/background paths.
+  - Android Auto / foreground-service restored playback now uses downloaded/cached audio before provider streams.
+  - Android prepare-next, prefetch, waveform, and lyrics sidecar paths now share the same downloaded-vs-cached lookup rule.
