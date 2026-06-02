@@ -221,6 +221,10 @@ Branch: `codex/desktop-main-reduction`
 - Search result wrapping/status text and storage stats refresh route/interval decisions are now shared through `core/domain`.
 - Library sync status text, initial auto-sync decision, and library freshness polling cadence are now shared through `core/domain`.
 - Now-playing sidecar type keys, lyrics loading/error rules, waveform status labels, online-lyrics fetch decisions, and sidecar queue filtering are now shared through `core/domain`.
+- Waveform generation is BASS-backed on both desktop and Android, but the analyzer should become a shared interface/service before more waveform plumbing moves across platforms.
+  - Desktop currently uses `AudioWaveformAnalyzer` over `BassNative`; Android uses `AndroidAudioWaveformAnalyzer` over `AndroidBassJni`.
+  - The shared service should coordinate cached waveform lookup, local/downloaded audio preference, provider-stream fallback, TLS settings, and platform BASS adapters.
+  - Do not force Android into the current storage-shaped waveform repository contract; it needs `Track` and provider-stream context.
 - Internet-radio station track shaping, metadata title updates, and recent-station ordering/limits are now shared through `core/domain`.
 - Artist detail fallback, status text, popular-track update, and similar-artist update rules are shared through `core/domain`; platforms keep route and external-link handling locally.
 - Library auto-sync gating, freshness polling updates, sync status text, and paging limits are shared through `core/domain`; platforms keep their storage-specific sync runners.

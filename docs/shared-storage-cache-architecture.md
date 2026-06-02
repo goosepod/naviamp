@@ -163,6 +163,11 @@ Then higher-level repositories can be composed from those stores:
   - Return a platform-neutral playback target where possible, with platform adapters converting to engine URLs/paths.
 - [ ] Extract shared sidecar storage contracts.
   - Embedded lyrics, LRCLIB lyrics, waveform, ReplayGain/audio tag metadata, and sidecar status records should use shared repository names and status rules.
+  - Waveform generation itself should be split into a shared analyzer interface instead of being hidden inside platform storage.
+    - Android already generates waveforms through BASS via `AndroidAudioWaveformAnalyzer` / `AndroidBassJni`.
+    - Desktop generates waveforms through BASS via `AudioWaveformAnalyzer` / `BassNative`.
+    - Next slice should introduce a common waveform analyzer/service contract that composes cached waveform lookup, local/downloaded audio preference, provider-stream fallback, TLS settings, and platform BASS adapters.
+    - Avoid forcing Android into the current storage-shaped `AudioWaveformRepository.ensureAudioWaveform(sourceId, trackId, quality)` contract; Android needs `Track`, provider stream fallback, and playback cache behavior.
 - [ ] Create a platform dependency registry/composition object.
   - Desktop builds repositories from desktop paths/settings.
   - Android builds repositories from app context/settings.
