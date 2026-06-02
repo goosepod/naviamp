@@ -3,14 +3,11 @@ package app.naviamp.desktop
 import app.naviamp.domain.Album
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
-import app.naviamp.domain.cache.downloadBlockedStatus
-import app.naviamp.domain.cache.downloadCompletedStatus
+import app.naviamp.domain.cache.DownloadService
+import app.naviamp.domain.cache.DownloadTracksResult
+import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.cache.downloadConnectionRequiredStatus
-import app.naviamp.domain.cache.downloadErrorStatus
-import app.naviamp.domain.cache.downloadProgressStatus
-import app.naviamp.domain.cache.downloadStartingStatus
 import app.naviamp.domain.cache.downloadedTrackRemovedStatus
-import app.naviamp.domain.cache.planDownloadTracks
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.settings.CacheSettings
@@ -25,6 +22,7 @@ import kotlinx.coroutines.withContext
 class DesktopDownloadsController(
     private val scope: CoroutineScope,
     private val sessionCache: DesktopCache,
+    private val providerResponseService: ProviderResponseService,
     private val playbackEngine: PlaybackEngine,
     private val playbackSettings: () -> PlaybackSettings,
     private val cacheSettings: () -> CacheSettings,
@@ -41,41 +39,21 @@ class DesktopDownloadsController(
     fun downloadTracks(label: String, tracks: List<Track>) {
         val activeProvider = provider()
         val activeSourceId = sourceId()
-        val plan = planDownloadTracks(
-            tracks = tracks,
-            hasProvider = activeProvider != null,
-            hasSource = activeSourceId != null,
-        )
-        plan.blockedReason?.let { reason ->
-            setDownloadStatus(downloadBlockedStatus(reason, label))
-            return
-        }
-        val tracksToDownload = plan.tracks
-        setDownloadStatus(downloadStartingStatus(label))
+        val downloadService = DownloadService(sessionCache, sessionCache)
         scope.launch {
-            var completed = 0
-            val uiContext = coroutineContext
-            try {
-                withContext(Dispatchers.IO) {
-                    tracksToDownload.forEachIndexed { index, track ->
-                        withContext(uiContext) {
-                            setDownloadStatus(downloadProgressStatus(label, index, tracksToDownload.size))
-                        }
-                        sessionCache.downloadAudioTrack(
-                            sourceId = requireNotNull(activeSourceId),
-                            provider = requireNotNull(activeProvider),
-                            track = track,
-                            quality = playbackSettings().streamQuality(playbackEngine),
-                            maxDownloadBytes = cacheSettings().maxDownloadBytes,
-                        )
-                        completed += 1
-                    }
-                }
+            val quality = playbackSettings().streamQuality(playbackEngine)
+            val maxDownloadBytes = cacheSettings().maxDownloadBytes
+            val result = downloadService.downloadTracksWithStatus(
+                label = label,
+                tracks = tracks,
+                sourceId = activeSourceId,
+                provider = activeProvider,
+                quality = quality,
+                maxDownloadBytes = maxDownloadBytes,
+                setStatus = setDownloadStatus,
+            )
+            if (result !is DownloadTracksResult.Blocked) {
                 incrementDownloadRefreshToken()
-                setDownloadStatus(downloadCompletedStatus(label, completed))
-            } catch (exception: Exception) {
-                incrementDownloadRefreshToken()
-                setDownloadStatus(downloadErrorStatus(label, exception))
             }
         }
     }
@@ -93,7 +71,7 @@ class DesktopDownloadsController(
         scope.launch {
             try {
                 val tracks = withContext(Dispatchers.IO) {
-                    sessionCache.album(activeProvider, album.id).tracks
+                    providerResponseService.album(activeProvider, album.id).tracks
                 }
                 downloadTracks(album.title, tracks)
             } catch (exception: Exception) {
@@ -111,7 +89,7 @@ class DesktopDownloadsController(
         scope.launch {
             try {
                 val tracks = withContext(Dispatchers.IO) {
-                    activeProvider.playlistTracks(playlist.id)
+                    providerResponseService.playlistTracks(activeProvider, playlist.id)
                 }
                 downloadTracks(playlist.name, tracks)
             } catch (exception: Exception) {
@@ -122,7 +100,7 @@ class DesktopDownloadsController(
 
     fun removeDownloadedTrack(download: DownloadedTrack) {
         val activeSourceId = sourceId() ?: return
-        sessionCache.removeDownloadedAudio(activeSourceId, download.track.id, playbackSettings().streamQuality(playbackEngine))
+        sessionCache.removeDownloadedAudio(activeSourceId, download.track.id)
         incrementDownloadRefreshToken()
         setDownloadStatus(downloadedTrackRemovedStatus(download.track.title))
     }

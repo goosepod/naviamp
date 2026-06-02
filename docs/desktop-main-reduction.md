@@ -175,7 +175,10 @@ Branch: `codex/desktop-main-reduction`
 - [ ] Split `DesktopCache` and `AndroidStorage` into narrow shared-port implementations instead of broad do-everything classes.
 - [ ] Introduce shared low-level byte/object store ports for cache/download file operations.
 - [ ] Introduce shared repository ports for media sources, provider responses, local library index, audio assets, sidecars, playback sessions, and maintenance stats.
-- [ ] Build a shared download service over `DownloadRepository` and platform byte/file stores so desktop and Android use one download flow.
+- [x] Build a shared download service over `DownloadRepository` and platform byte/file stores so desktop and Android use one download flow.
+  - Initial downloads and quality-change re-downloads now go through common `DownloadService`.
+  - Desktop and Android storage engines are injected through narrow platform-agnostic download/replacement repository ports.
+  - Remaining work is to extract low-level byte/file-store ports from the concrete storage engines.
 - [x] Build a shared audio playback-source resolver for downloaded file, cached file, or provider stream selection.
   - Desktop playback start, prepare-next, now-playing sidecar analysis, and ReplayGain tag lookup now use the common resolver.
   - Android foreground app playback, Android Auto/background restored playback, prepare-next, prefetch, waveform, and lyrics lookup paths use the same rule.

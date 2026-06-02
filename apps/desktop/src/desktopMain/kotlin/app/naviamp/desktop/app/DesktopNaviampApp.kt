@@ -46,7 +46,10 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.internetRadioStationId
 import app.naviamp.domain.isInternetRadioTrack
+import app.naviamp.domain.cache.DownloadService
 import app.naviamp.domain.cache.LibrarySnapshot
+import app.naviamp.domain.cache.ProviderResponseService
+import app.naviamp.domain.cache.shouldRefreshDownloadsAfter
 import app.naviamp.domain.app.shouldRefreshStorageStats
 import app.naviamp.domain.playback.CrossfadeSettings
 import app.naviamp.domain.playback.DefaultNowPlayingHeartbeatIntervalMillis
@@ -565,6 +568,7 @@ fun NaviampApp(
     val radioController = DesktopRadioController(
         scope = coroutineScope,
         sessionCache = sessionCache,
+        providerResponseService = ProviderResponseService(sessionCache),
         playlistEngine = playlistEngine,
         provider = { connectedProvider },
         sourceId = { connectedSourceId },
@@ -597,6 +601,7 @@ fun NaviampApp(
         playbackEngine = playbackEngine,
         playlistEngine = playlistEngine,
         provider = { connectedProvider },
+        providerResponseService = ProviderResponseService(sessionCache),
         homeContent = { homeContent },
         setHomeContent = { content -> homeContent = content },
         recentStations = { recentInternetRadioStations },
@@ -838,6 +843,7 @@ fun NaviampApp(
     val downloadsController = DesktopDownloadsController(
         scope = coroutineScope,
         sessionCache = sessionCache,
+        providerResponseService = ProviderResponseService(sessionCache),
         playbackEngine = playbackEngine,
         playbackSettings = { playbackSettings },
         cacheSettings = { cacheSettings },
@@ -852,11 +858,51 @@ fun NaviampApp(
         incrementDownloadRefreshToken = { downloadRefreshToken += 1 },
     )
 
+    fun applyPlaybackSettings(settings: PlaybackSettings) {
+        val change = playbackSettingsChange(settings, playbackEngine, previous = playbackSettings)
+        playbackSettings = change.settings
+        if (change.shouldReloadLyricsSidecars) {
+            nowPlayingLyrics = null
+            nowPlayingLyricsStatus = null
+            nowPlayingWaveformReloadToken += 1
+        }
+        settingsStore.savePlaybackSettings(playbackSettings)
+    }
+
+    fun applyPlaybackSettingsAndRedownload(settings: PlaybackSettings) {
+        val activeProvider = connectedProvider
+        val activeSourceId = connectedSourceId
+        val tracksToRedownload = activeSourceId
+            ?.let { sessionCache.downloadedTracks(it) }
+            .orEmpty()
+            .map { it.track }
+        applyPlaybackSettings(settings)
+        if (tracksToRedownload.isEmpty()) return
+        coroutineScope.launch {
+            val downloadService = DownloadService(sessionCache, sessionCache)
+            val quality = playbackSettings.streamQuality(playbackEngine)
+            val maxDownloadBytes = cacheSettings.maxDownloadBytes
+            val result = downloadService.redownloadTracksWithStatus(
+                tracks = tracksToRedownload,
+                sourceId = activeSourceId,
+                provider = activeProvider,
+                quality = quality,
+                maxDownloadBytes = maxDownloadBytes,
+                setStatus = { status -> downloadStatus = status },
+            )
+            if (shouldRefreshDownloadsAfter(result)) {
+                downloadRefreshToken += 1
+                cacheStats = withContext(Dispatchers.IO) { sessionCache.stats() }
+            }
+        }
+    }
+
     val playlistsController = DesktopPlaylistsController(
         scope = coroutineScope,
         settingsStore = settingsStore,
         playbackEngine = playbackEngine,
         playlistEngine = playlistEngine,
+        providerResponseService = ProviderResponseService(sessionCache),
         provider = { connectedProvider },
         playbackSettings = { playbackSettings },
         playlistCallbacks = { playlistCallbacks },
@@ -2028,16 +2074,8 @@ fun NaviampApp(
                                         },
                                         onDeleteConnection = { source -> deleteConnection(source) },
                                         onCancelConnectionForm = { isConnectionFormOpen = false },
-                                        onPlaybackSettingsChanged = { settings ->
-                                            val change = playbackSettingsChange(settings, playbackEngine, previous = playbackSettings)
-                                            playbackSettings = change.settings
-                                            if (change.shouldReloadLyricsSidecars) {
-                                                nowPlayingLyrics = null
-                                                nowPlayingLyricsStatus = null
-                                                nowPlayingWaveformReloadToken += 1
-                                            }
-                                            settingsStore.savePlaybackSettings(playbackSettings)
-                                        },
+                                        onPlaybackSettingsChanged = ::applyPlaybackSettings,
+                                        onPlaybackSettingsChangedAndRedownload = ::applyPlaybackSettingsAndRedownload,
                                         onCacheSettingsChanged = { settings ->
                                             cacheSettings = settings.normalized()
                                             settingsStore.saveCacheSettings(cacheSettings)

@@ -104,6 +104,7 @@ fun SettingsPanel(
     onConnectSavedConnection: (SavedMediaSource) -> Unit,
     onCancelConnectionForm: () -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
+    onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit,
     onCacheSettingsChanged: (CacheSettings) -> Unit,
     onOpenStatsForNerds: () -> Unit,
     onClearCache: () -> Unit,
@@ -171,7 +172,9 @@ fun SettingsPanel(
                 supportsReplayGain = supportsReplayGain,
                 supportsGapless = supportsGapless,
                 supportsCrossfade = supportsCrossfade,
+                downloadBytes = cacheStats.downloadBytes,
                 onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+                onPlaybackSettingsChangedAndRedownload = onPlaybackSettingsChangedAndRedownload,
             )
             NaviampSettingsCategory.Cache -> CacheSettingsSection(
                 appColors = appColors,

@@ -2,6 +2,7 @@ package app.naviamp.desktop
 
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
+import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.provider.homePlaylists
 import app.naviamp.domain.provider.saveSmartPlaylistAndRefresh
@@ -46,6 +47,8 @@ class DesktopSmartPlaylistsController(
     private val setPlaylistStatus: (String?) -> Unit,
     private val setConnectionStatus: (String) -> Unit,
 ) {
+    private val providerResponseService = ProviderResponseService(sessionCache)
+
     suspend fun saveSmartPlaylist(definition: SmartPlaylistDefinition) {
         var activeProvider = provider()
             ?: throw IllegalStateException("Connect to Navidrome before saving smart playlists.")
@@ -66,6 +69,7 @@ class DesktopSmartPlaylistsController(
                 setConnectionStatus("Smart playlist authentication refreshed.")
             }
             val refresh = withContext(Dispatchers.IO) { saveSmartPlaylistAndRefresh(activeProvider, definition) }
+            providerResponseService.invalidatePlaylistResponses(activeProvider, refresh.displayPlaylist.id)
             setPlaylistTracksById(playlistTracksById() + (refresh.displayPlaylist.id to refresh.tracks))
             setPlaylists(refresh.playlists)
             setHomeContent(
@@ -92,6 +96,7 @@ class DesktopSmartPlaylistsController(
             val refresh = withContext(Dispatchers.IO) {
                 updateSmartPlaylistAndRefresh(activeProvider, playlist, definition)
             }
+            providerResponseService.invalidatePlaylistResponses(activeProvider, refresh.displayPlaylist.id)
             setPlaylistTracksById(playlistTracksById() + (refresh.displayPlaylist.id to refresh.tracks))
             setPlaylists(refresh.playlists)
             if (selectedPlaylist()?.id == refresh.displayPlaylist.id) {

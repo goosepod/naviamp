@@ -62,7 +62,7 @@ fun startNavidromeConnection(
                     cacheNamespace = nextProvider.cacheNamespace,
                     providerId = nextProvider.id.value,
                 )
-                homeState = loadBrowseState(nextProvider)
+                homeState = loadBrowseState(nextProvider, storage)
                 preloadPlaylistTracks(nextProvider, homeState.playlists)
                 provider = nextProvider
                 activeSourceId = mediaSource.id

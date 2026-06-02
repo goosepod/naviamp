@@ -3,12 +3,14 @@ package app.naviamp.desktop
 import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
 import app.naviamp.domain.Track
+import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.radio.selectAlbumRadioSeedTrack
 import app.naviamp.domain.radio.selectArtistRadioSeedTrack
 
 suspend fun artistRadioSeedTrack(
     cache: DesktopCache,
+    providerResponseService: ProviderResponseService,
     provider: MediaProvider,
     artist: Artist,
     sourceId: String?,
@@ -19,12 +21,13 @@ suspend fun artistRadioSeedTrack(
         randomLibraryTrackForArtist = { localSourceId, artistId ->
             cache.randomLibraryTrackForArtist(localSourceId, artistId)
         },
-        artistDetails = { cache.artist(provider, artist.id) },
-        albumDetails = { album -> cache.album(provider, album.id) },
+        artistDetails = { providerResponseService.artist(provider, artist.id) },
+        albumDetails = { album -> providerResponseService.album(provider, album.id) },
     )
 
 suspend fun albumRadioSeedTrack(
     cache: DesktopCache,
+    providerResponseService: ProviderResponseService,
     provider: MediaProvider,
     album: Album,
     sourceId: String?,
@@ -37,5 +40,5 @@ suspend fun albumRadioSeedTrack(
         randomLibraryTrackForAlbum = { localSourceId, albumId ->
             cache.randomLibraryTrackForAlbum(localSourceId, albumId)
         },
-        albumDetails = { cache.album(provider, album.id) },
+        albumDetails = { providerResponseService.album(provider, album.id) },
     )

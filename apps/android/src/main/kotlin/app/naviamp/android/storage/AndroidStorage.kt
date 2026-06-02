@@ -14,6 +14,8 @@ import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.AudioCacheRepository
 import app.naviamp.domain.cache.AudioWaveformCacheRepository
 import app.naviamp.domain.cache.CacheMaintenanceRepository
+import app.naviamp.domain.cache.DownloadAudioByteStore
+import app.naviamp.domain.cache.DownloadReplacementRepository
 import app.naviamp.domain.cache.DownloadRepository
 import app.naviamp.domain.cache.ImageCacheRepository
 import app.naviamp.domain.cache.LibraryAlbumYear
@@ -22,6 +24,7 @@ import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.PlaybackHistoryRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
+import app.naviamp.domain.cache.StoredAudioBytes
 import app.naviamp.domain.network.KtorSharedHttpClient
 import app.naviamp.domain.popular.ArtistPopularTrackCandidate
 import app.naviamp.domain.popular.ArtistPopularTrackMatch
@@ -57,6 +60,7 @@ class AndroidStorage(
     AudioCacheRepository<AndroidCachedAudioFile, AndroidCachedAudioMetadata>,
     AudioWaveformCacheRepository,
     DownloadRepository<AndroidDownloadedAudioFile, AndroidDownloadedTrack>,
+    DownloadReplacementRepository<AndroidDownloadedAudioFile>,
     PlaybackHistoryRepository<AndroidPlaybackHistoryItem>,
     LocalLibraryIndexRepository,
     CacheMaintenanceRepository<AndroidStorageStats>,
@@ -80,6 +84,8 @@ class AndroidStorage(
     val audioCacheDirectory: File = File(appContext.cacheDir, "audio-cache")
     val downloadDirectory: File = File(appContext.filesDir, "downloads")
     private var maxAudioCacheBytes: Long = 2L * 1024L * 1024L * 1024L
+    private val downloadAudioByteStore: DownloadAudioByteStore =
+        AndroidDownloadAudioByteStore(downloadDirectory, httpClient)
 
     override fun close() {
         driver.close()
@@ -217,6 +223,28 @@ class AndroidStorage(
         return value
     }
 
+    override fun invalidateProviderResponses(
+        provider: MediaProvider,
+        resourceType: String,
+    ) {
+        queries.deleteResponsesByProviderAndType(
+            provider_id = provider.cacheNamespace,
+            resource_type = resourceType,
+        )
+    }
+
+    override fun invalidateProviderResponse(
+        provider: MediaProvider,
+        resourceType: String,
+        resourceId: String,
+    ) {
+        queries.deleteResponseByProviderTypeAndId(
+            provider_id = provider.cacheNamespace,
+            resource_type = resourceType,
+            resource_id = resourceId,
+        )
+    }
+
     override fun updateAudioCacheLimit(maxBytes: Long) {
         maxAudioCacheBytes = maxBytes.coerceAtLeast(0)
         trimAudioStore()
@@ -325,6 +353,23 @@ class AndroidStorage(
             AndroidDownloadedAudioFile(file, row.size_bytes, row.content_type)
         }
 
+    override suspend fun downloadedAudioFile(
+        sourceId: String,
+        trackId: TrackId,
+    ): AndroidDownloadedAudioFile? =
+        withContext(Dispatchers.IO) {
+            val row = queries.selectDownloadedAudioFileForTrack(
+                source_id = sourceId,
+                remote_track_id = trackId.value,
+            ).executeAsOneOrNull() ?: return@withContext null
+            val file = File(row.file_path)
+            if (!file.exists()) {
+                queries.deleteDownloadedAudio(sourceId, trackId.value, row.quality_key)
+                return@withContext null
+            }
+            AndroidDownloadedAudioFile(file, row.size_bytes, row.content_type)
+        }
+
     override suspend fun downloadAudioTrack(
         sourceId: String,
         provider: MediaProvider,
@@ -333,31 +378,64 @@ class AndroidStorage(
         maxDownloadBytes: Long,
     ): AndroidDownloadedAudioFile =
         withContext(Dispatchers.IO) {
-            downloadedAudioFile(sourceId, track.id, quality)?.let { return@withContext it }
+            downloadedAudioFile(sourceId, track.id)?.let { return@withContext it }
 
-            downloadDirectory.mkdirs()
             val qualityKey = quality.cacheKey()
-            val target = File(
-                downloadDirectory,
-                "${stableAudioFileName(sourceId, track.id.value, qualityKey)}${track.audioInfo?.contentType.audioExtension()}",
-            )
-            val temp = File(downloadDirectory, "${target.name}.tmp")
             val streamUrl = provider.streamUrl(StreamRequest(track.id, quality))
-            try {
-                downloadToFile(provider, streamUrl, temp, "Could not download audio track.", httpClient)
-                val size = temp.length()
-                val currentDownloadBytes = queries.downloadedAudioSize().executeAsOne()
-                if (currentDownloadBytes + size > maxDownloadBytes.coerceAtLeast(0)) {
-                    temp.delete()
-                    throw IllegalStateException("Download storage limit exceeded.")
-                }
-                moveDownloadedAudio(temp, target)
-                upsertDownloadedAudio(sourceId, track, qualityKey, target, size, track.audioInfo?.contentType, nowMillis())
-                AndroidDownloadedAudioFile(target, size, track.audioInfo?.contentType)
-            } catch (exception: Exception) {
-                temp.delete()
-                throw exception
+            val stored = downloadAudioByteStore.writeDownloadedAudio(
+                sourceId = sourceId,
+                trackId = track.id,
+                qualityKey = qualityKey,
+                contentType = track.audioInfo?.contentType,
+                provider = provider,
+                streamUrl = streamUrl,
+            )
+            val currentDownloadBytes = queries.downloadedAudioSize().executeAsOne()
+            if (currentDownloadBytes + stored.sizeBytes > maxDownloadBytes.coerceAtLeast(0)) {
+                downloadAudioByteStore.deleteDownloadedAudio(stored.filePath)
+                throw IllegalStateException("Download storage limit exceeded.")
             }
+            val target = File(stored.filePath)
+            upsertDownloadedAudio(sourceId, track, qualityKey, target, stored.sizeBytes, track.audioInfo?.contentType, nowMillis())
+            AndroidDownloadedAudioFile(target, stored.sizeBytes, track.audioInfo?.contentType)
+        }
+
+    override suspend fun replaceDownloadedAudioTrack(
+        sourceId: String,
+        provider: MediaProvider,
+        track: Track,
+        quality: StreamQuality,
+        maxDownloadBytes: Long,
+    ): AndroidDownloadedAudioFile =
+        withContext(Dispatchers.IO) {
+            val qualityKey = quality.cacheKey()
+            val existingRows = queries.selectDownloadedAudio(sourceId)
+                .executeAsList()
+                .filter { row -> row.remote_track_id == track.id.value }
+            val streamUrl = provider.streamUrl(StreamRequest(track.id, quality))
+            val stored = downloadAudioByteStore.writeDownloadedAudio(
+                sourceId = sourceId,
+                trackId = track.id,
+                qualityKey = qualityKey,
+                contentType = track.audioInfo?.contentType,
+                provider = provider,
+                streamUrl = streamUrl,
+            )
+            val currentDownloadBytes = queries.downloadedAudioSize().executeAsOne()
+            val replacedBytes = existingRows.sumOf { row -> row.size_bytes }
+            if (currentDownloadBytes - replacedBytes + stored.sizeBytes > maxDownloadBytes.coerceAtLeast(0)) {
+                downloadAudioByteStore.deleteDownloadedAudio(stored.filePath)
+                throw IllegalStateException("Download storage limit exceeded.")
+            }
+            existingRows.forEach { row ->
+                if (row.file_path != stored.filePath) {
+                    downloadAudioByteStore.deleteDownloadedAudio(row.file_path)
+                }
+            }
+            queries.deleteDownloadedAudioForTrack(sourceId, track.id.value)
+            val target = File(stored.filePath)
+            upsertDownloadedAudio(sourceId, track, qualityKey, target, stored.sizeBytes, track.audioInfo?.contentType, nowMillis())
+            AndroidDownloadedAudioFile(target, stored.sizeBytes, track.audioInfo?.contentType)
         }
 
     override fun downloadedTracks(sourceId: String): List<AndroidDownloadedTrack> =
@@ -379,14 +457,18 @@ class AndroidStorage(
         queries.deleteDownloadedAudio(sourceId, trackId.value, qualityKey)
     }
 
-    fun removeDownloadedAudioForTrack(sourceId: String, trackId: TrackId) {
+    override fun removeDownloadedAudio(sourceId: String, trackId: TrackId) {
         queries.selectDownloadedAudio(sourceId)
             .executeAsList()
             .filter { row -> row.remote_track_id == trackId.value }
             .forEach { row ->
                 File(row.file_path).delete()
-                queries.deleteDownloadedAudio(sourceId, trackId.value, row.quality_key)
             }
+        queries.deleteDownloadedAudioForTrack(sourceId, trackId.value)
+    }
+
+    fun removeDownloadedAudioForTrack(sourceId: String, trackId: TrackId) {
+        removeDownloadedAudio(sourceId, trackId)
     }
 
     override suspend fun cachedAudioWaveform(
@@ -986,6 +1068,42 @@ private fun moveDownloadedAudio(temp: File, target: File) {
     if (!temp.renameTo(target)) {
         temp.copyTo(target, overwrite = true)
         temp.delete()
+    }
+}
+
+private class AndroidDownloadAudioByteStore(
+    private val downloadDirectory: File,
+    private val httpClient: KtorSharedHttpClient,
+) : DownloadAudioByteStore {
+    override suspend fun writeDownloadedAudio(
+        sourceId: String,
+        trackId: TrackId,
+        qualityKey: String,
+        contentType: String?,
+        provider: MediaProvider,
+        streamUrl: String,
+    ): StoredAudioBytes {
+        downloadDirectory.mkdirs()
+        val target = File(
+            downloadDirectory,
+            "${stableAudioFileName(sourceId, trackId.value, qualityKey)}${contentType.audioExtension()}",
+        )
+        val temp = File(downloadDirectory, "${target.name}.tmp")
+        return try {
+            downloadToFile(provider, streamUrl, temp, "Could not download audio track.", httpClient)
+            moveDownloadedAudio(temp, target)
+            StoredAudioBytes(
+                filePath = target.absolutePath,
+                sizeBytes = target.length(),
+            )
+        } catch (exception: Exception) {
+            temp.delete()
+            throw exception
+        }
+    }
+
+    override fun deleteDownloadedAudio(filePath: String) {
+        File(filePath).delete()
     }
 }
 

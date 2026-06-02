@@ -8,6 +8,8 @@ import app.naviamp.domain.home.HomeStationLibrary
 import app.naviamp.domain.home.HomeStationRandomAlbum
 import app.naviamp.domain.home.parseHomeDecadeStationId
 import app.naviamp.domain.home.parseHomeGenreStationId
+import app.naviamp.domain.cache.ProviderResponseCacheRepository
+import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.queue.PlaybackQueue
@@ -97,9 +99,11 @@ fun startAndroidSeededRadio(
     statusLabel: String,
     seedTrack: Track,
     playTrack: (Track, List<Track>) -> Unit,
+    providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
     loadRest: suspend (RadioService) -> List<Track>,
 ) {
     val activeProvider = state.provider ?: return
+    val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
     val seedQueue = listOf(seedTrack)
     state.radioQueueActive = true
     state.radioRefilling = true
@@ -107,7 +111,15 @@ fun startAndroidSeededRadio(
     playTrack(seedTrack, seedQueue)
     scope.launch {
         with(state) {
-            runCatching { loadRest(RadioService(activeProvider, count = AndroidInitialSimilarRadioCount)) }
+            runCatching {
+                loadRest(
+                    RadioService(
+                        provider = activeProvider,
+                        count = AndroidInitialSimilarRadioCount,
+                        providerResponseService = providerResponseService,
+                    ),
+                )
+            }
                 .onSuccess { fetchedTracks ->
                     val queue = generatedRadioQueue(seedTrack, fetchedTracks)
                         .ifEmpty { seedQueue }
@@ -126,7 +138,13 @@ fun startAndroidSeededRadio(
             AndroidSimilarRadioExpansionCounts.forEach { count ->
                 if (nowPlaying?.id != seedTrack.id) return@launch
                 val fetchedTracks = runCatching {
-                    loadRest(RadioService(activeProvider, count = count))
+                    loadRest(
+                        RadioService(
+                            provider = activeProvider,
+                            count = count,
+                            providerResponseService = providerResponseService,
+                        ),
+                    )
                 }.getOrElse {
                     return@forEach
                 }
@@ -146,6 +164,7 @@ fun startAndroidTrackRadio(
     queueController: PlaybackQueueController,
     track: Track,
     playTrack: (Track, List<Track>) -> Unit,
+    providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
 ) {
     startAndroidSeededRadio(
         scope = scope,
@@ -154,6 +173,7 @@ fun startAndroidTrackRadio(
         statusLabel = "${track.title} radio",
         seedTrack = track,
         playTrack = playTrack,
+        providerResponseCacheRepository = providerResponseCacheRepository,
     ) { radioService ->
         radioService.trackRadio(track.id)
     }
@@ -164,10 +184,12 @@ fun startAndroidRadioTracks(
     state: AndroidAppState,
     statusLabel: String,
     playTrack: (Track, List<Track>) -> Unit,
+    providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
     loadTracks: suspend (RadioService) -> List<Track>,
 ) {
     val activeProvider = state.provider ?: return
-    val service = RadioService(activeProvider)
+    val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
+    val service = RadioService(activeProvider, providerResponseService = providerResponseService)
     scope.launch {
         state.status = "Starting $statusLabel..."
         runCatching { loadTracks(service) }
@@ -190,30 +212,35 @@ fun startAndroidHomeStationRadio(
     stationId: String,
     stationTitle: String,
     playTrack: (Track, List<Track>) -> Unit,
+    providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
 ) {
+    val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
     when {
         stationId == HomeStationLibrary -> {
-            startAndroidRadioTracks(scope, state, "Library Radio", playTrack) { radioService ->
+            startAndroidRadioTracks(scope, state, "Library Radio", playTrack, providerResponseCacheRepository) { radioService ->
                 radioService.libraryRadio()
             }
         }
         stationId == HomeStationRandomAlbum -> {
-            startAndroidRadioTracks(scope, state, "Random Album Radio", playTrack) { radioService ->
+            startAndroidRadioTracks(scope, state, "Random Album Radio", playTrack, providerResponseCacheRepository) { radioService ->
                 val album = state.homeState.randomAlbums.firstOrNull()
-                    ?: state.provider?.albumList(AlbumListType.Random, limit = 1)?.firstOrNull()
+                    ?: state.provider?.let { provider ->
+                        providerResponseService?.albumList(provider, AlbumListType.Random, limit = 1)
+                            ?: provider.albumList(AlbumListType.Random, limit = 1)
+                    }?.firstOrNull()
                 album?.let { radioService.albumRadio(it.id) }.orEmpty()
             }
         }
         parseHomeGenreStationId(stationId) != null -> {
             val genre = parseHomeGenreStationId(stationId).orEmpty()
-            startAndroidRadioTracks(scope, state, "${genre} Radio", playTrack) { radioService ->
+            startAndroidRadioTracks(scope, state, "${genre} Radio", playTrack, providerResponseCacheRepository) { radioService ->
                 radioService.genreRadio(genre)
             }
         }
         parseHomeDecadeStationId(stationId) != null -> {
             val decade = parseHomeDecadeStationId(stationId)
             if (decade != null) {
-                startAndroidRadioTracks(scope, state, stationTitle, playTrack) { radioService ->
+                startAndroidRadioTracks(scope, state, stationTitle, playTrack, providerResponseCacheRepository) { radioService ->
                     radioService.decadeRadio(decade.fromYear, decade.toYear)
                 }
             }
@@ -229,13 +256,19 @@ fun startAndroidArtistRadio(
     artistTitle: String,
     artist: Artist,
     playTrack: (Track, List<Track>) -> Unit,
+    providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
 ) {
     val activeProvider = state.provider ?: return
+    val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
     scope.launch {
         with(state) {
             status = "Starting $artistTitle radio..."
             runCatching {
-                RadioService(activeProvider, count = AndroidInitialSimilarRadioCount)
+                RadioService(
+                    provider = activeProvider,
+                    count = AndroidInitialSimilarRadioCount,
+                    providerResponseService = providerResponseService,
+                )
                     .artistSeed(artist, artistDetail?.albums.orEmpty())
             }.onSuccess { seedTrack ->
                 if (seedTrack == null) {
@@ -248,6 +281,7 @@ fun startAndroidArtistRadio(
                         statusLabel = "$artistTitle radio",
                         seedTrack = seedTrack,
                         playTrack = playTrack,
+                        providerResponseCacheRepository = providerResponseCacheRepository,
                     ) { radioService ->
                         radioService.artistRadio(artistId)
                     }
@@ -266,6 +300,7 @@ fun startAndroidPopularTracksRadio(
     artistTitle: String,
     popularTracks: List<Track>,
     playTrack: (Track, List<Track>) -> Unit,
+    providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
 ) {
     val seedTrack = popularTracks.shuffled().firstOrNull()
     if (seedTrack == null) {
@@ -279,6 +314,7 @@ fun startAndroidPopularTracksRadio(
         statusLabel = "$artistTitle popular tracks radio",
         seedTrack = seedTrack,
         playTrack = playTrack,
+        providerResponseCacheRepository = providerResponseCacheRepository,
     ) { radioService ->
         coroutineScope {
             popularTracks.take(AndroidPopularRadioSeedLimit)
@@ -347,8 +383,10 @@ fun startAndroidAlbumRadio(
     album: Album,
     loadedAlbumTracks: List<Track> = emptyList(),
     playTrack: (Track, List<Track>) -> Unit,
+    providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
 ) {
-    val service = state.provider?.let { RadioService(it) } ?: return
+    val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
+    val service = state.provider?.let { RadioService(it, providerResponseService = providerResponseService) } ?: return
     scope.launch {
         with(state) {
             status = "Starting ${album.title} radio..."
@@ -363,6 +401,7 @@ fun startAndroidAlbumRadio(
                     statusLabel = "${album.title} radio",
                     seedTrack = seedTrack,
                     playTrack = playTrack,
+                    providerResponseCacheRepository = providerResponseCacheRepository,
                 ) { radioService ->
                     radioService.albumRadio(album.id, loadedAlbumTracks)
                 }

@@ -50,6 +50,8 @@ import app.naviamp.domain.provider.playlistDetailAutoRefreshTarget
 import app.naviamp.domain.provider.runPlaylistDetailAutoRefresh
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.home.HomeService
+import app.naviamp.domain.cache.ProviderResponseService
+import app.naviamp.domain.cache.downloadConnectionRequiredStatus
 import app.naviamp.domain.media.albumDetailLoadErrorStatus
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackQueueController
@@ -521,6 +523,14 @@ private fun NaviampAndroidApp(
         }
     }
 
+    fun handlePlaybackSettingsChangedAndRedownload(settings: PlaybackSettings) {
+        val tracksToRedownload = downloadedTracks.map { it.track }
+        handlePlaybackSettingsChanged(settings)
+        if (tracksToRedownload.isNotEmpty()) {
+            redownloadAndroidTracks(context, scope, appState, storage, tracksToRedownload, "downloads")
+        }
+    }
+
     fun handleClearCache() {
         handleAndroidClearCache(context, appState, storage)
     }
@@ -540,7 +550,7 @@ private fun NaviampAndroidApp(
         )
     }
 
-    val searchController = remember(appState) { AndroidSearchController(appState) }
+    val searchController = remember(appState, storage) { AndroidSearchController(appState, storage) }
 
     fun handleSearch() {
         searchController.launchSearch(scope)
@@ -830,6 +840,7 @@ private fun NaviampAndroidApp(
             queueController = playbackQueueController,
             track = track,
             playTrack = { seedTrack, queue -> playTrack(seedTrack, queue, keepRadioQueueActive = true) },
+            providerResponseCacheRepository = storage,
         )
     }
 
@@ -841,6 +852,7 @@ private fun NaviampAndroidApp(
             album = album,
             loadedAlbumTracks = loadedAlbumTracks,
             playTrack = { seedTrack, queue -> playTrack(seedTrack, queue, keepRadioQueueActive = true) },
+            providerResponseCacheRepository = storage,
         )
     }
 
@@ -1070,6 +1082,7 @@ private fun NaviampAndroidApp(
             scope = scope,
             state = appState,
             storage = storage,
+            providerResponseCacheRepository = storage,
             popularTracksService = popularTracksService,
             artistId = artistId,
             fallbackName = fallbackName,
@@ -1102,40 +1115,41 @@ private fun NaviampAndroidApp(
                 activeProvider = activeProvider,
                 playlist = playlist,
                 showLoadingStatus = false,
+                providerResponseCacheRepository = storage,
             )
         }
     }
 
     fun openPlaylistDetails(playlist: Playlist) {
-        openAndroidPlaylistDetails(scope, appState, playlist)
+        openAndroidPlaylistDetails(scope, appState, playlist, storage)
     }
 
     fun playPlaylist(playlist: Playlist, shuffle: Boolean) {
-        playAndroidPlaylist(scope, appState, playlist, shuffle, ::playTrack)
+        playAndroidPlaylist(scope, appState, playlist, shuffle, ::playTrack, storage)
     }
 
     fun renamePlaylist(playlist: Playlist, name: String) {
-        renameAndroidPlaylist(scope, appState, playlist, name)
+        renameAndroidPlaylist(scope, appState, playlist, name, storage)
     }
 
     fun deletePlaylist(playlist: Playlist) {
-        deleteAndroidPlaylist(scope, appState, playlist)
+        deleteAndroidPlaylist(scope, appState, playlist, storage)
     }
 
     fun preloadPlaylistTracks(activeProvider: NavidromeProvider, playlists: List<Playlist>) {
-        preloadAndroidPlaylistTracks(scope, appState, activeProvider, playlists)
+        preloadAndroidPlaylistTracks(scope, appState, activeProvider, playlists, storage)
     }
 
     fun refreshAndroidPlaylists() {
-        refreshAndroidPlaylists(scope, appState)
+        refreshAndroidPlaylists(scope, appState, storage)
     }
 
     suspend fun saveSmartPlaylist(definition: SmartPlaylistDefinition) {
-        saveAndroidSmartPlaylist(scope, appState, definition)
+        saveAndroidSmartPlaylist(scope, appState, definition, storage)
     }
 
     fun addTrackToPlaylist(track: Track, playlist: NaviampPlaylistChoiceUi?, newPlaylistName: String? = null) {
-        addAndroidTrackToPlaylist(scope, appState, track, playlist, newPlaylistName)
+        addAndroidTrackToPlaylist(scope, appState, track, playlist, newPlaylistName, storage)
     }
 
     fun addTracksToPlaylist(
@@ -1144,7 +1158,7 @@ private fun NaviampAndroidApp(
         newPlaylistName: String? = null,
         label: String = "tracks",
     ) {
-        addAndroidTracksToPlaylist(scope, appState, tracksToAdd, playlist, newPlaylistName, label)
+        addAndroidTracksToPlaylist(scope, appState, tracksToAdd, playlist, newPlaylistName, label, storage)
     }
 
     fun downloadTrack(track: Track) {
@@ -1153,6 +1167,37 @@ private fun NaviampAndroidApp(
 
     fun downloadTracks(tracksToDownload: List<Track>, label: String = "tracks") {
         downloadAndroidTracks(context, scope, appState, storage, tracksToDownload, label)
+    }
+
+    fun downloadPlaylist(playlist: Playlist) {
+        val activeProvider = provider ?: run {
+            downloadStatus = downloadConnectionRequiredStatus()
+            status = downloadStatus.orEmpty()
+            return
+        }
+        val loadedTracks = when {
+            selectedPlaylist?.id == playlist.id && selectedPlaylistTracks.isNotEmpty() -> selectedPlaylistTracks
+            else -> playlistTracksById[playlist.id].orEmpty()
+        }
+        if (loadedTracks.isNotEmpty()) {
+            downloadTracks(loadedTracks, playlist.name)
+            return
+        }
+        downloadStatus = "Loading ${playlist.name}..."
+        status = downloadStatus.orEmpty()
+        scope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    ProviderResponseService(storage).playlistTracks(activeProvider, playlist.id)
+                }
+            }.onSuccess { tracks ->
+                playlistTracksById = playlistTracksById + (playlist.id to tracks)
+                downloadTracks(tracks, playlist.name)
+            }.onFailure { error ->
+                downloadStatus = error.message ?: "Could not load ${playlist.name}."
+                status = downloadStatus.orEmpty()
+            }
+        }
     }
 
     fun removeDownload(download: NaviampDownloadedTrackUi) {
@@ -1225,7 +1270,7 @@ private fun NaviampAndroidApp(
     }
 
     fun handleShellAlbumSelected(selectedAlbum: SharedMediaItemUi) {
-        openAndroidAlbumDetails(scope, appState, storage, selectedAlbum)
+        openAndroidAlbumDetails(scope, appState, storage, storage, selectedAlbum)
     }
 
     fun handleShellArtistRadio(detail: SharedArtistDetailUi) {
@@ -1238,11 +1283,12 @@ private fun NaviampAndroidApp(
             artistTitle = detail.artist.title,
             artist = artistDetail?.artist ?: app.naviamp.domain.Artist(artistId, detail.artist.title),
             playTrack = { seedTrack, queue -> playTrack(seedTrack, queue, keepRadioQueueActive = true) },
+            providerResponseCacheRepository = storage,
         )
     }
 
     fun loadArtistTracks(action: (List<Track>) -> Unit) {
-        loadAndroidArtistTracks(scope, appState, action)
+        loadAndroidArtistTracks(scope, appState, storage, action)
     }
 
     fun handleShellArtistShuffle() {
@@ -1261,6 +1307,7 @@ private fun NaviampAndroidApp(
             artistTitle = detail.artist.title,
             popularTracks = artistPopularTracksByArtistId[detail.artist.id].orEmpty(),
             playTrack = { seedTrack, queue -> playTrack(seedTrack, queue, keepRadioQueueActive = true) },
+            providerResponseCacheRepository = storage,
         )
     }
 
@@ -1271,6 +1318,7 @@ private fun NaviampAndroidApp(
             stationId = station.id,
             stationTitle = station.title,
             playTrack = { track, queue -> playTrack(track, queue) },
+            providerResponseCacheRepository = storage,
         )
     }
 
@@ -1328,8 +1376,9 @@ private fun NaviampAndroidApp(
     fun handleShellGoToAlbum() {
         val activeProvider = provider ?: return
         val albumId = nowPlaying?.albumId ?: return
+        val providerResponseService = ProviderResponseService(storage)
         scope.launch {
-            runCatching { activeProvider.album(albumId) }
+            runCatching { providerResponseService.album(activeProvider, albumId) }
                 .recoverCatching { error ->
                     activeSourceId
                         ?.let { sourceId ->
@@ -1455,7 +1504,7 @@ private fun NaviampAndroidApp(
     }
 
     fun loadArtistAlbumTracks(selectedAlbum: SharedMediaItemUi, action: (List<Track>) -> Unit) {
-        loadAndroidArtistAlbumTracks(scope, appState, storage, selectedAlbum, action)
+        loadAndroidArtistAlbumTracks(scope, appState, storage, storage, selectedAlbum, action)
     }
 
     fun handleArtistAlbumRadio(selectedAlbum: SharedMediaItemUi) {
@@ -1464,6 +1513,7 @@ private fun NaviampAndroidApp(
             state = appState,
             selectedAlbum = selectedAlbum,
             startAlbumRadio = ::startAlbumRadio,
+            providerResponseCacheRepository = storage,
         )
     }
 
@@ -1507,6 +1557,7 @@ private fun NaviampAndroidApp(
         handleConnectionFormChanged = ::handleConnectionFormChanged,
         connectToNavidrome = ::connectToNavidrome,
         handlePlaybackSettingsChanged = ::handlePlaybackSettingsChanged,
+        handlePlaybackSettingsChangedAndRedownload = ::handlePlaybackSettingsChangedAndRedownload,
         handleClearCache = ::handleClearCache,
         handleClearLibrary = ::handleClearLibrary,
         handleResetDatabase = ::handleResetDatabase,
@@ -1547,6 +1598,7 @@ private fun NaviampAndroidApp(
         loadArtistAlbumTracks = ::loadArtistAlbumTracks,
         openPlaylistDetails = ::openPlaylistDetails,
         playPlaylist = ::playPlaylist,
+        downloadPlaylist = ::downloadPlaylist,
         renamePlaylist = ::renamePlaylist,
         deletePlaylist = ::deletePlaylist,
         saveSmartPlaylist = ::saveSmartPlaylist,

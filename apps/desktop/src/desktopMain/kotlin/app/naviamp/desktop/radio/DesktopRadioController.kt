@@ -9,6 +9,7 @@ import app.naviamp.domain.Genre
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.queue.PlaybackQueue
@@ -35,6 +36,7 @@ import kotlinx.coroutines.withContext
 class DesktopRadioController(
     private val scope: CoroutineScope,
     private val sessionCache: DesktopCache,
+    private val providerResponseService: ProviderResponseService,
     private val playlistEngine: PlaylistEngine,
     private val provider: () -> NavidromeProvider?,
     private val sourceId: () -> String?,
@@ -80,7 +82,7 @@ class DesktopRadioController(
         scope.launch {
             try {
                 val fetchedTracks = withContext(Dispatchers.IO) {
-                    RadioService(provider).trackRadio(seedTrack.id)
+                    radioService(provider).trackRadio(seedTrack.id)
                 }
                 appendGeneratedRadioTracks(
                     playlistEngine = playlistEngine,
@@ -103,7 +105,7 @@ class DesktopRadioController(
 
     fun play(request: RadioRequest) {
         val provider = provider() ?: return
-        val radioService = RadioService(provider)
+        val radioService = radioService(provider)
         rememberRadioStream(request.recentRadioStream)
         setConnectionStatus("Loading ${request.label}...")
         scope.launch {
@@ -165,13 +167,13 @@ class DesktopRadioController(
         scope.launch {
             try {
                 val album = withContext(Dispatchers.IO) {
-                    activeProvider.albumList(AlbumListType.Random, limit = 1).firstOrNull()
+                    providerResponseService.albumList(activeProvider, AlbumListType.Random, limit = 1).firstOrNull()
                 } ?: run {
                     setConnectionStatus("Random album radio did not find an album.")
                     return@launch
                 }
                 val seedTrack = withContext(Dispatchers.IO) {
-                    albumRadioSeedTrack(sessionCache, activeProvider, album, sourceId())
+                    albumRadioSeedTrack(sessionCache, providerResponseService, activeProvider, album, sourceId())
                 } ?: run {
                     setConnectionStatus("${album.title} did not return any tracks.")
                     return@launch
@@ -189,7 +191,7 @@ class DesktopRadioController(
         scope.launch {
             try {
                 val seedTrack = withContext(Dispatchers.IO) {
-                    artistRadioSeedTrack(sessionCache, activeProvider, artist, sourceId())
+                    artistRadioSeedTrack(sessionCache, providerResponseService, activeProvider, artist, sourceId())
                 } ?: run {
                     setConnectionStatus("${artist.name} radio did not find a seed track.")
                     return@launch
@@ -207,7 +209,14 @@ class DesktopRadioController(
         scope.launch {
             try {
                 val seedTrack = withContext(Dispatchers.IO) {
-                    albumRadioSeedTrack(sessionCache, activeProvider, album, sourceId(), loadedAlbumTracks)
+                    albumRadioSeedTrack(
+                        cache = sessionCache,
+                        providerResponseService = providerResponseService,
+                        provider = activeProvider,
+                        album = album,
+                        sourceId = sourceId(),
+                        loadedAlbumTracks = loadedAlbumTracks,
+                    )
                 } ?: run {
                     setConnectionStatus("${album.title} did not return any tracks.")
                     return@launch
@@ -246,7 +255,7 @@ class DesktopRadioController(
         scope.launch {
             try {
                 val fetchedTracks = withContext(Dispatchers.IO) {
-                    request.loadRest(RadioService(provider, count = InitialSimilarRadioCount))
+                    request.loadRest(radioService(provider, count = InitialSimilarRadioCount))
                 }
                 appendGeneratedRadioTracks(
                     playlistEngine = playlistEngine,
@@ -273,7 +282,7 @@ class DesktopRadioController(
                 if (!isRadioQueueActive() || activeRadioSessionId != radioSessionId()) return@launch
                 val fetchedTracks = runCatching {
                     withContext(Dispatchers.IO) {
-                        request.loadRest(RadioService(provider, count = count))
+                        request.loadRest(radioService(provider, count = count))
                     }
                 }.getOrElse {
                     return@forEach
@@ -320,7 +329,7 @@ class DesktopRadioController(
         scope.launch {
             try {
                 val fetchedTracks = withContext(Dispatchers.IO) {
-                    RadioService(provider, count = InitialSimilarRadioCount).trackRadio(track.id)
+                    radioService(provider, count = InitialSimilarRadioCount).trackRadio(track.id)
                 }
                 replaceGeneratedRadioUpcomingTracks(
                     playlistEngine = playlistEngine,
@@ -346,7 +355,7 @@ class DesktopRadioController(
                 if (!isRadioQueueActive() || activeRadioSessionId != radioSessionId()) return@launch
                 val fetchedTracks = runCatching {
                     withContext(Dispatchers.IO) {
-                        RadioService(provider, count = count).trackRadio(track.id)
+                        radioService(provider, count = count).trackRadio(track.id)
                     }
                 }.getOrElse {
                     return@forEach
@@ -368,5 +377,19 @@ class DesktopRadioController(
                 setConnectionStatus(null)
             }
         }
+    }
+
+    private fun radioService(
+        provider: NavidromeProvider,
+        count: Int = RadioServiceDefaultCount,
+    ): RadioService =
+        RadioService(
+            provider = provider,
+            count = count,
+            providerResponseService = providerResponseService,
+        )
+
+    private companion object {
+        const val RadioServiceDefaultCount = 50
     }
 }

@@ -1,6 +1,7 @@
 package app.naviamp.desktop
 
 import app.naviamp.domain.InternetRadioStation
+import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.home.HomeService
@@ -21,6 +22,8 @@ class DesktopHomeController(
     private val setHomeContent: (HomeContent) -> Unit,
     private val setHomeStatus: (String?) -> Unit,
 ) {
+    private val providerResponseService = ProviderResponseService(sessionCache)
+
     fun loadHomeContent(provider: MediaProvider) {
         val activeSourceId = sourceId()
         setHomeStatus("Loading home...")
@@ -30,6 +33,7 @@ class DesktopHomeController(
                     val today = LocalDate.now()
                     HomeService(
                         provider = provider,
+                        providerResponseService = providerResponseService,
                         libraryRepository = sessionCache.asHomeLibraryRepository(),
                         sourceId = activeSourceId,
                         date = HomeDate(year = today.year, dayOfYear = today.dayOfYear),

@@ -38,6 +38,7 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackRequest
@@ -77,6 +78,10 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     private val serviceStorage: AndroidStorage
         get() = serviceStorageInstance ?: AndroidStorage(applicationContext).also { serviceStorageInstance = it }
     private val autoQueueController = PlaybackQueueController()
+
+    private fun providerResponseService(storage: AndroidStorage = serviceStorage): ProviderResponseService =
+        ProviderResponseService(storage)
+
     private val noisyAudioReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action != AudioManager.ACTION_AUDIO_BECOMING_NOISY) return
@@ -583,7 +588,11 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 val playlistId = Uri.decode(mediaId.removePrefix(AndroidAutoPlaybackControls.MediaIdPlaylistPrefix))
                 val provider = NavidromeProvider(source.toNavidromeConnection())
                 AndroidPlaybackRuntime.get(applicationContext).scope.launch {
-                    runCatching { withContext(Dispatchers.IO) { provider.playlistTracks(playlistId) } }
+                    runCatching {
+                        withContext(Dispatchers.IO) {
+                            providerResponseService(storage).playlistTracks(provider, playlistId)
+                        }
+                    }
                         .onSuccess { tracks ->
                             playServiceTrackQueue(storage, sourceId, tracks, currentIndex = 0)
                         }
@@ -602,7 +611,11 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 if (playlistId.isBlank() || trackId.isBlank()) return false
                 val provider = NavidromeProvider(source.toNavidromeConnection())
                 AndroidPlaybackRuntime.get(applicationContext).scope.launch {
-                    runCatching { withContext(Dispatchers.IO) { provider.playlistTracks(playlistId) } }
+                    runCatching {
+                        withContext(Dispatchers.IO) {
+                            providerResponseService(storage).playlistTracks(provider, playlistId)
+                        }
+                    }
                         .onSuccess { tracks ->
                             val index = tracks.indexOfFirst { it.id.value == trackId }
                             if (index >= 0) {
@@ -688,7 +701,14 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 if (albumId.isBlank() || trackId.isBlank()) return false
                 val provider = NavidromeProvider(source.toNavidromeConnection())
                 AndroidPlaybackRuntime.get(applicationContext).scope.launch {
-                    runCatching { provider.album(AlbumId(albumId)).tracks.firstOrNull { it.id.value == trackId } }
+                    runCatching {
+                        withContext(Dispatchers.IO) {
+                            providerResponseService(storage)
+                                .album(provider, AlbumId(albumId))
+                                .tracks
+                                .firstOrNull { it.id.value == trackId }
+                        }
+                    }
                         .onSuccess { track ->
                             if (track != null) {
                                 playServiceTrackRadio(storage, sourceId, provider, track)
@@ -911,7 +931,9 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             }
             .ifEmpty {
                 runCatching {
-                    withContext(Dispatchers.IO) { provider.album(AlbumId(albumId)).tracks }
+                    withContext(Dispatchers.IO) {
+                        providerResponseService(storage).album(provider, AlbumId(albumId)).tracks
+                    }
                 }.getOrDefault(emptyList())
             }
 
@@ -934,7 +956,10 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 artistId.takeIf { it.isNotBlank() }?.let { id ->
                     runCatching {
                         withContext(Dispatchers.IO) {
-                            provider.artist(ArtistId(id)).albums.flatMap { album -> provider.album(album.id).tracks }
+                            val responseService = providerResponseService(storage)
+                            responseService.artist(provider, ArtistId(id)).albums.flatMap { album ->
+                                responseService.album(provider, album.id).tracks
+                            }
                         }
                     }.getOrDefault(emptyList())
                 }.orEmpty()
@@ -1271,7 +1296,9 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             loadAsyncChildren(result) {
                 val source = storage.latestNavidromeSource() ?: return@loadAsyncChildren noSourceItems()
                 val provider = NavidromeProvider(source.toNavidromeConnection())
-                withContext(Dispatchers.IO) { provider.internetRadioStations() }
+                withContext(Dispatchers.IO) {
+                    providerResponseService(storage).internetRadioStations(provider)
+                }
                     .take(AndroidAutoBrowseLimit)
                     .map { station ->
                         playableItem(
@@ -1323,7 +1350,9 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             loadAsyncChildren(result) {
                 val source = storage.latestNavidromeSource() ?: return@loadAsyncChildren noSourceItems()
                 val provider = NavidromeProvider(source.toNavidromeConnection())
-                withContext(Dispatchers.IO) { provider.playlists(limit = AndroidAutoBrowseLimit) }
+                withContext(Dispatchers.IO) {
+                    providerResponseService(storage).playlists(provider, AndroidAutoBrowseLimit)
+                }
                     .map { playlist ->
                         browsableItem(
                             mediaId = "${AndroidAutoPlaybackControls.MediaIdPlaylistPrefix}${Uri.encode(playlist.id)}",
@@ -1339,7 +1368,9 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             loadAsyncChildren(result) {
                 val source = storage.latestNavidromeSource() ?: return@loadAsyncChildren noSourceItems()
                 val provider = NavidromeProvider(source.toNavidromeConnection())
-                withContext(Dispatchers.IO) { provider.albumList(AlbumListType.Newest, AndroidAutoBrowseLimit) }
+                withContext(Dispatchers.IO) {
+                    providerResponseService(storage).albumList(provider, AlbumListType.Newest, AndroidAutoBrowseLimit)
+                }
                     .map(::albumItem)
                     .toMutableList()
             }
@@ -1349,7 +1380,9 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             loadAsyncChildren(result) {
                 val source = storage.latestNavidromeSource() ?: return@loadAsyncChildren noSourceItems()
                 val provider = NavidromeProvider(source.toNavidromeConnection())
-                withContext(Dispatchers.IO) { provider.albumList(AlbumListType.Frequent, AndroidAutoBrowseLimit) }
+                withContext(Dispatchers.IO) {
+                    providerResponseService(storage).albumList(provider, AlbumListType.Frequent, AndroidAutoBrowseLimit)
+                }
                     .map(::albumItem)
                     .toMutableList()
             }
@@ -1477,7 +1510,9 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                     loadAsyncChildren(result) {
                         val source = storage.latestNavidromeSource() ?: return@loadAsyncChildren noSourceItems()
                         val provider = NavidromeProvider(source.toNavidromeConnection())
-                        withContext(Dispatchers.IO) { provider.playlistTracks(playlistId) }
+                        withContext(Dispatchers.IO) {
+                            providerResponseService(storage).playlistTracks(provider, playlistId)
+                        }
                             .take(AndroidAutoBrowseLimit)
                             .map { track ->
                                 trackItem(
@@ -1828,7 +1863,9 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             val local = storage.searchLibrary(source.id, trimmed, AndroidAutoBrowseLimit.toLong(), 0)
             val provider = NavidromeProvider(source.toNavidromeConnection())
             val remote = if (local.isEmpty) {
-                runCatching { provider.search(trimmed, AndroidAutoBrowseLimit) }.getOrNull()
+                runCatching {
+                    providerResponseService(storage).search(provider, trimmed, AndroidAutoBrowseLimit)
+                }.getOrNull()
             } else {
                 null
             }

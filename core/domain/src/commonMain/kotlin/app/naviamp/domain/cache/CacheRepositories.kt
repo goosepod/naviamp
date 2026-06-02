@@ -25,6 +25,17 @@ interface ProviderResponseCacheRepository {
         encode: (T) -> String,
         fetch: suspend () -> T,
     ): T
+
+    fun invalidateProviderResponses(
+        provider: MediaProvider,
+        resourceType: String,
+    )
+
+    fun invalidateProviderResponse(
+        provider: MediaProvider,
+        resourceType: String,
+        resourceId: String,
+    )
 }
 
 interface AudioCacheRepository<CachedFile, CachedMetadata> {
@@ -58,11 +69,34 @@ interface AudioWaveformCacheRepository {
     ): AudioWaveform?
 }
 
+data class StoredAudioBytes(
+    val filePath: String,
+    val sizeBytes: Long,
+)
+
+interface DownloadAudioByteStore {
+    suspend fun writeDownloadedAudio(
+        sourceId: String,
+        trackId: TrackId,
+        qualityKey: String,
+        contentType: String?,
+        provider: MediaProvider,
+        streamUrl: String,
+    ): StoredAudioBytes
+
+    fun deleteDownloadedAudio(filePath: String)
+}
+
 interface DownloadRepository<DownloadedFile, DownloadedTrack> {
     suspend fun downloadedAudioFile(
         sourceId: String,
         trackId: TrackId,
         quality: StreamQuality,
+    ): DownloadedFile?
+
+    suspend fun downloadedAudioFile(
+        sourceId: String,
+        trackId: TrackId,
     ): DownloadedFile?
 
     suspend fun downloadAudioTrack(
@@ -80,6 +114,21 @@ interface DownloadRepository<DownloadedFile, DownloadedTrack> {
         trackId: TrackId,
         quality: StreamQuality,
     )
+
+    fun removeDownloadedAudio(
+        sourceId: String,
+        trackId: TrackId,
+    )
+}
+
+interface DownloadReplacementRepository<DownloadedFile> {
+    suspend fun replaceDownloadedAudioTrack(
+        sourceId: String,
+        provider: MediaProvider,
+        track: Track,
+        quality: StreamQuality,
+        maxDownloadBytes: Long,
+    ): DownloadedFile
 }
 
 interface PlaybackHistoryRepository<HistoryItem> {

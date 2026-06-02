@@ -3,6 +3,7 @@ package app.naviamp.desktop
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.Track
+import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.media.ArtistDetailPopularTracksDisplayLimit
 import app.naviamp.domain.media.ArtistDetailPopularTracksFetchLimit
 import app.naviamp.domain.media.ArtistDetailSimilarArtistsDisplayLimit
@@ -48,6 +49,8 @@ class DesktopArtistController(
     private val popularTracksService: ArtistPopularTracksService,
     private val similarArtistsService: SimilarArtistsService,
 ) {
+    private val providerResponseService = ProviderResponseService(sessionCache)
+
     fun openExternalArtistUrl(url: String) {
         runCatching {
             if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
@@ -111,7 +114,7 @@ class DesktopArtistController(
         setRoute(AppRoute.ArtistDetail)
         scope.launch {
             try {
-                val details = loadArtistDetails(sessionCache, activeProvider, artist, sourceId())
+                val details = loadArtistDetails(sessionCache, providerResponseService, activeProvider, artist, sourceId())
                 setSelectedArtistDetails(details)
                 setSelectedArtistStatus(null)
                 loadPopularTracks(artist, details)

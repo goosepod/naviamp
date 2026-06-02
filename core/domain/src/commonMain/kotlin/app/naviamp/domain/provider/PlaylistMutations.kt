@@ -3,6 +3,7 @@ package app.naviamp.domain.provider
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 
 data class PlaylistTrackMutationResult(
@@ -111,10 +112,13 @@ suspend fun <Provider : Any> runPlaylistDetailAutoRefresh(
 suspend fun MediaProvider.refreshPlaylistDetails(
     playlist: Playlist,
     playlistLimit: Int = 500,
+    providerResponseService: ProviderResponseService? = null,
 ): PlaylistDetailsRefresh {
-    val refreshedPlaylists = playlists(limit = playlistLimit)
+    val refreshedPlaylists = providerResponseService?.playlists(this, playlistLimit)
+        ?: playlists(limit = playlistLimit)
     val refreshedPlaylist = refreshedPlaylists.firstOrNull { it.id == playlist.id } ?: playlist
-    val refreshedTracks = playlistTracks(refreshedPlaylist.id)
+    val refreshedTracks = providerResponseService?.playlistTracks(this, refreshedPlaylist.id)
+        ?: playlistTracks(refreshedPlaylist.id)
     val displayPlaylist = refreshedPlaylist.copy(trackCount = refreshedTracks.size)
     return PlaylistDetailsRefresh(
         playlists = refreshedPlaylists.map {

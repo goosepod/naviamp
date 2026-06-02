@@ -6,6 +6,7 @@ import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.provider.MediaProvider
 
 fun generatedRadioQueue(seedTrack: Track, fetchedTracks: List<Track>): List<Track> =
@@ -14,15 +15,19 @@ fun generatedRadioQueue(seedTrack: Track, fetchedTracks: List<Track>): List<Trac
 class RadioService(
     private val provider: MediaProvider,
     private val count: Int = DefaultRadioCount,
+    private val providerResponseService: ProviderResponseService? = null,
 ) {
     suspend fun albumSeed(album: Album, loadedTracks: List<Track> = emptyList()): Track? =
         loadedTracks.randomOrNull()
-            ?: provider.album(album.id).tracks.randomOrNull()
+            ?: albumTracks(album.id).randomOrNull()
 
     suspend fun artistSeed(artist: Artist, loadedAlbums: List<Album> = emptyList()): Track? {
-        val albums = loadedAlbums.ifEmpty { provider.artist(artist.id).albums }
+        val albums = loadedAlbums.ifEmpty {
+            providerResponseService?.artist(provider, artist.id)?.albums
+                ?: provider.artist(artist.id).albums
+        }
         return albums.shuffled().firstNotNullOfOrNull { album ->
-            provider.album(album.id).tracks
+            albumTracks(album.id)
                 .filter { it.matchesArtist(artist.id, artist.name) }
                 .randomOrNull()
         }
@@ -30,7 +35,7 @@ class RadioService(
 
     suspend fun albumRadio(albumId: AlbumId, fallbackTracks: List<Track> = emptyList()): List<Track> =
         provider.albumRadio(albumId, count = count).ifEmpty {
-            fallbackTracks.ifEmpty { provider.album(albumId).tracks }.shuffled()
+            fallbackTracks.ifEmpty { albumTracks(albumId) }.shuffled()
         }
 
     suspend fun artistRadio(artistId: ArtistId): List<Track> =
@@ -50,6 +55,10 @@ class RadioService(
 
     fun queue(seedTrack: Track, fetchedTracks: List<Track>): List<Track> =
         generatedRadioQueue(seedTrack, fetchedTracks)
+
+    private suspend fun albumTracks(albumId: AlbumId): List<Track> =
+        providerResponseService?.album(provider, albumId)?.tracks
+            ?: provider.album(albumId).tracks
 
     private fun Track.matchesArtist(artistId: ArtistId, artistName: String): Boolean =
         this.artistId == artistId || this.artistName.equals(artistName, ignoreCase = true)

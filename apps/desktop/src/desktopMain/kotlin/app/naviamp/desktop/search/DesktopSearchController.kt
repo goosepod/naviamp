@@ -2,6 +2,7 @@ package app.naviamp.desktop
 
 import app.naviamp.desktop.settings.DesktopSettingsStore
 import app.naviamp.desktop.settings.SearchSettings
+import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.SearchDebounceMillis
@@ -17,6 +18,7 @@ class DesktopSearchController(
     private val setStatus: (String?) -> Unit,
     private val setSearching: (Boolean) -> Unit,
 ) {
+    private val providerResponseService = ProviderResponseService(sessionCache)
     private val searchSessionController = SearchSessionController(
         provider = provider,
         setResults = setResults,
@@ -25,7 +27,7 @@ class DesktopSearchController(
         emptyStatus = null,
         matchedStatus = null,
     ) { activeProvider, searchQuery, limit ->
-        sessionCache.search(activeProvider, searchQuery, limit = limit)
+        providerResponseService.search(activeProvider, searchQuery, limit = limit)
     }
 
     fun updateQuery(query: String) {

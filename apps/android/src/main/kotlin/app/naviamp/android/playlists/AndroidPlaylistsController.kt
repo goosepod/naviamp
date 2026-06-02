@@ -3,6 +3,8 @@ package app.naviamp.android
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.app.NaviampRoute
+import app.naviamp.domain.cache.ProviderResponseCacheRepository
+import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.provider.clearPendingPlaybackAction
 import app.naviamp.domain.provider.normalizedPlaylistName
 import app.naviamp.domain.provider.playlistDeleteErrorMessage
@@ -37,10 +39,17 @@ suspend fun refreshAndroidPlaylistDetailsFromServer(
     activeProvider: NavidromeProvider,
     playlist: Playlist,
     showLoadingStatus: Boolean,
+    providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
 ) {
     with(state) {
         if (showLoadingStatus) status = "Loading ${playlist.name}..."
-        val refresh = withContext(Dispatchers.IO) { activeProvider.refreshPlaylistDetails(playlist) }
+        val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
+        val refresh = withContext(Dispatchers.IO) {
+            activeProvider.refreshPlaylistDetails(
+                playlist = playlist,
+                providerResponseService = providerResponseService,
+            )
+        }
         val update = playlistDetailsStateUpdate(
             currentSelectedPlaylist = selectedPlaylist,
             currentSelectedPlaylistTracks = selectedPlaylistTracks,
@@ -65,6 +74,7 @@ fun openAndroidPlaylistDetails(
     scope: CoroutineScope,
     state: AndroidAppState,
     playlist: Playlist,
+    providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
 ) {
     val activeProvider = state.provider ?: return
     with(state) {
@@ -82,6 +92,7 @@ fun openAndroidPlaylistDetails(
                     activeProvider = activeProvider,
                     playlist = playlist,
                     showLoadingStatus = false,
+                    providerResponseCacheRepository = providerResponseCacheRepository,
                 )
             }.onSuccess {
                 status = "Connected."
@@ -99,8 +110,10 @@ fun playAndroidPlaylist(
     playlist: Playlist,
     shuffle: Boolean,
     playTrack: (Track, List<Track>) -> Unit,
+    providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
 ) {
     val activeProvider = state.provider ?: return
+    val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
     val playbackAction = playlistPlaybackAction(playlist, shuffle)
     with(state) {
         if (!shouldStartPlaybackAction(pendingPlaybackAction)) {
@@ -118,7 +131,10 @@ fun playAndroidPlaylist(
                 val loadedTracks = if (selectedPlaylist?.id == playlist.id && selectedPlaylistTracks.isNotEmpty()) {
                     emptyList()
                 } else {
-                    runCatching { activeProvider.playlistTracks(playlist.id) }
+                    runCatching {
+                        providerResponseService?.playlistTracks(activeProvider, playlist.id)
+                            ?: activeProvider.playlistTracks(playlist.id)
+                    }
                         .onSuccess {
                             playlistTracksById = playlistTracksById + (playlist.id to it)
                             contentState = contentState.showPlaylist(playlist, it)
@@ -156,15 +172,19 @@ fun renameAndroidPlaylist(
     state: AndroidAppState,
     playlist: Playlist,
     name: String,
+    providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
 ) {
     val activeProvider = state.provider ?: return
+    val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
     val requestedName = normalizedPlaylistName(name)
     scope.launch {
         with(state) {
             status = playlistRenameLoadingStatus(playlist)
             runCatching {
                 activeProvider.renamePlaylist(playlist.id, requestedName)
-                activeProvider.playlists(limit = 500)
+                providerResponseService?.invalidatePlaylistResponses(activeProvider, playlist.id)
+                providerResponseService?.playlists(activeProvider, limit = 500)
+                    ?: activeProvider.playlists(limit = 500)
             }.onSuccess { playlists ->
                 homeState = homeState.copy(playlists = playlists)
                 selectedPlaylist?.let { current ->
@@ -191,14 +211,18 @@ fun deleteAndroidPlaylist(
     scope: CoroutineScope,
     state: AndroidAppState,
     playlist: Playlist,
+    providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
 ) {
     val activeProvider = state.provider ?: return
+    val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
     scope.launch {
         with(state) {
             status = playlistDeleteLoadingStatus(playlist)
             runCatching {
                 activeProvider.deletePlaylist(playlist.id)
-                activeProvider.playlists(limit = 500)
+                providerResponseService?.invalidatePlaylistResponses(activeProvider, playlist.id)
+                providerResponseService?.playlists(activeProvider, limit = 500)
+                    ?: activeProvider.playlists(limit = 500)
             }.onSuccess { playlists ->
                 homeState = homeState.copy(playlists = playlists)
                 val update = playlistDeleteStateUpdate(
@@ -229,10 +253,15 @@ fun preloadAndroidPlaylistTracks(
     state: AndroidAppState,
     activeProvider: NavidromeProvider,
     playlists: List<Playlist>,
+    providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
 ) {
+    val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
     scope.launch {
         playlistsNeedingTrackPreload(playlists, state.playlistTracksById).forEach { playlist ->
-            runCatching { activeProvider.playlistTracks(playlist.id) }
+            runCatching {
+                providerResponseService?.playlistTracks(activeProvider, playlist.id)
+                    ?: activeProvider.playlistTracks(playlist.id)
+            }
                 .onSuccess { tracks ->
                     state.playlistTracksById = state.playlistTracksById + (playlist.id to tracks)
                 }
@@ -243,13 +272,24 @@ fun preloadAndroidPlaylistTracks(
 fun refreshAndroidPlaylists(
     scope: CoroutineScope,
     state: AndroidAppState,
+    providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
 ) {
     val activeProvider = state.provider ?: return
+    val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
     scope.launch {
-        runCatching { activeProvider.playlists(limit = 500) }
+        runCatching {
+            providerResponseService?.playlists(activeProvider, limit = 500)
+                ?: activeProvider.playlists(limit = 500)
+        }
             .onSuccess { playlists ->
                 state.homeState = state.homeState.copy(playlists = playlists)
-                preloadAndroidPlaylistTracks(scope, state, activeProvider, playlists)
+                preloadAndroidPlaylistTracks(
+                    scope,
+                    state,
+                    activeProvider,
+                    playlists,
+                    providerResponseCacheRepository,
+                )
             }
     }
 }
@@ -258,15 +298,19 @@ suspend fun saveAndroidSmartPlaylist(
     scope: CoroutineScope,
     state: AndroidAppState,
     definition: SmartPlaylistDefinition,
+    providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
 ) {
     val activeProvider = state.provider
         ?: throw IllegalStateException("Connect to Navidrome before saving smart playlists.")
     state.status = smartPlaylistSavingStatus(definition)
     try {
         val refresh = saveSmartPlaylistAndRefresh(activeProvider, definition)
+        providerResponseCacheRepository
+            ?.let { ProviderResponseService(it) }
+            ?.invalidatePlaylistResponses(activeProvider, refresh.displayPlaylist.id)
         state.playlistTracksById = state.playlistTracksById + (refresh.displayPlaylist.id to refresh.tracks)
         state.homeState = state.homeState.copy(playlists = refresh.playlists)
-        preloadAndroidPlaylistTracks(scope, state, activeProvider, refresh.playlists)
+        preloadAndroidPlaylistTracks(scope, state, activeProvider, refresh.playlists, providerResponseCacheRepository = null)
         state.status = smartPlaylistSavedStatus(refresh.displayPlaylist, refresh.tracks.size)
     } catch (error: Exception) {
         state.status = smartPlaylistSaveErrorMessage(error)

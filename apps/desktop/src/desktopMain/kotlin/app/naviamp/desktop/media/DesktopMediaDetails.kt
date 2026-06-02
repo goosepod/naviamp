@@ -9,6 +9,7 @@ import app.naviamp.domain.media.albumDetailLoadErrorStatus
 import app.naviamp.domain.media.albumDetailsFromLibraryTracks
 import app.naviamp.domain.media.artistDetailLoadErrorStatus
 import app.naviamp.domain.media.artistDetailsFromLibraryTracks
+import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.provider.MediaProvider
 
 data class ArtistDetailNavigation(
@@ -62,12 +63,13 @@ fun artistDetailNavigation(
 
 suspend fun loadAlbumDetails(
     cache: DesktopCache,
+    providerResponseService: ProviderResponseService,
     provider: MediaProvider,
     album: Album,
     sourceId: String?,
 ): AlbumDetails =
     runCatching {
-        cache.album(provider, album.id)
+        providerResponseService.album(provider, album.id)
     }.recoverCatching { error ->
         val fallbackDetail = sourceId?.let {
             albumDetailsFromLibraryTracks(
@@ -82,12 +84,13 @@ suspend fun loadAlbumDetails(
 
 suspend fun loadArtistDetails(
     cache: DesktopCache,
+    providerResponseService: ProviderResponseService,
     provider: MediaProvider,
     artist: Artist,
     sourceId: String?,
 ): ArtistDetails =
     runCatching {
-        cache.artist(provider, artist.id)
+        providerResponseService.artist(provider, artist.id)
     }.recoverCatching { error ->
         val fallbackDetail = sourceId?.let {
             artistDetailsFromLibraryTracks(

@@ -2,13 +2,11 @@ package app.naviamp.android
 
 import android.content.Context
 import app.naviamp.domain.Track
-import app.naviamp.domain.cache.downloadBlockedStatus
-import app.naviamp.domain.cache.downloadCompletedStatus
-import app.naviamp.domain.cache.downloadErrorStatus
+import app.naviamp.domain.cache.DownloadService
+import app.naviamp.domain.cache.DownloadTracksResult
 import app.naviamp.domain.cache.downloadRemoveErrorStatus
-import app.naviamp.domain.cache.downloadStartingStatus
 import app.naviamp.domain.cache.downloadedTrackRemovedStatus
-import app.naviamp.domain.cache.planDownloadTracks
+import app.naviamp.domain.cache.shouldRefreshDownloadsAfter
 import app.naviamp.domain.settings.downloadStreamQuality
 import app.naviamp.ui.NaviampDownloadedTrackUi
 import kotlinx.coroutines.CoroutineScope
@@ -25,41 +23,31 @@ fun downloadAndroidTrack(
 ) {
     val activeProvider = state.provider
     val sourceId = state.activeSourceId
+    val downloadService = DownloadService(storage, storage)
     scope.launch {
         with(state) {
-            val plan = planDownloadTracks(
+            val quality = playbackSettings.downloadStreamQuality()
+            val result = downloadService.downloadTracksWithStatus(
+                label = track.title,
                 tracks = listOf(track),
-                hasProvider = activeProvider != null,
-                hasSource = sourceId != null,
+                sourceId = sourceId,
+                provider = activeProvider,
+                quality = quality,
+                maxDownloadBytes = AndroidMaxDownloadBytes,
                 isActiveNetworkMobileData = context.isActiveNetworkMobileData(),
                 allowMobileDownloads = playbackSettings.allowMobileDownloads,
+                includeCompletedCount = false,
+                setStatus = { message ->
+                    downloadStatus = message
+                    status = message
+                },
             )
-            plan.blockedReason?.let { reason ->
-                downloadStatus = downloadBlockedStatus(reason, track.title)
-                status = downloadStatus.orEmpty()
-                return@launch
-            }
-            val quality = playbackSettings.downloadStreamQuality()
-            downloadStatus = downloadStartingStatus(track.title)
-            status = downloadStatus.orEmpty()
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    storage.downloadAudioTrack(
-                        sourceId = requireNotNull(sourceId),
-                        provider = requireNotNull(activeProvider),
-                        track = track,
-                        quality = quality,
-                        maxDownloadBytes = AndroidMaxDownloadBytes,
-                    )
-                }
-            }.onSuccess {
+            if (result is DownloadTracksResult.Completed) {
                 downloadRefreshToken += 1
                 storageStats = withContext(Dispatchers.IO) { storage.stats() }
-                downloadStatus = downloadCompletedStatus(track.title)
-                status = downloadStatus.orEmpty()
-            }.onFailure { error ->
-                downloadStatus = downloadErrorStatus("track", error)
-                status = downloadStatus.orEmpty()
+            } else if (result is DownloadTracksResult.Failed && result.completed > 0) {
+                downloadRefreshToken += 1
+                storageStats = withContext(Dispatchers.IO) { storage.stats() }
             }
         }
     }
@@ -75,44 +63,65 @@ fun downloadAndroidTracks(
 ) {
     val activeProvider = state.provider
     val sourceId = state.activeSourceId
+    val downloadService = DownloadService(storage, storage)
     scope.launch {
         with(state) {
-            val plan = planDownloadTracks(
+            val quality = playbackSettings.downloadStreamQuality()
+            val result = downloadService.downloadTracksWithStatus(
+                label = label,
                 tracks = tracksToDownload,
-                hasProvider = activeProvider != null,
-                hasSource = sourceId != null,
+                sourceId = sourceId,
+                provider = activeProvider,
+                quality = quality,
+                maxDownloadBytes = AndroidMaxDownloadBytes,
                 isActiveNetworkMobileData = context.isActiveNetworkMobileData(),
                 allowMobileDownloads = playbackSettings.allowMobileDownloads,
-                deduplicateTracks = true,
+                setStatus = { message ->
+                    downloadStatus = message
+                    status = message
+                },
             )
-            plan.blockedReason?.let { reason ->
-                downloadStatus = downloadBlockedStatus(reason, label)
-                status = downloadStatus.orEmpty()
-                return@launch
-            }
-            val quality = playbackSettings.downloadStreamQuality()
-            downloadStatus = downloadStartingStatus(label)
-            status = downloadStatus.orEmpty()
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    plan.tracks.forEach { track ->
-                        storage.downloadAudioTrack(
-                            sourceId = requireNotNull(sourceId),
-                            provider = requireNotNull(activeProvider),
-                            track = track,
-                            quality = quality,
-                            maxDownloadBytes = AndroidMaxDownloadBytes,
-                        )
-                    }
-                }
-            }.onSuccess {
+            if (result is DownloadTracksResult.Completed) {
                 downloadRefreshToken += 1
                 storageStats = withContext(Dispatchers.IO) { storage.stats() }
-                downloadStatus = downloadCompletedStatus(label)
-                status = downloadStatus.orEmpty()
-            }.onFailure { error ->
-                downloadStatus = downloadErrorStatus(label, error)
-                status = downloadStatus.orEmpty()
+            } else if (result is DownloadTracksResult.Failed && result.completed > 0) {
+                downloadRefreshToken += 1
+                storageStats = withContext(Dispatchers.IO) { storage.stats() }
+            }
+        }
+    }
+}
+
+fun redownloadAndroidTracks(
+    context: Context,
+    scope: CoroutineScope,
+    state: AndroidAppState,
+    storage: AndroidStorage,
+    tracksToDownload: List<Track>,
+    label: String = "downloads",
+) {
+    val activeProvider = state.provider
+    val sourceId = state.activeSourceId
+    val downloadService = DownloadService(storage, storage)
+    scope.launch {
+        with(state) {
+            val quality = playbackSettings.downloadStreamQuality()
+            val result = downloadService.redownloadTracksWithStatus(
+                tracks = tracksToDownload,
+                sourceId = sourceId,
+                provider = activeProvider,
+                quality = quality,
+                maxDownloadBytes = AndroidMaxDownloadBytes,
+                isActiveNetworkMobileData = context.isActiveNetworkMobileData(),
+                allowMobileDownloads = playbackSettings.allowMobileDownloads,
+                setStatus = { message ->
+                    downloadStatus = message
+                    status = message
+                },
+            )
+            if (shouldRefreshDownloadsAfter(result)) {
+                downloadRefreshToken += 1
+                storageStats = withContext(Dispatchers.IO) { storage.stats() }
             }
         }
     }

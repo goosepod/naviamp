@@ -65,12 +65,14 @@ fun NaviampSharedSettingsContent(
     diagnostics: NaviampDiagnosticsUi = NaviampDiagnosticsUi(),
     onEditConnection: () -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
+    onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit = onPlaybackSettingsChanged,
     onClearCache: (() -> Unit)? = null,
     onClearLibrary: (() -> Unit)? = null,
     onResetDatabase: (() -> Unit)? = null,
     supportsReplayGain: Boolean = false,
     supportsGapless: Boolean = true,
     supportsCrossfade: Boolean = false,
+    downloadBytes: Long = 0L,
     showQueueBehavior: Boolean = true,
     showDebugLogging: Boolean = true,
     showMobileNetworkQuality: Boolean = false,
@@ -97,7 +99,9 @@ fun NaviampSharedSettingsContent(
                     showDebugLogging = showDebugLogging,
                     showMobileNetworkQuality = showMobileNetworkQuality,
                     showLrclibLyrics = true,
+                    downloadBytes = downloadBytes,
                     onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+                    onPlaybackSettingsChangedAndRedownload = onPlaybackSettingsChangedAndRedownload,
                 )
                 NaviampSettingsCategory.Cache -> NaviampDiagnosticsSettingsSection(
                     colors = colors,
@@ -328,12 +332,14 @@ fun NaviampPlaybackSettingsSection(
     supportsGapless: Boolean,
     supportsCrossfade: Boolean,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
+    onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit = onPlaybackSettingsChanged,
     showReplayGain: Boolean = true,
     showCrossfade: Boolean = true,
     showQueueBehavior: Boolean = true,
     showDebugLogging: Boolean = true,
     showLrclibLyrics: Boolean = true,
     showMobileNetworkQuality: Boolean = false,
+    downloadBytes: Long = 0L,
 ) {
     var upNextHelpOpen by remember { mutableStateOf(false) }
 
@@ -342,7 +348,9 @@ fun NaviampPlaybackSettingsSection(
         colors = colors,
         playbackSettings = playbackSettings,
         showMobileNetworkQuality = showMobileNetworkQuality,
+        downloadBytes = downloadBytes,
         onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+        onPlaybackSettingsChangedAndRedownload = onPlaybackSettingsChangedAndRedownload,
     )
     if (showReplayGain) {
         Text(
@@ -494,8 +502,12 @@ private fun StreamingQualitySettings(
     colors: NaviampColors,
     playbackSettings: PlaybackSettings,
     showMobileNetworkQuality: Boolean,
+    downloadBytes: Long,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
+    onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit,
 ) {
+    var pendingDownloadQualitySettings by remember { mutableStateOf<PlaybackSettings?>(null) }
+
     SettingsSectionTitle("Streaming quality", colors)
     StreamQualityPreferenceRow(
         colors = colors,
@@ -521,7 +533,12 @@ private fun StreamingQualitySettings(
         label = "Saved files",
         preference = playbackSettings.downloadQuality,
         onPreferenceChanged = { preference ->
-            onPlaybackSettingsChanged(playbackSettings.copy(downloadQuality = preference))
+            val updated = playbackSettings.copy(downloadQuality = preference)
+            if (downloadBytes > 0L && preference != playbackSettings.downloadQuality) {
+                pendingDownloadQualitySettings = updated
+            } else {
+                onPlaybackSettingsChanged(updated)
+            }
         },
     )
     if (showMobileNetworkQuality) {
@@ -531,6 +548,40 @@ private fun StreamingQualitySettings(
             label = "Allow downloads on mobile data",
             onCheckedChange = { enabled ->
                 onPlaybackSettingsChanged(playbackSettings.copy(allowMobileDownloads = enabled))
+            },
+        )
+    }
+    pendingDownloadQualitySettings?.let { pendingSettings ->
+        AlertDialog(
+            onDismissRequest = { pendingDownloadQualitySettings = null },
+            title = { Text("Change saved file quality?") },
+            text = {
+                Text("Existing downloads will stay in their current quality. New downloads will use the updated setting.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pendingDownloadQualitySettings = null
+                        onPlaybackSettingsChanged(pendingSettings)
+                    },
+                ) {
+                    Text("Keep existing")
+                }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(
+                        onClick = {
+                            pendingDownloadQualitySettings = null
+                            onPlaybackSettingsChangedAndRedownload(pendingSettings)
+                        },
+                    ) {
+                        Text("Re-download")
+                    }
+                    TextButton(onClick = { pendingDownloadQualitySettings = null }) {
+                        Text("Cancel")
+                    }
+                }
             },
         )
     }

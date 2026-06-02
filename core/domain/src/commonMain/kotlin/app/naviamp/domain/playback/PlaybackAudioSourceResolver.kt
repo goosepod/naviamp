@@ -24,6 +24,11 @@ interface PlaybackAudioAssetRepository<LocalAudio> {
     suspend fun downloadedAudio(
         sourceId: String,
         trackId: TrackId,
+    ): LocalAudio?
+
+    suspend fun downloadedAudio(
+        sourceId: String,
+        trackId: TrackId,
         quality: StreamQuality,
     ): LocalAudio?
 
@@ -36,6 +41,11 @@ interface PlaybackAudioAssetRepository<LocalAudio> {
 
 fun <LocalAudio> emptyPlaybackAudioAssetRepository(): PlaybackAudioAssetRepository<LocalAudio> =
     object : PlaybackAudioAssetRepository<LocalAudio> {
+        override suspend fun downloadedAudio(
+            sourceId: String,
+            trackId: TrackId,
+        ): LocalAudio? = null
+
         override suspend fun downloadedAudio(
             sourceId: String,
             trackId: TrackId,
@@ -63,7 +73,7 @@ suspend fun <LocalAudio> resolvePlaybackAudioSource(
         quality = quality,
         audioCachingEnabled = audioCachingEnabled,
         startPositionSeconds = startPositionSeconds,
-        downloadedAudio = audioAssets::downloadedAudio,
+        downloadedAudio = { id, trackId, _ -> audioAssets.downloadedAudio(id, trackId) },
         cachedAudio = audioAssets::cachedAudio,
     )
 

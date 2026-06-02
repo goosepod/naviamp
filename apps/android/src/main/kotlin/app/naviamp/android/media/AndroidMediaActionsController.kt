@@ -3,6 +3,8 @@ package app.naviamp.android
 import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.android.playback.AndroidPlaybackNotificationControls
 import app.naviamp.domain.Track
+import app.naviamp.domain.cache.ProviderResponseCacheRepository
+import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.media.favoriteTrackUpdate
 import app.naviamp.domain.media.ratedTrackUpdate
 import app.naviamp.domain.media.withUpdatedTrack
@@ -228,6 +230,7 @@ fun addAndroidTrackToPlaylist(
     track: Track,
     playlist: NaviampPlaylistChoiceUi?,
     newPlaylistName: String? = null,
+    providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
 ) {
     addAndroidTracksToPlaylist(
         scope = scope,
@@ -236,6 +239,7 @@ fun addAndroidTrackToPlaylist(
         playlist = playlist,
         newPlaylistName = newPlaylistName,
         label = "track",
+        providerResponseCacheRepository = providerResponseCacheRepository,
     )
 }
 
@@ -246,8 +250,10 @@ fun addAndroidTracksToPlaylist(
     playlist: NaviampPlaylistChoiceUi?,
     newPlaylistName: String? = null,
     label: String = "tracks",
+    providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
 ) {
     val activeProvider = state.provider ?: return
+    val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
     val uniqueTracks = tracksToAdd.distinctBy { it.id }
     if (uniqueTracks.isEmpty()) {
         state.status = "No tracks found."
@@ -263,7 +269,13 @@ fun addAndroidTracksToPlaylist(
                     tracks = uniqueTracks,
                 )
                 val update = addToPlaylistMutationUpdate(result, playlist?.name)
-                val playlists = if (update.refreshPlaylists) activeProvider.playlists(limit = 500) else null
+                val playlists = if (update.refreshPlaylists) {
+                    providerResponseService?.invalidatePlaylistResponses(activeProvider, playlist?.id)
+                    providerResponseService?.playlists(activeProvider, limit = 500)
+                        ?: activeProvider.playlists(limit = 500)
+                } else {
+                    null
+                }
                 update to playlists
             }.onSuccess { (update, playlists) ->
                 if (playlists != null) {

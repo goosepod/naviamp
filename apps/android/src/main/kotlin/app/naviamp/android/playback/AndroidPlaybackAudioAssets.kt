@@ -11,6 +11,12 @@ class AndroidPlaybackAudioAssets(
     override suspend fun downloadedAudio(
         sourceId: String,
         trackId: TrackId,
+    ): File? =
+        storage.downloadedAudioFile(sourceId, trackId)?.file
+
+    override suspend fun downloadedAudio(
+        sourceId: String,
+        trackId: TrackId,
         quality: StreamQuality,
     ): File? =
         storage.downloadedAudioFile(sourceId, trackId, quality)?.file

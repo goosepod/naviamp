@@ -11,6 +11,12 @@ class DesktopPlaybackAudioAssets(
     override suspend fun downloadedAudio(
         sourceId: String,
         trackId: TrackId,
+    ): Path? =
+        cache.downloadedAudioFile(sourceId, trackId)?.path
+
+    override suspend fun downloadedAudio(
+        sourceId: String,
+        trackId: TrackId,
         quality: StreamQuality,
     ): Path? =
         cache.downloadedAudioFile(sourceId, trackId, quality)?.path

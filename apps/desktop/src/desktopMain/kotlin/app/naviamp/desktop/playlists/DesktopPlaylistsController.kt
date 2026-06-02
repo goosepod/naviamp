@@ -3,6 +3,7 @@ package app.naviamp.desktop
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
+import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.provider.MediaProvider
@@ -42,6 +43,7 @@ class DesktopPlaylistsController(
     private val settingsStore: DesktopSettingsStore,
     private val playbackEngine: PlaybackEngine,
     private val playlistEngine: PlaylistEngine,
+    private val providerResponseService: ProviderResponseService,
     private val provider: () -> MediaProvider?,
     private val playbackSettings: () -> PlaybackSettings,
     private val playlistCallbacks: () -> PlaylistCallbacks,
@@ -73,20 +75,30 @@ class DesktopPlaylistsController(
     private val clearShuffleSnapshot: () -> Unit,
     private val setOpenPlayerOnTrackStart: (Boolean) -> Unit,
 ) {
-    fun refreshPlaylists() {
+    fun refreshPlaylists(useCache: Boolean = true) {
         val activeProvider = provider() ?: return
         setPlaylistStatus("Loading playlists...")
         scope.launch {
             try {
                 val refreshedPlaylists = withContext(Dispatchers.IO) {
-                    activeProvider.playlists(limit = 500)
+                    if (useCache) {
+                        providerResponseService.playlists(activeProvider, limit = 500)
+                    } else {
+                        activeProvider.playlists(limit = 500)
+                    }
                 }
                 setPlaylists(refreshedPlaylists)
                 setPlaylistStatus(null)
                 refreshHomePlaylists(refreshedPlaylists)
                 playlistsNeedingTrackPreload(refreshedPlaylists, playlistTracksById()).forEach { playlist ->
                     runCatching {
-                        withContext(Dispatchers.IO) { activeProvider.playlistTracks(playlist.id) }
+                        withContext(Dispatchers.IO) {
+                            if (useCache) {
+                                providerResponseService.playlistTracks(activeProvider, playlist.id)
+                            } else {
+                                activeProvider.playlistTracks(playlist.id)
+                            }
+                        }
                     }.onSuccess { tracks ->
                         setPlaylistTracksById(playlistTracksById() + (playlist.id to tracks))
                     }
@@ -103,7 +115,12 @@ class DesktopPlaylistsController(
         showLoadingStatus: Boolean,
     ) {
         if (showLoadingStatus) setSelectedPlaylistStatus("Loading ${playlist.name}...")
-        val refresh = withContext(Dispatchers.IO) { activeProvider.refreshPlaylistDetails(playlist) }
+        val refresh = withContext(Dispatchers.IO) {
+            activeProvider.refreshPlaylistDetails(
+                playlist = playlist,
+                providerResponseService = providerResponseService,
+            )
+        }
         val update = playlistDetailsStateUpdate(
             currentSelectedPlaylist = selectedPlaylist(),
             currentSelectedPlaylistTracks = selectedPlaylistTracks(),
@@ -139,7 +156,12 @@ class DesktopPlaylistsController(
                 if (update.closeDialog) setAddToPlaylistTarget(null)
                 setAddToPlaylistStatus(update.addToPlaylistStatus)
                 update.connectionStatus?.let(setConnectionStatus)
-                if (update.refreshPlaylists) refreshPlaylists()
+                if (update.refreshPlaylists) {
+                    playlist?.let {
+                        providerResponseService.invalidatePlaylistResponses(activeProvider, it.id)
+                    } ?: providerResponseService.invalidatePlaylists(activeProvider)
+                    refreshPlaylists()
+                }
             } catch (exception: Exception) {
                 setAddToPlaylistStatus(exception.message ?: "Could not add to playlist.")
             }
@@ -184,7 +206,7 @@ class DesktopPlaylistsController(
         scope.launch {
             try {
                 val loadedTracks = withContext(Dispatchers.IO) {
-                    activeProvider.playlistTracks(playlist.id)
+                    providerResponseService.playlistTracks(activeProvider, playlist.id)
                 }
                 setPlaylistTracksById(playlistTracksById() + (playlist.id to loadedTracks))
                 val tracks = playlistPlaybackTracks(loadedTracks, shuffle)
@@ -249,6 +271,7 @@ class DesktopPlaylistsController(
                 withContext(Dispatchers.IO) {
                     activeProvider.renamePlaylist(playlist.id, requestedName)
                 }
+                providerResponseService.invalidatePlaylistResponses(activeProvider, playlist.id)
                 setPlaylistPendingRename(null)
                 setPlaylistStatus(playlistRenamedStatus())
                 setSelectedPlaylist(
@@ -274,6 +297,7 @@ class DesktopPlaylistsController(
                 withContext(Dispatchers.IO) {
                     activeProvider.deletePlaylist(playlist.id)
                 }
+                providerResponseService.invalidatePlaylistResponses(activeProvider, playlist.id)
                 setPlaylistPendingDelete(null)
                 val update = playlistDeleteStateUpdate(
                     currentSelectedPlaylist = selectedPlaylist(),

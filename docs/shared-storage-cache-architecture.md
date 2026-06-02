@@ -17,8 +17,29 @@ The intended shape is the same idea as a PHP app using one cache/storage interfa
   - Storage internals that can stay engine-owned.
 - [x] Introduce narrow shared audio asset lookup ports so callers do not depend on broad `DesktopCache` / `AndroidStorage` types.
 - [x] Split shared audio asset lookup ports away from `DesktopCache` and `AndroidStorage`.
-- [ ] Extract shared download orchestration over narrow download/audio repositories.
-- [ ] Extract shared provider-response cache orchestration so desktop and Android get the same cached/live behavior.
+- [x] Make downloaded-track identity source/track based for playback and download reuse.
+- [x] Move shared download loop/status orchestration into common domain helpers.
+- [x] Prompt before changing download quality when existing local downloads are present.
+- [x] Add shared re-download orchestration for replacing existing downloads at the new quality.
+- [x] Extract shared download orchestration over narrow download/audio repositories.
+  - Keep playlist/album/track downloads de-duplicated by `sourceId + trackId` so overlapping collections do not create duplicate files.
+  - Treat download quality as a stored attribute, not part of the user's duplicate identity for a downloaded song.
+  - When the download quality setting changes and existing downloads are present, prompt the user to keep existing files or re-download local tracks at the new quality.
+  - Prefer downloaded local audio over provider streams for playlist, radio, search, album, and direct track playback, regardless of where the playback request originated.
+- [x] Split low-level byte/file storage ports from higher-level media repositories.
+  - `DownloadService` now uses platform-agnostic download/replacement repository ports, but `DesktopCache` and `AndroidStorage` still own concrete byte download and file move details internally.
+  - Download audio byte writes/deletes now go through the shared `DownloadAudioByteStore` port with desktop and Android implementations.
+- [x] Extract shared provider-response cache orchestration so desktop and Android get the same cached/live behavior.
+  - First slice: search responses now use common `ProviderResponseService` over `ProviderResponseCacheRepository` on desktop and Android.
+  - Second slice: desktop and Android app album-detail loading now use `ProviderResponseService.album`.
+  - Third slice: desktop and Android app artist-detail loading now use `ProviderResponseService.artist`.
+  - Fourth slice: desktop and Android home album sections now use cached album-list, genre, and year responses through `ProviderResponseService`.
+  - Fifth slice: desktop and Android home artist/playlist sections now use cached list responses through `ProviderResponseService`.
+  - Sixth slice: desktop and Android playlist list/detail read paths now use cached playlist list and track responses through `ProviderResponseService`.
+  - Seventh slice: playlist mutation refreshes now invalidate shared cached playlist list/track responses before reloading.
+  - Eighth slice: desktop/Android downloads and generated-radio album/artist detail helpers now use `ProviderResponseService`.
+  - Ninth slice: Android Auto browse/search flows now use cached provider list/detail/search responses through `ProviderResponseService`.
+  - Tenth slice: internet radio station list responses now use `ProviderResponseService` with mutation invalidation.
 
 ## Decision
 
@@ -85,8 +106,10 @@ Then higher-level repositories can be composed from those stores:
 
 ## Refactor Checklist
 
-- [ ] Split low-level byte/file storage ports from higher-level media repositories.
+- [x] Split low-level byte/file storage ports from higher-level media repositories.
   - Examples: local disk/app-private files, temporary cache files, persistent download files.
+  - First completed slice: persistent download audio bytes are behind `DownloadAudioByteStore`.
+  - Remaining byte-store work can apply the same pattern to audio cache, images, lyrics, waveform, and sidecar bytes.
 - [ ] Split metadata database ports from byte storage.
   - SQLite/SQLDelight can remain the first engine, but shared code should depend on repository contracts.
 - [ ] Replace direct `DesktopCache` dependencies in desktop controllers with narrower interfaces.
@@ -108,11 +131,12 @@ Then higher-level repositories can be composed from those stores:
   - `AndroidPlaybackSessionController`
   - `AndroidMaintenanceController`
   - `MainActivity` remaining wrappers
-- [ ] Extract a shared download service.
+- [x] Extract a shared download service.
   - Keep mobile-data policy and download quality rules shared.
   - Keep platform network/storage execution behind injected repositories.
   - Make desktop and Android download flows call the same service.
-- [ ] Extract a shared provider-response cache service.
+  - Initial download and re-download orchestration now use `DownloadService`; low-level byte/file storage ports remain a separate extraction.
+- [x] Extract a shared provider-response cache service.
   - Desktop currently has cache-backed album/artist/search helpers.
   - Android can gain the same behavior through the same interface instead of platform-specific copies.
 - [ ] Extract a shared audio-cache/download resolution service.
@@ -204,3 +228,68 @@ This is a strong first slice because playback-source selection currently affects
 - 2026-06-01: Added a narrow shared `PlaybackAudioAssetRepository` port.
   - Desktop and Android now adapt `DesktopCache` / `AndroidStorage` into a local-audio lookup interface for playback-source resolution.
   - This keeps the resolver and playback-facing code from knowing about broad platform storage engines.
+- 2026-06-02: Switched downloaded local audio lookup and download reuse to `sourceId + trackId` identity.
+  - Playback now prefers any downloaded local copy before cache/provider streams, even when the current playback quality differs from the stored download quality.
+  - Desktop and Android download calls return the existing local file for a track before requesting another copy, so overlapping album/playlist/track downloads do not duplicate files across quality settings.
+  - Desktop download removal now removes all local copies for the selected source/track, matching Android's track-level removal behavior.
+- 2026-06-02: Moved download loop/status orchestration into `core/domain/cache`.
+  - Desktop and Android track-list downloads now share planning, de-duplication, starting/progress/completed/error statuses, and completed-count reporting.
+- 2026-06-02: Added a shared download replacement service boundary.
+  - `DownloadService` now owns the re-download loop used when saved-file quality settings change.
+  - Desktop and Android expose their storage engines through the narrow `DownloadReplacementRepository` port, so platform code owns file replacement while common code owns provider/source gating, de-duplication, status, and completed-count behavior.
+  - The remaining download extraction target is low-level byte/file-store ports for initial downloads and replacement writes.
+  - Platform controllers still own provider/source selection, mobile-data detection, IO dispatch, storage stats refresh, and concrete repository calls.
+- 2026-06-02: Moved initial download writes behind the shared download service.
+  - Android and desktop single-track, album, and playlist download flows now call `DownloadService.downloadTracksWithStatus`.
+  - Common code owns initial download planning, mobile-data blocking, de-duplication, status, completed-count behavior, and calls into the platform-agnostic `DownloadRepository` port.
+  - Platform controllers still select provider/source, derive platform network policy inputs, and refresh platform stats after the shared result.
+- 2026-06-02: Split persistent download audio byte storage behind a shared port.
+  - Added `DownloadAudioByteStore` and `StoredAudioBytes` in common domain.
+  - `DesktopCache` and `AndroidStorage` now keep download metadata/database ownership while delegating persistent audio byte writes and deletes through platform byte-store implementations.
+  - This keeps repository behavior behind common ports while preserving platform-specific file APIs and app-private/desktop path details in platform code.
+- 2026-06-02: Started shared provider-response cache orchestration.
+  - Added common `ProviderResponseService` for typed cached provider responses.
+  - Desktop and Android search now share cached/live behavior through `ProviderResponseService.search` and the platform `ProviderResponseCacheRepository` implementations.
+- 2026-06-02: Extended shared provider-response cache orchestration to app album details.
+  - Added `ProviderResponseService.album`.
+  - Desktop album-detail opening and Android album-detail opening now share cached/live album detail behavior through `ProviderResponseCacheRepository`.
+  - Android artist album-track loading also uses the shared album service.
+  - Remaining album-response callers include desktop download/radio helpers, playlist mutations, Android background playback/Auto paths, and library sync detail loading.
+- 2026-06-02: Extended shared provider-response cache orchestration to app artist details.
+  - Added `ProviderResponseService.artist`.
+  - Desktop and Android artist-detail opening now share cached/live artist detail behavior through `ProviderResponseCacheRepository`.
+  - Popular-track and similar-artist enrichment remain separate services layered after the cached artist detail load.
+- 2026-06-02: Extended shared provider-response cache orchestration to home album sections.
+  - Added `ProviderResponseService.albumList`, `albumsByGenre`, and `albumsByYear`.
+  - Desktop and Android home/browse loading now use the shared service for newest/random/recent/frequent album sections, genre spotlight albums, and decade albums.
+  - Home artists, playlists, radio stations, and Android Auto browse lists remained as follow-up provider-response slices at this point.
+- 2026-06-02: Extended shared provider-response cache orchestration to home artist and playlist sections.
+  - Added `ProviderResponseService.artists` and `playlists`.
+  - Desktop and Android home/browse loading now use the shared service for artist and playlist list responses.
+  - Playlist detail/mutation refreshes, radio stations, and Android Auto browse lists still need to move through typed shared provider-response service calls.
+- 2026-06-02: Extended shared provider-response cache orchestration to playlist detail read paths.
+  - Added `ProviderResponseService.playlistTracks`.
+  - Desktop and Android playlist detail opening, playlist playback loads, list refreshes, and preload reads now use shared cached playlist list/track responses.
+  - Playlist mutation refreshes still needed explicit cache invalidation at this point.
+- 2026-06-02: Added shared provider-response cache invalidation for playlist mutations.
+  - `ProviderResponseCacheRepository` now exposes narrow invalidation by provider/resource type and exact provider/resource id.
+  - `ProviderResponseService` owns playlist-list and playlist-track invalidation helpers.
+  - Desktop and Android add-to-playlist, rename, delete, and smart-playlist save/update flows now invalidate affected cached playlist responses before reusing the shared cached refresh/read paths.
+- 2026-06-02: Extended shared provider-response cache orchestration to downloads and generated-radio helper reads.
+  - Desktop album and playlist downloads now load album details and playlist tracks through `ProviderResponseService`.
+  - `RadioService` can use `ProviderResponseService` for album/artist detail fallback reads while leaving generated radio/random-song provider calls live.
+  - Desktop and Android generated-radio seed/fallback helpers now pass the shared service for album, artist, and random-album list reads.
+- 2026-06-02: Completed shared provider-response cache orchestration for Android Auto and internet radio station lists.
+  - Android Auto playlist, album, artist, browse, saved-radio, and fallback search reads now use `ProviderResponseService`.
+  - `ProviderResponseService` now supports cached internet radio station lists.
+  - Shared `HomeService`, desktop internet-radio refresh, and Android Auto saved-radio browsing use the shared station-list service.
+  - Desktop internet-radio create/update/delete flows invalidate the cached station list before refreshing.
+  - Generated radio, random-song, and provider-specific radio endpoints remain live because those responses are intentionally dynamic.
+- 2026-06-02: Added Android playlist download actions.
+  - The shared playlist list and detail UI now expose download actions.
+  - Android uses selected/preloaded playlist tracks when available and falls back to a provider playlist-track load before calling the shared bulk download path.
+- 2026-06-02: Added shared download-quality change confirmation when local downloads exist.
+  - Changing the saved-file quality with existing downloads now asks the user to keep existing local files and use the new quality only for future downloads, or cancel the setting change.
+- 2026-06-02: Added shared re-download orchestration for quality changes.
+  - Android and desktop both use the common redownload helper for status/progress/de-duplication and refresh decisions.
+  - Platform storage engines still own replacing a single track file safely in Android app storage or desktop cache storage.

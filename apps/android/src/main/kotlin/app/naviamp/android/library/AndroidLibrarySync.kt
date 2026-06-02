@@ -2,6 +2,8 @@ package app.naviamp.android
 
 import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
+import app.naviamp.domain.cache.ProviderResponseCacheRepository
+import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.home.HomeService
@@ -9,10 +11,14 @@ import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.provider.navidrome.NavidromeProvider
 import java.time.LocalDate
 
-suspend fun loadBrowseState(provider: NavidromeProvider): HomeContent {
+suspend fun loadBrowseState(
+    provider: NavidromeProvider,
+    providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
+): HomeContent {
     val today = LocalDate.now()
     val home = HomeService(
         provider = provider,
+        providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) },
         date = HomeDate(year = today.year, dayOfYear = today.dayOfYear),
     ).load(artistLimit = AndroidLibraryArtistLimit)
     return home

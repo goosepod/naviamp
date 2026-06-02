@@ -408,6 +408,7 @@ fun NaviampSharedAppShell(
     onEditConnection: () -> Unit,
     onCancelEditConnection: () -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit = {},
+    onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit = onPlaybackSettingsChanged,
     onQueryChanged: (String) -> Unit,
     onSearch: () -> Unit,
     onLibraryQueryChanged: (String) -> Unit = {},
@@ -455,6 +456,7 @@ fun NaviampSharedAppShell(
     onPlaylistSortModeChanged: (SharedPlaylistSortMode) -> Unit = {},
     onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit = { _, _ -> },
     onPlaylistAddToQueue: (SharedPlaylistDetailUi) -> Unit = {},
+    onPlaylistDownload: (SharedMediaItemUi) -> Unit = {},
     onPlaylistRename: (SharedMediaItemUi, String) -> Unit = { _, _ -> },
     onPlaylistDelete: (SharedMediaItemUi) -> Unit = {},
     onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit = {},
@@ -606,6 +608,7 @@ fun NaviampSharedAppShell(
                             showMobileNetworkQuality = showMobileNetworkQuality,
                             onEditConnection = onEditConnection,
                             onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+                            onPlaybackSettingsChangedAndRedownload = onPlaybackSettingsChangedAndRedownload,
                             onClearCache = onClearCache,
                             onClearLibrary = onClearLibrary,
                             onResetDatabase = onResetDatabase,
@@ -656,6 +659,7 @@ fun NaviampSharedAppShell(
                             onPlaylistSortModeChanged = onPlaylistSortModeChanged,
                             onPlaylistPlay = onPlaylistPlay,
                             onPlaylistAddToQueue = onPlaylistAddToQueue,
+                            onPlaylistDownload = onPlaylistDownload,
                             onPlaylistRename = onPlaylistRename,
                             onPlaylistDelete = onPlaylistDelete,
                             onSmartPlaylistSave = onSmartPlaylistSave,
@@ -872,6 +876,7 @@ private fun ConnectedContent(
     showMobileNetworkQuality: Boolean = false,
     onEditConnection: () -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
+    onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit,
     onQueryChanged: (String) -> Unit,
     onSearch: () -> Unit,
     onLibraryQueryChanged: (String) -> Unit,
@@ -919,6 +924,7 @@ private fun ConnectedContent(
     onPlaylistSortModeChanged: (SharedPlaylistSortMode) -> Unit,
     onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit,
     onPlaylistAddToQueue: (SharedPlaylistDetailUi) -> Unit,
+    onPlaylistDownload: (SharedMediaItemUi) -> Unit,
     onPlaylistRename: (SharedMediaItemUi, String) -> Unit,
     onPlaylistDelete: (SharedMediaItemUi) -> Unit,
     onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit,
@@ -1006,8 +1012,10 @@ private fun ConnectedContent(
             supportsGapless = supportsGapless,
             supportsCrossfade = supportsCrossfade,
             showMobileNetworkQuality = showMobileNetworkQuality,
+            downloadBytes = downloadBytes,
             onEditConnection = onEditConnection,
             onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+            onPlaybackSettingsChangedAndRedownload = onPlaybackSettingsChangedAndRedownload,
             onClearCache = onClearCache,
             onClearLibrary = onClearLibrary,
             onResetDatabase = onResetDatabase,
@@ -1067,6 +1075,7 @@ private fun ConnectedContent(
             onPlayPlaylist = { onPlaylistPlay(playlistDetail.playlist, false) },
             onShufflePlaylist = { onPlaylistPlay(playlistDetail.playlist, true) },
             onAddPlaylistToQueue = { onPlaylistAddToQueue(playlistDetail) },
+            onDownloadPlaylist = { onPlaylistDownload(playlistDetail.playlist) },
             onRenamePlaylist = onPlaylistRename,
             onDeletePlaylist = onPlaylistDelete,
             onTrackSelected = onPlaylistTrackSelected,
@@ -1083,6 +1092,7 @@ private fun ConnectedContent(
                 onSortModeChanged = onPlaylistSortModeChanged,
                 onPlaylistSelected = onPlaylistSelected,
                 onPlaylistPlay = onPlaylistPlay,
+                onPlaylistDownload = onPlaylistDownload,
                 onPlaylistRename = onPlaylistRename,
                 onPlaylistDelete = onPlaylistDelete,
                 onSmartPlaylistSave = onSmartPlaylistSave,
@@ -1201,6 +1211,7 @@ private fun PlaylistsContent(
     onSortModeChanged: (SharedPlaylistSortMode) -> Unit,
     onPlaylistSelected: (SharedMediaItemUi) -> Unit,
     onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit,
+    onPlaylistDownload: (SharedMediaItemUi) -> Unit,
     onPlaylistRename: (SharedMediaItemUi, String) -> Unit,
     onPlaylistDelete: (SharedMediaItemUi) -> Unit,
     onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit,
@@ -1260,6 +1271,7 @@ private fun PlaylistsContent(
                 onClick = { onPlaylistSelected(playlist) },
                 onPlay = { onPlaylistPlay(playlist, false) },
                 onShuffle = { onPlaylistPlay(playlist, true) },
+                onDownload = { onPlaylistDownload(playlist) },
                 onRename = { playlistToRename = playlist },
                 onDelete = { playlistToDelete = playlist },
             )
@@ -1335,6 +1347,7 @@ private fun PlaylistListRow(
     onClick: () -> Unit,
     onPlay: () -> Unit,
     onShuffle: () -> Unit,
+    onDownload: () -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -1361,8 +1374,9 @@ private fun PlaylistListRow(
         MiniPlayerIconButton(colors, playlist.meta != "1 track", NaviampTransportIcons.Shuffle, "Play playlist in random order", onShuffle)
         NaviampRowOverflowMenu(
             colors = colors,
-            items = playlistRowActions(canRename = true, canDelete = true).mapNotNull { action ->
+            items = playlistRowActions(canDownload = true, canRename = true, canDelete = true).mapNotNull { action ->
                 when (action.action) {
+                    NaviampAction.DownloadPlaylist -> NaviampRowMenuItem(action.label, action.icon, onDownload, action.enabled)
                     NaviampAction.RenamePlaylist -> NaviampRowMenuItem(action.label, action.icon, onRename, action.enabled)
                     NaviampAction.DeletePlaylist -> NaviampRowMenuItem(action.label, action.icon, onDelete, action.enabled)
                     else -> null
@@ -1380,6 +1394,7 @@ private fun PlaylistDetailContent(
     onPlayPlaylist: () -> Unit,
     onShufflePlaylist: () -> Unit,
     onAddPlaylistToQueue: () -> Unit,
+    onDownloadPlaylist: () -> Unit,
     onRenamePlaylist: (SharedMediaItemUi, String) -> Unit,
     onDeletePlaylist: (SharedMediaItemUi) -> Unit,
     onTrackSelected: (AndroidTrackRowUi) -> Unit,
@@ -1409,6 +1424,7 @@ private fun PlaylistDetailContent(
                     MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampTransportIcons.Play, "Play playlist", onPlayPlaylist)
                     MiniPlayerIconButton(colors, detail.tracks.size > 1, NaviampTransportIcons.Shuffle, "Play playlist in random order", onShufflePlaylist)
                     MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampIcons.Queue, "Add playlist to queue", onAddPlaylistToQueue)
+                    MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampIcons.Downloads, "Download playlist", onDownloadPlaylist)
                     MiniPlayerIconButton(colors, true, NaviampIcons.Edit, "Rename playlist", { renameOpen = true })
                     MiniPlayerIconButton(colors, true, NaviampIcons.Trash, "Delete playlist", { deleteOpen = true })
                 }
@@ -2307,8 +2323,10 @@ private fun SettingsContent(
     supportsGapless: Boolean,
     supportsCrossfade: Boolean,
     showMobileNetworkQuality: Boolean,
+    downloadBytes: Long,
     onEditConnection: () -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
+    onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit,
     onClearCache: () -> Unit,
     onClearLibrary: () -> Unit,
     onResetDatabase: () -> Unit,
@@ -2321,8 +2339,10 @@ private fun SettingsContent(
         supportsGapless = supportsGapless,
         supportsCrossfade = supportsCrossfade,
         showMobileNetworkQuality = showMobileNetworkQuality,
+        downloadBytes = downloadBytes,
         onEditConnection = onEditConnection,
         onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+        onPlaybackSettingsChangedAndRedownload = onPlaybackSettingsChangedAndRedownload,
         onClearCache = onClearCache,
         onClearLibrary = onClearLibrary,
         onResetDatabase = onResetDatabase,

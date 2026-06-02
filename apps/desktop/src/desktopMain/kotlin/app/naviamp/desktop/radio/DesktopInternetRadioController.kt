@@ -7,6 +7,7 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Track
 import app.naviamp.domain.isInternetRadioTrack
+import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackProgress
@@ -34,6 +35,7 @@ class DesktopInternetRadioController(
     private val playbackEngine: PlaybackEngine,
     private val playlistEngine: PlaylistEngine,
     private val provider: () -> MediaProvider?,
+    private val providerResponseService: ProviderResponseService,
     private val homeContent: () -> HomeContent,
     private val setHomeContent: (HomeContent) -> Unit,
     private val recentStations: () -> List<InternetRadioStation>,
@@ -73,7 +75,7 @@ class DesktopInternetRadioController(
             try {
                 setStations(
                     withContext(Dispatchers.IO) {
-                        activeProvider.internetRadioStations()
+                        providerResponseService.internetRadioStations(activeProvider)
                     },
                 )
                 setStatus(null)
@@ -185,6 +187,7 @@ class DesktopInternetRadioController(
                     } else {
                         activeProvider.updateInternetRadioStation(station)
                     }
+                    providerResponseService.invalidateInternetRadioStations(activeProvider)
                 }
                 setNewStationDialogOpen(false)
                 setPendingEdit(null)
@@ -203,6 +206,7 @@ class DesktopInternetRadioController(
             try {
                 withContext(Dispatchers.IO) {
                     activeProvider.deleteInternetRadioStation(station.id)
+                    providerResponseService.invalidateInternetRadioStations(activeProvider)
                 }
                 setPendingDelete(null)
                 setStatus(null)
