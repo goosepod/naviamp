@@ -3,6 +3,7 @@ package app.naviamp.desktop
 import app.naviamp.domain.Track
 import app.naviamp.domain.app.databaseResetStatus
 import app.naviamp.domain.cache.LibrarySnapshot
+import app.naviamp.domain.cache.PlaybackSessionRepository
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackProgress
@@ -46,6 +47,7 @@ class DesktopConnectionLifecycleController(
     private val scope: CoroutineScope,
     private val sessionCache: DesktopCache,
     private val settingsStore: DesktopSettingsStore,
+    private val playbackSessionRepository: PlaybackSessionRepository,
     private val playbackEngine: PlaybackEngine,
     private val playlistEngine: PlaylistEngine,
     private val stopRadioContinuation: () -> Unit,
@@ -126,7 +128,7 @@ class DesktopConnectionLifecycleController(
             setPlaybackState(PlaybackState.Idle)
             setPlaybackProgress(PlaybackProgress.Unknown)
             setPlaybackQueue(PlaybackQueue())
-            settingsStore.savePlaybackSession(null)
+            playbackSessionRepository.savePlaybackSession(null)
         }
 
         scope.launch {
@@ -194,7 +196,7 @@ class DesktopConnectionLifecycleController(
         stopRadioContinuation()
         playlistEngine.clear()
         playbackEngine.stop()
-        settingsStore.savePlaybackSession(null)
+        playbackSessionRepository.savePlaybackSession(null)
         applyClearedConnectionState(DesktopActiveConnectionClearState())
     }
 

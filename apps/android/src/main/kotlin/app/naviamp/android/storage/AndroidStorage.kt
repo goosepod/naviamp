@@ -23,6 +23,7 @@ import app.naviamp.domain.cache.LibraryIndexStats
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.MediaSourceRepository
+import app.naviamp.domain.cache.PlaybackSessionRepository
 import app.naviamp.domain.cache.PlaybackHistoryRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.StoredAudioBytes
@@ -64,6 +65,7 @@ class AndroidStorage(
     DownloadReplacementRepository<AndroidDownloadedAudioFile>,
     PlaybackHistoryRepository<AndroidPlaybackHistoryItem>,
     MediaSourceRepository,
+    PlaybackSessionRepository,
     LocalLibraryIndexRepository,
     CacheMaintenanceRepository<AndroidStorageStats>,
     AutoCloseable {
@@ -171,24 +173,34 @@ class AndroidStorage(
         )
     }
 
-    fun loadPlaybackSession(sourceId: String): PlaybackSessionSettings? =
-        queries.selectPlaybackSession(sourceId)
+    override fun loadPlaybackSession(sourceId: String?): PlaybackSessionSettings? =
+        queries.selectPlaybackSession(requirePlaybackSessionSourceId(sourceId))
             .executeAsOneOrNull()
             ?.let { payload ->
                 runCatching { json.decodeFromString<PlaybackSessionSettings>(payload) }.getOrNull()
             }
 
-    fun savePlaybackSession(sourceId: String, session: PlaybackSessionSettings?) {
+    override fun savePlaybackSession(session: PlaybackSessionSettings?, sourceId: String?) {
+        val requiredSourceId = requirePlaybackSessionSourceId(sourceId)
         if (session == null) {
-            queries.deletePlaybackSession(sourceId)
+            queries.deletePlaybackSession(requiredSourceId)
             return
         }
         queries.upsertPlaybackSession(
-            source_id = sourceId,
+            source_id = requiredSourceId,
             payload = json.encodeToString(session),
             updated_at_epoch_millis = System.currentTimeMillis(),
         )
     }
+
+    fun savePlaybackSession(sourceId: String, session: PlaybackSessionSettings?) {
+        savePlaybackSession(session = session, sourceId = sourceId)
+    }
+
+    private fun requirePlaybackSessionSourceId(sourceId: String?): String =
+        requireNotNull(sourceId?.takeIf { it.isNotBlank() }) {
+            "Android playback sessions require a sourceId."
+        }
 
     override suspend fun imageBytes(url: String): ByteArray =
         withContext(Dispatchers.IO) {

@@ -9,6 +9,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.popular.ArtistPopularTracksRepository
+import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.waveform.AudioWaveform
 
@@ -149,6 +150,15 @@ interface MediaSourceRepository {
     fun mediaSource(sourceId: String): SavedMediaSource?
 
     fun deleteMediaSource(sourceId: String)
+}
+
+interface PlaybackSessionRepository {
+    fun loadPlaybackSession(sourceId: String? = null): PlaybackSessionSettings?
+
+    fun savePlaybackSession(
+        session: PlaybackSessionSettings?,
+        sourceId: String? = null,
+    )
 }
 
 interface LocalLibraryIndexRepository : ArtistPopularTracksRepository {

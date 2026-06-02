@@ -1,9 +1,9 @@
 package app.naviamp.desktop
 
 import app.naviamp.desktop.playback.PlaylistEngine
-import app.naviamp.desktop.settings.DesktopSettingsStore
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.domain.Track
+import app.naviamp.domain.cache.PlaybackSessionRepository
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackProgress
@@ -26,7 +26,7 @@ import kotlinx.coroutines.withContext
 
 class DesktopPlaybackController(
     private val scope: CoroutineScope,
-    private val settingsStore: DesktopSettingsStore,
+    private val playbackSessionRepository: PlaybackSessionRepository,
     private val playbackEngine: PlaybackEngine,
     private val playlistEngine: PlaylistEngine,
     private val provider: () -> MediaProvider?,
@@ -52,7 +52,7 @@ class DesktopPlaybackController(
         queue: PlaybackQueue,
         positionSeconds: Double? = playbackProgress().positionSeconds,
     ) {
-        settingsStore.savePlaybackSession(
+        playbackSessionRepository.savePlaybackSession(
             playbackSessionFromQueue(queue, positionSeconds),
         )
     }

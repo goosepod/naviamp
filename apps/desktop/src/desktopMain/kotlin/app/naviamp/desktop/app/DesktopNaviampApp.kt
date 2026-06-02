@@ -490,7 +490,7 @@ fun NaviampApp(
 
     val playbackController = DesktopPlaybackController(
         scope = coroutineScope,
-        settingsStore = settingsStore,
+        playbackSessionRepository = settingsStore,
         playbackEngine = playbackEngine,
         playlistEngine = playlistEngine,
         provider = { connectedProvider },
@@ -598,6 +598,7 @@ fun NaviampApp(
     val internetRadioController = DesktopInternetRadioController(
         scope = coroutineScope,
         settingsStore = settingsStore,
+        playbackSessionRepository = settingsStore,
         playbackEngine = playbackEngine,
         playlistEngine = playlistEngine,
         provider = { connectedProvider },
@@ -650,6 +651,7 @@ fun NaviampApp(
         scope = coroutineScope,
         sessionCache = sessionCache,
         settingsStore = settingsStore,
+        playbackSessionRepository = settingsStore,
         playbackEngine = playbackEngine,
         playlistEngine = playlistEngine,
         stopRadioContinuation = ::stopRadioContinuation,

@@ -6,9 +6,10 @@ import app.naviamp.desktop.settings.PlaybackSessionSettings
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Track
-import app.naviamp.domain.isInternetRadioTrack
+import app.naviamp.domain.cache.PlaybackSessionRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.home.HomeContent
+import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
@@ -32,6 +33,7 @@ import kotlinx.coroutines.withContext
 class DesktopInternetRadioController(
     private val scope: CoroutineScope,
     private val settingsStore: DesktopSettingsStore,
+    private val playbackSessionRepository: PlaybackSessionRepository,
     private val playbackEngine: PlaybackEngine,
     private val playlistEngine: PlaylistEngine,
     private val provider: () -> MediaProvider?,
@@ -123,7 +125,7 @@ class DesktopInternetRadioController(
         setPlaybackQueue(plan.playbackQueue)
         setStatus(plan.status)
         if (plan.savePlaybackSession) {
-            settingsStore.savePlaybackSession(PlaybackSessionSettings.fromInternetRadioStation(station))
+            playbackSessionRepository.savePlaybackSession(PlaybackSessionSettings.fromInternetRadioStation(station))
         }
         if (plan.openNowPlaying) setAppRoute(AppRoute.Player)
         playbackEngine.play(

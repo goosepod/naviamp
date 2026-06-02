@@ -1,6 +1,7 @@
 package app.naviamp.desktop.settings
 
 import app.naviamp.provider.navidrome.NavidromeConnection
+import app.naviamp.domain.cache.PlaybackSessionRepository
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -13,7 +14,7 @@ import kotlin.io.path.writeText
 
 class DesktopSettingsStore(
     private val settingsPath: Path = defaultSettingsPath(),
-) {
+) : PlaybackSessionRepository {
     private val json = Json {
         ignoreUnknownKeys = true
         prettyPrint = true
@@ -74,11 +75,18 @@ class DesktopSettingsStore(
         saveSettings(loadSettings().copy(window = windowSettings))
     }
 
-    fun loadPlaybackSession(): PlaybackSessionSettings? =
+    override fun loadPlaybackSession(sourceId: String?): PlaybackSessionSettings? =
         loadSettings().session
 
-    fun savePlaybackSession(session: PlaybackSessionSettings?) {
+    fun loadPlaybackSession(): PlaybackSessionSettings? =
+        loadPlaybackSession(sourceId = null)
+
+    override fun savePlaybackSession(session: PlaybackSessionSettings?, sourceId: String?) {
         saveSettings(loadSettings().copy(session = session))
+    }
+
+    fun savePlaybackSession(session: PlaybackSessionSettings?) {
+        savePlaybackSession(session = session, sourceId = null)
     }
 
     fun loadNavigationSettings(): NavigationSettings =

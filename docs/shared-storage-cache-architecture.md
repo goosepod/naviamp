@@ -113,6 +113,7 @@ Then higher-level repositories can be composed from those stores:
 - [ ] Split metadata database ports from byte storage.
   - SQLite/SQLDelight can remain the first engine, but shared code should depend on repository contracts.
   - First slice: saved media-source metadata is behind `MediaSourceRepository`, implemented by desktop and Android storage engines.
+  - Second slice: playback-session metadata is behind `PlaybackSessionRepository`, implemented by desktop settings and Android storage.
 - [ ] Replace direct `DesktopCache` dependencies in desktop controllers with narrower interfaces.
   - `DesktopHomeController`
   - `DesktopSearchController`
@@ -290,6 +291,11 @@ This is a strong first slice because playback-source selection currently affects
   - Added shared `MediaSourceRepository` for saved media-source lookup/list/delete metadata.
   - Desktop `DesktopCache` and Android `AndroidStorage` now implement the same media-source metadata port while keeping platform-specific database construction local.
   - Android keeps `latestNavidromeSource` as a compatibility alias over the shared `latestMediaSource` binding.
+- 2026-06-02: Added shared playback-session metadata storage port.
+  - Added `PlaybackSessionRepository` for loading and saving persisted playback sessions.
+  - Desktop `DesktopSettingsStore` implements the port for its single current-session settings file.
+  - Android `AndroidStorage` implements the same port with required source-scoped SQL rows.
+  - Desktop playback/internet-radio controllers and Android app playback-session helpers now depend on the shared session port instead of concrete storage/settings types for session persistence.
 - 2026-06-02: Added Android playlist download actions.
   - The shared playlist list and detail UI now expose download actions.
   - Android uses selected/preloaded playlist tracks when available and falls back to a provider playlist-track load before calling the shared bulk download path.
