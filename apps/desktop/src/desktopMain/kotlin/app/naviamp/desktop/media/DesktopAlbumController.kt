@@ -3,6 +3,8 @@ package app.naviamp.desktop
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Track
+import app.naviamp.domain.cache.LocalLibraryIndexRepository
+import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.provider.MediaProvider
 import kotlinx.coroutines.CoroutineScope
@@ -10,7 +12,8 @@ import kotlinx.coroutines.launch
 
 class DesktopAlbumController(
     private val scope: CoroutineScope,
-    private val sessionCache: DesktopCache,
+    private val libraryIndexRepository: LocalLibraryIndexRepository,
+    providerResponseCacheRepository: ProviderResponseCacheRepository,
     private val provider: () -> MediaProvider?,
     private val sourceId: () -> String?,
     private val currentRoute: () -> AppRoute,
@@ -22,7 +25,7 @@ class DesktopAlbumController(
     private val setSelectedAlbumDetails: (AlbumDetails?) -> Unit,
     private val setSelectedAlbumStatus: (String?) -> Unit,
 ) {
-    private val providerResponseService = ProviderResponseService(sessionCache)
+    private val providerResponseService = ProviderResponseService(providerResponseCacheRepository)
 
     fun openAlbumDetails(album: Album, backRouteOverride: AppRoute? = null) {
         val activeProvider = provider() ?: return
@@ -40,7 +43,7 @@ class DesktopAlbumController(
         setRoute(AppRoute.AlbumDetail)
         scope.launch {
             try {
-                setSelectedAlbumDetails(loadAlbumDetails(sessionCache, providerResponseService, activeProvider, album, sourceId()))
+                setSelectedAlbumDetails(loadAlbumDetails(libraryIndexRepository, providerResponseService, activeProvider, album, sourceId()))
                 setSelectedAlbumStatus(null)
             } catch (exception: Exception) {
                 setSelectedAlbumStatus(albumLoadErrorStatus(exception))

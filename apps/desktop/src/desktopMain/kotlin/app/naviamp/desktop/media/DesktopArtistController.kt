@@ -3,6 +3,8 @@ package app.naviamp.desktop
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.Track
+import app.naviamp.domain.cache.LocalLibraryIndexRepository
+import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.media.ArtistDetailPopularTracksDisplayLimit
 import app.naviamp.domain.media.ArtistDetailPopularTracksFetchLimit
@@ -28,7 +30,8 @@ import java.net.URI
 
 class DesktopArtistController(
     private val scope: CoroutineScope,
-    private val sessionCache: DesktopCache,
+    private val libraryIndexRepository: LocalLibraryIndexRepository,
+    providerResponseCacheRepository: ProviderResponseCacheRepository,
     private val provider: () -> MediaProvider?,
     private val sourceId: () -> String?,
     private val currentRoute: () -> AppRoute,
@@ -49,7 +52,7 @@ class DesktopArtistController(
     private val popularTracksService: ArtistPopularTracksService,
     private val similarArtistsService: SimilarArtistsService,
 ) {
-    private val providerResponseService = ProviderResponseService(sessionCache)
+    private val providerResponseService = ProviderResponseService(providerResponseCacheRepository)
 
     fun openExternalArtistUrl(url: String) {
         runCatching {
@@ -114,7 +117,7 @@ class DesktopArtistController(
         setRoute(AppRoute.ArtistDetail)
         scope.launch {
             try {
-                val details = loadArtistDetails(sessionCache, providerResponseService, activeProvider, artist, sourceId())
+                val details = loadArtistDetails(libraryIndexRepository, providerResponseService, activeProvider, artist, sourceId())
                 setSelectedArtistDetails(details)
                 setSelectedArtistStatus(null)
                 loadPopularTracks(artist, details)

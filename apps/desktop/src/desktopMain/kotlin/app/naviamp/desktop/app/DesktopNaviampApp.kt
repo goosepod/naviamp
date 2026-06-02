@@ -970,7 +970,8 @@ fun NaviampApp(
 
     val artistController = DesktopArtistController(
         scope = coroutineScope,
-        sessionCache = sessionCache,
+        libraryIndexRepository = sessionCache,
+        providerResponseCacheRepository = sessionCache,
         provider = { connectedProvider },
         sourceId = { connectedSourceId },
         currentRoute = { appRoute },
@@ -994,7 +995,8 @@ fun NaviampApp(
 
     val albumController = DesktopAlbumController(
         scope = coroutineScope,
-        sessionCache = sessionCache,
+        libraryIndexRepository = sessionCache,
+        providerResponseCacheRepository = sessionCache,
         provider = { connectedProvider },
         sourceId = { connectedSourceId },
         currentRoute = { appRoute },

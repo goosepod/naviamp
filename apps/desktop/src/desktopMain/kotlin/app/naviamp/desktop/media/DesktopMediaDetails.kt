@@ -9,6 +9,7 @@ import app.naviamp.domain.media.albumDetailLoadErrorStatus
 import app.naviamp.domain.media.albumDetailsFromLibraryTracks
 import app.naviamp.domain.media.artistDetailLoadErrorStatus
 import app.naviamp.domain.media.artistDetailsFromLibraryTracks
+import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.provider.MediaProvider
 
@@ -62,7 +63,7 @@ fun artistDetailNavigation(
 }
 
 suspend fun loadAlbumDetails(
-    cache: DesktopCache,
+    libraryIndexRepository: LocalLibraryIndexRepository,
     providerResponseService: ProviderResponseService,
     provider: MediaProvider,
     album: Album,
@@ -76,14 +77,14 @@ suspend fun loadAlbumDetails(
                 albumId = album.id,
                 fallbackTitle = album.title,
                 fallbackArtistName = album.artistName,
-                tracks = cache.libraryTracksForAlbum(it, album.id, limit = 1_000),
+                tracks = libraryIndexRepository.libraryTracksForAlbum(it, album.id, limit = 1_000),
             )
         }
         fallbackDetail ?: throw error
     }.getOrThrow()
 
 suspend fun loadArtistDetails(
-    cache: DesktopCache,
+    libraryIndexRepository: LocalLibraryIndexRepository,
     providerResponseService: ProviderResponseService,
     provider: MediaProvider,
     artist: Artist,
@@ -96,7 +97,7 @@ suspend fun loadArtistDetails(
             artistDetailsFromLibraryTracks(
                 artistId = artist.id,
                 fallbackName = artist.name,
-                tracks = cache.libraryTracksForArtist(it, artist.id, limit = 1_000),
+                tracks = libraryIndexRepository.libraryTracksForArtist(it, artist.id, limit = 1_000),
             )
         }
         fallbackDetail ?: throw error
