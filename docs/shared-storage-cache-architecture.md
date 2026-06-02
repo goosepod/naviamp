@@ -123,6 +123,7 @@ Then higher-level repositories can be composed from those stores:
   - Ninth slice: Android connection startup writes source metadata through `ProviderMediaSourceRepository` instead of broad `AndroidStorage`.
   - Tenth slice: desktop and Android playback audio asset adapters use `DownloadRepository` and `AudioCacheRepository` instead of broad storage/cache types.
   - Eleventh slice: desktop artist/album detail fallback reads use `LocalLibraryIndexRepository` and provider caching uses `ProviderResponseCacheRepository` instead of broad `DesktopCache`.
+  - Twelfth slice: desktop download actions use `DownloadRepository`, `DownloadReplacementRepository`, and `ProviderResponseCacheRepository` instead of broad `DesktopCache`.
 - [ ] Replace direct `DesktopCache` dependencies in desktop controllers with narrower interfaces.
   - `DesktopHomeController`
   - `DesktopSearchController`
@@ -339,6 +340,10 @@ This is a strong first slice because playback-source selection currently affects
 - 2026-06-02: Moved desktop artist/album detail fallback loading onto shared repository ports.
   - `DesktopArtistController` and `DesktopAlbumController` now receive `LocalLibraryIndexRepository` and `ProviderResponseCacheRepository`.
   - Offline artist/album fallback reads no longer depend on broad `DesktopCache`.
+- 2026-06-02: Moved desktop download actions onto shared repository ports.
+  - `DesktopDownloadsController` now composes `DownloadService` from `DownloadRepository` and `DownloadReplacementRepository`.
+  - Album/playlist download expansion now uses `ProviderResponseCacheRepository`.
+  - Download removal calls the shared download repository contract.
 - 2026-06-02: Added Android playlist download actions.
   - The shared playlist list and detail UI now expose download actions.
   - Android uses selected/preloaded playlist tracks when available and falls back to a provider playlist-track load before calling the shared bulk download path.

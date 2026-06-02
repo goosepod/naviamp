@@ -182,6 +182,7 @@ Branch: `codex/desktop-main-reduction`
   - Android connection startup now writes provider media-source metadata through a shared repository port instead of direct `AndroidStorage`.
   - Desktop and Android playback audio asset adapters now use shared download/audio-cache repository ports instead of direct broad storage/cache types.
   - Desktop artist/album detail controllers now use shared library/provider-response repository ports instead of direct `DesktopCache`.
+  - Desktop download actions now use shared download/provider-response repository ports instead of direct `DesktopCache`.
 - [ ] Introduce shared low-level byte/object store ports for cache/download file operations.
 - [ ] Introduce shared repository ports for media sources, provider responses, local library index, audio assets, sidecars, playback sessions, and maintenance stats.
   - Media-source metadata now has `MediaSourceRepository` with desktop and Android storage implementations.

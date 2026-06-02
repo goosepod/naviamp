@@ -3,8 +3,11 @@ package app.naviamp.desktop
 import app.naviamp.domain.Album
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
+import app.naviamp.domain.cache.DownloadReplacementRepository
+import app.naviamp.domain.cache.DownloadRepository
 import app.naviamp.domain.cache.DownloadService
 import app.naviamp.domain.cache.DownloadTracksResult
+import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.cache.downloadConnectionRequiredStatus
 import app.naviamp.domain.cache.downloadedTrackRemovedStatus
@@ -21,8 +24,9 @@ import kotlinx.coroutines.withContext
 
 class DesktopDownloadsController(
     private val scope: CoroutineScope,
-    private val sessionCache: DesktopCache,
-    private val providerResponseService: ProviderResponseService,
+    private val downloadRepository: DownloadRepository<DownloadedAudioFile, DownloadedTrack>,
+    private val downloadReplacementRepository: DownloadReplacementRepository<DownloadedAudioFile>,
+    providerResponseCacheRepository: ProviderResponseCacheRepository,
     private val playbackEngine: PlaybackEngine,
     private val playbackSettings: () -> PlaybackSettings,
     private val cacheSettings: () -> CacheSettings,
@@ -36,10 +40,12 @@ class DesktopDownloadsController(
     private val setDownloadStatus: (String?) -> Unit,
     private val incrementDownloadRefreshToken: () -> Unit,
 ) {
+    private val providerResponseService = ProviderResponseService(providerResponseCacheRepository)
+
     fun downloadTracks(label: String, tracks: List<Track>) {
         val activeProvider = provider()
         val activeSourceId = sourceId()
-        val downloadService = DownloadService(sessionCache, sessionCache)
+        val downloadService = DownloadService(downloadRepository, downloadReplacementRepository)
         scope.launch {
             val quality = playbackSettings().streamQuality(playbackEngine)
             val maxDownloadBytes = cacheSettings().maxDownloadBytes
@@ -100,7 +106,7 @@ class DesktopDownloadsController(
 
     fun removeDownloadedTrack(download: DownloadedTrack) {
         val activeSourceId = sourceId() ?: return
-        sessionCache.removeDownloadedAudio(activeSourceId, download.track.id)
+        downloadRepository.removeDownloadedAudio(activeSourceId, download.track.id)
         incrementDownloadRefreshToken()
         setDownloadStatus(downloadedTrackRemovedStatus(download.track.title))
     }

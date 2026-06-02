@@ -849,8 +849,9 @@ fun NaviampApp(
 
     val downloadsController = DesktopDownloadsController(
         scope = coroutineScope,
-        sessionCache = sessionCache,
-        providerResponseService = ProviderResponseService(sessionCache),
+        downloadRepository = sessionCache,
+        downloadReplacementRepository = sessionCache,
+        providerResponseCacheRepository = sessionCache,
         playbackEngine = playbackEngine,
         playbackSettings = { playbackSettings },
         cacheSettings = { cacheSettings },
