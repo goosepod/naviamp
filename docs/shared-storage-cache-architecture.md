@@ -120,6 +120,7 @@ Then higher-level repositories can be composed from those stores:
   - Sixth slice: Android cache/library/database maintenance helpers use `CacheMaintenanceRepository` and `LocalLibraryIndexRepository` instead of broad `AndroidStorage`.
   - Seventh slice: Android artist/album detail fallback reads use `LocalLibraryIndexRepository` instead of broad `AndroidStorage`.
   - Eighth slice: Android download actions and persistence effects use `DownloadRepository`, `DownloadReplacementRepository`, and `CacheMaintenanceRepository` instead of broad `AndroidStorage`.
+  - Ninth slice: Android connection startup writes source metadata through `ProviderMediaSourceRepository` instead of broad `AndroidStorage`.
 - [ ] Replace direct `DesktopCache` dependencies in desktop controllers with narrower interfaces.
   - `DesktopHomeController`
   - `DesktopSearchController`
@@ -325,6 +326,10 @@ This is a strong first slice because playback-source selection currently affects
   - Download, re-download, and remove-download helpers now compose `DownloadService` from `DownloadRepository` and `DownloadReplacementRepository`.
   - Storage stats refresh uses `CacheMaintenanceRepository<AndroidStorageStats>`.
   - Downloads-route refresh reads downloaded rows through `DownloadRepository`.
+- 2026-06-02: Moved Android connection startup source metadata writes onto a shared repository port.
+  - Added `ProviderMediaSourceRepository` and `ProviderMediaSourceConnection` in common domain.
+  - `startNavidromeConnection` now upserts source metadata through the shared port and uses `ProviderResponseCacheRepository` for home browse loading.
+  - Android storage remains the concrete SQL adapter supplied by app composition.
 - 2026-06-02: Added Android playlist download actions.
   - The shared playlist list and detail UI now expose download actions.
   - Android uses selected/preloaded playlist tracks when available and falls back to a provider playlist-track load before calling the shared bulk download path.

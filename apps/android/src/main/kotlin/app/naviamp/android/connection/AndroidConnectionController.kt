@@ -4,6 +4,9 @@ import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.android.playback.AndroidPlaybackTls
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.app.NaviampRoute
+import app.naviamp.domain.cache.ProviderMediaSourceConnection
+import app.naviamp.domain.cache.ProviderMediaSourceRepository
+import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.connectionFormError
 import app.naviamp.provider.navidrome.NavidromeConnection
@@ -11,6 +14,7 @@ import app.naviamp.provider.navidrome.NavidromeConnectionLoginRequest
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.navidromeTlsSettingsFromForm
 import app.naviamp.provider.navidrome.prepareNavidromeConnection
+import app.naviamp.provider.navidrome.resolvedDisplayName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -41,7 +45,8 @@ fun startNavidromeConnection(
     scope: CoroutineScope,
     state: AndroidAppState,
     connection: NavidromeConnection,
-    storage: AndroidStorage,
+    providerMediaSourceRepository: ProviderMediaSourceRepository,
+    providerResponseCacheRepository: ProviderResponseCacheRepository,
     playbackEngine: AndroidPlaybackEngine,
     preloadPlaylistTracks: (NavidromeProvider, List<Playlist>) -> Unit,
     restorePlaybackSession: (String) -> Boolean,
@@ -57,12 +62,12 @@ fun startNavidromeConnection(
                 playbackEngine.applyTlsSettings(tlsSettings)
                 AndroidPlaybackTls.applyDefaults(tlsSettings)
                 validation = nextProvider.validateConnection()
-                val mediaSource = storage.upsertNavidromeSource(
-                    connection = connection,
+                val mediaSource = providerMediaSourceRepository.upsertProviderMediaSource(
+                    connection = connection.toProviderMediaSourceConnection(),
                     cacheNamespace = nextProvider.cacheNamespace,
                     providerId = nextProvider.id.value,
                 )
-                homeState = loadBrowseState(nextProvider, storage)
+                homeState = loadBrowseState(nextProvider, providerResponseCacheRepository)
                 preloadPlaylistTracks(nextProvider, homeState.playlists)
                 provider = nextProvider
                 activeSourceId = mediaSource.id
@@ -86,6 +91,17 @@ fun startNavidromeConnection(
         }
     }
 }
+
+private fun NavidromeConnection.toProviderMediaSourceConnection(): ProviderMediaSourceConnection =
+    ProviderMediaSourceConnection(
+        displayName = resolvedDisplayName(),
+        baseUrl = baseUrl,
+        username = username,
+        token = token,
+        salt = salt,
+        nativeToken = nativeToken,
+        tlsSettings = tlsSettings,
+    )
 
 fun startNavidromeConnectionFromForm(
     scope: CoroutineScope,

@@ -25,6 +25,8 @@ import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.MediaSourceRepository
 import app.naviamp.domain.cache.PlaybackSessionRepository
 import app.naviamp.domain.cache.PlaybackHistoryRepository
+import app.naviamp.domain.cache.ProviderMediaSourceConnection
+import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.StoredAudioBytes
 import app.naviamp.domain.network.KtorSharedHttpClient
@@ -65,6 +67,7 @@ class AndroidStorage(
     DownloadReplacementRepository<AndroidDownloadedAudioFile>,
     PlaybackHistoryRepository<AndroidPlaybackHistoryItem>,
     MediaSourceRepository,
+    ProviderMediaSourceRepository,
     PlaybackSessionRepository,
     LocalLibraryIndexRepository,
     CacheMaintenanceRepository<AndroidStorageStats>,
@@ -120,11 +123,15 @@ class AndroidStorage(
         queries.deleteMediaSource(sourceId)
     }
 
-    fun upsertNavidromeSource(connection: NavidromeConnection, cacheNamespace: String, providerId: String): MediaSourceIdentity {
+    override fun upsertProviderMediaSource(
+        connection: ProviderMediaSourceConnection,
+        cacheNamespace: String,
+        providerId: String,
+    ): MediaSourceIdentity {
         val now = System.currentTimeMillis()
         val existing = queries.selectMediaSourceByCacheNamespace(cacheNamespace).executeAsOneOrNull()
         val id = existing?.id ?: stableMediaSourceId(cacheNamespace)
-        val displayName = connection.resolvedDisplayName()
+        val displayName = connection.displayName
         queries.upsertMediaSource(
             id = id,
             provider_id = providerId,
@@ -172,6 +179,21 @@ class AndroidStorage(
             displayName = displayName,
         )
     }
+
+    fun upsertNavidromeSource(connection: NavidromeConnection, cacheNamespace: String, providerId: String): MediaSourceIdentity =
+        upsertProviderMediaSource(
+            connection = ProviderMediaSourceConnection(
+                displayName = connection.resolvedDisplayName(),
+                baseUrl = connection.baseUrl,
+                username = connection.username,
+                token = connection.token,
+                salt = connection.salt,
+                nativeToken = connection.nativeToken,
+                tlsSettings = connection.tlsSettings,
+            ),
+            cacheNamespace = cacheNamespace,
+            providerId = providerId,
+        )
 
     override fun loadPlaybackSession(sourceId: String?): PlaybackSessionSettings? =
         queries.selectPlaybackSession(requirePlaybackSessionSourceId(sourceId))

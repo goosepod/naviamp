@@ -10,6 +10,8 @@ import app.naviamp.domain.TrackId
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.popular.ArtistPopularTracksRepository
 import app.naviamp.domain.settings.PlaybackSessionSettings
+import app.naviamp.domain.source.ConnectionTlsSettings
+import app.naviamp.domain.source.MediaSourceIdentity
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.waveform.AudioWaveform
 
@@ -150,6 +152,24 @@ interface MediaSourceRepository {
     fun mediaSource(sourceId: String): SavedMediaSource?
 
     fun deleteMediaSource(sourceId: String)
+}
+
+data class ProviderMediaSourceConnection(
+    val displayName: String,
+    val baseUrl: String,
+    val username: String,
+    val token: String,
+    val salt: String,
+    val nativeToken: String? = null,
+    val tlsSettings: ConnectionTlsSettings = ConnectionTlsSettings(),
+)
+
+interface ProviderMediaSourceRepository {
+    fun upsertProviderMediaSource(
+        connection: ProviderMediaSourceConnection,
+        cacheNamespace: String,
+        providerId: String,
+    ): MediaSourceIdentity
 }
 
 interface PlaybackSessionRepository {
