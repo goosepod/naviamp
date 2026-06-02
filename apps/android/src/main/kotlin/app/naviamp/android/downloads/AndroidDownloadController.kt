@@ -2,6 +2,9 @@ package app.naviamp.android
 
 import android.content.Context
 import app.naviamp.domain.Track
+import app.naviamp.domain.cache.CacheMaintenanceRepository
+import app.naviamp.domain.cache.DownloadReplacementRepository
+import app.naviamp.domain.cache.DownloadRepository
 import app.naviamp.domain.cache.DownloadService
 import app.naviamp.domain.cache.DownloadTracksResult
 import app.naviamp.domain.cache.downloadRemoveErrorStatus
@@ -18,12 +21,14 @@ fun downloadAndroidTrack(
     context: Context,
     scope: CoroutineScope,
     state: AndroidAppState,
-    storage: AndroidStorage,
+    downloadRepository: DownloadRepository<AndroidDownloadedAudioFile, AndroidDownloadedTrack>,
+    downloadReplacementRepository: DownloadReplacementRepository<AndroidDownloadedAudioFile>,
+    cacheMaintenanceRepository: CacheMaintenanceRepository<AndroidStorageStats>,
     track: Track,
 ) {
     val activeProvider = state.provider
     val sourceId = state.activeSourceId
-    val downloadService = DownloadService(storage, storage)
+    val downloadService = DownloadService(downloadRepository, downloadReplacementRepository)
     scope.launch {
         with(state) {
             val quality = playbackSettings.downloadStreamQuality()
@@ -44,10 +49,10 @@ fun downloadAndroidTrack(
             )
             if (result is DownloadTracksResult.Completed) {
                 downloadRefreshToken += 1
-                storageStats = withContext(Dispatchers.IO) { storage.stats() }
+                storageStats = withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() }
             } else if (result is DownloadTracksResult.Failed && result.completed > 0) {
                 downloadRefreshToken += 1
-                storageStats = withContext(Dispatchers.IO) { storage.stats() }
+                storageStats = withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() }
             }
         }
     }
@@ -57,13 +62,15 @@ fun downloadAndroidTracks(
     context: Context,
     scope: CoroutineScope,
     state: AndroidAppState,
-    storage: AndroidStorage,
+    downloadRepository: DownloadRepository<AndroidDownloadedAudioFile, AndroidDownloadedTrack>,
+    downloadReplacementRepository: DownloadReplacementRepository<AndroidDownloadedAudioFile>,
+    cacheMaintenanceRepository: CacheMaintenanceRepository<AndroidStorageStats>,
     tracksToDownload: List<Track>,
     label: String = "tracks",
 ) {
     val activeProvider = state.provider
     val sourceId = state.activeSourceId
-    val downloadService = DownloadService(storage, storage)
+    val downloadService = DownloadService(downloadRepository, downloadReplacementRepository)
     scope.launch {
         with(state) {
             val quality = playbackSettings.downloadStreamQuality()
@@ -83,10 +90,10 @@ fun downloadAndroidTracks(
             )
             if (result is DownloadTracksResult.Completed) {
                 downloadRefreshToken += 1
-                storageStats = withContext(Dispatchers.IO) { storage.stats() }
+                storageStats = withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() }
             } else if (result is DownloadTracksResult.Failed && result.completed > 0) {
                 downloadRefreshToken += 1
-                storageStats = withContext(Dispatchers.IO) { storage.stats() }
+                storageStats = withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() }
             }
         }
     }
@@ -96,13 +103,15 @@ fun redownloadAndroidTracks(
     context: Context,
     scope: CoroutineScope,
     state: AndroidAppState,
-    storage: AndroidStorage,
+    downloadRepository: DownloadRepository<AndroidDownloadedAudioFile, AndroidDownloadedTrack>,
+    downloadReplacementRepository: DownloadReplacementRepository<AndroidDownloadedAudioFile>,
+    cacheMaintenanceRepository: CacheMaintenanceRepository<AndroidStorageStats>,
     tracksToDownload: List<Track>,
     label: String = "downloads",
 ) {
     val activeProvider = state.provider
     val sourceId = state.activeSourceId
-    val downloadService = DownloadService(storage, storage)
+    val downloadService = DownloadService(downloadRepository, downloadReplacementRepository)
     scope.launch {
         with(state) {
             val quality = playbackSettings.downloadStreamQuality()
@@ -121,7 +130,7 @@ fun redownloadAndroidTracks(
             )
             if (shouldRefreshDownloadsAfter(result)) {
                 downloadRefreshToken += 1
-                storageStats = withContext(Dispatchers.IO) { storage.stats() }
+                storageStats = withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() }
             }
         }
     }
@@ -130,7 +139,8 @@ fun redownloadAndroidTracks(
 fun removeAndroidDownload(
     scope: CoroutineScope,
     state: AndroidAppState,
-    storage: AndroidStorage,
+    downloadRepository: DownloadRepository<AndroidDownloadedAudioFile, AndroidDownloadedTrack>,
+    cacheMaintenanceRepository: CacheMaintenanceRepository<AndroidStorageStats>,
     download: NaviampDownloadedTrackUi,
     findKnownTrack: (String) -> Track?,
 ) {
@@ -142,11 +152,11 @@ fun removeAndroidDownload(
                 ?: return@launch
             runCatching {
                 withContext(Dispatchers.IO) {
-                    storage.removeDownloadedAudioForTrack(sourceId, track.id)
+                    downloadRepository.removeDownloadedAudio(sourceId, track.id)
                 }
             }.onSuccess {
                 downloadRefreshToken += 1
-                storageStats = withContext(Dispatchers.IO) { storage.stats() }
+                storageStats = withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() }
                 downloadStatus = downloadedTrackRemovedStatus(track.title)
                 status = downloadStatus.orEmpty()
             }.onFailure { error ->

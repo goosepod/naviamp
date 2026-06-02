@@ -527,7 +527,16 @@ private fun NaviampAndroidApp(
         val tracksToRedownload = downloadedTracks.map { it.track }
         handlePlaybackSettingsChanged(settings)
         if (tracksToRedownload.isNotEmpty()) {
-            redownloadAndroidTracks(context, scope, appState, storage, tracksToRedownload, "downloads")
+            redownloadAndroidTracks(
+                context = context,
+                scope = scope,
+                state = appState,
+                downloadRepository = storage,
+                downloadReplacementRepository = storage,
+                cacheMaintenanceRepository = storage,
+                tracksToDownload = tracksToRedownload,
+                label = "downloads",
+            )
         }
     }
 
@@ -1162,11 +1171,28 @@ private fun NaviampAndroidApp(
     }
 
     fun downloadTrack(track: Track) {
-        downloadAndroidTrack(context, scope, appState, storage, track)
+        downloadAndroidTrack(
+            context = context,
+            scope = scope,
+            state = appState,
+            downloadRepository = storage,
+            downloadReplacementRepository = storage,
+            cacheMaintenanceRepository = storage,
+            track = track,
+        )
     }
 
     fun downloadTracks(tracksToDownload: List<Track>, label: String = "tracks") {
-        downloadAndroidTracks(context, scope, appState, storage, tracksToDownload, label)
+        downloadAndroidTracks(
+            context = context,
+            scope = scope,
+            state = appState,
+            downloadRepository = storage,
+            downloadReplacementRepository = storage,
+            cacheMaintenanceRepository = storage,
+            tracksToDownload = tracksToDownload,
+            label = label,
+        )
     }
 
     fun downloadPlaylist(playlist: Playlist) {
@@ -1201,7 +1227,14 @@ private fun NaviampAndroidApp(
     }
 
     fun removeDownload(download: NaviampDownloadedTrackUi) {
-        removeAndroidDownload(scope, appState, storage, download, ::findKnownTrack)
+        removeAndroidDownload(
+            scope = scope,
+            state = appState,
+            downloadRepository = storage,
+            cacheMaintenanceRepository = storage,
+            download = download,
+            findKnownTrack = ::findKnownTrack,
+        )
     }
 
     fun restorePlaybackSession(sourceId: String): Boolean {
@@ -1246,7 +1279,8 @@ private fun NaviampAndroidApp(
 
     AndroidAppPersistenceEffects(
         state = appState,
-        storage = storage,
+        downloadRepository = storage,
+        cacheMaintenanceRepository = storage,
         savePlaybackSessionThrottled = ::savePlaybackSessionThrottled,
         checkAndroidLibraryFreshness = { checkAndroidLibraryFreshness(scope, appState, storage, storage) },
     )
