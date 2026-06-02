@@ -177,6 +177,7 @@ Branch: `codex/desktop-main-reduction`
   - `LibrarySync` writes local library index metadata through `LocalLibraryIndexRepository`.
   - Android library sync/freshness helpers now use library/media-source repository ports instead of direct `AndroidStorage`.
   - Android maintenance helpers now use maintenance/library repository ports instead of direct `AndroidStorage`.
+  - Android artist/album detail fallback helpers now use the shared library-index repository port instead of direct `AndroidStorage`.
 - [ ] Introduce shared low-level byte/object store ports for cache/download file operations.
 - [ ] Introduce shared repository ports for media sources, provider responses, local library index, audio assets, sidecars, playback sessions, and maintenance stats.
   - Media-source metadata now has `MediaSourceRepository` with desktop and Android storage implementations.

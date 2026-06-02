@@ -8,6 +8,7 @@ import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.AlbumId
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.app.NaviampRoute
+import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.media.albumDetailLoadErrorStatus
@@ -41,7 +42,7 @@ import kotlinx.coroutines.withContext
 fun openAndroidArtistDetails(
     scope: CoroutineScope,
     state: AndroidAppState,
-    storage: AndroidStorage,
+    libraryIndexRepository: LocalLibraryIndexRepository,
     providerResponseCacheRepository: ProviderResponseCacheRepository,
     popularTracksService: ArtistPopularTracksService,
     artistId: ArtistId,
@@ -68,7 +69,7 @@ fun openAndroidArtistDetails(
                         artistDetailsFromLibraryTracks(
                             artistId = artistId,
                             fallbackName = fallbackName,
-                            tracks = storage.libraryTracksForArtist(it, artistId, limit = 1_000),
+                            tracks = libraryIndexRepository.libraryTracksForArtist(it, artistId, limit = 1_000),
                         )
                     }
                     fallbackDetail ?: throw error
@@ -163,7 +164,7 @@ fun openAndroidExternalArtistUrl(
 fun openAndroidAlbumDetails(
     scope: CoroutineScope,
     state: AndroidAppState,
-    storage: AndroidStorage,
+    libraryIndexRepository: LocalLibraryIndexRepository,
     providerResponseCacheRepository: ProviderResponseCacheRepository,
     selectedAlbum: SharedMediaItemUi,
 ) {
@@ -181,7 +182,7 @@ fun openAndroidAlbumDetails(
                         albumId = AlbumId(selectedAlbum.id),
                         fallbackTitle = selectedAlbum.title,
                         fallbackArtistName = selectedAlbum.subtitle,
-                        tracks = storage.libraryTracksForAlbum(it, AlbumId(selectedAlbum.id), limit = 1_000),
+                        tracks = libraryIndexRepository.libraryTracksForAlbum(it, AlbumId(selectedAlbum.id), limit = 1_000),
                     )
                 }
                 fallbackDetail ?: throw error
@@ -198,7 +199,7 @@ fun openAndroidAlbumDetails(
 }
 
 fun albumDetailsFromAndroidTrackFallback(
-    storage: AndroidStorage,
+    libraryIndexRepository: LocalLibraryIndexRepository,
     sourceId: String,
     albumId: AlbumId,
     fallbackTitle: String?,
@@ -208,7 +209,7 @@ fun albumDetailsFromAndroidTrackFallback(
         albumId = albumId,
         fallbackTitle = fallbackTitle,
         fallbackArtistName = fallbackArtistName,
-        tracks = storage.libraryTracksForAlbum(sourceId, albumId, limit = 1_000),
+        tracks = libraryIndexRepository.libraryTracksForAlbum(sourceId, albumId, limit = 1_000),
     )
 
 fun loadAndroidArtistTracks(
@@ -233,7 +234,7 @@ fun loadAndroidArtistTracks(
 fun loadAndroidArtistAlbumTracks(
     scope: CoroutineScope,
     state: AndroidAppState,
-    storage: AndroidStorage,
+    libraryIndexRepository: LocalLibraryIndexRepository,
     providerResponseCacheRepository: ProviderResponseCacheRepository,
     selectedAlbum: SharedMediaItemUi,
     action: (List<Track>) -> Unit,
@@ -247,7 +248,7 @@ fun loadAndroidArtistAlbumTracks(
             .recoverCatching { error ->
                 sourceId
                     ?.let { storageSourceId ->
-                        storage.libraryTracksForAlbum(storageSourceId, AlbumId(selectedAlbum.id), limit = 1_000)
+                        libraryIndexRepository.libraryTracksForAlbum(storageSourceId, AlbumId(selectedAlbum.id), limit = 1_000)
                     }
                     ?.takeIf { it.isNotEmpty() }
                     ?: throw error

@@ -1081,7 +1081,7 @@ private fun NaviampAndroidApp(
         openAndroidArtistDetails(
             scope = scope,
             state = appState,
-            storage = storage,
+            libraryIndexRepository = storage,
             providerResponseCacheRepository = storage,
             popularTracksService = popularTracksService,
             artistId = artistId,
@@ -1270,7 +1270,13 @@ private fun NaviampAndroidApp(
     }
 
     fun handleShellAlbumSelected(selectedAlbum: SharedMediaItemUi) {
-        openAndroidAlbumDetails(scope, appState, storage, storage, selectedAlbum)
+        openAndroidAlbumDetails(
+            scope = scope,
+            state = appState,
+            libraryIndexRepository = storage,
+            providerResponseCacheRepository = storage,
+            selectedAlbum = selectedAlbum,
+        )
     }
 
     fun handleShellArtistRadio(detail: SharedArtistDetailUi) {
@@ -1383,7 +1389,7 @@ private fun NaviampAndroidApp(
                     activeSourceId
                         ?.let { sourceId ->
                             albumDetailsFromAndroidTrackFallback(
-                                storage = storage,
+                                libraryIndexRepository = storage,
                                 sourceId = sourceId,
                                 albumId = albumId,
                                 fallbackTitle = nowPlaying?.albumTitle,
@@ -1504,7 +1510,14 @@ private fun NaviampAndroidApp(
     }
 
     fun loadArtistAlbumTracks(selectedAlbum: SharedMediaItemUi, action: (List<Track>) -> Unit) {
-        loadAndroidArtistAlbumTracks(scope, appState, storage, storage, selectedAlbum, action)
+        loadAndroidArtistAlbumTracks(
+            scope = scope,
+            state = appState,
+            libraryIndexRepository = storage,
+            providerResponseCacheRepository = storage,
+            selectedAlbum = selectedAlbum,
+            action = action,
+        )
     }
 
     fun handleArtistAlbumRadio(selectedAlbum: SharedMediaItemUi) {

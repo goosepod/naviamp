@@ -118,6 +118,7 @@ Then higher-level repositories can be composed from those stores:
   - Fourth slice: desktop library refresh/sync/clear orchestration uses `LocalLibraryIndexRepository`, `MediaSourceRepository`, and `CacheMaintenanceRepository` instead of broad `DesktopCache`.
   - Fifth slice: Android library sync/freshness orchestration uses `LocalLibraryIndexRepository` and `MediaSourceRepository` instead of broad `AndroidStorage`.
   - Sixth slice: Android cache/library/database maintenance helpers use `CacheMaintenanceRepository` and `LocalLibraryIndexRepository` instead of broad `AndroidStorage`.
+  - Seventh slice: Android artist/album detail fallback reads use `LocalLibraryIndexRepository` instead of broad `AndroidStorage`.
 - [ ] Replace direct `DesktopCache` dependencies in desktop controllers with narrower interfaces.
   - `DesktopHomeController`
   - `DesktopSearchController`
@@ -316,6 +317,9 @@ This is a strong first slice because playback-source selection currently affects
   - Cache and database clears now call `CacheMaintenanceRepository<AndroidStorageStats>`.
   - Library index clears now call `LocalLibraryIndexRepository`.
   - Android file-cache deletion and UI state reset remain platform-local.
+- 2026-06-02: Moved Android artist/album detail fallbacks onto the shared library-index port.
+  - Artist detail, album detail, now-playing album navigation, and artist-album track loading now read offline fallback tracks through `LocalLibraryIndexRepository`.
+  - Provider response caching remains a separate shared port, with Android storage only supplied as the concrete adapter at composition.
 - 2026-06-02: Added Android playlist download actions.
   - The shared playlist list and detail UI now expose download actions.
   - Android uses selected/preloaded playlist tracks when available and falls back to a provider playlist-track load before calling the shared bulk download path.
