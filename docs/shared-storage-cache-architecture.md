@@ -15,8 +15,8 @@ The intended shape is the same idea as a PHP app using one cache/storage interfa
   - Desktop now-playing sidecar analysis.
   - Desktop replay gain tag lookup.
   - Storage internals that can stay engine-owned.
-- [ ] Introduce narrow shared audio asset lookup ports so callers do not depend on broad `DesktopCache` / `AndroidStorage` types.
-- [ ] Split shared audio asset lookup ports away from `DesktopCache` and `AndroidStorage`.
+- [x] Introduce narrow shared audio asset lookup ports so callers do not depend on broad `DesktopCache` / `AndroidStorage` types.
+- [x] Split shared audio asset lookup ports away from `DesktopCache` and `AndroidStorage`.
 - [ ] Extract shared download orchestration over narrow download/audio repositories.
 - [ ] Extract shared provider-response cache orchestration so desktop and Android get the same cached/live behavior.
 
@@ -201,3 +201,6 @@ This is a strong first slice because playback-source selection currently affects
 - 2026-06-01: Extended the shared resolver through the remaining desktop local-audio lookup sites.
   - Desktop now-playing sidecar analysis now uses the common downloaded-vs-cached rule before reading tags, lyrics, or waveform data.
   - Desktop ReplayGain tag lookup now uses the same resolver before reading local audio tags.
+- 2026-06-01: Added a narrow shared `PlaybackAudioAssetRepository` port.
+  - Desktop and Android now adapt `DesktopCache` / `AndroidStorage` into a local-audio lookup interface for playback-source resolution.
+  - This keeps the resolver and playback-facing code from knowing about broad platform storage engines.

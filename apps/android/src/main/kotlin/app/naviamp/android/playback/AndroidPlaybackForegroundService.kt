@@ -26,6 +26,7 @@ import androidx.media.MediaBrowserServiceCompat
 import androidx.media.utils.MediaConstants
 import app.naviamp.android.AndroidStorage
 import app.naviamp.android.AndroidSettingsStore
+import app.naviamp.android.AndroidPlaybackAudioAssets
 import app.naviamp.android.R
 import app.naviamp.android.MainActivity
 import app.naviamp.android.resolveInternetRadioStreamUrl
@@ -463,6 +464,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         val provider = NavidromeProvider(connection)
         val runtime = AndroidPlaybackRuntime.get(applicationContext)
         val playbackSettings = AndroidSettingsStore(applicationContext).loadPlaybackSettings()
+        val audioAssets = AndroidPlaybackAudioAssets(storage)
         val quality = StreamQuality.Original
         val startPositionSeconds = session.positionSeconds?.takeIf { it > 0.0 }
 
@@ -499,12 +501,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                     quality = quality,
                     audioCachingEnabled = true,
                     startPositionSeconds = startPositionSeconds,
-                    downloadedAudio = { sourceId, trackId, requestedQuality ->
-                        storage.downloadedAudioFile(sourceId, trackId, requestedQuality)?.file
-                    },
-                    cachedAudio = { sourceId, trackId, requestedQuality ->
-                        storage.cachedAudioFile(sourceId, trackId, requestedQuality)?.file
-                    },
+                    audioAssets = audioAssets,
                 )
                 val streamUrl = audioSourcePlan.localAudio?.toURI()?.toString()
                     ?: provider.streamUrl(audioSourcePlan.target.providerStreamRequest)

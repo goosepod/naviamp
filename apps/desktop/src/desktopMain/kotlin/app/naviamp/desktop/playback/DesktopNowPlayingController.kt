@@ -5,6 +5,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.audio.lyricsFromAudioTags
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.lyrics.selectPreferredLyrics
+import app.naviamp.domain.playback.PlaybackAudioAssetRepository
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.coverArtPreloadUrls
 import app.naviamp.domain.playback.lyricsLoadingStatus
@@ -19,9 +20,11 @@ import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.ui.preloadJvmPlatformCoverArt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.nio.file.Path
 
 class DesktopNowPlayingController(
     private val sessionCache: DesktopCache,
+    private val playbackAudioAssets: PlaybackAudioAssetRepository<Path> = DesktopPlaybackAudioAssets(sessionCache),
     private val playbackEngine: PlaybackEngine,
     private val provider: () -> MediaProvider?,
     private val sourceId: () -> String?,
@@ -87,12 +90,7 @@ class DesktopNowPlayingController(
                     track = track,
                     quality = quality,
                     audioCachingEnabled = activeCacheSettings.audioCachingEnabled,
-                    downloadedAudio = { sourceId, trackId, requestedQuality ->
-                        sessionCache.downloadedAudioFile(sourceId, trackId, requestedQuality)?.path
-                    },
-                    cachedAudio = { sourceId, trackId, requestedQuality ->
-                        sessionCache.cachedAudioFile(sourceId, trackId, requestedQuality)?.path
-                    },
+                    audioAssets = playbackAudioAssets,
                 ).localAudio
                 val cachedWaveform = cachedWaveformBeforeAudio
                     ?: if (audioPath != null) {

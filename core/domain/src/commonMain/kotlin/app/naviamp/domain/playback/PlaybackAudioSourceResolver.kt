@@ -20,6 +20,53 @@ data class PlaybackAudioSourcePlan<LocalAudio>(
     val hasLocalAudio: Boolean = localAudio != null
 }
 
+interface PlaybackAudioAssetRepository<LocalAudio> {
+    suspend fun downloadedAudio(
+        sourceId: String,
+        trackId: TrackId,
+        quality: StreamQuality,
+    ): LocalAudio?
+
+    suspend fun cachedAudio(
+        sourceId: String,
+        trackId: TrackId,
+        quality: StreamQuality,
+    ): LocalAudio?
+}
+
+fun <LocalAudio> emptyPlaybackAudioAssetRepository(): PlaybackAudioAssetRepository<LocalAudio> =
+    object : PlaybackAudioAssetRepository<LocalAudio> {
+        override suspend fun downloadedAudio(
+            sourceId: String,
+            trackId: TrackId,
+            quality: StreamQuality,
+        ): LocalAudio? = null
+
+        override suspend fun cachedAudio(
+            sourceId: String,
+            trackId: TrackId,
+            quality: StreamQuality,
+        ): LocalAudio? = null
+    }
+
+suspend fun <LocalAudio> resolvePlaybackAudioSource(
+    sourceId: String?,
+    track: Track,
+    quality: StreamQuality,
+    audioCachingEnabled: Boolean,
+    audioAssets: PlaybackAudioAssetRepository<LocalAudio>,
+    startPositionSeconds: Double? = null,
+): PlaybackAudioSourcePlan<LocalAudio> =
+    resolvePlaybackAudioSource(
+        sourceId = sourceId,
+        track = track,
+        quality = quality,
+        audioCachingEnabled = audioCachingEnabled,
+        startPositionSeconds = startPositionSeconds,
+        downloadedAudio = audioAssets::downloadedAudio,
+        cachedAudio = audioAssets::cachedAudio,
+    )
+
 suspend fun <LocalAudio> resolvePlaybackAudioSource(
     sourceId: String?,
     track: Track,

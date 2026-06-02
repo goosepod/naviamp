@@ -76,6 +76,7 @@ fun playAndroidTrack(
         state.status = "Connect before playing a track."
         return
     }
+    val audioAssets = AndroidPlaybackAudioAssets(storage)
     scope.launch {
         with(state) {
             status = "Loading ${track.title}..."
@@ -86,12 +87,7 @@ fun playAndroidTrack(
                 quality = streamQuality,
                 audioCachingEnabled = true,
                 startPositionSeconds = startPositionSeconds,
-                downloadedAudio = { sourceId, trackId, requestedQuality ->
-                    storage.downloadedAudioFile(sourceId, trackId, requestedQuality)?.file
-                },
-                cachedAudio = { sourceId, trackId, requestedQuality ->
-                    storage.cachedAudioFile(sourceId, trackId, requestedQuality)?.file
-                },
+                audioAssets = audioAssets,
             )
             val startPlan = planPlaybackStart(
                 track = track,

@@ -179,7 +179,8 @@ Branch: `codex/desktop-main-reduction`
 - [x] Build a shared audio playback-source resolver for downloaded file, cached file, or provider stream selection.
   - Desktop playback start, prepare-next, now-playing sidecar analysis, and ReplayGain tag lookup now use the common resolver.
   - Android foreground app playback, Android Auto/background restored playback, prepare-next, prefetch, waveform, and lyrics lookup paths use the same rule.
-- [ ] Introduce narrow audio asset lookup ports so platform controllers no longer depend on broad `DesktopCache` / `AndroidStorage` types.
+- [x] Introduce narrow audio asset lookup ports so platform controllers no longer depend on broad `DesktopCache` / `AndroidStorage` types.
+  - Added shared `PlaybackAudioAssetRepository` plus desktop and Android adapters over the existing storage engines.
 - [ ] Build shared sidecar storage services for lyrics, waveform, embedded tag status, and audio metadata.
 - [ ] Add fake/in-memory storage engines for common tests.
 

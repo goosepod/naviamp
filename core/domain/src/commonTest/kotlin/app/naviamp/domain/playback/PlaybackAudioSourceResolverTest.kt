@@ -27,6 +27,34 @@ class PlaybackAudioSourceResolverTest {
     }
 
     @Test
+    fun repositoryOverloadUsesDownloadedAudioFirst() = runTest {
+        val plan = resolvePlaybackAudioSource(
+            sourceId = "source",
+            track = track("one"),
+            quality = StreamQuality.Original,
+            audioCachingEnabled = true,
+            audioAssets = fakeAudioAssets(downloaded = "downloaded", cached = "cached"),
+        )
+
+        assertEquals("downloaded", plan.localAudio)
+        assertEquals(PlaybackSource.DownloadedFile, plan.source)
+    }
+
+    @Test
+    fun emptyRepositoryFallsBackToProviderStream() = runTest {
+        val plan = resolvePlaybackAudioSource(
+            sourceId = "source",
+            track = track("one"),
+            quality = StreamQuality.Original,
+            audioCachingEnabled = true,
+            audioAssets = emptyPlaybackAudioAssetRepository<String>(),
+        )
+
+        assertNull(plan.localAudio)
+        assertEquals(PlaybackSource.ProviderStream, plan.source)
+    }
+
+    @Test
     fun cachedAudioIsUsedWhenDownloadIsMissingAndCachingIsEnabled() = runTest {
         val plan = resolvePlaybackAudioSource(
             sourceId = "source",
@@ -105,4 +133,22 @@ class PlaybackAudioSourceResolverTest {
             replayGain = null,
             favoritedAtIso8601 = null,
         )
+
+    private fun fakeAudioAssets(
+        downloaded: String? = null,
+        cached: String? = null,
+    ): PlaybackAudioAssetRepository<String> =
+        object : PlaybackAudioAssetRepository<String> {
+            override suspend fun downloadedAudio(
+                sourceId: String,
+                trackId: TrackId,
+                quality: StreamQuality,
+            ): String? = downloaded
+
+            override suspend fun cachedAudio(
+                sourceId: String,
+                trackId: TrackId,
+                quality: StreamQuality,
+            ): String? = cached
+        }
 }

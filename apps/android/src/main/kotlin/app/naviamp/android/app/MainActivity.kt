@@ -216,6 +216,7 @@ private fun NaviampAndroidApp(
     val waveformAnalyzer = playbackRuntime.waveformAnalyzer
     val lrclibLyricsClient = remember { AndroidLrclibLyricsClient() }
     val storage = remember { AndroidStorage(context) }
+    val playbackAudioAssets = remember(storage) { AndroidPlaybackAudioAssets(storage) }
     val audioCacheKeysInFlight = remember { mutableSetOf<String>() }
     DisposableEffect(storage) {
         onDispose { storage.close() }
@@ -348,12 +349,7 @@ private fun NaviampAndroidApp(
             track = track,
             quality = quality,
             audioCachingEnabled = true,
-            downloadedAudio = { activeSourceId, trackId, requestedQuality ->
-                storage.downloadedAudioFile(activeSourceId, trackId, requestedQuality)?.file
-            },
-            cachedAudio = { activeSourceId, trackId, requestedQuality ->
-                storage.cachedAudioFile(activeSourceId, trackId, requestedQuality)?.file
-            },
+            audioAssets = playbackAudioAssets,
         ).localAudio?.let { return it }
 
         val cacheKey = "${sourceId}:${track.id.value}:$quality"
@@ -425,12 +421,7 @@ private fun NaviampAndroidApp(
                     track = nextTrack,
                     quality = quality,
                     audioCachingEnabled = true,
-                    downloadedAudio = { activeSourceId, trackId, requestedQuality ->
-                        storage.downloadedAudioFile(activeSourceId, trackId, requestedQuality)?.file
-                    },
-                    cachedAudio = { activeSourceId, trackId, requestedQuality ->
-                        storage.cachedAudioFile(activeSourceId, trackId, requestedQuality)?.file
-                    },
+                    audioAssets = playbackAudioAssets,
                 )
                 audioSourcePlan.localAudio?.toURI()?.toString()
                     ?: activeProvider.streamUrl(audioSourcePlan.target.providerStreamRequest)
@@ -463,12 +454,7 @@ private fun NaviampAndroidApp(
                     track = track,
                     quality = quality,
                     audioCachingEnabled = true,
-                    downloadedAudio = { activeSourceId, trackId, requestedQuality ->
-                        storage.downloadedAudioFile(activeSourceId, trackId, requestedQuality)?.file
-                    },
-                    cachedAudio = { activeSourceId, trackId, requestedQuality ->
-                        storage.cachedAudioFile(activeSourceId, trackId, requestedQuality)?.file
-                    },
+                    audioAssets = playbackAudioAssets,
                 ).localAudio
                 val embeddedLyrics = audioFile?.let(::embeddedLyricsFromAudioFile)
                 val localLyrics = activeProvider.lyrics(track.id)

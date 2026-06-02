@@ -3,6 +3,7 @@ package app.naviamp.desktop.playback
 import app.naviamp.desktop.AudioTagReader
 import app.naviamp.desktop.AudioTag
 import app.naviamp.desktop.DesktopCache
+import app.naviamp.desktop.DesktopPlaybackAudioAssets
 import app.naviamp.domain.ReplayGain
 import app.naviamp.domain.audio.lyricsFromAudioTags
 import app.naviamp.domain.audio.replayGainFromAudioTags
@@ -11,6 +12,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.playback.CrossfadeSettings
 import app.naviamp.domain.playback.PlaybackEngine
+import app.naviamp.domain.playback.PlaybackAudioAssetRepository
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackQueueSelection
@@ -25,6 +27,7 @@ import app.naviamp.domain.playback.SidecarTypeEmbeddedLyrics
 import app.naviamp.domain.playback.SidecarTypeLrclibLyrics
 import app.naviamp.domain.playback.SidecarTypeProviderLyrics
 import app.naviamp.domain.playback.SidecarTypeWaveform
+import app.naviamp.domain.playback.emptyPlaybackAudioAssetRepository
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
@@ -33,6 +36,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.nio.file.Path
 
 class PlaylistEngine(
     private val playbackEngine: PlaybackEngine,
@@ -40,7 +44,9 @@ class PlaylistEngine(
     private val sourceIdProvider: () -> String? = { null },
     private val audioCachingEnabledProvider: () -> Boolean = { true },
     private val audioPrefetchDepthProvider: () -> Int = { DefaultAudioPrefetchDepth },
+    playbackAudioAssets: PlaybackAudioAssetRepository<Path>? = cache?.let(::DesktopPlaybackAudioAssets),
 ) {
+    private val playbackAudioAssets = playbackAudioAssets ?: emptyPlaybackAudioAssetRepository()
     private var provider: MediaProvider? = null
     private var streamQuality: StreamQuality? = null
     private var replayGainMode: ReplayGainMode = ReplayGainMode.Off
@@ -289,12 +295,7 @@ class PlaylistEngine(
             quality = quality,
             audioCachingEnabled = audioCachingEnabledProvider(),
             startPositionSeconds = startPositionSeconds,
-            downloadedAudio = { sourceId, trackId, requestedQuality ->
-                cache?.downloadedAudioFile(sourceId, trackId, requestedQuality)?.path
-            },
-            cachedAudio = { sourceId, trackId, requestedQuality ->
-                cache?.cachedAudioFile(sourceId, trackId, requestedQuality)?.path
-            },
+            audioAssets = playbackAudioAssets,
         )
         plan.localAudio?.let { path ->
             return PlaybackTarget(
@@ -596,19 +597,13 @@ class PlaylistEngine(
             return PlaybackReplayGain(replayGain, ReplayGainSource.Provider)
         }
 
-        val audioCache = cache ?: return null
         val sourceId = sourceIdProvider() ?: return null
         val audioPath = resolvePlaybackAudioSource(
             sourceId = sourceId,
             track = track,
             quality = quality,
             audioCachingEnabled = audioCachingEnabledProvider(),
-            downloadedAudio = { activeSourceId, trackId, requestedQuality ->
-                audioCache.downloadedAudioFile(activeSourceId, trackId, requestedQuality)?.path
-            },
-            cachedAudio = { activeSourceId, trackId, requestedQuality ->
-                audioCache.cachedAudioFile(activeSourceId, trackId, requestedQuality)?.path
-            },
+            audioAssets = playbackAudioAssets,
         ).localAudio
             ?: return null
         val replayGain = withContext(Dispatchers.IO) {
