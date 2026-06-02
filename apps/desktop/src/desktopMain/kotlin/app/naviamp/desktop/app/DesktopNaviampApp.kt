@@ -572,7 +572,7 @@ fun NaviampApp(
     var playlistCallbacksRef: PlaylistCallbacks? = null
     val radioController = DesktopRadioController(
         scope = coroutineScope,
-        sessionCache = sessionCache,
+        libraryIndexRepository = sessionCache,
         providerResponseService = ProviderResponseService(sessionCache),
         playlistEngine = playlistEngine,
         provider = { connectedProvider },

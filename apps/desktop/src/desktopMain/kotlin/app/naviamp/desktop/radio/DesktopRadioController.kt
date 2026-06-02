@@ -9,6 +9,7 @@ import app.naviamp.domain.Genre
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.provider.AlbumListType
@@ -35,7 +36,7 @@ import kotlinx.coroutines.withContext
 
 class DesktopRadioController(
     private val scope: CoroutineScope,
-    private val sessionCache: DesktopCache,
+    private val libraryIndexRepository: LocalLibraryIndexRepository,
     private val providerResponseService: ProviderResponseService,
     private val playlistEngine: PlaylistEngine,
     private val provider: () -> NavidromeProvider?,
@@ -173,7 +174,7 @@ class DesktopRadioController(
                     return@launch
                 }
                 val seedTrack = withContext(Dispatchers.IO) {
-                    albumRadioSeedTrack(sessionCache, providerResponseService, activeProvider, album, sourceId())
+                    albumRadioSeedTrack(libraryIndexRepository, providerResponseService, activeProvider, album, sourceId())
                 } ?: run {
                     setConnectionStatus("${album.title} did not return any tracks.")
                     return@launch
@@ -191,7 +192,7 @@ class DesktopRadioController(
         scope.launch {
             try {
                 val seedTrack = withContext(Dispatchers.IO) {
-                    artistRadioSeedTrack(sessionCache, providerResponseService, activeProvider, artist, sourceId())
+                    artistRadioSeedTrack(libraryIndexRepository, providerResponseService, activeProvider, artist, sourceId())
                 } ?: run {
                     setConnectionStatus("${artist.name} radio did not find a seed track.")
                     return@launch
@@ -210,7 +211,7 @@ class DesktopRadioController(
             try {
                 val seedTrack = withContext(Dispatchers.IO) {
                     albumRadioSeedTrack(
-                        cache = sessionCache,
+                        libraryIndexRepository = libraryIndexRepository,
                         providerResponseService = providerResponseService,
                         provider = activeProvider,
                         album = album,
