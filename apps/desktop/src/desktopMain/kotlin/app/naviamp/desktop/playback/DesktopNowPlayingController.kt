@@ -8,6 +8,7 @@ import app.naviamp.domain.lyrics.selectPreferredLyrics
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.coverArtPreloadUrls
 import app.naviamp.domain.playback.lyricsLoadingStatus
+import app.naviamp.domain.playback.resolvePlaybackAudioSource
 import app.naviamp.domain.playback.shouldLoadOnlineLyrics
 import app.naviamp.domain.playback.waveformStatus
 import app.naviamp.domain.provider.MediaProvider
@@ -81,9 +82,18 @@ class DesktopNowPlayingController(
                     trackId = track.id,
                     quality = quality,
                 )
-                val downloadedFile = sessionCache.downloadedAudioFile(activeSourceId, track.id, quality)
-                val cachedFile = sessionCache.cachedAudioFile(activeSourceId, track.id, quality)
-                val audioPath = downloadedFile?.path ?: cachedFile?.path
+                val audioPath = resolvePlaybackAudioSource(
+                    sourceId = activeSourceId,
+                    track = track,
+                    quality = quality,
+                    audioCachingEnabled = activeCacheSettings.audioCachingEnabled,
+                    downloadedAudio = { sourceId, trackId, requestedQuality ->
+                        sessionCache.downloadedAudioFile(sourceId, trackId, requestedQuality)?.path
+                    },
+                    cachedAudio = { sourceId, trackId, requestedQuality ->
+                        sessionCache.cachedAudioFile(sourceId, trackId, requestedQuality)?.path
+                    },
+                ).localAudio
                 val cachedWaveform = cachedWaveformBeforeAudio
                     ?: if (audioPath != null) {
                         sessionCache.cachedAudioWaveform(

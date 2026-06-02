@@ -598,8 +598,18 @@ class PlaylistEngine(
 
         val audioCache = cache ?: return null
         val sourceId = sourceIdProvider() ?: return null
-        val audioPath = audioCache.downloadedAudioFile(sourceId, track.id, quality)?.path
-            ?: audioCache.cachedAudioFile(sourceId, track.id, quality)?.path
+        val audioPath = resolvePlaybackAudioSource(
+            sourceId = sourceId,
+            track = track,
+            quality = quality,
+            audioCachingEnabled = audioCachingEnabledProvider(),
+            downloadedAudio = { activeSourceId, trackId, requestedQuality ->
+                audioCache.downloadedAudioFile(activeSourceId, trackId, requestedQuality)?.path
+            },
+            cachedAudio = { activeSourceId, trackId, requestedQuality ->
+                audioCache.cachedAudioFile(activeSourceId, trackId, requestedQuality)?.path
+            },
+        ).localAudio
             ?: return null
         val replayGain = withContext(Dispatchers.IO) {
             replayGainFromAudioTags(AudioTagReader().read(audioPath))
