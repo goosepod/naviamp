@@ -1012,7 +1012,8 @@ fun NaviampApp(
 
     val homeController = DesktopHomeController(
         scope = coroutineScope,
-        sessionCache = sessionCache,
+        providerResponseCacheRepository = sessionCache,
+        homeLibraryRepository = sessionCache.asHomeLibraryRepository(),
         sourceId = { connectedSourceId },
         recentRadioStreams = { recentRadioStreams },
         recentInternetRadioStations = { recentInternetRadioStations },
