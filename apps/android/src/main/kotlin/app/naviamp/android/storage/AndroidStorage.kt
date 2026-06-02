@@ -28,6 +28,7 @@ import app.naviamp.domain.cache.PlaybackHistoryRepository
 import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
+import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.cache.StoredAudioBytes
 import app.naviamp.domain.network.KtorSharedHttpClient
 import app.naviamp.domain.popular.ArtistPopularTrackCandidate
@@ -71,6 +72,7 @@ class AndroidStorage(
     PlaybackSessionRepository,
     LocalLibraryIndexRepository,
     CacheMaintenanceRepository<AndroidStorageStats>,
+    SidecarStatusRepository,
     AutoCloseable {
     private val appContext = context.applicationContext
     private val driver = AndroidSqliteDriver(
@@ -556,13 +558,13 @@ class AndroidStorage(
         trimAudioWaveformStore()
     }
 
-    fun recordSidecarStatus(
+    override fun recordSidecarStatus(
         sourceId: String,
         trackId: TrackId,
         quality: StreamQuality,
         sidecarType: String,
         success: Boolean,
-        errorMessage: String? = null,
+        errorMessage: String?,
     ) {
         queries.upsertCachedSidecarStatus(
             source_id = sourceId,
@@ -574,6 +576,16 @@ class AndroidStorage(
             last_error = errorMessage,
             updated_at_epoch_millis = nowMillis(),
         )
+    }
+
+    fun recordSidecarStatus(
+        sourceId: String,
+        trackId: TrackId,
+        quality: StreamQuality,
+        sidecarType: String,
+        success: Boolean,
+    ) {
+        recordSidecarStatus(sourceId, trackId, quality, sidecarType, success, null)
     }
 
     override fun playbackHistory(sourceId: String, limit: Int): List<AndroidPlaybackHistoryItem> =

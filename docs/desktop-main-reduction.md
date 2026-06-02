@@ -180,6 +180,7 @@ Branch: `codex/desktop-main-reduction`
   - Android artist/album detail fallback helpers now use the shared library-index repository port instead of direct `AndroidStorage`.
   - Android download actions and persistence effects now use shared download/maintenance repository ports instead of direct `AndroidStorage`.
   - Android connection startup now writes provider media-source metadata through a shared repository port instead of direct `AndroidStorage`.
+  - Android now-playing lyrics/waveform sidecar status writes now use the shared sidecar status repository port instead of direct `AndroidStorage`.
   - Desktop and Android playback audio asset adapters now use shared download/audio-cache repository ports instead of direct broad storage/cache types.
   - Desktop artist/album detail controllers now use shared library/provider-response repository ports instead of direct `DesktopCache`.
   - Desktop download actions now use shared download/provider-response repository ports instead of direct `DesktopCache`.
@@ -194,7 +195,7 @@ Branch: `codex/desktop-main-reduction`
   - Media-source metadata now has `MediaSourceRepository` with desktop and Android storage implementations.
   - Provider media-source upserts now have `ProviderMediaSourceRepository` with desktop and Android storage implementations.
   - Provider-response track metadata updates now have `TrackMetadataRepository` with a desktop cache implementation.
-  - Now-playing waveform and lyrics sidecars now have shared repository ports with a desktop cache implementation.
+  - Now-playing waveform and lyrics sidecars now have shared repository ports with desktop cache and Android storage implementations where applicable.
   - Playback-session metadata now has `PlaybackSessionRepository` with desktop settings and Android storage implementations.
   - Android playback-history browse reads now use `PlaybackHistoryRepository`.
 - [x] Build a shared download service over `DownloadRepository` and platform byte/file stores so desktop and Android use one download flow.

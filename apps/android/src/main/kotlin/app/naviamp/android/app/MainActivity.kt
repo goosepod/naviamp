@@ -51,6 +51,7 @@ import app.naviamp.domain.provider.runPlaylistDetailAutoRefresh
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.home.HomeService
 import app.naviamp.domain.cache.ProviderResponseService
+import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.cache.downloadConnectionRequiredStatus
 import app.naviamp.domain.media.albumDetailLoadErrorStatus
 import app.naviamp.domain.playback.PlaybackProgress
@@ -218,6 +219,7 @@ private fun NaviampAndroidApp(
     val waveformAnalyzer = playbackRuntime.waveformAnalyzer
     val lrclibLyricsClient = remember { AndroidLrclibLyricsClient() }
     val storage = remember { AndroidStorage(context) }
+    val sidecarStatusRepository: SidecarStatusRepository = storage
     val playbackAudioAssets = remember(storage) { AndroidPlaybackAudioAssets(storage, storage) }
     val audioCacheKeysInFlight = remember { mutableSetOf<String>() }
     DisposableEffect(storage) {
@@ -481,7 +483,7 @@ private fun NaviampAndroidApp(
                     lyricsByTrackId = lyricsByTrackId + (track.id.value to lyrics)
                     lyricsStatusByTrackId = lyricsStatusByTrackId + (track.id.value to null)
                     activeSourceId?.let { sourceId ->
-                        storage.recordSidecarStatus(
+                        sidecarStatusRepository.recordSidecarStatus(
                             sourceId = sourceId,
                             trackId = track.id,
                             quality = StreamQuality.Original,
@@ -495,7 +497,7 @@ private fun NaviampAndroidApp(
                     val message = lyricsUnavailableStatus(error)
                     lyricsStatusByTrackId = lyricsStatusByTrackId + (track.id.value to message)
                     activeSourceId?.let { sourceId ->
-                        storage.recordSidecarStatus(
+                        sidecarStatusRepository.recordSidecarStatus(
                             sourceId = sourceId,
                             trackId = track.id,
                             quality = StreamQuality.Original,
@@ -624,7 +626,7 @@ private fun NaviampAndroidApp(
                     ensureWaveform(activeProvider, sourceId, track)
                 }.onSuccess { waveform ->
                     if (sourceId != null) {
-                        storage.recordSidecarStatus(
+                        sidecarStatusRepository.recordSidecarStatus(
                             sourceId = sourceId,
                             trackId = track.id,
                             quality = sidecarQuality,
@@ -637,7 +639,7 @@ private fun NaviampAndroidApp(
                     }
                 }.onFailure { error ->
                     if (sourceId != null) {
-                        storage.recordSidecarStatus(
+                        sidecarStatusRepository.recordSidecarStatus(
                             sourceId = sourceId,
                             trackId = track.id,
                             quality = sidecarQuality,
