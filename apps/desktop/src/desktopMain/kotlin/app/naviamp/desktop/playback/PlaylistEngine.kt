@@ -44,7 +44,7 @@ class PlaylistEngine(
     private val sourceIdProvider: () -> String? = { null },
     private val audioCachingEnabledProvider: () -> Boolean = { true },
     private val audioPrefetchDepthProvider: () -> Int = { DefaultAudioPrefetchDepth },
-    playbackAudioAssets: PlaybackAudioAssetRepository<Path>? = cache?.let(::DesktopPlaybackAudioAssets),
+    playbackAudioAssets: PlaybackAudioAssetRepository<Path>? = cache?.let { DesktopPlaybackAudioAssets(it, it) },
 ) {
     private val playbackAudioAssets = playbackAudioAssets ?: emptyPlaybackAudioAssetRepository()
     private var provider: MediaProvider? = null

@@ -121,6 +121,7 @@ Then higher-level repositories can be composed from those stores:
   - Seventh slice: Android artist/album detail fallback reads use `LocalLibraryIndexRepository` instead of broad `AndroidStorage`.
   - Eighth slice: Android download actions and persistence effects use `DownloadRepository`, `DownloadReplacementRepository`, and `CacheMaintenanceRepository` instead of broad `AndroidStorage`.
   - Ninth slice: Android connection startup writes source metadata through `ProviderMediaSourceRepository` instead of broad `AndroidStorage`.
+  - Tenth slice: desktop and Android playback audio asset adapters use `DownloadRepository` and `AudioCacheRepository` instead of broad storage/cache types.
 - [ ] Replace direct `DesktopCache` dependencies in desktop controllers with narrower interfaces.
   - `DesktopHomeController`
   - `DesktopSearchController`
@@ -330,6 +331,10 @@ This is a strong first slice because playback-source selection currently affects
   - Added `ProviderMediaSourceRepository` and `ProviderMediaSourceConnection` in common domain.
   - `startNavidromeConnection` now upserts source metadata through the shared port and uses `ProviderResponseCacheRepository` for home browse loading.
   - Android storage remains the concrete SQL adapter supplied by app composition.
+- 2026-06-02: Moved playback audio asset adapters onto shared repository ports.
+  - `AndroidPlaybackAudioAssets` and `DesktopPlaybackAudioAssets` now take `DownloadRepository` and `AudioCacheRepository`.
+  - Android track playback receives a `PlaybackAudioAssetRepository<File>` from composition instead of broad `AndroidStorage`.
+  - Desktop playback and now-playing call sites pass `DesktopCache` only as concrete implementations of the narrow ports.
 - 2026-06-02: Added Android playlist download actions.
   - The shared playlist list and detail UI now expose download actions.
   - Android uses selected/preloaded playlist tracks when available and falls back to a provider playlist-track load before calling the shared bulk download path.

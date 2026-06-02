@@ -218,7 +218,7 @@ private fun NaviampAndroidApp(
     val waveformAnalyzer = playbackRuntime.waveformAnalyzer
     val lrclibLyricsClient = remember { AndroidLrclibLyricsClient() }
     val storage = remember { AndroidStorage(context) }
-    val playbackAudioAssets = remember(storage) { AndroidPlaybackAudioAssets(storage) }
+    val playbackAudioAssets = remember(storage) { AndroidPlaybackAudioAssets(storage, storage) }
     val audioCacheKeysInFlight = remember { mutableSetOf<String>() }
     DisposableEffect(storage) {
         onDispose { storage.close() }
@@ -751,7 +751,7 @@ private fun NaviampAndroidApp(
         playAndroidTrack(
             scope = scope,
             state = appState,
-            storage = storage,
+            audioAssets = playbackAudioAssets,
             playbackEngine = playbackEngine,
             playbackQueueController = playbackQueueController,
             track = track,

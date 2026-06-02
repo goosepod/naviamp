@@ -2,29 +2,32 @@ package app.naviamp.desktop
 
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.cache.AudioCacheRepository
+import app.naviamp.domain.cache.DownloadRepository
 import app.naviamp.domain.playback.PlaybackAudioAssetRepository
 import java.nio.file.Path
 
 class DesktopPlaybackAudioAssets(
-    private val cache: DesktopCache,
+    private val downloadRepository: DownloadRepository<DownloadedAudioFile, DownloadedTrack>,
+    private val audioCacheRepository: AudioCacheRepository<CachedAudioFile, CachedAudioMetadata>,
 ) : PlaybackAudioAssetRepository<Path> {
     override suspend fun downloadedAudio(
         sourceId: String,
         trackId: TrackId,
     ): Path? =
-        cache.downloadedAudioFile(sourceId, trackId)?.path
+        downloadRepository.downloadedAudioFile(sourceId, trackId)?.path
 
     override suspend fun downloadedAudio(
         sourceId: String,
         trackId: TrackId,
         quality: StreamQuality,
     ): Path? =
-        cache.downloadedAudioFile(sourceId, trackId, quality)?.path
+        downloadRepository.downloadedAudioFile(sourceId, trackId, quality)?.path
 
     override suspend fun cachedAudio(
         sourceId: String,
         trackId: TrackId,
         quality: StreamQuality,
     ): Path? =
-        cache.cachedAudioFile(sourceId, trackId, quality)?.path
+        audioCacheRepository.cachedAudioFile(sourceId, trackId, quality)?.path
 }

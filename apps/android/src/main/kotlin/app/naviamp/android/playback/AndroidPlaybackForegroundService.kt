@@ -478,7 +478,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         val provider = NavidromeProvider(connection)
         val runtime = AndroidPlaybackRuntime.get(applicationContext)
         val playbackSettings = AndroidSettingsStore(applicationContext).loadPlaybackSettings()
-        val audioAssets = AndroidPlaybackAudioAssets(storage)
+        val audioAssets = AndroidPlaybackAudioAssets(storage, storage)
         val quality = StreamQuality.Original
         val startPositionSeconds = session.positionSeconds?.takeIf { it > 0.0 }
 

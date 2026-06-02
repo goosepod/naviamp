@@ -8,6 +8,7 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.playback.PlaybackAudioAssetRepository
 import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackReplayGain
 import app.naviamp.domain.playback.PlaybackRequest
@@ -23,6 +24,7 @@ import app.naviamp.domain.playback.resolvePlaybackAudioSource
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.radio.planInternetRadioStart
 import app.naviamp.provider.navidrome.NavidromeProvider
+import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -51,7 +53,7 @@ fun beginAndroidPlaybackSession(
 fun playAndroidTrack(
     scope: CoroutineScope,
     state: AndroidAppState,
-    storage: AndroidStorage,
+    audioAssets: PlaybackAudioAssetRepository<File>,
     playbackEngine: AndroidPlaybackEngine,
     playbackQueueController: PlaybackQueueController,
     track: Track,
@@ -76,7 +78,6 @@ fun playAndroidTrack(
         state.status = "Connect before playing a track."
         return
     }
-    val audioAssets = AndroidPlaybackAudioAssets(storage)
     scope.launch {
         with(state) {
             status = "Loading ${track.title}..."

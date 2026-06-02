@@ -24,7 +24,7 @@ import java.nio.file.Path
 
 class DesktopNowPlayingController(
     private val sessionCache: DesktopCache,
-    private val playbackAudioAssets: PlaybackAudioAssetRepository<Path> = DesktopPlaybackAudioAssets(sessionCache),
+    private val playbackAudioAssets: PlaybackAudioAssetRepository<Path> = DesktopPlaybackAudioAssets(sessionCache, sessionCache),
     private val playbackEngine: PlaybackEngine,
     private val provider: () -> MediaProvider?,
     private val sourceId: () -> String?,

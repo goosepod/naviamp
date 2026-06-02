@@ -2,29 +2,32 @@ package app.naviamp.android
 
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.cache.AudioCacheRepository
+import app.naviamp.domain.cache.DownloadRepository
 import app.naviamp.domain.playback.PlaybackAudioAssetRepository
 import java.io.File
 
 class AndroidPlaybackAudioAssets(
-    private val storage: AndroidStorage,
+    private val downloadRepository: DownloadRepository<AndroidDownloadedAudioFile, AndroidDownloadedTrack>,
+    private val audioCacheRepository: AudioCacheRepository<AndroidCachedAudioFile, AndroidCachedAudioMetadata>,
 ) : PlaybackAudioAssetRepository<File> {
     override suspend fun downloadedAudio(
         sourceId: String,
         trackId: TrackId,
     ): File? =
-        storage.downloadedAudioFile(sourceId, trackId)?.file
+        downloadRepository.downloadedAudioFile(sourceId, trackId)?.file
 
     override suspend fun downloadedAudio(
         sourceId: String,
         trackId: TrackId,
         quality: StreamQuality,
     ): File? =
-        storage.downloadedAudioFile(sourceId, trackId, quality)?.file
+        downloadRepository.downloadedAudioFile(sourceId, trackId, quality)?.file
 
     override suspend fun cachedAudio(
         sourceId: String,
         trackId: TrackId,
         quality: StreamQuality,
     ): File? =
-        storage.cachedAudioFile(sourceId, trackId, quality)?.file
+        audioCacheRepository.cachedAudioFile(sourceId, trackId, quality)?.file
 }
