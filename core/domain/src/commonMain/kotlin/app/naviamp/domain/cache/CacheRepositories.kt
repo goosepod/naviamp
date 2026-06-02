@@ -141,6 +141,16 @@ interface PlaybackHistoryRepository<HistoryItem> {
     )
 }
 
+interface MediaSourceRepository {
+    fun latestMediaSource(): SavedMediaSource?
+
+    fun mediaSources(): List<SavedMediaSource>
+
+    fun mediaSource(sourceId: String): SavedMediaSource?
+
+    fun deleteMediaSource(sourceId: String)
+}
+
 interface LocalLibraryIndexRepository : ArtistPopularTracksRepository {
     fun mediaSource(sourceId: String): SavedMediaSource?
 

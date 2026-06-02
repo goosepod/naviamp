@@ -112,6 +112,7 @@ Then higher-level repositories can be composed from those stores:
   - Remaining byte-store work can apply the same pattern to audio cache, images, lyrics, waveform, and sidecar bytes.
 - [ ] Split metadata database ports from byte storage.
   - SQLite/SQLDelight can remain the first engine, but shared code should depend on repository contracts.
+  - First slice: saved media-source metadata is behind `MediaSourceRepository`, implemented by desktop and Android storage engines.
 - [ ] Replace direct `DesktopCache` dependencies in desktop controllers with narrower interfaces.
   - `DesktopHomeController`
   - `DesktopSearchController`
@@ -285,6 +286,10 @@ This is a strong first slice because playback-source selection currently affects
   - Shared `HomeService`, desktop internet-radio refresh, and Android Auto saved-radio browsing use the shared station-list service.
   - Desktop internet-radio create/update/delete flows invalidate the cached station list before refreshing.
   - Generated radio, random-song, and provider-specific radio endpoints remain live because those responses are intentionally dynamic.
+- 2026-06-02: Started splitting metadata database ports from byte storage.
+  - Added shared `MediaSourceRepository` for saved media-source lookup/list/delete metadata.
+  - Desktop `DesktopCache` and Android `AndroidStorage` now implement the same media-source metadata port while keeping platform-specific database construction local.
+  - Android keeps `latestNavidromeSource` as a compatibility alias over the shared `latestMediaSource` binding.
 - 2026-06-02: Added Android playlist download actions.
   - The shared playlist list and detail UI now expose download actions.
   - Android uses selected/preloaded playlist tracks when available and falls back to a provider playlist-track load before calling the shared bulk download path.

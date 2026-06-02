@@ -29,6 +29,7 @@ import app.naviamp.domain.cache.LibraryAlbumYear
 import app.naviamp.domain.cache.LibraryIndexStats
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
+import app.naviamp.domain.cache.MediaSourceRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.StoredAudioBytes
 import app.naviamp.domain.network.KtorSharedHttpClient
@@ -72,6 +73,7 @@ class DesktopCache(
     AudioWaveformCacheRepository,
     DownloadRepository<DownloadedAudioFile, DownloadedTrack>,
     DownloadReplacementRepository<DownloadedAudioFile>,
+    MediaSourceRepository,
     LocalLibraryIndexRepository,
     CacheMaintenanceRepository<CacheStats> {
     private val json = Json {
@@ -164,16 +166,16 @@ class DesktopCache(
             fetch = { provider.search(query, limit) },
         )
 
-    fun latestMediaSource(): SavedMediaSource? =
+    override fun latestMediaSource(): SavedMediaSource? =
         queries.selectLatestMediaSource().executeAsOneOrNull()?.toSavedMediaSource()
 
-    fun mediaSources(): List<SavedMediaSource> =
+    override fun mediaSources(): List<SavedMediaSource> =
         queries.selectMediaSources().executeAsList().map { it.toSavedMediaSource() }
 
     override fun mediaSource(sourceId: String): SavedMediaSource? =
         queries.selectMediaSourceById(sourceId).executeAsOneOrNull()?.toSavedMediaSource()
 
-    fun deleteMediaSource(sourceId: String) {
+    override fun deleteMediaSource(sourceId: String) {
         queries.deleteMediaSource(sourceId)
     }
 

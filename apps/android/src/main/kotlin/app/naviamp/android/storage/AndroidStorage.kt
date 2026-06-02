@@ -22,6 +22,7 @@ import app.naviamp.domain.cache.LibraryAlbumYear
 import app.naviamp.domain.cache.LibraryIndexStats
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
+import app.naviamp.domain.cache.MediaSourceRepository
 import app.naviamp.domain.cache.PlaybackHistoryRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.StoredAudioBytes
@@ -62,6 +63,7 @@ class AndroidStorage(
     DownloadRepository<AndroidDownloadedAudioFile, AndroidDownloadedTrack>,
     DownloadReplacementRepository<AndroidDownloadedAudioFile>,
     PlaybackHistoryRepository<AndroidPlaybackHistoryItem>,
+    MediaSourceRepository,
     LocalLibraryIndexRepository,
     CacheMaintenanceRepository<AndroidStorageStats>,
     AutoCloseable {
@@ -91,10 +93,18 @@ class AndroidStorage(
         driver.close()
     }
 
-    fun latestNavidromeSource(): SavedMediaSource? =
+    override fun latestMediaSource(): SavedMediaSource? =
         queries.selectLatestMediaSource()
             .executeAsOneOrNull()
             ?.toSavedMediaSource()
+
+    fun latestNavidromeSource(): SavedMediaSource? =
+        latestMediaSource()
+
+    override fun mediaSources(): List<SavedMediaSource> =
+        queries.selectMediaSources()
+            .executeAsList()
+            .map { it.toSavedMediaSource() }
 
     fun latestNavidromeConnection(): NavidromeConnection? =
         latestNavidromeSource()?.toNavidromeConnection()
@@ -103,6 +113,10 @@ class AndroidStorage(
         queries.selectMediaSourceById(sourceId)
             .executeAsOneOrNull()
             ?.toSavedMediaSource()
+
+    override fun deleteMediaSource(sourceId: String) {
+        queries.deleteMediaSource(sourceId)
+    }
 
     fun upsertNavidromeSource(connection: NavidromeConnection, cacheNamespace: String, providerId: String): MediaSourceIdentity {
         val now = System.currentTimeMillis()
