@@ -125,6 +125,7 @@ Then higher-level repositories can be composed from those stores:
   - Eleventh slice: desktop artist/album detail fallback reads use `LocalLibraryIndexRepository` and provider caching uses `ProviderResponseCacheRepository` instead of broad `DesktopCache`.
   - Twelfth slice: desktop download actions use `DownloadRepository`, `DownloadReplacementRepository`, and `ProviderResponseCacheRepository` instead of broad `DesktopCache`.
   - Thirteenth slice: desktop home loading uses `HomeLibraryRepository` and `ProviderResponseCacheRepository` instead of broad `DesktopCache`.
+  - Fourteenth slice: desktop search uses `ProviderResponseCacheRepository` instead of broad `DesktopCache`.
 - [ ] Replace direct `DesktopCache` dependencies in desktop controllers with narrower interfaces.
   - `DesktopHomeController`
   - `DesktopSearchController`
@@ -348,6 +349,9 @@ This is a strong first slice because playback-source selection currently affects
 - 2026-06-02: Moved desktop home loading onto shared repository ports.
   - `DesktopHomeController` now receives `ProviderResponseCacheRepository` and `HomeLibraryRepository`.
   - The desktop cache-to-home-library adapter now lives at composition.
+- 2026-06-02: Moved desktop search onto the shared provider-response cache port.
+  - `DesktopSearchController` now receives `ProviderResponseCacheRepository`.
+  - Desktop composition remains responsible for supplying `DesktopCache` as the concrete adapter.
 - 2026-06-02: Added Android playlist download actions.
   - The shared playlist list and detail UI now expose download actions.
   - Android uses selected/preloaded playlist tracks when available and falls back to a provider playlist-track load before calling the shared bulk download path.

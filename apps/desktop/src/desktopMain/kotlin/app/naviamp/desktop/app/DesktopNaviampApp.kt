@@ -839,7 +839,7 @@ fun NaviampApp(
 
     val searchController = DesktopSearchController(
         settingsStore = settingsStore,
-        sessionCache = sessionCache,
+        providerResponseCacheRepository = sessionCache,
         provider = { connectedProvider },
         setQuery = { query -> searchQuery = query },
         setResults = { results -> searchResults = results },
