@@ -3,6 +3,9 @@ package app.naviamp.desktop
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Track
 import app.naviamp.domain.audio.lyricsFromAudioTags
+import app.naviamp.domain.cache.AudioWaveformRepository
+import app.naviamp.domain.cache.LocalLibraryIndexRepository
+import app.naviamp.domain.cache.LyricsSidecarRepository
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.lyrics.selectPreferredLyrics
 import app.naviamp.domain.playback.PlaybackAudioAssetRepository
@@ -23,8 +26,10 @@ import kotlinx.coroutines.withContext
 import java.nio.file.Path
 
 class DesktopNowPlayingController(
-    private val sessionCache: DesktopCache,
-    private val playbackAudioAssets: PlaybackAudioAssetRepository<Path> = DesktopPlaybackAudioAssets(sessionCache, sessionCache),
+    private val audioWaveformRepository: AudioWaveformRepository,
+    private val lyricsSidecarRepository: LyricsSidecarRepository,
+    private val localLibraryIndexRepository: LocalLibraryIndexRepository,
+    private val playbackAudioAssets: PlaybackAudioAssetRepository<Path>,
     private val playbackEngine: PlaybackEngine,
     private val provider: () -> MediaProvider?,
     private val sourceId: () -> String?,
@@ -80,7 +85,7 @@ class DesktopNowPlayingController(
 
         val analysis = withContext(Dispatchers.IO) {
             runCatching {
-                val cachedWaveformBeforeAudio = sessionCache.cachedAudioWaveform(
+                val cachedWaveformBeforeAudio = audioWaveformRepository.cachedAudioWaveform(
                     sourceId = activeSourceId,
                     trackId = track.id,
                     quality = quality,
@@ -94,7 +99,7 @@ class DesktopNowPlayingController(
                 ).localAudio
                 val cachedWaveform = cachedWaveformBeforeAudio
                     ?: if (audioPath != null) {
-                        sessionCache.cachedAudioWaveform(
+                        audioWaveformRepository.cachedAudioWaveform(
                             sourceId = activeSourceId,
                             trackId = track.id,
                             quality = quality,
@@ -103,7 +108,7 @@ class DesktopNowPlayingController(
                         null
                     }
                 val waveform = cachedWaveform ?: if (audioPath != null && activeCacheSettings.audioCachingEnabled) {
-                    sessionCache.ensureAudioWaveform(
+                    audioWaveformRepository.ensureAudioWaveform(
                         sourceId = activeSourceId,
                         trackId = track.id,
                         quality = quality,
@@ -121,7 +126,7 @@ class DesktopNowPlayingController(
                     ?.let { path -> runCatching { AudioTagReader().read(path) }.getOrDefault(emptyList()) }
                     .orEmpty()
                 val providerLyrics = if (lyricsVisibleForWork) {
-                    sessionCache.providerLyrics(activeSourceId, activeProvider, track.id)
+                    lyricsSidecarRepository.providerLyrics(activeSourceId, activeProvider, track.id)
                 } else {
                     null
                 }
@@ -134,7 +139,7 @@ class DesktopNowPlayingController(
                         embeddedLyrics = embeddedLyrics,
                     )
                 ) {
-                    sessionCache.lrclibLyrics(activeSourceId, track)
+                    lyricsSidecarRepository.lrclibLyrics(activeSourceId, track)
                 } else {
                     null
                 }
@@ -162,7 +167,7 @@ class DesktopNowPlayingController(
         }
         setRelatedTracks(
             withContext(Dispatchers.IO) {
-                sessionCache.relatedLibraryTracks(activeSourceId, track, limit = RelatedTracksLimit)
+                localLibraryIndexRepository.relatedLibraryTracks(activeSourceId, track, limit = RelatedTracksLimit)
             },
         )
     }

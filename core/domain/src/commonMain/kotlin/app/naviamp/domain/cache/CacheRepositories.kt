@@ -4,6 +4,7 @@ import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistId
+import app.naviamp.domain.Lyrics
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
@@ -70,6 +71,44 @@ interface AudioWaveformCacheRepository {
         trackId: TrackId,
         quality: StreamQuality,
     ): AudioWaveform?
+}
+
+interface AudioWaveformRepository : AudioWaveformCacheRepository {
+    suspend fun ensureAudioWaveform(
+        sourceId: String,
+        trackId: TrackId,
+        quality: StreamQuality,
+    ): AudioWaveform?
+}
+
+interface LyricsSidecarRepository {
+    suspend fun providerLyrics(
+        sourceId: String,
+        provider: MediaProvider,
+        trackId: TrackId,
+    ): Lyrics?
+
+    suspend fun cacheEmbeddedLyrics(
+        sourceId: String,
+        trackId: TrackId,
+        lyrics: Lyrics,
+    ): Lyrics
+
+    suspend fun lrclibLyrics(
+        sourceId: String,
+        track: Track,
+    ): Lyrics?
+}
+
+interface SidecarStatusRepository {
+    fun recordSidecarStatus(
+        sourceId: String,
+        trackId: TrackId,
+        quality: StreamQuality,
+        sidecarType: String,
+        success: Boolean,
+        errorMessage: String? = null,
+    )
 }
 
 data class StoredAudioBytes(

@@ -1023,7 +1023,10 @@ fun NaviampApp(
     )
 
     val nowPlayingController = DesktopNowPlayingController(
-        sessionCache = sessionCache,
+        audioWaveformRepository = sessionCache,
+        lyricsSidecarRepository = sessionCache,
+        localLibraryIndexRepository = sessionCache,
+        playbackAudioAssets = DesktopPlaybackAudioAssets(sessionCache, sessionCache),
         playbackEngine = playbackEngine,
         provider = { connectedProvider },
         sourceId = { connectedSourceId },

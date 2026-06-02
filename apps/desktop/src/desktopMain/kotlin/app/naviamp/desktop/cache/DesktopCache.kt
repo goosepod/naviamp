@@ -19,7 +19,7 @@ import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.AudioCacheRepository
-import app.naviamp.domain.cache.AudioWaveformCacheRepository
+import app.naviamp.domain.cache.AudioWaveformRepository
 import app.naviamp.domain.cache.CacheMaintenanceRepository
 import app.naviamp.domain.cache.DownloadAudioByteStore
 import app.naviamp.domain.cache.DownloadReplacementRepository
@@ -29,10 +29,12 @@ import app.naviamp.domain.cache.LibraryAlbumYear
 import app.naviamp.domain.cache.LibraryIndexStats
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
+import app.naviamp.domain.cache.LyricsSidecarRepository
 import app.naviamp.domain.cache.MediaSourceRepository
 import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
+import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.cache.StoredAudioBytes
 import app.naviamp.domain.cache.TrackMetadataRepository
 import app.naviamp.domain.network.KtorSharedHttpClient
@@ -74,7 +76,9 @@ class DesktopCache(
 ) : ImageCacheRepository,
     ProviderResponseCacheRepository,
     AudioCacheRepository<CachedAudioFile, CachedAudioMetadata>,
-    AudioWaveformCacheRepository,
+    AudioWaveformRepository,
+    LyricsSidecarRepository,
+    SidecarStatusRepository,
     DownloadRepository<DownloadedAudioFile, DownloadedTrack>,
     DownloadReplacementRepository<DownloadedAudioFile>,
     MediaSourceRepository,
@@ -307,6 +311,13 @@ class DesktopCache(
             )
         }
 
+    override suspend fun ensureAudioWaveform(
+        sourceId: String,
+        trackId: TrackId,
+        quality: StreamQuality,
+    ): AudioWaveform? =
+        ensureAudioWaveform(sourceId, trackId, quality, AudioWaveformAnalyzer())
+
     suspend fun ensureAudioWaveform(
         sourceId: String,
         trackId: TrackId,
@@ -346,7 +357,7 @@ class DesktopCache(
             waveform
         }
 
-    suspend fun providerLyrics(
+    override suspend fun providerLyrics(
         sourceId: String,
         provider: MediaProvider,
         trackId: TrackId,
@@ -358,7 +369,7 @@ class DesktopCache(
             lyrics
         }
 
-    suspend fun cacheEmbeddedLyrics(
+    override suspend fun cacheEmbeddedLyrics(
         sourceId: String,
         trackId: TrackId,
         lyrics: Lyrics,
@@ -367,6 +378,12 @@ class DesktopCache(
             upsertLyrics(sourceId, trackId, lyrics)
             lyrics
         }
+
+    override suspend fun lrclibLyrics(
+        sourceId: String,
+        track: Track,
+    ): Lyrics? =
+        lrclibLyrics(sourceId, track, LrclibLyricsClient())
 
     suspend fun lrclibLyrics(
         sourceId: String,
@@ -380,13 +397,13 @@ class DesktopCache(
             lyrics
         }
 
-    fun recordSidecarStatus(
+    override fun recordSidecarStatus(
         sourceId: String,
         trackId: TrackId,
         quality: StreamQuality,
         sidecarType: String,
         success: Boolean,
-        errorMessage: String? = null,
+        errorMessage: String?,
     ) {
         queries.upsertCachedSidecarStatus(
             source_id = sourceId,
@@ -398,6 +415,16 @@ class DesktopCache(
             last_error = errorMessage,
             updated_at_epoch_millis = nowMillis(),
         )
+    }
+
+    fun recordSidecarStatus(
+        sourceId: String,
+        trackId: TrackId,
+        quality: StreamQuality,
+        sidecarType: String,
+        success: Boolean,
+    ) {
+        recordSidecarStatus(sourceId, trackId, quality, sidecarType, success, null)
     }
 
     suspend fun cachedLyrics(

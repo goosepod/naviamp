@@ -129,6 +129,7 @@ Then higher-level repositories can be composed from those stores:
   - Fifteenth slice: desktop media actions persist updated track metadata through `TrackMetadataRepository` instead of broad `DesktopCache`.
   - Sixteenth slice: desktop radio seed selection uses `LocalLibraryIndexRepository` instead of broad `DesktopCache`.
   - Seventeenth slice: desktop smart playlist auth refresh writes source metadata through `ProviderMediaSourceRepository` and invalidates provider responses through `ProviderResponseCacheRepository` instead of broad `DesktopCache`.
+  - Eighteenth slice: desktop now-playing waveform, lyrics, and related-track loading uses shared sidecar, audio waveform, playback audio asset, and library-index ports instead of broad `DesktopCache`.
 - [ ] Replace direct `DesktopCache` dependencies in desktop controllers with narrower interfaces.
   - `DesktopHomeController`
   - `DesktopSearchController`
@@ -364,6 +365,10 @@ This is a strong first slice because playback-source selection currently affects
 - 2026-06-02: Moved desktop smart playlist source/cache writes onto shared repository ports.
   - `DesktopSmartPlaylistsController` now receives `ProviderMediaSourceRepository` and `ProviderResponseCacheRepository`.
   - `DesktopCache` implements provider media-source upserts through the shared port while remaining the desktop SQL adapter at composition.
+- 2026-06-02: Moved desktop now-playing analysis onto shared repository ports.
+  - Added `AudioWaveformRepository`, `LyricsSidecarRepository`, and `SidecarStatusRepository` in common domain.
+  - `DesktopNowPlayingController` now receives waveform, lyrics sidecar, library-index, and playback-audio asset ports instead of broad `DesktopCache`.
+  - Desktop cache remains the concrete waveform/lyrics/sidecar adapter supplied by app composition.
 - 2026-06-02: Added Android playlist download actions.
   - The shared playlist list and detail UI now expose download actions.
   - Android uses selected/preloaded playlist tracks when available and falls back to a provider playlist-track load before calling the shared bulk download path.
