@@ -30,6 +30,8 @@ import app.naviamp.domain.cache.LibraryIndexStats
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.MediaSourceRepository
+import app.naviamp.domain.cache.ProviderMediaSourceConnection
+import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.StoredAudioBytes
 import app.naviamp.domain.cache.TrackMetadataRepository
@@ -39,6 +41,7 @@ import app.naviamp.domain.popular.ArtistPopularTrackMatch
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.source.ConnectionTlsSettings
+import app.naviamp.domain.source.MediaSourceIdentity
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.source.stableMediaSourceId
 import app.naviamp.domain.waveform.AudioWaveform
@@ -75,6 +78,7 @@ class DesktopCache(
     DownloadRepository<DownloadedAudioFile, DownloadedTrack>,
     DownloadReplacementRepository<DownloadedAudioFile>,
     MediaSourceRepository,
+    ProviderMediaSourceRepository,
     LocalLibraryIndexRepository,
     CacheMaintenanceRepository<CacheStats>,
     TrackMetadataRepository {
@@ -706,15 +710,36 @@ class DesktopCache(
         connection: NavidromeConnection,
         provider: MediaProvider,
     ): SavedMediaSource {
+        val identity = upsertProviderMediaSource(
+            connection = ProviderMediaSourceConnection(
+                displayName = connection.resolvedDisplayName(),
+                baseUrl = connection.baseUrl,
+                username = connection.username,
+                token = connection.token,
+                salt = connection.salt,
+                nativeToken = connection.nativeToken,
+                tlsSettings = connection.tlsSettings,
+            ),
+            cacheNamespace = provider.cacheNamespace,
+            providerId = provider.id.value,
+        )
+        return mediaSource(identity.id)
+            ?: throw IllegalStateException("Media source ${identity.id} was not persisted.")
+    }
+
+    override fun upsertProviderMediaSource(
+        connection: ProviderMediaSourceConnection,
+        cacheNamespace: String,
+        providerId: String,
+    ): MediaSourceIdentity {
         val now = nowMillis()
-        val existing = queries.selectMediaSourceByCacheNamespace(provider.cacheNamespace).executeAsOneOrNull()
-        val id = existing?.id ?: stableMediaSourceId(provider.cacheNamespace)
-        val displayName = connection.resolvedDisplayName()
+        val existing = queries.selectMediaSourceByCacheNamespace(cacheNamespace).executeAsOneOrNull()
+        val id = existing?.id ?: stableMediaSourceId(cacheNamespace)
         queries.upsertMediaSource(
             id = id,
-            provider_id = provider.id.value,
-            cache_namespace = provider.cacheNamespace,
-            display_name = displayName,
+            provider_id = providerId,
+            cache_namespace = cacheNamespace,
+            display_name = connection.displayName,
             base_url = connection.baseUrl,
             username = connection.username,
             token = connection.token,
@@ -731,23 +756,10 @@ class DesktopCache(
             last_library_scan_signature = existing?.last_library_scan_signature,
             last_library_scan_checked_at_epoch_millis = existing?.last_library_scan_checked_at_epoch_millis,
         )
-        return SavedMediaSource(
+        return MediaSourceIdentity(
             id = id,
-            providerId = provider.id.value,
-            cacheNamespace = provider.cacheNamespace,
-            displayName = displayName,
-            baseUrl = connection.baseUrl,
-            username = connection.username,
-            token = connection.token,
-            salt = connection.salt,
-            nativeToken = connection.nativeToken,
-            tlsSettings = connection.tlsSettings,
-            createdAtEpochMillis = existing?.created_at_epoch_millis ?: now,
-            lastConnectedAtEpochMillis = now,
-            lastSyncStartedAtEpochMillis = existing?.last_sync_started_at_epoch_millis,
-            lastSyncCompletedAtEpochMillis = existing?.last_sync_completed_at_epoch_millis,
-            lastLibraryScanSignature = existing?.last_library_scan_signature,
-            lastLibraryScanCheckedAtEpochMillis = existing?.last_library_scan_checked_at_epoch_millis,
+            cacheNamespace = cacheNamespace,
+            displayName = connection.displayName,
         )
     }
 

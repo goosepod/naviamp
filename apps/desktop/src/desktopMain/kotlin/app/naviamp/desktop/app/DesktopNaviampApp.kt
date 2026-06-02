@@ -944,7 +944,8 @@ fun NaviampApp(
     )
 
     val smartPlaylistsController = DesktopSmartPlaylistsController(
-        sessionCache = sessionCache,
+        providerMediaSourceRepository = sessionCache,
+        providerResponseCacheRepository = sessionCache,
         provider = { connectedProvider },
         setProvider = { provider -> connectedProvider = provider },
         password = { password },

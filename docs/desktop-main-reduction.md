@@ -187,10 +187,11 @@ Branch: `codex/desktop-main-reduction`
   - Desktop search now uses the shared provider-response cache port instead of direct `DesktopCache`.
   - Desktop media actions now persist provider-response track metadata through a shared repository port instead of direct `DesktopCache`.
   - Desktop radio seed selection now uses the shared library-index repository port instead of direct `DesktopCache`.
+  - Desktop smart playlist source/auth refresh now uses shared provider media-source and provider-response repository ports instead of direct `DesktopCache`.
 - [ ] Introduce shared low-level byte/object store ports for cache/download file operations.
 - [ ] Introduce shared repository ports for media sources, provider responses, local library index, audio assets, sidecars, playback sessions, and maintenance stats.
   - Media-source metadata now has `MediaSourceRepository` with desktop and Android storage implementations.
-  - Provider media-source upserts now have `ProviderMediaSourceRepository` with an Android storage implementation.
+  - Provider media-source upserts now have `ProviderMediaSourceRepository` with desktop and Android storage implementations.
   - Provider-response track metadata updates now have `TrackMetadataRepository` with a desktop cache implementation.
   - Playback-session metadata now has `PlaybackSessionRepository` with desktop settings and Android storage implementations.
   - Android playback-history browse reads now use `PlaybackHistoryRepository`.

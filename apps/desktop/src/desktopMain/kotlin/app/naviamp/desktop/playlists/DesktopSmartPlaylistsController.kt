@@ -2,6 +2,9 @@ package app.naviamp.desktop
 
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
+import app.naviamp.domain.cache.ProviderMediaSourceConnection
+import app.naviamp.domain.cache.ProviderMediaSourceRepository
+import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.provider.homePlaylists
@@ -18,12 +21,14 @@ import app.naviamp.domain.provider.updateSmartPlaylistAndRefresh
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
+import app.naviamp.provider.navidrome.resolvedDisplayName
 import app.naviamp.provider.navidrome.withNativeTokenFromPassword
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 class DesktopSmartPlaylistsController(
-    private val sessionCache: DesktopCache,
+    private val providerMediaSourceRepository: ProviderMediaSourceRepository,
+    providerResponseCacheRepository: ProviderResponseCacheRepository,
     private val provider: () -> NavidromeProvider?,
     private val setProvider: (NavidromeProvider) -> Unit,
     private val password: () -> String,
@@ -47,7 +52,7 @@ class DesktopSmartPlaylistsController(
     private val setPlaylistStatus: (String?) -> Unit,
     private val setConnectionStatus: (String) -> Unit,
 ) {
-    private val providerResponseService = ProviderResponseService(sessionCache)
+    private val providerResponseService = ProviderResponseService(providerResponseCacheRepository)
 
     suspend fun saveSmartPlaylist(definition: SmartPlaylistDefinition) {
         var activeProvider = provider()
@@ -61,7 +66,12 @@ class DesktopSmartPlaylistsController(
                 }
                 val refreshedProvider = NavidromeProvider(refreshedConnection)
                 setProvider(refreshedProvider)
-                setConnectedSourceId(sessionCache.upsertNavidromeSource(refreshedConnection, refreshedProvider).id)
+                val mediaSource = providerMediaSourceRepository.upsertProviderMediaSource(
+                    connection = refreshedConnection.toProviderMediaSourceConnection(),
+                    cacheNamespace = refreshedProvider.cacheNamespace,
+                    providerId = refreshedProvider.id.value,
+                )
+                setConnectedSourceId(mediaSource.id)
                 setSavedConnectionForLogin(refreshedConnection)
                 incrementMediaSourcesRevision()
                 clearPassword()
@@ -128,3 +138,14 @@ class DesktopSmartPlaylistsController(
         }
     }
 }
+
+private fun NavidromeConnection.toProviderMediaSourceConnection(): ProviderMediaSourceConnection =
+    ProviderMediaSourceConnection(
+        displayName = resolvedDisplayName(),
+        baseUrl = baseUrl,
+        username = username,
+        token = token,
+        salt = salt,
+        nativeToken = nativeToken,
+        tlsSettings = tlsSettings,
+    )
