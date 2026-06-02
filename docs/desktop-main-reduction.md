@@ -173,6 +173,8 @@ Branch: `codex/desktop-main-reduction`
 ## Architecture Refactor Backlog
 
 - [ ] Split `DesktopCache` and `AndroidStorage` into narrow shared-port implementations instead of broad do-everything classes.
+  - `DesktopLibraryController` now uses library/media-source/maintenance repository ports instead of direct `DesktopCache`.
+  - `LibrarySync` writes local library index metadata through `LocalLibraryIndexRepository`.
 - [ ] Introduce shared low-level byte/object store ports for cache/download file operations.
 - [ ] Introduce shared repository ports for media sources, provider responses, local library index, audio assets, sidecars, playback sessions, and maintenance stats.
   - Media-source metadata now has `MediaSourceRepository` with desktop and Android storage implementations.

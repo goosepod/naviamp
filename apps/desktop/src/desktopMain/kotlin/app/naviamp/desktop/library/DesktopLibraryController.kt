@@ -3,7 +3,10 @@ package app.naviamp.desktop
 import androidx.compose.foundation.lazy.LazyListState
 import app.naviamp.domain.app.cacheDataClearedStatus
 import app.naviamp.domain.app.libraryIndexClearedStatus
+import app.naviamp.domain.cache.CacheMaintenanceRepository
+import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.LibrarySnapshot
+import app.naviamp.domain.cache.MediaSourceRepository
 import app.naviamp.domain.library.evaluateLibraryFreshness
 import app.naviamp.domain.library.libraryConnectionRequiredStatus
 import app.naviamp.domain.library.libraryLimitForOffset
@@ -17,7 +20,10 @@ import kotlinx.coroutines.withContext
 
 class DesktopLibraryController(
     private val scope: CoroutineScope,
-    private val cache: DesktopCache,
+    private val libraryIndexRepository: LocalLibraryIndexRepository,
+    private val mediaSourceRepository: MediaSourceRepository,
+    private val cacheMaintenanceRepository: CacheMaintenanceRepository<CacheStats>,
+    private val libraryOffsetForLetter: (sourceId: String, tab: LibraryTab, letter: Char) -> Long,
     private val librarySync: LibrarySync,
     private val provider: () -> MediaProvider?,
     private val sourceId: () -> String?,
@@ -41,7 +47,7 @@ class DesktopLibraryController(
             setLibraryStatus(libraryConnectionRequiredStatus())
             return
         }
-        setLibrarySnapshot(cache.librarySnapshotFor(activeSourceId, libraryQuery(), libraryLimit()))
+        setLibrarySnapshot(libraryIndexRepository.librarySnapshotFor(activeSourceId, libraryQuery(), libraryLimit()))
     }
 
     fun loadMoreLibraryRows() {
@@ -54,7 +60,7 @@ class DesktopLibraryController(
     fun jumpLibraryToLetter(letter: Char) {
         val activeSourceId = sourceId() ?: return
         if (libraryQuery().isNotBlank()) return
-        val offset = cache.libraryOffsetForLetter(activeSourceId, libraryTab(), letter).toInt()
+        val offset = libraryOffsetForLetter(activeSourceId, libraryTab(), letter).toInt()
         setLibraryLimit(libraryLimitForOffset(offset, LibraryPageSize))
         refreshLibrarySnapshot()
         scope.launch {
@@ -66,7 +72,7 @@ class DesktopLibraryController(
         val activeProvider = provider() ?: return
         val activeSourceId = sourceId() ?: return
         if (isLibrarySyncing()) return
-        if (!force && !shouldAutoSyncLibrary(activeSourceId, cache)) {
+        if (!force && !shouldAutoSyncLibrary(activeSourceId, libraryIndexRepository)) {
             setLibraryStatus(null)
             return
         }
@@ -102,12 +108,12 @@ class DesktopLibraryController(
         if (isLibrarySyncing()) return
         scope.launch {
             val freshness = withContext(Dispatchers.IO) {
-                cache.libraryFreshnessFor(activeSourceId, activeProvider)
+                mediaSourceRepository.libraryFreshnessFor(activeSourceId, activeProvider)
             }
             val update = freshness.evaluateLibraryFreshness(libraryStatus())
             update.signatureToMarkChecked?.let { signature ->
                 withContext(Dispatchers.IO) {
-                    cache.markLibraryScanChecked(activeSourceId, signature)
+                    libraryIndexRepository.markLibraryScanChecked(activeSourceId, signature)
                 }
             }
             update.status?.let { status ->
@@ -120,14 +126,14 @@ class DesktopLibraryController(
     }
 
     fun clearCacheData() {
-        cache.clearCacheData()
+        cacheMaintenanceRepository.clearCacheData()
         setConnectionStatus(cacheDataClearedStatus(detailed = true))
     }
 
     fun clearLibraryData() {
         sourceId()?.let { activeSourceId ->
-            cache.clearLibraryData(activeSourceId)
-        } ?: cache.clearLibraryData(null)
+            libraryIndexRepository.clearLibraryData(activeSourceId)
+        } ?: libraryIndexRepository.clearLibraryData(null)
         setLibrarySnapshot(LibrarySnapshot())
         setConnectionStatus(libraryIndexClearedStatus(detailed = true))
     }

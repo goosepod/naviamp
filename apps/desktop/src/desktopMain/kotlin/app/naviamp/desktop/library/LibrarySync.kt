@@ -1,13 +1,17 @@
 package app.naviamp.desktop
 
 import app.naviamp.domain.cache.LibrarySnapshot
+import app.naviamp.domain.cache.LocalLibraryIndexRepository
+import app.naviamp.domain.cache.MediaSourceRepository
+import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.library.LibraryFreshness
 import app.naviamp.domain.library.shouldAutoSyncLibrary as shouldAutoSyncLibraryIndex
 import app.naviamp.domain.library.nextLibraryLimit as nextLibraryPageLimit
 import app.naviamp.domain.provider.MediaProvider
 
 class LibrarySync(
-    private val cache: DesktopCache,
+    private val libraryIndexRepository: LocalLibraryIndexRepository,
+    private val providerResponseService: ProviderResponseService,
 ) {
     suspend fun syncAndMarkScanChecked(
         sourceId: String,
@@ -20,7 +24,7 @@ class LibrarySync(
             onProgress = onProgress,
         )
         provider.libraryScanStatus()?.signature?.let { signature ->
-            cache.markLibraryScanChecked(sourceId, signature)
+            libraryIndexRepository.markLibraryScanChecked(sourceId, signature)
         }
     }
 
@@ -29,10 +33,10 @@ class LibrarySync(
         provider: MediaProvider,
         onProgress: suspend (LibrarySyncProgress) -> Unit = {},
     ) {
-        cache.markLibrarySyncStarted(sourceId)
+        libraryIndexRepository.markLibrarySyncStarted(sourceId)
         onProgress(LibrarySyncProgress("Loading artists", 0, null))
         val artists = provider.artists(limit = 100_000)
-        cache.upsertLibraryArtists(sourceId, artists)
+        libraryIndexRepository.upsertLibraryArtists(sourceId, artists)
         onProgress(LibrarySyncProgress("Indexed artists", artists.size, null))
 
         val albums = mutableListOf<app.naviamp.domain.Album>()
@@ -43,7 +47,7 @@ class LibrarySync(
             val page = provider.albums(limit = pageSize, offset = offset)
             if (page.isEmpty()) break
             albums += page
-            cache.upsertLibraryAlbums(sourceId, page)
+            libraryIndexRepository.upsertLibraryAlbums(sourceId, page)
             onProgress(LibrarySyncProgress("Indexed albums", albums.size, null))
             if (page.size < pageSize) break
             offset += pageSize
@@ -58,13 +62,13 @@ class LibrarySync(
                     total = albums.size,
                 ),
             )
-            val details = cache.album(provider, album.id)
-            cache.upsertLibraryAlbums(sourceId, listOf(details.album))
-            cache.upsertLibraryTracks(sourceId, details.tracks)
+            val details = providerResponseService.album(provider, album.id)
+            libraryIndexRepository.upsertLibraryAlbums(sourceId, listOf(details.album))
+            libraryIndexRepository.upsertLibraryTracks(sourceId, details.tracks)
             trackCount += details.tracks.size
         }
 
-        cache.markLibrarySyncCompleted(sourceId)
+        libraryIndexRepository.markLibrarySyncCompleted(sourceId)
         onProgress(
             LibrarySyncProgress(
                 phase = "Library indexed",
@@ -75,7 +79,7 @@ class LibrarySync(
     }
 }
 
-fun DesktopCache.librarySnapshotFor(
+fun LocalLibraryIndexRepository.librarySnapshotFor(
     sourceId: String,
     query: String,
     limit: Int,
@@ -105,9 +109,9 @@ fun nextLibraryLimit(
 
 fun shouldAutoSyncLibrary(
     sourceId: String,
-    cache: DesktopCache,
+    libraryIndexRepository: LocalLibraryIndexRepository,
 ): Boolean {
-    val indexStats = cache.libraryIndexStats(sourceId)
+    val indexStats = libraryIndexRepository.libraryIndexStats(sourceId)
     return shouldAutoSyncLibraryIndex(indexStats)
 }
 
@@ -124,7 +128,7 @@ data class LibrarySyncProgress(
         }
 }
 
-suspend fun DesktopCache.libraryFreshnessFor(
+suspend fun MediaSourceRepository.libraryFreshnessFor(
     sourceId: String,
     provider: MediaProvider,
 ): LibraryFreshness {

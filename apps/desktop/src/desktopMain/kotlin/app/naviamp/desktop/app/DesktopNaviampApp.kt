@@ -204,7 +204,12 @@ fun NaviampApp(
             audioPrefetchDepthProvider = { cacheSettings.audioPrefetchDepth },
         )
     }
-    val librarySync = remember(sessionCache) { LibrarySync(sessionCache) }
+    val librarySync = remember(sessionCache) {
+        LibrarySync(
+            libraryIndexRepository = sessionCache,
+            providerResponseService = ProviderResponseService(sessionCache),
+        )
+    }
     val libraryListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val restoredTrackSession = remember(savedPlaybackSession) { savedPlaybackSession?.restoredTrackSession() }
@@ -1034,7 +1039,10 @@ fun NaviampApp(
 
     val libraryController = DesktopLibraryController(
         scope = coroutineScope,
-        cache = sessionCache,
+        libraryIndexRepository = sessionCache,
+        mediaSourceRepository = sessionCache,
+        cacheMaintenanceRepository = sessionCache,
+        libraryOffsetForLetter = sessionCache::libraryOffsetForLetter,
         librarySync = librarySync,
         provider = { connectedProvider },
         sourceId = { connectedSourceId },
