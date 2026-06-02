@@ -24,6 +24,7 @@ import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import androidx.media.MediaBrowserServiceCompat
 import androidx.media.utils.MediaConstants
+import app.naviamp.android.AndroidPlaybackHistoryItem
 import app.naviamp.android.AndroidStorage
 import app.naviamp.android.AndroidSettingsStore
 import app.naviamp.android.AndroidPlaybackAudioAssets
@@ -38,6 +39,7 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.cache.PlaybackHistoryRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackQueueController
@@ -81,6 +83,13 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
 
     private fun providerResponseService(storage: AndroidStorage = serviceStorage): ProviderResponseService =
         ProviderResponseService(storage)
+
+    private fun recentPlaybackHistoryItems(
+        playbackHistoryRepository: PlaybackHistoryRepository<AndroidPlaybackHistoryItem>,
+        sourceId: String,
+    ): List<MediaBrowserCompat.MediaItem> =
+        playbackHistoryRepository.playbackHistory(sourceId, AndroidAutoBrowseLimit)
+            .map { history -> trackItem(history.track) }
 
     private val noisyAudioReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -1450,8 +1459,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                             subtitle = "Radio",
                         )
                     }
-                    val recentTracks = storage.playbackHistory(id, AndroidAutoBrowseLimit)
-                        .map { history -> trackItem(history.track) }
+                    val recentTracks = recentPlaybackHistoryItems(storage, id)
                     (recentStreams + recentTracks).take(AndroidAutoBrowseLimit).toMutableList()
                 } ?: noSourceItems()
             }
@@ -1467,9 +1475,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             }
             AndroidAutoPlaybackControls.MediaIdChartsTracks -> {
                 sourceId?.let { id ->
-                    storage.playbackHistory(id, AndroidAutoBrowseLimit)
-                        .map { history -> trackItem(history.track) }
-                        .toMutableList()
+                    recentPlaybackHistoryItems(storage, id).toMutableList()
                 } ?: noSourceItems()
             }
             AndroidAutoPlaybackControls.MediaIdDownloads -> {

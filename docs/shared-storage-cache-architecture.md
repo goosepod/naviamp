@@ -114,6 +114,7 @@ Then higher-level repositories can be composed from those stores:
   - SQLite/SQLDelight can remain the first engine, but shared code should depend on repository contracts.
   - First slice: saved media-source metadata is behind `MediaSourceRepository`, implemented by desktop and Android storage engines.
   - Second slice: playback-session metadata is behind `PlaybackSessionRepository`, implemented by desktop settings and Android storage.
+  - Third slice: Android Auto recent-track browse reads go through `PlaybackHistoryRepository` instead of broad storage calls.
 - [ ] Replace direct `DesktopCache` dependencies in desktop controllers with narrower interfaces.
   - `DesktopHomeController`
   - `DesktopSearchController`
@@ -296,6 +297,9 @@ This is a strong first slice because playback-source selection currently affects
   - Desktop `DesktopSettingsStore` implements the port for its single current-session settings file.
   - Android `AndroidStorage` implements the same port with required source-scoped SQL rows.
   - Desktop playback/internet-radio controllers and Android app playback-session helpers now depend on the shared session port instead of concrete storage/settings types for session persistence.
+- 2026-06-02: Started using the playback-history metadata port at Android Auto browse call sites.
+  - Android Auto recent-play and chart-track browse sections now read through `PlaybackHistoryRepository<AndroidPlaybackHistoryItem>`.
+  - `AndroidPlaybackForegroundService` still owns media-browser item shaping and service lifecycle, while the SQL-backed history query is exposed through the shared metadata repository port.
 - 2026-06-02: Added Android playlist download actions.
   - The shared playlist list and detail UI now expose download actions.
   - Android uses selected/preloaded playlist tracks when available and falls back to a provider playlist-track load before calling the shared bulk download path.

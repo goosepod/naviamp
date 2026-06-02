@@ -177,6 +177,7 @@ Branch: `codex/desktop-main-reduction`
 - [ ] Introduce shared repository ports for media sources, provider responses, local library index, audio assets, sidecars, playback sessions, and maintenance stats.
   - Media-source metadata now has `MediaSourceRepository` with desktop and Android storage implementations.
   - Playback-session metadata now has `PlaybackSessionRepository` with desktop settings and Android storage implementations.
+  - Android playback-history browse reads now use `PlaybackHistoryRepository`.
 - [x] Build a shared download service over `DownloadRepository` and platform byte/file stores so desktop and Android use one download flow.
   - Initial downloads and quality-change re-downloads now go through common `DownloadService`.
   - Desktop and Android storage engines are injected through narrow platform-agnostic download/replacement repository ports.
