@@ -32,6 +32,7 @@ import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.MediaSourceRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.StoredAudioBytes
+import app.naviamp.domain.cache.TrackMetadataRepository
 import app.naviamp.domain.network.KtorSharedHttpClient
 import app.naviamp.domain.popular.ArtistPopularTrackCandidate
 import app.naviamp.domain.popular.ArtistPopularTrackMatch
@@ -75,7 +76,8 @@ class DesktopCache(
     DownloadReplacementRepository<DownloadedAudioFile>,
     MediaSourceRepository,
     LocalLibraryIndexRepository,
-    CacheMaintenanceRepository<CacheStats> {
+    CacheMaintenanceRepository<CacheStats>,
+    TrackMetadataRepository {
     private val json = Json {
         ignoreUnknownKeys = true
         encodeDefaults = true
@@ -972,7 +974,7 @@ class DesktopCache(
         }
     }
 
-    fun updateTrack(updatedTrack: Track) {
+    override fun updateTrack(updatedTrack: Track) {
         queries.transaction {
             val albumRows = queries.selectResponsesByType("album").executeAsList()
             albumRows.forEach { row ->

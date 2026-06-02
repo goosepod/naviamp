@@ -144,6 +144,10 @@ interface PlaybackHistoryRepository<HistoryItem> {
     )
 }
 
+interface TrackMetadataRepository {
+    fun updateTrack(updatedTrack: Track)
+}
+
 interface MediaSourceRepository {
     fun latestMediaSource(): SavedMediaSource?
 

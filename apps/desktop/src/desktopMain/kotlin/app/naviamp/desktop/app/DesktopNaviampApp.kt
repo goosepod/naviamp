@@ -816,7 +816,7 @@ fun NaviampApp(
 
     val mediaActionsController = DesktopMediaActionsController(
         scope = coroutineScope,
-        sessionCache = sessionCache,
+        trackMetadataRepository = sessionCache,
         playbackEngine = playbackEngine,
         playlistEngine = playlistEngine,
         provider = { connectedProvider },

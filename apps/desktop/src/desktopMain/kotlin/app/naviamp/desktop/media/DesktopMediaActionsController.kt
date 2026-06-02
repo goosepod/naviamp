@@ -6,6 +6,7 @@ import app.naviamp.domain.media.favoriteTrackUpdate
 import app.naviamp.domain.media.ratedTrackUpdate
 import app.naviamp.domain.media.trackPlaybackSelection
 import app.naviamp.domain.media.withUpdatedTrack
+import app.naviamp.domain.cache.TrackMetadataRepository
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.queueAppendPlan
@@ -19,7 +20,7 @@ import java.time.Instant
 
 class DesktopMediaActionsController(
     private val scope: CoroutineScope,
-    private val sessionCache: DesktopCache,
+    private val trackMetadataRepository: TrackMetadataRepository,
     private val playbackEngine: PlaybackEngine,
     private val playlistEngine: PlaylistEngine,
     private val provider: () -> NavidromeProvider?,
@@ -80,7 +81,7 @@ class DesktopMediaActionsController(
             selectedAlbumDetails()?.withUpdatedTrack(updatedTrack),
         )
         playlistEngine.updateTrack(updatedTrack)
-        sessionCache.updateTrack(updatedTrack)
+        trackMetadataRepository.updateTrack(updatedTrack)
     }
 
     fun toggleTrackFavorite(track: Track) {

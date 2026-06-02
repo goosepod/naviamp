@@ -126,6 +126,7 @@ Then higher-level repositories can be composed from those stores:
   - Twelfth slice: desktop download actions use `DownloadRepository`, `DownloadReplacementRepository`, and `ProviderResponseCacheRepository` instead of broad `DesktopCache`.
   - Thirteenth slice: desktop home loading uses `HomeLibraryRepository` and `ProviderResponseCacheRepository` instead of broad `DesktopCache`.
   - Fourteenth slice: desktop search uses `ProviderResponseCacheRepository` instead of broad `DesktopCache`.
+  - Fifteenth slice: desktop media actions persist updated track metadata through `TrackMetadataRepository` instead of broad `DesktopCache`.
 - [ ] Replace direct `DesktopCache` dependencies in desktop controllers with narrower interfaces.
   - `DesktopHomeController`
   - `DesktopSearchController`
@@ -352,6 +353,9 @@ This is a strong first slice because playback-source selection currently affects
 - 2026-06-02: Moved desktop search onto the shared provider-response cache port.
   - `DesktopSearchController` now receives `ProviderResponseCacheRepository`.
   - Desktop composition remains responsible for supplying `DesktopCache` as the concrete adapter.
+- 2026-06-02: Moved desktop track metadata persistence onto a shared repository port.
+  - Added `TrackMetadataRepository` for persisting updated track metadata into cached provider responses.
+  - `DesktopMediaActionsController` now receives the repository port instead of broad `DesktopCache`.
 - 2026-06-02: Added Android playlist download actions.
   - The shared playlist list and detail UI now expose download actions.
   - Android uses selected/preloaded playlist tracks when available and falls back to a provider playlist-track load before calling the shared bulk download path.
