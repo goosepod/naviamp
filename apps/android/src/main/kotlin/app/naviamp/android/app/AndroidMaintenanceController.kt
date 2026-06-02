@@ -7,6 +7,8 @@ import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.domain.app.cacheDataClearedStatus
 import app.naviamp.domain.app.databaseResetStatus
 import app.naviamp.domain.app.libraryIndexClearedStatus
+import app.naviamp.domain.cache.CacheMaintenanceRepository
+import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
@@ -58,9 +60,9 @@ fun resetAndroidPlaybackState(
 fun handleAndroidClearCache(
     context: Context,
     state: AndroidAppState,
-    storage: AndroidStorage,
+    cacheMaintenanceRepository: CacheMaintenanceRepository<AndroidStorageStats>,
 ) {
-    storage.clearCacheData()
+    cacheMaintenanceRepository.clearCacheData()
     clearAndroidFileCaches(context)
     clearAndroidDerivedMediaState(state)
     state.status = cacheDataClearedStatus()
@@ -68,9 +70,9 @@ fun handleAndroidClearCache(
 
 fun handleAndroidClearLibrary(
     state: AndroidAppState,
-    storage: AndroidStorage,
+    libraryIndexRepository: LocalLibraryIndexRepository,
 ) {
-    storage.clearLibraryData(state.activeSourceId)
+    libraryIndexRepository.clearLibraryData(state.activeSourceId)
     state.homeState = app.naviamp.domain.home.HomeContent()
     state.contentState = NaviampContentState()
     state.tracks = emptyList()
@@ -82,13 +84,13 @@ fun handleAndroidClearLibrary(
 fun handleAndroidResetDatabase(
     context: Context,
     state: AndroidAppState,
-    storage: AndroidStorage,
+    cacheMaintenanceRepository: CacheMaintenanceRepository<AndroidStorageStats>,
     settingsStore: AndroidSettingsStore,
     playbackEngine: app.naviamp.android.playback.AndroidPlaybackEngine,
     queueController: app.naviamp.domain.playback.PlaybackQueueController,
 ) {
     resetAndroidPlaybackState(state, playbackEngine, queueController)
-    storage.clearAll()
+    cacheMaintenanceRepository.clearAll()
     settingsStore.clear()
     clearAndroidFileCaches(context)
     state.provider = null

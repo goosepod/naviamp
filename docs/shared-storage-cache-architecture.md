@@ -117,6 +117,7 @@ Then higher-level repositories can be composed from those stores:
   - Third slice: Android Auto recent-track browse reads go through `PlaybackHistoryRepository` instead of broad storage calls.
   - Fourth slice: desktop library refresh/sync/clear orchestration uses `LocalLibraryIndexRepository`, `MediaSourceRepository`, and `CacheMaintenanceRepository` instead of broad `DesktopCache`.
   - Fifth slice: Android library sync/freshness orchestration uses `LocalLibraryIndexRepository` and `MediaSourceRepository` instead of broad `AndroidStorage`.
+  - Sixth slice: Android cache/library/database maintenance helpers use `CacheMaintenanceRepository` and `LocalLibraryIndexRepository` instead of broad `AndroidStorage`.
 - [ ] Replace direct `DesktopCache` dependencies in desktop controllers with narrower interfaces.
   - `DesktopHomeController`
   - `DesktopSearchController`
@@ -311,6 +312,10 @@ This is a strong first slice because playback-source selection currently affects
   - `startAndroidLibrarySync` and `syncAndroidLibrary` now write library artists/albums and scan markers through `LocalLibraryIndexRepository`.
   - `checkAndroidLibraryFreshness` reads media-source scan metadata through `MediaSourceRepository` and writes scan markers through `LocalLibraryIndexRepository`.
   - Android storage remains the concrete implementation supplied by app composition, while the library orchestration code depends on shared metadata contracts.
+- 2026-06-02: Moved Android maintenance helpers onto shared repository ports.
+  - Cache and database clears now call `CacheMaintenanceRepository<AndroidStorageStats>`.
+  - Library index clears now call `LocalLibraryIndexRepository`.
+  - Android file-cache deletion and UI state reset remain platform-local.
 - 2026-06-02: Added Android playlist download actions.
   - The shared playlist list and detail UI now expose download actions.
   - Android uses selected/preloaded playlist tracks when available and falls back to a provider playlist-track load before calling the shared bulk download path.

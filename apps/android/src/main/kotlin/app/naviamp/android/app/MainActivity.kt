@@ -543,7 +543,7 @@ private fun NaviampAndroidApp(
         handleAndroidResetDatabase(
             context = context,
             state = appState,
-            storage = storage,
+            cacheMaintenanceRepository = storage,
             settingsStore = settingsStore,
             playbackEngine = playbackEngine,
             queueController = playbackQueueController,
