@@ -1219,7 +1219,7 @@ private fun NaviampAndroidApp(
             preloadPlaylistTracks = ::preloadPlaylistTracks,
             restorePlaybackSession = ::restorePlaybackSession,
             startAndroidLibrarySync = { force -> startAndroidLibrarySync(scope, appState, storage, force) },
-            checkAndroidLibraryFreshness = { checkAndroidLibraryFreshness(scope, appState, storage) },
+            checkAndroidLibraryFreshness = { checkAndroidLibraryFreshness(scope, appState, storage, storage) },
         )
     }
 
@@ -1248,7 +1248,7 @@ private fun NaviampAndroidApp(
         state = appState,
         storage = storage,
         savePlaybackSessionThrottled = ::savePlaybackSessionThrottled,
-        checkAndroidLibraryFreshness = { checkAndroidLibraryFreshness(scope, appState, storage) },
+        checkAndroidLibraryFreshness = { checkAndroidLibraryFreshness(scope, appState, storage, storage) },
     )
 
     val shellUiState = rememberAndroidAppShellUiState(

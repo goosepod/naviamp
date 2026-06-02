@@ -175,6 +175,7 @@ Branch: `codex/desktop-main-reduction`
 - [ ] Split `DesktopCache` and `AndroidStorage` into narrow shared-port implementations instead of broad do-everything classes.
   - `DesktopLibraryController` now uses library/media-source/maintenance repository ports instead of direct `DesktopCache`.
   - `LibrarySync` writes local library index metadata through `LocalLibraryIndexRepository`.
+  - Android library sync/freshness helpers now use library/media-source repository ports instead of direct `AndroidStorage`.
 - [ ] Introduce shared low-level byte/object store ports for cache/download file operations.
 - [ ] Introduce shared repository ports for media sources, provider responses, local library index, audio assets, sidecars, playback sessions, and maintenance stats.
   - Media-source metadata now has `MediaSourceRepository` with desktop and Android storage implementations.

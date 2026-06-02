@@ -1,5 +1,7 @@
 package app.naviamp.android
 
+import app.naviamp.domain.cache.LocalLibraryIndexRepository
+import app.naviamp.domain.cache.MediaSourceRepository
 import app.naviamp.domain.library.LibraryFreshness
 import app.naviamp.domain.library.evaluateLibraryFreshness
 import app.naviamp.domain.library.librarySyncCompletedStatus
@@ -14,13 +16,13 @@ import kotlinx.coroutines.withContext
 fun startAndroidLibrarySync(
     scope: CoroutineScope,
     state: AndroidAppState,
-    storage: AndroidStorage,
+    libraryIndexRepository: LocalLibraryIndexRepository,
     force: Boolean = false,
 ) {
     val activeProvider = state.provider ?: return
     val sourceId = state.activeSourceId ?: return
     if (state.isLibrarySyncing) return
-    if (!force && !shouldAutoSyncLibrary(storage.libraryIndexStats(sourceId))) {
+    if (!force && !shouldAutoSyncLibrary(libraryIndexRepository.libraryIndexStats(sourceId))) {
         state.libraryStatus = null
         return
     }
@@ -29,7 +31,7 @@ fun startAndroidLibrarySync(
     scope.launch {
         runCatching {
             withContext(Dispatchers.IO) {
-                syncAndroidLibrary(sourceId, activeProvider, storage) { progress ->
+                syncAndroidLibrary(sourceId, activeProvider, libraryIndexRepository) { progress ->
                     withContext(Dispatchers.Main) {
                         if (progress.artists != null) {
                             state.homeState = state.homeState.copy(artists = progress.artists)
@@ -41,7 +43,7 @@ fun startAndroidLibrarySync(
                     }
                 }
                 activeProvider.libraryScanStatus()?.signature?.let { signature ->
-                    storage.markLibraryScanChecked(sourceId, signature)
+                    libraryIndexRepository.markLibraryScanChecked(sourceId, signature)
                 }
             }
         }.onSuccess {
@@ -60,7 +62,8 @@ fun startAndroidLibrarySync(
 fun checkAndroidLibraryFreshness(
     scope: CoroutineScope,
     state: AndroidAppState,
-    storage: AndroidStorage,
+    mediaSourceRepository: MediaSourceRepository,
+    libraryIndexRepository: LocalLibraryIndexRepository,
 ) {
     val activeProvider = state.provider ?: return
     val sourceId = state.activeSourceId ?: return
@@ -70,14 +73,14 @@ fun checkAndroidLibraryFreshness(
             val scanStatus = activeProvider.libraryScanStatus()
             LibraryFreshness(
                 signature = scanStatus?.signature,
-                previousSignature = storage.mediaSource(sourceId)?.lastLibraryScanSignature,
+                previousSignature = mediaSourceRepository.mediaSource(sourceId)?.lastLibraryScanSignature,
                 scanning = scanStatus?.scanning == true,
             )
         }
         val update = freshness.evaluateLibraryFreshness(state.libraryStatus)
         update.signatureToMarkChecked?.let { signature ->
             withContext(Dispatchers.IO) {
-                storage.markLibraryScanChecked(sourceId, signature)
+                libraryIndexRepository.markLibraryScanChecked(sourceId, signature)
             }
         }
         update.status?.let { status ->
