@@ -56,6 +56,11 @@ data class PlaybackVolumeApplicationPlan(
     val directVolumeFactor: Float,
 )
 
+data class BassPlaybackFeatureSupport(
+    val supportsGapless: Boolean,
+    val supportsCrossfade: Boolean,
+)
+
 data class PreparedMixerTransitionPlan(
     val crossfadeDurationSeconds: Int,
     val durationMillis: Int,
@@ -87,6 +92,12 @@ fun crossfadeDurationMillis(seconds: Int): Int =
 
 fun shouldQueueMixerSources(crossfadeDurationSeconds: Int): Boolean =
     normalizedCrossfadeDurationSeconds(crossfadeDurationSeconds) <= 0
+
+fun bassPlaybackFeatureSupport(supportsMixer: Boolean): BassPlaybackFeatureSupport =
+    BassPlaybackFeatureSupport(
+        supportsGapless = supportsMixer,
+        supportsCrossfade = supportsMixer,
+    )
 
 fun planBassMixerCreation(
     sourceInfo: BassStreamInfo?,

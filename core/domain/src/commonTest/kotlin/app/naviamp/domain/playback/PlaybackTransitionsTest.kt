@@ -24,6 +24,24 @@ class PlaybackTransitionsTest {
     }
 
     @Test
+    fun mapsBassMixerCapabilityToPlaybackFeatureSupport() {
+        assertEquals(
+            BassPlaybackFeatureSupport(
+                supportsGapless = true,
+                supportsCrossfade = true,
+            ),
+            bassPlaybackFeatureSupport(supportsMixer = true),
+        )
+        assertEquals(
+            BassPlaybackFeatureSupport(
+                supportsGapless = false,
+                supportsCrossfade = false,
+            ),
+            bassPlaybackFeatureSupport(supportsMixer = false),
+        )
+    }
+
+    @Test
     fun plansBassMixerCreationFromSourceInfoWithFallbacks() {
         val sourcePlan = planBassMixerCreation(
             sourceInfo = BassStreamInfo(frequency = 48_000, channels = 6),

@@ -26,6 +26,7 @@ import app.naviamp.domain.bass.releaseReplacedBassSource
 import app.naviamp.domain.bass.seekBassPlaybackSource
 import app.naviamp.domain.bass.setBassPlaybackMuted
 import app.naviamp.domain.bass.stopAndReleaseBassPlayback
+import app.naviamp.domain.playback.bassPlaybackFeatureSupport
 import app.naviamp.domain.playback.canPrepareBassMixerSource
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
@@ -128,8 +129,10 @@ class AndroidBassPlaybackEngine(
     override val name: String = "BASS Android"
     override val supportsPause: Boolean = true
     override val supportsSeek: Boolean = true
-    override val supportsGapless: Boolean = bass.supportsMixer
-    override val supportsCrossfade: Boolean = bass.supportsMixer
+    private val featureSupport = bassPlaybackFeatureSupport(bass.supportsMixer)
+
+    override val supportsGapless: Boolean = featureSupport.supportsGapless
+    override val supportsCrossfade: Boolean = featureSupport.supportsCrossfade
     override val supportsReplayGain: Boolean = true
     override val supportsSoftwareVolume: Boolean = true
     override val prefersOriginalStream: Boolean = true

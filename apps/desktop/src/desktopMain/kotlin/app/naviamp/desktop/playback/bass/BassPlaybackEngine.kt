@@ -30,6 +30,7 @@ import app.naviamp.domain.bass.releaseReplacedBassSource
 import app.naviamp.domain.bass.seekBassPlaybackSource
 import app.naviamp.domain.bass.setEndSync
 import app.naviamp.domain.bass.stopAndReleaseBassPlayback
+import app.naviamp.domain.playback.bassPlaybackFeatureSupport
 import app.naviamp.domain.playback.canPrepareBassMixerSource
 import app.naviamp.domain.playback.clearPreparedPlaybackMetadata
 import app.naviamp.domain.playback.clearPlaybackStreamState
@@ -61,8 +62,10 @@ class BassPlaybackEngine(
     override val name: String = "BASS"
     override val supportsPause: Boolean = true
     override val supportsSeek: Boolean = true
-    override val supportsGapless: Boolean = backend?.supportsMixer == true
-    override val supportsCrossfade: Boolean = backend?.supportsMixer == true
+    private val featureSupport = bassPlaybackFeatureSupport(backend?.supportsMixer == true)
+
+    override val supportsGapless: Boolean = featureSupport.supportsGapless
+    override val supportsCrossfade: Boolean = featureSupport.supportsCrossfade
     override val supportsReplayGain: Boolean = true
     override val supportsVisualizer: Boolean = true
     override val supportsSoftwareVolume: Boolean = true
