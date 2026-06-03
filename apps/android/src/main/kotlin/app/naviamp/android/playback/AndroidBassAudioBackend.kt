@@ -152,12 +152,6 @@ class AndroidBassAudioBackend(
     override fun durationSeconds(stream: BassStreamHandle): Double? =
         bass.durationSeconds(stream.value)
 
-    override fun positionBytes(stream: BassStreamHandle): Long? =
-        bass.positionBytes(stream.value)
-
-    override fun secondsToBytes(stream: BassStreamHandle, seconds: Double): Long? =
-        bass.secondsToBytes(stream.value, seconds)
-
     override fun lengthBytes(stream: BassStreamHandle): Long? =
         bass.lengthBytes(stream.value)
 

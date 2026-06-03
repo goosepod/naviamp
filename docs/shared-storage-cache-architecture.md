@@ -177,7 +177,7 @@ Then higher-level repositories can be composed from those stores:
   - Shared BASS playback stream selection now chooses file/URL and direct/decode/playback-decode creation through `BassAudioBackend`; platforms only resolve local file paths.
   - Android playback now consumes `BassAudioBackend` for these primitives instead of raw `AndroidBassJni`; runtime still owns JNI loading and wraps it in the adapter.
   - Desktop playback now consumes `BassAudioBackend` for stream/control/progress/metadata/FFT/mixer primitives and diagnostics instead of raw `BassNative`; `BassNative` remains in the engine only as the platform connector used to create the backend.
-  - End sync and byte/second conversion are now modeled on `BassAudioBackend`.
+  - End sync is now modeled on `BassAudioBackend`; byte conversion remains inside platform seek implementations where it is needed.
   - Crossfade duration normalization and mixer queue-source decisions now live in common playback transition helpers and are used by desktop/Android playback where applicable.
   - Gapless/crossfade prepare-next capability/window/duplicate-prep decisions now live in common playback transition helpers; desktop and Android still own platform-specific URL/replaygain resolution.
   - ReplayGain mode selection, gain-to-volume conversion, peak clipping guard, and max-volume clamping now live in common playback helpers; desktop keeps diagnostics labels while Android applies the shared volume factor.
@@ -193,7 +193,7 @@ Then higher-level repositories can be composed from those stores:
   - BASS active-state constants and labels now live in common BASS helpers; platform engines use them for polling, diagnostics, and logging.
   - BASS active-state to playback-state mapping now lives in common playback helpers; platform engines keep stopped/end-of-track handling local.
   - BASS polling finished-state detection now lives in common playback helpers, combining active-state and progress-at-end checks.
-  - Android now exposes BASS byte position and seconds-to-bytes conversion through `BassAudioBackend`, matching desktop's seek/conversion primitives.
+  - Android now performs BASS seconds-to-bytes conversion inside its seek implementation, matching desktop without exposing unused byte-conversion facade methods.
   - Android now exposes mixer-channel removal through `BassAudioBackend`, matching desktop cleanup primitives.
   - Android now exposes BASS channel info through `BassAudioBackend` and uses it to size mixer playback from source frequency/channels like desktop.
   - Shared mixer creation planning now chooses source frequency/channels, fallback defaults, and queue-source policy for both desktop and Android.

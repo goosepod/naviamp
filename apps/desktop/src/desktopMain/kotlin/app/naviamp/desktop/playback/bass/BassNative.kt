@@ -206,10 +206,6 @@ class BassNative private constructor(
     fun positionSeconds(channel: Int): Double? =
         seconds(channel, library.BASS_ChannelGetPosition(channel, BassPosition.Byte))
 
-    fun positionBytes(channel: Int): Long? =
-        library.BASS_ChannelGetPosition(channel, BassPosition.Byte)
-            .takeIf { it >= 0L }
-
     fun durationSeconds(channel: Int): Double? =
         seconds(channel, library.BASS_ChannelGetLength(channel, BassPosition.Byte))
 
@@ -235,10 +231,6 @@ class BassNative private constructor(
             "BASS_ChannelSetPosition failed",
         )
     }
-
-    fun secondsToBytes(channel: Int, seconds: Double): Long? =
-        library.BASS_ChannelSeconds2Bytes(channel, seconds)
-            .takeIf { it >= 0L }
 
     fun readFloatData(channel: Int, buffer: FloatArray): Result<Int> {
         val bytesRead = library.BASS_ChannelGetData(

@@ -134,12 +134,6 @@ class DesktopBassAudioBackend(
     override fun durationSeconds(stream: BassStreamHandle): Double? =
         native.durationSeconds(stream.value)
 
-    override fun positionBytes(stream: BassStreamHandle): Long? =
-        native.positionBytes(stream.value)
-
-    override fun secondsToBytes(stream: BassStreamHandle, seconds: Double): Long? =
-        native.secondsToBytes(stream.value, seconds)
-
     override fun lengthBytes(stream: BassStreamHandle): Long? =
         native.lengthBytes(stream.value)
 

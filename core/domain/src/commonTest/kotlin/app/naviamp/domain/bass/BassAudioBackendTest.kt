@@ -684,13 +684,4 @@ private class RecordingBassAudioBackend(
         return Result.success(FloatArray(bins) { index -> index / bins.toFloat() })
     }
 
-    override fun positionBytes(stream: BassStreamHandle): Long? {
-        calls += "positionBytes:${stream.value}"
-        return 200L
-    }
-
-    override fun secondsToBytes(stream: BassStreamHandle, seconds: Double): Long? {
-        calls += "secondsToBytes:${stream.value}:$seconds"
-        return (seconds * 100).toLong()
-    }
 }

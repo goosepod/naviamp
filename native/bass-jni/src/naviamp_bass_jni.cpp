@@ -217,24 +217,6 @@ Java_app_naviamp_android_playback_AndroidBassJni_nativeRemoveMixerChannel(JNIEnv
     return BASS_Mixer_ChannelRemove(static_cast<DWORD>(stream)) ? JNI_TRUE : JNI_FALSE;
 }
 
-extern "C" JNIEXPORT jlong JNICALL
-Java_app_naviamp_android_playback_AndroidBassJni_nativePositionBytes(JNIEnv* env, jobject thiz, jint stream) {
-    (void)env;
-    (void)thiz;
-    QWORD bytes = BASS_ChannelGetPosition(static_cast<DWORD>(stream), BASS_POS_BYTE);
-    if (bytes == static_cast<QWORD>(-1)) return -1;
-    return static_cast<jlong>(bytes);
-}
-
-extern "C" JNIEXPORT jlong JNICALL
-Java_app_naviamp_android_playback_AndroidBassJni_nativeSecondsToBytes(JNIEnv* env, jobject thiz, jint stream, jdouble seconds) {
-    (void)env;
-    (void)thiz;
-    QWORD bytes = BASS_ChannelSeconds2Bytes(static_cast<DWORD>(stream), seconds);
-    if (bytes == static_cast<QWORD>(-1)) return -1;
-    return static_cast<jlong>(bytes);
-}
-
 extern "C" JNIEXPORT jboolean JNICALL
 Java_app_naviamp_android_playback_AndroidBassJni_nativeSlideVolume(JNIEnv* env, jobject thiz, jint stream, jfloat volume, jint millis) {
     (void)env;

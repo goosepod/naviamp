@@ -218,10 +218,6 @@ interface BassAudioBackend {
 
     fun durationSeconds(stream: BassStreamHandle): Double? = null
 
-    fun positionBytes(stream: BassStreamHandle): Long? = null
-
-    fun secondsToBytes(stream: BassStreamHandle, seconds: Double): Long? = null
-
     fun lengthBytes(stream: BassStreamHandle): Long?
 
     fun readFloatData(stream: BassStreamHandle, buffer: FloatArray): Result<Int>
