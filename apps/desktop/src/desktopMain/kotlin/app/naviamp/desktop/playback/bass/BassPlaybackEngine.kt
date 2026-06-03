@@ -366,18 +366,6 @@ class BassPlaybackEngine(
         }
     }
 
-    private fun takePreparedStream(request: PlaybackRequest): Int? {
-        val handle = preparedStream
-            .takeIf { shouldReusePreparedPlayback(preparedRequest, it != 0, request) }
-            ?: return null
-        val reset = clearPreparedPlaybackMetadata()
-        preparedStream = 0
-        preparedRequest = reset.request
-        preparedReplayGainAdjustment = reset.replayGainAdjustment
-        preparedError = reset.error
-        return handle
-    }
-
     private fun adoptQueuedPreparedStream(
         request: PlaybackRequest,
         onStateChanged: (PlaybackState) -> Unit,
