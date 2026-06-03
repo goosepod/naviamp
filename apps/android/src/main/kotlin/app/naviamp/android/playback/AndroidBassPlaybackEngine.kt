@@ -592,7 +592,7 @@ class AndroidBassPlaybackEngine(
         )
         if (!plan.shouldAdopt) return false
         currentSourceStream.takeIf { it != 0 && it != source }?.let {
-            bass.releaseBassStream(BassStreamHandle(it))
+            bass.releaseBassStream(it)
         }
         currentSourceStream = source
         replayGainFactor = preparedReplayGainFactor
@@ -608,7 +608,7 @@ class AndroidBassPlaybackEngine(
 
     private fun freePreparedStream() {
         preparedStream.takeIf { it != 0 }?.let {
-            bass.releaseBassStream(BassStreamHandle(it))
+            bass.releaseBassStream(it)
         }
         val reset = clearPreparedPlaybackMetadata()
         preparedStream = 0

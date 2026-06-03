@@ -216,6 +216,9 @@ fun BassAudioBackend.releaseBassStream(stream: BassStreamHandle): Result<Unit> {
     return freeStream(stream)
 }
 
+fun BassAudioBackend.releaseBassStream(stream: Int): Result<Unit> =
+    releaseBassStream(BassStreamHandle(stream))
+
 fun BassAudioBackend.releaseBassStreams(vararg handles: Int): List<Result<Unit>> =
     bassStreamHandlesForRelease(*handles).map(::releaseBassStream)
 

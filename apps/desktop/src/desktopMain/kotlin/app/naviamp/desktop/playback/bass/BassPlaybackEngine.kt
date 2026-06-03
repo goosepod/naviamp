@@ -386,7 +386,7 @@ class BassPlaybackEngine(
         )
         if (!plan.shouldAdopt) return false
         currentSourceStream.takeIf { it != 0 && it != queuedSource }?.let { finishedSource ->
-            bass.releaseBassStream(BassStreamHandle(finishedSource)).onFailure { lastError = it.message }
+            bass.releaseBassStream(finishedSource).onFailure { lastError = it.message }
         }
         currentSourceStream = queuedSource
         currentReplayGainAdjustment = preparedReplayGainAdjustment ?: PlaybackReplayGainAdjustment.off()
@@ -405,7 +405,7 @@ class BassPlaybackEngine(
         val handle = preparedStream
         val bass = backend
         if (bass != null && handle != 0) {
-            bass.releaseBassStream(BassStreamHandle(handle))
+            bass.releaseBassStream(handle)
                 .onFailure { lastError = it.message }
         }
         val reset = clearPreparedPlaybackMetadata()

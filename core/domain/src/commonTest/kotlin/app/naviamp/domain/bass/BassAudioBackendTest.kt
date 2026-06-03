@@ -78,6 +78,16 @@ class BassAudioBackendTest {
     }
 
     @Test
+    fun intReleaseHelperDelegatesToStreamHandleRelease() {
+        val backend = RecordingBassAudioBackend()
+
+        val result = backend.releaseBassStream(42)
+
+        assertTrue(result.isSuccess)
+        assertEquals(listOf("remove:42", "free:42"), backend.calls)
+    }
+
+    @Test
     fun intHandleHelpersDelegateToStreamHandleOperations() {
         val backend = RecordingBassAudioBackend()
 
