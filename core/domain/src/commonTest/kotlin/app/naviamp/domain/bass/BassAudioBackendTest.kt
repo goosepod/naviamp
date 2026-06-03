@@ -177,6 +177,35 @@ class BassAudioBackendTest {
     }
 
     @Test
+    fun createsLocalPlaybackDecodeStreamWhenRequested() {
+        val backend = RecordingBassAudioBackend()
+
+        val result = backend.createPlaybackStream(
+            localPath = "/tmp/song.flac",
+            url = "file:///tmp/song.flac",
+            decode = true,
+            playbackDecode = true,
+        )
+
+        assertEquals(BassStreamHandle(13), result.getOrThrow())
+        assertEquals(listOf("filePlaybackDecode:/tmp/song.flac"), backend.calls)
+    }
+
+    @Test
+    fun createsUrlPlaybackStreamWhenLocalPathIsAbsent() {
+        val backend = RecordingBassAudioBackend()
+
+        val result = backend.createPlaybackStream(
+            localPath = null,
+            url = "https://example.test/song.flac",
+            decode = false,
+        )
+
+        assertEquals(BassStreamHandle(11), result.getOrThrow())
+        assertEquals(listOf("url:https://example.test/song.flac"), backend.calls)
+    }
+
+    @Test
     fun preparedMixerTransitionAppliesEnvelopesWhenBytePositionsAreAvailable() {
         val backend = RecordingBassAudioBackend()
 
@@ -267,11 +296,30 @@ private class RecordingBassAudioBackend(
 ) : BassAudioBackend {
     val calls = mutableListOf<String>()
 
-    override fun createFileDecodeStream(path: String): Result<BassStreamHandle> =
-        error("Not used")
+    override fun createFileStream(path: String): Result<BassStreamHandle> {
+        calls += "file:$path"
+        return Result.success(BassStreamHandle(10))
+    }
 
-    override fun createUrlDecodeStream(url: String): Result<BassStreamHandle> =
-        error("Not used")
+    override fun createUrlStream(url: String): Result<BassStreamHandle> {
+        calls += "url:$url"
+        return Result.success(BassStreamHandle(11))
+    }
+
+    override fun createFileDecodeStream(path: String): Result<BassStreamHandle> {
+        calls += "fileDecode:$path"
+        return Result.success(BassStreamHandle(12))
+    }
+
+    override fun createFilePlaybackDecodeStream(path: String): Result<BassStreamHandle> {
+        calls += "filePlaybackDecode:$path"
+        return Result.success(BassStreamHandle(13))
+    }
+
+    override fun createUrlDecodeStream(url: String): Result<BassStreamHandle> {
+        calls += "urlDecode:$url"
+        return Result.success(BassStreamHandle(14))
+    }
 
     override fun lengthBytes(stream: BassStreamHandle): Long? =
         error("Not used")

@@ -22,6 +22,7 @@ import app.naviamp.domain.bass.bassErrorMessage
 import app.naviamp.domain.bass.bassPlaybackVisualizerFrame
 import app.naviamp.domain.bass.bassVersionLabel
 import app.naviamp.domain.bass.channelInfo
+import app.naviamp.domain.bass.createPlaybackStream
 import app.naviamp.domain.bass.durationSeconds
 import app.naviamp.domain.bass.pause
 import app.naviamp.domain.bass.play
@@ -420,16 +421,12 @@ class BassPlaybackEngine(
         decode: Boolean,
     ): Result<Int> {
         val localFile = localFileFromUrl(request.url)
-        val streamResult = if (localFile != null) {
-            if (decode) {
-                bass.createFilePlaybackDecodeStream(localFile.absolutePath)
-            } else {
-                bass.createFileStream(localFile.absolutePath)
-            }
-        } else {
-            if (decode) bass.createUrlDecodeStream(request.url) else bass.createUrlStream(request.url)
-        }
-        return streamResult.map { it.value }
+        return bass.createPlaybackStream(
+            localPath = localFile?.absolutePath,
+            url = request.url,
+            decode = decode,
+            playbackDecode = decode,
+        ).map { it.value }
     }
 
     private fun createDirectPlayback(

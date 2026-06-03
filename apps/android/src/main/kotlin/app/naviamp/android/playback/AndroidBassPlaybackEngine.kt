@@ -19,6 +19,7 @@ import app.naviamp.domain.bass.bassActiveStateLabel
 import app.naviamp.domain.bass.bassFailureMessage
 import app.naviamp.domain.bass.bassPlaybackVisualizerFrame
 import app.naviamp.domain.bass.channelInfo
+import app.naviamp.domain.bass.createPlaybackStream
 import app.naviamp.domain.bass.durationSeconds
 import app.naviamp.domain.bass.pause
 import app.naviamp.domain.bass.play
@@ -384,19 +385,11 @@ class AndroidBassPlaybackEngine(
 
     private fun createStream(url: String, decode: Boolean): Int {
         val file = localFileFromUrl(url)
-        return if (file != null) {
-            if (decode) {
-                bass.createFileDecodeStream(file.absolutePath)
-            } else {
-                bass.createFileStream(file.absolutePath)
-            }.getOrNull()?.value ?: 0
-        } else {
-            if (decode) {
-                bass.createUrlDecodeStream(url)
-            } else {
-                bass.createUrlStream(url)
-            }.getOrNull()?.value ?: 0
-        }
+        return bass.createPlaybackStream(
+            localPath = file?.absolutePath,
+            url = url,
+            decode = decode,
+        ).getOrNull()?.value ?: 0
     }
 
     private fun startProgressPolling(

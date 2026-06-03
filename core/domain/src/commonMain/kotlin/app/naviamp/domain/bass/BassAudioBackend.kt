@@ -269,6 +269,22 @@ fun BassAudioBackend.fft(stream: Int, bins: Int): Result<FloatArray> =
 fun BassAudioBackend.streamMetadata(stream: Int): Map<String, String> =
     streamMetadata(BassStreamHandle(stream))
 
+fun BassAudioBackend.createPlaybackStream(
+    localPath: String?,
+    url: String,
+    decode: Boolean,
+    playbackDecode: Boolean = false,
+): Result<BassStreamHandle> =
+    if (localPath != null) {
+        when {
+            decode && playbackDecode -> createFilePlaybackDecodeStream(localPath)
+            decode -> createFileDecodeStream(localPath)
+            else -> createFileStream(localPath)
+        }
+    } else {
+        if (decode) createUrlDecodeStream(url) else createUrlStream(url)
+    }
+
 fun BassAudioBackend.applyBassPlaybackVolume(
     outputStream: Int,
     sourceStream: Int,
