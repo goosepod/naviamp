@@ -15,6 +15,7 @@ constexpr DWORD DEVICE_BUFFER_MILLIS = 60;
 constexpr DWORD NETWORK_BUFFER_MILLIS = 5000;
 constexpr DWORD NETWORK_TIMEOUT_MILLIS = 15000;
 constexpr DWORD NETWORK_PREBUFFER_PERCENT = 75;
+constexpr DWORD NETWORK_PLAYLIST_DEPTH = 5;
 
 void configure_playback_buffers() {
     BASS_SetConfig(BASS_CONFIG_UPDATEPERIOD, UPDATE_PERIOD_MILLIS);
@@ -25,6 +26,18 @@ void configure_playback_buffers() {
     BASS_SetConfig(BASS_CONFIG_NET_PREBUF_WAIT, 1);
     BASS_SetConfig(BASS_CONFIG_NET_TIMEOUT, NETWORK_TIMEOUT_MILLIS);
     BASS_SetConfig(BASS_CONFIG_NET_READTIMEOUT, NETWORK_TIMEOUT_MILLIS);
+}
+
+BOOL configure_internet_streams() {
+    BOOL ok = TRUE;
+    ok = BASS_SetConfig(BASS_CONFIG_NET_PLAYLIST, 1) && ok;
+    ok = BASS_SetConfig(BASS_CONFIG_NET_META, 1) && ok;
+    ok = BASS_SetConfig(BASS_CONFIG_NET_PLAYLIST_DEPTH, NETWORK_PLAYLIST_DEPTH) && ok;
+    ok = BASS_SetConfig(BASS_CONFIG_NET_BUFFER, NETWORK_BUFFER_MILLIS) && ok;
+    ok = BASS_SetConfig(BASS_CONFIG_NET_PREBUF, NETWORK_PREBUFFER_PERCENT) && ok;
+    ok = BASS_SetConfig(BASS_CONFIG_NET_TIMEOUT, NETWORK_TIMEOUT_MILLIS) && ok;
+    ok = BASS_SetConfig(BASS_CONFIG_NET_READTIMEOUT, NETWORK_TIMEOUT_MILLIS) && ok;
+    return ok;
 }
 }
 
@@ -74,6 +87,13 @@ Java_app_naviamp_android_playback_AndroidBassJni_nativeSetVerifyNet(JNIEnv* env,
     (void)env;
     (void)thiz;
     return BASS_SetConfig(BASS_CONFIG_VERIFY_NET, verify == JNI_TRUE ? 1 : 0) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeConfigureInternetStreams(JNIEnv* env, jobject thiz) {
+    (void)env;
+    (void)thiz;
+    return configure_internet_streams() ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT jint JNICALL

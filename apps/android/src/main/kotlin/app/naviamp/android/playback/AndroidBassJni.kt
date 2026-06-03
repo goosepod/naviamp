@@ -22,6 +22,8 @@ object AndroidBassJni {
 
     fun setVerifyNet(verify: Boolean): Boolean = nativeSetVerifyNet(verify)
 
+    fun configureInternetStreams(): Boolean = nativeConfigureInternetStreams()
+
     fun createUrlStream(url: String): Int = nativeCreateUrlStream(url)
 
     fun createFileStream(path: String): Int = nativeCreateFileStream(path)
@@ -82,6 +84,7 @@ object AndroidBassJni {
     private external fun nativeInit(): Boolean
     private external fun nativeFree()
     private external fun nativeSetVerifyNet(verify: Boolean): Boolean
+    private external fun nativeConfigureInternetStreams(): Boolean
     private external fun nativeCreateUrlStream(url: String): Int
     private external fun nativeCreateFileStream(path: String): Int
     private external fun nativeCreateUrlDecodeStream(url: String): Int

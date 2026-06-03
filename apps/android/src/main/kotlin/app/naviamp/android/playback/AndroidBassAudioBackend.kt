@@ -32,6 +32,13 @@ class AndroidBassAudioBackend(
             Result.failure(IllegalStateException(errorMessage("BASS_SetConfig VERIFY_NET failed")))
         }
 
+    override fun configureInternetStreams(): Result<Unit> =
+        if (bass.configureInternetStreams()) {
+            Result.success(Unit)
+        } else {
+            Result.failure(IllegalStateException(errorMessage("BASS internet stream config failed")))
+        }
+
     override fun createFileStream(path: String): Result<BassStreamHandle> =
         bass.createFileStream(path)
             .toHandleResult("BASS_StreamCreateFile failed")

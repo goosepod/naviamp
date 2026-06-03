@@ -174,7 +174,8 @@ class AndroidBassPlaybackEngine(
                 bass.init().getOrThrow()
                 val verifyNet = !tlsSettings.insecureSkipTlsVerification
                 Log.i(Tag, "Opening BASS stream verifyNet=$verifyNet url=${request.url.sanitizedForLog()}")
-                bass.setVerifyNet(verifyNet)
+                bass.setVerifyNet(verifyNet).getOrThrow()
+                bass.configureInternetStreams().getOrThrow()
                 replayGainFactor = playbackReplayGainAdjustment(request).volumeFactor
                 val handle = if (request.mediaId != null) {
                     createMixerPlayback(request)
