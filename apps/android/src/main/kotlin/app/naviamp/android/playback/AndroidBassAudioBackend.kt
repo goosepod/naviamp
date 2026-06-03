@@ -7,6 +7,9 @@ import app.naviamp.domain.bass.BassStreamHandle
 class AndroidBassAudioBackend(
     private val bass: AndroidBassJni,
 ) : BassAudioBackend {
+    override val version: Int
+        get() = bass.version
+
     override val lastErrorCode: Int
         get() = bass.lastErrorCode
 

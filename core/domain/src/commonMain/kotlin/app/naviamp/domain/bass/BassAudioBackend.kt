@@ -33,6 +33,9 @@ data class BassPreparedMixerTransitionResult(
 )
 
 interface BassAudioBackend {
+    val version: Int?
+        get() = null
+
     val lastErrorCode: Int?
         get() = null
 

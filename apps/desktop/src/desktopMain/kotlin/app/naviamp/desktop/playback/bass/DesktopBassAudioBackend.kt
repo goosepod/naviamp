@@ -10,6 +10,9 @@ class DesktopBassAudioBackend(
 ) : BassAudioBackend {
     private val endSyncCallbacks: MutableMap<Int, BassSyncCallback> = mutableMapOf()
 
+    override val version: Int
+        get() = native.version
+
     override val lastErrorCode: Int
         get() = native.errorCode()
 
