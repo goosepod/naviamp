@@ -189,10 +189,10 @@ Branch: `codex/desktop-main-reduction`
   - Desktop and Android keep their platform-specific volume calls but now follow the same common plan.
 - [x] Share prepared mixer transition planning.
   - Queued-next and crossfade prepared streams now use common initial/final source volume, duration, and current-source fade decisions.
-  - Desktop still applies equal-power BASSmix envelopes where available; Android still uses BASS slide calls.
+  - Desktop and Android apply the prepared transition through `BassAudioBackend`, using BASSmix envelopes where available and volume-slide fallback.
 - [x] Share crossfade envelope point construction.
   - Equal-power fade-in/fade-out BASSmix envelope points now come from common playback helpers.
-  - Desktop still owns applying BASSmix envelopes and falling back to volume slides.
+  - Desktop and Android now expose BASSmix envelope application through the shared backend boundary.
 - [x] Share playback finished-position tolerance.
   - Common playback helpers now own the progress-at-end boundary used by platform BASS polling.
   - Android consumes it directly; desktop can use the same helper as its polling/end-sync logic is normalized further.
@@ -271,7 +271,7 @@ Branch: `codex/desktop-main-reduction`
 - Library sync status text, initial auto-sync decision, and library freshness polling cadence are now shared through `core/domain`.
 - Now-playing sidecar type keys, lyrics loading/error rules, waveform status labels, online-lyrics fetch decisions, and sidecar queue filtering are now shared through `core/domain`.
 - Waveform generation is BASS-backed on both desktop and Android, but the analyzer should become a shared interface/service before more waveform plumbing moves across platforms.
-  - `AudioWaveformAnalyzer` and `AudioWaveformAnalysisSource` now live in common domain, with desktop using `DesktopAudioWaveformAnalyzer` over `BassNative` and Android using `AndroidAudioWaveformAnalyzer` over `AndroidBassJni`.
+  - `AudioWaveformAnalyzer` and `AudioWaveformAnalysisSource` now live in common domain, with desktop and Android platform analyzers using `BassAudioBackend` adapters.
   - The waveform bucket algorithm now lives in common domain through `normalizeFloatPcmWaveform(...)`.
   - Desktop and Android both create BASS decode streams, ask BASS for stream byte length, read float PCM chunks, and call the same common bucket/normalization code.
   - First shared BASS access port is in place: `BassAudioBackend` hides desktop `BassNative` and Android `AndroidBassJni` for decode-stream waveform reads.
@@ -279,8 +279,8 @@ Branch: `codex/desktop-main-reduction`
   - Do not force Android into the current storage-shaped waveform repository contract; it needs `Track` and provider-stream context.
 - BASS usage should converge on a shared facade. Platform code may keep different bridge mechanics only at the lowest layer: desktop can wrap its native/JNA binding while Android wraps JNI, but playback, waveform, visualizer, tags, gapless, and crossfade should call shared interfaces wherever practical.
   - Android playback now uses the shared `BassAudioBackend` adapter for stream/control/progress/metadata/FFT primitives.
-  - Desktop playback now uses `BassAudioBackend` for stream/control/progress/metadata/FFT/mixer primitives; remaining raw `BassNative` references in the engine are load diagnostics and plugin reporting.
-  - Crossfade duration normalization, BASSmix queue-source decisions, and equal-power fade envelopes now live in common playback transition helpers instead of desktop-only playback code.
+  - Desktop playback now uses `BassAudioBackend` for stream/control/progress/metadata/FFT/mixer primitives and BASS version/load-path diagnostics; remaining raw `BassNative` references in the engine are load-state and plugin reporting.
+  - Crossfade duration normalization, BASSmix queue-source decisions, equal-power fade envelopes, and transition application now live behind shared helpers/backend calls instead of desktop-only playback code.
 - Naming convention: shared/common abstractions keep generic names, while platform adapters and platform-owned service files should use `Desktop` / `Android` prefixes.
   - Example: common `AudioWaveformAnalyzer`, desktop `DesktopAudioWaveformAnalyzer`, Android `AndroidAudioWaveformAnalyzer`.
   - Remaining desktop playback files without a platform prefix should be renamed in narrow slices when their references are touched.
