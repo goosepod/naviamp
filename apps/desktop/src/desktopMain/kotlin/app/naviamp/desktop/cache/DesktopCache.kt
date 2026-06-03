@@ -318,13 +318,13 @@ class DesktopCache(
         trackId: TrackId,
         quality: StreamQuality,
     ): AudioWaveform? =
-        ensureAudioWaveform(sourceId, trackId, quality, AudioWaveformAnalyzer())
+        ensureAudioWaveform(sourceId, trackId, quality, DesktopAudioWaveformAnalyzer())
 
     suspend fun ensureAudioWaveform(
         sourceId: String,
         trackId: TrackId,
         quality: StreamQuality,
-        analyzer: DomainAudioWaveformAnalyzer = AudioWaveformAnalyzer(),
+        analyzer: DomainAudioWaveformAnalyzer = DesktopAudioWaveformAnalyzer(),
     ): AudioWaveform? =
         withContext(Dispatchers.IO) {
             cachedAudioWaveform(sourceId, trackId, quality)?.let { return@withContext it }

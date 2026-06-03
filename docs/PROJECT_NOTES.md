@@ -205,7 +205,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - This opens a practical path to precomputed per-track analysis: waveform scrubber buckets, silence/intro/outro detection, loudness hints, beat/energy markers, cache-hit reporting, and better future offline/network-handoff behavior.
 - Waveform scrubber V1:
   - Desktop now has `cached_audio_waveform` metadata keyed by source, remote track ID, and stream quality.
-  - `AudioWaveformAnalyzer` uses resolved/bundled mpv as a decoder, writes a temporary mono 8 kHz WAV, parses 16-bit PCM amplitude peaks, normalizes them into compact buckets, then removes the temp file.
+  - `DesktopAudioWaveformAnalyzer` uses BASS through `BassNative` to decode audio and normalize compact waveform buckets.
   - The current-track waveform is generated only after a cached audio file exists; the UI keeps the normal Material slider until analysis is available.
   - The current-track waveform path actively caches/analyzes the now-playing file; it does not depend on the upcoming-track prefetch job finishing.
   - Restored sessions should keep an already loaded waveform when playback starts for the same track; only clear/reload waveform UI state when the track ID changes.

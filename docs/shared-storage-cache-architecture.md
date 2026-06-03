@@ -165,9 +165,13 @@ Then higher-level repositories can be composed from those stores:
 - [ ] Extract shared sidecar storage contracts.
   - Embedded lyrics, LRCLIB lyrics, waveform, ReplayGain/audio tag metadata, and sidecar status records should use shared repository names and status rules.
   - Waveform generation itself should be split into a shared analyzer interface instead of being hidden inside platform storage.
-    - First analyzer slice is complete: `AudioWaveformAnalyzer` and `AudioWaveformAnalysisSource` now live in common domain, with desktop and Android BASS-backed implementations.
+    - First analyzer slice is complete: `AudioWaveformAnalyzer` and `AudioWaveformAnalysisSource` now live in common domain, with `DesktopAudioWaveformAnalyzer` and `AndroidAudioWaveformAnalyzer` as BASS-backed implementations.
     - Next slice should introduce a shared waveform service that composes cached waveform lookup, local/downloaded audio preference, provider-stream fallback, TLS settings, analyzer calls, and persistence.
     - Avoid forcing Android into the current storage-shaped `AudioWaveformRepository.ensureAudioWaveform(sourceId, trackId, quality)` contract; Android needs `Track`, provider stream fallback, and playback cache behavior.
+- [ ] Normalize platform file/class names.
+  - Shared/common abstractions keep generic names.
+  - Platform adapters and platform-owned service files should use `Desktop` / `Android` prefixes.
+  - First cleanup slice: common `AudioWaveformAnalyzer`, desktop `DesktopAudioWaveformAnalyzer`, Android `AndroidAudioWaveformAnalyzer`.
 - [ ] Create a platform dependency registry/composition object.
   - Desktop builds repositories from desktop paths/settings.
   - Android builds repositories from app context/settings.

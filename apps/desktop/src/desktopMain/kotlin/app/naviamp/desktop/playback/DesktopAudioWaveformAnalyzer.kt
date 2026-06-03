@@ -11,7 +11,7 @@ import kotlin.io.path.exists
 import kotlin.math.abs
 import kotlin.math.sqrt
 
-class AudioWaveformAnalyzer(
+class DesktopAudioWaveformAnalyzer(
     private val nativeResult: Result<BassNative> = BassNative.load(),
     private val bucketCount: Int = DefaultWaveformBucketCount,
 ) : DomainAudioWaveformAnalyzer {
