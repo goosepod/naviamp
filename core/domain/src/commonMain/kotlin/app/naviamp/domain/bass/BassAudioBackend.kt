@@ -76,6 +76,9 @@ fun bassErrorMessage(code: Int): String =
         else -> "BASS error $code"
     }
 
+fun BassAudioBackend.bassFailureMessage(prefix: String): String =
+    "$prefix: ${lastErrorCode?.let(::bassErrorMessage) ?: "unknown BASS error"}"
+
 data class BassStreamInfo(
     val frequency: Int,
     val channels: Int,

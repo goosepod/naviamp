@@ -203,6 +203,7 @@ Then higher-level repositories can be composed from those stores:
   - Desktop and Android waveform URL analysis now call `BassAudioBackend.configureInternetStreams` before creating remote BASS decode streams.
   - BASS version label formatting now lives in common BASS helpers instead of desktop-only diagnostics code.
   - BASS error-code labels now live in common BASS helpers and are used by desktop diagnostics plus Android backend/playback errors.
+  - BASS backend failure-message formatting now lives in common BASS helpers; Android backend/playback errors use that shared path.
   - BASS native-library directory and BASSmix load-error diagnostics now hang off `BassAudioBackend`; desktop populates them and Android keeps the shared defaults.
   - Desktop active-stream diagnostics now ask `BassAudioBackend` for active state instead of reaching directly into `BassNative`.
   - Desktop loaded/failed plugin reporting now uses shared `BassPluginDiagnostic` rows exposed by `BassAudioBackend`.

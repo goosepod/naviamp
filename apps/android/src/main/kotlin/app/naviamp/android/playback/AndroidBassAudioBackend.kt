@@ -3,7 +3,7 @@ package app.naviamp.android.playback
 import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassStreamInfo
 import app.naviamp.domain.bass.BassStreamHandle
-import app.naviamp.domain.bass.bassErrorMessage
+import app.naviamp.domain.bass.bassFailureMessage
 
 class AndroidBassAudioBackend(
     private val bass: AndroidBassJni,
@@ -198,7 +198,7 @@ class AndroidBassAudioBackend(
         }
 
     private fun errorMessage(prefix: String): String =
-        "$prefix: ${bassErrorMessage(bass.lastErrorCode)}"
+        bassFailureMessage(prefix)
 
     private fun Int.toHandleResult(prefix: String): Result<BassStreamHandle> =
         takeIf { it != 0 }

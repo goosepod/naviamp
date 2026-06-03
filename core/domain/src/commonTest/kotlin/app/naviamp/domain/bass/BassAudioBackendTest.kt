@@ -38,6 +38,18 @@ class BassAudioBackendTest {
     }
 
     @Test
+    fun formatsBackendFailureMessages() {
+        assertEquals(
+            "BASS play failed: unknown BASS error",
+            RecordingBassAudioBackend(lastErrorCode = null).bassFailureMessage("BASS play failed"),
+        )
+        assertEquals(
+            "BASS play failed: invalid handle",
+            RecordingBassAudioBackend(lastErrorCode = 5).bassFailureMessage("BASS play failed"),
+        )
+    }
+
+    @Test
     fun plansDistinctNonZeroHandlesForRelease() {
         assertEquals(
             listOf(BassStreamHandle(10), BassStreamHandle(20)),
@@ -128,6 +140,7 @@ class BassAudioBackendTest {
 private class RecordingBassAudioBackend(
     private val removeSucceeds: Boolean = true,
     private val envelopeSucceeds: Boolean = true,
+    override val lastErrorCode: Int? = null,
 ) : BassAudioBackend {
     val calls = mutableListOf<String>()
 
