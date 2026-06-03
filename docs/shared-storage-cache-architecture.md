@@ -196,6 +196,7 @@ Then higher-level repositories can be composed from those stores:
   - Android now exposes BASS channel info through `BassAudioBackend` and uses it to size mixer playback from source frequency/channels like desktop.
   - Shared mixer creation planning now chooses source frequency/channels, fallback defaults, and queue-source policy for both desktop and Android.
   - Shared BASS stream-release helpers now remove mixer membership before freeing unique non-zero streams on both desktop and Android.
+  - Shared BASS Int-handle helper extensions now wrap `BassStreamHandle` conversion for playback/control/progress calls; desktop playback no longer carries local duplicates.
   - Android now exposes BASSmix volume envelopes through `BassAudioBackend` and uses the shared equal-power fade envelope points for crossfade prepare-next, with volume-slide fallback.
   - Android now applies the shared backend `configureInternetStreams` path before stream creation, matching desktop's BASS playlist/meta/depth network configuration.
   - BASS core version is now exposed through `BassAudioBackend` so diagnostics do not need to reach below the platform adapter for that primitive.

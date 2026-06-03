@@ -218,6 +218,51 @@ fun BassAudioBackend.releaseBassStream(stream: BassStreamHandle): Result<Unit> {
 fun BassAudioBackend.releaseBassStreams(vararg handles: Int): List<Result<Unit>> =
     bassStreamHandlesForRelease(*handles).map(::releaseBassStream)
 
+fun BassAudioBackend.play(stream: Int): Result<Unit> =
+    play(BassStreamHandle(stream))
+
+fun BassAudioBackend.pause(stream: Int): Result<Unit> =
+    pause(BassStreamHandle(stream))
+
+fun BassAudioBackend.stop(stream: Int): Result<Unit> =
+    stop(BassStreamHandle(stream))
+
+fun BassAudioBackend.activeState(stream: Int): Int =
+    activeState(BassStreamHandle(stream)) ?: BassActiveState.Stopped
+
+fun BassAudioBackend.addMixerChannel(mixer: Int, stream: Int): Result<Unit> =
+    addMixerChannel(BassStreamHandle(mixer), BassStreamHandle(stream))
+
+fun BassAudioBackend.setEndSync(
+    stream: Int,
+    callback: (BassStreamHandle) -> Unit,
+): Result<Int> =
+    setEndSync(BassStreamHandle(stream), callback)
+
+fun BassAudioBackend.setVolume(stream: Int, volume: Float): Result<Unit> =
+    setVolume(BassStreamHandle(stream), volume)
+
+fun BassAudioBackend.slideVolume(stream: Int, volume: Float, durationMillis: Int): Result<Unit> =
+    slideVolume(BassStreamHandle(stream), volume, durationMillis)
+
+fun BassAudioBackend.seek(stream: Int, seconds: Double): Result<Unit> =
+    seek(BassStreamHandle(stream), seconds)
+
+fun BassAudioBackend.positionSeconds(stream: Int): Double? =
+    positionSeconds(BassStreamHandle(stream))
+
+fun BassAudioBackend.durationSeconds(stream: Int): Double? =
+    durationSeconds(BassStreamHandle(stream))
+
+fun BassAudioBackend.channelInfo(stream: Int): Result<BassStreamInfo> =
+    channelInfo(BassStreamHandle(stream))
+
+fun BassAudioBackend.fft(stream: Int, bins: Int): Result<FloatArray> =
+    fft(BassStreamHandle(stream), bins)
+
+fun BassAudioBackend.streamMetadata(stream: Int): Map<String, String> =
+    streamMetadata(BassStreamHandle(stream))
+
 fun BassAudioBackend.applyPreparedBassMixerTransition(
     mixer: BassStreamHandle,
     nextSource: BassStreamHandle,

@@ -14,11 +14,24 @@ import app.naviamp.domain.bass.applyPreparedBassMixerTransition
 import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassStreamHandle
 import app.naviamp.domain.bass.BassActiveState
+import app.naviamp.domain.bass.activeState
+import app.naviamp.domain.bass.addMixerChannel
 import app.naviamp.domain.bass.bassActiveStateLabel
 import app.naviamp.domain.bass.bassErrorMessage
 import app.naviamp.domain.bass.bassVersionLabel
+import app.naviamp.domain.bass.channelInfo
+import app.naviamp.domain.bass.durationSeconds
+import app.naviamp.domain.bass.fft
+import app.naviamp.domain.bass.pause
+import app.naviamp.domain.bass.play
+import app.naviamp.domain.bass.positionSeconds
 import app.naviamp.domain.bass.releaseBassStream
 import app.naviamp.domain.bass.releaseBassStreams
+import app.naviamp.domain.bass.seek
+import app.naviamp.domain.bass.setEndSync
+import app.naviamp.domain.bass.setVolume
+import app.naviamp.domain.bass.stop
+import app.naviamp.domain.bass.streamMetadata
 import app.naviamp.domain.playback.clearPreparedPlaybackMetadata
 import app.naviamp.domain.playback.clearPlaybackStreamState
 import app.naviamp.domain.playback.failedPreparedPlaybackMetadata
@@ -559,51 +572,6 @@ class BassPlaybackEngine(
     private fun isCurrentPlayback(id: Int): Boolean =
         playbackId == id
 }
-
-private fun BassAudioBackend.play(stream: Int): Result<Unit> =
-    play(BassStreamHandle(stream))
-
-private fun BassAudioBackend.pause(stream: Int): Result<Unit> =
-    pause(BassStreamHandle(stream))
-
-private fun BassAudioBackend.stop(stream: Int): Result<Unit> =
-    stop(BassStreamHandle(stream))
-
-private fun BassAudioBackend.activeState(stream: Int): Int =
-    activeState(BassStreamHandle(stream)) ?: BassActiveState.Stopped
-
-private fun BassAudioBackend.addMixerChannel(mixer: Int, stream: Int): Result<Unit> =
-    addMixerChannel(BassStreamHandle(mixer), BassStreamHandle(stream))
-
-private fun BassAudioBackend.setEndSync(
-    stream: Int,
-    callback: (BassStreamHandle) -> Unit,
-): Result<Int> =
-    setEndSync(BassStreamHandle(stream), callback)
-
-private fun BassAudioBackend.setVolume(stream: Int, volume: Float): Result<Unit> =
-    setVolume(BassStreamHandle(stream), volume)
-
-private fun BassAudioBackend.slideVolume(stream: Int, volume: Float, durationMillis: Int): Result<Unit> =
-    slideVolume(BassStreamHandle(stream), volume, durationMillis)
-
-private fun BassAudioBackend.seek(stream: Int, seconds: Double): Result<Unit> =
-    seek(BassStreamHandle(stream), seconds)
-
-private fun BassAudioBackend.positionSeconds(stream: Int): Double? =
-    positionSeconds(BassStreamHandle(stream))
-
-private fun BassAudioBackend.durationSeconds(stream: Int): Double? =
-    durationSeconds(BassStreamHandle(stream))
-
-private fun BassAudioBackend.channelInfo(stream: Int) =
-    channelInfo(BassStreamHandle(stream))
-
-private fun BassAudioBackend.fft(stream: Int, bins: Int): Result<FloatArray> =
-    fft(BassStreamHandle(stream), bins)
-
-private fun BassAudioBackend.streamMetadata(stream: Int): Map<String, String> =
-    streamMetadata(BassStreamHandle(stream))
 
 private val PlaybackReplayGainAdjustment.label: String
     get() {

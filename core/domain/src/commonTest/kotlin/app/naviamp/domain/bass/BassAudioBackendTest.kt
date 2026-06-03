@@ -78,6 +78,18 @@ class BassAudioBackendTest {
     }
 
     @Test
+    fun intHandleHelpersDelegateToStreamHandleOperations() {
+        val backend = RecordingBassAudioBackend()
+
+        val volumeResult = backend.setVolume(7, 0.5f)
+        val activeState = backend.activeState(7)
+
+        assertTrue(volumeResult.isSuccess)
+        assertEquals(BassActiveState.Stopped, activeState)
+        assertEquals(listOf("volume:7:0.5"), backend.calls)
+    }
+
+    @Test
     fun preparedMixerTransitionAppliesEnvelopesWhenBytePositionsAreAvailable() {
         val backend = RecordingBassAudioBackend()
 
