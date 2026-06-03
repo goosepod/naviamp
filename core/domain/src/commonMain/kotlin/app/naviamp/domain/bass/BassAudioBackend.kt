@@ -506,6 +506,19 @@ fun BassAudioBackend.bassPlaybackSnapshot(
     )
 }
 
+fun BassAudioBackend.seekBassPlaybackSource(
+    playbackHandle: Int,
+    sourceHandle: Int,
+    seconds: Double,
+): Result<Unit> {
+    val target = playbackSourceHandle(playbackHandle, sourceHandle)
+    return if (target != 0) {
+        seek(target, seconds)
+    } else {
+        Result.failure(IllegalStateException("No BASS stream available to seek."))
+    }
+}
+
 fun BassAudioBackend.applyPreparedBassMixerTransition(
     mixer: BassStreamHandle,
     nextSource: BassStreamHandle,

@@ -180,6 +180,34 @@ class BassAudioBackendTest {
     }
 
     @Test
+    fun seeksBassPlaybackSourceHandleWhenPresent() {
+        val backend = RecordingBassAudioBackend()
+
+        val result = backend.seekBassPlaybackSource(
+            playbackHandle = 7,
+            sourceHandle = 8,
+            seconds = 12.5,
+        )
+
+        assertTrue(result.isSuccess)
+        assertEquals(listOf("seek:8:12.5"), backend.calls)
+    }
+
+    @Test
+    fun seekBassPlaybackSourceFailsWhenNoHandleExists() {
+        val backend = RecordingBassAudioBackend()
+
+        val result = backend.seekBassPlaybackSource(
+            playbackHandle = 0,
+            sourceHandle = 0,
+            seconds = 12.5,
+        )
+
+        assertTrue(result.isFailure)
+        assertEquals(emptyList(), backend.calls)
+    }
+
+    @Test
     fun mutesDistinctBassPlaybackStreams() {
         val backend = RecordingBassAudioBackend()
 
@@ -557,6 +585,11 @@ private class RecordingBassAudioBackend(
     override fun durationSeconds(stream: BassStreamHandle): Double {
         calls += "durationSeconds:${stream.value}"
         return 60.0
+    }
+
+    override fun seek(stream: BassStreamHandle, seconds: Double): Result<Unit> {
+        calls += "seek:${stream.value}:$seconds"
+        return Result.success(Unit)
     }
 
     override fun streamMetadata(stream: BassStreamHandle): Map<String, String> {

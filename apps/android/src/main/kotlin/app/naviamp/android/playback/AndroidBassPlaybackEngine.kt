@@ -23,7 +23,7 @@ import app.naviamp.domain.bass.play
 import app.naviamp.domain.bass.prepareNextBassMixerSource
 import app.naviamp.domain.bass.releaseBassStream
 import app.naviamp.domain.bass.releaseBassStreams
-import app.naviamp.domain.bass.seek
+import app.naviamp.domain.bass.seekBassPlaybackSource
 import app.naviamp.domain.bass.setBassPlaybackMuted
 import app.naviamp.domain.bass.stop
 import app.naviamp.domain.playback.PlaybackProgress
@@ -253,8 +253,8 @@ class AndroidBassPlaybackEngine(
     }
 
     private fun seekStreamPosition(positionSeconds: Double): Boolean {
-        val handle = playbackSourceHandle(stream, currentSourceStream).takeIf { it != 0 } ?: return false
-        val success = bass.seek(handle, positionSeconds).isSuccess
+        val handle = playbackSourceHandle(stream, currentSourceStream)
+        val success = bass.seekBassPlaybackSource(stream, currentSourceStream, positionSeconds).isSuccess
         Log.i(
             Tag,
             "BASS seek requested handle=$handle seconds=$positionSeconds success=$success error=${bass.lastErrorCode}",

@@ -26,7 +26,7 @@ import app.naviamp.domain.bass.play
 import app.naviamp.domain.bass.prepareNextBassMixerSource
 import app.naviamp.domain.bass.releaseBassStream
 import app.naviamp.domain.bass.releaseBassStreams
-import app.naviamp.domain.bass.seek
+import app.naviamp.domain.bass.seekBassPlaybackSource
 import app.naviamp.domain.bass.setEndSync
 import app.naviamp.domain.bass.stop
 import app.naviamp.domain.playback.clearPreparedPlaybackMetadata
@@ -467,11 +467,8 @@ class BassPlaybackEngine(
             .getOrNull()
 
     private fun seekCurrentSource(bass: BassAudioBackend, seconds: Double) {
-        val sourceHandle = playbackSourceHandle(stream, currentSourceStream)
-        if (sourceHandle != 0) {
-            bass.seek(sourceHandle, seconds)
-                .onFailure { lastError = it.message }
-        }
+        bass.seekBassPlaybackSource(stream, currentSourceStream, seconds)
+            .onFailure { lastError = it.message }
     }
 
     private fun freeAllStreams(bass: BassAudioBackend) {
