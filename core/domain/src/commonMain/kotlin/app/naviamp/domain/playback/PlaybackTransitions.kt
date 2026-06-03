@@ -139,6 +139,9 @@ fun playbackReplayGainAdjustment(request: PlaybackRequest): PlaybackReplayGainAd
     )
 }
 
+fun playbackReplayGainFactor(request: PlaybackRequest): Float =
+    playbackReplayGainAdjustment(request).volumeFactor
+
 fun shouldReusePreparedPlayback(
     preparedRequest: PlaybackRequest?,
     hasPreparedStream: Boolean,

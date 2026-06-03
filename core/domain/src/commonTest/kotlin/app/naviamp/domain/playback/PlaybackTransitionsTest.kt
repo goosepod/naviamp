@@ -110,26 +110,26 @@ class PlaybackTransitionsTest {
 
     @Test
     fun computesReplayGainAdjustmentForTrackMode() {
-        val adjustment = playbackReplayGainAdjustment(
-            PlaybackRequest(
-                url = "file:///track.flac",
-                replayGainMode = ReplayGainMode.Track,
-                replayGain = PlaybackReplayGain(
-                    replayGain = ReplayGain(
-                        trackGainDb = -6.0,
-                        albumGainDb = -3.0,
-                        trackPeak = null,
-                        albumPeak = null,
-                    ),
-                    source = ReplayGainSource.Provider,
+        val request = PlaybackRequest(
+            url = "file:///track.flac",
+            replayGainMode = ReplayGainMode.Track,
+            replayGain = PlaybackReplayGain(
+                replayGain = ReplayGain(
+                    trackGainDb = -6.0,
+                    albumGainDb = -3.0,
+                    trackPeak = null,
+                    albumPeak = null,
                 ),
+                source = ReplayGainSource.Provider,
             ),
         )
+        val adjustment = playbackReplayGainAdjustment(request)
 
         assertEquals(ReplayGainMode.Track, adjustment.mode)
         assertEquals(ReplayGainSource.Provider, adjustment.source)
         assertEquals(-6.0, adjustment.gainDb)
         assertEquals(0.5011872f, adjustment.volumeFactor, absoluteTolerance = 0.000001f)
+        assertEquals(0.5011872f, playbackReplayGainFactor(request), absoluteTolerance = 0.000001f)
     }
 
     @Test

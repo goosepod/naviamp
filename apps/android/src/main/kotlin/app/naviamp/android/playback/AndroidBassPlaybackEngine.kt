@@ -39,7 +39,7 @@ import app.naviamp.domain.playback.clearPlaybackStreamState
 import app.naviamp.domain.playback.failedPreparedPlaybackMetadata
 import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
 import app.naviamp.domain.playback.planPreparedPlaybackAdoption
-import app.naviamp.domain.playback.playbackReplayGainAdjustment
+import app.naviamp.domain.playback.playbackReplayGainFactor
 import app.naviamp.domain.playback.playbackSourceHandle
 import app.naviamp.domain.playback.playbackStartSeekPosition
 import app.naviamp.domain.playback.playbackStateForBassActiveState
@@ -327,7 +327,7 @@ class AndroidBassPlaybackEngine(
             bass.init().getOrThrow()
             val mixer = stream.takeIf { it != 0 } ?: return
             currentSourceStream.takeIf { it != 0 } ?: return
-            val nextReplayGain = playbackReplayGainAdjustment(request).volumeFactor
+            val nextReplayGain = playbackReplayGainFactor(request)
             val file = localFileFromUrl(request.url)
             val prepared = bass.prepareNextBassMixerSource(
                 localPath = file?.absolutePath,
@@ -357,13 +357,12 @@ class AndroidBassPlaybackEngine(
 
     private fun createPlayback(request: PlaybackRequest, useMixer: Boolean): Int {
         val file = localFileFromUrl(request.url)
-        val adjustment = playbackReplayGainAdjustment(request)
         val playback = bass.createBassPlayback(
             localPath = file?.absolutePath,
             url = request.url,
             useMixer = useMixer,
             crossfadeDurationSeconds = crossfadeDurationSeconds,
-            replayGainFactor = adjustment.volumeFactor,
+            replayGainFactor = playbackReplayGainFactor(request),
         ).getOrThrow()
         currentSourceStream = playback.sourceHandle
         replayGainFactor = playback.replayGainFactor
