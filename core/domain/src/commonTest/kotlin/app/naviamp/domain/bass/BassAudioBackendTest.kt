@@ -50,6 +50,15 @@ class BassAudioBackendTest {
     }
 
     @Test
+    fun formatsBassStreamActiveStateLabelWithFallback() {
+        val backend = RecordingBassAudioBackend()
+
+        assertEquals("No stream", backend.bassStreamActiveStateLabel(0, "No stream"))
+        assertEquals("Playing", backend.bassStreamActiveStateLabel(7, "No stream"))
+        assertEquals(listOf("active:7"), backend.calls)
+    }
+
+    @Test
     fun plansDistinctNonZeroHandlesForRelease() {
         assertEquals(
             listOf(BassStreamHandle(10), BassStreamHandle(20)),

@@ -15,10 +15,10 @@ import app.naviamp.domain.bass.BassStreamHandle
 import app.naviamp.domain.bass.BassActiveState
 import app.naviamp.domain.bass.activeState
 import app.naviamp.domain.bass.applyBassPlaybackVolume
-import app.naviamp.domain.bass.bassActiveStateLabel
 import app.naviamp.domain.bass.bassErrorMessage
 import app.naviamp.domain.bass.bassPlaybackSnapshot
 import app.naviamp.domain.bass.bassPlaybackVisualizerFrame
+import app.naviamp.domain.bass.bassStreamActiveStateLabel
 import app.naviamp.domain.bass.bassVersionLabel
 import app.naviamp.domain.bass.createBassPlayback
 import app.naviamp.domain.bass.pause
@@ -308,12 +308,8 @@ class BassPlaybackEngine(
                 .joinToString(", ") { plugin ->
                     "${plugin.stem} (${plugin.errorCode?.let(::bassErrorMessage) ?: "unknown"})"
                 }.ifBlank { "None" },
-            "Active state" to backend?.let { bass ->
-                stream.takeIf { it != 0 }?.let { bassActiveStateLabel(bass.activeState(it)) }
-            }.orEmpty().ifBlank { "No stream" },
-            "Active source state" to backend?.let { bass ->
-                currentSourceStream.takeIf { it != 0 }?.let { bassActiveStateLabel(bass.activeState(it)) }
-            }.orEmpty().ifBlank { "No source" },
+            "Active state" to (backend?.bassStreamActiveStateLabel(stream, "No stream") ?: "No stream"),
+            "Active source state" to (backend?.bassStreamActiveStateLabel(currentSourceStream, "No source") ?: "No source"),
             "ReplayGain mode" to currentReplayGainAdjustment.mode.displayName,
             "ReplayGain source" to (currentReplayGainAdjustment.source?.displayName ?: "None"),
             "ReplayGain applied" to currentReplayGainAdjustment.label,

@@ -223,6 +223,7 @@ Then higher-level repositories can be composed from those stores:
   - Prepared-next mixer source setup now uses a shared backend helper for queued source creation, transition planning/application, crossfade-active reporting, and envelope fallback reporting.
   - Direct-vs-mixer BASS playback creation now flows through a shared backend selector; platforms only decide whether mixer playback applies for the request.
   - Playback start-seek position filtering now lives in common playback helpers, so desktop and Android use the same positive-position boundary before asking BASS to seek.
+  - BASS stream active-state diagnostic labeling now lives in common backend helpers instead of desktop formatting raw active-state values directly.
   - Still to normalize further: crossfade transition state reset and remaining transition application details should continue moving from platform playback engines into shared planning/services.
   - Keep JNI/JNA/native-loader details under platform adapters unless a single native bridge is proven simpler across all targets.
 - [ ] Normalize platform file/class names.
