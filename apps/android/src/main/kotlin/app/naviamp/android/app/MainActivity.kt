@@ -67,6 +67,7 @@ import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.playback.PlaybackAdjacentAction
 import app.naviamp.domain.playback.planPlaybackAdjacentAction
+import app.naviamp.domain.playback.planPrepareNextPlayback
 import app.naviamp.domain.playback.planPlaybackSeek
 import app.naviamp.domain.playback.canReportPlaybackTrack
 import app.naviamp.domain.playback.shouldSubmitPlayReport
@@ -401,20 +402,19 @@ private fun NaviampAndroidApp(
 
     fun prepareNextIfNeeded(sessionToken: Long, progress: PlaybackProgress) {
         val queueAwareEngine = playbackEngine as? QueueAwarePlaybackEngine ?: return
-        val canPrepareForCrossfade = playbackSettings.crossfadeDurationSeconds > 0 && playbackEngine.supportsCrossfade
-        val canPrepareForGapless = playbackSettings.gaplessEnabled && playbackEngine.supportsGapless
-        if (!canPrepareForCrossfade && !canPrepareForGapless) return
-        val position = progress.positionSeconds ?: return
-        val duration = progress.durationSeconds ?: return
-        val prepareWindowSeconds = if (canPrepareForCrossfade) {
-            playbackSettings.crossfadeDurationSeconds.toDouble()
-        } else {
-            AndroidGaplessPrepareWindowSeconds
-        }
-        if (duration - position > prepareWindowSeconds) return
         val nextIndex = nextQueueIndex() ?: return
+        val plan = planPrepareNextPlayback(
+            progress = progress,
+            nextQueueIndex = nextIndex,
+            alreadyPreparedNext = !playbackQueueController.shouldPrepareNext(nextIndex),
+            gaplessEnabled = playbackSettings.gaplessEnabled,
+            supportsGapless = playbackEngine.supportsGapless,
+            crossfadeDurationSeconds = playbackSettings.crossfadeDurationSeconds,
+            supportsCrossfade = playbackEngine.supportsCrossfade,
+            gaplessPrepareWindowSeconds = AndroidGaplessPrepareWindowSeconds,
+        )
+        if (!plan.shouldPrepare) return
         val nextTrack = activeQueue().getOrNull(nextIndex) ?: return
-        if (!playbackQueueController.shouldPrepareNext(nextIndex)) return
         val activeProvider = provider ?: return
         val sourceId = activeSourceId
         playbackQueueController.markPreparedNext(nextIndex)

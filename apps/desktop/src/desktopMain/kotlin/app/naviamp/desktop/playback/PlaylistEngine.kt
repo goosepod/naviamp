@@ -31,6 +31,7 @@ import app.naviamp.domain.playback.SidecarTypeLrclibLyrics
 import app.naviamp.domain.playback.SidecarTypeProviderLyrics
 import app.naviamp.domain.playback.SidecarTypeWaveform
 import app.naviamp.domain.playback.emptyPlaybackAudioAssetRepository
+import app.naviamp.domain.playback.planPrepareNextPlayback
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
@@ -566,22 +567,21 @@ class PlaylistEngine(
         activeSessionId: Int,
     ) {
         val queueAwareEngine = playbackEngine as? QueueAwarePlaybackEngine ?: return
-        val canPrepareForCrossfade = crossfadeSettings.isActive && playbackEngine.supportsCrossfade
-        val canPrepareForGapless = gaplessEnabled && playbackEngine.supportsGapless
         val nextIndex = queueController.nextGaplessQueueIndex() ?: return
-        if (!canPrepareForCrossfade && !canPrepareForGapless) return
-        val position = progress.positionSeconds ?: return
-        val duration = progress.durationSeconds ?: return
-        val prepareWindowSeconds = if (canPrepareForCrossfade) {
-            crossfadeSettings.durationSeconds.toDouble()
-        } else {
-            GaplessPrepareWindowSeconds
-        }
-        if (duration - position > prepareWindowSeconds) return
+        val plan = planPrepareNextPlayback(
+            progress = progress,
+            nextQueueIndex = nextIndex,
+            alreadyPreparedNext = !queueController.shouldPrepareNext(nextIndex),
+            gaplessEnabled = gaplessEnabled,
+            supportsGapless = playbackEngine.supportsGapless,
+            crossfadeDurationSeconds = crossfadeSettings.durationSeconds,
+            supportsCrossfade = playbackEngine.supportsCrossfade,
+            gaplessPrepareWindowSeconds = GaplessPrepareWindowSeconds,
+        )
+        if (!plan.shouldPrepare) return
 
         val currentProvider = provider ?: return
         val currentQuality = streamQuality ?: return
-        if (!queueController.shouldPrepareNext(nextIndex)) return
         queueController.markPreparedNext(nextIndex)
         val nextTrack = queue.tracks.getOrNull(nextIndex) ?: return
 

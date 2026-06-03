@@ -20,6 +20,72 @@ class PlaybackTransitionsTest {
     }
 
     @Test
+    fun plansCrossfadePrepareNextWhenInsideCrossfadeWindow() {
+        val plan = planPrepareNextPlayback(
+            progress = PlaybackProgress(positionSeconds = 96.0, durationSeconds = 100.0),
+            nextQueueIndex = 1,
+            alreadyPreparedNext = false,
+            gaplessEnabled = true,
+            supportsGapless = true,
+            crossfadeDurationSeconds = 5,
+            supportsCrossfade = true,
+            gaplessPrepareWindowSeconds = 2.0,
+        )
+
+        assertTrue(plan.shouldPrepare)
+        assertEquals(PrepareNextPlaybackReason.Crossfade, plan.reason)
+        assertEquals(5.0, plan.prepareWindowSeconds)
+    }
+
+    @Test
+    fun plansGaplessPrepareNextWhenCrossfadeIsUnavailable() {
+        val plan = planPrepareNextPlayback(
+            progress = PlaybackProgress(positionSeconds = 99.0, durationSeconds = 100.0),
+            nextQueueIndex = 1,
+            alreadyPreparedNext = false,
+            gaplessEnabled = true,
+            supportsGapless = true,
+            crossfadeDurationSeconds = 5,
+            supportsCrossfade = false,
+            gaplessPrepareWindowSeconds = 2.0,
+        )
+
+        assertTrue(plan.shouldPrepare)
+        assertEquals(PrepareNextPlaybackReason.Gapless, plan.reason)
+        assertEquals(2.0, plan.prepareWindowSeconds)
+    }
+
+    @Test
+    fun skipsPrepareNextWhenAlreadyPreparedOrProgressIsUnknown() {
+        assertEquals(
+            false,
+            planPrepareNextPlayback(
+                progress = PlaybackProgress(positionSeconds = 99.0, durationSeconds = 100.0),
+                nextQueueIndex = 1,
+                alreadyPreparedNext = true,
+                gaplessEnabled = true,
+                supportsGapless = true,
+                crossfadeDurationSeconds = 0,
+                supportsCrossfade = true,
+                gaplessPrepareWindowSeconds = 2.0,
+            ).shouldPrepare,
+        )
+        assertEquals(
+            false,
+            planPrepareNextPlayback(
+                progress = PlaybackProgress.Unknown,
+                nextQueueIndex = 1,
+                alreadyPreparedNext = false,
+                gaplessEnabled = true,
+                supportsGapless = true,
+                crossfadeDurationSeconds = 0,
+                supportsCrossfade = true,
+                gaplessPrepareWindowSeconds = 2.0,
+            ).shouldPrepare,
+        )
+    }
+
+    @Test
     fun buildsEqualPowerFadeInEnvelope() {
         val envelope = equalPowerFadeEnvelope(
             startBytes = 10,
