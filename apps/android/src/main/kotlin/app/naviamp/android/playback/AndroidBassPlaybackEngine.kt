@@ -8,6 +8,8 @@ import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.util.Log
+import app.naviamp.domain.bass.BassAudioBackend
+import app.naviamp.domain.bass.BassStreamHandle
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
@@ -28,7 +30,7 @@ import kotlin.math.pow
 
 class AndroidBassPlaybackEngine(
     context: Context,
-    private val bass: AndroidBassJni,
+    private val bass: BassAudioBackend,
 ) : AndroidPlaybackEngine, QueueAwarePlaybackEngine, VisualizerPlaybackEngine {
     private val appContext = context.applicationContext
     private val audioManager = appContext.getSystemService(AudioManager::class.java)
@@ -152,7 +154,7 @@ class AndroidBassPlaybackEngine(
 
         scope.launch(Dispatchers.IO) {
             try {
-                check(bass.init()) { errorMessage("BASS_Init failed") }
+                bass.init().getOrThrow()
                 val verifyNet = !tlsSettings.insecureSkipTlsVerification
                 Log.i(Tag, "Opening BASS stream verifyNet=$verifyNet url=${request.url.sanitizedForLog()}")
                 bass.setVerifyNet(verifyNet)
@@ -295,7 +297,7 @@ class AndroidBassPlaybackEngine(
         if (preparedRequest == request && preparedStream != 0) return
         freePreparedStream()
         runCatching {
-            check(bass.init()) { errorMessage("BASS_Init failed") }
+            bass.init().getOrThrow()
             val mixer = stream.takeIf { it != 0 } ?: return
             currentSourceStream.takeIf { it != 0 } ?: return
             val source = createStream(request.url, decode = true)
@@ -330,7 +332,7 @@ class AndroidBassPlaybackEngine(
             frequency = DefaultMixerFrequency,
             channels = DefaultMixerChannels,
             queueSources = crossfadeDurationSeconds <= 0,
-        )
+        ).getOrNull()?.value ?: 0
         check(mixer != 0) { errorMessage("BASS_Mixer_StreamCreate failed") }
         check(bass.addMixerChannel(mixer, source)) { errorMessage("BASS_Mixer_StreamAddChannel failed") }
         stream = mixer
@@ -340,9 +342,17 @@ class AndroidBassPlaybackEngine(
     private fun createStream(url: String, decode: Boolean): Int {
         val file = localFileFromUrl(url)
         return if (file != null) {
-            if (decode) bass.createFileDecodeStream(file.absolutePath) else bass.createFileStream(file.absolutePath)
+            if (decode) {
+                bass.createFileDecodeStream(file.absolutePath)
+            } else {
+                bass.createFileStream(file.absolutePath)
+            }.getOrNull()?.value ?: 0
         } else {
-            if (decode) bass.createUrlDecodeStream(url) else bass.createUrlStream(url)
+            if (decode) {
+                bass.createUrlDecodeStream(url)
+            } else {
+                bass.createUrlStream(url)
+            }.getOrNull()?.value ?: 0
         }
     }
 
@@ -370,7 +380,7 @@ class AndroidBassPlaybackEngine(
                     )
                 }
                 onProgressChanged?.invoke(progress)
-                val metadata = PlaybackStreamMetadata.fromProperties(bass.streamTags(progressHandle).toStreamProperties())
+                val metadata = PlaybackStreamMetadata.fromProperties(bass.streamMetadata(progressHandle))
                 if (metadata != lastMetadata) {
                     lastMetadata = metadata
                     onMetadataChanged?.invoke(metadata)
@@ -614,30 +624,44 @@ private fun Int.bassActiveStateName(): String =
         else -> toString()
     }
 
-private fun Array<String>.toStreamProperties(): Map<String, String> =
-    buildMap {
-        this@toStreamProperties.forEach { tag ->
-            val equalsIndex = tag.indexOf('=').takeIf { it > 0 }
-            val colonIndex = tag.indexOf(':').takeIf { it > 0 }
-            val separator = equalsIndex ?: colonIndex ?: return@forEach
-            if (separator > 0) {
-                val key = tag.take(separator).trim().trim('\'', '"')
-                val value = tag.drop(separator + 1).trim().trim('\'', '"').icyStreamTitleValue()
-                if (key.isNotBlank() && value.isNotBlank()) {
-                    put(key, value)
-                }
-            }
-        }
-    }
+private fun BassAudioBackend.addMixerChannel(mixer: Int, stream: Int): Boolean =
+    addMixerChannel(BassStreamHandle(mixer), BassStreamHandle(stream)).isSuccess
 
-private fun String.icyStreamTitleValue(): String {
-    val key = "StreamTitle='"
-    val start = indexOf(key)
-    if (start < 0) return this
-    val titleStart = start + key.length
-    val titleEnd = indexOf("';", titleStart).takeIf { it >= 0 } ?: indexOf("'", titleStart)
-    return if (titleEnd > titleStart) substring(titleStart, titleEnd).trim() else this
-}
+private fun BassAudioBackend.play(stream: Int): Boolean =
+    play(BassStreamHandle(stream)).isSuccess
+
+private fun BassAudioBackend.pause(stream: Int): Boolean =
+    pause(BassStreamHandle(stream)).isSuccess
+
+private fun BassAudioBackend.stop(stream: Int): Boolean =
+    stop(BassStreamHandle(stream)).isSuccess
+
+private fun BassAudioBackend.freeStream(stream: Int): Boolean =
+    freeStream(BassStreamHandle(stream)).isSuccess
+
+private fun BassAudioBackend.activeState(stream: Int): Int =
+    activeState(BassStreamHandle(stream)) ?: BassActiveStopped
+
+private fun BassAudioBackend.setVolume(stream: Int, volume: Float): Boolean =
+    setVolume(BassStreamHandle(stream), volume).isSuccess
+
+private fun BassAudioBackend.slideVolume(stream: Int, volume: Float, millis: Int): Boolean =
+    slideVolume(BassStreamHandle(stream), volume, millis).isSuccess
+
+private fun BassAudioBackend.seek(stream: Int, seconds: Double): Boolean =
+    seek(BassStreamHandle(stream), seconds).isSuccess
+
+private fun BassAudioBackend.positionSeconds(stream: Int): Double? =
+    positionSeconds(BassStreamHandle(stream))
+
+private fun BassAudioBackend.durationSeconds(stream: Int): Double? =
+    durationSeconds(BassStreamHandle(stream))
+
+private fun BassAudioBackend.fft(stream: Int, bins: Int): FloatArray =
+    fft(BassStreamHandle(stream), bins).getOrNull() ?: FloatArray(0)
+
+private fun BassAudioBackend.streamMetadata(stream: Int): Map<String, String> =
+    streamMetadata(BassStreamHandle(stream))
 
 private fun FloatArray.toVisualizerFrame(): PlaybackVisualizerFrame? {
     if (isEmpty()) return null
