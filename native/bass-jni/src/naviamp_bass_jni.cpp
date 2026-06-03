@@ -55,6 +55,13 @@ Java_app_naviamp_android_playback_AndroidBassJni_nativeBassVersion(JNIEnv* env, 
 }
 
 extern "C" JNIEXPORT jint JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeMixerVersion(JNIEnv* env, jobject thiz) {
+    (void)env;
+    (void)thiz;
+    return static_cast<jint>(BASS_Mixer_GetVersion());
+}
+
+extern "C" JNIEXPORT jint JNICALL
 Java_app_naviamp_android_playback_AndroidBassJni_nativeLastErrorCode(JNIEnv* env, jobject thiz) {
     (void)env;
     (void)thiz;

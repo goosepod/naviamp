@@ -10,6 +10,9 @@ class AndroidBassAudioBackend(
     override val version: Int
         get() = bass.version
 
+    override val mixerVersion: Int
+        get() = bass.mixerVersion
+
     override val lastErrorCode: Int
         get() = bass.lastErrorCode
 

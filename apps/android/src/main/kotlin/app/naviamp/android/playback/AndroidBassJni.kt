@@ -13,6 +13,9 @@ object AndroidBassJni {
     val version: Int
         get() = nativeBassVersion()
 
+    val mixerVersion: Int
+        get() = nativeMixerVersion()
+
     val lastErrorCode: Int
         get() = nativeLastErrorCode()
 
@@ -80,6 +83,7 @@ object AndroidBassJni {
     fun readFloatData(stream: Int, buffer: FloatArray): Int = nativeReadFloatData(stream, buffer)
 
     private external fun nativeBassVersion(): Int
+    private external fun nativeMixerVersion(): Int
     private external fun nativeLastErrorCode(): Int
     private external fun nativeInit(): Boolean
     private external fun nativeFree()

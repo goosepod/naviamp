@@ -199,6 +199,7 @@ Then higher-level repositories can be composed from those stores:
   - Android now exposes BASSmix volume envelopes through `BassAudioBackend` and uses the shared equal-power fade envelope points for crossfade prepare-next, with volume-slide fallback.
   - Android now applies the shared backend `configureInternetStreams` path before stream creation, matching desktop's BASS playlist/meta/depth network configuration.
   - BASS core version is now exposed through `BassAudioBackend` so diagnostics do not need to reach below the platform adapter for that primitive.
+  - BASSmix version is now exposed through `BassAudioBackend`; Android wraps `BASS_Mixer_GetVersion` through JNI and desktop wraps the existing native binding.
   - Still to normalize further: crossfade transition state reset and remaining transition application details should continue moving from platform playback engines into shared planning/services.
   - Keep JNI/JNA/native-loader details under platform adapters unless a single native bridge is proven simpler across all targets.
 - [ ] Normalize platform file/class names.

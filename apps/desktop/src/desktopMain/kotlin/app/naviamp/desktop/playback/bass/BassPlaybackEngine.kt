@@ -293,7 +293,7 @@ class BassPlaybackEngine(
         listOf(
             "BASS load state" to if (native != null) "Loaded" else "Unavailable",
             "BASS version" to (backend?.version?.let(::bassVersionLabel) ?: "Unknown"),
-            "BASSmix version" to (native?.mixerVersion?.let(::bassVersionLabel) ?: "Unavailable"),
+            "BASSmix version" to (backend?.mixerVersion?.let(::bassVersionLabel) ?: "Unavailable"),
             "BASSmix error" to (native?.mixerError ?: "None"),
             "BASS directory" to (native?.libraryDirectory?.absolutePath ?: "Not resolved"),
             "Loaded plugins" to plugins.filter { it.loaded }.joinToString(", ") { it.stem }.ifBlank { "None" },

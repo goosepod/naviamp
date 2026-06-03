@@ -13,6 +13,9 @@ class DesktopBassAudioBackend(
     override val version: Int
         get() = native.version
 
+    override val mixerVersion: Int?
+        get() = native.mixerVersion
+
     override val lastErrorCode: Int
         get() = native.errorCode()
 
