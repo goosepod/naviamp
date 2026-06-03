@@ -23,7 +23,7 @@ import app.naviamp.domain.bass.bassPlaybackVisualizerFrame
 import app.naviamp.domain.bass.bassVersionLabel
 import app.naviamp.domain.bass.createDirectBassPlayback
 import app.naviamp.domain.bass.createMixerBassPlayback
-import app.naviamp.domain.bass.createPlaybackStream
+import app.naviamp.domain.bass.createQueuedBassSource
 import app.naviamp.domain.bass.pause
 import app.naviamp.domain.bass.play
 import app.naviamp.domain.bass.releaseBassStream
@@ -254,7 +254,7 @@ class BassPlaybackEngine(
                     preparedReplayGainAdjustment = adjustment
                 }
             } else {
-                createStream(bass, request, decode = false).getOrThrow().also {
+                createDirectPlayback(bass, request).getOrThrow().playbackHandle.also {
                     preparedReplayGainAdjustment = replayGainAdjustment(request)
                 }
             }
@@ -410,20 +410,6 @@ class BassPlaybackEngine(
         preparedError = reset.error
     }
 
-    private fun createStream(
-        bass: BassAudioBackend,
-        request: PlaybackRequest,
-        decode: Boolean,
-    ): Result<Int> {
-        val localFile = localFileFromUrl(request.url)
-        return bass.createPlaybackStream(
-            localPath = localFile?.absolutePath,
-            url = request.url,
-            decode = decode,
-            playbackDecode = decode,
-        ).map { it.value }
-    }
-
     private fun createDirectPlayback(
         bass: BassAudioBackend,
         request: PlaybackRequest,
@@ -467,8 +453,14 @@ class BassPlaybackEngine(
     private fun createQueuedSource(
         bass: BassAudioBackend,
         request: PlaybackRequest,
-    ): Result<Int> =
-        createStream(bass, request, decode = true)
+    ): Result<Int> {
+        val localFile = localFileFromUrl(request.url)
+        return bass.createQueuedBassSource(
+            localPath = localFile?.absolutePath,
+            url = request.url,
+            playbackDecode = true,
+        )
+    }
 
     private fun attachEndSync(
         bass: BassAudioBackend,

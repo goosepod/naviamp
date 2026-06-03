@@ -302,6 +302,18 @@ fun BassAudioBackend.createPlaybackStream(
         if (decode) createUrlDecodeStream(url) else createUrlStream(url)
     }
 
+fun BassAudioBackend.createQueuedBassSource(
+    localPath: String?,
+    url: String,
+    playbackDecode: Boolean = false,
+): Result<Int> =
+    createPlaybackStream(
+        localPath = localPath,
+        url = url,
+        decode = true,
+        playbackDecode = playbackDecode,
+    ).map { it.value }
+
 fun BassAudioBackend.createDirectBassPlayback(
     localPath: String?,
     url: String,

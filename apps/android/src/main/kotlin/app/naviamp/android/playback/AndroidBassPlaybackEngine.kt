@@ -20,7 +20,7 @@ import app.naviamp.domain.bass.bassPlaybackSnapshot
 import app.naviamp.domain.bass.bassPlaybackVisualizerFrame
 import app.naviamp.domain.bass.createDirectBassPlayback
 import app.naviamp.domain.bass.createMixerBassPlayback
-import app.naviamp.domain.bass.createPlaybackStream
+import app.naviamp.domain.bass.createQueuedBassSource
 import app.naviamp.domain.bass.pause
 import app.naviamp.domain.bass.play
 import app.naviamp.domain.bass.releaseBassStream
@@ -334,7 +334,7 @@ class AndroidBassPlaybackEngine(
             bass.init().getOrThrow()
             val mixer = stream.takeIf { it != 0 } ?: return
             currentSourceStream.takeIf { it != 0 } ?: return
-            val source = createStream(request.url, decode = true)
+            val source = createQueuedSource(request.url)
             check(source != 0) { errorMessage("BASS next stream creation failed") }
             val nextReplayGain = playbackReplayGainAdjustment(request).volumeFactor
             val transition = planPreparedMixerTransition(crossfadeDurationSeconds, nextReplayGain)
@@ -390,13 +390,12 @@ class AndroidBassPlaybackEngine(
         return playback.playbackHandle
     }
 
-    private fun createStream(url: String, decode: Boolean): Int {
+    private fun createQueuedSource(url: String): Int {
         val file = localFileFromUrl(url)
-        return bass.createPlaybackStream(
+        return bass.createQueuedBassSource(
             localPath = file?.absolutePath,
             url = url,
-            decode = decode,
-        ).getOrNull()?.value ?: 0
+        ).getOrNull() ?: 0
     }
 
     private fun startProgressPolling(

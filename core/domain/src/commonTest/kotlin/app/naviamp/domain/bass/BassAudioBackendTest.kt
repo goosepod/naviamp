@@ -218,6 +218,20 @@ class BassAudioBackendTest {
     }
 
     @Test
+    fun createsQueuedBassSourceThroughSharedDecodeSelection() {
+        val backend = RecordingBassAudioBackend()
+
+        val result = backend.createQueuedBassSource(
+            localPath = "/tmp/song.flac",
+            url = "file:///tmp/song.flac",
+            playbackDecode = false,
+        )
+
+        assertEquals(12, result.getOrThrow())
+        assertEquals(listOf("fileDecode:/tmp/song.flac"), backend.calls)
+    }
+
+    @Test
     fun createsUrlPlaybackStreamWhenLocalPathIsAbsent() {
         val backend = RecordingBassAudioBackend()
 
