@@ -120,6 +120,45 @@ class BassAudioBackendTest {
     }
 
     @Test
+    fun releasesReplacedBassSourceWhenDifferentFromNextSource() {
+        val backend = RecordingBassAudioBackend()
+
+        val result = backend.releaseReplacedBassSource(
+            currentSourceHandle = 7,
+            nextSourceHandle = 8,
+        )
+
+        assertTrue(requireNotNull(result).isSuccess)
+        assertEquals(listOf("remove:7", "free:7"), backend.calls)
+    }
+
+    @Test
+    fun skipsReplacedBassSourceReleaseWhenCurrentSourceIsNextSource() {
+        val backend = RecordingBassAudioBackend()
+
+        val result = backend.releaseReplacedBassSource(
+            currentSourceHandle = 7,
+            nextSourceHandle = 7,
+        )
+
+        assertEquals(null, result)
+        assertEquals(emptyList(), backend.calls)
+    }
+
+    @Test
+    fun skipsReplacedBassSourceReleaseWhenNoCurrentSourceExists() {
+        val backend = RecordingBassAudioBackend()
+
+        val result = backend.releaseReplacedBassSource(
+            currentSourceHandle = 0,
+            nextSourceHandle = 7,
+        )
+
+        assertEquals(null, result)
+        assertEquals(emptyList(), backend.calls)
+    }
+
+    @Test
     fun intHandleHelpersDelegateToStreamHandleOperations() {
         val backend = RecordingBassAudioBackend()
 

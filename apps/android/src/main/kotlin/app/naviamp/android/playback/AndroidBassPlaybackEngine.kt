@@ -22,6 +22,7 @@ import app.naviamp.domain.bass.pause
 import app.naviamp.domain.bass.play
 import app.naviamp.domain.bass.prepareNextBassMixerSource
 import app.naviamp.domain.bass.releaseBassStream
+import app.naviamp.domain.bass.releaseReplacedBassSource
 import app.naviamp.domain.bass.seekBassPlaybackSource
 import app.naviamp.domain.bass.setBassPlaybackMuted
 import app.naviamp.domain.bass.stopAndReleaseBassPlayback
@@ -562,9 +563,7 @@ class AndroidBassPlaybackEngine(
             request = request,
         )
         if (!plan.shouldAdopt) return false
-        currentSourceStream.takeIf { it != 0 && it != source }?.let {
-            bass.releaseBassStream(it)
-        }
+        bass.releaseReplacedBassSource(currentSourceStream, source)
         currentSourceStream = source
         replayGainFactor = preparedReplayGainFactor
         val reset = clearPreparedPlaybackMetadata()

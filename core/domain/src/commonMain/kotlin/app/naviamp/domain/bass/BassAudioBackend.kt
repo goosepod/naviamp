@@ -271,6 +271,14 @@ fun BassAudioBackend.stopAndReleaseBassPlayback(
     return results
 }
 
+fun BassAudioBackend.releaseReplacedBassSource(
+    currentSourceHandle: Int,
+    nextSourceHandle: Int,
+): Result<Unit>? =
+    currentSourceHandle
+        .takeIf { it != 0 && it != nextSourceHandle }
+        ?.let(::releaseBassStream)
+
 fun BassAudioBackend.play(stream: Int): Result<Unit> =
     play(BassStreamHandle(stream))
 

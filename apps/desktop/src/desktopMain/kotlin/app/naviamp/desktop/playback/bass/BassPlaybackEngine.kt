@@ -26,6 +26,7 @@ import app.naviamp.domain.bass.play
 import app.naviamp.domain.bass.prepareNextBassMixerSource
 import app.naviamp.domain.bass.releaseBassStream
 import app.naviamp.domain.bass.releaseBassStreams
+import app.naviamp.domain.bass.releaseReplacedBassSource
 import app.naviamp.domain.bass.seekBassPlaybackSource
 import app.naviamp.domain.bass.setEndSync
 import app.naviamp.domain.bass.stopAndReleaseBassPlayback
@@ -369,9 +370,8 @@ class BassPlaybackEngine(
             request = request,
         )
         if (!plan.shouldAdopt) return false
-        currentSourceStream.takeIf { it != 0 && it != queuedSource }?.let { finishedSource ->
-            bass.releaseBassStream(finishedSource).onFailure { lastError = it.message }
-        }
+        bass.releaseReplacedBassSource(currentSourceStream, queuedSource)
+            ?.onFailure { lastError = it.message }
         currentSourceStream = queuedSource
         currentReplayGainAdjustment = preparedReplayGainAdjustment ?: PlaybackReplayGainAdjustment.off()
         crossfadeActive = false
