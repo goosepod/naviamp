@@ -95,8 +95,8 @@ class BassAudioBackendTest {
         val activeState = backend.activeState(7)
 
         assertTrue(volumeResult.isSuccess)
-        assertEquals(BassActiveState.Stopped, activeState)
-        assertEquals(listOf("volume:7:0.5"), backend.calls)
+        assertEquals(BassActiveState.Playing, activeState)
+        assertEquals(listOf("volume:7:0.5", "active:7"), backend.calls)
     }
 
     @Test
@@ -142,6 +142,32 @@ class BassAudioBackendTest {
         assertEquals(123L, frame.timestampMillis)
         assertTrue(frame.bands.isNotEmpty())
         assertEquals(listOf("fft:7:4"), backend.calls)
+    }
+
+    @Test
+    fun createsBassPlaybackSnapshotFromPlaybackAndSourceHandles() {
+        val backend = RecordingBassAudioBackend()
+
+        val snapshot = backend.bassPlaybackSnapshot(
+            playbackHandle = 7,
+            sourceHandle = 8,
+        )
+
+        assertEquals(BassActiveState.Playing, snapshot.activeState)
+        assertEquals(BassActiveState.Playing, snapshot.sourceActiveState)
+        assertEquals(12.5, snapshot.progress.positionSeconds)
+        assertEquals(60.0, snapshot.progress.durationSeconds)
+        assertEquals("Radio Title", snapshot.metadata.title)
+        assertEquals(
+            listOf(
+                "active:7",
+                "active:8",
+                "positionSeconds:8",
+                "durationSeconds:8",
+                "metadata:8",
+            ),
+            backend.calls,
+        )
     }
 
     @Test
@@ -419,6 +445,26 @@ private class RecordingBassAudioBackend(
     override fun setVolume(stream: BassStreamHandle, volume: Float): Result<Unit> {
         calls += "volume:${stream.value}:$volume"
         return Result.success(Unit)
+    }
+
+    override fun activeState(stream: BassStreamHandle): Int {
+        calls += "active:${stream.value}"
+        return BassActiveState.Playing
+    }
+
+    override fun positionSeconds(stream: BassStreamHandle): Double {
+        calls += "positionSeconds:${stream.value}"
+        return 12.5
+    }
+
+    override fun durationSeconds(stream: BassStreamHandle): Double {
+        calls += "durationSeconds:${stream.value}"
+        return 60.0
+    }
+
+    override fun streamMetadata(stream: BassStreamHandle): Map<String, String> {
+        calls += "metadata:${stream.value}"
+        return mapOf("StreamTitle" to "Radio Title")
     }
 
     override fun setMixerVolumeEnvelope(

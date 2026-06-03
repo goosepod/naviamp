@@ -18,21 +18,19 @@ import app.naviamp.domain.bass.applyBassPlaybackVolume
 import app.naviamp.domain.bass.applyPreparedBassMixerTransition
 import app.naviamp.domain.bass.bassActiveStateLabel
 import app.naviamp.domain.bass.bassErrorMessage
+import app.naviamp.domain.bass.bassPlaybackSnapshot
 import app.naviamp.domain.bass.bassPlaybackVisualizerFrame
 import app.naviamp.domain.bass.bassVersionLabel
 import app.naviamp.domain.bass.createDirectBassPlayback
 import app.naviamp.domain.bass.createMixerBassPlayback
 import app.naviamp.domain.bass.createPlaybackStream
-import app.naviamp.domain.bass.durationSeconds
 import app.naviamp.domain.bass.pause
 import app.naviamp.domain.bass.play
-import app.naviamp.domain.bass.positionSeconds
 import app.naviamp.domain.bass.releaseBassStream
 import app.naviamp.domain.bass.releaseBassStreams
 import app.naviamp.domain.bass.seek
 import app.naviamp.domain.bass.setEndSync
 import app.naviamp.domain.bass.stop
-import app.naviamp.domain.bass.streamMetadata
 import app.naviamp.domain.playback.clearPreparedPlaybackMetadata
 import app.naviamp.domain.playback.clearPlaybackStreamState
 import app.naviamp.domain.playback.failedPreparedPlaybackMetadata
@@ -146,16 +144,13 @@ class BassPlaybackEngine(
                 var lastProgress = PlaybackProgress.Unknown
                 var lastMetadata = PlaybackStreamMetadata()
                 while (isCurrentPlayback(currentPlaybackId) && bass.activeState(playbackHandle) != BassActiveState.Stopped) {
-                    val sourceHandle = playbackSourceHandle(playbackHandle, currentSourceStream)
-                    val progress = PlaybackProgress(
-                        positionSeconds = bass.positionSeconds(sourceHandle),
-                        durationSeconds = bass.durationSeconds(sourceHandle),
-                    )
+                    val snapshot = bass.bassPlaybackSnapshot(playbackHandle, currentSourceStream)
+                    val progress = snapshot.progress
                     if (progress != lastProgress) {
                         lastProgress = progress
                         onProgressChanged(progress)
                     }
-                    val metadata = PlaybackStreamMetadata.fromProperties(bass.streamMetadata(sourceHandle))
+                    val metadata = snapshot.metadata
                     if (metadata != lastMetadata) {
                         lastMetadata = metadata
                         onMetadataChanged(metadata)

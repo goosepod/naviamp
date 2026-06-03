@@ -2,9 +2,12 @@ package app.naviamp.domain.bass
 
 import app.naviamp.domain.playback.PreparedMixerTransitionPlan
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
+import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.crossfadeFadeInEnvelopePoints
 import app.naviamp.domain.playback.crossfadeFadeOutEnvelopePoints
 import app.naviamp.domain.playback.planBassMixerCreation
+import app.naviamp.domain.playback.playbackSourceHandle
 import app.naviamp.domain.playback.playbackVisualizerFrameFromFft
 import app.naviamp.domain.playback.playbackVolumeApplicationPlan
 
@@ -102,6 +105,13 @@ data class BassCreatedPlayback(
     val playbackHandle: Int,
     val sourceHandle: Int,
     val replayGainFactor: Float,
+)
+
+data class BassPlaybackSnapshot(
+    val activeState: Int,
+    val sourceActiveState: Int?,
+    val progress: PlaybackProgress,
+    val metadata: PlaybackStreamMetadata,
 )
 
 interface BassAudioBackend {
@@ -394,6 +404,22 @@ fun BassAudioBackend.bassPlaybackVisualizerFrame(
             timestampMillis = timestampMillis,
         )
     }
+
+fun BassAudioBackend.bassPlaybackSnapshot(
+    playbackHandle: Int,
+    sourceHandle: Int,
+): BassPlaybackSnapshot {
+    val progressHandle = playbackSourceHandle(playbackHandle, sourceHandle)
+    return BassPlaybackSnapshot(
+        activeState = activeState(playbackHandle),
+        sourceActiveState = sourceHandle.takeIf { it != 0 }?.let(::activeState),
+        progress = PlaybackProgress(
+            positionSeconds = positionSeconds(progressHandle),
+            durationSeconds = durationSeconds(progressHandle),
+        ),
+        metadata = PlaybackStreamMetadata.fromProperties(streamMetadata(progressHandle)),
+    )
+}
 
 fun BassAudioBackend.applyPreparedBassMixerTransition(
     mixer: BassStreamHandle,

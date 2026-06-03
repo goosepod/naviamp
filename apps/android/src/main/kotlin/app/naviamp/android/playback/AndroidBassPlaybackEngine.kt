@@ -16,20 +16,18 @@ import app.naviamp.domain.bass.applyBassPlaybackVolume
 import app.naviamp.domain.bass.applyPreparedBassMixerTransition
 import app.naviamp.domain.bass.bassActiveStateLabel
 import app.naviamp.domain.bass.bassFailureMessage
+import app.naviamp.domain.bass.bassPlaybackSnapshot
 import app.naviamp.domain.bass.bassPlaybackVisualizerFrame
 import app.naviamp.domain.bass.createDirectBassPlayback
 import app.naviamp.domain.bass.createMixerBassPlayback
 import app.naviamp.domain.bass.createPlaybackStream
-import app.naviamp.domain.bass.durationSeconds
 import app.naviamp.domain.bass.pause
 import app.naviamp.domain.bass.play
-import app.naviamp.domain.bass.positionSeconds
 import app.naviamp.domain.bass.releaseBassStream
 import app.naviamp.domain.bass.releaseBassStreams
 import app.naviamp.domain.bass.seek
 import app.naviamp.domain.bass.setBassPlaybackMuted
 import app.naviamp.domain.bass.stop
-import app.naviamp.domain.bass.streamMetadata
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
@@ -410,28 +408,24 @@ class AndroidBassPlaybackEngine(
             var lastMetadata = PlaybackStreamMetadata()
             var lastActiveState: Int? = null
             while (isActive && stream == handle) {
-                val active = bass.activeState(handle)
-                val progressHandle = playbackSourceHandle(handle, currentSourceStream)
-                val progress = PlaybackProgress(
-                    positionSeconds = bass.positionSeconds(progressHandle),
-                    durationSeconds = bass.durationSeconds(progressHandle),
-                )
+                val snapshot = bass.bassPlaybackSnapshot(handle, currentSourceStream)
+                val active = snapshot.activeState
+                val progress = snapshot.progress
                 if (active != lastActiveState) {
                     lastActiveState = active
                     Log.i(
                         Tag,
-                        "BASS active=${bassActiveStateLabel(active)} handle=$handle source=$progressHandle " +
+                        "BASS active=${bassActiveStateLabel(active)} handle=$handle source=${playbackSourceHandle(handle, currentSourceStream)} " +
                             "position=${progress.positionSeconds} duration=${progress.durationSeconds}",
                     )
                 }
                 onProgressChanged?.invoke(progress)
-                val metadata = PlaybackStreamMetadata.fromProperties(bass.streamMetadata(progressHandle))
+                val metadata = snapshot.metadata
                 if (metadata != lastMetadata) {
                     lastMetadata = metadata
                     onMetadataChanged?.invoke(metadata)
                 }
-                val sourceActive = currentSourceStream.takeIf { it != 0 }?.let { bass.activeState(it) }
-                if (shouldFinishPlaybackForBassState(active, progress, sourceActive)) {
+                if (shouldFinishPlaybackForBassState(active, progress, snapshot.sourceActiveState)) {
                     Log.i(Tag, "BASS source reached end position=${progress.positionSeconds} duration=${progress.durationSeconds}")
                     handlePlaybackFinished()
                     onStateChanged?.invoke(PlaybackState.Finished)

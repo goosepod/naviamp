@@ -218,6 +218,7 @@ Then higher-level repositories can be composed from those stores:
   - Playback user-volume factor calculation now lives in common playback helpers, with Android passing its audio-focus ducking factor through the shared path.
   - Direct BASS playback creation now uses a shared backend helper that returns a common playback/source handle result shape for desktop and Android.
   - Mixer BASS playback creation now uses a shared backend helper for decode-stream selection, mixer sizing, source ReplayGain application, mixer creation, and channel attachment.
+  - Playback polling now reads active state, source active state, progress, and stream metadata through a shared BASS backend snapshot helper.
   - Still to normalize further: crossfade transition state reset and remaining transition application details should continue moving from platform playback engines into shared planning/services.
   - Keep JNI/JNA/native-loader details under platform adapters unless a single native bridge is proven simpler across all targets.
 - [ ] Normalize platform file/class names.
