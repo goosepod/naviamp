@@ -302,10 +302,10 @@ class BassPlaybackEngine(
             "Failed plugins" to plugins.filterNot { it.loaded }.joinToString(", ") { plugin ->
                 "${plugin.stem} (${plugin.errorCode?.let(::bassErrorMessage) ?: "unknown"})"
             }.ifBlank { "None" },
-            "Active state" to native?.let { bass ->
+            "Active state" to backend?.let { bass ->
                 stream.takeIf { it != 0 }?.let { bassActiveStateLabel(bass.activeState(it)) }
             }.orEmpty().ifBlank { "No stream" },
-            "Active source state" to native?.let { bass ->
+            "Active source state" to backend?.let { bass ->
                 currentSourceStream.takeIf { it != 0 }?.let { bassActiveStateLabel(bass.activeState(it)) }
             }.orEmpty().ifBlank { "No source" },
             "ReplayGain mode" to currentReplayGainAdjustment.mode.displayName,
