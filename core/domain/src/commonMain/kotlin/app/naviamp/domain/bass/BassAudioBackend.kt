@@ -4,8 +4,6 @@ import app.naviamp.domain.playback.PreparedMixerTransitionPlan
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackStreamMetadata
-import app.naviamp.domain.playback.crossfadeFadeInEnvelopePoints
-import app.naviamp.domain.playback.crossfadeFadeOutEnvelopePoints
 import app.naviamp.domain.playback.planBassMixerCreation
 import app.naviamp.domain.playback.planPreparedMixerTransition
 import app.naviamp.domain.playback.playbackSourceHandle
@@ -583,23 +581,8 @@ private fun BassAudioBackend.applyPreparedBassFadeIn(
     nextSource: BassStreamHandle,
     transition: PreparedMixerTransitionPlan,
 ): Result<Unit> {
-    val durationBytes = secondsToBytes(nextSource, transition.crossfadeDurationSeconds.toDouble())
-    if (durationBytes == null) {
-        setVolume(nextSource, 0f)
-        slideVolume(nextSource, transition.finalNextSourceVolume, transition.durationMillis)
-        return Result.success(Unit)
-    }
-    val envelopeResult = setMixerVolumeEnvelope(
-        nextSource,
-        crossfadeFadeInEnvelopePoints(
-            durationBytes = durationBytes,
-            volumeFactor = transition.finalNextSourceVolume,
-        ),
-    )
-    if (envelopeResult.isSuccess) return Result.success(Unit)
     setVolume(nextSource, 0f)
-    slideVolume(nextSource, transition.finalNextSourceVolume, transition.durationMillis)
-    return Result.failure(requireNotNull(envelopeResult.exceptionOrNull()))
+    return slideVolume(nextSource, transition.finalNextSourceVolume, transition.durationMillis)
 }
 
 private fun BassAudioBackend.applyPreparedBassFadeOut(
@@ -607,23 +590,8 @@ private fun BassAudioBackend.applyPreparedBassFadeOut(
     currentSourceVolumeFactor: Float,
     transition: PreparedMixerTransitionPlan,
 ): Result<Unit> {
-    val startBytes = positionBytes(currentSource)
-    val durationBytes = secondsToBytes(currentSource, transition.crossfadeDurationSeconds.toDouble())
-    if (startBytes == null || durationBytes == null) {
-        slideVolume(currentSource, 0f, transition.durationMillis)
-        return Result.success(Unit)
-    }
-    val envelopeResult = setMixerVolumeEnvelope(
-        currentSource,
-        crossfadeFadeOutEnvelopePoints(
-            startBytes = startBytes,
-            durationBytes = durationBytes,
-            volumeFactor = currentSourceVolumeFactor,
-        ),
-    )
-    if (envelopeResult.isSuccess) return Result.success(Unit)
-    slideVolume(currentSource, 0f, transition.durationMillis)
-    return Result.failure(requireNotNull(envelopeResult.exceptionOrNull()))
+    setVolume(currentSource, currentSourceVolumeFactor)
+    return slideVolume(currentSource, 0f, transition.durationMillis)
 }
 
 private fun <T> unsupportedBassOperation(name: String): Result<T> =

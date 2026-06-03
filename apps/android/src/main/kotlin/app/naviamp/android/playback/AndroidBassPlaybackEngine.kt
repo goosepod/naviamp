@@ -574,6 +574,7 @@ class AndroidBassPlaybackEngine(
         bass.releaseReplacedBassSource(currentSourceStream, source)
         currentSourceStream = source
         replayGainFactor = preparedReplayGainFactor
+        applyVolume()
         val reset = clearPreparedPlaybackMetadata()
         preparedStream = 0
         preparedRequest = reset.request

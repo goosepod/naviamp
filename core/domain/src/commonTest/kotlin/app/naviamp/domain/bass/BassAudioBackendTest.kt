@@ -461,18 +461,17 @@ class BassAudioBackendTest {
                 "filePlaybackDecode:/tmp/next.flac",
                 "volume:13:0.0",
                 "add:1:13",
-                "secondsToBytes:13:5.0",
-                "envelope:13",
-                "positionBytes:2",
-                "secondsToBytes:2:5.0",
-                "envelope:2",
+                "volume:13:0.0",
+                "slide:13:0.7:5000",
+                "volume:2:0.8",
+                "slide:2:0.0:5000",
             ),
             backend.calls,
         )
     }
 
     @Test
-    fun preparedMixerTransitionAppliesEnvelopesWhenBytePositionsAreAvailable() {
+    fun preparedMixerTransitionAppliesVolumeSlidesForCrossfade() {
         val backend = RecordingBassAudioBackend()
 
         val result = backend.applyPreparedBassMixerTransition(
@@ -489,11 +488,10 @@ class BassAudioBackendTest {
             listOf(
                 "volume:2:0.0",
                 "add:1:2",
-                "secondsToBytes:2:5.0",
-                "envelope:2",
-                "positionBytes:3",
-                "secondsToBytes:3:5.0",
-                "envelope:3",
+                "volume:2:0.0",
+                "slide:2:0.7:5000",
+                "volume:3:0.8",
+                "slide:3:0.0:5000",
             ),
             backend.calls,
         )
@@ -516,39 +514,8 @@ class BassAudioBackendTest {
             listOf(
                 "volume:2:0.0",
                 "add:1:2",
-                "secondsToBytes:2:5.0",
-                "envelope:2",
-            ),
-            backend.calls,
-        )
-    }
-
-    @Test
-    fun preparedMixerTransitionFallsBackToSlidesWhenEnvelopesFail() {
-        val backend = RecordingBassAudioBackend(envelopeSucceeds = false)
-
-        val result = backend.applyPreparedBassMixerTransition(
-            mixer = BassStreamHandle(1),
-            nextSource = BassStreamHandle(2),
-            currentSource = BassStreamHandle(3),
-            currentSourceVolumeFactor = 0.8f,
-            transition = planPreparedMixerTransition(crossfadeDurationSeconds = 5, replayGainFactor = 0.7f),
-        )
-
-        assertTrue(result.isSuccess)
-        assertEquals(2, result.getOrThrow().fallbackErrors.size)
-        assertEquals(
-            listOf(
-                "volume:2:0.0",
-                "add:1:2",
-                "secondsToBytes:2:5.0",
-                "envelope:2",
                 "volume:2:0.0",
                 "slide:2:0.7:5000",
-                "positionBytes:3",
-                "secondsToBytes:3:5.0",
-                "envelope:3",
-                "slide:3:0.0:5000",
             ),
             backend.calls,
         )

@@ -383,6 +383,7 @@ class BassPlaybackEngine(
             ?.onFailure { lastError = it.message }
         currentSourceStream = queuedSource
         currentReplayGainAdjustment = preparedReplayGainAdjustment ?: PlaybackReplayGainAdjustment.off()
+        applyOutputVolume(bass)
         crossfadeActive = false
         val reset = clearPreparedPlaybackMetadata()
         preparedStream = 0
