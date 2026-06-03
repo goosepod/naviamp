@@ -177,7 +177,8 @@ Then higher-level repositories can be composed from those stores:
   - Android playback now consumes `BassAudioBackend` for these primitives instead of raw `AndroidBassJni`; runtime still owns JNI loading and wraps it in the adapter.
   - Desktop playback now consumes `BassAudioBackend` for stream/control/progress/metadata/FFT/mixer primitives instead of raw `BassNative`; `BassNative` remains in the engine only for load diagnostics and plugin reporting.
   - End sync, mixer volume envelopes, and byte/second conversion are now modeled on `BassAudioBackend`.
-  - Still to normalize further: gapless queue positioning and crossfade fade-curve policy should move from platform playback engines into shared planning/services.
+  - Crossfade duration normalization, mixer queue-source decisions, and equal-power fade envelopes now live in common playback transition helpers and are used by desktop/Android playback where applicable.
+  - Still to normalize further: gapless queue adoption and crossfade transition state reset rules should move from platform playback engines into shared planning/services.
   - Keep JNI/JNA/native-loader details under platform adapters unless a single native bridge is proven simpler across all targets.
 - [ ] Normalize platform file/class names.
   - Shared/common abstractions keep generic names.

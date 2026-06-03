@@ -18,6 +18,9 @@ import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
+import app.naviamp.domain.playback.crossfadeDurationMillis
+import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
+import app.naviamp.domain.playback.shouldQueueMixerSources
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -290,7 +293,7 @@ class AndroidBassPlaybackEngine(
     }
 
     override fun setCrossfadeDuration(seconds: Int) {
-        crossfadeDurationSeconds = seconds.coerceIn(0, 12)
+        crossfadeDurationSeconds = normalizedCrossfadeDurationSeconds(seconds)
     }
 
     override fun prepareNext(request: PlaybackRequest) {
@@ -306,7 +309,7 @@ class AndroidBassPlaybackEngine(
             bass.setVolume(source, if (crossfadeDurationSeconds > 0) 0f else nextReplayGain)
             check(bass.addMixerChannel(mixer, source)) { errorMessage("BASS_Mixer_StreamAddChannel failed") }
             if (crossfadeDurationSeconds > 0) {
-                val durationMillis = crossfadeDurationSeconds * 1_000
+                val durationMillis = crossfadeDurationMillis(crossfadeDurationSeconds)
                 bass.slideVolume(source, nextReplayGain, durationMillis)
                 currentSourceStream.takeIf { it != 0 }?.let { bass.slideVolume(it, 0f, durationMillis) }
             }
@@ -331,7 +334,7 @@ class AndroidBassPlaybackEngine(
         val mixer = bass.createMixer(
             frequency = DefaultMixerFrequency,
             channels = DefaultMixerChannels,
-            queueSources = crossfadeDurationSeconds <= 0,
+            queueSources = shouldQueueMixerSources(crossfadeDurationSeconds),
         ).getOrNull()?.value ?: 0
         check(mixer != 0) { errorMessage("BASS_Mixer_StreamCreate failed") }
         check(bass.addMixerChannel(mixer, source)) { errorMessage("BASS_Mixer_StreamAddChannel failed") }

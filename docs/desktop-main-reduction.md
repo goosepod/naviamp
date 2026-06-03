@@ -235,6 +235,7 @@ Branch: `codex/desktop-main-reduction`
 - BASS usage should converge on a shared facade. Platform code may keep different bridge mechanics only at the lowest layer: desktop can wrap its native/JNA binding while Android wraps JNI, but playback, waveform, visualizer, tags, gapless, and crossfade should call shared interfaces wherever practical.
   - Android playback now uses the shared `BassAudioBackend` adapter for stream/control/progress/metadata/FFT primitives.
   - Desktop playback now uses `BassAudioBackend` for stream/control/progress/metadata/FFT/mixer primitives; remaining raw `BassNative` references in the engine are load diagnostics and plugin reporting.
+  - Crossfade duration normalization, BASSmix queue-source decisions, and equal-power fade envelopes now live in common playback transition helpers instead of desktop-only playback code.
 - Naming convention: shared/common abstractions keep generic names, while platform adapters and platform-owned service files should use `Desktop` / `Android` prefixes.
   - Example: common `AudioWaveformAnalyzer`, desktop `DesktopAudioWaveformAnalyzer`, Android `AndroidAudioWaveformAnalyzer`.
   - Remaining desktop playback files without a platform prefix should be renamed in narrow slices when their references are touched.

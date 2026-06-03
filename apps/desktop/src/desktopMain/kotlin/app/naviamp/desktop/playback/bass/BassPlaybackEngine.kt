@@ -12,6 +12,10 @@ import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassStreamHandle
+import app.naviamp.domain.playback.crossfadeDurationMillis
+import app.naviamp.domain.playback.equalPowerFadeEnvelope
+import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
+import app.naviamp.domain.playback.shouldQueueMixerSources
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -19,10 +23,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
 import java.net.URI
-import kotlin.math.PI
-import kotlin.math.cos
 import kotlin.math.pow
-import kotlin.math.sin
 
 class BassPlaybackEngine(
     private val nativeResult: Result<BassNative> = BassNative.load(),
@@ -205,7 +206,7 @@ class BassPlaybackEngine(
     }
 
     override fun setCrossfadeDuration(seconds: Int) {
-        crossfadeDurationSeconds = seconds.coerceIn(0, 12)
+        crossfadeDurationSeconds = normalizedCrossfadeDurationSeconds(seconds)
     }
 
     override fun prepareNext(request: PlaybackRequest) {
@@ -404,7 +405,7 @@ class BassPlaybackEngine(
             val mixer = bass.createMixer(
                 frequency = info.frequency.takeIf { it > 0 } ?: 44_100,
                 channels = info.channels.takeIf { it > 0 } ?: 2,
-                queueSources = crossfadeDurationSeconds <= 0,
+                queueSources = shouldQueueMixerSources(crossfadeDurationSeconds),
             ).getOrThrow().value
             val adjustment = replayGainAdjustment(request)
             applySourceReplayGain(bass, source, adjustment)
@@ -447,12 +448,13 @@ class BassPlaybackEngine(
         val currentVolume = currentReplayGainAdjustment.volumeFactor
         bass.setVolume(nextSource, nextVolume).getOrThrow()
         bass.addMixerChannel(stream, nextSource).getOrThrow()
-        val durationMillis = crossfadeDurationSeconds * 1_000
+        val durationMillis = crossfadeDurationMillis(crossfadeDurationSeconds)
         val nextFadeBytes = bass.secondsToBytes(nextSource, crossfadeDurationSeconds.toDouble())
         if (nextFadeBytes != null) {
             bass.setMixerVolumeEnvelope(
                 nextSource,
-                equalPowerEnvelope(startBytes = 0L, durationBytes = nextFadeBytes, fadeIn = true, scale = nextVolume),
+                equalPowerFadeEnvelope(startBytes = 0L, durationBytes = nextFadeBytes, fadeIn = true, scale = nextVolume)
+                    .map { it.positionBytes to it.volume },
             ).onFailure {
                 lastError = it.message
                 bass.setVolume(nextSource, 0f).onFailure { error -> lastError = error.message }
@@ -468,12 +470,12 @@ class BassPlaybackEngine(
             if (currentStartBytes != null && currentFadeBytes != null) {
                 bass.setMixerVolumeEnvelope(
                     currentSource,
-                    equalPowerEnvelope(
+                    equalPowerFadeEnvelope(
                         startBytes = currentStartBytes,
                         durationBytes = currentFadeBytes,
                         fadeIn = false,
                         scale = currentVolume,
-                    ),
+                    ).map { it.positionBytes to it.volume },
                 ).onFailure {
                     lastError = it.message
                     bass.slideVolume(currentSource, 0f, durationMillis).onFailure { error -> lastError = error.message }
@@ -483,27 +485,6 @@ class BassPlaybackEngine(
             }
         }
         crossfadeActive = true
-    }
-
-    private fun equalPowerEnvelope(
-        startBytes: Long,
-        durationBytes: Long,
-        fadeIn: Boolean,
-        scale: Float = 1f,
-    ): List<Pair<Long, Float>> {
-        if (durationBytes <= 0L) {
-            return listOf(startBytes to if (fadeIn) scale else 0f)
-        }
-        return (0..EqualPowerEnvelopeSteps).map { step ->
-            val t = step.toDouble() / EqualPowerEnvelopeSteps.toDouble()
-            val value = if (fadeIn) {
-                sin(t * PI / 2.0)
-            } else {
-                cos(t * PI / 2.0)
-            }.toFloat()
-            val position = startBytes + (durationBytes * t).toLong()
-            position to value * scale
-        }
     }
 
     private fun applyOutputVolume(bass: BassAudioBackend) {
@@ -775,7 +756,6 @@ private fun FloatArray.toVisualizerBands(): List<Float> {
     }
 }
 
-private const val EqualPowerEnvelopeSteps = 8
 private const val MaxReplayGainFactor = 4f
 private const val VisualizerBandCount = 32
 private const val VisualizerGain = 12f
