@@ -1,6 +1,7 @@
 package app.naviamp.desktop.playback.bass
 
 import app.naviamp.domain.bass.BassAudioBackend
+import app.naviamp.domain.bass.BassPluginDiagnostic
 import app.naviamp.domain.bass.BassStreamInfo
 import app.naviamp.domain.bass.BassStreamHandle
 import java.io.File
@@ -24,6 +25,15 @@ class DesktopBassAudioBackend(
 
     override val libraryDirectory: String
         get() = native.libraryDirectory.absolutePath
+
+    override val pluginDiagnostics: List<BassPluginDiagnostic> =
+        native.loadAvailablePlugins().map { plugin ->
+            BassPluginDiagnostic(
+                stem = plugin.stem,
+                loaded = plugin.loaded,
+                errorCode = plugin.errorCode,
+            )
+        }
 
     override val supportsMixer: Boolean
         get() = native.supportsMixer

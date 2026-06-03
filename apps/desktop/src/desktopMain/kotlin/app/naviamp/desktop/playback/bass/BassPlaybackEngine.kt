@@ -55,7 +55,6 @@ class BassPlaybackEngine(
     override val supportsSoftwareVolume: Boolean = true
     override val prefersOriginalStream: Boolean = true
 
-    private val plugins: List<BassPlugin> = native?.loadAvailablePlugins().orEmpty()
     private var job: Job? = null
     private var stream: Int = 0
     private var currentSourceStream: Int = 0
@@ -298,10 +297,15 @@ class BassPlaybackEngine(
             "BASSmix version" to (backend?.mixerVersion?.let(::bassVersionLabel) ?: "Unavailable"),
             "BASSmix error" to (backend?.mixerError ?: "None"),
             "BASS directory" to (backend?.libraryDirectory ?: "Not resolved"),
-            "Loaded plugins" to plugins.filter { it.loaded }.joinToString(", ") { it.stem }.ifBlank { "None" },
-            "Failed plugins" to plugins.filterNot { it.loaded }.joinToString(", ") { plugin ->
-                "${plugin.stem} (${plugin.errorCode?.let(::bassErrorMessage) ?: "unknown"})"
-            }.ifBlank { "None" },
+            "Loaded plugins" to backend?.pluginDiagnostics.orEmpty()
+                .filter { it.loaded }
+                .joinToString(", ") { it.stem }
+                .ifBlank { "None" },
+            "Failed plugins" to backend?.pluginDiagnostics.orEmpty()
+                .filterNot { it.loaded }
+                .joinToString(", ") { plugin ->
+                    "${plugin.stem} (${plugin.errorCode?.let(::bassErrorMessage) ?: "unknown"})"
+                }.ifBlank { "None" },
             "Active state" to backend?.let { bass ->
                 stream.takeIf { it != 0 }?.let { bassActiveStateLabel(bass.activeState(it)) }
             }.orEmpty().ifBlank { "No stream" },

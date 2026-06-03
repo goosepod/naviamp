@@ -85,6 +85,12 @@ data class BassPreparedMixerTransitionResult(
     val fallbackErrors: List<Throwable> = emptyList(),
 )
 
+data class BassPluginDiagnostic(
+    val stem: String,
+    val loaded: Boolean,
+    val errorCode: Int? = null,
+)
+
 interface BassAudioBackend {
     val version: Int?
         get() = null
@@ -100,6 +106,9 @@ interface BassAudioBackend {
 
     val libraryDirectory: String?
         get() = null
+
+    val pluginDiagnostics: List<BassPluginDiagnostic>
+        get() = emptyList()
 
     val supportsMixer: Boolean
         get() = false
