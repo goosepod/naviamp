@@ -47,6 +47,8 @@ import app.naviamp.domain.source.MediaSourceIdentity
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.source.stableMediaSourceId
 import app.naviamp.domain.waveform.AudioWaveform
+import app.naviamp.domain.waveform.AudioWaveformAnalysisSource
+import app.naviamp.domain.waveform.AudioWaveformAnalyzer as DomainAudioWaveformAnalyzer
 import app.naviamp.domain.waveform.AudioWaveformCacheMetadata
 import app.naviamp.domain.waveform.waveformCacheKey
 import app.naviamp.provider.navidrome.NavidromeConnection
@@ -322,14 +324,19 @@ class DesktopCache(
         sourceId: String,
         trackId: TrackId,
         quality: StreamQuality,
-        analyzer: AudioWaveformAnalyzer = AudioWaveformAnalyzer(),
+        analyzer: DomainAudioWaveformAnalyzer = AudioWaveformAnalyzer(),
     ): AudioWaveform? =
         withContext(Dispatchers.IO) {
             cachedAudioWaveform(sourceId, trackId, quality)?.let { return@withContext it }
             val audioPath = downloadedAudioFile(sourceId, trackId, quality)?.path
                 ?: cachedAudioFile(sourceId, trackId, quality)?.path
                 ?: return@withContext null
-            val waveform = analyzer.analyze(audioPath) ?: return@withContext null
+            val waveform = analyzer.analyze(
+                AudioWaveformAnalysisSource(
+                    cacheKey = trackId.value,
+                    streamUrl = audioPath.toUri().toString(),
+                ),
+            ) ?: return@withContext null
             val qualityKey = quality.waveformCacheKey()
             val amplitudesJson = json.encodeToString(waveform.amplitudes)
             val now = nowMillis()

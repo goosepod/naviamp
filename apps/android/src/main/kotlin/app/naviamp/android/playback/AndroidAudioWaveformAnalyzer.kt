@@ -3,6 +3,8 @@ package app.naviamp.android.playback
 import android.content.Context
 import android.net.Uri
 import app.naviamp.domain.waveform.AudioWaveform
+import app.naviamp.domain.waveform.AudioWaveformAnalysisSource
+import app.naviamp.domain.waveform.AudioWaveformAnalyzer
 import app.naviamp.domain.waveform.DefaultWaveformBucketCount
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import kotlinx.coroutines.Dispatchers
@@ -13,13 +15,16 @@ class AndroidAudioWaveformAnalyzer(
     context: Context,
     private val bass: AndroidBassJni,
     private val bucketCount: Int = DefaultWaveformBucketCount,
-) {
+) : AudioWaveformAnalyzer {
     private val cacheDirectory = File(context.cacheDir, "waveforms").apply { mkdirs() }
     private var tlsSettings: NavidromeTlsSettings = NavidromeTlsSettings()
 
     fun applyTlsSettings(tlsSettings: NavidromeTlsSettings) {
         this.tlsSettings = tlsSettings
     }
+
+    override suspend fun analyze(source: AudioWaveformAnalysisSource): AudioWaveform? =
+        analyze(trackId = source.cacheKey, streamUrl = source.streamUrl)
 
     suspend fun analyze(trackId: String, streamUrl: String): AudioWaveform? =
         withContext(Dispatchers.IO) {

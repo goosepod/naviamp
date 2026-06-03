@@ -94,6 +94,7 @@ import app.naviamp.domain.settings.playbackSettingsChange
 import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.waveform.AudioWaveform
+import app.naviamp.domain.waveform.AudioWaveformAnalysisSource
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeApiCall
 import app.naviamp.provider.navidrome.NavidromeApiCallHistory
@@ -588,9 +589,11 @@ private fun NaviampAndroidApp(
             null
         }
         val waveform = waveformAnalyzer.analyze(
-            trackId = track.id.value,
-            streamUrl = localFile?.toURI()?.toString()
-                ?: activeProvider.streamUrl(StreamRequest(track.id, quality)),
+            AudioWaveformAnalysisSource(
+                cacheKey = track.id.value,
+                streamUrl = localFile?.toURI()?.toString()
+                    ?: activeProvider.streamUrl(StreamRequest(track.id, quality)),
+            ),
         )
         if (waveform != null && sourceId != null && localFile != null) {
             storage.upsertAudioWaveform(
