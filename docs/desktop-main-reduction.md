@@ -205,6 +205,9 @@ Branch: `codex/desktop-main-reduction`
 - [x] Share BASS active-state playback-state mapping.
   - Common playback helpers map BASS playing/stalled/paused states to app playback states.
   - Platform engines still decide when stopped means finished because that depends on progress/end checks and queue handling.
+- [x] Share BASS polling finished-state detection.
+  - Common playback helpers now combine BASS stopped state and progress-at-end tolerance for finish decisions.
+  - Android consumes this directly; desktop still has BASS end-sync and can reuse the helper as polling is normalized further.
 
 ## Architecture Refactor Backlog
 

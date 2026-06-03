@@ -323,6 +323,16 @@ fun playbackStateForBassActiveState(activeState: Int): PlaybackState? =
         else -> null
     }
 
+fun shouldFinishPlaybackForBassState(
+    activeState: Int,
+    progress: PlaybackProgress,
+    currentSourceActiveState: Int? = null,
+): Boolean {
+    if (!isPlaybackProgressAtEnd(progress)) return false
+    return activeState == BassActiveState.Stopped ||
+        currentSourceActiveState == BassActiveState.Stopped
+}
+
 const val MaxCrossfadeDurationSeconds = 12
 const val EqualPowerEnvelopeSteps = 8
 const val MaxPlaybackVolumeFactor = 4f

@@ -380,4 +380,37 @@ class PlaybackTransitionsTest {
         assertEquals(null, playbackStateForBassActiveState(BassActiveState.Stopped))
         assertEquals(null, playbackStateForBassActiveState(99))
     }
+
+    @Test
+    fun detectsFinishedPlaybackFromBassStatesAndProgress() {
+        val atEnd = PlaybackProgress(positionSeconds = 99.5, durationSeconds = 100.0)
+        val notAtEnd = PlaybackProgress(positionSeconds = 90.0, durationSeconds = 100.0)
+
+        assertTrue(
+            shouldFinishPlaybackForBassState(
+                activeState = BassActiveState.Stopped,
+                progress = atEnd,
+            ),
+        )
+        assertTrue(
+            shouldFinishPlaybackForBassState(
+                activeState = BassActiveState.Playing,
+                currentSourceActiveState = BassActiveState.Stopped,
+                progress = atEnd,
+            ),
+        )
+        assertFalse(
+            shouldFinishPlaybackForBassState(
+                activeState = BassActiveState.Stopped,
+                progress = notAtEnd,
+            ),
+        )
+        assertFalse(
+            shouldFinishPlaybackForBassState(
+                activeState = BassActiveState.Playing,
+                currentSourceActiveState = BassActiveState.Playing,
+                progress = atEnd,
+            ),
+        )
+    }
 }

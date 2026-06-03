@@ -23,7 +23,6 @@ import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.clearPreparedPlaybackMetadata
 import app.naviamp.domain.playback.clearPlaybackStreamState
 import app.naviamp.domain.playback.failedPreparedPlaybackMetadata
-import app.naviamp.domain.playback.isPlaybackProgressAtEnd
 import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
 import app.naviamp.domain.playback.planPreparedPlaybackAdoption
 import app.naviamp.domain.playback.planPreparedMixerTransition
@@ -31,6 +30,7 @@ import app.naviamp.domain.playback.playbackVisualizerFrameFromFft
 import app.naviamp.domain.playback.playbackVolumeApplicationPlan
 import app.naviamp.domain.playback.playbackReplayGainAdjustment
 import app.naviamp.domain.playback.playbackStateForBassActiveState
+import app.naviamp.domain.playback.shouldFinishPlaybackForBassState
 import app.naviamp.domain.playback.shouldReusePreparedPlayback
 import app.naviamp.domain.playback.shouldQueueMixerSources
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
@@ -405,21 +405,15 @@ class AndroidBassPlaybackEngine(
                     lastMetadata = metadata
                     onMetadataChanged?.invoke(metadata)
                 }
-                if (currentSourceStream != 0 && bass.activeState(currentSourceStream) == BassActiveState.Stopped && isAtEnd(progress)) {
+                val sourceActive = currentSourceStream.takeIf { it != 0 }?.let { bass.activeState(it) }
+                if (shouldFinishPlaybackForBassState(active, progress, sourceActive)) {
                     Log.i(Tag, "BASS source reached end position=${progress.positionSeconds} duration=${progress.durationSeconds}")
                     handlePlaybackFinished()
                     onStateChanged?.invoke(PlaybackState.Finished)
                     return@launch
                 }
                 when (active) {
-                    BassActiveState.Stopped -> {
-                        if (isAtEnd(progress)) {
-                            Log.i(Tag, "BASS stream stopped position=${progress.positionSeconds} duration=${progress.durationSeconds}")
-                            handlePlaybackFinished()
-                            onStateChanged?.invoke(PlaybackState.Finished)
-                            return@launch
-                        }
-                    }
+                    BassActiveState.Stopped -> Unit
                     else -> playbackStateForBassActiveState(active)?.let { onStateChanged?.invoke(it) }
                 }
                 delay(100)
@@ -533,10 +527,6 @@ class AndroidBassPlaybackEngine(
         }.onFailure { error ->
             Log.w(Tag, "Could not release playback wake lock", error)
         }
-    }
-
-    private fun isAtEnd(progress: PlaybackProgress): Boolean {
-        return isPlaybackProgressAtEnd(progress)
     }
 
     private fun applyVolume() {
