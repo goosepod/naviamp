@@ -21,13 +21,13 @@ import app.naviamp.domain.playback.crossfadeFadeInEnvelopePoints
 import app.naviamp.domain.playback.crossfadeFadeOutEnvelopePoints
 import app.naviamp.domain.playback.failedPreparedPlaybackMetadata
 import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
+import app.naviamp.domain.playback.planBassMixerCreation
 import app.naviamp.domain.playback.planPreparedPlaybackAdoption
 import app.naviamp.domain.playback.planPreparedMixerTransition
 import app.naviamp.domain.playback.playbackVisualizerFrameFromFft
 import app.naviamp.domain.playback.playbackVolumeApplicationPlan
 import app.naviamp.domain.playback.playbackReplayGainAdjustment
 import app.naviamp.domain.playback.shouldReusePreparedPlayback
-import app.naviamp.domain.playback.shouldQueueMixerSources
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -429,10 +429,11 @@ class BassPlaybackEngine(
         runCatching {
             val source = createQueuedSource(bass, request).getOrThrow()
             val info = bass.channelInfo(source).getOrThrow()
+            val mixerPlan = planBassMixerCreation(info, crossfadeDurationSeconds)
             val mixer = bass.createMixer(
-                frequency = info.frequency.takeIf { it > 0 } ?: 44_100,
-                channels = info.channels.takeIf { it > 0 } ?: 2,
-                queueSources = shouldQueueMixerSources(crossfadeDurationSeconds),
+                frequency = mixerPlan.frequency,
+                channels = mixerPlan.channels,
+                queueSources = mixerPlan.queueSources,
             ).getOrThrow().value
             val adjustment = replayGainAdjustment(request)
             applySourceReplayGain(bass, source, adjustment)

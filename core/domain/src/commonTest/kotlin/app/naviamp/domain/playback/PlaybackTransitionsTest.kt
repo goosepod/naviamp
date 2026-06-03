@@ -2,6 +2,7 @@ package app.naviamp.domain.playback
 
 import app.naviamp.domain.ReplayGain
 import app.naviamp.domain.bass.BassActiveState
+import app.naviamp.domain.bass.BassStreamInfo
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -20,6 +21,25 @@ class PlaybackTransitionsTest {
     fun queuesMixerSourcesOnlyWhenCrossfadeIsOff() {
         assertTrue(shouldQueueMixerSources(0))
         assertEquals(false, shouldQueueMixerSources(3))
+    }
+
+    @Test
+    fun plansBassMixerCreationFromSourceInfoWithFallbacks() {
+        val sourcePlan = planBassMixerCreation(
+            sourceInfo = BassStreamInfo(frequency = 48_000, channels = 6),
+            crossfadeDurationSeconds = 0,
+        )
+        val fallbackPlan = planBassMixerCreation(
+            sourceInfo = BassStreamInfo(frequency = 0, channels = -1),
+            crossfadeDurationSeconds = 4,
+        )
+
+        assertEquals(48_000, sourcePlan.frequency)
+        assertEquals(6, sourcePlan.channels)
+        assertTrue(sourcePlan.queueSources)
+        assertEquals(DefaultBassMixerFrequency, fallbackPlan.frequency)
+        assertEquals(DefaultBassMixerChannels, fallbackPlan.channels)
+        assertFalse(fallbackPlan.queueSources)
     }
 
     @Test

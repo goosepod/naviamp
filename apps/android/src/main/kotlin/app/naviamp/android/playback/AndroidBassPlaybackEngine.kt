@@ -24,6 +24,7 @@ import app.naviamp.domain.playback.clearPreparedPlaybackMetadata
 import app.naviamp.domain.playback.clearPlaybackStreamState
 import app.naviamp.domain.playback.failedPreparedPlaybackMetadata
 import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
+import app.naviamp.domain.playback.planBassMixerCreation
 import app.naviamp.domain.playback.planPreparedPlaybackAdoption
 import app.naviamp.domain.playback.planPreparedMixerTransition
 import app.naviamp.domain.playback.playbackVisualizerFrameFromFft
@@ -32,7 +33,6 @@ import app.naviamp.domain.playback.playbackReplayGainAdjustment
 import app.naviamp.domain.playback.playbackStateForBassActiveState
 import app.naviamp.domain.playback.shouldFinishPlaybackForBassState
 import app.naviamp.domain.playback.shouldReusePreparedPlayback
-import app.naviamp.domain.playback.shouldQueueMixerSources
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -349,10 +349,11 @@ class AndroidBassPlaybackEngine(
         currentSourceStream = source
         bass.setVolume(source, replayGainFactor)
         val sourceInfo = bass.channelInfo(BassStreamHandle(source)).getOrNull()
+        val mixerPlan = planBassMixerCreation(sourceInfo, crossfadeDurationSeconds)
         val mixer = bass.createMixer(
-            frequency = sourceInfo?.frequency?.takeIf { it > 0 } ?: DefaultMixerFrequency,
-            channels = sourceInfo?.channels?.takeIf { it > 0 } ?: DefaultMixerChannels,
-            queueSources = shouldQueueMixerSources(crossfadeDurationSeconds),
+            frequency = mixerPlan.frequency,
+            channels = mixerPlan.channels,
+            queueSources = mixerPlan.queueSources,
         ).getOrNull()?.value ?: 0
         check(mixer != 0) { errorMessage("BASS_Mixer_StreamCreate failed") }
         check(bass.addMixerChannel(mixer, source)) { errorMessage("BASS_Mixer_StreamAddChannel failed") }
@@ -662,8 +663,6 @@ private fun BassAudioBackend.streamMetadata(stream: Int): Map<String, String> =
     streamMetadata(BassStreamHandle(stream))
 
 private const val FocusDuckVolumeFactor = 0.25f
-private const val DefaultMixerFrequency = 44_100
-private const val DefaultMixerChannels = 2
 private const val StartSeekRetryCount = 80
 private const val StartSeekRetryDelayMillis = 100L
 private const val Tag = "NaviampBass"

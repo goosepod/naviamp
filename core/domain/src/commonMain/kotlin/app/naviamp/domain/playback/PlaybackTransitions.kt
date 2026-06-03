@@ -1,6 +1,7 @@
 package app.naviamp.domain.playback
 
 import app.naviamp.domain.bass.BassActiveState
+import app.naviamp.domain.bass.BassStreamInfo
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.pow
@@ -74,6 +75,12 @@ data class PreparedMixerTransitionPlan(
         get() = crossfadeDurationSeconds > 0
 }
 
+data class BassMixerCreationPlan(
+    val frequency: Int,
+    val channels: Int,
+    val queueSources: Boolean,
+)
+
 enum class PrepareNextPlaybackReason {
     Crossfade,
     Gapless,
@@ -88,6 +95,16 @@ fun crossfadeDurationMillis(seconds: Int): Int =
 
 fun shouldQueueMixerSources(crossfadeDurationSeconds: Int): Boolean =
     normalizedCrossfadeDurationSeconds(crossfadeDurationSeconds) <= 0
+
+fun planBassMixerCreation(
+    sourceInfo: BassStreamInfo?,
+    crossfadeDurationSeconds: Int,
+): BassMixerCreationPlan =
+    BassMixerCreationPlan(
+        frequency = sourceInfo?.frequency?.takeIf { it > 0 } ?: DefaultBassMixerFrequency,
+        channels = sourceInfo?.channels?.takeIf { it > 0 } ?: DefaultBassMixerChannels,
+        queueSources = shouldQueueMixerSources(crossfadeDurationSeconds),
+    )
 
 fun playbackReplayGainAdjustment(request: PlaybackRequest): PlaybackReplayGainAdjustment {
     val mode = request.replayGainMode
@@ -334,6 +351,8 @@ fun shouldFinishPlaybackForBassState(
 }
 
 const val MaxCrossfadeDurationSeconds = 12
+const val DefaultBassMixerFrequency = 44_100
+const val DefaultBassMixerChannels = 2
 const val EqualPowerEnvelopeSteps = 8
 const val MaxPlaybackVolumeFactor = 4f
 const val FinishedPositionToleranceSeconds = 0.75
