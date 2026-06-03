@@ -359,9 +359,6 @@ class AndroidBassPlaybackEngine(
                 crossfadeDurationSeconds = crossfadeDurationSeconds,
                 replayGainFactor = nextReplayGain,
             ).getOrThrow()
-            prepared.fallbackErrors.forEach {
-                Log.w(Tag, it.message ?: "BASS crossfade envelope failed")
-            }
             preparedReplayGainFactor = nextReplayGain
             prepared.sourceHandle
         }.onSuccess { handle ->

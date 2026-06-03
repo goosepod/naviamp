@@ -523,7 +523,6 @@ class BassAudioBackendTest {
         )
 
         assertTrue(result.isSuccess)
-        assertEquals(emptyList(), result.getOrThrow().fallbackErrors)
         assertEquals(
             listOf(
                 "volume:2:0.0",
@@ -532,6 +531,30 @@ class BassAudioBackendTest {
                 "slide:2:0.7:5000",
                 "volume:3:0.8",
                 "slide:3:0.0:5000",
+            ),
+            backend.calls,
+        )
+    }
+
+    @Test
+    fun preparedMixerTransitionFailsWhenCrossfadeSlideFails() {
+        val backend = RecordingBassAudioBackend(slideSucceeds = false)
+
+        val result = backend.applyPreparedBassMixerTransition(
+            mixer = BassStreamHandle(1),
+            nextSource = BassStreamHandle(2),
+            currentSource = BassStreamHandle(3),
+            currentSourceVolumeFactor = 0.8f,
+            transition = planPreparedMixerTransition(crossfadeDurationSeconds = 5, replayGainFactor = 0.7f),
+        )
+
+        assertTrue(result.isFailure)
+        assertEquals(
+            listOf(
+                "volume:2:0.0",
+                "add:1:2",
+                "volume:2:0.0",
+                "slide:2:0.7:5000",
             ),
             backend.calls,
         )
@@ -564,6 +587,7 @@ class BassAudioBackendTest {
 
 private class RecordingBassAudioBackend(
     private val removeSucceeds: Boolean = true,
+    private val slideSucceeds: Boolean = true,
     override val lastErrorCode: Int? = null,
 ) : BassAudioBackend {
     val calls = mutableListOf<String>()
@@ -676,7 +700,11 @@ private class RecordingBassAudioBackend(
         durationMillis: Int,
     ): Result<Unit> {
         calls += "slide:${stream.value}:$volume:$durationMillis"
-        return Result.success(Unit)
+        return if (slideSucceeds) {
+            Result.success(Unit)
+        } else {
+            Result.failure(IllegalStateException("slide failed"))
+        }
     }
 
     override fun fft(stream: BassStreamHandle, bins: Int): Result<FloatArray> {

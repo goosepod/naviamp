@@ -230,6 +230,7 @@ Then higher-level repositories can be composed from those stores:
   - Prepared-source adoption now reapplies the shared BASS volume plan after handoff so a faded-in queued source cannot remain silent once it becomes the active track.
   - Prepared crossfade transitions now use shared BASS volume slides for fade-in/fade-out instead of BASSmix volume envelopes, avoiding envelope-position ambiguity while keeping desktop and Android behavior aligned.
   - Unused BASSmix volume-envelope facade methods have been removed from common, desktop, and Android JNI/backend adapters after the slide-based transition path was validated.
+  - Prepared crossfade slide failures now fail source preparation directly instead of flowing through obsolete envelope fallback warnings.
   - BASS playback polling continuation now uses a shared active-state predicate so desktop and Android stop polling on the same output-stopped boundary.
   - Prepared-next mixer-source eligibility now uses a common helper so desktop and Android require the same active playback handle, active source handle, and mixer support before queueing a BASS source.
   - Gapless and crossfade support flags now map from BASS mixer capability through a shared playback feature-support helper.

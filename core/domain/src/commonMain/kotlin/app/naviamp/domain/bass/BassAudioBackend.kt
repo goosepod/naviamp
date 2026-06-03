@@ -99,10 +99,6 @@ data class BassStreamInfo(
     val channels: Int,
 )
 
-data class BassPreparedMixerTransitionResult(
-    val fallbackErrors: List<Throwable> = emptyList(),
-)
-
 data class BassPluginDiagnostic(
     val stem: String,
     val loaded: Boolean,
@@ -126,7 +122,6 @@ data class BassPreparedSource(
     val sourceHandle: Int,
     val replayGainFactor: Float,
     val crossfadeActive: Boolean,
-    val fallbackErrors: List<Throwable> = emptyList(),
 )
 
 interface BassAudioBackend {
@@ -450,7 +445,7 @@ fun BassAudioBackend.prepareNextBassMixerSource(
             playbackDecode = playbackDecode,
         ).getOrThrow()
         val transition = planPreparedMixerTransition(crossfadeDurationSeconds, replayGainFactor)
-        val transitionResult = applyPreparedBassMixerTransition(
+        applyPreparedBassMixerTransition(
             mixer = mixer,
             nextSource = source,
             currentSource = currentSource,
@@ -461,7 +456,6 @@ fun BassAudioBackend.prepareNextBassMixerSource(
             sourceHandle = source,
             replayGainFactor = replayGainFactor,
             crossfadeActive = transition.shouldCrossfade,
-            fallbackErrors = transitionResult.fallbackErrors,
         )
     }
 
@@ -554,22 +548,18 @@ fun BassAudioBackend.applyPreparedBassMixerTransition(
     currentSource: BassStreamHandle?,
     currentSourceVolumeFactor: Float,
     transition: PreparedMixerTransitionPlan,
-): Result<BassPreparedMixerTransitionResult> =
+): Result<Unit> =
     runCatching {
-        val fallbackErrors = mutableListOf<Throwable>()
         setVolume(nextSource, transition.initialNextSourceVolume).getOrThrow()
         addMixerChannel(mixer, nextSource).getOrThrow()
         if (!transition.shouldCrossfade) {
-            return@runCatching BassPreparedMixerTransitionResult()
+            return@runCatching
         }
 
-        applyPreparedBassFadeIn(nextSource, transition)
-            .onFailure { fallbackErrors += it }
+        applyPreparedBassFadeIn(nextSource, transition).getOrThrow()
         if (currentSource != null && transition.shouldFadeCurrentSource) {
-            applyPreparedBassFadeOut(currentSource, currentSourceVolumeFactor, transition)
-                .onFailure { fallbackErrors += it }
+            applyPreparedBassFadeOut(currentSource, currentSourceVolumeFactor, transition).getOrThrow()
         }
-        BassPreparedMixerTransitionResult(fallbackErrors = fallbackErrors)
     }
 
 fun BassAudioBackend.applyPreparedBassMixerTransition(
@@ -578,7 +568,7 @@ fun BassAudioBackend.applyPreparedBassMixerTransition(
     currentSource: Int,
     currentSourceVolumeFactor: Float,
     transition: PreparedMixerTransitionPlan,
-): Result<BassPreparedMixerTransitionResult> =
+): Result<Unit> =
     applyPreparedBassMixerTransition(
         mixer = BassStreamHandle(mixer),
         nextSource = BassStreamHandle(nextSource),

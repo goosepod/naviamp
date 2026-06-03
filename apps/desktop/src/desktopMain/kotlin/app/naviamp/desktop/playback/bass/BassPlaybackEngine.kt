@@ -266,7 +266,6 @@ class BassPlaybackEngine(
                     replayGainFactor = adjustment.volumeFactor,
                     playbackDecode = true,
                 ).getOrThrow()
-                prepared.fallbackErrors.lastOrNull()?.let { lastError = it.message }
                 crossfadeActive = prepared.crossfadeActive
                 attachEndSync(bass, prepared.sourceHandle, playbackId)
                 preparedReplayGainAdjustment = adjustment
