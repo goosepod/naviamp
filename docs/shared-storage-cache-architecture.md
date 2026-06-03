@@ -234,6 +234,7 @@ Then higher-level repositories can be composed from those stores:
   - BASS playback polling continuation now uses a shared active-state predicate so desktop and Android stop polling on the same output-stopped boundary.
   - Prepared-next mixer-source eligibility now uses a common helper so desktop and Android require the same active playback handle, active source handle, and mixer support before queueing a BASS source.
   - Gapless and crossfade support flags now map from BASS mixer capability through a shared playback feature-support helper.
+  - Prepared-source adoption now uses a shared BASS helper for replaced-source release plus volume restoration, keeping the validated crossfade handoff behavior in one backend path.
   - Still to normalize further: crossfade transition state reset and remaining transition application details should continue moving from platform playback engines into shared planning/services.
   - Keep JNI/JNA/native-loader details under platform adapters unless a single native bridge is proven simpler across all targets.
 - [ ] Normalize platform file/class names.

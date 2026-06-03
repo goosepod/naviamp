@@ -159,6 +159,46 @@ class BassAudioBackendTest {
     }
 
     @Test
+    fun adoptsPreparedBassSourceByReleasingReplacedSourceAndRestoringVolume() {
+        val backend = RecordingBassAudioBackend()
+
+        val results = backend.adoptPreparedBassSource(
+            playbackHandle = 7,
+            currentSourceHandle = 8,
+            nextSourceHandle = 9,
+            userVolumeFactor = 0.5f,
+            replayGainFactor = 0.75f,
+        )
+
+        assertTrue(results.all { it.isSuccess })
+        assertEquals(
+            listOf(
+                "remove:8",
+                "free:8",
+                "volume:7:0.5",
+                "volume:9:0.75",
+            ),
+            backend.calls,
+        )
+    }
+
+    @Test
+    fun adoptsPreparedBassSourceWithoutDuplicateReleaseForSameSource() {
+        val backend = RecordingBassAudioBackend()
+
+        val results = backend.adoptPreparedBassSource(
+            playbackHandle = 7,
+            currentSourceHandle = 9,
+            nextSourceHandle = 9,
+            userVolumeFactor = 0.5f,
+            replayGainFactor = 0.75f,
+        )
+
+        assertTrue(results.all { it.isSuccess })
+        assertEquals(listOf("volume:7:0.5", "volume:9:0.75"), backend.calls)
+    }
+
+    @Test
     fun intHandleHelpersDelegateToStreamHandleOperations() {
         val backend = RecordingBassAudioBackend()
 

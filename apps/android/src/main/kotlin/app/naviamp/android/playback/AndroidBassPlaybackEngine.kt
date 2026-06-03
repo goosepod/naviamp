@@ -12,6 +12,7 @@ import app.naviamp.domain.bass.BassActiveState
 import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassStreamHandle
 import app.naviamp.domain.bass.activeState
+import app.naviamp.domain.bass.adoptPreparedBassSource
 import app.naviamp.domain.bass.applyBassPlaybackVolume
 import app.naviamp.domain.bass.bassActiveStateLabel
 import app.naviamp.domain.bass.bassFailureMessage
@@ -22,7 +23,6 @@ import app.naviamp.domain.bass.pause
 import app.naviamp.domain.bass.play
 import app.naviamp.domain.bass.prepareNextBassMixerSource
 import app.naviamp.domain.bass.releaseBassStream
-import app.naviamp.domain.bass.releaseReplacedBassSource
 import app.naviamp.domain.bass.seekBassPlaybackSource
 import app.naviamp.domain.bass.setBassPlaybackMuted
 import app.naviamp.domain.bass.stopAndReleaseBassPlayback
@@ -584,10 +584,18 @@ class AndroidBassPlaybackEngine(
             request = request,
         )
         if (!plan.shouldAdopt) return false
-        bass.releaseReplacedBassSource(currentSourceStream, source)
+        bass.adoptPreparedBassSource(
+            playbackHandle = stream,
+            currentSourceHandle = currentSourceStream,
+            nextSourceHandle = source,
+            userVolumeFactor = playbackUserVolumeFactor(
+                volumePercent = volumePercent,
+                transientDuckFactor = if (duckedForFocusLoss) FocusDuckVolumeFactor else 1f,
+            ),
+            replayGainFactor = preparedReplayGainFactor,
+        )
         currentSourceStream = source
         replayGainFactor = preparedReplayGainFactor
-        applyVolume()
         val reset = clearPreparedPlaybackMetadata()
         preparedStream = 0
         preparedRequest = reset.request

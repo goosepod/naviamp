@@ -14,6 +14,7 @@ import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassStreamHandle
 import app.naviamp.domain.bass.BassActiveState
 import app.naviamp.domain.bass.activeState
+import app.naviamp.domain.bass.adoptPreparedBassSource
 import app.naviamp.domain.bass.applyBassPlaybackVolume
 import app.naviamp.domain.bass.bassErrorMessage
 import app.naviamp.domain.bass.bassPlaybackSnapshot
@@ -26,7 +27,6 @@ import app.naviamp.domain.bass.play
 import app.naviamp.domain.bass.prepareNextBassMixerSource
 import app.naviamp.domain.bass.releaseBassStream
 import app.naviamp.domain.bass.releaseBassStreams
-import app.naviamp.domain.bass.releaseReplacedBassSource
 import app.naviamp.domain.bass.seekBassPlaybackSource
 import app.naviamp.domain.bass.setEndSync
 import app.naviamp.domain.bass.stopAndReleaseBassPlayback
@@ -393,11 +393,16 @@ class BassPlaybackEngine(
             request = request,
         )
         if (!plan.shouldAdopt) return false
-        bass.releaseReplacedBassSource(currentSourceStream, queuedSource)
-            ?.onFailure { lastError = it.message }
+        val adjustment = preparedReplayGainAdjustment ?: PlaybackReplayGainAdjustment.off()
+        bass.adoptPreparedBassSource(
+            playbackHandle = stream,
+            currentSourceHandle = currentSourceStream,
+            nextSourceHandle = queuedSource,
+            userVolumeFactor = outputVolumeFactor(),
+            replayGainFactor = adjustment.volumeFactor,
+        ).forEach { result -> result.onFailure { lastError = it.message } }
         currentSourceStream = queuedSource
-        currentReplayGainAdjustment = preparedReplayGainAdjustment ?: PlaybackReplayGainAdjustment.off()
-        applyOutputVolume(bass)
+        currentReplayGainAdjustment = adjustment
         crossfadeActive = false
         val reset = clearPreparedPlaybackMetadata()
         preparedStream = 0

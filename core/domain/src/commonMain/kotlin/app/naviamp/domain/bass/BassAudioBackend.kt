@@ -277,6 +277,25 @@ fun BassAudioBackend.releaseReplacedBassSource(
         .takeIf { it != 0 && it != nextSourceHandle }
         ?.let(::releaseBassStream)
 
+fun BassAudioBackend.adoptPreparedBassSource(
+    playbackHandle: Int,
+    currentSourceHandle: Int,
+    nextSourceHandle: Int,
+    userVolumeFactor: Float,
+    replayGainFactor: Float,
+): List<Result<Unit>> {
+    val results = mutableListOf<Result<Unit>>()
+    releaseReplacedBassSource(currentSourceHandle, nextSourceHandle)
+        ?.let { results += it }
+    results += applyBassPlaybackVolume(
+        outputStream = playbackHandle,
+        sourceStream = nextSourceHandle,
+        userVolumeFactor = userVolumeFactor,
+        replayGainFactor = replayGainFactor,
+    )
+    return results
+}
+
 fun BassAudioBackend.play(stream: Int): Result<Unit> =
     play(BassStreamHandle(stream))
 
