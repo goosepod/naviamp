@@ -48,8 +48,8 @@ class BassPlaybackEngine(
     override val name: String = "BASS"
     override val supportsPause: Boolean = true
     override val supportsSeek: Boolean = true
-    override val supportsGapless: Boolean = native?.supportsMixer == true
-    override val supportsCrossfade: Boolean = native?.supportsMixer == true
+    override val supportsGapless: Boolean = backend?.supportsMixer == true
+    override val supportsCrossfade: Boolean = backend?.supportsMixer == true
     override val supportsReplayGain: Boolean = true
     override val supportsVisualizer: Boolean = true
     override val supportsSoftwareVolume: Boolean = true
@@ -292,7 +292,7 @@ class BassPlaybackEngine(
 
     override fun statsRows(): List<Pair<String, String>> =
         listOf(
-            "BASS load state" to if (native != null) "Loaded" else "Unavailable",
+            "BASS load state" to if (backend != null) "Loaded" else "Unavailable",
             "BASS version" to (backend?.version?.let(::bassVersionLabel) ?: "Unknown"),
             "BASSmix version" to (backend?.mixerVersion?.let(::bassVersionLabel) ?: "Unavailable"),
             "BASSmix error" to (backend?.mixerError ?: "None"),

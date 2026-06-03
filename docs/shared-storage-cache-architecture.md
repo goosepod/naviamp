@@ -206,6 +206,7 @@ Then higher-level repositories can be composed from those stores:
   - BASS native-library directory and BASSmix load-error diagnostics now hang off `BassAudioBackend`; desktop populates them and Android keeps the shared defaults.
   - Desktop active-stream diagnostics now ask `BassAudioBackend` for active state instead of reaching directly into `BassNative`.
   - Desktop loaded/failed plugin reporting now uses shared `BassPluginDiagnostic` rows exposed by `BassAudioBackend`.
+  - Desktop gapless/crossfade support flags now read mixer capability from `BassAudioBackend` instead of raw `BassNative`.
   - Still to normalize further: crossfade transition state reset and remaining transition application details should continue moving from platform playback engines into shared planning/services.
   - Keep JNI/JNA/native-loader details under platform adapters unless a single native bridge is proven simpler across all targets.
 - [ ] Normalize platform file/class names.
