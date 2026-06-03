@@ -30,6 +30,7 @@ import app.naviamp.domain.playback.planPreparedMixerTransition
 import app.naviamp.domain.playback.playbackVisualizerFrameFromFft
 import app.naviamp.domain.playback.playbackVolumeApplicationPlan
 import app.naviamp.domain.playback.playbackReplayGainAdjustment
+import app.naviamp.domain.playback.playbackStateForBassActiveState
 import app.naviamp.domain.playback.shouldReusePreparedPlayback
 import app.naviamp.domain.playback.shouldQueueMixerSources
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
@@ -419,9 +420,7 @@ class AndroidBassPlaybackEngine(
                             return@launch
                         }
                     }
-                    BassActiveState.Playing -> onStateChanged?.invoke(PlaybackState.Playing)
-                    BassActiveState.Stalled -> onStateChanged?.invoke(PlaybackState.Loading)
-                    BassActiveState.Paused -> onStateChanged?.invoke(PlaybackState.Paused)
+                    else -> playbackStateForBassActiveState(active)?.let { onStateChanged?.invoke(it) }
                 }
                 delay(100)
             }

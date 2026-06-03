@@ -1,5 +1,6 @@
 package app.naviamp.domain.playback
 
+import app.naviamp.domain.bass.BassActiveState
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.pow
@@ -313,6 +314,14 @@ fun playbackVisualizerFrameFromFft(
         )
     }
 }
+
+fun playbackStateForBassActiveState(activeState: Int): PlaybackState? =
+    when (activeState) {
+        BassActiveState.Playing -> PlaybackState.Playing
+        BassActiveState.Stalled -> PlaybackState.Loading
+        BassActiveState.Paused -> PlaybackState.Paused
+        else -> null
+    }
 
 const val MaxCrossfadeDurationSeconds = 12
 const val EqualPowerEnvelopeSteps = 8

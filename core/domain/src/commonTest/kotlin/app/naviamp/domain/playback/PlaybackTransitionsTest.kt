@@ -1,6 +1,7 @@
 package app.naviamp.domain.playback
 
 import app.naviamp.domain.ReplayGain
+import app.naviamp.domain.bass.BassActiveState
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -369,5 +370,14 @@ class PlaybackTransitionsTest {
         assertEquals(VisualizerBandCount, frame?.bands?.size)
         assertEquals(123L, frame?.timestampMillis)
         assertEquals(null, playbackVisualizerFrameFromFft(floatArrayOf()))
+    }
+
+    @Test
+    fun mapsBassActiveStatesToPlaybackStates() {
+        assertEquals(PlaybackState.Playing, playbackStateForBassActiveState(BassActiveState.Playing))
+        assertEquals(PlaybackState.Loading, playbackStateForBassActiveState(BassActiveState.Stalled))
+        assertEquals(PlaybackState.Paused, playbackStateForBassActiveState(BassActiveState.Paused))
+        assertEquals(null, playbackStateForBassActiveState(BassActiveState.Stopped))
+        assertEquals(null, playbackStateForBassActiveState(99))
     }
 }

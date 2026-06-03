@@ -189,6 +189,7 @@ Then higher-level repositories can be composed from those stores:
   - Playback finished-position tolerance now lives in common playback helpers so platform engines share the same progress-at-end boundary.
   - FFT visualizer bucketing/gain normalization now lives in common playback helpers; desktop and Android only fetch FFT data from their BASS backends.
   - BASS active-state constants and labels now live in common BASS helpers; platform engines use them for polling, diagnostics, and logging.
+  - BASS active-state to playback-state mapping now lives in common playback helpers; platform engines keep stopped/end-of-track handling local.
   - Still to normalize further: crossfade transition state reset and envelope application details should continue moving from platform playback engines into shared planning/services.
   - Keep JNI/JNA/native-loader details under platform adapters unless a single native bridge is proven simpler across all targets.
 - [ ] Normalize platform file/class names.

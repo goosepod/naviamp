@@ -202,6 +202,9 @@ Branch: `codex/desktop-main-reduction`
 - [x] Share BASS active-state labels.
   - Desktop diagnostics and Android logs now use common BASS active-state labels/constants.
   - Platform native wrappers still expose raw BASS active-state integers below the shared backend.
+- [x] Share BASS active-state playback-state mapping.
+  - Common playback helpers map BASS playing/stalled/paused states to app playback states.
+  - Platform engines still decide when stopped means finished because that depends on progress/end checks and queue handling.
 
 ## Architecture Refactor Backlog
 
