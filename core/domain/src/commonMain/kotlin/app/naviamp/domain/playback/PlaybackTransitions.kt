@@ -269,6 +269,16 @@ fun crossfadeFadeOutEnvelopePoints(
         scale = volumeFactor,
     ).map { it.positionBytes to it.volume }
 
+fun isPlaybackProgressAtEnd(
+    progress: PlaybackProgress,
+    toleranceSeconds: Double = FinishedPositionToleranceSeconds,
+): Boolean {
+    val position = progress.positionSeconds ?: return false
+    val duration = progress.durationSeconds ?: return false
+    return duration - position <= toleranceSeconds.coerceAtLeast(0.0)
+}
+
 const val MaxCrossfadeDurationSeconds = 12
 const val EqualPowerEnvelopeSteps = 8
 const val MaxPlaybackVolumeFactor = 4f
+const val FinishedPositionToleranceSeconds = 0.75

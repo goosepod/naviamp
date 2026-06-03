@@ -20,6 +20,7 @@ import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.clearPreparedPlaybackMetadata
 import app.naviamp.domain.playback.clearPlaybackStreamState
 import app.naviamp.domain.playback.failedPreparedPlaybackMetadata
+import app.naviamp.domain.playback.isPlaybackProgressAtEnd
 import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
 import app.naviamp.domain.playback.planPreparedPlaybackAdoption
 import app.naviamp.domain.playback.planPreparedMixerTransition
@@ -529,9 +530,7 @@ class AndroidBassPlaybackEngine(
     }
 
     private fun isAtEnd(progress: PlaybackProgress): Boolean {
-        val position = progress.positionSeconds ?: return false
-        val duration = progress.durationSeconds ?: return false
-        return duration - position <= FinishedPositionToleranceSeconds
+        return isPlaybackProgressAtEnd(progress)
     }
 
     private fun applyVolume() {
@@ -703,7 +702,6 @@ private const val VisualizerGain = 12f
 private const val FocusDuckVolumeFactor = 0.25f
 private const val DefaultMixerFrequency = 44_100
 private const val DefaultMixerChannels = 2
-private const val FinishedPositionToleranceSeconds = 0.75
 private const val StartSeekRetryCount = 80
 private const val StartSeekRetryDelayMillis = 100L
 private const val Tag = "NaviampBass"

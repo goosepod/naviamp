@@ -329,4 +329,19 @@ class PlaybackTransitionsTest {
         assertEquals(100L, fadeOut.last().first)
         assertEquals(0f, fadeOut.last().second, absoluteTolerance = 0.000001f)
     }
+
+    @Test
+    fun detectsPlaybackProgressAtEndWithTolerance() {
+        assertTrue(
+            isPlaybackProgressAtEnd(
+                PlaybackProgress(positionSeconds = 99.5, durationSeconds = 100.0),
+            ),
+        )
+        assertFalse(
+            isPlaybackProgressAtEnd(
+                PlaybackProgress(positionSeconds = 98.0, durationSeconds = 100.0),
+            ),
+        )
+        assertFalse(isPlaybackProgressAtEnd(PlaybackProgress.Unknown))
+    }
 }

@@ -193,6 +193,9 @@ Branch: `codex/desktop-main-reduction`
 - [x] Share crossfade envelope point construction.
   - Equal-power fade-in/fade-out BASSmix envelope points now come from common playback helpers.
   - Desktop still owns applying BASSmix envelopes and falling back to volume slides.
+- [x] Share playback finished-position tolerance.
+  - Common playback helpers now own the progress-at-end boundary used by platform BASS polling.
+  - Android consumes it directly; desktop can use the same helper as its polling/end-sync logic is normalized further.
 
 ## Architecture Refactor Backlog
 
