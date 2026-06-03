@@ -13,6 +13,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.AudioCacheRepository
 import app.naviamp.domain.cache.AudioWaveformCacheRepository
+import app.naviamp.domain.cache.AudioWaveformStorageRepository
 import app.naviamp.domain.cache.CacheMaintenanceRepository
 import app.naviamp.domain.cache.DownloadAudioByteStore
 import app.naviamp.domain.cache.DownloadReplacementRepository
@@ -64,6 +65,7 @@ class AndroidStorage(
     ProviderResponseCacheRepository,
     AudioCacheRepository<AndroidCachedAudioFile, AndroidCachedAudioMetadata>,
     AudioWaveformCacheRepository,
+    AudioWaveformStorageRepository,
     DownloadRepository<AndroidDownloadedAudioFile, AndroidDownloadedTrack>,
     DownloadReplacementRepository<AndroidDownloadedAudioFile>,
     PlaybackHistoryRepository<AndroidPlaybackHistoryItem>,
@@ -541,6 +543,32 @@ class AndroidStorage(
         audioFile: File,
         waveform: AudioWaveform,
     ) {
+        storeAudioWaveformRow(
+            sourceId = sourceId,
+            trackId = trackId,
+            quality = quality,
+            audioFilePath = audioFile.absolutePath,
+            waveform = waveform,
+        )
+    }
+
+    override suspend fun storeAudioWaveform(
+        sourceId: String,
+        trackId: TrackId,
+        quality: StreamQuality,
+        audioFilePath: String?,
+        waveform: AudioWaveform,
+    ): AudioWaveform = withContext(Dispatchers.IO) {
+        storeAudioWaveformRow(sourceId, trackId, quality, audioFilePath, waveform)
+    }
+
+    private fun storeAudioWaveformRow(
+        sourceId: String,
+        trackId: TrackId,
+        quality: StreamQuality,
+        audioFilePath: String?,
+        waveform: AudioWaveform,
+    ): AudioWaveform {
         val qualityKey = quality.waveformCacheKey()
         val amplitudesJson = json.encodeToString(waveform.amplitudes)
         val now = nowMillis()
@@ -548,7 +576,7 @@ class AndroidStorage(
             source_id = sourceId,
             remote_track_id = trackId.value,
             quality_key = qualityKey,
-            audio_file_path = audioFile.absolutePath,
+            audio_file_path = audioFilePath.orEmpty(),
             bucket_count = waveform.amplitudes.size.toLong(),
             amplitudes_json = amplitudesJson,
             size_bytes = amplitudesJson.toByteArray(Charsets.UTF_8).size.toLong(),
@@ -556,6 +584,7 @@ class AndroidStorage(
             last_accessed_epoch_millis = now,
         )
         trimAudioWaveformStore()
+        return waveform
     }
 
     override fun recordSidecarStatus(

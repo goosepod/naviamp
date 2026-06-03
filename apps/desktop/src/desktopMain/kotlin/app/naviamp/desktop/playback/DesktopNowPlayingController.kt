@@ -3,7 +3,6 @@ package app.naviamp.desktop
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Track
 import app.naviamp.domain.audio.lyricsFromAudioTags
-import app.naviamp.domain.cache.AudioWaveformRepository
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.LyricsSidecarRepository
 import app.naviamp.domain.isInternetRadioTrack
@@ -18,6 +17,7 @@ import app.naviamp.domain.playback.waveformStatus
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.waveform.AudioWaveform
+import app.naviamp.domain.waveform.AudioWaveformService
 import app.naviamp.desktop.settings.CacheSettings
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.ui.preloadJvmPlatformCoverArt
@@ -26,7 +26,7 @@ import kotlinx.coroutines.withContext
 import java.nio.file.Path
 
 class DesktopNowPlayingController(
-    private val audioWaveformRepository: AudioWaveformRepository,
+    private val audioWaveformService: AudioWaveformService<Path>,
     private val lyricsSidecarRepository: LyricsSidecarRepository,
     private val localLibraryIndexRepository: LocalLibraryIndexRepository,
     private val playbackAudioAssets: PlaybackAudioAssetRepository<Path>,
@@ -85,41 +85,25 @@ class DesktopNowPlayingController(
 
         val analysis = withContext(Dispatchers.IO) {
             runCatching {
-                val cachedWaveformBeforeAudio = audioWaveformRepository.cachedAudioWaveform(
+                val waveformResult = audioWaveformService.loadOrCreateWaveform(
                     sourceId = activeSourceId,
-                    trackId = track.id,
-                    quality = quality,
-                )
-                val audioPath = resolvePlaybackAudioSource(
-                    sourceId = activeSourceId,
+                    provider = activeProvider,
                     track = track,
                     quality = quality,
                     audioCachingEnabled = activeCacheSettings.audioCachingEnabled,
-                    audioAssets = playbackAudioAssets,
-                ).localAudio
-                val cachedWaveform = cachedWaveformBeforeAudio
-                    ?: if (audioPath != null) {
-                        audioWaveformRepository.cachedAudioWaveform(
-                            sourceId = activeSourceId,
-                            trackId = track.id,
-                            quality = quality,
-                        )
-                    } else {
-                        null
-                    }
-                val waveform = cachedWaveform ?: if (audioPath != null && activeCacheSettings.audioCachingEnabled) {
-                    audioWaveformRepository.ensureAudioWaveform(
+                )
+                val audioPath = waveformResult.localAudio ?: resolvePlaybackAudioSource(
                         sourceId = activeSourceId,
-                        trackId = track.id,
+                        track = track,
                         quality = quality,
-                    )
-                } else {
-                    null
-                }
+                        audioCachingEnabled = activeCacheSettings.audioCachingEnabled,
+                        audioAssets = playbackAudioAssets,
+                    ).localAudio
+                val waveform = waveformResult.waveform
                 val status = waveformStatus(
-                    cachedWaveformAvailable = cachedWaveform != null,
-                    generatedWaveformAvailable = waveform != null,
-                    audioAvailable = audioPath != null,
+                    cachedWaveformAvailable = waveformResult.cachedWaveformAvailable,
+                    generatedWaveformAvailable = waveformResult.generatedWaveformAvailable,
+                    audioAvailable = waveformResult.audioAvailable,
                     audioCachingEnabled = activeCacheSettings.audioCachingEnabled,
                 )
                 val tags = audioPath

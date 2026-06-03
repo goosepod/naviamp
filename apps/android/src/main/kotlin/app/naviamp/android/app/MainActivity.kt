@@ -38,7 +38,6 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.StreamQuality
-import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.isInternetRadioTrack
@@ -95,7 +94,7 @@ import app.naviamp.domain.settings.playbackSettingsChange
 import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.waveform.AudioWaveform
-import app.naviamp.domain.waveform.AudioWaveformAnalysisSource
+import app.naviamp.domain.waveform.AudioWaveformService
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeApiCall
 import app.naviamp.provider.navidrome.NavidromeApiCallHistory
@@ -370,6 +369,23 @@ private fun NaviampAndroidApp(
         }
     }
 
+    val audioWaveformService = remember(storage, playbackAudioAssets, waveformAnalyzer) {
+        AudioWaveformService(
+            waveformRepository = storage,
+            audioAssets = playbackAudioAssets,
+            analyzer = waveformAnalyzer,
+            localAudioUrl = { file -> file.toURI().toString() },
+            localAudioPath = { file -> file.absolutePath },
+            prepareAnalysis = {
+                waveformAnalyzer.applyTlsSettings(activeTlsSettings)
+                AndroidPlaybackTls.applyDefaults(activeTlsSettings)
+            },
+            cacheAudioForWaveform = { sourceId, mediaProvider, track, quality ->
+                cacheAudioTrackForPlayback(sourceId, mediaProvider as NavidromeProvider, track, quality)
+            },
+        )
+    }
+
     fun startAudioPrefetch(
         sessionToken: Long,
         activeProvider: NavidromeProvider,
@@ -578,33 +594,13 @@ private fun NaviampAndroidApp(
         track: Track,
     ): AudioWaveform? {
         val quality = currentStreamQuality()
-        if (sourceId != null) {
-            storage.cachedAudioWaveform(sourceId, track.id, quality)?.let { return it }
-        }
-        waveformAnalyzer.applyTlsSettings(activeTlsSettings)
-        AndroidPlaybackTls.applyDefaults(activeTlsSettings)
-        val localFile = if (sourceId != null) {
-            cacheAudioTrackForPlayback(sourceId, activeProvider, track, quality)
-        } else {
-            null
-        }
-        val waveform = waveformAnalyzer.analyze(
-            AudioWaveformAnalysisSource(
-                cacheKey = track.id.value,
-                streamUrl = localFile?.toURI()?.toString()
-                    ?: activeProvider.streamUrl(StreamRequest(track.id, quality)),
-            ),
-        )
-        if (waveform != null && sourceId != null && localFile != null) {
-            storage.upsertAudioWaveform(
-                sourceId = sourceId,
-                trackId = track.id,
-                quality = quality,
-                audioFile = localFile,
-                waveform = waveform,
-            )
-        }
-        return waveform
+        return audioWaveformService.loadOrCreateWaveform(
+            sourceId = sourceId,
+            provider = activeProvider,
+            track = track,
+            quality = quality,
+            audioCachingEnabled = true,
+        ).waveform
     }
 
     fun startSidecarPrep(

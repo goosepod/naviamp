@@ -275,8 +275,8 @@ Branch: `codex/desktop-main-reduction`
   - The waveform bucket algorithm now lives in common domain through `normalizeFloatPcmWaveform(...)`.
   - Desktop and Android both create BASS decode streams, ask BASS for stream byte length, read float PCM chunks, and call the same common bucket/normalization code.
   - First shared BASS access port is in place: `BassAudioBackend` hides desktop `BassNative` and Android `AndroidBassJni` for decode-stream waveform reads.
-  - The next shared service should coordinate cached waveform lookup, local/downloaded audio preference, provider-stream fallback, TLS settings, platform BASS adapters, and waveform persistence.
-  - Do not force Android into the current storage-shaped waveform repository contract; it needs `Track` and provider-stream context.
+  - `AudioWaveformService` now coordinates cached waveform lookup, local/downloaded audio preference, optional audio caching, provider-stream fallback, platform analyzer preparation, and waveform persistence.
+  - Desktop now-playing analysis, desktop sidecar prefetch, and Android sidecar prep use the shared waveform service while platform composition supplies storage/cache engines, local-file URL conversion, and TLS setup.
 - BASS usage should converge on a shared facade. Platform code may keep different bridge mechanics only at the lowest layer: desktop can wrap its native/JNA binding while Android wraps JNI, but playback, waveform, visualizer, tags, gapless, and crossfade should call shared interfaces wherever practical.
   - Android playback now uses the shared `BassAudioBackend` adapter for stream/control/progress/metadata/FFT primitives.
   - Desktop playback now uses `BassAudioBackend` for stream/control/progress/metadata/FFT/mixer primitives and BASS version/load-path diagnostics; remaining raw `BassNative` references in the engine are load-state and plugin reporting.

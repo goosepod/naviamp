@@ -73,6 +73,16 @@ interface AudioWaveformCacheRepository {
     ): AudioWaveform?
 }
 
+interface AudioWaveformStorageRepository : AudioWaveformCacheRepository {
+    suspend fun storeAudioWaveform(
+        sourceId: String,
+        trackId: TrackId,
+        quality: StreamQuality,
+        audioFilePath: String?,
+        waveform: AudioWaveform,
+    ): AudioWaveform
+}
+
 interface AudioWaveformRepository : AudioWaveformCacheRepository {
     suspend fun ensureAudioWaveform(
         sourceId: String,

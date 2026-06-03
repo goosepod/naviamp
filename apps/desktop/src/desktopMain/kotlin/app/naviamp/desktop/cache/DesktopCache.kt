@@ -20,6 +20,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.AudioCacheRepository
 import app.naviamp.domain.cache.AudioWaveformRepository
+import app.naviamp.domain.cache.AudioWaveformStorageRepository
 import app.naviamp.domain.cache.CacheMaintenanceRepository
 import app.naviamp.domain.cache.DownloadAudioByteStore
 import app.naviamp.domain.cache.DownloadReplacementRepository
@@ -79,6 +80,7 @@ class DesktopCache(
     ProviderResponseCacheRepository,
     AudioCacheRepository<CachedAudioFile, CachedAudioMetadata>,
     AudioWaveformRepository,
+    AudioWaveformStorageRepository,
     LyricsSidecarRepository,
     SidecarStatusRepository,
     DownloadRepository<DownloadedAudioFile, DownloadedTrack>,
@@ -337,6 +339,23 @@ class DesktopCache(
                     streamUrl = audioPath.toUri().toString(),
                 ),
             ) ?: return@withContext null
+            storeAudioWaveform(
+                sourceId = sourceId,
+                trackId = trackId,
+                quality = quality,
+                audioFilePath = audioPath.toAbsolutePath().toString(),
+                waveform = waveform,
+            )
+        }
+
+    override suspend fun storeAudioWaveform(
+        sourceId: String,
+        trackId: TrackId,
+        quality: StreamQuality,
+        audioFilePath: String?,
+        waveform: AudioWaveform,
+    ): AudioWaveform =
+        withContext(Dispatchers.IO) {
             val qualityKey = quality.waveformCacheKey()
             val amplitudesJson = json.encodeToString(waveform.amplitudes)
             val now = nowMillis()
@@ -353,7 +372,7 @@ class DesktopCache(
                 source_id = metadata.sourceId,
                 remote_track_id = metadata.remoteTrackId,
                 quality_key = metadata.qualityKey,
-                audio_file_path = audioPath.toAbsolutePath().toString(),
+                audio_file_path = audioFilePath.orEmpty(),
                 bucket_count = metadata.bucketCount.toLong(),
                 amplitudes_json = amplitudesJson,
                 size_bytes = metadata.sizeBytes,

@@ -78,6 +78,7 @@ import app.naviamp.domain.popular.ArtistPopularTracksService
 import app.naviamp.domain.popular.DeezerPopularTracksClient
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.popular.SimilarArtistsService
+import app.naviamp.domain.waveform.AudioWaveformService
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioRequest
@@ -192,6 +193,21 @@ fun NaviampApp(
             client = deezerDiscoveryClient,
         )
     }
+    val desktopPlaybackAudioAssets = remember(sessionCache) {
+        DesktopPlaybackAudioAssets(sessionCache, sessionCache)
+    }
+    val audioWaveformService = remember(sessionCache, desktopPlaybackAudioAssets) {
+        AudioWaveformService(
+            waveformRepository = sessionCache,
+            audioAssets = desktopPlaybackAudioAssets,
+            analyzer = DesktopAudioWaveformAnalyzer(),
+            localAudioUrl = { path -> path.toUri().toString() },
+            localAudioPath = { path -> path.toAbsolutePath().toString() },
+            cacheAudioForWaveform = { sourceId, provider, track, quality ->
+                sessionCache.cacheAudioTrack(sourceId, provider, track, quality).path
+            },
+        )
+    }
     var cacheSettings by remember {
         mutableStateOf(settingsStore.loadCacheSettings().normalized())
     }
@@ -202,10 +218,10 @@ fun NaviampApp(
             audioCachingEnabledProvider = { cacheSettings.audioCachingEnabled },
             audioPrefetchDepthProvider = { cacheSettings.audioPrefetchDepth },
             audioCacheRepository = sessionCache,
-            audioWaveformRepository = sessionCache,
+            audioWaveformService = audioWaveformService,
             lyricsSidecarRepository = sessionCache,
             sidecarStatusRepository = sessionCache,
-            playbackAudioAssets = DesktopPlaybackAudioAssets(sessionCache, sessionCache),
+            playbackAudioAssets = desktopPlaybackAudioAssets,
         )
     }
     val librarySync = remember(sessionCache) {
@@ -1027,10 +1043,10 @@ fun NaviampApp(
     )
 
     val nowPlayingController = DesktopNowPlayingController(
-        audioWaveformRepository = sessionCache,
+        audioWaveformService = audioWaveformService,
         lyricsSidecarRepository = sessionCache,
         localLibraryIndexRepository = sessionCache,
-        playbackAudioAssets = DesktopPlaybackAudioAssets(sessionCache, sessionCache),
+        playbackAudioAssets = desktopPlaybackAudioAssets,
         playbackEngine = playbackEngine,
         provider = { connectedProvider },
         sourceId = { connectedSourceId },
