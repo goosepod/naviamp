@@ -226,6 +226,7 @@ Then higher-level repositories can be composed from those stores:
   - BASS stream active-state diagnostic labeling now lives in common backend helpers instead of desktop formatting raw active-state values directly.
   - ReplayGain scalar extraction now has a common helper for BASS call sites that only need the final volume factor.
   - Playback source seek now uses a common backend helper so desktop and Android select and seek the active BASS source/output handle consistently.
+  - BASS stop-and-release cleanup now uses a shared backend helper so desktop and Android stop output streams and release playback/source/prepared handles through the same path.
   - Still to normalize further: crossfade transition state reset and remaining transition application details should continue moving from platform playback engines into shared planning/services.
   - Keep JNI/JNA/native-loader details under platform adapters unless a single native bridge is proven simpler across all targets.
 - [ ] Normalize platform file/class names.

@@ -258,6 +258,19 @@ fun BassAudioBackend.releaseBassStream(stream: Int): Result<Unit> =
 fun BassAudioBackend.releaseBassStreams(vararg handles: Int): List<Result<Unit>> =
     bassStreamHandlesForRelease(*handles).map(::releaseBassStream)
 
+fun BassAudioBackend.stopAndReleaseBassPlayback(
+    playbackHandle: Int,
+    sourceHandle: Int,
+    preparedHandle: Int,
+): List<Result<Unit>> {
+    val results = mutableListOf<Result<Unit>>()
+    if (playbackHandle != 0) {
+        results += stop(playbackHandle)
+    }
+    results += releaseBassStreams(playbackHandle, sourceHandle, preparedHandle)
+    return results
+}
+
 fun BassAudioBackend.play(stream: Int): Result<Unit> =
     play(BassStreamHandle(stream))
 

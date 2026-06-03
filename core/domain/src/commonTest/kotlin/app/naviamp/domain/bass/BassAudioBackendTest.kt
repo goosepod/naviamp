@@ -97,6 +97,29 @@ class BassAudioBackendTest {
     }
 
     @Test
+    fun stopsAndReleasesBassPlaybackHandles() {
+        val backend = RecordingBassAudioBackend()
+
+        val results = backend.stopAndReleaseBassPlayback(
+            playbackHandle = 7,
+            sourceHandle = 8,
+            preparedHandle = 8,
+        )
+
+        assertTrue(results.all { it.isSuccess })
+        assertEquals(
+            listOf(
+                "stop:7",
+                "remove:7",
+                "free:7",
+                "remove:8",
+                "free:8",
+            ),
+            backend.calls,
+        )
+    }
+
+    @Test
     fun intHandleHelpersDelegateToStreamHandleOperations() {
         val backend = RecordingBassAudioBackend()
 
@@ -556,6 +579,11 @@ private class RecordingBassAudioBackend(
 
     override fun freeStream(stream: BassStreamHandle): Result<Unit> {
         calls += "free:${stream.value}"
+        return Result.success(Unit)
+    }
+
+    override fun stop(stream: BassStreamHandle): Result<Unit> {
+        calls += "stop:${stream.value}"
         return Result.success(Unit)
     }
 

@@ -22,10 +22,9 @@ import app.naviamp.domain.bass.pause
 import app.naviamp.domain.bass.play
 import app.naviamp.domain.bass.prepareNextBassMixerSource
 import app.naviamp.domain.bass.releaseBassStream
-import app.naviamp.domain.bass.releaseBassStreams
 import app.naviamp.domain.bass.seekBassPlaybackSource
 import app.naviamp.domain.bass.setBassPlaybackMuted
-import app.naviamp.domain.bass.stop
+import app.naviamp.domain.bass.stopAndReleaseBassPlayback
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
@@ -418,8 +417,7 @@ class AndroidBassPlaybackEngine(
         progressJob = null
         val handle = stream
         if (handle != 0) {
-            bass.stop(handle)
-            freeHandles(handle, currentSourceStream, preparedStream)
+            bass.stopAndReleaseBassPlayback(handle, currentSourceStream, preparedStream)
         }
         val streamReset = clearPlaybackStreamState()
         stream = streamReset.stream
@@ -587,10 +585,6 @@ class AndroidBassPlaybackEngine(
         preparedStream = 0
         preparedRequest = reset.request
         preparedReplayGainFactor = reset.replayGainFactor
-    }
-
-    private fun freeHandles(vararg handles: Int) {
-        bass.releaseBassStreams(*handles)
     }
 
     private fun errorMessage(prefix: String): String =

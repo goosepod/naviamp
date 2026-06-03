@@ -28,7 +28,7 @@ import app.naviamp.domain.bass.releaseBassStream
 import app.naviamp.domain.bass.releaseBassStreams
 import app.naviamp.domain.bass.seekBassPlaybackSource
 import app.naviamp.domain.bass.setEndSync
-import app.naviamp.domain.bass.stop
+import app.naviamp.domain.bass.stopAndReleaseBassPlayback
 import app.naviamp.domain.playback.clearPreparedPlaybackMetadata
 import app.naviamp.domain.playback.clearPlaybackStreamState
 import app.naviamp.domain.playback.failedPreparedPlaybackMetadata
@@ -273,7 +273,6 @@ class BassPlaybackEngine(
         val handle = stream
         val bass = backend
         if (bass != null && handle != 0) {
-            bass.stop(handle)
             freeAllStreams(bass)
         }
         val reset = clearPlaybackStreamState()
@@ -472,7 +471,7 @@ class BassPlaybackEngine(
     }
 
     private fun freeAllStreams(bass: BassAudioBackend) {
-        bass.releaseBassStreams(stream, currentSourceStream, preparedStream)
+        bass.stopAndReleaseBassPlayback(stream, currentSourceStream, preparedStream)
             .forEach { result -> result.onFailure { lastError = it.message } }
         val streamReset = clearPlaybackStreamState()
         crossfadeActive = streamReset.crossfadeActive
