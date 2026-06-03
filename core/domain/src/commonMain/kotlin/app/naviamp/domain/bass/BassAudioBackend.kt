@@ -314,6 +314,21 @@ fun BassAudioBackend.applyPreparedBassMixerTransition(
         BassPreparedMixerTransitionResult(fallbackErrors = fallbackErrors)
     }
 
+fun BassAudioBackend.applyPreparedBassMixerTransition(
+    mixer: Int,
+    nextSource: Int,
+    currentSource: Int,
+    currentSourceVolumeFactor: Float,
+    transition: PreparedMixerTransitionPlan,
+): Result<BassPreparedMixerTransitionResult> =
+    applyPreparedBassMixerTransition(
+        mixer = BassStreamHandle(mixer),
+        nextSource = BassStreamHandle(nextSource),
+        currentSource = currentSource.takeIf { it != 0 }?.let(::BassStreamHandle),
+        currentSourceVolumeFactor = currentSourceVolumeFactor,
+        transition = transition,
+    )
+
 private fun BassAudioBackend.applyPreparedBassFadeIn(
     nextSource: BassStreamHandle,
     transition: PreparedMixerTransitionPlan,

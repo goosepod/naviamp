@@ -246,9 +246,9 @@ class BassPlaybackEngine(
                     val adjustment = replayGainAdjustment(request)
                     val transition = planPreparedMixerTransition(crossfadeDurationSeconds, adjustment.volumeFactor)
                     bass.applyPreparedBassMixerTransition(
-                        mixer = BassStreamHandle(stream),
-                        nextSource = BassStreamHandle(source),
-                        currentSource = currentSourceStream.takeIf { it != 0 }?.let(::BassStreamHandle),
+                        mixer = stream,
+                        nextSource = source,
+                        currentSource = currentSourceStream,
                         currentSourceVolumeFactor = currentReplayGainAdjustment.volumeFactor,
                         transition = transition,
                     ).onSuccess { result ->

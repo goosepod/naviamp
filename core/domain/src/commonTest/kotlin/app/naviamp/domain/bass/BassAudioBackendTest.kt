@@ -158,6 +158,30 @@ class BassAudioBackendTest {
     }
 
     @Test
+    fun preparedMixerTransitionIntOverloadTreatsZeroCurrentSourceAsAbsent() {
+        val backend = RecordingBassAudioBackend()
+
+        val result = backend.applyPreparedBassMixerTransition(
+            mixer = 1,
+            nextSource = 2,
+            currentSource = 0,
+            currentSourceVolumeFactor = 0.8f,
+            transition = planPreparedMixerTransition(crossfadeDurationSeconds = 5, replayGainFactor = 0.7f),
+        )
+
+        assertTrue(result.isSuccess)
+        assertEquals(
+            listOf(
+                "volume:2:0.0",
+                "add:1:2",
+                "secondsToBytes:2:5.0",
+                "envelope:2",
+            ),
+            backend.calls,
+        )
+    }
+
+    @Test
     fun preparedMixerTransitionFallsBackToSlidesWhenEnvelopesFail() {
         val backend = RecordingBassAudioBackend(envelopeSucceeds = false)
 
