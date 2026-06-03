@@ -181,6 +181,9 @@ Branch: `codex/desktop-main-reduction`
 - [x] Share prepared-playback adoption eligibility.
   - Desktop and Android now use a common active-stream, prepared-request, prepared-stream, and mixer-capability gate before adopting queued BASS sources.
   - The actual source swap, replay-gain assignment, progress reset, and native handle cleanup remain platform-local.
+- [x] Share active playback stream reset defaults.
+  - Desktop and Android now clear active stream, current source, crossfade state, and ReplayGain factors through common playback helpers.
+  - Platform engines still own native handle freeing, progress/notification cleanup, and diagnostics.
 
 ## Architecture Refactor Backlog
 

@@ -18,6 +18,7 @@ import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.clearPreparedPlaybackMetadata
+import app.naviamp.domain.playback.clearPlaybackStreamState
 import app.naviamp.domain.playback.crossfadeDurationMillis
 import app.naviamp.domain.playback.failedPreparedPlaybackMetadata
 import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
@@ -424,12 +425,15 @@ class AndroidBassPlaybackEngine(
             bass.stop(handle)
             freeHandles(handle, currentSourceStream, preparedStream)
         }
-        stream = 0
-        currentSourceStream = 0
+        val streamReset = clearPlaybackStreamState()
+        stream = streamReset.stream
+        currentSourceStream = streamReset.currentSourceStream
         currentVisualizerFrame = null
+        val preparedReset = clearPreparedPlaybackMetadata()
         preparedStream = 0
-        preparedRequest = null
-        preparedReplayGainFactor = 1f
+        preparedRequest = preparedReset.request
+        preparedReplayGainFactor = preparedReset.replayGainFactor
+        replayGainFactor = streamReset.replayGainFactor
     }
 
     private fun handlePlaybackFinished() {

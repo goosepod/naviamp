@@ -171,6 +171,17 @@ class PlaybackTransitionsTest {
     }
 
     @Test
+    fun clearsPlaybackStreamStateToPlatformDefaults() {
+        val reset = clearPlaybackStreamState()
+
+        assertEquals(0, reset.stream)
+        assertEquals(0, reset.currentSourceStream)
+        assertFalse(reset.crossfadeActive)
+        assertEquals(ReplayGainMode.Off, reset.replayGainAdjustment.mode)
+        assertEquals(1f, reset.replayGainFactor)
+    }
+
+    @Test
     fun adoptsPreparedPlaybackOnlyWhenActivePreparedMatchingAndMixerCapable() {
         val request = PlaybackRequest(url = "file:///track.flac", mediaId = "track-1")
 

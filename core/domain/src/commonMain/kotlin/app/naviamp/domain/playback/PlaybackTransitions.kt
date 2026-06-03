@@ -48,6 +48,14 @@ data class PreparedPlaybackAdoptionPlan(
     val shouldAdopt: Boolean,
 )
 
+data class PlaybackStreamStateReset(
+    val stream: Int = 0,
+    val currentSourceStream: Int = 0,
+    val crossfadeActive: Boolean = false,
+    val replayGainAdjustment: PlaybackReplayGainAdjustment = PlaybackReplayGainAdjustment.off(),
+    val replayGainFactor: Float = 1f,
+)
+
 enum class PrepareNextPlaybackReason {
     Crossfade,
     Gapless,
@@ -110,6 +118,9 @@ fun failedPreparedPlaybackMetadata(error: Throwable): PreparedPlaybackMetadataRe
     PreparedPlaybackMetadataReset(
         error = error.message ?: "Could not prepare next BASS stream.",
     )
+
+fun clearPlaybackStreamState(): PlaybackStreamStateReset =
+    PlaybackStreamStateReset()
 
 fun planPreparedPlaybackAdoption(
     hasActiveStream: Boolean,
