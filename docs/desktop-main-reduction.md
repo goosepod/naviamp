@@ -208,6 +208,9 @@ Branch: `codex/desktop-main-reduction`
 - [x] Share BASS polling finished-state detection.
   - Common playback helpers now combine BASS stopped state and progress-at-end tolerance for finish decisions.
   - Android consumes this directly; desktop still has BASS end-sync and can reuse the helper as polling is normalized further.
+- [x] Expose Android BASS byte-position conversion through the shared backend.
+  - Android now implements `positionBytes` and `secondsToBytes` on `BassAudioBackend`, matching desktop's crossfade/envelope primitives.
+  - The underlying bridge remains JNI on Android and native/JNA on desktop.
 
 ## Architecture Refactor Backlog
 

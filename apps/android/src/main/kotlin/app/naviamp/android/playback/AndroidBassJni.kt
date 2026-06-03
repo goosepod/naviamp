@@ -55,6 +55,11 @@ object AndroidBassJni {
 
     fun durationSeconds(stream: Int): Double? = nativeDurationSeconds(stream).takeIf { it > 0.0 }
 
+    fun positionBytes(stream: Int): Long? = nativePositionBytes(stream).takeIf { it >= 0L }
+
+    fun secondsToBytes(stream: Int, seconds: Double): Long? =
+        nativeSecondsToBytes(stream, seconds).takeIf { it >= 0L }
+
     fun lengthBytes(stream: Int): Long? = nativeLengthBytes(stream).takeIf { it > 0L }
 
     fun streamTags(stream: Int): Array<String> = nativeStreamTags(stream)
@@ -84,6 +89,8 @@ object AndroidBassJni {
     private external fun nativeSeek(stream: Int, seconds: Double): Boolean
     private external fun nativePositionSeconds(stream: Int): Double
     private external fun nativeDurationSeconds(stream: Int): Double
+    private external fun nativePositionBytes(stream: Int): Long
+    private external fun nativeSecondsToBytes(stream: Int, seconds: Double): Long
     private external fun nativeLengthBytes(stream: Int): Long
     private external fun nativeStreamTags(stream: Int): Array<String>
     private external fun nativeFft(stream: Int, bins: Int): FloatArray
