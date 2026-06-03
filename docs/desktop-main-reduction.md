@@ -229,8 +229,10 @@ Branch: `codex/desktop-main-reduction`
   - `AudioWaveformAnalyzer` and `AudioWaveformAnalysisSource` now live in common domain, with desktop using `DesktopAudioWaveformAnalyzer` over `BassNative` and Android using `AndroidAudioWaveformAnalyzer` over `AndroidBassJni`.
   - The waveform bucket algorithm now lives in common domain through `normalizeFloatPcmWaveform(...)`.
   - Desktop and Android both create BASS decode streams, ask BASS for stream byte length, read float PCM chunks, and call the same common bucket/normalization code.
+  - First shared BASS access port is in place: `BassAudioBackend` hides desktop `BassNative` and Android `AndroidBassJni` for decode-stream waveform reads.
   - The next shared service should coordinate cached waveform lookup, local/downloaded audio preference, provider-stream fallback, TLS settings, platform BASS adapters, and waveform persistence.
   - Do not force Android into the current storage-shaped waveform repository contract; it needs `Track` and provider-stream context.
+- BASS usage should converge on a shared facade. Platform code may keep different bridge mechanics only at the lowest layer: desktop can wrap its native/JNA binding while Android wraps JNI, but playback, waveform, visualizer, tags, gapless, and crossfade should call shared interfaces wherever practical.
 - Naming convention: shared/common abstractions keep generic names, while platform adapters and platform-owned service files should use `Desktop` / `Android` prefixes.
   - Example: common `AudioWaveformAnalyzer`, desktop `DesktopAudioWaveformAnalyzer`, Android `AndroidAudioWaveformAnalyzer`.
   - Remaining desktop playback files without a platform prefix should be renamed in narrow slices when their references are touched.

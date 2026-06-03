@@ -17,7 +17,8 @@ class AndroidPlaybackRuntime private constructor(
         onFailure = { throw IllegalStateException("BASS is required for Android playback.", it) },
     )
     val playbackEngine: AndroidPlaybackEngine = AndroidBassPlaybackEngine(appContext, bassJni)
-    val waveformAnalyzer: AndroidAudioWaveformAnalyzer = AndroidAudioWaveformAnalyzer(appContext, bassJni)
+    val bassAudioBackend: AndroidBassAudioBackend = AndroidBassAudioBackend(bassJni)
+    val waveformAnalyzer: AndroidAudioWaveformAnalyzer = AndroidAudioWaveformAnalyzer(appContext, bassAudioBackend)
 
     companion object {
         @Volatile

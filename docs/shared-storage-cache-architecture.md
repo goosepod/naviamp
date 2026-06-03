@@ -133,6 +133,7 @@ Then higher-level repositories can be composed from those stores:
   - Nineteenth slice: Android now-playing lyrics and waveform sidecar status writes use `SidecarStatusRepository` instead of broad `AndroidStorage`.
   - Twentieth slice: desktop and Android BASS waveform analyzers implement a shared `AudioWaveformAnalyzer` contract.
   - Twenty-first slice: desktop and Android waveform analyzers now use shared float-PCM bucketing over BASS decode-stream length/read primitives.
+  - Twenty-second slice: shared `BassAudioBackend` port now hides desktop `BassNative` and Android `AndroidBassJni` for waveform decode-stream access.
 - [ ] Replace direct `DesktopCache` dependencies in desktop controllers with narrower interfaces.
   - `DesktopHomeController`
   - `DesktopSearchController`
@@ -168,8 +169,12 @@ Then higher-level repositories can be composed from those stores:
   - Waveform generation itself should be split into a shared analyzer interface instead of being hidden inside platform storage.
     - First analyzer slice is complete: `AudioWaveformAnalyzer` and `AudioWaveformAnalysisSource` now live in common domain, with `DesktopAudioWaveformAnalyzer` and `AndroidAudioWaveformAnalyzer` as BASS-backed implementations.
     - First BASS unification slice is complete: both waveform analyzers now create BASS decode streams, read float PCM chunks, and call common `normalizeFloatPcmWaveform(...)`.
+    - First BASS access-port slice is complete: waveform analyzers depend on shared `BassAudioBackend`; platform adapters wrap desktop native access and Android JNI below that boundary.
     - Next slice should introduce a shared waveform service that composes cached waveform lookup, local/downloaded audio preference, provider-stream fallback, TLS settings, analyzer calls, and persistence.
     - Avoid forcing Android into the current storage-shaped `AudioWaveformRepository.ensureAudioWaveform(sourceId, trackId, quality)` contract; Android needs `Track`, provider stream fallback, and playback cache behavior.
+- [ ] Expand the shared BASS facade beyond waveform reads.
+  - Model playback streams, decode streams, active state, stream metadata/tags, FFT visualizer reads, seek/position/duration, volume slides, mixer channels, end sync, gapless, and crossfade through shared interfaces.
+  - Keep JNI/JNA/native-loader details under platform adapters unless a single native bridge is proven simpler across all targets.
 - [ ] Normalize platform file/class names.
   - Shared/common abstractions keep generic names.
   - Platform adapters and platform-owned service files should use `Desktop` / `Android` prefixes.

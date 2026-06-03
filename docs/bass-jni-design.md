@@ -12,7 +12,12 @@ This document defines the production direction for Naviamp's BASS integration. T
 
 ## Kotlin Surface
 
-The Kotlin side should expose a small internal API under `apps/desktop` and the future Android player module. It should not become part of the shared domain model.
+The Kotlin side should expose two layers:
+
+- A shared app-facing BASS facade in common code for behavior that desktop and Android should use identically.
+- Platform/native bridge adapters below that facade, where desktop may currently wrap JNA/native access and Android wraps JNI.
+
+The first shared facade slice is `BassAudioBackend`, which covers decode-stream waveform reads. The broader interface below remains the target shape for playback, visualizers, metadata, gapless, and crossfade, but it should be reached through shared ports before UI or playback orchestration touches platform connector details.
 
 ```kotlin
 internal interface BassBinding {
