@@ -231,6 +231,7 @@ Then higher-level repositories can be composed from those stores:
   - Direct-vs-mixer playback selection now uses a common planning helper; Android's media-id requirement remains an explicit platform constraint instead of an inline fork.
   - Prepared-source adoption now reapplies the shared BASS volume plan after handoff so a faded-in queued source cannot remain silent once it becomes the active track.
   - Prepared crossfade transitions now use shared BASS volume slides for fade-in/fade-out instead of BASSmix volume envelopes, avoiding envelope-position ambiguity while keeping desktop and Android behavior aligned.
+  - BASS playback polling continuation now uses a shared active-state predicate so desktop and Android stop polling on the same output-stopped boundary.
   - Still to normalize further: crossfade transition state reset and remaining transition application details should continue moving from platform playback engines into shared planning/services.
   - Keep JNI/JNA/native-loader details under platform adapters unless a single native bridge is proven simpler across all targets.
 - [ ] Normalize platform file/class names.

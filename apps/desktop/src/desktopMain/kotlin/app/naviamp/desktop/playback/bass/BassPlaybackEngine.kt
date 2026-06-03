@@ -39,6 +39,7 @@ import app.naviamp.domain.playback.playbackSourceHandle
 import app.naviamp.domain.playback.playbackReplayGainAdjustment
 import app.naviamp.domain.playback.playbackStartSeekPosition
 import app.naviamp.domain.playback.playbackUserVolumeFactor
+import app.naviamp.domain.playback.shouldContinueBassPlaybackPolling
 import app.naviamp.domain.playback.shouldReusePreparedPlayback
 import app.naviamp.domain.playback.shouldUseBassMixerPlayback
 import kotlinx.coroutines.CoroutineScope
@@ -146,7 +147,10 @@ class BassPlaybackEngine(
 
                 var lastProgress = PlaybackProgress.Unknown
                 var lastMetadata = PlaybackStreamMetadata()
-                while (isCurrentPlayback(currentPlaybackId) && bass.activeState(playbackHandle) != BassActiveState.Stopped) {
+                while (
+                    isCurrentPlayback(currentPlaybackId) &&
+                    shouldContinueBassPlaybackPolling(bass.activeState(playbackHandle))
+                ) {
                     val snapshot = bass.bassPlaybackSnapshot(playbackHandle, currentSourceStream)
                     val progress = snapshot.progress
                     if (progress != lastProgress) {

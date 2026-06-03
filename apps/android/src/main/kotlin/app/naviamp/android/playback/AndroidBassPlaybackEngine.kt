@@ -44,6 +44,7 @@ import app.naviamp.domain.playback.playbackSourceHandle
 import app.naviamp.domain.playback.playbackStartSeekPosition
 import app.naviamp.domain.playback.playbackStateForBassActiveState
 import app.naviamp.domain.playback.playbackUserVolumeFactor
+import app.naviamp.domain.playback.shouldContinueBassPlaybackPolling
 import app.naviamp.domain.playback.shouldFinishPlaybackForBassState
 import app.naviamp.domain.playback.shouldReusePreparedPlayback
 import app.naviamp.domain.playback.shouldUseBassMixerPlayback
@@ -412,10 +413,10 @@ class AndroidBassPlaybackEngine(
                     onStateChanged?.invoke(PlaybackState.Finished)
                     return@launch
                 }
-                when (active) {
-                    BassActiveState.Stopped -> Unit
-                    else -> playbackStateForBassActiveState(active)?.let { onStateChanged?.invoke(it) }
+                if (!shouldContinueBassPlaybackPolling(active)) {
+                    return@launch
                 }
+                playbackStateForBassActiveState(active)?.let { onStateChanged?.invoke(it) }
                 delay(100)
             }
         }

@@ -437,4 +437,12 @@ class PlaybackTransitionsTest {
             ),
         )
     }
+
+    @Test
+    fun continuesBassPlaybackPollingUntilOutputStops() {
+        assertFalse(shouldContinueBassPlaybackPolling(BassActiveState.Stopped))
+        assertTrue(shouldContinueBassPlaybackPolling(BassActiveState.Playing))
+        assertTrue(shouldContinueBassPlaybackPolling(BassActiveState.Stalled))
+        assertTrue(shouldContinueBassPlaybackPolling(BassActiveState.Paused))
+    }
 }

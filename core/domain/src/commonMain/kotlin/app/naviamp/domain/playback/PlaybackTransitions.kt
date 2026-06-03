@@ -314,6 +314,9 @@ fun shouldFinishPlaybackForBassState(
         currentSourceActiveState == BassActiveState.Stopped
 }
 
+fun shouldContinueBassPlaybackPolling(activeState: Int): Boolean =
+    activeState != BassActiveState.Stopped
+
 const val MaxCrossfadeDurationSeconds = 12
 const val DefaultBassMixerFrequency = 44_100
 const val DefaultBassMixerChannels = 2
