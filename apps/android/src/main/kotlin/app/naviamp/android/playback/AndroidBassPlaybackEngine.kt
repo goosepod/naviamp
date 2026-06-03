@@ -12,14 +12,13 @@ import app.naviamp.domain.bass.BassActiveState
 import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassStreamHandle
 import app.naviamp.domain.bass.activeState
-import app.naviamp.domain.bass.addMixerChannel
 import app.naviamp.domain.bass.applyBassPlaybackVolume
 import app.naviamp.domain.bass.applyPreparedBassMixerTransition
 import app.naviamp.domain.bass.bassActiveStateLabel
 import app.naviamp.domain.bass.bassFailureMessage
 import app.naviamp.domain.bass.bassPlaybackVisualizerFrame
-import app.naviamp.domain.bass.channelInfo
 import app.naviamp.domain.bass.createDirectBassPlayback
+import app.naviamp.domain.bass.createMixerBassPlayback
 import app.naviamp.domain.bass.createPlaybackStream
 import app.naviamp.domain.bass.durationSeconds
 import app.naviamp.domain.bass.pause
@@ -28,7 +27,6 @@ import app.naviamp.domain.bass.positionSeconds
 import app.naviamp.domain.bass.releaseBassStream
 import app.naviamp.domain.bass.releaseBassStreams
 import app.naviamp.domain.bass.seek
-import app.naviamp.domain.bass.setVolume
 import app.naviamp.domain.bass.setBassPlaybackMuted
 import app.naviamp.domain.bass.stop
 import app.naviamp.domain.bass.streamMetadata
@@ -44,7 +42,6 @@ import app.naviamp.domain.playback.clearPreparedPlaybackMetadata
 import app.naviamp.domain.playback.clearPlaybackStreamState
 import app.naviamp.domain.playback.failedPreparedPlaybackMetadata
 import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
-import app.naviamp.domain.playback.planBassMixerCreation
 import app.naviamp.domain.playback.planPreparedPlaybackAdoption
 import app.naviamp.domain.playback.planPreparedMixerTransition
 import app.naviamp.domain.playback.playbackReplayGainAdjustment
@@ -369,21 +366,17 @@ class AndroidBassPlaybackEngine(
     }
 
     private fun createMixerPlayback(request: PlaybackRequest): Int {
-        val source = createStream(request.url, decode = true)
-        check(source != 0) { errorMessage("BASS decode stream creation failed") }
-        currentSourceStream = source
-        bass.setVolume(source, replayGainFactor)
-        val sourceInfo = bass.channelInfo(source).getOrNull()
-        val mixerPlan = planBassMixerCreation(sourceInfo, crossfadeDurationSeconds)
-        val mixer = bass.createMixer(
-            frequency = mixerPlan.frequency,
-            channels = mixerPlan.channels,
-            queueSources = mixerPlan.queueSources,
-        ).getOrNull()?.value ?: 0
-        check(mixer != 0) { errorMessage("BASS_Mixer_StreamCreate failed") }
-        check(bass.addMixerChannel(mixer, source).isSuccess) { errorMessage("BASS_Mixer_StreamAddChannel failed") }
-        stream = mixer
-        return mixer
+        val file = localFileFromUrl(request.url)
+        val playback = bass.createMixerBassPlayback(
+            localPath = file?.absolutePath,
+            url = request.url,
+            crossfadeDurationSeconds = crossfadeDurationSeconds,
+            replayGainFactor = replayGainFactor,
+        ).getOrThrow()
+        currentSourceStream = playback.sourceHandle
+        replayGainFactor = playback.replayGainFactor
+        stream = playback.playbackHandle
+        return playback.playbackHandle
     }
 
     private fun createDirectPlayback(request: PlaybackRequest): Int {

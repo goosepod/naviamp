@@ -227,6 +227,38 @@ class BassAudioBackendTest {
     }
 
     @Test
+    fun createsMixerBassPlaybackFromSharedBackendPrimitives() {
+        val backend = RecordingBassAudioBackend()
+
+        val result = backend.createMixerBassPlayback(
+            localPath = "/tmp/song.flac",
+            url = "file:///tmp/song.flac",
+            crossfadeDurationSeconds = 3,
+            replayGainFactor = 0.75f,
+            playbackDecode = true,
+        )
+
+        assertEquals(
+            BassCreatedPlayback(
+                playbackHandle = 30,
+                sourceHandle = 13,
+                replayGainFactor = 0.75f,
+            ),
+            result.getOrThrow(),
+        )
+        assertEquals(
+            listOf(
+                "filePlaybackDecode:/tmp/song.flac",
+                "info:13",
+                "mixer:48000:2:false",
+                "volume:13:0.75",
+                "add:30:13",
+            ),
+            backend.calls,
+        )
+    }
+
+    @Test
     fun preparedMixerTransitionAppliesEnvelopesWhenBytePositionsAreAvailable() {
         val backend = RecordingBassAudioBackend()
 
@@ -340,6 +372,20 @@ private class RecordingBassAudioBackend(
     override fun createUrlDecodeStream(url: String): Result<BassStreamHandle> {
         calls += "urlDecode:$url"
         return Result.success(BassStreamHandle(14))
+    }
+
+    override fun channelInfo(stream: BassStreamHandle): Result<BassStreamInfo> {
+        calls += "info:${stream.value}"
+        return Result.success(BassStreamInfo(frequency = 48_000, channels = 2))
+    }
+
+    override fun createMixer(
+        frequency: Int,
+        channels: Int,
+        queueSources: Boolean,
+    ): Result<BassStreamHandle> {
+        calls += "mixer:$frequency:$channels:$queueSources"
+        return Result.success(BassStreamHandle(30))
     }
 
     override fun lengthBytes(stream: BassStreamHandle): Long? =

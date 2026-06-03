@@ -4,6 +4,7 @@ import app.naviamp.domain.playback.PreparedMixerTransitionPlan
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.crossfadeFadeInEnvelopePoints
 import app.naviamp.domain.playback.crossfadeFadeOutEnvelopePoints
+import app.naviamp.domain.playback.planBassMixerCreation
 import app.naviamp.domain.playback.playbackVisualizerFrameFromFft
 import app.naviamp.domain.playback.playbackVolumeApplicationPlan
 
@@ -304,6 +305,38 @@ fun BassAudioBackend.createDirectBassPlayback(
         BassCreatedPlayback(
             playbackHandle = handle.value,
             sourceHandle = handle.value,
+            replayGainFactor = replayGainFactor,
+        )
+    }
+
+fun BassAudioBackend.createMixerBassPlayback(
+    localPath: String?,
+    url: String,
+    crossfadeDurationSeconds: Int,
+    replayGainFactor: Float,
+    playbackDecode: Boolean = false,
+): Result<BassCreatedPlayback> =
+    runCatching {
+        val source = createPlaybackStream(
+            localPath = localPath,
+            url = url,
+            decode = true,
+            playbackDecode = playbackDecode,
+        ).getOrThrow()
+        val mixerPlan = planBassMixerCreation(
+            sourceInfo = channelInfo(source).getOrNull(),
+            crossfadeDurationSeconds = crossfadeDurationSeconds,
+        )
+        val mixer = createMixer(
+            frequency = mixerPlan.frequency,
+            channels = mixerPlan.channels,
+            queueSources = mixerPlan.queueSources,
+        ).getOrThrow()
+        setVolume(source, replayGainFactor)
+        addMixerChannel(mixer, source).getOrThrow()
+        BassCreatedPlayback(
+            playbackHandle = mixer.value,
+            sourceHandle = source.value,
             replayGainFactor = replayGainFactor,
         )
     }
