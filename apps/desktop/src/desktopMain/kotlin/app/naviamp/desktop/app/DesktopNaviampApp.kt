@@ -198,10 +198,14 @@ fun NaviampApp(
     val playlistEngine = remember(playbackEngine, sessionCache) {
         PlaylistEngine(
             playbackEngine = playbackEngine,
-            cache = sessionCache,
             sourceIdProvider = { connectedSourceId },
             audioCachingEnabledProvider = { cacheSettings.audioCachingEnabled },
             audioPrefetchDepthProvider = { cacheSettings.audioPrefetchDepth },
+            audioCacheRepository = sessionCache,
+            audioWaveformRepository = sessionCache,
+            lyricsSidecarRepository = sessionCache,
+            sidecarStatusRepository = sessionCache,
+            playbackAudioAssets = DesktopPlaybackAudioAssets(sessionCache, sessionCache),
         )
     }
     val librarySync = remember(sessionCache) {
@@ -1938,6 +1942,7 @@ fun NaviampApp(
                                             coverArtId?.let { connectedProvider?.coverArtUrl(it) }
                                         },
                                         onQueryChanged = searchController::updateQuery,
+                                        onClearSearch = searchController::clearSearch,
                                         onArtistSelected = { artist -> openArtistDetails(artist) },
                                         onArtistRadioSelected = { artist -> playArtistRadio(artist) },
                                         onArtistAddToQueue = { artist ->

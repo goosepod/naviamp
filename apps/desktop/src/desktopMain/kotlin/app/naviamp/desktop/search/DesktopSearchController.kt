@@ -36,6 +36,14 @@ class DesktopSearchController(
         settingsStore.saveSearchSettings(SearchSettings(query = query))
     }
 
+    fun clearSearch() {
+        setQuery("")
+        setResults(MediaSearchResults())
+        setStatus(null)
+        setSearching(false)
+        settingsStore.saveSearchSettings(SearchSettings(query = ""))
+    }
+
     suspend fun loadSearchResults(query: String) {
         searchSessionController.load(query) {
             delay(SearchDebounceMillis)

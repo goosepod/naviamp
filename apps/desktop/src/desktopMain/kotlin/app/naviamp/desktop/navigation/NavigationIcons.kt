@@ -6,6 +6,7 @@ object NavigationIcons {
     val Home = NaviampIcons.Home
     val Library = NaviampIcons.Library
     val Search = NaviampIcons.Search
+    val Close = NaviampIcons.Close
     val Downloads = NaviampIcons.Downloads
     val Settings = NaviampIcons.Settings
     val ChevronRight = NaviampIcons.ChevronRight

@@ -411,6 +411,7 @@ fun NaviampSharedAppShell(
     onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit = onPlaybackSettingsChanged,
     onQueryChanged: (String) -> Unit,
     onSearch: () -> Unit,
+    onClearSearch: () -> Unit = {},
     onLibraryQueryChanged: (String) -> Unit = {},
     onRefreshLibrary: () -> Unit = {},
     onTrackSelected: (AndroidTrackRowUi) -> Unit,
@@ -614,6 +615,7 @@ fun NaviampSharedAppShell(
                             onResetDatabase = onResetDatabase,
                             onQueryChanged = onQueryChanged,
                             onSearch = onSearch,
+                            onClearSearch = onClearSearch,
                             onLibraryQueryChanged = onLibraryQueryChanged,
                             onRefreshLibrary = onRefreshLibrary,
                             onTrackSelected = onTrackSelected,
@@ -879,6 +881,7 @@ private fun ConnectedContent(
     onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit,
     onQueryChanged: (String) -> Unit,
     onSearch: () -> Unit,
+    onClearSearch: () -> Unit,
     onLibraryQueryChanged: (String) -> Unit,
     onRefreshLibrary: () -> Unit,
     onTrackSelected: (AndroidTrackRowUi) -> Unit,
@@ -1106,7 +1109,18 @@ private fun ConnectedContent(
                 onRefreshLibrary = onRefreshLibrary,
                 onArtistSelected = onArtistSelected,
             )
-            SharedRoute.Search -> SearchContent(colors, query, searchResults, onQueryChanged, onSearch, onTrackSelected, onTrackAddToQueue, onAlbumSelected, onArtistSelected)
+            SharedRoute.Search -> SearchContent(
+                colors = colors,
+                query = query,
+                results = searchResults,
+                onQueryChanged = onQueryChanged,
+                onSearch = onSearch,
+                onClearSearch = onClearSearch,
+                onTrackSelected = onTrackSelected,
+                onTrackAddToQueue = onTrackAddToQueue,
+                onAlbumSelected = onAlbumSelected,
+                onArtistSelected = onArtistSelected,
+            )
             SharedRoute.Radio -> MediaListContent(colors, "Internet Radio", radioStationItems, "No stations found.", onRadioStationSelected)
             SharedRoute.Settings -> Unit
             SharedRoute.Downloads -> DownloadsContent(
@@ -1176,6 +1190,7 @@ private fun SearchContent(
     results: SharedSearchResultsUi,
     onQueryChanged: (String) -> Unit,
     onSearch: () -> Unit,
+    onClearSearch: () -> Unit,
     onTrackSelected: (AndroidTrackRowUi) -> Unit,
     onTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
@@ -1186,7 +1201,24 @@ private fun SearchContent(
         modifier = Modifier.fillMaxSize(),
     ) {
         Text("Search", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        NaviampTextField(query, onQueryChanged, "Search tracks", colors)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            NaviampTextField(
+                value = query,
+                onValueChange = onQueryChanged,
+                label = "Search tracks",
+                colors = colors,
+                modifier = Modifier.weight(1f),
+            )
+            if (query.isNotBlank() || !results.isEmpty) {
+                IconButton(onClick = onClearSearch) {
+                    Icon(NaviampIcons.Close, contentDescription = "Clear search", tint = colors.secondaryText)
+                }
+            }
+        }
         if (query.isNotBlank() && results.isEmpty) {
             Text("No matches found.", color = colors.secondaryText, fontSize = 12.sp)
         }
@@ -1622,12 +1654,24 @@ private fun LibraryContent(
             Text("Library", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         }
         item {
-            NaviampTextField(
-                value = query,
-                onValueChange = onQueryChanged,
-                label = "Search library artists",
-                colors = colors,
-            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                NaviampTextField(
+                    value = query,
+                    onValueChange = onQueryChanged,
+                    label = "Search library artists",
+                    colors = colors,
+                    modifier = Modifier.weight(1f),
+                )
+                if (query.isNotBlank()) {
+                    IconButton(onClick = { onQueryChanged("") }) {
+                        Icon(NaviampIcons.Close, contentDescription = "Clear library search", tint = colors.secondaryText)
+                    }
+                }
+            }
         }
         syncStatus.message?.let { message ->
             item {
@@ -3103,6 +3147,12 @@ object NaviampIcons {
         close()
         moveTo(15.2f, 15.2f)
         lineTo(20f, 20f)
+    }
+    val Close = icon("Close") {
+        moveTo(6f, 6f)
+        lineTo(18f, 18f)
+        moveTo(18f, 6f)
+        lineTo(6f, 18f)
     }
     val InternetRadio = icon("InternetRadio") {
         moveTo(6f, 10f)

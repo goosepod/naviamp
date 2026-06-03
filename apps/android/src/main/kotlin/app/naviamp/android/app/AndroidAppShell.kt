@@ -89,6 +89,7 @@ data class AndroidAppShellActions(
     val onResetDatabase: () -> Unit,
     val onQueryChanged: (String) -> Unit,
     val onSearch: () -> Unit,
+    val onClearSearch: () -> Unit,
     val onLibraryQueryChanged: (String) -> Unit,
     val onRefreshLibrary: () -> Unit,
     val onTrackSelected: (AndroidTrackRowUi) -> Unit,
@@ -226,6 +227,7 @@ fun AndroidAppShellContent(
         onResetDatabase = actions.onResetDatabase,
         onQueryChanged = actions.onQueryChanged,
         onSearch = actions.onSearch,
+        onClearSearch = actions.onClearSearch,
         onLibraryQueryChanged = actions.onLibraryQueryChanged,
         onRefreshLibrary = actions.onRefreshLibrary,
         onTrackSelected = actions.onTrackSelected,
@@ -523,6 +525,14 @@ fun androidAppShellActions(
             onResetDatabase = handleResetDatabase,
             onQueryChanged = { contentState = contentState.copy(searchQuery = it) },
             onSearch = handleSearch,
+            onClearSearch = {
+                contentState = contentState.copy(
+                    searchQuery = "",
+                    searchResults = app.naviamp.domain.provider.MediaSearchResults(),
+                )
+                tracks = emptyList()
+                status = ""
+            },
             onLibraryQueryChanged = { libraryQuery = it },
             onRefreshLibrary = { startAndroidLibrarySync(true) },
             onTrackSelected = handleShellTrackSelected,

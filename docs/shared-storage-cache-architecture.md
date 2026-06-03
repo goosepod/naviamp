@@ -137,7 +137,7 @@ Then higher-level repositories can be composed from those stores:
   - `DesktopLibraryController`
   - `DesktopNowPlayingController`
   - `DesktopDownloadsController`
-  - `PlaylistEngine`
+  - [x] `PlaylistEngine`
   - `DesktopAlbumController`
   - `DesktopArtistController`
   - `DesktopMediaActionsController`
@@ -158,7 +158,7 @@ Then higher-level repositories can be composed from those stores:
 - [x] Extract a shared provider-response cache service.
   - Desktop currently has cache-backed album/artist/search helpers.
   - Android can gain the same behavior through the same interface instead of platform-specific copies.
-- [ ] Extract a shared audio-cache/download resolution service.
+- [x] Extract a shared audio-cache/download resolution service.
   - Given source, track, quality, and cache settings, choose downloaded file, cached file, or provider stream.
   - Return a platform-neutral playback target where possible, with platform adapters converting to engine URLs/paths.
 - [ ] Extract shared sidecar storage contracts.
@@ -386,3 +386,7 @@ This is a strong first slice because playback-source selection currently affects
 - 2026-06-02: Added shared re-download orchestration for quality changes.
   - Android and desktop both use the common redownload helper for status/progress/de-duplication and refresh decisions.
   - Platform storage engines still own replacing a single track file safely in Android app storage or desktop cache storage.
+- 2026-06-03: Moved desktop `PlaylistEngine` off direct `DesktopCache` coupling.
+  - `PlaylistEngine` now receives audio cache, waveform, lyrics sidecar, sidecar status, and playback audio asset ports.
+  - `DesktopNaviampApp` remains the composition root that supplies `DesktopCache` as the concrete implementation of those narrow contracts.
+  - Playback-source lookup, audio prefetch, waveform prep, provider/embedded/LRCLIB lyrics prep, and sidecar status writes no longer require a broad desktop storage type inside the engine.

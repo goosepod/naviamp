@@ -1,14 +1,17 @@
 package app.naviamp.desktop.playback
 
 import app.naviamp.desktop.AudioTagReader
-import app.naviamp.desktop.AudioTag
-import app.naviamp.desktop.DesktopCache
-import app.naviamp.desktop.DesktopPlaybackAudioAssets
+import app.naviamp.desktop.CachedAudioFile
+import app.naviamp.desktop.CachedAudioMetadata
 import app.naviamp.domain.ReplayGain
 import app.naviamp.domain.audio.lyricsFromAudioTags
 import app.naviamp.domain.audio.replayGainFromAudioTags
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
+import app.naviamp.domain.cache.AudioCacheRepository
+import app.naviamp.domain.cache.AudioWaveformRepository
+import app.naviamp.domain.cache.LyricsSidecarRepository
+import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.playback.CrossfadeSettings
 import app.naviamp.domain.playback.PlaybackEngine
@@ -40,11 +43,14 @@ import java.nio.file.Path
 
 class PlaylistEngine(
     private val playbackEngine: PlaybackEngine,
-    private val cache: DesktopCache? = null,
     private val sourceIdProvider: () -> String? = { null },
     private val audioCachingEnabledProvider: () -> Boolean = { true },
     private val audioPrefetchDepthProvider: () -> Int = { DefaultAudioPrefetchDepth },
-    playbackAudioAssets: PlaybackAudioAssetRepository<Path>? = cache?.let { DesktopPlaybackAudioAssets(it, it) },
+    private val audioCacheRepository: AudioCacheRepository<CachedAudioFile, CachedAudioMetadata>? = null,
+    private val audioWaveformRepository: AudioWaveformRepository? = null,
+    private val lyricsSidecarRepository: LyricsSidecarRepository? = null,
+    private val sidecarStatusRepository: SidecarStatusRepository? = null,
+    playbackAudioAssets: PlaybackAudioAssetRepository<Path>? = null,
 ) {
     private val playbackAudioAssets = playbackAudioAssets ?: emptyPlaybackAudioAssetRepository()
     private var provider: MediaProvider? = null
@@ -315,7 +321,10 @@ class PlaylistEngine(
         track: Track,
     ) {
         if (!audioCachingEnabledProvider()) return
-        val audioCache = cache ?: return
+        val audioCache = audioCacheRepository ?: return
+        val waveformRepository = audioWaveformRepository ?: return
+        val lyricsRepository = lyricsSidecarRepository ?: return
+        val sidecarStatus = sidecarStatusRepository ?: return
         val sourceId = sourceIdProvider() ?: return
         val currentProvider = provider ?: return
         val currentQuality = streamQuality ?: return
@@ -331,7 +340,8 @@ class PlaylistEngine(
                 )
                 if (activeSessionId == queueController.playbackSessionId) {
                     runWaveformSidecar(
-                        audioCache = audioCache,
+                        waveformRepository = waveformRepository,
+                        sidecarStatusRepository = sidecarStatus,
                         sourceId = sourceId,
                         track = track,
                         quality = currentQuality,
@@ -340,7 +350,7 @@ class PlaylistEngine(
                         callbacks?.onCurrentTrackSidecarsReady(track)
                     }
                     runMetadataSidecars(
-                        audioCache = audioCache,
+                        lyricsRepository = lyricsRepository,
                         sourceId = sourceId,
                         provider = currentProvider,
                         track = track,
@@ -357,7 +367,10 @@ class PlaylistEngine(
             configuredDepth = audioPrefetchDepthProvider().coerceIn(0, 25),
         )
         if (!audioCachingEnabledProvider()) return
-        val audioCache = cache ?: return
+        val audioCache = audioCacheRepository ?: return
+        val waveformRepository = audioWaveformRepository ?: return
+        val lyricsRepository = lyricsSidecarRepository ?: return
+        val sidecarStatus = sidecarStatusRepository ?: return
         val sourceId = sourceIdProvider() ?: return
         val currentProvider = provider ?: return
         val currentQuality = streamQuality ?: return
@@ -389,7 +402,9 @@ class PlaylistEngine(
                         quality = currentQuality,
                     )
                     sidecarResult = runPrefetchSidecars(
-                        audioCache = audioCache,
+                        waveformRepository = waveformRepository,
+                        lyricsRepository = lyricsRepository,
+                        sidecarStatusRepository = sidecarStatus,
                         sourceId = sourceId,
                         provider = currentProvider,
                         track = track,
@@ -418,12 +433,14 @@ class PlaylistEngine(
     }
 
     private suspend fun runPrefetchSidecars(
-        audioCache: DesktopCache,
+        waveformRepository: AudioWaveformRepository,
+        lyricsRepository: LyricsSidecarRepository,
+        sidecarStatusRepository: SidecarStatusRepository,
         sourceId: String,
         provider: MediaProvider,
         track: Track,
         quality: StreamQuality,
-        cachedAudio: app.naviamp.desktop.CachedAudioFile,
+        cachedAudio: CachedAudioFile,
     ): SidecarPrepResult {
         var failed = 0
         var lastError: String? = null
@@ -434,7 +451,7 @@ class PlaylistEngine(
         suspend fun runSidecar(sidecarType: String, block: suspend () -> Unit) {
             runCatching { block() }
                 .onSuccess {
-                    audioCache.recordSidecarStatus(
+                    sidecarStatusRepository.recordSidecarStatus(
                         sourceId = sourceId,
                         trackId = track.id,
                         quality = quality,
@@ -444,7 +461,7 @@ class PlaylistEngine(
                 }
                 .onFailure { error ->
                     val message = errorMessage(error)
-                    audioCache.recordSidecarStatus(
+                    sidecarStatusRepository.recordSidecarStatus(
                         sourceId = sourceId,
                         trackId = track.id,
                         quality = quality,
@@ -458,41 +475,42 @@ class PlaylistEngine(
         }
 
         runSidecar(SidecarTypeWaveform) {
-            audioCache.ensureAudioWaveform(
+            waveformRepository.ensureAudioWaveform(
                 sourceId = sourceId,
                 trackId = track.id,
                 quality = quality,
             )
         }
         runSidecar(SidecarTypeProviderLyrics) {
-            audioCache.providerLyrics(sourceId, provider, track.id)
+            lyricsRepository.providerLyrics(sourceId, provider, track.id)
         }
         runSidecar(SidecarTypeEmbeddedLyrics) {
             val embeddedLyrics = AudioTagReader().read(cachedAudio.path)
                 .let(::lyricsFromAudioTags)
             if (embeddedLyrics != null) {
-                audioCache.cacheEmbeddedLyrics(sourceId, track.id, embeddedLyrics)
+                lyricsRepository.cacheEmbeddedLyrics(sourceId, track.id, embeddedLyrics)
             }
         }
         runSidecar(SidecarTypeLrclibLyrics) {
-            audioCache.lrclibLyrics(sourceId, track)
+            lyricsRepository.lrclibLyrics(sourceId, track)
         }
 
         return SidecarPrepResult(failed = failed, lastError = lastError)
     }
 
     private suspend fun runWaveformSidecar(
-        audioCache: DesktopCache,
+        waveformRepository: AudioWaveformRepository,
+        sidecarStatusRepository: SidecarStatusRepository,
         sourceId: String,
         track: Track,
         quality: StreamQuality,
     ) {
-        audioCache.ensureAudioWaveform(
+        waveformRepository.ensureAudioWaveform(
             sourceId = sourceId,
             trackId = track.id,
             quality = quality,
         )
-        audioCache.recordSidecarStatus(
+        sidecarStatusRepository.recordSidecarStatus(
             sourceId = sourceId,
             trackId = track.id,
             quality = quality,
@@ -502,24 +520,24 @@ class PlaylistEngine(
     }
 
     private suspend fun runMetadataSidecars(
-        audioCache: DesktopCache,
+        lyricsRepository: LyricsSidecarRepository,
         sourceId: String,
         provider: MediaProvider,
         track: Track,
-        cachedAudio: app.naviamp.desktop.CachedAudioFile,
+        cachedAudio: CachedAudioFile,
     ) {
         runCatching {
-            audioCache.providerLyrics(sourceId, provider, track.id)
+            lyricsRepository.providerLyrics(sourceId, provider, track.id)
         }
         runCatching {
             val embeddedLyrics = AudioTagReader().read(cachedAudio.path)
                 .let(::lyricsFromAudioTags)
             if (embeddedLyrics != null) {
-                audioCache.cacheEmbeddedLyrics(sourceId, track.id, embeddedLyrics)
+                lyricsRepository.cacheEmbeddedLyrics(sourceId, track.id, embeddedLyrics)
             }
         }
         runCatching {
-            audioCache.lrclibLyrics(sourceId, track)
+            lyricsRepository.lrclibLyrics(sourceId, track)
         }
     }
 

@@ -3,6 +3,8 @@ package app.naviamp.desktop
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -25,6 +27,7 @@ fun SearchPanel(
     isSearching: Boolean,
     coverArtUrl: (String?) -> String?,
     onQueryChanged: (String) -> Unit,
+    onClearSearch: () -> Unit,
     onArtistSelected: (Artist) -> Unit,
     onArtistRadioSelected: (Artist) -> Unit,
     onArtistAddToQueue: (Artist) -> Unit,
@@ -55,6 +58,17 @@ fun SearchPanel(
             value = query,
             onValueChange = onQueryChanged,
             label = { Text("Search music") },
+            trailingIcon = {
+                if (query.isNotBlank() || !results.isEmpty || status != null || isSearching) {
+                    IconButton(onClick = onClearSearch) {
+                        Icon(
+                            imageVector = NavigationIcons.Close,
+                            contentDescription = "Clear search",
+                            tint = appColors.secondaryText,
+                        )
+                    }
+                }
+            },
             singleLine = true,
             textStyle = MaterialTheme.typography.bodySmall,
             colors = textFieldColors,
