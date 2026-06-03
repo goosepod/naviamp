@@ -16,6 +16,7 @@ import app.naviamp.domain.playback.crossfadeDurationMillis
 import app.naviamp.domain.playback.equalPowerFadeEnvelope
 import app.naviamp.domain.playback.failedPreparedPlaybackMetadata
 import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
+import app.naviamp.domain.playback.planPreparedPlaybackAdoption
 import app.naviamp.domain.playback.playbackReplayGainAdjustment
 import app.naviamp.domain.playback.shouldReusePreparedPlayback
 import app.naviamp.domain.playback.shouldQueueMixerSources
@@ -342,9 +343,14 @@ class BassPlaybackEngine(
     ): Boolean {
         val bass = backend ?: return false
         val queuedSource = preparedStream
-        if (stream == 0 || !shouldReusePreparedPlayback(preparedRequest, queuedSource != 0, request) || !bass.supportsMixer) {
-            return false
-        }
+        val plan = planPreparedPlaybackAdoption(
+            hasActiveStream = stream != 0,
+            preparedRequest = preparedRequest,
+            hasPreparedStream = queuedSource != 0,
+            supportsMixer = bass.supportsMixer,
+            request = request,
+        )
+        if (!plan.shouldAdopt) return false
         currentSourceStream.takeIf { it != 0 && it != queuedSource }?.let { finishedSource ->
             bass.freeStream(finishedSource).onFailure { lastError = it.message }
         }

@@ -178,6 +178,9 @@ Branch: `codex/desktop-main-reduction`
 - [x] Share prepared-playback metadata reset rules.
   - Prepared duplicate checks, clear defaults, and failure metadata now live in common playback helpers.
   - Desktop and Android still own native stream freeing and mixer cleanup below the shared decision boundary.
+- [x] Share prepared-playback adoption eligibility.
+  - Desktop and Android now use a common active-stream, prepared-request, prepared-stream, and mixer-capability gate before adopting queued BASS sources.
+  - The actual source swap, replay-gain assignment, progress reset, and native handle cleanup remain platform-local.
 
 ## Architecture Refactor Backlog
 

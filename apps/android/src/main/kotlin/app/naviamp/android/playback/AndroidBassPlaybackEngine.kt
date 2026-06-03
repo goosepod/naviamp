@@ -21,6 +21,7 @@ import app.naviamp.domain.playback.clearPreparedPlaybackMetadata
 import app.naviamp.domain.playback.crossfadeDurationMillis
 import app.naviamp.domain.playback.failedPreparedPlaybackMetadata
 import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
+import app.naviamp.domain.playback.planPreparedPlaybackAdoption
 import app.naviamp.domain.playback.playbackReplayGainAdjustment
 import app.naviamp.domain.playback.shouldReusePreparedPlayback
 import app.naviamp.domain.playback.shouldQueueMixerSources
@@ -557,8 +558,15 @@ class AndroidBassPlaybackEngine(
         onStateChanged: (PlaybackState) -> Unit,
         onProgressChanged: (PlaybackProgress) -> Unit,
     ): Boolean {
-        val source = preparedStream.takeIf { it != 0 && preparedRequest == request } ?: return false
-        if (stream == 0) return false
+        val source = preparedStream
+        val plan = planPreparedPlaybackAdoption(
+            hasActiveStream = stream != 0,
+            preparedRequest = preparedRequest,
+            hasPreparedStream = source != 0,
+            supportsMixer = bass.supportsMixer,
+            request = request,
+        )
+        if (!plan.shouldAdopt) return false
         currentSourceStream.takeIf { it != 0 && it != source }?.let { bass.freeStream(it) }
         currentSourceStream = source
         replayGainFactor = preparedReplayGainFactor

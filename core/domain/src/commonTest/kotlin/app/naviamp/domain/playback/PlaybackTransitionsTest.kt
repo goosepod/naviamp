@@ -171,6 +171,48 @@ class PlaybackTransitionsTest {
     }
 
     @Test
+    fun adoptsPreparedPlaybackOnlyWhenActivePreparedMatchingAndMixerCapable() {
+        val request = PlaybackRequest(url = "file:///track.flac", mediaId = "track-1")
+
+        assertTrue(
+            planPreparedPlaybackAdoption(
+                hasActiveStream = true,
+                preparedRequest = request,
+                hasPreparedStream = true,
+                supportsMixer = true,
+                request = request,
+            ).shouldAdopt,
+        )
+        assertFalse(
+            planPreparedPlaybackAdoption(
+                hasActiveStream = false,
+                preparedRequest = request,
+                hasPreparedStream = true,
+                supportsMixer = true,
+                request = request,
+            ).shouldAdopt,
+        )
+        assertFalse(
+            planPreparedPlaybackAdoption(
+                hasActiveStream = true,
+                preparedRequest = request,
+                hasPreparedStream = true,
+                supportsMixer = false,
+                request = request,
+            ).shouldAdopt,
+        )
+        assertFalse(
+            planPreparedPlaybackAdoption(
+                hasActiveStream = true,
+                preparedRequest = request.copy(mediaId = "track-2"),
+                hasPreparedStream = true,
+                supportsMixer = true,
+                request = request,
+            ).shouldAdopt,
+        )
+    }
+
+    @Test
     fun buildsEqualPowerFadeInEnvelope() {
         val envelope = equalPowerFadeEnvelope(
             startBytes = 10,

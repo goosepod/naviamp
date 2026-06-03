@@ -44,6 +44,10 @@ data class PreparedPlaybackMetadataReset(
     val error: String? = null,
 )
 
+data class PreparedPlaybackAdoptionPlan(
+    val shouldAdopt: Boolean,
+)
+
 enum class PrepareNextPlaybackReason {
     Crossfade,
     Gapless,
@@ -105,6 +109,19 @@ fun clearPreparedPlaybackMetadata(): PreparedPlaybackMetadataReset =
 fun failedPreparedPlaybackMetadata(error: Throwable): PreparedPlaybackMetadataReset =
     PreparedPlaybackMetadataReset(
         error = error.message ?: "Could not prepare next BASS stream.",
+    )
+
+fun planPreparedPlaybackAdoption(
+    hasActiveStream: Boolean,
+    preparedRequest: PlaybackRequest?,
+    hasPreparedStream: Boolean,
+    supportsMixer: Boolean,
+    request: PlaybackRequest,
+): PreparedPlaybackAdoptionPlan =
+    PreparedPlaybackAdoptionPlan(
+        shouldAdopt = hasActiveStream &&
+            supportsMixer &&
+            shouldReusePreparedPlayback(preparedRequest, hasPreparedStream, request),
     )
 
 fun planPrepareNextPlayback(
