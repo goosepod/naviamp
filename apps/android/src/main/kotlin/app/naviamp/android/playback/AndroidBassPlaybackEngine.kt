@@ -26,6 +26,7 @@ import app.naviamp.domain.bass.releaseReplacedBassSource
 import app.naviamp.domain.bass.seekBassPlaybackSource
 import app.naviamp.domain.bass.setBassPlaybackMuted
 import app.naviamp.domain.bass.stopAndReleaseBassPlayback
+import app.naviamp.domain.playback.canPrepareBassMixerSource
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
@@ -334,8 +335,16 @@ class AndroidBassPlaybackEngine(
         freePreparedStream()
         runCatching {
             bass.init().getOrThrow()
-            val mixer = stream.takeIf { it != 0 } ?: return
-            currentSourceStream.takeIf { it != 0 } ?: return
+            if (
+                !canPrepareBassMixerSource(
+                    playbackHandle = stream,
+                    currentSourceHandle = currentSourceStream,
+                    supportsMixer = bass.supportsMixer,
+                )
+            ) {
+                return
+            }
+            val mixer = stream
             val nextReplayGain = playbackReplayGainFactor(request)
             val file = localFileFromUrl(request.url)
             val prepared = bass.prepareNextBassMixerSource(

@@ -175,6 +175,13 @@ fun shouldUseBassMixerPlayback(
 ): Boolean =
     supportsMixer && (!requireMediaId || request.mediaId != null)
 
+fun canPrepareBassMixerSource(
+    playbackHandle: Int,
+    currentSourceHandle: Int,
+    supportsMixer: Boolean,
+): Boolean =
+    supportsMixer && playbackHandle != 0 && currentSourceHandle != 0
+
 fun playbackVolumeApplicationPlan(
     userVolumeFactor: Float,
     replayGainFactor: Float,

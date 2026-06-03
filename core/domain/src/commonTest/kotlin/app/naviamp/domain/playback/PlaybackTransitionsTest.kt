@@ -260,6 +260,38 @@ class PlaybackTransitionsTest {
     }
 
     @Test
+    fun preparesBassMixerSourceOnlyWhenPlaybackSourceAndMixerAreAvailable() {
+        assertTrue(
+            canPrepareBassMixerSource(
+                playbackHandle = 7,
+                currentSourceHandle = 8,
+                supportsMixer = true,
+            ),
+        )
+        assertFalse(
+            canPrepareBassMixerSource(
+                playbackHandle = 0,
+                currentSourceHandle = 8,
+                supportsMixer = true,
+            ),
+        )
+        assertFalse(
+            canPrepareBassMixerSource(
+                playbackHandle = 7,
+                currentSourceHandle = 0,
+                supportsMixer = true,
+            ),
+        )
+        assertFalse(
+            canPrepareBassMixerSource(
+                playbackHandle = 7,
+                currentSourceHandle = 8,
+                supportsMixer = false,
+            ),
+        )
+    }
+
+    @Test
     fun plansDirectPlaybackVolumeWithReplayGainOnOutput() {
         val plan = playbackVolumeApplicationPlan(
             userVolumeFactor = 0.5f,

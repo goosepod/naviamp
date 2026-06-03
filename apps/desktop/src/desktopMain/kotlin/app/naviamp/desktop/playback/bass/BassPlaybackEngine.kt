@@ -30,6 +30,7 @@ import app.naviamp.domain.bass.releaseReplacedBassSource
 import app.naviamp.domain.bass.seekBassPlaybackSource
 import app.naviamp.domain.bass.setEndSync
 import app.naviamp.domain.bass.stopAndReleaseBassPlayback
+import app.naviamp.domain.playback.canPrepareBassMixerSource
 import app.naviamp.domain.playback.clearPreparedPlaybackMetadata
 import app.naviamp.domain.playback.clearPlaybackStreamState
 import app.naviamp.domain.playback.failedPreparedPlaybackMetadata
@@ -243,7 +244,13 @@ class BassPlaybackEngine(
         freePreparedStream()
         runCatching {
             ensureInitialized(bass)
-            if (stream != 0 && bass.supportsMixer) {
+            if (
+                canPrepareBassMixerSource(
+                    playbackHandle = stream,
+                    currentSourceHandle = currentSourceStream,
+                    supportsMixer = bass.supportsMixer,
+                )
+            ) {
                 val adjustment = replayGainAdjustment(request)
                 val localFile = localFileFromUrl(request.url)
                 val prepared = bass.prepareNextBassMixerSource(
