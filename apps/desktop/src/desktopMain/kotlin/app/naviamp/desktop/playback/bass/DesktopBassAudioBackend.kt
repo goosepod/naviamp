@@ -19,6 +19,12 @@ class DesktopBassAudioBackend(
     override val lastErrorCode: Int
         get() = native.errorCode()
 
+    override val mixerError: String?
+        get() = native.mixerError
+
+    override val libraryDirectory: String
+        get() = native.libraryDirectory.absolutePath
+
     override val supportsMixer: Boolean
         get() = native.supportsMixer
 

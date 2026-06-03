@@ -95,6 +95,12 @@ interface BassAudioBackend {
     val lastErrorCode: Int?
         get() = null
 
+    val mixerError: String?
+        get() = null
+
+    val libraryDirectory: String?
+        get() = null
+
     val supportsMixer: Boolean
         get() = false
 

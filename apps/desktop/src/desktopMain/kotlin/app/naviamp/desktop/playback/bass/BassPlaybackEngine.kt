@@ -296,8 +296,8 @@ class BassPlaybackEngine(
             "BASS load state" to if (native != null) "Loaded" else "Unavailable",
             "BASS version" to (backend?.version?.let(::bassVersionLabel) ?: "Unknown"),
             "BASSmix version" to (backend?.mixerVersion?.let(::bassVersionLabel) ?: "Unavailable"),
-            "BASSmix error" to (native?.mixerError ?: "None"),
-            "BASS directory" to (native?.libraryDirectory?.absolutePath ?: "Not resolved"),
+            "BASSmix error" to (backend?.mixerError ?: "None"),
+            "BASS directory" to (backend?.libraryDirectory ?: "Not resolved"),
             "Loaded plugins" to plugins.filter { it.loaded }.joinToString(", ") { it.stem }.ifBlank { "None" },
             "Failed plugins" to plugins.filterNot { it.loaded }.joinToString(", ") { plugin ->
                 "${plugin.stem} (${plugin.errorCode?.let(::bassErrorMessage) ?: "unknown"})"
