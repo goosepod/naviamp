@@ -2,6 +2,7 @@ package app.naviamp.domain.playback
 
 import kotlin.math.PI
 import kotlin.math.cos
+import kotlin.math.pow
 import kotlin.math.sin
 
 data class PlaybackFadeEnvelopePoint(
@@ -14,6 +15,27 @@ data class PrepareNextPlaybackPlan(
     val prepareWindowSeconds: Double? = null,
     val reason: PrepareNextPlaybackReason = PrepareNextPlaybackReason.NotNeeded,
 )
+
+data class PlaybackReplayGainAdjustment(
+    val mode: ReplayGainMode,
+    val source: ReplayGainSource?,
+    val gainDb: Double?,
+    val peak: Double?,
+    val volumeFactor: Float,
+    val clippingPrevented: Boolean,
+) {
+    companion object {
+        fun off(mode: ReplayGainMode = ReplayGainMode.Off): PlaybackReplayGainAdjustment =
+            PlaybackReplayGainAdjustment(
+                mode = mode,
+                source = null,
+                gainDb = null,
+                peak = null,
+                volumeFactor = 1f,
+                clippingPrevented = false,
+            )
+    }
+}
 
 enum class PrepareNextPlaybackReason {
     Crossfade,
@@ -29,6 +51,39 @@ fun crossfadeDurationMillis(seconds: Int): Int =
 
 fun shouldQueueMixerSources(crossfadeDurationSeconds: Int): Boolean =
     normalizedCrossfadeDurationSeconds(crossfadeDurationSeconds) <= 0
+
+fun playbackReplayGainAdjustment(request: PlaybackRequest): PlaybackReplayGainAdjustment {
+    val mode = request.replayGainMode
+    val replayGainSource = request.replayGain
+    val replayGain = replayGainSource?.replayGain
+    if (mode == ReplayGainMode.Off || replayGain == null) {
+        return PlaybackReplayGainAdjustment.off(mode)
+    }
+    val gainDb = when (mode) {
+        ReplayGainMode.Off -> null
+        ReplayGainMode.Track -> replayGain.trackGainDb
+        ReplayGainMode.Album -> replayGain.albumGainDb ?: replayGain.trackGainDb
+    } ?: return PlaybackReplayGainAdjustment.off(mode)
+    val peak = when (mode) {
+        ReplayGainMode.Off -> null
+        ReplayGainMode.Track -> replayGain.trackPeak
+        ReplayGainMode.Album -> replayGain.albumPeak ?: replayGain.trackPeak
+    }
+    val rawFactor = 10.0.pow(gainDb / 20.0)
+    val clippedFactor = if (peak != null && peak > 0.0 && rawFactor * peak > 1.0) {
+        1.0 / peak
+    } else {
+        rawFactor
+    }
+    return PlaybackReplayGainAdjustment(
+        mode = mode,
+        source = replayGainSource.source,
+        gainDb = gainDb,
+        peak = peak,
+        volumeFactor = clippedFactor.coerceIn(0.0, MaxPlaybackVolumeFactor.toDouble()).toFloat(),
+        clippingPrevented = clippedFactor < rawFactor,
+    )
+}
 
 fun planPrepareNextPlayback(
     progress: PlaybackProgress,

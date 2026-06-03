@@ -16,10 +16,10 @@ import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
-import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.crossfadeDurationMillis
 import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
+import app.naviamp.domain.playback.playbackReplayGainAdjustment
 import app.naviamp.domain.playback.shouldQueueMixerSources
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import kotlinx.coroutines.CoroutineScope
@@ -29,7 +29,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.File
-import kotlin.math.pow
 
 class AndroidBassPlaybackEngine(
     context: Context,
@@ -161,7 +160,7 @@ class AndroidBassPlaybackEngine(
                 val verifyNet = !tlsSettings.insecureSkipTlsVerification
                 Log.i(Tag, "Opening BASS stream verifyNet=$verifyNet url=${request.url.sanitizedForLog()}")
                 bass.setVerifyNet(verifyNet)
-                replayGainFactor = request.replayGainFactor()
+                replayGainFactor = playbackReplayGainAdjustment(request).volumeFactor
                 val handle = if (request.mediaId != null) {
                     createMixerPlayback(request)
                 } else {
@@ -305,7 +304,7 @@ class AndroidBassPlaybackEngine(
             currentSourceStream.takeIf { it != 0 } ?: return
             val source = createStream(request.url, decode = true)
             check(source != 0) { errorMessage("BASS next stream creation failed") }
-            val nextReplayGain = request.replayGainFactor()
+            val nextReplayGain = playbackReplayGainAdjustment(request).volumeFactor
             bass.setVolume(source, if (crossfadeDurationSeconds > 0) 0f else nextReplayGain)
             check(bass.addMixerChannel(mixer, source)) { errorMessage("BASS_Mixer_StreamAddChannel failed") }
             if (crossfadeDurationSeconds > 0) {
@@ -577,23 +576,6 @@ class AndroidBassPlaybackEngine(
 
     private fun freeHandles(vararg handles: Int) {
         handles.filter { it != 0 }.toSet().forEach { bass.freeStream(it) }
-    }
-
-    private fun PlaybackRequest.replayGainFactor(): Float {
-        val replayGain = replayGain?.replayGain ?: return 1f
-        val gainDb = when (replayGainMode) {
-            ReplayGainMode.Off -> null
-            ReplayGainMode.Track -> replayGain.trackGainDb
-            ReplayGainMode.Album -> replayGain.albumGainDb ?: replayGain.trackGainDb
-        } ?: return 1f
-        val peak = when (replayGainMode) {
-            ReplayGainMode.Off -> null
-            ReplayGainMode.Track -> replayGain.trackPeak
-            ReplayGainMode.Album -> replayGain.albumPeak ?: replayGain.trackPeak
-        }
-        val raw = 10.0.pow(gainDb / 20.0)
-        val limited = if (peak != null && peak > 0.0 && raw * peak > 1.0) 1.0 / peak else raw
-        return limited.coerceIn(0.0, 4.0).toFloat()
     }
 
     private fun errorMessage(prefix: String): String =

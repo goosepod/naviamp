@@ -172,6 +172,9 @@ Branch: `codex/desktop-main-reduction`
 - [x] Move desktop `PlaylistEngine` storage/cache work onto narrow shared ports.
   - `PlaylistEngine` now receives audio cache, waveform, lyrics sidecar, sidecar status, and playback-audio asset contracts instead of direct `DesktopCache`.
   - Desktop composition still supplies `DesktopCache` as the concrete engine, preserving platform ownership while shrinking product-level coupling.
+- [x] Share ReplayGain playback adjustment rules.
+  - ReplayGain mode selection, gain-to-volume conversion, peak clipping guard, and max-volume clamping now live in common playback helpers.
+  - Desktop and Android playback engines consume the same volume factor while keeping platform-local BASS stream application and diagnostics.
 
 ## Architecture Refactor Backlog
 

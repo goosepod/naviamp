@@ -1,5 +1,6 @@
 package app.naviamp.domain.playback
 
+import app.naviamp.domain.ReplayGain
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -83,6 +84,52 @@ class PlaybackTransitionsTest {
                 gaplessPrepareWindowSeconds = 2.0,
             ).shouldPrepare,
         )
+    }
+
+    @Test
+    fun computesReplayGainAdjustmentForTrackMode() {
+        val adjustment = playbackReplayGainAdjustment(
+            PlaybackRequest(
+                url = "file:///track.flac",
+                replayGainMode = ReplayGainMode.Track,
+                replayGain = PlaybackReplayGain(
+                    replayGain = ReplayGain(
+                        trackGainDb = -6.0,
+                        albumGainDb = -3.0,
+                        trackPeak = null,
+                        albumPeak = null,
+                    ),
+                    source = ReplayGainSource.Provider,
+                ),
+            ),
+        )
+
+        assertEquals(ReplayGainMode.Track, adjustment.mode)
+        assertEquals(ReplayGainSource.Provider, adjustment.source)
+        assertEquals(-6.0, adjustment.gainDb)
+        assertEquals(0.5011872f, adjustment.volumeFactor, absoluteTolerance = 0.000001f)
+    }
+
+    @Test
+    fun limitsReplayGainBoostThatWouldClipPeak() {
+        val adjustment = playbackReplayGainAdjustment(
+            PlaybackRequest(
+                url = "file:///track.flac",
+                replayGainMode = ReplayGainMode.Album,
+                replayGain = PlaybackReplayGain(
+                    replayGain = ReplayGain(
+                        trackGainDb = null,
+                        albumGainDb = 6.0,
+                        trackPeak = null,
+                        albumPeak = 0.8,
+                    ),
+                    source = ReplayGainSource.LocalTags,
+                ),
+            ),
+        )
+
+        assertEquals(1.25f, adjustment.volumeFactor)
+        assertTrue(adjustment.clippingPrevented)
     }
 
     @Test
