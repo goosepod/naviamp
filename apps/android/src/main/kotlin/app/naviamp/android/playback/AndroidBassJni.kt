@@ -55,11 +55,13 @@ object AndroidBassJni {
 
     fun durationSeconds(stream: Int): Double? = nativeDurationSeconds(stream).takeIf { it > 0.0 }
 
+    fun lengthBytes(stream: Int): Long? = nativeLengthBytes(stream).takeIf { it > 0L }
+
     fun streamTags(stream: Int): Array<String> = nativeStreamTags(stream)
 
     fun fft(stream: Int, bins: Int): FloatArray = nativeFft(stream, bins)
 
-    fun decodeWaveform(stream: Int, bucketCount: Int): FloatArray = nativeDecodeWaveform(stream, bucketCount)
+    fun readFloatData(stream: Int, buffer: FloatArray): Int = nativeReadFloatData(stream, buffer)
 
     private external fun nativeBassVersion(): Int
     private external fun nativeLastErrorCode(): Int
@@ -82,7 +84,8 @@ object AndroidBassJni {
     private external fun nativeSeek(stream: Int, seconds: Double): Boolean
     private external fun nativePositionSeconds(stream: Int): Double
     private external fun nativeDurationSeconds(stream: Int): Double
+    private external fun nativeLengthBytes(stream: Int): Long
     private external fun nativeStreamTags(stream: Int): Array<String>
     private external fun nativeFft(stream: Int, bins: Int): FloatArray
-    private external fun nativeDecodeWaveform(stream: Int, bucketCount: Int): FloatArray
+    private external fun nativeReadFloatData(stream: Int, buffer: FloatArray): Int
 }

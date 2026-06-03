@@ -132,6 +132,7 @@ Then higher-level repositories can be composed from those stores:
   - Eighteenth slice: desktop now-playing waveform, lyrics, and related-track loading uses shared sidecar, audio waveform, playback audio asset, and library-index ports instead of broad `DesktopCache`.
   - Nineteenth slice: Android now-playing lyrics and waveform sidecar status writes use `SidecarStatusRepository` instead of broad `AndroidStorage`.
   - Twentieth slice: desktop and Android BASS waveform analyzers implement a shared `AudioWaveformAnalyzer` contract.
+  - Twenty-first slice: desktop and Android waveform analyzers now use shared float-PCM bucketing over BASS decode-stream length/read primitives.
 - [ ] Replace direct `DesktopCache` dependencies in desktop controllers with narrower interfaces.
   - `DesktopHomeController`
   - `DesktopSearchController`
@@ -166,6 +167,7 @@ Then higher-level repositories can be composed from those stores:
   - Embedded lyrics, LRCLIB lyrics, waveform, ReplayGain/audio tag metadata, and sidecar status records should use shared repository names and status rules.
   - Waveform generation itself should be split into a shared analyzer interface instead of being hidden inside platform storage.
     - First analyzer slice is complete: `AudioWaveformAnalyzer` and `AudioWaveformAnalysisSource` now live in common domain, with `DesktopAudioWaveformAnalyzer` and `AndroidAudioWaveformAnalyzer` as BASS-backed implementations.
+    - First BASS unification slice is complete: both waveform analyzers now create BASS decode streams, read float PCM chunks, and call common `normalizeFloatPcmWaveform(...)`.
     - Next slice should introduce a shared waveform service that composes cached waveform lookup, local/downloaded audio preference, provider-stream fallback, TLS settings, analyzer calls, and persistence.
     - Avoid forcing Android into the current storage-shaped `AudioWaveformRepository.ensureAudioWaveform(sourceId, trackId, quality)` contract; Android needs `Track`, provider stream fallback, and playback cache behavior.
 - [ ] Normalize platform file/class names.

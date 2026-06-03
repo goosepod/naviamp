@@ -227,8 +227,8 @@ Branch: `codex/desktop-main-reduction`
 - Now-playing sidecar type keys, lyrics loading/error rules, waveform status labels, online-lyrics fetch decisions, and sidecar queue filtering are now shared through `core/domain`.
 - Waveform generation is BASS-backed on both desktop and Android, but the analyzer should become a shared interface/service before more waveform plumbing moves across platforms.
   - `AudioWaveformAnalyzer` and `AudioWaveformAnalysisSource` now live in common domain, with desktop using `DesktopAudioWaveformAnalyzer` over `BassNative` and Android using `AndroidAudioWaveformAnalyzer` over `AndroidBassJni`.
-  - The current platform implementations are not identical yet: Android uses `AndroidBassJni.decodeWaveform(...)`, while desktop reads float PCM frames from `BassNative` and buckets them in Kotlin.
-  - A shared service should either move the bucket algorithm into common code behind a lower-level decoded-samples interface, or make both BASS adapters expose equivalent waveform decoding operations.
+  - The waveform bucket algorithm now lives in common domain through `normalizeFloatPcmWaveform(...)`.
+  - Desktop and Android both create BASS decode streams, ask BASS for stream byte length, read float PCM chunks, and call the same common bucket/normalization code.
   - The next shared service should coordinate cached waveform lookup, local/downloaded audio preference, provider-stream fallback, TLS settings, platform BASS adapters, and waveform persistence.
   - Do not force Android into the current storage-shaped waveform repository contract; it needs `Track` and provider-stream context.
 - Naming convention: shared/common abstractions keep generic names, while platform adapters and platform-owned service files should use `Desktop` / `Android` prefixes.

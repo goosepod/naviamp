@@ -5,11 +5,10 @@ import app.naviamp.domain.waveform.AudioWaveformAnalysisSource
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.domain.waveform.AudioWaveformAnalyzer as DomainAudioWaveformAnalyzer
 import app.naviamp.domain.waveform.DefaultWaveformBucketCount
+import app.naviamp.domain.waveform.normalizeFloatPcmWaveform
 import java.net.URI
 import java.nio.file.Path
 import kotlin.io.path.exists
-import kotlin.math.abs
-import kotlin.math.sqrt
 
 class DesktopAudioWaveformAnalyzer(
     private val nativeResult: Result<BassNative> = BassNative.load(),
@@ -70,51 +69,17 @@ private fun decodeWaveform(
     totalSamples: Long?,
     bucketCount: Int,
 ): AudioWaveform? {
-    if (bucketCount <= 0) return null
     val effectiveTotalSamples = totalSamples?.takeIf { it > 0 } ?: return null
-    val buffer = FloatArray(16_384)
-    val buckets = FloatArray(bucketCount)
-    val bucketCounts = IntArray(bucketCount)
-    val bucketSquares = DoubleArray(bucketCount)
-    val bucketPeaks = FloatArray(bucketCount)
-    var sampleIndex = 0L
-
-    while (true) {
-        val read = bass.readFloatData(stream, buffer).getOrNull() ?: return null
-        if (read <= 0) break
-        var bufferIndex = 0
-        while (bufferIndex < read) {
-            if (sampleIndex >= effectiveTotalSamples) break
-            val bucket = ((sampleIndex * bucketCount) / effectiveTotalSamples)
-                .toInt()
-                .coerceIn(0, bucketCount - 1)
-            val amplitude = abs(buffer[bufferIndex]).coerceIn(0f, 1f)
-            bucketSquares[bucket] += (amplitude * amplitude).toDouble()
-            bucketPeaks[bucket] = maxOf(bucketPeaks[bucket], amplitude)
-            bucketCounts[bucket] += 1
-            sampleIndex += 1
-            bufferIndex += 1
-        }
-        if (sampleIndex >= effectiveTotalSamples) break
+    var readError = false
+    val waveform = normalizeFloatPcmWaveform(
+        totalSamples = effectiveTotalSamples,
+        bucketCount = bucketCount,
+    ) { buffer ->
+        bass.readFloatData(stream, buffer)
+            .getOrElse {
+                readError = true
+                0
+            }
     }
-
-    if (sampleIndex <= 0) return null
-
-    repeat(bucketCount) { bucket ->
-        val count = bucketCounts[bucket]
-        if (count > 0) {
-            val rms = sqrt(bucketSquares[bucket] / count).toFloat()
-            buckets[bucket] = rms * RmsWeight + bucketPeaks[bucket] * PeakWeight
-        }
-    }
-
-    val max = buckets.maxOrNull() ?: 0f
-    return if (max <= 0f) {
-        AudioWaveform(List(bucketCount) { 0f })
-    } else {
-        AudioWaveform(buckets.map { (it / max).coerceIn(0f, 1f) })
-    }
+    return if (readError) null else waveform
 }
-
-private const val RmsWeight = 0.82f
-private const val PeakWeight = 0.18f

@@ -269,6 +269,15 @@ Java_app_naviamp_android_playback_AndroidBassJni_nativeDurationSeconds(JNIEnv* e
     return BASS_ChannelBytes2Seconds(static_cast<DWORD>(stream), bytes);
 }
 
+extern "C" JNIEXPORT jlong JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeLengthBytes(JNIEnv* env, jobject thiz, jint stream) {
+    (void)env;
+    (void)thiz;
+    QWORD bytes = BASS_ChannelGetLength(static_cast<DWORD>(stream), BASS_POS_BYTE);
+    if (bytes == static_cast<QWORD>(-1)) return -1;
+    return static_cast<jlong>(bytes);
+}
+
 static void append_string_tags(std::vector<std::string>& tags, const char* raw) {
     if (raw == nullptr) return;
     const char* cursor = raw;
@@ -314,52 +323,22 @@ Java_app_naviamp_android_playback_AndroidBassJni_nativeFft(JNIEnv* env, jobject 
     return result;
 }
 
-extern "C" JNIEXPORT jfloatArray JNICALL
-Java_app_naviamp_android_playback_AndroidBassJni_nativeDecodeWaveform(JNIEnv* env, jobject thiz, jint stream, jint bucketCount) {
+extern "C" JNIEXPORT jint JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeReadFloatData(JNIEnv* env, jobject thiz, jint stream, jfloatArray output) {
     (void)thiz;
-    int safeBucketCount = std::max(1, std::min(static_cast<int>(bucketCount), 2048));
-    constexpr int sampleCapacity = 8192;
-    std::vector<float> buffer(sampleCapacity, 0.0f);
-    std::vector<float> chunkPeaks;
-    while (true) {
-        int read = BASS_ChannelGetData(
-            static_cast<DWORD>(stream),
-            buffer.data(),
-            static_cast<DWORD>(buffer.size() * sizeof(float))
-        );
-        if (read <= 0) break;
-
-        int sampleCount = read / static_cast<int>(sizeof(float));
-        if (sampleCount <= 0) continue;
-        float peak = 0.0f;
-        for (int i = 0; i < sampleCount; ++i) {
-            peak = std::max(peak, std::abs(buffer[static_cast<size_t>(i)]));
-        }
-        chunkPeaks.push_back(std::min(peak, 1.0f));
-    }
-
-    if (chunkPeaks.empty()) {
-        return env->NewFloatArray(0);
-    }
-
-    std::vector<float> buckets(static_cast<size_t>(safeBucketCount), 0.0f);
-    for (size_t i = 0; i < chunkPeaks.size(); ++i) {
-        double ratio = chunkPeaks.size() == 1
-            ? 0.0
-            : static_cast<double>(i) / static_cast<double>(chunkPeaks.size() - 1);
-        int bucket = std::max(0, std::min(safeBucketCount - 1, static_cast<int>(ratio * (safeBucketCount - 1))));
-        buckets[static_cast<size_t>(bucket)] = std::max(buckets[static_cast<size_t>(bucket)], chunkPeaks[i]);
-    }
-
-    float maxValue = 0.0f;
-    for (float value : buckets) maxValue = std::max(maxValue, value);
-    if (maxValue > 0.0f) {
-        for (float& value : buckets) value = std::max(0.0f, std::min(value / maxValue, 1.0f));
-    }
-
-    jfloatArray result = env->NewFloatArray(static_cast<jsize>(safeBucketCount));
-    env->SetFloatArrayRegion(result, 0, static_cast<jsize>(safeBucketCount), buckets.data());
-    return result;
+    jsize sampleCapacity = env->GetArrayLength(output);
+    if (sampleCapacity <= 0) return 0;
+    std::vector<float> buffer(static_cast<size_t>(sampleCapacity), 0.0f);
+    int read = BASS_ChannelGetData(
+        static_cast<DWORD>(stream),
+        buffer.data(),
+        static_cast<DWORD>(buffer.size() * sizeof(float))
+    );
+    if (read < 0) return -1;
+    int sampleCount = read / static_cast<int>(sizeof(float));
+    if (sampleCount <= 0) return 0;
+    env->SetFloatArrayRegion(output, 0, static_cast<jsize>(sampleCount), buffer.data());
+    return static_cast<jint>(sampleCount);
 }
 
 extern "C" JNIEXPORT jint JNICALL

@@ -6,6 +6,7 @@ import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.domain.waveform.AudioWaveformAnalysisSource
 import app.naviamp.domain.waveform.AudioWaveformAnalyzer
 import app.naviamp.domain.waveform.DefaultWaveformBucketCount
+import app.naviamp.domain.waveform.normalizeFloatPcmWaveform
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -34,11 +35,21 @@ class AndroidAudioWaveformAnalyzer(
             val stream = createDecodeStream(streamUrl)
             if (stream == 0) return@withContext null
             try {
-                val amplitudes = bass.decodeWaveform(stream, bucketCount)
-                    .takeIf { it.isNotEmpty() }
-                    ?.map { it.coerceIn(0f, 1f) }
+                val totalSamples = bass.lengthBytes(stream)
+                    ?.let { it / Float.SIZE_BYTES }
                     ?: return@withContext null
-                AudioWaveform(amplitudes).also { cacheWaveform(trackId, it) }
+                var readError = false
+                val waveform = normalizeFloatPcmWaveform(
+                    totalSamples = totalSamples,
+                    bucketCount = bucketCount,
+                    readSamples = { buffer ->
+                        bass.readFloatData(stream, buffer).also { read ->
+                            if (read < 0) readError = true
+                        }
+                    },
+                ) ?: return@withContext null
+                if (readError) return@withContext null
+                waveform.also { cacheWaveform(trackId, it) }
             } finally {
                 bass.freeStream(stream)
             }

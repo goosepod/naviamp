@@ -19,6 +19,24 @@ class AudioWaveformTest {
     }
 
     @Test
+    fun normalizesChunkedFloatPcmSamples() {
+        val chunks = listOf(floatArrayOf(0.5f), floatArrayOf(1.0f))
+        var chunkIndex = 0
+
+        val waveform = normalizeFloatPcmWaveform(
+            totalSamples = 2,
+            bucketCount = 2,
+        ) { buffer ->
+            val chunk = chunks.getOrNull(chunkIndex++) ?: return@normalizeFloatPcmWaveform 0
+            chunk.copyInto(buffer)
+            chunk.size
+        }
+
+        assertNotNull(waveform)
+        assertEquals(listOf(0.5f, 1.0f), waveform.amplitudes)
+    }
+
+    @Test
     fun computesSeekSecondsFromFraction() {
         assertEquals(90.0, seekSecondsForFraction(0.5f, 180.0))
         assertEquals(180.0, seekSecondsForFraction(2f, 180.0))
