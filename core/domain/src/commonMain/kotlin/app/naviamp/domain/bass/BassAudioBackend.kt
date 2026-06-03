@@ -292,6 +292,25 @@ fun BassAudioBackend.applyBassPlaybackVolume(
     }
 }
 
+fun BassAudioBackend.setBassPlaybackMuted(
+    outputStream: Int,
+    sourceStream: Int,
+    muted: Boolean,
+    userVolumeFactor: Float,
+    replayGainFactor: Float,
+): List<Result<Unit>> {
+    if (!muted) {
+        return applyBassPlaybackVolume(
+            outputStream = outputStream,
+            sourceStream = sourceStream,
+            userVolumeFactor = userVolumeFactor,
+            replayGainFactor = replayGainFactor,
+        )
+    }
+    return bassStreamHandlesForRelease(outputStream, sourceStream)
+        .map { stream -> setVolume(stream, 0f) }
+}
+
 fun BassAudioBackend.bassPlaybackVisualizerFrame(
     stream: Int,
     bins: Int,

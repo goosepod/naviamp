@@ -27,6 +27,7 @@ import app.naviamp.domain.bass.releaseBassStream
 import app.naviamp.domain.bass.releaseBassStreams
 import app.naviamp.domain.bass.seek
 import app.naviamp.domain.bass.setVolume
+import app.naviamp.domain.bass.setBassPlaybackMuted
 import app.naviamp.domain.bass.stop
 import app.naviamp.domain.bass.streamMetadata
 import app.naviamp.domain.playback.PlaybackProgress
@@ -564,16 +565,13 @@ class AndroidBassPlaybackEngine(
     }
 
     private fun setPlaybackMuted(muted: Boolean) {
-        if (!muted) {
-            applyVolume()
-            return
-        }
-        stream.takeIf { it != 0 }?.let { handle ->
-            bass.setVolume(handle, 0f)
-        }
-        currentSourceStream.takeIf { it != 0 }?.let { source ->
-            bass.setVolume(source, 0f)
-        }
+        bass.setBassPlaybackMuted(
+            outputStream = stream,
+            sourceStream = currentSourceStream,
+            muted = muted,
+            userVolumeFactor = (volumePercent / 100f) * if (duckedForFocusLoss) FocusDuckVolumeFactor else 1f,
+            replayGainFactor = replayGainFactor,
+        )
     }
 
     private fun adoptPreparedStream(

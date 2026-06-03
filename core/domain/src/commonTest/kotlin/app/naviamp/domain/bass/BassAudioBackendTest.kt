@@ -145,6 +145,38 @@ class BassAudioBackendTest {
     }
 
     @Test
+    fun mutesDistinctBassPlaybackStreams() {
+        val backend = RecordingBassAudioBackend()
+
+        val results = backend.setBassPlaybackMuted(
+            outputStream = 7,
+            sourceStream = 8,
+            muted = true,
+            userVolumeFactor = 0.5f,
+            replayGainFactor = 0.8f,
+        )
+
+        assertTrue(results.all { it.isSuccess })
+        assertEquals(listOf("volume:7:0.0", "volume:8:0.0"), backend.calls)
+    }
+
+    @Test
+    fun restoresMutedBassPlaybackVolume() {
+        val backend = RecordingBassAudioBackend()
+
+        val results = backend.setBassPlaybackMuted(
+            outputStream = 7,
+            sourceStream = 8,
+            muted = false,
+            userVolumeFactor = 0.5f,
+            replayGainFactor = 0.8f,
+        )
+
+        assertTrue(results.all { it.isSuccess })
+        assertEquals(listOf("volume:7:0.5", "volume:8:0.8"), backend.calls)
+    }
+
+    @Test
     fun preparedMixerTransitionAppliesEnvelopesWhenBytePositionsAreAvailable() {
         val backend = RecordingBassAudioBackend()
 
