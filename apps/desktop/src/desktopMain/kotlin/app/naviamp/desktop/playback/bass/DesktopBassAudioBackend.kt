@@ -1,12 +1,15 @@
 package app.naviamp.desktop.playback.bass
 
 import app.naviamp.domain.bass.BassAudioBackend
+import app.naviamp.domain.bass.BassStreamInfo
 import app.naviamp.domain.bass.BassStreamHandle
 import java.io.File
 
 class DesktopBassAudioBackend(
     private val native: BassNative,
 ) : BassAudioBackend {
+    private val endSyncCallbacks: MutableMap<Int, BassSyncCallback> = mutableMapOf()
+
     override val lastErrorCode: Int
         get() = native.errorCode()
 
@@ -33,10 +36,23 @@ class DesktopBassAudioBackend(
         return native.createFileDecodeStream(File(path)).map(::BassStreamHandle)
     }
 
+    override fun createFilePlaybackDecodeStream(path: String): Result<BassStreamHandle> {
+        native.loadAvailablePlugins()
+        return native.createFilePlaybackDecodeStream(File(path)).map(::BassStreamHandle)
+    }
+
     override fun createUrlDecodeStream(url: String): Result<BassStreamHandle> {
         native.loadAvailablePlugins()
         return native.createUrlDecodeStream(url).map(::BassStreamHandle)
     }
+
+    override fun channelInfo(stream: BassStreamHandle): Result<BassStreamInfo> =
+        native.channelInfo(stream.value).map { info ->
+            BassStreamInfo(
+                frequency = info.freq,
+                channels = info.chans,
+            )
+        }
 
     override fun createMixer(
         frequency: Int,
@@ -50,6 +66,26 @@ class DesktopBassAudioBackend(
         stream: BassStreamHandle,
     ): Result<Unit> =
         native.addMixerChannel(mixer.value, stream.value)
+
+    override fun removeMixerChannel(stream: BassStreamHandle): Result<Unit> =
+        native.removeMixerChannel(stream.value)
+
+    override fun setMixerVolumeEnvelope(
+        stream: BassStreamHandle,
+        points: List<Pair<Long, Float>>,
+    ): Result<Unit> =
+        native.setMixerVolumeEnvelope(stream.value, points)
+
+    override fun setEndSync(
+        stream: BassStreamHandle,
+        callback: (BassStreamHandle) -> Unit,
+    ): Result<Int> {
+        val nativeCallback = BassSyncCallback { _, channel, _, _ ->
+            callback(BassStreamHandle(channel))
+        }
+        return native.setEndSync(stream.value, nativeCallback)
+            .onSuccess { endSyncCallbacks[stream.value] = nativeCallback }
+    }
 
     override fun play(stream: BassStreamHandle): Result<Unit> =
         native.play(stream.value)
@@ -81,6 +117,12 @@ class DesktopBassAudioBackend(
 
     override fun durationSeconds(stream: BassStreamHandle): Double? =
         native.durationSeconds(stream.value)
+
+    override fun positionBytes(stream: BassStreamHandle): Long? =
+        native.positionBytes(stream.value)
+
+    override fun secondsToBytes(stream: BassStreamHandle, seconds: Double): Long? =
+        native.secondsToBytes(stream.value, seconds)
 
     override fun lengthBytes(stream: BassStreamHandle): Long? =
         native.lengthBytes(stream.value)

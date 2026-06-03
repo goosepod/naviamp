@@ -10,6 +10,11 @@ object BassActiveState {
     const val Paused: Int = 3
 }
 
+data class BassStreamInfo(
+    val frequency: Int,
+    val channels: Int,
+)
+
 interface BassAudioBackend {
     val lastErrorCode: Int?
         get() = null
@@ -33,7 +38,13 @@ interface BassAudioBackend {
 
     fun createFileDecodeStream(path: String): Result<BassStreamHandle>
 
+    fun createFilePlaybackDecodeStream(path: String): Result<BassStreamHandle> =
+        createFileDecodeStream(path)
+
     fun createUrlDecodeStream(url: String): Result<BassStreamHandle>
+
+    fun channelInfo(stream: BassStreamHandle): Result<BassStreamInfo> =
+        unsupportedBassOperation("BASS channel info")
 
     fun createMixer(
         frequency: Int,
@@ -45,6 +56,19 @@ interface BassAudioBackend {
         mixer: BassStreamHandle,
         stream: BassStreamHandle,
     ): Result<Unit> = unsupportedBassOperation("BASS mixer channel add")
+
+    fun removeMixerChannel(stream: BassStreamHandle): Result<Unit> =
+        unsupportedBassOperation("BASS mixer channel remove")
+
+    fun setMixerVolumeEnvelope(
+        stream: BassStreamHandle,
+        points: List<Pair<Long, Float>>,
+    ): Result<Unit> = unsupportedBassOperation("BASS mixer volume envelope")
+
+    fun setEndSync(
+        stream: BassStreamHandle,
+        callback: (BassStreamHandle) -> Unit,
+    ): Result<Int> = unsupportedBassOperation("BASS end sync")
 
     fun play(stream: BassStreamHandle): Result<Unit> = unsupportedBassOperation("BASS play")
 
@@ -69,6 +93,10 @@ interface BassAudioBackend {
     fun positionSeconds(stream: BassStreamHandle): Double? = null
 
     fun durationSeconds(stream: BassStreamHandle): Double? = null
+
+    fun positionBytes(stream: BassStreamHandle): Long? = null
+
+    fun secondsToBytes(stream: BassStreamHandle, seconds: Double): Long? = null
 
     fun lengthBytes(stream: BassStreamHandle): Long?
 

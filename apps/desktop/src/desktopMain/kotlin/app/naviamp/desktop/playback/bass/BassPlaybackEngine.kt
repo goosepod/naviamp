@@ -10,6 +10,8 @@ import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
+import app.naviamp.domain.bass.BassAudioBackend
+import app.naviamp.domain.bass.BassStreamHandle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -27,6 +29,7 @@ class BassPlaybackEngine(
 ) : QueueAwarePlaybackEngine, VisualizerPlaybackEngine, PlaybackEngineDiagnostics {
     private val native: BassNative? = nativeResult.getOrNull()
     private val loadError: Throwable? = nativeResult.exceptionOrNull()
+    private val backend: BassAudioBackend? = native?.let(::DesktopBassAudioBackend)
 
     override val name: String = "BASS"
     override val supportsPause: Boolean = true
@@ -53,7 +56,7 @@ class BassPlaybackEngine(
     private var preparedRequest: PlaybackRequest? = null
     private var preparedReplayGainAdjustment: ReplayGainAdjustment? = null
     private var preparedError: String? = null
-    private var endSyncCallbacks: MutableMap<Int, BassSyncCallback> = mutableMapOf()
+    private var endSyncCallbacks: MutableMap<Int, Int> = mutableMapOf()
     private var crossfadeDurationSeconds: Int = 0
     private var crossfadeActive: Boolean = false
     private var currentReplayGainAdjustment: ReplayGainAdjustment = ReplayGainAdjustment.off()
@@ -78,7 +81,7 @@ class BassPlaybackEngine(
         onStateChanged(PlaybackState.Loading)
         onProgressChanged(PlaybackProgress.Unknown)
 
-        val bass = native
+        val bass = backend
         if (bass == null) {
             val message = loadError?.message ?: "BASS native library is not available."
             lastError = message
@@ -159,7 +162,7 @@ class BassPlaybackEngine(
 
     override fun pause() {
         val handle = stream
-        val bass = native ?: return
+        val bass = backend ?: return
         if (handle != 0) {
             bass.pause(handle)
                 .onSuccess { onStateChanged?.invoke(PlaybackState.Paused) }
@@ -169,7 +172,7 @@ class BassPlaybackEngine(
 
     override fun resume() {
         val handle = stream
-        val bass = native ?: return
+        val bass = backend ?: return
         if (handle != 0) {
             bass.play(handle)
                 .onSuccess { onStateChanged?.invoke(PlaybackState.Playing) }
@@ -179,7 +182,7 @@ class BassPlaybackEngine(
 
     override fun seek(positionSeconds: Double) {
         val handle = currentSourceStream.takeIf { it != 0 } ?: stream
-        val bass = native ?: return
+        val bass = backend ?: return
         if (handle != 0) {
             freePreparedStream()
             seekCurrentSource(bass, positionSeconds)
@@ -189,7 +192,7 @@ class BassPlaybackEngine(
     override fun setVolume(percent: Int) {
         volumePercent = percent.coerceIn(0, 100)
         val handle = stream
-        val bass = native ?: return
+        val bass = backend ?: return
         if (handle != 0) {
             applyOutputVolume(bass)
         }
@@ -206,7 +209,7 @@ class BassPlaybackEngine(
     }
 
     override fun prepareNext(request: PlaybackRequest) {
-        val bass = native ?: return
+        val bass = backend ?: return
         if (preparedRequest == request && preparedStream != 0) return
         freePreparedStream()
         runCatching {
@@ -246,7 +249,7 @@ class BassPlaybackEngine(
         job?.cancel()
         job = null
         val handle = stream
-        val bass = native
+        val bass = backend
         if (bass != null && handle != 0) {
             bass.stop(handle)
             freeAllStreams(bass)
@@ -260,7 +263,7 @@ class BassPlaybackEngine(
     }
 
     override fun visualizerFrame(): PlaybackVisualizerFrame? {
-        val bass = native ?: return null
+        val bass = backend ?: return null
         val handle = stream.takeIf { it != 0 } ?: return null
         return visualizerFrameFor(bass, handle)
             .also { currentVisualizerFrame = it }
@@ -305,7 +308,7 @@ class BassPlaybackEngine(
             "Last error" to (lastError ?: "None"),
         )
 
-    private fun ensureInitialized(bass: BassNative) {
+    private fun ensureInitialized(bass: BassAudioBackend) {
         if (!initialized) {
             bass.init().getOrThrow()
             initialized = true
@@ -330,7 +333,7 @@ class BassPlaybackEngine(
         onStateChanged: (PlaybackState) -> Unit,
         onProgressChanged: (PlaybackProgress) -> Unit,
     ): Boolean {
-        val bass = native ?: return false
+        val bass = backend ?: return false
         val queuedSource = preparedStream
         if (stream == 0 || queuedSource == 0 || preparedRequest != request || !bass.supportsMixer) return false
         currentSourceStream.takeIf { it != 0 && it != queuedSource }?.let { finishedSource ->
@@ -350,7 +353,7 @@ class BassPlaybackEngine(
 
     private fun freePreparedStream() {
         val handle = preparedStream
-        val bass = native
+        val bass = backend
         if (bass != null && handle != 0) {
             runCatching { bass.removeMixerChannel(handle) }
             bass.freeStream(handle)
@@ -362,20 +365,25 @@ class BassPlaybackEngine(
     }
 
     private fun createStream(
-        bass: BassNative,
+        bass: BassAudioBackend,
         request: PlaybackRequest,
         decode: Boolean,
     ): Result<Int> {
         val localFile = localFileFromUrl(request.url)
-        return if (localFile != null) {
-            if (decode) bass.createFilePlaybackDecodeStream(localFile) else bass.createFileStream(localFile)
+        val streamResult = if (localFile != null) {
+            if (decode) {
+                bass.createFilePlaybackDecodeStream(localFile.absolutePath)
+            } else {
+                bass.createFileStream(localFile.absolutePath)
+            }
         } else {
             if (decode) bass.createUrlDecodeStream(request.url) else bass.createUrlStream(request.url)
         }
+        return streamResult.map { it.value }
     }
 
     private fun createDirectPlayback(
-        bass: BassNative,
+        bass: BassAudioBackend,
         request: PlaybackRequest,
     ): Result<CreatedPlayback> =
         createStream(bass, request, decode = false).map { handle ->
@@ -387,17 +395,17 @@ class BassPlaybackEngine(
         }
 
     private fun createMixerPlayback(
-        bass: BassNative,
+        bass: BassAudioBackend,
         request: PlaybackRequest,
     ): Result<CreatedPlayback> =
         runCatching {
             val source = createQueuedSource(bass, request).getOrThrow()
             val info = bass.channelInfo(source).getOrThrow()
             val mixer = bass.createMixer(
-                freq = info.freq.takeIf { it > 0 } ?: 44_100,
-                channels = info.chans.takeIf { it > 0 } ?: 2,
+                frequency = info.frequency.takeIf { it > 0 } ?: 44_100,
+                channels = info.channels.takeIf { it > 0 } ?: 2,
                 queueSources = crossfadeDurationSeconds <= 0,
-            ).getOrThrow()
+            ).getOrThrow().value
             val adjustment = replayGainAdjustment(request)
             applySourceReplayGain(bass, source, adjustment)
             bass.addMixerChannel(mixer, source).getOrThrow()
@@ -409,29 +417,28 @@ class BassPlaybackEngine(
         }
 
     private fun createQueuedSource(
-        bass: BassNative,
+        bass: BassAudioBackend,
         request: PlaybackRequest,
     ): Result<Int> =
         createStream(bass, request, decode = true)
 
     private fun attachEndSync(
-        bass: BassNative,
+        bass: BassAudioBackend,
         source: Int,
         currentPlaybackId: Int,
         stateCallback: ((PlaybackState) -> Unit)? = null,
     ) {
-        val callback = BassSyncCallback { _, channel, _, _ ->
-            if (channel == source && isCurrentPlayback(currentPlaybackId)) {
+        bass.setEndSync(source) { channel ->
+            if (channel.value == source && isCurrentPlayback(currentPlaybackId)) {
                 (stateCallback ?: onStateChanged)?.invoke(PlaybackState.Finished)
             }
         }
-        endSyncCallbacks[source] = callback
-        bass.setEndSync(source, callback)
+            .onSuccess { endSyncCallbacks[source] = it }
             .onFailure { lastError = it.message }
     }
 
     private fun startCrossfade(
-        bass: BassNative,
+        bass: BassAudioBackend,
         nextSource: Int,
         nextAdjustment: ReplayGainAdjustment,
     ) {
@@ -499,7 +506,7 @@ class BassPlaybackEngine(
         }
     }
 
-    private fun applyOutputVolume(bass: BassNative) {
+    private fun applyOutputVolume(bass: BassAudioBackend) {
         val handle = stream.takeIf { it != 0 } ?: return
         val volume = outputVolumeFactor()
         if (currentSourceStream != 0 && handle != currentSourceStream) {
@@ -512,7 +519,7 @@ class BassPlaybackEngine(
     }
 
     private fun applySourceReplayGain(
-        bass: BassNative,
+        bass: BassAudioBackend,
         source: Int,
         adjustment: ReplayGainAdjustment,
     ) {
@@ -556,7 +563,7 @@ class BassPlaybackEngine(
         volumePercent.coerceIn(0, 100) / 100f
 
     private fun visualizerFrameFor(
-        bass: BassNative,
+        bass: BassAudioBackend,
         sourceHandle: Int,
     ): PlaybackVisualizerFrame? =
         bass.fft(sourceHandle, VisualizerBandCount)
@@ -569,7 +576,7 @@ class BassPlaybackEngine(
             .onFailure { lastError = it.message }
             .getOrNull()
 
-    private fun seekCurrentSource(bass: BassNative, seconds: Double) {
+    private fun seekCurrentSource(bass: BassAudioBackend, seconds: Double) {
         val sourceHandle = currentSourceStream.takeIf { it != 0 } ?: stream
         if (sourceHandle != 0) {
             bass.seek(sourceHandle, seconds)
@@ -577,7 +584,7 @@ class BassPlaybackEngine(
         }
     }
 
-    private fun freeAllStreams(bass: BassNative) {
+    private fun freeAllStreams(bass: BassAudioBackend) {
         val handles = listOf(stream, currentSourceStream, preparedStream)
             .filter { it != 0 }
             .distinct()
@@ -594,7 +601,7 @@ class BassPlaybackEngine(
     }
 
     private fun freeCreatedPlayback(
-        bass: BassNative,
+        bass: BassAudioBackend,
         created: CreatedPlayback,
     ) {
         listOf(created.playbackHandle, created.sourceHandle)
@@ -637,6 +644,69 @@ private fun bassActiveLabel(active: Int): String =
         BassActive.Paused -> "Paused"
         else -> "Unknown ($active)"
     }
+
+private fun BassAudioBackend.play(stream: Int): Result<Unit> =
+    play(BassStreamHandle(stream))
+
+private fun BassAudioBackend.pause(stream: Int): Result<Unit> =
+    pause(BassStreamHandle(stream))
+
+private fun BassAudioBackend.stop(stream: Int): Result<Unit> =
+    stop(BassStreamHandle(stream))
+
+private fun BassAudioBackend.activeState(stream: Int): Int =
+    activeState(BassStreamHandle(stream)) ?: BassActive.Stopped
+
+private fun BassAudioBackend.freeStream(stream: Int): Result<Unit> =
+    freeStream(BassStreamHandle(stream))
+
+private fun BassAudioBackend.removeMixerChannel(stream: Int): Result<Unit> =
+    removeMixerChannel(BassStreamHandle(stream))
+
+private fun BassAudioBackend.addMixerChannel(mixer: Int, stream: Int): Result<Unit> =
+    addMixerChannel(BassStreamHandle(mixer), BassStreamHandle(stream))
+
+private fun BassAudioBackend.setMixerVolumeEnvelope(
+    stream: Int,
+    points: List<Pair<Long, Float>>,
+): Result<Unit> =
+    setMixerVolumeEnvelope(BassStreamHandle(stream), points)
+
+private fun BassAudioBackend.setEndSync(
+    stream: Int,
+    callback: (BassStreamHandle) -> Unit,
+): Result<Int> =
+    setEndSync(BassStreamHandle(stream), callback)
+
+private fun BassAudioBackend.setVolume(stream: Int, volume: Float): Result<Unit> =
+    setVolume(BassStreamHandle(stream), volume)
+
+private fun BassAudioBackend.slideVolume(stream: Int, volume: Float, durationMillis: Int): Result<Unit> =
+    slideVolume(BassStreamHandle(stream), volume, durationMillis)
+
+private fun BassAudioBackend.seek(stream: Int, seconds: Double): Result<Unit> =
+    seek(BassStreamHandle(stream), seconds)
+
+private fun BassAudioBackend.positionSeconds(stream: Int): Double? =
+    positionSeconds(BassStreamHandle(stream))
+
+private fun BassAudioBackend.durationSeconds(stream: Int): Double? =
+    durationSeconds(BassStreamHandle(stream))
+
+private fun BassAudioBackend.positionBytes(stream: Int): Long? =
+    positionBytes(BassStreamHandle(stream))
+
+private fun BassAudioBackend.secondsToBytes(stream: Int, seconds: Double): Long? =
+    secondsToBytes(BassStreamHandle(stream), seconds)
+
+private fun BassAudioBackend.channelInfo(stream: Int) =
+    channelInfo(BassStreamHandle(stream))
+
+private fun BassAudioBackend.fft(stream: Int, bins: Int): Result<FloatArray> =
+    fft(BassStreamHandle(stream), bins)
+
+private fun BassAudioBackend.streamMetadata(stream: Int): Map<String, String> =
+    streamMetadata(BassStreamHandle(stream))
 
 private data class ReplayGainAdjustment(
     val mode: ReplayGainMode,

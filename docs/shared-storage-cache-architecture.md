@@ -175,8 +175,9 @@ Then higher-level repositories can be composed from those stores:
 - [ ] Expand the shared BASS facade beyond waveform reads.
   - Playback streams, decode streams, active state, stream metadata/tags, FFT visualizer reads, seek/position/duration, volume slides, and mixer channel creation/add are now modeled on `BassAudioBackend` and implemented by desktop and Android adapters.
   - Android playback now consumes `BassAudioBackend` for these primitives instead of raw `AndroidBassJni`; runtime still owns JNI loading and wraps it in the adapter.
-  - Next migrate desktop playback to consume `BassAudioBackend` for these primitives instead of raw `BassNative`.
-  - Still to model through shared interfaces: end sync, mixer volume envelopes, gapless queue positioning, and crossfade fade curves.
+  - Desktop playback now consumes `BassAudioBackend` for stream/control/progress/metadata/FFT/mixer primitives instead of raw `BassNative`; `BassNative` remains in the engine only for load diagnostics and plugin reporting.
+  - End sync, mixer volume envelopes, and byte/second conversion are now modeled on `BassAudioBackend`.
+  - Still to normalize further: gapless queue positioning and crossfade fade-curve policy should move from platform playback engines into shared planning/services.
   - Keep JNI/JNA/native-loader details under platform adapters unless a single native bridge is proven simpler across all targets.
 - [ ] Normalize platform file/class names.
   - Shared/common abstractions keep generic names.
