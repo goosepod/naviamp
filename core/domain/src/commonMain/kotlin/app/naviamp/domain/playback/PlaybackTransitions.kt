@@ -246,6 +246,29 @@ fun equalPowerFadeEnvelope(
     }
 }
 
+fun crossfadeFadeInEnvelopePoints(
+    durationBytes: Long,
+    volumeFactor: Float,
+): List<Pair<Long, Float>> =
+    equalPowerFadeEnvelope(
+        startBytes = 0L,
+        durationBytes = durationBytes,
+        fadeIn = true,
+        scale = volumeFactor,
+    ).map { it.positionBytes to it.volume }
+
+fun crossfadeFadeOutEnvelopePoints(
+    startBytes: Long,
+    durationBytes: Long,
+    volumeFactor: Float,
+): List<Pair<Long, Float>> =
+    equalPowerFadeEnvelope(
+        startBytes = startBytes,
+        durationBytes = durationBytes,
+        fadeIn = false,
+        scale = volumeFactor,
+    ).map { it.positionBytes to it.volume }
+
 const val MaxCrossfadeDurationSeconds = 12
 const val EqualPowerEnvelopeSteps = 8
 const val MaxPlaybackVolumeFactor = 4f

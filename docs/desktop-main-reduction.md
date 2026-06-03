@@ -190,6 +190,9 @@ Branch: `codex/desktop-main-reduction`
 - [x] Share prepared mixer transition planning.
   - Queued-next and crossfade prepared streams now use common initial/final source volume, duration, and current-source fade decisions.
   - Desktop still applies equal-power BASSmix envelopes where available; Android still uses BASS slide calls.
+- [x] Share crossfade envelope point construction.
+  - Equal-power fade-in/fade-out BASSmix envelope points now come from common playback helpers.
+  - Desktop still owns applying BASSmix envelopes and falling back to volume slides.
 
 ## Architecture Refactor Backlog
 

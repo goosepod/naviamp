@@ -185,6 +185,7 @@ Then higher-level repositories can be composed from those stores:
   - Active playback stream reset defaults now live in common playback helpers so desktop and Android clear stream/source/crossfade/ReplayGain state consistently after stop, release, and cleanup.
   - Playback volume application now uses a common plan: direct streams receive user volume multiplied by ReplayGain, while mixer playback keeps user volume on the mixer and ReplayGain on the source.
   - Prepared mixer transition planning now lives in common playback helpers, including queued-next volume, crossfade initial/final source volume, duration, and current-source fade eligibility.
+  - Crossfade equal-power envelope point construction now lives in common playback helpers; desktop applies those points through BASSmix envelopes while Android continues to use BASS volume slides.
   - Still to normalize further: crossfade transition state reset and envelope application details should continue moving from platform playback engines into shared planning/services.
   - Keep JNI/JNA/native-loader details under platform adapters unless a single native bridge is proven simpler across all targets.
 - [ ] Normalize platform file/class names.

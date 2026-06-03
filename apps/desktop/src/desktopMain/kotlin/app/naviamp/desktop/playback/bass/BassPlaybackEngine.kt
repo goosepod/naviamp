@@ -14,7 +14,8 @@ import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassStreamHandle
 import app.naviamp.domain.playback.clearPreparedPlaybackMetadata
 import app.naviamp.domain.playback.clearPlaybackStreamState
-import app.naviamp.domain.playback.equalPowerFadeEnvelope
+import app.naviamp.domain.playback.crossfadeFadeInEnvelopePoints
+import app.naviamp.domain.playback.crossfadeFadeOutEnvelopePoints
 import app.naviamp.domain.playback.failedPreparedPlaybackMetadata
 import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
 import app.naviamp.domain.playback.planPreparedPlaybackAdoption
@@ -476,8 +477,7 @@ class BassPlaybackEngine(
         if (nextFadeBytes != null) {
             bass.setMixerVolumeEnvelope(
                 nextSource,
-                equalPowerFadeEnvelope(startBytes = 0L, durationBytes = nextFadeBytes, fadeIn = true, scale = nextVolume)
-                    .map { it.positionBytes to it.volume },
+                crossfadeFadeInEnvelopePoints(durationBytes = nextFadeBytes, volumeFactor = nextVolume),
             ).onFailure {
                 lastError = it.message
                 bass.setVolume(nextSource, 0f).onFailure { error -> lastError = error.message }
@@ -493,12 +493,11 @@ class BassPlaybackEngine(
             if (currentStartBytes != null && currentFadeBytes != null) {
                 bass.setMixerVolumeEnvelope(
                     currentSource,
-                    equalPowerFadeEnvelope(
+                    crossfadeFadeOutEnvelopePoints(
                         startBytes = currentStartBytes,
                         durationBytes = currentFadeBytes,
-                        fadeIn = false,
-                        scale = currentVolume,
-                    ).map { it.positionBytes to it.volume },
+                        volumeFactor = currentVolume,
+                    ),
                 ).onFailure {
                     lastError = it.message
                     bass.slideVolume(currentSource, 0f, durationMillis).onFailure { error -> lastError = error.message }

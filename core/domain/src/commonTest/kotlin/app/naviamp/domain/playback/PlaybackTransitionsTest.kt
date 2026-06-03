@@ -307,4 +307,26 @@ class PlaybackTransitionsTest {
         assertEquals(0f, envelope.last().volume, absoluteTolerance = 0.000001f)
         assertTrue(envelope.zipWithNext().all { (left, right) -> left.volume >= right.volume })
     }
+
+    @Test
+    fun buildsCrossfadeEnvelopePairs() {
+        val fadeIn = crossfadeFadeInEnvelopePoints(
+            durationBytes = 80,
+            volumeFactor = 0.5f,
+        )
+        val fadeOut = crossfadeFadeOutEnvelopePoints(
+            startBytes = 20,
+            durationBytes = 80,
+            volumeFactor = 0.75f,
+        )
+
+        assertEquals(0L, fadeIn.first().first)
+        assertEquals(0f, fadeIn.first().second)
+        assertEquals(80L, fadeIn.last().first)
+        assertEquals(0.5f, fadeIn.last().second)
+        assertEquals(20L, fadeOut.first().first)
+        assertEquals(0.75f, fadeOut.first().second)
+        assertEquals(100L, fadeOut.last().first)
+        assertEquals(0f, fadeOut.last().second, absoluteTolerance = 0.000001f)
+    }
 }
