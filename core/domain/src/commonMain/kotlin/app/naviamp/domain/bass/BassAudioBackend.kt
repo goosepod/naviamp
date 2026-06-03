@@ -7,6 +7,7 @@ import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.crossfadeFadeInEnvelopePoints
 import app.naviamp.domain.playback.crossfadeFadeOutEnvelopePoints
 import app.naviamp.domain.playback.planBassMixerCreation
+import app.naviamp.domain.playback.planPreparedMixerTransition
 import app.naviamp.domain.playback.playbackSourceHandle
 import app.naviamp.domain.playback.playbackVisualizerFrameFromFft
 import app.naviamp.domain.playback.playbackVolumeApplicationPlan
@@ -112,6 +113,13 @@ data class BassPlaybackSnapshot(
     val sourceActiveState: Int?,
     val progress: PlaybackProgress,
     val metadata: PlaybackStreamMetadata,
+)
+
+data class BassPreparedSource(
+    val sourceHandle: Int,
+    val replayGainFactor: Float,
+    val crossfadeActive: Boolean,
+    val fallbackErrors: List<Throwable> = emptyList(),
 )
 
 interface BassAudioBackend {
@@ -360,6 +368,38 @@ fun BassAudioBackend.createMixerBassPlayback(
             playbackHandle = mixer.value,
             sourceHandle = source.value,
             replayGainFactor = replayGainFactor,
+        )
+    }
+
+fun BassAudioBackend.prepareNextBassMixerSource(
+    localPath: String?,
+    url: String,
+    mixer: Int,
+    currentSource: Int,
+    currentSourceVolumeFactor: Float,
+    crossfadeDurationSeconds: Int,
+    replayGainFactor: Float,
+    playbackDecode: Boolean = false,
+): Result<BassPreparedSource> =
+    runCatching {
+        val source = createQueuedBassSource(
+            localPath = localPath,
+            url = url,
+            playbackDecode = playbackDecode,
+        ).getOrThrow()
+        val transition = planPreparedMixerTransition(crossfadeDurationSeconds, replayGainFactor)
+        val transitionResult = applyPreparedBassMixerTransition(
+            mixer = mixer,
+            nextSource = source,
+            currentSource = currentSource,
+            currentSourceVolumeFactor = currentSourceVolumeFactor,
+            transition = transition,
+        ).getOrThrow()
+        BassPreparedSource(
+            sourceHandle = source,
+            replayGainFactor = replayGainFactor,
+            crossfadeActive = transition.shouldCrossfade,
+            fallbackErrors = transitionResult.fallbackErrors,
         )
     }
 

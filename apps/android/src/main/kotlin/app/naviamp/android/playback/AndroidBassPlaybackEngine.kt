@@ -13,16 +13,15 @@ import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassStreamHandle
 import app.naviamp.domain.bass.activeState
 import app.naviamp.domain.bass.applyBassPlaybackVolume
-import app.naviamp.domain.bass.applyPreparedBassMixerTransition
 import app.naviamp.domain.bass.bassActiveStateLabel
 import app.naviamp.domain.bass.bassFailureMessage
 import app.naviamp.domain.bass.bassPlaybackSnapshot
 import app.naviamp.domain.bass.bassPlaybackVisualizerFrame
 import app.naviamp.domain.bass.createDirectBassPlayback
 import app.naviamp.domain.bass.createMixerBassPlayback
-import app.naviamp.domain.bass.createQueuedBassSource
 import app.naviamp.domain.bass.pause
 import app.naviamp.domain.bass.play
+import app.naviamp.domain.bass.prepareNextBassMixerSource
 import app.naviamp.domain.bass.releaseBassStream
 import app.naviamp.domain.bass.releaseBassStreams
 import app.naviamp.domain.bass.seek
@@ -41,7 +40,6 @@ import app.naviamp.domain.playback.clearPlaybackStreamState
 import app.naviamp.domain.playback.failedPreparedPlaybackMetadata
 import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
 import app.naviamp.domain.playback.planPreparedPlaybackAdoption
-import app.naviamp.domain.playback.planPreparedMixerTransition
 import app.naviamp.domain.playback.playbackReplayGainAdjustment
 import app.naviamp.domain.playback.playbackSourceHandle
 import app.naviamp.domain.playback.playbackStateForBassActiveState
@@ -334,23 +332,22 @@ class AndroidBassPlaybackEngine(
             bass.init().getOrThrow()
             val mixer = stream.takeIf { it != 0 } ?: return
             currentSourceStream.takeIf { it != 0 } ?: return
-            val source = createQueuedSource(request.url)
-            check(source != 0) { errorMessage("BASS next stream creation failed") }
             val nextReplayGain = playbackReplayGainAdjustment(request).volumeFactor
-            val transition = planPreparedMixerTransition(crossfadeDurationSeconds, nextReplayGain)
-            bass.applyPreparedBassMixerTransition(
+            val file = localFileFromUrl(request.url)
+            val prepared = bass.prepareNextBassMixerSource(
+                localPath = file?.absolutePath,
+                url = request.url,
                 mixer = mixer,
-                nextSource = source,
                 currentSource = currentSourceStream,
                 currentSourceVolumeFactor = replayGainFactor,
-                transition = transition,
-            ).onSuccess { result ->
-                result.fallbackErrors.forEach {
-                    Log.w(Tag, it.message ?: "BASS crossfade envelope failed")
-                }
-            }.getOrThrow()
+                crossfadeDurationSeconds = crossfadeDurationSeconds,
+                replayGainFactor = nextReplayGain,
+            ).getOrThrow()
+            prepared.fallbackErrors.forEach {
+                Log.w(Tag, it.message ?: "BASS crossfade envelope failed")
+            }
             preparedReplayGainFactor = nextReplayGain
-            source
+            prepared.sourceHandle
         }.onSuccess { handle ->
             preparedStream = handle
             preparedRequest = request
@@ -388,14 +385,6 @@ class AndroidBassPlaybackEngine(
         currentSourceStream = playback.sourceHandle
         replayGainFactor = playback.replayGainFactor
         return playback.playbackHandle
-    }
-
-    private fun createQueuedSource(url: String): Int {
-        val file = localFileFromUrl(url)
-        return bass.createQueuedBassSource(
-            localPath = file?.absolutePath,
-            url = url,
-        ).getOrNull() ?: 0
     }
 
     private fun startProgressPolling(

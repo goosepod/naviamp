@@ -299,6 +299,44 @@ class BassAudioBackendTest {
     }
 
     @Test
+    fun preparesNextBassMixerSourceThroughSharedTransitionPath() {
+        val backend = RecordingBassAudioBackend()
+
+        val result = backend.prepareNextBassMixerSource(
+            localPath = "/tmp/next.flac",
+            url = "file:///tmp/next.flac",
+            mixer = 1,
+            currentSource = 2,
+            currentSourceVolumeFactor = 0.8f,
+            crossfadeDurationSeconds = 5,
+            replayGainFactor = 0.7f,
+            playbackDecode = true,
+        )
+
+        assertEquals(
+            BassPreparedSource(
+                sourceHandle = 13,
+                replayGainFactor = 0.7f,
+                crossfadeActive = true,
+            ),
+            result.getOrThrow(),
+        )
+        assertEquals(
+            listOf(
+                "filePlaybackDecode:/tmp/next.flac",
+                "volume:13:0.0",
+                "add:1:13",
+                "secondsToBytes:13:5.0",
+                "envelope:13",
+                "positionBytes:2",
+                "secondsToBytes:2:5.0",
+                "envelope:2",
+            ),
+            backend.calls,
+        )
+    }
+
+    @Test
     fun preparedMixerTransitionAppliesEnvelopesWhenBytePositionsAreAvailable() {
         val backend = RecordingBassAudioBackend()
 
