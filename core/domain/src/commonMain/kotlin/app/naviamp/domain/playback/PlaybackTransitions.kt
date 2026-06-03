@@ -2,15 +2,7 @@ package app.naviamp.domain.playback
 
 import app.naviamp.domain.bass.BassActiveState
 import app.naviamp.domain.bass.BassStreamInfo
-import kotlin.math.PI
-import kotlin.math.cos
 import kotlin.math.pow
-import kotlin.math.sin
-
-data class PlaybackFadeEnvelopePoint(
-    val positionBytes: Long,
-    val volume: Float,
-)
 
 data class PrepareNextPlaybackPlan(
     val shouldPrepare: Boolean,
@@ -259,60 +251,6 @@ fun planPrepareNextPlayback(
     )
 }
 
-fun equalPowerFadeEnvelope(
-    startBytes: Long,
-    durationBytes: Long,
-    fadeIn: Boolean,
-    scale: Float = 1f,
-    steps: Int = EqualPowerEnvelopeSteps,
-): List<PlaybackFadeEnvelopePoint> {
-    val safeScale = scale.coerceIn(0f, MaxPlaybackVolumeFactor)
-    if (durationBytes <= 0L || steps <= 0) {
-        return listOf(
-            PlaybackFadeEnvelopePoint(
-                positionBytes = startBytes.coerceAtLeast(0L),
-                volume = if (fadeIn) safeScale else 0f,
-            ),
-        )
-    }
-    val safeStartBytes = startBytes.coerceAtLeast(0L)
-    return (0..steps).map { step ->
-        val t = step.toDouble() / steps.toDouble()
-        val value = if (fadeIn) {
-            sin(t * PI / 2.0)
-        } else {
-            cos(t * PI / 2.0)
-        }.toFloat()
-        PlaybackFadeEnvelopePoint(
-            positionBytes = safeStartBytes + (durationBytes * t).toLong(),
-            volume = value * safeScale,
-        )
-    }
-}
-
-fun crossfadeFadeInEnvelopePoints(
-    durationBytes: Long,
-    volumeFactor: Float,
-): List<Pair<Long, Float>> =
-    equalPowerFadeEnvelope(
-        startBytes = 0L,
-        durationBytes = durationBytes,
-        fadeIn = true,
-        scale = volumeFactor,
-    ).map { it.positionBytes to it.volume }
-
-fun crossfadeFadeOutEnvelopePoints(
-    startBytes: Long,
-    durationBytes: Long,
-    volumeFactor: Float,
-): List<Pair<Long, Float>> =
-    equalPowerFadeEnvelope(
-        startBytes = startBytes,
-        durationBytes = durationBytes,
-        fadeIn = false,
-        scale = volumeFactor,
-    ).map { it.positionBytes to it.volume }
-
 fun isPlaybackProgressAtEnd(
     progress: PlaybackProgress,
     toleranceSeconds: Double = FinishedPositionToleranceSeconds,
@@ -379,7 +317,6 @@ fun shouldFinishPlaybackForBassState(
 const val MaxCrossfadeDurationSeconds = 12
 const val DefaultBassMixerFrequency = 44_100
 const val DefaultBassMixerChannels = 2
-const val EqualPowerEnvelopeSteps = 8
 const val MaxPlaybackVolumeFactor = 4f
 const val FinishedPositionToleranceSeconds = 0.75
 const val VisualizerBandCount = 32
