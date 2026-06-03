@@ -564,7 +564,6 @@ class BassAudioBackendTest {
 
 private class RecordingBassAudioBackend(
     private val removeSucceeds: Boolean = true,
-    private val envelopeSucceeds: Boolean = true,
     override val lastErrorCode: Int? = null,
 ) : BassAudioBackend {
     val calls = mutableListOf<String>()
@@ -669,18 +668,6 @@ private class RecordingBassAudioBackend(
     override fun streamMetadata(stream: BassStreamHandle): Map<String, String> {
         calls += "metadata:${stream.value}"
         return mapOf("StreamTitle" to "Radio Title")
-    }
-
-    override fun setMixerVolumeEnvelope(
-        stream: BassStreamHandle,
-        points: List<Pair<Long, Float>>,
-    ): Result<Unit> {
-        calls += "envelope:${stream.value}"
-        return if (envelopeSucceeds) {
-            Result.success(Unit)
-        } else {
-            Result.failure(IllegalStateException("envelope failed"))
-        }
     }
 
     override fun slideVolume(

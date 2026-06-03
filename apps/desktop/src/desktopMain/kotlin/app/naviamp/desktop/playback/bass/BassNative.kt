@@ -157,29 +157,6 @@ class BassNative private constructor(
         return check(mixer.BASS_Mixer_ChannelRemove(channel), "BASS_Mixer_ChannelRemove failed")
     }
 
-    fun setMixerVolumeEnvelope(channel: Int, points: List<Pair<Long, Float>>): Result<Unit> {
-        val mixer = mixerLibrary
-            ?: return Result.failure(IllegalStateException(mixerLoadError?.message ?: "BASSmix is unavailable."))
-        if (points.isEmpty()) return Result.success(Unit)
-        val firstNode = BassMixerNode()
-        @Suppress("UNCHECKED_CAST")
-        val nodes = firstNode.toArray(points.size) as Array<BassMixerNode>
-        points.forEachIndexed { index, point ->
-            nodes[index].position = point.first.coerceAtLeast(0L)
-            nodes[index].value = point.second.coerceIn(0f, 1f)
-            nodes[index].write()
-        }
-        return check(
-            mixer.BASS_Mixer_ChannelSetEnvelope(
-                channel,
-                BassMixerEnvelope.Volume,
-                nodes.first(),
-                nodes.size,
-            ),
-            "BASS_Mixer_ChannelSetEnvelope volume failed",
-        )
-    }
-
     fun play(channel: Int, restart: Boolean = false): Result<Unit> =
         check(library.BASS_ChannelPlay(channel, restart), "BASS_ChannelPlay failed")
 
@@ -453,7 +430,6 @@ private interface BassMixLibrary : Library {
     fun BASS_Mixer_StreamAddChannel(mixer: Int, channel: Int, flags: Int): Boolean
     fun BASS_Mixer_ChannelRemove(channel: Int): Boolean
     fun BASS_Mixer_ChannelSetPosition(channel: Int, position: Long, mode: Int): Boolean
-    fun BASS_Mixer_ChannelSetEnvelope(channel: Int, type: Int, nodes: BassMixerNode, count: Int): Boolean
 }
 
 class BassChannelInfo : Structure() {
@@ -468,14 +444,6 @@ class BassChannelInfo : Structure() {
 
     override fun getFieldOrder(): List<String> =
         listOf("freq", "chans", "flags", "ctype", "origres", "plugin", "sample", "filename")
-}
-
-class BassMixerNode : Structure() {
-    @JvmField var position: Long = 0L
-    @JvmField var value: Float = 0f
-
-    override fun getFieldOrder(): List<String> =
-        listOf("position", "value")
 }
 
 fun interface BassSyncCallback : Callback {
@@ -508,10 +476,6 @@ private object BassMixerFlags {
     const val Queue: Int = 0x8000
     const val End: Int = 0x10000
     const val ChannelNoRampIn: Int = 0x800000
-}
-
-private object BassMixerEnvelope {
-    const val Volume: Int = 2
 }
 
 private object BassConfig {

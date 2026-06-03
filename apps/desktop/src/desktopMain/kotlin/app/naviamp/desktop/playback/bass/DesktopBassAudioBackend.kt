@@ -92,12 +92,6 @@ class DesktopBassAudioBackend(
     override fun removeMixerChannel(stream: BassStreamHandle): Result<Unit> =
         native.removeMixerChannel(stream.value)
 
-    override fun setMixerVolumeEnvelope(
-        stream: BassStreamHandle,
-        points: List<Pair<Long, Float>>,
-    ): Result<Unit> =
-        native.setMixerVolumeEnvelope(stream.value, points)
-
     override fun setEndSync(
         stream: BassStreamHandle,
         callback: (BassStreamHandle) -> Unit,

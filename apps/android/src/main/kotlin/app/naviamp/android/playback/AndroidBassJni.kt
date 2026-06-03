@@ -46,9 +46,6 @@ object AndroidBassJni {
 
     fun removeMixerChannel(stream: Int): Boolean = nativeRemoveMixerChannel(stream)
 
-    fun setMixerVolumeEnvelope(stream: Int, positions: LongArray, volumes: FloatArray): Boolean =
-        nativeSetMixerVolumeEnvelope(stream, positions, volumes)
-
     fun play(stream: Int): Boolean = nativePlay(stream)
 
     fun pause(stream: Int): Boolean = nativePause(stream)
@@ -98,7 +95,6 @@ object AndroidBassJni {
     private external fun nativeChannelInfoChannels(stream: Int): Int
     private external fun nativeAddMixerChannel(mixer: Int, stream: Int): Boolean
     private external fun nativeRemoveMixerChannel(stream: Int): Boolean
-    private external fun nativeSetMixerVolumeEnvelope(stream: Int, positions: LongArray, volumes: FloatArray): Boolean
     private external fun nativePlay(stream: Int): Boolean
     private external fun nativePause(stream: Int): Boolean
     private external fun nativeStop(stream: Int): Boolean

@@ -189,11 +189,6 @@ interface BassAudioBackend {
     fun removeMixerChannel(stream: BassStreamHandle): Result<Unit> =
         unsupportedBassOperation("BASS mixer channel remove")
 
-    fun setMixerVolumeEnvelope(
-        stream: BassStreamHandle,
-        points: List<Pair<Long, Float>>,
-    ): Result<Unit> = unsupportedBassOperation("BASS mixer volume envelope")
-
     fun setEndSync(
         stream: BassStreamHandle,
         callback: (BassStreamHandle) -> Unit,

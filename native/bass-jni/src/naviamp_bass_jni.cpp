@@ -217,39 +217,6 @@ Java_app_naviamp_android_playback_AndroidBassJni_nativeRemoveMixerChannel(JNIEnv
     return BASS_Mixer_ChannelRemove(static_cast<DWORD>(stream)) ? JNI_TRUE : JNI_FALSE;
 }
 
-extern "C" JNIEXPORT jboolean JNICALL
-Java_app_naviamp_android_playback_AndroidBassJni_nativeSetMixerVolumeEnvelope(JNIEnv* env, jobject thiz, jint stream, jlongArray positions, jfloatArray volumes) {
-    (void)thiz;
-    if (positions == nullptr || volumes == nullptr) return JNI_FALSE;
-    jsize positionCount = env->GetArrayLength(positions);
-    jsize volumeCount = env->GetArrayLength(volumes);
-    jsize count = std::min(positionCount, volumeCount);
-    if (count <= 0) return JNI_TRUE;
-
-    jlong* positionValues = env->GetLongArrayElements(positions, nullptr);
-    jfloat* volumeValues = env->GetFloatArrayElements(volumes, nullptr);
-    if (positionValues == nullptr || volumeValues == nullptr) {
-        if (positionValues != nullptr) env->ReleaseLongArrayElements(positions, positionValues, JNI_ABORT);
-        if (volumeValues != nullptr) env->ReleaseFloatArrayElements(volumes, volumeValues, JNI_ABORT);
-        return JNI_FALSE;
-    }
-
-    std::vector<BASS_MIXER_NODE> nodes(static_cast<size_t>(count));
-    for (jsize index = 0; index < count; ++index) {
-        nodes[static_cast<size_t>(index)].pos = static_cast<QWORD>(std::max<jlong>(0, positionValues[index]));
-        nodes[static_cast<size_t>(index)].value = std::max(0.0f, std::min(1.0f, volumeValues[index]));
-    }
-    env->ReleaseLongArrayElements(positions, positionValues, JNI_ABORT);
-    env->ReleaseFloatArrayElements(volumes, volumeValues, JNI_ABORT);
-
-    return BASS_Mixer_ChannelSetEnvelope(
-        static_cast<DWORD>(stream),
-        BASS_MIXER_ENV_VOL,
-        nodes.data(),
-        static_cast<DWORD>(nodes.size())
-    ) ? JNI_TRUE : JNI_FALSE;
-}
-
 extern "C" JNIEXPORT jlong JNICALL
 Java_app_naviamp_android_playback_AndroidBassJni_nativePositionBytes(JNIEnv* env, jobject thiz, jint stream) {
     (void)env;

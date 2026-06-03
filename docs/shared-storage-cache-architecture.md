@@ -177,7 +177,7 @@ Then higher-level repositories can be composed from those stores:
   - Shared BASS playback stream selection now chooses file/URL and direct/decode/playback-decode creation through `BassAudioBackend`; platforms only resolve local file paths.
   - Android playback now consumes `BassAudioBackend` for these primitives instead of raw `AndroidBassJni`; runtime still owns JNI loading and wraps it in the adapter.
   - Desktop playback now consumes `BassAudioBackend` for stream/control/progress/metadata/FFT/mixer primitives and diagnostics instead of raw `BassNative`; `BassNative` remains in the engine only as the platform connector used to create the backend.
-  - End sync, mixer volume envelopes, and byte/second conversion are now modeled on `BassAudioBackend`.
+  - End sync and byte/second conversion are now modeled on `BassAudioBackend`.
   - Crossfade duration normalization and mixer queue-source decisions now live in common playback transition helpers and are used by desktop/Android playback where applicable.
   - Gapless/crossfade prepare-next capability/window/duplicate-prep decisions now live in common playback transition helpers; desktop and Android still own platform-specific URL/replaygain resolution.
   - ReplayGain mode selection, gain-to-volume conversion, peak clipping guard, and max-volume clamping now live in common playback helpers; desktop keeps diagnostics labels while Android applies the shared volume factor.
@@ -187,21 +187,19 @@ Then higher-level repositories can be composed from those stores:
   - Playback volume application now uses common BASS backend helpers: direct streams receive user volume multiplied by ReplayGain, while mixer playback keeps user volume on the mixer and ReplayGain on the source.
   - Prepared mixer transition planning now lives in common playback helpers, including queued-next volume, crossfade initial/final source volume, duration, and current-source fade eligibility.
   - Prepared mixer transition application now has a shared raw-handle overload so desktop and Android do not build transition `BassStreamHandle` values locally.
-  - Crossfade equal-power envelope point construction now lives in common playback helpers; desktop and Android apply those points through `BassAudioBackend`, with volume-slide fallback when envelopes are unavailable.
   - BASS mute/restore for delayed start-seek now uses a shared backend helper; Android supplies platform focus/ducking state and the backend applies stream/source volume.
   - Playback finished-position tolerance now lives in common playback helpers so platform engines share the same progress-at-end boundary.
   - FFT visualizer bucketing/gain normalization now lives behind common BASS backend helpers; desktop and Android ask the backend for playback visualizer frames.
   - BASS active-state constants and labels now live in common BASS helpers; platform engines use them for polling, diagnostics, and logging.
   - BASS active-state to playback-state mapping now lives in common playback helpers; platform engines keep stopped/end-of-track handling local.
   - BASS polling finished-state detection now lives in common playback helpers, combining active-state and progress-at-end checks.
-  - Android now exposes BASS byte position and seconds-to-bytes conversion through `BassAudioBackend`, matching desktop's crossfade/envelope primitives.
+  - Android now exposes BASS byte position and seconds-to-bytes conversion through `BassAudioBackend`, matching desktop's seek/conversion primitives.
   - Android now exposes mixer-channel removal through `BassAudioBackend`, matching desktop cleanup primitives.
   - Android now exposes BASS channel info through `BassAudioBackend` and uses it to size mixer playback from source frequency/channels like desktop.
   - Shared mixer creation planning now chooses source frequency/channels, fallback defaults, and queue-source policy for both desktop and Android.
   - Shared BASS stream-release helpers now remove mixer membership before freeing unique non-zero streams on both desktop and Android.
   - Shared single-stream release helpers now accept raw BASS Int handles, so platform engines do not manually wrap release handles.
   - Shared BASS Int-handle helper extensions now wrap `BassStreamHandle` conversion for playback/control/progress calls; desktop and Android playback no longer carry local duplicates.
-  - Android now exposes BASSmix volume envelopes through `BassAudioBackend` and uses the shared equal-power fade envelope points for crossfade prepare-next, with volume-slide fallback.
   - Android now applies the shared backend `configureInternetStreams` path before stream creation, matching desktop's BASS playlist/meta/depth network configuration.
   - BASS core version is now exposed through `BassAudioBackend` so diagnostics do not need to reach below the platform adapter for that primitive.
   - BASSmix version is now exposed through `BassAudioBackend`; Android wraps `BASS_Mixer_GetVersion` through JNI and desktop wraps the existing native binding.
@@ -220,7 +218,7 @@ Then higher-level repositories can be composed from those stores:
   - Mixer BASS playback creation now uses a shared backend helper for decode-stream selection, mixer sizing, source ReplayGain application, mixer creation, and channel attachment.
   - Playback polling now reads active state, source active state, progress, and stream metadata through a shared BASS backend snapshot helper.
   - Prepared/queued BASS source creation now uses a shared backend helper, with platforms only supplying local file paths and whether local decode streams need playback-decode flags.
-  - Prepared-next mixer source setup now uses a shared backend helper for queued source creation, transition planning/application, crossfade-active reporting, and envelope fallback reporting.
+  - Prepared-next mixer source setup now uses a shared backend helper for queued source creation, transition planning/application, and crossfade-active reporting.
   - Direct-vs-mixer BASS playback creation now flows through a shared backend selector; platforms only decide whether mixer playback applies for the request.
   - Playback start-seek position filtering now lives in common playback helpers, so desktop and Android use the same positive-position boundary before asking BASS to seek.
   - BASS stream active-state diagnostic labeling now lives in common backend helpers instead of desktop formatting raw active-state values directly.
@@ -231,6 +229,7 @@ Then higher-level repositories can be composed from those stores:
   - Direct-vs-mixer playback selection now uses a common planning helper; Android's media-id requirement remains an explicit platform constraint instead of an inline fork.
   - Prepared-source adoption now reapplies the shared BASS volume plan after handoff so a faded-in queued source cannot remain silent once it becomes the active track.
   - Prepared crossfade transitions now use shared BASS volume slides for fade-in/fade-out instead of BASSmix volume envelopes, avoiding envelope-position ambiguity while keeping desktop and Android behavior aligned.
+  - Unused BASSmix volume-envelope facade methods have been removed from common, desktop, and Android JNI/backend adapters after the slide-based transition path was validated.
   - BASS playback polling continuation now uses a shared active-state predicate so desktop and Android stop polling on the same output-stopped boundary.
   - Prepared-next mixer-source eligibility now uses a common helper so desktop and Android require the same active playback handle, active source handle, and mixer support before queueing a BASS source.
   - Gapless and crossfade support flags now map from BASS mixer capability through a shared playback feature-support helper.
