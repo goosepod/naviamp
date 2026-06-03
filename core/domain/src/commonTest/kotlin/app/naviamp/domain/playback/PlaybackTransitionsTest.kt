@@ -182,6 +182,32 @@ class PlaybackTransitionsTest {
     }
 
     @Test
+    fun plansDirectPlaybackVolumeWithReplayGainOnOutput() {
+        val plan = playbackVolumeApplicationPlan(
+            userVolumeFactor = 0.5f,
+            replayGainFactor = 0.75f,
+            hasSeparateSourceStream = false,
+        )
+
+        assertEquals(0.5f, plan.outputVolumeFactor)
+        assertEquals(null, plan.sourceReplayGainFactor)
+        assertEquals(0.375f, plan.directVolumeFactor)
+    }
+
+    @Test
+    fun plansMixerPlaybackVolumeWithReplayGainOnSource() {
+        val plan = playbackVolumeApplicationPlan(
+            userVolumeFactor = 0.5f,
+            replayGainFactor = 0.75f,
+            hasSeparateSourceStream = true,
+        )
+
+        assertEquals(0.5f, plan.outputVolumeFactor)
+        assertEquals(0.75f, plan.sourceReplayGainFactor)
+        assertEquals(0.375f, plan.directVolumeFactor)
+    }
+
+    @Test
     fun adoptsPreparedPlaybackOnlyWhenActivePreparedMatchingAndMixerCapable() {
         val request = PlaybackRequest(url = "file:///track.flac", mediaId = "track-1")
 

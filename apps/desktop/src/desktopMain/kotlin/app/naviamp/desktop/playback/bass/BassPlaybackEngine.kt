@@ -18,6 +18,7 @@ import app.naviamp.domain.playback.equalPowerFadeEnvelope
 import app.naviamp.domain.playback.failedPreparedPlaybackMetadata
 import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
 import app.naviamp.domain.playback.planPreparedPlaybackAdoption
+import app.naviamp.domain.playback.playbackVolumeApplicationPlan
 import app.naviamp.domain.playback.playbackReplayGainAdjustment
 import app.naviamp.domain.playback.shouldReusePreparedPlayback
 import app.naviamp.domain.playback.shouldQueueMixerSources
@@ -508,12 +509,16 @@ class BassPlaybackEngine(
 
     private fun applyOutputVolume(bass: BassAudioBackend) {
         val handle = stream.takeIf { it != 0 } ?: return
-        val volume = outputVolumeFactor()
+        val plan = playbackVolumeApplicationPlan(
+            userVolumeFactor = outputVolumeFactor(),
+            replayGainFactor = currentReplayGainAdjustment.volumeFactor,
+            hasSeparateSourceStream = currentSourceStream != 0 && handle != currentSourceStream,
+        )
         if (currentSourceStream != 0 && handle != currentSourceStream) {
-            bass.setVolume(handle, volume)
+            bass.setVolume(handle, plan.outputVolumeFactor)
                 .onFailure { lastError = it.message }
         } else {
-            bass.setVolume(handle, volume * currentReplayGainAdjustment.volumeFactor)
+            bass.setVolume(handle, plan.directVolumeFactor)
                 .onFailure { lastError = it.message }
         }
     }

@@ -56,6 +56,12 @@ data class PlaybackStreamStateReset(
     val replayGainFactor: Float = 1f,
 )
 
+data class PlaybackVolumeApplicationPlan(
+    val outputVolumeFactor: Float,
+    val sourceReplayGainFactor: Float?,
+    val directVolumeFactor: Float,
+)
+
 enum class PrepareNextPlaybackReason {
     Crossfade,
     Gapless,
@@ -121,6 +127,20 @@ fun failedPreparedPlaybackMetadata(error: Throwable): PreparedPlaybackMetadataRe
 
 fun clearPlaybackStreamState(): PlaybackStreamStateReset =
     PlaybackStreamStateReset()
+
+fun playbackVolumeApplicationPlan(
+    userVolumeFactor: Float,
+    replayGainFactor: Float,
+    hasSeparateSourceStream: Boolean,
+): PlaybackVolumeApplicationPlan {
+    val safeUserVolume = userVolumeFactor.coerceIn(0f, MaxPlaybackVolumeFactor)
+    val safeReplayGain = replayGainFactor.coerceIn(0f, MaxPlaybackVolumeFactor)
+    return PlaybackVolumeApplicationPlan(
+        outputVolumeFactor = safeUserVolume,
+        sourceReplayGainFactor = safeReplayGain.takeIf { hasSeparateSourceStream },
+        directVolumeFactor = (safeUserVolume * safeReplayGain).coerceIn(0f, MaxPlaybackVolumeFactor),
+    )
+}
 
 fun planPreparedPlaybackAdoption(
     hasActiveStream: Boolean,

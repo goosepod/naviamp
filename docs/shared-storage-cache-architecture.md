@@ -183,6 +183,7 @@ Then higher-level repositories can be composed from those stores:
   - Prepared-playback duplicate checks and metadata reset/failure defaults now live in common playback helpers; platforms still free native handles locally.
   - Prepared-playback adoption eligibility now lives in common playback helpers so desktop and Android use the same active-stream, prepared-match, and mixer-capability gate before taking a queued BASS source.
   - Active playback stream reset defaults now live in common playback helpers so desktop and Android clear stream/source/crossfade/ReplayGain state consistently after stop, release, and cleanup.
+  - Playback volume application now uses a common plan: direct streams receive user volume multiplied by ReplayGain, while mixer playback keeps user volume on the mixer and ReplayGain on the source.
   - Still to normalize further: crossfade transition state reset rules should move from platform playback engines into shared planning/services.
   - Keep JNI/JNA/native-loader details under platform adapters unless a single native bridge is proven simpler across all targets.
 - [ ] Normalize platform file/class names.

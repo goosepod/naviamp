@@ -23,6 +23,7 @@ import app.naviamp.domain.playback.crossfadeDurationMillis
 import app.naviamp.domain.playback.failedPreparedPlaybackMetadata
 import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
 import app.naviamp.domain.playback.planPreparedPlaybackAdoption
+import app.naviamp.domain.playback.playbackVolumeApplicationPlan
 import app.naviamp.domain.playback.playbackReplayGainAdjustment
 import app.naviamp.domain.playback.shouldReusePreparedPlayback
 import app.naviamp.domain.playback.shouldQueueMixerSources
@@ -534,11 +535,16 @@ class AndroidBassPlaybackEngine(
     private fun applyVolume() {
         val userVolume = (volumePercent / 100f) * if (duckedForFocusLoss) FocusDuckVolumeFactor else 1f
         stream.takeIf { it != 0 }?.let { handle ->
+            val plan = playbackVolumeApplicationPlan(
+                userVolumeFactor = userVolume,
+                replayGainFactor = replayGainFactor,
+                hasSeparateSourceStream = currentSourceStream != 0 && handle != currentSourceStream,
+            )
             if (currentSourceStream != 0 && handle != currentSourceStream) {
-                bass.setVolume(handle, userVolume)
-                bass.setVolume(currentSourceStream, replayGainFactor)
+                bass.setVolume(handle, plan.outputVolumeFactor)
+                bass.setVolume(currentSourceStream, plan.sourceReplayGainFactor ?: 1f)
             } else {
-                bass.setVolume(handle, userVolume * replayGainFactor)
+                bass.setVolume(handle, plan.directVolumeFactor)
             }
         }
     }

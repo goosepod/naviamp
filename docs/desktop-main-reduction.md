@@ -184,6 +184,9 @@ Branch: `codex/desktop-main-reduction`
 - [x] Share active playback stream reset defaults.
   - Desktop and Android now clear active stream, current source, crossfade state, and ReplayGain factors through common playback helpers.
   - Platform engines still own native handle freeing, progress/notification cleanup, and diagnostics.
+- [x] Share playback volume application planning.
+  - Direct streams apply user volume multiplied by ReplayGain; mixer playback applies user volume to the mixer and ReplayGain to the source.
+  - Desktop and Android keep their platform-specific volume calls but now follow the same common plan.
 
 ## Architecture Refactor Backlog
 
