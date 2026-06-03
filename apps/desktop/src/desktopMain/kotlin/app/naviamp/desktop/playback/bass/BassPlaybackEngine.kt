@@ -19,10 +19,10 @@ import app.naviamp.domain.bass.applyBassPlaybackVolume
 import app.naviamp.domain.bass.applyPreparedBassMixerTransition
 import app.naviamp.domain.bass.bassActiveStateLabel
 import app.naviamp.domain.bass.bassErrorMessage
+import app.naviamp.domain.bass.bassPlaybackVisualizerFrame
 import app.naviamp.domain.bass.bassVersionLabel
 import app.naviamp.domain.bass.channelInfo
 import app.naviamp.domain.bass.durationSeconds
-import app.naviamp.domain.bass.fft
 import app.naviamp.domain.bass.pause
 import app.naviamp.domain.bass.play
 import app.naviamp.domain.bass.positionSeconds
@@ -40,7 +40,6 @@ import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
 import app.naviamp.domain.playback.planBassMixerCreation
 import app.naviamp.domain.playback.planPreparedPlaybackAdoption
 import app.naviamp.domain.playback.planPreparedMixerTransition
-import app.naviamp.domain.playback.playbackVisualizerFrameFromFft
 import app.naviamp.domain.playback.playbackReplayGainAdjustment
 import app.naviamp.domain.playback.shouldReusePreparedPlayback
 import kotlinx.coroutines.CoroutineScope
@@ -518,8 +517,11 @@ class BassPlaybackEngine(
         bass: BassAudioBackend,
         sourceHandle: Int,
     ): PlaybackVisualizerFrame? =
-        bass.fft(sourceHandle, VisualizerBandCount)
-            .map { fft -> playbackVisualizerFrameFromFft(fft, timestampMillis = System.currentTimeMillis()) }
+        bass.bassPlaybackVisualizerFrame(
+            stream = sourceHandle,
+            bins = VisualizerBandCount,
+            timestampMillis = System.currentTimeMillis(),
+        )
             .onFailure { lastError = it.message }
             .getOrNull()
 

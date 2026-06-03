@@ -1,8 +1,10 @@
 package app.naviamp.domain.bass
 
 import app.naviamp.domain.playback.PreparedMixerTransitionPlan
+import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.crossfadeFadeInEnvelopePoints
 import app.naviamp.domain.playback.crossfadeFadeOutEnvelopePoints
+import app.naviamp.domain.playback.playbackVisualizerFrameFromFft
 import app.naviamp.domain.playback.playbackVolumeApplicationPlan
 
 @JvmInline
@@ -289,6 +291,18 @@ fun BassAudioBackend.applyBassPlaybackVolume(
         listOf(setVolume(outputStream, plan.directVolumeFactor))
     }
 }
+
+fun BassAudioBackend.bassPlaybackVisualizerFrame(
+    stream: Int,
+    bins: Int,
+    timestampMillis: Long,
+): Result<PlaybackVisualizerFrame?> =
+    fft(stream, bins).map { fft ->
+        playbackVisualizerFrameFromFft(
+            fft = fft,
+            timestampMillis = timestampMillis,
+        )
+    }
 
 fun BassAudioBackend.applyPreparedBassMixerTransition(
     mixer: BassStreamHandle,

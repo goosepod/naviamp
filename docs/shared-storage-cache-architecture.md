@@ -188,7 +188,7 @@ Then higher-level repositories can be composed from those stores:
   - Prepared mixer transition application now has a shared raw-handle overload so desktop and Android do not build transition `BassStreamHandle` values locally.
   - Crossfade equal-power envelope point construction now lives in common playback helpers; desktop and Android apply those points through `BassAudioBackend`, with volume-slide fallback when envelopes are unavailable.
   - Playback finished-position tolerance now lives in common playback helpers so platform engines share the same progress-at-end boundary.
-  - FFT visualizer bucketing/gain normalization now lives in common playback helpers; desktop and Android only fetch FFT data from their BASS backends.
+  - FFT visualizer bucketing/gain normalization now lives behind common BASS backend helpers; desktop and Android ask the backend for playback visualizer frames.
   - BASS active-state constants and labels now live in common BASS helpers; platform engines use them for polling, diagnostics, and logging.
   - BASS active-state to playback-state mapping now lives in common playback helpers; platform engines keep stopped/end-of-track handling local.
   - BASS polling finished-state detection now lives in common playback helpers, combining active-state and progress-at-end checks.

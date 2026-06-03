@@ -130,6 +130,21 @@ class BassAudioBackendTest {
     }
 
     @Test
+    fun createsBassPlaybackVisualizerFrameFromFft() {
+        val backend = RecordingBassAudioBackend()
+
+        val frame = requireNotNull(backend.bassPlaybackVisualizerFrame(
+            stream = 7,
+            bins = 4,
+            timestampMillis = 123L,
+        ).getOrThrow())
+
+        assertEquals(123L, frame.timestampMillis)
+        assertTrue(frame.bands.isNotEmpty())
+        assertEquals(listOf("fft:7:4"), backend.calls)
+    }
+
+    @Test
     fun preparedMixerTransitionAppliesEnvelopesWhenBytePositionsAreAvailable() {
         val backend = RecordingBassAudioBackend()
 
@@ -278,6 +293,11 @@ private class RecordingBassAudioBackend(
     ): Result<Unit> {
         calls += "slide:${stream.value}:$volume:$durationMillis"
         return Result.success(Unit)
+    }
+
+    override fun fft(stream: BassStreamHandle, bins: Int): Result<FloatArray> {
+        calls += "fft:${stream.value}:$bins"
+        return Result.success(FloatArray(bins) { index -> index / bins.toFloat() })
     }
 
     override fun positionBytes(stream: BassStreamHandle): Long? {
