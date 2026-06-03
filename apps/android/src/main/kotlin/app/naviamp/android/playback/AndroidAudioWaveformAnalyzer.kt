@@ -35,6 +35,8 @@ class AndroidAudioWaveformAnalyzer(
             if (cached != null) return@withContext cached
             bass.setVerifyNet(!tlsSettings.insecureSkipTlsVerification)
                 .getOrElse { return@withContext null }
+            bass.configureInternetStreams()
+                .getOrElse { return@withContext null }
             val stream = createDecodeStream(streamUrl)
                 .getOrElse { return@withContext null }
             try {

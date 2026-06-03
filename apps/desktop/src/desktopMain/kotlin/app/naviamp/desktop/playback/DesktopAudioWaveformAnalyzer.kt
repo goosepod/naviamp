@@ -38,6 +38,7 @@ class DesktopAudioWaveformAnalyzer(
         val localPath = localPathFromUrl(streamUrl)
         if (localPath != null) return analyze(localPath)
         val bass = backendResult.getOrNull() ?: return null
+        bass.configureInternetStreams().getOrElse { return null }
         val stream = bass.createUrlDecodeStream(streamUrl).getOrNull() ?: return null
         return try {
             analyzeBassFloatPcmWaveform(
