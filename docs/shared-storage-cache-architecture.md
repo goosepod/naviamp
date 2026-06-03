@@ -175,7 +175,7 @@ Then higher-level repositories can be composed from those stores:
 - [ ] Expand the shared BASS facade beyond waveform reads.
   - Playback streams, decode streams, active state, stream metadata/tags, FFT visualizer reads, seek/position/duration, volume slides, and mixer channel creation/add are now modeled on `BassAudioBackend` and implemented by desktop and Android adapters.
   - Android playback now consumes `BassAudioBackend` for these primitives instead of raw `AndroidBassJni`; runtime still owns JNI loading and wraps it in the adapter.
-  - Desktop playback now consumes `BassAudioBackend` for stream/control/progress/metadata/FFT/mixer primitives instead of raw `BassNative`; `BassNative` remains in the engine only for load diagnostics and plugin reporting.
+  - Desktop playback now consumes `BassAudioBackend` for stream/control/progress/metadata/FFT/mixer primitives and diagnostics instead of raw `BassNative`; `BassNative` remains in the engine only as the platform connector used to create the backend.
   - End sync, mixer volume envelopes, and byte/second conversion are now modeled on `BassAudioBackend`.
   - Crossfade duration normalization, mixer queue-source decisions, and equal-power fade envelopes now live in common playback transition helpers and are used by desktop/Android playback where applicable.
   - Gapless/crossfade prepare-next capability/window/duplicate-prep decisions now live in common playback transition helpers; desktop and Android still own platform-specific URL/replaygain resolution.
@@ -185,7 +185,7 @@ Then higher-level repositories can be composed from those stores:
   - Active playback stream reset defaults now live in common playback helpers so desktop and Android clear stream/source/crossfade/ReplayGain state consistently after stop, release, and cleanup.
   - Playback volume application now uses a common plan: direct streams receive user volume multiplied by ReplayGain, while mixer playback keeps user volume on the mixer and ReplayGain on the source.
   - Prepared mixer transition planning now lives in common playback helpers, including queued-next volume, crossfade initial/final source volume, duration, and current-source fade eligibility.
-  - Crossfade equal-power envelope point construction now lives in common playback helpers; desktop applies those points through BASSmix envelopes while Android continues to use BASS volume slides.
+  - Crossfade equal-power envelope point construction now lives in common playback helpers; desktop and Android apply those points through `BassAudioBackend`, with volume-slide fallback when envelopes are unavailable.
   - Playback finished-position tolerance now lives in common playback helpers so platform engines share the same progress-at-end boundary.
   - FFT visualizer bucketing/gain normalization now lives in common playback helpers; desktop and Android only fetch FFT data from their BASS backends.
   - BASS active-state constants and labels now live in common BASS helpers; platform engines use them for polling, diagnostics, and logging.
