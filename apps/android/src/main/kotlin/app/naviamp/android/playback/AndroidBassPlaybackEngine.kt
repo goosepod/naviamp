@@ -8,8 +8,10 @@ import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.util.Log
+import app.naviamp.domain.bass.BassActiveState
 import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassStreamHandle
+import app.naviamp.domain.bass.bassActiveStateLabel
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
@@ -392,7 +394,7 @@ class AndroidBassPlaybackEngine(
                     lastActiveState = active
                     Log.i(
                         Tag,
-                        "BASS active=${active.bassActiveStateName()} handle=$handle source=$progressHandle " +
+                        "BASS active=${bassActiveStateLabel(active)} handle=$handle source=$progressHandle " +
                             "position=${progress.positionSeconds} duration=${progress.durationSeconds}",
                     )
                 }
@@ -402,14 +404,14 @@ class AndroidBassPlaybackEngine(
                     lastMetadata = metadata
                     onMetadataChanged?.invoke(metadata)
                 }
-                if (currentSourceStream != 0 && bass.activeState(currentSourceStream) == BassActiveStopped && isAtEnd(progress)) {
+                if (currentSourceStream != 0 && bass.activeState(currentSourceStream) == BassActiveState.Stopped && isAtEnd(progress)) {
                     Log.i(Tag, "BASS source reached end position=${progress.positionSeconds} duration=${progress.durationSeconds}")
                     handlePlaybackFinished()
                     onStateChanged?.invoke(PlaybackState.Finished)
                     return@launch
                 }
                 when (active) {
-                    BassActiveStopped -> {
+                    BassActiveState.Stopped -> {
                         if (isAtEnd(progress)) {
                             Log.i(Tag, "BASS stream stopped position=${progress.positionSeconds} duration=${progress.durationSeconds}")
                             handlePlaybackFinished()
@@ -417,9 +419,9 @@ class AndroidBassPlaybackEngine(
                             return@launch
                         }
                     }
-                    BassActivePlaying -> onStateChanged?.invoke(PlaybackState.Playing)
-                    BassActiveStalled -> onStateChanged?.invoke(PlaybackState.Loading)
-                    BassActivePaused -> onStateChanged?.invoke(PlaybackState.Paused)
+                    BassActiveState.Playing -> onStateChanged?.invoke(PlaybackState.Playing)
+                    BassActiveState.Stalled -> onStateChanged?.invoke(PlaybackState.Loading)
+                    BassActiveState.Paused -> onStateChanged?.invoke(PlaybackState.Paused)
                 }
                 delay(100)
             }
@@ -630,15 +632,6 @@ private fun Int.audioFocusChangeName(): String =
         else -> toString()
     }
 
-private fun Int.bassActiveStateName(): String =
-    when (this) {
-        BassActiveStopped -> "STOPPED"
-        BassActivePlaying -> "PLAYING"
-        BassActiveStalled -> "STALLED"
-        BassActivePaused -> "PAUSED"
-        else -> toString()
-    }
-
 private fun BassAudioBackend.addMixerChannel(mixer: Int, stream: Int): Boolean =
     addMixerChannel(BassStreamHandle(mixer), BassStreamHandle(stream)).isSuccess
 
@@ -655,7 +648,7 @@ private fun BassAudioBackend.freeStream(stream: Int): Boolean =
     freeStream(BassStreamHandle(stream)).isSuccess
 
 private fun BassAudioBackend.activeState(stream: Int): Int =
-    activeState(BassStreamHandle(stream)) ?: BassActiveStopped
+    activeState(BassStreamHandle(stream)) ?: BassActiveState.Stopped
 
 private fun BassAudioBackend.setVolume(stream: Int, volume: Float): Boolean =
     setVolume(BassStreamHandle(stream), volume).isSuccess
@@ -678,10 +671,6 @@ private fun BassAudioBackend.fft(stream: Int, bins: Int): FloatArray =
 private fun BassAudioBackend.streamMetadata(stream: Int): Map<String, String> =
     streamMetadata(BassStreamHandle(stream))
 
-private const val BassActiveStopped = 0
-private const val BassActivePlaying = 1
-private const val BassActiveStalled = 2
-private const val BassActivePaused = 3
 private const val FocusDuckVolumeFactor = 0.25f
 private const val DefaultMixerFrequency = 44_100
 private const val DefaultMixerChannels = 2

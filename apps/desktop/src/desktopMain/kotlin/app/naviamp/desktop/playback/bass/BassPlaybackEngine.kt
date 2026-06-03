@@ -13,6 +13,8 @@ import app.naviamp.domain.playback.VisualizerBandCount
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassStreamHandle
+import app.naviamp.domain.bass.BassActiveState
+import app.naviamp.domain.bass.bassActiveStateLabel
 import app.naviamp.domain.playback.clearPreparedPlaybackMetadata
 import app.naviamp.domain.playback.clearPlaybackStreamState
 import app.naviamp.domain.playback.crossfadeFadeInEnvelopePoints
@@ -129,7 +131,7 @@ class BassPlaybackEngine(
 
                 var lastProgress = PlaybackProgress.Unknown
                 var lastMetadata = PlaybackStreamMetadata()
-                while (isCurrentPlayback(currentPlaybackId) && bass.activeState(playbackHandle) != BassActive.Stopped) {
+                while (isCurrentPlayback(currentPlaybackId) && bass.activeState(playbackHandle) != BassActiveState.Stopped) {
                     val sourceHandle = currentSourceStream.takeIf { it != 0 } ?: playbackHandle
                     val progress = PlaybackProgress(
                         positionSeconds = bass.positionSeconds(sourceHandle),
@@ -295,10 +297,10 @@ class BassPlaybackEngine(
                 "${plugin.stem} (${plugin.errorCode?.let(::bassErrorMessage) ?: "unknown"})"
             }.ifBlank { "None" },
             "Active state" to native?.let { bass ->
-                stream.takeIf { it != 0 }?.let { bassActiveLabel(bass.activeState(it)) }
+                stream.takeIf { it != 0 }?.let { bassActiveStateLabel(bass.activeState(it)) }
             }.orEmpty().ifBlank { "No stream" },
             "Active source state" to native?.let { bass ->
-                currentSourceStream.takeIf { it != 0 }?.let { bassActiveLabel(bass.activeState(it)) }
+                currentSourceStream.takeIf { it != 0 }?.let { bassActiveStateLabel(bass.activeState(it)) }
             }.orEmpty().ifBlank { "No source" },
             "ReplayGain mode" to currentReplayGainAdjustment.mode.displayName,
             "ReplayGain source" to (currentReplayGainAdjustment.source?.displayName ?: "None"),
@@ -613,15 +615,6 @@ private fun bassVersionLabel(version: Int): String {
     return "$major.$minor.$revision.$build"
 }
 
-private fun bassActiveLabel(active: Int): String =
-    when (active) {
-        BassActive.Stopped -> "Stopped"
-        BassActive.Playing -> "Playing"
-        BassActive.Stalled -> "Stalled"
-        BassActive.Paused -> "Paused"
-        else -> "Unknown ($active)"
-    }
-
 private fun BassAudioBackend.play(stream: Int): Result<Unit> =
     play(BassStreamHandle(stream))
 
@@ -632,7 +625,7 @@ private fun BassAudioBackend.stop(stream: Int): Result<Unit> =
     stop(BassStreamHandle(stream))
 
 private fun BassAudioBackend.activeState(stream: Int): Int =
-    activeState(BassStreamHandle(stream)) ?: BassActive.Stopped
+    activeState(BassStreamHandle(stream)) ?: BassActiveState.Stopped
 
 private fun BassAudioBackend.freeStream(stream: Int): Result<Unit> =
     freeStream(BassStreamHandle(stream))

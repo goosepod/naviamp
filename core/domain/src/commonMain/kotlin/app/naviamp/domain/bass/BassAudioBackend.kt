@@ -10,6 +10,15 @@ object BassActiveState {
     const val Paused: Int = 3
 }
 
+fun bassActiveStateLabel(activeState: Int): String =
+    when (activeState) {
+        BassActiveState.Stopped -> "Stopped"
+        BassActiveState.Playing -> "Playing"
+        BassActiveState.Stalled -> "Stalled"
+        BassActiveState.Paused -> "Paused"
+        else -> "Unknown ($activeState)"
+    }
+
 data class BassStreamInfo(
     val frequency: Int,
     val channels: Int,

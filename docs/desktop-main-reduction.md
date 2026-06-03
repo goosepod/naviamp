@@ -199,6 +199,9 @@ Branch: `codex/desktop-main-reduction`
 - [x] Share FFT visualizer bucketing.
   - Desktop and Android now use common band-count/gain normalization for BASS FFT data.
   - Platform engines still own requesting FFT frames from their BASS backend and timestamping the visualizer frame.
+- [x] Share BASS active-state labels.
+  - Desktop diagnostics and Android logs now use common BASS active-state labels/constants.
+  - Platform native wrappers still expose raw BASS active-state integers below the shared backend.
 
 ## Architecture Refactor Backlog
 
