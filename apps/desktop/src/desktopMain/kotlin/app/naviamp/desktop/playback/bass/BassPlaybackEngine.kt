@@ -11,10 +11,13 @@ import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassStreamHandle
+import app.naviamp.domain.playback.clearPreparedPlaybackMetadata
 import app.naviamp.domain.playback.crossfadeDurationMillis
 import app.naviamp.domain.playback.equalPowerFadeEnvelope
+import app.naviamp.domain.playback.failedPreparedPlaybackMetadata
 import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
 import app.naviamp.domain.playback.playbackReplayGainAdjustment
+import app.naviamp.domain.playback.shouldReusePreparedPlayback
 import app.naviamp.domain.playback.shouldQueueMixerSources
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -210,7 +213,7 @@ class BassPlaybackEngine(
 
     override fun prepareNext(request: PlaybackRequest) {
         val bass = backend ?: return
-        if (preparedRequest == request && preparedStream != 0) return
+        if (shouldReusePreparedPlayback(preparedRequest, preparedStream != 0, request)) return
         freePreparedStream()
         runCatching {
             ensureInitialized(bass)
@@ -236,11 +239,12 @@ class BassPlaybackEngine(
             preparedRequest = request
             preparedError = null
         }.onFailure { error ->
-            preparedError = error.message ?: "Could not prepare next BASS stream."
+            val reset = failedPreparedPlaybackMetadata(error)
+            preparedError = reset.error
             lastError = preparedError
             preparedStream = 0
-            preparedRequest = null
-            preparedReplayGainAdjustment = null
+            preparedRequest = reset.request
+            preparedReplayGainAdjustment = reset.replayGainAdjustment
         }
     }
 
@@ -320,11 +324,14 @@ class BassPlaybackEngine(
     }
 
     private fun takePreparedStream(request: PlaybackRequest): Int? {
-        val handle = preparedStream.takeIf { it != 0 && preparedRequest == request } ?: return null
+        val handle = preparedStream
+            .takeIf { shouldReusePreparedPlayback(preparedRequest, it != 0, request) }
+            ?: return null
+        val reset = clearPreparedPlaybackMetadata()
         preparedStream = 0
-        preparedRequest = null
-        preparedReplayGainAdjustment = null
-        preparedError = null
+        preparedRequest = reset.request
+        preparedReplayGainAdjustment = reset.replayGainAdjustment
+        preparedError = reset.error
         return handle
     }
 
@@ -335,17 +342,20 @@ class BassPlaybackEngine(
     ): Boolean {
         val bass = backend ?: return false
         val queuedSource = preparedStream
-        if (stream == 0 || queuedSource == 0 || preparedRequest != request || !bass.supportsMixer) return false
+        if (stream == 0 || !shouldReusePreparedPlayback(preparedRequest, queuedSource != 0, request) || !bass.supportsMixer) {
+            return false
+        }
         currentSourceStream.takeIf { it != 0 && it != queuedSource }?.let { finishedSource ->
             bass.freeStream(finishedSource).onFailure { lastError = it.message }
         }
         currentSourceStream = queuedSource
         currentReplayGainAdjustment = preparedReplayGainAdjustment ?: PlaybackReplayGainAdjustment.off()
         crossfadeActive = false
+        val reset = clearPreparedPlaybackMetadata()
         preparedStream = 0
-        preparedRequest = null
-        preparedReplayGainAdjustment = null
-        preparedError = null
+        preparedRequest = reset.request
+        preparedReplayGainAdjustment = reset.replayGainAdjustment
+        preparedError = reset.error
         onProgressChanged(PlaybackProgress.Unknown)
         onStateChanged(PlaybackState.Playing)
         return true
@@ -358,10 +368,11 @@ class BassPlaybackEngine(
             runCatching { bass.removeMixerChannel(handle) }
             bass.freeStream(handle)
         }
+        val reset = clearPreparedPlaybackMetadata()
         preparedStream = 0
-        preparedRequest = null
-        preparedReplayGainAdjustment = null
-        preparedError = null
+        preparedRequest = reset.request
+        preparedReplayGainAdjustment = reset.replayGainAdjustment
+        preparedError = reset.error
     }
 
     private fun createStream(

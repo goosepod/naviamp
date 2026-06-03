@@ -3,6 +3,7 @@ package app.naviamp.domain.playback
 import app.naviamp.domain.ReplayGain
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class PlaybackTransitionsTest {
@@ -130,6 +131,43 @@ class PlaybackTransitionsTest {
 
         assertEquals(1.25f, adjustment.volumeFactor)
         assertTrue(adjustment.clippingPrevented)
+    }
+
+    @Test
+    fun reusesPreparedPlaybackOnlyWhenRequestAndStreamMatch() {
+        val request = PlaybackRequest(url = "file:///track.flac", mediaId = "track-1")
+
+        assertTrue(
+            shouldReusePreparedPlayback(
+                preparedRequest = request,
+                hasPreparedStream = true,
+                request = request,
+            ),
+        )
+        assertFalse(
+            shouldReusePreparedPlayback(
+                preparedRequest = request.copy(mediaId = "track-2"),
+                hasPreparedStream = true,
+                request = request,
+            ),
+        )
+        assertFalse(
+            shouldReusePreparedPlayback(
+                preparedRequest = request,
+                hasPreparedStream = false,
+                request = request,
+            ),
+        )
+    }
+
+    @Test
+    fun clearsPreparedPlaybackMetadataToPlatformDefaults() {
+        val reset = clearPreparedPlaybackMetadata()
+
+        assertEquals(null, reset.request)
+        assertEquals(null, reset.replayGainAdjustment)
+        assertEquals(1f, reset.replayGainFactor)
+        assertEquals(null, reset.error)
     }
 
     @Test

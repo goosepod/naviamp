@@ -37,6 +37,13 @@ data class PlaybackReplayGainAdjustment(
     }
 }
 
+data class PreparedPlaybackMetadataReset(
+    val request: PlaybackRequest? = null,
+    val replayGainAdjustment: PlaybackReplayGainAdjustment? = null,
+    val replayGainFactor: Float = 1f,
+    val error: String? = null,
+)
+
 enum class PrepareNextPlaybackReason {
     Crossfade,
     Gapless,
@@ -84,6 +91,21 @@ fun playbackReplayGainAdjustment(request: PlaybackRequest): PlaybackReplayGainAd
         clippingPrevented = clippedFactor < rawFactor,
     )
 }
+
+fun shouldReusePreparedPlayback(
+    preparedRequest: PlaybackRequest?,
+    hasPreparedStream: Boolean,
+    request: PlaybackRequest,
+): Boolean =
+    hasPreparedStream && preparedRequest == request
+
+fun clearPreparedPlaybackMetadata(): PreparedPlaybackMetadataReset =
+    PreparedPlaybackMetadataReset()
+
+fun failedPreparedPlaybackMetadata(error: Throwable): PreparedPlaybackMetadataReset =
+    PreparedPlaybackMetadataReset(
+        error = error.message ?: "Could not prepare next BASS stream.",
+    )
 
 fun planPrepareNextPlayback(
     progress: PlaybackProgress,

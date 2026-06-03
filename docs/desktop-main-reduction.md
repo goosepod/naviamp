@@ -175,6 +175,9 @@ Branch: `codex/desktop-main-reduction`
 - [x] Share ReplayGain playback adjustment rules.
   - ReplayGain mode selection, gain-to-volume conversion, peak clipping guard, and max-volume clamping now live in common playback helpers.
   - Desktop and Android playback engines consume the same volume factor while keeping platform-local BASS stream application and diagnostics.
+- [x] Share prepared-playback metadata reset rules.
+  - Prepared duplicate checks, clear defaults, and failure metadata now live in common playback helpers.
+  - Desktop and Android still own native stream freeing and mixer cleanup below the shared decision boundary.
 
 ## Architecture Refactor Backlog
 
