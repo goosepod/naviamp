@@ -128,8 +128,8 @@ class AndroidBassPlaybackEngine(
     override val name: String = "BASS Android"
     override val supportsPause: Boolean = true
     override val supportsSeek: Boolean = true
-    override val supportsGapless: Boolean = true
-    override val supportsCrossfade: Boolean = true
+    override val supportsGapless: Boolean = bass.supportsMixer
+    override val supportsCrossfade: Boolean = bass.supportsMixer
     override val supportsReplayGain: Boolean = true
     override val supportsSoftwareVolume: Boolean = true
     override val prefersOriginalStream: Boolean = true
