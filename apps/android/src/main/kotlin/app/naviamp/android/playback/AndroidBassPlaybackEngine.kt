@@ -13,6 +13,7 @@ import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassStreamHandle
 import app.naviamp.domain.bass.applyPreparedBassMixerTransition
 import app.naviamp.domain.bass.bassActiveStateLabel
+import app.naviamp.domain.bass.bassErrorMessage
 import app.naviamp.domain.bass.releaseBassStream
 import app.naviamp.domain.bass.releaseBassStreams
 import app.naviamp.domain.playback.PlaybackProgress
@@ -613,7 +614,7 @@ class AndroidBassPlaybackEngine(
     }
 
     private fun errorMessage(prefix: String): String =
-        "$prefix: BASS error ${bass.lastErrorCode}"
+        "$prefix: ${bass.lastErrorCode?.let(::bassErrorMessage) ?: "unknown BASS error"}"
 }
 
 private fun localFileFromUrl(url: String): File? =

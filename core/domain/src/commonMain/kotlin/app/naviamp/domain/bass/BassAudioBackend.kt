@@ -31,6 +31,51 @@ fun bassVersionLabel(version: Int): String {
     return "$major.$minor.$revision.$build"
 }
 
+fun bassErrorMessage(code: Int): String =
+    when (code) {
+        0 -> "no error"
+        1 -> "memory error"
+        2 -> "file open error"
+        3 -> "driver error"
+        4 -> "buffer lost"
+        5 -> "invalid handle"
+        6 -> "unsupported sample format"
+        7 -> "invalid position"
+        8 -> "BASS_Init has not been called"
+        9 -> "BASS_Start has not been called"
+        14 -> "already initialized"
+        18 -> "no available channel"
+        19 -> "illegal type"
+        20 -> "illegal parameter"
+        21 -> "no 3D support"
+        22 -> "no EAX support"
+        23 -> "illegal device"
+        24 -> "not playing"
+        25 -> "illegal sample rate"
+        27 -> "not a file stream"
+        29 -> "no hardware voices"
+        31 -> "empty file"
+        32 -> "non-internet file"
+        33 -> "could not create file"
+        34 -> "no effects available"
+        37 -> "requested data/action is not available"
+        38 -> "channel is decoding"
+        39 -> "channel is not a decoding channel"
+        40 -> "connection timed out"
+        41 -> "unsupported file format"
+        42 -> "speaker unavailable"
+        43 -> "BASS version mismatch"
+        44 -> "codec unavailable"
+        45 -> "ended"
+        46 -> "device busy"
+        47 -> "unsupported protocol"
+        48 -> "unsupported protocol"
+        49 -> "access denied"
+        50 -> "SSL unavailable"
+        -1 -> "unknown BASS error"
+        else -> "BASS error $code"
+    }
+
 data class BassStreamInfo(
     val frequency: Int,
     val channels: Int,

@@ -30,6 +30,14 @@ class BassAudioBackendTest {
     }
 
     @Test
+    fun formatsBassErrorCodes() {
+        assertEquals("no error", bassErrorMessage(0))
+        assertEquals("connection timed out", bassErrorMessage(40))
+        assertEquals("unknown BASS error", bassErrorMessage(-1))
+        assertEquals("BASS error 999", bassErrorMessage(999))
+    }
+
+    @Test
     fun plansDistinctNonZeroHandlesForRelease() {
         assertEquals(
             listOf(BassStreamHandle(10), BassStreamHandle(20)),

@@ -15,6 +15,7 @@ import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassStreamHandle
 import app.naviamp.domain.bass.BassActiveState
 import app.naviamp.domain.bass.bassActiveStateLabel
+import app.naviamp.domain.bass.bassErrorMessage
 import app.naviamp.domain.bass.bassVersionLabel
 import app.naviamp.domain.bass.releaseBassStream
 import app.naviamp.domain.bass.releaseBassStreams

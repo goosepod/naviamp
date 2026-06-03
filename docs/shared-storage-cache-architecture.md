@@ -202,6 +202,7 @@ Then higher-level repositories can be composed from those stores:
   - BASSmix version is now exposed through `BassAudioBackend`; Android wraps `BASS_Mixer_GetVersion` through JNI and desktop wraps the existing native binding.
   - Desktop and Android waveform URL analysis now call `BassAudioBackend.configureInternetStreams` before creating remote BASS decode streams.
   - BASS version label formatting now lives in common BASS helpers instead of desktop-only diagnostics code.
+  - BASS error-code labels now live in common BASS helpers and are used by desktop diagnostics plus Android backend/playback errors.
   - Still to normalize further: crossfade transition state reset and remaining transition application details should continue moving from platform playback engines into shared planning/services.
   - Keep JNI/JNA/native-loader details under platform adapters unless a single native bridge is proven simpler across all targets.
 - [ ] Normalize platform file/class names.
