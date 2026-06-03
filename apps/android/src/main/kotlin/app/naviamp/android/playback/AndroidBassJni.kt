@@ -35,6 +35,8 @@ object AndroidBassJni {
 
     fun addMixerChannel(mixer: Int, stream: Int): Boolean = nativeAddMixerChannel(mixer, stream)
 
+    fun removeMixerChannel(stream: Int): Boolean = nativeRemoveMixerChannel(stream)
+
     fun play(stream: Int): Boolean = nativePlay(stream)
 
     fun pause(stream: Int): Boolean = nativePause(stream)
@@ -79,6 +81,7 @@ object AndroidBassJni {
     private external fun nativeCreateFileDecodeStream(path: String): Int
     private external fun nativeCreateMixer(frequency: Int, channels: Int, queueSources: Boolean): Int
     private external fun nativeAddMixerChannel(mixer: Int, stream: Int): Boolean
+    private external fun nativeRemoveMixerChannel(stream: Int): Boolean
     private external fun nativePlay(stream: Int): Boolean
     private external fun nativePause(stream: Int): Boolean
     private external fun nativeStop(stream: Int): Boolean

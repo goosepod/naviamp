@@ -165,6 +165,13 @@ Java_app_naviamp_android_playback_AndroidBassJni_nativeAddMixerChannel(JNIEnv* e
     ) ? JNI_TRUE : JNI_FALSE;
 }
 
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeRemoveMixerChannel(JNIEnv* env, jobject thiz, jint stream) {
+    (void)env;
+    (void)thiz;
+    return BASS_Mixer_ChannelRemove(static_cast<DWORD>(stream)) ? JNI_TRUE : JNI_FALSE;
+}
+
 extern "C" JNIEXPORT jlong JNICALL
 Java_app_naviamp_android_playback_AndroidBassJni_nativePositionBytes(JNIEnv* env, jobject thiz, jint stream) {
     (void)env;

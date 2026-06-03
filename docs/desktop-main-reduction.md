@@ -211,6 +211,9 @@ Branch: `codex/desktop-main-reduction`
 - [x] Expose Android BASS byte-position conversion through the shared backend.
   - Android now implements `positionBytes` and `secondsToBytes` on `BassAudioBackend`, matching desktop's crossfade/envelope primitives.
   - The underlying bridge remains JNI on Android and native/JNA on desktop.
+- [x] Expose Android mixer-channel removal through the shared backend.
+  - Android now implements `removeMixerChannel` on `BassAudioBackend`, matching desktop cleanup primitives.
+  - Native bridge details remain isolated below the Android backend adapter.
 
 ## Architecture Refactor Backlog
 

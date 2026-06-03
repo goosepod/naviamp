@@ -65,6 +65,13 @@ class AndroidBassAudioBackend(
             Result.failure(IllegalStateException(errorMessage("BASS_Mixer_StreamAddChannel failed")))
         }
 
+    override fun removeMixerChannel(stream: BassStreamHandle): Result<Unit> =
+        if (bass.removeMixerChannel(stream.value)) {
+            Result.success(Unit)
+        } else {
+            Result.failure(IllegalStateException(errorMessage("BASS_Mixer_ChannelRemove failed")))
+        }
+
     override fun play(stream: BassStreamHandle): Result<Unit> =
         if (bass.play(stream.value)) {
             Result.success(Unit)
