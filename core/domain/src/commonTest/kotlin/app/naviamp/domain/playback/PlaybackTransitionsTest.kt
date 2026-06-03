@@ -225,6 +225,41 @@ class PlaybackTransitionsTest {
     }
 
     @Test
+    fun plansBassMixerPlaybackUseFromBackendAndMediaRequirements() {
+        val request = PlaybackRequest(url = "file:///track.flac", mediaId = "track-1")
+        val streamOnlyRequest = request.copy(mediaId = null)
+
+        assertTrue(
+            shouldUseBassMixerPlayback(
+                request = request,
+                supportsMixer = true,
+                requireMediaId = false,
+            ),
+        )
+        assertFalse(
+            shouldUseBassMixerPlayback(
+                request = request,
+                supportsMixer = false,
+                requireMediaId = false,
+            ),
+        )
+        assertTrue(
+            shouldUseBassMixerPlayback(
+                request = request,
+                supportsMixer = true,
+                requireMediaId = true,
+            ),
+        )
+        assertFalse(
+            shouldUseBassMixerPlayback(
+                request = streamOnlyRequest,
+                supportsMixer = true,
+                requireMediaId = true,
+            ),
+        )
+    }
+
+    @Test
     fun plansDirectPlaybackVolumeWithReplayGainOnOutput() {
         val plan = playbackVolumeApplicationPlan(
             userVolumeFactor = 0.5f,

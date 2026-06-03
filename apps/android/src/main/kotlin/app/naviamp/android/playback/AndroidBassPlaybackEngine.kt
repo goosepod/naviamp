@@ -46,6 +46,7 @@ import app.naviamp.domain.playback.playbackStateForBassActiveState
 import app.naviamp.domain.playback.playbackUserVolumeFactor
 import app.naviamp.domain.playback.shouldFinishPlaybackForBassState
 import app.naviamp.domain.playback.shouldReusePreparedPlayback
+import app.naviamp.domain.playback.shouldUseBassMixerPlayback
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -186,7 +187,14 @@ class AndroidBassPlaybackEngine(
                 Log.i(Tag, "Opening BASS stream verifyNet=$verifyNet url=${request.url.sanitizedForLog()}")
                 bass.setVerifyNet(verifyNet).getOrThrow()
                 bass.configureInternetStreams().getOrThrow()
-                val handle = createPlayback(request, useMixer = request.mediaId != null)
+                val handle = createPlayback(
+                    request = request,
+                    useMixer = shouldUseBassMixerPlayback(
+                        request = request,
+                        supportsMixer = bass.supportsMixer,
+                        requireMediaId = true,
+                    ),
+                )
                 Log.i(Tag, "BASS stream handle=$handle source=$currentSourceStream error=${bass.lastErrorCode}")
                 check(handle != 0) { errorMessage("BASS stream creation failed") }
                 if (stream == 0) {

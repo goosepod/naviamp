@@ -176,6 +176,13 @@ fun playbackUserVolumeFactor(
 fun playbackStartSeekPosition(startPositionSeconds: Double?): Double? =
     startPositionSeconds?.takeIf { it > 0.0 }
 
+fun shouldUseBassMixerPlayback(
+    request: PlaybackRequest,
+    supportsMixer: Boolean,
+    requireMediaId: Boolean,
+): Boolean =
+    supportsMixer && (!requireMediaId || request.mediaId != null)
+
 fun playbackVolumeApplicationPlan(
     userVolumeFactor: Float,
     replayGainFactor: Float,

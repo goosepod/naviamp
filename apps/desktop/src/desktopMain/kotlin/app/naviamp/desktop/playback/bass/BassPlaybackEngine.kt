@@ -40,6 +40,7 @@ import app.naviamp.domain.playback.playbackReplayGainAdjustment
 import app.naviamp.domain.playback.playbackStartSeekPosition
 import app.naviamp.domain.playback.playbackUserVolumeFactor
 import app.naviamp.domain.playback.shouldReusePreparedPlayback
+import app.naviamp.domain.playback.shouldUseBassMixerPlayback
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -116,7 +117,15 @@ class BassPlaybackEngine(
             var createdPlayback: CreatedPlayback? = null
             try {
                 ensureInitialized(bass)
-                createdPlayback = createPlayback(bass, request, useMixer = bass.supportsMixer).getOrThrow()
+                createdPlayback = createPlayback(
+                    bass = bass,
+                    request = request,
+                    useMixer = shouldUseBassMixerPlayback(
+                        request = request,
+                        supportsMixer = bass.supportsMixer,
+                        requireMediaId = false,
+                    ),
+                ).getOrThrow()
                 if (!isCurrentPlayback(currentPlaybackId)) {
                     freeCreatedPlayback(bass, createdPlayback)
                     createdPlayback = null
