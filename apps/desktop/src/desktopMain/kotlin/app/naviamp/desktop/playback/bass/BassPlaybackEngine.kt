@@ -41,6 +41,7 @@ import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
 import app.naviamp.domain.playback.planBassMixerCreation
 import app.naviamp.domain.playback.planPreparedPlaybackAdoption
 import app.naviamp.domain.playback.planPreparedMixerTransition
+import app.naviamp.domain.playback.playbackSourceHandle
 import app.naviamp.domain.playback.playbackReplayGainAdjustment
 import app.naviamp.domain.playback.shouldReusePreparedPlayback
 import kotlinx.coroutines.CoroutineScope
@@ -146,7 +147,7 @@ class BassPlaybackEngine(
                 var lastProgress = PlaybackProgress.Unknown
                 var lastMetadata = PlaybackStreamMetadata()
                 while (isCurrentPlayback(currentPlaybackId) && bass.activeState(playbackHandle) != BassActiveState.Stopped) {
-                    val sourceHandle = currentSourceStream.takeIf { it != 0 } ?: playbackHandle
+                    val sourceHandle = playbackSourceHandle(playbackHandle, currentSourceStream)
                     val progress = PlaybackProgress(
                         positionSeconds = bass.positionSeconds(sourceHandle),
                         durationSeconds = bass.durationSeconds(sourceHandle),
@@ -208,7 +209,7 @@ class BassPlaybackEngine(
     }
 
     override fun seek(positionSeconds: Double) {
-        val handle = currentSourceStream.takeIf { it != 0 } ?: stream
+        val handle = playbackSourceHandle(stream, currentSourceStream)
         val bass = backend ?: return
         if (handle != 0) {
             freePreparedStream()
@@ -523,7 +524,7 @@ class BassPlaybackEngine(
             .getOrNull()
 
     private fun seekCurrentSource(bass: BassAudioBackend, seconds: Double) {
-        val sourceHandle = currentSourceStream.takeIf { it != 0 } ?: stream
+        val sourceHandle = playbackSourceHandle(stream, currentSourceStream)
         if (sourceHandle != 0) {
             bass.seek(sourceHandle, seconds)
                 .onFailure { lastError = it.message }

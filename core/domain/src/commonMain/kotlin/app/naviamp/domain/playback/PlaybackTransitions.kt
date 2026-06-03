@@ -157,6 +157,12 @@ fun failedPreparedPlaybackMetadata(error: Throwable): PreparedPlaybackMetadataRe
 fun clearPlaybackStreamState(): PlaybackStreamStateReset =
     PlaybackStreamStateReset()
 
+fun playbackSourceHandle(
+    playbackHandle: Int,
+    sourceHandle: Int,
+): Int =
+    sourceHandle.takeIf { it != 0 } ?: playbackHandle
+
 fun playbackVolumeApplicationPlan(
     userVolumeFactor: Float,
     replayGainFactor: Float,

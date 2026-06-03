@@ -203,6 +203,12 @@ class PlaybackTransitionsTest {
     }
 
     @Test
+    fun selectsSourceHandleWhenPlaybackUsesSeparateMixerOutput() {
+        assertEquals(8, playbackSourceHandle(playbackHandle = 7, sourceHandle = 8))
+        assertEquals(7, playbackSourceHandle(playbackHandle = 7, sourceHandle = 0))
+    }
+
+    @Test
     fun plansDirectPlaybackVolumeWithReplayGainOnOutput() {
         val plan = playbackVolumeApplicationPlan(
             userVolumeFactor = 0.5f,
