@@ -217,6 +217,14 @@ class PlaybackTransitionsTest {
     }
 
     @Test
+    fun keepsOnlyPositivePlaybackStartSeekPositions() {
+        assertEquals(null, playbackStartSeekPosition(null))
+        assertEquals(null, playbackStartSeekPosition(0.0))
+        assertEquals(null, playbackStartSeekPosition(-1.0))
+        assertEquals(12.5, playbackStartSeekPosition(12.5))
+    }
+
+    @Test
     fun plansDirectPlaybackVolumeWithReplayGainOnOutput() {
         val plan = playbackVolumeApplicationPlan(
             userVolumeFactor = 0.5f,

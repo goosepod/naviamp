@@ -41,6 +41,7 @@ import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
 import app.naviamp.domain.playback.planPreparedPlaybackAdoption
 import app.naviamp.domain.playback.playbackReplayGainAdjustment
 import app.naviamp.domain.playback.playbackSourceHandle
+import app.naviamp.domain.playback.playbackStartSeekPosition
 import app.naviamp.domain.playback.playbackStateForBassActiveState
 import app.naviamp.domain.playback.playbackUserVolumeFactor
 import app.naviamp.domain.playback.shouldFinishPlaybackForBassState
@@ -192,7 +193,7 @@ class AndroidBassPlaybackEngine(
                     stream = handle
                 }
                 applyVolume()
-                val startPositionSeconds = request.startPositionSeconds?.takeIf { it > 0.0 }
+                val startPositionSeconds = playbackStartSeekPosition(request.startPositionSeconds)
                 val seekedBeforePlay = startPositionSeconds?.let { seekStreamPosition(it) } ?: false
                 if (startPositionSeconds != null && !seekedBeforePlay) {
                     setPlaybackMuted(true)

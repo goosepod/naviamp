@@ -36,6 +36,7 @@ import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
 import app.naviamp.domain.playback.planPreparedPlaybackAdoption
 import app.naviamp.domain.playback.playbackSourceHandle
 import app.naviamp.domain.playback.playbackReplayGainAdjustment
+import app.naviamp.domain.playback.playbackStartSeekPosition
 import app.naviamp.domain.playback.playbackUserVolumeFactor
 import app.naviamp.domain.playback.shouldReusePreparedPlayback
 import kotlinx.coroutines.CoroutineScope
@@ -127,8 +128,7 @@ class BassPlaybackEngine(
                 attachEndSync(bass, createdPlayback.sourceHandle, currentPlaybackId, onStateChanged)
                 createdPlayback = null
                 applyOutputVolume(bass)
-                request.startPositionSeconds
-                    ?.takeIf { it > 0.0 }
+                playbackStartSeekPosition(request.startPositionSeconds)
                     ?.let { seekCurrentSource(bass, it) }
                 bass.play(playbackHandle)
                     .getOrThrow()

@@ -170,6 +170,9 @@ fun playbackUserVolumeFactor(
     (volumePercent.coerceIn(0, 100) / 100f) *
         transientDuckFactor.coerceIn(0f, MaxPlaybackVolumeFactor)
 
+fun playbackStartSeekPosition(startPositionSeconds: Double?): Double? =
+    startPositionSeconds?.takeIf { it > 0.0 }
+
 fun playbackVolumeApplicationPlan(
     userVolumeFactor: Float,
     replayGainFactor: Float,
