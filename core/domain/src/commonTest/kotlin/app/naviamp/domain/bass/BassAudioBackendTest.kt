@@ -491,7 +491,6 @@ class BassAudioBackendTest {
         assertEquals(
             BassPreparedSource(
                 sourceHandle = 13,
-                replayGainFactor = 0.7f,
                 crossfadeActive = true,
             ),
             result.getOrThrow(),

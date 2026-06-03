@@ -120,7 +120,6 @@ data class BassPlaybackSnapshot(
 
 data class BassPreparedSource(
     val sourceHandle: Int,
-    val replayGainFactor: Float,
     val crossfadeActive: Boolean,
 )
 
@@ -454,7 +453,6 @@ fun BassAudioBackend.prepareNextBassMixerSource(
         ).getOrThrow()
         BassPreparedSource(
             sourceHandle = source,
-            replayGainFactor = replayGainFactor,
             crossfadeActive = transition.shouldCrossfade,
         )
     }
