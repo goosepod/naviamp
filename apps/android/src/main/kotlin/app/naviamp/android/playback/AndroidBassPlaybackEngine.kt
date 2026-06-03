@@ -11,11 +11,23 @@ import android.util.Log
 import app.naviamp.domain.bass.BassActiveState
 import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassStreamHandle
+import app.naviamp.domain.bass.activeState
+import app.naviamp.domain.bass.addMixerChannel
 import app.naviamp.domain.bass.applyPreparedBassMixerTransition
 import app.naviamp.domain.bass.bassActiveStateLabel
 import app.naviamp.domain.bass.bassFailureMessage
+import app.naviamp.domain.bass.channelInfo
+import app.naviamp.domain.bass.durationSeconds
+import app.naviamp.domain.bass.fft
+import app.naviamp.domain.bass.pause
+import app.naviamp.domain.bass.play
+import app.naviamp.domain.bass.positionSeconds
 import app.naviamp.domain.bass.releaseBassStream
 import app.naviamp.domain.bass.releaseBassStreams
+import app.naviamp.domain.bass.seek
+import app.naviamp.domain.bass.setVolume
+import app.naviamp.domain.bass.stop
+import app.naviamp.domain.bass.streamMetadata
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
@@ -194,7 +206,7 @@ class AndroidBassPlaybackEngine(
                 if (startPositionSeconds != null && !seekedBeforePlay) {
                     setPlaybackMuted(true)
                 }
-                check(bass.play(handle)) { errorMessage("BASS_ChannelPlay failed") }
+                check(bass.play(handle).isSuccess) { errorMessage("BASS_ChannelPlay failed") }
                 if (startPositionSeconds != null && !seekedBeforePlay) {
                     val seekedAfterPlay = retryStartSeek(handle, startPositionSeconds)
                     setPlaybackMuted(false)
@@ -220,7 +232,7 @@ class AndroidBassPlaybackEngine(
 
     override fun pause() {
         val handle = stream
-        if (handle != 0 && bass.pause(handle)) {
+        if (handle != 0 && bass.pause(handle).isSuccess) {
             pausedForTransientFocusLoss = false
             duckedForFocusLoss = false
             abandonAudioFocus()
@@ -233,7 +245,7 @@ class AndroidBassPlaybackEngine(
 
     override fun resume() {
         val handle = stream
-        if (handle != 0 && requestAudioFocus() && bass.play(handle)) {
+        if (handle != 0 && requestAudioFocus() && bass.play(handle).isSuccess) {
             duckedForFocusLoss = false
             applyVolume()
             acquirePlaybackWakeLock()
@@ -250,7 +262,7 @@ class AndroidBassPlaybackEngine(
 
     private fun seekStreamPosition(positionSeconds: Double): Boolean {
         val handle = currentSourceStream.takeIf { it != 0 } ?: stream.takeIf { it != 0 } ?: return false
-        val success = bass.seek(handle, positionSeconds)
+        val success = bass.seek(handle, positionSeconds).isSuccess
         Log.i(
             Tag,
             "BASS seek requested handle=$handle seconds=$positionSeconds success=$success error=${bass.lastErrorCode}",
@@ -305,7 +317,7 @@ class AndroidBassPlaybackEngine(
     override fun visualizerFrame(): PlaybackVisualizerFrame? {
         val handle = stream.takeIf { it != 0 } ?: return null
         return playbackVisualizerFrameFromFft(
-            fft = bass.fft(handle, VisualizerBandCount),
+            fft = bass.fft(handle, VisualizerBandCount).getOrNull() ?: FloatArray(0),
             timestampMillis = System.currentTimeMillis(),
         )
             .also { currentVisualizerFrame = it }
@@ -356,7 +368,7 @@ class AndroidBassPlaybackEngine(
         check(source != 0) { errorMessage("BASS decode stream creation failed") }
         currentSourceStream = source
         bass.setVolume(source, replayGainFactor)
-        val sourceInfo = bass.channelInfo(BassStreamHandle(source)).getOrNull()
+        val sourceInfo = bass.channelInfo(source).getOrNull()
         val mixerPlan = planBassMixerCreation(sourceInfo, crossfadeDurationSeconds)
         val mixer = bass.createMixer(
             frequency = mixerPlan.frequency,
@@ -364,7 +376,7 @@ class AndroidBassPlaybackEngine(
             queueSources = mixerPlan.queueSources,
         ).getOrNull()?.value ?: 0
         check(mixer != 0) { errorMessage("BASS_Mixer_StreamCreate failed") }
-        check(bass.addMixerChannel(mixer, source)) { errorMessage("BASS_Mixer_StreamAddChannel failed") }
+        check(bass.addMixerChannel(mixer, source).isSuccess) { errorMessage("BASS_Mixer_StreamAddChannel failed") }
         stream = mixer
         return mixer
     }
@@ -458,7 +470,7 @@ class AndroidBassPlaybackEngine(
 
     private fun pauseForFocusLoss(reason: String) {
         val handle = stream
-        if (handle != 0 && bass.pause(handle)) {
+        if (handle != 0 && bass.pause(handle).isSuccess) {
             duckedForFocusLoss = false
             applyVolume()
             Log.i(Tag, "Paused playback for $reason")
@@ -471,7 +483,7 @@ class AndroidBassPlaybackEngine(
 
     private fun resumeAfterFocusGain() {
         val handle = stream
-        if (handle != 0 && bass.play(handle)) {
+        if (handle != 0 && bass.play(handle).isSuccess) {
             duckedForFocusLoss = false
             applyVolume()
             Log.i(Tag, "Resumed playback after audio focus gain")
@@ -634,42 +646,6 @@ private fun Int.audioFocusChangeName(): String =
         AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> "LOSS_TRANSIENT_CAN_DUCK"
         else -> toString()
     }
-
-private fun BassAudioBackend.addMixerChannel(mixer: Int, stream: Int): Boolean =
-    addMixerChannel(BassStreamHandle(mixer), BassStreamHandle(stream)).isSuccess
-
-private fun BassAudioBackend.play(stream: Int): Boolean =
-    play(BassStreamHandle(stream)).isSuccess
-
-private fun BassAudioBackend.pause(stream: Int): Boolean =
-    pause(BassStreamHandle(stream)).isSuccess
-
-private fun BassAudioBackend.stop(stream: Int): Boolean =
-    stop(BassStreamHandle(stream)).isSuccess
-
-private fun BassAudioBackend.activeState(stream: Int): Int =
-    activeState(BassStreamHandle(stream)) ?: BassActiveState.Stopped
-
-private fun BassAudioBackend.setVolume(stream: Int, volume: Float): Boolean =
-    setVolume(BassStreamHandle(stream), volume).isSuccess
-
-private fun BassAudioBackend.slideVolume(stream: Int, volume: Float, millis: Int): Boolean =
-    slideVolume(BassStreamHandle(stream), volume, millis).isSuccess
-
-private fun BassAudioBackend.seek(stream: Int, seconds: Double): Boolean =
-    seek(BassStreamHandle(stream), seconds).isSuccess
-
-private fun BassAudioBackend.positionSeconds(stream: Int): Double? =
-    positionSeconds(BassStreamHandle(stream))
-
-private fun BassAudioBackend.durationSeconds(stream: Int): Double? =
-    durationSeconds(BassStreamHandle(stream))
-
-private fun BassAudioBackend.fft(stream: Int, bins: Int): FloatArray =
-    fft(BassStreamHandle(stream), bins).getOrNull() ?: FloatArray(0)
-
-private fun BassAudioBackend.streamMetadata(stream: Int): Map<String, String> =
-    streamMetadata(BassStreamHandle(stream))
 
 private const val FocusDuckVolumeFactor = 0.25f
 private const val StartSeekRetryCount = 80
