@@ -196,6 +196,9 @@ Branch: `codex/desktop-main-reduction`
 - [x] Share playback finished-position tolerance.
   - Common playback helpers now own the progress-at-end boundary used by platform BASS polling.
   - Android consumes it directly; desktop can use the same helper as its polling/end-sync logic is normalized further.
+- [x] Share FFT visualizer bucketing.
+  - Desktop and Android now use common band-count/gain normalization for BASS FFT data.
+  - Platform engines still own requesting FFT frames from their BASS backend and timestamping the visualizer frame.
 
 ## Architecture Refactor Backlog
 

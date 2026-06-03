@@ -278,7 +278,45 @@ fun isPlaybackProgressAtEnd(
     return duration - position <= toleranceSeconds.coerceAtLeast(0.0)
 }
 
+fun visualizerBandsFromFft(
+    fft: FloatArray,
+    bandCount: Int = VisualizerBandCount,
+    gain: Float = VisualizerGain,
+): List<Float> {
+    if (fft.isEmpty() || bandCount <= 0) return emptyList()
+    val usable = fft.drop(1)
+    if (usable.isEmpty()) return emptyList()
+    val bucketSize = (usable.size / bandCount).coerceAtLeast(1)
+    return (0 until bandCount).map { bucket ->
+        val start = bucket * bucketSize
+        if (start >= usable.size) {
+            0f
+        } else {
+            val end = minOf(start + bucketSize, usable.size)
+            val peak = usable.subList(start, end).maxOrNull() ?: 0f
+            (peak * gain).coerceIn(0f, 1f)
+        }
+    }
+}
+
+fun playbackVisualizerFrameFromFft(
+    fft: FloatArray,
+    timestampMillis: Long = 0L,
+): PlaybackVisualizerFrame? {
+    val bands = visualizerBandsFromFft(fft)
+    return if (bands.isEmpty()) {
+        null
+    } else {
+        PlaybackVisualizerFrame(
+            bands = bands,
+            timestampMillis = timestampMillis,
+        )
+    }
+}
+
 const val MaxCrossfadeDurationSeconds = 12
 const val EqualPowerEnvelopeSteps = 8
 const val MaxPlaybackVolumeFactor = 4f
 const val FinishedPositionToleranceSeconds = 0.75
+const val VisualizerBandCount = 32
+const val VisualizerGain = 12f

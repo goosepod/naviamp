@@ -16,6 +16,7 @@ import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
+import app.naviamp.domain.playback.VisualizerBandCount
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.clearPreparedPlaybackMetadata
 import app.naviamp.domain.playback.clearPlaybackStreamState
@@ -24,6 +25,7 @@ import app.naviamp.domain.playback.isPlaybackProgressAtEnd
 import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
 import app.naviamp.domain.playback.planPreparedPlaybackAdoption
 import app.naviamp.domain.playback.planPreparedMixerTransition
+import app.naviamp.domain.playback.playbackVisualizerFrameFromFft
 import app.naviamp.domain.playback.playbackVolumeApplicationPlan
 import app.naviamp.domain.playback.playbackReplayGainAdjustment
 import app.naviamp.domain.playback.shouldReusePreparedPlayback
@@ -294,7 +296,10 @@ class AndroidBassPlaybackEngine(
 
     override fun visualizerFrame(): PlaybackVisualizerFrame? {
         val handle = stream.takeIf { it != 0 } ?: return null
-        return bass.fft(handle, VisualizerBandCount).toVisualizerFrame()
+        return playbackVisualizerFrameFromFft(
+            fft = bass.fft(handle, VisualizerBandCount),
+            timestampMillis = System.currentTimeMillis(),
+        )
             .also { currentVisualizerFrame = it }
     }
 
@@ -673,32 +678,10 @@ private fun BassAudioBackend.fft(stream: Int, bins: Int): FloatArray =
 private fun BassAudioBackend.streamMetadata(stream: Int): Map<String, String> =
     streamMetadata(BassStreamHandle(stream))
 
-private fun FloatArray.toVisualizerFrame(): PlaybackVisualizerFrame? {
-    if (isEmpty()) return null
-    val usable = drop(1)
-    if (usable.isEmpty()) return null
-    val bucketSize = (usable.size / VisualizerBandCount).coerceAtLeast(1)
-    return PlaybackVisualizerFrame(
-        bands = (0 until VisualizerBandCount).map { bucket ->
-            val start = bucket * bucketSize
-            if (start >= usable.size) {
-                0f
-            } else {
-                val end = minOf(start + bucketSize, usable.size)
-                val peak = usable.subList(start, end).maxOrNull() ?: 0f
-                (peak * VisualizerGain).coerceIn(0f, 1f)
-            }
-        },
-        timestampMillis = System.currentTimeMillis(),
-    )
-}
-
 private const val BassActiveStopped = 0
 private const val BassActivePlaying = 1
 private const val BassActiveStalled = 2
 private const val BassActivePaused = 3
-private const val VisualizerBandCount = 32
-private const val VisualizerGain = 12f
 private const val FocusDuckVolumeFactor = 0.25f
 private const val DefaultMixerFrequency = 44_100
 private const val DefaultMixerChannels = 2

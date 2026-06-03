@@ -344,4 +344,30 @@ class PlaybackTransitionsTest {
         )
         assertFalse(isPlaybackProgressAtEnd(PlaybackProgress.Unknown))
     }
+
+    @Test
+    fun buildsVisualizerBandsFromFft() {
+        val bands = visualizerBandsFromFft(
+            fft = floatArrayOf(0f, 0.02f, 0.04f, 0.10f, 0.20f),
+            bandCount = 2,
+            gain = 10f,
+        )
+
+        assertEquals(2, bands.size)
+        assertEquals(0.4f, bands[0], absoluteTolerance = 0.000001f)
+        assertEquals(1f, bands[1], absoluteTolerance = 0.000001f)
+        assertEquals(emptyList(), visualizerBandsFromFft(floatArrayOf(), bandCount = 2))
+    }
+
+    @Test
+    fun buildsVisualizerFrameFromFft() {
+        val frame = playbackVisualizerFrameFromFft(
+            fft = floatArrayOf(0f, 0.1f, 0.2f),
+            timestampMillis = 123L,
+        )
+
+        assertEquals(VisualizerBandCount, frame?.bands?.size)
+        assertEquals(123L, frame?.timestampMillis)
+        assertEquals(null, playbackVisualizerFrameFromFft(floatArrayOf()))
+    }
 }

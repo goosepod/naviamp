@@ -9,6 +9,7 @@ import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.PlaybackReplayGainAdjustment
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.PreparedMixerTransitionPlan
+import app.naviamp.domain.playback.VisualizerBandCount
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassStreamHandle
@@ -20,6 +21,7 @@ import app.naviamp.domain.playback.failedPreparedPlaybackMetadata
 import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
 import app.naviamp.domain.playback.planPreparedPlaybackAdoption
 import app.naviamp.domain.playback.planPreparedMixerTransition
+import app.naviamp.domain.playback.playbackVisualizerFrameFromFft
 import app.naviamp.domain.playback.playbackVolumeApplicationPlan
 import app.naviamp.domain.playback.playbackReplayGainAdjustment
 import app.naviamp.domain.playback.shouldReusePreparedPlayback
@@ -545,12 +547,7 @@ class BassPlaybackEngine(
         sourceHandle: Int,
     ): PlaybackVisualizerFrame? =
         bass.fft(sourceHandle, VisualizerBandCount)
-            .map { fft ->
-                PlaybackVisualizerFrame(
-                    bands = fft.toVisualizerBands(),
-                    timestampMillis = System.currentTimeMillis(),
-                )
-            }
+            .map { fft -> playbackVisualizerFrameFromFft(fft, timestampMillis = System.currentTimeMillis()) }
             .onFailure { lastError = it.message }
             .getOrNull()
 
@@ -716,23 +713,4 @@ private fun Float.formatFactor(): String =
 private fun Double.formatPeak(): String =
     "%.6f".format(this)
 
-private fun FloatArray.toVisualizerBands(): List<Float> {
-    if (isEmpty()) return emptyList()
-    val usable = drop(1)
-    if (usable.isEmpty()) return emptyList()
-    val bucketSize = (usable.size / VisualizerBandCount).coerceAtLeast(1)
-    return (0 until VisualizerBandCount).map { bucket ->
-        val start = bucket * bucketSize
-        if (start >= usable.size) {
-            0f
-        } else {
-            val end = minOf(start + bucketSize, usable.size)
-            val peak = usable.subList(start, end).maxOrNull() ?: 0f
-            (peak * VisualizerGain).coerceIn(0f, 1f)
-        }
-    }
-}
-
-private const val VisualizerBandCount = 32
-private const val VisualizerGain = 12f
 private const val PlaybackStatusPollIntervalMillis = 250L
