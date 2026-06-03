@@ -15,6 +15,8 @@ import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassStreamHandle
 import app.naviamp.domain.bass.BassActiveState
 import app.naviamp.domain.bass.bassActiveStateLabel
+import app.naviamp.domain.bass.releaseBassStream
+import app.naviamp.domain.bass.releaseBassStreams
 import app.naviamp.domain.playback.clearPreparedPlaybackMetadata
 import app.naviamp.domain.playback.clearPlaybackStreamState
 import app.naviamp.domain.playback.crossfadeFadeInEnvelopePoints
@@ -363,7 +365,7 @@ class BassPlaybackEngine(
         )
         if (!plan.shouldAdopt) return false
         currentSourceStream.takeIf { it != 0 && it != queuedSource }?.let { finishedSource ->
-            bass.freeStream(finishedSource).onFailure { lastError = it.message }
+            bass.releaseBassStream(BassStreamHandle(finishedSource)).onFailure { lastError = it.message }
         }
         currentSourceStream = queuedSource
         currentReplayGainAdjustment = preparedReplayGainAdjustment ?: PlaybackReplayGainAdjustment.off()
@@ -382,8 +384,8 @@ class BassPlaybackEngine(
         val handle = preparedStream
         val bass = backend
         if (bass != null && handle != 0) {
-            runCatching { bass.removeMixerChannel(handle) }
-            bass.freeStream(handle)
+            bass.releaseBassStream(BassStreamHandle(handle))
+                .onFailure { lastError = it.message }
         }
         val reset = clearPreparedPlaybackMetadata()
         preparedStream = 0
@@ -563,13 +565,8 @@ class BassPlaybackEngine(
     }
 
     private fun freeAllStreams(bass: BassAudioBackend) {
-        val handles = listOf(stream, currentSourceStream, preparedStream)
-            .filter { it != 0 }
-            .distinct()
-        handles.forEach { handle ->
-            runCatching { bass.removeMixerChannel(handle) }
-            bass.freeStream(handle).onFailure { lastError = it.message }
-        }
+        bass.releaseBassStreams(stream, currentSourceStream, preparedStream)
+            .forEach { result -> result.onFailure { lastError = it.message } }
         val streamReset = clearPlaybackStreamState()
         crossfadeActive = streamReset.crossfadeActive
         val preparedReset = clearPreparedPlaybackMetadata()
@@ -584,13 +581,8 @@ class BassPlaybackEngine(
         bass: BassAudioBackend,
         created: CreatedPlayback,
     ) {
-        listOf(created.playbackHandle, created.sourceHandle)
-            .filter { it != 0 }
-            .distinct()
-            .forEach { handle ->
-                runCatching { bass.removeMixerChannel(handle) }
-                bass.freeStream(handle).onFailure { lastError = it.message }
-            }
+        bass.releaseBassStreams(created.playbackHandle, created.sourceHandle)
+            .forEach { result -> result.onFailure { lastError = it.message } }
     }
 
     private fun localFileFromUrl(url: String): File? =
@@ -627,12 +619,6 @@ private fun BassAudioBackend.stop(stream: Int): Result<Unit> =
 
 private fun BassAudioBackend.activeState(stream: Int): Int =
     activeState(BassStreamHandle(stream)) ?: BassActiveState.Stopped
-
-private fun BassAudioBackend.freeStream(stream: Int): Result<Unit> =
-    freeStream(BassStreamHandle(stream))
-
-private fun BassAudioBackend.removeMixerChannel(stream: Int): Result<Unit> =
-    removeMixerChannel(BassStreamHandle(stream))
 
 private fun BassAudioBackend.addMixerChannel(mixer: Int, stream: Int): Result<Unit> =
     addMixerChannel(BassStreamHandle(mixer), BassStreamHandle(stream))

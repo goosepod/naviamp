@@ -119,5 +119,19 @@ interface BassAudioBackend {
     fun freeStream(stream: BassStreamHandle): Result<Unit>
 }
 
+fun bassStreamHandlesForRelease(vararg handles: Int): List<BassStreamHandle> =
+    handles
+        .filter { it != 0 }
+        .distinct()
+        .map(::BassStreamHandle)
+
+fun BassAudioBackend.releaseBassStream(stream: BassStreamHandle): Result<Unit> {
+    removeMixerChannel(stream)
+    return freeStream(stream)
+}
+
+fun BassAudioBackend.releaseBassStreams(vararg handles: Int): List<Result<Unit>> =
+    bassStreamHandlesForRelease(*handles).map(::releaseBassStream)
+
 private fun <T> unsupportedBassOperation(name: String): Result<T> =
     Result.failure(UnsupportedOperationException("$name is not supported by this BASS backend."))

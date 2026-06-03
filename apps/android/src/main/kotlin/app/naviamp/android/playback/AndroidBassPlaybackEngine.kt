@@ -12,6 +12,8 @@ import app.naviamp.domain.bass.BassActiveState
 import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassStreamHandle
 import app.naviamp.domain.bass.bassActiveStateLabel
+import app.naviamp.domain.bass.releaseBassStream
+import app.naviamp.domain.bass.releaseBassStreams
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
@@ -576,7 +578,9 @@ class AndroidBassPlaybackEngine(
             request = request,
         )
         if (!plan.shouldAdopt) return false
-        currentSourceStream.takeIf { it != 0 && it != source }?.let { bass.freeStream(it) }
+        currentSourceStream.takeIf { it != 0 && it != source }?.let {
+            bass.releaseBassStream(BassStreamHandle(it))
+        }
         currentSourceStream = source
         replayGainFactor = preparedReplayGainFactor
         val reset = clearPreparedPlaybackMetadata()
@@ -590,7 +594,9 @@ class AndroidBassPlaybackEngine(
     }
 
     private fun freePreparedStream() {
-        preparedStream.takeIf { it != 0 }?.let { bass.freeStream(it) }
+        preparedStream.takeIf { it != 0 }?.let {
+            bass.releaseBassStream(BassStreamHandle(it))
+        }
         val reset = clearPreparedPlaybackMetadata()
         preparedStream = 0
         preparedRequest = reset.request
@@ -598,7 +604,7 @@ class AndroidBassPlaybackEngine(
     }
 
     private fun freeHandles(vararg handles: Int) {
-        handles.filter { it != 0 }.toSet().forEach { bass.freeStream(it) }
+        bass.releaseBassStreams(*handles)
     }
 
     private fun errorMessage(prefix: String): String =
@@ -634,9 +640,6 @@ private fun BassAudioBackend.pause(stream: Int): Boolean =
 
 private fun BassAudioBackend.stop(stream: Int): Boolean =
     stop(BassStreamHandle(stream)).isSuccess
-
-private fun BassAudioBackend.freeStream(stream: Int): Boolean =
-    freeStream(BassStreamHandle(stream)).isSuccess
 
 private fun BassAudioBackend.activeState(stream: Int): Int =
     activeState(BassStreamHandle(stream)) ?: BassActiveState.Stopped
