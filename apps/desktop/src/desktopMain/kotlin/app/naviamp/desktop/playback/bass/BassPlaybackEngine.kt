@@ -10,12 +10,13 @@ import app.naviamp.domain.playback.PlaybackReplayGainAdjustment
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.VisualizerBandCount
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
-import app.naviamp.domain.bass.applyPreparedBassMixerTransition
 import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassStreamHandle
 import app.naviamp.domain.bass.BassActiveState
 import app.naviamp.domain.bass.activeState
 import app.naviamp.domain.bass.addMixerChannel
+import app.naviamp.domain.bass.applyBassPlaybackVolume
+import app.naviamp.domain.bass.applyPreparedBassMixerTransition
 import app.naviamp.domain.bass.bassActiveStateLabel
 import app.naviamp.domain.bass.bassErrorMessage
 import app.naviamp.domain.bass.bassVersionLabel
@@ -40,7 +41,6 @@ import app.naviamp.domain.playback.planBassMixerCreation
 import app.naviamp.domain.playback.planPreparedPlaybackAdoption
 import app.naviamp.domain.playback.planPreparedMixerTransition
 import app.naviamp.domain.playback.playbackVisualizerFrameFromFft
-import app.naviamp.domain.playback.playbackVolumeApplicationPlan
 import app.naviamp.domain.playback.playbackReplayGainAdjustment
 import app.naviamp.domain.playback.shouldReusePreparedPlayback
 import kotlinx.coroutines.CoroutineScope
@@ -491,18 +491,12 @@ class BassPlaybackEngine(
 
     private fun applyOutputVolume(bass: BassAudioBackend) {
         val handle = stream.takeIf { it != 0 } ?: return
-        val plan = playbackVolumeApplicationPlan(
+        bass.applyBassPlaybackVolume(
+            outputStream = handle,
+            sourceStream = currentSourceStream,
             userVolumeFactor = outputVolumeFactor(),
             replayGainFactor = currentReplayGainAdjustment.volumeFactor,
-            hasSeparateSourceStream = currentSourceStream != 0 && handle != currentSourceStream,
-        )
-        if (currentSourceStream != 0 && handle != currentSourceStream) {
-            bass.setVolume(handle, plan.outputVolumeFactor)
-                .onFailure { lastError = it.message }
-        } else {
-            bass.setVolume(handle, plan.directVolumeFactor)
-                .onFailure { lastError = it.message }
-        }
+        ).forEach { result -> result.onFailure { lastError = it.message } }
     }
 
     private fun applySourceReplayGain(

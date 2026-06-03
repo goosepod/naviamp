@@ -3,6 +3,7 @@ package app.naviamp.domain.bass
 import app.naviamp.domain.playback.PreparedMixerTransitionPlan
 import app.naviamp.domain.playback.crossfadeFadeInEnvelopePoints
 import app.naviamp.domain.playback.crossfadeFadeOutEnvelopePoints
+import app.naviamp.domain.playback.playbackVolumeApplicationPlan
 
 @JvmInline
 value class BassStreamHandle(val value: Int)
@@ -262,6 +263,29 @@ fun BassAudioBackend.fft(stream: Int, bins: Int): Result<FloatArray> =
 
 fun BassAudioBackend.streamMetadata(stream: Int): Map<String, String> =
     streamMetadata(BassStreamHandle(stream))
+
+fun BassAudioBackend.applyBassPlaybackVolume(
+    outputStream: Int,
+    sourceStream: Int,
+    userVolumeFactor: Float,
+    replayGainFactor: Float,
+): List<Result<Unit>> {
+    if (outputStream == 0) return emptyList()
+    val hasSeparateSourceStream = sourceStream != 0 && outputStream != sourceStream
+    val plan = playbackVolumeApplicationPlan(
+        userVolumeFactor = userVolumeFactor,
+        replayGainFactor = replayGainFactor,
+        hasSeparateSourceStream = hasSeparateSourceStream,
+    )
+    return if (hasSeparateSourceStream) {
+        listOf(
+            setVolume(outputStream, plan.outputVolumeFactor),
+            setVolume(sourceStream, plan.sourceReplayGainFactor ?: 1f),
+        )
+    } else {
+        listOf(setVolume(outputStream, plan.directVolumeFactor))
+    }
+}
 
 fun BassAudioBackend.applyPreparedBassMixerTransition(
     mixer: BassStreamHandle,

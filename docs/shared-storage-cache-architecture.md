@@ -183,7 +183,7 @@ Then higher-level repositories can be composed from those stores:
   - Prepared-playback duplicate checks and metadata reset/failure defaults now live in common playback helpers; platforms still free native handles locally.
   - Prepared-playback adoption eligibility now lives in common playback helpers so desktop and Android use the same active-stream, prepared-match, and mixer-capability gate before taking a queued BASS source.
   - Active playback stream reset defaults now live in common playback helpers so desktop and Android clear stream/source/crossfade/ReplayGain state consistently after stop, release, and cleanup.
-  - Playback volume application now uses a common plan: direct streams receive user volume multiplied by ReplayGain, while mixer playback keeps user volume on the mixer and ReplayGain on the source.
+  - Playback volume application now uses common BASS backend helpers: direct streams receive user volume multiplied by ReplayGain, while mixer playback keeps user volume on the mixer and ReplayGain on the source.
   - Prepared mixer transition planning now lives in common playback helpers, including queued-next volume, crossfade initial/final source volume, duration, and current-source fade eligibility.
   - Crossfade equal-power envelope point construction now lives in common playback helpers; desktop and Android apply those points through `BassAudioBackend`, with volume-slide fallback when envelopes are unavailable.
   - Playback finished-position tolerance now lives in common playback helpers so platform engines share the same progress-at-end boundary.

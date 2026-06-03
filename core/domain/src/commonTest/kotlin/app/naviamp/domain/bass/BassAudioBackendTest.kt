@@ -90,6 +90,36 @@ class BassAudioBackendTest {
     }
 
     @Test
+    fun appliesDirectBassPlaybackVolume() {
+        val backend = RecordingBassAudioBackend()
+
+        val results = backend.applyBassPlaybackVolume(
+            outputStream = 7,
+            sourceStream = 7,
+            userVolumeFactor = 0.5f,
+            replayGainFactor = 0.8f,
+        )
+
+        assertTrue(results.all { it.isSuccess })
+        assertEquals(listOf("volume:7:0.4"), backend.calls)
+    }
+
+    @Test
+    fun appliesSeparateOutputAndSourceBassPlaybackVolume() {
+        val backend = RecordingBassAudioBackend()
+
+        val results = backend.applyBassPlaybackVolume(
+            outputStream = 7,
+            sourceStream = 8,
+            userVolumeFactor = 0.5f,
+            replayGainFactor = 0.8f,
+        )
+
+        assertTrue(results.all { it.isSuccess })
+        assertEquals(listOf("volume:7:0.5", "volume:8:0.8"), backend.calls)
+    }
+
+    @Test
     fun preparedMixerTransitionAppliesEnvelopesWhenBytePositionsAreAvailable() {
         val backend = RecordingBassAudioBackend()
 

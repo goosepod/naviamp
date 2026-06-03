@@ -13,6 +13,7 @@ import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassStreamHandle
 import app.naviamp.domain.bass.activeState
 import app.naviamp.domain.bass.addMixerChannel
+import app.naviamp.domain.bass.applyBassPlaybackVolume
 import app.naviamp.domain.bass.applyPreparedBassMixerTransition
 import app.naviamp.domain.bass.bassActiveStateLabel
 import app.naviamp.domain.bass.bassFailureMessage
@@ -44,7 +45,6 @@ import app.naviamp.domain.playback.planBassMixerCreation
 import app.naviamp.domain.playback.planPreparedPlaybackAdoption
 import app.naviamp.domain.playback.planPreparedMixerTransition
 import app.naviamp.domain.playback.playbackVisualizerFrameFromFft
-import app.naviamp.domain.playback.playbackVolumeApplicationPlan
 import app.naviamp.domain.playback.playbackReplayGainAdjustment
 import app.naviamp.domain.playback.playbackStateForBassActiveState
 import app.naviamp.domain.playback.shouldFinishPlaybackForBassState
@@ -554,17 +554,12 @@ class AndroidBassPlaybackEngine(
     private fun applyVolume() {
         val userVolume = (volumePercent / 100f) * if (duckedForFocusLoss) FocusDuckVolumeFactor else 1f
         stream.takeIf { it != 0 }?.let { handle ->
-            val plan = playbackVolumeApplicationPlan(
+            bass.applyBassPlaybackVolume(
+                outputStream = handle,
+                sourceStream = currentSourceStream,
                 userVolumeFactor = userVolume,
                 replayGainFactor = replayGainFactor,
-                hasSeparateSourceStream = currentSourceStream != 0 && handle != currentSourceStream,
             )
-            if (currentSourceStream != 0 && handle != currentSourceStream) {
-                bass.setVolume(handle, plan.outputVolumeFactor)
-                bass.setVolume(currentSourceStream, plan.sourceReplayGainFactor ?: 1f)
-            } else {
-                bass.setVolume(handle, plan.directVolumeFactor)
-            }
         }
     }
 
