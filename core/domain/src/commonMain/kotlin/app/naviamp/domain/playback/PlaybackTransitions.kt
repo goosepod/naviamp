@@ -62,6 +62,17 @@ data class PlaybackVolumeApplicationPlan(
     val directVolumeFactor: Float,
 )
 
+data class PreparedMixerTransitionPlan(
+    val crossfadeDurationSeconds: Int,
+    val durationMillis: Int,
+    val initialNextSourceVolume: Float,
+    val finalNextSourceVolume: Float,
+    val shouldFadeCurrentSource: Boolean,
+) {
+    val shouldCrossfade: Boolean
+        get() = crossfadeDurationSeconds > 0
+}
+
 enum class PrepareNextPlaybackReason {
     Crossfade,
     Gapless,
@@ -139,6 +150,21 @@ fun playbackVolumeApplicationPlan(
         outputVolumeFactor = safeUserVolume,
         sourceReplayGainFactor = safeReplayGain.takeIf { hasSeparateSourceStream },
         directVolumeFactor = (safeUserVolume * safeReplayGain).coerceIn(0f, MaxPlaybackVolumeFactor),
+    )
+}
+
+fun planPreparedMixerTransition(
+    crossfadeDurationSeconds: Int,
+    replayGainFactor: Float,
+): PreparedMixerTransitionPlan {
+    val normalizedDuration = normalizedCrossfadeDurationSeconds(crossfadeDurationSeconds)
+    val safeReplayGain = replayGainFactor.coerceIn(0f, MaxPlaybackVolumeFactor)
+    return PreparedMixerTransitionPlan(
+        crossfadeDurationSeconds = normalizedDuration,
+        durationMillis = crossfadeDurationMillis(normalizedDuration),
+        initialNextSourceVolume = if (normalizedDuration > 0) 0f else safeReplayGain,
+        finalNextSourceVolume = safeReplayGain,
+        shouldFadeCurrentSource = normalizedDuration > 0,
     )
 }
 

@@ -19,10 +19,10 @@ import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.clearPreparedPlaybackMetadata
 import app.naviamp.domain.playback.clearPlaybackStreamState
-import app.naviamp.domain.playback.crossfadeDurationMillis
 import app.naviamp.domain.playback.failedPreparedPlaybackMetadata
 import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
 import app.naviamp.domain.playback.planPreparedPlaybackAdoption
+import app.naviamp.domain.playback.planPreparedMixerTransition
 import app.naviamp.domain.playback.playbackVolumeApplicationPlan
 import app.naviamp.domain.playback.playbackReplayGainAdjustment
 import app.naviamp.domain.playback.shouldReusePreparedPlayback
@@ -311,12 +311,14 @@ class AndroidBassPlaybackEngine(
             val source = createStream(request.url, decode = true)
             check(source != 0) { errorMessage("BASS next stream creation failed") }
             val nextReplayGain = playbackReplayGainAdjustment(request).volumeFactor
-            bass.setVolume(source, if (crossfadeDurationSeconds > 0) 0f else nextReplayGain)
+            val transition = planPreparedMixerTransition(crossfadeDurationSeconds, nextReplayGain)
+            bass.setVolume(source, transition.initialNextSourceVolume)
             check(bass.addMixerChannel(mixer, source)) { errorMessage("BASS_Mixer_StreamAddChannel failed") }
-            if (crossfadeDurationSeconds > 0) {
-                val durationMillis = crossfadeDurationMillis(crossfadeDurationSeconds)
-                bass.slideVolume(source, nextReplayGain, durationMillis)
-                currentSourceStream.takeIf { it != 0 }?.let { bass.slideVolume(it, 0f, durationMillis) }
+            if (transition.shouldCrossfade) {
+                bass.slideVolume(source, transition.finalNextSourceVolume, transition.durationMillis)
+                if (transition.shouldFadeCurrentSource) {
+                    currentSourceStream.takeIf { it != 0 }?.let { bass.slideVolume(it, 0f, transition.durationMillis) }
+                }
             }
             preparedReplayGainFactor = nextReplayGain
             source

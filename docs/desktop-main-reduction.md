@@ -187,6 +187,9 @@ Branch: `codex/desktop-main-reduction`
 - [x] Share playback volume application planning.
   - Direct streams apply user volume multiplied by ReplayGain; mixer playback applies user volume to the mixer and ReplayGain to the source.
   - Desktop and Android keep their platform-specific volume calls but now follow the same common plan.
+- [x] Share prepared mixer transition planning.
+  - Queued-next and crossfade prepared streams now use common initial/final source volume, duration, and current-source fade decisions.
+  - Desktop still applies equal-power BASSmix envelopes where available; Android still uses BASS slide calls.
 
 ## Architecture Refactor Backlog
 

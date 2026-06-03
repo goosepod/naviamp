@@ -208,6 +208,34 @@ class PlaybackTransitionsTest {
     }
 
     @Test
+    fun plansQueuedPreparedMixerTransitionWhenCrossfadeIsOff() {
+        val plan = planPreparedMixerTransition(
+            crossfadeDurationSeconds = 0,
+            replayGainFactor = 0.75f,
+        )
+
+        assertFalse(plan.shouldCrossfade)
+        assertEquals(0, plan.durationMillis)
+        assertEquals(0.75f, plan.initialNextSourceVolume)
+        assertEquals(0.75f, plan.finalNextSourceVolume)
+        assertFalse(plan.shouldFadeCurrentSource)
+    }
+
+    @Test
+    fun plansCrossfadePreparedMixerTransition() {
+        val plan = planPreparedMixerTransition(
+            crossfadeDurationSeconds = 5,
+            replayGainFactor = 0.75f,
+        )
+
+        assertTrue(plan.shouldCrossfade)
+        assertEquals(5_000, plan.durationMillis)
+        assertEquals(0f, plan.initialNextSourceVolume)
+        assertEquals(0.75f, plan.finalNextSourceVolume)
+        assertTrue(plan.shouldFadeCurrentSource)
+    }
+
+    @Test
     fun adoptsPreparedPlaybackOnlyWhenActivePreparedMatchingAndMixerCapable() {
         val request = PlaybackRequest(url = "file:///track.flac", mediaId = "track-1")
 
