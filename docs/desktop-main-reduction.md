@@ -227,11 +227,57 @@ Branch: `codex/desktop-main-reduction`
 - Now-playing sidecar type keys, lyrics loading/error rules, waveform status labels, online-lyrics fetch decisions, and sidecar queue filtering are now shared through `core/domain`.
 - Waveform generation is BASS-backed on both desktop and Android, but the analyzer should become a shared interface/service before more waveform plumbing moves across platforms.
   - `AudioWaveformAnalyzer` and `AudioWaveformAnalysisSource` now live in common domain, with desktop using `DesktopAudioWaveformAnalyzer` over `BassNative` and Android using `AndroidAudioWaveformAnalyzer` over `AndroidBassJni`.
+  - The current platform implementations are not identical yet: Android uses `AndroidBassJni.decodeWaveform(...)`, while desktop reads float PCM frames from `BassNative` and buckets them in Kotlin.
+  - A shared service should either move the bucket algorithm into common code behind a lower-level decoded-samples interface, or make both BASS adapters expose equivalent waveform decoding operations.
   - The next shared service should coordinate cached waveform lookup, local/downloaded audio preference, provider-stream fallback, TLS settings, platform BASS adapters, and waveform persistence.
   - Do not force Android into the current storage-shaped waveform repository contract; it needs `Track` and provider-stream context.
 - Naming convention: shared/common abstractions keep generic names, while platform adapters and platform-owned service files should use `Desktop` / `Android` prefixes.
   - Example: common `AudioWaveformAnalyzer`, desktop `DesktopAudioWaveformAnalyzer`, Android `AndroidAudioWaveformAnalyzer`.
   - Remaining desktop playback files without a platform prefix should be renamed in narrow slices when their references are touched.
+
+## Platform Naming Cleanup Backlog
+
+Follow the convention above: shared/common abstractions keep generic names; platform adapters, controllers, services, panels, storage, clients, and platform-owned helpers use `Desktop` or `Android` prefixes. Android already follows this convention except for `MainActivity.kt`, which is the platform entry point. Desktop still has mixed naming.
+
+- [ ] Desktop app shell files:
+  - `app/AppMenus.kt`
+  - `connection/ConnectionPanel.kt`
+- [ ] Desktop UI panels:
+  - `downloads/DownloadsPanel.kt`
+  - `home/HomePanel.kt`
+  - `library/LibraryPanel.kt`
+  - `media/AlbumDetailPanel.kt`
+  - `media/ArtistDetailPanel.kt`
+  - `media/CoverArtThumb.kt`
+  - `media/MediaRows.kt`
+  - `playback/NowPlayingPanel.kt`
+  - `playlists/AddToPlaylistDialog.kt`
+  - `playlists/PlaylistPanels.kt`
+  - `radio/InternetRadioPanel.kt`
+  - `search/SearchPanel.kt`
+  - `settings/SettingsPanel.kt`
+  - `stats/StatsForNerdsWindow.kt`
+- [ ] Desktop playback adapters/services:
+  - `playback/NowPlayingAnalysis.kt`
+  - `playback/PlaybackEngine.kt`
+  - `playback/PlaybackEngineDiagnostics.kt`
+  - `playback/PlaybackEngineFactory.kt`
+  - `playback/PlaylistEngine.kt`
+  - `playback/bass/BassJniBinding.kt`
+  - `playback/bass/BassLibraryResolver.kt`
+  - `playback/bass/BassNative.kt`
+  - `playback/bass/BassPlaybackEngine.kt`
+- [ ] Desktop lyrics and library helpers:
+  - `library/LibrarySync.kt`
+  - `lyrics/AudioTagReader.kt`
+  - `lyrics/LrclibLyricsClient.kt`
+- [ ] Desktop navigation/theme helpers:
+  - `navigation/AppNavigation.kt`
+  - `navigation/NavigationIcons.kt`
+  - `theme/AppColors.kt`
+  - `theme/DetailActionIconButton.kt`
+  - `theme/PlaybackFormatting.kt`
+  - `theme/TransportIcons.kt`
 - Internet-radio station track shaping, metadata title updates, and recent-station ordering/limits are now shared through `core/domain`.
 - Artist detail fallback, status text, popular-track update, and similar-artist update rules are shared through `core/domain`; platforms keep route and external-link handling locally.
 - Library auto-sync gating, freshness polling updates, sync status text, and paging limits are shared through `core/domain`; platforms keep their storage-specific sync runners.
