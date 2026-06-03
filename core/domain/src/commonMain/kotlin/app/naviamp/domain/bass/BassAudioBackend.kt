@@ -1,5 +1,9 @@
 package app.naviamp.domain.bass
 
+import app.naviamp.domain.playback.PreparedMixerTransitionPlan
+import app.naviamp.domain.playback.crossfadeFadeInEnvelopePoints
+import app.naviamp.domain.playback.crossfadeFadeOutEnvelopePoints
+
 @JvmInline
 value class BassStreamHandle(val value: Int)
 
@@ -22,6 +26,10 @@ fun bassActiveStateLabel(activeState: Int): String =
 data class BassStreamInfo(
     val frequency: Int,
     val channels: Int,
+)
+
+data class BassPreparedMixerTransitionResult(
+    val fallbackErrors: List<Throwable> = emptyList(),
 )
 
 interface BassAudioBackend {
@@ -132,6 +140,77 @@ fun BassAudioBackend.releaseBassStream(stream: BassStreamHandle): Result<Unit> {
 
 fun BassAudioBackend.releaseBassStreams(vararg handles: Int): List<Result<Unit>> =
     bassStreamHandlesForRelease(*handles).map(::releaseBassStream)
+
+fun BassAudioBackend.applyPreparedBassMixerTransition(
+    mixer: BassStreamHandle,
+    nextSource: BassStreamHandle,
+    currentSource: BassStreamHandle?,
+    currentSourceVolumeFactor: Float,
+    transition: PreparedMixerTransitionPlan,
+): Result<BassPreparedMixerTransitionResult> =
+    runCatching {
+        val fallbackErrors = mutableListOf<Throwable>()
+        setVolume(nextSource, transition.initialNextSourceVolume).getOrThrow()
+        addMixerChannel(mixer, nextSource).getOrThrow()
+        if (!transition.shouldCrossfade) {
+            return@runCatching BassPreparedMixerTransitionResult()
+        }
+
+        applyPreparedBassFadeIn(nextSource, transition)
+            .onFailure { fallbackErrors += it }
+        if (currentSource != null && transition.shouldFadeCurrentSource) {
+            applyPreparedBassFadeOut(currentSource, currentSourceVolumeFactor, transition)
+                .onFailure { fallbackErrors += it }
+        }
+        BassPreparedMixerTransitionResult(fallbackErrors = fallbackErrors)
+    }
+
+private fun BassAudioBackend.applyPreparedBassFadeIn(
+    nextSource: BassStreamHandle,
+    transition: PreparedMixerTransitionPlan,
+): Result<Unit> {
+    val durationBytes = secondsToBytes(nextSource, transition.crossfadeDurationSeconds.toDouble())
+    if (durationBytes == null) {
+        setVolume(nextSource, 0f)
+        slideVolume(nextSource, transition.finalNextSourceVolume, transition.durationMillis)
+        return Result.success(Unit)
+    }
+    val envelopeResult = setMixerVolumeEnvelope(
+        nextSource,
+        crossfadeFadeInEnvelopePoints(
+            durationBytes = durationBytes,
+            volumeFactor = transition.finalNextSourceVolume,
+        ),
+    )
+    if (envelopeResult.isSuccess) return Result.success(Unit)
+    setVolume(nextSource, 0f)
+    slideVolume(nextSource, transition.finalNextSourceVolume, transition.durationMillis)
+    return Result.failure(requireNotNull(envelopeResult.exceptionOrNull()))
+}
+
+private fun BassAudioBackend.applyPreparedBassFadeOut(
+    currentSource: BassStreamHandle,
+    currentSourceVolumeFactor: Float,
+    transition: PreparedMixerTransitionPlan,
+): Result<Unit> {
+    val startBytes = positionBytes(currentSource)
+    val durationBytes = secondsToBytes(currentSource, transition.crossfadeDurationSeconds.toDouble())
+    if (startBytes == null || durationBytes == null) {
+        slideVolume(currentSource, 0f, transition.durationMillis)
+        return Result.success(Unit)
+    }
+    val envelopeResult = setMixerVolumeEnvelope(
+        currentSource,
+        crossfadeFadeOutEnvelopePoints(
+            startBytes = startBytes,
+            durationBytes = durationBytes,
+            volumeFactor = currentSourceVolumeFactor,
+        ),
+    )
+    if (envelopeResult.isSuccess) return Result.success(Unit)
+    slideVolume(currentSource, 0f, transition.durationMillis)
+    return Result.failure(requireNotNull(envelopeResult.exceptionOrNull()))
+}
 
 private fun <T> unsupportedBassOperation(name: String): Result<T> =
     Result.failure(UnsupportedOperationException("$name is not supported by this BASS backend."))

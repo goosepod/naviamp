@@ -1,5 +1,6 @@
 package app.naviamp.domain.bass
 
+import app.naviamp.domain.playback.planPreparedMixerTransition
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -50,10 +51,70 @@ class BassAudioBackendTest {
         assertTrue(result.isSuccess)
         assertEquals(listOf("remove:42", "free:42"), backend.calls)
     }
+
+    @Test
+    fun preparedMixerTransitionAppliesEnvelopesWhenBytePositionsAreAvailable() {
+        val backend = RecordingBassAudioBackend()
+
+        val result = backend.applyPreparedBassMixerTransition(
+            mixer = BassStreamHandle(1),
+            nextSource = BassStreamHandle(2),
+            currentSource = BassStreamHandle(3),
+            currentSourceVolumeFactor = 0.8f,
+            transition = planPreparedMixerTransition(crossfadeDurationSeconds = 5, replayGainFactor = 0.7f),
+        )
+
+        assertTrue(result.isSuccess)
+        assertEquals(emptyList(), result.getOrThrow().fallbackErrors)
+        assertEquals(
+            listOf(
+                "volume:2:0.0",
+                "add:1:2",
+                "secondsToBytes:2:5.0",
+                "envelope:2",
+                "positionBytes:3",
+                "secondsToBytes:3:5.0",
+                "envelope:3",
+            ),
+            backend.calls,
+        )
+    }
+
+    @Test
+    fun preparedMixerTransitionFallsBackToSlidesWhenEnvelopesFail() {
+        val backend = RecordingBassAudioBackend(envelopeSucceeds = false)
+
+        val result = backend.applyPreparedBassMixerTransition(
+            mixer = BassStreamHandle(1),
+            nextSource = BassStreamHandle(2),
+            currentSource = BassStreamHandle(3),
+            currentSourceVolumeFactor = 0.8f,
+            transition = planPreparedMixerTransition(crossfadeDurationSeconds = 5, replayGainFactor = 0.7f),
+        )
+
+        assertTrue(result.isSuccess)
+        assertEquals(2, result.getOrThrow().fallbackErrors.size)
+        assertEquals(
+            listOf(
+                "volume:2:0.0",
+                "add:1:2",
+                "secondsToBytes:2:5.0",
+                "envelope:2",
+                "volume:2:0.0",
+                "slide:2:0.7:5000",
+                "positionBytes:3",
+                "secondsToBytes:3:5.0",
+                "envelope:3",
+                "slide:3:0.0:5000",
+            ),
+            backend.calls,
+        )
+    }
 }
 
 private class RecordingBassAudioBackend(
     private val removeSucceeds: Boolean = true,
+    private val envelopeSucceeds: Boolean = true,
 ) : BassAudioBackend {
     val calls = mutableListOf<String>()
 
@@ -81,5 +142,49 @@ private class RecordingBassAudioBackend(
     override fun freeStream(stream: BassStreamHandle): Result<Unit> {
         calls += "free:${stream.value}"
         return Result.success(Unit)
+    }
+
+    override fun addMixerChannel(
+        mixer: BassStreamHandle,
+        stream: BassStreamHandle,
+    ): Result<Unit> {
+        calls += "add:${mixer.value}:${stream.value}"
+        return Result.success(Unit)
+    }
+
+    override fun setVolume(stream: BassStreamHandle, volume: Float): Result<Unit> {
+        calls += "volume:${stream.value}:$volume"
+        return Result.success(Unit)
+    }
+
+    override fun setMixerVolumeEnvelope(
+        stream: BassStreamHandle,
+        points: List<Pair<Long, Float>>,
+    ): Result<Unit> {
+        calls += "envelope:${stream.value}"
+        return if (envelopeSucceeds) {
+            Result.success(Unit)
+        } else {
+            Result.failure(IllegalStateException("envelope failed"))
+        }
+    }
+
+    override fun slideVolume(
+        stream: BassStreamHandle,
+        volume: Float,
+        durationMillis: Int,
+    ): Result<Unit> {
+        calls += "slide:${stream.value}:$volume:$durationMillis"
+        return Result.success(Unit)
+    }
+
+    override fun positionBytes(stream: BassStreamHandle): Long? {
+        calls += "positionBytes:${stream.value}"
+        return 200L
+    }
+
+    override fun secondsToBytes(stream: BassStreamHandle, seconds: Double): Long? {
+        calls += "secondsToBytes:${stream.value}:$seconds"
+        return (seconds * 100).toLong()
     }
 }

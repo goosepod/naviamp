@@ -8,9 +8,9 @@ import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.PlaybackReplayGainAdjustment
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
-import app.naviamp.domain.playback.PreparedMixerTransitionPlan
 import app.naviamp.domain.playback.VisualizerBandCount
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
+import app.naviamp.domain.bass.applyPreparedBassMixerTransition
 import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassStreamHandle
 import app.naviamp.domain.bass.BassActiveState
@@ -19,8 +19,6 @@ import app.naviamp.domain.bass.releaseBassStream
 import app.naviamp.domain.bass.releaseBassStreams
 import app.naviamp.domain.playback.clearPreparedPlaybackMetadata
 import app.naviamp.domain.playback.clearPlaybackStreamState
-import app.naviamp.domain.playback.crossfadeFadeInEnvelopePoints
-import app.naviamp.domain.playback.crossfadeFadeOutEnvelopePoints
 import app.naviamp.domain.playback.failedPreparedPlaybackMetadata
 import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
 import app.naviamp.domain.playback.planBassMixerCreation
@@ -233,12 +231,16 @@ class BassPlaybackEngine(
                 createQueuedSource(bass, request).getOrThrow().also { source ->
                     val adjustment = replayGainAdjustment(request)
                     val transition = planPreparedMixerTransition(crossfadeDurationSeconds, adjustment.volumeFactor)
-                    bass.setVolume(source, transition.initialNextSourceVolume).getOrThrow()
-                    if (transition.shouldCrossfade) {
-                        startCrossfade(bass, source, adjustment, transition)
-                    } else {
-                        bass.addMixerChannel(stream, source).getOrThrow()
-                    }
+                    bass.applyPreparedBassMixerTransition(
+                        mixer = BassStreamHandle(stream),
+                        nextSource = BassStreamHandle(source),
+                        currentSource = currentSourceStream.takeIf { it != 0 }?.let(::BassStreamHandle),
+                        currentSourceVolumeFactor = currentReplayGainAdjustment.volumeFactor,
+                        transition = transition,
+                    ).onSuccess { result ->
+                        result.fallbackErrors.lastOrNull()?.let { lastError = it.message }
+                    }.getOrThrow()
+                    crossfadeActive = transition.shouldCrossfade
                     attachEndSync(bass, source, playbackId)
                     preparedReplayGainAdjustment = adjustment
                 }
@@ -468,54 +470,6 @@ class BassPlaybackEngine(
             .onFailure { lastError = it.message }
     }
 
-    private fun startCrossfade(
-        bass: BassAudioBackend,
-        nextSource: Int,
-        nextAdjustment: PlaybackReplayGainAdjustment,
-        transition: PreparedMixerTransitionPlan,
-    ) {
-        val currentSource = currentSourceStream
-        val nextVolume = transition.finalNextSourceVolume
-        val currentVolume = currentReplayGainAdjustment.volumeFactor
-        bass.setVolume(nextSource, transition.initialNextSourceVolume).getOrThrow()
-        bass.addMixerChannel(stream, nextSource).getOrThrow()
-        val durationMillis = transition.durationMillis
-        val nextFadeBytes = bass.secondsToBytes(nextSource, transition.crossfadeDurationSeconds.toDouble())
-        if (nextFadeBytes != null) {
-            bass.setMixerVolumeEnvelope(
-                nextSource,
-                crossfadeFadeInEnvelopePoints(durationBytes = nextFadeBytes, volumeFactor = nextVolume),
-            ).onFailure {
-                lastError = it.message
-                bass.setVolume(nextSource, 0f).onFailure { error -> lastError = error.message }
-                bass.slideVolume(nextSource, nextVolume, durationMillis).onFailure { error -> lastError = error.message }
-            }
-        } else {
-            bass.setVolume(nextSource, 0f).onFailure { lastError = it.message }
-            bass.slideVolume(nextSource, nextVolume, durationMillis).onFailure { lastError = it.message }
-        }
-        if (currentSource != 0 && transition.shouldFadeCurrentSource) {
-            val currentStartBytes = bass.positionBytes(currentSource)
-            val currentFadeBytes = bass.secondsToBytes(currentSource, transition.crossfadeDurationSeconds.toDouble())
-            if (currentStartBytes != null && currentFadeBytes != null) {
-                bass.setMixerVolumeEnvelope(
-                    currentSource,
-                    crossfadeFadeOutEnvelopePoints(
-                        startBytes = currentStartBytes,
-                        durationBytes = currentFadeBytes,
-                        volumeFactor = currentVolume,
-                    ),
-                ).onFailure {
-                    lastError = it.message
-                    bass.slideVolume(currentSource, 0f, durationMillis).onFailure { error -> lastError = error.message }
-                }
-            } else {
-                bass.slideVolume(currentSource, 0f, durationMillis).onFailure { lastError = it.message }
-            }
-        }
-        crossfadeActive = true
-    }
-
     private fun applyOutputVolume(bass: BassAudioBackend) {
         val handle = stream.takeIf { it != 0 } ?: return
         val plan = playbackVolumeApplicationPlan(
@@ -623,12 +577,6 @@ private fun BassAudioBackend.activeState(stream: Int): Int =
 private fun BassAudioBackend.addMixerChannel(mixer: Int, stream: Int): Result<Unit> =
     addMixerChannel(BassStreamHandle(mixer), BassStreamHandle(stream))
 
-private fun BassAudioBackend.setMixerVolumeEnvelope(
-    stream: Int,
-    points: List<Pair<Long, Float>>,
-): Result<Unit> =
-    setMixerVolumeEnvelope(BassStreamHandle(stream), points)
-
 private fun BassAudioBackend.setEndSync(
     stream: Int,
     callback: (BassStreamHandle) -> Unit,
@@ -649,12 +597,6 @@ private fun BassAudioBackend.positionSeconds(stream: Int): Double? =
 
 private fun BassAudioBackend.durationSeconds(stream: Int): Double? =
     durationSeconds(BassStreamHandle(stream))
-
-private fun BassAudioBackend.positionBytes(stream: Int): Long? =
-    positionBytes(BassStreamHandle(stream))
-
-private fun BassAudioBackend.secondsToBytes(stream: Int, seconds: Double): Long? =
-    secondsToBytes(BassStreamHandle(stream), seconds)
 
 private fun BassAudioBackend.channelInfo(stream: Int) =
     channelInfo(BassStreamHandle(stream))
