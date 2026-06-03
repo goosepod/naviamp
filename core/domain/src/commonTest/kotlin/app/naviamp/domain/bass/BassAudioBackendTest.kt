@@ -25,6 +25,11 @@ class BassAudioBackendTest {
     }
 
     @Test
+    fun formatsBassVersionIntegers() {
+        assertEquals("2.4.17.0", bassVersionLabel(0x02041100))
+    }
+
+    @Test
     fun plansDistinctNonZeroHandlesForRelease() {
         assertEquals(
             listOf(BassStreamHandle(10), BassStreamHandle(20)),

@@ -23,6 +23,14 @@ fun bassActiveStateLabel(activeState: Int): String =
         else -> "Unknown ($activeState)"
     }
 
+fun bassVersionLabel(version: Int): String {
+    val major = version ushr 24 and 0xff
+    val minor = version ushr 16 and 0xff
+    val revision = version ushr 8 and 0xff
+    val build = version and 0xff
+    return "$major.$minor.$revision.$build"
+}
+
 data class BassStreamInfo(
     val frequency: Int,
     val channels: Int,

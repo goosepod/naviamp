@@ -15,6 +15,7 @@ import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassStreamHandle
 import app.naviamp.domain.bass.BassActiveState
 import app.naviamp.domain.bass.bassActiveStateLabel
+import app.naviamp.domain.bass.bassVersionLabel
 import app.naviamp.domain.bass.releaseBassStream
 import app.naviamp.domain.bass.releaseBassStreams
 import app.naviamp.domain.playback.clearPreparedPlaybackMetadata
@@ -552,14 +553,6 @@ class BassPlaybackEngine(
 
     private fun isCurrentPlayback(id: Int): Boolean =
         playbackId == id
-}
-
-private fun bassVersionLabel(version: Int): String {
-    val major = version ushr 24 and 0xff
-    val minor = version ushr 16 and 0xff
-    val revision = version ushr 8 and 0xff
-    val build = version and 0xff
-    return "$major.$minor.$revision.$build"
 }
 
 private fun BassAudioBackend.play(stream: Int): Result<Unit> =
