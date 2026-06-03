@@ -20,8 +20,7 @@ import app.naviamp.domain.bass.bassErrorMessage
 import app.naviamp.domain.bass.bassPlaybackSnapshot
 import app.naviamp.domain.bass.bassPlaybackVisualizerFrame
 import app.naviamp.domain.bass.bassVersionLabel
-import app.naviamp.domain.bass.createDirectBassPlayback
-import app.naviamp.domain.bass.createMixerBassPlayback
+import app.naviamp.domain.bass.createBassPlayback
 import app.naviamp.domain.bass.pause
 import app.naviamp.domain.bass.play
 import app.naviamp.domain.bass.prepareNextBassMixerSource
@@ -115,11 +114,7 @@ class BassPlaybackEngine(
             var createdPlayback: CreatedPlayback? = null
             try {
                 ensureInitialized(bass)
-                createdPlayback = if (bass.supportsMixer) {
-                    createMixerPlayback(bass, request).getOrThrow()
-                } else {
-                    createDirectPlayback(bass, request).getOrThrow()
-                }
+                createdPlayback = createPlayback(bass, request, useMixer = bass.supportsMixer).getOrThrow()
                 if (!isCurrentPlayback(currentPlaybackId)) {
                     freeCreatedPlayback(bass, createdPlayback)
                     createdPlayback = null
@@ -253,7 +248,7 @@ class BassPlaybackEngine(
                 preparedReplayGainAdjustment = adjustment
                 prepared.sourceHandle
             } else {
-                createDirectPlayback(bass, request).getOrThrow().playbackHandle.also {
+                createPlayback(bass, request, useMixer = false).getOrThrow().playbackHandle.also {
                     preparedReplayGainAdjustment = replayGainAdjustment(request)
                 }
             }
@@ -409,16 +404,20 @@ class BassPlaybackEngine(
         preparedError = reset.error
     }
 
-    private fun createDirectPlayback(
+    private fun createPlayback(
         bass: BassAudioBackend,
         request: PlaybackRequest,
+        useMixer: Boolean,
     ): Result<CreatedPlayback> {
         val adjustment = replayGainAdjustment(request)
         val localFile = localFileFromUrl(request.url)
-        return bass.createDirectBassPlayback(
+        return bass.createBassPlayback(
             localPath = localFile?.absolutePath,
             url = request.url,
+            useMixer = useMixer,
+            crossfadeDurationSeconds = crossfadeDurationSeconds,
             replayGainFactor = adjustment.volumeFactor,
+            playbackDecode = useMixer,
         ).map { playback ->
             CreatedPlayback(
                 playbackHandle = playback.playbackHandle,
@@ -427,27 +426,6 @@ class BassPlaybackEngine(
             )
         }
     }
-
-    private fun createMixerPlayback(
-        bass: BassAudioBackend,
-        request: PlaybackRequest,
-    ): Result<CreatedPlayback> =
-        runCatching {
-            val adjustment = replayGainAdjustment(request)
-            val localFile = localFileFromUrl(request.url)
-            val playback = bass.createMixerBassPlayback(
-                localPath = localFile?.absolutePath,
-                url = request.url,
-                crossfadeDurationSeconds = crossfadeDurationSeconds,
-                replayGainFactor = adjustment.volumeFactor,
-                playbackDecode = true,
-            ).getOrThrow()
-            CreatedPlayback(
-                playbackHandle = playback.playbackHandle,
-                sourceHandle = playback.sourceHandle,
-                replayGainAdjustment = adjustment,
-            )
-        }
 
     private fun attachEndSync(
         bass: BassAudioBackend,

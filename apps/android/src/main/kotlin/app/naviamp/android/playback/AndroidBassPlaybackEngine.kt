@@ -17,8 +17,7 @@ import app.naviamp.domain.bass.bassActiveStateLabel
 import app.naviamp.domain.bass.bassFailureMessage
 import app.naviamp.domain.bass.bassPlaybackSnapshot
 import app.naviamp.domain.bass.bassPlaybackVisualizerFrame
-import app.naviamp.domain.bass.createDirectBassPlayback
-import app.naviamp.domain.bass.createMixerBassPlayback
+import app.naviamp.domain.bass.createBassPlayback
 import app.naviamp.domain.bass.pause
 import app.naviamp.domain.bass.play
 import app.naviamp.domain.bass.prepareNextBassMixerSource
@@ -186,12 +185,7 @@ class AndroidBassPlaybackEngine(
                 Log.i(Tag, "Opening BASS stream verifyNet=$verifyNet url=${request.url.sanitizedForLog()}")
                 bass.setVerifyNet(verifyNet).getOrThrow()
                 bass.configureInternetStreams().getOrThrow()
-                val handle = if (request.mediaId != null) {
-                    replayGainFactor = playbackReplayGainAdjustment(request).volumeFactor
-                    createMixerPlayback(request)
-                } else {
-                    createDirectPlayback(request)
-                }
+                val handle = createPlayback(request, useMixer = request.mediaId != null)
                 Log.i(Tag, "BASS stream handle=$handle source=$currentSourceStream error=${bass.lastErrorCode}")
                 check(handle != 0) { errorMessage("BASS stream creation failed") }
                 if (stream == 0) {
@@ -360,30 +354,21 @@ class AndroidBassPlaybackEngine(
         }
     }
 
-    private fun createMixerPlayback(request: PlaybackRequest): Int {
-        val file = localFileFromUrl(request.url)
-        val playback = bass.createMixerBassPlayback(
-            localPath = file?.absolutePath,
-            url = request.url,
-            crossfadeDurationSeconds = crossfadeDurationSeconds,
-            replayGainFactor = replayGainFactor,
-        ).getOrThrow()
-        currentSourceStream = playback.sourceHandle
-        replayGainFactor = playback.replayGainFactor
-        stream = playback.playbackHandle
-        return playback.playbackHandle
-    }
-
-    private fun createDirectPlayback(request: PlaybackRequest): Int {
+    private fun createPlayback(request: PlaybackRequest, useMixer: Boolean): Int {
         val file = localFileFromUrl(request.url)
         val adjustment = playbackReplayGainAdjustment(request)
-        val playback = bass.createDirectBassPlayback(
+        val playback = bass.createBassPlayback(
             localPath = file?.absolutePath,
             url = request.url,
+            useMixer = useMixer,
+            crossfadeDurationSeconds = crossfadeDurationSeconds,
             replayGainFactor = adjustment.volumeFactor,
         ).getOrThrow()
         currentSourceStream = playback.sourceHandle
         replayGainFactor = playback.replayGainFactor
+        if (useMixer) {
+            stream = playback.playbackHandle
+        }
         return playback.playbackHandle
     }
 

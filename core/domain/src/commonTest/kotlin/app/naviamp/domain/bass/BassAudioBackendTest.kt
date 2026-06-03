@@ -299,6 +299,42 @@ class BassAudioBackendTest {
     }
 
     @Test
+    fun createsBassPlaybackThroughSharedDirectOrMixerSelector() {
+        val directBackend = RecordingBassAudioBackend()
+        val mixerBackend = RecordingBassAudioBackend()
+
+        val direct = directBackend.createBassPlayback(
+            localPath = "/tmp/song.flac",
+            url = "file:///tmp/song.flac",
+            useMixer = false,
+            crossfadeDurationSeconds = 5,
+            replayGainFactor = 0.5f,
+        )
+        val mixer = mixerBackend.createBassPlayback(
+            localPath = "/tmp/song.flac",
+            url = "file:///tmp/song.flac",
+            useMixer = true,
+            crossfadeDurationSeconds = 5,
+            replayGainFactor = 0.5f,
+            playbackDecode = true,
+        )
+
+        assertEquals(10, direct.getOrThrow().playbackHandle)
+        assertEquals(listOf("file:/tmp/song.flac"), directBackend.calls)
+        assertEquals(30, mixer.getOrThrow().playbackHandle)
+        assertEquals(
+            listOf(
+                "filePlaybackDecode:/tmp/song.flac",
+                "info:13",
+                "mixer:48000:2:false",
+                "volume:13:0.5",
+                "add:30:13",
+            ),
+            mixerBackend.calls,
+        )
+    }
+
+    @Test
     fun preparesNextBassMixerSourceThroughSharedTransitionPath() {
         val backend = RecordingBassAudioBackend()
 

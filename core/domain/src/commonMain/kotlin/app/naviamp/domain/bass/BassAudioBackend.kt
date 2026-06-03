@@ -371,6 +371,30 @@ fun BassAudioBackend.createMixerBassPlayback(
         )
     }
 
+fun BassAudioBackend.createBassPlayback(
+    localPath: String?,
+    url: String,
+    useMixer: Boolean,
+    crossfadeDurationSeconds: Int,
+    replayGainFactor: Float,
+    playbackDecode: Boolean = false,
+): Result<BassCreatedPlayback> =
+    if (useMixer) {
+        createMixerBassPlayback(
+            localPath = localPath,
+            url = url,
+            crossfadeDurationSeconds = crossfadeDurationSeconds,
+            replayGainFactor = replayGainFactor,
+            playbackDecode = playbackDecode,
+        )
+    } else {
+        createDirectBassPlayback(
+            localPath = localPath,
+            url = url,
+            replayGainFactor = replayGainFactor,
+        )
+    }
+
 fun BassAudioBackend.prepareNextBassMixerSource(
     localPath: String?,
     url: String,

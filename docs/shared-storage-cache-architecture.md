@@ -221,6 +221,7 @@ Then higher-level repositories can be composed from those stores:
   - Playback polling now reads active state, source active state, progress, and stream metadata through a shared BASS backend snapshot helper.
   - Prepared/queued BASS source creation now uses a shared backend helper, with platforms only supplying local file paths and whether local decode streams need playback-decode flags.
   - Prepared-next mixer source setup now uses a shared backend helper for queued source creation, transition planning/application, crossfade-active reporting, and envelope fallback reporting.
+  - Direct-vs-mixer BASS playback creation now flows through a shared backend selector; platforms only decide whether mixer playback applies for the request.
   - Still to normalize further: crossfade transition state reset and remaining transition application details should continue moving from platform playback engines into shared planning/services.
   - Keep JNI/JNA/native-loader details under platform adapters unless a single native bridge is proven simpler across all targets.
 - [ ] Normalize platform file/class names.
