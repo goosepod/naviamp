@@ -19,6 +19,7 @@ import app.naviamp.domain.bass.bassActiveStateLabel
 import app.naviamp.domain.bass.bassFailureMessage
 import app.naviamp.domain.bass.bassPlaybackVisualizerFrame
 import app.naviamp.domain.bass.channelInfo
+import app.naviamp.domain.bass.createDirectBassPlayback
 import app.naviamp.domain.bass.createPlaybackStream
 import app.naviamp.domain.bass.durationSeconds
 import app.naviamp.domain.bass.pause
@@ -192,11 +193,11 @@ class AndroidBassPlaybackEngine(
                 Log.i(Tag, "Opening BASS stream verifyNet=$verifyNet url=${request.url.sanitizedForLog()}")
                 bass.setVerifyNet(verifyNet).getOrThrow()
                 bass.configureInternetStreams().getOrThrow()
-                replayGainFactor = playbackReplayGainAdjustment(request).volumeFactor
                 val handle = if (request.mediaId != null) {
+                    replayGainFactor = playbackReplayGainAdjustment(request).volumeFactor
                     createMixerPlayback(request)
                 } else {
-                    createStream(request.url, decode = false)
+                    createDirectPlayback(request)
                 }
                 Log.i(Tag, "BASS stream handle=$handle source=$currentSourceStream error=${bass.lastErrorCode}")
                 check(handle != 0) { errorMessage("BASS stream creation failed") }
@@ -383,6 +384,19 @@ class AndroidBassPlaybackEngine(
         check(bass.addMixerChannel(mixer, source).isSuccess) { errorMessage("BASS_Mixer_StreamAddChannel failed") }
         stream = mixer
         return mixer
+    }
+
+    private fun createDirectPlayback(request: PlaybackRequest): Int {
+        val file = localFileFromUrl(request.url)
+        val adjustment = playbackReplayGainAdjustment(request)
+        val playback = bass.createDirectBassPlayback(
+            localPath = file?.absolutePath,
+            url = request.url,
+            replayGainFactor = adjustment.volumeFactor,
+        ).getOrThrow()
+        currentSourceStream = playback.sourceHandle
+        replayGainFactor = playback.replayGainFactor
+        return playback.playbackHandle
     }
 
     private fun createStream(url: String, decode: Boolean): Int {

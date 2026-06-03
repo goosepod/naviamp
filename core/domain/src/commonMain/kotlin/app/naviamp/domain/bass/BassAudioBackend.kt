@@ -97,6 +97,12 @@ data class BassPluginDiagnostic(
     val errorCode: Int? = null,
 )
 
+data class BassCreatedPlayback(
+    val playbackHandle: Int,
+    val sourceHandle: Int,
+    val replayGainFactor: Float,
+)
+
 interface BassAudioBackend {
     val version: Int?
         get() = null
@@ -283,6 +289,23 @@ fun BassAudioBackend.createPlaybackStream(
         }
     } else {
         if (decode) createUrlDecodeStream(url) else createUrlStream(url)
+    }
+
+fun BassAudioBackend.createDirectBassPlayback(
+    localPath: String?,
+    url: String,
+    replayGainFactor: Float,
+): Result<BassCreatedPlayback> =
+    createPlaybackStream(
+        localPath = localPath,
+        url = url,
+        decode = false,
+    ).map { handle ->
+        BassCreatedPlayback(
+            playbackHandle = handle.value,
+            sourceHandle = handle.value,
+            replayGainFactor = replayGainFactor,
+        )
     }
 
 fun BassAudioBackend.applyBassPlaybackVolume(

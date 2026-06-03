@@ -22,6 +22,7 @@ import app.naviamp.domain.bass.bassErrorMessage
 import app.naviamp.domain.bass.bassPlaybackVisualizerFrame
 import app.naviamp.domain.bass.bassVersionLabel
 import app.naviamp.domain.bass.channelInfo
+import app.naviamp.domain.bass.createDirectBassPlayback
 import app.naviamp.domain.bass.createPlaybackStream
 import app.naviamp.domain.bass.durationSeconds
 import app.naviamp.domain.bass.pause
@@ -434,14 +435,21 @@ class BassPlaybackEngine(
     private fun createDirectPlayback(
         bass: BassAudioBackend,
         request: PlaybackRequest,
-    ): Result<CreatedPlayback> =
-        createStream(bass, request, decode = false).map { handle ->
+    ): Result<CreatedPlayback> {
+        val adjustment = replayGainAdjustment(request)
+        val localFile = localFileFromUrl(request.url)
+        return bass.createDirectBassPlayback(
+            localPath = localFile?.absolutePath,
+            url = request.url,
+            replayGainFactor = adjustment.volumeFactor,
+        ).map { playback ->
             CreatedPlayback(
-                playbackHandle = handle,
-                sourceHandle = handle,
-                replayGainAdjustment = replayGainAdjustment(request),
+                playbackHandle = playback.playbackHandle,
+                sourceHandle = playback.sourceHandle,
+                replayGainAdjustment = adjustment,
             )
         }
+    }
 
     private fun createMixerPlayback(
         bass: BassAudioBackend,
