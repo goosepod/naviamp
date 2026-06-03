@@ -43,6 +43,7 @@ import app.naviamp.domain.playback.planPreparedPlaybackAdoption
 import app.naviamp.domain.playback.planPreparedMixerTransition
 import app.naviamp.domain.playback.playbackSourceHandle
 import app.naviamp.domain.playback.playbackReplayGainAdjustment
+import app.naviamp.domain.playback.playbackUserVolumeFactor
 import app.naviamp.domain.playback.shouldReusePreparedPlayback
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -509,7 +510,7 @@ class BassPlaybackEngine(
         playbackReplayGainAdjustment(request)
 
     private fun outputVolumeFactor(): Float =
-        volumePercent.coerceIn(0, 100) / 100f
+        playbackUserVolumeFactor(volumePercent)
 
     private fun visualizerFrameFor(
         bass: BassAudioBackend,

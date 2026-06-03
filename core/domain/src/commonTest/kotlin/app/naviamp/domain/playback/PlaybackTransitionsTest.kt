@@ -209,6 +209,14 @@ class PlaybackTransitionsTest {
     }
 
     @Test
+    fun computesUserVolumeFactorWithOptionalDucking() {
+        assertEquals(0.8f, playbackUserVolumeFactor(80))
+        assertEquals(0.2f, playbackUserVolumeFactor(80, transientDuckFactor = 0.25f))
+        assertEquals(1f, playbackUserVolumeFactor(120))
+        assertEquals(0f, playbackUserVolumeFactor(-10))
+    }
+
+    @Test
     fun plansDirectPlaybackVolumeWithReplayGainOnOutput() {
         val plan = playbackVolumeApplicationPlan(
             userVolumeFactor = 0.5f,

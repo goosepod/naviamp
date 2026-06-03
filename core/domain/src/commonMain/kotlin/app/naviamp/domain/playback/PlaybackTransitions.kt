@@ -163,6 +163,13 @@ fun playbackSourceHandle(
 ): Int =
     sourceHandle.takeIf { it != 0 } ?: playbackHandle
 
+fun playbackUserVolumeFactor(
+    volumePercent: Int,
+    transientDuckFactor: Float = 1f,
+): Float =
+    (volumePercent.coerceIn(0, 100) / 100f) *
+        transientDuckFactor.coerceIn(0f, MaxPlaybackVolumeFactor)
+
 fun playbackVolumeApplicationPlan(
     userVolumeFactor: Float,
     replayGainFactor: Float,

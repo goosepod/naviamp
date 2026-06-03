@@ -215,6 +215,7 @@ Then higher-level repositories can be composed from those stores:
   - Desktop gapless/crossfade support flags now read mixer capability from `BassAudioBackend` instead of raw `BassNative`.
   - Android gapless/crossfade support flags now also read mixer capability from `BassAudioBackend` instead of assuming mixer support.
   - Playback source-handle selection now lives in common playback helpers, so desktop and Android use the same source-vs-output handle rule for seek/progress reads.
+  - Playback user-volume factor calculation now lives in common playback helpers, with Android passing its audio-focus ducking factor through the shared path.
   - Still to normalize further: crossfade transition state reset and remaining transition application details should continue moving from platform playback engines into shared planning/services.
   - Keep JNI/JNA/native-loader details under platform adapters unless a single native bridge is proven simpler across all targets.
 - [ ] Normalize platform file/class names.

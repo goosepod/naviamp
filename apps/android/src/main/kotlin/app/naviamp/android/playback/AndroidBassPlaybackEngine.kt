@@ -49,6 +49,7 @@ import app.naviamp.domain.playback.planPreparedMixerTransition
 import app.naviamp.domain.playback.playbackReplayGainAdjustment
 import app.naviamp.domain.playback.playbackSourceHandle
 import app.naviamp.domain.playback.playbackStateForBassActiveState
+import app.naviamp.domain.playback.playbackUserVolumeFactor
 import app.naviamp.domain.playback.shouldFinishPlaybackForBassState
 import app.naviamp.domain.playback.shouldReusePreparedPlayback
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
@@ -547,7 +548,10 @@ class AndroidBassPlaybackEngine(
     }
 
     private fun applyVolume() {
-        val userVolume = (volumePercent / 100f) * if (duckedForFocusLoss) FocusDuckVolumeFactor else 1f
+        val userVolume = playbackUserVolumeFactor(
+            volumePercent = volumePercent,
+            transientDuckFactor = if (duckedForFocusLoss) FocusDuckVolumeFactor else 1f,
+        )
         stream.takeIf { it != 0 }?.let { handle ->
             bass.applyBassPlaybackVolume(
                 outputStream = handle,
@@ -563,7 +567,10 @@ class AndroidBassPlaybackEngine(
             outputStream = stream,
             sourceStream = currentSourceStream,
             muted = muted,
-            userVolumeFactor = (volumePercent / 100f) * if (duckedForFocusLoss) FocusDuckVolumeFactor else 1f,
+            userVolumeFactor = playbackUserVolumeFactor(
+                volumePercent = volumePercent,
+                transientDuckFactor = if (duckedForFocusLoss) FocusDuckVolumeFactor else 1f,
+            ),
             replayGainFactor = replayGainFactor,
         )
     }
