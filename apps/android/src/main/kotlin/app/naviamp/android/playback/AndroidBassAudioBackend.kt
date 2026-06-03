@@ -1,6 +1,7 @@
 package app.naviamp.android.playback
 
 import app.naviamp.domain.bass.BassAudioBackend
+import app.naviamp.domain.bass.BassStreamInfo
 import app.naviamp.domain.bass.BassStreamHandle
 
 class AndroidBassAudioBackend(
@@ -54,6 +55,16 @@ class AndroidBassAudioBackend(
     ): Result<BassStreamHandle> =
         bass.createMixer(frequency, channels, queueSources)
             .toHandleResult("BASS_Mixer_StreamCreate failed")
+
+    override fun channelInfo(stream: BassStreamHandle): Result<BassStreamInfo> {
+        val frequency = bass.channelInfoFrequency(stream.value)
+        val channels = bass.channelInfoChannels(stream.value)
+        return if (frequency > 0 && channels > 0) {
+            Result.success(BassStreamInfo(frequency = frequency, channels = channels))
+        } else {
+            Result.failure(IllegalStateException(errorMessage("BASS_ChannelGetInfo failed")))
+        }
+    }
 
     override fun addMixerChannel(
         mixer: BassStreamHandle,

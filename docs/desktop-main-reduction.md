@@ -214,6 +214,9 @@ Branch: `codex/desktop-main-reduction`
 - [x] Expose Android mixer-channel removal through the shared backend.
   - Android now implements `removeMixerChannel` on `BassAudioBackend`, matching desktop cleanup primitives.
   - Native bridge details remain isolated below the Android backend adapter.
+- [x] Expose Android BASS channel info through the shared backend.
+  - Android now implements `channelInfo` on `BassAudioBackend` and uses it to size mixer playback from source frequency/channels like desktop.
+  - Fixed mixer defaults remain only as fallback when BASS cannot provide source metadata.
 
 ## Architecture Refactor Backlog
 

@@ -193,6 +193,7 @@ Then higher-level repositories can be composed from those stores:
   - BASS polling finished-state detection now lives in common playback helpers, combining active-state and progress-at-end checks.
   - Android now exposes BASS byte position and seconds-to-bytes conversion through `BassAudioBackend`, matching desktop's crossfade/envelope primitives.
   - Android now exposes mixer-channel removal through `BassAudioBackend`, matching desktop cleanup primitives.
+  - Android now exposes BASS channel info through `BassAudioBackend` and uses it to size mixer playback from source frequency/channels like desktop.
   - Still to normalize further: crossfade transition state reset and envelope application details should continue moving from platform playback engines into shared planning/services.
   - Keep JNI/JNA/native-loader details under platform adapters unless a single native bridge is proven simpler across all targets.
 - [ ] Normalize platform file/class names.

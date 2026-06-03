@@ -154,6 +154,24 @@ Java_app_naviamp_android_playback_AndroidBassJni_nativeCreateMixer(JNIEnv* env, 
     return static_cast<jint>(mixer);
 }
 
+extern "C" JNIEXPORT jint JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeChannelInfoFrequency(JNIEnv* env, jobject thiz, jint stream) {
+    (void)env;
+    (void)thiz;
+    BASS_CHANNELINFO info{};
+    if (!BASS_ChannelGetInfo(static_cast<DWORD>(stream), &info)) return 0;
+    return static_cast<jint>(info.freq);
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeChannelInfoChannels(JNIEnv* env, jobject thiz, jint stream) {
+    (void)env;
+    (void)thiz;
+    BASS_CHANNELINFO info{};
+    if (!BASS_ChannelGetInfo(static_cast<DWORD>(stream), &info)) return 0;
+    return static_cast<jint>(info.chans);
+}
+
 extern "C" JNIEXPORT jboolean JNICALL
 Java_app_naviamp_android_playback_AndroidBassJni_nativeAddMixerChannel(JNIEnv* env, jobject thiz, jint mixer, jint stream) {
     (void)env;

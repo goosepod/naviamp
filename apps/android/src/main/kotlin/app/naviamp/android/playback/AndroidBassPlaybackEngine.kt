@@ -348,9 +348,10 @@ class AndroidBassPlaybackEngine(
         check(source != 0) { errorMessage("BASS decode stream creation failed") }
         currentSourceStream = source
         bass.setVolume(source, replayGainFactor)
+        val sourceInfo = bass.channelInfo(BassStreamHandle(source)).getOrNull()
         val mixer = bass.createMixer(
-            frequency = DefaultMixerFrequency,
-            channels = DefaultMixerChannels,
+            frequency = sourceInfo?.frequency?.takeIf { it > 0 } ?: DefaultMixerFrequency,
+            channels = sourceInfo?.channels?.takeIf { it > 0 } ?: DefaultMixerChannels,
             queueSources = shouldQueueMixerSources(crossfadeDurationSeconds),
         ).getOrNull()?.value ?: 0
         check(mixer != 0) { errorMessage("BASS_Mixer_StreamCreate failed") }
