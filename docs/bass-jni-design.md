@@ -17,7 +17,7 @@ The Kotlin side should expose two layers:
 - A shared app-facing BASS facade in common code for behavior that desktop and Android should use identically.
 - Platform/native bridge adapters below that facade, where desktop may currently wrap JNA/native access and Android wraps JNI.
 
-The first shared facade slice is `BassAudioBackend`, which covers decode-stream waveform reads. The broader interface below remains the target shape for playback, visualizers, metadata, gapless, and crossfade, but it should be reached through shared ports before UI or playback orchestration touches platform connector details.
+The first shared facade slices are `BassAudioBackend` and `BassStreamHandle`. The facade started with decode-stream waveform reads and now also models basic playback streams, active state, stream metadata, FFT, seek/progress, volume slides, and mixer channel creation/add. The broader interface below remains the target shape for playback, visualizers, metadata, gapless, and crossfade, but it should be reached through shared ports before UI or playback orchestration touches platform connector details.
 
 ```kotlin
 internal interface BassBinding {

@@ -173,7 +173,9 @@ Then higher-level repositories can be composed from those stores:
     - Next slice should introduce a shared waveform service that composes cached waveform lookup, local/downloaded audio preference, provider-stream fallback, TLS settings, analyzer calls, and persistence.
     - Avoid forcing Android into the current storage-shaped `AudioWaveformRepository.ensureAudioWaveform(sourceId, trackId, quality)` contract; Android needs `Track`, provider stream fallback, and playback cache behavior.
 - [ ] Expand the shared BASS facade beyond waveform reads.
-  - Model playback streams, decode streams, active state, stream metadata/tags, FFT visualizer reads, seek/position/duration, volume slides, mixer channels, end sync, gapless, and crossfade through shared interfaces.
+  - Playback streams, decode streams, active state, stream metadata/tags, FFT visualizer reads, seek/position/duration, volume slides, and mixer channel creation/add are now modeled on `BassAudioBackend` and implemented by desktop and Android adapters.
+  - Next migrate playback engines to consume `BassAudioBackend` for these primitives instead of raw `BassNative` / `AndroidBassJni`.
+  - Still to model through shared interfaces: end sync, mixer volume envelopes, gapless queue positioning, and crossfade fade curves.
   - Keep JNI/JNA/native-loader details under platform adapters unless a single native bridge is proven simpler across all targets.
 - [ ] Normalize platform file/class names.
   - Shared/common abstractions keep generic names.
