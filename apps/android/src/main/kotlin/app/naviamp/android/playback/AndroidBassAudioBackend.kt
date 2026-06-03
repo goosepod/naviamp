@@ -83,6 +83,20 @@ class AndroidBassAudioBackend(
             Result.failure(IllegalStateException(errorMessage("BASS_Mixer_ChannelRemove failed")))
         }
 
+    override fun setMixerVolumeEnvelope(
+        stream: BassStreamHandle,
+        points: List<Pair<Long, Float>>,
+    ): Result<Unit> {
+        if (points.isEmpty()) return Result.success(Unit)
+        val positions = LongArray(points.size) { index -> points[index].first.coerceAtLeast(0L) }
+        val volumes = FloatArray(points.size) { index -> points[index].second.coerceIn(0f, 1f) }
+        return if (bass.setMixerVolumeEnvelope(stream.value, positions, volumes)) {
+            Result.success(Unit)
+        } else {
+            Result.failure(IllegalStateException(errorMessage("BASS_Mixer_ChannelSetEnvelope volume failed")))
+        }
+    }
+
     override fun play(stream: BassStreamHandle): Result<Unit> =
         if (bass.play(stream.value)) {
             Result.success(Unit)

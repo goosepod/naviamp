@@ -19,11 +19,14 @@ import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
+import app.naviamp.domain.playback.PreparedMixerTransitionPlan
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.VisualizerBandCount
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.clearPreparedPlaybackMetadata
 import app.naviamp.domain.playback.clearPlaybackStreamState
+import app.naviamp.domain.playback.crossfadeFadeInEnvelopePoints
+import app.naviamp.domain.playback.crossfadeFadeOutEnvelopePoints
 import app.naviamp.domain.playback.failedPreparedPlaybackMetadata
 import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
 import app.naviamp.domain.playback.planBassMixerCreation
@@ -323,14 +326,7 @@ class AndroidBassPlaybackEngine(
             check(source != 0) { errorMessage("BASS next stream creation failed") }
             val nextReplayGain = playbackReplayGainAdjustment(request).volumeFactor
             val transition = planPreparedMixerTransition(crossfadeDurationSeconds, nextReplayGain)
-            bass.setVolume(source, transition.initialNextSourceVolume)
-            check(bass.addMixerChannel(mixer, source)) { errorMessage("BASS_Mixer_StreamAddChannel failed") }
-            if (transition.shouldCrossfade) {
-                bass.slideVolume(source, transition.finalNextSourceVolume, transition.durationMillis)
-                if (transition.shouldFadeCurrentSource) {
-                    currentSourceStream.takeIf { it != 0 }?.let { bass.slideVolume(it, 0f, transition.durationMillis) }
-                }
-            }
+            applyPreparedMixerTransition(source, transition)
             preparedReplayGainFactor = nextReplayGain
             source
         }.onSuccess { handle ->
@@ -361,6 +357,67 @@ class AndroidBassPlaybackEngine(
         check(bass.addMixerChannel(mixer, source)) { errorMessage("BASS_Mixer_StreamAddChannel failed") }
         stream = mixer
         return mixer
+    }
+
+    private fun applyPreparedMixerTransition(
+        nextSource: Int,
+        transition: PreparedMixerTransitionPlan,
+    ) {
+        val currentSource = currentSourceStream
+        bass.setVolume(nextSource, transition.initialNextSourceVolume)
+        check(bass.addMixerChannel(stream, nextSource)) { errorMessage("BASS_Mixer_StreamAddChannel failed") }
+        if (!transition.shouldCrossfade) return
+
+        applyNextSourceFade(nextSource, transition)
+        if (currentSource != 0 && transition.shouldFadeCurrentSource) {
+            applyCurrentSourceFade(currentSource, transition)
+        }
+    }
+
+    private fun applyNextSourceFade(
+        nextSource: Int,
+        transition: PreparedMixerTransitionPlan,
+    ) {
+        val durationBytes = bass.secondsToBytes(nextSource, transition.crossfadeDurationSeconds.toDouble())
+        if (durationBytes != null) {
+            bass.setMixerVolumeEnvelope(
+                nextSource,
+                crossfadeFadeInEnvelopePoints(
+                    durationBytes = durationBytes,
+                    volumeFactor = transition.finalNextSourceVolume,
+                ),
+            ).onFailure {
+                Log.w(Tag, it.message ?: "BASS fade-in envelope failed")
+                bass.setVolume(nextSource, 0f)
+                bass.slideVolume(nextSource, transition.finalNextSourceVolume, transition.durationMillis)
+            }
+        } else {
+            bass.setVolume(nextSource, 0f)
+            bass.slideVolume(nextSource, transition.finalNextSourceVolume, transition.durationMillis)
+        }
+    }
+
+    private fun applyCurrentSourceFade(
+        currentSource: Int,
+        transition: PreparedMixerTransitionPlan,
+    ) {
+        val startBytes = bass.positionBytes(currentSource)
+        val durationBytes = bass.secondsToBytes(currentSource, transition.crossfadeDurationSeconds.toDouble())
+        if (startBytes != null && durationBytes != null) {
+            bass.setMixerVolumeEnvelope(
+                currentSource,
+                crossfadeFadeOutEnvelopePoints(
+                    startBytes = startBytes,
+                    durationBytes = durationBytes,
+                    volumeFactor = replayGainFactor,
+                ),
+            ).onFailure {
+                Log.w(Tag, it.message ?: "BASS fade-out envelope failed")
+                bass.slideVolume(currentSource, 0f, transition.durationMillis)
+            }
+        } else {
+            bass.slideVolume(currentSource, 0f, transition.durationMillis)
+        }
     }
 
     private fun createStream(url: String, decode: Boolean): Int {
@@ -650,8 +707,17 @@ private fun BassAudioBackend.setVolume(stream: Int, volume: Float): Boolean =
 private fun BassAudioBackend.slideVolume(stream: Int, volume: Float, millis: Int): Boolean =
     slideVolume(BassStreamHandle(stream), volume, millis).isSuccess
 
+private fun BassAudioBackend.setMixerVolumeEnvelope(stream: Int, points: List<Pair<Long, Float>>): Result<Unit> =
+    setMixerVolumeEnvelope(BassStreamHandle(stream), points)
+
 private fun BassAudioBackend.seek(stream: Int, seconds: Double): Boolean =
     seek(BassStreamHandle(stream), seconds).isSuccess
+
+private fun BassAudioBackend.positionBytes(stream: Int): Long? =
+    positionBytes(BassStreamHandle(stream))
+
+private fun BassAudioBackend.secondsToBytes(stream: Int, seconds: Double): Long? =
+    secondsToBytes(BassStreamHandle(stream), seconds)
 
 private fun BassAudioBackend.positionSeconds(stream: Int): Double? =
     positionSeconds(BassStreamHandle(stream))
