@@ -34,11 +34,14 @@ import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.LyricsSidecarRepository
 import app.naviamp.domain.cache.MediaSourceRepository
+import app.naviamp.domain.cache.ObjectByteStore
+import app.naviamp.domain.cache.ObjectByteStoreService
 import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.cache.StoredAudioBytes
+import app.naviamp.domain.cache.StoredObjectBytes
 import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.domain.cache.TrackMetadataRepository
 import app.naviamp.domain.network.KtorSharedHttpClient
@@ -91,7 +94,8 @@ class DesktopCache(
     ProviderMediaSourceRepository,
     LocalLibraryIndexRepository,
     CacheMaintenanceRepository<StorageCacheStats>,
-    TrackMetadataRepository {
+    TrackMetadataRepository,
+    ObjectByteStore {
     private val json = Json {
         ignoreUnknownKeys = true
         encodeDefaults = true
@@ -101,6 +105,10 @@ class DesktopCache(
     private val hotImages = object : LinkedHashMap<String, ByteArray>(16, 0.75f, true) {}
     private var hotImageBytes: Long = 0
     private val httpClient = KtorSharedHttpClient()
+    private val imageByteStoreService = ObjectByteStoreService(
+        store = this,
+        httpClient = httpClient,
+    )
     private val audioCacheByteStoreService = AudioByteStoreService(
         store = DesktopAudioByteStore(audioCacheDirectory),
         httpClient = httpClient,
@@ -114,25 +122,36 @@ class DesktopCache(
         hotImage(url)?.let { return it }
 
         return withContext(Dispatchers.IO + NonCancellable) {
-            val now = nowMillis()
-            queries.selectImage(url).executeAsOneOrNull()?.let { bytes ->
-                queries.touchImage(now, url)
-                putHotImage(url, bytes)
-                return@withContext bytes
-            }
+            val bytes = imageByteStoreService.remoteBytes(url)
+            putHotImage(url, bytes)
+            bytes
+        }
+    }
 
-            val bytes = httpClient.getBytes(url) ?: throw IllegalStateException("Could not download image.")
+    override suspend fun objectBytes(key: String): ByteArray? =
+        withContext(Dispatchers.IO + NonCancellable) {
+            val now = nowMillis()
+            queries.selectImage(key).executeAsOneOrNull()?.also {
+                queries.touchImage(now, key)
+            }
+        }
+
+    override suspend fun writeObjectBytes(key: String, bytes: ByteArray): StoredObjectBytes =
+        withContext(Dispatchers.IO + NonCancellable) {
+            val now = nowMillis()
             queries.upsertImage(
-                url = url,
+                url = key,
                 bytes = bytes,
                 size_bytes = bytes.size.toLong(),
                 created_at_epoch_millis = now,
                 last_accessed_epoch_millis = now,
             )
-            putHotImage(url, bytes)
             trimImageStore()
-            bytes
+            StoredObjectBytes(key = key, sizeBytes = bytes.size.toLong())
         }
+
+    override fun deleteObjectBytes(key: String) {
+        queries.deleteImage(key)
     }
 
     suspend fun recentlyAddedAlbums(
