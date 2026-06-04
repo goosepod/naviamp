@@ -30,7 +30,6 @@ import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.LyricsSidecarRepository
 import app.naviamp.domain.cache.MediaSourceRepository
-import app.naviamp.domain.cache.ObjectByteStore
 import app.naviamp.domain.cache.ObjectByteStoreService
 import app.naviamp.domain.cache.PlaybackSessionRepository
 import app.naviamp.domain.cache.PlaybackHistoryRepository
@@ -40,7 +39,6 @@ import app.naviamp.domain.cache.ProviderResponseCacheService
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.cache.StoredAudioBytes
-import app.naviamp.domain.cache.StoredObjectBytes
 import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.domain.network.KtorSharedHttpClient
 import app.naviamp.domain.popular.ArtistPopularTrackCandidate
@@ -87,7 +85,6 @@ class AndroidStorage(
     LocalLibraryIndexRepository,
     CacheMaintenanceRepository<StorageCacheStats>,
     SidecarStatusRepository,
-    ObjectByteStore,
     AutoCloseable {
     private val appContext = context.applicationContext
     private val driver = AndroidSqliteDriver(
@@ -109,7 +106,10 @@ class AndroidStorage(
     )
     private val httpClient = KtorSharedHttpClient()
     private val imageByteStoreService = ObjectByteStoreService(
-        store = this,
+        store = AndroidObjectByteStore(
+            queries = queries,
+            nowMillis = ::nowMillis,
+        ),
         httpClient = httpClient,
     )
 
@@ -259,31 +259,6 @@ class AndroidStorage(
         withContext(Dispatchers.IO) {
             imageByteStoreService.remoteBytes(url)
         }
-
-    override suspend fun objectBytes(key: String): ByteArray? =
-        withContext(Dispatchers.IO) {
-            val now = nowMillis()
-            queries.selectImage(key).executeAsOneOrNull()?.also {
-                queries.touchImage(now, key)
-            }
-        }
-
-    override suspend fun writeObjectBytes(key: String, bytes: ByteArray): StoredObjectBytes =
-        withContext(Dispatchers.IO) {
-            val now = nowMillis()
-            queries.upsertImage(
-                url = key,
-                bytes = bytes,
-                size_bytes = bytes.size.toLong(),
-                created_at_epoch_millis = now,
-                last_accessed_epoch_millis = now,
-            )
-            StoredObjectBytes(key = key, sizeBytes = bytes.size.toLong())
-        }
-
-    override fun deleteObjectBytes(key: String) {
-        queries.deleteImage(key)
-    }
 
     override suspend fun <T> cachedProviderResponse(
         provider: MediaProvider,

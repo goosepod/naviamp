@@ -34,7 +34,6 @@ import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.LyricsSidecarRepository
 import app.naviamp.domain.cache.MediaSourceRepository
-import app.naviamp.domain.cache.ObjectByteStore
 import app.naviamp.domain.cache.ObjectByteStoreService
 import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
@@ -42,7 +41,6 @@ import app.naviamp.domain.cache.ProviderResponseCacheService
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.cache.StoredAudioBytes
-import app.naviamp.domain.cache.StoredObjectBytes
 import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.domain.cache.TrackMetadataRepository
 import app.naviamp.domain.network.KtorSharedHttpClient
@@ -95,8 +93,7 @@ class DesktopCache(
     ProviderMediaSourceRepository,
     LocalLibraryIndexRepository,
     CacheMaintenanceRepository<StorageCacheStats>,
-    TrackMetadataRepository,
-    ObjectByteStore {
+    TrackMetadataRepository {
     private val json = Json {
         ignoreUnknownKeys = true
         encodeDefaults = true
@@ -111,7 +108,11 @@ class DesktopCache(
     private var hotImageBytes: Long = 0
     private val httpClient = KtorSharedHttpClient()
     private val imageByteStoreService = ObjectByteStoreService(
-        store = this,
+        store = DesktopObjectByteStore(
+            queries = queries,
+            nowMillis = ::nowMillis,
+            afterWrite = ::trimImageStore,
+        ),
         httpClient = httpClient,
     )
     private val audioCacheByteStoreService = AudioByteStoreService(
@@ -131,32 +132,6 @@ class DesktopCache(
             putHotImage(url, bytes)
             bytes
         }
-    }
-
-    override suspend fun objectBytes(key: String): ByteArray? =
-        withContext(Dispatchers.IO + NonCancellable) {
-            val now = nowMillis()
-            queries.selectImage(key).executeAsOneOrNull()?.also {
-                queries.touchImage(now, key)
-            }
-        }
-
-    override suspend fun writeObjectBytes(key: String, bytes: ByteArray): StoredObjectBytes =
-        withContext(Dispatchers.IO + NonCancellable) {
-            val now = nowMillis()
-            queries.upsertImage(
-                url = key,
-                bytes = bytes,
-                size_bytes = bytes.size.toLong(),
-                created_at_epoch_millis = now,
-                last_accessed_epoch_millis = now,
-            )
-            trimImageStore()
-            StoredObjectBytes(key = key, sizeBytes = bytes.size.toLong())
-        }
-
-    override fun deleteObjectBytes(key: String) {
-        queries.deleteImage(key)
     }
 
     suspend fun recentlyAddedAlbums(
