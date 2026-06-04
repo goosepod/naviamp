@@ -236,15 +236,10 @@ class AndroidPlaylistEngine(
     }
 
     private fun nextQueueIndex(): Int? {
-        val currentTrack = state.nowPlaying ?: return null
-        val queue = activeQueue()
-        val currentIndex = queue.indexOfFirst { it.id == currentTrack.id }
-        if (currentIndex < 0) return null
-        playbackQueueController.replaceQueue(
-            queue = PlaybackQueue(tracks = queue, currentIndex = currentIndex),
-            clearPreparedNext = false,
+        return playbackQueueController.nextGaplessQueueIndexForExternalQueue(
+            tracks = activeQueue(),
+            currentTrack = state.nowPlaying,
+            repeatMode = state.repeatMode,
         )
-        playbackQueueController.setRepeatMode(state.repeatMode)
-        return playbackQueueController.nextGaplessQueueIndex()
     }
 }

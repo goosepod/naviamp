@@ -181,6 +181,8 @@ Then higher-level repositories can be composed from those stores:
     - Shared sidecar status helpers now record success/failure rows for desktop and Android sidecar work through the same `SidecarStatusRepository` path.
     - `AudioWaveformServiceResult` now owns waveform status text mapping, so callers do not rebuild cached/generated/unavailable labels independently.
     - First Android playlist-engine extraction slice is complete: `AndroidPlaylistEngine` now owns Android audio prefetch, sidecar prep, prepare-next, and waveform service composition instead of `MainActivity`.
+    - Prepare-next queue planning is now shared: desktop and Android both use common progress/capability/next-track gating before queueing prepared playback.
+    - Android's external active-queue sync for prepare-next now uses `PlaybackQueueController` instead of local index math in `AndroidPlaylistEngine`.
     - Next playlist-engine target: extract the common queue/start/prefetch/sidecar/prepare-next orchestration below desktop `PlaylistEngine` and Android `AndroidPlaylistEngine`, leaving platform wrappers to provide `Path`/`File`, foreground service, notification, and UI callbacks.
 - [ ] Expand the shared BASS facade beyond waveform reads.
   - Playback streams, decode streams, active state, stream metadata/tags, FFT visualizer reads, seek/position/duration, volume slides, and mixer channel creation/add are now modeled on `BassAudioBackend` and implemented by desktop and Android adapters.
