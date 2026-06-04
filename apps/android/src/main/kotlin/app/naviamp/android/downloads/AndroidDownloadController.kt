@@ -1,5 +1,7 @@
 package app.naviamp.android
 
+import app.naviamp.domain.cache.StorageCacheStats
+
 import android.content.Context
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.CacheMaintenanceRepository
@@ -23,7 +25,7 @@ fun downloadAndroidTrack(
     state: AndroidAppState,
     downloadRepository: DownloadRepository<AndroidDownloadedAudioFile, AndroidDownloadedTrack>,
     downloadReplacementRepository: DownloadReplacementRepository<AndroidDownloadedAudioFile>,
-    cacheMaintenanceRepository: CacheMaintenanceRepository<AndroidStorageStats>,
+    cacheMaintenanceRepository: CacheMaintenanceRepository<StorageCacheStats>,
     track: Track,
 ) {
     val activeProvider = state.provider
@@ -64,7 +66,7 @@ fun downloadAndroidTracks(
     state: AndroidAppState,
     downloadRepository: DownloadRepository<AndroidDownloadedAudioFile, AndroidDownloadedTrack>,
     downloadReplacementRepository: DownloadReplacementRepository<AndroidDownloadedAudioFile>,
-    cacheMaintenanceRepository: CacheMaintenanceRepository<AndroidStorageStats>,
+    cacheMaintenanceRepository: CacheMaintenanceRepository<StorageCacheStats>,
     tracksToDownload: List<Track>,
     label: String = "tracks",
 ) {
@@ -105,7 +107,7 @@ fun redownloadAndroidTracks(
     state: AndroidAppState,
     downloadRepository: DownloadRepository<AndroidDownloadedAudioFile, AndroidDownloadedTrack>,
     downloadReplacementRepository: DownloadReplacementRepository<AndroidDownloadedAudioFile>,
-    cacheMaintenanceRepository: CacheMaintenanceRepository<AndroidStorageStats>,
+    cacheMaintenanceRepository: CacheMaintenanceRepository<StorageCacheStats>,
     tracksToDownload: List<Track>,
     label: String = "downloads",
 ) {
@@ -140,7 +142,7 @@ fun removeAndroidDownload(
     scope: CoroutineScope,
     state: AndroidAppState,
     downloadRepository: DownloadRepository<AndroidDownloadedAudioFile, AndroidDownloadedTrack>,
-    cacheMaintenanceRepository: CacheMaintenanceRepository<AndroidStorageStats>,
+    cacheMaintenanceRepository: CacheMaintenanceRepository<StorageCacheStats>,
     download: NaviampDownloadedTrackUi,
     findKnownTrack: (String) -> Track?,
 ) {

@@ -1,5 +1,7 @@
 package app.naviamp.desktop
 
+import app.naviamp.domain.cache.StorageCacheStats
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -134,7 +136,7 @@ fun StatsForNerdsWindow(
                             appColors = appColors,
                             title = "Database",
                             rows = listOf(
-                                "Database" to info.cacheStats.databasePath,
+                                "Database" to info.cacheStats.databaseLabel,
                                 "File size" to info.cacheStats.databaseBytes.bytesLabel(),
                                 "Saved sources" to info.cacheStats.mediaSourceCount.toString(),
                                 "Library index" to "${info.cacheStats.libraryArtistCount} artists, " +
@@ -291,7 +293,7 @@ data class StatsForNerdsInfo(
     val currentQueueIndex: Int,
     val cacheRuntime: CacheRuntimeStats,
     val stream: StreamStats?,
-    val cacheStats: CacheStats,
+    val cacheStats: StorageCacheStats,
     val providerCapabilities: Map<String, Boolean>,
     val apiCalls: List<ApiCallStats>,
 )
@@ -338,7 +340,7 @@ data class LibrarySyncStats(
     val visibleAlbums: Int,
     val visibleTracks: Int,
 ) {
-    fun rows(cacheStats: CacheStats): List<Pair<String, String>> =
+    fun rows(cacheStats: StorageCacheStats): List<Pair<String, String>> =
         listOf(
             "Running" to isSyncing.toString(),
             "Status" to status,

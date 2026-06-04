@@ -1,5 +1,7 @@
 package app.naviamp.android
 
+import app.naviamp.domain.cache.StorageCacheStats
+
 import android.content.Context
 import app.naviamp.domain.app.NaviampContentState
 import app.naviamp.domain.app.NaviampNavigationState
@@ -60,7 +62,7 @@ fun resetAndroidPlaybackState(
 fun handleAndroidClearCache(
     context: Context,
     state: AndroidAppState,
-    cacheMaintenanceRepository: CacheMaintenanceRepository<AndroidStorageStats>,
+    cacheMaintenanceRepository: CacheMaintenanceRepository<StorageCacheStats>,
 ) {
     cacheMaintenanceRepository.clearCacheData()
     clearAndroidFileCaches(context)
@@ -84,7 +86,7 @@ fun handleAndroidClearLibrary(
 fun handleAndroidResetDatabase(
     context: Context,
     state: AndroidAppState,
-    cacheMaintenanceRepository: CacheMaintenanceRepository<AndroidStorageStats>,
+    cacheMaintenanceRepository: CacheMaintenanceRepository<StorageCacheStats>,
     settingsStore: AndroidSettingsStore,
     playbackEngine: app.naviamp.android.playback.AndroidPlaybackEngine,
     queueController: app.naviamp.domain.playback.PlaybackQueueController,

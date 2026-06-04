@@ -39,6 +39,7 @@ import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.cache.StoredAudioBytes
+import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.domain.cache.TrackMetadataRepository
 import app.naviamp.domain.network.KtorSharedHttpClient
 import app.naviamp.domain.popular.ArtistPopularTrackCandidate
@@ -89,7 +90,7 @@ class DesktopCache(
     MediaSourceRepository,
     ProviderMediaSourceRepository,
     LocalLibraryIndexRepository,
-    CacheMaintenanceRepository<CacheStats>,
+    CacheMaintenanceRepository<StorageCacheStats>,
     TrackMetadataRepository {
     private val json = Json {
         ignoreUnknownKeys = true
@@ -1134,9 +1135,9 @@ class DesktopCache(
         queries.clearMediaSources()
     }
 
-    override fun stats(): CacheStats =
-        CacheStats(
-            databasePath = databasePath.toAbsolutePath().toString(),
+    override fun stats(): StorageCacheStats =
+        StorageCacheStats(
+            databaseLabel = databasePath.toAbsolutePath().toString(),
             databaseBytes = databasePath.sizeOrZero(),
             imageCount = queries.imageCacheCount().executeAsOne(),
             imageBytes = queries.imageCacheSize().executeAsOne(),
@@ -1314,61 +1315,6 @@ class DesktopCache(
 
 object DesktopCaches {
     val session = DesktopCache()
-}
-
-data class CacheStats(
-    val databasePath: String,
-    val databaseBytes: Long,
-    val imageCount: Long,
-    val imageBytes: Long,
-    val responseCount: Long,
-    val audioCount: Long,
-    val audioBytes: Long,
-    val downloadCount: Long,
-    val downloadBytes: Long,
-    val audioWaveformCount: Long,
-    val audioWaveformBytes: Long,
-    val lyricsCount: Long,
-    val lyricsBytes: Long,
-    val mediaSourceCount: Long,
-    val libraryArtistCount: Long,
-    val libraryAlbumCount: Long,
-    val libraryTrackCount: Long,
-    val hotImageCount: Int,
-    val hotImageBytes: Long,
-    val maxImageBytes: Long,
-    val maxAudioBytes: Long,
-    val maxAudioWaveformBytes: Long,
-    val maxHotImageBytes: Long,
-) {
-    companion object {
-        fun empty(): CacheStats =
-            CacheStats(
-                databasePath = "",
-                databaseBytes = 0L,
-                imageCount = 0L,
-                imageBytes = 0L,
-                responseCount = 0L,
-                audioCount = 0L,
-                audioBytes = 0L,
-                downloadCount = 0L,
-                downloadBytes = 0L,
-                audioWaveformCount = 0L,
-                audioWaveformBytes = 0L,
-                lyricsCount = 0L,
-                lyricsBytes = 0L,
-                mediaSourceCount = 0L,
-                libraryArtistCount = 0L,
-                libraryAlbumCount = 0L,
-                libraryTrackCount = 0L,
-                hotImageCount = 0,
-                hotImageBytes = 0L,
-                maxImageBytes = 0L,
-                maxAudioBytes = 0L,
-                maxAudioWaveformBytes = 0L,
-                maxHotImageBytes = 0L,
-            )
-    }
 }
 
 data class CachedAudioFile(

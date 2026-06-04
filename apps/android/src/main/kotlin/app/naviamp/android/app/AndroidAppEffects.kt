@@ -1,5 +1,7 @@
 package app.naviamp.android
 
+import app.naviamp.domain.cache.StorageCacheStats
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -126,7 +128,7 @@ fun AndroidAppRuntimeEffects(
 fun AndroidAppPersistenceEffects(
     state: AndroidAppState,
     downloadRepository: DownloadRepository<AndroidDownloadedAudioFile, AndroidDownloadedTrack>,
-    cacheMaintenanceRepository: CacheMaintenanceRepository<AndroidStorageStats>,
+    cacheMaintenanceRepository: CacheMaintenanceRepository<StorageCacheStats>,
     savePlaybackSessionThrottled: (force: Boolean) -> Unit,
     checkAndroidLibraryFreshness: () -> Unit,
 ) {

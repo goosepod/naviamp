@@ -1,5 +1,7 @@
 package app.naviamp.android
 
+import app.naviamp.domain.cache.StorageCacheStats
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -41,7 +43,7 @@ class AndroidAppState(
     savedPlaybackSettings: PlaybackSettings,
     canAutoConnect: Boolean,
     savedSourceId: String?,
-    initialStorageStats: AndroidStorageStats,
+    initialStorageStats: StorageCacheStats,
     initialOpenNowPlayingRequest: Int,
     initialAutoPlayMediaIdRequest: String?,
     initialAutoCommandRequest: String?,
@@ -136,7 +138,7 @@ fun rememberAndroidAppState(
     savedPlaybackSettings: PlaybackSettings,
     canAutoConnect: Boolean,
     savedSourceId: String?,
-    initialStorageStats: AndroidStorageStats,
+    initialStorageStats: StorageCacheStats,
     initialOpenNowPlayingRequest: Int,
     initialAutoPlayMediaIdRequest: String?,
     initialAutoCommandRequest: String?,

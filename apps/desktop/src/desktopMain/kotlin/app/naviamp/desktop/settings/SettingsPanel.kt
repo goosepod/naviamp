@@ -1,5 +1,7 @@
 package app.naviamp.desktop
 
+import app.naviamp.domain.cache.StorageCacheStats
+
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -85,7 +87,7 @@ fun SettingsPanel(
     connectionStatus: String?,
     playbackSettings: PlaybackSettings,
     cacheSettings: CacheSettings,
-    cacheStats: CacheStats,
+    cacheStats: StorageCacheStats,
     supportsReplayGain: Boolean,
     supportsGapless: Boolean,
     supportsCrossfade: Boolean,
@@ -932,7 +934,7 @@ private fun LocalDataSettings(
 private fun CacheSettingsSection(
     appColors: AppColors,
     cacheSettings: CacheSettings,
-    cacheStats: CacheStats,
+    cacheStats: StorageCacheStats,
     onCacheSettingsChanged: (CacheSettings) -> Unit,
 ) {
     SettingsSectionTitle("Cache", appColors)

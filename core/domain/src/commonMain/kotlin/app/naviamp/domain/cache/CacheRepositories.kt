@@ -292,6 +292,35 @@ interface CacheMaintenanceRepository<Stats> {
     fun stats(): Stats
 }
 
+data class StorageCacheStats(
+    val databaseLabel: String = "",
+    val databaseBytes: Long = 0L,
+    val mediaSourceCount: Long = 0L,
+    val playbackSessionCount: Long = 0L,
+    val imageCount: Long = 0L,
+    val imageBytes: Long = 0L,
+    val responseCount: Long = 0L,
+    val audioCount: Long = 0L,
+    val audioBytes: Long = 0L,
+    val downloadCount: Long = 0L,
+    val downloadBytes: Long = 0L,
+    val audioWaveformCount: Long = 0L,
+    val audioWaveformBytes: Long = 0L,
+    val lyricsCount: Long = 0L,
+    val lyricsBytes: Long = 0L,
+    val libraryArtistCount: Long = 0L,
+    val libraryAlbumCount: Long = 0L,
+    val libraryTrackCount: Long = 0L,
+    val hotImageCount: Int = 0,
+    val hotImageBytes: Long = 0L,
+    val maxImageBytes: Long = 0L,
+    val maxAudioBytes: Long = 0L,
+    val maxAudioWaveformBytes: Long = 0L,
+    val maxHotImageBytes: Long = 0L,
+    val audioCacheDirectory: String = "",
+    val downloadDirectory: String = "",
+)
+
 data class LibrarySnapshot(
     val artists: List<Artist> = emptyList(),
     val albums: List<Album> = emptyList(),

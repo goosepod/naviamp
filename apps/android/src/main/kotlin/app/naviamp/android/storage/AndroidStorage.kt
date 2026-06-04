@@ -37,6 +37,7 @@ import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.cache.StoredAudioBytes
+import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.domain.network.KtorSharedHttpClient
 import app.naviamp.domain.popular.ArtistPopularTrackCandidate
 import app.naviamp.domain.popular.ArtistPopularTrackMatch
@@ -80,7 +81,7 @@ class AndroidStorage(
     ProviderMediaSourceRepository,
     PlaybackSessionRepository,
     LocalLibraryIndexRepository,
-    CacheMaintenanceRepository<AndroidStorageStats>,
+    CacheMaintenanceRepository<StorageCacheStats>,
     SidecarStatusRepository,
     AutoCloseable {
     private val appContext = context.applicationContext
@@ -1002,9 +1003,9 @@ class AndroidStorage(
         queries.clearMediaSources()
     }
 
-    override fun stats(): AndroidStorageStats =
-        AndroidStorageStats(
-            databaseName = DatabaseName,
+    override fun stats(): StorageCacheStats =
+        StorageCacheStats(
+            databaseLabel = DatabaseName,
             mediaSourceCount = queries.mediaSourceCount().executeAsOne(),
             playbackSessionCount = queries.playbackSessionCount().executeAsOne(),
             imageCount = queries.imageCacheCount().executeAsOne(),
@@ -1081,27 +1082,6 @@ class AndroidStorage(
         )
     }
 }
-
-data class AndroidStorageStats(
-    val databaseName: String,
-    val mediaSourceCount: Long,
-    val playbackSessionCount: Long,
-    val imageCount: Long,
-    val imageBytes: Long,
-    val responseCount: Long,
-    val audioCount: Long,
-    val audioBytes: Long,
-    val downloadCount: Long,
-    val downloadBytes: Long,
-    val audioWaveformCount: Long,
-    val audioWaveformBytes: Long,
-    val lyricsBytes: Long,
-    val libraryArtistCount: Long,
-    val libraryAlbumCount: Long,
-    val libraryTrackCount: Long,
-    val audioCacheDirectory: String,
-    val downloadDirectory: String,
-)
 
 data class AndroidCachedAudioFile(
     val file: File,

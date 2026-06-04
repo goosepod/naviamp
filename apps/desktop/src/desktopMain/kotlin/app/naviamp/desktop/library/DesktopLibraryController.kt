@@ -1,5 +1,7 @@
 package app.naviamp.desktop
 
+import app.naviamp.domain.cache.StorageCacheStats
+
 import androidx.compose.foundation.lazy.LazyListState
 import app.naviamp.domain.app.cacheDataClearedStatus
 import app.naviamp.domain.app.libraryIndexClearedStatus
@@ -22,7 +24,7 @@ class DesktopLibraryController(
     private val scope: CoroutineScope,
     private val libraryIndexRepository: LocalLibraryIndexRepository,
     private val mediaSourceRepository: MediaSourceRepository,
-    private val cacheMaintenanceRepository: CacheMaintenanceRepository<CacheStats>,
+    private val cacheMaintenanceRepository: CacheMaintenanceRepository<StorageCacheStats>,
     private val libraryOffsetForLetter: (sourceId: String, tab: LibraryTab, letter: Char) -> Long,
     private val librarySync: LibrarySync,
     private val provider: () -> MediaProvider?,

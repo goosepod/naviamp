@@ -1,5 +1,7 @@
 package app.naviamp.desktop
 
+import app.naviamp.domain.cache.StorageCacheStats
+
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
@@ -177,7 +179,7 @@ fun NaviampApp(
     val savedRecentRadioStreams = remember { settingsStore.loadRecentRadioStreams() }
     val savedRecentPlaylistIds = remember { settingsStore.loadRecentPlaylistIds() }
     val savedRecentInternetRadioStations = remember { settingsStore.loadRecentInternetRadioStations() }
-    var cacheStats by remember { mutableStateOf(CacheStats.empty()) }
+    var cacheStats by remember { mutableStateOf(StorageCacheStats()) }
     var connectedSourceId by remember { mutableStateOf(savedMediaSource?.id) }
     val deezerDiscoveryClient = remember { DeezerPopularTracksClient(DesktopPopularTracksHttpClient()) }
     val popularTracksService = remember(sessionCache) {
