@@ -13,7 +13,6 @@ import app.naviamp.domain.playback.coverArtPreloadUrls
 import app.naviamp.domain.playback.lyricsLoadingStatus
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
 import app.naviamp.domain.playback.shouldLoadOnlineLyrics
-import app.naviamp.domain.playback.waveformStatus
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.waveform.AudioWaveform
@@ -100,12 +99,7 @@ class DesktopNowPlayingController(
                         audioAssets = playbackAudioAssets,
                     ).localAudio
                 val waveform = waveformResult.waveform
-                val status = waveformStatus(
-                    cachedWaveformAvailable = waveformResult.cachedWaveformAvailable,
-                    generatedWaveformAvailable = waveformResult.generatedWaveformAvailable,
-                    audioAvailable = waveformResult.audioAvailable,
-                    audioCachingEnabled = activeCacheSettings.audioCachingEnabled,
-                )
+                val status = waveformResult.status(activeCacheSettings.audioCachingEnabled)
                 val tags = audioPath
                     ?.let { path -> runCatching { AudioTagReader().read(path) }.getOrDefault(emptyList()) }
                     .orEmpty()

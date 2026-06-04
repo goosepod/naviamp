@@ -6,6 +6,7 @@ import app.naviamp.domain.cache.AudioWaveformStorageRepository
 import app.naviamp.domain.playback.PlaybackAudioAssetRepository
 import app.naviamp.domain.playback.PlaybackSource
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
+import app.naviamp.domain.playback.waveformStatus
 import app.naviamp.domain.provider.MediaProvider
 
 data class AudioWaveformServiceResult<LocalAudio>(
@@ -18,6 +19,14 @@ data class AudioWaveformServiceResult<LocalAudio>(
 ) {
     val available: Boolean
         get() = waveform != null
+
+    fun status(audioCachingEnabled: Boolean): String =
+        waveformStatus(
+            cachedWaveformAvailable = cachedWaveformAvailable,
+            generatedWaveformAvailable = generatedWaveformAvailable,
+            audioAvailable = audioAvailable,
+            audioCachingEnabled = audioCachingEnabled,
+        )
 }
 
 class AudioWaveformService<LocalAudio>(

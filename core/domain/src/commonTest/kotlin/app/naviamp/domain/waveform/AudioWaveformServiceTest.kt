@@ -46,6 +46,7 @@ class AudioWaveformServiceTest {
         assertSame(cached, result.waveform)
         assertTrue(result.cachedWaveformAvailable)
         assertFalse(result.generatedWaveformAvailable)
+        assertEquals("Cached", result.status(audioCachingEnabled = true))
         assertEquals(0, analyzer.analyzedUrls.size)
         assertEquals(0, repository.stored.size)
     }
@@ -73,6 +74,7 @@ class AudioWaveformServiceTest {
         assertEquals("file://cache/song.flac", analyzer.analyzedUrls.single())
         assertEquals("cache/song.flac", result.localAudio)
         assertEquals(PlaybackSource.CachedFile, result.playbackSource)
+        assertEquals("Generated", result.status(audioCachingEnabled = true))
         assertEquals(listOf("source:track:cache/song.flac"), repository.stored)
     }
 
@@ -99,6 +101,7 @@ class AudioWaveformServiceTest {
         assertNull(result.localAudio)
         assertFalse(result.audioAvailable)
         assertEquals(PlaybackSource.ProviderStreamCacheDisabled, result.playbackSource)
+        assertEquals("Generated", result.status(audioCachingEnabled = false))
         assertEquals("https://example.test/stream/track", analyzer.analyzedUrls.single())
         assertEquals(0, repository.stored.size)
     }
