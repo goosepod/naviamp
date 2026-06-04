@@ -110,6 +110,40 @@ class PlaybackQueueControllerTest {
         assertEquals(tracks.drop(1), shuffled.shuffledSnapshot)
     }
 
+    @Test
+    fun externalQueueNextIndexSyncsQueueRepeatModeAndPreservesPreparedNext() {
+        val tracks = listOf(track("one"), track("two"))
+        val controller = PlaybackQueueController()
+        controller.markPreparedNext(1)
+
+        assertEquals(
+            0,
+            controller.nextGaplessQueueIndexForExternalQueue(
+                tracks = tracks,
+                currentTrack = tracks[1],
+                repeatMode = RepeatMode.Queue,
+            ),
+        )
+        assertEquals(PlaybackQueue(tracks, currentIndex = 1), controller.queue)
+        assertEquals(RepeatMode.Queue, controller.repeatMode)
+        assertEquals(1, controller.preparedNextIndex)
+    }
+
+    @Test
+    fun externalQueueNextIndexSkipsMissingCurrentTrack() {
+        val tracks = listOf(track("one"), track("two"))
+        val controller = PlaybackQueueController()
+
+        assertNull(
+            controller.nextGaplessQueueIndexForExternalQueue(
+                tracks = tracks,
+                currentTrack = track("missing"),
+                repeatMode = RepeatMode.Queue,
+            ),
+        )
+        assertEquals(PlaybackQueue(), controller.queue)
+    }
+
     private fun track(id: String): Track =
         Track(
             id = TrackId(id),

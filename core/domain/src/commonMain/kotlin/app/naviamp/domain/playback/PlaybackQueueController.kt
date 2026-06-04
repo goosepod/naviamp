@@ -148,6 +148,22 @@ class PlaybackQueueController(
     fun nextGaplessQueueIndex(): Int? =
         queue.nextIndex(repeatMode = repeatMode)
 
+    fun nextGaplessQueueIndexForExternalQueue(
+        tracks: List<Track>,
+        currentTrack: Track?,
+        repeatMode: RepeatMode,
+    ): Int? {
+        val current = currentTrack ?: return null
+        val currentIndex = tracks.indexOfFirst { it.id == current.id }
+        if (currentIndex < 0) return null
+        replaceQueue(
+            queue = PlaybackQueue(tracks = tracks, currentIndex = currentIndex),
+            clearPreparedNext = false,
+        )
+        setRepeatMode(repeatMode)
+        return nextGaplessQueueIndex()
+    }
+
     fun shouldPrepareNext(index: Int): Boolean =
         preparedNextIndex != index
 
