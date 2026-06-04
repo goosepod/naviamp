@@ -35,7 +35,6 @@ import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.InternetRadioStation
-import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
@@ -47,11 +46,6 @@ import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackRequest
-import app.naviamp.domain.playback.PlaybackState
-import app.naviamp.domain.playback.hasPendingSeekReachedTarget
-import app.naviamp.domain.playback.playbackStreamUrl
-import app.naviamp.domain.playback.resolvePlaybackAudioSource
-import app.naviamp.domain.playback.shouldIgnoreProgressForPendingSeek
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.network.KtorSharedHttpClient
@@ -62,10 +56,7 @@ import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.settings.RecentRadioKind
 import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.domain.settings.SavedTrack
-import app.naviamp.domain.settings.adjacentTrackSession
 import app.naviamp.domain.settings.playbackSessionFromQueue
-import app.naviamp.domain.settings.restoredTrackSession
-import app.naviamp.domain.settings.withPlaybackPosition
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.toNavidromeConnection
 import kotlinx.coroutines.Dispatchers
@@ -120,6 +111,24 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             syncQueue = ::syncAutoQueue,
             updateMediaSession = { metadata -> updateMediaSession(metadata, currentLargeIcon) },
             loadCoverArt = { url, metadata -> loadCoverArtAsync(url, metadata) },
+        )
+    }
+    private val servicePlaybackRuntimeController: AndroidServicePlaybackRuntimeController by lazy {
+        AndroidServicePlaybackRuntimeController(
+            context = applicationContext,
+            storage = { serviceStorage },
+            queueController = autoQueueController,
+            currentQueue = { currentAutoQueue },
+            currentQueueIndex = { currentAutoQueueIndex },
+            syncQueue = ::syncAutoQueue,
+            repeatMode = { serviceRepeatModeForQueue() },
+            repeatOne = { serviceRepeatMode == ServiceRepeatMode.One },
+            setCurrentMetadata = { metadata -> currentMetadata = metadata },
+            updateMediaSession = { metadata -> updateMediaSession(metadata, currentLargeIcon) },
+            updateMediaSessionPlaybackState = { updateMediaSessionPlaybackState() },
+            loadCoverArt = { url, metadata -> loadCoverArtAsync(url, metadata) },
+            playTrackQueue = ::playServiceTrackQueue,
+            playInternetRadioStation = ::playServiceInternetRadioStation,
         )
     }
 
@@ -371,32 +380,19 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     }
 
     private fun handleServiceAutoPlayPause() {
-        if (AndroidPlaybackNotificationControls.isPlaying) {
-            pauseServiceOwnedPlayback("Auto pause")
-            return
-        }
-        playSavedSession()
+        servicePlaybackRuntimeController.handleAutoPlayPause()
     }
 
     private fun pauseServiceOwnedPlayback(reason: String) {
-        if (!serviceOwnedPlayback) return
-        Log.i("NaviampAutoCommand", "Pausing service-owned playback: $reason")
-        runCatching { AndroidPlaybackRuntime.get(applicationContext).playbackEngine.pause() }
-        AndroidPlaybackNotificationControls.isPlaying = false
-        updateMediaSessionPlaybackState()
+        servicePlaybackRuntimeController.pause(reason)
     }
 
     private fun stopServiceOwnedPlayback(reason: String) {
-        Log.i("NaviampAutoCommand", "Stopping service-owned playback: $reason")
-        runCatching { AndroidPlaybackRuntime.get(applicationContext).playbackEngine.stop() }
-        AndroidPlaybackNotificationControls.isPlaying = false
-        serviceOwnedPlayback = false
-        updateMediaSessionPlaybackState()
+        servicePlaybackRuntimeController.stop(reason)
     }
 
     private fun stopPlaybackForUserRequest(reason: String) {
-        AndroidPlaybackNotificationControls.onStop?.invoke()
-            ?: stopServiceOwnedPlayback(reason)
+        servicePlaybackRuntimeController.stopForUserRequest(reason)
     }
 
     private fun stopPlaybackAndService(reason: String) {
@@ -407,44 +403,11 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     }
 
     private fun seekServiceOwnedPlayback(positionMillis: Long) {
-        val currentPositionSeconds = AndroidPlaybackNotificationControls.positionMillis
-            ?.let { it / 1_000.0 }
-            ?: 0.0
-        if (positionMillis == 0L && currentPositionSeconds > ServiceIgnoreZeroSeekAfterSeconds) {
-            Log.i(
-                "NaviampAutoCommand",
-                "Ignoring service zero seek while currentPosition=$currentPositionSeconds",
-            )
-            updateMediaSessionPlaybackState()
-            return
-        }
-        val positionSeconds = (positionMillis.coerceAtLeast(0L) / 1_000.0)
-        Log.i("NaviampAutoCommand", "Service seek requested seconds=$positionSeconds")
-        pendingServiceSeekPositionSeconds = positionSeconds
-        pendingServiceSeekAtMillis = System.currentTimeMillis()
-        AndroidPlaybackNotificationControls.positionMillis = positionMillis.coerceAtLeast(0L)
-        AndroidPlaybackRuntime.get(applicationContext).playbackEngine.seek(positionSeconds)
-        saveServicePlaybackPosition(positionSeconds)
-        updateMediaSessionPlaybackState()
-    }
-
-    private fun saveServicePlaybackPosition(positionSeconds: Double) {
-        val storage = serviceStorage
-        val sourceId = storage.latestNavidromeSource()?.id ?: return
-        val session = storage.loadPlaybackSession(sourceId) ?: return
-        storage.savePlaybackSession(
-            sourceId = sourceId,
-            session = session.withPlaybackPosition(positionSeconds),
-        )
+        servicePlaybackRuntimeController.seek(positionMillis)
     }
 
     private fun playSavedSessionAdjacent(delta: Int) {
-        val storage = serviceStorage
-        val sourceId = storage.latestNavidromeSource()?.id ?: return
-        val session = storage.loadPlaybackSession(sourceId) ?: return
-        val nextSession = session.adjacentTrackSession(delta) ?: return
-        storage.savePlaybackSession(sourceId = sourceId, session = nextSession)
-        playSavedSession(nextSession)
+        servicePlaybackRuntimeController.playSavedSessionAdjacent(delta)
     }
 
     private fun syncAutoQueue(queue: PlaybackQueue) {
@@ -460,136 +423,11 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             ServiceRepeatMode.One -> RepeatMode.Track
         }
 
-    private fun playServiceOwnedAdjacent(delta: Int): Boolean {
-        if (!serviceOwnedPlayback) return false
-        autoQueueController.replaceQueue(PlaybackQueue(currentAutoQueue, currentAutoQueueIndex))
-        autoQueueController.setRepeatMode(serviceRepeatModeForQueue())
-        val selection = autoQueueController.adjacent(offset = delta)
-        if (selection == null) {
-            Log.i(
-                "NaviampAutoCommand",
-                "Service-owned queue has no adjacent track delta=$delta index=$currentAutoQueueIndex size=${currentAutoQueue.size}",
-            )
-            AndroidPlaybackNotificationControls.isPlaying = false
-            updateMediaSessionPlaybackState()
-            return true
-        }
-        val storage = serviceStorage
-        val sourceId = storage.latestNavidromeSource()?.id ?: return false
-        Log.i(
-            "NaviampAutoCommand",
-            "Service-owned queue advancing delta=$delta from=$currentAutoQueueIndex to=${selection.queue.currentIndex} size=${selection.queue.tracks.size}",
-        )
-        playServiceTrackQueue(storage, sourceId, selection.queue.tracks, selection.queue.currentIndex)
-        return true
-    }
-
-    private fun handleServiceTrackFinished() {
-        if (serviceRepeatMode == ServiceRepeatMode.One) {
-            autoQueueController.replaceQueue(PlaybackQueue(currentAutoQueue, currentAutoQueueIndex))
-            val selection = autoQueueController.playCurrent()
-            if (selection != null) {
-                val storage = serviceStorage
-                val sourceId = storage.latestNavidromeSource()?.id ?: return
-                playServiceTrackQueue(storage, sourceId, selection.queue.tracks, selection.queue.currentIndex)
-                return
-            }
-        }
-        playServiceOwnedAdjacent(1)
-    }
+    private fun playServiceOwnedAdjacent(delta: Int): Boolean =
+        servicePlaybackRuntimeController.playServiceOwnedAdjacent(delta)
 
     private fun playSavedSession(existingSession: PlaybackSessionSettings? = null) {
-        val storage = serviceStorage
-        val source = storage.latestNavidromeSource() ?: return
-        val session = existingSession ?: storage.loadPlaybackSession(source.id) ?: return
-        session.internetRadioStation?.let { station ->
-            playServiceInternetRadioStation(storage, storage, source.id, station.toStation())
-            return
-        }
-        val restoredSession = session.restoredTrackSession() ?: return
-        val track = restoredSession.currentTrack
-        syncAutoQueue(PlaybackQueue(restoredSession.tracks, restoredSession.currentIndex))
-        val connection = source.toNavidromeConnection()
-        val provider = NavidromeProvider(connection)
-        val runtime = AndroidPlaybackRuntime.get(applicationContext)
-        val playbackSettings = AndroidSettingsStore(applicationContext).loadPlaybackSettings()
-        val audioAssets = AndroidPlaybackAudioAssets(storage, storage)
-        val quality = StreamQuality.Original
-        val startPositionSeconds = session.positionSeconds?.takeIf { it > 0.0 }
-
-        runtime.playbackEngine.applyTlsSettings(connection.tlsSettings)
-        AndroidPlaybackNotificationControls.canFavorite = provider.capabilities.supportsTrackFavorites
-        AndroidPlaybackNotificationControls.isFavorite = track.favoritedAtIso8601 != null
-        AndroidPlaybackNotificationControls.isPlaying = true
-        serviceOwnedPlayback = true
-        lastServiceSessionSaveAtMillis = 0L
-        lastServicePlaybackState = null
-        AndroidPlaybackNotificationControls.positionMillis = startPositionSeconds
-            ?.let { (it * 1_000.0).toLong() }
-            ?: 0L
-        AndroidPlaybackNotificationControls.durationMillis = track.durationSeconds
-            ?.takeIf { it > 0 }
-            ?.let { it * 1_000L }
-        currentMetadata = AndroidPlaybackNotificationMetadata(
-            title = track.title,
-            subtitle = track.artistName,
-            coverArtUrl = storage.savedCoverArtUrl(track),
-        )
-        currentMetadata.coverArtUrl?.let { loadCoverArtAsync(it, currentMetadata) }
-        updateMediaSession(currentMetadata, currentLargeIcon)
-        Log.i(
-            "NaviampAutoCommand",
-            "Service playing saved session source=${source.id} title=${track.title} position=$startPositionSeconds",
-        )
-
-        runtime.scope.launch {
-            runCatching {
-                val audioSourcePlan = resolvePlaybackAudioSource(
-                    sourceId = source.id,
-                    track = track,
-                    quality = quality,
-                    audioCachingEnabled = true,
-                    startPositionSeconds = startPositionSeconds,
-                    audioAssets = audioAssets,
-                )
-                val streamUrl = audioSourcePlan.playbackStreamUrl(
-                    providerStreamUrl = { target -> provider.streamUrl(target.providerStreamRequest) },
-                )
-                streamUrl to audioSourcePlan.target.engineStartPositionSeconds
-            }.onSuccess { playbackTarget ->
-                runtime.playbackEngine.updateNotificationMetadata(
-                    title = track.title,
-                    subtitle = track.artistName,
-                    coverArtUrl = storage.savedCoverArtUrl(track),
-                )
-                runtime.playbackEngine.play(
-                    scope = runtime.scope,
-                    request = PlaybackRequest(
-                        url = playbackTarget.first,
-                        mediaId = track.id.value,
-                        replayGainMode = playbackSettings.replayGainMode,
-                        startPositionSeconds = playbackTarget.second,
-                    ),
-                    onStateChanged = { state ->
-                        if (state != lastServicePlaybackState) {
-                            lastServicePlaybackState = state
-                            AndroidPlaybackNotificationControls.isPlaying = state == PlaybackState.Playing
-                            updateMediaSessionPlaybackState()
-                        }
-                        if (state == PlaybackState.Finished) {
-                            handleServiceTrackFinished()
-                        }
-                    },
-                    onProgressChanged = { progress ->
-                        handleServicePlaybackProgress(storage, source.id, session, progress)
-                    },
-                )
-            }.onFailure { error ->
-                Log.w("NaviampAutoCommand", "Service saved-session playback failed", error)
-                AndroidPlaybackNotificationControls.isPlaying = false
-                updateMediaSessionPlaybackState()
-            }
-        }
+        servicePlaybackRuntimeController.playSavedSession(existingSession)
     }
 
     private fun handleServicePlayMediaId(mediaId: String): Boolean {
@@ -1099,7 +937,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         AndroidPlaybackNotificationControls.isPlaying = true
         AndroidPlaybackNotificationControls.positionMillis = 0L
         AndroidPlaybackNotificationControls.durationMillis = null
-        serviceOwnedPlayback = true
+        servicePlaybackRuntimeController.markStarted()
         syncAutoQueue(PlaybackQueue())
         currentMetadata = AndroidPlaybackNotificationMetadata(
             title = station.name,
@@ -1119,11 +957,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                         scope = runtime.scope,
                         request = PlaybackRequest(streamUrl),
                         onStateChanged = { state ->
-                            if (state != lastServicePlaybackState) {
-                                lastServicePlaybackState = state
-                                AndroidPlaybackNotificationControls.isPlaying = state == PlaybackState.Playing
-                                updateMediaSessionPlaybackState()
-                            }
+                            servicePlaybackRuntimeController.handlePlaybackStateChanged(state)
                         },
                         onProgressChanged = { progress ->
                             handleServicePlaybackProgress(
@@ -1176,46 +1010,12 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         session: PlaybackSessionSettings,
         progress: PlaybackProgress,
     ) {
-        val now = System.currentTimeMillis()
-        val progressPositionSeconds = progress.positionSeconds
-        if (progressPositionSeconds == null && progress.durationSeconds == null) return
-        val pendingSeekPosition = pendingServiceSeekPositionSeconds
-        if (
-            shouldIgnoreProgressForPendingSeek(
-                pendingSeekPositionSeconds = pendingSeekPosition,
-                pendingSeekIssuedAtMillis = pendingServiceSeekAtMillis,
-                incomingPositionSeconds = progressPositionSeconds,
-                nowMillis = now,
-                toleranceSeconds = ServiceSeekToleranceSeconds,
-                staleWindowMillis = ServiceSeekStaleProgressWindowMillis,
-            )
-        ) {
-            return
-        }
-        if (
-            hasPendingSeekReachedTarget(
-                pendingSeekPositionSeconds = pendingSeekPosition,
-                incomingPositionSeconds = progressPositionSeconds,
-                toleranceSeconds = ServiceSeekToleranceSeconds,
-            )
-        ) {
-            pendingServiceSeekPositionSeconds = null
-        }
-        val positionMillis = progressPositionSeconds
-            ?.takeIf { it >= 0.0 }
-            ?.let { (it * 1_000.0).toLong() }
-        val durationMillis = progress.durationSeconds
-            ?.takeIf { it > 0.0 }
-            ?.let { (it * 1_000.0).toLong() }
-        AndroidPlaybackNotificationControls.positionMillis = positionMillis
-        AndroidPlaybackNotificationControls.durationMillis = durationMillis
-        if (now - lastServiceSessionSaveAtMillis >= ServicePlaybackSessionSaveIntervalMillis) {
-            lastServiceSessionSaveAtMillis = now
-            playbackSessionRepository.savePlaybackSession(
-                sourceId = sourceId,
-                session = session.withPlaybackPosition(progressPositionSeconds),
-            )
-        }
+        servicePlaybackRuntimeController.handlePlaybackProgress(
+            playbackSessionRepository = playbackSessionRepository,
+            sourceId = sourceId,
+            session = session,
+            progress = progress,
+        )
     }
 
     private fun ensureMediaSession(): MediaSessionCompat =
@@ -1545,20 +1345,11 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         private var currentMetadata = AndroidPlaybackNotificationMetadata()
         private var currentLargeIcon: Bitmap? = null
         private var currentMediaSessionDurationMillis: Long? = null
-        private var serviceOwnedPlayback = false
         private var currentAutoQueue: List<Track> = emptyList()
         private var currentAutoQueueIndex: Int = -1
         private var lastPublishedAutoQueueSignature: String? = null
         private var serviceShuffleEnabled = false
         private var serviceRepeatMode = ServiceRepeatMode.Off
-        private var lastServiceSessionSaveAtMillis = 0L
-        private var lastServicePlaybackState: PlaybackState? = null
-        private var pendingServiceSeekPositionSeconds: Double? = null
-        private var pendingServiceSeekAtMillis = 0L
-        private const val ServicePlaybackSessionSaveIntervalMillis = 5_000L
-        private const val ServiceSeekToleranceSeconds = 2.0
-        private const val ServiceSeekStaleProgressWindowMillis = 1_500L
-        private const val ServiceIgnoreZeroSeekAfterSeconds = 3.0
 
         fun start(context: Context, metadata: AndroidPlaybackNotificationMetadata) {
             val intent = Intent(context, AndroidPlaybackForegroundService::class.java)
