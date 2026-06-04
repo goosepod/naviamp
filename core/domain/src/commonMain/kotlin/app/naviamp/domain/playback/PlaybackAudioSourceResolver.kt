@@ -26,59 +26,59 @@ data class PlaybackLocalAudio(
     val sizeBytes: Long? = null,
 )
 
-interface PlaybackAudioAssetRepository<LocalAudio> {
+interface PlaybackAudioAssetRepository {
     suspend fun downloadedAudio(
         sourceId: String,
         trackId: TrackId,
-    ): LocalAudio?
+    ): PlaybackLocalAudio?
 
     suspend fun downloadedAudio(
         sourceId: String,
         trackId: TrackId,
         quality: StreamQuality,
-    ): LocalAudio?
+    ): PlaybackLocalAudio?
 
     suspend fun cachedAudio(
         sourceId: String,
         trackId: TrackId,
         quality: StreamQuality,
-    ): LocalAudio?
+    ): PlaybackLocalAudio?
 }
 
-suspend fun <LocalAudio> PlaybackAudioSourcePlan<LocalAudio>.playbackStreamUrl(
-    localAudioUrl: (LocalAudio) -> String,
+suspend fun PlaybackAudioSourcePlan<PlaybackLocalAudio>.playbackStreamUrl(
+    localAudioUrl: (PlaybackLocalAudio) -> String = { it.uri },
     providerStreamUrl: suspend (PlaybackTargetPlan) -> String,
 ): String =
     localAudio?.let(localAudioUrl) ?: providerStreamUrl(target)
 
-fun <LocalAudio> emptyPlaybackAudioAssetRepository(): PlaybackAudioAssetRepository<LocalAudio> =
-    object : PlaybackAudioAssetRepository<LocalAudio> {
+fun emptyPlaybackAudioAssetRepository(): PlaybackAudioAssetRepository =
+    object : PlaybackAudioAssetRepository {
         override suspend fun downloadedAudio(
             sourceId: String,
             trackId: TrackId,
-        ): LocalAudio? = null
+        ): PlaybackLocalAudio? = null
 
         override suspend fun downloadedAudio(
             sourceId: String,
             trackId: TrackId,
             quality: StreamQuality,
-        ): LocalAudio? = null
+        ): PlaybackLocalAudio? = null
 
         override suspend fun cachedAudio(
             sourceId: String,
             trackId: TrackId,
             quality: StreamQuality,
-        ): LocalAudio? = null
+        ): PlaybackLocalAudio? = null
     }
 
-suspend fun <LocalAudio> resolvePlaybackAudioSource(
+suspend fun resolvePlaybackAudioSource(
     sourceId: String?,
     track: Track,
     quality: StreamQuality,
     audioCachingEnabled: Boolean,
-    audioAssets: PlaybackAudioAssetRepository<LocalAudio>,
+    audioAssets: PlaybackAudioAssetRepository,
     startPositionSeconds: Double? = null,
-): PlaybackAudioSourcePlan<LocalAudio> =
+): PlaybackAudioSourcePlan<PlaybackLocalAudio> =
     resolvePlaybackAudioSource(
         sourceId = sourceId,
         track = track,

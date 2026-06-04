@@ -14,6 +14,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.AudioWaveformStorageRepository
 import app.naviamp.domain.playback.PlaybackAudioAssetRepository
+import app.naviamp.domain.playback.PlaybackLocalAudio
 import app.naviamp.domain.playback.PlaybackSource
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaProvider
@@ -72,7 +73,7 @@ class AudioWaveformServiceTest {
 
         assertSame(generated, result.waveform)
         assertEquals("file://cache/song.flac", analyzer.analyzedUrls.single())
-        assertEquals("cache/song.flac", result.localAudio)
+        assertEquals("cache/song.flac", result.localAudio?.path)
         assertEquals(PlaybackSource.CachedFile, result.playbackSource)
         assertEquals("Generated", result.status(audioCachingEnabled = true))
         assertEquals(listOf("source:track:cache/song.flac"), repository.stored)
@@ -117,7 +118,7 @@ class AudioWaveformServiceTest {
             audioAssets = RecordingAudioAssets(),
             cacheAudioForWaveform = { _, _, track, _ ->
                 cachedTracks += track.id
-                "cache/generated.flac"
+                localAudio("cache/generated.flac")
             },
         )
 
@@ -138,20 +139,18 @@ class AudioWaveformServiceTest {
     private fun service(
         repository: RecordingWaveformRepository,
         analyzer: RecordingWaveformAnalyzer,
-        audioAssets: PlaybackAudioAssetRepository<String> = RecordingAudioAssets(),
+        audioAssets: PlaybackAudioAssetRepository = RecordingAudioAssets(),
         cacheAudioForWaveform: suspend (
             sourceId: String,
             provider: MediaProvider,
             track: Track,
             quality: StreamQuality,
-        ) -> String? = { _, _, _, _ -> null },
-    ): AudioWaveformService<String> =
+        ) -> PlaybackLocalAudio? = { _, _, _, _ -> null },
+    ): AudioWaveformService =
         AudioWaveformService(
             waveformRepository = repository,
             audioAssets = audioAssets,
             analyzer = analyzer,
-            localAudioUrl = { path -> "file://$path" },
-            localAudioPath = { path -> path },
             cacheAudioForWaveform = cacheAudioForWaveform,
         )
 
@@ -167,6 +166,12 @@ class AudioWaveformServiceTest {
             replayGain = null,
         )
 }
+
+private fun localAudio(path: String): PlaybackLocalAudio =
+    PlaybackLocalAudio(
+        path = path,
+        uri = "file://$path",
+    )
 
 private class RecordingWaveformRepository(
     private val cached: AudioWaveform? = null,
@@ -194,20 +199,21 @@ private class RecordingWaveformRepository(
 private class RecordingAudioAssets(
     private val downloaded: String? = null,
     private val cached: String? = null,
-) : PlaybackAudioAssetRepository<String> {
-    override suspend fun downloadedAudio(sourceId: String, trackId: TrackId): String? = downloaded
+) : PlaybackAudioAssetRepository {
+    override suspend fun downloadedAudio(sourceId: String, trackId: TrackId): PlaybackLocalAudio? =
+        downloaded?.let(::localAudio)
 
     override suspend fun downloadedAudio(
         sourceId: String,
         trackId: TrackId,
         quality: StreamQuality,
-    ): String? = downloaded
+    ): PlaybackLocalAudio? = downloaded?.let(::localAudio)
 
     override suspend fun cachedAudio(
         sourceId: String,
         trackId: TrackId,
         quality: StreamQuality,
-    ): String? = cached
+    ): PlaybackLocalAudio? = cached?.let(::localAudio)
 }
 
 private class RecordingWaveformAnalyzer(

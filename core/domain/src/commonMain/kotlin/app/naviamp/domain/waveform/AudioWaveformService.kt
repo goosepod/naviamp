@@ -4,15 +4,16 @@ import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.AudioWaveformStorageRepository
 import app.naviamp.domain.playback.PlaybackAudioAssetRepository
+import app.naviamp.domain.playback.PlaybackLocalAudio
 import app.naviamp.domain.playback.PlaybackSource
 import app.naviamp.domain.playback.playbackStreamUrl
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
 import app.naviamp.domain.playback.waveformStatus
 import app.naviamp.domain.provider.MediaProvider
 
-data class AudioWaveformServiceResult<LocalAudio>(
+data class AudioWaveformServiceResult(
     val waveform: AudioWaveform?,
-    val localAudio: LocalAudio?,
+    val localAudio: PlaybackLocalAudio?,
     val cachedWaveformAvailable: Boolean,
     val generatedWaveformAvailable: Boolean,
     val audioAvailable: Boolean,
@@ -30,19 +31,17 @@ data class AudioWaveformServiceResult<LocalAudio>(
         )
 }
 
-class AudioWaveformService<LocalAudio>(
+class AudioWaveformService(
     private val waveformRepository: AudioWaveformStorageRepository,
-    private val audioAssets: PlaybackAudioAssetRepository<LocalAudio>,
+    private val audioAssets: PlaybackAudioAssetRepository,
     private val analyzer: AudioWaveformAnalyzer,
-    private val localAudioUrl: (LocalAudio) -> String,
-    private val localAudioPath: (LocalAudio) -> String? = { null },
     private val prepareAnalysis: suspend () -> Unit = {},
     private val cacheAudioForWaveform: suspend (
         sourceId: String,
         provider: MediaProvider,
         track: Track,
         quality: StreamQuality,
-    ) -> LocalAudio? = { _, _, _, _ -> null },
+    ) -> PlaybackLocalAudio? = { _, _, _, _ -> null },
 ) {
     suspend fun loadOrCreateWaveform(
         sourceId: String?,
@@ -50,7 +49,7 @@ class AudioWaveformService<LocalAudio>(
         track: Track,
         quality: StreamQuality,
         audioCachingEnabled: Boolean,
-    ): AudioWaveformServiceResult<LocalAudio> {
+    ): AudioWaveformServiceResult {
         if (sourceId != null) {
             waveformRepository.cachedAudioWaveform(sourceId, track.id, quality)?.let { waveform ->
                 return AudioWaveformServiceResult(
@@ -99,7 +98,6 @@ class AudioWaveformService<LocalAudio>(
 
         prepareAnalysis()
         val streamUrl = plan.copy(localAudio = localAudio).playbackStreamUrl(
-            localAudioUrl = localAudioUrl,
             providerStreamUrl = { target -> provider.streamUrl(target.providerStreamRequest) },
         )
         val waveform = analyzer.analyze(
@@ -113,7 +111,7 @@ class AudioWaveformService<LocalAudio>(
                 sourceId = sourceId,
                 trackId = track.id,
                 quality = quality,
-                audioFilePath = localAudioPath(localAudio),
+                audioFilePath = localAudio.path,
                 waveform = waveform,
             )
         } else {

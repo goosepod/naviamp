@@ -53,10 +53,10 @@ class PlaylistEngine(
     private val audioCachingEnabledProvider: () -> Boolean = { true },
     private val audioPrefetchDepthProvider: () -> Int = { DefaultAudioPrefetchDepth },
     private val audioCacheRepository: AudioCacheRepository<CachedAudioFile, CachedAudioMetadata>? = null,
-    private val audioWaveformService: AudioWaveformService<Path>? = null,
+    private val audioWaveformService: AudioWaveformService? = null,
     private val lyricsSidecarRepository: LyricsSidecarRepository? = null,
     private val sidecarStatusRepository: SidecarStatusRepository? = null,
-    playbackAudioAssets: PlaybackAudioAssetRepository<Path>? = null,
+    playbackAudioAssets: PlaybackAudioAssetRepository? = null,
 ) {
     private val playbackAudioAssets = playbackAudioAssets ?: emptyPlaybackAudioAssetRepository()
     private var provider: MediaProvider? = null
@@ -311,7 +311,6 @@ class PlaylistEngine(
         )
         return PlaybackTarget(
             url = plan.playbackStreamUrl(
-                localAudioUrl = { path -> path.toUri().toString() },
                 providerStreamUrl = { target -> provider.streamUrl(target.providerStreamRequest) },
             ),
             source = plan.source,
@@ -441,7 +440,7 @@ class PlaylistEngine(
     }
 
     private suspend fun runPrefetchSidecars(
-        waveformService: AudioWaveformService<Path>,
+        waveformService: AudioWaveformService,
         lyricsRepository: LyricsSidecarRepository,
         sidecarStatusRepository: SidecarStatusRepository,
         sourceId: String,
@@ -504,7 +503,7 @@ class PlaylistEngine(
     }
 
     private suspend fun runWaveformSidecar(
-        waveformService: AudioWaveformService<Path>,
+        waveformService: AudioWaveformService,
         sidecarStatusRepository: SidecarStatusRepository,
         sourceId: String,
         provider: MediaProvider,
@@ -631,7 +630,7 @@ class PlaylistEngine(
         ).localAudio
             ?: return null
         val replayGain = withContext(Dispatchers.IO) {
-            replayGainFromAudioTags(AudioTagReader().read(audioPath))
+            replayGainFromAudioTags(AudioTagReader().read(Path.of(audioPath.path)))
         } ?: return null
         return PlaybackReplayGain(replayGain, ReplayGainSource.LocalTags)
     }

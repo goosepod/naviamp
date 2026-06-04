@@ -201,10 +201,8 @@ fun NaviampApp(
             waveformRepository = sessionCache,
             audioAssets = desktopPlaybackAudioAssets,
             analyzer = DesktopAudioWaveformAnalyzer(),
-            localAudioUrl = { path -> path.toUri().toString() },
-            localAudioPath = { path -> path.toAbsolutePath().toString() },
             cacheAudioForWaveform = { sourceId, provider, track, quality ->
-                sessionCache.cacheAudioTrack(sourceId, provider, track, quality).path
+                sessionCache.cacheAudioTrack(sourceId, provider, track, quality).path.toPlaybackLocalAudio()
             },
         )
     }

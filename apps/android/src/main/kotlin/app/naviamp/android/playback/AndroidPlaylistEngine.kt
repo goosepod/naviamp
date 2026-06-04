@@ -3,6 +3,7 @@ package app.naviamp.android
 import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.android.playback.AndroidPlaybackTls
 import app.naviamp.android.playback.AndroidAudioWaveformAnalyzer
+import app.naviamp.android.toPlaybackLocalAudio
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.isInternetRadioTrack
@@ -12,6 +13,7 @@ import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackReplayGain
 import app.naviamp.domain.playback.PlaybackRequest
+import app.naviamp.domain.playback.PlaybackLocalAudio
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.playback.SidecarTypeWaveform
@@ -35,7 +37,7 @@ class AndroidPlaylistEngine(
     private val scope: CoroutineScope,
     private val state: AndroidAppState,
     private val storage: AndroidStorage,
-    private val playbackAudioAssets: PlaybackAudioAssetRepository<File>,
+    private val playbackAudioAssets: PlaybackAudioAssetRepository,
     private val playbackEngine: AndroidPlaybackEngine,
     private val playbackQueueController: PlaybackQueueController,
     waveformAnalyzer: AndroidAudioWaveformAnalyzer,
@@ -49,8 +51,6 @@ class AndroidPlaylistEngine(
         waveformRepository = storage,
         audioAssets = playbackAudioAssets,
         analyzer = waveformAnalyzer,
-        localAudioUrl = { file -> file.toURI().toString() },
-        localAudioPath = { file -> file.absolutePath },
         prepareAnalysis = {
             waveformAnalyzer.applyTlsSettings(state.activeTlsSettings)
             AndroidPlaybackTls.applyDefaults(state.activeTlsSettings)
@@ -61,7 +61,7 @@ class AndroidPlaylistEngine(
                 activeProvider = mediaProvider as NavidromeProvider,
                 track = track,
                 quality = quality,
-            )
+            )?.toPlaybackLocalAudio()
         },
     )
 
@@ -78,7 +78,7 @@ class AndroidPlaylistEngine(
             quality = quality,
             audioCachingEnabled = true,
             audioAssets = playbackAudioAssets,
-        ).localAudio?.let { return it }
+        ).localAudio?.let { return File(it.path) }
 
         val cacheKey = "${sourceId}:${track.id.value}:$quality"
         if (!audioCacheKeysInFlight.add(cacheKey)) {
@@ -153,7 +153,6 @@ class AndroidPlaylistEngine(
                     audioAssets = playbackAudioAssets,
                 )
                 audioSourcePlan.playbackStreamUrl(
-                    localAudioUrl = { file -> file.toURI().toString() },
                     providerStreamUrl = { target -> activeProvider.streamUrl(target.providerStreamRequest) },
                 )
             }.onSuccess { streamUrl ->

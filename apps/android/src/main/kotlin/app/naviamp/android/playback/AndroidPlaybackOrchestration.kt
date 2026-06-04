@@ -25,7 +25,6 @@ import app.naviamp.domain.playback.resolvePlaybackAudioSource
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.radio.planInternetRadioStart
 import app.naviamp.provider.navidrome.NavidromeProvider
-import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -54,7 +53,7 @@ fun beginAndroidPlaybackSession(
 fun playAndroidTrack(
     scope: CoroutineScope,
     state: AndroidAppState,
-    audioAssets: PlaybackAudioAssetRepository<File>,
+    audioAssets: PlaybackAudioAssetRepository,
     playbackEngine: AndroidPlaybackEngine,
     playbackQueueController: PlaybackQueueController,
     track: Track,
@@ -101,7 +100,6 @@ fun playAndroidTrack(
             )
             runCatching {
                 audioSourcePlan.playbackStreamUrl(
-                    localAudioUrl = { file -> file.toURI().toString() },
                     providerStreamUrl = { target -> activeProvider.streamUrl(target.providerStreamRequest) },
                 )
             }.onSuccess { streamUrl ->

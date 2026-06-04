@@ -36,7 +36,7 @@ class PlaybackAudioSourceResolverTest {
             audioAssets = fakeAudioAssets(downloaded = "downloaded", cached = "cached"),
         )
 
-        assertEquals("downloaded", plan.localAudio)
+        assertEquals(localAudio("downloaded"), plan.localAudio)
         assertEquals(PlaybackSource.DownloadedFile, plan.source)
     }
 
@@ -54,7 +54,7 @@ class PlaybackAudioSourceResolverTest {
             ),
         )
 
-        assertEquals("downloaded-original", plan.localAudio)
+        assertEquals(localAudio("downloaded-original"), plan.localAudio)
         assertEquals(PlaybackSource.DownloadedFile, plan.source)
     }
 
@@ -65,7 +65,7 @@ class PlaybackAudioSourceResolverTest {
             track = track("one"),
             quality = StreamQuality.Original,
             audioCachingEnabled = true,
-            audioAssets = emptyPlaybackAudioAssetRepository<String>(),
+            audioAssets = emptyPlaybackAudioAssetRepository(),
         )
 
         assertNull(plan.localAudio)
@@ -194,27 +194,33 @@ class PlaybackAudioSourceResolverTest {
             favoritedAtIso8601 = null,
         )
 
+    private fun localAudio(id: String): PlaybackLocalAudio =
+        PlaybackLocalAudio(
+            path = "/tmp/$id",
+            uri = "file:///tmp/$id",
+        )
+
     private fun fakeAudioAssets(
         downloadedForTrack: String? = null,
         downloaded: String? = null,
         cached: String? = null,
-    ): PlaybackAudioAssetRepository<String> =
-        object : PlaybackAudioAssetRepository<String> {
+    ): PlaybackAudioAssetRepository =
+        object : PlaybackAudioAssetRepository {
             override suspend fun downloadedAudio(
                 sourceId: String,
                 trackId: TrackId,
-            ): String? = downloadedForTrack ?: downloaded
+            ): PlaybackLocalAudio? = (downloadedForTrack ?: downloaded)?.let(::localAudio)
 
             override suspend fun downloadedAudio(
                 sourceId: String,
                 trackId: TrackId,
                 quality: StreamQuality,
-            ): String? = downloaded
+            ): PlaybackLocalAudio? = downloaded?.let(::localAudio)
 
             override suspend fun cachedAudio(
                 sourceId: String,
                 trackId: TrackId,
                 quality: StreamQuality,
-            ): String? = cached
+            ): PlaybackLocalAudio? = cached?.let(::localAudio)
         }
 }

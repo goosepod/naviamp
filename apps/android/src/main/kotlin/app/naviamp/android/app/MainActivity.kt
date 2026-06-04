@@ -333,7 +333,7 @@ private fun NaviampAndroidApp(
                     audioCachingEnabled = true,
                     audioAssets = playbackAudioAssets,
                 ).localAudio
-                val embeddedLyrics = audioFile?.let(::embeddedLyricsFromAudioFile)
+                val embeddedLyrics = audioFile?.let { embeddedLyricsFromAudioFile(java.io.File(it.path)) }
                 val localLyrics = activeProvider.lyrics(track.id)
                 val onlineLyrics = if (
                     shouldLoadOnlineLyrics(

@@ -5,29 +5,37 @@ import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.AudioCacheRepository
 import app.naviamp.domain.cache.DownloadRepository
 import app.naviamp.domain.playback.PlaybackAudioAssetRepository
+import app.naviamp.domain.playback.PlaybackLocalAudio
 import java.io.File
 
 class AndroidPlaybackAudioAssets(
     private val downloadRepository: DownloadRepository<AndroidDownloadedAudioFile, AndroidDownloadedTrack>,
     private val audioCacheRepository: AudioCacheRepository<AndroidCachedAudioFile, AndroidCachedAudioMetadata>,
-) : PlaybackAudioAssetRepository<File> {
+) : PlaybackAudioAssetRepository {
     override suspend fun downloadedAudio(
         sourceId: String,
         trackId: TrackId,
-    ): File? =
-        downloadRepository.downloadedAudioFile(sourceId, trackId)?.file
+    ): PlaybackLocalAudio? =
+        downloadRepository.downloadedAudioFile(sourceId, trackId)?.file?.toPlaybackLocalAudio()
 
     override suspend fun downloadedAudio(
         sourceId: String,
         trackId: TrackId,
         quality: StreamQuality,
-    ): File? =
-        downloadRepository.downloadedAudioFile(sourceId, trackId, quality)?.file
+    ): PlaybackLocalAudio? =
+        downloadRepository.downloadedAudioFile(sourceId, trackId, quality)?.file?.toPlaybackLocalAudio()
 
     override suspend fun cachedAudio(
         sourceId: String,
         trackId: TrackId,
         quality: StreamQuality,
-    ): File? =
-        audioCacheRepository.cachedAudioFile(sourceId, trackId, quality)?.file
+    ): PlaybackLocalAudio? =
+        audioCacheRepository.cachedAudioFile(sourceId, trackId, quality)?.file?.toPlaybackLocalAudio()
 }
+
+fun File.toPlaybackLocalAudio(): PlaybackLocalAudio =
+    PlaybackLocalAudio(
+        path = absolutePath,
+        uri = toURI().toString(),
+        sizeBytes = length().takeIf { exists() },
+    )

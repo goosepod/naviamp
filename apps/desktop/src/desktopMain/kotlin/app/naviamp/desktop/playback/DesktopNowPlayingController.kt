@@ -25,10 +25,10 @@ import kotlinx.coroutines.withContext
 import java.nio.file.Path
 
 class DesktopNowPlayingController(
-    private val audioWaveformService: AudioWaveformService<Path>,
+    private val audioWaveformService: AudioWaveformService,
     private val lyricsSidecarRepository: LyricsSidecarRepository,
     private val localLibraryIndexRepository: LocalLibraryIndexRepository,
-    private val playbackAudioAssets: PlaybackAudioAssetRepository<Path>,
+    private val playbackAudioAssets: PlaybackAudioAssetRepository,
     private val playbackEngine: PlaybackEngine,
     private val provider: () -> MediaProvider?,
     private val sourceId: () -> String?,
@@ -101,7 +101,7 @@ class DesktopNowPlayingController(
                 val waveform = waveformResult.waveform
                 val status = waveformResult.status(activeCacheSettings.audioCachingEnabled)
                 val tags = audioPath
-                    ?.let { path -> runCatching { AudioTagReader().read(path) }.getOrDefault(emptyList()) }
+                    ?.let { audio -> runCatching { AudioTagReader().read(Path.of(audio.path)) }.getOrDefault(emptyList()) }
                     .orEmpty()
                 val providerLyrics = if (lyricsVisibleForWork) {
                     lyricsSidecarRepository.providerLyrics(activeSourceId, activeProvider, track.id)

@@ -519,7 +519,6 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                     audioAssets = audioAssets,
                 )
                 val streamUrl = audioSourcePlan.playbackStreamUrl(
-                    localAudioUrl = { file -> file.toURI().toString() },
                     providerStreamUrl = { target -> provider.streamUrl(target.providerStreamRequest) },
                 )
                 streamUrl to audioSourcePlan.target.engineStartPositionSeconds
