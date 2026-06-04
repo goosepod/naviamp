@@ -134,11 +134,15 @@ Then higher-level repositories can be composed from those stores:
   - Twentieth slice: desktop and Android BASS waveform analyzers implement a shared `AudioWaveformAnalyzer` contract.
   - Twenty-first slice: desktop and Android waveform analyzers now use shared float-PCM bucketing over BASS decode-stream length/read primitives.
   - Twenty-second slice: shared `BassAudioBackend` port now hides desktop `BassNative` and Android `AndroidBassJni` for waveform decode-stream access.
-- [ ] Normalize local audio file boundaries.
+- [x] Normalize playback local-audio file boundaries.
   - Shared services should consume platform-neutral local-audio descriptors or store ports instead of `java.io.File` or `java.nio.file.Path` directly.
   - Android can keep `File` and desktop can keep `Path` inside platform adapters because output streams, atomic moves, directory walking, and delete behavior are OS/runtime details.
   - First local-audio target slice is complete: common playback helpers now own local-audio-or-provider-stream URL selection for Android playback start, Android prepare-next, Android foreground-service restored playback, desktop `PlaylistEngine`, and shared waveform generation.
-  - The next extraction target is a shared audio cache/download store service that owns stream URL resolution, provider download dispatch, source/track/quality keys, duplicate/in-flight guards, and a neutral result shape such as local path, local URI, and size.
+  - `PlaybackAudioAssetRepository`, `PlaybackAudioSourcePlan`, and `AudioWaveformService` now use the platform-neutral `PlaybackLocalAudio` descriptor with local path, local URI, and optional size.
+  - Android `File` and desktop `Path` conversion now happens at the platform playback-audio asset adapters and platform-only tag/lyrics reads.
+- [ ] Extract a shared audio cache/download store service.
+  - The next extraction target is a shared service that owns provider download dispatch, source/track/quality keys, duplicate/in-flight guards, and reusable local-audio result creation.
+  - Platform engines should still own byte writes, atomic moves, directory walking, and delete behavior behind the store boundary.
   - Platform code should only create temp/final files, expose an output sink, move temp files into place, delete files, and convert its native file object into the neutral result.
 - [ ] Replace direct `DesktopCache` dependencies in desktop controllers with narrower interfaces.
   - `DesktopHomeController`
@@ -435,7 +439,8 @@ This is a strong first slice because playback-source selection currently affects
   - Android storage remains the concrete SQL adapter supplied by app composition.
 - 2026-06-02: Moved playback audio asset adapters onto shared repository ports.
   - `AndroidPlaybackAudioAssets` and `DesktopPlaybackAudioAssets` now take `DownloadRepository` and `AudioCacheRepository`.
-  - Android track playback receives a `PlaybackAudioAssetRepository<File>` from composition instead of broad `AndroidStorage`.
+  - Android track playback receives a `PlaybackAudioAssetRepository` from composition instead of broad `AndroidStorage`.
+  - Playback audio asset lookups now return `PlaybackLocalAudio`, keeping Android `File` and desktop `Path` behind platform adapters.
   - Desktop playback and now-playing call sites pass `DesktopCache` only as concrete implementations of the narrow ports.
 - 2026-06-02: Moved desktop artist/album detail fallback loading onto shared repository ports.
   - `DesktopArtistController` and `DesktopAlbumController` now receive `LocalLibraryIndexRepository` and `ProviderResponseCacheRepository`.

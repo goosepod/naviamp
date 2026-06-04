@@ -37,5 +37,5 @@ fun File.toPlaybackLocalAudio(): PlaybackLocalAudio =
     PlaybackLocalAudio(
         path = absolutePath,
         uri = toURI().toString(),
-        sizeBytes = length().takeIf { exists() },
+        sizeBytes = if (isFile) length() else null,
     )

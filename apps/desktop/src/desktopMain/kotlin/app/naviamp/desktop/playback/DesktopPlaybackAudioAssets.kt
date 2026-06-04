@@ -38,5 +38,5 @@ fun Path.toPlaybackLocalAudio(): PlaybackLocalAudio =
     PlaybackLocalAudio(
         path = toAbsolutePath().toString(),
         uri = toUri().toString(),
-        sizeBytes = runCatching { Files.size(this) }.getOrNull(),
+        sizeBytes = if (Files.isRegularFile(this)) runCatching { Files.size(this) }.getOrNull() else null,
     )

@@ -178,7 +178,7 @@ Branch: `codex/desktop-main-reduction`
   - Android's active queue to playback-controller sync now uses `PlaybackQueueController` instead of local prepare-next index math.
 - [x] Share local/provider playback target URL selection.
   - Android playback start, Android prepare-next, Android foreground-service restored playback, desktop `PlaylistEngine`, and shared waveform generation now use the same common helper to choose local audio URLs before provider streams.
-  - Platform code still converts native `File` / `Path` values to URLs at the adapter edge.
+  - Shared helpers carry `PlaybackLocalAudio`; platform code converts native `File` / `Path` values at the adapter edge for BASS URLs and platform-only tag/lyrics reads.
 - [x] Share ReplayGain playback adjustment rules.
   - ReplayGain mode selection, gain-to-volume conversion, peak clipping guard, and max-volume clamping now live in common playback helpers.
   - Desktop and Android playback engines consume the same volume factor while keeping platform-local BASS stream application and diagnostics.
@@ -263,6 +263,7 @@ Branch: `codex/desktop-main-reduction`
   - Android foreground app playback, Android Auto/background restored playback, prepare-next, prefetch, waveform, and lyrics lookup paths use the same rule.
 - [x] Introduce narrow audio asset lookup ports so platform controllers no longer depend on broad `DesktopCache` / `AndroidStorage` types.
   - Added shared `PlaybackAudioAssetRepository` plus desktop and Android adapters over the existing storage engines.
+  - `PlaybackAudioAssetRepository`, `PlaybackAudioSourcePlan`, and `AudioWaveformService` now use the platform-neutral `PlaybackLocalAudio` descriptor instead of carrying `File` / `Path` through common code.
 - [ ] Build shared sidecar storage services for lyrics, waveform, embedded tag status, and audio metadata.
 - [ ] Add fake/in-memory storage engines for common tests.
 
