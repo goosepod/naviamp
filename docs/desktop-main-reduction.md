@@ -176,6 +176,9 @@ Branch: `codex/desktop-main-reduction`
   - Desktop and Android now share audio prefetch queue-window selection.
   - Desktop and Android now share prepare-next progress/capability/next-track planning before queueing the BASS prepared source.
   - Android's active queue to playback-controller sync now uses `PlaybackQueueController` instead of local prepare-next index math.
+- [x] Share local/provider playback target URL selection.
+  - Android playback start, Android prepare-next, Android foreground-service restored playback, desktop `PlaylistEngine`, and shared waveform generation now use the same common helper to choose local audio URLs before provider streams.
+  - Platform code still converts native `File` / `Path` values to URLs at the adapter edge.
 - [x] Share ReplayGain playback adjustment rules.
   - ReplayGain mode selection, gain-to-volume conversion, peak clipping guard, and max-volume clamping now live in common playback helpers.
   - Desktop and Android playback engines consume the same volume factor while keeping platform-local BASS stream application and diagnostics.

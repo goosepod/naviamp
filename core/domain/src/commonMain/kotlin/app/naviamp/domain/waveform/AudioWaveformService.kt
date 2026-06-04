@@ -5,6 +5,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.cache.AudioWaveformStorageRepository
 import app.naviamp.domain.playback.PlaybackAudioAssetRepository
 import app.naviamp.domain.playback.PlaybackSource
+import app.naviamp.domain.playback.playbackStreamUrl
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
 import app.naviamp.domain.playback.waveformStatus
 import app.naviamp.domain.provider.MediaProvider
@@ -97,9 +98,10 @@ class AudioWaveformService<LocalAudio>(
         }
 
         prepareAnalysis()
-        val streamUrl = localAudio
-            ?.let(localAudioUrl)
-            ?: provider.streamUrl(plan.target.providerStreamRequest)
+        val streamUrl = plan.copy(localAudio = localAudio).playbackStreamUrl(
+            localAudioUrl = localAudioUrl,
+            providerStreamUrl = { target -> provider.streamUrl(target.providerStreamRequest) },
+        )
         val waveform = analyzer.analyze(
             AudioWaveformAnalysisSource(
                 cacheKey = track.id.value,

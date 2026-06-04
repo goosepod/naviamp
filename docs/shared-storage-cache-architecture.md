@@ -137,6 +137,7 @@ Then higher-level repositories can be composed from those stores:
 - [ ] Normalize local audio file boundaries.
   - Shared services should consume platform-neutral local-audio descriptors or store ports instead of `java.io.File` or `java.nio.file.Path` directly.
   - Android can keep `File` and desktop can keep `Path` inside platform adapters because output streams, atomic moves, directory walking, and delete behavior are OS/runtime details.
+  - First local-audio target slice is complete: common playback helpers now own local-audio-or-provider-stream URL selection for Android playback start, Android prepare-next, Android foreground-service restored playback, desktop `PlaylistEngine`, and shared waveform generation.
   - The next extraction target is a shared audio cache/download store service that owns stream URL resolution, provider download dispatch, source/track/quality keys, duplicate/in-flight guards, and a neutral result shape such as local path, local URI, and size.
   - Platform code should only create temp/final files, expose an output sink, move temp files into place, delete files, and convert its native file object into the neutral result.
 - [ ] Replace direct `DesktopCache` dependencies in desktop controllers with narrower interfaces.
