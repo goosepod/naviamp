@@ -270,6 +270,7 @@ Branch: `codex/desktop-main-reduction`
 - Search result wrapping/status text and storage stats refresh route/interval decisions are now shared through `core/domain`.
 - Library sync status text, initial auto-sync decision, and library freshness polling cadence are now shared through `core/domain`.
 - Now-playing sidecar type keys, lyrics loading/error rules, waveform status labels, online-lyrics fetch decisions, and sidecar queue filtering are now shared through `core/domain`.
+  - Sidecar status success/failure recording now uses shared helpers on `SidecarStatusRepository` for desktop prefetch/current-track work and Android lyrics/waveform sidecar prep.
 - Waveform generation is BASS-backed on both desktop and Android, but the analyzer should become a shared interface/service before more waveform plumbing moves across platforms.
   - `AudioWaveformAnalyzer` and `AudioWaveformAnalysisSource` now live in common domain, with desktop and Android platform analyzers using `BassAudioBackend` adapters.
   - The waveform bucket algorithm now lives in common domain through `normalizeFloatPcmWaveform(...)`.
@@ -277,6 +278,7 @@ Branch: `codex/desktop-main-reduction`
   - First shared BASS access port is in place: `BassAudioBackend` hides desktop `BassNative` and Android `AndroidBassJni` for decode-stream waveform reads.
   - `AudioWaveformService` now coordinates cached waveform lookup, local/downloaded audio preference, optional audio caching, provider-stream fallback, platform analyzer preparation, and waveform persistence.
   - Desktop now-playing analysis, desktop sidecar prefetch, and Android sidecar prep use the shared waveform service while platform composition supplies storage/cache engines, local-file URL conversion, and TLS setup.
+  - `AudioWaveformServiceResult` now owns the cached/generated/unavailable status label mapping used by now-playing analysis.
 - BASS usage should converge on a shared facade. Platform code may keep different bridge mechanics only at the lowest layer: desktop can wrap its native/JNA binding while Android wraps JNI, but playback, waveform, visualizer, tags, gapless, and crossfade should call shared interfaces wherever practical.
   - Android playback now uses the shared `BassAudioBackend` adapter for stream/control/progress/metadata/FFT primitives.
   - Desktop playback now uses `BassAudioBackend` for stream/control/progress/metadata/FFT/mixer primitives and BASS version/load-path diagnostics; remaining raw `BassNative` references in the engine are load-state and plugin reporting.

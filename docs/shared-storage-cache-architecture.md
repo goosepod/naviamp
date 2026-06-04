@@ -173,6 +173,8 @@ Then higher-level repositories can be composed from those stores:
     - Shared waveform service slice is complete: `AudioWaveformService` now composes cached waveform lookup, local/downloaded audio preference, optional audio caching, provider-stream fallback, analyzer calls, and persistence.
     - Desktop now-playing analysis, desktop current/upcoming sidecar prep, and Android sidecar prep now call the shared waveform service while platform adapters supply local-file URL conversion, TLS preparation, and concrete storage/cache engines.
     - Android is no longer forced into the older storage-shaped `AudioWaveformRepository.ensureAudioWaveform(sourceId, trackId, quality)` contract; the shared service receives `Track`, provider stream context, and playback cache behavior.
+    - Shared sidecar status helpers now record success/failure rows for desktop and Android sidecar work through the same `SidecarStatusRepository` path.
+    - `AudioWaveformServiceResult` now owns waveform status text mapping, so callers do not rebuild cached/generated/unavailable labels independently.
 - [ ] Expand the shared BASS facade beyond waveform reads.
   - Playback streams, decode streams, active state, stream metadata/tags, FFT visualizer reads, seek/position/duration, volume slides, and mixer channel creation/add are now modeled on `BassAudioBackend` and implemented by desktop and Android adapters.
   - Shared BASS playback stream selection now chooses file/URL and direct/decode/playback-decode creation through `BassAudioBackend`; platforms only resolve local file paths.
