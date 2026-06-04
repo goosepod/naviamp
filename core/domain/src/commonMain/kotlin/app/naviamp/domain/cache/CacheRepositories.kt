@@ -126,17 +126,18 @@ data class StoredAudioBytes(
     val sizeBytes: Long,
 )
 
-interface DownloadAudioByteStore {
-    suspend fun writeDownloadedAudio(
-        sourceId: String,
-        trackId: TrackId,
-        qualityKey: String,
-        contentType: String?,
-        provider: MediaProvider,
-        streamUrl: String,
+fun interface AudioByteWriter {
+    suspend fun write(bytes: ByteArray, count: Int)
+}
+
+interface AudioByteStore {
+    suspend fun writeAudioBytes(
+        fileName: String,
+        errorMessage: String,
+        writeBytes: suspend (AudioByteWriter) -> Boolean,
     ): StoredAudioBytes
 
-    fun deleteDownloadedAudio(filePath: String)
+    fun deleteAudioBytes(filePath: String)
 }
 
 interface DownloadRepository<DownloadedFile, DownloadedTrack> {
