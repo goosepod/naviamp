@@ -1,7 +1,7 @@
 package app.naviamp.desktop
 
 import app.naviamp.desktop.playback.PlaylistCallbacks
-import app.naviamp.desktop.playback.PlaylistEngine
+import app.naviamp.desktop.playback.DesktopPlaylistEngine
 import app.naviamp.desktop.settings.RecentRadioStream
 import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
@@ -38,7 +38,7 @@ class DesktopRadioController(
     private val scope: CoroutineScope,
     private val libraryIndexRepository: LocalLibraryIndexRepository,
     private val providerResponseService: ProviderResponseService,
-    private val playlistEngine: PlaylistEngine,
+    private val playlistEngine: DesktopPlaylistEngine,
     private val provider: () -> NavidromeProvider?,
     private val sourceId: () -> String?,
     private val streamQuality: () -> StreamQuality,

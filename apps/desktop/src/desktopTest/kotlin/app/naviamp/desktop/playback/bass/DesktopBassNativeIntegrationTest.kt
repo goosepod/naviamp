@@ -6,14 +6,14 @@ import kotlin.test.assertTrue
 class BassNativeIntegrationTest {
     @Test
     fun loadsBundledBassWhenAvailable() {
-        val native = BassNative.load().getOrNull() ?: return
+        val native = DesktopBassNative.load().getOrNull() ?: return
 
         assertTrue(native.version > 0)
     }
 
     @Test
     fun loadsBundledBassmixWhenAvailable() {
-        val native = BassNative.load().getOrNull() ?: return
+        val native = DesktopBassNative.load().getOrNull() ?: return
 
         assertTrue(native.supportsMixer, native.mixerError ?: "BASSmix was not loaded")
         assertTrue((native.mixerVersion ?: 0) > 0)

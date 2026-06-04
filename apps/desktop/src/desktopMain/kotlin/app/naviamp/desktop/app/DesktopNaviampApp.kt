@@ -60,7 +60,7 @@ import app.naviamp.domain.playback.DefaultVisualizerFrameIntervalMillis
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
-import app.naviamp.desktop.playback.PlaybackEngineDiagnostics
+import app.naviamp.desktop.playback.DesktopPlaybackEngineDiagnostics
 import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
@@ -1368,7 +1368,7 @@ fun NaviampApp(
         ),
         playbackEngineName = playbackEngine.name,
         playbackCapabilities = playbackEngine.capabilitiesLabel(),
-        playbackEngineStats = (playbackEngine as? PlaybackEngineDiagnostics)?.statsRows().orEmpty(),
+        playbackEngineStats = (playbackEngine as? DesktopPlaybackEngineDiagnostics)?.statsRows().orEmpty(),
         queueSize = playbackQueue.tracks.size,
         currentQueueIndex = playbackQueue.currentIndex,
         cacheRuntime = playlistEngine.cacheRuntimeStats(),

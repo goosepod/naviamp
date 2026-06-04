@@ -123,8 +123,8 @@ This tracks the architectural pass that should follow the desktop `Main.kt` spli
 - Recent-radio stream construction and saved-stream action resolution now live in `core/domain/radio`; desktop imports the shared action model and keeps only the platform controller wiring.
 - Radio request models and constructors now live in `core/domain/radio`; desktop still owns provider execution, coroutine dispatch, and playback queue mutation.
 - Radio seed-selection rules now live in `core/domain/radio` behind storage/provider callbacks; desktop keeps only the adapter that reads `DesktopCache` and provider detail data.
-- Radio session gating and generated queue append/replacement plans now live in `core/domain/radio`; desktop radio queue code now only applies those plans to `PlaylistEngine`.
-- Native playback queue mutation intentionally remains platform-local for radio: desktop applies shared plans through `PlaylistEngine`, while Android applies shared plans to `AndroidAppState`/service playback state so each platform preserves its playback engine and lifecycle ownership.
+- Radio session gating and generated queue append/replacement plans now live in `core/domain/radio`; desktop radio queue code now only applies those plans to `DesktopPlaylistEngine`.
+- Native playback queue mutation intentionally remains platform-local for radio: desktop applies shared plans through `DesktopPlaylistEngine`, while Android applies shared plans to `AndroidAppState`/service playback state so each platform preserves its playback engine and lifecycle ownership.
 - Playlist create/add mutation planning and add-result status decisions now live in `core/domain/provider`; desktop and Android both use the shared outcome mapping before refreshing playlist lists.
 - Playlist rename/delete normalization, status, error fallback, selected-playlist update, and recent-playlist cleanup rules now live in `core/domain/provider`.
 - Smart playlist save/update refresh orchestration and save/update/load status/error messages now live in `core/domain/provider`. Desktop still owns password/native-token refresh before saving, and Android currently wires only the save flow.

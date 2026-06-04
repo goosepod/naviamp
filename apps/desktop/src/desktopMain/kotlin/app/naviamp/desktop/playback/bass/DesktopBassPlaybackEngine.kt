@@ -1,6 +1,6 @@
 package app.naviamp.desktop.playback.bass
 
-import app.naviamp.desktop.playback.PlaybackEngineDiagnostics
+import app.naviamp.desktop.playback.DesktopPlaybackEngineDiagnostics
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
@@ -52,9 +52,9 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.net.URI
 
-class BassPlaybackEngine(
+class DesktopBassPlaybackEngine(
     private val backendResult: Result<BassAudioBackend> = loadDesktopBassAudioBackend(),
-) : QueueAwarePlaybackEngine, VisualizerPlaybackEngine, PlaybackEngineDiagnostics {
+) : QueueAwarePlaybackEngine, VisualizerPlaybackEngine, DesktopPlaybackEngineDiagnostics {
     private val backend: BassAudioBackend? = backendResult.getOrNull()
     private val loadError: Throwable? = backendResult.exceptionOrNull()
 

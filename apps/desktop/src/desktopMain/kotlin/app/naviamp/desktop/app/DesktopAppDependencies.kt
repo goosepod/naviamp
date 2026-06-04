@@ -1,7 +1,7 @@
 package app.naviamp.desktop
 
-import app.naviamp.desktop.playback.PlaybackEngineFactory
-import app.naviamp.desktop.playback.PlaylistEngine
+import app.naviamp.desktop.playback.DesktopPlaybackEngineFactory
+import app.naviamp.desktop.playback.DesktopPlaylistEngine
 import app.naviamp.desktop.settings.DesktopSettingsStore
 import app.naviamp.domain.audio.AudioMetadataSidecarService
 import app.naviamp.domain.cache.ImageCacheRepository
@@ -17,7 +17,7 @@ import java.nio.file.Path
 
 class DesktopAppDependencies(
     val settingsStore: DesktopSettingsStore = DesktopSettingsStore(),
-    val playbackEngine: PlaybackEngine = PlaybackEngineFactory.createDefault(),
+    val playbackEngine: PlaybackEngine = DesktopPlaybackEngineFactory.createDefault(),
     val storage: DesktopStorageDependencies = DesktopStorageDependencies(),
 ) {
     val imageCacheRepository: ImageCacheRepository = storage
@@ -81,8 +81,8 @@ class DesktopAppDependencies(
         sourceIdProvider: () -> String?,
         audioCachingEnabledProvider: () -> Boolean,
         audioPrefetchDepthProvider: () -> Int,
-    ): PlaylistEngine =
-        PlaylistEngine(
+    ): DesktopPlaylistEngine =
+        DesktopPlaylistEngine(
             playbackEngine = playbackEngine,
             sourceIdProvider = sourceIdProvider,
             audioCachingEnabledProvider = audioCachingEnabledProvider,

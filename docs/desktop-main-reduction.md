@@ -51,7 +51,7 @@ Branch: `codex/desktop-main-reduction`
   - playlist play/open/rename/delete actions
   - shared playlist state transitions between desktop and Android through `core/domain`
   - left smart-playlist credential refresh in app composition until connection auth is split further
-- [x] Start splitting desktop `PlaylistEngine` into shared and platform layers.
+- [x] Start splitting desktop `DesktopPlaylistEngine` into shared and platform layers.
   - shared queue/session/repeat/prepared-next coordinator now lives in `core/domain`
   - desktop keeps playback-target resolution, cache/sidecar prep, local tag reading, and Stats for Nerds cache runtime details
 - [x] Move Android activity playback queue control onto the shared coordinator.
@@ -179,17 +179,17 @@ Branch: `codex/desktop-main-reduction`
 - [x] Continue Android radio controller expansion.
   - Track-radio queue starts and queue-item radio now live in `AndroidRadioController`.
   - Generated-radio queue construction and expansion continue to use shared `core/domain` radio helpers.
-- [x] Move desktop `PlaylistEngine` storage/cache work onto narrow shared ports.
-  - `PlaylistEngine` now receives audio cache, waveform, lyrics sidecar, sidecar status, and playback-audio asset contracts instead of direct `DesktopCache`.
+- [x] Move desktop `DesktopPlaylistEngine` storage/cache work onto narrow shared ports.
+  - `DesktopPlaylistEngine` now receives audio cache, waveform, lyrics sidecar, sidecar status, and playback-audio asset contracts instead of direct `DesktopCache`.
   - Desktop composition still supplies `DesktopCache` as the concrete engine, preserving platform ownership while shrinking product-level coupling.
-- [x] Share more PlaylistEngine prepare-next orchestration.
+- [x] Share more DesktopPlaylistEngine prepare-next orchestration.
   - Desktop and Android now share audio prefetch queue-window selection.
   - Desktop and Android now share prepare-next progress/capability/next-track planning before queueing the BASS prepared source.
   - Android's active queue to playback-controller sync now uses `PlaybackQueueController` instead of local prepare-next index math.
   - Desktop and Android now share prepared-next request construction, including local/provider URL resolution, ReplayGain mode gating, and `PlaybackRequest` shaping before platform engines call BASS.
   - Desktop and Android now share the playlist sidecar service and audio prefetch loop; wrappers provide coroutine jobs, logging/UI callbacks, foreground-service state, and concrete cache/audio adapters.
 - [x] Share local/provider playback target URL selection.
-  - Android playback start, Android prepare-next, Android foreground-service restored playback, desktop `PlaylistEngine`, and shared waveform generation now use the same common helper to choose local audio URLs before provider streams.
+  - Android playback start, Android prepare-next, Android foreground-service restored playback, desktop `DesktopPlaylistEngine`, and shared waveform generation now use the same common helper to choose local audio URLs before provider streams.
   - Shared helpers carry `PlaybackLocalAudio`; platform code converts native `File` / `Path` values at the adapter edge for BASS URLs and platform-only tag/lyrics reads.
 - [x] Share ReplayGain playback adjustment rules.
   - ReplayGain mode selection, gain-to-volume conversion, peak clipping guard, and max-volume clamping now live in common playback helpers.
@@ -257,7 +257,7 @@ Branch: `codex/desktop-main-reduction`
   - Desktop radio seed selection now uses the shared library-index repository port instead of direct `DesktopCache`.
   - Desktop smart playlist source/auth refresh now uses shared provider media-source and provider-response repository ports instead of direct `DesktopCache`.
   - Desktop now-playing analysis now uses shared waveform, lyrics sidecar, library-index, and playback-audio asset ports instead of direct `DesktopCache`.
-  - Desktop `PlaylistEngine` now uses shared audio cache, waveform, lyrics sidecar, sidecar status, and playback-audio asset ports instead of direct `DesktopCache`.
+  - Desktop `DesktopPlaylistEngine` now uses shared audio cache, waveform, lyrics sidecar, sidecar status, and playback-audio asset ports instead of direct `DesktopCache`.
   - Android `AndroidPlaylistEngine` now receives shared waveform/audio-asset ports and a cache callback instead of broad `AndroidStorage`.
   - Android Auto foreground-service helper paths now use shared library-index, provider-response, media-source, playback-session, playback-history, and cover-art lookup ports where practical; the service still owns `AndroidStorage` as its runtime adapter.
   - Desktop connection opening now uses cache-maintenance/provider media-source repository ports, and connection-panel album loading uses the provider-response cache port, instead of direct `DesktopCache`.
@@ -316,13 +316,13 @@ Branch: `codex/desktop-main-reduction`
   - `AudioWaveformAnalyzer` and `AudioWaveformAnalysisSource` now live in common domain, with desktop and Android platform analyzers using `BassAudioBackend` adapters.
   - The waveform bucket algorithm now lives in common domain through `normalizeFloatPcmWaveform(...)`.
   - Desktop and Android both create BASS decode streams, ask BASS for stream byte length, read float PCM chunks, and call the same common bucket/normalization code.
-  - First shared BASS access port is in place: `BassAudioBackend` hides desktop `BassNative` and Android `AndroidBassJni` for decode-stream waveform reads.
+  - First shared BASS access port is in place: `BassAudioBackend` hides desktop `DesktopBassNative` and Android `AndroidBassJni` for decode-stream waveform reads.
   - `AudioWaveformService` now coordinates cached waveform lookup, local/downloaded audio preference, optional audio caching, provider-stream fallback, platform analyzer preparation, and waveform persistence.
   - Desktop now-playing analysis, desktop sidecar prefetch, and Android sidecar prep use the shared waveform service while platform composition supplies storage/cache engines, local-file URL conversion, and TLS setup.
   - `AudioWaveformServiceResult` now owns the cached/generated/unavailable status label mapping used by now-playing analysis.
 - BASS usage should converge on a shared facade. Platform code may keep different bridge mechanics only at the lowest layer: desktop can wrap its native/JNA binding while Android wraps JNI, but playback, waveform, visualizer, tags, gapless, and crossfade should call shared interfaces wherever practical.
   - Android playback now uses the shared `BassAudioBackend` adapter for stream/control/progress/metadata/FFT primitives.
-  - Desktop playback now uses `BassAudioBackend` for stream/control/progress/metadata/FFT/mixer primitives and BASS version/load-path diagnostics; raw `BassNative` access is confined to the desktop backend adapter/native binding layer.
+  - Desktop playback now uses `BassAudioBackend` for stream/control/progress/metadata/FFT/mixer primitives and BASS version/load-path diagnostics; raw `DesktopBassNative` access is confined to the desktop backend adapter/native binding layer.
   - Crossfade duration normalization, BASSmix queue-source decisions, equal-power fade envelopes, and transition application now live behind shared helpers/backend calls instead of desktop-only playback code.
 - Naming convention: shared/common abstractions keep generic names, while platform adapters and platform-owned service files should use `Desktop` / `Android` prefixes.
   - Example: common `AudioWaveformAnalyzer`, desktop `DesktopAudioWaveformAnalyzer`, Android `AndroidAudioWaveformAnalyzer`.
@@ -350,16 +350,16 @@ Follow the convention above: shared/common abstractions keep generic names; plat
   - `search/SearchPanel.kt`
   - `settings/SettingsPanel.kt`
   - `stats/StatsForNerdsWindow.kt`
-- [ ] Desktop playback adapters/services:
-  - `playback/NowPlayingAnalysis.kt`
-  - `playback/PlaybackEngine.kt`
-  - `playback/PlaybackEngineDiagnostics.kt`
-  - `playback/PlaybackEngineFactory.kt`
-  - `playback/PlaylistEngine.kt`
-  - `playback/bass/BassJniBinding.kt`
-  - `playback/bass/BassLibraryResolver.kt`
-  - `playback/bass/BassNative.kt`
-  - `playback/bass/BassPlaybackEngine.kt`
+- [x] Desktop playback adapters/services:
+  - `playback/DesktopNowPlayingAnalysis.kt`
+  - Removed unused desktop duplicate of the common playback engine contract.
+  - `playback/DesktopPlaybackEngineDiagnostics.kt`
+  - `playback/DesktopPlaybackEngineFactory.kt`
+  - `playback/DesktopPlaylistEngine.kt`
+  - `playback/bass/DesktopBassJniBinding.kt`
+  - `playback/bass/DesktopBassLibraryResolver.kt`
+  - `playback/bass/DesktopBassNative.kt`
+  - `playback/bass/DesktopBassPlaybackEngine.kt`
 - [ ] Desktop lyrics and library helpers:
   - `library/LibrarySync.kt`
   - `lyrics/AudioTagReader.kt`

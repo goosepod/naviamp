@@ -26,7 +26,7 @@ import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.desktop.playback.PlaylistCallbacks
-import app.naviamp.desktop.playback.PlaylistEngine
+import app.naviamp.desktop.playback.DesktopPlaylistEngine
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.ui.durationLabel
@@ -39,7 +39,7 @@ fun ConnectionPanel(
     connectionStatus: String?,
     recentlyAddedAlbums: List<Album>,
     playbackEngine: PlaybackEngine,
-    playlistEngine: PlaylistEngine,
+    playlistEngine: DesktopPlaylistEngine,
     playbackSettings: PlaybackSettings,
     playlistCallbacks: PlaylistCallbacks,
     providerResponseCacheRepository: ProviderResponseCacheRepository,

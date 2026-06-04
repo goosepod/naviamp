@@ -7,7 +7,7 @@ import app.naviamp.domain.bass.BassStreamHandle
 import java.io.File
 
 class DesktopBassAudioBackend(
-    private val native: BassNative,
+    private val native: DesktopBassNative,
 ) : BassAudioBackend {
     private val endSyncCallbacks: MutableMap<Int, BassSyncCallback> = mutableMapOf()
 
@@ -151,4 +151,4 @@ class DesktopBassAudioBackend(
 }
 
 fun loadDesktopBassAudioBackend(): Result<BassAudioBackend> =
-    BassNative.load().map(::DesktopBassAudioBackend)
+    DesktopBassNative.load().map(::DesktopBassAudioBackend)

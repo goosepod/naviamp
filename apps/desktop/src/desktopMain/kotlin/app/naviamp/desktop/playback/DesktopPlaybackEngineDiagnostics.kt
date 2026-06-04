@@ -1,5 +1,5 @@
 package app.naviamp.desktop.playback
 
-interface PlaybackEngineDiagnostics {
+interface DesktopPlaybackEngineDiagnostics {
     fun statsRows(): List<Pair<String, String>>
 }

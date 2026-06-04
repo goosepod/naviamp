@@ -9,7 +9,7 @@ import com.sun.jna.Pointer
 import com.sun.jna.Structure
 import java.io.File
 
-class BassNative private constructor(
+class DesktopBassNative private constructor(
     private val directory: File,
     private val library: BassLibrary,
     private val mixerLibrary: BassMixLibrary?,
@@ -341,9 +341,9 @@ class BassNative private constructor(
 
     companion object {
         fun load(
-            resolver: BassLibraryResolver = BassLibraryResolver(),
+            resolver: DesktopBassLibraryResolver = DesktopBassLibraryResolver(),
             platform: BassPlatform = BassPlatform.current(),
-        ): Result<BassNative> {
+        ): Result<DesktopBassNative> {
             val directory = resolver.resolve()
                 ?: return Result.failure(
                     IllegalStateException(
@@ -368,7 +368,7 @@ class BassNative private constructor(
                         throw IllegalStateException("Could not find ${mixerFile.absolutePath}.")
                     }
                 }
-                BassNative(
+                DesktopBassNative(
                     directory = directory,
                     library = library,
                     mixerLibrary = mixerResult.getOrNull(),

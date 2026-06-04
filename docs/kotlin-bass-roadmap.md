@@ -11,10 +11,10 @@ Kotlin/Compose is the reference desktop UI.
 ## Current State
 
 - The Kotlin app already has a playback abstraction in `core/domain/src/commonMain/kotlin/app/naviamp/domain/playback/PlaybackEngine.kt`.
-- Desktop chooses an engine in `apps/desktop/src/desktopMain/kotlin/app/naviamp/desktop/playback/PlaybackEngineFactory.kt`.
-- Desktop now constructs the BASS engine directly through `PlaybackEngineFactory`.
+- Desktop chooses an engine in `apps/desktop/src/desktopMain/kotlin/app/naviamp/desktop/playback/DesktopPlaybackEngineFactory.kt`.
+- Desktop now constructs the BASS engine directly through `DesktopPlaybackEngineFactory`.
 - The old desktop mpv/JLayer runtime fallback paths have been removed from the active app.
-- `PlaylistEngine` already understands engine capabilities and can use `QueueAwarePlaybackEngine` hooks for prepare-next behavior.
+- `DesktopPlaylistEngine` already understands engine capabilities and can use `QueueAwarePlaybackEngine` hooks for prepare-next behavior.
 - BASS native libraries are already available in the repo through the Rust app vendor tree for macOS ARM64 and Windows x64.
 
 ## Direction Decisions
@@ -35,7 +35,7 @@ Kotlin/Compose is the reference desktop UI.
 
 - [x] Decide JNA vs JNI for desktop BASS bindings.
 - [x] Add desktop dependency/build setup for the chosen binding approach.
-- [x] Create a small `BassNative` wrapper for init, free, stream create, play, pause, stop, seek, volume, duration, position, and errors.
+- [x] Create a small `DesktopBassNative` wrapper for init, free, stream create, play, pause, stop, seek, volume, duration, position, and errors.
 - [x] Load `libbass.dylib` on macOS from bundled app resources or development vendor path.
 - [x] Load `bass.dll` on Windows from bundled app resources or development vendor path.
 - [x] Add focused tests around platform/library path resolution where possible.
@@ -48,7 +48,7 @@ Kotlin/Compose is the reference desktop UI.
 - [x] Add native build layout for macOS, Windows, and Android.
 - [x] Decide how generated native artifacts are versioned and copied into app packages.
 - [x] Add initial Kotlin/native JNI contract for BASS version and error diagnostics.
-- [x] Keep `BassPlaybackEngine` on JNA until JNI playback parity is proven.
+- [x] Keep `DesktopBassPlaybackEngine` on JNA until JNI playback parity is proven.
 - [x] Move desktop waveform generation from mpv process decoding to BASS decode streams.
 
 Design notes live in `docs/bass-jni-design.md`.
@@ -56,7 +56,7 @@ Native scaffold lives in `native/bass-jni`.
 
 ## Phase 2: Basic Engine
 
-- [x] Add `BassPlaybackEngine` implementing `PlaybackEngine`.
+- [x] Add `DesktopBassPlaybackEngine` implementing `PlaybackEngine`.
 - [x] Support URL playback from Navidrome provider streams.
 - [x] Support local file playback from cached/downloaded audio paths.
 - [x] Implement pause, resume, stop, seek, and software volume.

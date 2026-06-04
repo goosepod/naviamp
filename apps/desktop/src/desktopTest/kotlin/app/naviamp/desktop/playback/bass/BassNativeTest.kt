@@ -1,5 +1,6 @@
 package app.naviamp.desktop.playback.bass
 
+import app.naviamp.domain.bass.bassErrorMessage
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

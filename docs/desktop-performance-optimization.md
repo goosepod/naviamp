@@ -39,7 +39,7 @@ Implemented first pass:
 
 ### 2. Playback progress updates at 10 Hz may recompose too much UI
 
-`BassPlaybackEngine` emits progress every 100 ms while a track is active. That is appropriate for a smooth scrub bar, but the current top-level state shape means one progress update can invalidate a broad part of `NaviampApp`.
+`DesktopBassPlaybackEngine` emits progress every 100 ms while a track is active. That is appropriate for a smooth scrub bar, but the current top-level state shape means one progress update can invalidate a broad part of `NaviampApp`.
 
 Measured on `build/local-test/Naviamp`, Now Playing open with a song playing:
 

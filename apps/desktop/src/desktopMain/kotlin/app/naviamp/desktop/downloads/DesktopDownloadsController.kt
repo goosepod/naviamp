@@ -16,7 +16,7 @@ import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.desktop.playback.PlaylistCallbacks
-import app.naviamp.desktop.playback.PlaylistEngine
+import app.naviamp.desktop.playback.DesktopPlaylistEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -35,7 +35,7 @@ class DesktopDownloadsController(
     private val stopRadioContinuation: () -> Unit,
     private val clearShuffleSnapshot: () -> Unit,
     private val setOpenPlayerOnTrackStart: (Boolean) -> Unit,
-    private val playlistEngine: PlaylistEngine,
+    private val playlistEngine: DesktopPlaylistEngine,
     private val playlistCallbacks: () -> PlaylistCallbacks,
     private val setDownloadStatus: (String?) -> Unit,
     private val incrementDownloadRefreshToken: () -> Unit,

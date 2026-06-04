@@ -198,14 +198,14 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - Provider contracts now include album lists, playlists, genres, playlist tracks, and random-song queries so other providers can implement the same Home surface.
 - Audio cache V1:
   - Desktop now has a source-scoped file-backed audio cache with SQLite metadata for source, remote track ID, stream quality, local file path, byte count, content type, created time, and last access time.
-  - `PlaylistEngine` prefers cached local files when present and otherwise resolves a fresh provider stream URL.
+  - `DesktopPlaylistEngine` prefers cached local files when present and otherwise resolves a fresh provider stream URL.
   - Playback starts background prefetch for up to 10 upcoming queue items and cancels that work when the queue/session changes.
   - Clear cache removes prefetched audio files in addition to images and provider responses.
   - The cache stores provider IDs and local paths, not long-lived authenticated stream URLs.
   - This opens a practical path to precomputed per-track analysis: waveform scrubber buckets, silence/intro/outro detection, loudness hints, beat/energy markers, cache-hit reporting, and better future offline/network-handoff behavior.
 - Waveform scrubber V1:
   - Desktop now has `cached_audio_waveform` metadata keyed by source, remote track ID, and stream quality.
-  - `DesktopAudioWaveformAnalyzer` uses BASS through `BassNative` to decode audio and normalize compact waveform buckets.
+  - `DesktopAudioWaveformAnalyzer` uses BASS through `DesktopBassNative` to decode audio and normalize compact waveform buckets.
   - The current-track waveform is generated only after a cached audio file exists; the UI keeps the normal Material slider until analysis is available.
   - The current-track waveform path actively caches/analyzes the now-playing file; it does not depend on the upcoming-track prefetch job finishing.
   - Restored sessions should keep an already loaded waveform when playback starts for the same track; only clear/reload waveform UI state when the track ID changes.
@@ -257,7 +257,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 - Internet Radio V1:
   - Internet radio stations are server-backed through the provider contract. Navidrome uses Subsonic `getInternetRadioStations`, `createInternetRadioStation`, `updateInternetRadioStation`, and `deleteInternetRadioStation`.
   - The top navigation includes an Internet Radio screen between Search and Downloads for symmetry. Stations can be added, edited, deleted, and played.
-  - Internet radio playback uses the station stream URL directly through the playback engine instead of `PlaylistEngine`, so stations are not treated as normal library tracks or submitted as play reports.
+  - Internet radio playback uses the station stream URL directly through the playback engine instead of `DesktopPlaylistEngine`, so stations are not treated as normal library tracks or submitted as play reports.
   - The last played internet radio station is saved in the playback session so reopening the app can return to the Player with that station ready to play again.
   - Internet radio playback is treated as live: seeking is disabled, the scrubber shows a live/radio line instead of elapsed/duration playback info, and mpv-backed playback polls stream metadata so ICY/Shoutcast titles can surface when stations provide them.
   - When internet radio is playing, the Now Playing side panel swaps `BACK TO` / `UP NEXT` / `RELATED` for a compact saved station list and highlights the current station.
@@ -295,8 +295,8 @@ Default stance: implement behavior in shared code unless it needs OS APIs, a pla
    - Target shape: a shared app controller/view-model in common code that accepts a `MediaProvider`, playback facade, settings repository, and cache/history interfaces.
    - Keep Compose window setup, Android activity lifecycle, and desktop window state in platform modules.
 2. Shared queue/playback orchestration:
-   - Move browser-history `BACK TO`, `UP NEXT`, previous-button behavior, up-next selection behavior, shuffle snapshot/restore, repeat mode, queue append/replace, and radio refill policy out of desktop `PlaylistEngine`.
-   - `PlaylistEngine` should become a platform adapter around a shared queue session plus a platform `PlaybackEngine`.
+   - Move browser-history `BACK TO`, `UP NEXT`, previous-button behavior, up-next selection behavior, shuffle snapshot/restore, repeat mode, queue append/replace, and radio refill policy out of desktop `DesktopPlaylistEngine`.
+   - `DesktopPlaylistEngine` should become a platform adapter around a shared queue session plus a platform `PlaybackEngine`.
    - The existing tiny `core/domain/queue/PlayQueue` is not enough for current app behavior and should be replaced or expanded from the proven desktop queue behavior.
 3. Shared playback session persistence models:
    - Move `PlaybackSessionSettings`, saved track/album/artist/station DTOs, recent radio streams, recent playlist IDs, navigation/search settings, and playback/cache setting models out of desktop settings into common code.

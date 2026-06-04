@@ -1,5 +1,7 @@
 package app.naviamp.desktop.playback
 
+import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.playback.mergeWith
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

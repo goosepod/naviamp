@@ -2,7 +2,7 @@ package app.naviamp.desktop.playback.bass
 
 import java.io.File
 
-class BassJniBinding private constructor() {
+class DesktopBassJniBinding private constructor() {
     val version: Int
         get() = nativeBassVersion()
 
@@ -13,19 +13,19 @@ class BassJniBinding private constructor() {
     private external fun nativeLastErrorCode(): Int
 
     companion object {
-        fun load(libraryName: String = "naviamp_bass"): Result<BassJniBinding> =
+        fun load(libraryName: String = "naviamp_bass"): Result<DesktopBassJniBinding> =
             runCatching {
                 System.loadLibrary(libraryName)
-                BassJniBinding()
+                DesktopBassJniBinding()
             }
 
         fun loadFrom(
             directory: File,
             platform: BassPlatform = BassPlatform.current(),
-        ): Result<BassJniBinding> =
+        ): Result<DesktopBassJniBinding> =
             runCatching {
                 System.load(File(directory, platform.libraryName("naviamp_bass")).absolutePath)
-                BassJniBinding()
+                DesktopBassJniBinding()
             }
     }
 }

@@ -44,7 +44,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class PlaylistEngine(
+class DesktopPlaylistEngine(
     private val playbackEngine: PlaybackEngine,
     private val sourceIdProvider: () -> String? = { null },
     private val audioCachingEnabledProvider: () -> Boolean = { true },

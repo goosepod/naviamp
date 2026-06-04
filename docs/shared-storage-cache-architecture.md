@@ -137,7 +137,7 @@ Then higher-level repositories can be composed from those stores:
   - Nineteenth slice: Android now-playing lyrics and waveform sidecar status writes use `SidecarStatusRepository` instead of broad `AndroidStorage`.
   - Twentieth slice: desktop and Android BASS waveform analyzers implement a shared `AudioWaveformAnalyzer` contract.
   - Twenty-first slice: desktop and Android waveform analyzers now use shared float-PCM bucketing over BASS decode-stream length/read primitives.
-  - Twenty-second slice: shared `BassAudioBackend` port now hides desktop `BassNative` and Android `AndroidBassJni` for waveform decode-stream access.
+  - Twenty-second slice: shared `BassAudioBackend` port now hides desktop `DesktopBassNative` and Android `AndroidBassJni` for waveform decode-stream access.
   - Twenty-third slice: Android playlist sidecar/prefetch orchestration now receives waveform/audio-cache ports and a cache lambda instead of broad `AndroidStorage`.
   - Twenty-fourth slice: Android Auto foreground-service helpers now use shared library-index, provider-response, media-source, playback-session, playback-history, and cover-art lookup ports where practical; the service still owns an `AndroidStorage` instance as its composition/runtime adapter.
   - Twenty-fifth slice: desktop connection opening now uses `CacheMaintenanceRepository` and `ProviderMediaSourceRepository`, and the connection panel uses `ProviderResponseCacheRepository`, instead of taking `DesktopCache` directly.
@@ -159,7 +159,7 @@ Then higher-level repositories can be composed from those stores:
 - [x] Normalize playback local-audio file boundaries.
   - Shared services should consume platform-neutral local-audio descriptors or store ports instead of `java.io.File` or `java.nio.file.Path` directly.
   - Android can keep `File` and desktop can keep `Path` inside platform adapters because output streams, atomic moves, directory walking, and delete behavior are OS/runtime details.
-  - First local-audio target slice is complete: common playback helpers now own local-audio-or-provider-stream URL selection for Android playback start, Android prepare-next, Android foreground-service restored playback, desktop `PlaylistEngine`, and shared waveform generation.
+  - First local-audio target slice is complete: common playback helpers now own local-audio-or-provider-stream URL selection for Android playback start, Android prepare-next, Android foreground-service restored playback, desktop `DesktopPlaylistEngine`, and shared waveform generation.
   - `PlaybackAudioAssetRepository`, `PlaybackAudioSourcePlan`, and `AudioWaveformService` now use the platform-neutral `PlaybackLocalAudio` descriptor with local path, local URI, and optional size.
   - Android `File` and desktop `Path` conversion now happens at the platform playback-audio asset adapters and platform-only tag/lyrics reads.
 - [x] Extract a shared audio cache/download store service.
@@ -172,7 +172,7 @@ Then higher-level repositories can be composed from those stores:
   - [x] `DesktopLibraryController`
   - [x] `DesktopNowPlayingController`
   - [x] `DesktopDownloadsController`
-  - [x] `PlaylistEngine`
+  - [x] `DesktopPlaylistEngine`
   - [x] `DesktopAlbumController`
   - [x] `DesktopArtistController`
   - [x] `DesktopMediaActionsController`
@@ -217,12 +217,12 @@ Then higher-level repositories can be composed from those stores:
     - First Android playlist-engine extraction slice is complete: `AndroidPlaylistEngine` now owns Android audio prefetch, sidecar prep, prepare-next, and waveform service composition instead of `MainActivity`.
     - Prepare-next queue planning is now shared: desktop and Android both use common progress/capability/next-track gating before queueing prepared playback.
     - Android's external active-queue sync for prepare-next now uses `PlaybackQueueController` instead of local index math in `AndroidPlaylistEngine`.
-    - Playlist-engine extraction target is complete: `PlaybackSidecarService`, `runAudioPrefetch`, common prefetch stats, and `preparedNextPlaybackRequest` now sit below desktop `PlaylistEngine` and Android `AndroidPlaylistEngine`; platform wrappers provide jobs, logging/UI callbacks, foreground-service state, and concrete cache/audio adapters.
+    - Playlist-engine extraction target is complete: `PlaybackSidecarService`, `runAudioPrefetch`, common prefetch stats, and `preparedNextPlaybackRequest` now sit below desktop `DesktopPlaylistEngine` and Android `AndroidPlaylistEngine`; platform wrappers provide jobs, logging/UI callbacks, foreground-service state, and concrete cache/audio adapters.
 - [x] Expand the shared BASS facade beyond waveform reads.
   - Playback streams, decode streams, active state, stream metadata/tags, FFT visualizer reads, seek/position/duration, volume slides, and mixer channel creation/add are now modeled on `BassAudioBackend` and implemented by desktop and Android adapters.
   - Shared BASS playback stream selection now chooses file/URL and direct/decode/playback-decode creation through `BassAudioBackend`; platforms only resolve local file paths.
   - Android playback now consumes `BassAudioBackend` for these primitives instead of raw `AndroidBassJni`; runtime still owns JNI loading and wraps it in the adapter.
-  - Desktop playback now consumes `BassAudioBackend` for stream/control/progress/metadata/FFT/mixer primitives and diagnostics instead of raw `BassNative`; only the desktop backend adapter loads and wraps `BassNative`.
+  - Desktop playback now consumes `BassAudioBackend` for stream/control/progress/metadata/FFT/mixer primitives and diagnostics instead of raw `DesktopBassNative`; only the desktop backend adapter loads and wraps `DesktopBassNative`.
   - End sync is now modeled on `BassAudioBackend`; byte conversion remains inside platform seek implementations where it is needed.
   - Crossfade duration normalization and mixer queue-source decisions now live in common playback transition helpers and are used by desktop/Android playback where applicable.
   - Gapless/crossfade prepare-next capability/window/duplicate-prep decisions now live in common playback transition helpers; desktop and Android still own platform-specific URL/replaygain resolution.
@@ -254,9 +254,9 @@ Then higher-level repositories can be composed from those stores:
   - BASS error-code labels now live in common BASS helpers and are used by desktop diagnostics plus Android backend/playback errors.
   - BASS backend failure-message formatting now lives in common BASS helpers; Android backend/playback errors use that shared path.
   - BASS native-library directory and BASSmix load-error diagnostics now hang off `BassAudioBackend`; desktop populates them and Android keeps the shared defaults.
-  - Desktop active-stream diagnostics now ask `BassAudioBackend` for active state instead of reaching directly into `BassNative`.
+  - Desktop active-stream diagnostics now ask `BassAudioBackend` for active state instead of reaching directly into `DesktopBassNative`.
   - Desktop loaded/failed plugin reporting now uses shared `BassPluginDiagnostic` rows exposed by `BassAudioBackend`.
-  - Desktop gapless/crossfade support flags now read mixer capability from `BassAudioBackend` instead of raw `BassNative`.
+  - Desktop gapless/crossfade support flags now read mixer capability from `BassAudioBackend` instead of raw `DesktopBassNative`.
   - Desktop playback and waveform composition now receive `BassAudioBackend` through the same facade boundary; app-level playback/waveform code no longer constructs a raw desktop native connector.
   - Android gapless/crossfade support flags now also read mixer capability from `BassAudioBackend` instead of assuming mixer support.
   - Playback source-handle selection now lives in common playback helpers, so desktop and Android use the same source-vs-output handle rule for seek/progress reads.
@@ -328,7 +328,7 @@ Then higher-level repositories can be composed from those stores:
 - Desktop and Android download controllers
   - Both plan downloads, apply policy, write audio files, refresh stats, and report status.
   - Target: shared download service over `DownloadRepository` and byte/file-store ports.
-- Desktop `PlaylistEngine` and Android playback adapters
+- Desktop `DesktopPlaylistEngine` and Android playback adapters
   - Both decide downloaded vs cached vs stream source.
   - Target: shared playback-source resolver over audio asset repositories.
 - Desktop now-playing controller and Android sidecar prep
@@ -357,14 +357,14 @@ Then higher-level repositories can be composed from those stores:
    - cache audio write/fetch
 2. Implement adapters over existing `DesktopCache` and `AndroidStorage`.
 3. Move downloaded/cached/provider-stream source selection into shared domain.
-4. Point desktop `PlaylistEngine` and Android playback start at the shared resolver.
+4. Point desktop `DesktopPlaylistEngine` and Android playback start at the shared resolver.
 
 This is a strong first slice because playback-source selection currently affects both platforms and is visible to users.
 
 ## Progress
 
 - 2026-05-31: Added shared playback-source resolver in `core/domain/playback`.
-  - Desktop `PlaylistEngine` now uses the shared resolver for downloaded file, cached file, and provider stream selection.
+  - Desktop `DesktopPlaylistEngine` now uses the shared resolver for downloaded file, cached file, and provider stream selection.
   - Android foreground app playback now uses the same resolver for downloaded file, cached file, and provider stream selection.
   - Platform code still owns path/file URI conversion, which keeps OS-specific storage details out of common code.
 - 2026-05-31: Extended the shared resolver through Android service/background paths.
@@ -511,8 +511,8 @@ This is a strong first slice because playback-source selection currently affects
 - 2026-06-02: Added shared re-download orchestration for quality changes.
   - Android and desktop both use the common redownload helper for status/progress/de-duplication and refresh decisions.
   - Platform storage engines still own replacing a single track file safely in Android app storage or desktop cache storage.
-- 2026-06-03: Moved desktop `PlaylistEngine` off direct `DesktopCache` coupling.
-  - `PlaylistEngine` now receives audio cache, waveform, lyrics sidecar, sidecar status, and playback audio asset ports.
+- 2026-06-03: Moved desktop `DesktopPlaylistEngine` off direct `DesktopCache` coupling.
+  - `DesktopPlaylistEngine` now receives audio cache, waveform, lyrics sidecar, sidecar status, and playback audio asset ports.
   - `DesktopNaviampApp` remains the composition root that supplies `DesktopCache` as the concrete implementation of those narrow contracts.
   - Playback-source lookup, audio prefetch, waveform prep, provider/embedded/LRCLIB lyrics prep, and sidecar status writes no longer require a broad desktop storage type inside the engine.
 - 2026-06-04: Extracted shared audio cache/download byte-store orchestration.
@@ -529,7 +529,7 @@ This is a strong first slice because playback-source selection currently affects
   - Added `PlaybackSidecarService` so desktop and Android playlist wrappers share waveform/lyrics sidecar preparation and status writes.
   - Moved prefetch runtime stats and the track-by-track audio prefetch loop into common playback code.
   - Added shared prepared-next request construction so desktop and Android use the same URL resolution, ReplayGain mode gating, and `PlaybackRequest` shaping before calling platform BASS engines.
-  - Desktop `PlaylistEngine` and Android `AndroidPlaylistEngine` remain platform adapters for coroutine jobs, UI/log callbacks, foreground-service state, and concrete cache/audio engines.
+  - Desktop `DesktopPlaylistEngine` and Android `AndroidPlaylistEngine` remain platform adapters for coroutine jobs, UI/log callbacks, foreground-service state, and concrete cache/audio engines.
 - 2026-06-04: Continued storage/cache boundary cleanup.
   - `AndroidPlaylistEngine` no longer depends on broad `AndroidStorage`; it receives waveform/audio-asset ports and a platform cache callback.
   - Android Auto foreground-service helpers now use shared library-index, provider-response, media-source, playback-session, playback-history, and cover-art lookup ports where practical.

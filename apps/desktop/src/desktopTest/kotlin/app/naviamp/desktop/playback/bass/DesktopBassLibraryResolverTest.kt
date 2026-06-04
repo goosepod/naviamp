@@ -13,7 +13,7 @@ class BassLibraryResolverTest {
         val explicit = createTempDirectory().toFile()
         explicit.library("libbass.dylib")
 
-        val resolved = BassLibraryResolver(
+        val resolved = DesktopBassLibraryResolver(
             platform = BassPlatform(os = "macos", arch = "arm64"),
             explicitDirectory = explicit.absolutePath,
             environmentDirectory = null,
@@ -28,7 +28,7 @@ class BassLibraryResolverTest {
         val environment = createTempDirectory().toFile()
         environment.library("bass.dll")
 
-        val resolved = BassLibraryResolver(
+        val resolved = DesktopBassLibraryResolver(
             platform = BassPlatform(os = "windows", arch = "x64"),
             explicitDirectory = null,
             environmentDirectory = environment.absolutePath,
@@ -43,7 +43,7 @@ class BassLibraryResolverTest {
         val root = createTempDirectory().toFile()
         val bundled = root.library("playback/bass/linux-x64/libbass.so").parentFile
 
-        val resolved = BassLibraryResolver(
+        val resolved = DesktopBassLibraryResolver(
             platform = BassPlatform(os = "linux", arch = "x64"),
             explicitDirectory = null,
             environmentDirectory = null,
@@ -58,7 +58,7 @@ class BassLibraryResolverTest {
         val root = createTempDirectory().toFile()
         val bundled = root.library("resources/playback/bass/macos-arm64/libbass.dylib").parentFile
 
-        val resolved = BassLibraryResolver(
+        val resolved = DesktopBassLibraryResolver(
             platform = BassPlatform(os = "macos", arch = "arm64"),
             explicitDirectory = null,
             environmentDirectory = null,
@@ -74,7 +74,7 @@ class BassLibraryResolverTest {
         val resources = root.library("Contents/Resources/playback/bass/macos-arm64/libbass.dylib").parentFile
         val macOs = root.resolve("Contents/MacOS").also { it.mkdirs() }
 
-        val resolved = BassLibraryResolver(
+        val resolved = DesktopBassLibraryResolver(
             platform = BassPlatform(os = "macos", arch = "arm64"),
             explicitDirectory = null,
             environmentDirectory = null,
@@ -86,7 +86,7 @@ class BassLibraryResolverTest {
 
     @Test
     fun resolveReturnsNullWhenBassIsMissing() {
-        val resolved = BassLibraryResolver(
+        val resolved = DesktopBassLibraryResolver(
             platform = BassPlatform(os = "macos", arch = "arm64"),
             explicitDirectory = null,
             environmentDirectory = null,

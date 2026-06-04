@@ -113,7 +113,7 @@ class DesktopNowPlayingController(
                 } else {
                     null
                 }
-                NowPlayingAnalysis(waveform, status, tags, lyrics)
+                DesktopNowPlayingAnalysis(waveform, status, tags, lyrics)
             }.getOrNull()
         }
         setNowPlayingWaveform(analysis?.waveform)

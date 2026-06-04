@@ -2,7 +2,7 @@ package app.naviamp.desktop.playback.bass
 
 import java.io.File
 
-class BassLibraryResolver(
+class DesktopBassLibraryResolver(
     private val platform: BassPlatform = BassPlatform.current(),
     private val explicitDirectory: String? = System.getProperty("naviamp.bass.dir"),
     private val environmentDirectory: String? = System.getenv("NAVIAMP_BASS_DIR"),
@@ -42,7 +42,7 @@ class BassLibraryResolver(
 
     companion object {
         private fun defaultSearchRoots(): List<File> {
-            val codeSource = BassLibraryResolver::class.java.protectionDomain.codeSource?.location
+            val codeSource = DesktopBassLibraryResolver::class.java.protectionDomain.codeSource?.location
                 ?.toURI()
                 ?.let(::File)
             val codeSourceRoot = codeSource?.let {

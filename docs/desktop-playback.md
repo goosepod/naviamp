@@ -4,11 +4,11 @@ Naviamp uses a small playback abstraction so queue behavior, UI controls, and pr
 
 ## Current Engine
 
-Desktop uses `BassPlaybackEngine` as the production playback engine. The desktop factory always constructs BASS; if native BASS loading fails, playback reports a BASS error instead of switching to another audio stack.
+Desktop uses `DesktopBassPlaybackEngine` as the production playback engine. The desktop factory always constructs BASS; if native BASS loading fails, playback reports a BASS error instead of switching to another audio stack.
 
 ## Engine Resolution
 
-`PlaybackEngineFactory` accepts `NAVIAMP_PLAYBACK_ENGINE=bass` and `-Dnaviamp.playback.engine=bass` for compatibility with earlier testing scripts, but BASS is the only desktop engine path.
+`DesktopPlaybackEngineFactory` accepts `NAVIAMP_PLAYBACK_ENGINE=bass` and `-Dnaviamp.playback.engine=bass` for compatibility with earlier testing scripts, but BASS is the only desktop engine path.
 
 ## Direction
 
@@ -200,7 +200,7 @@ Desktop waveform generation uses BASS decode streams against cached or downloade
 
 ## Gapless Playback
 
-The BASS desktop engine implements `QueueAwarePlaybackEngine.prepareNext`. During normal queue playback, `PlaylistEngine` asks BASS to create the next stream shortly before the current track ends.
+The BASS desktop engine implements `QueueAwarePlaybackEngine.prepareNext`. During normal queue playback, `DesktopPlaylistEngine` asks BASS to create the next stream shortly before the current track ends.
 
 For gapless playback, the engine uses BASSmix queued decode channels. The active track plays through a BASS mixer, and the prepared next track is queued into that mixer before the current source ends. When BASS advances to the queued source, the app adopts that source as the current track instead of stopping and reopening playback. Prepared streams are cleared on stop, seek, source changes, queue jumps, shuffle/restore changes, or when the next request no longer matches the prepared stream.
 

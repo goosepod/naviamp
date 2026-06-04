@@ -1,6 +1,6 @@
 package app.naviamp.desktop
 
-import app.naviamp.desktop.playback.PlaylistEngine
+import app.naviamp.desktop.playback.DesktopPlaylistEngine
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.PlaybackSessionRepository
@@ -28,7 +28,7 @@ class DesktopPlaybackController(
     private val scope: CoroutineScope,
     private val playbackSessionRepository: PlaybackSessionRepository,
     private val playbackEngine: PlaybackEngine,
-    private val playlistEngine: PlaylistEngine,
+    private val playlistEngine: DesktopPlaylistEngine,
     private val provider: () -> MediaProvider?,
     private val playbackSettings: () -> PlaybackSettings,
     private val playbackQueue: () -> PlaybackQueue,

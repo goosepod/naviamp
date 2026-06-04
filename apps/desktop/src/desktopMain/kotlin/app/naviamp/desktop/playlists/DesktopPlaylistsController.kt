@@ -31,7 +31,7 @@ import app.naviamp.domain.provider.shouldStartPlaybackAction
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.desktop.playback.PlaylistCallbacks
-import app.naviamp.desktop.playback.PlaylistEngine
+import app.naviamp.desktop.playback.DesktopPlaylistEngine
 import app.naviamp.desktop.settings.DesktopSettingsStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -42,7 +42,7 @@ class DesktopPlaylistsController(
     private val scope: CoroutineScope,
     private val settingsStore: DesktopSettingsStore,
     private val playbackEngine: PlaybackEngine,
-    private val playlistEngine: PlaylistEngine,
+    private val playlistEngine: DesktopPlaylistEngine,
     private val providerResponseService: ProviderResponseService,
     private val provider: () -> MediaProvider?,
     private val playbackSettings: () -> PlaybackSettings,

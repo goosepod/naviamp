@@ -1,6 +1,6 @@
 package app.naviamp.desktop
 
-import app.naviamp.desktop.playback.PlaylistEngine
+import app.naviamp.desktop.playback.DesktopPlaylistEngine
 import app.naviamp.desktop.settings.DesktopSettingsStore
 import app.naviamp.desktop.settings.PlaybackSessionSettings
 import app.naviamp.domain.InternetRadioStation
@@ -35,7 +35,7 @@ class DesktopInternetRadioController(
     private val settingsStore: DesktopSettingsStore,
     private val playbackSessionRepository: PlaybackSessionRepository,
     private val playbackEngine: PlaybackEngine,
-    private val playlistEngine: PlaylistEngine,
+    private val playlistEngine: DesktopPlaylistEngine,
     private val provider: () -> MediaProvider?,
     private val providerResponseService: ProviderResponseService,
     private val homeContent: () -> HomeContent,

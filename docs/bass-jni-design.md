@@ -67,7 +67,7 @@ The initial CMake scaffold lives in `native/bass-jni`.
 The first committed JNI contract exposes BASS version and last-error diagnostics through:
 
 - Android: `app.naviamp.android.playback.AndroidBassJni`
-- Desktop: `app.naviamp.desktop.playback.bass.BassJniBinding`
+- Desktop: `app.naviamp.desktop.playback.bass.DesktopBassJniBinding`
 
 Playback and waveform analysis now use the shared `BassAudioBackend` facade. Desktop still wraps its native/JNA binding below `DesktopBassAudioBackend`; Android wraps JNI below `AndroidBassAudioBackend`. Converging the desktop bridge onto the JNI library remains a connector-level migration, not an app-level playback rewrite.
 
@@ -81,7 +81,7 @@ The intended model:
 - Decode current and prepared-next sources as decode channels.
 - Add decode channels to the mixer at exact positions.
 - Use mixer envelopes for fade curves.
-- Keep queue advancement in `PlaylistEngine`, driven by native callbacks or high-confidence progress events.
+- Keep queue advancement in `DesktopPlaylistEngine`, driven by native callbacks or high-confidence progress events.
 
 This keeps crossfade and gapless timing in native audio code rather than coroutine polling.
 

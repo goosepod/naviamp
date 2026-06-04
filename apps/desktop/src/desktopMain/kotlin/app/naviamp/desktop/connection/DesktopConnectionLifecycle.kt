@@ -19,7 +19,7 @@ import app.naviamp.domain.settings.connectionFormError
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.source.deletedMediaSourceUpdate
 import app.naviamp.desktop.playback.PlaylistCallbacks
-import app.naviamp.desktop.playback.PlaylistEngine
+import app.naviamp.desktop.playback.DesktopPlaylistEngine
 import app.naviamp.desktop.settings.DesktopSettingsStore
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.StreamQuality
@@ -55,7 +55,7 @@ class DesktopConnectionLifecycleController(
     private val settingsStore: DesktopSettingsStore,
     private val playbackSessionRepository: PlaybackSessionRepository,
     private val playbackEngine: PlaybackEngine,
-    private val playlistEngine: PlaylistEngine,
+    private val playlistEngine: DesktopPlaylistEngine,
     private val stopRadioContinuation: () -> Unit,
     private val clearShuffleSnapshot: () -> Unit,
     private val applyClearedConnectionState: (DesktopActiveConnectionClearState) -> Unit,

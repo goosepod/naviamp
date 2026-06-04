@@ -97,7 +97,7 @@ Android already uses the shared Compose UI shell for the main app surface, so ma
   - [x] Use shared download/cache services so desktop and Android apply the same product rules for download planning, status, stats, and playback-source resolution.
     Initial downloads and re-downloads after saved-file quality changes now use shared `DownloadService` over narrow download/replacement repository ports on both platforms.
     Playback-source resolution now uses the shared downloaded/cached/provider-stream resolver across desktop and Android app/service paths.
-    Desktop `PlaylistEngine` now receives narrow audio cache, waveform, lyrics sidecar, sidecar status, and playback-audio asset ports, matching the parity direction of platform engines behind shared capability contracts.
+    Desktop `DesktopPlaylistEngine` now receives narrow audio cache, waveform, lyrics sidecar, sidecar status, and playback-audio asset ports, matching the parity direction of platform engines behind shared capability contracts.
     Low-level byte/file-store operations still need to move behind shared service ports.
   - Confirm offline playback from downloaded files works after app restart and network loss.
   - [x] Expose cache budgets and storage pressure clearly enough for Android users.
