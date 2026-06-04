@@ -7,6 +7,7 @@ import app.naviamp.android.toPlaybackLocalAudio
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.isInternetRadioTrack
+import app.naviamp.domain.cache.AudioWaveformStorageRepository
 import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.lyrics.LyricsSidecarService
 import app.naviamp.domain.playback.PlaybackAudioAssetRepository
@@ -42,7 +43,8 @@ import kotlinx.coroutines.launch
 class AndroidPlaylistEngine(
     private val scope: CoroutineScope,
     private val state: AndroidAppState,
-    private val storage: AndroidStorage,
+    waveformRepository: AudioWaveformStorageRepository,
+    private val cacheAudioTrack: suspend (String, NavidromeProvider, Track, StreamQuality) -> File?,
     private val playbackAudioAssets: PlaybackAudioAssetRepository,
     private val playbackEngine: AndroidPlaybackEngine,
     private val playbackQueueController: PlaybackQueueController,
@@ -54,7 +56,7 @@ class AndroidPlaylistEngine(
 ) {
     private val audioCacheKeysInFlight = mutableSetOf<String>()
     private val audioWaveformService = AudioWaveformService(
-        waveformRepository = storage,
+        waveformRepository = waveformRepository,
         audioAssets = playbackAudioAssets,
         analyzer = waveformAnalyzer,
         prepareAnalysis = {
@@ -62,12 +64,8 @@ class AndroidPlaylistEngine(
             AndroidPlaybackTls.applyDefaults(state.activeTlsSettings)
         },
         cacheAudioForWaveform = { sourceId, mediaProvider, track, quality ->
-            cacheAudioTrackForPlayback(
-                sourceId = sourceId,
-                activeProvider = mediaProvider as NavidromeProvider,
-                track = track,
-                quality = quality,
-            )?.toPlaybackLocalAudio()
+            cacheAudioTrack(sourceId, mediaProvider as NavidromeProvider, track, quality)
+                ?.toPlaybackLocalAudio()
         },
     )
     private val sidecarService = PlaybackSidecarService(
@@ -93,11 +91,11 @@ class AndroidPlaylistEngine(
 
         val cacheKey = "${sourceId}:${track.id.value}:$quality"
         if (!audioCacheKeysInFlight.add(cacheKey)) {
-            return storage.cachedAudioFile(sourceId, track.id, quality)?.file
+            return playbackAudioAssets.cachedAudio(sourceId, track.id, quality)?.let { File(it.path) }
         }
 
         return try {
-            storage.cacheAudioTrack(sourceId, activeProvider, track, quality).file
+            cacheAudioTrack(sourceId, activeProvider, track, quality)
         } finally {
             audioCacheKeysInFlight.remove(cacheKey)
         }

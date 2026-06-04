@@ -513,7 +513,10 @@ private fun NaviampAndroidApp(
         AndroidPlaylistEngine(
             scope = scope,
             state = appState,
-            storage = storage,
+            waveformRepository = storage,
+            cacheAudioTrack = { sourceId, provider, track, quality ->
+                storage.cacheAudioTrack(sourceId, provider, track, quality).file
+            },
             playbackAudioAssets = playbackAudioAssets,
             playbackEngine = playbackEngine,
             playbackQueueController = playbackQueueController,
