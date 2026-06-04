@@ -509,7 +509,7 @@ class AndroidStorage(
     override fun removeDownloadedAudio(sourceId: String, trackId: TrackId, quality: StreamQuality) {
         val qualityKey = quality.cacheKey()
         queries.selectDownloadedAudioFile(sourceId, trackId.value, qualityKey).executeAsOneOrNull()?.let { row ->
-            File(row.file_path).delete()
+            downloadAudioByteStoreService.deleteAudio(row.file_path)
         }
         queries.deleteDownloadedAudio(sourceId, trackId.value, qualityKey)
     }
@@ -519,7 +519,7 @@ class AndroidStorage(
             .executeAsList()
             .filter { row -> row.remote_track_id == trackId.value }
             .forEach { row ->
-                File(row.file_path).delete()
+                downloadAudioByteStoreService.deleteAudio(row.file_path)
             }
         queries.deleteDownloadedAudioForTrack(sourceId, trackId.value)
     }
@@ -907,7 +907,7 @@ class AndroidStorage(
         queries.oldestCachedAudio(100).executeAsList().forEach { audio ->
             if (cacheSize <= maxAudioCacheBytes) return
             queries.deleteCachedAudio(audio.source_id, audio.remote_track_id, audio.quality_key)
-            File(audio.file_path).delete()
+            audioCacheByteStoreService.deleteAudio(audio.file_path)
             cacheSize -= audio.size_bytes
         }
     }

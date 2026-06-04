@@ -751,7 +751,7 @@ class DesktopCache(
             remote_track_id = trackId.value,
             quality_key = qualityKey,
         ).executeAsOneOrNull()?.let { row ->
-            Files.deleteIfExists(Path.of(row.file_path))
+            downloadAudioByteStoreService.deleteAudio(row.file_path)
         }
         queries.deleteDownloadedAudio(sourceId, trackId.value, qualityKey)
     }
@@ -764,7 +764,7 @@ class DesktopCache(
             .executeAsList()
             .filter { row -> row.remote_track_id == trackId.value }
             .forEach { row ->
-                Files.deleteIfExists(Path.of(row.file_path))
+                downloadAudioByteStoreService.deleteAudio(row.file_path)
             }
         queries.deleteDownloadedAudioForTrack(sourceId, trackId.value)
     }
@@ -1265,7 +1265,7 @@ class DesktopCache(
         queries.oldestCachedAudio(100).executeAsList().forEach { audio ->
             if (cacheSize <= maxAudioCacheBytes) return
             queries.deleteCachedAudio(audio.source_id, audio.remote_track_id, audio.quality_key)
-            Files.deleteIfExists(Path.of(audio.file_path))
+            audioCacheByteStoreService.deleteAudio(audio.file_path)
             cacheSize -= audio.size_bytes
         }
     }
