@@ -134,6 +134,9 @@ Then higher-level repositories can be composed from those stores:
   - Twentieth slice: desktop and Android BASS waveform analyzers implement a shared `AudioWaveformAnalyzer` contract.
   - Twenty-first slice: desktop and Android waveform analyzers now use shared float-PCM bucketing over BASS decode-stream length/read primitives.
   - Twenty-second slice: shared `BassAudioBackend` port now hides desktop `BassNative` and Android `AndroidBassJni` for waveform decode-stream access.
+  - Twenty-third slice: Android playlist sidecar/prefetch orchestration now receives waveform/audio-cache ports and a cache lambda instead of broad `AndroidStorage`.
+  - Twenty-fourth slice: Android Auto foreground-service helpers now use shared library-index, provider-response, media-source, playback-session, playback-history, and cover-art lookup ports where practical; the service still owns an `AndroidStorage` instance as its composition/runtime adapter.
+  - Twenty-fifth slice: desktop connection opening now uses `CacheMaintenanceRepository` and `ProviderMediaSourceRepository` instead of taking `DesktopCache` directly.
 - [x] Normalize playback local-audio file boundaries.
   - Shared services should consume platform-neutral local-audio descriptors or store ports instead of `java.io.File` or `java.nio.file.Path` directly.
   - Android can keep `File` and desktop can keep `Path` inside platform adapters because output streams, atomic moves, directory walking, and delete behavior are OS/runtime details.
@@ -144,25 +147,28 @@ Then higher-level repositories can be composed from those stores:
   - `AudioByteStoreService` now owns provider audio dispatch, source/track/quality file naming, content-type extension selection, zero-byte failure cleanup, and duplicate/in-flight guards.
   - Android and desktop both use the service for cached audio writes, downloaded audio writes, replacement downloads, storage-limit rollback, download replacement cleanup, download removal, and cached-audio trim deletion.
   - Platform byte stores only create temp/final files, expose an output sink, move temp files into place, delete files, and return the neutral stored path/size result.
-- [ ] Replace direct `DesktopCache` dependencies in desktop controllers with narrower interfaces.
-  - `DesktopHomeController`
-  - `DesktopSearchController`
-  - `DesktopLibraryController`
-  - `DesktopNowPlayingController`
-  - `DesktopDownloadsController`
+- [x] Replace direct `DesktopCache` dependencies in desktop controllers with narrower interfaces.
+  - [x] `DesktopHomeController`
+  - [x] `DesktopSearchController`
+  - [x] `DesktopLibraryController`
+  - [x] `DesktopNowPlayingController`
+  - [x] `DesktopDownloadsController`
   - [x] `PlaylistEngine`
-  - `DesktopAlbumController`
-  - `DesktopArtistController`
-  - `DesktopMediaActionsController`
-- [ ] Replace direct `AndroidStorage` dependencies in Android controllers with narrower interfaces.
-  - `AndroidConnectionController`
-  - `AndroidLibraryController`
-  - `AndroidDownloadController`
-  - `AndroidArtistController`
-  - `AndroidPlaylistsController`
-  - `AndroidPlaybackSessionController`
-  - `AndroidMaintenanceController`
-  - `MainActivity` remaining wrappers
+  - [x] `DesktopAlbumController`
+  - [x] `DesktopArtistController`
+  - [x] `DesktopMediaActionsController`
+  - [x] Desktop connection opening
+- [x] Replace direct `AndroidStorage` dependencies in Android controllers with narrower interfaces.
+  - [x] `AndroidConnectionController`
+  - [x] `AndroidLibraryController`
+  - [x] `AndroidDownloadController`
+  - [x] `AndroidArtistController`
+  - [x] `AndroidPlaylistsController`
+  - [x] `AndroidPlaybackSessionController`
+  - [x] `AndroidMaintenanceController`
+  - [x] `AndroidPlaylistEngine`
+  - [x] Android Auto foreground-service helper paths
+  - Remaining broad storage ownership is limited to Android composition/runtime roots such as `MainActivity` and `AndroidPlaybackForegroundService`.
 - [x] Extract a shared download service.
   - Keep mobile-data policy and download quality rules shared.
   - Keep platform network/storage execution behind injected repositories.
@@ -503,3 +509,8 @@ This is a strong first slice because playback-source selection currently affects
   - Moved prefetch runtime stats and the track-by-track audio prefetch loop into common playback code.
   - Added shared prepared-next request construction so desktop and Android use the same URL resolution, ReplayGain mode gating, and `PlaybackRequest` shaping before calling platform BASS engines.
   - Desktop `PlaylistEngine` and Android `AndroidPlaylistEngine` remain platform adapters for coroutine jobs, UI/log callbacks, foreground-service state, and concrete cache/audio engines.
+- 2026-06-04: Continued storage/cache boundary cleanup.
+  - `AndroidPlaylistEngine` no longer depends on broad `AndroidStorage`; it receives waveform/audio-asset ports and a platform cache callback.
+  - Android Auto foreground-service helpers now use shared library-index, provider-response, media-source, playback-session, playback-history, and cover-art lookup ports where practical.
+  - Added album-title fallback reads to `LocalLibraryIndexRepository` so Android Auto queue restoration does not require a concrete Android storage type for that lookup.
+  - Desktop connection opening now depends on `CacheMaintenanceRepository` and `ProviderMediaSourceRepository` instead of direct `DesktopCache`.

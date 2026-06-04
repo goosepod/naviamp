@@ -248,6 +248,9 @@ Branch: `codex/desktop-main-reduction`
   - Desktop smart playlist source/auth refresh now uses shared provider media-source and provider-response repository ports instead of direct `DesktopCache`.
   - Desktop now-playing analysis now uses shared waveform, lyrics sidecar, library-index, and playback-audio asset ports instead of direct `DesktopCache`.
   - Desktop `PlaylistEngine` now uses shared audio cache, waveform, lyrics sidecar, sidecar status, and playback-audio asset ports instead of direct `DesktopCache`.
+  - Android `AndroidPlaylistEngine` now receives shared waveform/audio-asset ports and a cache callback instead of broad `AndroidStorage`.
+  - Android Auto foreground-service helper paths now use shared library-index, provider-response, media-source, playback-session, playback-history, and cover-art lookup ports where practical; the service still owns `AndroidStorage` as its runtime adapter.
+  - Desktop connection opening now uses cache-maintenance and provider media-source repository ports instead of direct `DesktopCache`.
 - [x] Introduce shared low-level byte/object store ports for audio cache/download file operations.
   - `AudioByteStoreService` now owns provider audio streaming, stable source/track/quality filenames, content-type extensions, zero-byte cleanup, and in-flight write coalescing.
   - Desktop and Android keep only temp/final file movement and deletion in platform byte-store adapters.
@@ -259,6 +262,7 @@ Branch: `codex/desktop-main-reduction`
   - Now-playing waveform and lyrics sidecars now have shared repository ports with desktop cache and Android storage implementations where applicable.
   - Playback-session metadata now has `PlaybackSessionRepository` with desktop settings and Android storage implementations.
   - Android playback-history browse reads now use `PlaybackHistoryRepository`.
+  - Android Auto album-title fallback reads now use `LocalLibraryIndexRepository`, keeping voice/search queue restoration on shared library-index ports.
 - [x] Build a shared download service over `DownloadRepository` and platform byte/file stores so desktop and Android use one download flow.
   - Initial downloads and quality-change re-downloads now go through common `DownloadService`.
   - Desktop and Android storage engines are injected through narrow platform-agnostic download/replacement repository ports.
