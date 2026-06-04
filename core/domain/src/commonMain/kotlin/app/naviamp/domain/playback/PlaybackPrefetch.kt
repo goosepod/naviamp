@@ -56,5 +56,46 @@ fun AudioPrefetchStats.audioFailure(error: Throwable?): AudioPrefetchStats =
         lastError = error?.message,
     )
 
+suspend fun <CachedAudio> runAudioPrefetch(
+    stats: AudioPrefetchStats,
+    tracks: List<app.naviamp.domain.Track>,
+    isActive: () -> Boolean,
+    cacheAudio: suspend (app.naviamp.domain.Track) -> CachedAudio?,
+    prepareSidecars: suspend (app.naviamp.domain.Track, CachedAudio?) -> PlaybackSidecarPrepResult = { _, _ ->
+        PlaybackSidecarPrepResult()
+    },
+    onTrackCached: suspend (app.naviamp.domain.Track, CachedAudio?) -> Unit = { _, _ -> },
+    onTrackFailed: suspend (app.naviamp.domain.Track, Throwable) -> Unit = { _, _ -> },
+    onStatsChanged: (AudioPrefetchStats) -> Unit = {},
+): AudioPrefetchStats {
+    var currentStats = stats.started(tracks.size)
+    onStatsChanged(currentStats)
+    for (track in tracks) {
+        if (!isActive()) break
+        var sidecarResult = PlaybackSidecarPrepResult()
+        val result = runCatching {
+            val cachedAudio = cacheAudio(track)
+            sidecarResult = prepareSidecars(track, cachedAudio)
+            cachedAudio
+        }
+        currentStats = result.fold(
+            onSuccess = { cachedAudio ->
+                onTrackCached(track, cachedAudio)
+                currentStats.audioSuccess(sidecarResult)
+            },
+            onFailure = { error ->
+                onTrackFailed(track, error)
+                currentStats.audioFailure(error)
+            },
+        )
+        onStatsChanged(currentStats)
+    }
+    if (isActive()) {
+        currentStats = currentStats.finished()
+        onStatsChanged(currentStats)
+    }
+    return currentStats
+}
+
 const val DefaultAudioPrefetchDepth = 10
 const val MaxAudioPrefetchDepth = 25

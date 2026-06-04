@@ -21,11 +21,13 @@ import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.playback.SidecarTypeLyrics
 import app.naviamp.domain.playback.SidecarTypeWaveform
 import app.naviamp.domain.playback.audioPrefetchTracks
+import app.naviamp.domain.playback.initialAudioPrefetchStats
 import app.naviamp.domain.playback.planPrepareNextQueuePlayback
 import app.naviamp.domain.playback.preparedNextPlaybackRequest
 import app.naviamp.domain.playback.recordSidecarFailure
 import app.naviamp.domain.playback.recordSidecarSuccess
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
+import app.naviamp.domain.playback.runAudioPrefetch
 import app.naviamp.domain.playback.sidecarPrepPlan
 import app.naviamp.domain.playback.lyricsUnavailableStatus
 import app.naviamp.domain.playback.waveformUnavailableStatus
@@ -117,18 +119,22 @@ class AndroidPlaylistEngine(
         if (tracksToPrefetch.isEmpty()) return
 
         state.audioPrefetchJob = scope.launch {
-            tracksToPrefetch.forEach { track ->
-                if (sessionToken != state.playbackSessionToken) return@launch
-                runCatching {
+            runAudioPrefetch(
+                stats = initialAudioPrefetchStats(enabled = true, configuredDepth = AndroidAudioPrefetchDepth),
+                tracks = tracksToPrefetch,
+                isActive = { sessionToken == state.playbackSessionToken },
+                cacheAudio = { track ->
                     cacheAudioTrackForPlayback(sourceId, activeProvider, track, quality)
-                }.onSuccess { file ->
+                },
+                onTrackCached = { track, file ->
                     if (file != null) {
                         android.util.Log.i("NaviampCache", "Prefetched audio title=${track.title} path=${file.name}")
                     }
-                }.onFailure { error ->
+                },
+                onTrackFailed = { track, error ->
                     android.util.Log.w("NaviampCache", "Audio prefetch failed title=${track.title}", error)
-                }
-            }
+                },
+            )
         }
     }
 

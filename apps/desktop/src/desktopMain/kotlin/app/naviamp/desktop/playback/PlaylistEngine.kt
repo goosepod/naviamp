@@ -28,8 +28,6 @@ import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.playback.PlaybackSidecarService
 import app.naviamp.domain.playback.audioPrefetchTracks
-import app.naviamp.domain.playback.audioFailure
-import app.naviamp.domain.playback.audioSuccess
 import app.naviamp.domain.playback.emptyPlaybackAudioAssetRepository
 import app.naviamp.domain.playback.finished
 import app.naviamp.domain.playback.initialAudioPrefetchStats
@@ -37,7 +35,7 @@ import app.naviamp.domain.playback.planPrepareNextQueuePlayback
 import app.naviamp.domain.playback.preparedNextPlaybackRequest
 import app.naviamp.domain.playback.playbackStreamUrl
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
-import app.naviamp.domain.playback.started
+import app.naviamp.domain.playback.runAudioPrefetch
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import kotlinx.coroutines.CoroutineScope
@@ -379,35 +377,30 @@ class PlaylistEngine(
         if (upcoming.isEmpty()) return
 
         audioPrefetchJob?.cancel()
-        audioPrefetchStats = audioPrefetchStats.started(upcoming.size)
         audioPrefetchJob = scope.launch {
-            upcoming.forEach { track ->
-                if (activeSessionId != queueController.playbackSessionId) return@launch
-                var sidecarResult = PlaybackSidecarPrepResult()
-                val result = runCatching {
-                    val cachedAudio = audioCache.cacheAudioTrack(
+            audioPrefetchStats = runAudioPrefetch(
+                stats = audioPrefetchStats,
+                tracks = upcoming,
+                isActive = { activeSessionId == queueController.playbackSessionId },
+                cacheAudio = { track ->
+                    audioCache.cacheAudioTrack(
                         sourceId = sourceId,
                         provider = currentProvider,
                         track = track,
                         quality = currentQuality,
                     )
-                    sidecarResult = runPrefetchSidecars(
+                },
+                prepareSidecars = { track, _ ->
+                    runPrefetchSidecars(
                         sidecarService = sidecars,
                         sourceId = sourceId,
                         provider = currentProvider,
                         track = track,
                         quality = currentQuality,
                     )
-                }
-                audioPrefetchStats = if (result.isSuccess) {
-                    audioPrefetchStats.audioSuccess(sidecarResult)
-                } else {
-                    audioPrefetchStats.audioFailure(result.exceptionOrNull())
-                }
-            }
-            if (activeSessionId == queueController.playbackSessionId) {
-                audioPrefetchStats = audioPrefetchStats.finished()
-            }
+                },
+                onStatsChanged = { stats -> audioPrefetchStats = stats },
+            )
         }
     }
 
