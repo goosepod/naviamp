@@ -25,7 +25,7 @@ import android.support.v4.media.session.PlaybackStateCompat
 import androidx.media.MediaBrowserServiceCompat
 import androidx.media.utils.MediaConstants
 import app.naviamp.android.AndroidPlaybackHistoryItem
-import app.naviamp.android.AndroidStorage
+import app.naviamp.android.AndroidStorageDependencies
 import app.naviamp.android.AndroidSettingsStore
 import app.naviamp.android.AndroidPlaybackAudioAssets
 import app.naviamp.android.R
@@ -80,10 +80,10 @@ private const val VoiceArtistScanLimit = 5_000L
 class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     private var mediaSession: MediaSessionCompat? = null
     private var browserSessionTokenSet = false
-    private var serviceStorageInstance: AndroidStorage? = null
+    private var serviceStorageInstance: AndroidStorageDependencies? = null
     private val notificationArtHttpClient = KtorSharedHttpClient()
-    private val serviceStorage: AndroidStorage
-        get() = serviceStorageInstance ?: AndroidStorage(applicationContext).also { serviceStorageInstance = it }
+    private val serviceStorage: AndroidStorageDependencies
+        get() = serviceStorageInstance ?: AndroidStorageDependencies(applicationContext).also { serviceStorageInstance = it }
     private val autoQueueController = PlaybackQueueController()
 
     private fun providerResponseService(cacheRepository: ProviderResponseCacheRepository = serviceStorage): ProviderResponseService =
@@ -403,8 +403,8 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         val sourceId = storage.latestNavidromeSource()?.id ?: return
         val session = storage.loadPlaybackSession(sourceId) ?: return
         storage.savePlaybackSession(
-            sourceId,
-            session.withPlaybackPosition(positionSeconds),
+            sourceId = sourceId,
+            session = session.withPlaybackPosition(positionSeconds),
         )
     }
 
@@ -413,7 +413,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         val sourceId = storage.latestNavidromeSource()?.id ?: return
         val session = storage.loadPlaybackSession(sourceId) ?: return
         val nextSession = session.adjacentTrackSession(delta) ?: return
-        storage.savePlaybackSession(sourceId, nextSession)
+        storage.savePlaybackSession(sourceId = sourceId, session = nextSession)
         playSavedSession(nextSession)
     }
 
@@ -1699,7 +1699,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                     positionSeconds = AndroidPlaybackNotificationControls.positionMillis?.let { it / 1_000.0 },
                 )
                 if (sourceId != null && session != null) {
-                    storage.savePlaybackSession(sourceId, session)
+                    storage.savePlaybackSession(sourceId = sourceId, session = session)
                 }
             }
         }
