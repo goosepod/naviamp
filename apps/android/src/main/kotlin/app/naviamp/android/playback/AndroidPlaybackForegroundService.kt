@@ -46,6 +46,7 @@ import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.hasPendingSeekReachedTarget
+import app.naviamp.domain.playback.playbackStreamUrl
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
 import app.naviamp.domain.playback.shouldIgnoreProgressForPendingSeek
 import app.naviamp.domain.provider.AlbumListType
@@ -517,8 +518,10 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                     startPositionSeconds = startPositionSeconds,
                     audioAssets = audioAssets,
                 )
-                val streamUrl = audioSourcePlan.localAudio?.toURI()?.toString()
-                    ?: provider.streamUrl(audioSourcePlan.target.providerStreamRequest)
+                val streamUrl = audioSourcePlan.playbackStreamUrl(
+                    localAudioUrl = { file -> file.toURI().toString() },
+                    providerStreamUrl = { target -> provider.streamUrl(target.providerStreamRequest) },
+                )
                 streamUrl to audioSourcePlan.target.engineStartPositionSeconds
             }.onSuccess { playbackTarget ->
                 runtime.playbackEngine.updateNotificationMetadata(

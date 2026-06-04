@@ -17,6 +17,7 @@ import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.playback.SidecarTypeWaveform
 import app.naviamp.domain.playback.audioPrefetchTracks
 import app.naviamp.domain.playback.planPrepareNextQueuePlayback
+import app.naviamp.domain.playback.playbackStreamUrl
 import app.naviamp.domain.playback.recordSidecarFailure
 import app.naviamp.domain.playback.recordSidecarSuccess
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
@@ -151,8 +152,10 @@ class AndroidPlaylistEngine(
                     audioCachingEnabled = true,
                     audioAssets = playbackAudioAssets,
                 )
-                audioSourcePlan.localAudio?.toURI()?.toString()
-                    ?: activeProvider.streamUrl(audioSourcePlan.target.providerStreamRequest)
+                audioSourcePlan.playbackStreamUrl(
+                    localAudioUrl = { file -> file.toURI().toString() },
+                    providerStreamUrl = { target -> activeProvider.streamUrl(target.providerStreamRequest) },
+                )
             }.onSuccess { streamUrl ->
                 if (sessionToken != state.playbackSessionToken) return@onSuccess
                 queueAwareEngine.prepareNext(
