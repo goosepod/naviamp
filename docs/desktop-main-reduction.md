@@ -246,7 +246,10 @@ Branch: `codex/desktop-main-reduction`
   - Desktop smart playlist source/auth refresh now uses shared provider media-source and provider-response repository ports instead of direct `DesktopCache`.
   - Desktop now-playing analysis now uses shared waveform, lyrics sidecar, library-index, and playback-audio asset ports instead of direct `DesktopCache`.
   - Desktop `PlaylistEngine` now uses shared audio cache, waveform, lyrics sidecar, sidecar status, and playback-audio asset ports instead of direct `DesktopCache`.
-- [ ] Introduce shared low-level byte/object store ports for cache/download file operations.
+- [x] Introduce shared low-level byte/object store ports for audio cache/download file operations.
+  - `AudioByteStoreService` now owns provider audio streaming, stable source/track/quality filenames, content-type extensions, zero-byte cleanup, and in-flight write coalescing.
+  - Desktop and Android keep only temp/final file movement and deletion in platform byte-store adapters.
+- [ ] Introduce shared low-level byte/object store ports for non-audio file operations.
 - [ ] Introduce shared repository ports for media sources, provider responses, local library index, audio assets, sidecars, playback sessions, and maintenance stats.
   - Media-source metadata now has `MediaSourceRepository` with desktop and Android storage implementations.
   - Provider media-source upserts now have `ProviderMediaSourceRepository` with desktop and Android storage implementations.
@@ -257,7 +260,7 @@ Branch: `codex/desktop-main-reduction`
 - [x] Build a shared download service over `DownloadRepository` and platform byte/file stores so desktop and Android use one download flow.
   - Initial downloads and quality-change re-downloads now go through common `DownloadService`.
   - Desktop and Android storage engines are injected through narrow platform-agnostic download/replacement repository ports.
-  - Remaining work is to extract low-level byte/file-store ports from the concrete storage engines.
+  - Audio cache/download bytes now use common `AudioByteStoreService`; remaining byte-store work is for non-audio image/sidecar/object bytes.
 - [x] Build a shared audio playback-source resolver for downloaded file, cached file, or provider stream selection.
   - Desktop playback start, prepare-next, now-playing sidecar analysis, and ReplayGain tag lookup now use the common resolver.
   - Android foreground app playback, Android Auto/background restored playback, prepare-next, prefetch, waveform, and lyrics lookup paths use the same rule.

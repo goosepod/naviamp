@@ -27,8 +27,8 @@ The intended shape is the same idea as a PHP app using one cache/storage interfa
   - When the download quality setting changes and existing downloads are present, prompt the user to keep existing files or re-download local tracks at the new quality.
   - Prefer downloaded local audio over provider streams for playlist, radio, search, album, and direct track playback, regardless of where the playback request originated.
 - [x] Split low-level byte/file storage ports from higher-level media repositories.
-  - `DownloadService` now uses platform-agnostic download/replacement repository ports, but `DesktopCache` and `AndroidStorage` still own concrete byte download and file move details internally.
-  - Download audio byte writes/deletes now go through the shared `DownloadAudioByteStore` port with desktop and Android implementations.
+  - `DownloadService` now uses platform-agnostic download/replacement repository ports.
+  - Audio cache/download byte writes/deletes now go through shared `AudioByteStoreService` over platform `AudioByteStore` implementations.
 - [x] Extract shared provider-response cache orchestration so desktop and Android get the same cached/live behavior.
   - First slice: search responses now use common `ProviderResponseService` over `ProviderResponseCacheRepository` on desktop and Android.
   - Second slice: desktop and Android app album-detail loading now use `ProviderResponseService.album`.
@@ -108,8 +108,8 @@ Then higher-level repositories can be composed from those stores:
 
 - [x] Split low-level byte/file storage ports from higher-level media repositories.
   - Examples: local disk/app-private files, temporary cache files, persistent download files.
-  - First completed slice: persistent download audio bytes are behind `DownloadAudioByteStore`.
-  - Remaining byte-store work can apply the same pattern to audio cache, images, lyrics, waveform, and sidecar bytes.
+  - Audio cache/download bytes are behind `AudioByteStoreService` and platform `AudioByteStore` adapters.
+  - Remaining byte-store work can apply the same pattern to images, lyrics, waveform, and sidecar bytes.
 - [ ] Split metadata database ports from byte storage.
   - SQLite/SQLDelight can remain the first engine, but shared code should depend on repository contracts.
   - First slice: saved media-source metadata is behind `MediaSourceRepository`, implemented by desktop and Android storage engines.
@@ -140,10 +140,10 @@ Then higher-level repositories can be composed from those stores:
   - First local-audio target slice is complete: common playback helpers now own local-audio-or-provider-stream URL selection for Android playback start, Android prepare-next, Android foreground-service restored playback, desktop `PlaylistEngine`, and shared waveform generation.
   - `PlaybackAudioAssetRepository`, `PlaybackAudioSourcePlan`, and `AudioWaveformService` now use the platform-neutral `PlaybackLocalAudio` descriptor with local path, local URI, and optional size.
   - Android `File` and desktop `Path` conversion now happens at the platform playback-audio asset adapters and platform-only tag/lyrics reads.
-- [ ] Extract a shared audio cache/download store service.
-  - The next extraction target is a shared service that owns provider download dispatch, source/track/quality keys, duplicate/in-flight guards, and reusable local-audio result creation.
-  - Platform engines should still own byte writes, atomic moves, directory walking, and delete behavior behind the store boundary.
-  - Platform code should only create temp/final files, expose an output sink, move temp files into place, delete files, and convert its native file object into the neutral result.
+- [x] Extract a shared audio cache/download store service.
+  - `AudioByteStoreService` now owns provider audio dispatch, source/track/quality file naming, content-type extension selection, zero-byte failure cleanup, and duplicate/in-flight guards.
+  - Android and desktop both use the service for cached audio writes, downloaded audio writes, replacement downloads, storage-limit rollback, download replacement cleanup, download removal, and cached-audio trim deletion.
+  - Platform byte stores only create temp/final files, expose an output sink, move temp files into place, delete files, and return the neutral stored path/size result.
 - [ ] Replace direct `DesktopCache` dependencies in desktop controllers with narrower interfaces.
   - `DesktopHomeController`
   - `DesktopSearchController`
@@ -361,8 +361,8 @@ This is a strong first slice because playback-source selection currently affects
   - Common code owns initial download planning, mobile-data blocking, de-duplication, status, completed-count behavior, and calls into the platform-agnostic `DownloadRepository` port.
   - Platform controllers still select provider/source, derive platform network policy inputs, and refresh platform stats after the shared result.
 - 2026-06-02: Split persistent download audio byte storage behind a shared port.
-  - Added `DownloadAudioByteStore` and `StoredAudioBytes` in common domain.
-  - `DesktopCache` and `AndroidStorage` now keep download metadata/database ownership while delegating persistent audio byte writes and deletes through platform byte-store implementations.
+  - Added the first audio byte-store port and `StoredAudioBytes` in common domain.
+  - `DesktopCache` and `AndroidStorage` kept download metadata/database ownership while delegating persistent audio byte writes and deletes through platform byte-store implementations.
   - This keeps repository behavior behind common ports while preserving platform-specific file APIs and app-private/desktop path details in platform code.
 - 2026-06-02: Started shared provider-response cache orchestration.
   - Added common `ProviderResponseService` for typed cached provider responses.
@@ -484,3 +484,8 @@ This is a strong first slice because playback-source selection currently affects
   - `PlaylistEngine` now receives audio cache, waveform, lyrics sidecar, sidecar status, and playback audio asset ports.
   - `DesktopNaviampApp` remains the composition root that supplies `DesktopCache` as the concrete implementation of those narrow contracts.
   - Playback-source lookup, audio prefetch, waveform prep, provider/embedded/LRCLIB lyrics prep, and sidecar status writes no longer require a broad desktop storage type inside the engine.
+- 2026-06-04: Extracted shared audio cache/download byte-store orchestration.
+  - Added common `AudioByteStoreService` plus `AudioByteStore` / `AudioByteWriter`.
+  - Common code now owns provider audio streaming, source/track/quality stable filenames, content-type extensions, zero-byte cleanup, and in-flight write coalescing.
+  - Android and desktop storage now use the same service for audio cache writes, download writes/replacements, rollback cleanup, download removal, and cached-audio trim deletion.
+  - Android `File` and desktop `Path` remain below platform byte-store adapters for temp/final file moves and deletion.
