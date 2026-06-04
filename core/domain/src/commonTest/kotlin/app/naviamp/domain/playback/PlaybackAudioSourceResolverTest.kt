@@ -139,6 +139,48 @@ class PlaybackAudioSourceResolverTest {
         assertEquals(42.0, plan.target.providerStreamRequest.startPositionSeconds)
     }
 
+    @Test
+    fun playbackStreamUrlPrefersLocalAudioUrl() = runTest {
+        val plan = resolvePlaybackAudioSource(
+            sourceId = "source",
+            track = track("one"),
+            quality = StreamQuality.Original,
+            audioCachingEnabled = true,
+            downloadedAudio = { _, _, _ -> PlaybackLocalAudio(path = "/tmp/one.flac", uri = "file:///tmp/one.flac", sizeBytes = 12) },
+            cachedAudio = { _, _, _ -> null },
+        )
+
+        assertEquals(
+            "file:///tmp/one.flac",
+            plan.playbackStreamUrl(
+                localAudioUrl = { it.uri },
+                providerStreamUrl = { "provider://${it.providerStreamRequest.trackId.value}" },
+            ),
+        )
+        assertEquals("/tmp/one.flac", plan.localAudio?.path)
+        assertEquals(12, plan.localAudio?.sizeBytes)
+    }
+
+    @Test
+    fun playbackStreamUrlFallsBackToProviderTarget() = runTest {
+        val plan = resolvePlaybackAudioSource<PlaybackLocalAudio>(
+            sourceId = "source",
+            track = track("one"),
+            quality = StreamQuality.Original,
+            audioCachingEnabled = true,
+            downloadedAudio = { _, _, _ -> null },
+            cachedAudio = { _, _, _ -> null },
+        )
+
+        assertEquals(
+            "provider://one",
+            plan.playbackStreamUrl(
+                localAudioUrl = { it.uri },
+                providerStreamUrl = { "provider://${it.providerStreamRequest.trackId.value}" },
+            ),
+        )
+    }
+
     private fun track(id: String): Track =
         Track(
             id = TrackId(id),

@@ -20,6 +20,12 @@ data class PlaybackAudioSourcePlan<LocalAudio>(
     val hasLocalAudio: Boolean = localAudio != null
 }
 
+data class PlaybackLocalAudio(
+    val path: String,
+    val uri: String,
+    val sizeBytes: Long? = null,
+)
+
 interface PlaybackAudioAssetRepository<LocalAudio> {
     suspend fun downloadedAudio(
         sourceId: String,
@@ -38,6 +44,12 @@ interface PlaybackAudioAssetRepository<LocalAudio> {
         quality: StreamQuality,
     ): LocalAudio?
 }
+
+suspend fun <LocalAudio> PlaybackAudioSourcePlan<LocalAudio>.playbackStreamUrl(
+    localAudioUrl: (LocalAudio) -> String,
+    providerStreamUrl: suspend (PlaybackTargetPlan) -> String,
+): String =
+    localAudio?.let(localAudioUrl) ?: providerStreamUrl(target)
 
 fun <LocalAudio> emptyPlaybackAudioAssetRepository(): PlaybackAudioAssetRepository<LocalAudio> =
     object : PlaybackAudioAssetRepository<LocalAudio> {
