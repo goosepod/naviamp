@@ -17,6 +17,10 @@ import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackQueueSelection
 import app.naviamp.domain.playback.PlaybackReplayGain
 import app.naviamp.domain.playback.PlaybackRequest
+import app.naviamp.domain.playback.AudioPrefetchStats
+import app.naviamp.domain.playback.CacheRuntimeStats
+import app.naviamp.domain.playback.DefaultAudioPrefetchDepth
+import app.naviamp.domain.playback.PlaybackSidecarPrepResult
 import app.naviamp.domain.playback.PlaybackSource
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
@@ -24,10 +28,15 @@ import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.playback.PlaybackSidecarService
 import app.naviamp.domain.playback.audioPrefetchTracks
+import app.naviamp.domain.playback.audioFailure
+import app.naviamp.domain.playback.audioSuccess
 import app.naviamp.domain.playback.emptyPlaybackAudioAssetRepository
+import app.naviamp.domain.playback.finished
+import app.naviamp.domain.playback.initialAudioPrefetchStats
 import app.naviamp.domain.playback.planPrepareNextQueuePlayback
 import app.naviamp.domain.playback.playbackStreamUrl
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
+import app.naviamp.domain.playback.started
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import kotlinx.coroutines.CoroutineScope
@@ -131,7 +140,7 @@ class PlaylistEngine(
     fun cancelAudioPrefetch() {
         audioPrefetchJob?.cancel()
         audioPrefetchJob = null
-        audioPrefetchStats = audioPrefetchStats.copy(running = false)
+        audioPrefetchStats = audioPrefetchStats.finished()
     }
 
     fun updateTrack(updatedTrack: Track) {
@@ -349,9 +358,9 @@ class PlaylistEngine(
     }
 
     private fun startAudioPrefetch(scope: CoroutineScope, activeSessionId: Int) {
-        audioPrefetchStats = AudioPrefetchStats(
+        audioPrefetchStats = initialAudioPrefetchStats(
             enabled = audioCachingEnabledProvider(),
-            configuredDepth = audioPrefetchDepthProvider().coerceIn(0, 25),
+            configuredDepth = audioPrefetchDepthProvider(),
         )
         if (!audioCachingEnabledProvider()) return
         val audioCache = audioCacheRepository ?: return
@@ -359,7 +368,7 @@ class PlaylistEngine(
         val sourceId = sourceIdProvider() ?: return
         val currentProvider = provider ?: return
         val currentQuality = streamQuality ?: return
-        val prefetchDepth = audioPrefetchDepthProvider().coerceIn(0, 25)
+        val prefetchDepth = audioPrefetchStats.configuredDepth
         if (prefetchDepth <= 0) return
         val upcoming = audioPrefetchTracks(
             queue = queue,
@@ -369,20 +378,11 @@ class PlaylistEngine(
         if (upcoming.isEmpty()) return
 
         audioPrefetchJob?.cancel()
-        audioPrefetchStats = audioPrefetchStats.copy(
-            running = true,
-            queued = upcoming.size,
-            completed = 0,
-            failed = 0,
-            sidecarCompleted = 0,
-            sidecarFailed = 0,
-            lastError = null,
-            lastSidecarError = null,
-        )
+        audioPrefetchStats = audioPrefetchStats.started(upcoming.size)
         audioPrefetchJob = scope.launch {
             upcoming.forEach { track ->
                 if (activeSessionId != queueController.playbackSessionId) return@launch
-                var sidecarResult = SidecarPrepResult()
+                var sidecarResult = PlaybackSidecarPrepResult()
                 val result = runCatching {
                     val cachedAudio = audioCache.cacheAudioTrack(
                         sourceId = sourceId,
@@ -399,21 +399,13 @@ class PlaylistEngine(
                     )
                 }
                 audioPrefetchStats = if (result.isSuccess) {
-                    audioPrefetchStats.copy(
-                        completed = audioPrefetchStats.completed + 1,
-                        sidecarCompleted = audioPrefetchStats.sidecarCompleted + if (sidecarResult.failed == 0) 1 else 0,
-                        sidecarFailed = audioPrefetchStats.sidecarFailed + if (sidecarResult.failed > 0) 1 else 0,
-                        lastSidecarError = sidecarResult.lastError ?: audioPrefetchStats.lastSidecarError,
-                    )
+                    audioPrefetchStats.audioSuccess(sidecarResult)
                 } else {
-                    audioPrefetchStats.copy(
-                        failed = audioPrefetchStats.failed + 1,
-                        lastError = result.exceptionOrNull()?.message,
-                    )
+                    audioPrefetchStats.audioFailure(result.exceptionOrNull())
                 }
             }
             if (activeSessionId == queueController.playbackSessionId) {
-                audioPrefetchStats = audioPrefetchStats.copy(running = false)
+                audioPrefetchStats = audioPrefetchStats.finished()
             }
         }
     }
@@ -424,7 +416,7 @@ class PlaylistEngine(
         provider: MediaProvider,
         track: Track,
         quality: StreamQuality,
-    ): SidecarPrepResult {
+    ): PlaybackSidecarPrepResult {
         val waveformResult = sidecarService.prepareAll(
             sourceId = sourceId,
             provider = provider,
@@ -441,7 +433,7 @@ class PlaylistEngine(
             quality = quality,
             audioCachingEnabled = audioCachingEnabledProvider(),
         )
-        return SidecarPrepResult(
+        return PlaybackSidecarPrepResult(
             failed = waveformResult.failed + lyricsResult.failed,
             lastError = lyricsResult.lastError ?: waveformResult.lastError,
         )
@@ -549,29 +541,6 @@ class PlaylistEngine(
         )
     }
 }
-
-data class CacheRuntimeStats(
-    val playbackSource: PlaybackSource = PlaybackSource.Unknown,
-    val prefetch: AudioPrefetchStats = AudioPrefetchStats(),
-)
-
-data class AudioPrefetchStats(
-    val enabled: Boolean = false,
-    val configuredDepth: Int = 0,
-    val running: Boolean = false,
-    val queued: Int = 0,
-    val completed: Int = 0,
-    val failed: Int = 0,
-    val sidecarCompleted: Int = 0,
-    val sidecarFailed: Int = 0,
-    val lastError: String? = null,
-    val lastSidecarError: String? = null,
-)
-
-private data class SidecarPrepResult(
-    val failed: Int = 0,
-    val lastError: String? = null,
-)
 
 private data class PlaybackTarget(
     val url: String,

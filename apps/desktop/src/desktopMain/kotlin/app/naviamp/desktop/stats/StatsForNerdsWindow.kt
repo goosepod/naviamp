@@ -26,8 +26,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.rememberWindowState
-import app.naviamp.desktop.playback.AudioPrefetchStats
-import app.naviamp.desktop.playback.CacheRuntimeStats
+import app.naviamp.domain.playback.AudioPrefetchStats
+import app.naviamp.domain.playback.CacheRuntimeStats
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.ui.bytesLabel
 import java.time.Instant
