@@ -146,6 +146,11 @@ Then higher-level repositories can be composed from those stores:
   - Twenty-eighth slice: desktop composition now uses `DesktopStorageDependencies`, keeping direct `DesktopCache` construction inside the platform dependency holder.
   - Twenty-ninth slice: Android app and foreground-service composition now use `AndroidStorageDependencies`, keeping direct `AndroidStorage` construction inside the platform dependency holder.
   - Thirtieth slice: image byte orchestration now uses `ObjectByteStoreService`; the current platform adapters still store image blobs in SQL, which is an engine-internal migration boundary rather than a product-code dependency.
+  - Thirty-first slice: provider-response cache SQL access now lives in focused desktop/Android provider-response stores below common `ProviderResponseCacheService`.
+  - Thirty-second slice: image/object byte SQL access now lives in focused desktop/Android object-byte stores below `ObjectByteStoreService`.
+  - Thirty-third slice: sidecar status SQL writes now live in focused desktop/Android sidecar-status stores below common `SidecarStatusService`.
+  - Thirty-fourth slice: media-source metadata and library sync-marker SQL access now lives in focused desktop/Android media-source stores.
+  - Remaining broad storage internals are audio cache/download metadata, library index/search/popular-track rows, lyrics sidecar rows, playback history/session rows, and maintenance/stat aggregation.
 - [x] Normalize playback local-audio file boundaries.
   - Shared services should consume platform-neutral local-audio descriptors or store ports instead of `java.io.File` or `java.nio.file.Path` directly.
   - Android can keep `File` and desktop can keep `Path` inside platform adapters because output streams, atomic moves, directory walking, and delete behavior are OS/runtime details.
@@ -313,8 +318,8 @@ Then higher-level repositories can be composed from those stores:
 ## Current Duplication / Redesign Targets
 
 - `DesktopCache` and `AndroidStorage`
-  - Both mix SQL metadata, byte-file management, image cache, audio cache, downloads, library index, media sources, and stats.
-  - Target: split into narrow repository implementations.
+  - Both still mix several storage responsibilities, but provider responses, object bytes, sidecar status, and media-source metadata now have focused adapters underneath the broad facades.
+  - Target: keep splitting into narrow repository implementations until the broad classes are thin composition wrappers only.
 - Desktop and Android download controllers
   - Both plan downloads, apply policy, write audio files, refresh stats, and report status.
   - Target: shared download service over `DownloadRepository` and byte/file-store ports.
@@ -544,3 +549,9 @@ This is a strong first slice because playback-source selection currently affects
   - Desktop and Android image caches route through the shared service while keeping existing SQL image rows as the first concrete engine.
   - Desktop cover-art loading now depends on `ImageCacheRepository` instead of broad desktop storage.
   - Added `InMemoryObjectByteStore` and common service tests as the first fake storage engine.
+- 2026-06-04: Started splitting broad storage engines into focused adapters.
+  - Provider-response cache behavior now uses common `ProviderResponseCacheService` over desktop/Android SQL stores.
+  - Object/image byte storage now uses focused desktop/Android `ObjectByteStore` adapters below `ObjectByteStoreService`.
+  - Sidecar status writes now use common `SidecarStatusService` over desktop/Android SQL stores.
+  - Media-source metadata and library sync markers now use focused desktop/Android media-source stores.
+  - Remaining large splits are audio cache/download metadata, library index/search/popular-track storage, lyrics sidecar storage, playback history/session storage, and maintenance/stat aggregation.
