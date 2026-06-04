@@ -32,6 +32,7 @@ import app.naviamp.domain.playback.SidecarTypeWaveform
 import app.naviamp.domain.playback.audioPrefetchTracks
 import app.naviamp.domain.playback.emptyPlaybackAudioAssetRepository
 import app.naviamp.domain.playback.planPrepareNextQueuePlayback
+import app.naviamp.domain.playback.playbackStreamUrl
 import app.naviamp.domain.playback.recordSidecarFailure
 import app.naviamp.domain.playback.recordSidecarSuccess
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
@@ -308,14 +309,11 @@ class PlaylistEngine(
             startPositionSeconds = startPositionSeconds,
             audioAssets = playbackAudioAssets,
         )
-        plan.localAudio?.let { path ->
-            return PlaybackTarget(
-                url = path.toUri().toString(),
-                source = plan.source,
-            )
-        }
         return PlaybackTarget(
-            url = provider.streamUrl(plan.target.providerStreamRequest),
+            url = plan.playbackStreamUrl(
+                localAudioUrl = { path -> path.toUri().toString() },
+                providerStreamUrl = { target -> provider.streamUrl(target.providerStreamRequest) },
+            ),
             source = plan.source,
         )
     }
