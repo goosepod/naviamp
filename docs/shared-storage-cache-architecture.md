@@ -174,7 +174,7 @@ Then higher-level repositories can be composed from those stores:
 - [x] Extract a shared audio-cache/download resolution service.
   - Given source, track, quality, and cache settings, choose downloaded file, cached file, or provider stream.
   - Return a platform-neutral playback target where possible, with platform adapters converting to engine URLs/paths.
-- [ ] Extract shared sidecar storage contracts.
+- [x] Extract shared sidecar storage contracts.
   - Embedded lyrics, LRCLIB lyrics, waveform, ReplayGain/audio tag metadata, and sidecar status records should use shared repository names and status rules.
   - Waveform generation itself should be split into a shared analyzer interface instead of being hidden inside platform storage.
     - First analyzer slice is complete: `AudioWaveformAnalyzer` and `AudioWaveformAnalysisSource` now live in common domain, with `DesktopAudioWaveformAnalyzer` and `AndroidAudioWaveformAnalyzer` as BASS-backed implementations.
@@ -185,6 +185,10 @@ Then higher-level repositories can be composed from those stores:
     - Android is no longer forced into the older storage-shaped `AudioWaveformRepository.ensureAudioWaveform(sourceId, trackId, quality)` contract; the shared service receives `Track`, provider stream context, and playback cache behavior.
     - Shared sidecar status helpers now record success/failure rows for desktop and Android sidecar work through the same `SidecarStatusRepository` path.
     - `AudioWaveformServiceResult` now owns waveform status text mapping, so callers do not rebuild cached/generated/unavailable labels independently.
+    - Shared lyrics sidecar orchestration now lives in `LyricsSidecarService`: provider lyrics, embedded/local-file lyrics, LRCLIB fallback, preference selection, and lyrics row persistence use the same service on desktop and Android.
+    - Shared audio-tag sidecar orchestration now lives in `AudioMetadataSidecarService`: platform adapters only read local audio bytes from `Path` / `File`, while common code owns embedded-lyrics and ReplayGain extraction from parsed tags.
+    - Android `AndroidStorage` now implements the shared lyrics sidecar repository so provider, embedded, and LRCLIB lyrics use the same SQL sidecar rows as desktop.
+    - Desktop now-playing analysis, desktop current/upcoming sidecar prep, Android now-playing lyrics, and Android upcoming sidecar prep all use the shared lyrics/audio-metadata sidecar services.
     - First Android playlist-engine extraction slice is complete: `AndroidPlaylistEngine` now owns Android audio prefetch, sidecar prep, prepare-next, and waveform service composition instead of `MainActivity`.
     - Prepare-next queue planning is now shared: desktop and Android both use common progress/capability/next-track gating before queueing prepared playback.
     - Android's external active-queue sync for prepare-next now uses `PlaybackQueueController` instead of local index math in `AndroidPlaylistEngine`.
@@ -489,3 +493,8 @@ This is a strong first slice because playback-source selection currently affects
   - Common code now owns provider audio streaming, source/track/quality stable filenames, content-type extensions, zero-byte cleanup, and in-flight write coalescing.
   - Android and desktop storage now use the same service for audio cache writes, download writes/replacements, rollback cleanup, download removal, and cached-audio trim deletion.
   - Android `File` and desktop `Path` remain below platform byte-store adapters for temp/final file moves and deletion.
+- 2026-06-04: Completed shared sidecar service extraction.
+  - Added `LyricsSidecarService` for provider, embedded, LRCLIB, and preferred-lyrics selection.
+  - Added `AudioMetadataSidecarService` plus platform audio-tag readers so embedded lyrics and ReplayGain extraction share common tag parsing.
+  - Android storage now implements `LyricsSidecarRepository`, giving Android and desktop the same cached lyrics/LRCLIB sidecar row behavior.
+  - Desktop now-playing, desktop playlist sidecar prep, Android now-playing lyrics, and Android sidecar prep use the shared services; platform code only supplies file/path tag readers and concrete storage adapters.

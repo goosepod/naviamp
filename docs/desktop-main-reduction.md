@@ -267,7 +267,11 @@ Branch: `codex/desktop-main-reduction`
 - [x] Introduce narrow audio asset lookup ports so platform controllers no longer depend on broad `DesktopCache` / `AndroidStorage` types.
   - Added shared `PlaybackAudioAssetRepository` plus desktop and Android adapters over the existing storage engines.
   - `PlaybackAudioAssetRepository`, `PlaybackAudioSourcePlan`, and `AudioWaveformService` now use the platform-neutral `PlaybackLocalAudio` descriptor instead of carrying `File` / `Path` through common code.
-- [ ] Build shared sidecar storage services for lyrics, waveform, embedded tag status, and audio metadata.
+- [x] Build shared sidecar storage services for lyrics, waveform, embedded tag status, and audio metadata.
+  - `AudioWaveformService` owns waveform lookup/generation/persistence across desktop and Android.
+  - `LyricsSidecarService` owns provider lyrics, embedded/local-file lyrics, LRCLIB fallback, preference selection, and lyrics sidecar persistence across desktop and Android.
+  - `AudioMetadataSidecarService` owns common audio-tag orchestration for embedded lyrics and ReplayGain; platform adapters only read local audio bytes from `Path` / `File`.
+  - Desktop now-playing analysis, desktop playlist sidecar prep, Android now-playing lyrics, and Android playlist sidecar prep all route through the shared sidecar services.
 - [ ] Add fake/in-memory storage engines for common tests.
 
 ## Shared-Code Watchlist
@@ -282,6 +286,7 @@ Branch: `codex/desktop-main-reduction`
 - Library sync status text, initial auto-sync decision, and library freshness polling cadence are now shared through `core/domain`.
 - Now-playing sidecar type keys, lyrics loading/error rules, waveform status labels, online-lyrics fetch decisions, and sidecar queue filtering are now shared through `core/domain`.
   - Sidecar status success/failure recording now uses shared helpers on `SidecarStatusRepository` for desktop prefetch/current-track work and Android lyrics/waveform sidecar prep.
+  - Lyrics sidecar orchestration and local audio-tag metadata extraction now run through shared services; Android and desktop differ only at the concrete storage adapter and local file-reader edge.
 - Waveform generation is BASS-backed on both desktop and Android, but the analyzer should become a shared interface/service before more waveform plumbing moves across platforms.
   - `AudioWaveformAnalyzer` and `AudioWaveformAnalysisSource` now live in common domain, with desktop and Android platform analyzers using `BassAudioBackend` adapters.
   - The waveform bucket algorithm now lives in common domain through `normalizeFloatPcmWaveform(...)`.
