@@ -54,22 +54,16 @@ import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.cache.shouldRefreshDownloadsAfter
 import app.naviamp.domain.app.shouldRefreshStorageStats
-import app.naviamp.domain.audio.AudioMetadataSidecarService
-import app.naviamp.domain.lyrics.LyricsSidecarService
 import app.naviamp.domain.playback.CrossfadeSettings
 import app.naviamp.domain.playback.DefaultNowPlayingHeartbeatIntervalMillis
 import app.naviamp.domain.playback.DefaultVisualizerFrameIntervalMillis
-import app.naviamp.domain.playback.PlaybackEngine
-import app.naviamp.domain.playback.PlaybackSidecarService
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
-import app.naviamp.desktop.playback.PlaybackEngineFactory
 import app.naviamp.desktop.playback.PlaybackEngineDiagnostics
+import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
-import app.naviamp.desktop.playback.PlaylistCallbacks
-import app.naviamp.desktop.playback.PlaylistEngine
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.playback.mergeWith
 import app.naviamp.domain.playback.planPlaybackTrackStartEffects
@@ -80,12 +74,7 @@ import app.naviamp.domain.playback.shouldReportNowPlaying
 import app.naviamp.domain.playback.shouldUpdatePlaybackProgressUi
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.provider.PendingPlaybackAction
-import app.naviamp.domain.popular.ArtistPopularTracksService
-import app.naviamp.domain.popular.DeezerPopularTracksClient
 import app.naviamp.domain.popular.SimilarArtistMatch
-import app.naviamp.domain.popular.SimilarArtistsService
-import app.naviamp.domain.waveform.AudioWaveformService
-import java.nio.file.Path
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioRequest
@@ -104,7 +93,6 @@ import app.naviamp.domain.radio.trackRadioRequest
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.waveform.AudioWaveform
-import app.naviamp.desktop.settings.DesktopSettingsStore
 import app.naviamp.desktop.settings.NavigationSettings
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.desktop.settings.PlaybackSessionSettings
@@ -162,14 +150,15 @@ import kotlinx.coroutines.withContext
 
 @Composable
 fun NaviampApp(
-    playbackEngine: PlaybackEngine = remember { PlaybackEngineFactory.createDefault() },
-    settingsStore: DesktopSettingsStore = remember { DesktopSettingsStore() },
+    dependencies: DesktopAppDependencies = remember { DesktopAppDependencies() },
 ) {
     val isDark = isSystemInDarkTheme()
     val appColors = if (isDark) AppColors.Dark else AppColors.Light
     val colorScheme = if (isDark) darkColorScheme() else lightColorScheme()
-    val storage = remember { DesktopStorageDependencies() }
-    val imageCacheRepository: ImageCacheRepository = storage
+    val settingsStore = dependencies.settingsStore
+    val playbackEngine = dependencies.playbackEngine
+    val storage = dependencies.storage
+    val imageCacheRepository: ImageCacheRepository = dependencies.imageCacheRepository
     val savedMediaSource = remember { storage.latestMediaSource() }
     val savedConnection = remember {
         savedMediaSource?.toNavidromeConnection() ?: settingsStore.loadConnection()?.toConnection()
@@ -183,78 +172,24 @@ fun NaviampApp(
     val savedRecentInternetRadioStations = remember { settingsStore.loadRecentInternetRadioStations() }
     var cacheStats by remember { mutableStateOf(StorageCacheStats()) }
     var connectedSourceId by remember { mutableStateOf(savedMediaSource?.id) }
-    val deezerDiscoveryClient = remember { DeezerPopularTracksClient(DesktopPopularTracksHttpClient()) }
-    val popularTracksService = remember(storage) {
-        ArtistPopularTracksService(
-            repository = storage,
-            libraryTracksForArtist = { artist, limit ->
-                val sourceId = connectedSourceId.orEmpty()
-                storage.libraryTracksForArtist(sourceId, artist.id, limit)
-                    .ifEmpty { storage.libraryTracksForArtistName(sourceId, artist.name, limit) }
-            },
-            client = deezerDiscoveryClient,
-        )
-    }
-    val similarArtistsService = remember(storage) {
-        SimilarArtistsService(
-            libraryArtistsSearch = { query, limit -> storage.searchLibrary(connectedSourceId.orEmpty(), query, limit).artists },
-            client = deezerDiscoveryClient,
-        )
-    }
-    val desktopPlaybackAudioAssets = remember(storage) {
-        DesktopPlaybackAudioAssets(storage, storage)
-    }
-    val audioMetadataSidecarService = remember(desktopPlaybackAudioAssets) {
-        AudioMetadataSidecarService(
-            playbackAudioAssets = desktopPlaybackAudioAssets,
-            audioTagReader = { localAudio -> AudioTagReader().read(Path.of(localAudio.path)) },
-        )
-    }
-    val lyricsSidecarService = remember(storage, desktopPlaybackAudioAssets, audioMetadataSidecarService) {
-        LyricsSidecarService(
-            lyricsRepository = storage,
-            playbackAudioAssets = desktopPlaybackAudioAssets,
-            audioMetadataSidecarService = audioMetadataSidecarService,
-        )
-    }
-    val audioWaveformService = remember(storage, desktopPlaybackAudioAssets) {
-        AudioWaveformService(
-            waveformRepository = storage,
-            audioAssets = desktopPlaybackAudioAssets,
-            analyzer = DesktopAudioWaveformAnalyzer(),
-            cacheAudioForWaveform = { sourceId, provider, track, quality ->
-                storage.cacheAudioTrack(sourceId, provider, track, quality).path.toPlaybackLocalAudio()
-            },
-        )
-    }
-    val playbackSidecarService = remember(audioWaveformService, lyricsSidecarService, storage) {
-        PlaybackSidecarService(
-            waveformService = audioWaveformService,
-            lyricsSidecarService = lyricsSidecarService,
-            sidecarStatusRepository = storage,
-        )
-    }
+    val popularTracksService = remember(dependencies) { dependencies.popularTracksService { connectedSourceId } }
+    val similarArtistsService = remember(dependencies) { dependencies.similarArtistsService { connectedSourceId } }
+    val desktopPlaybackAudioAssets = dependencies.playbackAudioAssets
+    val audioMetadataSidecarService = dependencies.audioMetadataSidecarService
+    val lyricsSidecarService = dependencies.lyricsSidecarService
+    val audioWaveformService = dependencies.audioWaveformService
+    val playbackSidecarService = dependencies.playbackSidecarService
     var cacheSettings by remember {
         mutableStateOf(settingsStore.loadCacheSettings().normalized())
     }
-    val playlistEngine = remember(playbackEngine, storage) {
-        PlaylistEngine(
-            playbackEngine = playbackEngine,
+    val playlistEngine = remember(dependencies) {
+        dependencies.playlistEngine(
             sourceIdProvider = { connectedSourceId },
             audioCachingEnabledProvider = { cacheSettings.audioCachingEnabled },
             audioPrefetchDepthProvider = { cacheSettings.audioPrefetchDepth },
-            audioCacheRepository = storage,
-            sidecarService = playbackSidecarService,
-            audioMetadataSidecarService = audioMetadataSidecarService,
-            playbackAudioAssets = desktopPlaybackAudioAssets,
         )
     }
-    val librarySync = remember(storage) {
-        LibrarySync(
-            libraryIndexRepository = storage,
-            providerResponseService = ProviderResponseService(storage),
-        )
-    }
+    val librarySync = remember(dependencies) { dependencies.librarySync() }
     val libraryListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val restoredTrackSession = remember(savedPlaybackSession) { savedPlaybackSession?.restoredTrackSession() }

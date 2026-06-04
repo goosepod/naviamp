@@ -11,8 +11,6 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import app.naviamp.desktop.generated.resources.Res
 import app.naviamp.desktop.generated.resources.naviamp
-import app.naviamp.desktop.playback.PlaybackEngineFactory
-import app.naviamp.desktop.settings.DesktopSettingsStore
 import kotlinx.coroutines.flow.distinctUntilChanged
 import org.jetbrains.compose.resources.painterResource
 import java.awt.Dimension
@@ -23,12 +21,13 @@ fun main() {
     configureDesktopIcon()
 
     application {
-        val settingsStore = remember { DesktopSettingsStore() }
+        val appDependencies = remember { DesktopAppDependencies() }
+        val settingsStore = appDependencies.settingsStore
         val windowSettings = remember { settingsStore.loadWindowSettings() }
         val windowState = rememberWindowState(
             size = DpSize(windowSettings.widthDp.dp, windowSettings.heightDp.dp),
         )
-        val playbackEngine = remember { PlaybackEngineFactory.createDefault() }
+        val playbackEngine = appDependencies.playbackEngine
         val appIcon = painterResource(Res.drawable.naviamp)
         LaunchedEffect(windowState) {
             snapshotFlow { windowState.size }
@@ -57,8 +56,7 @@ fun main() {
             }
             window.minimumSize = Dimension(320, 430)
             NaviampApp(
-                playbackEngine = playbackEngine,
-                settingsStore = settingsStore,
+                dependencies = appDependencies,
             )
         }
     }
