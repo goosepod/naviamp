@@ -26,11 +26,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import app.naviamp.android.playback.AndroidAutoPlaybackControls
 import app.naviamp.android.playback.AndroidBassLoadReport
-import app.naviamp.android.playback.AndroidAudioTagReader
 import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.android.playback.AndroidPlaybackForegroundService
 import app.naviamp.android.playback.AndroidPlaybackNotificationControls
-import app.naviamp.android.playback.AndroidPlaybackRuntime
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.ArtistId
@@ -50,9 +48,7 @@ import app.naviamp.domain.provider.runPlaylistDetailAutoRefresh
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.home.HomeService
 import app.naviamp.domain.cache.ProviderResponseService
-import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.cache.downloadConnectionRequiredStatus
-import app.naviamp.domain.audio.AudioMetadataSidecarService
 import app.naviamp.domain.media.albumDetailLoadErrorStatus
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackQueueController
@@ -71,11 +67,7 @@ import app.naviamp.domain.playback.lyricsLoadingStatus
 import app.naviamp.domain.playback.lyricsUnavailableStatus
 import app.naviamp.domain.playback.recordSidecarFailure
 import app.naviamp.domain.playback.recordSidecarSuccess
-import app.naviamp.domain.popular.ArtistPopularTracksService
-import app.naviamp.domain.popular.DeezerPopularTracksClient
 import app.naviamp.domain.popular.SimilarArtistMatch
-import app.naviamp.domain.popular.SimilarArtistsService
-import app.naviamp.domain.lyrics.LyricsSidecarService
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioService
@@ -203,31 +195,21 @@ private fun NaviampAndroidApp(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val playbackRuntime = remember { AndroidPlaybackRuntime.get(context) }
+    val dependencies = remember(context) { AndroidAppDependencies(context) }
+    val playbackRuntime = dependencies.playbackRuntime
     val scope = playbackRuntime.scope
     val bassLoadReport = playbackRuntime.bassLoadReport
     val playbackEngine: AndroidPlaybackEngine = playbackRuntime.playbackEngine
     val waveformAnalyzer = playbackRuntime.waveformAnalyzer
-    val storage = remember { AndroidStorageDependencies(context) }
-    val sidecarStatusRepository: SidecarStatusRepository = storage
-    val playbackAudioAssets = remember(storage) { AndroidPlaybackAudioAssets(storage, storage) }
-    val audioMetadataSidecarService = remember(playbackAudioAssets) {
-        AudioMetadataSidecarService(
-            playbackAudioAssets = playbackAudioAssets,
-            audioTagReader = AndroidAudioTagReader(),
-        )
+    val storage = dependencies.storage
+    val sidecarStatusRepository = dependencies.sidecarStatusRepository
+    val playbackAudioAssets = dependencies.playbackAudioAssets
+    val audioMetadataSidecarService = dependencies.audioMetadataSidecarService
+    val lyricsSidecarService = dependencies.lyricsSidecarService
+    DisposableEffect(dependencies) {
+        onDispose { dependencies.close() }
     }
-    val lyricsSidecarService = remember(storage, playbackAudioAssets, audioMetadataSidecarService) {
-        LyricsSidecarService(
-            lyricsRepository = storage,
-            playbackAudioAssets = playbackAudioAssets,
-            audioMetadataSidecarService = audioMetadataSidecarService,
-        )
-    }
-    DisposableEffect(storage) {
-        onDispose { storage.close() }
-    }
-    val settingsStore = remember { AndroidSettingsStore(context) }
+    val settingsStore = dependencies.settingsStore
     val savedProviderSource = remember { storage.latestNavidromeSource() }
     val savedProviderConnection = savedProviderSource?.toNavidromeConnection()
     val savedConnection = remember { settingsStore.loadConnection(savedProviderConnection) }
@@ -262,46 +244,16 @@ private fun NaviampAndroidApp(
         }
         onDispose { resetAndroidPlatformCoverArtByteLoader() }
     }
-    val deezerDiscoveryClient = remember { DeezerPopularTracksClient(AndroidPopularTracksHttpClient()) }
-    val popularTracksService = remember(storage, deezerDiscoveryClient) {
-        ArtistPopularTracksService(
-            repository = storage,
-            libraryTracksForArtist = { artist, limit ->
-                val sourceId = activeSourceId
-                val indexedTracks = sourceId
-                    ?.let { storage.libraryTracksForArtist(it, artist.id, limit) }
-                    .orEmpty()
-                    .ifEmpty {
-                        sourceId
-                            ?.let { storage.libraryTracksForArtistName(it, artist.name, limit) }
-                            .orEmpty()
-                    }
-                indexedTracks.ifEmpty {
-                    provider
-                        ?.tracksForArtist(artist.id, limit.coerceAtMost(AndroidPopularTrackFallbackLimit))
-                        .orEmpty()
-                        .also { fetchedTracks ->
-                            if (sourceId != null && fetchedTracks.isNotEmpty()) {
-                                storage.upsertLibraryTracks(sourceId, fetchedTracks)
-                            }
-                        }
-                }
-            },
-            client = deezerDiscoveryClient,
+    val popularTracksService = remember(dependencies) {
+        dependencies.popularTracksService(
+            activeSourceIdProvider = { activeSourceId },
+            providerProvider = { provider },
         )
     }
-    val similarArtistsService = remember(storage, deezerDiscoveryClient) {
-        SimilarArtistsService(
-            libraryArtistsSearch = { artistName, limit ->
-                val sourceId = activeSourceId
-                val indexedArtists = sourceId
-                    ?.let { storage.searchLibrary(it, artistName, limit, 0).artists }
-                    .orEmpty()
-                indexedArtists.ifEmpty {
-                    provider?.search(artistName, limit.toInt())?.artists.orEmpty()
-                }
-            },
-            client = deezerDiscoveryClient,
+    val similarArtistsService = remember(dependencies) {
+        dependencies.similarArtistsService(
+            activeSourceIdProvider = { activeSourceId },
+            providerProvider = { provider },
         )
     }
 
@@ -515,7 +467,7 @@ private fun NaviampAndroidApp(
             state = appState,
             waveformRepository = storage,
             cacheAudioTrack = { sourceId, provider, track, quality ->
-                storage.cacheAudioTrack(sourceId, provider, track, quality).file
+                dependencies.cacheAudioTrack(sourceId, provider, track, quality)
             },
             playbackAudioAssets = playbackAudioAssets,
             playbackEngine = playbackEngine,
