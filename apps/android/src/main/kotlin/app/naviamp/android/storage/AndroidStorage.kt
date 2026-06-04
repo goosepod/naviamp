@@ -1204,10 +1204,8 @@ private suspend fun downloadToFile(
     httpClient: KtorSharedHttpClient,
 ) {
     target.outputStream().use { output ->
-        val downloaded = if (provider is NavidromeProvider && provider.ownsUrl(url)) {
-            provider.download(url) { bytes, count -> output.write(bytes, 0, count) }
-        } else {
-            httpClient.download(url) { bytes, count -> output.write(bytes, 0, count) }
+        val downloaded = provider.downloadStream(url, httpClient) { bytes, count ->
+            output.write(bytes, 0, count)
         }
         if (!downloaded) throw IllegalStateException(errorMessage)
     }
