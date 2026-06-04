@@ -57,6 +57,7 @@ import app.naviamp.domain.playback.CrossfadeSettings
 import app.naviamp.domain.playback.DefaultNowPlayingHeartbeatIntervalMillis
 import app.naviamp.domain.playback.DefaultVisualizerFrameIntervalMillis
 import app.naviamp.domain.playback.PlaybackEngine
+import app.naviamp.domain.playback.PlaybackSidecarService
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
@@ -222,6 +223,13 @@ fun NaviampApp(
             },
         )
     }
+    val playbackSidecarService = remember(audioWaveformService, lyricsSidecarService, sessionCache) {
+        PlaybackSidecarService(
+            waveformService = audioWaveformService,
+            lyricsSidecarService = lyricsSidecarService,
+            sidecarStatusRepository = sessionCache,
+        )
+    }
     var cacheSettings by remember {
         mutableStateOf(settingsStore.loadCacheSettings().normalized())
     }
@@ -232,10 +240,8 @@ fun NaviampApp(
             audioCachingEnabledProvider = { cacheSettings.audioCachingEnabled },
             audioPrefetchDepthProvider = { cacheSettings.audioPrefetchDepth },
             audioCacheRepository = sessionCache,
-            audioWaveformService = audioWaveformService,
-            lyricsSidecarService = lyricsSidecarService,
+            sidecarService = playbackSidecarService,
             audioMetadataSidecarService = audioMetadataSidecarService,
-            sidecarStatusRepository = sessionCache,
             playbackAudioAssets = desktopPlaybackAudioAssets,
         )
     }

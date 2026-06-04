@@ -15,6 +15,7 @@ import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackReplayGain
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackLocalAudio
+import app.naviamp.domain.playback.PlaybackSidecarService
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.playback.SidecarTypeLyrics
@@ -66,6 +67,11 @@ class AndroidPlaylistEngine(
                 quality = quality,
             )?.toPlaybackLocalAudio()
         },
+    )
+    private val sidecarService = PlaybackSidecarService(
+        waveformService = audioWaveformService,
+        lyricsSidecarService = lyricsSidecarService,
+        sidecarStatusRepository = sidecarStatusRepository,
     )
 
     suspend fun cacheAudioTrackForPlayback(
@@ -193,16 +199,14 @@ class AndroidPlaylistEngine(
                 if (sessionToken != state.playbackSessionToken) return@launch
                 val sidecarQuality = currentStreamQuality()
                 runCatching {
-                    ensureWaveform(activeProvider, sourceId, track)
+                    sidecarService.prepareWaveform(
+                        sourceId = sourceId,
+                        provider = activeProvider,
+                        track = track,
+                        quality = sidecarQuality,
+                        audioCachingEnabled = true,
+                    )
                 }.onSuccess { waveform ->
-                    if (sourceId != null) {
-                        sidecarStatusRepository.recordSidecarSuccess(
-                            sourceId = sourceId,
-                            trackId = track.id,
-                            quality = sidecarQuality,
-                            sidecarType = SidecarTypeWaveform,
-                        )
-                    }
                     if (waveform != null && sessionToken == state.playbackSessionToken) {
                         state.waveformByTrackId = state.waveformByTrackId + (track.id.value to waveform)
                     }
@@ -221,25 +225,17 @@ class AndroidPlaylistEngine(
                 if (plan.loadLyrics) {
                     val quality = currentStreamQuality()
                     runCatching {
-                        lyricsSidecarService.loadLyrics(
+                        sidecarService.prepareLyrics(
                             sourceId = sourceId,
                             provider = activeProvider,
                             track = track,
                             quality = quality,
                             audioCachingEnabled = true,
                             onlineLyricsEnabled = state.playbackSettings.lrclibLyricsEnabled,
-                        ).lyrics
+                        )
                     }.onSuccess { lyrics ->
                         state.lyricsByTrackId = state.lyricsByTrackId + (track.id.value to lyrics)
                         state.lyricsStatusByTrackId = state.lyricsStatusByTrackId + (track.id.value to null)
-                        if (sourceId != null) {
-                            sidecarStatusRepository.recordSidecarSuccess(
-                                sourceId = sourceId,
-                                trackId = track.id,
-                                quality = quality,
-                                sidecarType = SidecarTypeLyrics,
-                            )
-                        }
                     }.onFailure { error ->
                         val message = lyricsUnavailableStatus(error)
                         state.lyricsByTrackId = state.lyricsByTrackId + (track.id.value to null)
@@ -257,21 +253,6 @@ class AndroidPlaylistEngine(
                 }
             }
         }
-    }
-
-    private suspend fun ensureWaveform(
-        activeProvider: NavidromeProvider,
-        sourceId: String?,
-        track: Track,
-    ): AudioWaveform? {
-        val quality = currentStreamQuality()
-        return audioWaveformService.loadOrCreateWaveform(
-            sourceId = sourceId,
-            provider = activeProvider,
-            track = track,
-            quality = quality,
-            audioCachingEnabled = true,
-        ).waveform
     }
 
     private fun nextQueueIndex(): Int? {
