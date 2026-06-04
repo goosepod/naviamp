@@ -167,8 +167,8 @@ fun NaviampApp(
     val isDark = isSystemInDarkTheme()
     val appColors = if (isDark) AppColors.Dark else AppColors.Light
     val colorScheme = if (isDark) darkColorScheme() else lightColorScheme()
-    val sessionCache = remember { DesktopCaches.session }
-    val savedMediaSource = remember { sessionCache.latestMediaSource() }
+    val storage = remember { DesktopStorageDependencies() }
+    val savedMediaSource = remember { storage.latestMediaSource() }
     val savedConnection = remember {
         savedMediaSource?.toNavidromeConnection() ?: settingsStore.loadConnection()?.toConnection()
     }
@@ -182,25 +182,25 @@ fun NaviampApp(
     var cacheStats by remember { mutableStateOf(StorageCacheStats()) }
     var connectedSourceId by remember { mutableStateOf(savedMediaSource?.id) }
     val deezerDiscoveryClient = remember { DeezerPopularTracksClient(DesktopPopularTracksHttpClient()) }
-    val popularTracksService = remember(sessionCache) {
+    val popularTracksService = remember(storage) {
         ArtistPopularTracksService(
-            repository = sessionCache,
+            repository = storage,
             libraryTracksForArtist = { artist, limit ->
                 val sourceId = connectedSourceId.orEmpty()
-                sessionCache.libraryTracksForArtist(sourceId, artist.id, limit)
-                    .ifEmpty { sessionCache.libraryTracksForArtistName(sourceId, artist.name, limit) }
+                storage.libraryTracksForArtist(sourceId, artist.id, limit)
+                    .ifEmpty { storage.libraryTracksForArtistName(sourceId, artist.name, limit) }
             },
             client = deezerDiscoveryClient,
         )
     }
-    val similarArtistsService = remember(sessionCache) {
+    val similarArtistsService = remember(storage) {
         SimilarArtistsService(
-            libraryArtistsSearch = { query, limit -> sessionCache.searchLibrary(connectedSourceId.orEmpty(), query, limit).artists },
+            libraryArtistsSearch = { query, limit -> storage.searchLibrary(connectedSourceId.orEmpty(), query, limit).artists },
             client = deezerDiscoveryClient,
         )
     }
-    val desktopPlaybackAudioAssets = remember(sessionCache) {
-        DesktopPlaybackAudioAssets(sessionCache, sessionCache)
+    val desktopPlaybackAudioAssets = remember(storage) {
+        DesktopPlaybackAudioAssets(storage, storage)
     }
     val audioMetadataSidecarService = remember(desktopPlaybackAudioAssets) {
         AudioMetadataSidecarService(
@@ -208,49 +208,49 @@ fun NaviampApp(
             audioTagReader = { localAudio -> AudioTagReader().read(Path.of(localAudio.path)) },
         )
     }
-    val lyricsSidecarService = remember(sessionCache, desktopPlaybackAudioAssets, audioMetadataSidecarService) {
+    val lyricsSidecarService = remember(storage, desktopPlaybackAudioAssets, audioMetadataSidecarService) {
         LyricsSidecarService(
-            lyricsRepository = sessionCache,
+            lyricsRepository = storage,
             playbackAudioAssets = desktopPlaybackAudioAssets,
             audioMetadataSidecarService = audioMetadataSidecarService,
         )
     }
-    val audioWaveformService = remember(sessionCache, desktopPlaybackAudioAssets) {
+    val audioWaveformService = remember(storage, desktopPlaybackAudioAssets) {
         AudioWaveformService(
-            waveformRepository = sessionCache,
+            waveformRepository = storage,
             audioAssets = desktopPlaybackAudioAssets,
             analyzer = DesktopAudioWaveformAnalyzer(),
             cacheAudioForWaveform = { sourceId, provider, track, quality ->
-                sessionCache.cacheAudioTrack(sourceId, provider, track, quality).path.toPlaybackLocalAudio()
+                storage.cacheAudioTrack(sourceId, provider, track, quality).path.toPlaybackLocalAudio()
             },
         )
     }
-    val playbackSidecarService = remember(audioWaveformService, lyricsSidecarService, sessionCache) {
+    val playbackSidecarService = remember(audioWaveformService, lyricsSidecarService, storage) {
         PlaybackSidecarService(
             waveformService = audioWaveformService,
             lyricsSidecarService = lyricsSidecarService,
-            sidecarStatusRepository = sessionCache,
+            sidecarStatusRepository = storage,
         )
     }
     var cacheSettings by remember {
         mutableStateOf(settingsStore.loadCacheSettings().normalized())
     }
-    val playlistEngine = remember(playbackEngine, sessionCache) {
+    val playlistEngine = remember(playbackEngine, storage) {
         PlaylistEngine(
             playbackEngine = playbackEngine,
             sourceIdProvider = { connectedSourceId },
             audioCachingEnabledProvider = { cacheSettings.audioCachingEnabled },
             audioPrefetchDepthProvider = { cacheSettings.audioPrefetchDepth },
-            audioCacheRepository = sessionCache,
+            audioCacheRepository = storage,
             sidecarService = playbackSidecarService,
             audioMetadataSidecarService = audioMetadataSidecarService,
             playbackAudioAssets = desktopPlaybackAudioAssets,
         )
     }
-    val librarySync = remember(sessionCache) {
+    val librarySync = remember(storage) {
         LibrarySync(
-            libraryIndexRepository = sessionCache,
-            providerResponseService = ProviderResponseService(sessionCache),
+            libraryIndexRepository = storage,
+            providerResponseService = ProviderResponseService(storage),
         )
     }
     val libraryListState = rememberLazyListState()
@@ -425,12 +425,12 @@ fun NaviampApp(
         }
     }
 
-    DisposableEffect(sessionCache, connectedProvider) {
+    DisposableEffect(storage, connectedProvider) {
         setJvmPlatformCoverArtByteLoader { url ->
             connectedProvider
                 ?.takeIf { it.ownsUrl(url) }
                 ?.bytes(url)
-                ?: sessionCache.imageBytes(url)
+                ?: storage.imageBytes(url)
         }
         onDispose {
             resetJvmPlatformCoverArtByteLoader()
@@ -497,7 +497,7 @@ fun NaviampApp(
     }
 
     LaunchedEffect(cacheSettings.maxAudioCacheBytes) {
-        sessionCache.updateAudioCacheLimit(cacheSettings.maxAudioCacheBytes)
+        storage.updateAudioCacheLimit(cacheSettings.maxAudioCacheBytes)
     }
 
     LaunchedEffect(cacheSettings.audioCachingEnabled, cacheSettings.audioPrefetchDepth) {
@@ -615,8 +615,8 @@ fun NaviampApp(
     var playlistCallbacksRef: PlaylistCallbacks? = null
     val radioController = DesktopRadioController(
         scope = coroutineScope,
-        libraryIndexRepository = sessionCache,
-        providerResponseService = ProviderResponseService(sessionCache),
+        libraryIndexRepository = storage,
+        providerResponseService = ProviderResponseService(storage),
         playlistEngine = playlistEngine,
         provider = { connectedProvider },
         sourceId = { connectedSourceId },
@@ -650,7 +650,7 @@ fun NaviampApp(
         playbackEngine = playbackEngine,
         playlistEngine = playlistEngine,
         provider = { connectedProvider },
-        providerResponseService = ProviderResponseService(sessionCache),
+        providerResponseService = ProviderResponseService(storage),
         homeContent = { homeContent },
         setHomeContent = { content -> homeContent = content },
         recentStations = { recentInternetRadioStations },
@@ -697,9 +697,9 @@ fun NaviampApp(
 
     val connectionLifecycleController = DesktopConnectionLifecycleController(
         scope = coroutineScope,
-        cacheMaintenanceRepository = sessionCache,
-        mediaSourceRepository = sessionCache,
-        providerMediaSourceRepository = sessionCache,
+        cacheMaintenanceRepository = storage,
+        mediaSourceRepository = storage,
+        providerMediaSourceRepository = storage,
         settingsStore = settingsStore,
         playbackSessionRepository = settingsStore,
         playbackEngine = playbackEngine,
@@ -861,7 +861,7 @@ fun NaviampApp(
 
     val mediaActionsController = DesktopMediaActionsController(
         scope = coroutineScope,
-        trackMetadataRepository = sessionCache,
+        trackMetadataRepository = storage,
         playbackEngine = playbackEngine,
         playlistEngine = playlistEngine,
         provider = { connectedProvider },
@@ -884,7 +884,7 @@ fun NaviampApp(
 
     val searchController = DesktopSearchController(
         settingsStore = settingsStore,
-        providerResponseCacheRepository = sessionCache,
+        providerResponseCacheRepository = storage,
         provider = { connectedProvider },
         setQuery = { query -> searchQuery = query },
         setResults = { results -> searchResults = results },
@@ -894,9 +894,9 @@ fun NaviampApp(
 
     val downloadsController = DesktopDownloadsController(
         scope = coroutineScope,
-        downloadRepository = sessionCache,
-        downloadReplacementRepository = sessionCache,
-        providerResponseCacheRepository = sessionCache,
+        downloadRepository = storage,
+        downloadReplacementRepository = storage,
+        providerResponseCacheRepository = storage,
         playbackEngine = playbackEngine,
         playbackSettings = { playbackSettings },
         cacheSettings = { cacheSettings },
@@ -926,13 +926,13 @@ fun NaviampApp(
         val activeProvider = connectedProvider
         val activeSourceId = connectedSourceId
         val tracksToRedownload = activeSourceId
-            ?.let { sessionCache.downloadedTracks(it) }
+            ?.let { storage.downloadedTracks(it) }
             .orEmpty()
             .map { it.track }
         applyPlaybackSettings(settings)
         if (tracksToRedownload.isEmpty()) return
         coroutineScope.launch {
-            val downloadService = DownloadService(sessionCache, sessionCache)
+            val downloadService = DownloadService(storage, storage)
             val quality = playbackSettings.streamQuality(playbackEngine)
             val maxDownloadBytes = cacheSettings.maxDownloadBytes
             val result = downloadService.redownloadTracksWithStatus(
@@ -945,7 +945,7 @@ fun NaviampApp(
             )
             if (shouldRefreshDownloadsAfter(result)) {
                 downloadRefreshToken += 1
-                cacheStats = withContext(Dispatchers.IO) { sessionCache.stats() }
+                cacheStats = withContext(Dispatchers.IO) { storage.stats() }
             }
         }
     }
@@ -955,7 +955,7 @@ fun NaviampApp(
         settingsStore = settingsStore,
         playbackEngine = playbackEngine,
         playlistEngine = playlistEngine,
-        providerResponseService = ProviderResponseService(sessionCache),
+        providerResponseService = ProviderResponseService(storage),
         provider = { connectedProvider },
         playbackSettings = { playbackSettings },
         playlistCallbacks = { playlistCallbacks },
@@ -989,8 +989,8 @@ fun NaviampApp(
     )
 
     val smartPlaylistsController = DesktopSmartPlaylistsController(
-        providerMediaSourceRepository = sessionCache,
-        providerResponseCacheRepository = sessionCache,
+        providerMediaSourceRepository = storage,
+        providerResponseCacheRepository = storage,
         provider = { connectedProvider },
         setProvider = { provider -> connectedProvider = provider },
         password = { password },
@@ -1017,8 +1017,8 @@ fun NaviampApp(
 
     val artistController = DesktopArtistController(
         scope = coroutineScope,
-        libraryIndexRepository = sessionCache,
-        providerResponseCacheRepository = sessionCache,
+        libraryIndexRepository = storage,
+        providerResponseCacheRepository = storage,
         provider = { connectedProvider },
         sourceId = { connectedSourceId },
         currentRoute = { appRoute },
@@ -1042,8 +1042,8 @@ fun NaviampApp(
 
     val albumController = DesktopAlbumController(
         scope = coroutineScope,
-        libraryIndexRepository = sessionCache,
-        providerResponseCacheRepository = sessionCache,
+        libraryIndexRepository = storage,
+        providerResponseCacheRepository = storage,
         provider = { connectedProvider },
         sourceId = { connectedSourceId },
         currentRoute = { appRoute },
@@ -1058,8 +1058,8 @@ fun NaviampApp(
 
     val homeController = DesktopHomeController(
         scope = coroutineScope,
-        providerResponseCacheRepository = sessionCache,
-        homeLibraryRepository = sessionCache.asHomeLibraryRepository(),
+        providerResponseCacheRepository = storage,
+        homeLibraryRepository = storage.asHomeLibraryRepository(),
         sourceId = { connectedSourceId },
         recentRadioStreams = { recentRadioStreams },
         recentInternetRadioStations = { recentInternetRadioStations },
@@ -1071,7 +1071,7 @@ fun NaviampApp(
         audioWaveformService = audioWaveformService,
         lyricsSidecarService = lyricsSidecarService,
         audioMetadataSidecarService = audioMetadataSidecarService,
-        localLibraryIndexRepository = sessionCache,
+        localLibraryIndexRepository = storage,
         playbackAudioAssets = desktopPlaybackAudioAssets,
         playbackEngine = playbackEngine,
         provider = { connectedProvider },
@@ -1093,10 +1093,10 @@ fun NaviampApp(
 
     val libraryController = DesktopLibraryController(
         scope = coroutineScope,
-        libraryIndexRepository = sessionCache,
-        mediaSourceRepository = sessionCache,
-        cacheMaintenanceRepository = sessionCache,
-        libraryOffsetForLetter = sessionCache::libraryOffsetForLetter,
+        libraryIndexRepository = storage,
+        mediaSourceRepository = storage,
+        cacheMaintenanceRepository = storage,
+        libraryOffsetForLetter = storage::libraryOffsetForLetter,
         librarySync = librarySync,
         provider = { connectedProvider },
         sourceId = { connectedSourceId },
@@ -1396,17 +1396,17 @@ fun NaviampApp(
 
     LaunchedEffect(showStatsForNerds, appRoute, statsForNerdsRefreshTick, downloadRefreshToken, mediaSourcesRevision) {
         if (shouldRefreshStorageStats(appRoute.toNaviampRoute(), diagnosticsVisible = showStatsForNerds)) {
-            cacheStats = withContext(Dispatchers.IO) { sessionCache.stats() }
+            cacheStats = withContext(Dispatchers.IO) { storage.stats() }
         }
     }
 
-    val statsMediaSource = connectedSourceId?.let { sessionCache.mediaSource(it) } ?: sessionCache.latestMediaSource()
-    val savedMediaSources = mediaSourcesRevision.let { sessionCache.mediaSources() }
+    val statsMediaSource = connectedSourceId?.let { storage.mediaSource(it) } ?: storage.latestMediaSource()
+    val savedMediaSources = mediaSourcesRevision.let { storage.mediaSources() }
     val streamQuality = playbackSettings.streamQuality(playbackEngine)
     val currentAudioCacheMetadata = connectedSourceId
         ?.let { sourceId ->
             nowPlayingTrack?.let { track ->
-                sessionCache.cachedAudioMetadata(sourceId, track.id, streamQuality)
+                storage.cachedAudioMetadata(sourceId, track.id, streamQuality)
             }
         }
     val statsForNerdsInfo = if (showStatsForNerds) StatsForNerdsInfo(
@@ -2036,7 +2036,7 @@ fun NaviampApp(
                                             cacheStats.downloadCount,
                                         ) {
                                             connectedSourceId
-                                                ?.let { sessionCache.downloadedTracks(it) }
+                                                ?.let { storage.downloadedTracks(it) }
                                                 .orEmpty()
                                         }
                                         val downloadedTrackById = remember(downloads) {

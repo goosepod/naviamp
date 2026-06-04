@@ -42,7 +42,7 @@ fun ConnectionPanel(
     playlistEngine: PlaylistEngine,
     playbackSettings: PlaybackSettings,
     playlistCallbacks: PlaylistCallbacks,
-    providerResponseCacheRepository: ProviderResponseCacheRepository = DesktopCaches.session,
+    providerResponseCacheRepository: ProviderResponseCacheRepository,
     onPlaybackShouldOpenPlayer: () -> Unit,
 ) {
     var isLoadingAlbum by remember { mutableStateOf(false) }

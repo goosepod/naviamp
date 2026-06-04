@@ -2,18 +2,8 @@ package app.naviamp.desktop
 
 import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.domain.app.restoredNavigationRoute
-import app.naviamp.domain.home.HomeAlbumYear
-import app.naviamp.domain.home.HomeLibraryRepository
 import app.naviamp.domain.provider.ProviderCapabilities
 import app.naviamp.domain.app.restoredLastContentRoute as restoredSharedLastContentRoute
-
-fun DesktopCache.asHomeLibraryRepository(): HomeLibraryRepository =
-    object : HomeLibraryRepository {
-        override fun albumYears(sourceId: String): List<HomeAlbumYear> =
-            libraryAlbumYears(sourceId).map { year ->
-                HomeAlbumYear(year = year.year, albumCount = year.albumCount)
-            }
-    }
 
 fun ProviderCapabilities.asStatsMap(): Map<String, Boolean> =
     mapOf(
