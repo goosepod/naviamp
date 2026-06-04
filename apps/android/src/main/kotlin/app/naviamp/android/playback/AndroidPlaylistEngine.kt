@@ -16,7 +16,7 @@ import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.playback.SidecarTypeWaveform
 import app.naviamp.domain.playback.audioPrefetchTracks
-import app.naviamp.domain.playback.planPrepareNextPlayback
+import app.naviamp.domain.playback.planPrepareNextQueuePlayback
 import app.naviamp.domain.playback.recordSidecarFailure
 import app.naviamp.domain.playback.recordSidecarSuccess
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
@@ -125,7 +125,9 @@ class AndroidPlaylistEngine(
     fun prepareNextIfNeeded(sessionToken: Long, progress: PlaybackProgress) {
         val queueAwareEngine = playbackEngine as? QueueAwarePlaybackEngine ?: return
         val nextIndex = nextQueueIndex() ?: return
-        val plan = planPrepareNextPlayback(
+        val queue = playbackQueueController.queue
+        val plan = planPrepareNextQueuePlayback(
+            queue = queue,
             progress = progress,
             nextQueueIndex = nextIndex,
             alreadyPreparedNext = !playbackQueueController.shouldPrepareNext(nextIndex),
@@ -134,12 +136,11 @@ class AndroidPlaylistEngine(
             crossfadeDurationSeconds = state.playbackSettings.crossfadeDurationSeconds,
             supportsCrossfade = playbackEngine.supportsCrossfade,
             gaplessPrepareWindowSeconds = AndroidGaplessPrepareWindowSeconds,
-        )
-        if (!plan.shouldPrepare) return
-        val nextTrack = activeQueue().getOrNull(nextIndex) ?: return
+        ) ?: return
+        val nextTrack = plan.track
         val activeProvider = state.provider ?: return
         val sourceId = state.activeSourceId
-        playbackQueueController.markPreparedNext(nextIndex)
+        playbackQueueController.markPreparedNext(plan.nextQueueIndex)
         scope.launch {
             runCatching {
                 val quality = currentStreamQuality()
