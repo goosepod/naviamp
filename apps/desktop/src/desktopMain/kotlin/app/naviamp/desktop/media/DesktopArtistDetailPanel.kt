@@ -31,7 +31,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.popular.SimilarArtistMatch
 
 @Composable
-fun ArtistDetailPanel(
+fun DesktopArtistDetailPanel(
     appColors: AppColors,
     artist: Artist?,
     artistDetails: ArtistDetails?,
@@ -99,7 +99,7 @@ fun ArtistDetailPanel(
             verticalAlignment = Alignment.Top,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            CoverArtThumb(
+            DesktopCoverArtThumb(
                 appColors = appColors,
                 coverArtUrl = imageUrl,
                 size = 96.dp,
@@ -270,7 +270,7 @@ fun ArtistDetailPanel(
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         popularTracks.forEach { track ->
-                            TrackRow(
+                            DesktopTrackRow(
                                 appColors = appColors,
                                 track = track,
                                 coverArtUrl = coverArtUrl(track.coverArtId),
@@ -291,7 +291,7 @@ fun ArtistDetailPanel(
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     details.albums.forEach { album ->
-                        AlbumRow(
+                        DesktopAlbumRow(
                             appColors = appColors,
                             album = album,
                             coverArtUrl = coverArtUrl(album.coverArtId),
@@ -329,7 +329,7 @@ private fun SimilarArtistRow(
                 }
             },
     ) {
-        CoverArtThumb(
+        DesktopCoverArtThumb(
             appColors = appColors,
             coverArtUrl = similarArtist.candidate.imageUrl,
             size = 36.dp,

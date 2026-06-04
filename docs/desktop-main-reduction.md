@@ -335,21 +335,21 @@ Follow the convention above: shared/common abstractions keep generic names; plat
 - [ ] Desktop app shell files:
   - `app/AppMenus.kt`
   - `connection/ConnectionPanel.kt`
-- [ ] Desktop UI panels:
-  - `downloads/DownloadsPanel.kt`
-  - `home/HomePanel.kt`
-  - `library/LibraryPanel.kt`
-  - `media/AlbumDetailPanel.kt`
-  - `media/ArtistDetailPanel.kt`
-  - `media/CoverArtThumb.kt`
-  - `media/MediaRows.kt`
-  - `playback/NowPlayingPanel.kt`
-  - `playlists/AddToPlaylistDialog.kt`
-  - `playlists/PlaylistPanels.kt`
-  - `radio/InternetRadioPanel.kt`
-  - `search/SearchPanel.kt`
-  - `settings/SettingsPanel.kt`
-  - `stats/StatsForNerdsWindow.kt`
+- [x] Desktop UI panels:
+  - `downloads/DesktopDownloadsPanel.kt`
+  - `home/DesktopHomePanel.kt`
+  - `library/DesktopLibraryPanel.kt`
+  - `media/DesktopAlbumDetailPanel.kt`
+  - `media/DesktopArtistDetailPanel.kt`
+  - `media/DesktopCoverArtThumb.kt`
+  - `media/DesktopMediaRows.kt`
+  - `playback/DesktopNowPlayingPanel.kt`
+  - `playlists/DesktopAddToPlaylistDialog.kt`
+  - `playlists/DesktopPlaylistPanels.kt`
+  - `radio/DesktopInternetRadioPanel.kt`
+  - `search/DesktopSearchPanel.kt`
+  - `settings/DesktopSettingsPanel.kt`
+  - `stats/DesktopStatsForNerdsWindow.kt`
 - [x] Desktop playback adapters/services:
   - `playback/DesktopNowPlayingAnalysis.kt`
   - Removed unused desktop duplicate of the common playback engine contract.

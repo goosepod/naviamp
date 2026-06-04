@@ -27,7 +27,7 @@ import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Track
 
 @Composable
-fun AlbumDetailPanel(
+fun DesktopAlbumDetailPanel(
     appColors: AppColors,
     album: Album?,
     albumDetails: AlbumDetails?,
@@ -82,7 +82,7 @@ fun AlbumDetailPanel(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            CoverArtThumb(
+            DesktopCoverArtThumb(
                 appColors = appColors,
                 coverArtUrl = coverArtUrl,
                 size = 96.dp,
@@ -189,7 +189,7 @@ fun AlbumDetailPanel(
             ) {
                 val reservePopularIndicatorSpace = details.tracks.any { it.id.value in popularTrackIds }
                 details.tracks.forEachIndexed { index, track ->
-                    TrackRow(
+                    DesktopTrackRow(
                         appColors = appColors,
                         track = track,
                         index = index + 1,

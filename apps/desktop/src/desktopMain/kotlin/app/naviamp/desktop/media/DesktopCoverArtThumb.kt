@@ -6,7 +6,7 @@ import androidx.compose.ui.unit.dp
 import app.naviamp.ui.PlatformCoverArt
 
 @Composable
-fun CoverArtThumb(
+fun DesktopCoverArtThumb(
     appColors: AppColors,
     coverArtUrl: String?,
     size: Dp,

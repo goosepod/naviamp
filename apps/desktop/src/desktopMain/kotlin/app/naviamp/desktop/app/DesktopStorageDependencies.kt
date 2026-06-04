@@ -49,7 +49,7 @@ class DesktopStorageDependencies(
     override fun mediaSource(sourceId: String): SavedMediaSource? =
         cache.mediaSource(sourceId)
 
-    fun libraryOffsetForLetter(sourceId: String, tab: LibraryTab, letter: Char): Long =
+    fun libraryOffsetForLetter(sourceId: String, tab: DesktopLibraryTab, letter: Char): Long =
         cache.libraryOffsetForLetter(sourceId, tab, letter)
 
     fun asHomeLibraryRepository(): HomeLibraryRepository =

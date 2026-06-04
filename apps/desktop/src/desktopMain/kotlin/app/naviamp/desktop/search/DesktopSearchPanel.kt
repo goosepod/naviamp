@@ -19,7 +19,7 @@ import app.naviamp.domain.Artist
 import app.naviamp.domain.provider.MediaSearchResults
 
 @Composable
-fun SearchPanel(
+fun DesktopSearchPanel(
     appColors: AppColors,
     query: String,
     results: MediaSearchResults,
@@ -88,7 +88,7 @@ fun SearchPanel(
         if (results.artists.isNotEmpty()) {
             SearchSection(title = "Artists", appColors = appColors) {
                 results.artists.forEach { artist ->
-                    ArtistRow(
+                    DesktopArtistRow(
                         appColors = appColors,
                         artist = artist,
                         coverArtUrl = coverArtUrl(artist.id.value),
@@ -105,7 +105,7 @@ fun SearchPanel(
         if (results.albums.isNotEmpty()) {
             SearchSection(title = "Albums", appColors = appColors) {
                 results.albums.forEach { album ->
-                    AlbumRow(
+                    DesktopAlbumRow(
                         appColors = appColors,
                         album = album,
                         coverArtUrl = coverArtUrl(album.coverArtId),
@@ -122,7 +122,7 @@ fun SearchPanel(
         if (results.tracks.isNotEmpty()) {
             SearchSection(title = "Tracks", appColors = appColors) {
                 results.tracks.forEachIndexed { index, track ->
-                    TrackRow(
+                    DesktopTrackRow(
                         appColors = appColors,
                         track = track,
                         coverArtUrl = coverArtUrl(track.coverArtId),

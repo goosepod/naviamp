@@ -38,7 +38,7 @@ import app.naviamp.ui.durationLabel
 import app.naviamp.ui.trackRowActions
 
 @Composable
-fun MediaRow(
+fun DesktopMediaRow(
     appColors: AppColors,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
@@ -72,7 +72,7 @@ fun MediaRow(
 }
 
 @Composable
-fun ArtistRow(
+fun DesktopArtistRow(
     appColors: AppColors,
     artist: Artist,
     modifier: Modifier = Modifier,
@@ -84,9 +84,9 @@ fun ArtistRow(
     onAddToQueue: (() -> Unit)? = null,
     onAddToPlaylist: (() -> Unit)? = null,
 ) {
-    MediaRow(appColors = appColors, modifier = modifier, onClick = onClick) {
+    DesktopMediaRow(appColors = appColors, modifier = modifier, onClick = onClick) {
         if (showCoverArt) {
-            CoverArtThumb(
+            DesktopCoverArtThumb(
                 appColors = appColors,
                 coverArtUrl = coverArtUrl,
                 size = coverArtSize,
@@ -100,7 +100,7 @@ fun ArtistRow(
             titleStyle = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
             modifier = Modifier.weight(1f),
         )
-        RowOverflowMenu(
+        DesktopRowOverflowMenu(
             appColors = appColors,
             items = artistRowActions(
                 canStartRadio = onStartRadio != null,
@@ -119,7 +119,7 @@ fun ArtistRow(
 }
 
 @Composable
-fun AlbumRow(
+fun DesktopAlbumRow(
     appColors: AppColors,
     album: Album,
     coverArtUrl: String?,
@@ -132,13 +132,13 @@ fun AlbumRow(
     onAddToQueue: (() -> Unit)? = null,
     onAddToPlaylist: (() -> Unit)? = null,
 ) {
-    MediaRow(
+    DesktopMediaRow(
         appColors = appColors,
         modifier = modifier,
         onClick = onClick,
         verticalPadding = verticalPadding,
     ) {
-        CoverArtThumb(
+        DesktopCoverArtThumb(
             appColors = appColors,
             coverArtUrl = coverArtUrl,
             size = coverArtSize,
@@ -155,7 +155,7 @@ fun AlbumRow(
         album.releaseYear?.let {
             Text(it.toString(), color = appColors.mutedText, fontSize = 11.sp)
         }
-        RowOverflowMenu(
+        DesktopRowOverflowMenu(
             appColors = appColors,
             items = albumRowActions(
                 canStartRadio = onStartRadio != null,
@@ -176,7 +176,7 @@ fun AlbumRow(
 }
 
 @Composable
-fun TrackRow(
+fun DesktopTrackRow(
     appColors: AppColors,
     track: Track,
     modifier: Modifier = Modifier,
@@ -202,7 +202,7 @@ fun TrackRow(
     onAddToPlaylist: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
 ) {
-    MediaRow(
+    DesktopMediaRow(
         appColors = appColors,
         modifier = modifier,
         onClick = onClick,
@@ -239,7 +239,7 @@ fun TrackRow(
             }
         }
         if (showCoverArt) {
-            CoverArtThumb(
+            DesktopCoverArtThumb(
                 appColors = appColors,
                 coverArtUrl = coverArtUrl,
                 size = coverArtSize,
@@ -254,13 +254,13 @@ fun TrackRow(
             subtitleStyle = subtitleStyle,
             modifier = Modifier.weight(1f),
         )
-        TrackMetadataTrailing(
+        DesktopTrackMetadataTrailing(
             appColors = appColors,
             track = track,
             showDuration = showDuration,
         )
         if (showMenu || onStartRadio != null || onDownload != null || onAddToQueue != null || onAddToPlaylist != null) {
-            RowOverflowMenu(
+            DesktopRowOverflowMenu(
                 appColors = appColors,
                 items = trackRowActions(
                     canStartRadio = onStartRadio != null,
@@ -282,9 +282,9 @@ fun TrackRow(
 }
 
 @Composable
-fun RowOverflowMenu(
+fun DesktopRowOverflowMenu(
     appColors: AppColors,
-    items: List<RowMenuItem>,
+    items: List<DesktopRowMenuItem>,
 ) {
     NaviampRowOverflowMenu(
         colors = appColors,
@@ -292,18 +292,18 @@ fun RowOverflowMenu(
     )
 }
 
-data class RowMenuItem(
+data class DesktopRowMenuItem(
     val label: String,
     val icon: ImageVector,
     val onClick: () -> Unit,
     val enabled: Boolean = true,
 )
 
-private fun NaviampActionSpec.toRowMenuItem(onClick: () -> Unit): RowMenuItem =
-    RowMenuItem(label = label, icon = icon, onClick = onClick, enabled = enabled)
+private fun NaviampActionSpec.toRowMenuItem(onClick: () -> Unit): DesktopRowMenuItem =
+    DesktopRowMenuItem(label = label, icon = icon, onClick = onClick, enabled = enabled)
 
 @Composable
-fun TrackMetadataTrailing(
+fun DesktopTrackMetadataTrailing(
     appColors: AppColors,
     track: Track,
     showDuration: Boolean,

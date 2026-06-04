@@ -255,11 +255,11 @@ class DesktopLibraryIndexStore(
         }
     }
 
-    fun libraryOffsetForLetter(sourceId: String, tab: LibraryTab, letter: Char): Long {
+    fun libraryOffsetForLetter(sourceId: String, tab: DesktopLibraryTab, letter: Char): Long {
         val boundary = letter.librarySearchBoundary()
         return when (tab) {
-            LibraryTab.Artists -> queries.libraryArtistOffsetForLetter(sourceId, boundary).executeAsOne()
-            LibraryTab.Albums -> queries.libraryAlbumOffsetForLetter(sourceId, boundary).executeAsOne()
+            DesktopLibraryTab.Artists -> queries.libraryArtistOffsetForLetter(sourceId, boundary).executeAsOne()
+            DesktopLibraryTab.Albums -> queries.libraryAlbumOffsetForLetter(sourceId, boundary).executeAsOne()
         }
     }
 }

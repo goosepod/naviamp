@@ -15,7 +15,7 @@ class LibraryFreshnessTest {
             50,
             nextLibraryLimit(
                 snapshot = LibrarySnapshot(artists = artists(49)),
-                tab = LibraryTab.Artists,
+                tab = DesktopLibraryTab.Artists,
                 currentLimit = 50,
                 pageSize = 50,
             ),
@@ -24,7 +24,7 @@ class LibraryFreshnessTest {
             100,
             nextLibraryLimit(
                 snapshot = LibrarySnapshot(artists = artists(50)),
-                tab = LibraryTab.Artists,
+                tab = DesktopLibraryTab.Artists,
                 currentLimit = 50,
                 pageSize = 50,
             ),
@@ -33,7 +33,7 @@ class LibraryFreshnessTest {
             100,
             nextLibraryLimit(
                 snapshot = LibrarySnapshot(albums = albums(50)),
-                tab = LibraryTab.Albums,
+                tab = DesktopLibraryTab.Albums,
                 currentLimit = 50,
                 pageSize = 50,
             ),

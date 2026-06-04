@@ -37,9 +37,9 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 @Composable
-fun StatsForNerdsWindow(
+fun DesktopStatsForNerdsWindow(
     appColors: AppColors,
-    info: StatsForNerdsInfo,
+    info: DesktopStatsForNerdsInfo,
     onClose: () -> Unit,
 ) {
     val windowState = rememberWindowState(size = DpSize(720.dp, 760.dp))
@@ -205,7 +205,7 @@ private fun StatsSection(
 @Composable
 private fun ApiHistorySection(
     appColors: AppColors,
-    calls: List<ApiCallStats>,
+    calls: List<DesktopApiCallStats>,
 ) {
     Column(
         modifier = Modifier
@@ -274,7 +274,7 @@ private fun ApiHistorySection(
     }
 }
 
-data class StatsForNerdsInfo(
+data class DesktopStatsForNerdsInfo(
     val route: String,
     val os: String,
     val javaVersion: String,
@@ -283,22 +283,22 @@ data class StatsForNerdsInfo(
     val username: String,
     val providerName: String,
     val providerCacheNamespace: String,
-    val mediaSource: MediaSourceStats?,
+    val mediaSource: DesktopMediaSourceStats?,
     val connectionStatus: String?,
-    val librarySync: LibrarySyncStats,
+    val librarySync: DesktopLibrarySyncStats,
     val playbackEngineName: String,
     val playbackCapabilities: String,
     val playbackEngineStats: List<Pair<String, String>>,
     val queueSize: Int,
     val currentQueueIndex: Int,
     val cacheRuntime: CacheRuntimeStats,
-    val stream: StreamStats?,
+    val stream: DesktopStreamStats?,
     val cacheStats: StorageCacheStats,
     val providerCapabilities: Map<String, Boolean>,
-    val apiCalls: List<ApiCallStats>,
+    val apiCalls: List<DesktopApiCallStats>,
 )
 
-data class MediaSourceStats(
+data class DesktopMediaSourceStats(
     val id: String,
     val providerId: String,
     val displayName: String,
@@ -331,7 +331,7 @@ data class MediaSourceStats(
         )
 }
 
-data class LibrarySyncStats(
+data class DesktopLibrarySyncStats(
     val isSyncing: Boolean,
     val status: String,
     val selectedTab: String,
@@ -353,7 +353,7 @@ data class LibrarySyncStats(
         )
 }
 
-data class StreamStats(
+data class DesktopStreamStats(
     val state: String,
     val source: String,
     val trackId: String,
@@ -426,8 +426,8 @@ private fun AudioPrefetchStats.rows(): List<Pair<String, String>> =
         "Last sidecar error" to (lastSidecarError ?: "None"),
     )
 
-fun SavedMediaSource.toStats(): MediaSourceStats =
-    MediaSourceStats(
+fun SavedMediaSource.toStats(): DesktopMediaSourceStats =
+    DesktopMediaSourceStats(
         id = id,
         providerId = providerId,
         displayName = displayName,
@@ -443,7 +443,7 @@ fun SavedMediaSource.toStats(): MediaSourceStats =
         lastLibraryScanCheckedAtEpochMillis = lastLibraryScanCheckedAtEpochMillis,
     )
 
-data class ApiCallStats(
+data class DesktopApiCallStats(
     val source: String,
     val endpoint: String,
     val sanitizedUrl: String,

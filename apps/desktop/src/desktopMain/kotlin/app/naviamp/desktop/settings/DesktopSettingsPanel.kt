@@ -68,7 +68,7 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 @Composable
-fun SettingsPanel(
+fun DesktopSettingsPanel(
     modifier: Modifier = Modifier,
     appColors: AppColors,
     serverUrl: String,

@@ -26,7 +26,7 @@ import app.naviamp.ui.NaviampAction
 import app.naviamp.ui.stationRowActions
 
 @Composable
-fun InternetRadioPanel(
+fun DesktopInternetRadioPanel(
     appColors: AppColors,
     stations: List<InternetRadioStation>,
     status: String?,
@@ -71,7 +71,7 @@ private fun InternetRadioStationRow(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    MediaRow(appColors = appColors, onClick = onPlay) {
+    DesktopMediaRow(appColors = appColors, onClick = onPlay) {
         DetailActionIconButton(appColors, TransportIcons.Play, "Play station", true, onPlay)
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -90,12 +90,12 @@ private fun InternetRadioStationRow(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        RowOverflowMenu(
+        DesktopRowOverflowMenu(
             appColors = appColors,
             items = stationRowActions(canEdit = true, canDelete = true).mapNotNull { action ->
                 when (action.action) {
-                    NaviampAction.EditStation -> RowMenuItem(action.label, action.icon, onEdit, action.enabled)
-                    NaviampAction.DeleteStation -> RowMenuItem(action.label, action.icon, onDelete, action.enabled)
+                    NaviampAction.EditStation -> DesktopRowMenuItem(action.label, action.icon, onEdit, action.enabled)
+                    NaviampAction.DeleteStation -> DesktopRowMenuItem(action.label, action.icon, onDelete, action.enabled)
                     else -> null
                 }
             },
@@ -104,7 +104,7 @@ private fun InternetRadioStationRow(
 }
 
 @Composable
-fun InternetRadioStationDialog(
+fun DesktopInternetRadioStationDialog(
     initialStation: InternetRadioStation?,
     onDismiss: () -> Unit,
     onConfirm: (InternetRadioStation) -> Unit,
@@ -164,7 +164,7 @@ fun InternetRadioStationDialog(
 }
 
 @Composable
-fun DeleteInternetRadioStationDialog(
+fun DesktopDeleteInternetRadioStationDialog(
     station: InternetRadioStation,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,

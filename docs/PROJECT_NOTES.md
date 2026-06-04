@@ -90,7 +90,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - The player can toggle track favorites and set/clear 1-5 ratings through Navidrome.
   - Search, album detail, and queue state are patched locally after successful changes.
 - Reusable desktop media rows:
-  - Shared `MediaRow`, `AlbumRow`, `ArtistRow`, and `TrackRow` components back search, home, album detail, and up-next rows.
+  - Shared `DesktopMediaRow`, `DesktopAlbumRow`, `DesktopArtistRow`, and `DesktopTrackRow` components back search, home, album detail, and up-next rows.
 - Artist detail:
   - Search artist results open an artist page.
   - Navidrome `getArtist` supplies the artist album list; `getArtistInfo2` may supply biography and artist image URLs.

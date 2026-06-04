@@ -24,7 +24,7 @@ import app.naviamp.ui.downloadRowActions
 import app.naviamp.ui.storageBytesLabel
 
 @Composable
-fun DownloadsPanel(
+fun DesktopDownloadsPanel(
     appColors: AppColors,
     downloads: List<NaviampDownloadedTrackUi>,
     status: String?,
@@ -75,12 +75,12 @@ fun DownloadsPanel(
             downloads.forEach { download ->
                 val rowActions = downloadRowActions(canRemove = true, canAddToPlaylist = true)
                 val removeAction = rowActions.first { it.action == NaviampAction.RemoveDownload }
-                MediaRow(
+                DesktopMediaRow(
                     appColors = appColors,
                     onClick = { onTrackSelected(download) },
                     verticalPadding = 3.dp,
                 ) {
-                    CoverArtThumb(
+                    DesktopCoverArtThumb(
                         appColors = appColors,
                         coverArtUrl = download.track.coverArtUrl,
                         size = 34.dp,
@@ -121,11 +121,11 @@ fun DownloadsPanel(
                             modifier = Modifier.size(17.dp),
                         )
                     }
-                    RowOverflowMenu(
+                    DesktopRowOverflowMenu(
                         appColors = appColors,
                         items = rowActions.mapNotNull { action ->
                             when (action.action) {
-                                NaviampAction.AddToPlaylist -> RowMenuItem(action.label, action.icon, {
+                                NaviampAction.AddToPlaylist -> DesktopRowMenuItem(action.label, action.icon, {
                                     onTrackAddToPlaylist(download)
                                 }, action.enabled)
                                 else -> null

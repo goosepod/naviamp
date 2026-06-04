@@ -227,7 +227,7 @@ fun NaviampApp(
     var playlists by remember { mutableStateOf<List<Playlist>>(emptyList()) }
     var playlistStatus by remember { mutableStateOf<String?>(null) }
     var pendingPlaybackAction by remember { mutableStateOf<PendingPlaybackAction?>(null) }
-    var playlistSortMode by remember { mutableStateOf(PlaylistSortMode.Alphabetical) }
+    var playlistSortMode by remember { mutableStateOf(DesktopPlaylistSortMode.Alphabetical) }
     var recentPlaylistIds by remember { mutableStateOf(savedRecentPlaylistIds) }
     var selectedPlaylist by remember { mutableStateOf<Playlist?>(null) }
     var selectedPlaylistTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
@@ -267,7 +267,7 @@ fun NaviampApp(
     var downloadRefreshToken by remember { mutableStateOf(0) }
     var libraryQuery by remember { mutableStateOf("") }
     var librarySnapshot by remember { mutableStateOf(LibrarySnapshot()) }
-    var libraryTab by remember { mutableStateOf(LibraryTab.Artists) }
+    var libraryTab by remember { mutableStateOf(DesktopLibraryTab.Artists) }
     var libraryLimit by remember { mutableStateOf(LibraryPageSize) }
     var libraryStatus by remember { mutableStateOf<String?>(null) }
     var isLibrarySyncing by remember { mutableStateOf(false) }
@@ -1346,7 +1346,7 @@ fun NaviampApp(
                 storage.cachedAudioMetadata(sourceId, track.id, streamQuality)
             }
         }
-    val statsForNerdsInfo = if (showStatsForNerds) StatsForNerdsInfo(
+    val statsForNerdsInfo = if (showStatsForNerds) DesktopStatsForNerdsInfo(
         route = appRoute.name,
         os = "${System.getProperty("os.name")} ${System.getProperty("os.version")} (${System.getProperty("os.arch")})",
         javaVersion = System.getProperty("java.version"),
@@ -1357,7 +1357,7 @@ fun NaviampApp(
         providerCacheNamespace = connectedProvider?.cacheNamespace ?: "Not connected",
         mediaSource = statsMediaSource?.toStats(),
         connectionStatus = connectionStatus,
-        librarySync = LibrarySyncStats(
+        librarySync = DesktopLibrarySyncStats(
             isSyncing = isLibrarySyncing,
             status = libraryStatus ?: "Idle",
             selectedTab = libraryTab.label,
@@ -1387,7 +1387,7 @@ fun NaviampApp(
         providerCapabilities = connectedProvider?.capabilities?.asStatsMap().orEmpty(),
         apiCalls = (
             NavidromeApiCallHistory.recent(50).map { call ->
-                ApiCallStats(
+                DesktopApiCallStats(
                     source = "Navidrome",
                     endpoint = "${call.method} ${call.endpoint}",
                     sanitizedUrl = call.sanitizedUrl,
@@ -1397,7 +1397,7 @@ fun NaviampApp(
                     errorMessage = call.errorMessage,
                 )
             } + DesktopPopularTracksApiCallHistory.recent(50).map { call ->
-                ApiCallStats(
+                DesktopApiCallStats(
                     source = "Deezer",
                     endpoint = call.endpoint,
                     sanitizedUrl = call.sanitizedUrl,
@@ -1407,7 +1407,7 @@ fun NaviampApp(
                     errorMessage = call.errorMessage,
                 )
             } + DesktopLrclibApiCallHistory.recent(50).map { call ->
-                ApiCallStats(
+                DesktopApiCallStats(
                     source = "LRCLIB",
                     endpoint = call.endpoint,
                     sanitizedUrl = call.sanitizedUrl,
@@ -1422,7 +1422,7 @@ fun NaviampApp(
 
     MaterialTheme(colorScheme = colorScheme) {
         statsForNerdsInfo?.let { info ->
-            StatsForNerdsWindow(
+            DesktopStatsForNerdsWindow(
                 appColors = appColors,
                 info = info,
                 onClose = { showStatsForNerds = false },
@@ -1467,7 +1467,7 @@ fun NaviampApp(
                                 .weight(1f)
                                 .fillMaxWidth(),
                         ) {
-                            NowPlayingPanel(
+                            DesktopNowPlayingPanel(
                                 appColors = appColors,
                                 playbackEngineName = playbackEngine.name,
                                 supportsPause = playbackEngine.supportsPause,
@@ -1642,7 +1642,7 @@ fun NaviampApp(
                             ) {
                                 when (appRoute) {
                                     AppRoute.Player -> Unit
-                                AppRoute.Home -> HomePanel(
+                                AppRoute.Home -> DesktopHomePanel(
                                     appColors = appColors,
                                     connectionStatus = homeStatus ?: connectionStatus,
                                     homeContent = homeContent,
@@ -1695,15 +1695,15 @@ fun NaviampApp(
                                         playDecadeRadio(fromYear, toYear)
                                     },
                                     onOpenArtistMixBuilder = {
-                                        libraryTab = LibraryTab.Artists
+                                        libraryTab = DesktopLibraryTab.Artists
                                         appRoute = AppRoute.Library
                                     },
                                     onOpenAlbumMixBuilder = {
-                                        libraryTab = LibraryTab.Albums
+                                        libraryTab = DesktopLibraryTab.Albums
                                         appRoute = AppRoute.Library
                                     },
                                 )
-                                AppRoute.AlbumDetail -> AlbumDetailPanel(
+                                AppRoute.AlbumDetail -> DesktopAlbumDetailPanel(
                                     appColors = appColors,
                                     album = selectedAlbum,
                                     albumDetails = selectedAlbumDetails,
@@ -1750,7 +1750,7 @@ fun NaviampApp(
                                         openTrackArtistDetails(track, backRouteOverride = AppRoute.AlbumDetail)
                                     },
                                 )
-                                AppRoute.ArtistDetail -> ArtistDetailPanel(
+                                AppRoute.ArtistDetail -> DesktopArtistDetailPanel(
                                     appColors = appColors,
                                     artist = selectedArtist,
                                     artistDetails = selectedArtistDetails,
@@ -1795,7 +1795,7 @@ fun NaviampApp(
                                         playlistsController.openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(album))
                                     },
                                 )
-                                AppRoute.Playlists -> PlaylistsPanel(
+                                AppRoute.Playlists -> DesktopPlaylistsPanel(
                                     appColors = appColors,
                                     playlists = playlists,
                                     playlistTracks = { playlist -> playlistTracksById[playlist.id].orEmpty() },
@@ -1825,7 +1825,7 @@ fun NaviampApp(
                                         smartPlaylistsController.loadSmartPlaylistDefinition(playlist)
                                     },
                                 )
-                                AppRoute.PlaylistDetail -> PlaylistDetailPanel(
+                                AppRoute.PlaylistDetail -> DesktopPlaylistDetailPanel(
                                     appColors = appColors,
                                     playlist = selectedPlaylist,
                                     tracks = selectedPlaylistTracks,
@@ -1863,13 +1863,13 @@ fun NaviampApp(
                                     },
                                 )
                                     AppRoute.Library -> {
-                                        LibraryListLoadMoreEffect(
+                                        DesktopLibraryListLoadMoreEffect(
                                             selectedTab = libraryTab,
                                             snapshot = librarySnapshot,
                                             listState = libraryListState,
                                             onLoadMore = { libraryController.loadMoreLibraryRows() },
                                         )
-                                        LibraryPanel(
+                                        DesktopLibraryPanel(
                                             appColors = appColors,
                                             snapshot = librarySnapshot,
                                             query = libraryQuery,
@@ -1911,7 +1911,7 @@ fun NaviampApp(
                                             onRefreshLibrary = { libraryController.startLibrarySync(force = true) },
                                         )
                                     }
-                                    AppRoute.Search -> SearchPanel(
+                                    AppRoute.Search -> DesktopSearchPanel(
                                         appColors = appColors,
                                         query = searchQuery,
                                         results = searchResults,
@@ -1957,7 +1957,7 @@ fun NaviampApp(
                                             }
                                         },
                                     )
-                                    AppRoute.InternetRadio -> InternetRadioPanel(
+                                    AppRoute.InternetRadio -> DesktopInternetRadioPanel(
                                         appColors = appColors,
                                         stations = internetRadioStations,
                                         status = internetRadioStatus ?: connectionStatus,
@@ -1990,7 +1990,7 @@ fun NaviampApp(
                                                 )
                                             }
                                         }
-                                        DownloadsPanel(
+                                        DesktopDownloadsPanel(
                                             appColors = appColors,
                                             downloads = downloadItems,
                                             status = downloadStatus ?: connectionStatus,
@@ -2010,7 +2010,7 @@ fun NaviampApp(
                                             },
                                         )
                                     }
-                                    AppRoute.Settings -> SettingsPanel(
+                                    AppRoute.Settings -> DesktopSettingsPanel(
                                         appColors = appColors,
                                         serverUrl = serverUrl,
                                         connectionName = connectionName,
@@ -2092,7 +2092,7 @@ fun NaviampApp(
                             }
                         }
                         addToPlaylistTarget?.let { target ->
-                            AddToPlaylistDialog(
+                            DesktopAddToPlaylistDialog(
                                 appColors = appColors,
                                 target = target,
                                 playlists = playlists,
@@ -2110,42 +2110,42 @@ fun NaviampApp(
                             )
                         }
                         playlistPendingRename?.let { playlist ->
-                            RenamePlaylistDialog(
+                            DesktopRenamePlaylistDialog(
                                 playlist = playlist,
                                 onDismiss = { playlistPendingRename = null },
                                 onConfirm = { name -> renamePlaylist(playlist, name) },
                             )
                         }
                         playlistPendingDelete?.let { playlist ->
-                            DeletePlaylistDialog(
+                            DesktopDeletePlaylistDialog(
                                 playlist = playlist,
                                 onDismiss = { playlistPendingDelete = null },
                                 onConfirm = { deletePlaylist(playlist) },
                             )
                         }
                         if (isNewInternetRadioStationDialogOpen) {
-                            InternetRadioStationDialog(
+                            DesktopInternetRadioStationDialog(
                                 initialStation = null,
                                 onDismiss = { isNewInternetRadioStationDialogOpen = false },
                                 onConfirm = { station -> internetRadioController.saveStation(station) },
                             )
                         }
                         internetRadioStationPendingEdit?.let { station ->
-                            InternetRadioStationDialog(
+                            DesktopInternetRadioStationDialog(
                                 initialStation = station,
                                 onDismiss = { internetRadioStationPendingEdit = null },
                                 onConfirm = { updatedStation -> internetRadioController.saveStation(updatedStation) },
                             )
                         }
                         internetRadioStationPendingDelete?.let { station ->
-                            DeleteInternetRadioStationDialog(
+                            DesktopDeleteInternetRadioStationDialog(
                                 station = station,
                                 onDismiss = { internetRadioStationPendingDelete = null },
                                 onConfirm = { internetRadioController.deleteStation(station) },
                             )
                         }
                         if (nowPlayingTrack != null) {
-                            MiniPlayerPanel(
+                            DesktopMiniPlayerPanel(
                                 appColors = appColors,
                                 nowPlayingTrack = nowPlayingTrack,
                                 coverArtUrl = nowPlayingCoverArtUrl,

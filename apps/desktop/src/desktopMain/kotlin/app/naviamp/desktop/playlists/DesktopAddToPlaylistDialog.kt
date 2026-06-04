@@ -47,7 +47,7 @@ sealed interface AddToPlaylistTarget {
 }
 
 @Composable
-fun AddToPlaylistDialog(
+fun DesktopAddToPlaylistDialog(
     appColors: AppColors,
     target: AddToPlaylistTarget,
     playlists: List<Playlist>,

@@ -38,10 +38,10 @@ fun Track.toStreamStats(
     cachedAudio: CachedAudioMetadata?,
     internetRadioStation: InternetRadioStation?,
     streamMetadata: PlaybackStreamMetadata,
-): StreamStats {
+): DesktopStreamStats {
     val effectiveDurationSeconds = durationSeconds?.toDouble() ?: playbackProgress.durationSeconds
     val audio = audioInfo
-    return StreamStats(
+    return DesktopStreamStats(
         state = playbackState.label(),
         source = if (internetRadioStation != null || isInternetRadioTrack()) "Internet radio" else "Library track",
         trackId = id.value,

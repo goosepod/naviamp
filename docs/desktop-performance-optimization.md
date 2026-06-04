@@ -16,7 +16,7 @@ That last point matters: the visualizer and lyrics paths still need guardrails, 
 
 ### 1. Hidden stats and cache work during normal app recomposition
 
-`Main.kt` currently builds `StatsForNerdsInfo` unconditionally. That calls `sessionCache.stats()`, which runs many SQLite aggregate queries:
+`Main.kt` currently builds `DesktopStatsForNerdsInfo` unconditionally. That calls `sessionCache.stats()`, which runs many SQLite aggregate queries:
 
 - image count and size
 - response count

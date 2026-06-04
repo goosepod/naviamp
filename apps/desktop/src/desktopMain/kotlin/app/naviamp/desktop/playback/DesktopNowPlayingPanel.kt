@@ -26,7 +26,7 @@ import app.naviamp.ui.toNowPlayingUi
 import app.naviamp.ui.toMiniNowPlayingUi
 
 @Composable
-fun NowPlayingPanel(
+fun DesktopNowPlayingPanel(
     appColors: AppColors,
     playbackEngineName: String,
     supportsPause: Boolean,
@@ -285,7 +285,7 @@ fun NowPlayingPanel(
 }
 
 @Composable
-fun MiniPlayerPanel(
+fun DesktopMiniPlayerPanel(
     appColors: AppColors,
     nowPlayingTrack: Track?,
     coverArtUrl: String?,

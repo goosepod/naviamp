@@ -33,7 +33,7 @@ import app.naviamp.ui.NaviampAction
 import app.naviamp.ui.playlistRowActions
 
 @Composable
-fun HomePanel(
+fun DesktopHomePanel(
     appColors: AppColors,
     connectionStatus: String?,
     homeContent: HomeContent,
@@ -231,7 +231,7 @@ private fun HomeAlbumSection(
     if (albums.isEmpty()) return
     HomeSection(title = title, appColors = appColors) {
         albums.take(5).forEach { album ->
-            AlbumRow(
+            DesktopAlbumRow(
                 appColors = appColors,
                 album = album,
                 coverArtUrl = coverArtUrl(album.coverArtId),
@@ -261,7 +261,7 @@ private fun MixCard(
             .clip(RoundedCornerShape(6.dp))
             .clickable(onClick = onClick),
     ) {
-        CoverArtThumb(
+        DesktopCoverArtThumb(
             appColors = appColors,
             coverArtUrl = coverArtUrl,
             size = 154.dp,
@@ -302,8 +302,8 @@ private fun PlaylistRow(
     onAddToQueue: () -> Unit,
     onAddToPlaylist: () -> Unit,
 ) {
-    MediaRow(appColors = appColors, onClick = onClick) {
-        CoverArtThumb(
+    DesktopMediaRow(appColors = appColors, onClick = onClick) {
+        DesktopCoverArtThumb(
             appColors = appColors,
             coverArtUrl = coverArtUrl,
             size = 38.dp,
@@ -327,13 +327,13 @@ private fun PlaylistRow(
             )
         }
         Text("Playlist", color = appColors.mutedText, fontSize = 11.sp)
-        RowOverflowMenu(
+        DesktopRowOverflowMenu(
             appColors = appColors,
             items = playlistRowActions(canDownload = true, canAddToQueue = true, canAddToPlaylist = true).mapNotNull { action ->
                 when (action.action) {
-                    NaviampAction.DownloadPlaylist -> RowMenuItem(action.label, action.icon, onDownload, action.enabled)
-                    NaviampAction.AddToQueue -> RowMenuItem(action.label, action.icon, onAddToQueue, action.enabled)
-                    NaviampAction.AddPlaylistToPlaylist -> RowMenuItem(action.label, action.icon, onAddToPlaylist, action.enabled)
+                    NaviampAction.DownloadPlaylist -> DesktopRowMenuItem(action.label, action.icon, onDownload, action.enabled)
+                    NaviampAction.AddToQueue -> DesktopRowMenuItem(action.label, action.icon, onAddToQueue, action.enabled)
+                    NaviampAction.AddPlaylistToPlaylist -> DesktopRowMenuItem(action.label, action.icon, onAddToPlaylist, action.enabled)
                     else -> null
                 }
             },
@@ -348,7 +348,7 @@ private fun StationRow(
     subtitle: String,
     onClick: () -> Unit,
 ) {
-    MediaRow(appColors = appColors, onClick = onClick) {
+    DesktopMediaRow(appColors = appColors, onClick = onClick) {
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier

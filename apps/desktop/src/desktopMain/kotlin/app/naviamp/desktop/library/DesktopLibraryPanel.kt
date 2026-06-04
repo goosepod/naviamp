@@ -37,17 +37,17 @@ import app.naviamp.domain.Artist
 import app.naviamp.domain.cache.LibrarySnapshot
 
 @Composable
-fun LibraryPanel(
+fun DesktopLibraryPanel(
     appColors: AppColors,
     snapshot: LibrarySnapshot,
     query: String,
-    selectedTab: LibraryTab,
+    selectedTab: DesktopLibraryTab,
     status: String?,
     isSyncing: Boolean,
     listState: LazyListState,
     coverArtUrl: (String?) -> String?,
     onQueryChanged: (String) -> Unit,
-    onTabSelected: (LibraryTab) -> Unit,
+    onTabSelected: (DesktopLibraryTab) -> Unit,
     onLoadMore: () -> Unit,
     onJumpToLetter: (Char) -> Unit,
     onArtistSelected: (Artist) -> Unit,
@@ -127,7 +127,7 @@ fun LibraryPanel(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             modifier = Modifier.weight(1f),
         ) {
-            LibraryTab.entries.forEach { tab ->
+            DesktopLibraryTab.entries.forEach { tab ->
                 FilterChip(
                     selected = selectedTab == tab,
                     onClick = { onTabSelected(tab) },
@@ -145,24 +145,24 @@ fun LibraryPanel(
             ) {
                 item {
                     val title = when (selectedTab) {
-                        LibraryTab.Artists -> "Artists"
-                        LibraryTab.Albums -> "Albums"
+                        DesktopLibraryTab.Artists -> "Artists"
+                        DesktopLibraryTab.Albums -> "Albums"
                     }
                     Text(title, color = appColors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 }
-                if (selectedTab == LibraryTab.Artists && snapshot.artists.isEmpty()) {
+                if (selectedTab == DesktopLibraryTab.Artists && snapshot.artists.isEmpty()) {
                     item {
                         Text("Nothing here yet.", color = appColors.secondaryText, fontSize = 12.sp)
                     }
                 }
-                if (selectedTab == LibraryTab.Albums && snapshot.albums.isEmpty()) {
+                if (selectedTab == DesktopLibraryTab.Albums && snapshot.albums.isEmpty()) {
                     item {
                         Text("Nothing here yet.", color = appColors.secondaryText, fontSize = 12.sp)
                     }
                 }
                 when (selectedTab) {
-                    LibraryTab.Artists -> items(snapshot.artists, key = { it.id.value }) { artist ->
-                        ArtistRow(
+                    DesktopLibraryTab.Artists -> items(snapshot.artists, key = { it.id.value }) { artist ->
+                        DesktopArtistRow(
                             appColors = appColors,
                             artist = artist,
                             coverArtUrl = coverArtUrl(artist.id.value),
@@ -173,8 +173,8 @@ fun LibraryPanel(
                             onAddToPlaylist = { onArtistAddToPlaylist(artist) },
                         )
                     }
-                    LibraryTab.Albums -> items(snapshot.albums, key = { it.id.value }) { album ->
-                        AlbumRow(
+                    DesktopLibraryTab.Albums -> items(snapshot.albums, key = { it.id.value }) { album ->
+                        DesktopAlbumRow(
                             appColors = appColors,
                             album = album,
                             coverArtUrl = coverArtUrl(album.coverArtId),
@@ -200,8 +200,8 @@ fun LibraryPanel(
 }
 
 @Composable
-fun LibraryListLoadMoreEffect(
-    selectedTab: LibraryTab,
+fun DesktopLibraryListLoadMoreEffect(
+    selectedTab: DesktopLibraryTab,
     snapshot: LibrarySnapshot,
     listState: LazyListState,
     onLoadMore: () -> Unit,
@@ -213,8 +213,8 @@ fun LibraryListLoadMoreEffect(
         listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index,
     ) {
         val visibleCount = when (selectedTab) {
-            LibraryTab.Artists -> snapshot.artists.size
-            LibraryTab.Albums -> snapshot.albums.size
+            DesktopLibraryTab.Artists -> snapshot.artists.size
+            DesktopLibraryTab.Albums -> snapshot.albums.size
         }
         val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: return@LaunchedEffect
         if (visibleCount > 0 && lastVisible >= visibleCount - 8) {
@@ -250,7 +250,7 @@ private fun LetterRail(
     }
 }
 
-enum class LibraryTab(val label: String) {
+enum class DesktopLibraryTab(val label: String) {
     Artists("Artists"),
     Albums("Albums"),
 }

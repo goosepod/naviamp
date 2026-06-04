@@ -92,13 +92,13 @@ fun LocalLibraryIndexRepository.librarySnapshotFor(
 
 fun nextLibraryLimit(
     snapshot: LibrarySnapshot,
-    tab: LibraryTab,
+    tab: DesktopLibraryTab,
     currentLimit: Int,
     pageSize: Int,
 ): Int {
     val visibleCount = when (tab) {
-        LibraryTab.Artists -> snapshot.artists.size
-        LibraryTab.Albums -> snapshot.albums.size
+        DesktopLibraryTab.Artists -> snapshot.artists.size
+        DesktopLibraryTab.Albums -> snapshot.albums.size
     }
     return nextLibraryPageLimit(
         visibleCount = visibleCount,

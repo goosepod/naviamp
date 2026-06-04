@@ -42,21 +42,21 @@ import app.naviamp.ui.playlistRowActions
 import app.naviamp.ui.toSpec
 import kotlinx.coroutines.launch
 
-enum class PlaylistSortMode(val label: String) {
+enum class DesktopPlaylistSortMode(val label: String) {
     Alphabetical("A-Z"),
     RecentlyPlayed("Recent"),
 }
 
 @Composable
-fun PlaylistsPanel(
+fun DesktopPlaylistsPanel(
     appColors: AppColors,
     playlists: List<Playlist>,
     playlistTracks: (Playlist) -> List<Track>,
     recentPlaylistIds: List<String>,
-    sortMode: PlaylistSortMode,
+    sortMode: DesktopPlaylistSortMode,
     status: String?,
     coverArtUrl: (String?) -> String?,
-    onSortModeChanged: (PlaylistSortMode) -> Unit,
+    onSortModeChanged: (DesktopPlaylistSortMode) -> Unit,
     onPlaylistSelected: (Playlist) -> Unit,
     onPlayPlaylist: (Playlist, Boolean) -> Unit,
     onRenamePlaylist: (Playlist) -> Unit,
@@ -74,8 +74,8 @@ fun PlaylistsPanel(
     var smartPlaylistLoadMessage by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
     val sortedPlaylists = when (sortMode) {
-        PlaylistSortMode.Alphabetical -> playlists.sortedBy { it.name.lowercase() }
-        PlaylistSortMode.RecentlyPlayed -> playlists.sortedWith(
+        DesktopPlaylistSortMode.Alphabetical -> playlists.sortedBy { it.name.lowercase() }
+        DesktopPlaylistSortMode.RecentlyPlayed -> playlists.sortedWith(
             compareBy<Playlist> {
                 val index = recentPlaylistIds.indexOf(it.id)
                 if (index == -1) Int.MAX_VALUE else index
@@ -106,15 +106,15 @@ fun PlaylistsPanel(
                         modifier = Modifier.size(18.dp),
                     )
                 }
-                PlaylistSortMode.entries.forEach { mode ->
+                DesktopPlaylistSortMode.entries.forEach { mode ->
                     FilterChip(
                         selected = sortMode == mode,
                         onClick = { onSortModeChanged(mode) },
                         label = {
                             Icon(
                                 imageVector = when (mode) {
-                                    PlaylistSortMode.Alphabetical -> NavigationIcons.Alphabetical
-                                    PlaylistSortMode.RecentlyPlayed -> NavigationIcons.Clock
+                                    DesktopPlaylistSortMode.Alphabetical -> NavigationIcons.Alphabetical
+                                    DesktopPlaylistSortMode.RecentlyPlayed -> NavigationIcons.Clock
                                 },
                                 contentDescription = mode.label,
                                 modifier = Modifier.size(16.dp),
@@ -209,11 +209,11 @@ private fun PlaylistListRow(
     onAddToPlaylist: () -> Unit,
     onEditSmartPlaylist: () -> Unit,
 ) {
-    MediaRow(appColors = appColors, onClick = onClick) {
+    DesktopMediaRow(appColors = appColors, onClick = onClick) {
         if (playlistCoverArtUrl != null) {
-            CoverArtThumb(appColors = appColors, coverArtUrl = playlistCoverArtUrl, size = 38.dp, cornerRadius = 4.dp)
+            DesktopCoverArtThumb(appColors = appColors, coverArtUrl = playlistCoverArtUrl, size = 38.dp, cornerRadius = 4.dp)
         } else {
-            PlaylistCover(appColors = appColors, tracks = tracks, coverArtUrl = coverArtUrl, size = 38.dp)
+            DesktopPlaylistCover(appColors = appColors, tracks = tracks, coverArtUrl = coverArtUrl, size = 38.dp)
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -228,7 +228,7 @@ private fun PlaylistListRow(
         }
         DetailActionIconButton(appColors, TransportIcons.Play, "Play playlist", true, onPlay)
         DetailActionIconButton(appColors, TransportIcons.Shuffle, "Play playlist in random order", playlist.trackCount > 1, onShuffle)
-        RowOverflowMenu(
+        DesktopRowOverflowMenu(
             appColors = appColors,
             items = playlistRowActions(
                 canDownload = true,
@@ -253,7 +253,7 @@ private fun PlaylistListRow(
 }
 
 @Composable
-fun PlaylistDetailPanel(
+fun DesktopPlaylistDetailPanel(
     appColors: AppColors,
     playlist: Playlist?,
     tracks: List<Track>,
@@ -295,9 +295,9 @@ fun PlaylistDetailPanel(
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             if (playlistCoverArtUrl != null) {
-                CoverArtThumb(appColors = appColors, coverArtUrl = playlistCoverArtUrl, size = 96.dp, cornerRadius = 4.dp)
+                DesktopCoverArtThumb(appColors = appColors, coverArtUrl = playlistCoverArtUrl, size = 96.dp, cornerRadius = 4.dp)
             } else {
-                PlaylistCover(appColors = appColors, tracks = tracks, coverArtUrl = coverArtUrl, size = 96.dp)
+                DesktopPlaylistCover(appColors = appColors, tracks = tracks, coverArtUrl = coverArtUrl, size = 96.dp)
             }
             Column(verticalArrangement = Arrangement.spacedBy(3.dp), modifier = Modifier.weight(1f)) {
                 Text(playlist?.summaryLabel() ?: "${tracks.size} tracks", color = appColors.secondaryText, fontSize = 12.sp)
@@ -326,7 +326,7 @@ fun PlaylistDetailPanel(
             }
         }
         tracks.forEachIndexed { index, track ->
-            TrackRow(
+            DesktopTrackRow(
                 appColors = appColors,
                 track = track,
                 index = index + 1,
@@ -344,14 +344,14 @@ fun PlaylistDetailPanel(
     }
 }
 
-private fun NaviampActionSpec.toPlaylistRowMenuItem(onClick: () -> Unit): RowMenuItem =
-    RowMenuItem(label = label, icon = icon, onClick = onClick, enabled = enabled)
+private fun NaviampActionSpec.toPlaylistRowMenuItem(onClick: () -> Unit): DesktopRowMenuItem =
+    DesktopRowMenuItem(label = label, icon = icon, onClick = onClick, enabled = enabled)
 
 private fun List<NaviampActionSpec>.playlistAction(action: NaviampAction): NaviampActionSpec =
     firstOrNull { it.action == action } ?: action.toSpec(enabled = false)
 
 @Composable
-fun PlaylistCover(
+fun DesktopPlaylistCover(
     appColors: AppColors,
     tracks: List<Track>,
     coverArtUrl: (String?) -> String?,
@@ -364,19 +364,19 @@ fun PlaylistCover(
             .clip(RoundedCornerShape(4.dp)),
     ) {
         when (covers.size) {
-            0 -> CoverArtThumb(appColors, null, size, 4.dp)
-            1 -> CoverArtThumb(appColors, coverArtUrl(covers[0]), size, 4.dp)
+            0 -> DesktopCoverArtThumb(appColors, null, size, 4.dp)
+            1 -> DesktopCoverArtThumb(appColors, coverArtUrl(covers[0]), size, 4.dp)
             else -> {
                 val cell = size / 2
                 Column {
                     Row {
-                        CoverArtThumb(appColors, coverArtUrl(covers[0]), cell, 0.dp)
-                        CoverArtThumb(appColors, coverArtUrl(covers[1]), cell, 0.dp)
+                        DesktopCoverArtThumb(appColors, coverArtUrl(covers[0]), cell, 0.dp)
+                        DesktopCoverArtThumb(appColors, coverArtUrl(covers[1]), cell, 0.dp)
                     }
                     if (covers.size > 2) {
                         Row {
-                            CoverArtThumb(appColors, coverArtUrl(covers[2]), cell, 0.dp)
-                            CoverArtThumb(appColors, coverArtUrl(covers.getOrElse(3) { covers[2] }), cell, 0.dp)
+                            DesktopCoverArtThumb(appColors, coverArtUrl(covers[2]), cell, 0.dp)
+                            DesktopCoverArtThumb(appColors, coverArtUrl(covers.getOrElse(3) { covers[2] }), cell, 0.dp)
                         }
                     }
                 }
@@ -386,7 +386,7 @@ fun PlaylistCover(
 }
 
 @Composable
-fun RenamePlaylistDialog(
+fun DesktopRenamePlaylistDialog(
     playlist: Playlist,
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit,
@@ -417,7 +417,7 @@ fun RenamePlaylistDialog(
 }
 
 @Composable
-fun DeletePlaylistDialog(
+fun DesktopDeletePlaylistDialog(
     playlist: Playlist,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,

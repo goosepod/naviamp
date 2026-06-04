@@ -543,7 +543,7 @@ class DesktopCache(
     override fun libraryAlbumYears(sourceId: String): List<LibraryAlbumYear> =
         libraryIndex.libraryAlbumYears(sourceId)
 
-    fun libraryOffsetForLetter(sourceId: String, tab: LibraryTab, letter: Char): Long {
+    fun libraryOffsetForLetter(sourceId: String, tab: DesktopLibraryTab, letter: Char): Long {
         return libraryIndex.libraryOffsetForLetter(sourceId, tab, letter)
     }
 
