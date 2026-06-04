@@ -20,6 +20,7 @@ import app.naviamp.domain.playback.planPlaybackTrackStartEffects
 import app.naviamp.domain.playback.planPlaybackTrackStarted
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.ReplayGainSource
+import app.naviamp.domain.playback.playbackStreamUrl
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.radio.planInternetRadioStart
@@ -99,8 +100,10 @@ fun playAndroidTrack(
                 hasLocalAudio = audioSourcePlan.hasLocalAudio,
             )
             runCatching {
-                audioSourcePlan.localAudio?.toURI()?.toString()
-                    ?: activeProvider.streamUrl(startPlan.target.providerStreamRequest)
+                audioSourcePlan.playbackStreamUrl(
+                    localAudioUrl = { file -> file.toURI().toString() },
+                    providerStreamUrl = { target -> activeProvider.streamUrl(target.providerStreamRequest) },
+                )
             }.onSuccess { streamUrl ->
                 playbackEngine.applyTlsSettings(activeTlsSettings)
                 playbackQueueController.start(
