@@ -192,7 +192,7 @@ Then higher-level repositories can be composed from those stores:
     - First Android playlist-engine extraction slice is complete: `AndroidPlaylistEngine` now owns Android audio prefetch, sidecar prep, prepare-next, and waveform service composition instead of `MainActivity`.
     - Prepare-next queue planning is now shared: desktop and Android both use common progress/capability/next-track gating before queueing prepared playback.
     - Android's external active-queue sync for prepare-next now uses `PlaybackQueueController` instead of local index math in `AndroidPlaylistEngine`.
-    - Next playlist-engine target: extract the common queue/start/prefetch/sidecar/prepare-next orchestration below desktop `PlaylistEngine` and Android `AndroidPlaylistEngine`, leaving platform wrappers to provide `Path`/`File`, foreground service, notification, and UI callbacks.
+    - Playlist-engine extraction target is complete: `PlaybackSidecarService`, `runAudioPrefetch`, common prefetch stats, and `preparedNextPlaybackRequest` now sit below desktop `PlaylistEngine` and Android `AndroidPlaylistEngine`; platform wrappers provide jobs, logging/UI callbacks, foreground-service state, and concrete cache/audio adapters.
 - [x] Expand the shared BASS facade beyond waveform reads.
   - Playback streams, decode streams, active state, stream metadata/tags, FFT visualizer reads, seek/position/duration, volume slides, and mixer channel creation/add are now modeled on `BassAudioBackend` and implemented by desktop and Android adapters.
   - Shared BASS playback stream selection now chooses file/URL and direct/decode/playback-decode creation through `BassAudioBackend`; platforms only resolve local file paths.
@@ -498,3 +498,8 @@ This is a strong first slice because playback-source selection currently affects
   - Added `AudioMetadataSidecarService` plus platform audio-tag readers so embedded lyrics and ReplayGain extraction share common tag parsing.
   - Android storage now implements `LyricsSidecarRepository`, giving Android and desktop the same cached lyrics/LRCLIB sidecar row behavior.
   - Desktop now-playing, desktop playlist sidecar prep, Android now-playing lyrics, and Android sidecar prep use the shared services; platform code only supplies file/path tag readers and concrete storage adapters.
+- 2026-06-04: Completed the shared playlist-engine orchestration extraction.
+  - Added `PlaybackSidecarService` so desktop and Android playlist wrappers share waveform/lyrics sidecar preparation and status writes.
+  - Moved prefetch runtime stats and the track-by-track audio prefetch loop into common playback code.
+  - Added shared prepared-next request construction so desktop and Android use the same URL resolution, ReplayGain mode gating, and `PlaybackRequest` shaping before calling platform BASS engines.
+  - Desktop `PlaylistEngine` and Android `AndroidPlaylistEngine` remain platform adapters for coroutine jobs, UI/log callbacks, foreground-service state, and concrete cache/audio engines.

@@ -176,6 +176,8 @@ Branch: `codex/desktop-main-reduction`
   - Desktop and Android now share audio prefetch queue-window selection.
   - Desktop and Android now share prepare-next progress/capability/next-track planning before queueing the BASS prepared source.
   - Android's active queue to playback-controller sync now uses `PlaybackQueueController` instead of local prepare-next index math.
+  - Desktop and Android now share prepared-next request construction, including local/provider URL resolution, ReplayGain mode gating, and `PlaybackRequest` shaping before platform engines call BASS.
+  - Desktop and Android now share the playlist sidecar service and audio prefetch loop; wrappers provide coroutine jobs, logging/UI callbacks, foreground-service state, and concrete cache/audio adapters.
 - [x] Share local/provider playback target URL selection.
   - Android playback start, Android prepare-next, Android foreground-service restored playback, desktop `PlaylistEngine`, and shared waveform generation now use the same common helper to choose local audio URLs before provider streams.
   - Shared helpers carry `PlaybackLocalAudio`; platform code converts native `File` / `Path` values at the adapter edge for BASS URLs and platform-only tag/lyrics reads.
@@ -280,7 +282,7 @@ Branch: `codex/desktop-main-reduction`
 - Connection form validation and deleted-source active-connection updates are now shared through `core/domain`.
 - Navidrome TLS form normalization and connection success status text are now shared through `providers/navidrome` and used by both desktop and Android connection flows.
 - Media action rules for track selection, favorite/rating provider updates, and propagating updated track metadata through search, album, list, and queue state are now shared through `core/domain`.
-- Playback button/save-position decisions, pending-seek defaults, now-playing heartbeat cadence, visualizer frame cadence, playback target start-position planning, sidecar prep planning, and playback queue controller state are now shared through `core/domain`; platforms keep source-specific seek replay wrappers and platform cache/sidecar playback plumbing.
+- Playback button/save-position decisions, pending-seek defaults, now-playing heartbeat cadence, visualizer frame cadence, playback target start-position planning, sidecar prep planning, audio prefetch loop/stats, prepared-next request construction, and playback queue controller state are now shared through `core/domain`; platforms keep source-specific seek replay wrappers, coroutine job ownership, UI/log callbacks, foreground-service state, and concrete cache/audio adapters.
 - Playlist ordering, playlist refresh shaping, selected-playlist state updates, recent-playlist updates, playlist delete state updates, create-or-add track mutations, queue append planning, and playlist preload planning are now shared through `core/domain`.
 - Search result wrapping/status text and storage stats refresh route/interval decisions are now shared through `core/domain`.
 - Library sync status text, initial auto-sync decision, and library freshness polling cadence are now shared through `core/domain`.
@@ -366,7 +368,7 @@ Follow the convention above: shared/common abstractions keep generic names; plat
 - Android media action wiring now follows the same controller-over-shared-rules pattern as desktop; remaining media callback wrappers can be folded down next.
 - Android generated-radio queue starts are further centralized in the radio adapter; home station and artist/popular radio dispatch remain in `MainActivity.kt` for a later slice.
 - Android search orchestration now follows the same controller-over-shared-session pattern as desktop search.
-- Android playback queue-adjacent work now has an `AndroidPlaylistEngine` wrapper for audio prefetch, sidecar prep, prepare-next, and waveform service composition; this mirrors desktop `PlaylistEngine` at the platform-adapter level and sets up extracting a shared core orchestrator next.
+- Android playback queue-adjacent work now has an `AndroidPlaylistEngine` wrapper for audio prefetch, sidecar prep, prepare-next, and waveform service composition; the shared sidecar service, prefetch runner/stats, queue planning, and prepared-next request construction now sit below both Android and desktop playlist wrappers.
 - Storage/cache/download work should now follow `docs/shared-storage-cache-architecture.md`: shared ports first, platform engines second.
 - Remaining connection startup still differs by platform because desktop owns BASS/JVM TLS defaults, `DesktopCache`, window route state, and playlist engine restoration, while Android owns foreground service/playback runtime, `AndroidStorage`, and activity navigation state.
 - Before extracting each helper from `DesktopNaviampApp.kt`, compare Android equivalents and move pure request/status/state-transition rules into `core/domain`, `core/ui`, or `providers/navidrome` instead of creating a new desktop-only duplicate.
