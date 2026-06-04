@@ -38,6 +38,7 @@ import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.cache.ProviderResponseCacheService
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.SidecarStatusRepository
+import app.naviamp.domain.cache.SidecarStatusService
 import app.naviamp.domain.cache.StoredAudioBytes
 import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.domain.network.KtorSharedHttpClient
@@ -102,6 +103,10 @@ class AndroidStorage(
     }
     private val providerResponseCache = ProviderResponseCacheService(
         store = AndroidProviderResponseStore(queries),
+        nowMillis = ::nowMillis,
+    )
+    private val sidecarStatus = SidecarStatusService(
+        store = AndroidSidecarStatusStore(queries),
         nowMillis = ::nowMillis,
     )
     private val httpClient = KtorSharedHttpClient()
@@ -698,16 +703,7 @@ class AndroidStorage(
         success: Boolean,
         errorMessage: String?,
     ) {
-        queries.upsertCachedSidecarStatus(
-            source_id = sourceId,
-            remote_track_id = trackId.value,
-            quality_key = quality.cacheKey(),
-            sidecar_type = sidecarType,
-            status = if (success) SidecarStatusReady else SidecarStatusFailed,
-            attempts = 1,
-            last_error = errorMessage,
-            updated_at_epoch_millis = nowMillis(),
-        )
+        sidecarStatus.recordSidecarStatus(sourceId, trackId, quality, sidecarType, success, errorMessage)
     }
 
     fun recordSidecarStatus(
@@ -1293,5 +1289,3 @@ private fun clearFiles(directory: File) {
 private fun nowMillis(): Long = System.currentTimeMillis()
 
 private const val DatabaseName = "naviamp-storage.db"
-private const val SidecarStatusReady = "ready"
-private const val SidecarStatusFailed = "failed"

@@ -40,6 +40,7 @@ import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.cache.ProviderResponseCacheService
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.SidecarStatusRepository
+import app.naviamp.domain.cache.SidecarStatusService
 import app.naviamp.domain.cache.StoredAudioBytes
 import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.domain.cache.TrackMetadataRepository
@@ -102,6 +103,10 @@ class DesktopCache(
     private val queries = database.naviampStorageQueries
     private val providerResponseCache = ProviderResponseCacheService(
         store = DesktopProviderResponseStore(queries),
+        nowMillis = ::nowMillis,
+    )
+    private val sidecarStatus = SidecarStatusService(
+        store = DesktopSidecarStatusStore(queries),
         nowMillis = ::nowMillis,
     )
     private val hotImages = object : LinkedHashMap<String, ByteArray>(16, 0.75f, true) {}
@@ -438,16 +443,7 @@ class DesktopCache(
         success: Boolean,
         errorMessage: String?,
     ) {
-        queries.upsertCachedSidecarStatus(
-            source_id = sourceId,
-            remote_track_id = trackId.value,
-            quality_key = quality.cacheKey(),
-            sidecar_type = sidecarType,
-            status = if (success) SidecarStatusReady else SidecarStatusFailed,
-            attempts = 1,
-            last_error = errorMessage,
-            updated_at_epoch_millis = nowMillis(),
-        )
+        sidecarStatus.recordSidecarStatus(sourceId, trackId, quality, sidecarType, success, errorMessage)
     }
 
     fun recordSidecarStatus(
@@ -1916,6 +1912,3 @@ private data class ReplayGainDto(
             )
     }
 }
-
-private const val SidecarStatusReady = "ready"
-private const val SidecarStatusFailed = "failed"
