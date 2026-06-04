@@ -31,7 +31,10 @@ import app.naviamp.domain.playback.SidecarTypeProviderLyrics
 import app.naviamp.domain.playback.SidecarTypeWaveform
 import app.naviamp.domain.playback.emptyPlaybackAudioAssetRepository
 import app.naviamp.domain.playback.planPrepareNextPlayback
+import app.naviamp.domain.playback.recordSidecarFailure
+import app.naviamp.domain.playback.recordSidecarSuccess
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
+import app.naviamp.domain.playback.sidecarFailureStatus
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.waveform.AudioWaveformService
@@ -447,28 +450,23 @@ class PlaylistEngine(
         var failed = 0
         var lastError: String? = null
 
-        fun errorMessage(error: Throwable): String =
-            error.message ?: error::class.simpleName ?: "Sidecar prep failed."
-
         suspend fun runSidecar(sidecarType: String, block: suspend () -> Unit) {
             runCatching { block() }
                 .onSuccess {
-                    sidecarStatusRepository.recordSidecarStatus(
+                    sidecarStatusRepository.recordSidecarSuccess(
                         sourceId = sourceId,
                         trackId = track.id,
                         quality = quality,
                         sidecarType = sidecarType,
-                        success = true,
                     )
                 }
                 .onFailure { error ->
-                    val message = errorMessage(error)
-                    sidecarStatusRepository.recordSidecarStatus(
+                    val message = sidecarFailureStatus(error)
+                    sidecarStatusRepository.recordSidecarFailure(
                         sourceId = sourceId,
                         trackId = track.id,
                         quality = quality,
                         sidecarType = sidecarType,
-                        success = false,
                         errorMessage = message,
                     )
                     failed += 1
@@ -517,12 +515,11 @@ class PlaylistEngine(
             quality = quality,
             audioCachingEnabled = audioCachingEnabledProvider(),
         )
-        sidecarStatusRepository.recordSidecarStatus(
+        sidecarStatusRepository.recordSidecarSuccess(
             sourceId = sourceId,
             trackId = track.id,
             quality = quality,
             sidecarType = SidecarTypeWaveform,
-            success = true,
         )
     }
 
