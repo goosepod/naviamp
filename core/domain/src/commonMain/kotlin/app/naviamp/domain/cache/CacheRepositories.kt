@@ -258,6 +258,13 @@ interface LocalLibraryIndexRepository : ArtistPopularTracksRepository {
 
     fun libraryTracksForAlbum(sourceId: String, albumId: AlbumId, limit: Long = 50): List<Track>
 
+    fun libraryTracksForAlbumTitle(
+        sourceId: String,
+        albumTitle: String,
+        artistName: String?,
+        limit: Long = 50,
+    ): List<Track> = emptyList()
+
     fun randomLibraryTrackForArtist(sourceId: String, artistId: ArtistId): Track?
 
     fun libraryTracksForArtist(sourceId: String, artistId: ArtistId, limit: Long = 50): List<Track>

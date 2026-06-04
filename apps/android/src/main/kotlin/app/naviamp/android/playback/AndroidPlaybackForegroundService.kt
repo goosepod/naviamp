@@ -42,6 +42,8 @@ import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.MediaSourceRepository
 import app.naviamp.domain.cache.PlaybackHistoryRepository
+import app.naviamp.domain.cache.PlaybackSessionRepository
+import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackQueueController
@@ -84,8 +86,8 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         get() = serviceStorageInstance ?: AndroidStorage(applicationContext).also { serviceStorageInstance = it }
     private val autoQueueController = PlaybackQueueController()
 
-    private fun providerResponseService(storage: AndroidStorage = serviceStorage): ProviderResponseService =
-        ProviderResponseService(storage)
+    private fun providerResponseService(cacheRepository: ProviderResponseCacheRepository = serviceStorage): ProviderResponseService =
+        ProviderResponseService(cacheRepository)
 
     private fun recentPlaybackHistoryItems(
         playbackHistoryRepository: PlaybackHistoryRepository<AndroidPlaybackHistoryItem>,
@@ -689,7 +691,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 val provider = NavidromeProvider(source.toNavidromeConnection())
                 AndroidPlaybackRuntime.get(applicationContext).scope.launch {
                     runCatching {
-                        loadServiceArtistTracks(storage, sourceId, provider, artistId, artistName)
+                        loadServiceArtistTracks(storage, storage, sourceId, provider, artistId, artistName)
                             .firstOrNull { it.id.value == trackId }
                             ?: storage.libraryTrack(sourceId, TrackId(trackId))
                     }.onSuccess { track ->
@@ -746,7 +748,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 val provider = NavidromeProvider(source.toNavidromeConnection())
                 AndroidPlaybackRuntime.get(applicationContext).scope.launch {
                     runCatching {
-                        loadServiceArtistTracks(storage, sourceId, provider, artistId, artistName)
+                        loadServiceArtistTracks(storage, storage, sourceId, provider, artistId, artistName)
                     }.onSuccess { tracks ->
                         playServiceTrackQueue(storage, sourceId, tracks.shuffled(), currentIndex = 0)
                     }.onFailure { error ->
@@ -766,7 +768,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 val provider = NavidromeProvider(source.toNavidromeConnection())
                 AndroidPlaybackRuntime.get(applicationContext).scope.launch {
                     runCatching {
-                        loadServiceAlbumTracks(storage, sourceId, provider, albumId, albumTitle, albumArtist)
+                        loadServiceAlbumTracks(storage, storage, sourceId, provider, albumId, albumTitle, albumArtist)
                     }.onSuccess { tracks ->
                         val shuffled = tracks.shuffled()
                         playServiceTrackQueue(storage, sourceId, shuffled, currentIndex = 0)
@@ -893,22 +895,22 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     }
 
     private fun serviceQueueForLibraryTrack(
-        storage: AndroidStorage,
+        libraryIndexRepository: LocalLibraryIndexRepository,
         sourceId: String,
         track: Track,
     ): List<Track> =
-        track.albumId?.let { storage.libraryTracksForAlbum(sourceId, it, 200) }
+        track.albumId?.let { libraryIndexRepository.libraryTracksForAlbum(sourceId, it, 200) }
             ?.takeIf { tracks -> tracks.any { it.id == track.id } }
-            ?: track.albumTitle?.let { storage.libraryTracksForAlbumTitle(sourceId, it, track.artistName, 200) }
+            ?: track.albumTitle?.let { libraryIndexRepository.libraryTracksForAlbumTitle(sourceId, it, track.artistName, 200) }
                 ?.takeIf { tracks -> tracks.any { it.id == track.id } }
-            ?: track.artistId?.let { storage.libraryTracksForArtist(sourceId, it, 200) }
+            ?: track.artistId?.let { libraryIndexRepository.libraryTracksForArtist(sourceId, it, 200) }
                 ?.takeIf { tracks -> tracks.any { it.id == track.id } }
-            ?: storage.libraryTracksForArtistName(sourceId, track.artistName, 200)
+            ?: libraryIndexRepository.libraryTracksForArtistName(sourceId, track.artistName, 200)
                 .takeIf { tracks -> tracks.any { it.id == track.id } }
             ?: listOf(track)
 
     private fun playServiceTrackQueue(
-        storage: AndroidStorage,
+        playbackSessionRepository: PlaybackSessionRepository,
         sourceId: String,
         tracks: List<Track>,
         currentIndex: Int,
@@ -916,7 +918,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         if (tracks.isEmpty()) return
         syncAutoQueue(PlaybackQueue(tracks = tracks, currentIndex = currentIndex.coerceIn(tracks.indices)))
         val session = playbackSessionFromQueue(autoQueueController.queue) ?: return
-        storage.savePlaybackSession(sourceId, session)
+        playbackSessionRepository.savePlaybackSession(sourceId = sourceId, session = session)
         playSavedSession(session)
     }
 
@@ -929,47 +931,49 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     }
 
     private suspend fun loadServiceAlbumTracks(
-        storage: AndroidStorage,
+        libraryIndexRepository: LocalLibraryIndexRepository,
+        providerResponseCacheRepository: ProviderResponseCacheRepository,
         sourceId: String,
         provider: NavidromeProvider,
         albumId: String,
         albumTitle: String?,
         albumArtist: String?,
     ): List<Track> =
-        storage.libraryTracksForAlbum(sourceId, AlbumId(albumId), AndroidAutoBrowseLimit.toLong())
+        libraryIndexRepository.libraryTracksForAlbum(sourceId, AlbumId(albumId), AndroidAutoBrowseLimit.toLong())
             .ifEmpty {
                 albumTitle?.let { title ->
-                    storage.libraryTracksForAlbumTitle(sourceId, title, albumArtist, AndroidAutoBrowseLimit.toLong())
+                    libraryIndexRepository.libraryTracksForAlbumTitle(sourceId, title, albumArtist, AndroidAutoBrowseLimit.toLong())
                 }.orEmpty()
             }
             .ifEmpty {
                 runCatching {
                     withContext(Dispatchers.IO) {
-                        providerResponseService(storage).album(provider, AlbumId(albumId)).tracks
+                        providerResponseService(providerResponseCacheRepository).album(provider, AlbumId(albumId)).tracks
                     }
                 }.getOrDefault(emptyList())
             }
 
     private suspend fun loadServiceArtistTracks(
-        storage: AndroidStorage,
+        libraryIndexRepository: LocalLibraryIndexRepository,
+        providerResponseCacheRepository: ProviderResponseCacheRepository,
         sourceId: String,
         provider: NavidromeProvider,
         artistId: String,
         artistName: String?,
     ): List<Track> =
         artistId.takeIf { it.isNotBlank() }
-            ?.let { id -> storage.libraryTracksForArtist(sourceId, ArtistId(id), AndroidAutoBrowseLimit.toLong()) }
+            ?.let { id -> libraryIndexRepository.libraryTracksForArtist(sourceId, ArtistId(id), AndroidAutoBrowseLimit.toLong()) }
             .orEmpty()
             .ifEmpty {
                 artistName?.let { name ->
-                    storage.libraryTracksForArtistName(sourceId, name, AndroidAutoBrowseLimit.toLong())
+                    libraryIndexRepository.libraryTracksForArtistName(sourceId, name, AndroidAutoBrowseLimit.toLong())
                 }.orEmpty()
             }
             .ifEmpty {
                 artistId.takeIf { it.isNotBlank() }?.let { id ->
                     runCatching {
                         withContext(Dispatchers.IO) {
-                            val responseService = providerResponseService(storage)
+                            val responseService = providerResponseService(providerResponseCacheRepository)
                             responseService.artist(provider, ArtistId(id)).albums.flatMap { album ->
                                 responseService.album(provider, album.id).tracks
                             }
@@ -996,7 +1000,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             runCatching { withContext(Dispatchers.IO) { RadioService(provider).trackRadio(seedTrack.id) } }
                 .onSuccess { tracks ->
                     playServiceTrackQueue(
-                        storage = storage,
+                        playbackSessionRepository = storage,
                         sourceId = sourceId,
                         tracks = (listOf(seedTrack) + tracks).distinctBy { it.id },
                         currentIndex = 0,
@@ -1544,7 +1548,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                     loadAsyncChildren(result) {
                         val source = storage.latestNavidromeSource() ?: return@loadAsyncChildren noSourceItems()
                         val provider = NavidromeProvider(source.toNavidromeConnection())
-                        val tracks = loadServiceArtistTracks(storage, source.id, provider, artistId, artistName)
+                        val tracks = loadServiceArtistTracks(storage, storage, source.id, provider, artistId, artistName)
                         (
                             listOf(
                                 playableItem(
@@ -1578,7 +1582,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                     loadAsyncChildren(result) {
                         val source = storage.latestNavidromeSource() ?: return@loadAsyncChildren noSourceItems()
                         val provider = NavidromeProvider(source.toNavidromeConnection())
-                        val tracks = loadServiceAlbumTracks(storage, source.id, provider, albumId, albumTitle, albumArtist)
+                        val tracks = loadServiceAlbumTracks(storage, storage, source.id, provider, albumId, albumTitle, albumArtist)
                         (
                             listOf(
                                 playableItem(
