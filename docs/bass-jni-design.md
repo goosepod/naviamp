@@ -17,7 +17,7 @@ The Kotlin side should expose two layers:
 - A shared app-facing BASS facade in common code for behavior that desktop and Android should use identically.
 - Platform/native bridge adapters below that facade, where desktop may currently wrap JNA/native access and Android wraps JNI.
 
-The first shared facade slices are `BassAudioBackend` and `BassStreamHandle`. The facade started with decode-stream waveform reads and now also models basic playback streams, active state, stream metadata, FFT, seek/progress, volume slides, and mixer channel creation/add. The broader interface below remains the target shape for playback, visualizers, metadata, gapless, and crossfade, but it should be reached through shared ports before UI or playback orchestration touches platform connector details.
+The shared facade slices are `BassAudioBackend` and `BassStreamHandle`. The facade started with decode-stream waveform reads and now also models playback streams, active state, stream metadata, FFT, seek/progress, volume slides, BASSmix channel creation/add/remove, end sync, stream release, version diagnostics, plugin diagnostics, and shared playback helper operations. App-level playback, waveform, visualizer, gapless, and crossfade code should use this facade before any platform connector details.
 
 ```kotlin
 internal interface BassBinding {
@@ -69,7 +69,7 @@ The first committed JNI contract exposes BASS version and last-error diagnostics
 - Android: `app.naviamp.android.playback.AndroidBassJni`
 - Desktop: `app.naviamp.desktop.playback.bass.BassJniBinding`
 
-Playback remains on the JNA `BassPlaybackEngine` until the JNI binding reaches stream creation, control, progress, metadata, and plugin parity.
+Playback and waveform analysis now use the shared `BassAudioBackend` facade. Desktop still wraps its native/JNA binding below `DesktopBassAudioBackend`; Android wraps JNI below `AndroidBassAudioBackend`. Converging the desktop bridge onto the JNI library remains a connector-level migration, not an app-level playback rewrite.
 
 ## Playback And Mixer Model
 
@@ -149,14 +149,8 @@ Current packaging policy:
 
 ## Migration Plan
 
-1. Keep the current JNA `BassPlaybackEngine` as a behavior reference.
-2. Add JNI project layout and native build tasks.
-3. Port init, stream creation, playback, pause, stop, seek, volume, duration, and position.
-4. Keep desktop `BassPlaybackEngine` on JNA until JNI reaches playback parity.
-5. Switch desktop `BassPlaybackEngine` from JNA to JNI behind the same Kotlin API.
-6. Add metadata, plugin inventory, and Stats for nerds rows.
-7. Add BASSmix prepare-next support.
-8. Add ReplayGain support.
-9. Add FFT/PCM visualizer path.
-10. Add Android BASS engine using the same JNI binding shape.
-11. Remove mpv packaging when BASS covers known desktop and Android scenarios.
+1. Keep the shared `BassAudioBackend` facade as the app-facing BASS contract.
+2. Keep desktop JNA and Android JNI differences below platform backend adapters only.
+3. Continue validating stream creation, playback, pause, stop, seek, volume, duration, position, metadata, FFT, and mixer behavior through shared helpers.
+4. Switch the desktop backend adapter from JNA/native access to JNI when the JNI bridge reaches desktop packaging and plugin parity.
+5. Remove obsolete connector-specific packaging only after the shared facade covers known desktop and Android playback scenarios through the replacement bridge.

@@ -149,3 +149,6 @@ class DesktopBassAudioBackend(
     override fun freeStream(stream: BassStreamHandle): Result<Unit> =
         native.freeStream(stream.value)
 }
+
+fun loadDesktopBassAudioBackend(): Result<BassAudioBackend> =
+    BassNative.load().map(::DesktopBassAudioBackend)

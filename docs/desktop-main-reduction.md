@@ -289,7 +289,7 @@ Branch: `codex/desktop-main-reduction`
   - `AudioWaveformServiceResult` now owns the cached/generated/unavailable status label mapping used by now-playing analysis.
 - BASS usage should converge on a shared facade. Platform code may keep different bridge mechanics only at the lowest layer: desktop can wrap its native/JNA binding while Android wraps JNI, but playback, waveform, visualizer, tags, gapless, and crossfade should call shared interfaces wherever practical.
   - Android playback now uses the shared `BassAudioBackend` adapter for stream/control/progress/metadata/FFT primitives.
-  - Desktop playback now uses `BassAudioBackend` for stream/control/progress/metadata/FFT/mixer primitives and BASS version/load-path diagnostics; remaining raw `BassNative` references in the engine are load-state and plugin reporting.
+  - Desktop playback now uses `BassAudioBackend` for stream/control/progress/metadata/FFT/mixer primitives and BASS version/load-path diagnostics; raw `BassNative` access is confined to the desktop backend adapter/native binding layer.
   - Crossfade duration normalization, BASSmix queue-source decisions, equal-power fade envelopes, and transition application now live behind shared helpers/backend calls instead of desktop-only playback code.
 - Naming convention: shared/common abstractions keep generic names, while platform adapters and platform-owned service files should use `Desktop` / `Android` prefixes.
   - Example: common `AudioWaveformAnalyzer`, desktop `DesktopAudioWaveformAnalyzer`, Android `AndroidAudioWaveformAnalyzer`.

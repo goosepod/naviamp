@@ -189,11 +189,11 @@ Then higher-level repositories can be composed from those stores:
     - Prepare-next queue planning is now shared: desktop and Android both use common progress/capability/next-track gating before queueing prepared playback.
     - Android's external active-queue sync for prepare-next now uses `PlaybackQueueController` instead of local index math in `AndroidPlaylistEngine`.
     - Next playlist-engine target: extract the common queue/start/prefetch/sidecar/prepare-next orchestration below desktop `PlaylistEngine` and Android `AndroidPlaylistEngine`, leaving platform wrappers to provide `Path`/`File`, foreground service, notification, and UI callbacks.
-- [ ] Expand the shared BASS facade beyond waveform reads.
+- [x] Expand the shared BASS facade beyond waveform reads.
   - Playback streams, decode streams, active state, stream metadata/tags, FFT visualizer reads, seek/position/duration, volume slides, and mixer channel creation/add are now modeled on `BassAudioBackend` and implemented by desktop and Android adapters.
   - Shared BASS playback stream selection now chooses file/URL and direct/decode/playback-decode creation through `BassAudioBackend`; platforms only resolve local file paths.
   - Android playback now consumes `BassAudioBackend` for these primitives instead of raw `AndroidBassJni`; runtime still owns JNI loading and wraps it in the adapter.
-  - Desktop playback now consumes `BassAudioBackend` for stream/control/progress/metadata/FFT/mixer primitives and diagnostics instead of raw `BassNative`; `BassNative` remains in the engine only as the platform connector used to create the backend.
+  - Desktop playback now consumes `BassAudioBackend` for stream/control/progress/metadata/FFT/mixer primitives and diagnostics instead of raw `BassNative`; only the desktop backend adapter loads and wraps `BassNative`.
   - End sync is now modeled on `BassAudioBackend`; byte conversion remains inside platform seek implementations where it is needed.
   - Crossfade duration normalization and mixer queue-source decisions now live in common playback transition helpers and are used by desktop/Android playback where applicable.
   - Gapless/crossfade prepare-next capability/window/duplicate-prep decisions now live in common playback transition helpers; desktop and Android still own platform-specific URL/replaygain resolution.
@@ -228,6 +228,7 @@ Then higher-level repositories can be composed from those stores:
   - Desktop active-stream diagnostics now ask `BassAudioBackend` for active state instead of reaching directly into `BassNative`.
   - Desktop loaded/failed plugin reporting now uses shared `BassPluginDiagnostic` rows exposed by `BassAudioBackend`.
   - Desktop gapless/crossfade support flags now read mixer capability from `BassAudioBackend` instead of raw `BassNative`.
+  - Desktop playback and waveform composition now receive `BassAudioBackend` through the same facade boundary; app-level playback/waveform code no longer constructs a raw desktop native connector.
   - Android gapless/crossfade support flags now also read mixer capability from `BassAudioBackend` instead of assuming mixer support.
   - Playback source-handle selection now lives in common playback helpers, so desktop and Android use the same source-vs-output handle rule for seek/progress reads.
   - Playback user-volume factor calculation now lives in common playback helpers, with Android passing its audio-focus ducking factor through the shared path.

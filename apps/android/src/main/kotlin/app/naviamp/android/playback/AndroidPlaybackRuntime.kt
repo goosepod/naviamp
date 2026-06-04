@@ -12,7 +12,7 @@ class AndroidPlaybackRuntime private constructor(
 
     val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     val bassLoadReport: AndroidBassLoadReport = AndroidBassNativeLoader.loadBundledLibraries()
-    val bassJni: AndroidBassJni = AndroidBassJni.load().fold(
+    private val bassJni: AndroidBassJni = AndroidBassJni.load().fold(
         onSuccess = { it },
         onFailure = { throw IllegalStateException("BASS is required for Android playback.", it) },
     )

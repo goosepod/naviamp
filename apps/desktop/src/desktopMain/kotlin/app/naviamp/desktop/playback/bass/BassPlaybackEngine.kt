@@ -53,11 +53,10 @@ import java.io.File
 import java.net.URI
 
 class BassPlaybackEngine(
-    private val nativeResult: Result<BassNative> = BassNative.load(),
+    private val backendResult: Result<BassAudioBackend> = loadDesktopBassAudioBackend(),
 ) : QueueAwarePlaybackEngine, VisualizerPlaybackEngine, PlaybackEngineDiagnostics {
-    private val native: BassNative? = nativeResult.getOrNull()
-    private val loadError: Throwable? = nativeResult.exceptionOrNull()
-    private val backend: BassAudioBackend? = native?.let(::DesktopBassAudioBackend)
+    private val backend: BassAudioBackend? = backendResult.getOrNull()
+    private val loadError: Throwable? = backendResult.exceptionOrNull()
 
     override val name: String = "BASS"
     override val supportsPause: Boolean = true

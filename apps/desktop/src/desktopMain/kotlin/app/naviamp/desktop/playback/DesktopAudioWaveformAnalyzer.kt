@@ -1,7 +1,6 @@
 package app.naviamp.desktop
 
-import app.naviamp.desktop.playback.bass.BassNative
-import app.naviamp.desktop.playback.bass.DesktopBassAudioBackend
+import app.naviamp.desktop.playback.bass.loadDesktopBassAudioBackend
 import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.waveform.AudioWaveformAnalysisSource
 import app.naviamp.domain.waveform.AudioWaveform
@@ -13,7 +12,7 @@ import java.nio.file.Path
 import kotlin.io.path.exists
 
 class DesktopAudioWaveformAnalyzer(
-    private val backendResult: Result<BassAudioBackend> = BassNative.load().map(::DesktopBassAudioBackend),
+    private val backendResult: Result<BassAudioBackend> = loadDesktopBassAudioBackend(),
     private val bucketCount: Int = DefaultWaveformBucketCount,
 ) : DomainAudioWaveformAnalyzer {
     override suspend fun analyze(source: AudioWaveformAnalysisSource): AudioWaveform? =
