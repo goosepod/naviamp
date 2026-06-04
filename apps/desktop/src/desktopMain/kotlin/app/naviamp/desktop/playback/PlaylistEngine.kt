@@ -8,7 +8,6 @@ import app.naviamp.domain.audio.AudioMetadataSidecarService
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.AudioCacheRepository
-import app.naviamp.domain.cache.LyricsSidecarRepository
 import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.lyrics.LyricsSidecarService
 import app.naviamp.domain.provider.MediaProvider
@@ -53,7 +52,6 @@ class PlaylistEngine(
     private val audioPrefetchDepthProvider: () -> Int = { DefaultAudioPrefetchDepth },
     private val audioCacheRepository: AudioCacheRepository<CachedAudioFile, CachedAudioMetadata>? = null,
     private val audioWaveformService: AudioWaveformService? = null,
-    private val lyricsSidecarRepository: LyricsSidecarRepository? = null,
     private val lyricsSidecarService: LyricsSidecarService? = null,
     private val audioMetadataSidecarService: AudioMetadataSidecarService? = null,
     private val sidecarStatusRepository: SidecarStatusRepository? = null,
@@ -326,7 +324,7 @@ class PlaylistEngine(
         if (!audioCachingEnabledProvider()) return
         val audioCache = audioCacheRepository ?: return
         val waveformService = audioWaveformService ?: return
-        val lyricsRepository = lyricsSidecarRepository ?: return
+        val lyricsService = lyricsSidecarService ?: return
         val sidecarStatus = sidecarStatusRepository ?: return
         val sourceId = sourceIdProvider() ?: return
         val currentProvider = provider ?: return
@@ -354,11 +352,10 @@ class PlaylistEngine(
                         callbacks?.onCurrentTrackSidecarsReady(track)
                     }
                     runMetadataSidecars(
-                        lyricsRepository = lyricsRepository,
+                        lyricsSidecarService = lyricsService,
                         sourceId = sourceId,
                         provider = currentProvider,
                         track = track,
-                        cachedAudio = cachedAudio,
                     )
                 }
             }
@@ -373,7 +370,7 @@ class PlaylistEngine(
         if (!audioCachingEnabledProvider()) return
         val audioCache = audioCacheRepository ?: return
         val waveformService = audioWaveformService ?: return
-        val lyricsRepository = lyricsSidecarRepository ?: return
+        val lyricsService = lyricsSidecarService ?: return
         val sidecarStatus = sidecarStatusRepository ?: return
         val sourceId = sourceIdProvider() ?: return
         val currentProvider = provider ?: return
@@ -411,13 +408,12 @@ class PlaylistEngine(
                     )
                     sidecarResult = runPrefetchSidecars(
                         waveformService = waveformService,
-                        lyricsRepository = lyricsRepository,
+                        lyricsSidecarService = lyricsService,
                         sidecarStatusRepository = sidecarStatus,
                         sourceId = sourceId,
                         provider = currentProvider,
                         track = track,
                         quality = currentQuality,
-                        cachedAudio = cachedAudio,
                     )
                 }
                 audioPrefetchStats = if (result.isSuccess) {
@@ -442,15 +438,13 @@ class PlaylistEngine(
 
     private suspend fun runPrefetchSidecars(
         waveformService: AudioWaveformService,
-        lyricsRepository: LyricsSidecarRepository,
+        lyricsSidecarService: LyricsSidecarService,
         sidecarStatusRepository: SidecarStatusRepository,
         sourceId: String,
         provider: MediaProvider,
         track: Track,
         quality: StreamQuality,
-        cachedAudio: CachedAudioFile,
     ): SidecarPrepResult {
-        val activeLyricsSidecarService = lyricsSidecarService
         var failed = 0
         var lastError: String? = null
 
@@ -488,43 +482,25 @@ class PlaylistEngine(
             )
         }
         runSidecar(SidecarTypeProviderLyrics) {
-            if (activeLyricsSidecarService != null) {
-                activeLyricsSidecarService.providerLyrics(
-                    sourceId = sourceId,
-                    provider = provider,
-                    track = track,
-                )
-            } else {
-                lyricsRepository.providerLyrics(sourceId, provider, track.id)
-            }
+            lyricsSidecarService.providerLyrics(
+                sourceId = sourceId,
+                provider = provider,
+                track = track,
+            )
         }
         runSidecar(SidecarTypeEmbeddedLyrics) {
-            val embeddedLyrics = if (activeLyricsSidecarService != null) {
-                activeLyricsSidecarService.embeddedLyrics(
-                    sourceId = sourceId,
-                    track = track,
-                    quality = quality,
-                    audioCachingEnabled = audioCachingEnabledProvider(),
-                )
-            } else {
-                null
-            }
-            if (embeddedLyrics == null && activeLyricsSidecarService == null) {
-                val tags = audioMetadataSidecarService?.audioTags(cachedAudio.path.toPlaybackLocalAudio()).orEmpty()
-                audioMetadataSidecarService?.embeddedLyrics(tags)?.let { lyrics ->
-                    lyricsRepository.cacheEmbeddedLyrics(sourceId, track.id, lyrics)
-                }
-            }
+            lyricsSidecarService.embeddedLyrics(
+                sourceId = sourceId,
+                track = track,
+                quality = quality,
+                audioCachingEnabled = audioCachingEnabledProvider(),
+            )
         }
         runSidecar(SidecarTypeLrclibLyrics) {
-            if (activeLyricsSidecarService != null) {
-                activeLyricsSidecarService.onlineLyrics(
-                    sourceId = sourceId,
-                    track = track,
-                )
-            } else {
-                lyricsRepository.lrclibLyrics(sourceId, track)
-            }
+            lyricsSidecarService.onlineLyrics(
+                sourceId = sourceId,
+                track = track,
+            )
         }
 
         return SidecarPrepResult(failed = failed, lastError = lastError)
@@ -554,38 +530,21 @@ class PlaylistEngine(
     }
 
     private suspend fun runMetadataSidecars(
-        lyricsRepository: LyricsSidecarRepository,
+        lyricsSidecarService: LyricsSidecarService,
         sourceId: String,
         provider: MediaProvider,
         track: Track,
-        cachedAudio: CachedAudioFile,
     ) {
-        val activeLyricsSidecarService = lyricsSidecarService
         val quality = streamQuality ?: return
-        if (activeLyricsSidecarService != null) {
-            runCatching {
-                activeLyricsSidecarService.loadLyrics(
-                    sourceId = sourceId,
-                    provider = provider,
-                    track = track,
-                    quality = quality,
-                    audioCachingEnabled = audioCachingEnabledProvider(),
-                    onlineLyricsEnabled = true,
-                )
-            }
-            return
-        }
         runCatching {
-            lyricsRepository.providerLyrics(sourceId, provider, track.id)
-        }
-        runCatching {
-            val tags = audioMetadataSidecarService?.audioTags(cachedAudio.path.toPlaybackLocalAudio()).orEmpty()
-            audioMetadataSidecarService?.embeddedLyrics(tags)?.let { lyrics ->
-                lyricsRepository.cacheEmbeddedLyrics(sourceId, track.id, lyrics)
-            }
-        }
-        runCatching {
-            lyricsRepository.lrclibLyrics(sourceId, track)
+            lyricsSidecarService.loadLyrics(
+                sourceId = sourceId,
+                provider = provider,
+                track = track,
+                quality = quality,
+                audioCachingEnabled = audioCachingEnabledProvider(),
+                onlineLyricsEnabled = true,
+            )
         }
     }
 

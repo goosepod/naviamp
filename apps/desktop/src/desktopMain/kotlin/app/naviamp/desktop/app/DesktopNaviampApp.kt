@@ -233,7 +233,6 @@ fun NaviampApp(
             audioPrefetchDepthProvider = { cacheSettings.audioPrefetchDepth },
             audioCacheRepository = sessionCache,
             audioWaveformService = audioWaveformService,
-            lyricsSidecarRepository = sessionCache,
             lyricsSidecarService = lyricsSidecarService,
             audioMetadataSidecarService = audioMetadataSidecarService,
             sidecarStatusRepository = sessionCache,
