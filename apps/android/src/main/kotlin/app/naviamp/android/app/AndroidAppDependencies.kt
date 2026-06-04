@@ -10,6 +10,7 @@ import app.naviamp.domain.cache.ImageCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.lyrics.LyricsSidecarService
+import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.popular.ArtistPopularTracksService
 import app.naviamp.domain.popular.DeezerPopularTracksClient
 import app.naviamp.domain.popular.SimilarArtistsService
@@ -98,6 +99,27 @@ class AndroidAppDependencies(
         quality: StreamQuality,
     ): java.io.File =
         storage.cacheAudioTrack(sourceId, provider, track, quality).file
+
+    fun playlistEngine(
+        state: AndroidAppState,
+        playbackQueueController: PlaybackQueueController,
+        activeQueue: () -> List<Track>,
+        currentStreamQuality: () -> StreamQuality,
+    ): AndroidPlaylistEngine =
+        AndroidPlaylistEngine(
+            scope = playbackRuntime.scope,
+            state = state,
+            waveformRepository = storage,
+            cacheAudioTrack = ::cacheAudioTrack,
+            playbackAudioAssets = playbackAudioAssets,
+            playbackEngine = playbackRuntime.playbackEngine,
+            playbackQueueController = playbackQueueController,
+            waveformAnalyzer = playbackRuntime.waveformAnalyzer,
+            lyricsSidecarService = lyricsSidecarService,
+            sidecarStatusRepository = sidecarStatusRepository,
+            activeQueue = activeQueue,
+            currentStreamQuality = currentStreamQuality,
+        )
 
     override fun close() {
         storage.close()

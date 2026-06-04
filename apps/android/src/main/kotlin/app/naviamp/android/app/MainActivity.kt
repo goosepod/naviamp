@@ -455,26 +455,12 @@ private fun NaviampAndroidApp(
 
     val androidPlaylistEngine = remember(
         appState,
-        storage,
-        playbackAudioAssets,
-        playbackEngine,
+        dependencies,
         playbackQueueController,
-        waveformAnalyzer,
-        lyricsSidecarService,
     ) {
-        AndroidPlaylistEngine(
-            scope = scope,
+        dependencies.playlistEngine(
             state = appState,
-            waveformRepository = storage,
-            cacheAudioTrack = { sourceId, provider, track, quality ->
-                dependencies.cacheAudioTrack(sourceId, provider, track, quality)
-            },
-            playbackAudioAssets = playbackAudioAssets,
-            playbackEngine = playbackEngine,
             playbackQueueController = playbackQueueController,
-            waveformAnalyzer = waveformAnalyzer,
-            lyricsSidecarService = lyricsSidecarService,
-            sidecarStatusRepository = sidecarStatusRepository,
             activeQueue = ::activeQueue,
             currentStreamQuality = ::currentStreamQuality,
         )
