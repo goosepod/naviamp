@@ -526,3 +526,8 @@ This is a strong first slice because playback-source selection currently affects
   - Desktop composition now uses `DesktopStorageDependencies`, which delegates shared repository ports to the concrete `DesktopCache` engine.
   - Android app and foreground-service composition now use `AndroidStorageDependencies`, which delegates shared repository ports to the concrete `AndroidStorage` engine.
   - Direct `DesktopCache` / `AndroidStorage` construction is now isolated to platform dependency holders and concrete engine files.
+- 2026-06-04: Split Android foreground-service Android Auto orchestration.
+  - `AndroidAutoBrowseController` owns Android Auto browse/search tree shaping while the service keeps lifecycle and hydration calls.
+  - `AndroidAutoCommandController` owns media-id, search, and custom-action dispatch for the media-session callbacks.
+  - `AndroidPlaybackServiceSessionController` owns foreground-service saved-session hydration and restored now-playing metadata over shared storage/session ports.
+  - Line-count checkpoint: `AndroidPlaybackForegroundService.kt` 2,213, `AndroidAutoBrowseController.kt` 588, `AndroidAutoCommandController.kt` 65, `AndroidPlaybackServiceSessionController.kt` 80.

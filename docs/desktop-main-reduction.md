@@ -60,6 +60,11 @@ Branch: `codex/desktop-main-reduction`
 - [x] Move Android foreground-service Auto queue control onto shared queue helpers.
   - service-owned adjacent navigation, repeat-current replay, shuffle, hydration, and saved-session queue sync now use `PlaybackQueueController`
   - media-session publishing and notification behavior remain Android-local
+- [x] Split Android foreground-service Auto browse, command, and session restore boundaries.
+  - Android Auto browse/search now delegates through `AndroidAutoBrowseController`.
+  - Android Auto media-id/search/custom-action dispatch now delegates through `AndroidAutoCommandController`.
+  - Foreground-service saved-session hydration and restored now-playing metadata now delegate through `AndroidPlaybackServiceSessionController`.
+  - Current split counts: `AndroidPlaybackForegroundService.kt` 2,213 lines, `AndroidAutoBrowseController.kt` 588 lines, `AndroidAutoCommandController.kt` 65 lines, and `AndroidPlaybackServiceSessionController.kt` 80 lines.
 - [x] Extract shared playback target and sidecar planning.
   - engine/provider start-position split is shared for desktop and Android track playback
   - sidecar prep track window and lyrics-load decision are shared through `core/domain`
