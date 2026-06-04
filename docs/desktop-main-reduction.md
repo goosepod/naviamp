@@ -280,6 +280,7 @@ Branch: `codex/desktop-main-reduction`
   - Android playback-history browse reads now use `PlaybackHistoryRepository`.
   - Android Auto album-title fallback reads now use `LocalLibraryIndexRepository`, keeping voice/search queue restoration on shared library-index ports.
   - Cache/storage stats now have shared `StorageCacheStats` with desktop and Android storage implementations.
+  - Broad storage-engine row ownership is now split into focused adapters for audio cache/download metadata, library index/search/popular-track rows, lyrics sidecar rows, Android playback session/history rows, and maintenance/stat aggregation.
 - [x] Build a shared download service over `DownloadRepository` and platform byte/file stores so desktop and Android use one download flow.
   - Initial downloads and quality-change re-downloads now go through common `DownloadService`.
   - Desktop and Android storage engines are injected through narrow platform-agnostic download/replacement repository ports.
