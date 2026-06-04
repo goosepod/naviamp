@@ -1,12 +1,21 @@
 package app.naviamp.android.playback
 
+import android.util.Log
+
 object AndroidBassJni {
+    private const val Tag = "NaviampBass"
+
     fun load(): Result<AndroidBassJni> =
         runCatching {
             AndroidBassNativeLoader.loadBundledLibraries().also { report ->
                 check(report.available) { "BASS core library is not loaded." }
             }
             System.loadLibrary("naviamp_bass")
+            Log.i(
+                Tag,
+                "Loaded naviamp_bass JNI: bass=${nativeBassVersion()}, " +
+                    "bassmix=${nativeMixerVersion()}, error=${nativeLastErrorCode()}",
+            )
             this
         }
 

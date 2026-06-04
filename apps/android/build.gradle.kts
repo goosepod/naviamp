@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.zip.ZipFile
 
 val composeVersion = libs.versions.compose.get()
 val composeMaterial3Version = "1.8.2"
@@ -66,4 +67,38 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.ktor.client.cio)
     implementation(libs.sqldelight.android.driver)
+}
+
+tasks.register("verifyDebugBassNativePackage") {
+    group = "verification"
+    description = "Verifies that the debug APK contains Naviamp JNI plus BASS native libraries for each packaged ABI."
+    dependsOn("assembleDebug")
+
+    val apkFile = layout.buildDirectory.file("outputs/apk/debug/android-debug.apk")
+    inputs.file(apkFile)
+
+    doLast {
+        val apk = apkFile.get().asFile
+        check(apk.isFile) { "Debug APK was not found at ${apk.absolutePath}" }
+
+        val requiredAbis = listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+        val requiredLibraries = listOf(
+            "libnaviamp_bass.so",
+            "libbass.so",
+            "libbassmix.so",
+            "libc++_shared.so",
+        )
+        val entries = ZipFile(apk).use { zip ->
+            zip.entries().asSequence().map { it.name }.toSet()
+        }
+        val missing = requiredAbis.flatMap { abi ->
+            requiredLibraries.mapNotNull { library ->
+                val path = "lib/$abi/$library"
+                path.takeUnless { entries.contains(it) }
+            }
+        }
+        check(missing.isEmpty()) {
+            "Debug APK is missing native playback libraries: ${missing.joinToString()}"
+        }
+    }
 }
