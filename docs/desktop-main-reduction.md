@@ -64,7 +64,8 @@ Branch: `codex/desktop-main-reduction`
   - Android Auto browse/search now delegates through `AndroidAutoBrowseController`.
   - Android Auto media-id/search/custom-action dispatch now delegates through `AndroidAutoCommandController`.
   - Foreground-service saved-session hydration and restored now-playing metadata now delegate through `AndroidPlaybackServiceSessionController`.
-  - Current split counts: `AndroidPlaybackForegroundService.kt` 2,213 lines, `AndroidAutoBrowseController.kt` 588 lines, `AndroidAutoCommandController.kt` 65 lines, and `AndroidPlaybackServiceSessionController.kt` 80 lines.
+  - Service-owned play/pause/stop/seek, saved-session playback, adjacent-track handling, and progress/session-position saves now delegate through `AndroidServicePlaybackRuntimeController`.
+  - Current split counts: `AndroidPlaybackForegroundService.kt` 1,509 lines, `AndroidAutoBrowseController.kt` 588 lines, `AndroidAutoCommandController.kt` 65 lines, `AndroidPlaybackServiceSessionController.kt` 80 lines, and `AndroidServicePlaybackRuntimeController.kt` 327 lines.
 - [x] Extract shared playback target and sidecar planning.
   - engine/provider start-position split is shared for desktop and Android track playback
   - sidecar prep track window and lyrics-load decision are shared through `core/domain`

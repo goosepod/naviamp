@@ -530,4 +530,5 @@ This is a strong first slice because playback-source selection currently affects
   - `AndroidAutoBrowseController` owns Android Auto browse/search tree shaping while the service keeps lifecycle and hydration calls.
   - `AndroidAutoCommandController` owns media-id, search, and custom-action dispatch for the media-session callbacks.
   - `AndroidPlaybackServiceSessionController` owns foreground-service saved-session hydration and restored now-playing metadata over shared storage/session ports.
-  - Line-count checkpoint: `AndroidPlaybackForegroundService.kt` 2,213, `AndroidAutoBrowseController.kt` 588, `AndroidAutoCommandController.kt` 65, `AndroidPlaybackServiceSessionController.kt` 80.
+  - `AndroidServicePlaybackRuntimeController` owns service-owned play/pause/stop/seek, saved-session playback, adjacent-track handling, and progress/session-position saves.
+  - Line-count checkpoint: `AndroidPlaybackForegroundService.kt` 1,509, `AndroidAutoBrowseController.kt` 588, `AndroidAutoCommandController.kt` 65, `AndroidPlaybackServiceSessionController.kt` 80, `AndroidServicePlaybackRuntimeController.kt` 327.
