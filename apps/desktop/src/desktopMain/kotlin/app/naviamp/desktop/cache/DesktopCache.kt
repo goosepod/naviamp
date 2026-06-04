@@ -10,9 +10,7 @@ import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.ArtistInfo
 import app.naviamp.domain.AudioInfo
-import app.naviamp.domain.LyricLine
 import app.naviamp.domain.Lyrics
-import app.naviamp.domain.LyricsSource
 import app.naviamp.domain.ReplayGain
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
@@ -31,6 +29,7 @@ import app.naviamp.domain.cache.LibraryAlbumYear
 import app.naviamp.domain.cache.LibraryIndexStats
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
+import app.naviamp.domain.cache.LyricsSidecarCacheService
 import app.naviamp.domain.cache.LyricsSidecarRepository
 import app.naviamp.domain.cache.MediaSourceRepository
 import app.naviamp.domain.cache.ObjectByteStoreService
@@ -114,6 +113,11 @@ class DesktopCache(
         queries = queries,
         mediaSources = mediaSources,
         nowMillis = ::nowMillis,
+    )
+    private val lyricsSidecar = LyricsSidecarCacheService(
+        store = DesktopLyricsSidecarStore(queries),
+        nowMillis = ::nowMillis,
+        json = json,
     )
     private val hotImages = object : LinkedHashMap<String, ByteArray>(16, 0.75f, true) {}
     private var hotImageBytes: Long = 0
@@ -342,22 +346,14 @@ class DesktopCache(
         provider: MediaProvider,
         trackId: TrackId,
     ): Lyrics? =
-        withContext(Dispatchers.IO) {
-            cachedLyrics(sourceId, trackId)?.let { return@withContext it }
-            val lyrics = provider.lyrics(trackId) ?: return@withContext null
-            upsertLyrics(sourceId, trackId, lyrics)
-            lyrics
-        }
+        lyricsSidecar.providerLyrics(sourceId, provider, trackId)
 
     override suspend fun cacheEmbeddedLyrics(
         sourceId: String,
         trackId: TrackId,
         lyrics: Lyrics,
     ): Lyrics =
-        withContext(Dispatchers.IO) {
-            upsertLyrics(sourceId, trackId, lyrics)
-            lyrics
-        }
+        lyricsSidecar.cacheEmbeddedLyrics(sourceId, trackId, lyrics)
 
     override suspend fun lrclibLyrics(
         sourceId: String,
@@ -370,12 +366,7 @@ class DesktopCache(
         track: Track,
         client: LrclibLyricsClient = LrclibLyricsClient(),
     ): Lyrics? =
-        withContext(Dispatchers.IO) {
-            cachedLrclibLyrics(sourceId, track.id)?.let { return@withContext it }
-            val lyrics = client.lyrics(track) ?: return@withContext null
-            upsertLrclibLyrics(sourceId, track.id, lyrics)
-            lyrics
-        }
+        lyricsSidecar.lrclibLyrics(sourceId, track, client)
 
     override fun recordSidecarStatus(
         sourceId: String,
@@ -402,89 +393,7 @@ class DesktopCache(
         sourceId: String,
         trackId: TrackId,
     ): Lyrics? =
-        withContext(Dispatchers.IO) {
-            val row = queries.selectCachedLyrics(
-                source_id = sourceId,
-                remote_track_id = trackId.value,
-            ).executeAsOneOrNull() ?: return@withContext null
-
-            queries.touchCachedLyrics(nowMillis(), sourceId, trackId.value)
-            Lyrics(
-                source = row.lyric_source.toLyricsSource(),
-                synced = row.synced != 0L,
-                lines = json.decodeFromString<List<LyricLineDto>>(row.lines_json).map { it.toLyricLine() },
-                displayArtist = row.display_artist,
-                displayTitle = row.display_title,
-                language = row.language,
-                offsetMillis = row.offset_millis.toInt(),
-            )
-        }
-
-    private fun cachedLrclibLyrics(
-        sourceId: String,
-        trackId: TrackId,
-    ): Lyrics? {
-        val row = queries.selectCachedLrclibLyrics(
-            source_id = sourceId,
-            remote_track_id = trackId.value,
-        ).executeAsOneOrNull() ?: return null
-
-        queries.touchCachedLrclibLyrics(nowMillis(), sourceId, trackId.value)
-        return Lyrics(
-            source = LyricsSource.Lrclib,
-            synced = row.synced != 0L,
-            lines = json.decodeFromString<List<LyricLineDto>>(row.lines_json).map { it.toLyricLine() },
-            displayArtist = row.display_artist,
-            displayTitle = row.display_title,
-            language = row.language,
-            offsetMillis = row.offset_millis.toInt(),
-        )
-    }
-
-    private fun upsertLyrics(
-        sourceId: String,
-        trackId: TrackId,
-        lyrics: Lyrics,
-    ) {
-        val linesJson = json.encodeToString(lyrics.lines.map { LyricLineDto.fromLyricLine(it) })
-        val now = nowMillis()
-        queries.upsertCachedLyrics(
-            source_id = sourceId,
-            remote_track_id = trackId.value,
-            lyric_source = lyrics.source.name,
-            synced = if (lyrics.synced) 1L else 0L,
-            lines_json = linesJson,
-            display_artist = lyrics.displayArtist,
-            display_title = lyrics.displayTitle,
-            language = lyrics.language,
-            offset_millis = lyrics.offsetMillis.toLong(),
-            size_bytes = linesJson.toByteArray(Charsets.UTF_8).size.toLong(),
-            created_at_epoch_millis = now,
-            last_accessed_epoch_millis = now,
-        )
-    }
-
-    private fun upsertLrclibLyrics(
-        sourceId: String,
-        trackId: TrackId,
-        lyrics: Lyrics,
-    ) {
-        val linesJson = json.encodeToString(lyrics.lines.map { LyricLineDto.fromLyricLine(it) })
-        val now = nowMillis()
-        queries.upsertCachedLrclibLyrics(
-            source_id = sourceId,
-            remote_track_id = trackId.value,
-            synced = if (lyrics.synced) 1L else 0L,
-            lines_json = linesJson,
-            display_artist = lyrics.displayArtist,
-            display_title = lyrics.displayTitle,
-            language = lyrics.language,
-            offset_millis = lyrics.offsetMillis.toLong(),
-            size_bytes = linesJson.toByteArray(Charsets.UTF_8).size.toLong(),
-            created_at_epoch_millis = now,
-            last_accessed_epoch_millis = now,
-        )
-    }
+        lyricsSidecar.cachedLyrics(sourceId, trackId)
 
     override suspend fun cacheAudioTrack(
         sourceId: String,
@@ -1076,29 +985,6 @@ private fun Path.sizeOrZero(): Long =
     runCatching {
         if (exists()) Files.size(this) else 0L
     }.getOrDefault(0L)
-
-private fun String.toLyricsSource(): LyricsSource =
-    runCatching { LyricsSource.valueOf(this) }.getOrDefault(LyricsSource.Provider)
-
-@Serializable
-private data class LyricLineDto(
-    val startMillis: Long? = null,
-    val text: String,
-) {
-    fun toLyricLine(): LyricLine =
-        LyricLine(
-            startMillis = startMillis,
-            text = text,
-        )
-
-    companion object {
-        fun fromLyricLine(line: LyricLine): LyricLineDto =
-            LyricLineDto(
-                startMillis = line.startMillis,
-                text = line.text,
-            )
-    }
-}
 
 @Serializable
 private data class MediaSearchResultsDto(
