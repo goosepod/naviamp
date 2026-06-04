@@ -16,6 +16,9 @@ import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.ProviderCapabilities
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -99,11 +102,49 @@ class AudioByteStoreServiceTest {
         }
     }
 
+    @Test
+    fun writeProviderAudioCoalescesConcurrentWritesForSameKey() = runTest {
+        val store = RecordingAudioByteStore(writeDelayMillis = 20)
+        val provider = RecordingMediaProvider(downloaded = true)
+        val service = AudioByteStoreService(store, NoopHttpClient)
+
+        val results = listOf(
+            async {
+                service.writeProviderAudio(
+                    sourceId = "source",
+                    trackId = TrackId("track"),
+                    qualityKey = "original",
+                    contentType = "audio/flac",
+                    provider = provider,
+                    streamUrl = "https://example.test/stream.flac",
+                    errorMessage = "failed",
+                )
+            },
+            async {
+                service.writeProviderAudio(
+                    sourceId = "source",
+                    trackId = TrackId("track"),
+                    qualityKey = "original",
+                    contentType = "audio/flac",
+                    provider = provider,
+                    streamUrl = "https://example.test/stream.flac",
+                    errorMessage = "failed",
+                )
+            },
+        ).awaitAll()
+
+        assertEquals(results.first(), results.last())
+        assertEquals(1, store.writeCalls)
+        assertEquals(1, provider.downloadCalls)
+    }
+
     private class RecordingAudioByteStore(
         private val sizeBytes: Long? = null,
+        private val writeDelayMillis: Long = 0,
     ) : AudioByteStore {
         var fileName: String? = null
         var bytes: ByteArray = byteArrayOf()
+        var writeCalls: Int = 0
         val deleted = mutableListOf<String>()
 
         override suspend fun writeAudioBytes(
@@ -111,6 +152,8 @@ class AudioByteStoreServiceTest {
             errorMessage: String,
             writeBytes: suspend (AudioByteWriter) -> Boolean,
         ): StoredAudioBytes {
+            writeCalls += 1
+            if (writeDelayMillis > 0) delay(writeDelayMillis)
             this.fileName = fileName
             val writer = AudioByteWriter { chunk, count ->
                 bytes += chunk.copyOf(count)
@@ -128,6 +171,7 @@ class AudioByteStoreServiceTest {
         private val downloaded: Boolean,
     ) : MediaProvider {
         var downloadedUrl: String? = null
+        var downloadCalls: Int = 0
 
         override val id: ProviderId = ProviderId("fake")
         override val displayName: String = "Fake"
@@ -144,6 +188,7 @@ class AudioByteStoreServiceTest {
             httpClient: SharedHttpClient,
             writeChunk: suspend (bytes: ByteArray, count: Int) -> Unit,
         ): Boolean {
+            downloadCalls += 1
             downloadedUrl = url
             if (downloaded) writeChunk("abcdef".encodeToByteArray(), 6)
             return downloaded

@@ -3,12 +3,60 @@ package app.naviamp.domain.cache
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.network.SharedHttpClient
 import app.naviamp.domain.provider.MediaProvider
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class AudioByteStoreService(
     private val store: AudioByteStore,
     private val httpClient: SharedHttpClient,
 ) {
+    private val inFlightMutex = Mutex()
+    private val inFlightWrites = mutableMapOf<String, CompletableDeferred<Result<StoredAudioBytes>>>()
+
     suspend fun writeProviderAudio(
+        sourceId: String,
+        trackId: TrackId,
+        qualityKey: String,
+        contentType: String?,
+        provider: MediaProvider,
+        streamUrl: String,
+        errorMessage: String,
+    ): StoredAudioBytes {
+        val inFlightKey = "$sourceId:${trackId.value}:$qualityKey"
+        var ownsWrite = false
+        val writeResult = inFlightMutex.withLock {
+            inFlightWrites[inFlightKey] ?: CompletableDeferred<Result<StoredAudioBytes>>()
+                .also { deferred ->
+                    inFlightWrites[inFlightKey] = deferred
+                    ownsWrite = true
+                }
+        }
+        if (!ownsWrite) {
+            return writeResult.await().getOrThrow()
+        }
+
+        val result = runCatching {
+            writeProviderAudioUncoordinated(
+                sourceId = sourceId,
+                trackId = trackId,
+                qualityKey = qualityKey,
+                contentType = contentType,
+                provider = provider,
+                streamUrl = streamUrl,
+                errorMessage = errorMessage,
+            )
+        }
+        writeResult.complete(result)
+        inFlightMutex.withLock {
+            if (inFlightWrites[inFlightKey] === writeResult) {
+                inFlightWrites.remove(inFlightKey)
+            }
+        }
+        return result.getOrThrow()
+    }
+
+    private suspend fun writeProviderAudioUncoordinated(
         sourceId: String,
         trackId: TrackId,
         qualityKey: String,
