@@ -88,6 +88,22 @@ fun sidecarPrepTracks(
         .take(depth.coerceAtLeast(0))
         .filterNot { it.isInternetRadioTrack() }
 
+fun audioPrefetchTracks(
+    queue: PlaybackQueue,
+    depth: Int,
+    includeCurrentTrack: Boolean,
+): List<Track> {
+    val startIndex = if (includeCurrentTrack) {
+        queue.currentIndex.coerceAtLeast(0)
+    } else {
+        (queue.currentIndex + 1).coerceAtLeast(0)
+    }
+    return queue.tracks
+        .drop(startIndex)
+        .take(depth.coerceAtLeast(0))
+        .filterNot { it.isInternetRadioTrack() }
+}
+
 data class SidecarPrepPlan(
     val tracks: List<Track>,
     val loadLyrics: Boolean,

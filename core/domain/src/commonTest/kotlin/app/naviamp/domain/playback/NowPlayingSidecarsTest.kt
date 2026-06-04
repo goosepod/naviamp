@@ -84,6 +84,31 @@ class NowPlayingSidecarsTest {
     }
 
     @Test
+    fun audioPrefetchTracksCanIncludeOrSkipCurrentTrackAndSkipRadioTracks() {
+        val one = track("one")
+        val radio = track(internetRadioTrackId("station").value)
+        val two = track("two")
+        val three = track("three")
+        val queue = PlaybackQueue(
+            tracks = listOf(one, radio, two, three),
+            currentIndex = 0,
+        )
+
+        assertEquals(
+            listOf(one, two),
+            audioPrefetchTracks(queue, depth = 3, includeCurrentTrack = true),
+        )
+        assertEquals(
+            listOf(two, three),
+            audioPrefetchTracks(queue, depth = 3, includeCurrentTrack = false),
+        )
+        assertEquals(
+            emptyList(),
+            audioPrefetchTracks(queue, depth = 0, includeCurrentTrack = true),
+        )
+    }
+
+    @Test
     fun sidecarPrepPlanIncludesLyricsDecision() {
         val one = track("one")
         val queue = PlaybackQueue(tracks = listOf(one), currentIndex = 0)
