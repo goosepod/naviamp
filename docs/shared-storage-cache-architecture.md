@@ -137,6 +137,8 @@ Then higher-level repositories can be composed from those stores:
   - Twenty-third slice: Android playlist sidecar/prefetch orchestration now receives waveform/audio-cache ports and a cache lambda instead of broad `AndroidStorage`.
   - Twenty-fourth slice: Android Auto foreground-service helpers now use shared library-index, provider-response, media-source, playback-session, playback-history, and cover-art lookup ports where practical; the service still owns an `AndroidStorage` instance as its composition/runtime adapter.
   - Twenty-fifth slice: desktop connection opening now uses `CacheMaintenanceRepository` and `ProviderMediaSourceRepository`, and the connection panel uses `ProviderResponseCacheRepository`, instead of taking `DesktopCache` directly.
+  - Twenty-sixth slice: desktop and Android cache/storage stats now use shared `StorageCacheStats` from common domain instead of platform-specific stats models.
+  - Twenty-seventh slice: desktop connection lifecycle now receives cache-maintenance, media-source, and provider-media-source repository ports instead of direct `DesktopCache`.
 - [x] Normalize playback local-audio file boundaries.
   - Shared services should consume platform-neutral local-audio descriptors or store ports instead of `java.io.File` or `java.nio.file.Path` directly.
   - Android can keep `File` and desktop can keep `Path` inside platform adapters because output streams, atomic moves, directory walking, and delete behavior are OS/runtime details.
@@ -157,7 +159,7 @@ Then higher-level repositories can be composed from those stores:
   - [x] `DesktopAlbumController`
   - [x] `DesktopArtistController`
   - [x] `DesktopMediaActionsController`
-  - [x] Desktop connection opening and connection panel album loading
+  - [x] Desktop connection lifecycle, connection opening, and connection panel album loading
 - [x] Replace direct `AndroidStorage` dependencies in Android controllers with narrower interfaces.
   - [x] `AndroidConnectionController`
   - [x] `AndroidLibraryController`
@@ -514,3 +516,7 @@ This is a strong first slice because playback-source selection currently affects
   - Android Auto foreground-service helpers now use shared library-index, provider-response, media-source, playback-session, playback-history, and cover-art lookup ports where practical.
   - Added album-title fallback reads to `LocalLibraryIndexRepository` so Android Auto queue restoration does not require a concrete Android storage type for that lookup.
   - Desktop connection opening now depends on `CacheMaintenanceRepository` and `ProviderMediaSourceRepository`, and connection-panel album loading uses `ProviderResponseCacheRepository`, instead of direct `DesktopCache`.
+- 2026-06-04: Shared the storage/cache stats model.
+  - Added common `StorageCacheStats` and moved desktop/Android cache maintenance repositories to return it.
+  - Removed platform stats models from settings, diagnostics, Stats for Nerds, maintenance, download, and app-state consumers.
+  - Desktop connection lifecycle now receives cache-maintenance, media-source, and provider-media-source ports instead of direct `DesktopCache`; `DesktopNaviampApp` remains the composition root that supplies the concrete cache engine.

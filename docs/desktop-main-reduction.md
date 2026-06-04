@@ -251,6 +251,8 @@ Branch: `codex/desktop-main-reduction`
   - Android `AndroidPlaylistEngine` now receives shared waveform/audio-asset ports and a cache callback instead of broad `AndroidStorage`.
   - Android Auto foreground-service helper paths now use shared library-index, provider-response, media-source, playback-session, playback-history, and cover-art lookup ports where practical; the service still owns `AndroidStorage` as its runtime adapter.
   - Desktop connection opening now uses cache-maintenance/provider media-source repository ports, and connection-panel album loading uses the provider-response cache port, instead of direct `DesktopCache`.
+  - Desktop connection lifecycle now receives cache-maintenance, media-source, and provider-media-source ports instead of direct `DesktopCache`.
+  - Desktop and Android cache/storage stats now use common `StorageCacheStats` instead of platform-specific stats models.
 - [x] Introduce shared low-level byte/object store ports for audio cache/download file operations.
   - `AudioByteStoreService` now owns provider audio streaming, stable source/track/quality filenames, content-type extensions, zero-byte cleanup, and in-flight write coalescing.
   - Desktop and Android keep only temp/final file movement and deletion in platform byte-store adapters.
@@ -263,6 +265,7 @@ Branch: `codex/desktop-main-reduction`
   - Playback-session metadata now has `PlaybackSessionRepository` with desktop settings and Android storage implementations.
   - Android playback-history browse reads now use `PlaybackHistoryRepository`.
   - Android Auto album-title fallback reads now use `LocalLibraryIndexRepository`, keeping voice/search queue restoration on shared library-index ports.
+  - Cache/storage stats now have shared `StorageCacheStats` with desktop and Android storage implementations.
 - [x] Build a shared download service over `DownloadRepository` and platform byte/file stores so desktop and Android use one download flow.
   - Initial downloads and quality-change re-downloads now go through common `DownloadService`.
   - Desktop and Android storage engines are injected through narrow platform-agnostic download/replacement repository ports.
