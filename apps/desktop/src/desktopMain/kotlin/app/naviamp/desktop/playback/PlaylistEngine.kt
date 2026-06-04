@@ -29,6 +29,7 @@ import app.naviamp.domain.playback.SidecarTypeEmbeddedLyrics
 import app.naviamp.domain.playback.SidecarTypeLrclibLyrics
 import app.naviamp.domain.playback.SidecarTypeProviderLyrics
 import app.naviamp.domain.playback.SidecarTypeWaveform
+import app.naviamp.domain.playback.audioPrefetchTracks
 import app.naviamp.domain.playback.emptyPlaybackAudioAssetRepository
 import app.naviamp.domain.playback.planPrepareNextPlayback
 import app.naviamp.domain.playback.recordSidecarFailure
@@ -381,7 +382,11 @@ class PlaylistEngine(
         val currentQuality = streamQuality ?: return
         val prefetchDepth = audioPrefetchDepthProvider().coerceIn(0, 25)
         if (prefetchDepth <= 0) return
-        val upcoming = queue.upNext().take(prefetchDepth)
+        val upcoming = audioPrefetchTracks(
+            queue = queue,
+            depth = prefetchDepth,
+            includeCurrentTrack = false,
+        )
         if (upcoming.isEmpty()) return
 
         audioPrefetchJob?.cancel()
