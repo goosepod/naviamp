@@ -1,13 +1,22 @@
 package app.naviamp.domain.playback
 
+import app.naviamp.domain.Track
 import app.naviamp.domain.bass.BassActiveState
 import app.naviamp.domain.bass.BassStreamInfo
+import app.naviamp.domain.queue.PlaybackQueue
 import kotlin.math.pow
 
 data class PrepareNextPlaybackPlan(
     val shouldPrepare: Boolean,
     val prepareWindowSeconds: Double? = null,
     val reason: PrepareNextPlaybackReason = PrepareNextPlaybackReason.NotNeeded,
+)
+
+data class PrepareNextQueuePlaybackPlan(
+    val nextQueueIndex: Int,
+    val track: Track,
+    val prepareWindowSeconds: Double,
+    val reason: PrepareNextPlaybackReason,
 )
 
 data class PlaybackReplayGainAdjustment(
@@ -266,6 +275,38 @@ fun planPrepareNextPlayback(
         shouldPrepare = duration - position <= prepareWindowSeconds,
         prepareWindowSeconds = prepareWindowSeconds,
         reason = reason,
+    )
+}
+
+fun planPrepareNextQueuePlayback(
+    queue: PlaybackQueue,
+    progress: PlaybackProgress,
+    nextQueueIndex: Int?,
+    alreadyPreparedNext: Boolean,
+    gaplessEnabled: Boolean,
+    supportsGapless: Boolean,
+    crossfadeDurationSeconds: Int,
+    supportsCrossfade: Boolean,
+    gaplessPrepareWindowSeconds: Double,
+): PrepareNextQueuePlaybackPlan? {
+    val index = nextQueueIndex ?: return null
+    val transitionPlan = planPrepareNextPlayback(
+        progress = progress,
+        nextQueueIndex = index,
+        alreadyPreparedNext = alreadyPreparedNext,
+        gaplessEnabled = gaplessEnabled,
+        supportsGapless = supportsGapless,
+        crossfadeDurationSeconds = crossfadeDurationSeconds,
+        supportsCrossfade = supportsCrossfade,
+        gaplessPrepareWindowSeconds = gaplessPrepareWindowSeconds,
+    )
+    if (!transitionPlan.shouldPrepare) return null
+    val track = queue.tracks.getOrNull(index) ?: return null
+    return PrepareNextQueuePlaybackPlan(
+        nextQueueIndex = index,
+        track = track,
+        prepareWindowSeconds = transitionPlan.prepareWindowSeconds ?: 0.0,
+        reason = transitionPlan.reason,
     )
 }
 

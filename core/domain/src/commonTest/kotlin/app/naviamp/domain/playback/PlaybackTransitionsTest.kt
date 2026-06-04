@@ -1,11 +1,15 @@
 package app.naviamp.domain.playback
 
 import app.naviamp.domain.ReplayGain
+import app.naviamp.domain.Track
+import app.naviamp.domain.TrackId
 import app.naviamp.domain.bass.BassActiveState
 import app.naviamp.domain.bass.BassStreamInfo
+import app.naviamp.domain.queue.PlaybackQueue
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class PlaybackTransitionsTest {
@@ -123,6 +127,60 @@ class PlaybackTransitionsTest {
                 supportsCrossfade = true,
                 gaplessPrepareWindowSeconds = 2.0,
             ).shouldPrepare,
+        )
+    }
+
+    @Test
+    fun plansPrepareNextQueuePlaybackWithSelectedTrack() {
+        val one = track("one")
+        val two = track("two")
+        val plan = planPrepareNextQueuePlayback(
+            queue = PlaybackQueue(listOf(one, two), currentIndex = 0),
+            progress = PlaybackProgress(positionSeconds = 96.0, durationSeconds = 100.0),
+            nextQueueIndex = 1,
+            alreadyPreparedNext = false,
+            gaplessEnabled = true,
+            supportsGapless = true,
+            crossfadeDurationSeconds = 5,
+            supportsCrossfade = true,
+            gaplessPrepareWindowSeconds = 2.0,
+        )
+
+        assertEquals(1, plan?.nextQueueIndex)
+        assertEquals(two, plan?.track)
+        assertEquals(5.0, plan?.prepareWindowSeconds)
+        assertEquals(PrepareNextPlaybackReason.Crossfade, plan?.reason)
+    }
+
+    @Test
+    fun skipsPrepareNextQueuePlaybackWhenGateOrTrackSelectionFails() {
+        val queue = PlaybackQueue(listOf(track("one"), track("two")), currentIndex = 0)
+
+        assertNull(
+            planPrepareNextQueuePlayback(
+                queue = queue,
+                progress = PlaybackProgress(positionSeconds = 90.0, durationSeconds = 100.0),
+                nextQueueIndex = 1,
+                alreadyPreparedNext = false,
+                gaplessEnabled = true,
+                supportsGapless = true,
+                crossfadeDurationSeconds = 5,
+                supportsCrossfade = true,
+                gaplessPrepareWindowSeconds = 2.0,
+            ),
+        )
+        assertNull(
+            planPrepareNextQueuePlayback(
+                queue = queue,
+                progress = PlaybackProgress(positionSeconds = 99.0, durationSeconds = 100.0),
+                nextQueueIndex = 9,
+                alreadyPreparedNext = false,
+                gaplessEnabled = true,
+                supportsGapless = true,
+                crossfadeDurationSeconds = 5,
+                supportsCrossfade = true,
+                gaplessPrepareWindowSeconds = 2.0,
+            ),
         )
     }
 
@@ -495,4 +553,16 @@ class PlaybackTransitionsTest {
         assertTrue(shouldContinueBassPlaybackPolling(BassActiveState.Stalled))
         assertTrue(shouldContinueBassPlaybackPolling(BassActiveState.Paused))
     }
+
+    private fun track(id: String): Track =
+        Track(
+            id = TrackId(id),
+            title = "Track $id",
+            artistName = "Artist",
+            albumTitle = "Album",
+            durationSeconds = 180,
+            coverArtId = null,
+            audioInfo = null,
+            replayGain = null,
+        )
 }
