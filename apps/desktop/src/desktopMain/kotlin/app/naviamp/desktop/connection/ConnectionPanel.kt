@@ -22,6 +22,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.domain.Album
 import app.naviamp.domain.Track
+import app.naviamp.domain.cache.ProviderResponseCacheRepository
+import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.PlaylistEngine
@@ -40,7 +42,7 @@ fun ConnectionPanel(
     playlistEngine: PlaylistEngine,
     playbackSettings: PlaybackSettings,
     playlistCallbacks: PlaylistCallbacks,
-    sessionCache: DesktopCache = DesktopCaches.session,
+    providerResponseCacheRepository: ProviderResponseCacheRepository = DesktopCaches.session,
     onPlaybackShouldOpenPlayer: () -> Unit,
 ) {
     var isLoadingAlbum by remember { mutableStateOf(false) }
@@ -48,6 +50,9 @@ fun ConnectionPanel(
     var selectedTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
     var albumStatus by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
+    val providerResponseService = remember(providerResponseCacheRepository) {
+        ProviderResponseService(providerResponseCacheRepository)
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
         Text("Naviamp", color = appColors.primaryText, style = MaterialTheme.typography.titleMedium)
@@ -81,7 +86,7 @@ fun ConnectionPanel(
 
                             coroutineScope.launch {
                                 try {
-                                    val details = sessionCache.album(provider, album.id)
+                                    val details = providerResponseService.album(provider, album.id)
                                     selectedAlbumTitle = "${details.album.title} - ${details.album.artistName}"
                                     selectedTracks = details.tracks
                                     albumStatus = if (details.tracks.isEmpty()) {
