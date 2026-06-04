@@ -17,11 +17,11 @@ class PlaybackAudioSourceResolverTest {
             track = track("one"),
             quality = StreamQuality.Original,
             audioCachingEnabled = true,
-            downloadedAudio = { _, _, _ -> "downloaded" },
-            cachedAudio = { _, _, _ -> "cached" },
+            downloadedAudio = { _, _, _ -> localAudio("downloaded") },
+            cachedAudio = { _, _, _ -> localAudio("cached") },
         )
 
-        assertEquals("downloaded", plan.localAudio)
+        assertEquals(localAudio("downloaded"), plan.localAudio)
         assertEquals(PlaybackSource.DownloadedFile, plan.source)
         assertEquals(true, plan.hasLocalAudio)
     }
@@ -80,17 +80,17 @@ class PlaybackAudioSourceResolverTest {
             quality = StreamQuality.Original,
             audioCachingEnabled = true,
             downloadedAudio = { _, _, _ -> null },
-            cachedAudio = { _, _, _ -> "cached" },
+            cachedAudio = { _, _, _ -> localAudio("cached") },
         )
 
-        assertEquals("cached", plan.localAudio)
+        assertEquals(localAudio("cached"), plan.localAudio)
         assertEquals(PlaybackSource.CachedFile, plan.source)
     }
 
     @Test
     fun cacheLookupIsSkippedWhenCachingIsDisabled() = runTest {
         var cacheLookups = 0
-        val plan = resolvePlaybackAudioSource<String>(
+        val plan = resolvePlaybackAudioSource(
             sourceId = "source",
             track = track("one"),
             quality = StreamQuality.Original,
@@ -98,7 +98,7 @@ class PlaybackAudioSourceResolverTest {
             downloadedAudio = { _, _, _ -> null },
             cachedAudio = { _, _, _ ->
                 cacheLookups += 1
-                "cached"
+                localAudio("cached")
             },
         )
 
@@ -115,7 +115,7 @@ class PlaybackAudioSourceResolverTest {
             quality = StreamQuality.Transcoded(AudioCodec.Opus, 128),
             audioCachingEnabled = true,
             startPositionSeconds = 42.0,
-            downloadedAudio = { _, _, _ -> "downloaded" },
+            downloadedAudio = { _, _, _ -> localAudio("downloaded") },
             cachedAudio = { _, _, _ -> null },
         )
 
@@ -125,7 +125,7 @@ class PlaybackAudioSourceResolverTest {
 
     @Test
     fun remoteTranscodedAudioUsesProviderStartPosition() = runTest {
-        val plan = resolvePlaybackAudioSource<String>(
+        val plan = resolvePlaybackAudioSource(
             sourceId = "source",
             track = track("one"),
             quality = StreamQuality.Transcoded(AudioCodec.Opus, 128),
@@ -163,7 +163,7 @@ class PlaybackAudioSourceResolverTest {
 
     @Test
     fun playbackStreamUrlFallsBackToProviderTarget() = runTest {
-        val plan = resolvePlaybackAudioSource<PlaybackLocalAudio>(
+        val plan = resolvePlaybackAudioSource(
             sourceId = "source",
             track = track("one"),
             quality = StreamQuality.Original,

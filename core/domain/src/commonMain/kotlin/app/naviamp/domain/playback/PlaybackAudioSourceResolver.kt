@@ -12,8 +12,8 @@ enum class PlaybackSource(val label: String) {
     ProviderStreamCacheDisabled("Provider stream (cache disabled)"),
 }
 
-data class PlaybackAudioSourcePlan<LocalAudio>(
-    val localAudio: LocalAudio?,
+data class PlaybackAudioSourcePlan(
+    val localAudio: PlaybackLocalAudio?,
     val source: PlaybackSource,
     val target: PlaybackTargetPlan,
 ) {
@@ -45,7 +45,7 @@ interface PlaybackAudioAssetRepository {
     ): PlaybackLocalAudio?
 }
 
-suspend fun PlaybackAudioSourcePlan<PlaybackLocalAudio>.playbackStreamUrl(
+suspend fun PlaybackAudioSourcePlan.playbackStreamUrl(
     localAudioUrl: (PlaybackLocalAudio) -> String = { it.uri },
     providerStreamUrl: suspend (PlaybackTargetPlan) -> String,
 ): String =
@@ -78,7 +78,7 @@ suspend fun resolvePlaybackAudioSource(
     audioCachingEnabled: Boolean,
     audioAssets: PlaybackAudioAssetRepository,
     startPositionSeconds: Double? = null,
-): PlaybackAudioSourcePlan<PlaybackLocalAudio> =
+): PlaybackAudioSourcePlan =
     resolvePlaybackAudioSource(
         sourceId = sourceId,
         track = track,
@@ -89,15 +89,15 @@ suspend fun resolvePlaybackAudioSource(
         cachedAudio = audioAssets::cachedAudio,
     )
 
-suspend fun <LocalAudio> resolvePlaybackAudioSource(
+suspend fun resolvePlaybackAudioSource(
     sourceId: String?,
     track: Track,
     quality: StreamQuality,
     audioCachingEnabled: Boolean,
     startPositionSeconds: Double? = null,
-    downloadedAudio: suspend (sourceId: String, trackId: TrackId, quality: StreamQuality) -> LocalAudio?,
-    cachedAudio: suspend (sourceId: String, trackId: TrackId, quality: StreamQuality) -> LocalAudio?,
-): PlaybackAudioSourcePlan<LocalAudio> {
+    downloadedAudio: suspend (sourceId: String, trackId: TrackId, quality: StreamQuality) -> PlaybackLocalAudio?,
+    cachedAudio: suspend (sourceId: String, trackId: TrackId, quality: StreamQuality) -> PlaybackLocalAudio?,
+): PlaybackAudioSourcePlan {
     val downloaded = sourceId?.let { id -> downloadedAudio(id, track.id, quality) }
     if (downloaded != null) {
         return playbackAudioSourcePlan(
@@ -131,13 +131,13 @@ suspend fun <LocalAudio> resolvePlaybackAudioSource(
     )
 }
 
-private fun <LocalAudio> playbackAudioSourcePlan(
+private fun playbackAudioSourcePlan(
     track: Track,
     quality: StreamQuality,
     startPositionSeconds: Double?,
-    localAudio: LocalAudio?,
+    localAudio: PlaybackLocalAudio?,
     source: PlaybackSource,
-): PlaybackAudioSourcePlan<LocalAudio> =
+): PlaybackAudioSourcePlan =
     PlaybackAudioSourcePlan(
         localAudio = localAudio,
         source = source,
