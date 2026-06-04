@@ -49,6 +49,7 @@ import app.naviamp.domain.TrackId
 import app.naviamp.domain.internetRadioStationId
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.cache.DownloadService
+import app.naviamp.domain.cache.ImageCacheRepository
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.cache.shouldRefreshDownloadsAfter
@@ -168,6 +169,7 @@ fun NaviampApp(
     val appColors = if (isDark) AppColors.Dark else AppColors.Light
     val colorScheme = if (isDark) darkColorScheme() else lightColorScheme()
     val storage = remember { DesktopStorageDependencies() }
+    val imageCacheRepository: ImageCacheRepository = storage
     val savedMediaSource = remember { storage.latestMediaSource() }
     val savedConnection = remember {
         savedMediaSource?.toNavidromeConnection() ?: settingsStore.loadConnection()?.toConnection()
@@ -425,12 +427,12 @@ fun NaviampApp(
         }
     }
 
-    DisposableEffect(storage, connectedProvider) {
+    DisposableEffect(imageCacheRepository, connectedProvider) {
         setJvmPlatformCoverArtByteLoader { url ->
             connectedProvider
                 ?.takeIf { it.ownsUrl(url) }
                 ?.bytes(url)
-                ?: storage.imageBytes(url)
+                ?: imageCacheRepository.imageBytes(url)
         }
         onDispose {
             resetJvmPlatformCoverArtByteLoader()
