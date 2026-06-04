@@ -4,30 +4,28 @@ import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassPluginDiagnostic
 import app.naviamp.domain.bass.BassStreamInfo
 import app.naviamp.domain.bass.BassStreamHandle
-import java.io.File
+import app.naviamp.domain.bass.bassFailureMessage
 
 class DesktopBassAudioBackend(
-    private val native: DesktopBassNative,
+    private val bass: DesktopBassJniBinding,
 ) : BassAudioBackend {
-    private val endSyncCallbacks: MutableMap<Int, BassSyncCallback> = mutableMapOf()
-
     override val version: Int
-        get() = native.version
+        get() = bass.version
 
     override val mixerVersion: Int?
-        get() = native.mixerVersion
+        get() = bass.mixerVersion.takeIf { it > 0 }
 
     override val lastErrorCode: Int
-        get() = native.errorCode()
+        get() = bass.lastErrorCode
 
     override val mixerError: String?
-        get() = native.mixerError
+        get() = null
 
     override val libraryDirectory: String
-        get() = native.libraryDirectory.absolutePath
+        get() = bass.libraryDirectory.absolutePath
 
     override val pluginDiagnostics: List<BassPluginDiagnostic> =
-        native.loadAvailablePlugins().map { plugin ->
+        bass.loadAvailablePlugins().map { plugin ->
             BassPluginDiagnostic(
                 stem = plugin.stem,
                 loaded = plugin.loaded,
@@ -36,119 +34,219 @@ class DesktopBassAudioBackend(
         }
 
     override val supportsMixer: Boolean
-        get() = native.supportsMixer
+        get() = mixerVersion != null
 
     override fun init(): Result<Unit> =
-        native.init()
+        if (bass.init()) {
+            Result.success(Unit)
+        } else {
+            Result.failure(IllegalStateException(errorMessage("BASS_Init failed")))
+        }
 
-    override fun free(): Result<Unit> =
-        native.free()
+    override fun free(): Result<Unit> {
+        bass.free()
+        return Result.success(Unit)
+    }
 
     override fun configureInternetStreams(): Result<Unit> =
-        native.configureInternetStreams()
+        if (bass.configureInternetStreams()) {
+            Result.success(Unit)
+        } else {
+            Result.failure(IllegalStateException(errorMessage("BASS internet stream config failed")))
+        }
 
     override fun createFileStream(path: String): Result<BassStreamHandle> =
-        native.createFileStream(File(path)).map(::BassStreamHandle)
+        bass.createFileStream(path)
+            .toHandleResult("BASS_StreamCreateFile failed")
 
     override fun createUrlStream(url: String): Result<BassStreamHandle> =
-        native.createUrlStream(url).map(::BassStreamHandle)
+        bass.createUrlStream(url)
+            .toHandleResult("BASS_StreamCreateURL failed")
 
     override fun createFileDecodeStream(path: String): Result<BassStreamHandle> {
-        native.loadAvailablePlugins()
-        return native.createFileDecodeStream(File(path)).map(::BassStreamHandle)
+        bass.loadAvailablePlugins()
+        return bass.createFileDecodeStream(path)
+            .toHandleResult("BASS_StreamCreateFile decode failed")
     }
 
     override fun createFilePlaybackDecodeStream(path: String): Result<BassStreamHandle> {
-        native.loadAvailablePlugins()
-        return native.createFilePlaybackDecodeStream(File(path)).map(::BassStreamHandle)
+        bass.loadAvailablePlugins()
+        return bass.createFileDecodeStream(path)
+            .toHandleResult("BASS_StreamCreateFile playback decode failed")
     }
 
     override fun createUrlDecodeStream(url: String): Result<BassStreamHandle> {
-        native.loadAvailablePlugins()
-        return native.createUrlDecodeStream(url).map(::BassStreamHandle)
+        bass.loadAvailablePlugins()
+        return bass.createUrlDecodeStream(url)
+            .toHandleResult("BASS_StreamCreateURL decode failed")
     }
 
-    override fun channelInfo(stream: BassStreamHandle): Result<BassStreamInfo> =
-        native.channelInfo(stream.value).map { info ->
-            BassStreamInfo(
-                frequency = info.freq,
-                channels = info.chans,
-            )
+    override fun channelInfo(stream: BassStreamHandle): Result<BassStreamInfo> {
+        val frequency = bass.channelInfoFrequency(stream.value)
+        val channels = bass.channelInfoChannels(stream.value)
+        return if (frequency > 0 && channels > 0) {
+            Result.success(BassStreamInfo(frequency = frequency, channels = channels))
+        } else {
+            Result.failure(IllegalStateException(errorMessage("BASS_ChannelGetInfo failed")))
         }
+    }
 
     override fun createMixer(
         frequency: Int,
         channels: Int,
         queueSources: Boolean,
     ): Result<BassStreamHandle> =
-        native.createMixer(frequency, channels, queueSources).map(::BassStreamHandle)
+        bass.createMixer(frequency, channels, queueSources)
+            .toHandleResult("BASS_Mixer_StreamCreate failed")
 
     override fun addMixerChannel(
         mixer: BassStreamHandle,
         stream: BassStreamHandle,
     ): Result<Unit> =
-        native.addMixerChannel(mixer.value, stream.value)
+        if (bass.addMixerChannel(mixer.value, stream.value)) {
+            Result.success(Unit)
+        } else {
+            Result.failure(IllegalStateException(errorMessage("BASS_Mixer_StreamAddChannel failed")))
+        }
 
     override fun removeMixerChannel(stream: BassStreamHandle): Result<Unit> =
-        native.removeMixerChannel(stream.value)
+        if (bass.removeMixerChannel(stream.value)) {
+            Result.success(Unit)
+        } else {
+            Result.failure(IllegalStateException(errorMessage("BASS_Mixer_ChannelRemove failed")))
+        }
 
     override fun setEndSync(
         stream: BassStreamHandle,
         callback: (BassStreamHandle) -> Unit,
     ): Result<Int> {
-        val nativeCallback = BassSyncCallback { _, channel, _, _ ->
+        val sync = bass.setEndSync(stream.value) { channel ->
             callback(BassStreamHandle(channel))
         }
-        return native.setEndSync(stream.value, nativeCallback)
-            .onSuccess { endSyncCallbacks[stream.value] = nativeCallback }
+        return sync
+            .takeIf { it != 0 }
+            ?.let { Result.success(it) }
+            ?: Result.failure(IllegalStateException(errorMessage("BASS_ChannelSetSync end failed")))
     }
 
     override fun play(stream: BassStreamHandle): Result<Unit> =
-        native.play(stream.value)
+        if (bass.play(stream.value)) {
+            Result.success(Unit)
+        } else {
+            Result.failure(IllegalStateException(errorMessage("BASS_ChannelPlay failed")))
+        }
 
     override fun pause(stream: BassStreamHandle): Result<Unit> =
-        native.pause(stream.value)
+        if (bass.pause(stream.value)) {
+            Result.success(Unit)
+        } else {
+            Result.failure(IllegalStateException(errorMessage("BASS_ChannelPause failed")))
+        }
 
     override fun stop(stream: BassStreamHandle): Result<Unit> =
-        native.stop(stream.value)
+        if (bass.stop(stream.value)) {
+            Result.success(Unit)
+        } else {
+            Result.failure(IllegalStateException(errorMessage("BASS_ChannelStop failed")))
+        }
 
     override fun activeState(stream: BassStreamHandle): Int =
-        native.activeState(stream.value)
+        bass.activeState(stream.value)
 
     override fun setVolume(stream: BassStreamHandle, volume: Float): Result<Unit> =
-        native.setVolume(stream.value, volume)
+        if (bass.setVolume(stream.value, volume)) {
+            Result.success(Unit)
+        } else {
+            Result.failure(IllegalStateException(errorMessage("BASS_ChannelSetAttribute volume failed")))
+        }
 
     override fun slideVolume(
         stream: BassStreamHandle,
         volume: Float,
         durationMillis: Int,
     ): Result<Unit> =
-        native.slideVolume(stream.value, volume, durationMillis)
+        if (bass.slideVolume(stream.value, volume, durationMillis)) {
+            Result.success(Unit)
+        } else {
+            Result.failure(IllegalStateException(errorMessage("BASS_ChannelSlideAttribute volume failed")))
+        }
 
     override fun seek(stream: BassStreamHandle, seconds: Double): Result<Unit> =
-        native.seek(stream.value, seconds)
+        if (bass.seek(stream.value, seconds)) {
+            Result.success(Unit)
+        } else {
+            Result.failure(IllegalStateException(errorMessage("BASS_ChannelSetPosition failed")))
+        }
 
     override fun positionSeconds(stream: BassStreamHandle): Double? =
-        native.positionSeconds(stream.value)
+        bass.positionSeconds(stream.value)
 
     override fun durationSeconds(stream: BassStreamHandle): Double? =
-        native.durationSeconds(stream.value)
+        bass.durationSeconds(stream.value)
 
     override fun lengthBytes(stream: BassStreamHandle): Long? =
-        native.lengthBytes(stream.value)
+        bass.lengthBytes(stream.value)
 
-    override fun readFloatData(stream: BassStreamHandle, buffer: FloatArray): Result<Int> =
-        native.readFloatData(stream.value, buffer)
+    override fun readFloatData(stream: BassStreamHandle, buffer: FloatArray): Result<Int> {
+        val read = bass.readFloatData(stream.value, buffer)
+        return if (read >= 0) {
+            Result.success(read)
+        } else {
+            Result.failure(IllegalStateException(errorMessage("BASS_ChannelGetData failed")))
+        }
+    }
 
     override fun fft(stream: BassStreamHandle, bins: Int): Result<FloatArray> =
-        native.fft(stream.value, bins)
+        Result.success(bass.fft(stream.value, bins))
 
     override fun streamMetadata(stream: BassStreamHandle): Map<String, String> =
-        native.streamMetadata(stream.value)
+        bass.streamTags(stream.value).toStreamProperties()
 
     override fun freeStream(stream: BassStreamHandle): Result<Unit> =
-        native.freeStream(stream.value)
+        if (bass.freeStream(stream.value)) {
+            Result.success(Unit)
+        } else {
+            Result.failure(IllegalStateException(errorMessage("BASS_StreamFree failed")))
+        }
+
+    private fun errorMessage(prefix: String): String =
+        bassFailureMessage(prefix)
+
+    private fun Int.toHandleResult(prefix: String): Result<BassStreamHandle> =
+        takeIf { it != 0 }
+            ?.let { Result.success(BassStreamHandle(it)) }
+            ?: Result.failure(IllegalStateException(errorMessage(prefix)))
 }
 
 fun loadDesktopBassAudioBackend(): Result<BassAudioBackend> =
-    DesktopBassNative.load().map(::DesktopBassAudioBackend)
+    DesktopBassLibraryResolver().resolve()
+        ?.let { directory -> DesktopBassJniBinding.loadFrom(directory).map(::DesktopBassAudioBackend) }
+        ?: Result.failure(
+            IllegalStateException(
+                "Could not find BASS. Set naviamp.bass.dir or NAVIAMP_BASS_DIR, " +
+                    "or bundle ${BassPlatform.current().libraryName("bass")} under playback/bass/${BassPlatform.current().id}.",
+            ),
+        )
+
+private fun Array<String>.toStreamProperties(): Map<String, String> =
+    buildMap {
+        this@toStreamProperties.forEach { tag ->
+            val equalsIndex = tag.indexOf('=').takeIf { it > 0 }
+            val colonIndex = tag.indexOf(':').takeIf { it > 0 }
+            val separator = equalsIndex ?: colonIndex ?: return@forEach
+            val key = tag.take(separator).trim().trim('\'', '"')
+            val value = tag.drop(separator + 1).trim().trim('\'', '"').icyStreamTitleValue()
+            if (key.isNotBlank() && value.isNotBlank()) {
+                put(key, value)
+            }
+        }
+    }
+
+private fun String.icyStreamTitleValue(): String {
+    val key = "StreamTitle='"
+    val start = indexOf(key)
+    if (start < 0) return this
+    val titleStart = start + key.length
+    val titleEnd = indexOf("';", titleStart).takeIf { it >= 0 } ?: indexOf("'", titleStart)
+    return if (titleEnd > titleStart) substring(titleStart, titleEnd).trim() else this
+}

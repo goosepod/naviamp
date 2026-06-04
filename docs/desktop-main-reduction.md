@@ -229,7 +229,7 @@ Branch: `codex/desktop-main-reduction`
   - Android consumes this directly; desktop still has BASS end-sync and can reuse the helper as polling is normalized further.
 - [x] Keep BASS byte-position conversion inside platform seek implementations.
   - Android and desktop both convert seconds to bytes internally for seek; unused `positionBytes` / `secondsToBytes` facade methods were removed after crossfade moved to volume slides.
-  - The underlying bridge remains JNI on Android and native/JNA on desktop.
+  - The underlying bridge is now JNI on Android and desktop; the old desktop native/JNA connector is only a temporary comparison/removal target.
 - [x] Expose Android mixer-channel removal through the shared backend.
   - Android now implements `removeMixerChannel` on `BassAudioBackend`, matching desktop cleanup primitives.
   - Native bridge details remain isolated below the Android backend adapter.
@@ -316,13 +316,13 @@ Branch: `codex/desktop-main-reduction`
   - `AudioWaveformAnalyzer` and `AudioWaveformAnalysisSource` now live in common domain, with desktop and Android platform analyzers using `BassAudioBackend` adapters.
   - The waveform bucket algorithm now lives in common domain through `normalizeFloatPcmWaveform(...)`.
   - Desktop and Android both create BASS decode streams, ask BASS for stream byte length, read float PCM chunks, and call the same common bucket/normalization code.
-  - First shared BASS access port is in place: `BassAudioBackend` hides desktop `DesktopBassNative` and Android `AndroidBassJni` for decode-stream waveform reads.
+  - First shared BASS access port is in place: `BassAudioBackend` hides desktop `DesktopBassJniBinding` and Android `AndroidBassJni` for decode-stream waveform reads.
   - `AudioWaveformService` now coordinates cached waveform lookup, local/downloaded audio preference, optional audio caching, provider-stream fallback, platform analyzer preparation, and waveform persistence.
   - Desktop now-playing analysis, desktop sidecar prefetch, and Android sidecar prep use the shared waveform service while platform composition supplies storage/cache engines, local-file URL conversion, and TLS setup.
   - `AudioWaveformServiceResult` now owns the cached/generated/unavailable status label mapping used by now-playing analysis.
-- BASS usage should converge on a shared facade. Platform code may keep different bridge mechanics only at the lowest layer: desktop can wrap its native/JNA binding while Android wraps JNI, but playback, waveform, visualizer, tags, gapless, and crossfade should call shared interfaces wherever practical.
+- BASS usage converges on a shared facade. Platform code keeps packaging/loading mechanics at the lowest layer, while playback, waveform, visualizer, tags, gapless, and crossfade call shared interfaces wherever practical.
   - Android playback now uses the shared `BassAudioBackend` adapter for stream/control/progress/metadata/FFT primitives.
-  - Desktop playback now uses `BassAudioBackend` for stream/control/progress/metadata/FFT/mixer primitives and BASS version/load-path diagnostics; raw `DesktopBassNative` access is confined to the desktop backend adapter/native binding layer.
+  - Desktop playback now uses `BassAudioBackend` for stream/control/progress/metadata/FFT/mixer primitives and BASS version/load-path diagnostics through the desktop JNI binding.
   - Crossfade duration normalization, BASSmix queue-source decisions, equal-power fade envelopes, and transition application now live behind shared helpers/backend calls instead of desktop-only playback code.
 - Naming convention: shared/common abstractions keep generic names, while platform adapters and platform-owned service files should use `Desktop` / `Android` prefixes.
   - Example: common `AudioWaveformAnalyzer`, desktop `DesktopAudioWaveformAnalyzer`, Android `AndroidAudioWaveformAnalyzer`.

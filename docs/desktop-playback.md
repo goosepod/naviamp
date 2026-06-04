@@ -12,19 +12,17 @@ Desktop uses `DesktopBassPlaybackEngine` as the production playback engine. The 
 
 ## Direction
 
-The production desktop target is bundled BASS so users do not need a separate install.
-
-The next desktop playback investigation is BASS inside the Kotlin app, tracked in `docs/kotlin-bass-roadmap.md`. The intent is to keep the existing Kotlin UI and put BASS behind the current playback interface.
+The production desktop target is bundled BASS so users do not need a separate install. Desktop playback stays behind the current playback interface and uses the shared BASS facade with JNI below the desktop adapter.
 
 ## BASS Packaging
 
-The Kotlin desktop app has an initial JNA-based BASS binding under:
+The Kotlin desktop app has its active JNI-backed BASS binding under:
 
 ```text
 apps/desktop/src/desktopMain/kotlin/app/naviamp/desktop/playback/bass
 ```
 
-The first Kotlin BASS implementation uses JNA to prove loading, packaging, and basic playback quickly. Production BASS work should move to JNI so Naviamp can keep native callbacks, BASSmix, PCM/FFT visualizers, gapless playback, and crossfade behavior fast and consistent across desktop and Android.
+The first Kotlin BASS implementation used JNA to prove loading, packaging, and basic playback quickly. Production BASS work now uses JNI so Naviamp can keep native callbacks, BASSmix, PCM/FFT visualizers, gapless playback, and crossfade behavior fast and consistent across desktop and Android. The old JNA connector remains only as a temporary comparison/removal target until JNI-backed desktop playback is manually proven.
 
 The JNI production binding design is tracked in `docs/bass-jni-design.md`.
 
@@ -79,7 +77,7 @@ The intended original-stream coverage is:
 | WMA | not packaged | `basswma` | macOS should fall back to provider transcode. |
 | WebM | `basswebm` | `basswebm` | Direct playback requires the add-on. |
 
-When a format is not covered by BASS core or a packaged add-on on the current platform, Naviamp should request provider transcoding instead of surfacing a codec error to the user. During the current spike, Stats for nerds shows the loaded BASS add-ons, current stream info, and latest BASS error. Deeper native channel diagnostics should be added through the JNI binding rather than the current JNA playback path.
+When a format is not covered by BASS core or a packaged add-on on the current platform, Naviamp should request provider transcoding instead of surfacing a codec error to the user. Stats for nerds shows the loaded BASS add-ons, current stream info, and latest BASS error through the shared backend/JNI path.
 
 Override the platform for packaging/copy verification with:
 
@@ -141,7 +139,7 @@ That task deliberately uses the same non-ProGuard app image as local testing and
 apps/desktop/build/compose/distributions/Naviamp-windows-x64-release.zip
 ```
 
-Avoid Compose Desktop's `createReleaseDistributable`, `runRelease`, and `packageReleaseDistributionForCurrentOS` tasks for Naviamp deploy testing. The desktop app uses Compose Desktop plus native JNA/JNI playback bindings, and ProGuard can break runtime-only paths such as native method lookup, callback dispatch, and generated Compose bytecode even when compilation succeeds.
+Avoid Compose Desktop's `createReleaseDistributable`, `runRelease`, and `packageReleaseDistributionForCurrentOS` tasks for Naviamp deploy testing. The desktop app uses Compose Desktop plus native JNI playback bindings, and ProGuard can break runtime-only paths such as native method lookup, callback dispatch, and generated Compose bytecode even when compilation succeeds.
 
 ## macOS Local Build Workflow
 

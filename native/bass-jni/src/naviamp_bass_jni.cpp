@@ -17,6 +17,12 @@ constexpr DWORD NETWORK_TIMEOUT_MILLIS = 15000;
 constexpr DWORD NETWORK_PREBUFFER_PERCENT = 75;
 constexpr DWORD NETWORK_PLAYLIST_DEPTH = 5;
 
+struct DesktopEndSyncRegistration {
+    JavaVM* javaVm;
+    jobject binding;
+    jmethodID callbackMethod;
+};
+
 void configure_playback_buffers() {
     BASS_SetConfig(BASS_CONFIG_UPDATEPERIOD, UPDATE_PERIOD_MILLIS);
     BASS_SetConfig(BASS_CONFIG_BUFFER, PLAYBACK_BUFFER_MILLIS);
@@ -38,6 +44,130 @@ BOOL configure_internet_streams() {
     ok = BASS_SetConfig(BASS_CONFIG_NET_TIMEOUT, NETWORK_TIMEOUT_MILLIS) && ok;
     ok = BASS_SetConfig(BASS_CONFIG_NET_READTIMEOUT, NETWORK_TIMEOUT_MILLIS) && ok;
     return ok;
+}
+
+HSTREAM create_url_stream(const char* url, DWORD flags) {
+    return BASS_StreamCreateURL(
+        url,
+        0,
+        flags,
+        nullptr,
+        nullptr
+    );
+}
+
+HSTREAM create_file_stream(const char* path, DWORD flags) {
+    return BASS_StreamCreateFile(
+        FALSE,
+        path,
+        0,
+        0,
+        flags
+    );
+}
+
+DWORD stream_flags() {
+    return BASS_STREAM_STATUS | BASS_SAMPLE_FLOAT;
+}
+
+DWORD file_flags() {
+    return BASS_STREAM_PRESCAN | BASS_SAMPLE_FLOAT;
+}
+
+jint channel_info_frequency(jint stream) {
+    BASS_CHANNELINFO info{};
+    if (!BASS_ChannelGetInfo(static_cast<DWORD>(stream), &info)) return 0;
+    return static_cast<jint>(info.freq);
+}
+
+jint channel_info_channels(jint stream) {
+    BASS_CHANNELINFO info{};
+    if (!BASS_ChannelGetInfo(static_cast<DWORD>(stream), &info)) return 0;
+    return static_cast<jint>(info.chans);
+}
+
+jboolean add_mixer_channel(jint mixer, jint stream) {
+    return BASS_Mixer_StreamAddChannel(
+        static_cast<DWORD>(mixer),
+        static_cast<DWORD>(stream),
+        BASS_MIXER_CHAN_NORAMPIN
+    ) ? JNI_TRUE : JNI_FALSE;
+}
+
+jint create_mixer(jint frequency, jint channels, jboolean queueSources) {
+    DWORD flags = BASS_SAMPLE_FLOAT;
+    if (queueSources == JNI_TRUE) flags |= BASS_MIXER_QUEUE;
+    HSTREAM mixer = BASS_Mixer_StreamCreate(
+        static_cast<DWORD>(std::max(1, static_cast<int>(frequency))),
+        static_cast<DWORD>(std::max(1, static_cast<int>(channels))),
+        flags
+    );
+    return static_cast<jint>(mixer);
+}
+
+jboolean slide_volume(jint stream, jfloat volume, jint millis) {
+    float safeVolume = std::max(0.0f, std::min(volume, 4.0f));
+    return BASS_ChannelSlideAttribute(
+        static_cast<DWORD>(stream),
+        BASS_ATTRIB_VOL,
+        safeVolume,
+        std::max(0, static_cast<int>(millis))
+    ) ? JNI_TRUE : JNI_FALSE;
+}
+
+jboolean seek_seconds(jint stream, jdouble seconds) {
+    QWORD bytes = BASS_ChannelSeconds2Bytes(static_cast<DWORD>(stream), seconds);
+    if (bytes == static_cast<QWORD>(-1)) return JNI_FALSE;
+    if (BASS_Mixer_ChannelSetPosition(static_cast<DWORD>(stream), bytes, BASS_POS_BYTE | BASS_POS_MIXER_RESET)) {
+        return JNI_TRUE;
+    }
+    return BASS_ChannelSetPosition(static_cast<DWORD>(stream), bytes, BASS_POS_BYTE) ? JNI_TRUE : JNI_FALSE;
+}
+
+jdouble position_seconds(jint stream) {
+    QWORD bytes = BASS_ChannelGetPosition(static_cast<DWORD>(stream), BASS_POS_BYTE);
+    if (bytes == static_cast<QWORD>(-1)) return -1.0;
+    return BASS_ChannelBytes2Seconds(static_cast<DWORD>(stream), bytes);
+}
+
+jdouble duration_seconds(jint stream) {
+    QWORD bytes = BASS_ChannelGetLength(static_cast<DWORD>(stream), BASS_POS_BYTE);
+    if (bytes == static_cast<QWORD>(-1)) return -1.0;
+    return BASS_ChannelBytes2Seconds(static_cast<DWORD>(stream), bytes);
+}
+
+jlong length_bytes(jint stream) {
+    QWORD bytes = BASS_ChannelGetLength(static_cast<DWORD>(stream), BASS_POS_BYTE);
+    if (bytes == static_cast<QWORD>(-1)) return -1;
+    return static_cast<jlong>(bytes);
+}
+
+void CALLBACK desktop_end_sync_proc(HSYNC handle, DWORD channel, DWORD data, void* user) {
+    (void)handle;
+    (void)data;
+    auto* registration = static_cast<DesktopEndSyncRegistration*>(user);
+    if (registration == nullptr || registration->javaVm == nullptr) return;
+
+    JNIEnv* env = nullptr;
+    bool didAttach = false;
+    jint envResult = registration->javaVm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6);
+    if (envResult == JNI_EDETACHED) {
+#if defined(__ANDROID__)
+        if (registration->javaVm->AttachCurrentThread(&env, nullptr) != JNI_OK) return;
+#else
+        if (registration->javaVm->AttachCurrentThread(reinterpret_cast<void**>(&env), nullptr) != JNI_OK) return;
+#endif
+        didAttach = true;
+    } else if (envResult != JNI_OK) {
+        return;
+    }
+
+    env->CallVoidMethod(registration->binding, registration->callbackMethod, static_cast<jint>(channel));
+    env->DeleteGlobalRef(registration->binding);
+    if (didAttach) {
+        registration->javaVm->DetachCurrentThread();
+    }
+    delete registration;
 }
 }
 
@@ -387,4 +517,284 @@ Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeLastErrorCode
     (void)env;
     (void)thiz;
     return static_cast<jint>(BASS_ErrorGetCode());
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeMixerVersion(JNIEnv* env, jobject thiz) {
+    (void)env;
+    (void)thiz;
+    return static_cast<jint>(BASS_Mixer_GetVersion());
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeInit(JNIEnv* env, jobject thiz) {
+    (void)env;
+    (void)thiz;
+    configure_playback_buffers();
+    if (BASS_Init(-1, 44100, 0, nullptr, nullptr)) {
+        return JNI_TRUE;
+    }
+    if (BASS_ErrorGetCode() == BASS_ERROR_ALREADY) {
+        return JNI_TRUE;
+    }
+    return JNI_FALSE;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeFree(JNIEnv* env, jobject thiz) {
+    (void)env;
+    (void)thiz;
+    BASS_Free();
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeConfigureInternetStreams(JNIEnv* env, jobject thiz) {
+    (void)env;
+    (void)thiz;
+    return configure_internet_streams() ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeCreateUrlStream(JNIEnv* env, jobject thiz, jstring url) {
+    (void)thiz;
+    const char* chars = env->GetStringUTFChars(url, nullptr);
+    if (chars == nullptr) return 0;
+    HSTREAM stream = create_url_stream(chars, stream_flags());
+    env->ReleaseStringUTFChars(url, chars);
+    return static_cast<jint>(stream);
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeCreateFileStream(JNIEnv* env, jobject thiz, jstring path) {
+    (void)thiz;
+    const char* chars = env->GetStringUTFChars(path, nullptr);
+    if (chars == nullptr) return 0;
+    HSTREAM stream = create_file_stream(chars, file_flags());
+    env->ReleaseStringUTFChars(path, chars);
+    return static_cast<jint>(stream);
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeCreateUrlDecodeStream(JNIEnv* env, jobject thiz, jstring url) {
+    (void)thiz;
+    const char* chars = env->GetStringUTFChars(url, nullptr);
+    if (chars == nullptr) return 0;
+    HSTREAM stream = create_url_stream(chars, stream_flags() | BASS_STREAM_DECODE);
+    env->ReleaseStringUTFChars(url, chars);
+    return static_cast<jint>(stream);
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeCreateFileDecodeStream(JNIEnv* env, jobject thiz, jstring path) {
+    (void)thiz;
+    const char* chars = env->GetStringUTFChars(path, nullptr);
+    if (chars == nullptr) return 0;
+    HSTREAM stream = create_file_stream(chars, file_flags() | BASS_STREAM_DECODE);
+    env->ReleaseStringUTFChars(path, chars);
+    return static_cast<jint>(stream);
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeCreateMixer(JNIEnv* env, jobject thiz, jint frequency, jint channels, jboolean queueSources) {
+    (void)env;
+    (void)thiz;
+    return create_mixer(frequency, channels, queueSources);
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeChannelInfoFrequency(JNIEnv* env, jobject thiz, jint stream) {
+    (void)env;
+    (void)thiz;
+    return channel_info_frequency(stream);
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeChannelInfoChannels(JNIEnv* env, jobject thiz, jint stream) {
+    (void)env;
+    (void)thiz;
+    return channel_info_channels(stream);
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeAddMixerChannel(JNIEnv* env, jobject thiz, jint mixer, jint stream) {
+    (void)env;
+    (void)thiz;
+    return add_mixer_channel(mixer, stream);
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeRemoveMixerChannel(JNIEnv* env, jobject thiz, jint stream) {
+    (void)env;
+    (void)thiz;
+    return BASS_Mixer_ChannelRemove(static_cast<DWORD>(stream)) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeSetEndSync(JNIEnv* env, jobject thiz, jint stream) {
+    JavaVM* javaVm = nullptr;
+    if (env->GetJavaVM(&javaVm) != JNI_OK || javaVm == nullptr) return 0;
+    jclass bindingClass = env->GetObjectClass(thiz);
+    if (bindingClass == nullptr) return 0;
+    jmethodID callbackMethod = env->GetMethodID(bindingClass, "onEndSync", "(I)V");
+    env->DeleteLocalRef(bindingClass);
+    if (callbackMethod == nullptr) return 0;
+
+    auto* registration = new DesktopEndSyncRegistration{
+        javaVm,
+        env->NewGlobalRef(thiz),
+        callbackMethod,
+    };
+    HSYNC sync = BASS_ChannelSetSync(
+        static_cast<DWORD>(stream),
+        BASS_SYNC_END | BASS_SYNC_ONETIME,
+        0,
+        desktop_end_sync_proc,
+        registration
+    );
+    if (sync == 0) {
+        env->DeleteGlobalRef(registration->binding);
+        delete registration;
+    }
+    return static_cast<jint>(sync);
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativePlay(JNIEnv* env, jobject thiz, jint stream) {
+    (void)env;
+    (void)thiz;
+    return BASS_ChannelPlay(static_cast<DWORD>(stream), FALSE) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativePause(JNIEnv* env, jobject thiz, jint stream) {
+    (void)env;
+    (void)thiz;
+    return BASS_ChannelPause(static_cast<DWORD>(stream)) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeStop(JNIEnv* env, jobject thiz, jint stream) {
+    (void)env;
+    (void)thiz;
+    return BASS_ChannelStop(static_cast<DWORD>(stream)) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeFreeStream(JNIEnv* env, jobject thiz, jint stream) {
+    (void)env;
+    (void)thiz;
+    return BASS_StreamFree(static_cast<HSTREAM>(stream)) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeActiveState(JNIEnv* env, jobject thiz, jint stream) {
+    (void)env;
+    (void)thiz;
+    return static_cast<jint>(BASS_ChannelIsActive(static_cast<DWORD>(stream)));
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeSetVolume(JNIEnv* env, jobject thiz, jint stream, jfloat volume) {
+    (void)env;
+    (void)thiz;
+    float safeVolume = std::max(0.0f, std::min(volume, 4.0f));
+    return BASS_ChannelSetAttribute(static_cast<DWORD>(stream), BASS_ATTRIB_VOL, safeVolume) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeSlideVolume(JNIEnv* env, jobject thiz, jint stream, jfloat volume, jint millis) {
+    (void)env;
+    (void)thiz;
+    return slide_volume(stream, volume, millis);
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeSeek(JNIEnv* env, jobject thiz, jint stream, jdouble seconds) {
+    (void)env;
+    (void)thiz;
+    return seek_seconds(stream, seconds);
+}
+
+extern "C" JNIEXPORT jdouble JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativePositionSeconds(JNIEnv* env, jobject thiz, jint stream) {
+    (void)env;
+    (void)thiz;
+    return position_seconds(stream);
+}
+
+extern "C" JNIEXPORT jdouble JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeDurationSeconds(JNIEnv* env, jobject thiz, jint stream) {
+    (void)env;
+    (void)thiz;
+    return duration_seconds(stream);
+}
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeLengthBytes(JNIEnv* env, jobject thiz, jint stream) {
+    (void)env;
+    (void)thiz;
+    return length_bytes(stream);
+}
+
+extern "C" JNIEXPORT jobjectArray JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeStreamTags(JNIEnv* env, jobject thiz, jint stream) {
+    (void)thiz;
+    std::vector<std::string> tags;
+    append_string_tags(tags, BASS_ChannelGetTags(static_cast<DWORD>(stream), BASS_TAG_ICY));
+    append_string_tags(tags, BASS_ChannelGetTags(static_cast<DWORD>(stream), BASS_TAG_HTTP));
+    const char* meta = BASS_ChannelGetTags(static_cast<DWORD>(stream), BASS_TAG_META);
+    if (meta != nullptr && meta[0] != '\0') {
+        tags.emplace_back(std::string("StreamTitle=") + meta);
+    }
+    jclass stringClass = env->FindClass("java/lang/String");
+    jobjectArray result = env->NewObjectArray(static_cast<jsize>(tags.size()), stringClass, nullptr);
+    for (jsize i = 0; i < static_cast<jsize>(tags.size()); ++i) {
+        jstring value = env->NewStringUTF(tags[static_cast<size_t>(i)].c_str());
+        env->SetObjectArrayElement(result, i, value);
+        env->DeleteLocalRef(value);
+    }
+    return result;
+}
+
+extern "C" JNIEXPORT jfloatArray JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeFft(JNIEnv* env, jobject thiz, jint stream, jint bins) {
+    (void)thiz;
+    int safeBins = std::max(1, std::min(static_cast<int>(bins), 256));
+    std::vector<float> buffer(512, 0.0f);
+    DWORD request = BASS_DATA_FFT1024 | BASS_DATA_FFT_REMOVEDC;
+    int read = BASS_ChannelGetData(static_cast<DWORD>(stream), buffer.data(), request);
+    if (read < 0) {
+        return env->NewFloatArray(0);
+    }
+    jfloatArray result = env->NewFloatArray(static_cast<jsize>(safeBins));
+    env->SetFloatArrayRegion(result, 0, static_cast<jsize>(safeBins), buffer.data());
+    return result;
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeReadFloatData(JNIEnv* env, jobject thiz, jint stream, jfloatArray output) {
+    (void)thiz;
+    jsize sampleCapacity = env->GetArrayLength(output);
+    if (sampleCapacity <= 0) return 0;
+    std::vector<float> buffer(static_cast<size_t>(sampleCapacity), 0.0f);
+    int read = BASS_ChannelGetData(
+        static_cast<DWORD>(stream),
+        buffer.data(),
+        static_cast<DWORD>(buffer.size() * sizeof(float))
+    );
+    if (read < 0) return -1;
+    int sampleCount = read / static_cast<int>(sizeof(float));
+    if (sampleCount <= 0) return 0;
+    env->SetFloatArrayRegion(output, 0, static_cast<jsize>(sampleCount), buffer.data());
+    return static_cast<jint>(sampleCount);
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeLoadPlugin(JNIEnv* env, jobject thiz, jstring path) {
+    (void)thiz;
+    const char* chars = env->GetStringUTFChars(path, nullptr);
+    if (chars == nullptr) return 0;
+    HPLUGIN plugin = BASS_PluginLoad(chars, 0);
+    env->ReleaseStringUTFChars(path, chars);
+    return static_cast<jint>(plugin);
 }

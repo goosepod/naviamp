@@ -137,7 +137,7 @@ Then higher-level repositories can be composed from those stores:
   - Nineteenth slice: Android now-playing lyrics and waveform sidecar status writes use `SidecarStatusRepository` instead of broad `AndroidStorage`.
   - Twentieth slice: desktop and Android BASS waveform analyzers implement a shared `AudioWaveformAnalyzer` contract.
   - Twenty-first slice: desktop and Android waveform analyzers now use shared float-PCM bucketing over BASS decode-stream length/read primitives.
-  - Twenty-second slice: shared `BassAudioBackend` port now hides desktop `DesktopBassNative` and Android `AndroidBassJni` for waveform decode-stream access.
+  - Twenty-second slice: shared `BassAudioBackend` port now hides desktop `DesktopBassJniBinding` and Android `AndroidBassJni` for waveform decode-stream access.
   - Twenty-third slice: Android playlist sidecar/prefetch orchestration now receives waveform/audio-cache ports and a cache lambda instead of broad `AndroidStorage`.
   - Twenty-fourth slice: Android Auto foreground-service helpers now use shared library-index, provider-response, media-source, playback-session, playback-history, and cover-art lookup ports where practical; the service still owns an `AndroidStorage` instance as its composition/runtime adapter.
   - Twenty-fifth slice: desktop connection opening now uses `CacheMaintenanceRepository` and `ProviderMediaSourceRepository`, and the connection panel uses `ProviderResponseCacheRepository`, instead of taking `DesktopCache` directly.
@@ -204,7 +204,7 @@ Then higher-level repositories can be composed from those stores:
   - Waveform generation itself should be split into a shared analyzer interface instead of being hidden inside platform storage.
     - First analyzer slice is complete: `AudioWaveformAnalyzer` and `AudioWaveformAnalysisSource` now live in common domain, with `DesktopAudioWaveformAnalyzer` and `AndroidAudioWaveformAnalyzer` as BASS-backed implementations.
     - First BASS unification slice is complete: both waveform analyzers now create BASS decode streams, read float PCM chunks, and call common `normalizeFloatPcmWaveform(...)`.
-    - First BASS access-port slice is complete: waveform analyzers depend on shared `BassAudioBackend`; platform adapters wrap desktop native access and Android JNI below that boundary.
+    - First BASS access-port slice is complete: waveform analyzers depend on shared `BassAudioBackend`; platform adapters wrap desktop and Android JNI below that boundary.
     - Shared waveform service slice is complete: `AudioWaveformService` now composes cached waveform lookup, local/downloaded audio preference, optional audio caching, provider-stream fallback, analyzer calls, and persistence.
     - Desktop now-playing analysis, desktop current/upcoming sidecar prep, and Android sidecar prep now call the shared waveform service while platform adapters supply local-file URL conversion, TLS preparation, and concrete storage/cache engines.
     - Android is no longer forced into the older storage-shaped `AudioWaveformRepository.ensureAudioWaveform(sourceId, trackId, quality)` contract; the shared service receives `Track`, provider stream context, and playback cache behavior.
@@ -222,7 +222,7 @@ Then higher-level repositories can be composed from those stores:
   - Playback streams, decode streams, active state, stream metadata/tags, FFT visualizer reads, seek/position/duration, volume slides, and mixer channel creation/add are now modeled on `BassAudioBackend` and implemented by desktop and Android adapters.
   - Shared BASS playback stream selection now chooses file/URL and direct/decode/playback-decode creation through `BassAudioBackend`; platforms only resolve local file paths.
   - Android playback now consumes `BassAudioBackend` for these primitives instead of raw `AndroidBassJni`; runtime still owns JNI loading and wraps it in the adapter.
-  - Desktop playback now consumes `BassAudioBackend` for stream/control/progress/metadata/FFT/mixer primitives and diagnostics instead of raw `DesktopBassNative`; only the desktop backend adapter loads and wraps `DesktopBassNative`.
+  - Desktop playback now consumes `BassAudioBackend` for stream/control/progress/metadata/FFT/mixer primitives and diagnostics through `DesktopBassJniBinding`; the old `DesktopBassNative` connector is retained only until JNI-backed desktop playback is manually proven.
   - End sync is now modeled on `BassAudioBackend`; byte conversion remains inside platform seek implementations where it is needed.
   - Crossfade duration normalization and mixer queue-source decisions now live in common playback transition helpers and are used by desktop/Android playback where applicable.
   - Gapless/crossfade prepare-next capability/window/duplicate-prep decisions now live in common playback transition helpers; desktop and Android still own platform-specific URL/replaygain resolution.
@@ -248,15 +248,15 @@ Then higher-level repositories can be composed from those stores:
   - Shared BASS Int-handle helper extensions now wrap `BassStreamHandle` conversion for playback/control/progress calls; desktop and Android playback no longer carry local duplicates.
   - Android now applies the shared backend `configureInternetStreams` path before stream creation, matching desktop's BASS playlist/meta/depth network configuration.
   - BASS core version is now exposed through `BassAudioBackend` so diagnostics do not need to reach below the platform adapter for that primitive.
-  - BASSmix version is now exposed through `BassAudioBackend`; Android wraps `BASS_Mixer_GetVersion` through JNI and desktop wraps the existing native binding.
+  - BASSmix version is now exposed through `BassAudioBackend`; Android and desktop both wrap `BASS_Mixer_GetVersion` through JNI.
   - Desktop and Android waveform URL analysis now call `BassAudioBackend.configureInternetStreams` before creating remote BASS decode streams.
   - BASS version label formatting now lives in common BASS helpers instead of desktop-only diagnostics code.
   - BASS error-code labels now live in common BASS helpers and are used by desktop diagnostics plus Android backend/playback errors.
   - BASS backend failure-message formatting now lives in common BASS helpers; Android backend/playback errors use that shared path.
   - BASS native-library directory and BASSmix load-error diagnostics now hang off `BassAudioBackend`; desktop populates them and Android keeps the shared defaults.
-  - Desktop active-stream diagnostics now ask `BassAudioBackend` for active state instead of reaching directly into `DesktopBassNative`.
-  - Desktop loaded/failed plugin reporting now uses shared `BassPluginDiagnostic` rows exposed by `BassAudioBackend`.
-  - Desktop gapless/crossfade support flags now read mixer capability from `BassAudioBackend` instead of raw `DesktopBassNative`.
+  - Desktop active-stream diagnostics now ask `BassAudioBackend` for active state instead of reaching directly into native connector details.
+  - Desktop loaded/failed plugin reporting now uses shared `BassPluginDiagnostic` rows exposed by `BassAudioBackend` through JNI.
+  - Desktop gapless/crossfade support flags now read mixer capability from `BassAudioBackend` instead of raw native connector details.
   - Desktop playback and waveform composition now receive `BassAudioBackend` through the same facade boundary; app-level playback/waveform code no longer constructs a raw desktop native connector.
   - Android gapless/crossfade support flags now also read mixer capability from `BassAudioBackend` instead of assuming mixer support.
   - Playback source-handle selection now lives in common playback helpers, so desktop and Android use the same source-vs-output handle rule for seek/progress reads.
@@ -285,7 +285,7 @@ Then higher-level repositories can be composed from those stores:
   - Desktop no longer keeps a separate stale prepared-stream take path; prepared playback handoff flows through the shared adoption helper.
   - Prepared BASS source results now only expose handoff state; platform engines keep ReplayGain metadata in their existing prepared-track fields while shared helpers still use ReplayGain for transition planning.
   - Still to normalize further: crossfade transition state reset and remaining transition application details should continue moving from platform playback engines into shared planning/services.
-  - Keep JNI/JNA/native-loader details under platform adapters unless a single native bridge is proven simpler across all targets.
+  - Keep JNI/native-loader details under platform adapters unless a single native loader is proven simpler across all targets.
 - [ ] Normalize platform file/class names.
   - Shared/common abstractions keep generic names.
   - Platform adapters and platform-owned service files should use `Desktop` / `Android` prefixes.

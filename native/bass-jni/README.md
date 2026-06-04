@@ -2,7 +2,7 @@
 
 This directory is the production native binding layout for BASS.
 
-The current Kotlin desktop player still uses the JNA spike under `apps/desktop`, but JNI work should happen here so desktop and Android can converge on one native BASS control surface.
+The Kotlin desktop and Android players now both route app-level BASS work through the shared Kotlin facade and platform JNI bindings. The older desktop native/JNA spike is kept only as a temporary comparison/removal target until JNI-backed desktop playback has been manually proven.
 
 ## Targets
 
@@ -53,4 +53,4 @@ BASS headers are stored under `vendor/include`.
 
 ## Build Status
 
-The CMake target currently exposes BASS version and last-error diagnostics. It is intentionally not used as the active desktop playback path until the JNI API reaches parity with the JNA spike.
+The CMake target exposes the active desktop/Android BASS JNI surface for stream creation, playback control, seek/progress, volume, decode reads, FFT, tags, mixer primitives, plugin loading, and desktop end-sync callbacks.

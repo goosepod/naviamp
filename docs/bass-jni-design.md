@@ -1,6 +1,6 @@
 # BASS JNI Binding Design
 
-This document defines the production direction for Naviamp's BASS integration. The current desktop JNA layer is useful as a spike, but the long-term binding should be JNI so desktop and Android can share the same native control surface.
+This document defines the production direction for Naviamp's BASS integration. Desktop and Android now route active BASS work through JNI so they can share the same native control surface. The older desktop JNA layer remains only as a historical spike and temporary comparison/removal target.
 
 ## Goals
 
@@ -15,7 +15,7 @@ This document defines the production direction for Naviamp's BASS integration. T
 The Kotlin side should expose two layers:
 
 - A shared app-facing BASS facade in common code for behavior that desktop and Android should use identically.
-- Platform/native bridge adapters below that facade, where desktop may currently wrap JNA/native access and Android wraps JNI.
+- Platform/native bridge adapters below that facade, where desktop and Android now both wrap JNI.
 
 The shared facade slices are `BassAudioBackend` and `BassStreamHandle`. The facade started with decode-stream waveform reads and now also models playback streams, active state, stream metadata, FFT, seek/progress, volume slides, BASSmix channel creation/add/remove, end sync, stream release, version diagnostics, plugin diagnostics, and shared playback helper operations. App-level playback, waveform, visualizer, gapless, and crossfade code should use this facade before any platform connector details.
 
@@ -69,9 +69,9 @@ The first committed JNI contract exposes BASS version and last-error diagnostics
 - Android: `app.naviamp.android.playback.AndroidBassJni`
 - Desktop: `app.naviamp.desktop.playback.bass.DesktopBassJniBinding`
 
-Android startup logs the packaged JNI diagnostic line after load, including BASS version, BASSmix version, and last error code. Desktop has a smoke test that loads the packaged `naviamp_bass` library and calls the same version diagnostic, which keeps the desktop symbol names aligned while the full backend remains on the existing native adapter.
+Android startup logs the packaged JNI diagnostic line after load, including BASS version, BASSmix version, and last error code. Desktop has JNI integration tests that load the packaged `naviamp_bass` library and exercise version, init/free, stream creation, play/pause/stop, seek, position/duration, volume, decode reads, FFT, and mixer creation.
 
-Playback and waveform analysis now use the shared `BassAudioBackend` facade. Desktop still wraps its native/JNA binding below `DesktopBassAudioBackend`; Android wraps JNI below `AndroidBassAudioBackend`. Android debug APKs now build and package `libnaviamp_bass.so` for all vendored ABIs through the Android CMake build, and `:apps:android:verifyDebugBassNativePackage` verifies the packaged JNI/BASS library set. Converging the desktop bridge onto the JNI library remains a connector-level migration, not an app-level playback rewrite.
+Playback and waveform analysis now use the shared `BassAudioBackend` facade. Desktop wraps JNI below `DesktopBassAudioBackend`; Android wraps JNI below `AndroidBassAudioBackend`. Android debug APKs now build and package `libnaviamp_bass.so` for all vendored ABIs through the Android CMake build, and `:apps:android:verifyDebugBassNativePackage` verifies the packaged JNI/BASS library set. The old desktop native/JNA connector remains only as a temporary comparison/removal target until desktop playback has been manually proven through the JNI backend.
 
 ## Playback And Mixer Model
 
@@ -136,7 +136,7 @@ Android packages include ABI-specific libraries under `jniLibs` and generated Gr
 
 Android BASS libraries downloaded from Un4seen are vendored for the JNI work under `native/bass-jni/vendor/android`. The current set covers BASS core plus AAC, AC3, FX, MPC, TTA, ALAC, APE, DSD, FLAC, HLS, MIDI, mix, Opus, WebM, and WavPack across `arm64-v8a`, `armeabi-v7a`, `x86`, and `x86_64`.
 
-The app should fail over with a clear diagnostic when the JNI library or BASS core library is missing. During migration only, desktop may still fall back to mpv.
+The app should fail with a clear diagnostic when the JNI library or BASS core library is missing. BASS is the active playback path; legacy fallback behavior should not hide native packaging or load failures.
 
 ## Artifact Policy
 
@@ -153,8 +153,7 @@ Current packaging policy:
 ## Migration Plan
 
 1. Keep the shared `BassAudioBackend` facade as the app-facing BASS contract.
-2. Keep desktop JNA and Android JNI differences below platform backend adapters only.
+2. Keep desktop and Android native loading/package differences below platform backend adapters only.
 3. Continue validating stream creation, playback, pause, stop, seek, volume, duration, position, metadata, FFT, and mixer behavior through shared helpers.
-4. Expand `DesktopBassJniBinding` from diagnostics toward the same stream/control/mixer surface that Android already uses through JNI.
-5. Switch the desktop backend adapter from JNA/native access to JNI when the JNI bridge reaches desktop packaging and plugin parity.
-6. Remove obsolete connector-specific packaging only after the shared facade covers known desktop and Android playback scenarios through the replacement bridge.
+4. Keep desktop manual playback validation focused on JNI-backed playback, waveform generation, gapless/crossfade, ReplayGain, metadata, and plugin diagnostics.
+5. Remove obsolete connector-specific desktop native/JNA code only after the JNI backend is proven through manual desktop playback testing.

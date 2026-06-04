@@ -26,7 +26,7 @@ Current priorities:
 - Default bias: if behavior is not inherently tied to OS APIs, keep it platform-agnostic. Visual behavior, color derivation, layout decisions, screen state, queue/action models, and pure transformations should live in shared modules unless there is a concrete platform API boundary. If platform-specific-looking code is encountered during other work and cannot be moved immediately, add a note here so it is not forgotten.
 - Navidrome is the first provider, but the app should stay provider-oriented.
 - Playback uses mpv on desktop when available.
-- Playback direction has changed: BASS is the target engine for desktop and Android. The current Kotlin desktop BASS path starts with JNA, but production should move to JNI for visualizers, BASSmix, crossfade, gapless playback, and platform parity. mpv should not remain bundled once BASS is stable.
+- Playback direction has changed: BASS is the target engine for desktop and Android. Desktop and Android app-level BASS work now runs through the shared facade with JNI underneath; the old desktop JNA path is retained only as a temporary comparison/removal target. mpv should not remain bundled once BASS is stable.
 - Audio/track caching is now a priority because it will matter for fast desktop skips, network handoff, and the future Android app.
 - Offline downloads are separate from cache files. They can reuse cache/download plumbing, but user-selected downloads should live in their own storage area and should not be evicted by normal cache cleanup.
 - The app should remember state across screens where it feels natural: search query/results, navigation, session queue, window size, and similar context.
@@ -173,7 +173,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - Android track-session resume passes the saved position into the first Media3 playback request.
 - Internet radio stream metadata:
   - `PlaybackStreamMetadata.fromProperties` in shared domain code normalizes common stream-title keys such as `icy-title`, `StreamTitle`, and `title`.
-  - Desktop mpv and Android Media3 both feed raw stream metadata through the shared normalizer.
+  - Desktop and Android BASS playback both feed raw stream metadata through the shared normalizer.
   - Android's Media3 HTTP data source sends `Icy-MetaData: 1`; many internet-radio servers do not send current-song metadata unless the client requests ICY metadata.
   - Android now updates the radio Now Playing title and notification title from Media3 ICY/current media metadata, matching the desktop behavior of showing the currently advertised stream title while keeping the station name as the secondary line.
   - Desktop mpv now observes `metadata` and `media-title` property-change events on a persistent IPC connection, so internet-radio title updates do not have to wait for the normal progress polling loop.
@@ -205,7 +205,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - This opens a practical path to precomputed per-track analysis: waveform scrubber buckets, silence/intro/outro detection, loudness hints, beat/energy markers, cache-hit reporting, and better future offline/network-handoff behavior.
 - Waveform scrubber V1:
   - Desktop now has `cached_audio_waveform` metadata keyed by source, remote track ID, and stream quality.
-  - `DesktopAudioWaveformAnalyzer` uses BASS through `DesktopBassNative` to decode audio and normalize compact waveform buckets.
+  - `DesktopAudioWaveformAnalyzer` uses BASS through the shared backend and desktop JNI binding to decode audio and normalize compact waveform buckets.
   - The current-track waveform is generated only after a cached audio file exists; the UI keeps the normal Material slider until analysis is available.
   - The current-track waveform path actively caches/analyzes the now-playing file; it does not depend on the upcoming-track prefetch job finishing.
   - Restored sessions should keep an already loaded waveform when playback starts for the same track; only clear/reload waveform UI state when the track ID changes.

@@ -22,7 +22,7 @@ Kotlin/Compose is the reference desktop UI.
 - Preserve the Kotlin UI. Do not redesign screens as part of BASS work unless playback behavior requires a UI affordance.
 - Add BASS as a new engine implementation, not a replacement for the playback interface.
 - Keep the playback interface boundary, but make BASS the only active playback engine for the Kotlin app.
-- Use JNA only as the first desktop spike. Move to JNI for the production BASS binding, especially for low-latency visualizers, crossfade/gapless control, and platform parity.
+- Use JNA only as the first desktop spike. Desktop and Android now use JNI underneath the shared BASS facade; keep the JNA spike only as a temporary comparison/removal target until desktop playback has been manually soaked.
 - Keep the Kotlin/domain playback interface clean. Avoid leaking BASS handles or BASS-specific details into UI/domain code.
 - Treat BASSmix as the likely path for serious gapless/crossfade support.
 - Treat live PCM/FFT access as the future visualizer path; do not revive fake/precomputed visualizers as the final solution.
@@ -44,12 +44,13 @@ Kotlin/Compose is the reference desktop UI.
 ## Phase 1.5: Production Binding Direction
 
 - [x] Design a JNI binding surface for BASS that covers playback, BASSmix, PCM/FFT, tags, plugin loading, and error reporting.
-- [x] Keep the current JNA binding as the comparison spike until JNI reaches feature parity.
+- [x] Retain the old desktop JNA binding as a comparison spike until JNI-backed desktop playback is manually proven.
 - [x] Add native build layout for macOS, Windows, and Android.
 - [x] Decide how generated native artifacts are versioned and copied into app packages.
 - [x] Add initial Kotlin/native JNI contract for BASS version and error diagnostics.
-- [x] Keep `DesktopBassPlaybackEngine` on JNA until JNI playback parity is proven.
+- [x] Move `DesktopBassPlaybackEngine` to JNI after stream/control/mixer/FFT/tag/plugin parity is in place.
 - [x] Move desktop waveform generation from mpv process decoding to BASS decode streams.
+- [ ] Remove the old desktop JNA/native connector after JNI-backed desktop playback is manually proven.
 
 Design notes live in `docs/bass-jni-design.md`.
 Native scaffold lives in `native/bass-jni`.
