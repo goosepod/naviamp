@@ -139,6 +139,8 @@ Then higher-level repositories can be composed from those stores:
   - Twenty-fifth slice: desktop connection opening now uses `CacheMaintenanceRepository` and `ProviderMediaSourceRepository`, and the connection panel uses `ProviderResponseCacheRepository`, instead of taking `DesktopCache` directly.
   - Twenty-sixth slice: desktop and Android cache/storage stats now use shared `StorageCacheStats` from common domain instead of platform-specific stats models.
   - Twenty-seventh slice: desktop connection lifecycle now receives cache-maintenance, media-source, and provider-media-source repository ports instead of direct `DesktopCache`.
+  - Twenty-eighth slice: desktop composition now uses `DesktopStorageDependencies`, keeping direct `DesktopCache` construction inside the platform dependency holder.
+  - Twenty-ninth slice: Android app and foreground-service composition now use `AndroidStorageDependencies`, keeping direct `AndroidStorage` construction inside the platform dependency holder.
 - [x] Normalize playback local-audio file boundaries.
   - Shared services should consume platform-neutral local-audio descriptors or store ports instead of `java.io.File` or `java.nio.file.Path` directly.
   - Android can keep `File` and desktop can keep `Path` inside platform adapters because output streams, atomic moves, directory walking, and delete behavior are OS/runtime details.
@@ -520,3 +522,7 @@ This is a strong first slice because playback-source selection currently affects
   - Added common `StorageCacheStats` and moved desktop/Android cache maintenance repositories to return it.
   - Removed platform stats models from settings, diagnostics, Stats for Nerds, maintenance, download, and app-state consumers.
   - Desktop connection lifecycle now receives cache-maintenance, media-source, and provider-media-source ports instead of direct `DesktopCache`; `DesktopNaviampApp` remains the composition root that supplies the concrete cache engine.
+- 2026-06-04: Added platform storage dependency holders.
+  - Desktop composition now uses `DesktopStorageDependencies`, which delegates shared repository ports to the concrete `DesktopCache` engine.
+  - Android app and foreground-service composition now use `AndroidStorageDependencies`, which delegates shared repository ports to the concrete `AndroidStorage` engine.
+  - Direct `DesktopCache` / `AndroidStorage` construction is now isolated to platform dependency holders and concrete engine files.

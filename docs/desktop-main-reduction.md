@@ -253,6 +253,8 @@ Branch: `codex/desktop-main-reduction`
   - Desktop connection opening now uses cache-maintenance/provider media-source repository ports, and connection-panel album loading uses the provider-response cache port, instead of direct `DesktopCache`.
   - Desktop connection lifecycle now receives cache-maintenance, media-source, and provider-media-source ports instead of direct `DesktopCache`.
   - Desktop and Android cache/storage stats now use common `StorageCacheStats` instead of platform-specific stats models.
+  - Desktop composition now uses `DesktopStorageDependencies`; Android app/service composition now uses `AndroidStorageDependencies`.
+  - Direct `DesktopCache` / `AndroidStorage` construction is isolated to platform dependency holders and concrete engine files.
 - [x] Introduce shared low-level byte/object store ports for audio cache/download file operations.
   - `AudioByteStoreService` now owns provider audio streaming, stable source/track/quality filenames, content-type extensions, zero-byte cleanup, and in-flight write coalescing.
   - Desktop and Android keep only temp/final file movement and deletion in platform byte-store adapters.
