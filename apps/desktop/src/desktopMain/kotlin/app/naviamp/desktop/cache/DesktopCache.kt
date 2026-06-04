@@ -360,12 +360,12 @@ class DesktopCache(
         sourceId: String,
         track: Track,
     ): Lyrics? =
-        lrclibLyrics(sourceId, track, LrclibLyricsClient())
+        lrclibLyrics(sourceId, track, DesktopLrclibLyricsClient())
 
     suspend fun lrclibLyrics(
         sourceId: String,
         track: Track,
-        client: LrclibLyricsClient = LrclibLyricsClient(),
+        client: DesktopLrclibLyricsClient = DesktopLrclibLyricsClient(),
     ): Lyrics? =
         lyricsSidecar.lrclibLyrics(sourceId, track, client)
 

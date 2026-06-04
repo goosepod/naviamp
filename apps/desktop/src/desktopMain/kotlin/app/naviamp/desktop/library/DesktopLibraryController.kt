@@ -26,7 +26,7 @@ class DesktopLibraryController(
     private val mediaSourceRepository: MediaSourceRepository,
     private val cacheMaintenanceRepository: CacheMaintenanceRepository<StorageCacheStats>,
     private val libraryOffsetForLetter: (sourceId: String, tab: LibraryTab, letter: Char) -> Long,
-    private val librarySync: LibrarySync,
+    private val librarySync: DesktopLibrarySync,
     private val provider: () -> MediaProvider?,
     private val sourceId: () -> String?,
     private val libraryQuery: () -> String,

@@ -447,7 +447,7 @@ This is a strong first slice because playback-source selection currently affects
   - `AndroidPlaybackForegroundService` still owns media-browser item shaping and service lifecycle, while the SQL-backed history query is exposed through the shared metadata repository port.
 - 2026-06-02: Moved desktop library orchestration onto shared metadata repository ports.
   - `DesktopLibraryController` now receives `LocalLibraryIndexRepository`, `MediaSourceRepository`, and `CacheMaintenanceRepository` instead of broad `DesktopCache`.
-  - `LibrarySync` now writes library artists/albums/tracks through `LocalLibraryIndexRepository`.
+  - `DesktopLibrarySync` now writes library artists/albums/tracks through `LocalLibraryIndexRepository`.
   - Library sync album-detail fetches use shared `ProviderResponseService`, keeping provider-response cache behavior shared while index writes stay behind the library metadata port.
   - Desktop-specific letter offset remains a local injected function because it is UI paging support, not a cross-platform repository contract yet.
 - 2026-06-02: Moved Android library sync and freshness checks onto shared metadata repository ports.

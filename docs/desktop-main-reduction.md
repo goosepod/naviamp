@@ -241,7 +241,7 @@ Branch: `codex/desktop-main-reduction`
 
 - [ ] Split `DesktopCache` and `AndroidStorage` into narrow shared-port implementations instead of broad do-everything classes.
   - `DesktopLibraryController` now uses library/media-source/maintenance repository ports instead of direct `DesktopCache`.
-  - `LibrarySync` writes local library index metadata through `LocalLibraryIndexRepository`.
+  - `DesktopLibrarySync` writes local library index metadata through `LocalLibraryIndexRepository`.
   - Android library sync/freshness helpers now use library/media-source repository ports instead of direct `AndroidStorage`.
   - Android maintenance helpers now use maintenance/library repository ports instead of direct `AndroidStorage`.
   - Android artist/album detail fallback helpers now use the shared library-index repository port instead of direct `AndroidStorage`.
@@ -360,10 +360,10 @@ Follow the convention above: shared/common abstractions keep generic names; plat
   - `playback/bass/DesktopBassLibraryResolver.kt`
   - `playback/bass/DesktopBassNative.kt`
   - `playback/bass/DesktopBassPlaybackEngine.kt`
-- [ ] Desktop lyrics and library helpers:
-  - `library/LibrarySync.kt`
-  - `lyrics/AudioTagReader.kt`
-  - `lyrics/LrclibLyricsClient.kt`
+- [x] Desktop lyrics and library helpers:
+  - `library/DesktopLibrarySync.kt`
+  - `lyrics/DesktopAudioTagReader.kt`
+  - `lyrics/DesktopLrclibLyricsClient.kt`
 - [ ] Desktop navigation/theme helpers:
   - `navigation/AppNavigation.kt`
   - `navigation/NavigationIcons.kt`

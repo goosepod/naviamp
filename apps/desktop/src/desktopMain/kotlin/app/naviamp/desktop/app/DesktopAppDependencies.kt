@@ -31,7 +31,7 @@ class DesktopAppDependencies(
     val audioMetadataSidecarService: AudioMetadataSidecarService =
         AudioMetadataSidecarService(
             playbackAudioAssets = playbackAudioAssets,
-            audioTagReader = { localAudio -> AudioTagReader().read(Path.of(localAudio.path)) },
+            audioTagReader = { localAudio -> DesktopAudioTagReader().read(Path.of(localAudio.path)) },
         )
 
     val lyricsSidecarService: LyricsSidecarService =
@@ -93,8 +93,8 @@ class DesktopAppDependencies(
             playbackAudioAssets = playbackAudioAssets,
         )
 
-    fun librarySync(): LibrarySync =
-        LibrarySync(
+    fun librarySync(): DesktopLibrarySync =
+        DesktopLibrarySync(
             libraryIndexRepository = storage,
             providerResponseService = ProviderResponseService(storage),
         )

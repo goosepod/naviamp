@@ -6,7 +6,7 @@ import kotlin.io.path.exists
 
 typealias AudioTag = app.naviamp.domain.audio.AudioTag
 
-class AudioTagReader {
+class DesktopAudioTagReader {
     fun read(path: Path): List<AudioTag> {
         if (!path.exists()) return emptyList()
         return runCatching {

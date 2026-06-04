@@ -38,9 +38,9 @@ This tracks the work to give the Compose desktop app the same kind of maintainab
   - [x] Move connection form reset/saved-source mapping into `connection/`.
   - [x] Move connection validation, prepared Navidrome connection, success-status, and delete decisions into `connection/`.
 - [x] Split library sync/freshness helpers out of `Main.kt`.
-  - [x] Move library freshness model/status decision into `library/LibrarySync.kt`.
-  - [x] Move library snapshot paging helpers into `library/LibrarySync.kt`.
-  - [x] Move auto-sync, sync signature marking, and freshness loading into `library/LibrarySync.kt`.
+  - [x] Move library freshness model/status decision into `library/DesktopLibrarySync.kt`.
+  - [x] Move library snapshot paging helpers into `library/DesktopLibrarySync.kt`.
+  - [x] Move auto-sync, sync signature marking, and freshness loading into `library/DesktopLibrarySync.kt`.
 - [x] Split playlist/download mutations out of `Main.kt`, keeping shared provider mutations in `core/domain`.
   - [x] Move desktop playlist mutation refresh/status helpers into `playlists/`.
   - [x] Move desktop download mutation status/playback helpers into `downloads/`.

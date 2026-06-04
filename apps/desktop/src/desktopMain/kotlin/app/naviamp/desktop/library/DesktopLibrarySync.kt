@@ -9,14 +9,14 @@ import app.naviamp.domain.library.shouldAutoSyncLibrary as shouldAutoSyncLibrary
 import app.naviamp.domain.library.nextLibraryLimit as nextLibraryPageLimit
 import app.naviamp.domain.provider.MediaProvider
 
-class LibrarySync(
+class DesktopLibrarySync(
     private val libraryIndexRepository: LocalLibraryIndexRepository,
     private val providerResponseService: ProviderResponseService,
 ) {
     suspend fun syncAndMarkScanChecked(
         sourceId: String,
         provider: MediaProvider,
-        onProgress: suspend (LibrarySyncProgress) -> Unit = {},
+        onProgress: suspend (DesktopLibrarySyncProgress) -> Unit = {},
     ) {
         sync(
             sourceId = sourceId,
@@ -31,24 +31,24 @@ class LibrarySync(
     suspend fun sync(
         sourceId: String,
         provider: MediaProvider,
-        onProgress: suspend (LibrarySyncProgress) -> Unit = {},
+        onProgress: suspend (DesktopLibrarySyncProgress) -> Unit = {},
     ) {
         libraryIndexRepository.markLibrarySyncStarted(sourceId)
-        onProgress(LibrarySyncProgress("Loading artists", 0, null))
+        onProgress(DesktopLibrarySyncProgress("Loading artists", 0, null))
         val artists = provider.artists(limit = 100_000)
         libraryIndexRepository.upsertLibraryArtists(sourceId, artists)
-        onProgress(LibrarySyncProgress("Indexed artists", artists.size, null))
+        onProgress(DesktopLibrarySyncProgress("Indexed artists", artists.size, null))
 
         val albums = mutableListOf<app.naviamp.domain.Album>()
         var offset = 0
         val pageSize = 500
         while (true) {
-            onProgress(LibrarySyncProgress("Loading albums", albums.size, null))
+            onProgress(DesktopLibrarySyncProgress("Loading albums", albums.size, null))
             val page = provider.albums(limit = pageSize, offset = offset)
             if (page.isEmpty()) break
             albums += page
             libraryIndexRepository.upsertLibraryAlbums(sourceId, page)
-            onProgress(LibrarySyncProgress("Indexed albums", albums.size, null))
+            onProgress(DesktopLibrarySyncProgress("Indexed albums", albums.size, null))
             if (page.size < pageSize) break
             offset += pageSize
         }
@@ -56,7 +56,7 @@ class LibrarySync(
         var trackCount = 0
         albums.forEachIndexed { index, album ->
             onProgress(
-                LibrarySyncProgress(
+                DesktopLibrarySyncProgress(
                     phase = "Loading tracks",
                     completed = index,
                     total = albums.size,
@@ -70,7 +70,7 @@ class LibrarySync(
 
         libraryIndexRepository.markLibrarySyncCompleted(sourceId)
         onProgress(
-            LibrarySyncProgress(
+            DesktopLibrarySyncProgress(
                 phase = "Library indexed",
                 completed = artists.size + albums.size + trackCount,
                 total = null,
@@ -115,7 +115,7 @@ fun shouldAutoSyncLibrary(
     return shouldAutoSyncLibraryIndex(indexStats)
 }
 
-data class LibrarySyncProgress(
+data class DesktopLibrarySyncProgress(
     val phase: String,
     val completed: Int,
     val total: Int?,

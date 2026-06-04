@@ -7,7 +7,7 @@ import app.naviamp.domain.lyrics.LrclibApiCall
 import app.naviamp.domain.lyrics.LrclibApiCallHistory
 import app.naviamp.domain.lyrics.lrclibApiCall
 
-class LrclibLyricsClient(
+class DesktopLrclibLyricsClient(
     baseUrl: String = "https://lrclib.net",
 ) : LrclibLyricsProvider(
     KtorSharedHttpClient(
