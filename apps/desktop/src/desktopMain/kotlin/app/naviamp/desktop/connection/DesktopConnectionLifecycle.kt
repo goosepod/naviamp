@@ -148,7 +148,8 @@ class DesktopConnectionLifecycleController(
                         clientCertificateKeyStorePassword = clientCertificateKeyStorePassword(),
                     ),
                     savedConnectionForLogin = savedConnectionForLogin(),
-                    sessionCache = sessionCache,
+                    cacheMaintenanceRepository = sessionCache,
+                    providerMediaSourceRepository = sessionCache,
                     clearProviderData = !restoreSavedSession,
                 )
                 val connection = session.connection

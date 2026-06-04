@@ -2,6 +2,9 @@ package app.naviamp.desktop
 
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Track
+import app.naviamp.domain.cache.CacheMaintenanceRepository
+import app.naviamp.domain.cache.ProviderMediaSourceConnection
+import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.settings.RestoredPlaybackSession
@@ -12,6 +15,7 @@ import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.NavidromeTls
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import app.naviamp.provider.navidrome.prepareNavidromeConnection
+import app.naviamp.provider.navidrome.resolvedDisplayName
 
 data class DesktopConnectionSession(
     val connection: NavidromeConnection,
@@ -40,7 +44,8 @@ suspend fun openDesktopConnectionSession(
     displayName: String,
     tlsSettings: NavidromeTlsSettings,
     savedConnectionForLogin: NavidromeConnection?,
-    sessionCache: DesktopCache,
+    cacheMaintenanceRepository: CacheMaintenanceRepository<*>,
+    providerMediaSourceRepository: ProviderMediaSourceRepository,
     clearProviderData: Boolean,
 ): DesktopConnectionSession {
     val preparedConnection = prepareNavidromeConnection(
@@ -59,9 +64,21 @@ suspend fun openDesktopConnectionSession(
     val provider = NavidromeProvider(connection)
     val validation = provider.validateConnection()
     if (clearProviderData) {
-        sessionCache.clearProviderData()
+        cacheMaintenanceRepository.clearProviderData()
     }
-    val sourceId = sessionCache.upsertNavidromeSource(connection, provider).id
+    val sourceId = providerMediaSourceRepository.upsertProviderMediaSource(
+        connection = ProviderMediaSourceConnection(
+            displayName = connection.resolvedDisplayName(),
+            baseUrl = connection.baseUrl,
+            username = connection.username,
+            token = connection.token,
+            salt = connection.salt,
+            nativeToken = connection.nativeToken,
+            tlsSettings = connection.tlsSettings,
+        ),
+        cacheNamespace = provider.cacheNamespace,
+        providerId = provider.id.value,
+    ).id
     return DesktopConnectionSession(
         connection = connection,
         provider = provider,
