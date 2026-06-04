@@ -119,6 +119,7 @@ class DesktopCache(
         nowMillis = ::nowMillis,
         json = json,
     )
+    private val maintenance = DesktopStorageMaintenanceStore(queries)
     private val hotImages = object : LinkedHashMap<String, ByteArray>(16, 0.75f, true) {}
     private var hotImageBytes: Long = 0
     private val httpClient = KtorSharedHttpClient()
@@ -583,7 +584,7 @@ class DesktopCache(
     }
 
     override fun clearProviderData() {
-        queries.clearResponses()
+        maintenance.clearProviderData()
     }
 
     override fun clearCacheData() {
@@ -591,20 +592,12 @@ class DesktopCache(
             hotImages.clear()
             hotImageBytes = 0
         }
-        queries.transaction {
-            queries.clearResponses()
-            queries.clearImages()
-            queries.clearAudioWaveforms()
-            queries.clearAudio()
-            queries.clearLyrics()
-            queries.clearLrclibLyrics()
-            queries.clearSidecarStatuses()
-        }
+        maintenance.clearCacheDataRows()
         clearAudioFiles()
     }
 
     override fun clearDownloadData() {
-        queries.clearDownloads()
+        maintenance.clearDownloadDataRows()
         clearDownloadFiles()
     }
 
@@ -616,28 +609,13 @@ class DesktopCache(
         clearCacheData()
         clearDownloadData()
         clearLibraryData(null)
-        queries.clearMediaSources()
+        maintenance.clearAllRows()
     }
 
     override fun stats(): StorageCacheStats =
-        StorageCacheStats(
+        maintenance.stats(
             databaseLabel = databasePath.toAbsolutePath().toString(),
             databaseBytes = databasePath.sizeOrZero(),
-            imageCount = queries.imageCacheCount().executeAsOne(),
-            imageBytes = queries.imageCacheSize().executeAsOne(),
-            responseCount = queries.responseCacheCount().executeAsOne(),
-            audioCount = queries.audioCacheCount().executeAsOne(),
-            audioBytes = queries.audioCacheSize().executeAsOne(),
-            downloadCount = queries.downloadedAudioCount().executeAsOne(),
-            downloadBytes = queries.downloadedAudioSize().executeAsOne(),
-            audioWaveformCount = queries.audioWaveformCacheCount().executeAsOne(),
-            audioWaveformBytes = queries.audioWaveformCacheSize().executeAsOne(),
-            lyricsCount = queries.lyricsCacheCount().executeAsOne() + queries.lrclibLyricsCacheCount().executeAsOne(),
-            lyricsBytes = queries.lyricsCacheSize().executeAsOne() + queries.lrclibLyricsCacheSize().executeAsOne(),
-            mediaSourceCount = queries.mediaSourceCount().executeAsOne(),
-            libraryArtistCount = queries.libraryArtistCount().executeAsOne(),
-            libraryAlbumCount = queries.libraryAlbumCount().executeAsOne(),
-            libraryTrackCount = queries.libraryTrackCount().executeAsOne(),
             hotImageCount = synchronized(hotImages) { hotImages.size },
             hotImageBytes = synchronized(hotImages) { hotImageBytes },
             maxImageBytes = maxImageCacheBytes,

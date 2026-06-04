@@ -116,6 +116,7 @@ class AndroidStorage(
         json = json,
         nowMillis = ::nowMillis,
     )
+    private val maintenance = AndroidStorageMaintenanceStore(queries)
     private val httpClient = KtorSharedHttpClient()
     private val imageByteStoreService = ObjectByteStoreService(
         store = AndroidObjectByteStore(
@@ -502,24 +503,16 @@ class AndroidStorage(
         libraryIndex.libraryAlbumYears(sourceId)
 
     override fun clearProviderData() {
-        queries.clearResponses()
+        maintenance.clearProviderData()
     }
 
     override fun clearCacheData() {
-        queries.transaction {
-            queries.clearResponses()
-            queries.clearImages()
-            queries.clearAudioWaveforms()
-            queries.clearAudio()
-            queries.clearLyrics()
-            queries.clearLrclibLyrics()
-            queries.clearSidecarStatuses()
-        }
+        maintenance.clearCacheDataRows()
         clearFiles(audioCacheDirectory)
     }
 
     override fun clearDownloadData() {
-        queries.clearDownloads()
+        maintenance.clearDownloadDataRows()
         clearFiles(downloadDirectory)
     }
 
@@ -532,27 +525,12 @@ class AndroidStorage(
         clearDownloadData()
         clearLibraryData(null)
         playbackStore.clearPlaybackHistory()
-        queries.clearMediaSources()
+        maintenance.clearAllRows()
     }
 
     override fun stats(): StorageCacheStats =
-        StorageCacheStats(
+        maintenance.stats(
             databaseLabel = DatabaseName,
-            mediaSourceCount = queries.mediaSourceCount().executeAsOne(),
-            playbackSessionCount = queries.playbackSessionCount().executeAsOne(),
-            imageCount = queries.imageCacheCount().executeAsOne(),
-            imageBytes = queries.imageCacheSize().executeAsOne(),
-            responseCount = queries.responseCacheCount().executeAsOne(),
-            audioCount = queries.audioCacheCount().executeAsOne(),
-            audioBytes = queries.audioCacheSize().executeAsOne(),
-            downloadCount = queries.downloadedAudioCount().executeAsOne(),
-            downloadBytes = queries.downloadedAudioSize().executeAsOne(),
-            audioWaveformCount = queries.audioWaveformCacheCount().executeAsOne(),
-            audioWaveformBytes = queries.audioWaveformCacheSize().executeAsOne(),
-            lyricsBytes = queries.lyricsCacheSize().executeAsOne() + queries.lrclibLyricsCacheSize().executeAsOne(),
-            libraryArtistCount = queries.libraryArtistCount().executeAsOne(),
-            libraryAlbumCount = queries.libraryAlbumCount().executeAsOne(),
-            libraryTrackCount = queries.libraryTrackCount().executeAsOne(),
             audioCacheDirectory = audioCacheDirectory.absolutePath,
             downloadDirectory = downloadDirectory.absolutePath,
         )
