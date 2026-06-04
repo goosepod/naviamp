@@ -85,6 +85,18 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     private val serviceStorage: AndroidStorageDependencies
         get() = serviceStorageInstance ?: AndroidStorageDependencies(applicationContext).also { serviceStorageInstance = it }
     private val autoQueueController = PlaybackQueueController()
+    private val autoBrowseController: AndroidAutoBrowseController by lazy {
+        AndroidAutoBrowseController(
+            context = applicationContext,
+            storage = { serviceStorage },
+            currentQueue = { currentAutoQueue },
+            currentMetadata = { currentMetadata },
+            restoredNowPlayingMetadata = { restoredNowPlayingMetadata() },
+            providerResponseService = { cacheRepository -> providerResponseService(cacheRepository) },
+            loadArtistTracks = ::loadServiceArtistTracks,
+            loadAlbumTracks = ::loadServiceAlbumTracks,
+        )
+    }
 
     private fun providerResponseService(cacheRepository: ProviderResponseCacheRepository = serviceStorage): ProviderResponseService =
         ProviderResponseService(cacheRepository)
@@ -1319,6 +1331,8 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         result: Result<MutableList<MediaBrowserCompat.MediaItem>>,
     ) {
         hydrateSavedPlaybackSession()
+        autoBrowseController.loadChildren(parentId, result)
+        return
         Log.i("NaviampAutoCommand", "Loading Auto children parent=$parentId")
         val storage = serviceStorage
         val sourceId = storage.latestNavidromeSource()?.id
@@ -1633,6 +1647,8 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         options: Bundle,
     ) {
         hydrateSavedPlaybackSession()
+        autoBrowseController.loadChildren(parentId, result, options)
+        return
         Log.i("NaviampAutoCommand", "Loading Auto children parent=$parentId options=${options.debugDescription()}")
         options.autoSearchQuery()?.let { query ->
             loadAsyncChildren(result) { autoSearchResults(query) }
@@ -1647,6 +1663,8 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         result: Result<MutableList<MediaBrowserCompat.MediaItem>>,
     ) {
         hydrateSavedPlaybackSession()
+        autoBrowseController.search(query, extras, result)
+        return
         val searchQuery = query.ifBlank { extras?.autoSearchQuery().orEmpty() }
         Log.i("NaviampAutoCommand", "Loading Auto search query=$searchQuery extras=${extras?.debugDescription().orEmpty()}")
         loadAsyncChildren(result) { autoSearchResults(searchQuery) }
