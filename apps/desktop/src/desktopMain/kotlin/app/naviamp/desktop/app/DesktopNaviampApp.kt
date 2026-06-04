@@ -697,7 +697,9 @@ fun NaviampApp(
 
     val connectionLifecycleController = DesktopConnectionLifecycleController(
         scope = coroutineScope,
-        sessionCache = sessionCache,
+        cacheMaintenanceRepository = sessionCache,
+        mediaSourceRepository = sessionCache,
+        providerMediaSourceRepository = sessionCache,
         settingsStore = settingsStore,
         playbackSessionRepository = settingsStore,
         playbackEngine = playbackEngine,

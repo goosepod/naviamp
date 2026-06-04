@@ -2,8 +2,12 @@ package app.naviamp.desktop
 
 import app.naviamp.domain.Track
 import app.naviamp.domain.app.databaseResetStatus
+import app.naviamp.domain.cache.CacheMaintenanceRepository
 import app.naviamp.domain.cache.LibrarySnapshot
+import app.naviamp.domain.cache.MediaSourceRepository
 import app.naviamp.domain.cache.PlaybackSessionRepository
+import app.naviamp.domain.cache.ProviderMediaSourceRepository
+import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackProgress
@@ -45,7 +49,9 @@ data class DesktopActiveConnectionClearState(
 
 class DesktopConnectionLifecycleController(
     private val scope: CoroutineScope,
-    private val sessionCache: DesktopCache,
+    private val cacheMaintenanceRepository: CacheMaintenanceRepository<StorageCacheStats>,
+    private val mediaSourceRepository: MediaSourceRepository,
+    private val providerMediaSourceRepository: ProviderMediaSourceRepository,
     private val settingsStore: DesktopSettingsStore,
     private val playbackSessionRepository: PlaybackSessionRepository,
     private val playbackEngine: PlaybackEngine,
@@ -148,8 +154,8 @@ class DesktopConnectionLifecycleController(
                         clientCertificateKeyStorePassword = clientCertificateKeyStorePassword(),
                     ),
                     savedConnectionForLogin = savedConnectionForLogin(),
-                    cacheMaintenanceRepository = sessionCache,
-                    providerMediaSourceRepository = sessionCache,
+                    cacheMaintenanceRepository = cacheMaintenanceRepository,
+                    providerMediaSourceRepository = providerMediaSourceRepository,
                     clearProviderData = !restoreSavedSession,
                 )
                 val connection = session.connection
@@ -202,7 +208,7 @@ class DesktopConnectionLifecycleController(
     }
 
     fun resetDatabase() {
-        sessionCache.clearAll()
+        cacheMaintenanceRepository.clearAll()
         settingsStore.clearConnection()
         setSavedConnectionForLogin(null)
         incrementMediaSourcesRevision()
@@ -212,7 +218,7 @@ class DesktopConnectionLifecycleController(
     }
 
     fun deleteConnection(source: SavedMediaSource) {
-        sessionCache.deleteMediaSource(source.id)
+        mediaSourceRepository.deleteMediaSource(source.id)
         incrementMediaSourcesRevision()
         val savedConnection = savedConnectionForLogin()
         val update = deletedMediaSourceUpdate(
