@@ -114,6 +114,16 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             repeatAction = ActionRepeat,
         )
     }
+    private val serviceSessionController: AndroidPlaybackServiceSessionController by lazy {
+        AndroidPlaybackServiceSessionController(
+            storage = { serviceStorage },
+            currentMetadata = { currentMetadata },
+            setCurrentMetadata = { metadata -> currentMetadata = metadata },
+            syncQueue = ::syncAutoQueue,
+            updateMediaSession = { metadata -> updateMediaSession(metadata, currentLargeIcon) },
+            loadCoverArt = { url, metadata -> loadCoverArtAsync(url, metadata) },
+        )
+    }
 
     private fun providerResponseService(cacheRepository: ProviderResponseCacheRepository = serviceStorage): ProviderResponseService =
         ProviderResponseService(cacheRepository)
@@ -1817,50 +1827,11 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     }
 
     private fun hydrateSavedPlaybackSession() {
-        if (!currentMetadata.title.isNullOrBlank()) return
-        val storage = serviceStorage
-        val sourceId = storage.latestNavidromeSource()?.id ?: return
-        val session = storage.loadPlaybackSession(sourceId) ?: return
-        val restoredSession = session.restoredTrackSession() ?: return
-        val track = restoredSession.currentTrack
-        syncAutoQueue(PlaybackQueue(restoredSession.tracks, restoredSession.currentIndex))
-        val coverArtUrl = storage.savedCoverArtUrl(track)
-        currentMetadata = AndroidPlaybackNotificationMetadata(
-            title = track.title,
-            subtitle = track.artistName,
-            coverArtUrl = coverArtUrl,
-        )
-        AndroidPlaybackNotificationControls.positionMillis = session.positionSeconds
-            ?.takeIf { it > 0.0 }
-            ?.let { (it * 1_000.0).toLong() }
-        AndroidPlaybackNotificationControls.durationMillis = track.durationSeconds
-            ?.takeIf { it > 0 }
-            ?.let { it * 1_000L }
-        updateMediaSession(currentMetadata, currentLargeIcon)
-        coverArtUrl?.let { loadCoverArtAsync(it, currentMetadata) }
-        Log.i(
-            "NaviampSession",
-            "Hydrated Android Auto session source=$sourceId title=${track.title} position=${session.positionSeconds}",
-        )
+        serviceSessionController.hydrateSavedPlaybackSession()
     }
 
-    private fun restoredNowPlayingMetadata(): AndroidPlaybackNotificationMetadata? {
-        val storage = serviceStorage
-        val sourceId = storage.latestNavidromeSource()?.id ?: return null
-        val session = storage.loadPlaybackSession(sourceId) ?: return null
-        session.internetRadioStation?.let { station ->
-            return AndroidPlaybackNotificationMetadata(
-                title = station.name,
-                subtitle = "Internet radio",
-            )
-        }
-        val track = session.currentTrack() ?: return null
-        return AndroidPlaybackNotificationMetadata(
-            title = track.title,
-            subtitle = track.artistName,
-            coverArtUrl = storage.savedCoverArtUrl(track),
-        )
-    }
+    private fun restoredNowPlayingMetadata(): AndroidPlaybackNotificationMetadata? =
+        serviceSessionController.restoredNowPlayingMetadata()
 
     private fun trackItem(
         track: Track,
