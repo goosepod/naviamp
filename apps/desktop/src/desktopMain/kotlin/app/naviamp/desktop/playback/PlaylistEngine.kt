@@ -34,6 +34,7 @@ import app.naviamp.domain.playback.emptyPlaybackAudioAssetRepository
 import app.naviamp.domain.playback.finished
 import app.naviamp.domain.playback.initialAudioPrefetchStats
 import app.naviamp.domain.playback.planPrepareNextQueuePlayback
+import app.naviamp.domain.playback.preparedNextPlaybackRequest
 import app.naviamp.domain.playback.playbackStreamUrl
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
 import app.naviamp.domain.playback.started
@@ -484,6 +485,8 @@ class PlaylistEngine(
     ) {
         val queueAwareEngine = playbackEngine as? QueueAwarePlaybackEngine ?: return
         val nextIndex = queueController.nextGaplessQueueIndex() ?: return
+        val currentProvider = provider ?: return
+        val currentQuality = streamQuality ?: return
         val plan = planPrepareNextQueuePlayback(
             queue = queue,
             progress = progress,
@@ -495,26 +498,25 @@ class PlaylistEngine(
             supportsCrossfade = playbackEngine.supportsCrossfade,
             gaplessPrepareWindowSeconds = GaplessPrepareWindowSeconds,
         ) ?: return
-
-        val currentProvider = provider ?: return
-        val currentQuality = streamQuality ?: return
         queueController.markPreparedNext(plan.nextQueueIndex)
-        val nextTrack = plan.track
 
         scope.launch {
             if (activeSessionId != queueController.playbackSessionId) return@launch
             try {
-                val streamUrl = playbackTarget(currentProvider, nextTrack, currentQuality).url
-                val replayGain = replayGainForTrack(nextTrack, currentQuality)
+                val prepared = preparedNextPlaybackRequest(
+                    plan = plan,
+                    provider = currentProvider,
+                    sourceId = sourceIdProvider(),
+                    quality = currentQuality,
+                    audioCachingEnabled = audioCachingEnabledProvider(),
+                    audioAssets = playbackAudioAssets,
+                    replayGainMode = replayGainMode,
+                    supportsReplayGain = playbackEngine.supportsReplayGain,
+                    replayGainForTrack = ::replayGainForTrack,
+                )
                 if (activeSessionId == queueController.playbackSessionId) {
-                    val request = PlaybackRequest(
-                        url = streamUrl,
-                        mediaId = nextTrack.id.value,
-                        replayGainMode = replayGainMode.forEngine(playbackEngine),
-                        replayGain = replayGain,
-                    )
                     withContext(Dispatchers.IO) {
-                        queueAwareEngine.prepareNext(request)
+                        queueAwareEngine.prepareNext(prepared.request)
                     }
                 }
             } catch (_: Exception) {

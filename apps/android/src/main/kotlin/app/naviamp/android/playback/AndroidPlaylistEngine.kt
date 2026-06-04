@@ -22,7 +22,7 @@ import app.naviamp.domain.playback.SidecarTypeLyrics
 import app.naviamp.domain.playback.SidecarTypeWaveform
 import app.naviamp.domain.playback.audioPrefetchTracks
 import app.naviamp.domain.playback.planPrepareNextQueuePlayback
-import app.naviamp.domain.playback.playbackStreamUrl
+import app.naviamp.domain.playback.preparedNextPlaybackRequest
 import app.naviamp.domain.playback.recordSidecarFailure
 import app.naviamp.domain.playback.recordSidecarSuccess
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
@@ -154,26 +154,22 @@ class AndroidPlaylistEngine(
         scope.launch {
             runCatching {
                 val quality = currentStreamQuality()
-                val audioSourcePlan = resolvePlaybackAudioSource(
+                preparedNextPlaybackRequest(
+                    plan = plan,
+                    provider = activeProvider,
                     sourceId = sourceId,
-                    track = nextTrack,
                     quality = quality,
                     audioCachingEnabled = true,
                     audioAssets = playbackAudioAssets,
+                    replayGainMode = state.playbackSettings.replayGainMode,
+                    supportsReplayGain = playbackEngine.supportsReplayGain,
+                    replayGainForTrack = { track, _ ->
+                        track.replayGain?.let { PlaybackReplayGain(it, ReplayGainSource.Provider) }
+                    },
                 )
-                audioSourcePlan.playbackStreamUrl(
-                    providerStreamUrl = { target -> activeProvider.streamUrl(target.providerStreamRequest) },
-                )
-            }.onSuccess { streamUrl ->
+            }.onSuccess { prepared ->
                 if (sessionToken != state.playbackSessionToken) return@onSuccess
-                queueAwareEngine.prepareNext(
-                    PlaybackRequest(
-                        url = streamUrl,
-                        mediaId = nextTrack.id.value,
-                        replayGainMode = state.playbackSettings.replayGainMode,
-                        replayGain = nextTrack.replayGain?.let { PlaybackReplayGain(it, ReplayGainSource.Provider) },
-                    ),
-                )
+                queueAwareEngine.prepareNext(prepared.request)
             }.onFailure {
                 playbackQueueController.clearPreparedNext()
             }
