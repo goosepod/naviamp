@@ -15,6 +15,7 @@ import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.playback.SidecarTypeWaveform
+import app.naviamp.domain.playback.audioPrefetchTracks
 import app.naviamp.domain.playback.planPrepareNextPlayback
 import app.naviamp.domain.playback.recordSidecarFailure
 import app.naviamp.domain.playback.recordSidecarSuccess
@@ -98,10 +99,11 @@ class AndroidPlaylistEngine(
         state.audioPrefetchJob?.cancel()
         val sourceId = state.activeSourceId ?: return
         val quality = currentStreamQuality()
-        val tracksToPrefetch = queue.tracks
-            .drop(queue.currentIndex.coerceAtLeast(0))
-            .take(AndroidAudioPrefetchDepth)
-            .filterNot { it.isInternetRadioTrack() }
+        val tracksToPrefetch = audioPrefetchTracks(
+            queue = queue,
+            depth = AndroidAudioPrefetchDepth,
+            includeCurrentTrack = true,
+        )
         if (tracksToPrefetch.isEmpty()) return
 
         state.audioPrefetchJob = scope.launch {
