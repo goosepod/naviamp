@@ -6,7 +6,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 
 @Composable
-fun NaviampDropdownMenu(
+fun DesktopNaviampDropdownMenu(
     expanded: Boolean,
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
@@ -21,7 +21,7 @@ fun NaviampDropdownMenu(
 }
 
 @Composable
-fun NaviampDropdownMenuItem(
+fun DesktopNaviampDropdownMenuItem(
     label: String,
     icon: ImageVector? = null,
     enabled: Boolean = true,

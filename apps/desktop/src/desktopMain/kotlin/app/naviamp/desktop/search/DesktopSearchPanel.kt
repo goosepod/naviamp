@@ -20,7 +20,7 @@ import app.naviamp.domain.provider.MediaSearchResults
 
 @Composable
 fun DesktopSearchPanel(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     query: String,
     results: MediaSearchResults,
     status: String?,
@@ -62,7 +62,7 @@ fun DesktopSearchPanel(
                 if (query.isNotBlank() || !results.isEmpty || status != null || isSearching) {
                     IconButton(onClick = onClearSearch) {
                         Icon(
-                            imageVector = NavigationIcons.Close,
+                            imageVector = DesktopNavigationIcons.Close,
                             contentDescription = "Clear search",
                             tint = appColors.secondaryText,
                         )
@@ -142,7 +142,7 @@ fun DesktopSearchPanel(
 @Composable
 private fun SearchSection(
     title: String,
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     content: @Composable () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {

@@ -10,7 +10,7 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun DetailActionIconButton(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     icon: ImageVector,
     contentDescription: String,
     enabled: Boolean,

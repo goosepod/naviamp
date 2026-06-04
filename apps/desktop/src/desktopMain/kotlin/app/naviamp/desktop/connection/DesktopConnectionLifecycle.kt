@@ -102,8 +102,8 @@ class DesktopConnectionLifecycleController(
     private val incrementMediaSourcesRevision: () -> Unit,
     private val setConnectionFormOpen: (Boolean) -> Unit,
     private val setConnectionStatus: (String) -> Unit,
-    private val setAppRoute: (AppRoute) -> Unit,
-    private val appRoute: () -> AppRoute,
+    private val setAppRoute: (DesktopAppRoute) -> Unit,
+    private val appRoute: () -> DesktopAppRoute,
 ) {
     fun connectToServer(restoreSavedSession: Boolean = false) {
         if (isConnecting()) return
@@ -115,7 +115,7 @@ class DesktopConnectionLifecycleController(
         )
         if (formError != null) {
             setConnectionStatus(formError)
-            setAppRoute(AppRoute.Settings)
+            setAppRoute(DesktopAppRoute.Settings)
             return
         }
 
@@ -172,8 +172,8 @@ class DesktopConnectionLifecycleController(
                     clearPassword()
                 }
                 setConnectionFormOpen(false)
-                if (appRoute() == AppRoute.Settings) {
-                    setAppRoute(AppRoute.Home)
+                if (appRoute() == DesktopAppRoute.Settings) {
+                    setAppRoute(DesktopAppRoute.Home)
                 }
                 setConnectionStatus(
                     navidromeConnectionSuccessStatus(
@@ -191,7 +191,7 @@ class DesktopConnectionLifecycleController(
                 checkLibraryFreshness()
             } catch (exception: Exception) {
                 setConnectedProvider(null)
-                setAppRoute(AppRoute.Settings)
+                setAppRoute(DesktopAppRoute.Settings)
                 setConnectionStatus(exception.message ?: "Could not connect to Navidrome.")
             } finally {
                 setConnecting(false)
@@ -214,7 +214,7 @@ class DesktopConnectionLifecycleController(
         incrementMediaSourcesRevision()
         clearActiveConnectionState()
         setConnectionStatus(databaseResetStatus(savedServersRemoved = true))
-        setAppRoute(AppRoute.Settings)
+        setAppRoute(DesktopAppRoute.Settings)
     }
 
     fun deleteConnection(source: SavedMediaSource) {

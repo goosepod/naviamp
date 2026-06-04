@@ -16,18 +16,18 @@ class DesktopAlbumController(
     providerResponseCacheRepository: ProviderResponseCacheRepository,
     private val provider: () -> MediaProvider?,
     private val sourceId: () -> String?,
-    private val currentRoute: () -> AppRoute,
-    private val lastContentRoute: () -> AppRoute,
-    private val albumDetailBackRoute: () -> AppRoute,
-    private val setAlbumDetailBackRoute: (AppRoute) -> Unit,
-    private val setRoute: (AppRoute) -> Unit,
+    private val currentRoute: () -> DesktopAppRoute,
+    private val lastContentRoute: () -> DesktopAppRoute,
+    private val albumDetailBackRoute: () -> DesktopAppRoute,
+    private val setAlbumDetailBackRoute: (DesktopAppRoute) -> Unit,
+    private val setRoute: (DesktopAppRoute) -> Unit,
     private val setSelectedAlbum: (Album?) -> Unit,
     private val setSelectedAlbumDetails: (AlbumDetails?) -> Unit,
     private val setSelectedAlbumStatus: (String?) -> Unit,
 ) {
     private val providerResponseService = ProviderResponseService(providerResponseCacheRepository)
 
-    fun openAlbumDetails(album: Album, backRouteOverride: AppRoute? = null) {
+    fun openAlbumDetails(album: Album, backRouteOverride: DesktopAppRoute? = null) {
         val activeProvider = provider() ?: return
         setAlbumDetailBackRoute(
             resolveAlbumDetailBackRoute(
@@ -40,7 +40,7 @@ class DesktopAlbumController(
         setSelectedAlbum(album)
         setSelectedAlbumDetails(null)
         setSelectedAlbumStatus("Loading...")
-        setRoute(AppRoute.AlbumDetail)
+        setRoute(DesktopAppRoute.AlbumDetail)
         scope.launch {
             try {
                 setSelectedAlbumDetails(loadAlbumDetails(libraryIndexRepository, providerResponseService, activeProvider, album, sourceId()))
@@ -52,6 +52,6 @@ class DesktopAlbumController(
     }
 
     fun openTrackAlbumDetails(track: Track) {
-        openAlbumDetails(trackAlbum(track) ?: return, backRouteOverride = AppRoute.Player)
+        openAlbumDetails(trackAlbum(track) ?: return, backRouteOverride = DesktopAppRoute.Player)
     }
 }

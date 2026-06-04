@@ -38,7 +38,7 @@ import java.time.format.DateTimeFormatter
 
 @Composable
 fun DesktopStatsForNerdsWindow(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     info: DesktopStatsForNerdsInfo,
     onClose: () -> Unit,
 ) {
@@ -178,7 +178,7 @@ fun DesktopStatsForNerdsWindow(
 
 @Composable
 private fun StatsSection(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     title: String,
     rows: List<Pair<String, String>>,
 ) {
@@ -204,7 +204,7 @@ private fun StatsSection(
 
 @Composable
 private fun ApiHistorySection(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     calls: List<DesktopApiCallStats>,
 ) {
     Column(

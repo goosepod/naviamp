@@ -34,7 +34,7 @@ import app.naviamp.ui.playlistRowActions
 
 @Composable
 fun DesktopHomePanel(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     connectionStatus: String?,
     homeContent: HomeContent,
     coverArtUrl: (String?) -> String?,
@@ -219,7 +219,7 @@ fun DesktopHomePanel(
 @Composable
 private fun HomeAlbumSection(
     title: String,
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     albums: List<Album>,
     coverArtUrl: (String?) -> String?,
     onAlbumSelected: (Album) -> Unit,
@@ -249,7 +249,7 @@ private fun HomeAlbumSection(
 
 @Composable
 private fun MixCard(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     album: Album,
     coverArtUrl: String?,
     onClick: () -> Unit,
@@ -294,7 +294,7 @@ private fun MixCard(
 
 @Composable
 private fun PlaylistRow(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     playlist: Playlist,
     coverArtUrl: String?,
     onClick: () -> Unit,
@@ -343,7 +343,7 @@ private fun PlaylistRow(
 
 @Composable
 private fun StationRow(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     title: String,
     subtitle: String,
     onClick: () -> Unit,
@@ -381,7 +381,7 @@ private fun StationRow(
 @Composable
 private fun HomeSection(
     title: String,
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     content: @Composable () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {

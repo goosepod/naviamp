@@ -39,7 +39,7 @@ import app.naviamp.ui.trackRowActions
 
 @Composable
 fun DesktopMediaRow(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
     background: Boolean = true,
@@ -73,7 +73,7 @@ fun DesktopMediaRow(
 
 @Composable
 fun DesktopArtistRow(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     artist: Artist,
     modifier: Modifier = Modifier,
     coverArtUrl: String? = null,
@@ -120,7 +120,7 @@ fun DesktopArtistRow(
 
 @Composable
 fun DesktopAlbumRow(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     album: Album,
     coverArtUrl: String?,
     modifier: Modifier = Modifier,
@@ -177,7 +177,7 @@ fun DesktopAlbumRow(
 
 @Composable
 fun DesktopTrackRow(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     track: Track,
     modifier: Modifier = Modifier,
     coverArtUrl: String? = null,
@@ -283,7 +283,7 @@ fun DesktopTrackRow(
 
 @Composable
 fun DesktopRowOverflowMenu(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     items: List<DesktopRowMenuItem>,
 ) {
     NaviampRowOverflowMenu(
@@ -304,7 +304,7 @@ private fun NaviampActionSpec.toRowMenuItem(onClick: () -> Unit): DesktopRowMenu
 
 @Composable
 fun DesktopTrackMetadataTrailing(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     track: Track,
     showDuration: Boolean,
 ) {
@@ -323,7 +323,7 @@ fun DesktopTrackMetadataTrailing(
 
 @Composable
 private fun MediaTextBlock(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     title: String,
     subtitle: String,
     modifier: Modifier = Modifier,

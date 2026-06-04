@@ -49,7 +49,7 @@ enum class DesktopPlaylistSortMode(val label: String) {
 
 @Composable
 fun DesktopPlaylistsPanel(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     playlists: List<Playlist>,
     playlistTracks: (Playlist) -> List<Track>,
     recentPlaylistIds: List<String>,
@@ -100,7 +100,7 @@ fun DesktopPlaylistsPanel(
                     modifier = Modifier.size(32.dp),
                 ) {
                     Icon(
-                        NavigationIcons.Playlist,
+                        DesktopNavigationIcons.Playlist,
                         contentDescription = "Create smart playlist",
                         tint = appColors.primaryText,
                         modifier = Modifier.size(18.dp),
@@ -113,8 +113,8 @@ fun DesktopPlaylistsPanel(
                         label = {
                             Icon(
                                 imageVector = when (mode) {
-                                    DesktopPlaylistSortMode.Alphabetical -> NavigationIcons.Alphabetical
-                                    DesktopPlaylistSortMode.RecentlyPlayed -> NavigationIcons.Clock
+                                    DesktopPlaylistSortMode.Alphabetical -> DesktopNavigationIcons.Alphabetical
+                                    DesktopPlaylistSortMode.RecentlyPlayed -> DesktopNavigationIcons.Clock
                                 },
                                 contentDescription = mode.label,
                                 modifier = Modifier.size(16.dp),
@@ -194,7 +194,7 @@ fun DesktopPlaylistsPanel(
 
 @Composable
 private fun PlaylistListRow(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     playlist: Playlist,
     coverArtUrl: (String?) -> String?,
     playlistCoverArtUrl: String?,
@@ -254,7 +254,7 @@ private fun PlaylistListRow(
 
 @Composable
 fun DesktopPlaylistDetailPanel(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     playlist: Playlist?,
     tracks: List<Track>,
     status: String?,
@@ -278,7 +278,7 @@ fun DesktopPlaylistDetailPanel(
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             IconButton(onClick = onBack, modifier = Modifier.size(32.dp)) {
                 Icon(
-                    imageVector = NavigationIcons.Back,
+                    imageVector = DesktopNavigationIcons.Back,
                     contentDescription = "Back",
                     tint = appColors.primaryText,
                     modifier = Modifier.size(18.dp),
@@ -352,7 +352,7 @@ private fun List<NaviampActionSpec>.playlistAction(action: NaviampAction): Navia
 
 @Composable
 fun DesktopPlaylistCover(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     tracks: List<Track>,
     coverArtUrl: (String?) -> String?,
     size: Dp,

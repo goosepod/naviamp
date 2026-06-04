@@ -153,7 +153,7 @@ fun NaviampApp(
     dependencies: DesktopAppDependencies = remember { DesktopAppDependencies() },
 ) {
     val isDark = isSystemInDarkTheme()
-    val appColors = if (isDark) AppColors.Dark else AppColors.Light
+    val appColors = if (isDark) DesktopAppColors.Dark else DesktopAppColors.Light
     val colorScheme = if (isDark) darkColorScheme() else lightColorScheme()
     val settingsStore = dependencies.settingsStore
     val playbackEngine = dependencies.playbackEngine
@@ -249,7 +249,7 @@ fun NaviampApp(
     var selectedAlbum by remember { mutableStateOf<Album?>(null) }
     var selectedAlbumDetails by remember { mutableStateOf<AlbumDetails?>(null) }
     var selectedAlbumStatus by remember { mutableStateOf<String?>(null) }
-    var albumDetailBackRoute by remember { mutableStateOf(AppRoute.Home) }
+    var albumDetailBackRoute by remember { mutableStateOf(DesktopAppRoute.Home) }
     var selectedArtist by remember { mutableStateOf<Artist?>(null) }
     var selectedArtistDetails by remember { mutableStateOf<ArtistDetails?>(null) }
     var selectedArtistStatus by remember { mutableStateOf<String?>(null) }
@@ -257,7 +257,7 @@ fun NaviampApp(
     var selectedArtistPopularTracksStatus by remember { mutableStateOf<String?>(null) }
     var selectedArtistSimilarArtists by remember { mutableStateOf<List<SimilarArtistMatch>>(emptyList()) }
     var selectedArtistSimilarArtistsStatus by remember { mutableStateOf<String?>(null) }
-    var artistDetailBackRoute by remember { mutableStateOf(AppRoute.Search) }
+    var artistDetailBackRoute by remember { mutableStateOf(DesktopAppRoute.Search) }
     var artistDetailBackStack by remember { mutableStateOf<List<Artist>>(emptyList()) }
     var searchQuery by remember { mutableStateOf(savedSearch.query) }
     var searchResults by remember { mutableStateOf(MediaSearchResults()) }
@@ -422,11 +422,11 @@ fun NaviampApp(
             nowPlayingVisualizerFrame = null
             return@LaunchedEffect
         }
-        if (!nowPlayingVisualizerVisible || appRoute != AppRoute.Player) {
+        if (!nowPlayingVisualizerVisible || appRoute != DesktopAppRoute.Player) {
             nowPlayingVisualizerFrame = null
             return@LaunchedEffect
         }
-        while (nowPlayingVisualizerVisible && appRoute == AppRoute.Player && (playbackState == PlaybackState.Playing || playbackState == PlaybackState.Loading)) {
+        while (nowPlayingVisualizerVisible && appRoute == DesktopAppRoute.Player && (playbackState == PlaybackState.Playing || playbackState == PlaybackState.Loading)) {
             nowPlayingVisualizerFrame = visualizerEngine.visualizerFrame()
             kotlinx.coroutines.delay(DefaultVisualizerFrameIntervalMillis)
         }
@@ -445,17 +445,17 @@ fun NaviampApp(
 
     LaunchedEffect(appRoute, albumDetailBackRoute, artistDetailBackRoute) {
         if (
-            appRoute == AppRoute.Player ||
-            appRoute == AppRoute.AlbumDetail ||
-            appRoute == AppRoute.ArtistDetail ||
-            appRoute == AppRoute.PlaylistDetail
+            appRoute == DesktopAppRoute.Player ||
+            appRoute == DesktopAppRoute.AlbumDetail ||
+            appRoute == DesktopAppRoute.ArtistDetail ||
+            appRoute == DesktopAppRoute.PlaylistDetail
         ) {
             settingsStore.saveNavigationSettings(
                 NavigationSettings(
                     route = appRoute.name,
-                    lastContentRoute = if (appRoute == AppRoute.AlbumDetail) {
+                    lastContentRoute = if (appRoute == DesktopAppRoute.AlbumDetail) {
                         albumDetailBackRoute.name
-                    } else if (appRoute == AppRoute.ArtistDetail) {
+                    } else if (appRoute == DesktopAppRoute.ArtistDetail) {
                         artistDetailBackRoute.name
                     } else {
                         lastContentRoute.name
@@ -714,7 +714,7 @@ fun NaviampApp(
                 previousTrack = nowPlayingTrack,
                 track = track,
                 openNowPlaying = openPlayerOnTrackStart,
-                nowPlayingOpen = appRoute == AppRoute.Player,
+                nowPlayingOpen = appRoute == DesktopAppRoute.Player,
                 lyricsVisible = false,
                 supportsTrackFavorites = connectedProvider?.capabilities?.supportsTrackFavorites == true,
             )
@@ -744,7 +744,7 @@ fun NaviampApp(
             if (effectsPlan.presentation.resetProgress) playbackProgress = PlaybackProgress.Unknown
             if (effectsPlan.refillRadioQueue) refillRadioIfNeeded(playlistEngine.queue)
             if (effectsPlan.presentation.shouldOpenNowPlaying) {
-                appRoute = AppRoute.Player
+                appRoute = DesktopAppRoute.Player
             }
         },
         onQueueChanged = { queue ->
@@ -1077,7 +1077,7 @@ fun NaviampApp(
         val target = playlistDetailAutoRefreshTarget(
             provider = connectedProvider,
             playlist = selectedPlaylist,
-            enabled = appRoute == AppRoute.PlaylistDetail,
+            enabled = appRoute == DesktopAppRoute.PlaylistDetail,
         ) ?: return@LaunchedEffect
         runPlaylistDetailAutoRefresh(
             target = target,
@@ -1109,7 +1109,7 @@ fun NaviampApp(
         connectionLifecycleController.connectToServer(restoreSavedSession)
     }
 
-    fun openAlbumDetails(album: Album, backRouteOverride: AppRoute? = null) {
+    fun openAlbumDetails(album: Album, backRouteOverride: DesktopAppRoute? = null) {
         albumController.openAlbumDetails(album, backRouteOverride)
     }
 
@@ -1279,13 +1279,13 @@ fun NaviampApp(
 
     fun openArtistDetails(
         artist: Artist,
-        backRouteOverride: AppRoute? = null,
+        backRouteOverride: DesktopAppRoute? = null,
         pushCurrentArtist: Boolean = true,
     ) {
         artistController.openArtistDetails(artist, backRouteOverride, pushCurrentArtist)
     }
 
-    fun openTrackArtistDetails(track: Track, backRouteOverride: AppRoute = AppRoute.Player) {
+    fun openTrackArtistDetails(track: Track, backRouteOverride: DesktopAppRoute = DesktopAppRoute.Player) {
         artistController.openTrackArtistDetails(track, backRouteOverride)
     }
 
@@ -1461,7 +1461,7 @@ fun NaviampApp(
                         .padding(2.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
-                    if (appRoute == AppRoute.Player && nowPlayingTrack != null) {
+                    if (appRoute == DesktopAppRoute.Player && nowPlayingTrack != null) {
                         Box(
                             modifier = Modifier
                                 .weight(1f)
@@ -1625,10 +1625,10 @@ fun NaviampApp(
                                 .fillMaxWidth()
                                 .then(
                                     if (
-                                        appRoute == AppRoute.Library ||
-                                            appRoute == AppRoute.Settings ||
-                                            appRoute == AppRoute.AlbumDetail ||
-                                            appRoute == AppRoute.ArtistDetail
+                                        appRoute == DesktopAppRoute.Library ||
+                                            appRoute == DesktopAppRoute.Settings ||
+                                            appRoute == DesktopAppRoute.AlbumDetail ||
+                                            appRoute == DesktopAppRoute.ArtistDetail
                                     ) {
                                         Modifier
                                     } else {
@@ -1641,8 +1641,8 @@ fun NaviampApp(
                                 modifier = Modifier.fillMaxSize(),
                             ) {
                                 when (appRoute) {
-                                    AppRoute.Player -> Unit
-                                AppRoute.Home -> DesktopHomePanel(
+                                    DesktopAppRoute.Player -> Unit
+                                DesktopAppRoute.Home -> DesktopHomePanel(
                                     appColors = appColors,
                                     connectionStatus = homeStatus ?: connectionStatus,
                                     homeContent = homeContent,
@@ -1696,14 +1696,14 @@ fun NaviampApp(
                                     },
                                     onOpenArtistMixBuilder = {
                                         libraryTab = DesktopLibraryTab.Artists
-                                        appRoute = AppRoute.Library
+                                        appRoute = DesktopAppRoute.Library
                                     },
                                     onOpenAlbumMixBuilder = {
                                         libraryTab = DesktopLibraryTab.Albums
-                                        appRoute = AppRoute.Library
+                                        appRoute = DesktopAppRoute.Library
                                     },
                                 )
-                                AppRoute.AlbumDetail -> DesktopAlbumDetailPanel(
+                                DesktopAppRoute.AlbumDetail -> DesktopAlbumDetailPanel(
                                     appColors = appColors,
                                     album = selectedAlbum,
                                     albumDetails = selectedAlbumDetails,
@@ -1747,10 +1747,10 @@ fun NaviampApp(
                                         playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(track))
                                     },
                                     onArtistSelected = { track ->
-                                        openTrackArtistDetails(track, backRouteOverride = AppRoute.AlbumDetail)
+                                        openTrackArtistDetails(track, backRouteOverride = DesktopAppRoute.AlbumDetail)
                                     },
                                 )
-                                AppRoute.ArtistDetail -> DesktopArtistDetailPanel(
+                                DesktopAppRoute.ArtistDetail -> DesktopArtistDetailPanel(
                                     appColors = appColors,
                                     artist = selectedArtist,
                                     artistDetails = selectedArtistDetails,
@@ -1795,7 +1795,7 @@ fun NaviampApp(
                                         playlistsController.openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(album))
                                     },
                                 )
-                                AppRoute.Playlists -> DesktopPlaylistsPanel(
+                                DesktopAppRoute.Playlists -> DesktopPlaylistsPanel(
                                     appColors = appColors,
                                     playlists = playlists,
                                     playlistTracks = { playlist -> playlistTracksById[playlist.id].orEmpty() },
@@ -1825,7 +1825,7 @@ fun NaviampApp(
                                         smartPlaylistsController.loadSmartPlaylistDefinition(playlist)
                                     },
                                 )
-                                AppRoute.PlaylistDetail -> DesktopPlaylistDetailPanel(
+                                DesktopAppRoute.PlaylistDetail -> DesktopPlaylistDetailPanel(
                                     appColors = appColors,
                                     playlist = selectedPlaylist,
                                     tracks = selectedPlaylistTracks,
@@ -1834,7 +1834,7 @@ fun NaviampApp(
                                     coverArtUrl = { coverArtId ->
                                         coverArtId?.let { connectedProvider?.coverArtUrl(it) }
                                     },
-                                    onBack = { appRoute = AppRoute.Playlists },
+                                    onBack = { appRoute = DesktopAppRoute.Playlists },
                                     onPlayPlaylist = { playPlaylistDetails() },
                                     onShufflePlaylist = { playPlaylistDetails(shuffle = true) },
                                     onRenamePlaylist = { selectedPlaylist?.let { playlistPendingRename = it } },
@@ -1862,7 +1862,7 @@ fun NaviampApp(
                                         playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(track))
                                     },
                                 )
-                                    AppRoute.Library -> {
+                                    DesktopAppRoute.Library -> {
                                         DesktopLibraryListLoadMoreEffect(
                                             selectedTab = libraryTab,
                                             snapshot = librarySnapshot,
@@ -1911,7 +1911,7 @@ fun NaviampApp(
                                             onRefreshLibrary = { libraryController.startLibrarySync(force = true) },
                                         )
                                     }
-                                    AppRoute.Search -> DesktopSearchPanel(
+                                    DesktopAppRoute.Search -> DesktopSearchPanel(
                                         appColors = appColors,
                                         query = searchQuery,
                                         results = searchResults,
@@ -1957,7 +1957,7 @@ fun NaviampApp(
                                             }
                                         },
                                     )
-                                    AppRoute.InternetRadio -> DesktopInternetRadioPanel(
+                                    DesktopAppRoute.InternetRadio -> DesktopInternetRadioPanel(
                                         appColors = appColors,
                                         stations = internetRadioStations,
                                         status = internetRadioStatus ?: connectionStatus,
@@ -1966,7 +1966,7 @@ fun NaviampApp(
                                         onEditStation = { station -> internetRadioStationPendingEdit = station },
                                         onDeleteStation = { station -> internetRadioStationPendingDelete = station },
                                     )
-                                    AppRoute.Downloads -> {
+                                    DesktopAppRoute.Downloads -> {
                                         val downloads = remember(
                                             connectedSourceId,
                                             downloadRefreshToken,
@@ -2010,7 +2010,7 @@ fun NaviampApp(
                                             },
                                         )
                                     }
-                                    AppRoute.Settings -> DesktopSettingsPanel(
+                                    DesktopAppRoute.Settings -> DesktopSettingsPanel(
                                         appColors = appColors,
                                         serverUrl = serverUrl,
                                         connectionName = connectionName,
@@ -2170,20 +2170,20 @@ fun NaviampApp(
                                     playlistEngine.next(coroutineScope)
                                 },
                                 onOpenPlayer = {
-                                    appRoute = AppRoute.Player
+                                    appRoute = DesktopAppRoute.Player
                                 },
                             )
                         }
-                        BottomNavigationBar(
+                        DesktopBottomNavigationBar(
                             appColors = appColors,
                             selectedRoute = when (appRoute) {
-                                AppRoute.AlbumDetail -> if (albumDetailBackRoute == AppRoute.ArtistDetail) {
+                                DesktopAppRoute.AlbumDetail -> if (albumDetailBackRoute == DesktopAppRoute.ArtistDetail) {
                                     artistDetailBackRoute
                                 } else {
                                     albumDetailBackRoute
                                 }
-                                AppRoute.ArtistDetail -> artistDetailBackRoute
-                                AppRoute.PlaylistDetail -> AppRoute.Playlists
+                                DesktopAppRoute.ArtistDetail -> artistDetailBackRoute
+                                DesktopAppRoute.PlaylistDetail -> DesktopAppRoute.Playlists
                                 else -> appRoute
                             },
                             onRouteSelected = { route ->

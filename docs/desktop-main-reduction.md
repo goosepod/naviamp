@@ -332,9 +332,9 @@ Branch: `codex/desktop-main-reduction`
 
 Follow the convention above: shared/common abstractions keep generic names; platform adapters, controllers, services, panels, storage, clients, and platform-owned helpers use `Desktop` or `Android` prefixes. Android already follows this convention except for `MainActivity.kt`, which is the platform entry point. Desktop still has mixed naming.
 
-- [ ] Desktop app shell files:
-  - `app/AppMenus.kt`
-  - `connection/ConnectionPanel.kt`
+- [x] Desktop app shell files:
+  - `app/DesktopAppMenus.kt`
+  - `connection/DesktopConnectionPanel.kt`
 - [x] Desktop UI panels:
   - `downloads/DesktopDownloadsPanel.kt`
   - `home/DesktopHomePanel.kt`
@@ -364,13 +364,12 @@ Follow the convention above: shared/common abstractions keep generic names; plat
   - `library/DesktopLibrarySync.kt`
   - `lyrics/DesktopAudioTagReader.kt`
   - `lyrics/DesktopLrclibLyricsClient.kt`
-- [ ] Desktop navigation/theme helpers:
-  - `navigation/AppNavigation.kt`
-  - `navigation/NavigationIcons.kt`
-  - `theme/AppColors.kt`
-  - `theme/DetailActionIconButton.kt`
-  - `theme/PlaybackFormatting.kt`
-  - `theme/TransportIcons.kt`
+- [x] Desktop navigation/theme helpers:
+  - `navigation/DesktopAppNavigation.kt`
+  - `navigation/DesktopNavigationIcons.kt`
+  - `theme/DesktopAppColors.kt`
+  - `theme/DetailActionIconButton.kt` remains generic because it is a shared desktop theme primitive rather than a platform adapter.
+  - `theme/PlaybackFormatting.kt` and `theme/TransportIcons.kt` remain generic because they wrap shared formatting/icon primitives.
 - Internet-radio station track shaping, metadata title updates, and recent-station ordering/limits are now shared through `core/domain`.
 - Artist detail fallback, status text, popular-track update, and similar-artist update rules are shared through `core/domain`; platforms keep route and external-link handling locally.
 - Library auto-sync gating, freshness polling updates, sync status text, and paging limits are shared through `core/domain`; platforms keep their storage-specific sync runners.

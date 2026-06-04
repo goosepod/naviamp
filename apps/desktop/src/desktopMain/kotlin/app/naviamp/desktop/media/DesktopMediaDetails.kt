@@ -15,45 +15,45 @@ import app.naviamp.domain.provider.MediaProvider
 
 data class ArtistDetailNavigation(
     val backStack: List<Artist>,
-    val backRoute: AppRoute,
+    val backRoute: DesktopAppRoute,
 )
 
 fun resolveAlbumDetailBackRoute(
-    currentRoute: AppRoute,
-    currentBackRoute: AppRoute,
-    lastContentRoute: AppRoute,
-    backRouteOverride: AppRoute?,
-): AppRoute =
+    currentRoute: DesktopAppRoute,
+    currentBackRoute: DesktopAppRoute,
+    lastContentRoute: DesktopAppRoute,
+    backRouteOverride: DesktopAppRoute?,
+): DesktopAppRoute =
     backRouteOverride ?: when (currentRoute) {
-        AppRoute.AlbumDetail -> currentBackRoute
-        AppRoute.ArtistDetail -> AppRoute.ArtistDetail
-        AppRoute.Player -> lastContentRoute
+        DesktopAppRoute.AlbumDetail -> currentBackRoute
+        DesktopAppRoute.ArtistDetail -> DesktopAppRoute.ArtistDetail
+        DesktopAppRoute.Player -> lastContentRoute
         else -> currentRoute
     }
 
 fun artistDetailNavigation(
     artist: Artist,
     currentArtist: Artist?,
-    currentRoute: AppRoute,
+    currentRoute: DesktopAppRoute,
     currentBackStack: List<Artist>,
-    currentBackRoute: AppRoute,
-    lastContentRoute: AppRoute,
-    backRouteOverride: AppRoute?,
+    currentBackRoute: DesktopAppRoute,
+    lastContentRoute: DesktopAppRoute,
+    backRouteOverride: DesktopAppRoute?,
     pushCurrentArtist: Boolean,
 ): ArtistDetailNavigation {
-    val backStack = if (pushCurrentArtist && currentRoute == AppRoute.ArtistDetail) {
+    val backStack = if (pushCurrentArtist && currentRoute == DesktopAppRoute.ArtistDetail) {
         currentArtist
             ?.takeIf { it.id != artist.id }
             ?.let { currentBackStack + it }
             ?: currentBackStack
-    } else if (currentRoute != AppRoute.ArtistDetail) {
+    } else if (currentRoute != DesktopAppRoute.ArtistDetail) {
         emptyList()
     } else {
         currentBackStack
     }
     val backRoute = backRouteOverride ?: when (currentRoute) {
-        AppRoute.ArtistDetail -> currentBackRoute
-        AppRoute.Player -> lastContentRoute
+        DesktopAppRoute.ArtistDetail -> currentBackRoute
+        DesktopAppRoute.Player -> lastContentRoute
         else -> currentRoute
     }
     return ArtistDetailNavigation(

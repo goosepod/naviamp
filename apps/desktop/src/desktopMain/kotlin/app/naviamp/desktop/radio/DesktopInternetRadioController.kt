@@ -68,7 +68,7 @@ class DesktopInternetRadioController(
     private val setLastProgressUiUpdateMillis: (Long) -> Unit,
     private val restoredPlaybackPositionSeconds: () -> Double?,
     private val setRestoredPlaybackPositionSeconds: (Double?) -> Unit,
-    private val setAppRoute: (AppRoute) -> Unit,
+    private val setAppRoute: (DesktopAppRoute) -> Unit,
 ) {
     fun refreshStations() {
         val activeProvider = provider() ?: return
@@ -127,7 +127,7 @@ class DesktopInternetRadioController(
         if (plan.savePlaybackSession) {
             playbackSessionRepository.savePlaybackSession(PlaybackSessionSettings.fromInternetRadioStation(station))
         }
-        if (plan.openNowPlaying) setAppRoute(AppRoute.Player)
+        if (plan.openNowPlaying) setAppRoute(DesktopAppRoute.Player)
         playbackEngine.play(
             scope = scope,
             request = PlaybackRequest(

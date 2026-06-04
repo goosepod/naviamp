@@ -32,7 +32,7 @@ import app.naviamp.domain.popular.SimilarArtistMatch
 
 @Composable
 fun DesktopArtistDetailPanel(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     artist: Artist?,
     artistDetails: ArtistDetails?,
     popularTracks: List<Track>,
@@ -78,7 +78,7 @@ fun DesktopArtistDetailPanel(
                 modifier = Modifier.size(32.dp),
             ) {
                 Icon(
-                    imageVector = NavigationIcons.Back,
+                    imageVector = DesktopNavigationIcons.Back,
                     contentDescription = "Back",
                     tint = appColors.primaryText,
                     modifier = Modifier.size(18.dp),
@@ -135,14 +135,14 @@ fun DesktopArtistDetailPanel(
                         )
                         DetailActionIconButton(
                             appColors = appColors,
-                            icon = NavigationIcons.Queue,
+                            icon = DesktopNavigationIcons.Queue,
                             contentDescription = "Add artist to queue",
                             enabled = details.albums.isNotEmpty(),
                             onClick = { effectiveArtist?.let(onAddArtistToQueue) },
                         )
                         DetailActionIconButton(
                             appColors = appColors,
-                            icon = NavigationIcons.Playlist,
+                            icon = DesktopNavigationIcons.Playlist,
                             contentDescription = "Add artist to playlist",
                             enabled = details.albums.isNotEmpty(),
                             onClick = { effectiveArtist?.let(onAddArtistToPlaylist) },
@@ -156,7 +156,7 @@ fun DesktopArtistDetailPanel(
                         )
                         DetailActionIconButton(
                             appColors = appColors,
-                            icon = NavigationIcons.Artist,
+                            icon = DesktopNavigationIcons.Artist,
                             contentDescription = "Find similar artists",
                             enabled = effectiveArtist != null,
                             onClick = { effectiveArtist?.let(onFindSimilarArtists) },
@@ -213,7 +213,7 @@ fun DesktopArtistDetailPanel(
                         )
                         DetailActionIconButton(
                             appColors = appColors,
-                            icon = NavigationIcons.Artist,
+                            icon = DesktopNavigationIcons.Artist,
                             contentDescription = "Refresh similar artists",
                             enabled = effectiveArtist != null,
                             onClick = { effectiveArtist?.let(onFindSimilarArtists) },
@@ -258,7 +258,7 @@ fun DesktopArtistDetailPanel(
                             )
                             DetailActionIconButton(
                                 appColors = appColors,
-                                icon = NavigationIcons.Queue,
+                                icon = DesktopNavigationIcons.Queue,
                                 contentDescription = "Add popular tracks to queue",
                                 enabled = true,
                                 onClick = { onPopularTracksAddToQueue(popularTracks) },
@@ -310,7 +310,7 @@ fun DesktopArtistDetailPanel(
 
 @Composable
 private fun SimilarArtistRow(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     similarArtist: SimilarArtistMatch,
     onSimilarArtistSelected: (Artist) -> Unit,
     onSimilarArtistExternalSelected: (String) -> Unit,
@@ -361,7 +361,7 @@ private fun SimilarArtistRow(
                 modifier = Modifier.size(32.dp),
             ) {
                 Icon(
-                    imageVector = NavigationIcons.ExternalLink,
+                    imageVector = DesktopNavigationIcons.ExternalLink,
                     contentDescription = "Open Deezer artist page",
                     tint = appColors.secondaryText,
                     modifier = Modifier.size(16.dp),
@@ -369,7 +369,7 @@ private fun SimilarArtistRow(
             }
         } else {
             Icon(
-                imageVector = NavigationIcons.ChevronRight,
+                imageVector = DesktopNavigationIcons.ChevronRight,
                 contentDescription = null,
                 tint = appColors.secondaryText,
                 modifier = Modifier.size(16.dp),

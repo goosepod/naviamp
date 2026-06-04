@@ -70,7 +70,7 @@ import kotlin.math.roundToInt
 @Composable
 fun DesktopSettingsPanel(
     modifier: Modifier = Modifier,
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     serverUrl: String,
     connectionName: String,
     username: String,
@@ -370,7 +370,7 @@ fun DesktopSettingsPanel(
 
 @Composable
 private fun SettingsCategoryList(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     connectionSubtitle: String,
     onCategorySelected: (NaviampSettingsCategory) -> Unit,
 ) {
@@ -395,7 +395,7 @@ private fun SettingsCategoryList(
 
 @Composable
 private fun SettingsCategoryRow(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     category: NaviampSettingsCategory,
     subtitle: String,
     onClick: () -> Unit,
@@ -433,7 +433,7 @@ private fun SettingsCategoryRow(
             )
         }
         Icon(
-            imageVector = NavigationIcons.ChevronDown,
+            imageVector = DesktopNavigationIcons.ChevronDown,
             contentDescription = null,
             tint = appColors.secondaryText,
             modifier = Modifier
@@ -445,7 +445,7 @@ private fun SettingsCategoryRow(
 
 @Composable
 private fun SettingsDetailHeader(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     title: String,
     onBack: () -> Unit,
 ) {
@@ -456,7 +456,7 @@ private fun SettingsDetailHeader(
     ) {
         IconButton(onClick = onBack, modifier = Modifier.size(34.dp)) {
             Icon(
-                imageVector = NavigationIcons.Back,
+                imageVector = DesktopNavigationIcons.Back,
                 contentDescription = "Back to settings",
                 tint = appColors.primaryText,
                 modifier = Modifier.size(20.dp),
@@ -468,7 +468,7 @@ private fun SettingsDetailHeader(
 
 @Composable
 private fun ConnectionsSettings(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     serverUrl: String,
     connectionName: String,
     username: String,
@@ -581,7 +581,7 @@ private fun ConnectionsSettings(
 
 @Composable
 private fun ConnectionForm(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     serverUrl: String,
     connectionName: String,
     username: String,
@@ -730,7 +730,7 @@ private fun CompactConnectionTextField(
     onValueChange: (String) -> Unit,
     label: String,
     modifier: Modifier,
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     enabled: Boolean = true,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     keyboardOptions: KeyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
@@ -784,7 +784,7 @@ private fun CompactConnectionTextField(
 
 @Composable
 private fun SavedConnectionRow(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     connection: SavedMediaSource,
     selected: Boolean,
     enabled: Boolean,
@@ -825,14 +825,14 @@ private fun SavedConnectionRow(
         ConnectionActionIconButton(
             enabled = enabled,
             onClick = onEdit,
-            icon = NavigationIcons.Edit,
+            icon = DesktopNavigationIcons.Edit,
             contentDescription = "Edit connection",
             appColors = appColors,
         )
         ConnectionActionIconButton(
             enabled = enabled,
             onClick = onDelete,
-            icon = NavigationIcons.Trash,
+            icon = DesktopNavigationIcons.Trash,
             contentDescription = "Delete connection",
             appColors = appColors,
         )
@@ -853,7 +853,7 @@ private fun ConnectionActionIconButton(
     onClick: () -> Unit,
     icon: ImageVector,
     contentDescription: String,
-    appColors: AppColors,
+    appColors: DesktopAppColors,
 ) {
     IconButton(
         enabled = enabled,
@@ -894,7 +894,7 @@ private fun DeleteConnectionDialog(
 
 @Composable
 private fun LocalDataSettings(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     onClearCache: () -> Unit,
     onClearLibrary: () -> Unit,
     onRefreshLibrary: () -> Unit,
@@ -932,7 +932,7 @@ private fun LocalDataSettings(
 
 @Composable
 private fun CacheSettingsSection(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     cacheSettings: CacheSettings,
     cacheStats: StorageCacheStats,
     onCacheSettingsChanged: (CacheSettings) -> Unit,
@@ -995,7 +995,7 @@ private fun CacheSettingsSection(
 
 @Composable
 private fun DiagnosticsSettings(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     connectionStatus: String?,
     statusClickCount: Int,
     lastStatusClickMillis: Long,
@@ -1032,7 +1032,7 @@ private fun DiagnosticsSettings(
 }
 
 @Composable
-private fun SettingsSectionTitle(title: String, appColors: AppColors) {
+private fun SettingsSectionTitle(title: String, appColors: DesktopAppColors) {
     Text(title, color = appColors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
 }
 
@@ -1043,7 +1043,7 @@ private fun DetentIntSettingsSlider(
     detents: List<Int>,
     snapDistance: Float,
     valueLabel: (Int) -> String,
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     onValueChanged: (Int) -> Unit,
     enabled: Boolean = true,
 ) {
@@ -1084,7 +1084,7 @@ private fun DetentByteSettingsSlider(
     valueBytes: Long,
     detents: List<AudioCacheBudgetOption>,
     snapDistance: Float,
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     onValueChanged: (Long) -> Unit,
     enabled: Boolean = true,
 ) {
@@ -1125,7 +1125,7 @@ private fun DetentSettingsSliderScaffold(
     valueLabel: String,
     detentLabels: List<String>,
     enabled: Boolean,
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     slider: @Composable () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
@@ -1151,7 +1151,7 @@ private fun DetentSettingsSliderScaffold(
 private fun DetentLabelRow(
     labels: List<String>,
     enabled: Boolean,
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     modifier: Modifier = Modifier,
 ) {
     Layout(

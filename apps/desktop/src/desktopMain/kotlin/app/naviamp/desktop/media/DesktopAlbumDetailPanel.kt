@@ -28,7 +28,7 @@ import app.naviamp.domain.Track
 
 @Composable
 fun DesktopAlbumDetailPanel(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     album: Album?,
     albumDetails: AlbumDetails?,
     status: String?,
@@ -61,7 +61,7 @@ fun DesktopAlbumDetailPanel(
                 modifier = Modifier.size(32.dp),
             ) {
                 Icon(
-                    imageVector = NavigationIcons.Back,
+                    imageVector = DesktopNavigationIcons.Back,
                     contentDescription = "Back",
                     tint = appColors.primaryText,
                     modifier = Modifier.size(18.dp),
@@ -148,21 +148,21 @@ fun DesktopAlbumDetailPanel(
                     )
                     DetailActionIconButton(
                         appColors = appColors,
-                        icon = NavigationIcons.Downloads,
+                        icon = DesktopNavigationIcons.Downloads,
                         contentDescription = "Download album",
                         enabled = albumDetails?.tracks?.isNotEmpty() == true,
                         onClick = onDownloadAlbum,
                     )
                     DetailActionIconButton(
                         appColors = appColors,
-                        icon = NavigationIcons.Queue,
+                        icon = DesktopNavigationIcons.Queue,
                         contentDescription = "Add album to queue",
                         enabled = albumDetails?.tracks?.isNotEmpty() == true,
                         onClick = onAddAlbumToQueue,
                     )
                     DetailActionIconButton(
                         appColors = appColors,
-                        icon = NavigationIcons.Playlist,
+                        icon = DesktopNavigationIcons.Playlist,
                         contentDescription = "Add album to playlist",
                         enabled = albumDetails?.tracks?.isNotEmpty() == true,
                         onClick = onAddAlbumToPlaylist,

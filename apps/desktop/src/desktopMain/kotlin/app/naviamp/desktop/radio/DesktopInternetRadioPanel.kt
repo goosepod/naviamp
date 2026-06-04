@@ -27,7 +27,7 @@ import app.naviamp.ui.stationRowActions
 
 @Composable
 fun DesktopInternetRadioPanel(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     stations: List<InternetRadioStation>,
     status: String?,
     onPlayStation: (InternetRadioStation) -> Unit,
@@ -65,7 +65,7 @@ fun DesktopInternetRadioPanel(
 
 @Composable
 private fun InternetRadioStationRow(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     station: InternetRadioStation,
     onPlay: () -> Unit,
     onEdit: () -> Unit,

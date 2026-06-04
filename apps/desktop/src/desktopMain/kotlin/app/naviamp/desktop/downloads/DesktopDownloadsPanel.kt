@@ -25,7 +25,7 @@ import app.naviamp.ui.storageBytesLabel
 
 @Composable
 fun DesktopDownloadsPanel(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     downloads: List<NaviampDownloadedTrackUi>,
     status: String?,
     downloadBytes: Long,

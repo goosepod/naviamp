@@ -38,7 +38,7 @@ import app.naviamp.domain.cache.LibrarySnapshot
 
 @Composable
 fun DesktopLibraryPanel(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     snapshot: LibrarySnapshot,
     query: String,
     selectedTab: DesktopLibraryTab,
@@ -108,7 +108,7 @@ fun DesktopLibraryPanel(
                 if (query.isNotBlank()) {
                     IconButton(onClick = { onQueryChanged("") }) {
                         Icon(
-                            imageVector = NavigationIcons.Close,
+                            imageVector = DesktopNavigationIcons.Close,
                             contentDescription = "Clear library search",
                             tint = appColors.secondaryText,
                         )
@@ -225,7 +225,7 @@ fun DesktopLibraryListLoadMoreEffect(
 
 @Composable
 private fun LetterRail(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     enabled: Boolean,
     onJumpToLetter: (Char) -> Unit,
 ) {

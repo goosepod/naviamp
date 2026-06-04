@@ -2,7 +2,7 @@ package app.naviamp.desktop
 
 import app.naviamp.ui.NaviampIcons
 
-object NavigationIcons {
+object DesktopNavigationIcons {
     val Home = NaviampIcons.Home
     val Library = NaviampIcons.Library
     val Search = NaviampIcons.Search

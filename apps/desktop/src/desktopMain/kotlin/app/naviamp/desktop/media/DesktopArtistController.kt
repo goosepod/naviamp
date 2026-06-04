@@ -34,9 +34,9 @@ class DesktopArtistController(
     providerResponseCacheRepository: ProviderResponseCacheRepository,
     private val provider: () -> MediaProvider?,
     private val sourceId: () -> String?,
-    private val currentRoute: () -> AppRoute,
-    private val lastContentRoute: () -> AppRoute,
-    private val setRoute: (AppRoute) -> Unit,
+    private val currentRoute: () -> DesktopAppRoute,
+    private val lastContentRoute: () -> DesktopAppRoute,
+    private val setRoute: (DesktopAppRoute) -> Unit,
     private val selectedArtist: () -> Artist?,
     private val setSelectedArtist: (Artist?) -> Unit,
     private val setSelectedArtistDetails: (ArtistDetails?) -> Unit,
@@ -45,8 +45,8 @@ class DesktopArtistController(
     private val setSelectedArtistPopularTracksStatus: (String?) -> Unit,
     private val setSelectedArtistSimilarArtists: (List<SimilarArtistMatch>) -> Unit,
     private val setSelectedArtistSimilarArtistsStatus: (String?) -> Unit,
-    private val artistDetailBackRoute: () -> AppRoute,
-    private val setArtistDetailBackRoute: (AppRoute) -> Unit,
+    private val artistDetailBackRoute: () -> DesktopAppRoute,
+    private val setArtistDetailBackRoute: (DesktopAppRoute) -> Unit,
     private val artistDetailBackStack: () -> List<Artist>,
     private val setArtistDetailBackStack: (List<Artist>) -> Unit,
     private val popularTracksService: ArtistPopularTracksService,
@@ -91,7 +91,7 @@ class DesktopArtistController(
 
     fun openArtistDetails(
         artist: Artist,
-        backRouteOverride: AppRoute? = null,
+        backRouteOverride: DesktopAppRoute? = null,
         pushCurrentArtist: Boolean = true,
     ) {
         val activeProvider = provider() ?: return
@@ -114,7 +114,7 @@ class DesktopArtistController(
         setSelectedArtistSimilarArtists(emptyList())
         setSelectedArtistSimilarArtistsStatus(null)
         setSelectedArtistStatus("Loading...")
-        setRoute(AppRoute.ArtistDetail)
+        setRoute(DesktopAppRoute.ArtistDetail)
         scope.launch {
             try {
                 val details = loadArtistDetails(libraryIndexRepository, providerResponseService, activeProvider, artist, sourceId())
@@ -127,7 +127,7 @@ class DesktopArtistController(
         }
     }
 
-    fun openTrackArtistDetails(track: Track, backRouteOverride: AppRoute = AppRoute.Player) {
+    fun openTrackArtistDetails(track: Track, backRouteOverride: DesktopAppRoute = DesktopAppRoute.Player) {
         openArtistDetails(trackArtist(track) ?: return, backRouteOverride = backRouteOverride)
     }
 

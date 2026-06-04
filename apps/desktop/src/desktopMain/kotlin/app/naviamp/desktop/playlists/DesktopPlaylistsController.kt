@@ -70,7 +70,7 @@ class DesktopPlaylistsController(
     private val setPlaylistPendingRename: (Playlist?) -> Unit,
     private val setPlaylistPendingDelete: (Playlist?) -> Unit,
     private val setConnectionStatus: (String?) -> Unit,
-    private val setAppRoute: (AppRoute) -> Unit,
+    private val setAppRoute: (DesktopAppRoute) -> Unit,
     private val stopRadioContinuation: () -> Unit,
     private val clearShuffleSnapshot: () -> Unit,
     private val setOpenPlayerOnTrackStart: (Boolean) -> Unit,
@@ -230,7 +230,7 @@ class DesktopPlaylistsController(
         setSelectedPlaylist(playlist)
         setSelectedPlaylistTracks(emptyList())
         setSelectedPlaylistStatus("Loading ${playlist.name}...")
-        setAppRoute(AppRoute.PlaylistDetail)
+        setAppRoute(DesktopAppRoute.PlaylistDetail)
         scope.launch {
             try {
                 refreshPlaylistDetailsFromServer(activeProvider, playlist, showLoadingStatus = false)
@@ -309,7 +309,7 @@ class DesktopPlaylistsController(
                 setSelectedPlaylist(update.selectedPlaylist)
                 setSelectedPlaylistTracks(update.selectedPlaylistTracks)
                 if (update.deletedSelectedPlaylist) {
-                    setAppRoute(AppRoute.Playlists)
+                    setAppRoute(DesktopAppRoute.Playlists)
                 }
                 setPlaylistTracksById(update.playlistTracksById)
                 setRecentPlaylistIds(update.recentPlaylistIds)

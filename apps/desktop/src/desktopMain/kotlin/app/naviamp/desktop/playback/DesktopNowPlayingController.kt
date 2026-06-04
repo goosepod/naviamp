@@ -32,7 +32,7 @@ class DesktopNowPlayingController(
     private val sourceId: () -> String?,
     private val playbackSettings: () -> PlaybackSettings,
     private val cacheSettings: () -> CacheSettings,
-    private val appRoute: () -> AppRoute,
+    private val appRoute: () -> DesktopAppRoute,
     private val lyricsVisible: () -> Boolean,
     private val playbackQueue: () -> PlaybackQueue,
     private val nowPlayingTrack: () -> Track?,
@@ -45,7 +45,7 @@ class DesktopNowPlayingController(
     private val setRelatedTracks: (List<Track>) -> Unit,
 ) {
     suspend fun loadNowPlayingAnalysis() {
-        val lyricsVisibleForWork = lyricsVisible() && appRoute() == AppRoute.Player
+        val lyricsVisibleForWork = lyricsVisible() && appRoute() == DesktopAppRoute.Player
         val track = nowPlayingTrack() ?: run {
             setNowPlayingWaveform(null)
             setNowPlayingWaveformStatus("No track")

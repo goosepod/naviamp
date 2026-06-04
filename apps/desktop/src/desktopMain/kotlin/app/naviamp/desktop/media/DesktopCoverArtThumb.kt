@@ -7,7 +7,7 @@ import app.naviamp.ui.PlatformCoverArt
 
 @Composable
 fun DesktopCoverArtThumb(
-    appColors: AppColors,
+    appColors: DesktopAppColors,
     coverArtUrl: String?,
     size: Dp,
     cornerRadius: Dp = 5.dp,

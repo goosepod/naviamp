@@ -33,8 +33,8 @@ import app.naviamp.ui.durationLabel
 import kotlinx.coroutines.launch
 
 @Composable
-fun ConnectionPanel(
-    appColors: AppColors,
+fun DesktopConnectionPanel(
+    appColors: DesktopAppColors,
     connectedProvider: NavidromeProvider?,
     connectionStatus: String?,
     recentlyAddedAlbums: List<Album>,

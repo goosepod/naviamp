@@ -131,7 +131,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - Navidrome connections support self-hosted networking options: default platform TLS, an explicit insecure certificate-verification bypass, a user-supplied trusted certificate/CA file, and mTLS through a PKCS12 client certificate store.
   - Navidrome TLS settings are persisted with saved media sources and applied to JVM HTTPS defaults so API calls, cover art, cached audio/downloads, and URL-based playback share the same trust/client-certificate behavior.
   - Settings Cache exposes audio caching on/off, prefetch depth, current audio cache usage, and max audio cache budget presets.
-  - Popup menus use a shared dark Feishin-inspired treatment through `NaviampDropdownMenu` / `NaviampDropdownMenuItem`.
+  - Popup menus use a shared dark Feishin-inspired treatment through `DesktopNaviampDropdownMenu` / `DesktopNaviampDropdownMenuItem`.
   - The `RELATED` tab is active. It loads same-album and same-artist tracks from the local source-scoped library index, excluding the current track and deduplicating by provider track ID.
   - Related rows can start playback immediately from the related list, and their row menu can start track radio.
 - Album release years:
@@ -245,7 +245,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 - Detail-page and overflow-menu actions now use leading/icon-only controls where appropriate. Keep menu text, but include recognizable leading icons for radio, download, details, album, artist, and playlist actions.
 - Shared UI extraction is underway:
   - `core/ui` owns the shared app colors, navigation icons, bottom navigation bar, transport icon vectors, Android cover-art abstraction, popup/dropdown menu styling, row overflow menu primitive, and the first shared transport control row.
-  - Desktop `AppColors`, `NavigationIcons`, `TransportIcons`, `AppNavigation`, and popup menus are now thin adapters over `core/ui` where possible.
+  - Desktop `DesktopAppColors`, `DesktopNavigationIcons`, `TransportIcons`, `DesktopAppNavigation`, and popup menus are now thin adapters over `core/ui` where possible.
   - When adding Android functionality, prefer moving the existing desktop visual primitive into `core/ui` and having both targets call it, rather than recreating a similar-looking Android-only version.
 - Playlists V1:
   - Playlists are server-backed through the provider contract. Navidrome uses Subsonic `createPlaylist`, `updatePlaylist`, and `deletePlaylist` for create, append, rename, and delete.
