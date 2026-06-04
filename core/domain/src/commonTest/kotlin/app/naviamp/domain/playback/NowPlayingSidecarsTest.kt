@@ -3,8 +3,10 @@ package app.naviamp.domain.playback
 import app.naviamp.domain.LyricLine
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.LyricsSource
+import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.internetRadioTrackId
 import app.naviamp.domain.queue.PlaybackQueue
 import kotlin.test.Test
@@ -31,6 +33,40 @@ class NowPlayingSidecarsTest {
         assertEquals("Cache disabled", waveformStatus(false, false, false, false))
         assertEquals("Preparing", waveformStatus(false, false, false, true))
         assertEquals("Unavailable", waveformStatus(false, false, true, true))
+    }
+
+    @Test
+    fun sidecarFailureStatusUsesMessageOrTypeFallback() {
+        assertEquals("No waveform", sidecarFailureStatus(IllegalStateException("No waveform")))
+        assertEquals("IllegalStateException", sidecarFailureStatus(IllegalStateException()))
+    }
+
+    @Test
+    fun sidecarStatusHelpersRecordSuccessAndFailureRows() {
+        val repository = RecordingSidecarStatusRepository()
+        val trackId = TrackId("track")
+
+        repository.recordSidecarSuccess(
+            sourceId = "source",
+            trackId = trackId,
+            quality = StreamQuality.Original,
+            sidecarType = SidecarTypeWaveform,
+        )
+        repository.recordSidecarFailure(
+            sourceId = "source",
+            trackId = trackId,
+            quality = StreamQuality.Original,
+            sidecarType = SidecarTypeLyrics,
+            errorMessage = "Lyrics unavailable",
+        )
+
+        assertEquals(
+            listOf(
+                RecordedSidecarStatus("source", trackId, SidecarTypeWaveform, success = true, errorMessage = null),
+                RecordedSidecarStatus("source", trackId, SidecarTypeLyrics, success = false, errorMessage = "Lyrics unavailable"),
+            ),
+            repository.records,
+        )
     }
 
     @Test
@@ -99,4 +135,27 @@ class NowPlayingSidecarsTest {
             audioInfo = null,
             replayGain = null,
         )
+}
+
+private data class RecordedSidecarStatus(
+    val sourceId: String,
+    val trackId: TrackId,
+    val sidecarType: String,
+    val success: Boolean,
+    val errorMessage: String?,
+)
+
+private class RecordingSidecarStatusRepository : SidecarStatusRepository {
+    val records = mutableListOf<RecordedSidecarStatus>()
+
+    override fun recordSidecarStatus(
+        sourceId: String,
+        trackId: TrackId,
+        quality: StreamQuality,
+        sidecarType: String,
+        success: Boolean,
+        errorMessage: String?,
+    ) {
+        records += RecordedSidecarStatus(sourceId, trackId, sidecarType, success, errorMessage)
+    }
 }

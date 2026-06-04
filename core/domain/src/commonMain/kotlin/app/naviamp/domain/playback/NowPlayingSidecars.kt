@@ -1,7 +1,10 @@
 package app.naviamp.domain.playback
 
 import app.naviamp.domain.Lyrics
+import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
+import app.naviamp.domain.TrackId
+import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.queue.PlaybackQueue
 
@@ -19,6 +22,41 @@ fun lyricsUnavailableStatus(error: Throwable): String =
 
 fun waveformUnavailableStatus(error: Throwable): String =
     error.message ?: "Waveform unavailable"
+
+fun sidecarFailureStatus(error: Throwable): String =
+    error.message ?: error::class.simpleName ?: "Sidecar prep failed."
+
+fun SidecarStatusRepository.recordSidecarSuccess(
+    sourceId: String,
+    trackId: TrackId,
+    quality: StreamQuality,
+    sidecarType: String,
+) {
+    recordSidecarStatus(
+        sourceId = sourceId,
+        trackId = trackId,
+        quality = quality,
+        sidecarType = sidecarType,
+        success = true,
+    )
+}
+
+fun SidecarStatusRepository.recordSidecarFailure(
+    sourceId: String,
+    trackId: TrackId,
+    quality: StreamQuality,
+    sidecarType: String,
+    errorMessage: String,
+) {
+    recordSidecarStatus(
+        sourceId = sourceId,
+        trackId = trackId,
+        quality = quality,
+        sidecarType = sidecarType,
+        success = false,
+        errorMessage = errorMessage,
+    )
+}
 
 fun shouldLoadOnlineLyrics(
     onlineLyricsEnabled: Boolean,
