@@ -97,6 +97,23 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             loadAlbumTracks = ::loadServiceAlbumTracks,
         )
     }
+    private val autoCommandController: AndroidAutoCommandController by lazy {
+        AndroidAutoCommandController(
+            handleServiceAutoPlayPause = { handleServiceAutoPlayPause() },
+            handleServicePlayMediaId = ::handleServicePlayMediaId,
+            handleServicePlaySearch = ::handleServicePlaySearch,
+            launchMainActivityForAutoMediaId = ::launchMainActivityForAutoMediaId,
+            launchMainActivityForAutoCommand = ::launchMainActivityForAutoCommand,
+            toggleFavorite = { toggleServiceFavorite() },
+            toggleShuffle = { toggleServiceShuffle() },
+            cycleRepeat = { cycleServiceRepeatMode() },
+            refreshNotification = { refreshNotification(null) },
+            isPlaying = { AndroidPlaybackNotificationControls.isPlaying },
+            favoriteAction = ActionFavorite,
+            shuffleAction = ActionShuffle,
+            repeatAction = ActionRepeat,
+        )
+    }
 
     private fun providerResponseService(cacheRepository: ProviderResponseCacheRepository = serviceStorage): ProviderResponseService =
         ProviderResponseService(cacheRepository)
@@ -1258,49 +1275,15 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                     }
 
                     override fun onPlayFromMediaId(mediaId: String, extras: Bundle?) {
-                        Log.i("NaviampAutoCommand", "Auto requested mediaId=$mediaId")
-                        if (mediaId == AndroidAutoPlaybackControls.MediaIdNowPlaying && !AndroidPlaybackNotificationControls.isPlaying) {
-                            handleServiceAutoPlayPause()
-                            refreshNotification(null)
-                            return
-                        }
-                        if (handleServicePlayMediaId(mediaId)) {
-                            return
-                        }
-                        val handledInProcess = AndroidAutoPlaybackControls.onPlayMediaId?.let { handler ->
-                            handler(mediaId)
-                            true
-                        } ?: false
-                        if (!handledInProcess) {
-                            launchMainActivityForAutoMediaId(mediaId)
-                        }
+                        autoCommandController.playFromMediaId(mediaId, extras)
                     }
 
                     override fun onPlayFromSearch(query: String, extras: Bundle?) {
-                        Log.i("NaviampAutoCommand", "Auto requested search=$query")
-                        if (!handleServicePlaySearch(query)) {
-                            launchMainActivityForAutoCommand(AndroidAutoPlaybackControls.CommandPlayPause)
-                        }
+                        autoCommandController.playFromSearch(query, extras)
                     }
 
                     override fun onCustomAction(action: String, extras: android.os.Bundle?) {
-                        when (action) {
-                            ActionFavorite -> if (AndroidPlaybackNotificationControls.canFavorite) {
-                                AndroidPlaybackNotificationControls.isFavorite =
-                                    !AndroidPlaybackNotificationControls.isFavorite
-                                AndroidPlaybackNotificationControls.onToggleFavorite?.invoke()
-                                refreshNotification(null)
-                            }
-                            ActionShuffle -> {
-                                toggleServiceShuffle()
-                                refreshNotification(null)
-                            }
-                            ActionRepeat -> {
-                                serviceRepeatMode = serviceRepeatMode.next()
-                                updateMediaSessionPlaybackState()
-                                refreshNotification(null)
-                            }
-                        }
+                        autoCommandController.customAction(action, extras)
                     }
                 },
             )
@@ -1722,6 +1705,19 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             }
         }
         updateMediaSession(currentMetadata, currentLargeIcon)
+    }
+
+    private fun toggleServiceFavorite() {
+        if (!AndroidPlaybackNotificationControls.canFavorite) return
+        AndroidPlaybackNotificationControls.isFavorite =
+            !AndroidPlaybackNotificationControls.isFavorite
+        AndroidPlaybackNotificationControls.onToggleFavorite?.invoke()
+        refreshNotification(null)
+    }
+
+    private fun cycleServiceRepeatMode() {
+        serviceRepeatMode = serviceRepeatMode.next()
+        updateMediaSessionPlaybackState()
     }
 
     private fun publishAutoQueue(session: MediaSessionCompat) {

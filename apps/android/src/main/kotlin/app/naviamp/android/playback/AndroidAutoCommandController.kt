@@ -1,0 +1,65 @@
+package app.naviamp.android.playback
+
+import android.os.Bundle
+import android.util.Log
+
+internal class AndroidAutoCommandController(
+    private val handleServiceAutoPlayPause: () -> Unit,
+    private val handleServicePlayMediaId: (String) -> Boolean,
+    private val handleServicePlaySearch: (String) -> Boolean,
+    private val launchMainActivityForAutoMediaId: (String) -> Unit,
+    private val launchMainActivityForAutoCommand: (String) -> Unit,
+    private val toggleFavorite: () -> Unit,
+    private val toggleShuffle: () -> Unit,
+    private val cycleRepeat: () -> Unit,
+    private val refreshNotification: () -> Unit,
+    private val isPlaying: () -> Boolean,
+    private val favoriteAction: String,
+    private val shuffleAction: String,
+    private val repeatAction: String,
+) {
+    fun playFromMediaId(mediaId: String, extras: Bundle?) {
+        Log.i("NaviampAutoCommand", "Auto requested mediaId=$mediaId extras=${extras?.debugDescription().orEmpty()}")
+        if (mediaId == AndroidAutoPlaybackControls.MediaIdNowPlaying && !isPlaying()) {
+            handleServiceAutoPlayPause()
+            refreshNotification()
+            return
+        }
+        if (handleServicePlayMediaId(mediaId)) {
+            return
+        }
+        val handledInProcess = AndroidAutoPlaybackControls.onPlayMediaId?.let { handler ->
+            handler(mediaId)
+            true
+        } ?: false
+        if (!handledInProcess) {
+            launchMainActivityForAutoMediaId(mediaId)
+        }
+    }
+
+    fun playFromSearch(query: String, extras: Bundle?) {
+        Log.i("NaviampAutoCommand", "Auto requested search=$query extras=${extras?.debugDescription().orEmpty()}")
+        if (!handleServicePlaySearch(query)) {
+            launchMainActivityForAutoCommand(AndroidAutoPlaybackControls.CommandPlayPause)
+        }
+    }
+
+    fun customAction(action: String, extras: Bundle?) {
+        Log.i("NaviampAutoCommand", "Auto requested custom action=$action extras=${extras?.debugDescription().orEmpty()}")
+        when (action) {
+            favoriteAction -> toggleFavorite()
+            shuffleAction -> {
+                toggleShuffle()
+                refreshNotification()
+            }
+            repeatAction -> {
+                cycleRepeat()
+                refreshNotification()
+            }
+        }
+    }
+}
+
+@Suppress("DEPRECATION")
+private fun Bundle.debugDescription(): String =
+    keySet().joinToString(prefix = "{", postfix = "}") { key -> "$key=${get(key)}" }
