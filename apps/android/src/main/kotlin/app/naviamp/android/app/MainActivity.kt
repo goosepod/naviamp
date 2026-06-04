@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import app.naviamp.android.playback.AndroidAutoPlaybackControls
 import app.naviamp.android.playback.AndroidBassLoadReport
+import app.naviamp.android.playback.AndroidAudioTagReader
 import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.android.playback.AndroidPlaybackForegroundService
 import app.naviamp.android.playback.AndroidPlaybackNotificationControls
@@ -51,6 +52,7 @@ import app.naviamp.domain.home.HomeService
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.cache.downloadConnectionRequiredStatus
+import app.naviamp.domain.audio.AudioMetadataSidecarService
 import app.naviamp.domain.media.albumDetailLoadErrorStatus
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackQueueController
@@ -69,13 +71,11 @@ import app.naviamp.domain.playback.lyricsLoadingStatus
 import app.naviamp.domain.playback.lyricsUnavailableStatus
 import app.naviamp.domain.playback.recordSidecarFailure
 import app.naviamp.domain.playback.recordSidecarSuccess
-import app.naviamp.domain.playback.shouldLoadOnlineLyrics
-import app.naviamp.domain.playback.resolvePlaybackAudioSource
 import app.naviamp.domain.popular.ArtistPopularTracksService
 import app.naviamp.domain.popular.DeezerPopularTracksClient
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.popular.SimilarArtistsService
-import app.naviamp.domain.lyrics.selectPreferredLyrics
+import app.naviamp.domain.lyrics.LyricsSidecarService
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioService
@@ -208,10 +208,22 @@ private fun NaviampAndroidApp(
     val bassLoadReport = playbackRuntime.bassLoadReport
     val playbackEngine: AndroidPlaybackEngine = playbackRuntime.playbackEngine
     val waveformAnalyzer = playbackRuntime.waveformAnalyzer
-    val lrclibLyricsClient = remember { AndroidLrclibLyricsClient() }
     val storage = remember { AndroidStorage(context) }
     val sidecarStatusRepository: SidecarStatusRepository = storage
     val playbackAudioAssets = remember(storage) { AndroidPlaybackAudioAssets(storage, storage) }
+    val audioMetadataSidecarService = remember(playbackAudioAssets) {
+        AudioMetadataSidecarService(
+            playbackAudioAssets = playbackAudioAssets,
+            audioTagReader = AndroidAudioTagReader(),
+        )
+    }
+    val lyricsSidecarService = remember(storage, playbackAudioAssets, audioMetadataSidecarService) {
+        LyricsSidecarService(
+            lyricsRepository = storage,
+            playbackAudioAssets = playbackAudioAssets,
+            audioMetadataSidecarService = audioMetadataSidecarService,
+        )
+    }
     DisposableEffect(storage) {
         onDispose { storage.close() }
     }
@@ -326,31 +338,14 @@ private fun NaviampAndroidApp(
             runCatching {
                 val sourceId = activeSourceId
                 val quality = currentStreamQuality()
-                val audioFile = resolvePlaybackAudioSource(
+                lyricsSidecarService.loadLyrics(
                     sourceId = sourceId,
+                    provider = activeProvider,
                     track = track,
                     quality = quality,
                     audioCachingEnabled = true,
-                    audioAssets = playbackAudioAssets,
-                ).localAudio
-                val embeddedLyrics = audioFile?.let { embeddedLyricsFromAudioFile(java.io.File(it.path)) }
-                val localLyrics = activeProvider.lyrics(track.id)
-                val onlineLyrics = if (
-                    shouldLoadOnlineLyrics(
-                        onlineLyricsEnabled = playbackSettings.lrclibLyricsEnabled,
-                        providerLyrics = localLyrics,
-                        embeddedLyrics = embeddedLyrics,
-                    )
-                ) {
-                    lrclibLyricsClient.lyrics(track)
-                } else {
-                    null
-                }
-                selectPreferredLyrics(
-                    providerLyrics = localLyrics,
-                    embeddedLyrics = embeddedLyrics,
-                    onlineLyrics = onlineLyrics,
-                )
+                    onlineLyricsEnabled = playbackSettings.lrclibLyricsEnabled,
+                ).lyrics
             }
                 .onSuccess { lyrics ->
                     lyricsByTrackId = lyricsByTrackId + (track.id.value to lyrics)
@@ -513,6 +508,7 @@ private fun NaviampAndroidApp(
         playbackEngine,
         playbackQueueController,
         waveformAnalyzer,
+        lyricsSidecarService,
     ) {
         AndroidPlaylistEngine(
             scope = scope,
@@ -522,10 +518,10 @@ private fun NaviampAndroidApp(
             playbackEngine = playbackEngine,
             playbackQueueController = playbackQueueController,
             waveformAnalyzer = waveformAnalyzer,
+            lyricsSidecarService = lyricsSidecarService,
             sidecarStatusRepository = sidecarStatusRepository,
             activeQueue = ::activeQueue,
             currentStreamQuality = ::currentStreamQuality,
-            loadLyrics = ::loadLyrics,
         )
     }
 

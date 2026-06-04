@@ -8,6 +8,7 @@ import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.cache.SidecarStatusRepository
+import app.naviamp.domain.lyrics.LyricsSidecarService
 import app.naviamp.domain.playback.PlaybackAudioAssetRepository
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackQueueController
@@ -16,6 +17,7 @@ import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackLocalAudio
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.ReplayGainSource
+import app.naviamp.domain.playback.SidecarTypeLyrics
 import app.naviamp.domain.playback.SidecarTypeWaveform
 import app.naviamp.domain.playback.audioPrefetchTracks
 import app.naviamp.domain.playback.planPrepareNextQueuePlayback
@@ -24,6 +26,7 @@ import app.naviamp.domain.playback.recordSidecarFailure
 import app.naviamp.domain.playback.recordSidecarSuccess
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
 import app.naviamp.domain.playback.sidecarPrepPlan
+import app.naviamp.domain.playback.lyricsUnavailableStatus
 import app.naviamp.domain.playback.waveformUnavailableStatus
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.waveform.AudioWaveform
@@ -41,10 +44,10 @@ class AndroidPlaylistEngine(
     private val playbackEngine: AndroidPlaybackEngine,
     private val playbackQueueController: PlaybackQueueController,
     waveformAnalyzer: AndroidAudioWaveformAnalyzer,
+    private val lyricsSidecarService: LyricsSidecarService,
     private val sidecarStatusRepository: SidecarStatusRepository,
     private val activeQueue: () -> List<Track>,
     private val currentStreamQuality: () -> StreamQuality,
-    private val loadLyrics: (Track) -> Unit,
 ) {
     private val audioCacheKeysInFlight = mutableSetOf<String>()
     private val audioWaveformService = AudioWaveformService(
@@ -216,7 +219,41 @@ class AndroidPlaylistEngine(
                 }
                 if (sessionToken != state.playbackSessionToken) return@launch
                 if (plan.loadLyrics) {
-                    loadLyrics(track)
+                    val quality = currentStreamQuality()
+                    runCatching {
+                        lyricsSidecarService.loadLyrics(
+                            sourceId = sourceId,
+                            provider = activeProvider,
+                            track = track,
+                            quality = quality,
+                            audioCachingEnabled = true,
+                            onlineLyricsEnabled = state.playbackSettings.lrclibLyricsEnabled,
+                        ).lyrics
+                    }.onSuccess { lyrics ->
+                        state.lyricsByTrackId = state.lyricsByTrackId + (track.id.value to lyrics)
+                        state.lyricsStatusByTrackId = state.lyricsStatusByTrackId + (track.id.value to null)
+                        if (sourceId != null) {
+                            sidecarStatusRepository.recordSidecarSuccess(
+                                sourceId = sourceId,
+                                trackId = track.id,
+                                quality = quality,
+                                sidecarType = SidecarTypeLyrics,
+                            )
+                        }
+                    }.onFailure { error ->
+                        val message = lyricsUnavailableStatus(error)
+                        state.lyricsByTrackId = state.lyricsByTrackId + (track.id.value to null)
+                        state.lyricsStatusByTrackId = state.lyricsStatusByTrackId + (track.id.value to message)
+                        if (sourceId != null) {
+                            sidecarStatusRepository.recordSidecarFailure(
+                                sourceId = sourceId,
+                                trackId = track.id,
+                                quality = quality,
+                                sidecarType = SidecarTypeLyrics,
+                                errorMessage = message,
+                            )
+                        }
+                    }
                 }
             }
         }

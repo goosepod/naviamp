@@ -1,16 +1,16 @@
 package app.naviamp.desktop.playback
 
-import app.naviamp.desktop.AudioTagReader
 import app.naviamp.desktop.CachedAudioFile
 import app.naviamp.desktop.CachedAudioMetadata
+import app.naviamp.desktop.toPlaybackLocalAudio
 import app.naviamp.domain.ReplayGain
-import app.naviamp.domain.audio.lyricsFromAudioTags
-import app.naviamp.domain.audio.replayGainFromAudioTags
+import app.naviamp.domain.audio.AudioMetadataSidecarService
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.AudioCacheRepository
 import app.naviamp.domain.cache.LyricsSidecarRepository
 import app.naviamp.domain.cache.SidecarStatusRepository
+import app.naviamp.domain.lyrics.LyricsSidecarService
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.playback.CrossfadeSettings
 import app.naviamp.domain.playback.PlaybackEngine
@@ -45,7 +45,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.nio.file.Path
 
 class PlaylistEngine(
     private val playbackEngine: PlaybackEngine,
@@ -55,6 +54,8 @@ class PlaylistEngine(
     private val audioCacheRepository: AudioCacheRepository<CachedAudioFile, CachedAudioMetadata>? = null,
     private val audioWaveformService: AudioWaveformService? = null,
     private val lyricsSidecarRepository: LyricsSidecarRepository? = null,
+    private val lyricsSidecarService: LyricsSidecarService? = null,
+    private val audioMetadataSidecarService: AudioMetadataSidecarService? = null,
     private val sidecarStatusRepository: SidecarStatusRepository? = null,
     playbackAudioAssets: PlaybackAudioAssetRepository? = null,
 ) {
@@ -449,6 +450,7 @@ class PlaylistEngine(
         quality: StreamQuality,
         cachedAudio: CachedAudioFile,
     ): SidecarPrepResult {
+        val activeLyricsSidecarService = lyricsSidecarService
         var failed = 0
         var lastError: String? = null
 
@@ -486,17 +488,43 @@ class PlaylistEngine(
             )
         }
         runSidecar(SidecarTypeProviderLyrics) {
-            lyricsRepository.providerLyrics(sourceId, provider, track.id)
+            if (activeLyricsSidecarService != null) {
+                activeLyricsSidecarService.providerLyrics(
+                    sourceId = sourceId,
+                    provider = provider,
+                    track = track,
+                )
+            } else {
+                lyricsRepository.providerLyrics(sourceId, provider, track.id)
+            }
         }
         runSidecar(SidecarTypeEmbeddedLyrics) {
-            val embeddedLyrics = AudioTagReader().read(cachedAudio.path)
-                .let(::lyricsFromAudioTags)
-            if (embeddedLyrics != null) {
-                lyricsRepository.cacheEmbeddedLyrics(sourceId, track.id, embeddedLyrics)
+            val embeddedLyrics = if (activeLyricsSidecarService != null) {
+                activeLyricsSidecarService.embeddedLyrics(
+                    sourceId = sourceId,
+                    track = track,
+                    quality = quality,
+                    audioCachingEnabled = audioCachingEnabledProvider(),
+                )
+            } else {
+                null
+            }
+            if (embeddedLyrics == null && activeLyricsSidecarService == null) {
+                val tags = audioMetadataSidecarService?.audioTags(cachedAudio.path.toPlaybackLocalAudio()).orEmpty()
+                audioMetadataSidecarService?.embeddedLyrics(tags)?.let { lyrics ->
+                    lyricsRepository.cacheEmbeddedLyrics(sourceId, track.id, lyrics)
+                }
             }
         }
         runSidecar(SidecarTypeLrclibLyrics) {
-            lyricsRepository.lrclibLyrics(sourceId, track)
+            if (activeLyricsSidecarService != null) {
+                activeLyricsSidecarService.onlineLyrics(
+                    sourceId = sourceId,
+                    track = track,
+                )
+            } else {
+                lyricsRepository.lrclibLyrics(sourceId, track)
+            }
         }
 
         return SidecarPrepResult(failed = failed, lastError = lastError)
@@ -532,14 +560,28 @@ class PlaylistEngine(
         track: Track,
         cachedAudio: CachedAudioFile,
     ) {
+        val activeLyricsSidecarService = lyricsSidecarService
+        val quality = streamQuality ?: return
+        if (activeLyricsSidecarService != null) {
+            runCatching {
+                activeLyricsSidecarService.loadLyrics(
+                    sourceId = sourceId,
+                    provider = provider,
+                    track = track,
+                    quality = quality,
+                    audioCachingEnabled = audioCachingEnabledProvider(),
+                    onlineLyricsEnabled = true,
+                )
+            }
+            return
+        }
         runCatching {
             lyricsRepository.providerLyrics(sourceId, provider, track.id)
         }
         runCatching {
-            val embeddedLyrics = AudioTagReader().read(cachedAudio.path)
-                .let(::lyricsFromAudioTags)
-            if (embeddedLyrics != null) {
-                lyricsRepository.cacheEmbeddedLyrics(sourceId, track.id, embeddedLyrics)
+            val tags = audioMetadataSidecarService?.audioTags(cachedAudio.path.toPlaybackLocalAudio()).orEmpty()
+            audioMetadataSidecarService?.embeddedLyrics(tags)?.let { lyrics ->
+                lyricsRepository.cacheEmbeddedLyrics(sourceId, track.id, lyrics)
             }
         }
         runCatching {
@@ -621,18 +663,13 @@ class PlaylistEngine(
         }
 
         val sourceId = sourceIdProvider() ?: return null
-        val audioPath = resolvePlaybackAudioSource(
+        return audioMetadataSidecarService?.replayGainForTrack(
             sourceId = sourceId,
             track = track,
             quality = quality,
             audioCachingEnabled = audioCachingEnabledProvider(),
-            audioAssets = playbackAudioAssets,
-        ).localAudio
-            ?: return null
-        val replayGain = withContext(Dispatchers.IO) {
-            replayGainFromAudioTags(AudioTagReader().read(Path.of(audioPath.path)))
-        } ?: return null
-        return PlaybackReplayGain(replayGain, ReplayGainSource.LocalTags)
+            replayGainMode = replayGainMode,
+        )
     }
 }
 

@@ -51,6 +51,8 @@ import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.cache.shouldRefreshDownloadsAfter
 import app.naviamp.domain.app.shouldRefreshStorageStats
+import app.naviamp.domain.audio.AudioMetadataSidecarService
+import app.naviamp.domain.lyrics.LyricsSidecarService
 import app.naviamp.domain.playback.CrossfadeSettings
 import app.naviamp.domain.playback.DefaultNowPlayingHeartbeatIntervalMillis
 import app.naviamp.domain.playback.DefaultVisualizerFrameIntervalMillis
@@ -79,6 +81,7 @@ import app.naviamp.domain.popular.DeezerPopularTracksClient
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.popular.SimilarArtistsService
 import app.naviamp.domain.waveform.AudioWaveformService
+import java.nio.file.Path
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioRequest
@@ -196,6 +199,19 @@ fun NaviampApp(
     val desktopPlaybackAudioAssets = remember(sessionCache) {
         DesktopPlaybackAudioAssets(sessionCache, sessionCache)
     }
+    val audioMetadataSidecarService = remember(desktopPlaybackAudioAssets) {
+        AudioMetadataSidecarService(
+            playbackAudioAssets = desktopPlaybackAudioAssets,
+            audioTagReader = { localAudio -> AudioTagReader().read(Path.of(localAudio.path)) },
+        )
+    }
+    val lyricsSidecarService = remember(sessionCache, desktopPlaybackAudioAssets, audioMetadataSidecarService) {
+        LyricsSidecarService(
+            lyricsRepository = sessionCache,
+            playbackAudioAssets = desktopPlaybackAudioAssets,
+            audioMetadataSidecarService = audioMetadataSidecarService,
+        )
+    }
     val audioWaveformService = remember(sessionCache, desktopPlaybackAudioAssets) {
         AudioWaveformService(
             waveformRepository = sessionCache,
@@ -218,6 +234,8 @@ fun NaviampApp(
             audioCacheRepository = sessionCache,
             audioWaveformService = audioWaveformService,
             lyricsSidecarRepository = sessionCache,
+            lyricsSidecarService = lyricsSidecarService,
+            audioMetadataSidecarService = audioMetadataSidecarService,
             sidecarStatusRepository = sessionCache,
             playbackAudioAssets = desktopPlaybackAudioAssets,
         )
@@ -1042,7 +1060,8 @@ fun NaviampApp(
 
     val nowPlayingController = DesktopNowPlayingController(
         audioWaveformService = audioWaveformService,
-        lyricsSidecarRepository = sessionCache,
+        lyricsSidecarService = lyricsSidecarService,
+        audioMetadataSidecarService = audioMetadataSidecarService,
         localLibraryIndexRepository = sessionCache,
         playbackAudioAssets = desktopPlaybackAudioAssets,
         playbackEngine = playbackEngine,

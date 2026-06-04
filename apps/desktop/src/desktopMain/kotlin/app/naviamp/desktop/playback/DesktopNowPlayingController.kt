@@ -2,17 +2,15 @@ package app.naviamp.desktop
 
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Track
-import app.naviamp.domain.audio.lyricsFromAudioTags
+import app.naviamp.domain.audio.AudioMetadataSidecarService
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
-import app.naviamp.domain.cache.LyricsSidecarRepository
 import app.naviamp.domain.isInternetRadioTrack
-import app.naviamp.domain.lyrics.selectPreferredLyrics
+import app.naviamp.domain.lyrics.LyricsSidecarService
 import app.naviamp.domain.playback.PlaybackAudioAssetRepository
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.coverArtPreloadUrls
 import app.naviamp.domain.playback.lyricsLoadingStatus
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
-import app.naviamp.domain.playback.shouldLoadOnlineLyrics
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.waveform.AudioWaveform
@@ -22,11 +20,11 @@ import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.ui.preloadJvmPlatformCoverArt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.nio.file.Path
 
 class DesktopNowPlayingController(
     private val audioWaveformService: AudioWaveformService,
-    private val lyricsSidecarRepository: LyricsSidecarRepository,
+    private val lyricsSidecarService: LyricsSidecarService,
+    private val audioMetadataSidecarService: AudioMetadataSidecarService,
     private val localLibraryIndexRepository: LocalLibraryIndexRepository,
     private val playbackAudioAssets: PlaybackAudioAssetRepository,
     private val playbackEngine: PlaybackEngine,
@@ -101,31 +99,20 @@ class DesktopNowPlayingController(
                 val waveform = waveformResult.waveform
                 val status = waveformResult.status(activeCacheSettings.audioCachingEnabled)
                 val tags = audioPath
-                    ?.let { audio -> runCatching { AudioTagReader().read(Path.of(audio.path)) }.getOrDefault(emptyList()) }
+                    ?.let { audio -> audioMetadataSidecarService.audioTags(audio) }
                     .orEmpty()
-                val providerLyrics = if (lyricsVisibleForWork) {
-                    lyricsSidecarRepository.providerLyrics(activeSourceId, activeProvider, track.id)
-                } else {
-                    null
-                }
-                val embeddedLyrics = if (lyricsVisibleForWork) lyricsFromAudioTags(tags) else null
-                val lrclibLyrics = if (
-                    lyricsVisibleForWork &&
-                    shouldLoadOnlineLyrics(
+                val lyrics = if (lyricsVisibleForWork) {
+                    lyricsSidecarService.loadLyrics(
+                        sourceId = activeSourceId,
+                        provider = activeProvider,
+                        track = track,
+                        quality = quality,
+                        audioCachingEnabled = activeCacheSettings.audioCachingEnabled,
                         onlineLyricsEnabled = activePlaybackSettings.lrclibLyricsEnabled,
-                        providerLyrics = providerLyrics,
-                        embeddedLyrics = embeddedLyrics,
-                    )
-                ) {
-                    lyricsSidecarRepository.lrclibLyrics(activeSourceId, track)
+                    ).lyrics
                 } else {
                     null
                 }
-                val lyrics = selectPreferredLyrics(
-                    providerLyrics = providerLyrics,
-                    embeddedLyrics = embeddedLyrics,
-                    onlineLyrics = lrclibLyrics,
-                )
                 NowPlayingAnalysis(waveform, status, tags, lyrics)
             }.getOrNull()
         }
