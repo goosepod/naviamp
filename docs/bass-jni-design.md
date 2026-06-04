@@ -157,3 +157,17 @@ Current packaging policy:
 3. Continue validating stream creation, playback, pause, stop, seek, volume, duration, position, metadata, FFT, and mixer behavior through shared helpers.
 4. Keep desktop manual playback validation focused on JNI-backed playback, waveform generation, gapless/crossfade, ReplayGain, metadata, and plugin diagnostics.
 5. Remove obsolete connector-specific desktop native/JNA code only after the JNI backend is proven through manual desktop playback testing.
+
+## Next Handoff
+
+Desktop JNI-backed playback has been manually smoke-tested on macOS for crossfade, waveform generation, queue jumping, scrub-bar seeking, and instant playback after scrub. The next implementation slice should remove the old desktop JNA/native BASS connector now that the JNI path has proven the core behavior.
+
+Removal checklist:
+
+1. Delete `DesktopBassNative` and JNA-only BASS support types/tests.
+2. Remove remaining desktop BASS JNA dependency and build wiring.
+3. Update BASS playback docs so JNI is described as the only active desktop connector.
+4. Re-run `:apps:desktop:desktopTest`, `:apps:android:verifyDebugBassNativePackage`, and `make macos-standalone`.
+5. Commit and push the connector-removal slice.
+
+After that, the next major BASS work is Android/device hardening: sleep/wake, server disconnects, bad URLs, unsupported formats, and Android gapless/crossfade transitions on device or emulator.
