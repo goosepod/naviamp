@@ -350,6 +350,7 @@ Follow the convention above: shared/common abstractions keep generic names; plat
 - Android media action wiring now follows the same controller-over-shared-rules pattern as desktop; remaining media callback wrappers can be folded down next.
 - Android generated-radio queue starts are further centralized in the radio adapter; home station and artist/popular radio dispatch remain in `MainActivity.kt` for a later slice.
 - Android search orchestration now follows the same controller-over-shared-session pattern as desktop search.
+- Android playback queue-adjacent work now has an `AndroidPlaylistEngine` wrapper for audio prefetch, sidecar prep, prepare-next, and waveform service composition; this mirrors desktop `PlaylistEngine` at the platform-adapter level and sets up extracting a shared core orchestrator next.
 - Storage/cache/download work should now follow `docs/shared-storage-cache-architecture.md`: shared ports first, platform engines second.
 - Remaining connection startup still differs by platform because desktop owns BASS/JVM TLS defaults, `DesktopCache`, window route state, and playlist engine restoration, while Android owns foreground service/playback runtime, `AndroidStorage`, and activity navigation state.
 - Before extracting each helper from `DesktopNaviampApp.kt`, compare Android equivalents and move pure request/status/state-transition rules into `core/domain`, `core/ui`, or `providers/navidrome` instead of creating a new desktop-only duplicate.

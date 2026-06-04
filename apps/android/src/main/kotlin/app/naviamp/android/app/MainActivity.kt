@@ -28,7 +28,6 @@ import app.naviamp.android.playback.AndroidAutoPlaybackControls
 import app.naviamp.android.playback.AndroidBassLoadReport
 import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.android.playback.AndroidPlaybackForegroundService
-import app.naviamp.android.playback.AndroidPlaybackTls
 import app.naviamp.android.playback.AndroidPlaybackNotificationControls
 import app.naviamp.android.playback.AndroidPlaybackRuntime
 import app.naviamp.domain.Album
@@ -55,30 +54,22 @@ import app.naviamp.domain.cache.downloadConnectionRequiredStatus
 import app.naviamp.domain.media.albumDetailLoadErrorStatus
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackQueueController
-import app.naviamp.domain.playback.PlaybackRequest
-import app.naviamp.domain.playback.PlaybackReplayGain
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
-import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.ReplayGainMode
-import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.playback.PlaybackAdjacentAction
 import app.naviamp.domain.playback.planPlaybackAdjacentAction
-import app.naviamp.domain.playback.planPrepareNextPlayback
 import app.naviamp.domain.playback.planPlaybackSeek
 import app.naviamp.domain.playback.canReportPlaybackTrack
 import app.naviamp.domain.playback.shouldSubmitPlayReport
 import app.naviamp.domain.playback.SidecarTypeLyrics
-import app.naviamp.domain.playback.SidecarTypeWaveform
 import app.naviamp.domain.playback.lyricsLoadingStatus
 import app.naviamp.domain.playback.lyricsUnavailableStatus
 import app.naviamp.domain.playback.recordSidecarFailure
 import app.naviamp.domain.playback.recordSidecarSuccess
 import app.naviamp.domain.playback.shouldLoadOnlineLyrics
-import app.naviamp.domain.playback.sidecarPrepPlan
-import app.naviamp.domain.playback.waveformUnavailableStatus
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
 import app.naviamp.domain.popular.ArtistPopularTracksService
 import app.naviamp.domain.popular.DeezerPopularTracksClient
@@ -95,8 +86,6 @@ import app.naviamp.domain.settings.effectiveForEngine
 import app.naviamp.domain.settings.playbackSettingsChange
 import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
-import app.naviamp.domain.waveform.AudioWaveform
-import app.naviamp.domain.waveform.AudioWaveformService
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeApiCall
 import app.naviamp.provider.navidrome.NavidromeApiCallHistory
@@ -144,7 +133,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
 import java.time.LocalDate
 import kotlin.math.abs
 
@@ -224,7 +212,6 @@ private fun NaviampAndroidApp(
     val storage = remember { AndroidStorage(context) }
     val sidecarStatusRepository: SidecarStatusRepository = storage
     val playbackAudioAssets = remember(storage) { AndroidPlaybackAudioAssets(storage, storage) }
-    val audioCacheKeysInFlight = remember { mutableSetOf<String>() }
     DisposableEffect(storage) {
         onDispose { storage.close() }
     }
@@ -325,144 +312,11 @@ private fun NaviampAndroidApp(
         appendAndroidTracksToQueue(appState, playbackQueueController, tracksToAdd, label)
     }
 
-    fun nextQueueIndex(): Int? {
-        val currentTrack = nowPlaying ?: return null
-        val queue = activeQueue()
-        val currentIndex = queue.indexOfFirst { it.id == currentTrack.id }
-        if (currentIndex < 0) return null
-        playbackQueueController.replaceQueue(
-            queue = PlaybackQueue(tracks = queue, currentIndex = currentIndex),
-            clearPreparedNext = false,
-        )
-        playbackQueueController.setRepeatMode(repeatMode)
-        return playbackQueueController.nextGaplessQueueIndex()
-    }
-
     fun currentStreamQuality(): StreamQuality =
         playbackSettings.streamQualityForNetwork(context.isActiveNetworkMobileData())
 
     fun currentDownloadQuality(): StreamQuality =
         playbackSettings.downloadStreamQuality()
-
-    suspend fun cacheAudioTrackForPlayback(
-        sourceId: String,
-        activeProvider: NavidromeProvider,
-        track: Track,
-        quality: StreamQuality,
-    ): File? {
-        if (track.isInternetRadioTrack()) return null
-        resolvePlaybackAudioSource(
-            sourceId = sourceId,
-            track = track,
-            quality = quality,
-            audioCachingEnabled = true,
-            audioAssets = playbackAudioAssets,
-        ).localAudio?.let { return it }
-
-        val cacheKey = "${sourceId}:${track.id.value}:$quality"
-        if (!audioCacheKeysInFlight.add(cacheKey)) {
-            return storage.cachedAudioFile(sourceId, track.id, quality)?.file
-        }
-
-        return try {
-            storage.cacheAudioTrack(sourceId, activeProvider, track, quality).file
-        } finally {
-            audioCacheKeysInFlight.remove(cacheKey)
-        }
-    }
-
-    val audioWaveformService = remember(storage, playbackAudioAssets, waveformAnalyzer) {
-        AudioWaveformService(
-            waveformRepository = storage,
-            audioAssets = playbackAudioAssets,
-            analyzer = waveformAnalyzer,
-            localAudioUrl = { file -> file.toURI().toString() },
-            localAudioPath = { file -> file.absolutePath },
-            prepareAnalysis = {
-                waveformAnalyzer.applyTlsSettings(activeTlsSettings)
-                AndroidPlaybackTls.applyDefaults(activeTlsSettings)
-            },
-            cacheAudioForWaveform = { sourceId, mediaProvider, track, quality ->
-                cacheAudioTrackForPlayback(sourceId, mediaProvider as NavidromeProvider, track, quality)
-            },
-        )
-    }
-
-    fun startAudioPrefetch(
-        sessionToken: Long,
-        activeProvider: NavidromeProvider,
-        queue: PlaybackQueue,
-    ) {
-        audioPrefetchJob?.cancel()
-        val sourceId = activeSourceId ?: return
-        val quality = currentStreamQuality()
-        val tracksToPrefetch = queue.tracks
-            .drop(queue.currentIndex.coerceAtLeast(0))
-            .take(AndroidAudioPrefetchDepth)
-            .filterNot { it.isInternetRadioTrack() }
-        if (tracksToPrefetch.isEmpty()) return
-
-        audioPrefetchJob = scope.launch {
-            tracksToPrefetch.forEach { track ->
-                if (sessionToken != playbackSessionToken) return@launch
-                runCatching {
-                    cacheAudioTrackForPlayback(sourceId, activeProvider, track, quality)
-                }.onSuccess { file ->
-                    if (file != null) {
-                        android.util.Log.i("NaviampCache", "Prefetched audio title=${track.title} path=${file.name}")
-                    }
-                }.onFailure { error ->
-                    android.util.Log.w("NaviampCache", "Audio prefetch failed title=${track.title}", error)
-                }
-            }
-        }
-    }
-
-    fun prepareNextIfNeeded(sessionToken: Long, progress: PlaybackProgress) {
-        val queueAwareEngine = playbackEngine as? QueueAwarePlaybackEngine ?: return
-        val nextIndex = nextQueueIndex() ?: return
-        val plan = planPrepareNextPlayback(
-            progress = progress,
-            nextQueueIndex = nextIndex,
-            alreadyPreparedNext = !playbackQueueController.shouldPrepareNext(nextIndex),
-            gaplessEnabled = playbackSettings.gaplessEnabled,
-            supportsGapless = playbackEngine.supportsGapless,
-            crossfadeDurationSeconds = playbackSettings.crossfadeDurationSeconds,
-            supportsCrossfade = playbackEngine.supportsCrossfade,
-            gaplessPrepareWindowSeconds = AndroidGaplessPrepareWindowSeconds,
-        )
-        if (!plan.shouldPrepare) return
-        val nextTrack = activeQueue().getOrNull(nextIndex) ?: return
-        val activeProvider = provider ?: return
-        val sourceId = activeSourceId
-        playbackQueueController.markPreparedNext(nextIndex)
-        scope.launch {
-            runCatching {
-                val quality = currentStreamQuality()
-                val audioSourcePlan = resolvePlaybackAudioSource(
-                    sourceId = sourceId,
-                    track = nextTrack,
-                    quality = quality,
-                    audioCachingEnabled = true,
-                    audioAssets = playbackAudioAssets,
-                )
-                audioSourcePlan.localAudio?.toURI()?.toString()
-                    ?: activeProvider.streamUrl(audioSourcePlan.target.providerStreamRequest)
-            }.onSuccess { streamUrl ->
-                if (sessionToken != playbackSessionToken) return@onSuccess
-                queueAwareEngine.prepareNext(
-                    PlaybackRequest(
-                        url = streamUrl,
-                        mediaId = nextTrack.id.value,
-                        replayGainMode = playbackSettings.replayGainMode,
-                        replayGain = nextTrack.replayGain?.let { PlaybackReplayGain(it, ReplayGainSource.Provider) },
-                    ),
-                )
-            }.onFailure {
-                playbackQueueController.clearPreparedNext()
-            }
-        }
-    }
 
     fun loadLyrics(track: Track) {
         val activeProvider = provider ?: return
@@ -588,72 +442,6 @@ private fun NaviampAndroidApp(
         searchController.load(query, debounce = true)
     }
 
-    suspend fun ensureWaveform(
-        activeProvider: NavidromeProvider,
-        sourceId: String?,
-        track: Track,
-    ): AudioWaveform? {
-        val quality = currentStreamQuality()
-        return audioWaveformService.loadOrCreateWaveform(
-            sourceId = sourceId,
-            provider = activeProvider,
-            track = track,
-            quality = quality,
-            audioCachingEnabled = true,
-        ).waveform
-    }
-
-    fun startSidecarPrep(
-        sessionToken: Long,
-        activeProvider: NavidromeProvider,
-        queue: PlaybackQueue,
-    ) {
-        sidecarPrepJob?.cancel()
-        val plan = sidecarPrepPlan(
-            queue = queue,
-            depth = AndroidSidecarPrepDepth,
-            onlineLyricsEnabled = playbackSettings.lrclibLyricsEnabled,
-            lyricsVisible = lyricsVisible,
-        )
-        if (plan.tracks.isEmpty()) return
-        val sourceId = activeSourceId
-        sidecarPrepJob = scope.launch {
-            plan.tracks.forEach { track ->
-                if (sessionToken != playbackSessionToken) return@launch
-                val sidecarQuality = currentStreamQuality()
-                runCatching {
-                    ensureWaveform(activeProvider, sourceId, track)
-                }.onSuccess { waveform ->
-                    if (sourceId != null) {
-                        sidecarStatusRepository.recordSidecarSuccess(
-                            sourceId = sourceId,
-                            trackId = track.id,
-                            quality = sidecarQuality,
-                            sidecarType = SidecarTypeWaveform,
-                        )
-                    }
-                    if (waveform != null && sessionToken == playbackSessionToken) {
-                        waveformByTrackId = waveformByTrackId + (track.id.value to waveform)
-                    }
-                }.onFailure { error ->
-                    if (sourceId != null) {
-                        sidecarStatusRepository.recordSidecarFailure(
-                            sourceId = sourceId,
-                            trackId = track.id,
-                            quality = sidecarQuality,
-                            sidecarType = SidecarTypeWaveform,
-                            errorMessage = waveformUnavailableStatus(error),
-                        )
-                    }
-                }
-                if (sessionToken != playbackSessionToken) return@launch
-                if (plan.loadLyrics) {
-                    loadLyrics(track)
-                }
-            }
-        }
-    }
-
     fun loadRelatedTracks(track: Track) {
         val activeProvider = provider ?: return
         if (!activeProvider.capabilities.supportsTrackRadio) {
@@ -718,6 +506,29 @@ private fun NaviampAndroidApp(
         }
     }
 
+    val androidPlaylistEngine = remember(
+        appState,
+        storage,
+        playbackAudioAssets,
+        playbackEngine,
+        playbackQueueController,
+        waveformAnalyzer,
+    ) {
+        AndroidPlaylistEngine(
+            scope = scope,
+            state = appState,
+            storage = storage,
+            playbackAudioAssets = playbackAudioAssets,
+            playbackEngine = playbackEngine,
+            playbackQueueController = playbackQueueController,
+            waveformAnalyzer = waveformAnalyzer,
+            sidecarStatusRepository = sidecarStatusRepository,
+            activeQueue = ::activeQueue,
+            currentStreamQuality = ::currentStreamQuality,
+            loadLyrics = ::loadLyrics,
+        )
+    }
+
     fun handlePlaybackProgressChanged(sessionToken: Long, progress: PlaybackProgress) {
         handleAndroidPlaybackProgressChanged(
             context = context,
@@ -725,7 +536,7 @@ private fun NaviampAndroidApp(
             sessionToken = sessionToken,
             progress = progress,
             maybeReportPlayed = ::maybeReportPlayed,
-            prepareNextIfNeeded = ::prepareNextIfNeeded,
+            prepareNextIfNeeded = androidPlaylistEngine::prepareNextIfNeeded,
         )
     }
 
@@ -764,8 +575,8 @@ private fun NaviampAndroidApp(
             reportNowPlaying = ::reportNowPlaying,
             loadRelatedTracks = ::loadRelatedTracks,
             loadLyrics = ::loadLyrics,
-            startAudioPrefetch = ::startAudioPrefetch,
-            startSidecarPrep = ::startSidecarPrep,
+            startAudioPrefetch = androidPlaylistEngine::startAudioPrefetch,
+            startSidecarPrep = androidPlaylistEngine::startSidecarPrep,
             handlePlaybackProgressChanged = ::handlePlaybackProgressChanged,
             playAdjacentTrack = playAdjacentTrackAction,
         )
