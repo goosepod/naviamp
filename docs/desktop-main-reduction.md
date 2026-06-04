@@ -151,6 +151,10 @@ Branch: `codex/desktop-main-reduction`
   - Added `docs/shared-storage-cache-architecture.md`.
   - The target is shared storage/cache/download/session/sidecar interfaces with desktop and Android engines selected at composition time.
   - This reframes `DesktopCache` and `AndroidStorage` as concrete engines/adapters, not product-level boundaries.
+- [x] Add platform app dependency registries.
+  - `DesktopAppDependencies` now owns desktop settings, playback engine, storage dependencies, sidecar/waveform services, discovery clients, playlist engine construction, and library sync construction.
+  - `AndroidAppDependencies` mirrors that boundary around Android settings, playback runtime, storage dependencies, sidecar services, discovery clients, and playlist engine construction.
+  - Desktop window lifecycle and Android activity/foreground-service lifecycle remain outside the registries.
 - [x] Share playlist-detail auto-refresh orchestration.
   - selected playlist/provider gating and refresh-loop error swallowing now live in common playlist helpers
   - desktop keeps route gating and desktop state application, while Android keeps its content/navigation state application

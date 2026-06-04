@@ -40,6 +40,10 @@ The intended shape is the same idea as a PHP app using one cache/storage interfa
   - Eighth slice: desktop/Android downloads and generated-radio album/artist detail helpers now use `ProviderResponseService`.
   - Ninth slice: Android Auto browse/search flows now use cached provider list/detail/search responses through `ProviderResponseService`.
   - Tenth slice: internet radio station list responses now use `ProviderResponseService` with mutation invalidation.
+- [x] Add platform app dependency registries for concrete service construction.
+  - Desktop app/window lifecycle stays in `Main.kt`, while `DesktopAppDependencies` owns settings, playback engine, storage dependencies, playback audio assets, sidecar services, waveform service, discovery clients, playlist engine construction, and library sync construction.
+  - Android activity lifecycle/state stays in `MainActivity`, while `AndroidAppDependencies` owns settings, playback runtime, storage dependencies, playback audio assets, sidecar services, discovery clients, and playlist engine construction.
+  - Platform-only boundaries remain explicit: desktop owns JVM `Path`/window app shell details; Android owns `Context`, foreground service/runtime state, and app-private `File` handling.
 
 ## Decision
 
@@ -276,10 +280,11 @@ Then higher-level repositories can be composed from those stores:
   - Shared/common abstractions keep generic names.
   - Platform adapters and platform-owned service files should use `Desktop` / `Android` prefixes.
   - First cleanup slice: common `AudioWaveformAnalyzer`, desktop `DesktopAudioWaveformAnalyzer`, Android `AndroidAudioWaveformAnalyzer`.
-- [ ] Create a platform dependency registry/composition object.
+- [x] Create a platform dependency registry/composition object.
   - Desktop builds repositories from desktop paths/settings.
   - Android builds repositories from app context/settings.
   - Shared services receive only interfaces.
+  - `DesktopAppDependencies` and `AndroidAppDependencies` now sit above the platform storage dependency holders and provide symmetrical construction roots for app-level services.
 - [x] Add fake/in-memory implementations for common tests.
   - This is the equivalent of swapping cache/storage engines in a PHP test environment.
   - First fake engine: `InMemoryObjectByteStore` backs common `ObjectByteStoreService` tests.
