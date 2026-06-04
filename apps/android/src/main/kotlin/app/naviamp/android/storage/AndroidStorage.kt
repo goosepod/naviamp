@@ -36,6 +36,7 @@ import app.naviamp.domain.cache.PlaybackSessionRepository
 import app.naviamp.domain.cache.PlaybackHistoryRepository
 import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
+import app.naviamp.domain.cache.ProviderResponseCacheService
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.cache.StoredAudioBytes
@@ -102,6 +103,10 @@ class AndroidStorage(
         ignoreUnknownKeys = true
         encodeDefaults = true
     }
+    private val providerResponseCache = ProviderResponseCacheService(
+        store = AndroidProviderResponseStore(queries),
+        nowMillis = ::nowMillis,
+    )
     private val httpClient = KtorSharedHttpClient()
     private val imageByteStoreService = ObjectByteStoreService(
         store = this,
@@ -287,35 +292,14 @@ class AndroidStorage(
         decode: (String) -> T,
         encode: (T) -> String,
         fetch: suspend () -> T,
-    ): T {
-        val key = cacheKey(provider, resourceType, resourceId)
-        queries.selectResponse(key).executeAsOneOrNull()?.let { payload ->
-            queries.touchResponse(nowMillis(), key)
-            return decode(payload)
-        }
-
-        val value = fetch()
-        val now = nowMillis()
-        queries.upsertResponse(
-            cache_key = key,
-            provider_id = provider.cacheNamespace,
-            resource_type = resourceType,
-            resource_id = resourceId,
-            payload = encode(value),
-            created_at_epoch_millis = now,
-            last_accessed_epoch_millis = now,
-        )
-        return value
-    }
+    ): T =
+        providerResponseCache.cachedProviderResponse(provider, resourceType, resourceId, decode, encode, fetch)
 
     override fun invalidateProviderResponses(
         provider: MediaProvider,
         resourceType: String,
     ) {
-        queries.deleteResponsesByProviderAndType(
-            provider_id = provider.cacheNamespace,
-            resource_type = resourceType,
-        )
+        providerResponseCache.invalidateProviderResponses(provider, resourceType)
     }
 
     override fun invalidateProviderResponse(
@@ -323,11 +307,7 @@ class AndroidStorage(
         resourceType: String,
         resourceId: String,
     ) {
-        queries.deleteResponseByProviderTypeAndId(
-            provider_id = provider.cacheNamespace,
-            resource_type = resourceType,
-            resource_id = resourceId,
-        )
+        providerResponseCache.invalidateProviderResponse(provider, resourceType, resourceId)
     }
 
     override fun updateAudioCacheLimit(maxBytes: Long) {
@@ -1256,9 +1236,6 @@ private fun audioInfo(
             it.bitDepth != null ||
             it.samplingRateHz != null
     }
-
-private fun cacheKey(provider: MediaProvider, resourceType: String, resourceId: String): String =
-    "${provider.cacheNamespace}:$resourceType:$resourceId"
 
 private fun StreamQuality.cacheKey(): String =
     when (this) {

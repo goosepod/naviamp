@@ -38,6 +38,7 @@ import app.naviamp.domain.cache.ObjectByteStore
 import app.naviamp.domain.cache.ObjectByteStoreService
 import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
+import app.naviamp.domain.cache.ProviderResponseCacheService
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.cache.StoredAudioBytes
@@ -102,6 +103,10 @@ class DesktopCache(
     }
     private val database = createDatabase(databasePath)
     private val queries = database.naviampStorageQueries
+    private val providerResponseCache = ProviderResponseCacheService(
+        store = DesktopProviderResponseStore(queries),
+        nowMillis = ::nowMillis,
+    )
     private val hotImages = object : LinkedHashMap<String, ByteArray>(16, 0.75f, true) {}
     private var hotImageBytes: Long = 0
     private val httpClient = KtorSharedHttpClient()
@@ -1188,35 +1193,14 @@ class DesktopCache(
         decode: (String) -> T,
         encode: (T) -> String,
         fetch: suspend () -> T,
-    ): T {
-        val key = cacheKey(provider, resourceType, resourceId)
-        queries.selectResponse(key).executeAsOneOrNull()?.let { payload ->
-            queries.touchResponse(nowMillis(), key)
-            return decode(payload)
-        }
-
-        val value = fetch()
-        val now = nowMillis()
-        queries.upsertResponse(
-            cache_key = key,
-            provider_id = provider.cacheNamespace,
-            resource_type = resourceType,
-            resource_id = resourceId,
-            payload = encode(value),
-            created_at_epoch_millis = now,
-            last_accessed_epoch_millis = now,
-        )
-        return value
-    }
+    ): T =
+        providerResponseCache.cachedProviderResponse(provider, resourceType, resourceId, decode, encode, fetch)
 
     override fun invalidateProviderResponses(
         provider: MediaProvider,
         resourceType: String,
     ) {
-        queries.deleteResponsesByProviderAndType(
-            provider_id = provider.cacheNamespace,
-            resource_type = resourceType,
-        )
+        providerResponseCache.invalidateProviderResponses(provider, resourceType)
     }
 
     override fun invalidateProviderResponse(
@@ -1224,11 +1208,7 @@ class DesktopCache(
         resourceType: String,
         resourceId: String,
     ) {
-        queries.deleteResponseByProviderTypeAndId(
-            provider_id = provider.cacheNamespace,
-            resource_type = resourceType,
-            resource_id = resourceId,
-        )
+        providerResponseCache.invalidateProviderResponse(provider, resourceType, resourceId)
     }
 
     private suspend fun <T> cached(
@@ -1240,9 +1220,6 @@ class DesktopCache(
         fetch: suspend () -> T,
     ): T =
         cachedProviderResponse(provider, resourceType, resourceId, decode, encode, fetch)
-
-    private fun cacheKey(provider: MediaProvider, resourceType: String, resourceId: String): String =
-        "${provider.cacheNamespace}:$resourceType:$resourceId"
 
     private fun hotImage(url: String): ByteArray? =
         synchronized(hotImages) {
