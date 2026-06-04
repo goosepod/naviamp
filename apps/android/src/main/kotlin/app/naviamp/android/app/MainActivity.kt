@@ -74,6 +74,8 @@ import app.naviamp.domain.playback.SidecarTypeLyrics
 import app.naviamp.domain.playback.SidecarTypeWaveform
 import app.naviamp.domain.playback.lyricsLoadingStatus
 import app.naviamp.domain.playback.lyricsUnavailableStatus
+import app.naviamp.domain.playback.recordSidecarFailure
+import app.naviamp.domain.playback.recordSidecarSuccess
 import app.naviamp.domain.playback.shouldLoadOnlineLyrics
 import app.naviamp.domain.playback.sidecarPrepPlan
 import app.naviamp.domain.playback.waveformUnavailableStatus
@@ -500,12 +502,11 @@ private fun NaviampAndroidApp(
                     lyricsByTrackId = lyricsByTrackId + (track.id.value to lyrics)
                     lyricsStatusByTrackId = lyricsStatusByTrackId + (track.id.value to null)
                     activeSourceId?.let { sourceId ->
-                        sidecarStatusRepository.recordSidecarStatus(
+                        sidecarStatusRepository.recordSidecarSuccess(
                             sourceId = sourceId,
                             trackId = track.id,
                             quality = StreamQuality.Original,
                             sidecarType = SidecarTypeLyrics,
-                            success = true,
                         )
                     }
                 }
@@ -514,12 +515,11 @@ private fun NaviampAndroidApp(
                     val message = lyricsUnavailableStatus(error)
                     lyricsStatusByTrackId = lyricsStatusByTrackId + (track.id.value to message)
                     activeSourceId?.let { sourceId ->
-                        sidecarStatusRepository.recordSidecarStatus(
+                        sidecarStatusRepository.recordSidecarFailure(
                             sourceId = sourceId,
                             trackId = track.id,
                             quality = StreamQuality.Original,
                             sidecarType = SidecarTypeLyrics,
-                            success = false,
                             errorMessage = message,
                         )
                     }
@@ -625,12 +625,11 @@ private fun NaviampAndroidApp(
                     ensureWaveform(activeProvider, sourceId, track)
                 }.onSuccess { waveform ->
                     if (sourceId != null) {
-                        sidecarStatusRepository.recordSidecarStatus(
+                        sidecarStatusRepository.recordSidecarSuccess(
                             sourceId = sourceId,
                             trackId = track.id,
                             quality = sidecarQuality,
                             sidecarType = SidecarTypeWaveform,
-                            success = true,
                         )
                     }
                     if (waveform != null && sessionToken == playbackSessionToken) {
@@ -638,12 +637,11 @@ private fun NaviampAndroidApp(
                     }
                 }.onFailure { error ->
                     if (sourceId != null) {
-                        sidecarStatusRepository.recordSidecarStatus(
+                        sidecarStatusRepository.recordSidecarFailure(
                             sourceId = sourceId,
                             trackId = track.id,
                             quality = sidecarQuality,
                             sidecarType = SidecarTypeWaveform,
-                            success = false,
                             errorMessage = waveformUnavailableStatus(error),
                         )
                     }
