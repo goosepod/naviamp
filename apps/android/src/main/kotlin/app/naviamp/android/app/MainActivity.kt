@@ -208,7 +208,7 @@ private fun NaviampAndroidApp(
     val bassLoadReport = playbackRuntime.bassLoadReport
     val playbackEngine: AndroidPlaybackEngine = playbackRuntime.playbackEngine
     val waveformAnalyzer = playbackRuntime.waveformAnalyzer
-    val storage = remember { AndroidStorage(context) }
+    val storage = remember { AndroidStorageDependencies(context) }
     val sidecarStatusRepository: SidecarStatusRepository = storage
     val playbackAudioAssets = remember(storage) { AndroidPlaybackAudioAssets(storage, storage) }
     val audioMetadataSidecarService = remember(playbackAudioAssets) {
