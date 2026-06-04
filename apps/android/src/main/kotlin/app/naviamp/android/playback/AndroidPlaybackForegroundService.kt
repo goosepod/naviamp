@@ -39,6 +39,8 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.cache.LocalLibraryIndexRepository
+import app.naviamp.domain.cache.MediaSourceRepository
 import app.naviamp.domain.cache.PlaybackHistoryRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.playback.PlaybackProgress
@@ -2143,13 +2145,13 @@ private fun String.radioSearchQuery(): String? {
 }
 
 private fun findVoiceArtistMatch(
-    storage: AndroidStorage,
+    libraryIndexRepository: LocalLibraryIndexRepository,
     sourceId: String,
     query: String,
 ): Artist? {
     val queryKey = query.voiceSearchKey()
     if (queryKey.isBlank()) return null
-    return storage.librarySnapshot(sourceId, VoiceArtistScanLimit, 0)
+    return libraryIndexRepository.librarySnapshot(sourceId, VoiceArtistScanLimit, 0)
         .artists
         .mapNotNull { artist ->
             val score = voiceArtistMatchScore(queryKey, artist.name.voiceSearchKey())
@@ -2196,14 +2198,14 @@ private fun Bundle.autoSearchQuery(): String? {
         .firstOrNull { it.isNotBlank() }
 }
 
-private fun AndroidStorage.savedCoverArtUrl(track: Track): String? {
+private fun MediaSourceRepository.savedCoverArtUrl(track: Track): String? {
     val coverArtId = track.coverArtId ?: track.albumId?.value ?: return null
-    val connection = latestNavidromeSource()?.toNavidromeConnection() ?: return null
+    val connection = latestMediaSource()?.toNavidromeConnection() ?: return null
     return NavidromeProvider(connection).coverArtUrl(coverArtId)
 }
 
-private fun AndroidStorage.savedCoverArtUrl(album: Album): String? {
+private fun MediaSourceRepository.savedCoverArtUrl(album: Album): String? {
     val coverArtId = album.coverArtId ?: album.id.value
-    val connection = latestNavidromeSource()?.toNavidromeConnection() ?: return null
+    val connection = latestMediaSource()?.toNavidromeConnection() ?: return null
     return NavidromeProvider(connection).coverArtUrl(coverArtId)
 }
