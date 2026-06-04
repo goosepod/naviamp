@@ -49,10 +49,8 @@ import app.naviamp.domain.popular.ArtistPopularTrackCandidate
 import app.naviamp.domain.popular.ArtistPopularTrackMatch
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
-import app.naviamp.domain.source.ConnectionTlsSettings
 import app.naviamp.domain.source.MediaSourceIdentity
 import app.naviamp.domain.source.SavedMediaSource
-import app.naviamp.domain.source.stableMediaSourceId
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.domain.waveform.AudioWaveformAnalysisSource
 import app.naviamp.domain.waveform.AudioWaveformAnalyzer as DomainAudioWaveformAnalyzer
@@ -107,6 +105,10 @@ class DesktopCache(
     )
     private val sidecarStatus = SidecarStatusService(
         store = DesktopSidecarStatusStore(queries),
+        nowMillis = ::nowMillis,
+    )
+    private val mediaSources = DesktopMediaSourceStore(
+        queries = queries,
         nowMillis = ::nowMillis,
     )
     private val hotImages = object : LinkedHashMap<String, ByteArray>(16, 0.75f, true) {}
@@ -193,16 +195,16 @@ class DesktopCache(
         )
 
     override fun latestMediaSource(): SavedMediaSource? =
-        queries.selectLatestMediaSource().executeAsOneOrNull()?.toSavedMediaSource()
+        mediaSources.latestMediaSource()
 
     override fun mediaSources(): List<SavedMediaSource> =
-        queries.selectMediaSources().executeAsList().map { it.toSavedMediaSource() }
+        mediaSources.mediaSources()
 
     override fun mediaSource(sourceId: String): SavedMediaSource? =
-        queries.selectMediaSourceById(sourceId).executeAsOneOrNull()?.toSavedMediaSource()
+        mediaSources.mediaSource(sourceId)
 
     override fun deleteMediaSource(sourceId: String) {
-        queries.deleteMediaSource(sourceId)
+        mediaSources.deleteMediaSource(sourceId)
     }
 
     override fun updateAudioCacheLimit(maxBytes: Long) {
@@ -790,48 +792,19 @@ class DesktopCache(
         connection: ProviderMediaSourceConnection,
         cacheNamespace: String,
         providerId: String,
-    ): MediaSourceIdentity {
-        val now = nowMillis()
-        val existing = queries.selectMediaSourceByCacheNamespace(cacheNamespace).executeAsOneOrNull()
-        val id = existing?.id ?: stableMediaSourceId(cacheNamespace)
-        queries.upsertMediaSource(
-            id = id,
-            provider_id = providerId,
-            cache_namespace = cacheNamespace,
-            display_name = connection.displayName,
-            base_url = connection.baseUrl,
-            username = connection.username,
-            token = connection.token,
-            salt = connection.salt,
-            native_token = connection.nativeToken,
-            insecure_skip_tls_verification = if (connection.tlsSettings.insecureSkipTlsVerification) 1 else 0,
-            custom_certificate_path = connection.tlsSettings.customCertificatePath?.takeIf { it.isNotBlank() },
-            client_certificate_keystore_path = connection.tlsSettings.clientCertificateKeyStorePath?.takeIf { it.isNotBlank() },
-            client_certificate_keystore_password = connection.tlsSettings.clientCertificateKeyStorePassword,
-            created_at_epoch_millis = existing?.created_at_epoch_millis ?: now,
-            last_connected_at_epoch_millis = now,
-            last_sync_started_at_epoch_millis = existing?.last_sync_started_at_epoch_millis,
-            last_sync_completed_at_epoch_millis = existing?.last_sync_completed_at_epoch_millis,
-            last_library_scan_signature = existing?.last_library_scan_signature,
-            last_library_scan_checked_at_epoch_millis = existing?.last_library_scan_checked_at_epoch_millis,
-        )
-        return MediaSourceIdentity(
-            id = id,
-            cacheNamespace = cacheNamespace,
-            displayName = connection.displayName,
-        )
-    }
+    ): MediaSourceIdentity =
+        mediaSources.upsertProviderMediaSource(connection, cacheNamespace, providerId)
 
     override fun markLibrarySyncStarted(sourceId: String) {
-        queries.markMediaSourceSyncStarted(nowMillis(), sourceId)
+        mediaSources.markLibrarySyncStarted(sourceId)
     }
 
     override fun markLibrarySyncCompleted(sourceId: String) {
-        queries.markMediaSourceSyncCompleted(nowMillis(), sourceId)
+        mediaSources.markLibrarySyncCompleted(sourceId)
     }
 
     override fun markLibraryScanChecked(sourceId: String, signature: String) {
-        queries.markMediaSourceLibraryScanChecked(signature, nowMillis(), sourceId)
+        mediaSources.markLibraryScanChecked(sourceId, signature)
     }
 
     override fun upsertLibraryArtists(sourceId: String, artists: List<Artist>) {
@@ -1312,31 +1285,6 @@ data class DownloadedTrack(
     val contentType: String?,
     val downloadedAtEpochMillis: Long,
 )
-
-private fun app.naviamp.storage.Media_source.toSavedMediaSource(): SavedMediaSource =
-    SavedMediaSource(
-        id = id,
-        providerId = provider_id,
-        cacheNamespace = cache_namespace,
-        displayName = display_name.takeUnless { it == "Navidrome" } ?: base_url,
-        baseUrl = base_url,
-        username = username,
-        token = token,
-        salt = salt,
-        nativeToken = native_token,
-        tlsSettings = ConnectionTlsSettings(
-            insecureSkipTlsVerification = insecure_skip_tls_verification != 0L,
-            customCertificatePath = custom_certificate_path,
-            clientCertificateKeyStorePath = client_certificate_keystore_path,
-            clientCertificateKeyStorePassword = client_certificate_keystore_password,
-        ),
-        createdAtEpochMillis = created_at_epoch_millis,
-        lastConnectedAtEpochMillis = last_connected_at_epoch_millis,
-        lastSyncStartedAtEpochMillis = last_sync_started_at_epoch_millis,
-        lastSyncCompletedAtEpochMillis = last_sync_completed_at_epoch_millis,
-        lastLibraryScanSignature = last_library_scan_signature,
-        lastLibraryScanCheckedAtEpochMillis = last_library_scan_checked_at_epoch_millis,
-    )
 
 private fun app.naviamp.storage.Library_track.toTrack(): Track =
     Track(
