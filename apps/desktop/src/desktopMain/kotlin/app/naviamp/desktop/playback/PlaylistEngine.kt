@@ -31,7 +31,7 @@ import app.naviamp.domain.playback.SidecarTypeProviderLyrics
 import app.naviamp.domain.playback.SidecarTypeWaveform
 import app.naviamp.domain.playback.audioPrefetchTracks
 import app.naviamp.domain.playback.emptyPlaybackAudioAssetRepository
-import app.naviamp.domain.playback.planPrepareNextPlayback
+import app.naviamp.domain.playback.planPrepareNextQueuePlayback
 import app.naviamp.domain.playback.recordSidecarFailure
 import app.naviamp.domain.playback.recordSidecarSuccess
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
@@ -576,7 +576,8 @@ class PlaylistEngine(
     ) {
         val queueAwareEngine = playbackEngine as? QueueAwarePlaybackEngine ?: return
         val nextIndex = queueController.nextGaplessQueueIndex() ?: return
-        val plan = planPrepareNextPlayback(
+        val plan = planPrepareNextQueuePlayback(
+            queue = queue,
             progress = progress,
             nextQueueIndex = nextIndex,
             alreadyPreparedNext = !queueController.shouldPrepareNext(nextIndex),
@@ -585,13 +586,12 @@ class PlaylistEngine(
             crossfadeDurationSeconds = crossfadeSettings.durationSeconds,
             supportsCrossfade = playbackEngine.supportsCrossfade,
             gaplessPrepareWindowSeconds = GaplessPrepareWindowSeconds,
-        )
-        if (!plan.shouldPrepare) return
+        ) ?: return
 
         val currentProvider = provider ?: return
         val currentQuality = streamQuality ?: return
-        queueController.markPreparedNext(nextIndex)
-        val nextTrack = queue.tracks.getOrNull(nextIndex) ?: return
+        queueController.markPreparedNext(plan.nextQueueIndex)
+        val nextTrack = plan.track
 
         scope.launch {
             if (activeSessionId != queueController.playbackSessionId) return@launch
