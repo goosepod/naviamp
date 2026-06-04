@@ -109,8 +109,8 @@ Then higher-level repositories can be composed from those stores:
 - [x] Split low-level byte/file storage ports from higher-level media repositories.
   - Examples: local disk/app-private files, temporary cache files, persistent download files.
   - Audio cache/download bytes are behind `AudioByteStoreService` and platform `AudioByteStore` adapters.
-  - Remaining byte-store work can apply the same pattern to images, lyrics, waveform, and sidecar bytes.
-- [ ] Split metadata database ports from byte storage.
+  - Image/object bytes now have `ObjectByteStoreService` and platform `ObjectByteStore` adapters; desktop and Android still back images with the existing SQL image table until a storage-engine migration moves image blobs out of metadata rows.
+- [x] Split metadata database ports from byte storage.
   - SQLite/SQLDelight can remain the first engine, but shared code should depend on repository contracts.
   - First slice: saved media-source metadata is behind `MediaSourceRepository`, implemented by desktop and Android storage engines.
   - Second slice: playback-session metadata is behind `PlaybackSessionRepository`, implemented by desktop settings and Android storage.
@@ -141,6 +141,7 @@ Then higher-level repositories can be composed from those stores:
   - Twenty-seventh slice: desktop connection lifecycle now receives cache-maintenance, media-source, and provider-media-source repository ports instead of direct `DesktopCache`.
   - Twenty-eighth slice: desktop composition now uses `DesktopStorageDependencies`, keeping direct `DesktopCache` construction inside the platform dependency holder.
   - Twenty-ninth slice: Android app and foreground-service composition now use `AndroidStorageDependencies`, keeping direct `AndroidStorage` construction inside the platform dependency holder.
+  - Thirtieth slice: image byte orchestration now uses `ObjectByteStoreService`; the current platform adapters still store image blobs in SQL, which is an engine-internal migration boundary rather than a product-code dependency.
 - [x] Normalize playback local-audio file boundaries.
   - Shared services should consume platform-neutral local-audio descriptors or store ports instead of `java.io.File` or `java.nio.file.Path` directly.
   - Android can keep `File` and desktop can keep `Path` inside platform adapters because output streams, atomic moves, directory walking, and delete behavior are OS/runtime details.
@@ -279,8 +280,9 @@ Then higher-level repositories can be composed from those stores:
   - Desktop builds repositories from desktop paths/settings.
   - Android builds repositories from app context/settings.
   - Shared services receive only interfaces.
-- [ ] Add fake/in-memory implementations for common tests.
+- [x] Add fake/in-memory implementations for common tests.
   - This is the equivalent of swapping cache/storage engines in a PHP test environment.
+  - First fake engine: `InMemoryObjectByteStore` backs common `ObjectByteStoreService` tests.
 
 ## Candidate Abstractions
 
@@ -532,3 +534,8 @@ This is a strong first slice because playback-source selection currently affects
   - `AndroidPlaybackServiceSessionController` owns foreground-service saved-session hydration and restored now-playing metadata over shared storage/session ports.
   - `AndroidServicePlaybackRuntimeController` owns service-owned play/pause/stop/seek, saved-session playback, adjacent-track handling, and progress/session-position saves.
   - Line-count checkpoint: `AndroidPlaybackForegroundService.kt` 1,509, `AndroidAutoBrowseController.kt` 588, `AndroidAutoCommandController.kt` 65, `AndroidPlaybackServiceSessionController.kt` 80, `AndroidServicePlaybackRuntimeController.kt` 327.
+- 2026-06-04: Added shared object-byte storage orchestration.
+  - `ObjectByteStoreService` and `ObjectByteStore` now provide the non-audio object-byte boundary.
+  - Desktop and Android image caches route through the shared service while keeping existing SQL image rows as the first concrete engine.
+  - Desktop cover-art loading now depends on `ImageCacheRepository` instead of broad desktop storage.
+  - Added `InMemoryObjectByteStore` and common service tests as the first fake storage engine.

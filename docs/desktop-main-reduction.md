@@ -264,8 +264,10 @@ Branch: `codex/desktop-main-reduction`
 - [x] Introduce shared low-level byte/object store ports for audio cache/download file operations.
   - `AudioByteStoreService` now owns provider audio streaming, stable source/track/quality filenames, content-type extensions, zero-byte cleanup, and in-flight write coalescing.
   - Desktop and Android keep only temp/final file movement and deletion in platform byte-store adapters.
-- [ ] Introduce shared low-level byte/object store ports for non-audio file operations.
-- [ ] Introduce shared repository ports for media sources, provider responses, local library index, audio assets, sidecars, playback sessions, and maintenance stats.
+- [x] Introduce shared low-level byte/object store ports for non-audio file operations.
+  - `ObjectByteStoreService` now covers object-byte cache/fetch orchestration.
+  - Desktop and Android image caches implement `ObjectByteStore` over the current SQL image table; moving image blobs out of SQL remains an internal storage-engine migration.
+- [x] Introduce shared repository ports for media sources, provider responses, local library index, audio assets, sidecars, playback sessions, and maintenance stats.
   - Media-source metadata now has `MediaSourceRepository` with desktop and Android storage implementations.
   - Provider media-source upserts now have `ProviderMediaSourceRepository` with desktop and Android storage implementations.
   - Provider-response track metadata updates now have `TrackMetadataRepository` with a desktop cache implementation.
@@ -289,7 +291,8 @@ Branch: `codex/desktop-main-reduction`
   - `LyricsSidecarService` owns provider lyrics, embedded/local-file lyrics, LRCLIB fallback, preference selection, and lyrics sidecar persistence across desktop and Android.
   - `AudioMetadataSidecarService` owns common audio-tag orchestration for embedded lyrics and ReplayGain; platform adapters only read local audio bytes from `Path` / `File`.
   - Desktop now-playing analysis, desktop playlist sidecar prep, Android now-playing lyrics, and Android playlist sidecar prep all route through the shared sidecar services.
-- [ ] Add fake/in-memory storage engines for common tests.
+- [x] Add fake/in-memory storage engines for common tests.
+  - Added `InMemoryObjectByteStore` for common object-byte service tests.
 
 ## Shared-Code Watchlist
 
