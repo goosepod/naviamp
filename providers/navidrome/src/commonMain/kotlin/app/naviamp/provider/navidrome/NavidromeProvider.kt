@@ -27,6 +27,7 @@ import app.naviamp.domain.provider.LibraryScanStatus
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.ProviderCapabilities
+import app.naviamp.domain.network.SharedHttpClient
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -549,6 +550,17 @@ class NavidromeProvider(
 
     suspend fun download(url: String, writeChunk: suspend (bytes: ByteArray, count: Int) -> Unit): Boolean =
         httpClient.download(url, writeChunk = writeChunk)
+
+    override suspend fun downloadStream(
+        url: String,
+        httpClient: SharedHttpClient,
+        writeChunk: suspend (bytes: ByteArray, count: Int) -> Unit,
+    ): Boolean =
+        if (ownsUrl(url)) {
+            download(url, writeChunk)
+        } else {
+            httpClient.download(url, writeChunk = writeChunk)
+        }
 
     private suspend fun similarSongs(
         endpoint: String,

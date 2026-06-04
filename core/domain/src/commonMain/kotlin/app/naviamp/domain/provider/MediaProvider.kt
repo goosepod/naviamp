@@ -14,6 +14,7 @@ import app.naviamp.domain.ProviderId
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.network.SharedHttpClient
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 
 interface MediaProvider {
@@ -86,6 +87,13 @@ interface MediaProvider {
     suspend fun reportNowPlaying(trackId: TrackId) = Unit
     suspend fun reportPlayed(trackId: TrackId, playedAtEpochMillis: Long) = Unit
     suspend fun streamUrl(request: StreamRequest): String
+    suspend fun downloadStream(
+        url: String,
+        httpClient: SharedHttpClient,
+        writeChunk: suspend (bytes: ByteArray, count: Int) -> Unit,
+    ): Boolean =
+        httpClient.download(url, writeChunk = writeChunk)
+
     suspend fun setTrackFavorite(trackId: TrackId, favorite: Boolean) {
         throw UnsupportedOperationException("Track favorites are not supported by $displayName.")
     }
