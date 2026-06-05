@@ -331,7 +331,8 @@ Branch: `codex/desktop-main-reduction`
 ## Current Verification Notes
 
 - `apps/desktop/src/desktopMain/kotlin/app/naviamp/desktop/app/Main.kt` is currently a 63-line shell for desktop app/window setup.
-- `DesktopNaviampApp.kt` is still large at roughly 2,200 lines. Many controllers have been extracted, but reducing this file remains a real incomplete item.
+- `DesktopNaviampApp.kt` is still large at roughly 2,100 lines. Many controllers have been extracted, but reducing this file remains a real incomplete item.
+- First post-audit reduction slice: desktop app lifecycle/synchronization side effects moved into `DesktopAppEffects`, covering playback disposal, cover-art byte loading, transition/volume sync, visualizer polling, now-playing reporting, cache-limit/prefetch enforcement, and navigation persistence.
 - `DesktopCache` and `AndroidStorage` construction is isolated to dependency holders/runtime roots, and feature code mostly consumes narrow ports. The concrete storage engines are still broad adapter/facade classes, so the storage split remains a real incomplete item.
 - The broad "check duplication", "move shared rules", and "keep builds green" goals are branch hygiene goals. They remain relevant while this branch continues, even though many individual slices are complete.
 

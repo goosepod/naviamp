@@ -22,7 +22,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -54,9 +53,6 @@ import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.cache.shouldRefreshDownloadsAfter
 import app.naviamp.domain.app.shouldRefreshStorageStats
-import app.naviamp.domain.playback.CrossfadeSettings
-import app.naviamp.domain.playback.DefaultNowPlayingHeartbeatIntervalMillis
-import app.naviamp.domain.playback.DefaultVisualizerFrameIntervalMillis
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
@@ -70,7 +66,6 @@ import app.naviamp.domain.playback.planPlaybackTrackStartEffects
 import app.naviamp.domain.playback.planPlaybackTrackStarted
 import app.naviamp.domain.playback.shouldClearPendingSeek
 import app.naviamp.domain.playback.shouldIgnoreProgressForPendingSeek
-import app.naviamp.domain.playback.shouldReportNowPlaying
 import app.naviamp.domain.playback.shouldUpdatePlaybackProgressUi
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.provider.PendingPlaybackAction
@@ -93,7 +88,6 @@ import app.naviamp.domain.radio.trackRadioRequest
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.waveform.AudioWaveform
-import app.naviamp.desktop.settings.NavigationSettings
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.desktop.settings.PlaybackSessionSettings
 import app.naviamp.desktop.settings.RecentRadioStream
@@ -139,9 +133,7 @@ import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.provider.navidrome.withNativeTokenFromPassword
 import app.naviamp.ui.NaviampPlayerColors
 import app.naviamp.ui.NaviampVisualizer
-import app.naviamp.ui.resetJvmPlatformCoverArtByteLoader
 import app.naviamp.ui.rememberPlatformCoverArtPlayerColors
-import app.naviamp.ui.setJvmPlatformCoverArtByteLoader
 import app.naviamp.ui.toDownloadedTrackUi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -356,122 +348,26 @@ fun NaviampApp(
         label = "backgroundEnd",
     )
 
-    DisposableEffect(playbackEngine) {
-        onDispose {
-            playbackEngine.stop()
-        }
-    }
-
-    DisposableEffect(imageCacheRepository, connectedProvider) {
-        setJvmPlatformCoverArtByteLoader { url ->
-            connectedProvider
-                ?.takeIf { it.ownsUrl(url) }
-                ?.bytes(url)
-                ?: imageCacheRepository.imageBytes(url)
-        }
-        onDispose {
-            resetJvmPlatformCoverArtByteLoader()
-        }
-    }
-
-    LaunchedEffect(playbackEngine, playbackSettings.gaplessEnabled, playbackSettings.crossfadeDurationSeconds) {
-        val crossfadeDurationSeconds = playbackSettings.crossfadeDurationSeconds.coerceIn(0, 12)
-        playlistEngine.setPlaybackTransitionSettings(
-            gaplessEnabled = playbackSettings.gaplessEnabled,
-            crossfadeSettings = CrossfadeSettings(
-                enabled = !playbackSettings.gaplessEnabled && crossfadeDurationSeconds > 0,
-                durationSeconds = crossfadeDurationSeconds,
-            ),
-        )
-    }
-
-    LaunchedEffect(playbackEngine, playbackSettings.volumePercent) {
-        playbackEngine.setVolume(playbackSettings.volumePercent.coerceIn(0, 100))
-    }
-
-    LaunchedEffect(nowPlayingTrack?.id) {
-        nowPlayingVisualizerFrame = null
-    }
-
-    LaunchedEffect(connectedProvider, nowPlayingTrack?.id, playbackState) {
-        val provider = connectedProvider ?: return@LaunchedEffect
-        val track = nowPlayingTrack ?: return@LaunchedEffect
-        if (
-            !shouldReportNowPlaying(
-                supportsPlayReporting = provider.capabilities.supportsPlayReporting,
-                isInternetRadioTrack = track.isInternetRadioTrack(),
-                playbackState = playbackState,
-            )
-        ) {
-            return@LaunchedEffect
-        }
-
-        while (true) {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    provider.reportNowPlaying(track.id)
-                }
-            }
-            delay(DefaultNowPlayingHeartbeatIntervalMillis)
-        }
-    }
-
-    LaunchedEffect(playbackEngine, playbackState, nowPlayingVisualizerVisible, appRoute) {
-        val visualizerEngine = playbackEngine as? VisualizerPlaybackEngine
-        if (visualizerEngine?.supportsVisualizer != true) {
-            nowPlayingVisualizerFrame = null
-            return@LaunchedEffect
-        }
-        if (!nowPlayingVisualizerVisible || appRoute != DesktopAppRoute.Player) {
-            nowPlayingVisualizerFrame = null
-            return@LaunchedEffect
-        }
-        while (nowPlayingVisualizerVisible && appRoute == DesktopAppRoute.Player && (playbackState == PlaybackState.Playing || playbackState == PlaybackState.Loading)) {
-            nowPlayingVisualizerFrame = visualizerEngine.visualizerFrame()
-            kotlinx.coroutines.delay(DefaultVisualizerFrameIntervalMillis)
-        }
-        nowPlayingVisualizerFrame = null
-    }
-
-    LaunchedEffect(cacheSettings.maxAudioCacheBytes) {
-        storage.updateAudioCacheLimit(cacheSettings.maxAudioCacheBytes)
-    }
-
-    LaunchedEffect(cacheSettings.audioCachingEnabled, cacheSettings.audioPrefetchDepth) {
-        if (!cacheSettings.audioCachingEnabled || cacheSettings.audioPrefetchDepth <= 0) {
-            playlistEngine.cancelAudioPrefetch()
-        }
-    }
-
-    LaunchedEffect(appRoute, albumDetailBackRoute, artistDetailBackRoute) {
-        if (
-            appRoute == DesktopAppRoute.Player ||
-            appRoute == DesktopAppRoute.AlbumDetail ||
-            appRoute == DesktopAppRoute.ArtistDetail ||
-            appRoute == DesktopAppRoute.PlaylistDetail
-        ) {
-            settingsStore.saveNavigationSettings(
-                NavigationSettings(
-                    route = appRoute.name,
-                    lastContentRoute = if (appRoute == DesktopAppRoute.AlbumDetail) {
-                        albumDetailBackRoute.name
-                    } else if (appRoute == DesktopAppRoute.ArtistDetail) {
-                        artistDetailBackRoute.name
-                    } else {
-                        lastContentRoute.name
-                    },
-                ),
-            )
-        } else {
-            lastContentRoute = appRoute
-            settingsStore.saveNavigationSettings(
-                NavigationSettings(
-                    route = appRoute.name,
-                    lastContentRoute = appRoute.name,
-                ),
-            )
-        }
-    }
+    DesktopAppEffects(
+        playbackEngine = playbackEngine,
+        playlistEngine = playlistEngine,
+        imageCacheRepository = imageCacheRepository,
+        connectedProvider = connectedProvider,
+        nowPlayingTrack = nowPlayingTrack,
+        playbackState = playbackState,
+        nowPlayingVisualizerVisible = nowPlayingVisualizerVisible,
+        appRoute = appRoute,
+        playbackSettings = playbackSettings,
+        cacheSettings = cacheSettings,
+        albumDetailBackRoute = albumDetailBackRoute,
+        artistDetailBackRoute = artistDetailBackRoute,
+        lastContentRoute = lastContentRoute,
+        setLastContentRoute = { route -> lastContentRoute = route },
+        setNowPlayingVisualizerFrame = { frame -> nowPlayingVisualizerFrame = frame },
+        updateAudioCacheLimit = { maxBytes -> storage.updateAudioCacheLimit(maxBytes) },
+        cancelAudioPrefetch = { playlistEngine.cancelAudioPrefetch() },
+        saveNavigationSettings = settingsStore::saveNavigationSettings,
+    )
 
     val playbackController = DesktopPlaybackController(
         scope = coroutineScope,
