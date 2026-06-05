@@ -199,6 +199,28 @@ private fun TransportIconButton(
 }
 
 @Composable
+internal fun MiniPlayerIconButton(
+    colors: NaviampColors,
+    enabled: Boolean,
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+) {
+    IconButton(
+        enabled = enabled,
+        onClick = onClick,
+        modifier = Modifier.size(34.dp),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = if (enabled) colors.primaryText else colors.mutedText,
+            modifier = Modifier.size(20.dp),
+        )
+    }
+}
+
+@Composable
 internal fun SectionHeader(text: String, colors: NaviampColors) {
     Text(text, color = colors.primaryText, fontWeight = FontWeight.Bold, fontSize = 15.sp)
 }

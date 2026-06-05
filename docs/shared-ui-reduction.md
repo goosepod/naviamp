@@ -12,7 +12,7 @@ This checklist tracks cleanup after the desktop-main-reduction branch merge. The
 
 - [x] Extract shared UI model/data classes and route enums out of `NaviampSharedUi.kt`.
 - [ ] Move home/search/library/downloads route content into focused shared route files.
-- [ ] Move playlist list/detail content and playlist dialogs into focused shared playlist UI files.
+- [x] Move playlist list/detail content and playlist dialogs into focused shared playlist UI files.
 - [x] Move reusable media rows/cards/sections into focused shared media component files.
 - [x] Move text fields/buttons/section headers/placeholders/dropdowns/overflow menus into shared primitive files.
 - [x] Move shared bottom navigation and route placeholder rendering into a shared navigation file.
