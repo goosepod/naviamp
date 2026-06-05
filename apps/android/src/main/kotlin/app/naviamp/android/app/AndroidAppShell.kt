@@ -390,6 +390,7 @@ fun rememberAndroidAppShellUiState(
             playlistChoices = shellModels.playlistChoices,
             playlistActionStatus = playlistActionStatus,
             relatedTracks = relatedTracks,
+            radioTrackArtworkByKey = radioTrackArtworkByKey,
             radioStations = homeState.radioStations,
         )
 

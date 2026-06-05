@@ -463,9 +463,32 @@ fun InternetRadioStation.toNowPlayingStationUi(): NaviampNowPlayingItemUi =
 fun radioArtworkUrl(
     station: InternetRadioStation,
     streamMetadataProperties: Map<String, String> = emptyMap(),
+    trackArtworkUrl: String? = null,
 ): String =
     streamMetadataArtworkUrl(streamMetadataProperties)
+        ?: trackArtworkUrl
         ?: radioStationArtworkUrl(station)
+
+fun radioArtworkNeedsTrackLookup(
+    station: InternetRadioStation,
+    streamTitle: String?,
+    streamMetadataProperties: Map<String, String> = emptyMap(),
+): Boolean =
+    streamMetadataArtworkUrl(streamMetadataProperties) == null &&
+        knownRadioStationArtworkUrl(station) == null &&
+        station.homePageUrl == null &&
+        radioTrackArtworkQuery(streamTitle) != null
+
+fun radioTrackArtworkKey(
+    station: InternetRadioStation,
+    streamTitle: String?,
+): String? =
+    radioTrackArtworkQuery(streamTitle)?.let { query -> "${station.id}:$query" }
+
+fun radioTrackArtworkQuery(streamTitle: String?): String? =
+    streamTitle
+        ?.trim()
+        ?.takeIf { it.length >= 3 }
 
 private fun streamMetadataArtworkUrl(properties: Map<String, String>): String? {
     val artworkKeys = setOf(

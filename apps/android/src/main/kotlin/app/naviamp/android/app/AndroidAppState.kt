@@ -117,6 +117,7 @@ class AndroidAppState(
     var radioQueueActive by mutableStateOf(false)
     var radioRefilling by mutableStateOf(false)
     var lastRadioRefillSeedId by mutableStateOf<TrackId?>(null)
+    var radioTrackArtworkByKey by mutableStateOf<Map<String, String?>>(emptyMap())
     var relatedTracks by mutableStateOf<List<Track>>(emptyList())
     var artistPopularTracksByArtistId by mutableStateOf<Map<String, List<Track>>>(emptyMap())
     var artistPopularTracksStatusByArtistId by mutableStateOf<Map<String, String?>>(emptyMap())

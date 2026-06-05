@@ -23,6 +23,7 @@ import app.naviamp.ui.NowPlayingRadioUiConfig
 import app.naviamp.ui.NowPlayingTrackUiConfig
 import app.naviamp.ui.NowPlayingUi
 import app.naviamp.ui.radioArtworkUrl
+import app.naviamp.ui.radioTrackArtworkKey
 import app.naviamp.ui.toNowPlayingItemUi
 import app.naviamp.ui.toNowPlayingUi
 import app.naviamp.ui.toMiniNowPlayingUi
@@ -53,6 +54,7 @@ fun DesktopNowPlayingPanel(
     upNext: List<Track>,
     internetRadioStations: List<InternetRadioStation>,
     currentInternetRadioStationId: String?,
+    radioTrackArtworkByKey: Map<String, String?>,
     firstBackToQueueIndex: Int,
     firstUpNextQueueIndex: Int,
     upNextCoverArtUrl: (Track) -> String?,
@@ -198,7 +200,12 @@ fun DesktopNowPlayingPanel(
             station.toNowPlayingUi(
             NowPlayingRadioUiConfig(
                 streamTitle = nowPlayingStreamMetadata.title,
-                coverArtUrl = radioArtworkUrl(station, nowPlayingStreamMetadata.properties),
+                coverArtUrl = radioArtworkUrl(
+                    station = station,
+                    streamMetadataProperties = nowPlayingStreamMetadata.properties,
+                    trackArtworkUrl = radioTrackArtworkKey(station, nowPlayingStreamMetadata.title)
+                        ?.let { radioTrackArtworkByKey[it] },
+                ),
                 stateLabel = playbackState.label(),
                 volumePercent = volumePercent,
                 isPlaying = playbackState == PlaybackState.Playing,

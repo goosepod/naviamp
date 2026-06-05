@@ -22,6 +22,7 @@ fun clearAndroidDerivedMediaState(state: AndroidAppState) {
     state.audioTagsByTrackId = emptyMap()
     state.lyricsByTrackId = emptyMap()
     state.lyricsStatusByTrackId = emptyMap()
+    state.radioTrackArtworkByKey = emptyMap()
     state.relatedTracks = emptyList()
     state.artistPopularTracksByArtistId = emptyMap()
     state.artistPopularTracksStatusByArtistId = emptyMap()

@@ -128,6 +128,9 @@ import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.provider.navidrome.withNativeTokenFromPassword
 import app.naviamp.ui.NaviampPlayerColors
 import app.naviamp.ui.NaviampVisualizer
+import app.naviamp.ui.radioArtworkNeedsTrackLookup
+import app.naviamp.ui.radioTrackArtworkKey
+import app.naviamp.ui.radioTrackArtworkQuery
 import app.naviamp.ui.rememberPlatformCoverArtPlayerColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -272,6 +275,7 @@ fun NaviampApp(
     var nowPlayingLyricsVisible by remember { mutableStateOf(false) }
     var nowPlayingInternetRadioStation by remember { mutableStateOf(restoredInternetRadioStation) }
     var nowPlayingStreamMetadata by remember { mutableStateOf(PlaybackStreamMetadata()) }
+    var radioTrackArtworkByKey by remember { mutableStateOf<Map<String, String?>>(emptyMap()) }
     var relatedTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
     var playbackState by remember { mutableStateOf<PlaybackState>(PlaybackState.Idle) }
     val nowPlayingVisualizerVisible = nowPlayingVisualizerRequestedVisible &&
@@ -308,6 +312,27 @@ fun NaviampApp(
         coverArtPlayerColors
     } else {
         NaviampPlayerColors.solid(appColors.background)
+    }
+    LaunchedEffect(nowPlayingInternetRadioStation?.id, nowPlayingStreamMetadata.title, nowPlayingStreamMetadata.properties, connectedProvider) {
+        val station = nowPlayingInternetRadioStation ?: return@LaunchedEffect
+        if (!radioArtworkNeedsTrackLookup(station, nowPlayingStreamMetadata.title, nowPlayingStreamMetadata.properties)) {
+            return@LaunchedEffect
+        }
+        val key = radioTrackArtworkKey(station, nowPlayingStreamMetadata.title) ?: return@LaunchedEffect
+        if (radioTrackArtworkByKey.containsKey(key)) return@LaunchedEffect
+        val provider = connectedProvider ?: return@LaunchedEffect
+        val query = radioTrackArtworkQuery(nowPlayingStreamMetadata.title) ?: return@LaunchedEffect
+        val artworkUrl = withContext(Dispatchers.IO) {
+            runCatching {
+                provider
+                    .search(query, limit = 5)
+                    .tracks
+                    .firstOrNull { it.coverArtId != null }
+                    ?.coverArtId
+                    ?.let(provider::coverArtUrl)
+            }.getOrNull()
+        }
+        radioTrackArtworkByKey = radioTrackArtworkByKey + (key to artworkUrl)
     }
     val backgroundStart by animateColorAsState(
         targetValue = targetBackgroundColors.backgroundStart,
@@ -1041,6 +1066,7 @@ fun NaviampApp(
                                 internetRadioStations = internetRadioStations,
                                 currentInternetRadioStationId =
                                     nowPlayingInternetRadioStation?.id ?: nowPlayingTrack?.internetRadioStationId(),
+                                radioTrackArtworkByKey = radioTrackArtworkByKey,
                                 firstBackToQueueIndex = playbackQueue.currentIndex - 1,
                                 firstUpNextQueueIndex = playbackQueue.currentIndex + 1,
                                 upNextCoverArtUrl = { track ->

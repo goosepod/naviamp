@@ -53,6 +53,7 @@ import app.naviamp.ui.NowPlayingRadioUiConfig
 import app.naviamp.ui.NowPlayingTrackUiConfig
 import app.naviamp.ui.NowPlayingUi
 import app.naviamp.ui.radioArtworkUrl
+import app.naviamp.ui.radioTrackArtworkKey
 import app.naviamp.ui.SharedAlbumDetailUi
 import app.naviamp.ui.SharedArtistDetailUi
 import app.naviamp.ui.SharedHomeStationUi
@@ -287,6 +288,7 @@ fun androidNowPlayingUi(
     playlistChoices: List<NaviampPlaylistChoiceUi>,
     playlistActionStatus: String?,
     relatedTracks: List<Track>,
+    radioTrackArtworkByKey: Map<String, String?>,
     radioStations: List<InternetRadioStation>,
 ): NowPlayingUi? =
     nowPlaying?.let { track ->
@@ -340,10 +342,12 @@ fun androidNowPlayingUi(
             ),
         )
     } ?: nowPlayingStation?.let { station ->
+        val trackArtworkUrl = radioTrackArtworkKey(station, nowPlayingStreamMetadata.title)
+            ?.let { radioTrackArtworkByKey[it] }
         station.toNowPlayingUi(
             NowPlayingRadioUiConfig(
                 streamTitle = nowPlayingStreamMetadata.title,
-                coverArtUrl = radioArtworkUrl(station, nowPlayingStreamMetadata.properties),
+                coverArtUrl = radioArtworkUrl(station, nowPlayingStreamMetadata.properties, trackArtworkUrl),
                 stateLabel = playbackState.label(),
                 volumePercent = volumePercent,
                 isPlaying = playbackState == PlaybackState.Playing,

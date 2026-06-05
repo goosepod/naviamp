@@ -53,6 +53,7 @@ import app.naviamp.domain.media.albumDetailLoadErrorStatus
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackState
+import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
@@ -95,6 +96,9 @@ import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.NowPlayingRadioUiConfig
 import app.naviamp.ui.NowPlayingTrackUiConfig
 import app.naviamp.ui.NowPlayingUi
+import app.naviamp.ui.radioArtworkNeedsTrackLookup
+import app.naviamp.ui.radioTrackArtworkKey
+import app.naviamp.ui.radioTrackArtworkQuery
 import app.naviamp.ui.SharedAlbumDetailUi
 import app.naviamp.ui.SharedArtistDetailUi
 import app.naviamp.ui.SharedHomeStationUi
@@ -399,6 +403,33 @@ private fun NaviampAndroidApp(
             runCatching { RadioService(activeProvider, count = 20).trackRadio(track.id) }
                 .onSuccess { relatedTracks = it }
                 .onFailure { relatedTracks = emptyList() }
+        }
+    }
+
+    fun loadRadioTrackArtwork(station: InternetRadioStation, metadata: PlaybackStreamMetadata) {
+        if (!radioArtworkNeedsTrackLookup(station, metadata.title, metadata.properties)) return
+        val key = radioTrackArtworkKey(station, metadata.title) ?: return
+        if (radioTrackArtworkByKey.containsKey(key)) return
+        val activeProvider = provider ?: return
+        val query = radioTrackArtworkQuery(metadata.title) ?: return
+        scope.launch {
+            val artworkUrl = withContext(Dispatchers.IO) {
+                runCatching {
+                    activeProvider
+                        .search(query, limit = 5)
+                        .tracks
+                        .firstOrNull { it.coverArtId != null }
+                        ?.coverArtId
+                        ?.let(activeProvider::coverArtUrl)
+                }.getOrNull()
+            }
+            radioTrackArtworkByKey = radioTrackArtworkByKey + (key to artworkUrl)
+        }
+    }
+
+    LaunchedEffect(nowPlayingStation?.id, nowPlayingStreamMetadata.title, nowPlayingStreamMetadata.properties) {
+        nowPlayingStation?.let { station ->
+            loadRadioTrackArtwork(station, nowPlayingStreamMetadata)
         }
     }
 
