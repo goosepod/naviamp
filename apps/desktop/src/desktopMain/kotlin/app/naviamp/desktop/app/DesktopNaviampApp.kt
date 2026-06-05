@@ -185,24 +185,7 @@ fun NaviampApp(
     val restoredTrack = remember(restoredTrackSession, savedPlaybackSession) {
         restoredTrackSession?.currentTrack ?: savedPlaybackSession?.currentTrack()
     }
-    var serverUrl by remember { mutableStateOf(savedConnection?.baseUrl.orEmpty()) }
-    var connectionName by remember { mutableStateOf(savedConnection?.displayName.orEmpty()) }
-    var username by remember { mutableStateOf(savedConnection?.username.orEmpty()) }
-    var password by remember { mutableStateOf("") }
-    var insecureSkipTlsVerification by remember {
-        mutableStateOf(savedConnection?.tlsSettings?.insecureSkipTlsVerification ?: false)
-    }
-    var customCertificatePath by remember {
-        mutableStateOf(savedConnection?.tlsSettings?.customCertificatePath.orEmpty())
-    }
-    var clientCertificateKeyStorePath by remember {
-        mutableStateOf(savedConnection?.tlsSettings?.clientCertificateKeyStorePath.orEmpty())
-    }
-    var clientCertificateKeyStorePassword by remember {
-        mutableStateOf(savedConnection?.tlsSettings?.clientCertificateKeyStorePassword.orEmpty())
-    }
-    var savedConnectionForLogin by remember { mutableStateOf(savedConnection) }
-    var isConnectionFormOpen by remember { mutableStateOf(false) }
+    val connectionForm = remember { DesktopConnectionFormStateHolder(savedConnection) }
     var mediaSourcesRevision by remember { mutableIntStateOf(0) }
     var isConnecting by remember { mutableStateOf(false) }
     var connectionStatus by remember { mutableStateOf<String?>(null) }
@@ -546,15 +529,15 @@ fun NaviampApp(
             playbackProgress = state.playbackProgress
             playbackQueue = state.playbackQueue
         },
-        serverUrl = { serverUrl },
-        username = { username },
-        password = { password },
-        clearPassword = { password = "" },
-        connectionName = { connectionName },
-        insecureSkipTlsVerification = { insecureSkipTlsVerification },
-        customCertificatePath = { customCertificatePath },
-        clientCertificateKeyStorePath = { clientCertificateKeyStorePath },
-        clientCertificateKeyStorePassword = { clientCertificateKeyStorePassword },
+        serverUrl = { connectionForm.serverUrl },
+        username = { connectionForm.username },
+        password = { connectionForm.password },
+        clearPassword = connectionForm::clearPassword,
+        connectionName = { connectionForm.connectionName },
+        insecureSkipTlsVerification = { connectionForm.insecureSkipTlsVerification },
+        customCertificatePath = { connectionForm.customCertificatePath },
+        clientCertificateKeyStorePath = { connectionForm.clientCertificateKeyStorePath },
+        clientCertificateKeyStorePassword = { connectionForm.clientCertificateKeyStorePassword },
         isConnecting = { isConnecting },
         setConnecting = { connecting -> isConnecting = connecting },
         savedPlaybackSession = { savedPlaybackSession },
@@ -584,10 +567,10 @@ fun NaviampApp(
         startLibrarySync = { force -> startLibrarySyncAction(force) },
         checkLibraryFreshness = { checkLibraryFreshnessAction() },
         connectedSourceId = { connectedSourceId },
-        savedConnectionForLogin = { savedConnectionForLogin },
-        setSavedConnectionForLogin = { connection -> savedConnectionForLogin = connection },
+        savedConnectionForLogin = { connectionForm.savedConnectionForLogin },
+        setSavedConnectionForLogin = { connection -> connectionForm.savedConnectionForLogin = connection },
         incrementMediaSourcesRevision = { mediaSourcesRevision++ },
-        setConnectionFormOpen = { isOpen -> isConnectionFormOpen = isOpen },
+        setConnectionFormOpen = { isOpen -> connectionForm.isOpen = isOpen },
         setConnectionStatus = { status -> connectionStatus = status },
         setAppRoute = { route -> appRoute = route },
         appRoute = { appRoute },
@@ -819,10 +802,10 @@ fun NaviampApp(
         providerResponseCacheRepository = storage,
         provider = { connectedProvider },
         setProvider = { provider -> connectedProvider = provider },
-        password = { password },
-        clearPassword = { password = "" },
-        savedConnectionForLogin = { savedConnectionForLogin },
-        setSavedConnectionForLogin = { connection -> savedConnectionForLogin = connection },
+        password = { connectionForm.password },
+        clearPassword = connectionForm::clearPassword,
+        savedConnectionForLogin = { connectionForm.savedConnectionForLogin },
+        setSavedConnectionForLogin = { connection -> connectionForm.savedConnectionForLogin = connection },
         setConnectedSourceId = { sourceId -> connectedSourceId = sourceId },
         incrementMediaSourcesRevision = { mediaSourcesRevision++ },
         incrementStatsForNerdsRefreshTick = { statsForNerdsRefreshTick++ },
@@ -971,15 +954,7 @@ fun NaviampApp(
     )
 
     fun applyConnectionFormState(formState: DesktopConnectionFormState) {
-        savedConnectionForLogin = formState.savedConnectionForLogin
-        serverUrl = formState.serverUrl
-        connectionName = formState.connectionName
-        username = formState.username
-        password = formState.password
-        insecureSkipTlsVerification = formState.insecureSkipTlsVerification
-        customCertificatePath = formState.customCertificatePath
-        clientCertificateKeyStorePath = formState.clientCertificateKeyStorePath
-        clientCertificateKeyStorePassword = formState.clientCertificateKeyStorePassword
+        connectionForm.apply(formState)
     }
 
     val appActions = DesktopAppActions(
@@ -1014,8 +989,8 @@ fun NaviampApp(
     val statsForNerdsInfo = if (showStatsForNerds) {
         buildDesktopStatsForNerdsInfo(
             route = appRoute.name,
-            serverUrl = serverUrl,
-            username = username,
+            serverUrl = connectionForm.serverUrl,
+            username = connectionForm.username,
             connectedProvider = connectedProvider,
             mediaSource = statsMediaSource,
             connectionStatus = connectionStatus,
@@ -1609,18 +1584,18 @@ fun NaviampApp(
                                     )
                                     DesktopAppRoute.Settings -> DesktopSettingsPanel(
                                         appColors = appColors,
-                                        serverUrl = serverUrl,
-                                        connectionName = connectionName,
-                                        username = username,
-                                        password = password,
-                                        insecureSkipTlsVerification = insecureSkipTlsVerification,
-                                        customCertificatePath = customCertificatePath,
-                                        clientCertificateKeyStorePath = clientCertificateKeyStorePath,
-                                        clientCertificateKeyStorePassword = clientCertificateKeyStorePassword,
+                                        serverUrl = connectionForm.serverUrl,
+                                        connectionName = connectionForm.connectionName,
+                                        username = connectionForm.username,
+                                        password = connectionForm.password,
+                                        insecureSkipTlsVerification = connectionForm.insecureSkipTlsVerification,
+                                        customCertificatePath = connectionForm.customCertificatePath,
+                                        clientCertificateKeyStorePath = connectionForm.clientCertificateKeyStorePath,
+                                        clientCertificateKeyStorePassword = connectionForm.clientCertificateKeyStorePassword,
                                         savedConnections = savedMediaSources,
                                         currentSourceId = connectedSourceId,
-                                        hasSavedConnection = savedConnectionForLogin != null,
-                                        isConnectionFormOpen = isConnectionFormOpen,
+                                        hasSavedConnection = connectionForm.savedConnectionForLogin != null,
+                                        isConnectionFormOpen = connectionForm.isOpen,
                                         isConnecting = isConnecting,
                                         connectionStatus = connectionStatus,
                                         playbackSettings = playbackSettings,
@@ -1629,50 +1604,40 @@ fun NaviampApp(
                                         supportsReplayGain = playbackEngine.supportsReplayGain,
                                         supportsGapless = playbackEngine.supportsGapless,
                                         supportsCrossfade = playbackEngine.supportsCrossfade,
-                                        onServerUrlChanged = {
-                                            serverUrl = it
-                                            if (savedConnectionForLogin?.baseUrl != it) {
-                                                savedConnectionForLogin = null
-                                            }
-                                        },
-                                        onConnectionNameChanged = { connectionName = it },
-                                        onUsernameChanged = {
-                                            username = it
-                                            if (savedConnectionForLogin?.username != it) {
-                                                savedConnectionForLogin = null
-                                            }
-                                        },
-                                        onPasswordChanged = { password = it },
+                                        onServerUrlChanged = connectionForm::updateServerUrl,
+                                        onConnectionNameChanged = { connectionForm.connectionName = it },
+                                        onUsernameChanged = connectionForm::updateUsername,
+                                        onPasswordChanged = { connectionForm.password = it },
                                         onInsecureSkipTlsVerificationChanged = {
-                                            insecureSkipTlsVerification = it
+                                            connectionForm.insecureSkipTlsVerification = it
                                         },
                                         onCustomCertificatePathChanged = {
-                                            customCertificatePath = it
+                                            connectionForm.customCertificatePath = it
                                         },
                                         onClientCertificateKeyStorePathChanged = {
-                                            clientCertificateKeyStorePath = it
+                                            connectionForm.clientCertificateKeyStorePath = it
                                         },
                                         onClientCertificateKeyStorePasswordChanged = {
-                                            clientCertificateKeyStorePassword = it
+                                            connectionForm.clientCertificateKeyStorePassword = it
                                         },
                                         onConnect = { appActions.connectToServer() },
                                         onNewConnection = {
                                             applyConnectionFormState(newDesktopConnectionFormState())
-                                            isConnectionFormOpen = true
+                                            connectionForm.isOpen = true
                                             connectionStatus = null
                                         },
                                         onEditConnection = { source ->
                                             applyConnectionFormState(savedDesktopConnectionFormState(source))
-                                            isConnectionFormOpen = true
+                                            connectionForm.isOpen = true
                                             connectionStatus = "Editing saved connection. Leave password blank to reuse it."
                                         },
                                         onConnectSavedConnection = { source ->
                                             applyConnectionFormState(savedDesktopConnectionFormState(source))
-                                            isConnectionFormOpen = false
+                                            connectionForm.isOpen = false
                                             appActions.connectToServer()
                                         },
                                         onDeleteConnection = { source -> appActions.deleteConnection(source) },
-                                        onCancelConnectionForm = { isConnectionFormOpen = false },
+                                        onCancelConnectionForm = { connectionForm.isOpen = false },
                                         onPlaybackSettingsChanged = ::applyPlaybackSettings,
                                         onPlaybackSettingsChangedAndRedownload = ::applyPlaybackSettingsAndRedownload,
                                         onCacheSettingsChanged = { settings ->
