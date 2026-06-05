@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import app.naviamp.android.playback.AndroidBassLoadReport
 import app.naviamp.android.playback.AndroidPlaybackEngine
+import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.playback.nextRepeatMode
@@ -15,7 +16,7 @@ import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.VisualizerSettings
 import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
-import app.naviamp.ui.AndroidTrackRowUi
+import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.NaviampDiagnosticsUi
 import app.naviamp.ui.NaviampDownloadedTrackUi
 import app.naviamp.ui.NaviampLibrarySyncStatusUi
@@ -67,7 +68,7 @@ data class AndroidAppShellUiState(
     val playlistSortMode: SharedPlaylistSortMode,
     val playlistChoices: List<NaviampPlaylistChoiceUi>,
     val playlistActionStatus: String?,
-    val radioStationItems: List<SharedMediaItemUi>,
+    val radioStations: List<InternetRadioStation>,
     val albumDetail: SharedAlbumDetailUi?,
     val artistDetail: SharedArtistDetailUi?,
     val playlistDetail: SharedPlaylistDetailUi?,
@@ -92,7 +93,7 @@ data class AndroidAppShellActions(
     val onClearSearch: () -> Unit,
     val onLibraryQueryChanged: (String) -> Unit,
     val onRefreshLibrary: () -> Unit,
-    val onTrackSelected: (AndroidTrackRowUi) -> Unit,
+    val onTrackSelected: (SharedTrackRowUi) -> Unit,
     val onDownloadedTrackSelected: (NaviampDownloadedTrackUi) -> Unit,
     val onDownloadedTrackAddToPlaylist: (NaviampDownloadedTrackUi, NaviampPlaylistChoiceUi?) -> Unit,
     val onDownloadedTrackCreatePlaylistAndAdd: (NaviampDownloadedTrackUi, String) -> Unit,
@@ -100,15 +101,15 @@ data class AndroidAppShellActions(
     val onAlbumSelected: (SharedMediaItemUi) -> Unit,
     val onMixAlbumSelected: (SharedMediaItemUi) -> Unit,
     val onAlbumPlay: (SharedAlbumDetailUi, Boolean) -> Unit,
-    val onAlbumTrackSelected: (AndroidTrackRowUi) -> Unit,
+    val onAlbumTrackSelected: (SharedTrackRowUi) -> Unit,
     val onAlbumRadio: (SharedAlbumDetailUi) -> Unit,
     val onAlbumAddToQueue: (SharedAlbumDetailUi) -> Unit,
     val onAlbumDownload: (SharedAlbumDetailUi) -> Unit,
     val onAlbumAddToPlaylist: (SharedAlbumDetailUi, NaviampPlaylistChoiceUi?) -> Unit,
     val onAlbumCreatePlaylistAndAdd: (SharedAlbumDetailUi, String) -> Unit,
-    val onAlbumTrackDownload: (AndroidTrackRowUi) -> Unit,
-    val onAlbumTrackAddToPlaylist: (AndroidTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
-    val onAlbumTrackCreatePlaylistAndAdd: (AndroidTrackRowUi, String) -> Unit,
+    val onAlbumTrackDownload: (SharedTrackRowUi) -> Unit,
+    val onAlbumTrackAddToPlaylist: (SharedTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
+    val onAlbumTrackCreatePlaylistAndAdd: (SharedTrackRowUi, String) -> Unit,
     val onArtistRadio: (SharedArtistDetailUi) -> Unit,
     val onArtistShuffle: (SharedArtistDetailUi) -> Unit,
     val onArtistAddToQueue: (SharedArtistDetailUi) -> Unit,
@@ -116,12 +117,12 @@ data class AndroidAppShellActions(
     val onArtistCreatePlaylistAndAdd: (SharedArtistDetailUi, String) -> Unit,
     val onArtistPopularPlay: (SharedArtistDetailUi) -> Unit,
     val onArtistPopularRadio: (SharedArtistDetailUi) -> Unit,
-    val onArtistPopularTrackSelected: (AndroidTrackRowUi) -> Unit,
+    val onArtistPopularTrackSelected: (SharedTrackRowUi) -> Unit,
     val onArtistPopularAddToQueue: (SharedArtistDetailUi) -> Unit,
-    val onArtistPopularTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
-    val onArtistPopularTrackDownload: (AndroidTrackRowUi) -> Unit,
-    val onArtistPopularTrackAddToPlaylist: (AndroidTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
-    val onArtistPopularTrackCreatePlaylistAndAdd: (AndroidTrackRowUi, String) -> Unit,
+    val onArtistPopularTrackAddToQueue: (SharedTrackRowUi) -> Unit,
+    val onArtistPopularTrackDownload: (SharedTrackRowUi) -> Unit,
+    val onArtistPopularTrackAddToPlaylist: (SharedTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
+    val onArtistPopularTrackCreatePlaylistAndAdd: (SharedTrackRowUi, String) -> Unit,
     val onFindSimilarArtists: (SharedArtistDetailUi) -> Unit,
     val onSimilarArtistSelected: (SharedSimilarArtistUi) -> Unit,
     val onSimilarArtistExternalSelected: (String) -> Unit,
@@ -134,15 +135,25 @@ data class AndroidAppShellActions(
     val onPlaylistSelected: (SharedMediaItemUi) -> Unit,
     val onPlaylistSortModeChanged: (SharedPlaylistSortMode) -> Unit,
     val onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit,
+    val onPlaylistItemAddToQueue: (SharedMediaItemUi) -> Unit,
+    val onPlaylistItemAddToPlaylist: (SharedMediaItemUi, NaviampPlaylistChoiceUi?) -> Unit,
+    val onPlaylistItemCreatePlaylistAndAdd: (SharedMediaItemUi, String) -> Unit,
     val onPlaylistAddToQueue: (SharedPlaylistDetailUi) -> Unit,
     val onPlaylistDownload: (SharedMediaItemUi) -> Unit,
+    val onPlaylistAddToPlaylist: (SharedPlaylistDetailUi, NaviampPlaylistChoiceUi?) -> Unit,
+    val onPlaylistCreatePlaylistAndAdd: (SharedPlaylistDetailUi, String) -> Unit,
     val onPlaylistRename: (SharedMediaItemUi, String) -> Unit,
     val onPlaylistDelete: (SharedMediaItemUi) -> Unit,
     val onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit,
+    val onSmartPlaylistUpdate: suspend (SharedMediaItemUi, SmartPlaylistDefinition) -> Unit,
+    val onSmartPlaylistLoad: suspend (SharedMediaItemUi) -> SmartPlaylistDefinition,
     val onPlaylistBack: () -> Unit,
-    val onPlaylistTrackSelected: (AndroidTrackRowUi) -> Unit,
-    val onTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
-    val onRadioStationSelected: (SharedMediaItemUi) -> Unit,
+    val onPlaylistTrackSelected: (SharedTrackRowUi) -> Unit,
+    val onTrackAddToQueue: (SharedTrackRowUi) -> Unit,
+    val onRecentRadioSelected: (SharedMediaItemUi) -> Unit,
+    val onRadioStationSelected: (InternetRadioStation) -> Unit,
+    val onRadioStationSave: (InternetRadioStation) -> Unit,
+    val onRadioStationDelete: (InternetRadioStation) -> Unit,
     val onHomeStationSelected: (SharedHomeStationUi) -> Unit,
     val onOpenNowPlaying: () -> Unit,
     val onCloseNowPlaying: () -> Unit,
@@ -208,7 +219,7 @@ fun AndroidAppShellContent(
         playlistSortMode = state.playlistSortMode,
         playlistChoices = state.playlistChoices,
         playlistActionStatus = state.playlistActionStatus,
-        radioStationItems = state.radioStationItems,
+        radioStations = state.radioStations,
         albumDetail = state.albumDetail,
         artistDetail = state.artistDetail,
         playlistDetail = state.playlistDetail,
@@ -272,15 +283,25 @@ fun AndroidAppShellContent(
         onPlaylistSelected = actions.onPlaylistSelected,
         onPlaylistSortModeChanged = actions.onPlaylistSortModeChanged,
         onPlaylistPlay = actions.onPlaylistPlay,
+        onPlaylistItemAddToQueue = actions.onPlaylistItemAddToQueue,
+        onPlaylistItemAddToPlaylist = actions.onPlaylistItemAddToPlaylist,
+        onPlaylistItemCreatePlaylistAndAdd = actions.onPlaylistItemCreatePlaylistAndAdd,
         onPlaylistAddToQueue = actions.onPlaylistAddToQueue,
         onPlaylistDownload = actions.onPlaylistDownload,
+        onPlaylistAddToPlaylist = actions.onPlaylistAddToPlaylist,
+        onPlaylistCreatePlaylistAndAdd = actions.onPlaylistCreatePlaylistAndAdd,
         onPlaylistRename = actions.onPlaylistRename,
         onPlaylistDelete = actions.onPlaylistDelete,
         onSmartPlaylistSave = actions.onSmartPlaylistSave,
+        onSmartPlaylistUpdate = actions.onSmartPlaylistUpdate,
+        onSmartPlaylistLoad = actions.onSmartPlaylistLoad,
         onPlaylistBack = actions.onPlaylistBack,
         onPlaylistTrackSelected = actions.onPlaylistTrackSelected,
         onTrackAddToQueue = actions.onTrackAddToQueue,
+        onRecentRadioSelected = actions.onRecentRadioSelected,
         onRadioStationSelected = actions.onRadioStationSelected,
+        onRadioStationSave = actions.onRadioStationSave,
+        onRadioStationDelete = actions.onRadioStationDelete,
         onHomeStationSelected = actions.onHomeStationSelected,
         onOpenNowPlaying = actions.onOpenNowPlaying,
         onCloseNowPlaying = actions.onCloseNowPlaying,
@@ -380,6 +401,7 @@ fun rememberAndroidAppShellUiState(
             repeatMode = repeatMode,
             shuffledUpNextSnapshot = shuffledUpNextSnapshot,
             waveformByTrackId = waveformByTrackId,
+            audioTagsByTrackId = audioTagsByTrackId,
             lyricsByTrackId = lyricsByTrackId,
             lyricsStatusByTrackId = lyricsStatusByTrackId,
             lyricsVisible = lyricsVisible,
@@ -389,6 +411,7 @@ fun rememberAndroidAppShellUiState(
             playlistChoices = shellModels.playlistChoices,
             playlistActionStatus = playlistActionStatus,
             relatedTracks = relatedTracks,
+            radioTrackArtworkByKey = radioTrackArtworkByKey,
             radioStations = homeState.radioStations,
         )
 
@@ -423,7 +446,7 @@ fun rememberAndroidAppShellUiState(
             playlistSortMode = playlistSortMode,
             playlistChoices = shellModels.playlistChoices,
             playlistActionStatus = playlistActionStatus,
-            radioStationItems = shellModels.radioStationItems,
+            radioStations = homeState.radioStations,
             albumDetail = shellModels.albumDetail,
             artistDetail = shellModels.artistDetail,
             playlistDetail = shellModels.playlistDetail,
@@ -446,7 +469,7 @@ fun androidAppShellActions(
     handleResetDatabase: () -> Unit,
     handleSearch: () -> Unit,
     startAndroidLibrarySync: (Boolean) -> Unit,
-    handleShellTrackSelected: (AndroidTrackRowUi) -> Unit,
+    handleShellTrackSelected: (SharedTrackRowUi) -> Unit,
     handleDownloadedTrackSelected: (NaviampDownloadedTrackUi) -> Unit,
     handleDownloadedTrackAddToPlaylist: (NaviampDownloadedTrackUi, NaviampPlaylistChoiceUi?) -> Unit,
     handleDownloadedTrackCreatePlaylistAndAdd: (NaviampDownloadedTrackUi, String) -> Unit,
@@ -454,25 +477,25 @@ fun androidAppShellActions(
     handleShellAlbumSelected: (SharedMediaItemUi) -> Unit,
     handleMixAlbumSelected: (SharedMediaItemUi) -> Unit,
     handleShellAlbumPlay: (Boolean) -> Unit,
-    handleShellAlbumTrackSelected: (AndroidTrackRowUi) -> Unit,
+    handleShellAlbumTrackSelected: (SharedTrackRowUi) -> Unit,
     handleShellAlbumRadio: () -> Unit,
     appendTracksToQueue: (List<Track>, String) -> Unit,
     downloadTracks: (List<Track>, String) -> Unit,
     addTracksToPlaylist: (List<Track>, NaviampPlaylistChoiceUi?, String?, String) -> Unit,
-    handleAlbumTrackDownload: (AndroidTrackRowUi) -> Unit,
-    handleAlbumTrackAddToPlaylist: (AndroidTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
-    handleAlbumTrackCreatePlaylistAndAdd: (AndroidTrackRowUi, String) -> Unit,
+    handleAlbumTrackDownload: (SharedTrackRowUi) -> Unit,
+    handleAlbumTrackAddToPlaylist: (SharedTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
+    handleAlbumTrackCreatePlaylistAndAdd: (SharedTrackRowUi, String) -> Unit,
     handleShellArtistRadio: (SharedArtistDetailUi) -> Unit,
     handleShellArtistShuffle: () -> Unit,
     loadArtistTracks: ((List<Track>) -> Unit) -> Unit,
     handleArtistPopularPlay: (SharedArtistDetailUi) -> Unit,
     handleShellArtistPopularRadio: (SharedArtistDetailUi) -> Unit,
-    handleArtistPopularTrackSelected: (AndroidTrackRowUi) -> Unit,
+    handleArtistPopularTrackSelected: (SharedTrackRowUi) -> Unit,
     handleArtistPopularAddToQueue: (SharedArtistDetailUi) -> Unit,
-    handleTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
-    handleTrackDownload: (AndroidTrackRowUi) -> Unit,
-    handleTrackAddToPlaylist: (AndroidTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
-    handleTrackCreatePlaylistAndAdd: (AndroidTrackRowUi, String) -> Unit,
+    handleTrackAddToQueue: (SharedTrackRowUi) -> Unit,
+    handleTrackDownload: (SharedTrackRowUi) -> Unit,
+    handleTrackAddToPlaylist: (SharedTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
+    handleTrackCreatePlaylistAndAdd: (SharedTrackRowUi, String) -> Unit,
     findSimilarArtists: (app.naviamp.domain.ArtistId, String) -> Unit,
     handleSimilarArtistSelected: (SharedSimilarArtistUi) -> Unit,
     openExternalArtistUrl: (String) -> Unit,
@@ -482,12 +505,19 @@ fun androidAppShellActions(
     openPlaylistDetails: (Playlist) -> Unit,
     playPlaylist: (Playlist, Boolean) -> Unit,
     downloadPlaylist: (Playlist) -> Unit,
+    addPlaylistToQueue: (Playlist) -> Unit,
+    addPlaylistToPlaylist: (Playlist, NaviampPlaylistChoiceUi?, String?) -> Unit,
     renamePlaylist: (Playlist, String) -> Unit,
     deletePlaylist: (Playlist) -> Unit,
     saveSmartPlaylist: suspend (SmartPlaylistDefinition) -> Unit,
+    updateSmartPlaylist: suspend (Playlist, SmartPlaylistDefinition) -> Unit,
+    loadSmartPlaylist: suspend (Playlist) -> SmartPlaylistDefinition,
     closeActivePlaylist: () -> Unit,
-    handlePlaylistTrackSelected: (AndroidTrackRowUi) -> Unit,
-    handleRadioStationSelected: (SharedMediaItemUi) -> Unit,
+    handlePlaylistTrackSelected: (SharedTrackRowUi) -> Unit,
+    handleRecentRadioSelected: (SharedMediaItemUi) -> Unit,
+    handleRadioStationSelected: (InternetRadioStation) -> Unit,
+    saveInternetRadioStation: (InternetRadioStation) -> Unit,
+    deleteInternetRadioStation: (InternetRadioStation) -> Unit,
     handleShellHomeStationSelected: (SharedHomeStationUi) -> Unit,
     closeActiveDetail: () -> Unit,
     handleShellResume: () -> Unit,
@@ -595,9 +625,29 @@ fun androidAppShellActions(
                 homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }?.let { playPlaylist(it, shuffle) }
                     ?: run { status = "Playlist not found." }
             },
+            onPlaylistItemAddToQueue = { selectedPlaylist ->
+                homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }?.let(addPlaylistToQueue)
+                    ?: run { status = "Playlist not found." }
+            },
+            onPlaylistItemAddToPlaylist = { selectedPlaylist, playlist ->
+                homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }?.let { addPlaylistToPlaylist(it, playlist, null) }
+                    ?: run { status = "Playlist not found." }
+            },
+            onPlaylistItemCreatePlaylistAndAdd = { selectedPlaylist, name ->
+                homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }?.let { addPlaylistToPlaylist(it, null, name) }
+                    ?: run { status = "Playlist not found." }
+            },
             onPlaylistAddToQueue = { appendTracksToQueue(selectedPlaylistTracks, "playlist tracks") },
             onPlaylistDownload = { selectedPlaylist ->
                 homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }?.let(downloadPlaylist)
+                    ?: run { status = "Playlist not found." }
+            },
+            onPlaylistAddToPlaylist = { _, playlist ->
+                selectedPlaylist?.let { addPlaylistToPlaylist(it, playlist, null) }
+                    ?: run { status = "Playlist not found." }
+            },
+            onPlaylistCreatePlaylistAndAdd = { _, name ->
+                selectedPlaylist?.let { addPlaylistToPlaylist(it, null, name) }
                     ?: run { status = "Playlist not found." }
             },
             onPlaylistRename = { selectedPlaylist, name ->
@@ -609,10 +659,21 @@ fun androidAppShellActions(
                     ?: run { status = "Playlist not found." }
             },
             onSmartPlaylistSave = { definition -> saveSmartPlaylist(definition) },
+            onSmartPlaylistUpdate = { playlist, definition ->
+                homeState.playlists.firstOrNull { it.id == playlist.id }?.let { updateSmartPlaylist(it, definition) }
+                    ?: run { status = "Playlist not found." }
+            },
+            onSmartPlaylistLoad = { playlist ->
+                homeState.playlists.firstOrNull { it.id == playlist.id }?.let { loadSmartPlaylist(it) }
+                    ?: throw IllegalArgumentException("Playlist not found.")
+            },
             onPlaylistBack = { closeActivePlaylist() },
             onPlaylistTrackSelected = handlePlaylistTrackSelected,
             onTrackAddToQueue = handleTrackAddToQueue,
+            onRecentRadioSelected = handleRecentRadioSelected,
             onRadioStationSelected = handleRadioStationSelected,
+            onRadioStationSave = saveInternetRadioStation,
+            onRadioStationDelete = deleteInternetRadioStation,
             onHomeStationSelected = handleShellHomeStationSelected,
             onOpenNowPlaying = { nowPlayingOpen = true },
             onCloseNowPlaying = {

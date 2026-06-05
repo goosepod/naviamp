@@ -44,9 +44,6 @@ class DesktopInternetRadioController(
     private val setRecentStations: (List<InternetRadioStation>) -> Unit,
     private val setStations: (List<InternetRadioStation>) -> Unit,
     private val setStatus: (String?) -> Unit,
-    private val setNewStationDialogOpen: (Boolean) -> Unit,
-    private val setPendingEdit: (InternetRadioStation?) -> Unit,
-    private val setPendingDelete: (InternetRadioStation?) -> Unit,
     private val stopRadioContinuation: () -> Unit,
     private val clearShuffleSnapshot: () -> Unit,
     private val setNowPlayingTrack: (Track?) -> Unit,
@@ -191,8 +188,6 @@ class DesktopInternetRadioController(
                     }
                     providerResponseService.invalidateInternetRadioStations(activeProvider)
                 }
-                setNewStationDialogOpen(false)
-                setPendingEdit(null)
                 setStatus(null)
                 refreshStations()
             } catch (exception: Exception) {
@@ -210,7 +205,6 @@ class DesktopInternetRadioController(
                     activeProvider.deleteInternetRadioStation(station.id)
                     providerResponseService.invalidateInternetRadioStations(activeProvider)
                 }
-                setPendingDelete(null)
                 setStatus(null)
                 refreshStations()
             } catch (exception: Exception) {

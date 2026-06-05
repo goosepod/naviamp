@@ -9,11 +9,14 @@ import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
+import app.naviamp.domain.home.HomeContent
+import app.naviamp.domain.home.homeStations
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.waveform.AudioWaveform
+import kotlin.math.absoluteValue
 
 fun Artist.toSharedMediaItemUi(coverArtUrl: ((String?) -> String?)? = null): SharedMediaItemUi =
     SharedMediaItemUi(
@@ -43,17 +46,62 @@ fun Playlist.toSharedMediaItemUi(
         meta = durationSeconds?.durationLabel().orEmpty(),
         coverArtUrl = coverArtUrl(coverArtId),
         coverArtUrls = tracks.mapNotNull { coverArtUrl(it.coverArtId) }.distinct().take(4),
+        isSmartPlaylist = isSmart,
     )
 
 fun InternetRadioStation.toSharedMediaItemUi(): SharedMediaItemUi =
-    SharedMediaItemUi(id = id, title = name, subtitle = homePageUrl ?: "Internet radio")
+    SharedMediaItemUi(
+        id = id,
+        title = name,
+        subtitle = homePageUrl ?: "Internet radio",
+        coverArtUrl = radioStationArtworkUrl(this),
+    )
 
-fun Track.toAndroidTrackRowUi(
+fun InternetRadioStation.defaultRadioArtworkUrl(): String =
+    radioStationArtworkUrl(this)
+
+fun HomeContent.toSharedHomeUi(
+    coverArtUrl: (String?) -> String?,
+    playlistTracksById: Map<String, List<Track>> = emptyMap(),
+): SharedHomeUi =
+    SharedHomeUi(
+        recentlyAddedAlbums = recentlyAddedAlbums.map { it.toSharedMediaItemUi(coverArtUrl) },
+        mixAlbums = mixAlbums.map { it.toSharedMediaItemUi(coverArtUrl) },
+        recentAlbums = recentAlbums.map { it.toSharedMediaItemUi(coverArtUrl) },
+        frequentAlbums = frequentAlbums.map { it.toSharedMediaItemUi(coverArtUrl) },
+        randomAlbums = randomAlbums.map { it.toSharedMediaItemUi(coverArtUrl) },
+        playlists = playlists.map { playlist ->
+            playlist.toSharedMediaItemUi(
+                coverArtUrl = coverArtUrl,
+                tracks = playlistTracksById[playlist.id].orEmpty(),
+            )
+        },
+        recentRadioStreams = recentRadioStreams.map {
+            val coverArtUrls = it.coverArtIds.mapNotNull(coverArtUrl).distinct().take(4)
+            SharedMediaItemUi(
+                id = it.id,
+                title = it.label,
+                subtitle = "Radio",
+                coverArtUrl = coverArtUrls.firstOrNull(),
+                coverArtUrls = coverArtUrls,
+            )
+        },
+        radioStations = recentInternetRadioStations.map { it.toSharedMediaItemUi() },
+        stations = homeStations(this).map {
+            SharedHomeStationUi(id = it.id, title = it.title, subtitle = it.subtitle)
+        },
+        genreSpotlightTitle = genreSpotlight?.name,
+        genreSpotlightAlbums = genreSpotlightAlbums.map { it.toSharedMediaItemUi(coverArtUrl) },
+        decadeLabel = decadeLabel,
+        decadeAlbums = decadeAlbums.map { it.toSharedMediaItemUi(coverArtUrl) },
+    )
+
+fun Track.toSharedTrackRowUi(
     coverArtUrl: (String?) -> String?,
     fallbackCoverArtId: String? = null,
     popular: Boolean = false,
-): AndroidTrackRowUi =
-    AndroidTrackRowUi(
+): SharedTrackRowUi =
+    SharedTrackRowUi(
         id = id.value,
         title = title,
         subtitle = listOfNotNull(artistName, albumTitle).joinToString(" - "),
@@ -69,7 +117,7 @@ fun Track.toDownloadedTrackUi(
 ): NaviampDownloadedTrackUi =
     NaviampDownloadedTrackUi(
         id = id,
-        track = toAndroidTrackRowUi(coverArtUrl),
+        track = toSharedTrackRowUi(coverArtUrl),
         sizeBytes = sizeBytes,
     )
 
@@ -232,6 +280,7 @@ data class NowPlayingTrackUiConfig(
 
 data class NowPlayingRadioUiConfig(
     val streamTitle: String? = null,
+    val coverArtUrl: String?,
     val stateLabel: String,
     val volumePercent: Int = 100,
     val isPlaying: Boolean = false,
@@ -311,6 +360,7 @@ fun InternetRadioStation.toNowPlayingUi(config: NowPlayingRadioUiConfig): NowPla
         title = streamTitle ?: name,
         subtitle = if (streamTitle == null) "Internet radio" else name,
         stateLabel = config.stateLabel,
+        coverArtUrl = config.coverArtUrl,
         isLive = true,
         volumePercent = config.volumePercent,
         isPlaying = config.isPlaying,
@@ -355,7 +405,7 @@ fun Playlist.toSharedPlaylistDetailUi(
 ): SharedPlaylistDetailUi =
     SharedPlaylistDetailUi(
         playlist = toSharedMediaItemUi(coverArtUrl, tracks),
-        tracks = tracks.map { it.toAndroidTrackRowUi(coverArtUrl) },
+        tracks = tracks.map { it.toSharedTrackRowUi(coverArtUrl) },
     )
 
 fun AlbumDetails.toSharedAlbumDetailUi(
@@ -365,7 +415,7 @@ fun AlbumDetails.toSharedAlbumDetailUi(
     SharedAlbumDetailUi(
         album = album.toSharedMediaItemUi(coverArtUrl),
         tracks = tracks.map {
-            it.toAndroidTrackRowUi(
+            it.toSharedTrackRowUi(
                 coverArtUrl,
                 fallbackCoverArtId = album.coverArtId ?: album.id.value,
                 popular = it.id.value in popularTrackIds,
@@ -390,7 +440,7 @@ fun ArtistDetails.toSharedArtistDetailUi(
         ),
         albums = albums.map { it.toSharedMediaItemUi(coverArtUrl) },
         biography = info?.biography,
-        popularTracks = popularTracks.map { it.toAndroidTrackRowUi(coverArtUrl) },
+        popularTracks = popularTracks.map { it.toSharedTrackRowUi(coverArtUrl) },
         popularTracksStatus = popularTracksStatus,
         similarArtists = similarArtists.map { it.toSharedSimilarArtistUi() },
         similarArtistsStatus = similarArtistsStatus,
@@ -410,7 +460,7 @@ fun MediaSearchResults.toSharedSearchResultsUi(coverArtUrl: (String?) -> String?
     SharedSearchResultsUi(
         artists = artists.map { it.toSharedMediaItemUi(coverArtUrl) },
         albums = albums.map { it.toSharedMediaItemUi(coverArtUrl) },
-        tracks = tracks.map { it.toAndroidTrackRowUi(coverArtUrl) },
+        tracks = tracks.map { it.toSharedTrackRowUi(coverArtUrl) },
     )
 
 fun InternetRadioStation.toNowPlayingStationUi(): NaviampNowPlayingItemUi =
@@ -418,7 +468,130 @@ fun InternetRadioStation.toNowPlayingStationUi(): NaviampNowPlayingItemUi =
         id = id,
         title = name,
         subtitle = homePageUrl ?: "Internet radio",
+        coverArtUrl = radioStationArtworkUrl(this),
     )
+
+fun radioArtworkUrl(
+    station: InternetRadioStation,
+    streamMetadataProperties: Map<String, String> = emptyMap(),
+    trackArtworkUrl: String? = null,
+): String =
+    streamMetadataArtworkUrl(streamMetadataProperties)
+        ?: trackArtworkUrl
+        ?: radioStationArtworkUrl(station)
+
+fun radioArtworkNeedsTrackLookup(
+    station: InternetRadioStation,
+    streamTitle: String?,
+    streamMetadataProperties: Map<String, String> = emptyMap(),
+): Boolean =
+    streamMetadataArtworkUrl(streamMetadataProperties) == null &&
+        knownRadioStationArtworkUrl(station) == null &&
+        station.homePageUrl == null &&
+        radioTrackArtworkQuery(streamTitle) != null
+
+fun radioTrackArtworkKey(
+    station: InternetRadioStation,
+    streamTitle: String?,
+): String? =
+    radioTrackArtworkQuery(streamTitle)?.let { query -> "${station.id}:$query" }
+
+fun radioTrackArtworkQuery(streamTitle: String?): String? =
+    streamTitle
+        ?.trim()
+        ?.takeIf { it.length >= 3 }
+
+private fun streamMetadataArtworkUrl(properties: Map<String, String>): String? {
+    val artworkKeys = setOf(
+        "artwork",
+        "artworkurl",
+        "cover",
+        "coverart",
+        "coverarturl",
+        "image",
+        "imageurl",
+        "logo",
+        "logourl",
+        "picture",
+        "pictureurl",
+    )
+    return properties.entries.firstNotNullOfOrNull { (key, value) ->
+        value.trim()
+            .takeIf { key.lowercase().filter(Char::isLetterOrDigit) in artworkKeys }
+            ?.takeIf { it.startsWith("http://") || it.startsWith("https://") }
+    }
+}
+
+private fun radioStationArtworkUrl(station: InternetRadioStation): String =
+    knownRadioStationArtworkUrl(station)
+        ?: station.homePageUrl?.let(::faviconUrl)
+        ?: generatedRadioTileUrl(station.name)
+
+private fun knownRadioStationArtworkUrl(station: InternetRadioStation): String? {
+    val haystack = listOf(station.name, station.streamUrl, station.homePageUrl.orEmpty())
+        .joinToString(" ")
+        .lowercase()
+    return when {
+        "somafm" in haystack || "soma.fm" in haystack -> {
+            val slug = somaFmStationSlug(station.name)
+            "https://somafm.com/img3/$slug-400.png"
+        }
+        else -> null
+    }
+}
+
+private fun somaFmStationSlug(name: String): String =
+    when (name.trim().lowercase()) {
+        "deep space one" -> "deepspaceone"
+        "drone zone" -> "dronezone"
+        "groove salad" -> "groovesalad"
+        "groove salad classic" -> "gsclassic"
+        "idm tranceponder" -> "idm"
+        "space station soma" -> "spacestation"
+        "synphaera" -> "synphaera"
+        "the trip" -> "thetrip"
+        else -> name.lowercase().filter(Char::isLetterOrDigit).ifBlank { "somafm" }
+    }
+
+private fun faviconUrl(url: String): String? {
+    val host = url.removePrefix("https://")
+        .removePrefix("http://")
+        .substringBefore("/")
+        .substringBefore(":")
+        .takeIf { it.isNotBlank() }
+        ?: return null
+    return "https://www.google.com/s2/favicons?domain=$host&sz=256"
+}
+
+private fun generatedRadioTileUrl(name: String): String {
+    val initials = name
+        .split(Regex("\\s+"))
+        .mapNotNull { word -> word.firstOrNull(Char::isLetterOrDigit)?.uppercaseChar()?.toString() }
+        .take(3)
+        .joinToString("")
+        .ifBlank { "RAD" }
+    val palette = RadioTilePalettes[name.hashCode().absoluteValue % RadioTilePalettes.size]
+    return "naviamp-radio-tile://tile?label=${initials.urlEncode()}&from=${palette.first}&to=${palette.second}"
+}
+
+private val RadioTilePalettes = listOf(
+    "6f2a37" to "241013",
+    "465d7a" to "161f2c",
+    "85653d" to "24180e",
+    "4d6f62" to "12211d",
+    "6b4d84" to "211629",
+)
+
+private fun String.urlEncode(): String =
+    buildString {
+        for (char in this@urlEncode) {
+            when {
+                char.isLetterOrDigit() -> append(char)
+                char == '-' || char == '_' || char == '.' -> append(char)
+                else -> append("%${char.code.toString(16).uppercase().padStart(2, '0')}")
+            }
+        }
+    }
 
 fun RepeatMode.toNaviampRepeatMode(): NaviampRepeatMode =
     when (this) {

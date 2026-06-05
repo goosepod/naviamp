@@ -18,16 +18,25 @@ import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
+import app.naviamp.domain.Genre
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.domain.home.HomeContent
+import app.naviamp.domain.home.HomeStationLibrary
+import app.naviamp.domain.home.HomeStationRandomAlbum
+import app.naviamp.domain.home.parseHomeDecadeStationId
+import app.naviamp.domain.home.parseHomeGenreStationId
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.source.SavedMediaSource
+import app.naviamp.ui.SharedHome
+import app.naviamp.ui.SharedHomeStationUi
+import app.naviamp.ui.SharedMediaItemUi
+import app.naviamp.ui.toSharedHomeUi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -86,8 +95,7 @@ fun ColumnScope.DesktopAppRouteContent(
     isSearching: Boolean,
     internetRadioStations: List<InternetRadioStation>,
     internetRadioStatus: String?,
-    onNewInternetRadioStation: () -> Unit,
-    onEditInternetRadioStation: (InternetRadioStation) -> Unit,
+    onSaveInternetRadioStation: (InternetRadioStation) -> Unit,
     onDeleteInternetRadioStation: (InternetRadioStation) -> Unit,
     connectedSourceId: String?,
     downloadRefreshToken: Int,
@@ -116,6 +124,55 @@ fun ColumnScope.DesktopAppRouteContent(
     onResetDatabase: () -> Unit,
 ) {
     val contentScrollState = rememberScrollState()
+    val sharedHome = homeContent.toSharedHomeUi(coverArtUrl, playlistTracksById)
+    val homeAlbums = (
+        homeContent.recentlyAddedAlbums +
+            homeContent.mixAlbums +
+            homeContent.recentAlbums +
+            homeContent.frequentAlbums +
+            homeContent.randomAlbums +
+            homeContent.genreSpotlightAlbums +
+            homeContent.decadeAlbums
+        ).distinctBy { it.id }
+    val homePlaylists = (homeContent.playlists + playlists).distinctBy { it.id }
+    val homeInternetRadioStations = (
+        homeContent.recentInternetRadioStations +
+            homeContent.radioStations +
+            internetRadioStations
+        ).distinctBy { it.id }
+
+    fun openHomeAlbum(item: SharedMediaItemUi) {
+        homeAlbums.firstOrNull { it.id.value == item.id }?.let(appActions::openAlbumDetails)
+    }
+
+    fun openHomePlaylist(item: SharedMediaItemUi) {
+        homePlaylists.firstOrNull { it.id == item.id }?.let(appActions::openPlaylistDetails)
+    }
+
+    fun playHomeRecentRadio(item: SharedMediaItemUi) {
+        homeContent.recentRadioStreams.firstOrNull { it.id == item.id }?.let(appActions::playRecentRadio)
+    }
+
+    fun playHomeInternetRadio(item: SharedMediaItemUi) {
+        homeInternetRadioStations.firstOrNull { it.id == item.id }?.let(internetRadioController::playStation)
+    }
+
+    fun playHomeStation(station: SharedHomeStationUi) {
+        when (station.id) {
+            HomeStationLibrary -> appActions.playLibraryRadio()
+            HomeStationRandomAlbum -> appActions.playRandomAlbumRadio()
+            else -> {
+                parseHomeGenreStationId(station.id)?.let { genre ->
+                    appActions.playGenreRadio(Genre(genre))
+                    return
+                }
+                parseHomeDecadeStationId(station.id)?.let { decade ->
+                    appActions.playDecadeRadio(decade.fromYear, decade.toYear)
+                }
+            }
+        }
+    }
+
     Box(
         modifier = Modifier
             .weight(1f)
@@ -139,36 +196,15 @@ fun ColumnScope.DesktopAppRouteContent(
         ) {
             when (appRoute) {
                 DesktopAppRoute.Player -> Unit
-                DesktopAppRoute.Home -> DesktopHomePanel(
-                    appColors = appColors,
-                    connectionStatus = homeStatus ?: connectionStatus,
-                    homeContent = homeContent,
-                    coverArtUrl = coverArtUrl,
-                    onAlbumSelected = appActions::openAlbumDetails,
-                    onAlbumRadioSelected = appActions::playAlbumRadio,
-                    onAlbumDownloadSelected = appActions::downloadAlbum,
-                    onAlbumAddToQueue = { album ->
-                        playlistsController.addTargetToQueue(AddToPlaylistTarget.AlbumTarget(album))
-                    },
-                    onAlbumAddToPlaylist = { album ->
-                        playlistsController.openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(album))
-                    },
-                    onPlaylistSelected = appActions::openPlaylistDetails,
-                    onPlaylistDownloadSelected = appActions::downloadPlaylist,
-                    onPlaylistAddToQueue = { playlist ->
-                        playlistsController.addTargetToQueue(AddToPlaylistTarget.PlaylistTarget(playlist))
-                    },
-                    onPlaylistAddToPlaylist = { playlist ->
-                        playlistsController.openAddToPlaylist(AddToPlaylistTarget.PlaylistTarget(playlist))
-                    },
-                    onRecentRadioSelected = appActions::playRecentRadio,
-                    onInternetRadioStationSelected = internetRadioController::playStation,
-                    onLibraryRadioSelected = appActions::playLibraryRadio,
-                    onRandomAlbumRadioSelected = appActions::playRandomAlbumRadio,
-                    onGenreRadioSelected = appActions::playGenreRadio,
-                    onDecadeRadioSelected = appActions::playDecadeRadio,
-                    onOpenArtistMixBuilder = onOpenArtistMixBuilder,
-                    onOpenAlbumMixBuilder = onOpenAlbumMixBuilder,
+                DesktopAppRoute.Home -> SharedHome(
+                    colors = appColors,
+                    home = sharedHome,
+                    onAlbumSelected = ::openHomeAlbum,
+                    onMixAlbumSelected = ::openHomeAlbum,
+                    onPlaylistSelected = ::openHomePlaylist,
+                    onRecentRadioSelected = ::playHomeRecentRadio,
+                    onInternetRadioStationSelected = ::playHomeInternetRadio,
+                    onHomeStationSelected = ::playHomeStation,
                 )
                 DesktopAppRoute.AlbumDetail -> DesktopAlbumDetailPanel(
                     appColors = appColors,
@@ -412,8 +448,7 @@ fun ColumnScope.DesktopAppRouteContent(
                     stations = internetRadioStations,
                     status = internetRadioStatus ?: connectionStatus,
                     onPlayStation = internetRadioController::playStation,
-                    onNewStation = onNewInternetRadioStation,
-                    onEditStation = onEditInternetRadioStation,
+                    onSaveStation = onSaveInternetRadioStation,
                     onDeleteStation = onDeleteInternetRadioStation,
                 )
                 DesktopAppRoute.Downloads -> DesktopDownloadsRoute(

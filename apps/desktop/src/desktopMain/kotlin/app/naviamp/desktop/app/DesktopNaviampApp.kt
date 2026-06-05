@@ -128,6 +128,9 @@ import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.provider.navidrome.withNativeTokenFromPassword
 import app.naviamp.ui.NaviampPlayerColors
 import app.naviamp.ui.NaviampVisualizer
+import app.naviamp.ui.radioArtworkNeedsTrackLookup
+import app.naviamp.ui.radioTrackArtworkKey
+import app.naviamp.ui.radioTrackArtworkQuery
 import app.naviamp.ui.rememberPlatformCoverArtPlayerColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -209,9 +212,6 @@ fun NaviampApp(
     var recentRadioStreams by remember { mutableStateOf(savedRecentRadioStreams) }
     var internetRadioStations by remember { mutableStateOf<List<InternetRadioStation>>(emptyList()) }
     var internetRadioStatus by remember { mutableStateOf<String?>(null) }
-    var internetRadioStationPendingEdit by remember { mutableStateOf<InternetRadioStation?>(null) }
-    var internetRadioStationPendingDelete by remember { mutableStateOf<InternetRadioStation?>(null) }
-    var isNewInternetRadioStationDialogOpen by remember { mutableStateOf(false) }
     var recentInternetRadioStations by remember {
         mutableStateOf(savedRecentInternetRadioStations.map { it.toStation() })
     }
@@ -272,6 +272,7 @@ fun NaviampApp(
     var nowPlayingLyricsVisible by remember { mutableStateOf(false) }
     var nowPlayingInternetRadioStation by remember { mutableStateOf(restoredInternetRadioStation) }
     var nowPlayingStreamMetadata by remember { mutableStateOf(PlaybackStreamMetadata()) }
+    var radioTrackArtworkByKey by remember { mutableStateOf<Map<String, String?>>(emptyMap()) }
     var relatedTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
     var playbackState by remember { mutableStateOf<PlaybackState>(PlaybackState.Idle) }
     val nowPlayingVisualizerVisible = nowPlayingVisualizerRequestedVisible &&
@@ -308,6 +309,27 @@ fun NaviampApp(
         coverArtPlayerColors
     } else {
         NaviampPlayerColors.solid(appColors.background)
+    }
+    LaunchedEffect(nowPlayingInternetRadioStation?.id, nowPlayingStreamMetadata.title, nowPlayingStreamMetadata.properties, connectedProvider) {
+        val station = nowPlayingInternetRadioStation ?: return@LaunchedEffect
+        if (!radioArtworkNeedsTrackLookup(station, nowPlayingStreamMetadata.title, nowPlayingStreamMetadata.properties)) {
+            return@LaunchedEffect
+        }
+        val key = radioTrackArtworkKey(station, nowPlayingStreamMetadata.title) ?: return@LaunchedEffect
+        if (radioTrackArtworkByKey.containsKey(key)) return@LaunchedEffect
+        val provider = connectedProvider ?: return@LaunchedEffect
+        val query = radioTrackArtworkQuery(nowPlayingStreamMetadata.title) ?: return@LaunchedEffect
+        val artworkUrl = withContext(Dispatchers.IO) {
+            runCatching {
+                provider
+                    .search(query, limit = 5)
+                    .tracks
+                    .firstOrNull { it.coverArtId != null }
+                    ?.coverArtId
+                    ?.let(provider::coverArtUrl)
+            }.getOrNull()
+        }
+        radioTrackArtworkByKey = radioTrackArtworkByKey + (key to artworkUrl)
     }
     val backgroundStart by animateColorAsState(
         targetValue = targetBackgroundColors.backgroundStart,
@@ -467,9 +489,6 @@ fun NaviampApp(
         setRecentStations = { stations -> recentInternetRadioStations = stations },
         setStations = { stations -> internetRadioStations = stations },
         setStatus = { status -> internetRadioStatus = status },
-        setNewStationDialogOpen = { isOpen -> isNewInternetRadioStationDialogOpen = isOpen },
-        setPendingEdit = { station -> internetRadioStationPendingEdit = station },
-        setPendingDelete = { station -> internetRadioStationPendingDelete = station },
         stopRadioContinuation = { radioController.stopContinuation() },
         clearShuffleSnapshot = ::clearShuffleSnapshot,
         setNowPlayingTrack = { track -> nowPlayingTrack = track },
@@ -1031,6 +1050,7 @@ fun NaviampApp(
                                 nowPlayingAudioTags = nowPlayingAudioTags,
                                 nowPlayingLyrics = nowPlayingLyrics,
                                 nowPlayingLyricsStatus = nowPlayingLyricsStatus,
+                                nowPlayingStreamMetadata = nowPlayingStreamMetadata,
                                 lyricsVisible = nowPlayingLyricsVisible,
                                 visualizerAvailable = (playbackEngine as? VisualizerPlaybackEngine)?.supportsVisualizer == true,
                                 visualizerVisible = nowPlayingVisualizerVisible,
@@ -1040,6 +1060,7 @@ fun NaviampApp(
                                 internetRadioStations = internetRadioStations,
                                 currentInternetRadioStationId =
                                     nowPlayingInternetRadioStation?.id ?: nowPlayingTrack?.internetRadioStationId(),
+                                radioTrackArtworkByKey = radioTrackArtworkByKey,
                                 firstBackToQueueIndex = playbackQueue.currentIndex - 1,
                                 firstUpNextQueueIndex = playbackQueue.currentIndex + 1,
                                 upNextCoverArtUrl = { track ->
@@ -1230,9 +1251,8 @@ fun NaviampApp(
                             isSearching = isSearching,
                             internetRadioStations = internetRadioStations,
                             internetRadioStatus = internetRadioStatus,
-                            onNewInternetRadioStation = { isNewInternetRadioStationDialogOpen = true },
-                            onEditInternetRadioStation = { station -> internetRadioStationPendingEdit = station },
-                            onDeleteInternetRadioStation = { station -> internetRadioStationPendingDelete = station },
+                            onSaveInternetRadioStation = internetRadioController::saveStation,
+                            onDeleteInternetRadioStation = internetRadioController::deleteStation,
                             connectedSourceId = connectedSourceId,
                             downloadRefreshToken = downloadRefreshToken,
                             downloadStatus = downloadStatus,
@@ -1281,9 +1301,6 @@ fun NaviampApp(
                             addToPlaylistStatus = addToPlaylistStatus,
                             playlistPendingRename = playlistPendingRename,
                             playlistPendingDelete = playlistPendingDelete,
-                            isNewInternetRadioStationDialogOpen = isNewInternetRadioStationDialogOpen,
-                            internetRadioStationPendingEdit = internetRadioStationPendingEdit,
-                            internetRadioStationPendingDelete = internetRadioStationPendingDelete,
                             onDismissAddToPlaylist = {
                                 addToPlaylistTarget = null
                                 addToPlaylistStatus = null
@@ -1298,11 +1315,6 @@ fun NaviampApp(
                             onRenamePlaylist = appActions::renamePlaylist,
                             onDismissDeletePlaylist = { playlistPendingDelete = null },
                             onDeletePlaylist = appActions::deletePlaylist,
-                            onDismissNewInternetRadioStation = { isNewInternetRadioStationDialogOpen = false },
-                            onSaveInternetRadioStation = internetRadioController::saveStation,
-                            onDismissEditInternetRadioStation = { internetRadioStationPendingEdit = null },
-                            onDismissDeleteInternetRadioStation = { internetRadioStationPendingDelete = null },
-                            onDeleteInternetRadioStation = internetRadioController::deleteStation,
                         )
                         if (nowPlayingTrack != null) {
                             DesktopMiniPlayerPanel(

@@ -194,6 +194,7 @@ data class RecentRadioStream(
     val genre: String? = null,
     val fromYear: Int? = null,
     val toYear: Int? = null,
+    val coverArtIds: List<String> = emptyList(),
 )
 
 @Serializable

@@ -20,6 +20,7 @@ object DesktopNavigationIcons {
     val ExternalLink = NaviampIcons.ExternalLink
     val Queue = NaviampIcons.Queue
     val Playlist = NaviampIcons.Playlist
+    val Brain = NaviampIcons.Brain
     val InternetRadio = NaviampIcons.InternetRadio
     val Alphabetical = NaviampIcons.Alphabetical
     val Clock = NaviampIcons.Clock

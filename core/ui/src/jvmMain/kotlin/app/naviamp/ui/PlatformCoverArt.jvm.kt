@@ -25,7 +25,15 @@ import app.naviamp.domain.network.KtorSharedHttpClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jetbrains.skia.Image as SkiaImage
+import java.awt.Color as AwtColor
+import java.awt.Font
+import java.awt.GradientPaint
+import java.awt.RenderingHints
+import java.awt.geom.RoundRectangle2D
+import java.awt.image.BufferedImage
+import java.io.ByteArrayOutputStream
 import java.util.LinkedHashMap
+import javax.imageio.ImageIO
 
 @Volatile
 private var platformCoverArtByteLoader: suspend (String) -> ByteArray = ::defaultPlatformCoverArtBytes
@@ -37,6 +45,9 @@ fun setJvmPlatformCoverArtByteLoader(loader: suspend (String) -> ByteArray) {
 fun resetJvmPlatformCoverArtByteLoader() {
     platformCoverArtByteLoader = ::defaultPlatformCoverArtBytes
 }
+
+fun jvmGeneratedCoverArtBytes(url: String): ByteArray? =
+    generatedRadioTileBytes(url)
 
 suspend fun preloadJvmPlatformCoverArt(urls: Iterable<String>) {
     urls.distinct().forEach { url ->
@@ -147,10 +158,65 @@ private fun jvmRgbSamples(bytes: ByteArray): List<NaviampRgbSample> {
 
 private suspend fun defaultPlatformCoverArtBytes(url: String): ByteArray =
     withContext(Dispatchers.IO) {
+        generatedRadioTileBytes(url)?.let { return@withContext it }
         DefaultPlatformCoverArtHttpClient.getBytes(url) ?: ByteArray(0)
     }
 
 private val DefaultPlatformCoverArtHttpClient = KtorSharedHttpClient()
+
+private fun generatedRadioTileBytes(url: String): ByteArray? {
+    if (!url.startsWith(RadioTileScheme)) return null
+    val params = url.substringAfter("?", "")
+        .split("&")
+        .mapNotNull { part ->
+            val key = part.substringBefore("=", "")
+            val value = part.substringAfter("=", "")
+            if (key.isBlank()) null else key to value
+        }
+        .toMap()
+    val label = params["label"]?.urlDecode()?.takeIf { it.isNotBlank() } ?: "RAD"
+    val from = AwtColor.decode("#${params["from"] ?: "465d7a"}")
+    val to = AwtColor.decode("#${params["to"] ?: "161f2c"}")
+    val image = BufferedImage(RadioTileSidePx, RadioTileSidePx, BufferedImage.TYPE_INT_ARGB)
+    val graphics = image.createGraphics()
+    try {
+        graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+        graphics.paint = GradientPaint(
+            0f,
+            0f,
+            from,
+            RadioTileSidePx.toFloat(),
+            RadioTileSidePx.toFloat(),
+            to,
+        )
+        graphics.fill(RoundRectangle2D.Float(0f, 0f, RadioTileSidePx.toFloat(), RadioTileSidePx.toFloat(), 48f, 48f))
+        graphics.color = AwtColor(255, 255, 255, 54)
+        graphics.stroke = java.awt.BasicStroke(22f)
+        graphics.drawOval(138, 138, 236, 236)
+        graphics.color = AwtColor(255, 255, 255, 42)
+        graphics.fillOval(200, 200, 112, 112)
+        graphics.color = AwtColor.WHITE
+        graphics.font = Font(Font.SANS_SERIF, Font.BOLD, if (label.length <= 2) 126 else 104)
+        val metrics = graphics.fontMetrics
+        val x = (RadioTileSidePx - metrics.stringWidth(label)) / 2
+        val y = ((RadioTileSidePx - metrics.height) / 2) + metrics.ascent
+        graphics.drawString(label, x, y)
+    } finally {
+        graphics.dispose()
+    }
+    return ByteArrayOutputStream().use { output ->
+        ImageIO.write(image, "png", output)
+        output.toByteArray()
+    }
+}
+
+private fun String.urlDecode(): String =
+    replace("+", " ").replace(Regex("%([0-9A-Fa-f]{2})")) { match ->
+        match.groupValues[1].toInt(16).toChar().toString()
+    }
+
+private const val RadioTileSidePx = 512
+private const val RadioTileScheme = "naviamp-radio-tile://"
 
 private object JvmCoverArtCache {
     private const val MaxImages = 240

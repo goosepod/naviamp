@@ -1,8 +1,12 @@
 package app.naviamp.desktop
 
 import androidx.compose.runtime.Composable
-import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Playlist
+import app.naviamp.ui.AddToPlaylistDialog
+import app.naviamp.ui.DeletePlaylistDialog
+import app.naviamp.ui.RenamePlaylistDialog
+import app.naviamp.ui.SharedMediaItemUi
+import app.naviamp.ui.toPlaylistChoiceUi
 
 @Composable
 fun DesktopAppDialogs(
@@ -12,9 +16,6 @@ fun DesktopAppDialogs(
     addToPlaylistStatus: String?,
     playlistPendingRename: Playlist?,
     playlistPendingDelete: Playlist?,
-    isNewInternetRadioStationDialogOpen: Boolean,
-    internetRadioStationPendingEdit: InternetRadioStation?,
-    internetRadioStationPendingDelete: InternetRadioStation?,
     onDismissAddToPlaylist: () -> Unit,
     onAddToExistingPlaylist: (target: AddToPlaylistTarget, playlist: Playlist) -> Unit,
     onCreateAndAddToPlaylist: (target: AddToPlaylistTarget, name: String) -> Unit,
@@ -22,21 +23,18 @@ fun DesktopAppDialogs(
     onRenamePlaylist: (playlist: Playlist, name: String) -> Unit,
     onDismissDeletePlaylist: () -> Unit,
     onDeletePlaylist: (Playlist) -> Unit,
-    onDismissNewInternetRadioStation: () -> Unit,
-    onSaveInternetRadioStation: (InternetRadioStation) -> Unit,
-    onDismissEditInternetRadioStation: () -> Unit,
-    onDismissDeleteInternetRadioStation: () -> Unit,
-    onDeleteInternetRadioStation: (InternetRadioStation) -> Unit,
 ) {
     addToPlaylistTarget?.let { target ->
-        DesktopAddToPlaylistDialog(
-            appColors = appColors,
-            target = target,
-            playlists = playlists,
+        AddToPlaylistDialog(
+            title = target.title,
+            colors = appColors,
+            playlists = playlists.map { it.toPlaylistChoiceUi() },
             status = addToPlaylistStatus,
-            onDismiss = onDismissAddToPlaylist,
-            onAddToExisting = { playlist ->
-                onAddToExistingPlaylist(target, playlist)
+            onDismissRequest = onDismissAddToPlaylist,
+            onAddToExisting = { choice ->
+                playlists.firstOrNull { it.id == choice.id }?.let { playlist ->
+                    onAddToExistingPlaylist(target, playlist)
+                }
             },
             onCreateAndAdd = { name ->
                 onCreateAndAddToPlaylist(target, name)
@@ -44,38 +42,26 @@ fun DesktopAppDialogs(
         )
     }
     playlistPendingRename?.let { playlist ->
-        DesktopRenamePlaylistDialog(
-            playlist = playlist,
+        RenamePlaylistDialog(
+            playlist = playlist.toSharedPlaylistItem(),
+            colors = appColors,
             onDismiss = onDismissRenamePlaylist,
             onConfirm = { name -> onRenamePlaylist(playlist, name) },
         )
     }
     playlistPendingDelete?.let { playlist ->
-        DesktopDeletePlaylistDialog(
-            playlist = playlist,
+        DeletePlaylistDialog(
+            playlist = playlist.toSharedPlaylistItem(),
+            colors = appColors,
             onDismiss = onDismissDeletePlaylist,
             onConfirm = { onDeletePlaylist(playlist) },
         )
     }
-    if (isNewInternetRadioStationDialogOpen) {
-        DesktopInternetRadioStationDialog(
-            initialStation = null,
-            onDismiss = onDismissNewInternetRadioStation,
-            onConfirm = onSaveInternetRadioStation,
-        )
-    }
-    internetRadioStationPendingEdit?.let { station ->
-        DesktopInternetRadioStationDialog(
-            initialStation = station,
-            onDismiss = onDismissEditInternetRadioStation,
-            onConfirm = onSaveInternetRadioStation,
-        )
-    }
-    internetRadioStationPendingDelete?.let { station ->
-        DesktopDeleteInternetRadioStationDialog(
-            station = station,
-            onDismiss = onDismissDeleteInternetRadioStation,
-            onConfirm = { onDeleteInternetRadioStation(station) },
-        )
-    }
 }
+
+private fun Playlist.toSharedPlaylistItem(): SharedMediaItemUi =
+    SharedMediaItemUi(
+        id = id,
+        title = name,
+        subtitle = "$trackCount tracks",
+    )

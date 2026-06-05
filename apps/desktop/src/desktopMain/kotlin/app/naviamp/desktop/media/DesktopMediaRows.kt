@@ -31,6 +31,10 @@ import app.naviamp.ui.NaviampActionSpec
 import app.naviamp.ui.NaviampIcons
 import app.naviamp.ui.NaviampRowMenuItem
 import app.naviamp.ui.NaviampRowOverflowMenu
+import app.naviamp.ui.SharedMediaItemUi
+import app.naviamp.ui.SharedMediaRow
+import app.naviamp.ui.SharedTrackRowUi
+import app.naviamp.ui.TrackRow
 import app.naviamp.ui.albumRowActions
 import app.naviamp.ui.artistRowActions
 import app.naviamp.ui.compactFavoriteRatingLabel
@@ -78,44 +82,37 @@ fun DesktopArtistRow(
     modifier: Modifier = Modifier,
     coverArtUrl: String? = null,
     showCoverArt: Boolean = false,
-    coverArtSize: Dp = 34.dp,
+    coverArtSize: Dp = 44.dp,
     onClick: (() -> Unit)? = null,
     onStartRadio: (() -> Unit)? = null,
     onAddToQueue: (() -> Unit)? = null,
     onAddToPlaylist: (() -> Unit)? = null,
 ) {
-    DesktopMediaRow(appColors = appColors, modifier = modifier, onClick = onClick) {
-        if (showCoverArt) {
-            DesktopCoverArtThumb(
-                appColors = appColors,
-                coverArtUrl = coverArtUrl,
-                size = coverArtSize,
-                cornerRadius = coverArtSize / 2,
-            )
-        }
-        MediaTextBlock(
-            appColors = appColors,
+    SharedMediaRow(
+        item = SharedMediaItemUi(
+            id = artist.id.value,
             title = artist.name,
             subtitle = "Artist",
-            titleStyle = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
-            modifier = Modifier.weight(1f),
-        )
-        DesktopRowOverflowMenu(
-            appColors = appColors,
-            items = artistRowActions(
-                canStartRadio = onStartRadio != null,
-                canAddToQueue = onAddToQueue != null,
-                canAddToPlaylist = onAddToPlaylist != null,
-            ).mapNotNull { action ->
-                when (action.action) {
-                    NaviampAction.StartArtistRadio -> onStartRadio?.let { action.toRowMenuItem(it) }
-                    NaviampAction.AddToQueue -> onAddToQueue?.let { action.toRowMenuItem(it) }
-                    NaviampAction.AddToPlaylist -> onAddToPlaylist?.let { action.toRowMenuItem(it) }
-                    else -> null
-                }
-            },
-        )
-    }
+            coverArtUrl = coverArtUrl.takeIf { showCoverArt },
+        ),
+        colors = appColors,
+        onClick = onClick,
+        menuItems = artistRowActions(
+            canStartRadio = onStartRadio != null,
+            canAddToQueue = onAddToQueue != null,
+            canAddToPlaylist = onAddToPlaylist != null,
+        ).mapNotNull { action ->
+            when (action.action) {
+                NaviampAction.StartArtistRadio -> onStartRadio?.let { action.toRowMenuItem(it).toSharedMenuItem() }
+                NaviampAction.AddToQueue -> onAddToQueue?.let { action.toRowMenuItem(it).toSharedMenuItem() }
+                NaviampAction.AddToPlaylist -> onAddToPlaylist?.let { action.toRowMenuItem(it).toSharedMenuItem() }
+                else -> null
+            }
+        },
+        coverArtSize = coverArtSize,
+        coverArtCornerRadius = coverArtSize / 2,
+        modifier = modifier,
+    )
 }
 
 @Composable
@@ -124,55 +121,46 @@ fun DesktopAlbumRow(
     album: Album,
     coverArtUrl: String?,
     modifier: Modifier = Modifier,
-    coverArtSize: Dp = 34.dp,
-    verticalPadding: Dp = 3.dp,
+    coverArtSize: Dp = 44.dp,
+    verticalPadding: Dp = 7.dp,
     onClick: (() -> Unit)? = null,
     onStartRadio: (() -> Unit)? = null,
     onDownload: (() -> Unit)? = null,
     onAddToQueue: (() -> Unit)? = null,
     onAddToPlaylist: (() -> Unit)? = null,
 ) {
-    DesktopMediaRow(
-        appColors = appColors,
-        modifier = modifier,
-        onClick = onClick,
-        verticalPadding = verticalPadding,
-    ) {
-        DesktopCoverArtThumb(
-            appColors = appColors,
-            coverArtUrl = coverArtUrl,
-            size = coverArtSize,
-            cornerRadius = 4.dp,
-        )
-        MediaTextBlock(
-            appColors = appColors,
+    SharedMediaRow(
+        item = SharedMediaItemUi(
+            id = album.id.value,
             title = album.title,
             subtitle = album.artistName,
-            titleStyle = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
-            modifier = Modifier.weight(1f),
-        )
-        Text("Album", color = appColors.mutedText, fontSize = 11.sp)
-        album.releaseYear?.let {
-            Text(it.toString(), color = appColors.mutedText, fontSize = 11.sp)
-        }
-        DesktopRowOverflowMenu(
-            appColors = appColors,
-            items = albumRowActions(
-                canStartRadio = onStartRadio != null,
-                canDownload = onDownload != null,
-                canAddToQueue = onAddToQueue != null,
-                canAddToPlaylist = onAddToPlaylist != null,
-            ).mapNotNull { action ->
-                when (action.action) {
-                    NaviampAction.StartAlbumRadio -> onStartRadio?.let { action.toRowMenuItem(it) }
-                    NaviampAction.DownloadAlbum -> onDownload?.let { action.toRowMenuItem(it) }
-                    NaviampAction.AddToQueue -> onAddToQueue?.let { action.toRowMenuItem(it) }
-                    NaviampAction.AddToPlaylist -> onAddToPlaylist?.let { action.toRowMenuItem(it) }
-                    else -> null
-                }
-            },
-        )
-    }
+            meta = listOfNotNull(
+                "Album",
+                album.releaseYear?.toString(),
+            ).joinToString(" "),
+            coverArtUrl = coverArtUrl,
+        ),
+        colors = appColors,
+        onClick = onClick,
+        menuItems = albumRowActions(
+            canStartRadio = onStartRadio != null,
+            canDownload = onDownload != null,
+            canAddToQueue = onAddToQueue != null,
+            canAddToPlaylist = onAddToPlaylist != null,
+        ).mapNotNull { action ->
+            when (action.action) {
+                NaviampAction.StartAlbumRadio -> onStartRadio?.let { action.toRowMenuItem(it).toSharedMenuItem() }
+                NaviampAction.DownloadAlbum -> onDownload?.let { action.toRowMenuItem(it).toSharedMenuItem() }
+                NaviampAction.AddToQueue -> onAddToQueue?.let { action.toRowMenuItem(it).toSharedMenuItem() }
+                NaviampAction.AddToPlaylist -> onAddToPlaylist?.let { action.toRowMenuItem(it).toSharedMenuItem() }
+                else -> null
+            }
+        },
+        coverArtSize = coverArtSize,
+        coverArtCornerRadius = 4.dp,
+        verticalPadding = verticalPadding,
+        modifier = modifier,
+    )
 }
 
 @Composable
@@ -182,7 +170,7 @@ fun DesktopTrackRow(
     modifier: Modifier = Modifier,
     coverArtUrl: String? = null,
     showCoverArt: Boolean = false,
-    coverArtSize: Dp = 34.dp,
+    coverArtSize: Dp = 44.dp,
     index: Int? = null,
     titleStyle: TextStyle = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
     subtitleStyle: TextStyle = TextStyle(fontSize = 11.sp),
@@ -202,83 +190,44 @@ fun DesktopTrackRow(
     onAddToPlaylist: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
 ) {
-    DesktopMediaRow(
-        appColors = appColors,
+    val sharedTrack = SharedTrackRowUi(
+        id = track.id.value,
+        title = track.title,
+        subtitle = subtitle,
+        coverArtUrl = coverArtUrl,
+        meta = index?.toString().orEmpty(),
+        popular = popular,
+    )
+    TrackRow(
+        track = sharedTrack,
+        colors = appColors,
+        onTrackSelected = onClick?.let { click -> { _: SharedTrackRowUi -> click() } },
+        onStartRadio = onStartRadio?.let { startRadio -> { _: SharedTrackRowUi -> startRadio() } },
+        onDownload = onDownload?.let { download -> { _: SharedTrackRowUi -> download() } },
+        onAddToQueue = onAddToQueue?.let { addToQueue -> { _: SharedTrackRowUi -> addToQueue() } },
+        onAddToPlaylist = onAddToPlaylist?.let { addToPlaylist -> { _: SharedTrackRowUi -> addToPlaylist() } },
         modifier = modifier,
-        onClick = onClick,
         background = background,
         horizontalPadding = horizontalPadding,
         verticalPadding = verticalPadding,
-        verticalAlignment = verticalAlignment,
-    ) {
-        leadingContent?.invoke(this)
-        if (reservePopularIndicatorSpace || index != null) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(3.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                androidx.compose.foundation.layout.Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.width(11.dp),
-                ) {
-                    if (popular) {
-                        Icon(
-                            imageVector = NaviampIcons.Fire,
-                            contentDescription = "Popular on Deezer",
-                            tint = appColors.primaryText,
-                            modifier = Modifier.size(10.dp),
-                        )
-                    }
-                }
-                Text(
-                    index?.toString().orEmpty(),
-                    color = appColors.mutedText,
-                    fontSize = 13.sp,
-                    lineHeight = 16.sp,
-                )
-            }
-        }
-        if (showCoverArt) {
-            DesktopCoverArtThumb(
+        showCoverArt = showCoverArt,
+        coverArtSize = coverArtSize,
+        coverArtCornerRadius = 4.dp,
+        titleStyle = titleStyle,
+        subtitleStyle = subtitleStyle,
+        metaStyle = TextStyle(fontSize = 13.sp, lineHeight = 16.sp),
+        titleSubtitleSpacing = 0.dp,
+        showMenu = showMenu,
+        reservePopularIndicatorSpace = reservePopularIndicatorSpace || index != null,
+        leadingContent = leadingContent,
+        trailingContent = {
+            DesktopTrackMetadataTrailing(
                 appColors = appColors,
-                coverArtUrl = coverArtUrl,
-                size = coverArtSize,
-                cornerRadius = 4.dp,
+                track = track,
+                showDuration = showDuration,
             )
-        }
-        MediaTextBlock(
-            appColors = appColors,
-            title = track.title,
-            subtitle = subtitle,
-            titleStyle = titleStyle,
-            subtitleStyle = subtitleStyle,
-            modifier = Modifier.weight(1f),
-        )
-        DesktopTrackMetadataTrailing(
-            appColors = appColors,
-            track = track,
-            showDuration = showDuration,
-        )
-        if (showMenu || onStartRadio != null || onDownload != null || onAddToQueue != null || onAddToPlaylist != null) {
-            DesktopRowOverflowMenu(
-                appColors = appColors,
-                items = trackRowActions(
-                    canStartRadio = onStartRadio != null,
-                    canDownload = onDownload != null,
-                    canAddToQueue = onAddToQueue != null,
-                    canAddToPlaylist = onAddToPlaylist != null,
-                ).mapNotNull { action ->
-                    when (action.action) {
-                        NaviampAction.StartTrackRadio -> onStartRadio?.let { action.toRowMenuItem(it) }
-                        NaviampAction.DownloadTrack -> onDownload?.let { action.toRowMenuItem(it) }
-                        NaviampAction.AddToQueue -> onAddToQueue?.let { action.toRowMenuItem(it) }
-                        NaviampAction.AddToPlaylist -> onAddToPlaylist?.let { action.toRowMenuItem(it) }
-                        else -> null
-                    }
-                },
-            )
-        }
-    }
+        },
+    )
 }
 
 @Composable
@@ -301,6 +250,9 @@ data class DesktopRowMenuItem(
 
 private fun NaviampActionSpec.toRowMenuItem(onClick: () -> Unit): DesktopRowMenuItem =
     DesktopRowMenuItem(label = label, icon = icon, onClick = onClick, enabled = enabled)
+
+private fun DesktopRowMenuItem.toSharedMenuItem(): NaviampRowMenuItem =
+    NaviampRowMenuItem(label = label, icon = icon, onClick = onClick, enabled = enabled)
 
 @Composable
 fun DesktopTrackMetadataTrailing(

@@ -23,6 +23,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.domain.app.NaviampContentState
 import app.naviamp.domain.app.NaviampNavigationState
+import app.naviamp.domain.audio.AudioTag
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
@@ -41,7 +42,7 @@ import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.provider.navidrome.NavidromeProvider
-import app.naviamp.ui.AndroidTrackRowUi
+import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.NaviampDownloadedTrackUi
 import app.naviamp.ui.NaviampLibrarySyncStatusUi
 import app.naviamp.ui.NaviampNowPlayingItemUi
@@ -51,6 +52,8 @@ import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.NowPlayingRadioUiConfig
 import app.naviamp.ui.NowPlayingTrackUiConfig
 import app.naviamp.ui.NowPlayingUi
+import app.naviamp.ui.radioArtworkUrl
+import app.naviamp.ui.radioTrackArtworkKey
 import app.naviamp.ui.SharedAlbumDetailUi
 import app.naviamp.ui.SharedArtistDetailUi
 import app.naviamp.ui.SharedHomeStationUi
@@ -87,7 +90,6 @@ data class AndroidShellModels(
     val downloads: List<NaviampDownloadedTrackUi>,
     val playlistItems: List<SharedMediaItemUi>,
     val playlistChoices: List<NaviampPlaylistChoiceUi>,
-    val radioStationItems: List<SharedMediaItemUi>,
     val albumDetail: SharedAlbumDetailUi?,
     val artistDetail: SharedArtistDetailUi?,
     val playlistDetail: SharedPlaylistDetailUi?,
@@ -236,7 +238,6 @@ fun androidShellModels(
             )
         },
         playlistChoices = playlistChoices,
-        radioStationItems = homeState.radioStations.map { it.toSharedMediaItemUi() },
         albumDetail = albumDetail?.let { detail ->
             detail.toSharedAlbumDetailUi(
                 coverArtUrl = coverArtUrl,
@@ -276,6 +277,7 @@ fun androidNowPlayingUi(
     repeatMode: RepeatMode,
     shuffledUpNextSnapshot: List<Track>?,
     waveformByTrackId: Map<String, AudioWaveform>,
+    audioTagsByTrackId: Map<String, List<AudioTag>>,
     lyricsByTrackId: Map<String, Lyrics?>,
     lyricsStatusByTrackId: Map<String, String?>,
     lyricsVisible: Boolean,
@@ -284,6 +286,7 @@ fun androidNowPlayingUi(
     playlistChoices: List<NaviampPlaylistChoiceUi>,
     playlistActionStatus: String?,
     relatedTracks: List<Track>,
+    radioTrackArtworkByKey: Map<String, String?>,
     radioStations: List<InternetRadioStation>,
 ): NowPlayingUi? =
     nowPlaying?.let { track ->
@@ -320,6 +323,8 @@ fun androidNowPlayingUi(
                 lyrics = lyricsByTrackId[track.id.value],
                 menuEnabled = true,
                 streamQuality = streamQuality,
+                embeddedTags = audioTagsByTrackId[track.id.value]?.map { it.key to it.value }
+                    ?: listOf("Status" to "Loading from cached audio"),
                 playlistChoices = playlistChoices,
                 playlistActionStatus = playlistActionStatus,
                 backTo = knownTracks
@@ -335,9 +340,12 @@ fun androidNowPlayingUi(
             ),
         )
     } ?: nowPlayingStation?.let { station ->
+        val trackArtworkUrl = radioTrackArtworkKey(station, nowPlayingStreamMetadata.title)
+            ?.let { radioTrackArtworkByKey[it] }
         station.toNowPlayingUi(
             NowPlayingRadioUiConfig(
                 streamTitle = nowPlayingStreamMetadata.title,
+                coverArtUrl = radioArtworkUrl(station, nowPlayingStreamMetadata.properties, trackArtworkUrl),
                 stateLabel = playbackState.label(),
                 volumePercent = volumePercent,
                 isPlaying = playbackState == PlaybackState.Playing,

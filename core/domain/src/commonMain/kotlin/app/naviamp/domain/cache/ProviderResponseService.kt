@@ -331,6 +331,7 @@ private data class PlaylistDto(
     val trackCount: Int,
     val durationSeconds: Int? = null,
     val coverArtId: String? = null,
+    val isSmart: Boolean = false,
 ) {
     fun toPlaylist(): Playlist =
         Playlist(
@@ -339,6 +340,7 @@ private data class PlaylistDto(
             trackCount = trackCount,
             durationSeconds = durationSeconds,
             coverArtId = coverArtId,
+            isSmart = isSmart,
         )
 
     companion object {
@@ -349,6 +351,7 @@ private data class PlaylistDto(
                 trackCount = playlist.trackCount,
                 durationSeconds = playlist.durationSeconds,
                 coverArtId = playlist.coverArtId,
+                isSmart = playlist.isSmart,
             )
     }
 }

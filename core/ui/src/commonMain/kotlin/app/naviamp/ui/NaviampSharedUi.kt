@@ -2,11 +2,9 @@ package app.naviamp.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,24 +12,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuDefaults
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.darkColorScheme
@@ -45,86 +32,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.StrokeJoin
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.DpOffset
-import app.naviamp.domain.Track
-import app.naviamp.domain.home.HomeContent
-import app.naviamp.domain.home.homeStations
+import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
-import app.naviamp.domain.waveform.AudioWaveform
-import app.naviamp.domain.playback.PlaybackVisualizerFrame
-
-data class NaviampColors(
-    val background: Color = Color(0xFF101114),
-    val backgroundWarm: Color = Color(0xFF52231F),
-    val backgroundOlive: Color = Color(0xFF11190B),
-    val primaryText: Color = Color.White,
-    val secondaryText: Color = Color(0xFFD7CADF),
-    val mutedText: Color = Color(0xFF8F96A3),
-    val border: Color = Color(0xFF59606D),
-    val accent: Color = Color(0xFFD8B9FF),
-    val onAccent: Color = Color(0xFF28103C),
-    val controlSurface: Color = Color(0xFF201921),
-    val albumArtPlaceholder: Color = Color(0xFF43536B),
-) {
-    companion object {
-        val Dark = NaviampColors(
-            background = Color(0xFF101114),
-            primaryText = Color.White,
-            secondaryText = Color(0xFFB9BDC7),
-            mutedText = Color(0xFF8F96A3),
-            border = Color(0xFF59606D),
-            accent = Color(0xFF8EA7D8),
-            albumArtPlaceholder = Color(0xFF43536B),
-        )
-
-        val Light = NaviampColors(
-            background = Color(0xFFF8F9FB),
-            backgroundWarm = Color(0xFFEAE1DC),
-            backgroundOlive = Color(0xFFE9EEE4),
-            primaryText = Color(0xFF171A21),
-            secondaryText = Color(0xFF4F5663),
-            mutedText = Color(0xFF727A86),
-            border = Color(0xFFBAC1CC),
-            accent = Color(0xFF315D9E),
-            onAccent = Color.White,
-            controlSurface = Color(0xFFFFFFFF),
-            albumArtPlaceholder = Color(0xFFD3DBE8),
-        )
-    }
-}
-
-enum class NaviampVisualizer(val label: String) {
-    AlbumArtReactive("Album art"),
-    AudioSphere("Audio sphere"),
-    AudioTunnel("Audio tunnel"),
-    FluidGradient("Fluid gradient"),
-    FrequencyTerrain("Frequency terrain"),
-    FftMountain("Mountains"),
-    ParticleField("Particle field"),
-    ParticleGalaxy("Particle galaxy"),
-    PixelMountain("Pixel mountains"),
-    PixelRidge("Pixel ridge"),
-    ReactiveBars("Reactive bars"),
-    RibbonTrail("Ribbon trail"),
-    SpectralRidge("Spectral ridge"),
-    WaveInterference("Wave interference"),
-    VinylGroove("Vinyl groove"),
-}
-
-typealias ConnectionFormState = app.naviamp.domain.settings.ConnectionFormState
-typealias PlaybackSettings = app.naviamp.domain.settings.PlaybackSettings
 
 @Composable
 expect fun PlatformCoverArt(
@@ -145,223 +60,6 @@ expect fun rememberPlatformCoverArtPlayerColors(
     url: String?,
     colors: NaviampColors,
 ): NaviampPlayerColors
-
-data class AndroidTrackRowUi(
-    val id: String,
-    val title: String,
-    val subtitle: String,
-    val coverArtUrl: String? = null,
-    val meta: String = "",
-    val popular: Boolean = false,
-)
-
-data class NaviampDownloadedTrackUi(
-    val id: String,
-    val track: AndroidTrackRowUi,
-    val sizeBytes: Long,
-)
-
-data class SharedMediaItemUi(
-    val id: String,
-    val title: String,
-    val subtitle: String,
-    val meta: String = "",
-    val coverArtUrl: String? = null,
-    val coverArtUrls: List<String> = emptyList(),
-)
-
-data class SharedAlbumDetailUi(
-    val album: SharedMediaItemUi,
-    val tracks: List<AndroidTrackRowUi>,
-    val totalDurationLabel: String = "",
-)
-
-data class SharedArtistDetailUi(
-    val artist: SharedMediaItemUi,
-    val albums: List<SharedMediaItemUi>,
-    val biography: String? = null,
-    val popularTracks: List<AndroidTrackRowUi> = emptyList(),
-    val popularTracksStatus: String? = null,
-    val similarArtists: List<SharedSimilarArtistUi> = emptyList(),
-    val similarArtistsStatus: String? = null,
-)
-
-data class SharedSimilarArtistUi(
-    val id: String,
-    val title: String,
-    val subtitle: String,
-    val imageUrl: String? = null,
-    val localArtistId: String? = null,
-    val externalUrl: String? = null,
-)
-
-data class SharedPlaylistDetailUi(
-    val playlist: SharedMediaItemUi,
-    val tracks: List<AndroidTrackRowUi>,
-)
-
-data class SharedHomeUi(
-    val recentlyAddedAlbums: List<SharedMediaItemUi> = emptyList(),
-    val mixAlbums: List<SharedMediaItemUi> = emptyList(),
-    val recentAlbums: List<SharedMediaItemUi> = emptyList(),
-    val frequentAlbums: List<SharedMediaItemUi> = emptyList(),
-    val randomAlbums: List<SharedMediaItemUi> = emptyList(),
-    val playlists: List<SharedMediaItemUi> = emptyList(),
-    val recentRadioStreams: List<SharedMediaItemUi> = emptyList(),
-    val radioStations: List<SharedMediaItemUi> = emptyList(),
-    val stations: List<SharedHomeStationUi> = emptyList(),
-    val genreSpotlightTitle: String? = null,
-    val genreSpotlightAlbums: List<SharedMediaItemUi> = emptyList(),
-    val decadeLabel: String = "Decade",
-    val decadeAlbums: List<SharedMediaItemUi> = emptyList(),
-) {
-    val isEmpty: Boolean
-        get() = recentlyAddedAlbums.isEmpty() &&
-            mixAlbums.isEmpty() &&
-            recentAlbums.isEmpty() &&
-            frequentAlbums.isEmpty() &&
-            randomAlbums.isEmpty() &&
-            playlists.isEmpty() &&
-            recentRadioStreams.isEmpty() &&
-            radioStations.isEmpty() &&
-            stations.isEmpty() &&
-            genreSpotlightAlbums.isEmpty() &&
-            decadeAlbums.isEmpty()
-}
-
-data class SharedHomeStationUi(
-    val id: String,
-    val title: String,
-    val subtitle: String,
-)
-
-fun HomeContent.toSharedHomeUi(
-    coverArtUrl: (String?) -> String?,
-    playlistTracksById: Map<String, List<Track>> = emptyMap(),
-): SharedHomeUi =
-    SharedHomeUi(
-        recentlyAddedAlbums = recentlyAddedAlbums.map { it.toSharedMediaItemUi(coverArtUrl) },
-        mixAlbums = mixAlbums.map { it.toSharedMediaItemUi(coverArtUrl) },
-        recentAlbums = recentAlbums.map { it.toSharedMediaItemUi(coverArtUrl) },
-        frequentAlbums = frequentAlbums.map { it.toSharedMediaItemUi(coverArtUrl) },
-        randomAlbums = randomAlbums.map { it.toSharedMediaItemUi(coverArtUrl) },
-        playlists = playlists.map { playlist ->
-            playlist.toSharedMediaItemUi(
-                coverArtUrl = coverArtUrl,
-                tracks = playlistTracksById[playlist.id].orEmpty(),
-            )
-        },
-        recentRadioStreams = recentRadioStreams.map {
-            SharedMediaItemUi(id = it.id, title = it.label, subtitle = "Radio")
-        },
-        radioStations = radioStations.map { it.toSharedMediaItemUi() },
-        stations = homeStations(this).map {
-            SharedHomeStationUi(id = it.id, title = it.title, subtitle = it.subtitle)
-        },
-        genreSpotlightTitle = genreSpotlight?.name,
-        genreSpotlightAlbums = genreSpotlightAlbums.map { it.toSharedMediaItemUi(coverArtUrl) },
-        decadeLabel = decadeLabel,
-        decadeAlbums = decadeAlbums.map { it.toSharedMediaItemUi(coverArtUrl) },
-    )
-
-data class SharedSearchResultsUi(
-    val artists: List<SharedMediaItemUi> = emptyList(),
-    val albums: List<SharedMediaItemUi> = emptyList(),
-    val tracks: List<AndroidTrackRowUi> = emptyList(),
-) {
-    val isEmpty: Boolean
-        get() = artists.isEmpty() && albums.isEmpty() && tracks.isEmpty()
-}
-
-data class NowPlayingUi(
-    val id: String = "",
-    val title: String,
-    val subtitle: String,
-    val stateLabel: String,
-    val coverArtUrl: String? = null,
-    val isLive: Boolean = false,
-    val albumLine: String = "",
-    val audioInfo: String = "",
-    val waveform: AudioWaveform? = null,
-    val visualizerFrame: PlaybackVisualizerFrame? = null,
-    val visualizerAvailable: Boolean = false,
-    val visualizerVisible: Boolean = false,
-    val positionSeconds: Double? = null,
-    val durationSeconds: Double? = null,
-    val volumePercent: Int = 100,
-    val isPlaying: Boolean = false,
-    val isPaused: Boolean = false,
-    val canPlayPause: Boolean = true,
-    val canSeek: Boolean = true,
-    val canChangeVolume: Boolean = true,
-    val hasPrevious: Boolean = false,
-    val hasNext: Boolean = false,
-    val shuffleEnabled: Boolean = false,
-    val shuffleActive: Boolean = false,
-    val repeatMode: NaviampRepeatMode = NaviampRepeatMode.Off,
-    val canRepeat: Boolean = false,
-    val canStartRadio: Boolean = false,
-    val canAddToPlaylist: Boolean = false,
-    val favoriteActive: Boolean = false,
-    val canFavorite: Boolean = false,
-    val userRating: Int? = null,
-    val canRate: Boolean = false,
-    val lyricsAvailable: Boolean = false,
-    val lyricsVisible: Boolean = false,
-    val lyricsStatus: String? = null,
-    val lyricsOffsetMillis: Int = 0,
-    val lyricsLines: List<NaviampLyricLineUi> = emptyList(),
-    val menuEnabled: Boolean = false,
-    val detailSections: List<NaviampDetailSectionUi> = emptyList(),
-    val playlistChoices: List<NaviampPlaylistChoiceUi> = emptyList(),
-    val useInlinePlaylistPicker: Boolean = true,
-    val playlistActionStatus: String? = null,
-    val backTo: List<NaviampNowPlayingItemUi> = emptyList(),
-    val upNext: List<NaviampNowPlayingItemUi> = emptyList(),
-    val related: List<NaviampNowPlayingItemUi> = emptyList(),
-    val radioStations: List<NaviampNowPlayingItemUi> = emptyList(),
-)
-
-data class NaviampLyricLineUi(
-    val startMillis: Long?,
-    val text: String,
-)
-
-data class NaviampDetailSectionUi(
-    val title: String,
-    val rows: List<Pair<String, String>>,
-)
-
-data class NaviampPlaylistChoiceUi(
-    val id: String,
-    val name: String,
-    val subtitle: String = "",
-)
-
-enum class SharedRoute(val label: String, val icon: ImageVector) {
-    Home("Home", NaviampIcons.Home),
-    Playlists("Playlists", NaviampIcons.Playlist),
-    Library("Library", NaviampIcons.Library),
-    Search("Search", NaviampIcons.Search),
-    Radio("Radio", NaviampIcons.InternetRadio),
-    Downloads("Downloads", NaviampIcons.Downloads),
-    Settings("Settings", NaviampIcons.Settings),
-}
-
-data class NaviampLibrarySyncStatusUi(
-    val message: String? = null,
-    val isSyncing: Boolean = false,
-) {
-    val showRefresh: Boolean
-        get() = message?.startsWith("Library changed on server") == true ||
-            message?.startsWith("Navidrome is scanning") == true ||
-            isSyncing
-}
-
-enum class SharedPlaylistSortMode(val label: String) {
-    Alphabetical("A-Z"),
-    RecentlyPlayed("Recent"),
-}
 
 @Composable
 fun NaviampSharedAppShell(
@@ -393,7 +91,7 @@ fun NaviampSharedAppShell(
     playlistSortMode: SharedPlaylistSortMode = SharedPlaylistSortMode.Alphabetical,
     playlistChoices: List<NaviampPlaylistChoiceUi> = emptyList(),
     playlistActionStatus: String? = null,
-    radioStationItems: List<SharedMediaItemUi>,
+    radioStations: List<InternetRadioStation>,
     albumDetail: SharedAlbumDetailUi?,
     artistDetail: SharedArtistDetailUi?,
     playlistDetail: SharedPlaylistDetailUi? = null,
@@ -414,7 +112,7 @@ fun NaviampSharedAppShell(
     onClearSearch: () -> Unit = {},
     onLibraryQueryChanged: (String) -> Unit = {},
     onRefreshLibrary: () -> Unit = {},
-    onTrackSelected: (AndroidTrackRowUi) -> Unit,
+    onTrackSelected: (SharedTrackRowUi) -> Unit,
     onDownloadedTrackSelected: (NaviampDownloadedTrackUi) -> Unit = {},
     onDownloadedTrackAddToPlaylist: (NaviampDownloadedTrackUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
     onDownloadedTrackCreatePlaylistAndAdd: (NaviampDownloadedTrackUi, String) -> Unit = { _, _ -> },
@@ -427,9 +125,9 @@ fun NaviampSharedAppShell(
     onAlbumAddToQueue: (SharedAlbumDetailUi) -> Unit = {},
     onAlbumAddToPlaylist: (SharedAlbumDetailUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
     onAlbumCreatePlaylistAndAdd: (SharedAlbumDetailUi, String) -> Unit = { _, _ -> },
-    onAlbumTrackDownload: (AndroidTrackRowUi) -> Unit = {},
-    onAlbumTrackAddToPlaylist: (AndroidTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
-    onAlbumTrackCreatePlaylistAndAdd: (AndroidTrackRowUi, String) -> Unit = { _, _ -> },
+    onAlbumTrackDownload: (SharedTrackRowUi) -> Unit = {},
+    onAlbumTrackAddToPlaylist: (SharedTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
+    onAlbumTrackCreatePlaylistAndAdd: (SharedTrackRowUi, String) -> Unit = { _, _ -> },
     onArtistSelected: (SharedMediaItemUi) -> Unit,
     onArtistRadio: (SharedArtistDetailUi) -> Unit = {},
     onArtistShuffle: (SharedArtistDetailUi) -> Unit = {},
@@ -439,12 +137,12 @@ fun NaviampSharedAppShell(
     onArtistPopularPlay: (SharedArtistDetailUi) -> Unit = {},
     onArtistPopularRadio: (SharedArtistDetailUi) -> Unit = {},
     onArtistPopularAddToQueue: (SharedArtistDetailUi) -> Unit = {},
-    onArtistPopularTrackSelected: (AndroidTrackRowUi) -> Unit = onTrackSelected,
-    onAlbumTrackSelected: (AndroidTrackRowUi) -> Unit = onTrackSelected,
-    onArtistPopularTrackAddToQueue: (AndroidTrackRowUi) -> Unit = {},
-    onArtistPopularTrackDownload: (AndroidTrackRowUi) -> Unit = {},
-    onArtistPopularTrackAddToPlaylist: (AndroidTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
-    onArtistPopularTrackCreatePlaylistAndAdd: (AndroidTrackRowUi, String) -> Unit = { _, _ -> },
+    onArtistPopularTrackSelected: (SharedTrackRowUi) -> Unit = onTrackSelected,
+    onAlbumTrackSelected: (SharedTrackRowUi) -> Unit = onTrackSelected,
+    onArtistPopularTrackAddToQueue: (SharedTrackRowUi) -> Unit = {},
+    onArtistPopularTrackDownload: (SharedTrackRowUi) -> Unit = {},
+    onArtistPopularTrackAddToPlaylist: (SharedTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
+    onArtistPopularTrackCreatePlaylistAndAdd: (SharedTrackRowUi, String) -> Unit = { _, _ -> },
     onFindSimilarArtists: (SharedArtistDetailUi) -> Unit = {},
     onSimilarArtistSelected: (SharedSimilarArtistUi) -> Unit = {},
     onSimilarArtistExternalSelected: (String) -> Unit = {},
@@ -456,15 +154,27 @@ fun NaviampSharedAppShell(
     onPlaylistSelected: (SharedMediaItemUi) -> Unit,
     onPlaylistSortModeChanged: (SharedPlaylistSortMode) -> Unit = {},
     onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit = { _, _ -> },
+    onPlaylistItemAddToQueue: (SharedMediaItemUi) -> Unit = {},
+    onPlaylistItemAddToPlaylist: (SharedMediaItemUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
+    onPlaylistItemCreatePlaylistAndAdd: (SharedMediaItemUi, String) -> Unit = { _, _ -> },
     onPlaylistAddToQueue: (SharedPlaylistDetailUi) -> Unit = {},
     onPlaylistDownload: (SharedMediaItemUi) -> Unit = {},
+    onPlaylistAddToPlaylist: (SharedPlaylistDetailUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
+    onPlaylistCreatePlaylistAndAdd: (SharedPlaylistDetailUi, String) -> Unit = { _, _ -> },
     onPlaylistRename: (SharedMediaItemUi, String) -> Unit = { _, _ -> },
     onPlaylistDelete: (SharedMediaItemUi) -> Unit = {},
     onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit = {},
+    onSmartPlaylistUpdate: suspend (SharedMediaItemUi, SmartPlaylistDefinition) -> Unit = { _, _ -> },
+    onSmartPlaylistLoad: suspend (SharedMediaItemUi) -> SmartPlaylistDefinition = {
+        throw UnsupportedOperationException("Smart playlist loading is not available.")
+    },
     onPlaylistBack: () -> Unit = {},
-    onPlaylistTrackSelected: (AndroidTrackRowUi) -> Unit = {},
-    onTrackAddToQueue: (AndroidTrackRowUi) -> Unit = {},
-    onRadioStationSelected: (SharedMediaItemUi) -> Unit,
+    onPlaylistTrackSelected: (SharedTrackRowUi) -> Unit = {},
+    onTrackAddToQueue: (SharedTrackRowUi) -> Unit = {},
+    onRecentRadioSelected: (SharedMediaItemUi) -> Unit = {},
+    onRadioStationSelected: (InternetRadioStation) -> Unit,
+    onRadioStationSave: (InternetRadioStation) -> Unit = {},
+    onRadioStationDelete: (InternetRadioStation) -> Unit = {},
     onHomeStationSelected: (SharedHomeStationUi) -> Unit = {},
     onOpenNowPlaying: () -> Unit,
     onCloseNowPlaying: () -> Unit,
@@ -593,7 +303,7 @@ fun NaviampSharedAppShell(
                             playlistSortMode = playlistSortMode,
                             playlistChoices = playlistChoices,
                             playlistActionStatus = playlistActionStatus,
-                            radioStationItems = radioStationItems,
+                            radioStations = radioStations,
                             albumDetail = albumDetail,
                             artistDetail = artistDetail,
                             playlistDetail = playlistDetail,
@@ -660,15 +370,25 @@ fun NaviampSharedAppShell(
                             onPlaylistSelected = onPlaylistSelected,
                             onPlaylistSortModeChanged = onPlaylistSortModeChanged,
                             onPlaylistPlay = onPlaylistPlay,
+                            onPlaylistItemAddToQueue = onPlaylistItemAddToQueue,
+                            onPlaylistItemAddToPlaylist = onPlaylistItemAddToPlaylist,
+                            onPlaylistItemCreatePlaylistAndAdd = onPlaylistItemCreatePlaylistAndAdd,
                             onPlaylistAddToQueue = onPlaylistAddToQueue,
                             onPlaylistDownload = onPlaylistDownload,
+                            onPlaylistAddToPlaylist = onPlaylistAddToPlaylist,
+                            onPlaylistCreatePlaylistAndAdd = onPlaylistCreatePlaylistAndAdd,
                             onPlaylistRename = onPlaylistRename,
                             onPlaylistDelete = onPlaylistDelete,
                             onSmartPlaylistSave = onSmartPlaylistSave,
+                            onSmartPlaylistUpdate = onSmartPlaylistUpdate,
+                            onSmartPlaylistLoad = onSmartPlaylistLoad,
                             onPlaylistBack = onPlaylistBack,
                             onPlaylistTrackSelected = onPlaylistTrackSelected,
                             onTrackAddToQueue = onTrackAddToQueue,
+                            onRecentRadioSelected = onRecentRadioSelected,
                             onRadioStationSelected = onRadioStationSelected,
+                            onRadioStationSave = onRadioStationSave,
+                            onRadioStationDelete = onRadioStationDelete,
                             onHomeStationSelected = onHomeStationSelected,
                             onOpenNowPlaying = onOpenNowPlaying,
                             onCloseNowPlaying = onCloseNowPlaying,
@@ -862,7 +582,7 @@ private fun ConnectedContent(
     playlistSortMode: SharedPlaylistSortMode,
     playlistChoices: List<NaviampPlaylistChoiceUi>,
     playlistActionStatus: String?,
-    radioStationItems: List<SharedMediaItemUi>,
+    radioStations: List<InternetRadioStation>,
     albumDetail: SharedAlbumDetailUi?,
     artistDetail: SharedArtistDetailUi?,
     playlistDetail: SharedPlaylistDetailUi?,
@@ -884,7 +604,7 @@ private fun ConnectedContent(
     onClearSearch: () -> Unit,
     onLibraryQueryChanged: (String) -> Unit,
     onRefreshLibrary: () -> Unit,
-    onTrackSelected: (AndroidTrackRowUi) -> Unit,
+    onTrackSelected: (SharedTrackRowUi) -> Unit,
     onDownloadedTrackSelected: (NaviampDownloadedTrackUi) -> Unit,
     onDownloadedTrackAddToPlaylist: (NaviampDownloadedTrackUi, NaviampPlaylistChoiceUi?) -> Unit,
     onDownloadedTrackCreatePlaylistAndAdd: (NaviampDownloadedTrackUi, String) -> Unit,
@@ -897,9 +617,9 @@ private fun ConnectedContent(
     onAlbumAddToQueue: (SharedAlbumDetailUi) -> Unit,
     onAlbumAddToPlaylist: (SharedAlbumDetailUi, NaviampPlaylistChoiceUi?) -> Unit,
     onAlbumCreatePlaylistAndAdd: (SharedAlbumDetailUi, String) -> Unit,
-    onAlbumTrackDownload: (AndroidTrackRowUi) -> Unit,
-    onAlbumTrackAddToPlaylist: (AndroidTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
-    onAlbumTrackCreatePlaylistAndAdd: (AndroidTrackRowUi, String) -> Unit,
+    onAlbumTrackDownload: (SharedTrackRowUi) -> Unit,
+    onAlbumTrackAddToPlaylist: (SharedTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
+    onAlbumTrackCreatePlaylistAndAdd: (SharedTrackRowUi, String) -> Unit,
     onArtistSelected: (SharedMediaItemUi) -> Unit,
     onArtistRadio: (SharedArtistDetailUi) -> Unit,
     onArtistShuffle: (SharedArtistDetailUi) -> Unit,
@@ -909,12 +629,12 @@ private fun ConnectedContent(
     onArtistPopularPlay: (SharedArtistDetailUi) -> Unit,
     onArtistPopularRadio: (SharedArtistDetailUi) -> Unit,
     onArtistPopularAddToQueue: (SharedArtistDetailUi) -> Unit,
-    onArtistPopularTrackSelected: (AndroidTrackRowUi) -> Unit,
-    onAlbumTrackSelected: (AndroidTrackRowUi) -> Unit,
-    onArtistPopularTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
-    onArtistPopularTrackDownload: (AndroidTrackRowUi) -> Unit,
-    onArtistPopularTrackAddToPlaylist: (AndroidTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
-    onArtistPopularTrackCreatePlaylistAndAdd: (AndroidTrackRowUi, String) -> Unit,
+    onArtistPopularTrackSelected: (SharedTrackRowUi) -> Unit,
+    onAlbumTrackSelected: (SharedTrackRowUi) -> Unit,
+    onArtistPopularTrackAddToQueue: (SharedTrackRowUi) -> Unit,
+    onArtistPopularTrackDownload: (SharedTrackRowUi) -> Unit,
+    onArtistPopularTrackAddToPlaylist: (SharedTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
+    onArtistPopularTrackCreatePlaylistAndAdd: (SharedTrackRowUi, String) -> Unit,
     onFindSimilarArtists: (SharedArtistDetailUi) -> Unit,
     onSimilarArtistSelected: (SharedSimilarArtistUi) -> Unit,
     onSimilarArtistExternalSelected: (String) -> Unit,
@@ -926,15 +646,25 @@ private fun ConnectedContent(
     onPlaylistSelected: (SharedMediaItemUi) -> Unit,
     onPlaylistSortModeChanged: (SharedPlaylistSortMode) -> Unit,
     onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit,
+    onPlaylistItemAddToQueue: (SharedMediaItemUi) -> Unit,
+    onPlaylistItemAddToPlaylist: (SharedMediaItemUi, NaviampPlaylistChoiceUi?) -> Unit,
+    onPlaylistItemCreatePlaylistAndAdd: (SharedMediaItemUi, String) -> Unit,
     onPlaylistAddToQueue: (SharedPlaylistDetailUi) -> Unit,
     onPlaylistDownload: (SharedMediaItemUi) -> Unit,
+    onPlaylistAddToPlaylist: (SharedPlaylistDetailUi, NaviampPlaylistChoiceUi?) -> Unit,
+    onPlaylistCreatePlaylistAndAdd: (SharedPlaylistDetailUi, String) -> Unit,
     onPlaylistRename: (SharedMediaItemUi, String) -> Unit,
     onPlaylistDelete: (SharedMediaItemUi) -> Unit,
     onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit,
+    onSmartPlaylistUpdate: suspend (SharedMediaItemUi, SmartPlaylistDefinition) -> Unit,
+    onSmartPlaylistLoad: suspend (SharedMediaItemUi) -> SmartPlaylistDefinition,
     onPlaylistBack: () -> Unit,
-    onPlaylistTrackSelected: (AndroidTrackRowUi) -> Unit,
-    onTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
-    onRadioStationSelected: (SharedMediaItemUi) -> Unit,
+    onPlaylistTrackSelected: (SharedTrackRowUi) -> Unit,
+    onTrackAddToQueue: (SharedTrackRowUi) -> Unit,
+    onRecentRadioSelected: (SharedMediaItemUi) -> Unit,
+    onRadioStationSelected: (InternetRadioStation) -> Unit,
+    onRadioStationSave: (InternetRadioStation) -> Unit,
+    onRadioStationDelete: (InternetRadioStation) -> Unit,
     onHomeStationSelected: (SharedHomeStationUi) -> Unit,
     onOpenNowPlaying: () -> Unit,
     onCloseNowPlaying: () -> Unit,
@@ -1005,7 +735,9 @@ private fun ConnectedContent(
             onToggleFavorite = onToggleFavorite,
             onRatingSelected = onRatingSelected,
             onTrackSelected = onTrackSelected,
-            onRadioStationSelected = onRadioStationSelected,
+            onRadioStationSelected = { item ->
+                radioStations.firstOrNull { it.id == item.id }?.let(onRadioStationSelected)
+            },
         )
         selectedRoute == SharedRoute.Settings -> SettingsContent(
             colors = colors,
@@ -1079,13 +811,27 @@ private fun ConnectedContent(
             onShufflePlaylist = { onPlaylistPlay(playlistDetail.playlist, true) },
             onAddPlaylistToQueue = { onPlaylistAddToQueue(playlistDetail) },
             onDownloadPlaylist = { onPlaylistDownload(playlistDetail.playlist) },
+            onAddPlaylistToPlaylist = { playlist -> onPlaylistAddToPlaylist(playlistDetail, playlist) },
+            onCreatePlaylistAndAddPlaylist = { name -> onPlaylistCreatePlaylistAndAdd(playlistDetail, name) },
             onRenamePlaylist = onPlaylistRename,
             onDeletePlaylist = onPlaylistDelete,
             onTrackSelected = onPlaylistTrackSelected,
             onTrackAddToQueue = onTrackAddToQueue,
+            playlistChoices = playlistChoices,
         )
         else -> when (selectedRoute) {
-            SharedRoute.Home -> SharedHome(colors, home, onAlbumSelected, onMixAlbumSelected, onPlaylistSelected, onRadioStationSelected, onHomeStationSelected)
+            SharedRoute.Home -> SharedHome(
+                colors = colors,
+                home = home,
+                onAlbumSelected = onAlbumSelected,
+                onMixAlbumSelected = onMixAlbumSelected,
+                onPlaylistSelected = onPlaylistSelected,
+                onRecentRadioSelected = onRecentRadioSelected,
+                onInternetRadioStationSelected = { item ->
+                    radioStations.firstOrNull { it.id == item.id }?.let(onRadioStationSelected)
+                },
+                onHomeStationSelected = onHomeStationSelected,
+            )
             SharedRoute.Playlists -> PlaylistsContent(
                 colors = colors,
                 playlists = playlistItems,
@@ -1095,10 +841,16 @@ private fun ConnectedContent(
                 onSortModeChanged = onPlaylistSortModeChanged,
                 onPlaylistSelected = onPlaylistSelected,
                 onPlaylistPlay = onPlaylistPlay,
+                onPlaylistAddToQueue = onPlaylistItemAddToQueue,
                 onPlaylistDownload = onPlaylistDownload,
+                onPlaylistAddToPlaylist = onPlaylistItemAddToPlaylist,
+                onPlaylistCreatePlaylistAndAdd = onPlaylistItemCreatePlaylistAndAdd,
                 onPlaylistRename = onPlaylistRename,
                 onPlaylistDelete = onPlaylistDelete,
                 onSmartPlaylistSave = onSmartPlaylistSave,
+                onSmartPlaylistUpdate = onSmartPlaylistUpdate,
+                onSmartPlaylistLoad = onSmartPlaylistLoad,
+                playlistChoices = playlistChoices,
             )
             SharedRoute.Library -> LibraryContent(
                 colors = colors,
@@ -1121,7 +873,14 @@ private fun ConnectedContent(
                 onAlbumSelected = onAlbumSelected,
                 onArtistSelected = onArtistSelected,
             )
-            SharedRoute.Radio -> MediaListContent(colors, "Internet Radio", radioStationItems, "No stations found.", onRadioStationSelected)
+            SharedRoute.Radio -> InternetRadioContent(
+                colors = colors,
+                stations = radioStations,
+                status = null,
+                onStationSelected = onRadioStationSelected,
+                onSaveStation = onRadioStationSave,
+                onDeleteStation = onRadioStationDelete,
+            )
             SharedRoute.Settings -> Unit
             SharedRoute.Downloads -> DownloadsContent(
                 colors = colors,
@@ -1141,696 +900,6 @@ private fun ConnectedContent(
 }
 
 @Composable
-private fun SharedHome(
-    colors: NaviampColors,
-    home: SharedHomeUi,
-    onAlbumSelected: (SharedMediaItemUi) -> Unit,
-    onMixAlbumSelected: (SharedMediaItemUi) -> Unit,
-    onPlaylistSelected: (SharedMediaItemUi) -> Unit,
-    onRadioStationSelected: (SharedMediaItemUi) -> Unit,
-    onHomeStationSelected: (SharedHomeStationUi) -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("Music", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        if (home.isEmpty) {
-            PlaceholderTile("Home sections will appear after connection.", colors)
-        }
-        if (home.mixAlbums.isNotEmpty()) {
-            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                SectionHeader("MIXES FOR YOU", colors)
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.horizontalScroll(rememberScrollState()),
-                ) {
-                    home.mixAlbums.take(6).forEach { album ->
-                        MixCard(album, colors, onClick = { onMixAlbumSelected(album) })
-                    }
-                }
-            }
-        }
-        HomeSection("Recently Added In Music", home.recentlyAddedAlbums, colors, onAlbumSelected)
-        HomeSection("Recent Playlists", home.playlists, colors, onPlaylistSelected)
-        HomeSection("Recently Played Radio", home.recentRadioStreams, colors, onRadioStationSelected, stationStyle = true)
-        HomeSection("Recent Internet Radio", home.radioStations, colors, onRadioStationSelected)
-        HomeStationSection(home.stations, colors, onHomeStationSelected)
-        HomeSection("Recent Albums", home.recentAlbums, colors, onAlbumSelected)
-        HomeSection("Frequently Played Albums", home.frequentAlbums, colors, onAlbumSelected)
-        HomeSection("Random Albums", home.randomAlbums, colors, onAlbumSelected)
-        home.genreSpotlightTitle?.let { title ->
-            HomeSection("More In $title", home.genreSpotlightAlbums, colors, onAlbumSelected)
-        }
-        HomeSection("From ${home.decadeLabel}", home.decadeAlbums, colors, onAlbumSelected)
-    }
-}
-
-@Composable
-private fun SearchContent(
-    colors: NaviampColors,
-    query: String,
-    results: SharedSearchResultsUi,
-    onQueryChanged: (String) -> Unit,
-    onSearch: () -> Unit,
-    onClearSearch: () -> Unit,
-    onTrackSelected: (AndroidTrackRowUi) -> Unit,
-    onTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
-    onAlbumSelected: (SharedMediaItemUi) -> Unit,
-    onArtistSelected: (SharedMediaItemUi) -> Unit,
-) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.fillMaxSize(),
-    ) {
-        Text("Search", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            NaviampTextField(
-                value = query,
-                onValueChange = onQueryChanged,
-                label = "Search tracks",
-                colors = colors,
-                modifier = Modifier.weight(1f),
-            )
-            if (query.isNotBlank() || !results.isEmpty) {
-                IconButton(onClick = onClearSearch) {
-                    Icon(NaviampIcons.Close, contentDescription = "Clear search", tint = colors.secondaryText)
-                }
-            }
-        }
-        if (query.isNotBlank() && results.isEmpty) {
-            Text("No matches found.", color = colors.secondaryText, fontSize = 12.sp)
-        }
-        MediaSection("Artists", results.artists, colors, onArtistSelected)
-        MediaSection("Albums", results.albums, colors, onAlbumSelected)
-        if (results.tracks.isNotEmpty()) {
-            SectionHeader("TRACKS", colors)
-            results.tracks.forEach { track ->
-                TrackRow(track, colors, onTrackSelected, onAddToQueue = onTrackAddToQueue)
-            }
-        }
-    }
-}
-
-@Composable
-private fun PlaylistsContent(
-    colors: NaviampColors,
-    playlists: List<SharedMediaItemUi>,
-    recentPlaylistIds: List<String>,
-    sortMode: SharedPlaylistSortMode,
-    status: String?,
-    onSortModeChanged: (SharedPlaylistSortMode) -> Unit,
-    onPlaylistSelected: (SharedMediaItemUi) -> Unit,
-    onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit,
-    onPlaylistDownload: (SharedMediaItemUi) -> Unit,
-    onPlaylistRename: (SharedMediaItemUi, String) -> Unit,
-    onPlaylistDelete: (SharedMediaItemUi) -> Unit,
-    onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit,
-) {
-    var playlistToRename by remember { mutableStateOf<SharedMediaItemUi?>(null) }
-    var playlistToDelete by remember { mutableStateOf<SharedMediaItemUi?>(null) }
-    var smartPlaylistBuilderOpen by remember { mutableStateOf(false) }
-    val sortedPlaylists = when (sortMode) {
-        SharedPlaylistSortMode.Alphabetical -> playlists.sortedBy { it.title.lowercase() }
-        SharedPlaylistSortMode.RecentlyPlayed -> playlists.sortedWith(
-            compareBy<SharedMediaItemUi> {
-                val index = recentPlaylistIds.indexOf(it.id)
-                if (index == -1) Int.MAX_VALUE else index
-            }.thenBy { it.title.lowercase() },
-        )
-    }
-
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Playlists", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                IconButton(
-                    onClick = { smartPlaylistBuilderOpen = true },
-                    modifier = Modifier.size(38.dp),
-                ) {
-                    Icon(
-                        NaviampIcons.Playlist,
-                        contentDescription = "Create smart playlist",
-                        tint = colors.primaryText,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-                SharedPlaylistSortMode.entries.forEach { mode ->
-                    PlaylistSortIconButton(
-                        mode = mode,
-                        selected = sortMode == mode,
-                        colors = colors,
-                        onClick = { onSortModeChanged(mode) },
-                    )
-                }
-            }
-        }
-        if (sortedPlaylists.isEmpty()) {
-            Text("No playlists yet.", color = colors.secondaryText, fontSize = 12.sp)
-        }
-        status?.let {
-            Text(it, color = colors.secondaryText, fontSize = 12.sp)
-        }
-        sortedPlaylists.forEach { playlist ->
-            PlaylistListRow(
-                playlist = playlist,
-                colors = colors,
-                onClick = { onPlaylistSelected(playlist) },
-                onPlay = { onPlaylistPlay(playlist, false) },
-                onShuffle = { onPlaylistPlay(playlist, true) },
-                onDownload = { onPlaylistDownload(playlist) },
-                onRename = { playlistToRename = playlist },
-                onDelete = { playlistToDelete = playlist },
-            )
-        }
-    }
-
-    playlistToRename?.let { playlist ->
-        RenamePlaylistDialog(
-            playlist = playlist,
-            colors = colors,
-            onDismiss = { playlistToRename = null },
-            onConfirm = { name ->
-                playlistToRename = null
-                onPlaylistRename(playlist, name)
-            },
-        )
-    }
-    playlistToDelete?.let { playlist ->
-        DeletePlaylistDialog(
-            playlist = playlist,
-            colors = colors,
-            onDismiss = { playlistToDelete = null },
-            onConfirm = {
-                playlistToDelete = null
-                onPlaylistDelete(playlist)
-            },
-        )
-    }
-    if (smartPlaylistBuilderOpen) {
-        SmartPlaylistBuilderDialog(
-            colors = colors,
-            onDismissRequest = { smartPlaylistBuilderOpen = false },
-            onSave = { definition ->
-                onSmartPlaylistSave(definition)
-                smartPlaylistBuilderOpen = false
-            },
-        )
-    }
-}
-
-@Composable
-private fun PlaylistSortIconButton(
-    mode: SharedPlaylistSortMode,
-    selected: Boolean,
-    colors: NaviampColors,
-    onClick: () -> Unit,
-) {
-    val icon = when (mode) {
-        SharedPlaylistSortMode.Alphabetical -> NaviampIcons.Alphabetical
-        SharedPlaylistSortMode.RecentlyPlayed -> NaviampIcons.Clock
-    }
-    Box(
-        modifier = Modifier
-            .size(38.dp)
-            .clip(RoundedCornerShape(19.dp))
-            .background(if (selected) colors.accent else colors.controlSurface.copy(alpha = 0.72f))
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = mode.label,
-            tint = if (selected) colors.onAccent else colors.secondaryText,
-            modifier = Modifier.size(18.dp),
-        )
-    }
-}
-
-@Composable
-private fun PlaylistListRow(
-    playlist: SharedMediaItemUi,
-    colors: NaviampColors,
-    onClick: () -> Unit,
-    onPlay: () -> Unit,
-    onShuffle: () -> Unit,
-    onDownload: () -> Unit,
-    onRename: () -> Unit,
-    onDelete: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(5.dp))
-            .background(Color.Black.copy(alpha = 0.12f))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 7.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        PlaylistCoverFromUrls(
-            colors = colors,
-            covers = listOfNotNull(playlist.coverArtUrl).ifEmpty { playlist.coverArtUrls },
-            size = 38.dp,
-        )
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(playlist.title, color = colors.primaryText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(playlist.subtitle, color = colors.secondaryText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        MiniPlayerIconButton(colors, true, NaviampTransportIcons.Play, "Play playlist", onPlay)
-        MiniPlayerIconButton(colors, playlist.meta != "1 track", NaviampTransportIcons.Shuffle, "Play playlist in random order", onShuffle)
-        NaviampRowOverflowMenu(
-            colors = colors,
-            items = playlistRowActions(canDownload = true, canRename = true, canDelete = true).mapNotNull { action ->
-                when (action.action) {
-                    NaviampAction.DownloadPlaylist -> NaviampRowMenuItem(action.label, action.icon, onDownload, action.enabled)
-                    NaviampAction.RenamePlaylist -> NaviampRowMenuItem(action.label, action.icon, onRename, action.enabled)
-                    NaviampAction.DeletePlaylist -> NaviampRowMenuItem(action.label, action.icon, onDelete, action.enabled)
-                    else -> null
-                }
-            },
-        )
-    }
-}
-
-@Composable
-private fun PlaylistDetailContent(
-    colors: NaviampColors,
-    detail: SharedPlaylistDetailUi,
-    onBack: () -> Unit,
-    onPlayPlaylist: () -> Unit,
-    onShufflePlaylist: () -> Unit,
-    onAddPlaylistToQueue: () -> Unit,
-    onDownloadPlaylist: () -> Unit,
-    onRenamePlaylist: (SharedMediaItemUi, String) -> Unit,
-    onDeletePlaylist: (SharedMediaItemUi) -> Unit,
-    onTrackSelected: (AndroidTrackRowUi) -> Unit,
-    onTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
-) {
-    var renameOpen by remember { mutableStateOf(false) }
-    var deleteOpen by remember { mutableStateOf(false) }
-
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-            IconButton(onClick = onBack, modifier = Modifier.size(32.dp)) {
-                Icon(NaviampIcons.Back, contentDescription = "Back", tint = colors.primaryText, modifier = Modifier.size(18.dp))
-            }
-            Text(detail.playlist.title, color = colors.primaryText, fontWeight = FontWeight.Bold, fontSize = 18.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            PlaylistCoverFromUrls(
-                colors = colors,
-                covers = listOfNotNull(detail.playlist.coverArtUrl).ifEmpty {
-                    detail.tracks.mapNotNull { it.coverArtUrl }.distinct().take(4)
-                },
-                size = 96.dp,
-            )
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f)) {
-                Text(detail.playlist.subtitle, color = colors.secondaryText, fontSize = 12.sp)
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampTransportIcons.Play, "Play playlist", onPlayPlaylist)
-                    MiniPlayerIconButton(colors, detail.tracks.size > 1, NaviampTransportIcons.Shuffle, "Play playlist in random order", onShufflePlaylist)
-                    MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampIcons.Queue, "Add playlist to queue", onAddPlaylistToQueue)
-                    MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampIcons.Downloads, "Download playlist", onDownloadPlaylist)
-                    MiniPlayerIconButton(colors, true, NaviampIcons.Edit, "Rename playlist", { renameOpen = true })
-                    MiniPlayerIconButton(colors, true, NaviampIcons.Trash, "Delete playlist", { deleteOpen = true })
-                }
-            }
-        }
-        detail.tracks.forEach { track ->
-            TrackRow(track, colors, onTrackSelected, onAddToQueue = onTrackAddToQueue)
-        }
-    }
-
-    if (renameOpen) {
-        RenamePlaylistDialog(
-            playlist = detail.playlist,
-            colors = colors,
-            onDismiss = { renameOpen = false },
-            onConfirm = { name ->
-                renameOpen = false
-                onRenamePlaylist(detail.playlist, name)
-            },
-        )
-    }
-    if (deleteOpen) {
-        DeletePlaylistDialog(
-            playlist = detail.playlist,
-            colors = colors,
-            onDismiss = { deleteOpen = false },
-            onConfirm = {
-                deleteOpen = false
-                onDeletePlaylist(detail.playlist)
-            },
-        )
-    }
-}
-
-@Composable
-private fun PlaylistCover(colors: NaviampColors, tracks: List<AndroidTrackRowUi>, size: Dp) {
-    PlaylistCoverFromUrls(colors, tracks.mapNotNull { it.coverArtUrl }.distinct().take(4), size)
-}
-
-@Composable
-private fun PlaylistCoverFromUrls(colors: NaviampColors, covers: List<String>, size: Dp) {
-    val visibleCovers = covers.distinct().take(4)
-    Box(
-        modifier = Modifier
-            .size(size)
-            .clip(RoundedCornerShape(4.dp)),
-    ) {
-        when (visibleCovers.size) {
-            0 -> PlatformCoverArt(null, colors, size, 4.dp)
-            1 -> PlatformCoverArt(visibleCovers[0], colors, size, 4.dp)
-            else -> {
-                val cell = size / 2
-                Column {
-                    Row {
-                        PlatformCoverArt(visibleCovers[0], colors, cell, 0.dp)
-                        PlatformCoverArt(visibleCovers[1], colors, cell, 0.dp)
-                    }
-                    Row {
-                        PlatformCoverArt(visibleCovers.getOrElse(2) { visibleCovers[0] }, colors, cell, 0.dp)
-                        PlatformCoverArt(
-                            visibleCovers.getOrElse(3) { visibleCovers.getOrElse(2) { visibleCovers[1] } },
-                            colors,
-                            cell,
-                            0.dp,
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun RenamePlaylistDialog(
-    playlist: SharedMediaItemUi,
-    colors: NaviampColors,
-    onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit,
-) {
-    var name by remember(playlist.id) { mutableStateOf(playlist.title) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Rename playlist") },
-        text = {
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text("Playlist name") },
-                singleLine = true,
-            )
-        },
-        confirmButton = {
-            TextButton(enabled = name.isNotBlank(), onClick = { onConfirm(name) }) {
-                Text("Save")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        },
-        containerColor = colors.controlSurface,
-        titleContentColor = colors.primaryText,
-        textContentColor = colors.secondaryText,
-    )
-}
-
-@Composable
-private fun DeletePlaylistDialog(
-    playlist: SharedMediaItemUi,
-    colors: NaviampColors,
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Delete playlist") },
-        text = { Text("Delete ${playlist.title}? This removes the server playlist.") },
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text("Delete")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        },
-        containerColor = colors.controlSurface,
-        titleContentColor = colors.primaryText,
-        textContentColor = colors.secondaryText,
-    )
-}
-
-@Composable
-private fun MediaListContent(
-    colors: NaviampColors,
-    title: String,
-    items: List<SharedMediaItemUi>,
-    emptyText: String,
-    onItemSelected: ((SharedMediaItemUi) -> Unit)? = null,
-) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        item {
-            Text(title, color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        }
-        if (items.isEmpty()) {
-            item {
-                Text(emptyText, color = colors.secondaryText, fontSize = 13.sp)
-            }
-        }
-        items(
-            items = items,
-            key = { item -> item.id },
-        ) { item ->
-            SharedMediaRow(
-                item = item,
-                colors = colors,
-                onClick = onItemSelected?.let { { it(item) } },
-            )
-        }
-    }
-}
-
-@Composable
-private fun LibraryContent(
-    colors: NaviampColors,
-    items: List<SharedMediaItemUi>,
-    query: String,
-    syncStatus: NaviampLibrarySyncStatusUi,
-    onQueryChanged: (String) -> Unit,
-    onRefreshLibrary: () -> Unit,
-    onArtistSelected: (SharedMediaItemUi) -> Unit,
-) {
-    val filteredItems = remember(items, query) {
-        val normalizedQuery = query.trim().lowercase()
-        if (normalizedQuery.isBlank()) {
-            items
-        } else {
-            items.filter { item ->
-                item.title.lowercase().contains(normalizedQuery) ||
-                    item.subtitle.lowercase().contains(normalizedQuery) ||
-                    item.meta.lowercase().contains(normalizedQuery)
-            }
-        }
-    }
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        item {
-            Text("Library", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        }
-        item {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                NaviampTextField(
-                    value = query,
-                    onValueChange = onQueryChanged,
-                    label = "Search library artists",
-                    colors = colors,
-                    modifier = Modifier.weight(1f),
-                )
-                if (query.isNotBlank()) {
-                    IconButton(onClick = { onQueryChanged("") }) {
-                        Icon(NaviampIcons.Close, contentDescription = "Clear library search", tint = colors.secondaryText)
-                    }
-                }
-            }
-        }
-        syncStatus.message?.let { message ->
-            item {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(
-                        message,
-                        color = colors.secondaryText,
-                        fontSize = 12.sp,
-                        modifier = Modifier.weight(1f),
-                    )
-                    if (syncStatus.showRefresh) {
-                        TextButton(
-                            enabled = !syncStatus.isSyncing,
-                            onClick = onRefreshLibrary,
-                        ) {
-                            Text(if (syncStatus.isSyncing) "Refreshing..." else "Refresh", fontSize = 12.sp)
-                        }
-                    }
-                }
-            }
-        }
-        if (filteredItems.isEmpty()) {
-            item {
-                Text(
-                    if (query.isBlank()) "No library artists found." else "No library artists match.",
-                    color = colors.secondaryText,
-                    fontSize = 13.sp,
-                )
-            }
-        }
-        items(
-            items = filteredItems,
-            key = { item -> item.id },
-        ) { item ->
-            SharedMediaRow(
-                item = item,
-                colors = colors,
-                onClick = { onArtistSelected(item) },
-            )
-        }
-    }
-}
-
-@Composable
-private fun DownloadsContent(
-    colors: NaviampColors,
-    downloads: List<NaviampDownloadedTrackUi>,
-    status: String?,
-    downloadBytes: Long,
-    maxDownloadBytes: Long,
-    onTrackSelected: (NaviampDownloadedTrackUi) -> Unit,
-    playlistChoices: List<NaviampPlaylistChoiceUi>,
-    playlistActionStatus: String?,
-    onAddToPlaylist: (NaviampDownloadedTrackUi, NaviampPlaylistChoiceUi?) -> Unit,
-    onCreatePlaylistAndAdd: (NaviampDownloadedTrackUi, String) -> Unit,
-    onRemoveDownload: (NaviampDownloadedTrackUi) -> Unit,
-) {
-    var downloadForPlaylist by remember { mutableStateOf<NaviampDownloadedTrackUi?>(null) }
-    val remainingBytes = (maxDownloadBytes - downloadBytes).coerceAtLeast(0L)
-    val usedPercent = if (maxDownloadBytes > 0L) {
-        ((downloadBytes.toDouble() / maxDownloadBytes.toDouble()) * 100.0).coerceIn(0.0, 100.0)
-    } else {
-        0.0
-    }
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("Downloads", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                Text(
-                    "${downloads.size} files - ${downloadBytes.storageBytesLabel()} of ${maxDownloadBytes.storageBytesLabel()}",
-                    color = colors.secondaryText,
-                    fontSize = 12.sp,
-                )
-                Text(
-                    "${remainingBytes.storageBytesLabel()} remaining - ${usedPercent.oneDecimalLabel()}% used",
-                    color = colors.mutedText,
-                    fontSize = 11.sp,
-                )
-            }
-        }
-        status?.takeIf { it.isNotBlank() }?.let { message ->
-            item {
-                Text(message, color = colors.secondaryText, fontSize = 12.sp)
-            }
-        }
-        if (downloads.isEmpty()) {
-            item {
-                Text("Downloaded tracks will appear here.", color = colors.secondaryText, fontSize = 13.sp)
-            }
-        }
-        items(
-            items = downloads,
-            key = { item -> item.id },
-        ) { download ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onTrackSelected(download) }
-                    .padding(vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                PlatformCoverArt(download.track.coverArtUrl, colors, 38.dp, 4.dp)
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text(download.track.title, color = colors.primaryText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(download.track.subtitle, color = colors.secondaryText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                Text(download.sizeBytes.storageBytesLabel(), color = colors.mutedText, fontSize = 11.sp)
-                NaviampRowOverflowMenu(
-                    colors = colors,
-                    items = downloadRowActions(canRemove = true, canAddToPlaylist = true).mapNotNull { action ->
-                        when (action.action) {
-                            NaviampAction.AddToPlaylist -> NaviampRowMenuItem(
-                                label = action.label,
-                                icon = action.icon,
-                                onClick = { downloadForPlaylist = download },
-                                enabled = action.enabled,
-                            )
-                            NaviampAction.RemoveDownload -> NaviampRowMenuItem(
-                                label = action.label,
-                                icon = action.icon,
-                                onClick = { onRemoveDownload(download) },
-                                enabled = action.enabled,
-                            )
-                            else -> null
-                        }
-                    },
-                )
-            }
-        }
-    }
-
-    downloadForPlaylist?.let { download ->
-        AddToPlaylistDialog(
-            title = download.track.title,
-            colors = colors,
-            playlists = playlistChoices,
-            status = playlistActionStatus,
-            onDismissRequest = { downloadForPlaylist = null },
-            onAddToExisting = { playlist ->
-                downloadForPlaylist = null
-                onAddToPlaylist(download, playlist)
-            },
-            onCreateAndAdd = { name ->
-                downloadForPlaylist = null
-                onCreatePlaylistAndAdd(download, name)
-            },
-        )
-    }
-}
-
-@Composable
 private fun AlbumDetailContent(
     colors: NaviampColors,
     detail: SharedAlbumDetailUi,
@@ -1842,16 +911,16 @@ private fun AlbumDetailContent(
     onAlbumAddToQueue: () -> Unit,
     onAlbumAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit,
     onAlbumCreatePlaylistAndAdd: (String) -> Unit,
-    onTrackSelected: (AndroidTrackRowUi) -> Unit,
-    onTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
-    onTrackDownload: (AndroidTrackRowUi) -> Unit,
-    onTrackAddToPlaylist: (AndroidTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
-    onTrackCreatePlaylistAndAdd: (AndroidTrackRowUi, String) -> Unit,
+    onTrackSelected: (SharedTrackRowUi) -> Unit,
+    onTrackAddToQueue: (SharedTrackRowUi) -> Unit,
+    onTrackDownload: (SharedTrackRowUi) -> Unit,
+    onTrackAddToPlaylist: (SharedTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
+    onTrackCreatePlaylistAndAdd: (SharedTrackRowUi, String) -> Unit,
     playlistChoices: List<NaviampPlaylistChoiceUi>,
     playlistActionStatus: String?,
 ) {
     var addAlbumToPlaylistOpen by remember(detail.album.id) { mutableStateOf(false) }
-    var trackForPlaylist by remember(detail.album.id) { mutableStateOf<AndroidTrackRowUi?>(null) }
+    var trackForPlaylist by remember(detail.album.id) { mutableStateOf<SharedTrackRowUi?>(null) }
 
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -1961,11 +1030,11 @@ private fun ArtistDetailContent(
     onPopularPlay: () -> Unit,
     onPopularRadio: () -> Unit,
     onPopularAddToQueue: () -> Unit,
-    onPopularTrackSelected: (AndroidTrackRowUi) -> Unit,
-    onPopularTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
-    onPopularTrackDownload: (AndroidTrackRowUi) -> Unit,
-    onPopularTrackAddToPlaylist: (AndroidTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
-    onPopularTrackCreatePlaylistAndAdd: (AndroidTrackRowUi, String) -> Unit,
+    onPopularTrackSelected: (SharedTrackRowUi) -> Unit,
+    onPopularTrackAddToQueue: (SharedTrackRowUi) -> Unit,
+    onPopularTrackDownload: (SharedTrackRowUi) -> Unit,
+    onPopularTrackAddToPlaylist: (SharedTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
+    onPopularTrackCreatePlaylistAndAdd: (SharedTrackRowUi, String) -> Unit,
     onFindSimilarArtists: () -> Unit,
     onSimilarArtistSelected: (SharedSimilarArtistUi) -> Unit,
     onSimilarArtistExternalSelected: (String) -> Unit,
@@ -1979,7 +1048,7 @@ private fun ArtistDetailContent(
     playlistActionStatus: String?,
 ) {
     var addArtistToPlaylistOpen by remember(detail.artist.id) { mutableStateOf(false) }
-    var popularTrackForPlaylist by remember(detail.artist.id) { mutableStateOf<AndroidTrackRowUi?>(null) }
+    var popularTrackForPlaylist by remember(detail.artist.id) { mutableStateOf<SharedTrackRowUi?>(null) }
     var albumForPlaylist by remember(detail.artist.id) { mutableStateOf<SharedMediaItemUi?>(null) }
     var biographyExpanded by remember(detail.artist.id) { mutableStateOf(false) }
 
@@ -2281,7 +1350,7 @@ private fun FullNowPlaying(
     onQueueItemDownload: (NaviampNowPlayingItemUi) -> Unit,
     onToggleFavorite: () -> Unit,
     onRatingSelected: (Int?) -> Unit,
-    onTrackSelected: (AndroidTrackRowUi) -> Unit,
+    onTrackSelected: (SharedTrackRowUi) -> Unit,
     onRadioStationSelected: (SharedMediaItemUi) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
@@ -2319,7 +1388,7 @@ private fun FullNowPlaying(
                 onCollapse = onBack,
                 onQueueItemSelected = { item ->
                     onTrackSelected(
-                        AndroidTrackRowUi(
+                        SharedTrackRowUi(
                             id = item.id,
                             title = item.title,
                             subtitle = item.subtitle,
@@ -2330,7 +1399,7 @@ private fun FullNowPlaying(
                 },
                 onRelatedItemSelected = { item ->
                     onTrackSelected(
-                        AndroidTrackRowUi(
+                        SharedTrackRowUi(
                             id = item.id,
                             title = item.title,
                             subtitle = item.subtitle,
@@ -2477,921 +1546,6 @@ fun NaviampMiniNowPlaying(
             onClick = onNext,
         )
     }
-}
-
-@Composable
-private fun MiniPlayerIconButton(
-    colors: NaviampColors,
-    enabled: Boolean,
-    icon: ImageVector,
-    contentDescription: String,
-    onClick: () -> Unit,
-) {
-    IconButton(
-        enabled = enabled,
-        onClick = onClick,
-        modifier = Modifier.size(34.dp),
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            tint = if (enabled) colors.primaryText else colors.mutedText,
-            modifier = Modifier.size(20.dp),
-        )
-    }
-}
-
-@Composable
-private fun TrackRow(
-    track: AndroidTrackRowUi,
-    colors: NaviampColors,
-    onTrackSelected: (AndroidTrackRowUi) -> Unit,
-    onAddToQueue: ((AndroidTrackRowUi) -> Unit)? = null,
-    onDownload: ((AndroidTrackRowUi) -> Unit)? = null,
-    onAddToPlaylist: ((AndroidTrackRowUi) -> Unit)? = null,
-    reservePopularIndicatorSpace: Boolean = false,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onTrackSelected(track) }
-            .padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        if (reservePopularIndicatorSpace || track.meta.isNotBlank()) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(3.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.width(11.dp),
-                ) {
-                    if (track.popular) {
-                        Icon(
-                            imageVector = NaviampIcons.Fire,
-                            contentDescription = "Popular on Deezer",
-                            tint = colors.primaryText,
-                            modifier = Modifier.size(10.dp),
-                        )
-                    }
-                }
-                Text(track.meta, color = colors.mutedText, fontSize = 11.sp, lineHeight = 14.sp)
-            }
-        }
-        PlatformCoverArt(track.coverArtUrl, colors, 34.dp, 4.dp)
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(track.title, color = colors.primaryText, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(track.subtitle, color = colors.secondaryText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        val rowActions = trackRowActions(
-            canDownload = onDownload != null,
-            canAddToQueue = onAddToQueue != null,
-            canAddToPlaylist = onAddToPlaylist != null,
-        ).mapNotNull { action ->
-            when (action.action) {
-                NaviampAction.DownloadTrack -> onDownload?.let { download ->
-                    NaviampRowMenuItem(action.label, action.icon, { download(track) }, action.enabled)
-                }
-                NaviampAction.AddToQueue -> onAddToQueue?.let { addToQueue ->
-                    NaviampRowMenuItem(action.label, action.icon, { addToQueue(track) }, action.enabled)
-                }
-                NaviampAction.AddToPlaylist -> onAddToPlaylist?.let { addToPlaylist ->
-                    NaviampRowMenuItem(action.label, action.icon, { addToPlaylist(track) }, action.enabled)
-                }
-                else -> null
-            }
-        }
-        if (rowActions.isNotEmpty()) {
-            NaviampRowOverflowMenu(
-                colors = colors,
-                items = rowActions,
-            )
-        }
-    }
-}
-
-@Composable
-private fun MixCard(
-    album: SharedMediaItemUi,
-    colors: NaviampColors,
-    onClick: () -> Unit,
-) {
-    Box(
-        modifier = Modifier
-            .width(154.dp)
-            .height(120.dp)
-            .clip(RoundedCornerShape(6.dp))
-            .clickable(onClick = onClick),
-    ) {
-        PlatformCoverArt(album.coverArtUrl, colors, 154.dp, 6.dp)
-        Column(
-            verticalArrangement = Arrangement.Bottom,
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        0f to Color.Transparent,
-                        1f to Color.Black.copy(alpha = 0.68f),
-                    ),
-                )
-                .padding(8.dp),
-        ) {
-            Text(
-                "${album.subtitle} Mix",
-                color = colors.primaryText,
-                fontWeight = FontWeight.Bold,
-                fontSize = 13.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                album.title,
-                color = colors.secondaryText,
-                fontSize = 11.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-    }
-}
-
-@Composable
-private fun HomeStationSection(
-    stations: List<SharedHomeStationUi>,
-    colors: NaviampColors,
-    onStationSelected: (SharedHomeStationUi) -> Unit,
-) {
-    if (stations.isEmpty()) return
-
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        SectionHeader("STATIONS", colors)
-        stations.forEach { station ->
-            StationRow(
-                title = station.title,
-                subtitle = station.subtitle,
-                colors = colors,
-                onClick = { onStationSelected(station) },
-            )
-        }
-    }
-}
-
-@Composable
-private fun StationRow(
-    title: String,
-    subtitle: String,
-    colors: NaviampColors,
-    onClick: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(5.dp))
-            .background(Color.Black.copy(alpha = 0.12f))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 7.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .size(34.dp)
-                .clip(RoundedCornerShape(5.dp))
-                .background(colors.controlSurface.copy(alpha = 0.5f)),
-        ) {
-            Icon(NaviampIcons.InternetRadio, contentDescription = null, tint = colors.primaryText, modifier = Modifier.size(19.dp))
-        }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(title, color = colors.primaryText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(subtitle, color = colors.secondaryText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        Text(">", color = colors.mutedText, fontSize = 16.sp)
-    }
-}
-
-@Composable
-private fun HomeSection(
-    title: String,
-    items: List<SharedMediaItemUi>,
-    colors: NaviampColors,
-    onItemSelected: ((SharedMediaItemUi) -> Unit)? = null,
-    stationStyle: Boolean = false,
-) {
-    if (items.isEmpty()) return
-
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        SectionHeader(title.uppercase(), colors)
-        items.take(6).forEach { item ->
-            if (stationStyle) {
-                StationRow(
-                    title = item.title,
-                    subtitle = item.subtitle,
-                    colors = colors,
-                    onClick = { onItemSelected?.invoke(item) },
-                )
-            } else {
-                SharedMediaRow(
-                    item = item,
-                    colors = colors,
-                    onClick = onItemSelected?.let { { it(item) } },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun MediaSection(
-    title: String,
-    items: List<SharedMediaItemUi>,
-    colors: NaviampColors,
-    onItemSelected: ((SharedMediaItemUi) -> Unit)? = null,
-) {
-    if (items.isEmpty()) return
-
-    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-        SectionHeader(title.uppercase(), colors)
-        items.forEach { item ->
-            SharedMediaRow(item, colors, onClick = onItemSelected?.let { { it(item) } })
-        }
-    }
-}
-
-@Composable
-private fun SharedMediaRow(
-    item: SharedMediaItemUi,
-    colors: NaviampColors,
-    onClick: (() -> Unit)? = null,
-    menuItems: List<NaviampRowMenuItem> = emptyList(),
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(5.dp))
-            .background(Color.Black.copy(alpha = 0.12f))
-            .let { modifier ->
-                if (onClick != null) modifier.clickable(onClick = onClick) else modifier
-            }
-            .padding(horizontal = 8.dp, vertical = 7.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        PlatformCoverArt(item.coverArtUrl, colors, 34.dp, 4.dp)
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(item.title, color = colors.primaryText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(item.subtitle, color = colors.secondaryText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        if (item.meta.isNotBlank()) {
-            Text(item.meta, color = colors.mutedText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        if (menuItems.isNotEmpty()) {
-            NaviampRowOverflowMenu(colors = colors, items = menuItems)
-        }
-    }
-}
-
-@Composable
-private fun NaviampTextField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    label: String,
-    colors: NaviampColors,
-    modifier: Modifier = Modifier.fillMaxWidth(),
-    enabled: Boolean = true,
-    isPassword: Boolean = false,
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(label, color = colors.secondaryText) },
-        singleLine = true,
-        enabled = enabled,
-        visualTransformation = if (isPassword) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
-        modifier = modifier,
-    )
-}
-
-@Composable
-private fun PrimaryButton(label: String, colors: NaviampColors, onClick: () -> Unit, enabled: Boolean = true) {
-    Button(
-        onClick = onClick,
-        enabled = enabled,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = colors.accent,
-            contentColor = colors.onAccent,
-            disabledContainerColor = colors.controlSurface,
-            disabledContentColor = colors.mutedText,
-        ),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Text(label)
-    }
-}
-
-@Composable
-private fun SmallPill(label: String, colors: NaviampColors, onClick: () -> Unit) {
-    Button(
-        onClick = onClick,
-        colors = ButtonDefaults.buttonColors(containerColor = colors.accent, contentColor = colors.onAccent),
-        modifier = Modifier.height(40.dp),
-    ) {
-        Text(label)
-    }
-}
-
-@Composable
-fun SharedTransportControls(
-    colors: NaviampColors,
-    isPlaying: Boolean,
-    onPause: () -> Unit,
-    onResume: () -> Unit,
-    onStop: () -> Unit,
-    modifier: Modifier = Modifier,
-    compact: Boolean = false,
-    shuffleEnabled: Boolean = false,
-    repeatEnabled: Boolean = false,
-    onShuffle: (() -> Unit)? = null,
-    onPrevious: (() -> Unit)? = null,
-    onNext: (() -> Unit)? = null,
-    onRepeat: (() -> Unit)? = null,
-) {
-    val transportSize = if (compact) 38.dp else 46.dp
-    val sideSize = if (compact) 32.dp else 36.dp
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 8.dp, Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        TransportIconButton(
-            icon = NaviampTransportIcons.Shuffle,
-            contentDescription = "Shuffle",
-            colors = colors,
-            onClick = onShuffle ?: {},
-            enabled = onShuffle != null,
-            selected = shuffleEnabled,
-            size = sideSize,
-        )
-        TransportIconButton(
-            icon = NaviampTransportIcons.Previous,
-            contentDescription = "Previous",
-            colors = colors,
-            onClick = onPrevious ?: {},
-            enabled = onPrevious != null,
-            size = sideSize,
-        )
-        TransportIconButton(
-            icon = if (isPlaying) NaviampTransportIcons.Pause else NaviampTransportIcons.Play,
-            contentDescription = if (isPlaying) "Pause" else "Play",
-            colors = colors,
-            onClick = if (isPlaying) onPause else onResume,
-            size = transportSize,
-        )
-        TransportIconButton(
-            icon = NaviampTransportIcons.Stop,
-            contentDescription = "Stop",
-            colors = colors,
-            onClick = onStop,
-            size = sideSize,
-        )
-        TransportIconButton(
-            icon = NaviampTransportIcons.Next,
-            contentDescription = "Next",
-            colors = colors,
-            onClick = onNext ?: {},
-            enabled = onNext != null,
-            size = sideSize,
-        )
-        TransportIconButton(
-            icon = NaviampTransportIcons.Repeat,
-            contentDescription = "Repeat",
-            colors = colors,
-            onClick = onRepeat ?: {},
-            enabled = onRepeat != null,
-            selected = repeatEnabled,
-            size = sideSize,
-        )
-    }
-}
-
-@Composable
-private fun TransportIconButton(
-    icon: ImageVector,
-    contentDescription: String,
-    colors: NaviampColors,
-    onClick: () -> Unit,
-    enabled: Boolean = true,
-    selected: Boolean = false,
-    size: Dp = 46.dp,
-) {
-    IconButton(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = Modifier
-            .size(size)
-            .clip(RoundedCornerShape(size / 2))
-            .background(
-                when {
-                    !enabled -> colors.controlSurface.copy(alpha = 0.55f)
-                    selected -> colors.primaryText
-                    else -> colors.accent
-                },
-            ),
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            tint = when {
-                !enabled -> colors.mutedText
-                selected -> colors.background
-                else -> colors.onAccent
-            },
-            modifier = Modifier.size(size * 0.48f),
-        )
-    }
-}
-
-@Composable
-private fun SectionHeader(text: String, colors: NaviampColors) {
-    Text(text, color = colors.primaryText, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-}
-
-@Composable
-private fun PlaceholderTile(text: String, colors: NaviampColors) {
-    Text(
-        text,
-        color = colors.secondaryText,
-        fontSize = 13.sp,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(Color.Black.copy(alpha = 0.2f))
-            .padding(12.dp),
-    )
-}
-
-@Composable
-fun SharedBottomNavigationBar(
-    colors: NaviampColors,
-    selectedRoute: SharedRoute,
-    onRouteSelected: (SharedRoute) -> Unit,
-) {
-    Row(
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.Black.copy(alpha = 0.28f))
-            .padding(vertical = 2.dp),
-    ) {
-        SharedRoute.entries.forEach { route ->
-            IconButton(onClick = { onRouteSelected(route) }, modifier = Modifier.size(42.dp)) {
-                Icon(
-                    route.icon,
-                    contentDescription = route.label,
-                    tint = if (route == selectedRoute) colors.primaryText else colors.mutedText,
-                    modifier = Modifier.size(21.dp),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun NaviampDropdownMenu(
-    expanded: Boolean,
-    onDismissRequest: () -> Unit,
-    modifier: Modifier = Modifier,
-    offset: DpOffset = DpOffset.Zero,
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    DropdownMenu(
-        expanded = expanded,
-        onDismissRequest = onDismissRequest,
-        offset = offset,
-        shape = RoundedCornerShape(4.dp),
-        containerColor = MenuBackground,
-        tonalElevation = 0.dp,
-        shadowElevation = 8.dp,
-        modifier = modifier.widthIn(min = 220.dp),
-        content = content,
-    )
-}
-
-@Composable
-fun NaviampDropdownMenuItem(
-    label: String,
-    icon: ImageVector? = null,
-    enabled: Boolean = true,
-    onClick: () -> Unit,
-) {
-    DropdownMenuItem(
-        text = {
-            Text(
-                label,
-                fontSize = 13.sp,
-            )
-        },
-        leadingIcon = icon?.let {
-            {
-                Icon(
-                    imageVector = it,
-                    contentDescription = null,
-                    tint = if (enabled) MenuText else MenuText.copy(alpha = 0.42f),
-                    modifier = Modifier.size(17.dp),
-                )
-            }
-        },
-        enabled = enabled,
-        colors = MenuDefaults.itemColors(
-            textColor = MenuText,
-            disabledTextColor = MenuText.copy(alpha = 0.42f),
-        ),
-        onClick = onClick,
-    )
-}
-
-data class NaviampRowMenuItem(
-    val label: String,
-    val icon: ImageVector,
-    val onClick: () -> Unit,
-    val enabled: Boolean = true,
-)
-
-@Composable
-fun NaviampRowOverflowMenu(
-    colors: NaviampColors,
-    items: List<NaviampRowMenuItem>,
-    modifier: Modifier = Modifier,
-) {
-    if (items.isEmpty()) return
-
-    var expanded by remember { mutableStateOf(false) }
-    Box(modifier = modifier) {
-        IconButton(
-            onClick = { expanded = true },
-            modifier = Modifier.size(28.dp),
-        ) {
-            Text("⋮", color = colors.mutedText, fontSize = 15.sp)
-        }
-        NaviampDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-        ) {
-            items.forEach { item ->
-                NaviampDropdownMenuItem(
-                    label = item.label,
-                    icon = item.icon,
-                    enabled = item.enabled,
-                    onClick = {
-                        expanded = false
-                        item.onClick()
-                    },
-                )
-            }
-        }
-    }
-}
-
-private val MenuBackground = Color(0xFF292C36)
-private val MenuText = Color(0xFFE7E8EF)
-
-object NaviampIcons {
-    private val IconSize = 24.dp
-    private const val Viewport = 24f
-
-    val Home = icon("Home") {
-        moveTo(4f, 11f)
-        lineTo(12f, 4f)
-        lineTo(20f, 11f)
-        moveTo(6.5f, 10f)
-        lineTo(6.5f, 20f)
-        lineTo(10f, 20f)
-        lineTo(10f, 15f)
-        lineTo(14f, 15f)
-        lineTo(14f, 20f)
-        lineTo(17.5f, 20f)
-        lineTo(17.5f, 10f)
-    }
-    val Player = filledIcon("Player") {
-        moveTo(9f, 7f)
-        lineTo(18f, 12f)
-        lineTo(9f, 17f)
-        close()
-    }
-    val Pause = filledIcon("Pause") {
-        moveTo(7f, 5f)
-        lineTo(10f, 5f)
-        lineTo(10f, 19f)
-        lineTo(7f, 19f)
-        close()
-        moveTo(14f, 5f)
-        lineTo(17f, 5f)
-        lineTo(17f, 19f)
-        lineTo(14f, 19f)
-        close()
-    }
-    val Stop = filledIcon("Stop") {
-        moveTo(7f, 7f)
-        lineTo(17f, 7f)
-        lineTo(17f, 17f)
-        lineTo(7f, 17f)
-        close()
-    }
-    val Playlist = icon("Playlist") {
-        moveTo(5f, 6.5f)
-        lineTo(14.5f, 6.5f)
-        moveTo(5f, 11.5f)
-        lineTo(14.5f, 11.5f)
-        moveTo(5f, 16.5f)
-        lineTo(11.5f, 16.5f)
-        moveTo(17.5f, 13.5f)
-        lineTo(17.5f, 20f)
-        moveTo(14.3f, 16.7f)
-        lineTo(20.7f, 16.7f)
-    }
-    val Queue = icon("Queue") {
-        moveTo(5f, 6.5f)
-        lineTo(15.5f, 6.5f)
-        moveTo(5f, 11.5f)
-        lineTo(13f, 11.5f)
-        moveTo(5f, 16.5f)
-        lineTo(11.5f, 16.5f)
-        moveTo(15.5f, 13.5f)
-        lineTo(19.5f, 16.5f)
-        lineTo(15.5f, 19.5f)
-        moveTo(14.5f, 16.5f)
-        lineTo(19.2f, 16.5f)
-    }
-    val Library = icon("Library") {
-        moveTo(8f, 5f)
-        lineTo(8f, 16.2f)
-        curveTo(7.2f, 15.8f, 5.9f, 15.8f, 5f, 16.5f)
-        curveTo(4f, 17.3f, 4.2f, 18.8f, 5.4f, 19.3f)
-        curveTo(6.8f, 19.9f, 8f, 19f, 8f, 17.4f)
-        moveTo(8f, 7.2f)
-        lineTo(18f, 5.4f)
-        lineTo(18f, 14.8f)
-        curveTo(17.2f, 14.4f, 15.9f, 14.4f, 15f, 15.1f)
-        curveTo(14f, 15.9f, 14.2f, 17.4f, 15.4f, 17.9f)
-        curveTo(16.8f, 18.5f, 18f, 17.6f, 18f, 16f)
-    }
-    val Search = icon("Search") {
-        moveTo(10.8f, 5f)
-        curveTo(7.6f, 5f, 5f, 7.6f, 5f, 10.8f)
-        curveTo(5f, 14f, 7.6f, 16.6f, 10.8f, 16.6f)
-        curveTo(14f, 16.6f, 16.6f, 14f, 16.6f, 10.8f)
-        curveTo(16.6f, 7.6f, 14f, 5f, 10.8f, 5f)
-        close()
-        moveTo(15.2f, 15.2f)
-        lineTo(20f, 20f)
-    }
-    val Close = icon("Close") {
-        moveTo(6f, 6f)
-        lineTo(18f, 18f)
-        moveTo(18f, 6f)
-        lineTo(6f, 18f)
-    }
-    val InternetRadio = icon("InternetRadio") {
-        moveTo(6f, 10f)
-        lineTo(18.5f, 7.5f)
-        moveTo(6f, 10f)
-        lineTo(6f, 18.5f)
-        lineTo(19f, 18.5f)
-        lineTo(19f, 10f)
-        close()
-        moveTo(9f, 13.2f)
-        lineTo(13f, 13.2f)
-        moveTo(9f, 15.8f)
-        lineTo(11.5f, 15.8f)
-        moveTo(16f, 13.8f)
-        curveTo(15.1f, 13.8f, 14.4f, 14.5f, 14.4f, 15.4f)
-        curveTo(14.4f, 16.3f, 15.1f, 17f, 16f, 17f)
-        curveTo(16.9f, 17f, 17.6f, 16.3f, 17.6f, 15.4f)
-        curveTo(17.6f, 14.5f, 16.9f, 13.8f, 16f, 13.8f)
-        close()
-    }
-    val Downloads = icon("Downloads") {
-        moveTo(12f, 4f)
-        lineTo(12f, 15f)
-        moveTo(7.5f, 10.8f)
-        lineTo(12f, 15.3f)
-        lineTo(16.5f, 10.8f)
-        moveTo(5f, 20f)
-        lineTo(19f, 20f)
-    }
-    val Settings = icon("Settings") {
-        moveTo(12f, 8.3f)
-        curveTo(10f, 8.3f, 8.3f, 10f, 8.3f, 12f)
-        curveTo(8.3f, 14f, 10f, 15.7f, 12f, 15.7f)
-        curveTo(14f, 15.7f, 15.7f, 14f, 15.7f, 12f)
-        curveTo(15.7f, 10f, 14f, 8.3f, 12f, 8.3f)
-        close()
-        moveTo(10.5f, 3.2f)
-        lineTo(13.5f, 3.2f)
-        lineTo(14f, 5.5f)
-        curveTo(14.6f, 5.7f, 15.1f, 5.9f, 15.6f, 6.3f)
-        lineTo(17.8f, 5.4f)
-        lineTo(18.9f, 6.5f)
-        lineTo(18f, 8.7f)
-        curveTo(18.3f, 9.2f, 18.6f, 9.7f, 18.8f, 10.3f)
-        lineTo(21f, 11.2f)
-        lineTo(21f, 12.8f)
-        lineTo(18.8f, 13.7f)
-        curveTo(18.6f, 14.3f, 18.3f, 14.8f, 18f, 15.3f)
-        lineTo(18.9f, 17.5f)
-        lineTo(17.8f, 18.6f)
-        lineTo(15.6f, 17.7f)
-        curveTo(15.1f, 18.1f, 14.6f, 18.3f, 14f, 18.5f)
-        lineTo(13.5f, 20.8f)
-        lineTo(10.5f, 20.8f)
-        lineTo(10f, 18.5f)
-        curveTo(9.4f, 18.3f, 8.9f, 18.1f, 8.4f, 17.7f)
-        lineTo(6.2f, 18.6f)
-        lineTo(5.1f, 17.5f)
-        lineTo(6f, 15.3f)
-        curveTo(5.7f, 14.8f, 5.4f, 14.3f, 5.2f, 13.7f)
-        lineTo(3f, 12.8f)
-        lineTo(3f, 11.2f)
-        lineTo(5.2f, 10.3f)
-        curveTo(5.4f, 9.7f, 5.7f, 9.2f, 6f, 8.7f)
-        lineTo(5.1f, 6.5f)
-        lineTo(6.2f, 5.4f)
-        lineTo(8.4f, 6.3f)
-        curveTo(8.9f, 5.9f, 9.4f, 5.7f, 10f, 5.5f)
-        lineTo(10.5f, 3.2f)
-        close()
-    }
-    val ChevronRight = icon("ChevronRight") {
-        moveTo(9f, 6f)
-        lineTo(15f, 12f)
-        lineTo(9f, 18f)
-    }
-    val ChevronDown = icon("ChevronDown") {
-        moveTo(6f, 9f)
-        lineTo(12f, 15f)
-        lineTo(18f, 9f)
-    }
-    val Back = icon("Back") {
-        moveTo(15f, 5f)
-        lineTo(8f, 12f)
-        lineTo(15f, 19f)
-    }
-    val Trash = icon("Trash") {
-        moveTo(5f, 7f)
-        lineTo(19f, 7f)
-        moveTo(10f, 11f)
-        lineTo(10f, 17f)
-        moveTo(14f, 11f)
-        lineTo(14f, 17f)
-        moveTo(8f, 7f)
-        lineTo(8.8f, 20f)
-        lineTo(15.2f, 20f)
-        lineTo(16f, 7f)
-        moveTo(9.5f, 7f)
-        lineTo(10.2f, 4.5f)
-        lineTo(13.8f, 4.5f)
-        lineTo(14.5f, 7f)
-    }
-    val Edit = icon("Edit") {
-        moveTo(5f, 19f)
-        lineTo(9f, 18.2f)
-        lineTo(18.2f, 9f)
-        curveTo(19f, 8.2f, 19f, 6.9f, 18.2f, 6.1f)
-        lineTo(17.9f, 5.8f)
-        curveTo(17.1f, 5f, 15.8f, 5f, 15f, 5.8f)
-        lineTo(5.8f, 15f)
-        lineTo(5f, 19f)
-        close()
-        moveTo(13.8f, 7f)
-        lineTo(17f, 10.2f)
-    }
-    val Alphabetical = icon("Alphabetical") {
-        moveTo(5f, 18f)
-        lineTo(8f, 6f)
-        lineTo(11f, 18f)
-        moveTo(6.1f, 14f)
-        lineTo(9.9f, 14f)
-        moveTo(14f, 7f)
-        lineTo(19f, 7f)
-        lineTo(14f, 17f)
-        lineTo(19f, 17f)
-    }
-    val Clock = icon("Clock") {
-        moveTo(12f, 4f)
-        curveTo(7.6f, 4f, 4f, 7.6f, 4f, 12f)
-        curveTo(4f, 16.4f, 7.6f, 20f, 12f, 20f)
-        curveTo(16.4f, 20f, 20f, 16.4f, 20f, 12f)
-        curveTo(20f, 7.6f, 16.4f, 4f, 12f, 4f)
-        close()
-        moveTo(12f, 8f)
-        lineTo(12f, 12.4f)
-        lineTo(15f, 14.2f)
-    }
-    val Info = icon("Info") {
-        moveTo(12f, 10.5f)
-        lineTo(12f, 17f)
-        moveTo(12f, 7f)
-        lineTo(12.02f, 7f)
-        moveTo(12f, 3.5f)
-        curveTo(7.3f, 3.5f, 3.5f, 7.3f, 3.5f, 12f)
-        curveTo(3.5f, 16.7f, 7.3f, 20.5f, 12f, 20.5f)
-        curveTo(16.7f, 20.5f, 20.5f, 16.7f, 20.5f, 12f)
-        curveTo(20.5f, 7.3f, 16.7f, 3.5f, 12f, 3.5f)
-        close()
-    }
-    val Album = icon("Album") {
-        moveTo(12f, 4f)
-        curveTo(7.6f, 4f, 4f, 7.6f, 4f, 12f)
-        curveTo(4f, 16.4f, 7.6f, 20f, 12f, 20f)
-        curveTo(16.4f, 20f, 20f, 16.4f, 20f, 12f)
-        curveTo(20f, 7.6f, 16.4f, 4f, 12f, 4f)
-        close()
-        moveTo(12f, 9.2f)
-        curveTo(10.5f, 9.2f, 9.2f, 10.5f, 9.2f, 12f)
-        curveTo(9.2f, 13.5f, 10.5f, 14.8f, 12f, 14.8f)
-        curveTo(13.5f, 14.8f, 14.8f, 13.5f, 14.8f, 12f)
-        curveTo(14.8f, 10.5f, 13.5f, 9.2f, 12f, 9.2f)
-        close()
-    }
-    val Artist = icon("Artist") {
-        moveTo(12f, 5f)
-        curveTo(10f, 5f, 8.4f, 6.6f, 8.4f, 8.6f)
-        curveTo(8.4f, 10.6f, 10f, 12.2f, 12f, 12.2f)
-        curveTo(14f, 12.2f, 15.6f, 10.6f, 15.6f, 8.6f)
-        curveTo(15.6f, 6.6f, 14f, 5f, 12f, 5f)
-        close()
-        moveTo(5.5f, 20f)
-        curveTo(6.4f, 16.8f, 8.8f, 15f, 12f, 15f)
-        curveTo(15.2f, 15f, 17.6f, 16.8f, 18.5f, 20f)
-    }
-    val ExternalLink = icon("ExternalLink") {
-        moveTo(9f, 7f)
-        lineTo(6.5f, 7f)
-        curveTo(5.7f, 7f, 5f, 7.7f, 5f, 8.5f)
-        lineTo(5f, 17.5f)
-        curveTo(5f, 18.3f, 5.7f, 19f, 6.5f, 19f)
-        lineTo(15.5f, 19f)
-        curveTo(16.3f, 19f, 17f, 18.3f, 17f, 17.5f)
-        lineTo(17f, 15f)
-        moveTo(13f, 5f)
-        lineTo(19f, 5f)
-        lineTo(19f, 11f)
-        moveTo(11f, 13f)
-        lineTo(18.5f, 5.5f)
-    }
-    val Fire = filledIcon("Fire") {
-        moveTo(12f, 22f)
-        curveTo(7.5f, 22f, 4f, 18.8f, 4f, 14.6f)
-        curveTo(4f, 11.6f, 5.6f, 9.2f, 8.3f, 7.1f)
-        curveTo(8.6f, 9.1f, 9.5f, 10.4f, 10.7f, 11f)
-        curveTo(10.2f, 7.5f, 11.8f, 4.2f, 15.5f, 2f)
-        curveTo(15.8f, 5.4f, 17.6f, 7.3f, 19.2f, 9.5f)
-        curveTo(20.3f, 11f, 20.8f, 12.7f, 20.8f, 14.6f)
-        curveTo(20.8f, 18.8f, 17.1f, 22f, 12f, 22f)
-        close()
-        moveTo(12.2f, 19.6f)
-        curveTo(14.3f, 19.6f, 15.9f, 18.2f, 15.9f, 16.3f)
-        curveTo(15.9f, 14.8f, 15f, 13.7f, 13.7f, 12.3f)
-        curveTo(13.5f, 13.6f, 12.8f, 14.6f, 11.8f, 15.2f)
-        curveTo(11.7f, 14f, 11.1f, 13f, 10.2f, 12.4f)
-        curveTo(8.9f, 13.5f, 8.2f, 14.8f, 8.2f, 16.3f)
-        curveTo(8.2f, 18.2f, 9.9f, 19.6f, 12.2f, 19.6f)
-        close()
-    }
-
-    private fun icon(name: String, block: androidx.compose.ui.graphics.vector.PathBuilder.() -> Unit): ImageVector =
-        ImageVector.Builder(
-            name = name,
-            defaultWidth = IconSize,
-            defaultHeight = IconSize,
-            viewportWidth = Viewport,
-            viewportHeight = Viewport,
-        ).apply {
-            path(
-                stroke = SolidColor(Color.Black),
-                strokeLineWidth = 1.9f,
-                strokeLineCap = StrokeCap.Round,
-                strokeLineJoin = StrokeJoin.Round,
-            ) {
-                block()
-            }
-        }.build()
-
-    private fun filledIcon(name: String, block: androidx.compose.ui.graphics.vector.PathBuilder.() -> Unit): ImageVector =
-        ImageVector.Builder(
-            name = name,
-            defaultWidth = IconSize,
-            defaultHeight = IconSize,
-            viewportWidth = Viewport,
-            viewportHeight = Viewport,
-        ).apply {
-            path(fill = SolidColor(Color.Black)) {
-                block()
-            }
-        }.build()
 }
 
 private fun String.normalizedBiography(): String =

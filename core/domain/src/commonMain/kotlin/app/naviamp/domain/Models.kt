@@ -105,6 +105,7 @@ data class Playlist(
     val trackCount: Int,
     val durationSeconds: Int? = null,
     val coverArtId: String? = null,
+    val isSmart: Boolean = false,
 )
 
 data class Genre(

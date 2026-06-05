@@ -67,6 +67,7 @@ fun playAndroidTrack(
     reportNowPlaying: (Track) -> Unit,
     loadRelatedTracks: (Track) -> Unit,
     loadLyrics: (Track) -> Unit,
+    loadAudioTags: (Track) -> Unit,
     startAudioPrefetch: (Long, NavidromeProvider, PlaybackQueue) -> Unit,
     startSidecarPrep: (Long, NavidromeProvider, PlaybackQueue) -> Unit,
     handlePlaybackProgressChanged: (Long, PlaybackProgress) -> Unit,
@@ -167,6 +168,7 @@ fun playAndroidTrack(
                     )
                 }
                 if (effectsPlan.loadRelatedTracks) loadRelatedTracks(track)
+                loadAudioTags(track)
                 if (effectsPlan.presentation.shouldLoadLyrics) loadLyrics(track)
                 if (effectsPlan.startAudioPrefetch) startAudioPrefetch(sessionToken, activeProvider, playbackQueue)
                 if (effectsPlan.startSidecarPrep) startSidecarPrep(sessionToken, activeProvider, playbackQueue)

@@ -8,6 +8,7 @@ import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
+import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.waveform.AudioWaveform
@@ -21,7 +22,10 @@ import app.naviamp.ui.MiniNowPlayingUiConfig
 import app.naviamp.ui.NowPlayingRadioUiConfig
 import app.naviamp.ui.NowPlayingTrackUiConfig
 import app.naviamp.ui.NowPlayingUi
+import app.naviamp.ui.radioArtworkUrl
+import app.naviamp.ui.radioTrackArtworkKey
 import app.naviamp.ui.toNowPlayingItemUi
+import app.naviamp.ui.toNowPlayingStationUi
 import app.naviamp.ui.toNowPlayingUi
 import app.naviamp.ui.toMiniNowPlayingUi
 
@@ -42,6 +46,7 @@ fun DesktopNowPlayingPanel(
     nowPlayingAudioTags: List<AudioTag>?,
     nowPlayingLyrics: Lyrics?,
     nowPlayingLyricsStatus: String?,
+    nowPlayingStreamMetadata: PlaybackStreamMetadata,
     lyricsVisible: Boolean,
     visualizerAvailable: Boolean,
     visualizerVisible: Boolean,
@@ -50,6 +55,7 @@ fun DesktopNowPlayingPanel(
     upNext: List<Track>,
     internetRadioStations: List<InternetRadioStation>,
     currentInternetRadioStationId: String?,
+    radioTrackArtworkByKey: Map<String, String?>,
     firstBackToQueueIndex: Int,
     firstUpNextQueueIndex: Int,
     upNextCoverArtUrl: (Track) -> String?,
@@ -138,13 +144,7 @@ fun DesktopNowPlayingPanel(
     val radioStations = remember(internetRadioStations) {
         internetRadioStations
             .sortedBy { it.name.lowercase() }
-            .map { station ->
-                NaviampNowPlayingItemUi(
-                    id = station.id,
-                    title = station.name,
-                    subtitle = station.homePageUrl ?: station.streamUrl,
-                )
-            }
+            .map { station -> station.toNowPlayingStationUi() }
     }
     val nowPlayingUi = if (nowPlayingTrack != null) {
         nowPlayingTrack.toNowPlayingUi(
@@ -191,8 +191,16 @@ fun DesktopNowPlayingPanel(
             radioStations = radioStations,
         )
     } else {
-        internetRadioStations.firstOrNull { it.id == currentInternetRadioStationId }?.toNowPlayingUi(
+        internetRadioStations.firstOrNull { it.id == currentInternetRadioStationId }?.let { station ->
+            station.toNowPlayingUi(
             NowPlayingRadioUiConfig(
+                streamTitle = nowPlayingStreamMetadata.title,
+                coverArtUrl = radioArtworkUrl(
+                    station = station,
+                    streamMetadataProperties = nowPlayingStreamMetadata.properties,
+                    trackArtworkUrl = radioTrackArtworkKey(station, nowPlayingStreamMetadata.title)
+                        ?.let { radioTrackArtworkByKey[it] },
+                ),
                 stateLabel = playbackState.label(),
                 volumePercent = volumePercent,
                 isPlaying = playbackState == PlaybackState.Playing,
@@ -201,7 +209,8 @@ fun DesktopNowPlayingPanel(
                 canChangeVolume = supportsSoftwareVolume,
                 radioStations = radioStations,
             ),
-        ) ?: NowPlayingUi(
+            )
+        } ?: NowPlayingUi(
             title = "Queue will appear here after connection",
             subtitle = if (isLiveStream) "Internet radio" else "Nothing Playing",
             stateLabel = playbackState.label(),

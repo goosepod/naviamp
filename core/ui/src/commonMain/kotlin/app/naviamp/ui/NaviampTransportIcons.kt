@@ -222,6 +222,80 @@ object NaviampTransportIcons {
         }
     }.build()
 
+    val HeartFilled: ImageVector = ImageVector.Builder(
+        name = "HeartFilled",
+        defaultWidth = IconSize,
+        defaultHeight = IconSize,
+        viewportWidth = Viewport,
+        viewportHeight = Viewport,
+    ).apply {
+        path(fill = SolidColor(Color.Black)) {
+            moveTo(12f, 20f)
+            curveTo(8.4f, 17.1f, 5.2f, 14.3f, 4.1f, 11.4f)
+            curveTo(3.1f, 8.8f, 4.4f, 6f, 7.2f, 5.5f)
+            curveTo(9f, 5.2f, 10.8f, 6.1f, 12f, 7.7f)
+            curveTo(13.2f, 6.1f, 15f, 5.2f, 16.8f, 5.5f)
+            curveTo(19.6f, 6f, 20.9f, 8.8f, 19.9f, 11.4f)
+            curveTo(18.8f, 14.3f, 15.6f, 17.1f, 12f, 20f)
+            close()
+        }
+    }.build()
+
+    val Star: ImageVector = ImageVector.Builder(
+        name = "Star",
+        defaultWidth = IconSize,
+        defaultHeight = IconSize,
+        viewportWidth = Viewport,
+        viewportHeight = Viewport,
+    ).apply {
+        path(
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 1.55f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+        ) {
+            moveTo(12f, 3.5f)
+            lineTo(14.55f, 8.75f)
+            lineTo(20.35f, 9.6f)
+            lineTo(16.15f, 13.75f)
+            lineTo(17.15f, 19.45f)
+            lineTo(12f, 16.75f)
+            lineTo(6.85f, 19.45f)
+            lineTo(7.85f, 13.75f)
+            lineTo(3.65f, 9.6f)
+            lineTo(9.45f, 8.75f)
+            close()
+        }
+    }.build()
+
+    val StarFilled: ImageVector = ImageVector.Builder(
+        name = "StarFilled",
+        defaultWidth = IconSize,
+        defaultHeight = IconSize,
+        viewportWidth = Viewport,
+        viewportHeight = Viewport,
+    ).apply {
+        path(
+            fill = SolidColor(Color.Black),
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 1.55f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+        ) {
+            moveTo(12f, 3.5f)
+            lineTo(14.55f, 8.75f)
+            lineTo(20.35f, 9.6f)
+            lineTo(16.15f, 13.75f)
+            lineTo(17.15f, 19.45f)
+            lineTo(12f, 16.75f)
+            lineTo(6.85f, 19.45f)
+            lineTo(7.85f, 13.75f)
+            lineTo(3.65f, 9.6f)
+            lineTo(9.45f, 8.75f)
+            close()
+        }
+    }.build()
+
     val Repeat: ImageVector = ImageVector.Builder(
         name = "Repeat",
         defaultWidth = IconSize,
