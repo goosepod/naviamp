@@ -29,6 +29,7 @@ import app.naviamp.domain.cache.LibraryAlbumYear
 import app.naviamp.domain.cache.LibraryIndexStats
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
+import app.naviamp.domain.cache.LyricsOffsetRepository
 import app.naviamp.domain.cache.LyricsSidecarCacheService
 import app.naviamp.domain.cache.LyricsSidecarRepository
 import app.naviamp.domain.cache.MediaSourceRepository
@@ -81,6 +82,7 @@ class DesktopCache(
     AudioWaveformRepository,
     AudioWaveformStorageRepository,
     LyricsSidecarRepository,
+    LyricsOffsetRepository,
     SidecarStatusRepository,
     DownloadRepository<DownloadedAudioFile, DownloadedTrack>,
     DownloadReplacementRepository<DownloadedAudioFile>,
@@ -117,6 +119,7 @@ class DesktopCache(
         nowMillis = ::nowMillis,
         json = json,
     )
+    private val lyricsOffsets = DesktopLyricsOffsetStore(queries, ::nowMillis)
     private val maintenance = DesktopStorageMaintenanceStore(queries)
     private val audioWaveforms = DesktopAudioWaveformStore(
         queries = queries,
@@ -335,6 +338,13 @@ class DesktopCache(
         client: DesktopLrclibLyricsClient = DesktopLrclibLyricsClient(),
     ): Lyrics? =
         lyricsSidecar.lrclibLyrics(sourceId, track, client)
+
+    override fun lyricsOffsetMillis(sourceId: String, trackId: TrackId): Int =
+        lyricsOffsets.lyricsOffsetMillis(sourceId, trackId)
+
+    override fun saveLyricsOffsetMillis(sourceId: String, trackId: TrackId, offsetMillis: Int) {
+        lyricsOffsets.saveLyricsOffsetMillis(sourceId, trackId, offsetMillis)
+    }
 
     override fun recordSidecarStatus(
         sourceId: String,

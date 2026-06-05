@@ -12,6 +12,7 @@ import app.naviamp.domain.cache.DownloadReplacementRepository
 import app.naviamp.domain.cache.DownloadRepository
 import app.naviamp.domain.cache.ImageCacheRepository
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
+import app.naviamp.domain.cache.LyricsOffsetRepository
 import app.naviamp.domain.cache.LyricsSidecarRepository
 import app.naviamp.domain.cache.MediaSourceRepository
 import app.naviamp.domain.cache.PlaybackHistoryRepository
@@ -32,6 +33,7 @@ class AndroidStorageDependencies(
     AudioWaveformCacheRepository by storage,
     AudioWaveformStorageRepository by storage,
     LyricsSidecarRepository by storage,
+    LyricsOffsetRepository by storage,
     DownloadRepository<AndroidDownloadedAudioFile, AndroidDownloadedTrack> by storage,
     DownloadReplacementRepository<AndroidDownloadedAudioFile> by storage,
     PlaybackHistoryRepository<AndroidPlaybackHistoryItem> by storage,

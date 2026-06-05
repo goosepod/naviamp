@@ -472,7 +472,7 @@ fun NaviampPlaybackSettingsSection(
         SettingsCheckboxRow(
             colors = colors,
             checked = playbackSettings.lrclibLyricsEnabled,
-            label = "Use LRCLIB when lyrics are missing or unsynced",
+            label = "Download lyrics for tracks",
             onCheckedChange = { enabled ->
                 onPlaybackSettingsChanged(playbackSettings.copy(lrclibLyricsEnabled = enabled))
             },

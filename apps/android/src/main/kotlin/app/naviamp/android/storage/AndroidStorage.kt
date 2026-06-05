@@ -24,6 +24,7 @@ import app.naviamp.domain.cache.LibraryAlbumYear
 import app.naviamp.domain.cache.LibraryIndexStats
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
+import app.naviamp.domain.cache.LyricsOffsetRepository
 import app.naviamp.domain.cache.LyricsSidecarCacheService
 import app.naviamp.domain.cache.LyricsSidecarRepository
 import app.naviamp.domain.cache.MediaSourceRepository
@@ -64,6 +65,7 @@ class AndroidStorage(
     AudioWaveformCacheRepository,
     AudioWaveformStorageRepository,
     LyricsSidecarRepository,
+    LyricsOffsetRepository,
     DownloadRepository<AndroidDownloadedAudioFile, AndroidDownloadedTrack>,
     DownloadReplacementRepository<AndroidDownloadedAudioFile>,
     PlaybackHistoryRepository<AndroidPlaybackHistoryItem>,
@@ -110,6 +112,7 @@ class AndroidStorage(
         nowMillis = ::nowMillis,
         json = json,
     )
+    private val lyricsOffsets = AndroidLyricsOffsetStore(queries, ::nowMillis)
     private val playbackStore = AndroidPlaybackStore(
         queries = queries,
         json = json,
@@ -361,6 +364,13 @@ class AndroidStorage(
         track: Track,
     ): Lyrics? =
         lyricsSidecar.lrclibLyrics(sourceId, track, AndroidLrclibLyricsClient())
+
+    override fun lyricsOffsetMillis(sourceId: String, trackId: TrackId): Int =
+        lyricsOffsets.lyricsOffsetMillis(sourceId, trackId)
+
+    override fun saveLyricsOffsetMillis(sourceId: String, trackId: TrackId, offsetMillis: Int) {
+        lyricsOffsets.saveLyricsOffsetMillis(sourceId, trackId, offsetMillis)
+    }
 
     override fun recordSidecarStatus(
         sourceId: String,

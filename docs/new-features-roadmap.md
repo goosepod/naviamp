@@ -4,11 +4,11 @@ This checklist tracks the first feature set for the `new-features` branch. Keep 
 
 ## Lyrics
 
-- [ ] Add per-track synced lyrics timing offset.
+- [x] Add per-track synced lyrics timing offset.
   - Default offset is `0.0s`.
   - Lyrics screen includes controls to decrease/increase offset in `0.1s` increments.
   - Offset is saved per track and applied when highlighting synced lyric lines.
-- [ ] Rename the LRCLIB-specific lyrics setting to generic copy such as `Download lyrics for tracks`.
+- [x] Rename the LRCLIB-specific lyrics setting to generic copy such as `Download lyrics for tracks`.
 
 ## Mix Builders and Radio
 

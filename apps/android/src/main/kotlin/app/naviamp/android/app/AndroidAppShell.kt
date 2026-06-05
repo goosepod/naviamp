@@ -167,6 +167,7 @@ data class AndroidAppShellActions(
     val onToggleShuffle: () -> Unit,
     val onCycleRepeatMode: () -> Unit,
     val onToggleLyrics: () -> Unit,
+    val onLyricsOffsetChanged: (Int) -> Unit,
     val onToggleVisualizer: () -> Unit,
     val onVisualizerSelected: (NaviampVisualizer) -> Unit,
     val onTrackRadio: () -> Unit,
@@ -315,6 +316,7 @@ fun AndroidAppShellContent(
         onToggleShuffle = actions.onToggleShuffle,
         onCycleRepeatMode = actions.onCycleRepeatMode,
         onToggleLyrics = actions.onToggleLyrics,
+        onLyricsOffsetChanged = actions.onLyricsOffsetChanged,
         onToggleVisualizer = actions.onToggleVisualizer,
         onVisualizerSelected = actions.onVisualizerSelected,
         onTrackRadio = actions.onTrackRadio,
@@ -525,6 +527,7 @@ fun androidAppShellActions(
     performSeek: (Double) -> Unit,
     handleShellToggleShuffle: () -> Unit,
     loadLyrics: (Track) -> Unit,
+    handleLyricsOffsetChanged: (Int) -> Unit,
     handleShellTrackRadio: () -> Unit,
     handleNowPlayingAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit,
     handleNowPlayingCreatePlaylistAndAdd: (String) -> Unit,
@@ -703,6 +706,7 @@ fun androidAppShellActions(
                     nowPlaying?.let(loadLyrics)
                 }
             },
+            onLyricsOffsetChanged = handleLyricsOffsetChanged,
             onToggleVisualizer = { visualizerRequestedVisible = !visualizerRequestedVisible },
             onVisualizerSelected = { visualizer ->
                 selectedVisualizer = visualizer

@@ -309,7 +309,9 @@ private fun NaviampAndroidApp(
                     quality = quality,
                     audioCachingEnabled = true,
                     onlineLyricsEnabled = playbackSettings.lrclibLyricsEnabled,
-                ).lyrics
+                ).lyrics?.copy(
+                    offsetMillis = sourceId?.let { storage.lyricsOffsetMillis(it, track.id) } ?: 0,
+                )
             }
                 .onSuccess { lyrics ->
                     lyricsByTrackId = lyricsByTrackId + (track.id.value to lyrics)
@@ -338,6 +340,15 @@ private fun NaviampAndroidApp(
                     }
                 }
         }
+    }
+
+    fun handleLyricsOffsetChanged(offsetMillis: Int) {
+        val sourceId = activeSourceId ?: return
+        val track = nowPlaying ?: return
+        storage.saveLyricsOffsetMillis(sourceId, track.id, offsetMillis)
+        lyricsByTrackId = lyricsByTrackId + (
+            track.id.value to lyricsByTrackId[track.id.value]?.copy(offsetMillis = offsetMillis)
+            )
     }
 
     fun handleConnectionFormChanged(form: ConnectionFormState) {
@@ -1652,6 +1663,7 @@ private fun NaviampAndroidApp(
         performSeek = ::performSeek,
         handleShellToggleShuffle = ::handleShellToggleShuffle,
         loadLyrics = ::loadLyrics,
+        handleLyricsOffsetChanged = ::handleLyricsOffsetChanged,
         handleShellTrackRadio = ::handleShellTrackRadio,
         handleNowPlayingAddToPlaylist = ::handleNowPlayingAddToPlaylist,
         handleNowPlayingCreatePlaylistAndAdd = ::handleNowPlayingCreatePlaylistAndAdd,

@@ -181,6 +181,14 @@ CREATE TABLE cached_lrclib_lyrics (
   PRIMARY KEY(source_id, remote_track_id)
 );
 
+CREATE TABLE track_lyrics_offset (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  remote_track_id TEXT NOT NULL,
+  offset_millis INTEGER NOT NULL,
+  updated_at_epoch_millis INTEGER NOT NULL,
+  PRIMARY KEY(source_id, remote_track_id)
+);
+
 CREATE TABLE cached_sidecar_status (
   source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
   remote_track_id TEXT NOT NULL,
@@ -984,6 +992,19 @@ INSERT OR REPLACE INTO cached_lrclib_lyrics(
   created_at_epoch_millis,
   last_accessed_epoch_millis
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+selectTrackLyricsOffset:
+SELECT offset_millis
+FROM track_lyrics_offset
+WHERE source_id = ? AND remote_track_id = ?;
+
+upsertTrackLyricsOffset:
+INSERT OR REPLACE INTO track_lyrics_offset(
+  source_id,
+  remote_track_id,
+  offset_millis,
+  updated_at_epoch_millis
+) VALUES (?, ?, ?, ?);
 
 lyricsCacheSize:
 SELECT COALESCE(SUM(size_bytes), 0)

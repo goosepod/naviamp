@@ -110,6 +110,12 @@ interface LyricsSidecarRepository {
     ): Lyrics?
 }
 
+interface LyricsOffsetRepository {
+    fun lyricsOffsetMillis(sourceId: String, trackId: TrackId): Int
+
+    fun saveLyricsOffsetMillis(sourceId: String, trackId: TrackId, offsetMillis: Int)
+}
+
 interface SidecarStatusRepository {
     fun recordSidecarStatus(
         sourceId: String,

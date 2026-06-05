@@ -103,6 +103,7 @@ data class NaviampNowPlayingActions(
     val onCycleRepeatMode: () -> Unit = {},
     val onVolumeChanged: (Int) -> Unit = {},
     val onToggleLyrics: () -> Unit = {},
+    val onLyricsOffsetChanged: (Int) -> Unit = {},
     val onTrackRadio: () -> Unit = {},
     val onAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit = {},
     val onCreatePlaylistAndAdd: (String) -> Unit = {},
@@ -259,6 +260,7 @@ fun NaviampNowPlayingPanel(
                                 nowPlaying = nowPlaying,
                                 colors = colors,
                                 onSeek = actions.onSeek,
+                                onOffsetChanged = actions.onLyricsOffsetChanged,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(artSize),
@@ -306,6 +308,7 @@ fun NaviampNowPlayingPanel(
                                 nowPlaying = nowPlaying,
                                 colors = colors,
                                 onSeek = actions.onSeek,
+                                onOffsetChanged = actions.onLyricsOffsetChanged,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(artSize),
@@ -1280,6 +1283,7 @@ private fun NowPlayingSidePanel(
                 nowPlaying = nowPlaying,
                 colors = colors,
                 onSeek = actions.onSeek,
+                onOffsetChanged = actions.onLyricsOffsetChanged,
                 modifier = Modifier.weight(0.38f),
             )
         }
@@ -1291,6 +1295,7 @@ private fun LyricsPanel(
     nowPlaying: NowPlayingUi,
     colors: NaviampColors,
     onSeek: (Double) -> Unit,
+    onOffsetChanged: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
@@ -1307,32 +1312,45 @@ private fun LyricsPanel(
         listState.animateScrollToItem((activeLineIndex - 4).coerceAtLeast(0))
     }
 
-    Box(
+    Column(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(7.dp))
             .background(Color.Black.copy(alpha = 0.18f))
             .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        LyricsOffsetControls(
+            offsetMillis = nowPlaying.lyricsOffsetMillis,
+            enabled = nowPlaying.lyricsLines.any { it.startMillis != null },
+            colors = colors,
+            onOffsetChanged = onOffsetChanged,
+        )
         when {
             nowPlaying.lyricsStatus != null -> Text(
                 nowPlaying.lyricsStatus,
                 color = colors.mutedText,
                 fontSize = 13.sp,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.align(Alignment.Center),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
             )
             nowPlaying.lyricsLines.isEmpty() -> Text(
                 "Lyrics unavailable",
                 color = colors.mutedText,
                 fontSize = 13.sp,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.align(Alignment.Center),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
             )
             else -> LazyColumn(
                 state = listState,
                 verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
             ) {
                 items(nowPlaying.lyricsLines.size) { index ->
                     val line = nowPlaying.lyricsLines[index]
@@ -1358,7 +1376,55 @@ private fun LyricsPanel(
     }
 }
 
+@Composable
+private fun LyricsOffsetControls(
+    offsetMillis: Int,
+    enabled: Boolean,
+    colors: NaviampColors,
+    onOffsetChanged: (Int) -> Unit,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(
+            text = "Offset ${offsetMillis.offsetSecondsLabel()}",
+            color = colors.secondaryText,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.weight(1f),
+        )
+        NaviampTransportIconButton(
+            enabled = enabled,
+            icon = NaviampIcons.Minus,
+            contentDescription = "Decrease lyrics offset",
+            colors = colors,
+            buttonSize = 28.dp,
+            iconSize = 16.dp,
+            onClick = { onOffsetChanged(offsetMillis - LyricsOffsetStepMillis) },
+        )
+        NaviampTransportIconButton(
+            enabled = enabled,
+            icon = NaviampIcons.Plus,
+            contentDescription = "Increase lyrics offset",
+            colors = colors,
+            buttonSize = 28.dp,
+            iconSize = 16.dp,
+            onClick = { onOffsetChanged(offsetMillis + LyricsOffsetStepMillis) },
+        )
+    }
+}
+
+private fun Int.offsetSecondsLabel(): String {
+    if (this == 0) return "0.0s"
+    val sign = if (this > 0) "+" else "-"
+    val absoluteTenths = kotlin.math.abs(this) / 100
+    return "$sign${absoluteTenths / 10}.${absoluteTenths % 10}s"
+}
+
 private const val LyricsAutoScrollLeadMillis = 100L
+private const val LyricsOffsetStepMillis = 100
 
 @Composable
 private fun TrackDetailsDialog(
