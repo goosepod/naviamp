@@ -37,30 +37,34 @@ val desktopBassJniBuildDir = desktopBassPlatform.map { platform ->
 val desktopBassJniOutputFile = desktopBassJniBuildDir.zip(desktopBassPlatform) { buildDir, platform ->
     buildDir.file(desktopLibraryName("naviamp_bass", platform)).asFile
 }
+val desktopCmakeExecutable = providers.environmentVariable("CMAKE_EXE")
+    .orElse(providers.environmentVariable("LOCALAPPDATA").map { "$it/Android/Sdk/cmake/3.22.1/bin/cmake.exe" })
+    .orElse(providers.provider { "cmake" })
 val configureDesktopBassJni by tasks.registering(Exec::class) {
     val nativeProjectDir = rootProject.layout.projectDirectory.dir("native/bass-jni")
-    onlyIf {
-        desktopBassVendorDir.get().asFile.isDirectory &&
-            desktopBassPlatform.get().startsWith("macos-")
-    }
-    commandLine(
-        "cmake",
+    onlyIf { desktopBassVendorDir.get().asFile.isDirectory }
+    val cmakeArgs = mutableListOf(
+        desktopCmakeExecutable.get(),
         "-S",
         nativeProjectDir.asFile.absolutePath,
         "-B",
         desktopBassJniBuildDir.get().asFile.absolutePath,
         "-DCMAKE_BUILD_TYPE=Release",
-        "-DCMAKE_OSX_ARCHITECTURES=${desktopCmakeArchitecture(desktopBassPlatform.get())}",
+        "-DCMAKE_RUNTIME_OUTPUT_DIRECTORY=${desktopBassJniBuildDir.get().asFile.absolutePath}",
+        "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=${desktopBassJniBuildDir.get().asFile.absolutePath}",
+        "-DCMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE=${desktopBassJniBuildDir.get().asFile.absolutePath}",
+        "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE=${desktopBassJniBuildDir.get().asFile.absolutePath}",
         "-DBASS_LIBRARY_DIR=${desktopBassVendorDir.get().asFile.absolutePath}",
     )
+    if (desktopBassPlatform.get().startsWith("macos-")) {
+        cmakeArgs += "-DCMAKE_OSX_ARCHITECTURES=${desktopCmakeArchitecture(desktopBassPlatform.get())}"
+    }
+    commandLine(cmakeArgs)
 }
 val buildDesktopBassJni by tasks.registering(Exec::class) {
     dependsOn(configureDesktopBassJni)
-    onlyIf {
-        desktopBassVendorDir.get().asFile.isDirectory &&
-            desktopBassPlatform.get().startsWith("macos-")
-    }
-    commandLine("cmake", "--build", desktopBassJniBuildDir.get().asFile.absolutePath, "--config", "Release")
+    onlyIf { desktopBassVendorDir.get().asFile.isDirectory }
+    commandLine(desktopCmakeExecutable.get(), "--build", desktopBassJniBuildDir.get().asFile.absolutePath, "--config", "Release")
 }
 val copyDesktopBassJni by tasks.registering(Copy::class) {
     dependsOn(buildDesktopBassJni)
@@ -214,7 +218,7 @@ tasks.register("verifyDesktopDistributable") {
             add(desktopLibraryName("bassmix", platform))
             add(desktopLibraryName("bassflac", platform))
             add(desktopLibraryName("bassopus", platform))
-            if (platform.startsWith("macos-")) {
+            if (platform.startsWith("macos-") || platform.startsWith("windows-")) {
                 add(desktopLibraryName("naviamp_bass", platform))
             }
         }

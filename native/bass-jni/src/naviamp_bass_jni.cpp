@@ -1,7 +1,15 @@
+#if defined(_WIN32) && !defined(NOMINMAX)
+#define NOMINMAX
+#endif
+
 #include "naviamp_bass_jni.h"
 
 #include "bass.h"
 #include "bassmix.h"
+
+#if defined(_WIN32) && !defined(__ANDROID__)
+#include <windows.h>
+#endif
 
 #include <algorithm>
 #include <cmath>
@@ -16,6 +24,126 @@ constexpr DWORD NETWORK_BUFFER_MILLIS = 5000;
 constexpr DWORD NETWORK_TIMEOUT_MILLIS = 15000;
 constexpr DWORD NETWORK_PREBUFFER_PERCENT = 75;
 constexpr DWORD NETWORK_PLAYLIST_DEPTH = 5;
+
+#if defined(_WIN32) && !defined(__ANDROID__)
+struct BassApi {
+    using StreamCreateUrlProc = HSTREAM(WINAPI*)(const char*, DWORD, DWORD, DOWNLOADPROC*, void*);
+    using StreamCreateFileProc = HSTREAM(WINAPI*)(BOOL, const void*, QWORD, QWORD, DWORD);
+    using PluginLoadProc = HPLUGIN(WINAPI*)(const char*, DWORD);
+
+    HMODULE bass = nullptr;
+    HMODULE bassmix = nullptr;
+    decltype(&::BASS_SetConfig) BASS_SetConfig = nullptr;
+    StreamCreateUrlProc BASS_StreamCreateURL = nullptr;
+    StreamCreateFileProc BASS_StreamCreateFile = nullptr;
+    decltype(&::BASS_ChannelGetInfo) BASS_ChannelGetInfo = nullptr;
+    decltype(&::BASS_Mixer_StreamAddChannel) BASS_Mixer_StreamAddChannel = nullptr;
+    decltype(&::BASS_Mixer_StreamCreate) BASS_Mixer_StreamCreate = nullptr;
+    decltype(&::BASS_ChannelSlideAttribute) BASS_ChannelSlideAttribute = nullptr;
+    decltype(&::BASS_ChannelSeconds2Bytes) BASS_ChannelSeconds2Bytes = nullptr;
+    decltype(&::BASS_Mixer_ChannelSetPosition) BASS_Mixer_ChannelSetPosition = nullptr;
+    decltype(&::BASS_ChannelSetPosition) BASS_ChannelSetPosition = nullptr;
+    decltype(&::BASS_ChannelGetPosition) BASS_ChannelGetPosition = nullptr;
+    decltype(&::BASS_ChannelBytes2Seconds) BASS_ChannelBytes2Seconds = nullptr;
+    decltype(&::BASS_ChannelGetLength) BASS_ChannelGetLength = nullptr;
+    decltype(&::BASS_ChannelGetData) BASS_ChannelGetData = nullptr;
+    decltype(&::BASS_GetVersion) BASS_GetVersion = nullptr;
+    decltype(&::BASS_ErrorGetCode) BASS_ErrorGetCode = nullptr;
+    decltype(&::BASS_Mixer_GetVersion) BASS_Mixer_GetVersion = nullptr;
+    decltype(&::BASS_Init) BASS_Init = nullptr;
+    decltype(&::BASS_Free) BASS_Free = nullptr;
+    decltype(&::BASS_Mixer_ChannelRemove) BASS_Mixer_ChannelRemove = nullptr;
+    decltype(&::BASS_ChannelSetSync) BASS_ChannelSetSync = nullptr;
+    decltype(&::BASS_ChannelPlay) BASS_ChannelPlay = nullptr;
+    decltype(&::BASS_ChannelPause) BASS_ChannelPause = nullptr;
+    decltype(&::BASS_ChannelStop) BASS_ChannelStop = nullptr;
+    decltype(&::BASS_StreamFree) BASS_StreamFree = nullptr;
+    decltype(&::BASS_ChannelIsActive) BASS_ChannelIsActive = nullptr;
+    decltype(&::BASS_ChannelSetAttribute) BASS_ChannelSetAttribute = nullptr;
+    decltype(&::BASS_ChannelGetTags) BASS_ChannelGetTags = nullptr;
+    PluginLoadProc BASS_PluginLoad = nullptr;
+};
+
+BassApi bassApi;
+
+template <typename T>
+bool load_symbol(HMODULE module, const char* name, T& target) {
+    target = reinterpret_cast<T>(GetProcAddress(module, name));
+    return target != nullptr;
+}
+
+bool load_bass_symbols() {
+    if (bassApi.bass != nullptr && bassApi.bassmix != nullptr) return true;
+
+    bassApi.bass = GetModuleHandleW(L"bass.dll");
+    if (bassApi.bass == nullptr) bassApi.bass = LoadLibraryW(L"bass.dll");
+    bassApi.bassmix = GetModuleHandleW(L"bassmix.dll");
+    if (bassApi.bassmix == nullptr) bassApi.bassmix = LoadLibraryW(L"bassmix.dll");
+    if (bassApi.bass == nullptr || bassApi.bassmix == nullptr) return false;
+
+    bool ok = true;
+    ok = load_symbol(bassApi.bass, "BASS_SetConfig", bassApi.BASS_SetConfig) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_StreamCreateURL", bassApi.BASS_StreamCreateURL) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_StreamCreateFile", bassApi.BASS_StreamCreateFile) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_ChannelGetInfo", bassApi.BASS_ChannelGetInfo) && ok;
+    ok = load_symbol(bassApi.bassmix, "BASS_Mixer_StreamAddChannel", bassApi.BASS_Mixer_StreamAddChannel) && ok;
+    ok = load_symbol(bassApi.bassmix, "BASS_Mixer_StreamCreate", bassApi.BASS_Mixer_StreamCreate) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_ChannelSlideAttribute", bassApi.BASS_ChannelSlideAttribute) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_ChannelSeconds2Bytes", bassApi.BASS_ChannelSeconds2Bytes) && ok;
+    ok = load_symbol(bassApi.bassmix, "BASS_Mixer_ChannelSetPosition", bassApi.BASS_Mixer_ChannelSetPosition) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_ChannelSetPosition", bassApi.BASS_ChannelSetPosition) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_ChannelGetPosition", bassApi.BASS_ChannelGetPosition) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_ChannelBytes2Seconds", bassApi.BASS_ChannelBytes2Seconds) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_ChannelGetLength", bassApi.BASS_ChannelGetLength) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_ChannelGetData", bassApi.BASS_ChannelGetData) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_GetVersion", bassApi.BASS_GetVersion) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_ErrorGetCode", bassApi.BASS_ErrorGetCode) && ok;
+    ok = load_symbol(bassApi.bassmix, "BASS_Mixer_GetVersion", bassApi.BASS_Mixer_GetVersion) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_Init", bassApi.BASS_Init) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_Free", bassApi.BASS_Free) && ok;
+    ok = load_symbol(bassApi.bassmix, "BASS_Mixer_ChannelRemove", bassApi.BASS_Mixer_ChannelRemove) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_ChannelSetSync", bassApi.BASS_ChannelSetSync) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_ChannelPlay", bassApi.BASS_ChannelPlay) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_ChannelPause", bassApi.BASS_ChannelPause) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_ChannelStop", bassApi.BASS_ChannelStop) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_StreamFree", bassApi.BASS_StreamFree) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_ChannelIsActive", bassApi.BASS_ChannelIsActive) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_ChannelSetAttribute", bassApi.BASS_ChannelSetAttribute) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_ChannelGetTags", bassApi.BASS_ChannelGetTags) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_PluginLoad", bassApi.BASS_PluginLoad) && ok;
+    return ok;
+}
+
+#define BASS_SetConfig bassApi.BASS_SetConfig
+#define BASS_StreamCreateURL bassApi.BASS_StreamCreateURL
+#define BASS_StreamCreateFile bassApi.BASS_StreamCreateFile
+#define BASS_ChannelGetInfo bassApi.BASS_ChannelGetInfo
+#define BASS_Mixer_StreamAddChannel bassApi.BASS_Mixer_StreamAddChannel
+#define BASS_Mixer_StreamCreate bassApi.BASS_Mixer_StreamCreate
+#define BASS_ChannelSlideAttribute bassApi.BASS_ChannelSlideAttribute
+#define BASS_ChannelSeconds2Bytes bassApi.BASS_ChannelSeconds2Bytes
+#define BASS_Mixer_ChannelSetPosition bassApi.BASS_Mixer_ChannelSetPosition
+#define BASS_ChannelSetPosition bassApi.BASS_ChannelSetPosition
+#define BASS_ChannelGetPosition bassApi.BASS_ChannelGetPosition
+#define BASS_ChannelBytes2Seconds bassApi.BASS_ChannelBytes2Seconds
+#define BASS_ChannelGetLength bassApi.BASS_ChannelGetLength
+#define BASS_ChannelGetData bassApi.BASS_ChannelGetData
+#define BASS_GetVersion bassApi.BASS_GetVersion
+#define BASS_ErrorGetCode bassApi.BASS_ErrorGetCode
+#define BASS_Mixer_GetVersion bassApi.BASS_Mixer_GetVersion
+#define BASS_Init bassApi.BASS_Init
+#define BASS_Free bassApi.BASS_Free
+#define BASS_Mixer_ChannelRemove bassApi.BASS_Mixer_ChannelRemove
+#define BASS_ChannelSetSync bassApi.BASS_ChannelSetSync
+#define BASS_ChannelPlay bassApi.BASS_ChannelPlay
+#define BASS_ChannelPause bassApi.BASS_ChannelPause
+#define BASS_ChannelStop bassApi.BASS_ChannelStop
+#define BASS_StreamFree bassApi.BASS_StreamFree
+#define BASS_ChannelIsActive bassApi.BASS_ChannelIsActive
+#define BASS_ChannelSetAttribute bassApi.BASS_ChannelSetAttribute
+#define BASS_ChannelGetTags bassApi.BASS_ChannelGetTags
+#define BASS_PluginLoad bassApi.BASS_PluginLoad
+#endif
 
 struct DesktopEndSyncRegistration {
     JavaVM* javaVm;
@@ -174,6 +302,9 @@ void CALLBACK desktop_end_sync_proc(HSYNC handle, DWORD channel, DWORD data, voi
 extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
     (void)vm;
     (void)reserved;
+#if defined(_WIN32) && !defined(__ANDROID__)
+    if (!load_bass_symbols()) return JNI_ERR;
+#endif
     return JNI_VERSION_1_6;
 }
 

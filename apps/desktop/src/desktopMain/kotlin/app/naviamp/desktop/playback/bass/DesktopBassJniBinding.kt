@@ -140,16 +140,20 @@ class DesktopBassJniBinding private constructor(
             runCatching {
                 val directory = DesktopBassLibraryResolver().resolve()
                     ?: error("Could not find BASS library directory.")
-                System.loadLibrary(libraryName)
-                DesktopBassJniBinding(directory, BassPlatform.current())
+                loadFrom(directory, BassPlatform.current(), libraryName).getOrThrow()
             }
 
         fun loadFrom(
             directory: File,
             platform: BassPlatform = BassPlatform.current(),
+            libraryName: String = "naviamp_bass",
         ): Result<DesktopBassJniBinding> =
             runCatching {
-                System.load(File(directory, platform.libraryName("naviamp_bass")).absolutePath)
+                if (platform.id.startsWith("windows-")) {
+                    System.load(File(directory, platform.libraryName("bass")).absolutePath)
+                    System.load(File(directory, platform.libraryName("bassmix")).absolutePath)
+                }
+                System.load(File(directory, platform.libraryName(libraryName)).absolutePath)
                 DesktopBassJniBinding(directory, platform)
             }
     }
