@@ -9,6 +9,8 @@ import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
+import app.naviamp.domain.home.HomeContent
+import app.naviamp.domain.home.homeStations
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.popular.SimilarArtistMatch
@@ -47,6 +49,35 @@ fun Playlist.toSharedMediaItemUi(
 
 fun InternetRadioStation.toSharedMediaItemUi(): SharedMediaItemUi =
     SharedMediaItemUi(id = id, title = name, subtitle = homePageUrl ?: "Internet radio")
+
+fun HomeContent.toSharedHomeUi(
+    coverArtUrl: (String?) -> String?,
+    playlistTracksById: Map<String, List<Track>> = emptyMap(),
+): SharedHomeUi =
+    SharedHomeUi(
+        recentlyAddedAlbums = recentlyAddedAlbums.map { it.toSharedMediaItemUi(coverArtUrl) },
+        mixAlbums = mixAlbums.map { it.toSharedMediaItemUi(coverArtUrl) },
+        recentAlbums = recentAlbums.map { it.toSharedMediaItemUi(coverArtUrl) },
+        frequentAlbums = frequentAlbums.map { it.toSharedMediaItemUi(coverArtUrl) },
+        randomAlbums = randomAlbums.map { it.toSharedMediaItemUi(coverArtUrl) },
+        playlists = playlists.map { playlist ->
+            playlist.toSharedMediaItemUi(
+                coverArtUrl = coverArtUrl,
+                tracks = playlistTracksById[playlist.id].orEmpty(),
+            )
+        },
+        recentRadioStreams = recentRadioStreams.map {
+            SharedMediaItemUi(id = it.id, title = it.label, subtitle = "Radio")
+        },
+        radioStations = radioStations.map { it.toSharedMediaItemUi() },
+        stations = homeStations(this).map {
+            SharedHomeStationUi(id = it.id, title = it.title, subtitle = it.subtitle)
+        },
+        genreSpotlightTitle = genreSpotlight?.name,
+        genreSpotlightAlbums = genreSpotlightAlbums.map { it.toSharedMediaItemUi(coverArtUrl) },
+        decadeLabel = decadeLabel,
+        decadeAlbums = decadeAlbums.map { it.toSharedMediaItemUi(coverArtUrl) },
+    )
 
 fun Track.toAndroidTrackRowUi(
     coverArtUrl: (String?) -> String?,
