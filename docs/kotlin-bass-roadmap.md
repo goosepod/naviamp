@@ -156,6 +156,7 @@ Native scaffold lives in `native/bass-jni`.
   - The obsolete desktop JNA/native connector has been removed; this is the next BASS hardening focus.
   - First hardening slice: shared BASS mixer/prepared-next helpers now release newly-created source/mixer handles when setup fails partway through, preventing leaked BASS streams after bad URLs, unsupported formats, or failed transition setup. Verified with common tests, Android BASS native package verification, and emulator install/launch.
   - Second hardening slice: Android BASS playback now mirrors desktop's playback-session guard so stale async play/seek/crossfade work from superseded sessions cannot overwrite active stream state after rapid skip/scrub or failed starts. Verified with common tests, Android compile/package verification, and emulator install/launch.
+  - Third hardening slice: desktop and Android now both consume the common BASS active-state mapping during playback polling, so stalled network streams surface the same loading/buffering state instead of silently diverging by platform. Verified with desktop and Android compile.
   - Android BASS hardening matrix:
     - Sleep/wake while playing: playback should either continue with the foreground service/wake lock or resume cleanly without losing queue/progress state.
     - Server disconnect during playback: active local/cached streams should continue; remote streams should enter a clear playback error or stalled state without leaking prepared BASS sources.

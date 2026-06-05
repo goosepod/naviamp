@@ -40,6 +40,7 @@ import app.naviamp.domain.playback.planPreparedPlaybackAdoption
 import app.naviamp.domain.playback.playbackSourceHandle
 import app.naviamp.domain.playback.playbackReplayGainAdjustment
 import app.naviamp.domain.playback.playbackStartSeekPosition
+import app.naviamp.domain.playback.playbackStateForBassActiveState
 import app.naviamp.domain.playback.playbackUserVolumeFactor
 import app.naviamp.domain.playback.shouldContinueBassPlaybackPolling
 import app.naviamp.domain.playback.shouldReusePreparedPlayback
@@ -150,11 +151,17 @@ class DesktopBassPlaybackEngine(
 
                 var lastProgress = PlaybackProgress.Unknown
                 var lastMetadata = PlaybackStreamMetadata()
+                var lastActiveState: Int? = null
                 while (
                     isCurrentPlayback(currentPlaybackId) &&
                     shouldContinueBassPlaybackPolling(bass.activeState(playbackHandle))
                 ) {
                     val snapshot = bass.bassPlaybackSnapshot(playbackHandle, currentSourceStream)
+                    val activeState = snapshot.activeState
+                    if (activeState != lastActiveState) {
+                        lastActiveState = activeState
+                        playbackStateForBassActiveState(activeState)?.let(onStateChanged)
+                    }
                     val progress = snapshot.progress
                     if (progress != lastProgress) {
                         lastProgress = progress
@@ -406,12 +413,18 @@ class DesktopBassPlaybackEngine(
         job = scope.launch(Dispatchers.IO) {
             var lastProgress = PlaybackProgress.Unknown
             var lastMetadata = PlaybackStreamMetadata()
+            var lastActiveState: Int? = null
             try {
                 while (
                     isCurrentPlayback(currentPlaybackId) &&
                     shouldContinueBassPlaybackPolling(bass.activeState(stream))
                 ) {
                     val snapshot = bass.bassPlaybackSnapshot(stream, currentSourceStream)
+                    val activeState = snapshot.activeState
+                    if (activeState != lastActiveState) {
+                        lastActiveState = activeState
+                        playbackStateForBassActiveState(activeState)?.let(onStateChanged)
+                    }
                     val progress = snapshot.progress
                     if (progress != lastProgress) {
                         lastProgress = progress
