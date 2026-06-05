@@ -17,7 +17,7 @@ This checklist tracks cleanup after the desktop-main-reduction branch merge. The
 - [x] Move text fields/buttons/section headers/placeholders/dropdowns/overflow menus into shared primitive files.
 - [x] Move shared bottom navigation and route placeholder rendering into a shared navigation file.
 - [x] Move `NaviampIcons` into a dedicated icon file if no existing icon file should own it.
-- [ ] Add focused UI tests or compile checks after each slice.
+- [x] Add focused UI tests or compile checks after each slice.
 
 ## Verification
 
