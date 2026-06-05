@@ -1104,7 +1104,7 @@ private fun RatingRow(
                         imageVector = if (selected) NaviampTransportIcons.StarFilled else NaviampTransportIcons.Star,
                         contentDescription = "$value star rating",
                         tint = if (selected) colors.primaryText else inactiveColor,
-                        modifier = Modifier.size(15.dp),
+                        modifier = Modifier.size(17.dp),
                     )
                 }
             }
