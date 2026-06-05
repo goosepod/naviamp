@@ -46,7 +46,6 @@ import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.source.MediaSourceIdentity
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.waveform.AudioWaveform
-import app.naviamp.domain.waveform.waveformCacheKey
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.resolvedDisplayName
@@ -117,6 +116,12 @@ class AndroidStorage(
         nowMillis = ::nowMillis,
     )
     private val maintenance = AndroidStorageMaintenanceStore(queries)
+    private val audioWaveforms = AndroidAudioWaveformStore(
+        queries = queries,
+        json = json,
+        nowMillis = ::nowMillis,
+        maxAudioWaveformCacheBytes = MaxAudioWaveformCacheBytes,
+    )
     private val httpClient = KtorSharedHttpClient()
     private val imageByteStoreService = ObjectByteStoreService(
         store = AndroidObjectByteStore(
@@ -309,13 +314,7 @@ class AndroidStorage(
         trackId: TrackId,
         quality: StreamQuality,
     ): AudioWaveform? =
-        withContext(Dispatchers.IO) {
-            val qualityKey = quality.waveformCacheKey()
-            val row = queries.selectCachedAudioWaveform(sourceId, trackId.value, qualityKey).executeAsOneOrNull()
-                ?: return@withContext null
-            queries.touchCachedAudioWaveform(nowMillis(), sourceId, trackId.value, qualityKey)
-            AudioWaveform(json.decodeFromString<List<Float>>(row.amplitudes_json))
-        }
+        audioWaveforms.cachedAudioWaveform(sourceId, trackId, quality)
 
     fun upsertAudioWaveform(
         sourceId: String,
@@ -324,7 +323,7 @@ class AndroidStorage(
         audioFile: File,
         waveform: AudioWaveform,
     ) {
-        storeAudioWaveformRow(
+        audioWaveforms.upsertAudioWaveform(
             sourceId = sourceId,
             trackId = trackId,
             quality = quality,
@@ -339,34 +338,8 @@ class AndroidStorage(
         quality: StreamQuality,
         audioFilePath: String?,
         waveform: AudioWaveform,
-    ): AudioWaveform = withContext(Dispatchers.IO) {
-        storeAudioWaveformRow(sourceId, trackId, quality, audioFilePath, waveform)
-    }
-
-    private fun storeAudioWaveformRow(
-        sourceId: String,
-        trackId: TrackId,
-        quality: StreamQuality,
-        audioFilePath: String?,
-        waveform: AudioWaveform,
-    ): AudioWaveform {
-        val qualityKey = quality.waveformCacheKey()
-        val amplitudesJson = json.encodeToString(waveform.amplitudes)
-        val now = nowMillis()
-        queries.upsertCachedAudioWaveform(
-            source_id = sourceId,
-            remote_track_id = trackId.value,
-            quality_key = qualityKey,
-            audio_file_path = audioFilePath.orEmpty(),
-            bucket_count = waveform.amplitudes.size.toLong(),
-            amplitudes_json = amplitudesJson,
-            size_bytes = amplitudesJson.toByteArray(Charsets.UTF_8).size.toLong(),
-            created_at_epoch_millis = now,
-            last_accessed_epoch_millis = now,
-        )
-        trimAudioWaveformStore()
-        return waveform
-    }
+    ): AudioWaveform =
+        audioWaveforms.storeAudioWaveform(sourceId, trackId, quality, audioFilePath, waveform)
 
     override suspend fun providerLyrics(
         sourceId: String,
@@ -535,17 +508,6 @@ class AndroidStorage(
             downloadDirectory = downloadDirectory.absolutePath,
         )
 
-    private fun trimAudioWaveformStore() {
-        val maxAudioWaveformCacheBytes = 32L * 1024L * 1024L
-        var cacheSize = queries.audioWaveformCacheSize().executeAsOne()
-        if (cacheSize <= maxAudioWaveformCacheBytes) return
-        queries.oldestCachedAudioWaveforms(100).executeAsList().forEach { waveform ->
-            if (cacheSize <= maxAudioWaveformCacheBytes) return
-            queries.deleteCachedAudioWaveform(waveform.source_id, waveform.remote_track_id, waveform.quality_key)
-            cacheSize -= waveform.size_bytes
-        }
-    }
-
 }
 
 data class AndroidCachedAudioFile(
@@ -632,3 +594,4 @@ private fun clearFiles(directory: File) {
 private fun nowMillis(): Long = System.currentTimeMillis()
 
 private const val DatabaseName = "naviamp-storage.db"
+private const val MaxAudioWaveformCacheBytes = 32L * 1024L * 1024L

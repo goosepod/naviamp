@@ -52,8 +52,6 @@ import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.domain.waveform.AudioWaveformAnalysisSource
 import app.naviamp.domain.waveform.AudioWaveformAnalyzer as DomainAudioWaveformAnalyzer
-import app.naviamp.domain.waveform.AudioWaveformCacheMetadata
-import app.naviamp.domain.waveform.waveformCacheKey
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.resolvedDisplayName
@@ -120,6 +118,12 @@ class DesktopCache(
         json = json,
     )
     private val maintenance = DesktopStorageMaintenanceStore(queries)
+    private val audioWaveforms = DesktopAudioWaveformStore(
+        queries = queries,
+        json = json,
+        nowMillis = ::nowMillis,
+        maxAudioWaveformCacheBytes = maxAudioWaveformCacheBytes,
+    )
     private val hotImages = object : LinkedHashMap<String, ByteArray>(16, 0.75f, true) {}
     private var hotImageBytes: Long = 0
     private val httpClient = KtorSharedHttpClient()
@@ -260,19 +264,7 @@ class DesktopCache(
         trackId: TrackId,
         quality: StreamQuality,
     ): AudioWaveform? =
-        withContext(Dispatchers.IO) {
-            val qualityKey = quality.waveformCacheKey()
-            val row = queries.selectCachedAudioWaveform(
-                source_id = sourceId,
-                remote_track_id = trackId.value,
-                quality_key = qualityKey,
-            ).executeAsOneOrNull() ?: return@withContext null
-
-            queries.touchCachedAudioWaveform(nowMillis(), sourceId, trackId.value, qualityKey)
-            AudioWaveform(
-                amplitudes = json.decodeFromString<List<Float>>(row.amplitudes_json),
-            )
-        }
+        audioWaveforms.cachedAudioWaveform(sourceId, trackId, quality)
 
     override suspend fun ensureAudioWaveform(
         sourceId: String,
@@ -314,33 +306,7 @@ class DesktopCache(
         audioFilePath: String?,
         waveform: AudioWaveform,
     ): AudioWaveform =
-        withContext(Dispatchers.IO) {
-            val qualityKey = quality.waveformCacheKey()
-            val amplitudesJson = json.encodeToString(waveform.amplitudes)
-            val now = nowMillis()
-            val metadata = AudioWaveformCacheMetadata(
-                sourceId = sourceId,
-                remoteTrackId = trackId.value,
-                qualityKey = qualityKey,
-                bucketCount = waveform.amplitudes.size,
-                sizeBytes = amplitudesJson.toByteArray(Charsets.UTF_8).size.toLong(),
-                createdAtEpochMillis = now,
-                lastAccessedEpochMillis = now,
-            )
-            queries.upsertCachedAudioWaveform(
-                source_id = metadata.sourceId,
-                remote_track_id = metadata.remoteTrackId,
-                quality_key = metadata.qualityKey,
-                audio_file_path = audioFilePath.orEmpty(),
-                bucket_count = metadata.bucketCount.toLong(),
-                amplitudes_json = amplitudesJson,
-                size_bytes = metadata.sizeBytes,
-                created_at_epoch_millis = metadata.createdAtEpochMillis,
-                last_accessed_epoch_millis = metadata.lastAccessedEpochMillis,
-            )
-            trimAudioWaveformStore()
-            waveform
-        }
+        audioWaveforms.storeAudioWaveform(sourceId, trackId, quality, audioFilePath, waveform)
 
     override suspend fun providerLyrics(
         sourceId: String,
@@ -690,21 +656,6 @@ class DesktopCache(
             if (cacheSize <= maxImageCacheBytes) return
             queries.deleteImage(image.url)
             cacheSize -= image.size_bytes
-        }
-    }
-
-    private fun trimAudioWaveformStore() {
-        var cacheSize = queries.audioWaveformCacheSize().executeAsOne()
-        if (cacheSize <= maxAudioWaveformCacheBytes) return
-
-        queries.oldestCachedAudioWaveforms(100).executeAsList().forEach { waveform ->
-            if (cacheSize <= maxAudioWaveformCacheBytes) return
-            queries.deleteCachedAudioWaveform(
-                waveform.source_id,
-                waveform.remote_track_id,
-                waveform.quality_key,
-            )
-            cacheSize -= waveform.size_bytes
         }
     }
 

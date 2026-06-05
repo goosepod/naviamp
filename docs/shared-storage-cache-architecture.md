@@ -155,7 +155,8 @@ Then higher-level repositories can be composed from those stores:
   - Thirty-seventh slice: provider/embedded and LRCLIB lyrics sidecar rows now use common `LyricsSidecarCacheService` over focused desktop/Android lyrics stores.
   - Thirty-eighth slice: Android playback-session and playback-history rows now live in `AndroidPlaybackStore`; desktop playback-session persistence remains in desktop settings through the shared session repository.
   - Thirty-ninth slice: cache clear/download clear/all-clear row operations and stats aggregation now live in focused desktop/Android maintenance stores, with file deletion and hot-image memory cleanup left at the platform facade edge.
-  - Remaining broad storage internals are mostly composition/facade concerns plus platform-specific file deletion, hot image memory management, waveform row trimming, and desktop provider-response track-metadata payload updates.
+  - Fortieth slice: cached waveform row lookup, writes, and cache-size trimming now live in focused desktop/Android waveform stores below `AudioWaveformStorageRepository`.
+  - Remaining broad storage internals are mostly composition/facade concerns plus platform-specific file deletion, hot image memory management, and desktop provider-response track-metadata payload updates.
 - [x] Normalize playback local-audio file boundaries.
   - Shared services should consume platform-neutral local-audio descriptors or store ports instead of `java.io.File` or `java.nio.file.Path` directly.
   - Android can keep `File` and desktop can keep `Path` inside platform adapters because output streams, atomic moves, directory walking, and delete behavior are OS/runtime details.
