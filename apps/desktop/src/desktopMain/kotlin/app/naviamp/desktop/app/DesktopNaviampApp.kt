@@ -52,7 +52,6 @@ import app.naviamp.domain.cache.ImageCacheRepository
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.cache.shouldRefreshDownloadsAfter
-import app.naviamp.domain.app.shouldRefreshStorageStats
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
@@ -96,10 +95,8 @@ import app.naviamp.desktop.settings.VisualizerSettings
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
-import app.naviamp.domain.provider.PlaylistDetailRefreshIntervalMillis
 import app.naviamp.domain.provider.addToPlaylistMutationUpdate
 import app.naviamp.domain.provider.normalizedPlaylistName
-import app.naviamp.domain.provider.playlistDetailAutoRefreshTarget
 import app.naviamp.domain.provider.playlistDeleteErrorMessage
 import app.naviamp.domain.provider.playlistDeleteLoadingStatus
 import app.naviamp.domain.provider.playlistDeletedStatus
@@ -113,7 +110,6 @@ import app.naviamp.domain.provider.renamedSelectedPlaylist
 import app.naviamp.domain.provider.refreshPlaylistDetails
 import app.naviamp.domain.provider.saveSmartPlaylistAndRefresh
 import app.naviamp.domain.provider.selectedPlaylistAfterDelete
-import app.naviamp.domain.provider.runPlaylistDetailAutoRefresh
 import app.naviamp.domain.provider.smartPlaylistLoadErrorMessage
 import app.naviamp.domain.provider.smartPlaylistLoadingRulesStatus
 import app.naviamp.domain.provider.smartPlaylistSaveErrorMessage
@@ -947,47 +943,35 @@ fun NaviampApp(
         listState = libraryListState,
     )
 
-    LaunchedEffect(
-        nowPlayingTrack?.id,
-        connectedSourceId,
-        connectedProvider,
-        playbackEngine,
-        nowPlayingWaveformReloadToken,
-        cacheSettings.audioCachingEnabled,
-        playbackSettings.lrclibLyricsEnabled,
-        nowPlayingLyricsVisible,
-        appRoute,
-    ) {
-        nowPlayingController.loadNowPlayingAnalysis()
-    }
-
-    LaunchedEffect(nowPlayingTrack?.id, connectedSourceId) {
-        nowPlayingController.loadRelatedTracks()
-    }
-
-    LaunchedEffect(nowPlayingCoverArtUrl, playbackQueue, connectedProvider) {
-        nowPlayingController.preloadCoverArt()
-    }
-
-    LaunchedEffect(connectedProvider, appRoute, selectedPlaylist?.id) {
-        val target = playlistDetailAutoRefreshTarget(
-            provider = connectedProvider,
-            playlist = selectedPlaylist,
-            enabled = appRoute == DesktopAppRoute.PlaylistDetail,
-        ) ?: return@LaunchedEffect
-        runPlaylistDetailAutoRefresh(
-            target = target,
-            waitForNextRefresh = {
-                delay(PlaylistDetailRefreshIntervalMillis)
-            },
-        ) { provider, playlist ->
-            playlistsController.refreshPlaylistDetailsFromServer(
-                activeProvider = provider,
-                playlist = playlist,
-                showLoadingStatus = false,
-            )
-        }
-    }
+    DesktopAppControllerEffects(
+        nowPlayingController = nowPlayingController,
+        playlistsController = playlistsController,
+        searchController = searchController,
+        libraryController = libraryController,
+        libraryListState = libraryListState,
+        hasSavedConnection = savedConnection != null,
+        connectToServer = { connectionLifecycleController.connectToServer(restoreSavedSession = true) },
+        nowPlayingTrack = nowPlayingTrack,
+        connectedSourceId = connectedSourceId,
+        connectedProvider = connectedProvider,
+        playbackEngine = playbackEngine,
+        nowPlayingWaveformReloadToken = nowPlayingWaveformReloadToken,
+        cacheSettings = cacheSettings,
+        playbackSettings = playbackSettings,
+        nowPlayingLyricsVisible = nowPlayingLyricsVisible,
+        appRoute = appRoute,
+        selectedPlaylist = selectedPlaylist,
+        searchQuery = searchQuery,
+        libraryQuery = libraryQuery,
+        setLibraryLimit = { limit -> libraryLimit = limit },
+        showStatsForNerds = showStatsForNerds,
+        statsForNerdsRefreshTick = statsForNerdsRefreshTick,
+        incrementStatsForNerdsRefreshTick = { statsForNerdsRefreshTick++ },
+        downloadRefreshToken = downloadRefreshToken,
+        mediaSourcesRevision = mediaSourcesRevision,
+        loadStorageStats = { storage.stats() },
+        setCacheStats = { stats -> cacheStats = stats },
+    )
 
     fun applyConnectionFormState(formState: DesktopConnectionFormState) {
         savedConnectionForLogin = formState.savedConnectionForLogin
@@ -1203,35 +1187,6 @@ fun NaviampApp(
     refreshInternetRadioStationsAction = internetRadioController::refreshStations
     startLibrarySyncAction = libraryController::startLibrarySync
     checkLibraryFreshnessAction = libraryController::checkLibraryFreshness
-
-    LaunchedEffect(Unit) {
-        if (savedConnection != null) {
-            connectToServer(restoreSavedSession = true)
-        }
-    }
-
-    LaunchedEffect(searchQuery, connectedProvider) {
-        searchController.loadSearchResults(searchQuery)
-    }
-
-    LaunchedEffect(libraryQuery, connectedSourceId) {
-        libraryLimit = LibraryPageSize
-        libraryController.refreshLibrarySnapshot()
-        libraryListState.scrollToItem(0)
-    }
-
-    LaunchedEffect(showStatsForNerds) {
-        while (showStatsForNerds) {
-            delay(1_000)
-            statsForNerdsRefreshTick++
-        }
-    }
-
-    LaunchedEffect(showStatsForNerds, appRoute, statsForNerdsRefreshTick, downloadRefreshToken, mediaSourcesRevision) {
-        if (shouldRefreshStorageStats(appRoute.toNaviampRoute(), diagnosticsVisible = showStatsForNerds)) {
-            cacheStats = withContext(Dispatchers.IO) { storage.stats() }
-        }
-    }
 
     val statsMediaSource = connectedSourceId?.let { storage.mediaSource(it) } ?: storage.latestMediaSource()
     val savedMediaSources = mediaSourcesRevision.let { storage.mediaSources() }
