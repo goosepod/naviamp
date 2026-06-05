@@ -149,6 +149,7 @@ class AndroidStorage(
         nowMillis = ::nowMillis,
         maxAudioCacheBytes = maxAudioCacheBytes,
     )
+    private val fileTreeCleaner = AndroidFileTreeCleaner()
 
     override fun close() {
         driver.close()
@@ -481,12 +482,12 @@ class AndroidStorage(
 
     override fun clearCacheData() {
         maintenance.clearCacheDataRows()
-        clearFiles(audioCacheDirectory)
+        fileTreeCleaner.clearDirectoryContents(audioCacheDirectory)
     }
 
     override fun clearDownloadData() {
         maintenance.clearDownloadDataRows()
-        clearFiles(downloadDirectory)
+        fileTreeCleaner.clearDirectoryContents(downloadDirectory)
     }
 
     override fun clearLibraryData(sourceId: String?) {
@@ -582,13 +583,6 @@ private class AndroidAudioByteStore(
     override fun deleteAudioBytes(filePath: String) {
         File(filePath).delete()
     }
-}
-
-private fun clearFiles(directory: File) {
-    if (!directory.exists()) return
-    directory.walkBottomUp()
-        .filter { it != directory }
-        .forEach { it.delete() }
 }
 
 private fun nowMillis(): Long = System.currentTimeMillis()

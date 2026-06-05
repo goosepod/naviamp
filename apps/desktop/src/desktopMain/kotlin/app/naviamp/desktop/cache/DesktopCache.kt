@@ -149,6 +149,7 @@ class DesktopCache(
         nowMillis = ::nowMillis,
         maxAudioCacheBytes = maxAudioCacheBytes,
     )
+    private val fileTreeCleaner = DesktopFileTreeCleaner()
 
     override suspend fun imageBytes(url: String): ByteArray {
         hotImages.get(url)?.let { return it }
@@ -622,29 +623,11 @@ class DesktopCache(
         cachedProviderResponse(provider, resourceType, resourceId, decode, encode, fetch)
 
     private fun clearAudioFiles() {
-        runCatching {
-            if (!audioCacheDirectory.exists()) return@runCatching
-            Files.walk(audioCacheDirectory).use { paths ->
-                paths.sorted(Comparator.reverseOrder()).forEach { path ->
-                    if (path != audioCacheDirectory) {
-                        Files.deleteIfExists(path)
-                    }
-                }
-            }
-        }
+        fileTreeCleaner.clearDirectoryContents(audioCacheDirectory)
     }
 
     private fun clearDownloadFiles() {
-        runCatching {
-            if (!downloadDirectory.exists()) return@runCatching
-            Files.walk(downloadDirectory).use { paths ->
-                paths.sorted(Comparator.reverseOrder()).forEach { path ->
-                    if (path != downloadDirectory) {
-                        Files.deleteIfExists(path)
-                    }
-                }
-            }
-        }
+        fileTreeCleaner.clearDirectoryContents(downloadDirectory)
     }
 }
 
