@@ -14,11 +14,11 @@ This checklist tracks cleanup after the desktop-main-reduction branch merge. The
 - [ ] Move home/search/library/downloads route content into focused shared route files.
 - [ ] Move playlist list/detail content and playlist dialogs into focused shared playlist UI files.
 - [ ] Move reusable media rows/cards/sections into focused shared media component files.
-- [ ] Move text fields/buttons/section headers/placeholders/dropdowns/overflow menus into shared primitive files.
-- [ ] Move shared bottom navigation and route placeholder rendering into a shared navigation file.
+- [x] Move text fields/buttons/section headers/placeholders/dropdowns/overflow menus into shared primitive files.
+- [x] Move shared bottom navigation and route placeholder rendering into a shared navigation file.
 - [x] Move `NaviampIcons` into a dedicated icon file if no existing icon file should own it.
 - [ ] Add focused UI tests or compile checks after each slice.
 
 ## Verification
 
-- [ ] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`
+- [x] `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`
