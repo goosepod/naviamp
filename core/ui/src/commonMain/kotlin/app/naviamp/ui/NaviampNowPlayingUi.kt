@@ -1089,13 +1089,13 @@ private fun RatingRow(
                 modifier = Modifier.size(17.dp),
             )
         }
-        Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.width(82.dp)) {
+        Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.width(92.dp)) {
             (1..5).forEach { value ->
                 val selected = (rating ?: 0) >= value
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
-                        .width(16.dp)
+                        .width(18.dp)
                         .clickable(enabled = canRate) {
                             onRatingSelected(if (rating == value) null else value)
                         },

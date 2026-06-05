@@ -254,16 +254,16 @@ object NaviampTransportIcons {
             strokeLineCap = StrokeCap.Round,
             strokeLineJoin = StrokeJoin.Round,
         ) {
-            moveTo(12f, 4.3f)
-            lineTo(14.25f, 9f)
-            lineTo(19.45f, 9.75f)
-            lineTo(15.7f, 13.4f)
-            lineTo(16.6f, 18.55f)
-            lineTo(12f, 16.1f)
-            lineTo(7.4f, 18.55f)
-            lineTo(8.3f, 13.4f)
-            lineTo(4.55f, 9.75f)
-            lineTo(9.75f, 9f)
+            moveTo(12f, 3.5f)
+            lineTo(14.55f, 8.75f)
+            lineTo(20.35f, 9.6f)
+            lineTo(16.15f, 13.75f)
+            lineTo(17.15f, 19.45f)
+            lineTo(12f, 16.75f)
+            lineTo(6.85f, 19.45f)
+            lineTo(7.85f, 13.75f)
+            lineTo(3.65f, 9.6f)
+            lineTo(9.45f, 8.75f)
             close()
         }
     }.build()
@@ -282,16 +282,16 @@ object NaviampTransportIcons {
             strokeLineCap = StrokeCap.Round,
             strokeLineJoin = StrokeJoin.Round,
         ) {
-            moveTo(12f, 4.3f)
-            lineTo(14.25f, 9f)
-            lineTo(19.45f, 9.75f)
-            lineTo(15.7f, 13.4f)
-            lineTo(16.6f, 18.55f)
-            lineTo(12f, 16.1f)
-            lineTo(7.4f, 18.55f)
-            lineTo(8.3f, 13.4f)
-            lineTo(4.55f, 9.75f)
-            lineTo(9.75f, 9f)
+            moveTo(12f, 3.5f)
+            lineTo(14.55f, 8.75f)
+            lineTo(20.35f, 9.6f)
+            lineTo(16.15f, 13.75f)
+            lineTo(17.15f, 19.45f)
+            lineTo(12f, 16.75f)
+            lineTo(6.85f, 19.45f)
+            lineTo(7.85f, 13.75f)
+            lineTo(3.65f, 9.6f)
+            lineTo(9.45f, 8.75f)
             close()
         }
     }.build()
