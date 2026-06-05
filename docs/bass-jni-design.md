@@ -158,8 +158,10 @@ Current packaging policy:
 4. Keep desktop manual playback validation focused on JNI-backed playback, waveform generation, gapless/crossfade, ReplayGain, metadata, and plugin diagnostics.
 5. Keep obsolete connector-specific desktop native/JNA code out of the active app; JNI is now the only desktop BASS connector.
 
-## Next Handoff
+## Current Status
 
 Desktop JNI-backed playback has been manually smoke-tested on macOS and Windows for crossfade, waveform generation, queue jumping, scrub-bar seeking, fast repeated scrubbing, volume changes, track changes, and instant playback after scrub. The old desktop JNA/native BASS connector has been removed.
 
-The next major BASS work is Android/device hardening. The active matrix lives in `docs/kotlin-bass-roadmap.md` and covers sleep/wake, server disconnects, bad URLs, unsupported formats, Android gapless/crossfade transitions, restored playback, and device/emulator diagnostics.
+Android/device hardening is also complete in `docs/kotlin-bass-roadmap.md`. The checked matrix covers sleep/wake, cached/local playback during network interruption, bad provider URLs, unsupported decode/source failures, rapid skip/scrub, live provider-stream network interruption, Android gapless and crossfade transitions, restored playback, and emulator diagnostics.
+
+The BASS/JNI migration is complete for the active desktop and Android playback paths. Future BASS work should be treated as feature polish or diagnostics unless new platform behavior proves otherwise.

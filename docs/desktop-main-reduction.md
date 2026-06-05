@@ -6,7 +6,7 @@ Branch: `codex/desktop-main-reduction`
 
 ## Goals
 
-- [ ] Keep `apps/desktop/.../app/Main.kt` as a small desktop entry/window shell.
+- [x] Keep `apps/desktop/.../app/Main.kt` as a small desktop entry/window shell.
 - [ ] Reduce `DesktopNaviampApp.kt` by extracting cohesive orchestration into feature controllers.
 - [ ] Check desktop/Android duplication before extracting platform-local helpers.
 - [ ] Move shared Navidrome/provider, playback, navigation, or UI rules into common/provider modules when both apps need them.
@@ -326,11 +326,18 @@ Branch: `codex/desktop-main-reduction`
   - Crossfade duration normalization, BASSmix queue-source decisions, equal-power fade envelopes, and transition application now live behind shared helpers/backend calls instead of desktop-only playback code.
 - Naming convention: shared/common abstractions keep generic names, while platform adapters and platform-owned service files should use `Desktop` / `Android` prefixes.
   - Example: common `AudioWaveformAnalyzer`, desktop `DesktopAudioWaveformAnalyzer`, Android `AndroidAudioWaveformAnalyzer`.
-  - Remaining desktop playback files without a platform prefix should be renamed in narrow slices when their references are touched.
+  - Verified on 2026-06-05: Android platform files are prefixed with `Android`; desktop playback, cache, radio, and search platform adapters are prefixed with `Desktop`. Remaining unprefixed desktop files are theme/UI helpers rather than platform service adapters.
+
+## Current Verification Notes
+
+- `apps/desktop/src/desktopMain/kotlin/app/naviamp/desktop/app/Main.kt` is currently a 63-line shell for desktop app/window setup.
+- `DesktopNaviampApp.kt` is still large at roughly 2,200 lines. Many controllers have been extracted, but reducing this file remains a real incomplete item.
+- `DesktopCache` and `AndroidStorage` construction is isolated to dependency holders/runtime roots, and feature code mostly consumes narrow ports. The concrete storage engines are still broad adapter/facade classes, so the storage split remains a real incomplete item.
+- The broad "check duplication", "move shared rules", and "keep builds green" goals are branch hygiene goals. They remain relevant while this branch continues, even though many individual slices are complete.
 
 ## Platform Naming Cleanup Backlog
 
-Follow the convention above: shared/common abstractions keep generic names; platform adapters, controllers, services, panels, storage, clients, and platform-owned helpers use `Desktop` or `Android` prefixes. Android already follows this convention except for `MainActivity.kt`, which is the platform entry point. Desktop still has mixed naming.
+Follow the convention above: shared/common abstractions keep generic names; platform adapters, controllers, services, panels, storage, clients, and platform-owned helpers use `Desktop` or `Android` prefixes. Android follows this convention except for `MainActivity.kt`, which is the platform entry point. Desktop playback, cache, radio, and search platform adapters now follow it; unprefixed desktop theme/UI helper names are acceptable unless they become platform service adapters.
 
 - [x] Desktop app shell files:
   - `app/DesktopAppMenus.kt`

@@ -286,10 +286,11 @@ Then higher-level repositories can be composed from those stores:
   - Prepared BASS source results now only expose handoff state; platform engines keep ReplayGain metadata in their existing prepared-track fields while shared helpers still use ReplayGain for transition planning.
   - Still to normalize further: crossfade transition state reset and remaining transition application details should continue moving from platform playback engines into shared planning/services.
   - Keep JNI/native-loader details under platform adapters unless a single native loader is proven simpler across all targets.
-- [ ] Normalize platform file/class names.
+- [x] Normalize platform file/class names.
   - Shared/common abstractions keep generic names.
   - Platform adapters and platform-owned service files should use `Desktop` / `Android` prefixes.
   - First cleanup slice: common `AudioWaveformAnalyzer`, desktop `DesktopAudioWaveformAnalyzer`, Android `AndroidAudioWaveformAnalyzer`.
+  - Verification sweep on 2026-06-05: Android platform files are prefixed with `Android`; desktop playback, cache, radio, and search platform adapters are prefixed with `Desktop`. The remaining unprefixed desktop files are theme/UI helpers (`DetailActionIconButton`, `PlaybackFormatting`, `TransportIcons`) rather than platform service adapters.
 - [x] Create a platform dependency registry/composition object.
   - Desktop builds repositories from desktop paths/settings.
   - Android builds repositories from app context/settings.
