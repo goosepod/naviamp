@@ -331,7 +331,7 @@ Branch: `codex/desktop-main-reduction`
 ## Current Verification Notes
 
 - `apps/desktop/src/desktopMain/kotlin/app/naviamp/desktop/app/Main.kt` is currently a 63-line shell for desktop app/window setup.
-- `DesktopNaviampApp.kt` is still large at roughly 1,740 lines. Many controllers have been extracted, but reducing this file remains a real incomplete item.
+- `DesktopNaviampApp.kt` is still large at roughly 1,690 lines. Many controllers have been extracted, but reducing this file remains a real incomplete item.
 - First post-audit reduction slice: desktop app lifecycle/synchronization side effects moved into `DesktopAppEffects`, covering playback disposal, cover-art byte loading, transition/volume sync, visualizer polling, now-playing reporting, cache-limit/prefetch enforcement, and navigation persistence.
 - Second post-audit reduction slice: controller-driven refresh effects moved into `DesktopAppControllerEffects`, covering now-playing analysis, related-track and cover preload refreshes, playlist-detail auto-refresh, startup restore, search reloads, library-query reloads, and stats refresh cadence.
 - Third post-audit reduction slice: Stats for nerds data assembly moved into the desktop stats mapping layer, keeping API-history aggregation, playback engine diagnostics, stream stats, and provider capability rows out of `DesktopNaviampApp.kt`.
@@ -339,6 +339,7 @@ Branch: `codex/desktop-main-reduction`
 - Fifth post-audit reduction slice: route-level dialogs moved into `DesktopAppDialogs`, keeping add-to-playlist, playlist rename/delete, and internet-radio station dialogs out of `DesktopNaviampApp.kt`.
 - Sixth post-audit reduction slice: downloads route model/rendering moved into `DesktopDownloadsRoute`, keeping downloaded-track lookup, UI item shaping, and id-to-track mapping out of `DesktopNaviampApp.kt`.
 - Seventh post-audit reduction slice: connection form state moved into `DesktopConnectionFormStateHolder`, centralizing saved-connection invalidation and password clearing outside `DesktopNaviampApp.kt`.
+- Eighth post-audit reduction slice: playlist playback callbacks moved into `DesktopPlaybackCallbackCoordinator`, keeping track-start, queue-change, progress merge, pending-seek, and sidecar-ready mutation rules out of `DesktopNaviampApp.kt`.
 - `DesktopCache` and `AndroidStorage` construction is isolated to dependency holders/runtime roots, and feature code mostly consumes narrow ports. The concrete storage engines are still broad adapter/facade classes, so the storage split remains a real incomplete item.
 - The broad "check duplication", "move shared rules", and "keep builds green" goals are branch hygiene goals. They remain relevant while this branch continues, even though many individual slices are complete.
 

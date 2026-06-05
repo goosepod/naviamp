@@ -56,6 +56,7 @@ import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.desktop.playback.PlaylistCallbacks
+import app.naviamp.desktop.playback.desktopPlaylistCallbacks
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.label
@@ -580,91 +581,41 @@ fun NaviampApp(
         radioController.refillIfNeeded(queue)
     }
 
-    val playlistCallbacks = PlaylistCallbacks(
-        onTrackStarted = { track, coverArtUrl ->
-            val trackStartedPlan = planPlaybackTrackStarted(
-                previousTrack = nowPlayingTrack,
-                track = track,
-                openNowPlaying = openPlayerOnTrackStart,
-                nowPlayingOpen = appRoute == DesktopAppRoute.Player,
-                lyricsVisible = false,
-                supportsTrackFavorites = connectedProvider?.capabilities?.supportsTrackFavorites == true,
-            )
-            val effectsPlan = planPlaybackTrackStartEffects(
-                track = track,
-                presentation = trackStartedPlan,
-                keepRadioQueueActive = true,
-            )
-            if (effectsPlan.presentation.clearShuffleSnapshot) {
-                clearShuffleSnapshot()
-            }
-            if (effectsPlan.presentation.clearInternetRadioNowPlaying) nowPlayingInternetRadioStation = null
-            if (effectsPlan.presentation.resetStreamMetadata) nowPlayingStreamMetadata = PlaybackStreamMetadata()
-            nowPlayingTrack = track
-            nowPlayingCoverArtUrl = coverArtUrl
-            playReportSessionId += 1
-            submittedPlayReportSessionId = null
-            if (effectsPlan.presentation.shouldReportNowPlaying) reportNowPlaying(track)
-            if (effectsPlan.presentation.resetSidecars) {
-                nowPlayingWaveform = null
-                nowPlayingWaveformStatus = "Waiting"
-                nowPlayingAudioTags = null
-                nowPlayingLyrics = null
-                nowPlayingLyricsStatus = null
-                nowPlayingWaveformReloadToken += 1
-            }
-            if (effectsPlan.presentation.resetProgress) playbackProgress = PlaybackProgress.Unknown
-            if (effectsPlan.refillRadioQueue) refillRadioIfNeeded(playlistEngine.queue)
-            if (effectsPlan.presentation.shouldOpenNowPlaying) {
-                appRoute = DesktopAppRoute.Player
-            }
-        },
-        onQueueChanged = { queue ->
-            playbackQueue = queue
-            savePlaybackSession(queue, playbackProgress.positionSeconds)
-        },
-        onPlaybackStateChanged = { state ->
-            playbackState = state
-        },
-        onPlaybackProgressChanged = progressChanged@{ progress ->
-            val pendingSeek = pendingSeekPositionSeconds
-            val pendingSeekIssuedAt = pendingSeekIssuedAtMillis
-            val progressPosition = progress.positionSeconds
-            val now = System.currentTimeMillis()
-            if (shouldIgnoreProgressForPendingSeek(pendingSeek, pendingSeekIssuedAt, progressPosition, now)) {
-                return@progressChanged
-            }
-            if (shouldClearPendingSeek(pendingSeek, pendingSeekIssuedAt, progressPosition, now)) {
-                pendingSeekPositionSeconds = null
-                pendingSeekIssuedAtMillis = null
-            }
-            val currentProgress = playbackProgress
-            val mergedProgress = progress.mergeWith(currentProgress)
-            maybeSavePlaybackPosition(mergedProgress)
-            maybeReportPlayed(mergedProgress)
-            if (
-                shouldUpdatePlaybackProgressUi(
-                    pendingSeekPositionSeconds = pendingSeek,
-                    currentProgress = currentProgress,
-                    mergedProgress = mergedProgress,
-                    nowMillis = now,
-                    lastUiUpdateMillis = lastPlaybackProgressUiUpdateMillis,
-                    positionThresholdSeconds = PlaybackProgressUiUpdateThresholdSeconds,
-                    updateIntervalMillis = PlaybackProgressUiUpdateIntervalMillis,
-                )
-            ) {
-                playbackProgress = mergedProgress
-                lastPlaybackProgressUiUpdateMillis = now
-            }
-        },
-        onMetadataChanged = { metadata ->
-            nowPlayingStreamMetadata = metadata
-        },
-        onCurrentTrackSidecarsReady = { track ->
-            if (nowPlayingTrack?.id == track.id) {
-                nowPlayingWaveformReloadToken += 1
-            }
-        },
+    val playlistCallbacks = desktopPlaylistCallbacks(
+        provider = { connectedProvider },
+        appRoute = { appRoute },
+        setAppRoute = { route -> appRoute = route },
+        openPlayerOnTrackStart = { openPlayerOnTrackStart },
+        nowPlayingTrack = { nowPlayingTrack },
+        setNowPlayingTrack = { track -> nowPlayingTrack = track },
+        setNowPlayingCoverArtUrl = { url -> nowPlayingCoverArtUrl = url },
+        setNowPlayingWaveform = { waveform -> nowPlayingWaveform = waveform },
+        setNowPlayingWaveformStatus = { status -> nowPlayingWaveformStatus = status },
+        setNowPlayingAudioTags = { tags -> nowPlayingAudioTags = tags },
+        setNowPlayingLyrics = { lyrics -> nowPlayingLyrics = lyrics },
+        setNowPlayingLyricsStatus = { status -> nowPlayingLyricsStatus = status },
+        setNowPlayingInternetRadioStation = { station -> nowPlayingInternetRadioStation = station },
+        setNowPlayingStreamMetadata = { metadata -> nowPlayingStreamMetadata = metadata },
+        incrementPlayReportSessionId = { playReportSessionId++ },
+        clearSubmittedPlayReportSessionId = { submittedPlayReportSessionId = null },
+        incrementNowPlayingWaveformReloadToken = { nowPlayingWaveformReloadToken++ },
+        reportNowPlaying = ::reportNowPlaying,
+        clearShuffleSnapshot = ::clearShuffleSnapshot,
+        refillRadioIfNeeded = ::refillRadioIfNeeded,
+        activeQueue = { playlistEngine.queue },
+        setPlaybackQueue = { queue -> playbackQueue = queue },
+        savePlaybackSession = ::savePlaybackSession,
+        playbackProgress = { playbackProgress },
+        setPlaybackProgress = { progress -> playbackProgress = progress },
+        setPlaybackState = { state -> playbackState = state },
+        pendingSeekPositionSeconds = { pendingSeekPositionSeconds },
+        setPendingSeekPositionSeconds = { position -> pendingSeekPositionSeconds = position },
+        pendingSeekIssuedAtMillis = { pendingSeekIssuedAtMillis },
+        setPendingSeekIssuedAtMillis = { millis -> pendingSeekIssuedAtMillis = millis },
+        lastPlaybackProgressUiUpdateMillis = { lastPlaybackProgressUiUpdateMillis },
+        setLastPlaybackProgressUiUpdateMillis = { millis -> lastPlaybackProgressUiUpdateMillis = millis },
+        maybeSavePlaybackPosition = ::maybeSavePlaybackPosition,
+        maybeReportPlayed = ::maybeReportPlayed,
     )
     playlistCallbacksRef = playlistCallbacks
 
