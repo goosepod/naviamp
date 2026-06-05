@@ -1075,29 +1075,38 @@ private fun RatingRow(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier.padding(vertical = 1.dp),
     ) {
-        Text(
-            if (favoriteActive) "♥" else "♡",
-            color = if (favoriteActive) colors.primaryText else colors.primaryText.copy(alpha = 0.72f),
-            fontSize = 16.sp,
-            textAlign = TextAlign.Center,
+        val inactiveColor = colors.primaryText.copy(alpha = 0.72f)
+        Box(
+            contentAlignment = Alignment.Center,
             modifier = Modifier
                 .width(24.dp)
                 .clickable(enabled = canFavorite, onClick = onToggleFavorite),
-        )
+        ) {
+            Icon(
+                imageVector = if (favoriteActive) NaviampTransportIcons.HeartFilled else NaviampTransportIcons.Heart,
+                contentDescription = if (favoriteActive) "Remove favorite" else "Favorite",
+                tint = if (favoriteActive) colors.primaryText else inactiveColor,
+                modifier = Modifier.size(17.dp),
+            )
+        }
         Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.width(82.dp)) {
             (1..5).forEach { value ->
                 val selected = (rating ?: 0) >= value
-                Text(
-                    if (selected) "★" else "☆",
-                    color = if (selected) colors.primaryText else colors.primaryText.copy(alpha = 0.72f),
-                    fontSize = 16.sp,
-                    textAlign = TextAlign.Center,
+                Box(
+                    contentAlignment = Alignment.Center,
                     modifier = Modifier
                         .width(16.dp)
                         .clickable(enabled = canRate) {
                             onRatingSelected(if (rating == value) null else value)
                         },
-                )
+                ) {
+                    Icon(
+                        imageVector = if (selected) NaviampTransportIcons.StarFilled else NaviampTransportIcons.Star,
+                        contentDescription = "$value star rating",
+                        tint = if (selected) colors.primaryText else inactiveColor,
+                        modifier = Modifier.size(15.dp),
+                    )
+                }
             }
         }
     }

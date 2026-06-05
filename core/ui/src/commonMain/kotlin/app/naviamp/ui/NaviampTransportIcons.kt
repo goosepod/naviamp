@@ -222,6 +222,74 @@ object NaviampTransportIcons {
         }
     }.build()
 
+    val HeartFilled: ImageVector = ImageVector.Builder(
+        name = "HeartFilled",
+        defaultWidth = IconSize,
+        defaultHeight = IconSize,
+        viewportWidth = Viewport,
+        viewportHeight = Viewport,
+    ).apply {
+        path(fill = SolidColor(Color.Black)) {
+            moveTo(12f, 20f)
+            curveTo(8.4f, 17.1f, 5.2f, 14.3f, 4.1f, 11.4f)
+            curveTo(3.1f, 8.8f, 4.4f, 6f, 7.2f, 5.5f)
+            curveTo(9f, 5.2f, 10.8f, 6.1f, 12f, 7.7f)
+            curveTo(13.2f, 6.1f, 15f, 5.2f, 16.8f, 5.5f)
+            curveTo(19.6f, 6f, 20.9f, 8.8f, 19.9f, 11.4f)
+            curveTo(18.8f, 14.3f, 15.6f, 17.1f, 12f, 20f)
+            close()
+        }
+    }.build()
+
+    val Star: ImageVector = ImageVector.Builder(
+        name = "Star",
+        defaultWidth = IconSize,
+        defaultHeight = IconSize,
+        viewportWidth = Viewport,
+        viewportHeight = Viewport,
+    ).apply {
+        path(
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 1.55f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+        ) {
+            moveTo(12f, 4.3f)
+            lineTo(14.25f, 9f)
+            lineTo(19.45f, 9.75f)
+            lineTo(15.7f, 13.4f)
+            lineTo(16.6f, 18.55f)
+            lineTo(12f, 16.1f)
+            lineTo(7.4f, 18.55f)
+            lineTo(8.3f, 13.4f)
+            lineTo(4.55f, 9.75f)
+            lineTo(9.75f, 9f)
+            close()
+        }
+    }.build()
+
+    val StarFilled: ImageVector = ImageVector.Builder(
+        name = "StarFilled",
+        defaultWidth = IconSize,
+        defaultHeight = IconSize,
+        viewportWidth = Viewport,
+        viewportHeight = Viewport,
+    ).apply {
+        path(fill = SolidColor(Color.Black)) {
+            moveTo(12f, 4.3f)
+            lineTo(14.25f, 9f)
+            lineTo(19.45f, 9.75f)
+            lineTo(15.7f, 13.4f)
+            lineTo(16.6f, 18.55f)
+            lineTo(12f, 16.1f)
+            lineTo(7.4f, 18.55f)
+            lineTo(8.3f, 13.4f)
+            lineTo(4.55f, 9.75f)
+            lineTo(9.75f, 9f)
+            close()
+        }
+    }.build()
+
     val Repeat: ImageVector = ImageVector.Builder(
         name = "Repeat",
         defaultWidth = IconSize,
