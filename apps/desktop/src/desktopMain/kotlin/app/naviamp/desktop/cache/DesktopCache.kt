@@ -124,6 +124,7 @@ class DesktopCache(
         nowMillis = ::nowMillis,
         maxAudioWaveformCacheBytes = maxAudioWaveformCacheBytes,
     )
+    private val trackMetadata = DesktopTrackMetadataStore(queries, json)
     private val hotImages = DesktopHotImageCache(maxHotImageBytes)
     private val httpClient = KtorSharedHttpClient()
     private val imageByteStoreService = ObjectByteStoreService(
@@ -514,39 +515,7 @@ class DesktopCache(
     }
 
     override fun updateTrack(updatedTrack: Track) {
-        queries.transaction {
-            val albumRows = queries.selectResponsesByType("album").executeAsList()
-            albumRows.forEach { row ->
-                val details = json.decodeFromString<AlbumDetailsDto>(row.payload).toAlbumDetails()
-                val updatedDetails = details.copy(
-                    tracks = details.tracks.map { track ->
-                        if (track.id == updatedTrack.id) updatedTrack else track
-                    },
-                )
-                if (updatedDetails != details) {
-                    queries.updateResponsePayload(
-                        payload = json.encodeToString(AlbumDetailsDto.fromAlbumDetails(updatedDetails)),
-                        cache_key = row.cache_key,
-                    )
-                }
-            }
-
-            val searchRows = queries.selectResponsesByType("search").executeAsList()
-            searchRows.forEach { row ->
-                val results = json.decodeFromString<MediaSearchResultsDto>(row.payload).toMediaSearchResults()
-                val updatedResults = results.copy(
-                    tracks = results.tracks.map { track ->
-                        if (track.id == updatedTrack.id) updatedTrack else track
-                    },
-                )
-                if (updatedResults != results) {
-                    queries.updateResponsePayload(
-                        payload = json.encodeToString(MediaSearchResultsDto.fromMediaSearchResults(updatedResults)),
-                        cache_key = row.cache_key,
-                    )
-                }
-            }
-        }
+        trackMetadata.updateTrack(updatedTrack)
     }
 
     override fun clearProviderData() {
@@ -861,7 +830,7 @@ private fun Path.sizeOrZero(): Long =
     }.getOrDefault(0L)
 
 @Serializable
-private data class MediaSearchResultsDto(
+data class MediaSearchResultsDto(
     val artists: List<ArtistDto> = emptyList(),
     val albums: List<AlbumDto> = emptyList(),
     val tracks: List<TrackDto> = emptyList(),
@@ -884,7 +853,7 @@ private data class MediaSearchResultsDto(
 }
 
 @Serializable
-private data class ArtistDetailsDto(
+data class ArtistDetailsDto(
     val artist: ArtistDto,
     val albums: List<AlbumDto>,
     val info: ArtistInfoDto? = null,
@@ -907,7 +876,7 @@ private data class ArtistDetailsDto(
 }
 
 @Serializable
-private data class AlbumDetailsDto(
+data class AlbumDetailsDto(
     val album: AlbumDto,
     val tracks: List<TrackDto>,
 ) {
@@ -927,7 +896,7 @@ private data class AlbumDetailsDto(
 }
 
 @Serializable
-private data class ArtistDto(
+data class ArtistDto(
     val id: String,
     val name: String,
 ) {
@@ -947,7 +916,7 @@ private data class ArtistDto(
 }
 
 @Serializable
-private data class ArtistInfoDto(
+data class ArtistInfoDto(
     val biography: String? = null,
     val smallImageUrl: String? = null,
     val mediumImageUrl: String? = null,
@@ -973,7 +942,7 @@ private data class ArtistInfoDto(
 }
 
 @Serializable
-private data class AlbumDto(
+data class AlbumDto(
     val id: String,
     val title: String,
     val artistName: String,
@@ -1005,7 +974,7 @@ private data class AlbumDto(
 }
 
 @Serializable
-private data class TrackDto(
+data class TrackDto(
     val id: String,
     val title: String,
     val artistId: String? = null,
@@ -1058,7 +1027,7 @@ private data class TrackDto(
 }
 
 @Serializable
-private data class AudioInfoDto(
+data class AudioInfoDto(
     val codec: String? = null,
     val bitrateKbps: Int? = null,
     val contentType: String? = null,
@@ -1087,7 +1056,7 @@ private data class AudioInfoDto(
 }
 
 @Serializable
-private data class ReplayGainDto(
+data class ReplayGainDto(
     val trackGainDb: Double? = null,
     val albumGainDb: Double? = null,
     val trackPeak: Double? = null,

@@ -158,7 +158,8 @@ Then higher-level repositories can be composed from those stores:
   - Fortieth slice: cached waveform row lookup, writes, and cache-size trimming now live in focused desktop/Android waveform stores below `AudioWaveformStorageRepository`.
   - Forty-first slice: desktop hot-image memory management now lives in `DesktopHotImageCache`, and desktop image row trimming now lives in `DesktopObjectByteStore` below `ObjectByteStoreService`.
   - Forty-second slice: platform cache/download directory cleanup now lives in desktop/Android file-tree cleaners; storage facades coordinate row cleanup and delegate file deletion.
-  - Remaining broad storage internals are mostly composition/facade concerns plus desktop provider-response track-metadata payload updates.
+  - Forty-third slice: desktop provider-response track-metadata payload updates now live in `DesktopTrackMetadataStore`.
+  - Remaining broad storage internals are now mostly composition/facade delegation concerns. Further cleanup should reduce interface fan-out by constructing individual repository adapters directly from dependency holders where that materially improves call sites.
 - [x] Normalize playback local-audio file boundaries.
   - Shared services should consume platform-neutral local-audio descriptors or store ports instead of `java.io.File` or `java.nio.file.Path` directly.
   - Android can keep `File` and desktop can keep `Path` inside platform adapters because output streams, atomic moves, directory walking, and delete behavior are OS/runtime details.
