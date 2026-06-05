@@ -7,6 +7,7 @@ import app.naviamp.android.toPlaybackLocalAudio
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.isInternetRadioTrack
+import app.naviamp.domain.audio.AudioMetadataSidecarService
 import app.naviamp.domain.cache.AudioWaveformStorageRepository
 import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.lyrics.LyricsSidecarService
@@ -49,6 +50,7 @@ class AndroidPlaylistEngine(
     private val playbackEngine: AndroidPlaybackEngine,
     private val playbackQueueController: PlaybackQueueController,
     waveformAnalyzer: AndroidAudioWaveformAnalyzer,
+    private val audioMetadataSidecarService: AudioMetadataSidecarService,
     private val lyricsSidecarService: LyricsSidecarService,
     private val sidecarStatusRepository: SidecarStatusRepository,
     private val activeQueue: () -> List<Track>,
@@ -219,6 +221,24 @@ class AndroidPlaylistEngine(
                             sidecarType = SidecarTypeWaveform,
                             errorMessage = waveformUnavailableStatus(error),
                         )
+                    }
+                }
+                if (sessionToken != state.playbackSessionToken) return@launch
+                val tagQuality = currentStreamQuality()
+                runCatching {
+                    audioMetadataSidecarService.audioTagsForTrack(
+                        sourceId = sourceId,
+                        track = track,
+                        quality = tagQuality,
+                        audioCachingEnabled = true,
+                    )
+                }.onSuccess { tags ->
+                    if (sessionToken == state.playbackSessionToken) {
+                        state.audioTagsByTrackId = state.audioTagsByTrackId + (track.id.value to tags)
+                    }
+                }.onFailure {
+                    if (sessionToken == state.playbackSessionToken) {
+                        state.audioTagsByTrackId = state.audioTagsByTrackId + (track.id.value to emptyList())
                     }
                 }
                 if (sessionToken != state.playbackSessionToken) return@launch

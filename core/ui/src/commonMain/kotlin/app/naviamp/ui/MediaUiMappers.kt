@@ -170,17 +170,6 @@ fun Track.toNowPlayingDetailSections(
                 ),
             )
         }
-        if (embeddedTags != null) {
-            add(
-                NaviampDetailSectionUi(
-                    title = "Embedded tags",
-                    rows = when {
-                        embeddedTags.isEmpty() -> listOf("Status" to "No readable ID3/Vorbis tags found")
-                        else -> embeddedTags
-                    },
-                ),
-            )
-        }
         add(
             NaviampDetailSectionUi(
                 title = "File",
@@ -215,6 +204,17 @@ fun Track.toNowPlayingDetailSections(
                         replayGain.trackPeak?.let { "Track peak" to it.sixDecimalLabel() },
                         replayGain.albumPeak?.let { "Album peak" to it.sixDecimalLabel() },
                     ),
+                ),
+            )
+        }
+        if (embeddedTags != null) {
+            add(
+                NaviampDetailSectionUi(
+                    title = "Embedded tags",
+                    rows = when {
+                        embeddedTags.isEmpty() -> listOf("Status" to "No readable ID3/Vorbis tags found")
+                        else -> embeddedTags
+                    },
                 ),
             )
         }

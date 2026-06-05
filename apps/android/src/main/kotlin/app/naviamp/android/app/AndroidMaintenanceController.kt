@@ -19,6 +19,7 @@ import java.io.File
 
 fun clearAndroidDerivedMediaState(state: AndroidAppState) {
     state.waveformByTrackId = emptyMap()
+    state.audioTagsByTrackId = emptyMap()
     state.lyricsByTrackId = emptyMap()
     state.lyricsStatusByTrackId = emptyMap()
     state.relatedTracks = emptyList()

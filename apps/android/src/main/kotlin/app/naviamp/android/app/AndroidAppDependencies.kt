@@ -115,6 +115,7 @@ class AndroidAppDependencies(
             playbackEngine = playbackRuntime.playbackEngine,
             playbackQueueController = playbackQueueController,
             waveformAnalyzer = playbackRuntime.waveformAnalyzer,
+            audioMetadataSidecarService = audioMetadataSidecarService,
             lyricsSidecarService = lyricsSidecarService,
             sidecarStatusRepository = sidecarStatusRepository,
             activeQueue = activeQueue,

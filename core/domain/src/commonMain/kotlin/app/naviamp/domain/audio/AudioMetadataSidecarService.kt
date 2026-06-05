@@ -20,6 +20,23 @@ class AudioMetadataSidecarService(
     suspend fun audioTags(localAudio: PlaybackLocalAudio?): List<AudioTag> =
         localAudio?.let { audioTagReader.read(it) }.orEmpty()
 
+    suspend fun audioTagsForTrack(
+        sourceId: String?,
+        track: Track,
+        quality: StreamQuality,
+        audioCachingEnabled: Boolean,
+    ): List<AudioTag> {
+        val activeSourceId = sourceId ?: return emptyList()
+        val localAudio = resolvePlaybackAudioSource(
+            sourceId = activeSourceId,
+            track = track,
+            quality = quality,
+            audioCachingEnabled = audioCachingEnabled,
+            audioAssets = playbackAudioAssets,
+        ).localAudio ?: return emptyList()
+        return audioTags(localAudio)
+    }
+
     fun embeddedLyrics(tags: List<AudioTag>) =
         lyricsFromAudioTags(tags)
 

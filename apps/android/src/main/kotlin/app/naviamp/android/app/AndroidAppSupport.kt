@@ -23,6 +23,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.domain.app.NaviampContentState
 import app.naviamp.domain.app.NaviampNavigationState
+import app.naviamp.domain.audio.AudioTag
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
@@ -276,6 +277,7 @@ fun androidNowPlayingUi(
     repeatMode: RepeatMode,
     shuffledUpNextSnapshot: List<Track>?,
     waveformByTrackId: Map<String, AudioWaveform>,
+    audioTagsByTrackId: Map<String, List<AudioTag>>,
     lyricsByTrackId: Map<String, Lyrics?>,
     lyricsStatusByTrackId: Map<String, String?>,
     lyricsVisible: Boolean,
@@ -320,6 +322,7 @@ fun androidNowPlayingUi(
                 lyrics = lyricsByTrackId[track.id.value],
                 menuEnabled = true,
                 streamQuality = streamQuality,
+                embeddedTags = audioTagsByTrackId[track.id.value]?.map { it.key to it.value },
                 playlistChoices = playlistChoices,
                 playlistActionStatus = playlistActionStatus,
                 backTo = knownTracks

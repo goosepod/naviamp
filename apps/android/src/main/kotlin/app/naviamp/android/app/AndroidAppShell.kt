@@ -380,6 +380,7 @@ fun rememberAndroidAppShellUiState(
             repeatMode = repeatMode,
             shuffledUpNextSnapshot = shuffledUpNextSnapshot,
             waveformByTrackId = waveformByTrackId,
+            audioTagsByTrackId = audioTagsByTrackId,
             lyricsByTrackId = lyricsByTrackId,
             lyricsStatusByTrackId = lyricsStatusByTrackId,
             lyricsVisible = lyricsVisible,

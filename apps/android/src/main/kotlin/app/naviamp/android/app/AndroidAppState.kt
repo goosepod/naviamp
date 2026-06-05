@@ -17,6 +17,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.app.NaviampContentState
 import app.naviamp.domain.app.NaviampNavigationState
+import app.naviamp.domain.audio.AudioTag
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
@@ -109,6 +110,7 @@ class AndroidAppState(
     var submittedPlayReportSessionToken by mutableStateOf<Long?>(null)
     var volumePercent by mutableStateOf(100)
     var waveformByTrackId by mutableStateOf<Map<String, AudioWaveform>>(emptyMap())
+    var audioTagsByTrackId by mutableStateOf<Map<String, List<AudioTag>>>(emptyMap())
     var playbackQueue by mutableStateOf(PlaybackQueue())
     var shuffledUpNextSnapshot by mutableStateOf<List<Track>?>(null)
     var repeatMode by mutableStateOf(RepeatMode.Off)
