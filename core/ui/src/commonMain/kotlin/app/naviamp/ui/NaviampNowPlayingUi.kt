@@ -58,6 +58,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.isSecondaryPressed
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -1110,9 +1111,12 @@ private fun VolumeRow(
     colors: NaviampColors,
 ) {
     var widthPx by remember { mutableFloatStateOf(1f) }
+    val density = LocalDensity.current
+    val thumbRadiusPx = with(density) { VolumeThumbRadius.toPx() }
 
     fun updateFromX(x: Float) {
-        onValueChanged((x / widthPx).coerceIn(0f, 1f))
+        val trackWidth = (widthPx - thumbRadiusPx * 2f).coerceAtLeast(1f)
+        onValueChanged(((x - thumbRadiusPx) / trackWidth).coerceIn(0f, 1f))
     }
 
     Row(
@@ -1131,16 +1135,16 @@ private fun VolumeRow(
         Canvas(
             modifier = Modifier
                 .weight(1f)
-                .height(14.dp)
+                .height(18.dp)
                 .onSizeChanged { widthPx = it.width.toFloat().coerceAtLeast(1f) }
-                .pointerInput(widthPx) {
+                .pointerInput(widthPx, thumbRadiusPx) {
                     detectTapGestures { offset ->
                         isChangingVolume(true)
                         updateFromX(offset.x)
                         isChangingVolume(false)
                     }
                 }
-                .pointerInput(widthPx) {
+                .pointerInput(widthPx, thumbRadiusPx) {
                     detectDragGestures(
                         onDragStart = { offset ->
                             isChangingVolume(true)
@@ -1153,24 +1157,35 @@ private fun VolumeRow(
                 },
         ) {
             val centerY = size.height / 2f
-            val endX = size.width * value.coerceIn(0f, 1f)
+            val thumbRadius = VolumeThumbRadius.toPx()
+            val startX = thumbRadius
+            val trackEndX = (size.width - thumbRadius).coerceAtLeast(startX)
+            val endX = startX + (trackEndX - startX) * value.coerceIn(0f, 1f)
+            val volumeColor = colors.accent.copy(alpha = 0.92f)
             drawLine(
                 color = colors.primaryText.copy(alpha = 0.24f),
-                start = Offset(0f, centerY),
-                end = Offset(size.width, centerY),
+                start = Offset(startX, centerY),
+                end = Offset(trackEndX, centerY),
                 strokeWidth = 4f,
                 cap = StrokeCap.Round,
             )
             drawLine(
-                color = colors.accent.copy(alpha = 0.92f),
-                start = Offset(0f, centerY),
+                color = volumeColor,
+                start = Offset(startX, centerY),
                 end = Offset(endX, centerY),
                 strokeWidth = 4f,
                 cap = StrokeCap.Round,
             )
+            drawCircle(
+                color = volumeColor,
+                radius = thumbRadius,
+                center = Offset(endX, centerY),
+            )
         }
     }
 }
+
+private val VolumeThumbRadius = 5.dp
 
 @Composable
 private fun NowPlayingSidePanel(
