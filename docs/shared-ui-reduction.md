@@ -18,6 +18,8 @@ This checklist tracks cleanup after the desktop-main-reduction branch merge. The
 - [x] Move shared bottom navigation and route placeholder rendering into a shared navigation file.
 - [x] Move `NaviampIcons` into a dedicated icon file if no existing icon file should own it.
 - [x] Normalize Track Details data so Android and desktop feed the shared dialog the same Song, Stream, File, Library, Replay gain, and Embedded tags sections.
+- [x] Replace blank radio artwork with shared fallbacks: stream metadata image URL, known station artwork, station favicon, then generated station tile.
+- [ ] Add a background internet-radio artwork lookup that uses currently playing artist/title metadata to find and cache track artwork when stream/station artwork is unavailable.
 - [x] Add focused UI tests or compile checks after each slice.
 
 ## Verification

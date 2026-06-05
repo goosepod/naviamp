@@ -16,6 +16,7 @@ import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.waveform.AudioWaveform
+import kotlin.math.absoluteValue
 
 fun Artist.toSharedMediaItemUi(coverArtUrl: ((String?) -> String?)? = null): SharedMediaItemUi =
     SharedMediaItemUi(
@@ -48,7 +49,12 @@ fun Playlist.toSharedMediaItemUi(
     )
 
 fun InternetRadioStation.toSharedMediaItemUi(): SharedMediaItemUi =
-    SharedMediaItemUi(id = id, title = name, subtitle = homePageUrl ?: "Internet radio")
+    SharedMediaItemUi(
+        id = id,
+        title = name,
+        subtitle = homePageUrl ?: "Internet radio",
+        coverArtUrl = radioStationArtworkUrl(this),
+    )
 
 fun HomeContent.toSharedHomeUi(
     coverArtUrl: (String?) -> String?,
@@ -263,6 +269,7 @@ data class NowPlayingTrackUiConfig(
 
 data class NowPlayingRadioUiConfig(
     val streamTitle: String? = null,
+    val coverArtUrl: String?,
     val stateLabel: String,
     val volumePercent: Int = 100,
     val isPlaying: Boolean = false,
@@ -342,6 +349,7 @@ fun InternetRadioStation.toNowPlayingUi(config: NowPlayingRadioUiConfig): NowPla
         title = streamTitle ?: name,
         subtitle = if (streamTitle == null) "Internet radio" else name,
         stateLabel = config.stateLabel,
+        coverArtUrl = config.coverArtUrl,
         isLive = true,
         volumePercent = config.volumePercent,
         isPlaying = config.isPlaying,
@@ -449,7 +457,107 @@ fun InternetRadioStation.toNowPlayingStationUi(): NaviampNowPlayingItemUi =
         id = id,
         title = name,
         subtitle = homePageUrl ?: "Internet radio",
+        coverArtUrl = radioStationArtworkUrl(this),
     )
+
+fun radioArtworkUrl(
+    station: InternetRadioStation,
+    streamMetadataProperties: Map<String, String> = emptyMap(),
+): String =
+    streamMetadataArtworkUrl(streamMetadataProperties)
+        ?: radioStationArtworkUrl(station)
+
+private fun streamMetadataArtworkUrl(properties: Map<String, String>): String? {
+    val artworkKeys = setOf(
+        "artwork",
+        "artworkurl",
+        "cover",
+        "coverart",
+        "coverarturl",
+        "image",
+        "imageurl",
+        "logo",
+        "logourl",
+        "picture",
+        "pictureurl",
+    )
+    return properties.entries.firstNotNullOfOrNull { (key, value) ->
+        value.trim()
+            .takeIf { key.lowercase().filter(Char::isLetterOrDigit) in artworkKeys }
+            ?.takeIf { it.startsWith("http://") || it.startsWith("https://") }
+    }
+}
+
+private fun radioStationArtworkUrl(station: InternetRadioStation): String =
+    knownRadioStationArtworkUrl(station)
+        ?: station.homePageUrl?.let(::faviconUrl)
+        ?: generatedRadioTileUrl(station.name)
+
+private fun knownRadioStationArtworkUrl(station: InternetRadioStation): String? {
+    val haystack = listOf(station.name, station.streamUrl, station.homePageUrl.orEmpty())
+        .joinToString(" ")
+        .lowercase()
+    return when {
+        "somafm" in haystack || "soma.fm" in haystack -> {
+            val slug = somaFmStationSlug(station.name)
+            "https://somafm.com/img3/$slug-400.jpg"
+        }
+        else -> null
+    }
+}
+
+private fun somaFmStationSlug(name: String): String =
+    when (name.trim().lowercase()) {
+        "deep space one" -> "deepspaceone"
+        "drone zone" -> "dronezone"
+        "groove salad" -> "groovesalad"
+        "groove salad classic" -> "gsclassic"
+        "idm tranceponder" -> "idm"
+        "space station soma" -> "spacestation"
+        "synphaera" -> "synphaera"
+        "the trip" -> "thetrip"
+        else -> name.lowercase().filter(Char::isLetterOrDigit).ifBlank { "somafm" }
+    }
+
+private fun faviconUrl(url: String): String? {
+    val host = url.removePrefix("https://")
+        .removePrefix("http://")
+        .substringBefore("/")
+        .substringBefore(":")
+        .takeIf { it.isNotBlank() }
+        ?: return null
+    return "https://www.google.com/s2/favicons?domain=$host&sz=256"
+}
+
+private fun generatedRadioTileUrl(name: String): String {
+    val initials = name
+        .split(Regex("\\s+"))
+        .mapNotNull { word -> word.firstOrNull(Char::isLetterOrDigit)?.uppercaseChar()?.toString() }
+        .take(3)
+        .joinToString("")
+        .ifBlank { "RAD" }
+    val palette = RadioTilePalettes[name.hashCode().absoluteValue % RadioTilePalettes.size]
+    return "naviamp-radio-tile://tile?label=${initials.urlEncode()}&from=${palette.first}&to=${palette.second}"
+}
+
+private val RadioTilePalettes = listOf(
+    "6f2a37" to "241013",
+    "465d7a" to "161f2c",
+    "85653d" to "24180e",
+    "4d6f62" to "12211d",
+    "6b4d84" to "211629",
+)
+
+private fun String.urlEncode(): String =
+    buildString {
+        for (char in this@urlEncode) {
+            when {
+                char.isLetterOrDigit() -> append(char)
+                char == '-' || char == '_' || char == '.' -> append(char)
+                else -> append("%${char.code.toString(16).uppercase().padStart(2, '0')}")
+            }
+        }
+    }
 
 fun RepeatMode.toNaviampRepeatMode(): NaviampRepeatMode =
     when (this) {

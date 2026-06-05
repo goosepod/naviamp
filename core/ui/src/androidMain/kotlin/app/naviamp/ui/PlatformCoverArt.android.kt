@@ -1,7 +1,15 @@
 package app.naviamp.ui
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Color as AndroidColor
+import android.graphics.LinearGradient
+import android.graphics.Paint
+import android.graphics.Rect
+import android.graphics.RectF
+import android.graphics.Shader
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -30,6 +38,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.ByteArrayOutputStream
 import java.security.MessageDigest
 import java.util.LinkedHashMap
 import kotlin.math.ceil
@@ -46,7 +55,7 @@ fun resetAndroidPlatformCoverArtByteLoader() {
 }
 
 internal suspend fun androidPlatformCoverArtBytes(url: String): ByteArray? =
-    androidPlatformCoverArtByteLoader?.invoke(url) ?: AndroidCoverArtHttpClient.getBytes(url)
+    generatedRadioTileBytes(url) ?: androidPlatformCoverArtByteLoader?.invoke(url) ?: AndroidCoverArtHttpClient.getBytes(url)
 
 private val AndroidCoverArtHttpClient = KtorSharedHttpClient()
 
@@ -194,6 +203,67 @@ private object AndroidCoverArtCache {
 private const val MinCoverArtBitmapSidePx = 128
 private const val MaxCoverArtBitmapSidePx = 1024
 private const val PaletteBitmapSidePx = 128
+private const val RadioTileSidePx = 512
+private const val RadioTileScheme = "naviamp-radio-tile://"
+
+private fun generatedRadioTileBytes(url: String): ByteArray? {
+    if (!url.startsWith(RadioTileScheme)) return null
+    val params = url.substringAfter("?", "")
+        .split("&")
+        .mapNotNull { part ->
+            val key = part.substringBefore("=", "")
+            val value = part.substringAfter("=", "")
+            if (key.isBlank()) null else key to value
+        }
+        .toMap()
+    val label = params["label"]?.urlDecode()?.takeIf { it.isNotBlank() } ?: "RAD"
+    val from = "#${params["from"] ?: "465d7a"}"
+    val to = "#${params["to"] ?: "161f2c"}"
+
+    val bitmap = Bitmap.createBitmap(RadioTileSidePx, RadioTileSidePx, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    val bounds = RectF(0f, 0f, RadioTileSidePx.toFloat(), RadioTileSidePx.toFloat())
+    paint.shader = LinearGradient(
+        0f,
+        0f,
+        RadioTileSidePx.toFloat(),
+        RadioTileSidePx.toFloat(),
+        AndroidColor.parseColor(from),
+        AndroidColor.parseColor(to),
+        Shader.TileMode.CLAMP,
+    )
+    canvas.drawRoundRect(bounds, 48f, 48f, paint)
+
+    paint.shader = null
+    paint.style = Paint.Style.STROKE
+    paint.strokeWidth = 22f
+    paint.color = AndroidColor.argb(54, 255, 255, 255)
+    canvas.drawCircle(256f, 256f, 118f, paint)
+
+    paint.style = Paint.Style.FILL
+    paint.color = AndroidColor.argb(42, 255, 255, 255)
+    canvas.drawCircle(256f, 256f, 56f, paint)
+
+    paint.color = AndroidColor.WHITE
+    paint.textAlign = Paint.Align.CENTER
+    paint.typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+    paint.textSize = if (label.length <= 2) 126f else 104f
+    val textBounds = Rect()
+    paint.getTextBounds(label, 0, label.length, textBounds)
+    canvas.drawText(label, 256f, 256f - textBounds.exactCenterY(), paint)
+
+    return ByteArrayOutputStream().use { output ->
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
+        bitmap.recycle()
+        output.toByteArray()
+    }
+}
+
+private fun String.urlDecode(): String =
+    replace("+", " ").replace(Regex("%([0-9A-Fa-f]{2})")) { match ->
+        match.groupValues[1].toInt(16).toChar().toString()
+    }
 
 private fun isDecodableImage(bytes: ByteArray): Boolean =
     BitmapFactory.Options().let { options ->

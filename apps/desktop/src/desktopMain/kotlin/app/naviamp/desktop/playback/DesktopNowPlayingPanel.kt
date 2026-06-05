@@ -8,6 +8,7 @@ import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
+import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.waveform.AudioWaveform
@@ -21,6 +22,7 @@ import app.naviamp.ui.MiniNowPlayingUiConfig
 import app.naviamp.ui.NowPlayingRadioUiConfig
 import app.naviamp.ui.NowPlayingTrackUiConfig
 import app.naviamp.ui.NowPlayingUi
+import app.naviamp.ui.radioArtworkUrl
 import app.naviamp.ui.toNowPlayingItemUi
 import app.naviamp.ui.toNowPlayingUi
 import app.naviamp.ui.toMiniNowPlayingUi
@@ -42,6 +44,7 @@ fun DesktopNowPlayingPanel(
     nowPlayingAudioTags: List<AudioTag>?,
     nowPlayingLyrics: Lyrics?,
     nowPlayingLyricsStatus: String?,
+    nowPlayingStreamMetadata: PlaybackStreamMetadata,
     lyricsVisible: Boolean,
     visualizerAvailable: Boolean,
     visualizerVisible: Boolean,
@@ -191,8 +194,11 @@ fun DesktopNowPlayingPanel(
             radioStations = radioStations,
         )
     } else {
-        internetRadioStations.firstOrNull { it.id == currentInternetRadioStationId }?.toNowPlayingUi(
+        internetRadioStations.firstOrNull { it.id == currentInternetRadioStationId }?.let { station ->
+            station.toNowPlayingUi(
             NowPlayingRadioUiConfig(
+                streamTitle = nowPlayingStreamMetadata.title,
+                coverArtUrl = radioArtworkUrl(station, nowPlayingStreamMetadata.properties),
                 stateLabel = playbackState.label(),
                 volumePercent = volumePercent,
                 isPlaying = playbackState == PlaybackState.Playing,
@@ -201,7 +207,8 @@ fun DesktopNowPlayingPanel(
                 canChangeVolume = supportsSoftwareVolume,
                 radioStations = radioStations,
             ),
-        ) ?: NowPlayingUi(
+            )
+        } ?: NowPlayingUi(
             title = "Queue will appear here after connection",
             subtitle = if (isLiveStream) "Internet radio" else "Nothing Playing",
             stateLabel = playbackState.label(),

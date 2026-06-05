@@ -1031,6 +1031,7 @@ fun NaviampApp(
                                 nowPlayingAudioTags = nowPlayingAudioTags,
                                 nowPlayingLyrics = nowPlayingLyrics,
                                 nowPlayingLyricsStatus = nowPlayingLyricsStatus,
+                                nowPlayingStreamMetadata = nowPlayingStreamMetadata,
                                 lyricsVisible = nowPlayingLyricsVisible,
                                 visualizerAvailable = (playbackEngine as? VisualizerPlaybackEngine)?.supportsVisualizer == true,
                                 visualizerVisible = nowPlayingVisualizerVisible,

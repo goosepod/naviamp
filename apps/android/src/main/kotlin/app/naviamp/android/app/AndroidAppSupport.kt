@@ -52,6 +52,7 @@ import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.NowPlayingRadioUiConfig
 import app.naviamp.ui.NowPlayingTrackUiConfig
 import app.naviamp.ui.NowPlayingUi
+import app.naviamp.ui.radioArtworkUrl
 import app.naviamp.ui.SharedAlbumDetailUi
 import app.naviamp.ui.SharedArtistDetailUi
 import app.naviamp.ui.SharedHomeStationUi
@@ -342,6 +343,7 @@ fun androidNowPlayingUi(
         station.toNowPlayingUi(
             NowPlayingRadioUiConfig(
                 streamTitle = nowPlayingStreamMetadata.title,
+                coverArtUrl = radioArtworkUrl(station, nowPlayingStreamMetadata.properties),
                 stateLabel = playbackState.label(),
                 volumePercent = volumePercent,
                 isPlaying = playbackState == PlaybackState.Playing,
