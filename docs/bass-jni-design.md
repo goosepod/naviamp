@@ -1,6 +1,6 @@
 # BASS JNI Binding Design
 
-This document defines the production direction for Naviamp's BASS integration. Desktop and Android now route active BASS work through JNI so they can share the same native control surface. The older desktop JNA layer remains only as a historical spike and temporary comparison/removal target.
+This document defines the production direction for Naviamp's BASS integration. Desktop and Android route active BASS work through JNI so they can share the same native control surface. The older desktop JNA BASS layer has been removed after proving JNI-backed desktop playback.
 
 ## Goals
 
@@ -71,7 +71,7 @@ The first committed JNI contract exposes BASS version and last-error diagnostics
 
 Android startup logs the packaged JNI diagnostic line after load, including BASS version, BASSmix version, and last error code. Desktop has JNI integration tests that load the packaged `naviamp_bass` library and exercise version, init/free, stream creation, play/pause/stop, seek, position/duration, volume, decode reads, FFT, and mixer creation.
 
-Playback and waveform analysis now use the shared `BassAudioBackend` facade. Desktop wraps JNI below `DesktopBassAudioBackend`; Android wraps JNI below `AndroidBassAudioBackend`. Android debug APKs now build and package `libnaviamp_bass.so` for all vendored ABIs through the Android CMake build, and `:apps:android:verifyDebugBassNativePackage` verifies the packaged JNI/BASS library set. The old desktop native/JNA connector remains only as a temporary comparison/removal target until desktop playback has been manually proven through the JNI backend.
+Playback and waveform analysis now use the shared `BassAudioBackend` facade. Desktop wraps JNI below `DesktopBassAudioBackend`; Android wraps JNI below `AndroidBassAudioBackend`. Android debug APKs now build and package `libnaviamp_bass.so` for all vendored ABIs through the Android CMake build, and `:apps:android:verifyDebugBassNativePackage` verifies the packaged JNI/BASS library set. The old desktop native/JNA connector has been removed; JNI is the only active desktop BASS connector.
 
 ## Playback And Mixer Model
 
@@ -144,8 +144,8 @@ Third-party BASS binaries are treated as vendored inputs and live under `native/
 
 Current packaging policy:
 
-- Desktop BASS libraries are copied from the Rust-side vendor tree into generated desktop resources until the Kotlin app owns all desktop vendor inputs.
-- Desktop `naviamp_bass` JNI libraries are built from `native/bass-jni` by Gradle for macOS packages and copied beside the BASS dylibs.
+- Desktop BASS libraries are copied from the desktop vendor tree into generated desktop resources.
+- Desktop `naviamp_bass` JNI libraries are built from `native/bass-jni` by Gradle for desktop packages and copied beside the BASS libraries.
 - Android BASS libraries are packaged from `native/bass-jni/vendor/android` through the Android app's `jniLibs` source set.
 - Android `naviamp_bass` JNI libraries are built from `native/bass-jni` by Gradle for debug APKs and packaged beside the vendored BASS dependency libraries.
 - `:apps:android:verifyDebugBassNativePackage` fails the build if any debug APK ABI is missing `libnaviamp_bass.so`, `libbass.so`, `libbassmix.so`, or `libc++_shared.so`.
@@ -156,18 +156,10 @@ Current packaging policy:
 2. Keep desktop and Android native loading/package differences below platform backend adapters only.
 3. Continue validating stream creation, playback, pause, stop, seek, volume, duration, position, metadata, FFT, and mixer behavior through shared helpers.
 4. Keep desktop manual playback validation focused on JNI-backed playback, waveform generation, gapless/crossfade, ReplayGain, metadata, and plugin diagnostics.
-5. Remove obsolete connector-specific desktop native/JNA code only after the JNI backend is proven through manual desktop playback testing.
+5. Keep obsolete connector-specific desktop native/JNA code out of the active app; JNI is now the only desktop BASS connector.
 
 ## Next Handoff
 
-Desktop JNI-backed playback has been manually smoke-tested on macOS for crossfade, waveform generation, queue jumping, scrub-bar seeking, and instant playback after scrub. The next implementation slice should remove the old desktop JNA/native BASS connector now that the JNI path has proven the core behavior.
+Desktop JNI-backed playback has been manually smoke-tested on macOS and Windows for crossfade, waveform generation, queue jumping, scrub-bar seeking, fast repeated scrubbing, volume changes, track changes, and instant playback after scrub. The old desktop JNA/native BASS connector has been removed.
 
-Removal checklist:
-
-1. Delete `DesktopBassNative` and JNA-only BASS support types/tests.
-2. Remove remaining desktop BASS JNA dependency and build wiring.
-3. Update BASS playback docs so JNI is described as the only active desktop connector.
-4. Re-run `:apps:desktop:desktopTest`, `:apps:android:verifyDebugBassNativePackage`, and `make macos-standalone`.
-5. Commit and push the connector-removal slice.
-
-After that, the next major BASS work is Android/device hardening: sleep/wake, server disconnects, bad URLs, unsupported formats, and Android gapless/crossfade transitions on device or emulator.
+The next major BASS work is Android/device hardening: sleep/wake, server disconnects, bad URLs, unsupported formats, and Android gapless/crossfade transitions on device or emulator.

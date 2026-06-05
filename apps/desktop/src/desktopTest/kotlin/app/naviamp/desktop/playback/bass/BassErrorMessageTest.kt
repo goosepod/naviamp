@@ -4,7 +4,7 @@ import app.naviamp.domain.bass.bassErrorMessage
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class BassNativeTest {
+class BassErrorMessageTest {
     @Test
     fun errorMessagesNameCommonFailures() {
         assertEquals("invalid position", bassErrorMessage(7))

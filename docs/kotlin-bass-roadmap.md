@@ -22,7 +22,7 @@ Kotlin/Compose is the reference desktop UI.
 - Preserve the Kotlin UI. Do not redesign screens as part of BASS work unless playback behavior requires a UI affordance.
 - Add BASS as a new engine implementation, not a replacement for the playback interface.
 - Keep the playback interface boundary, but make BASS the only active playback engine for the Kotlin app.
-- Use JNA only as the first desktop spike. Desktop and Android now use JNI underneath the shared BASS facade; keep the JNA spike only as a temporary comparison/removal target until desktop playback has been manually soaked.
+- Use JNI underneath the shared BASS facade on desktop and Android. The early desktop JNA spike has been removed after JNI playback was manually proven.
 - Keep the Kotlin/domain playback interface clean. Avoid leaking BASS handles or BASS-specific details into UI/domain code.
 - Treat BASSmix as the likely path for serious gapless/crossfade support.
 - Treat live PCM/FFT access as the future visualizer path; do not revive fake/precomputed visualizers as the final solution.
@@ -35,7 +35,7 @@ Kotlin/Compose is the reference desktop UI.
 
 - [x] Decide JNA vs JNI for desktop BASS bindings.
 - [x] Add desktop dependency/build setup for the chosen binding approach.
-- [x] Create a small `DesktopBassNative` wrapper for init, free, stream create, play, pause, stop, seek, volume, duration, position, and errors.
+- [x] Create a small `DesktopBassNative` wrapper for init, free, stream create, play, pause, stop, seek, volume, duration, position, and errors. Removed after the JNI connector replaced it.
 - [x] Load `libbass.dylib` on macOS from bundled app resources or development vendor path.
 - [x] Load `bass.dll` on Windows from bundled app resources or development vendor path.
 - [x] Add focused tests around platform/library path resolution where possible.
@@ -50,9 +50,10 @@ Kotlin/Compose is the reference desktop UI.
 - [x] Add initial Kotlin/native JNI contract for BASS version and error diagnostics.
 - [x] Move `DesktopBassPlaybackEngine` to JNI after stream/control/mixer/FFT/tag/plugin parity is in place.
 - [x] Move desktop waveform generation from mpv process decoding to BASS decode streams.
-- [ ] Remove the old desktop JNA/native connector after JNI-backed desktop playback is manually proven.
+- [x] Remove the old desktop JNA/native connector after JNI-backed desktop playback is manually proven.
   - Manual macOS smoke testing has now passed for crossfade, waveform generation, queue jumping, scrub-bar seeking, and instant playback after scrub.
-  - Next slice: delete `DesktopBassNative` and JNA-only BASS support/tests, remove the desktop JNA dependency/build wiring, update docs to say JNI is the only active desktop connector, then verify with desktop tests, Android native package verification, and the macOS standalone build.
+  - Manual Windows smoke testing has now passed for playback, crossfade, volume, scrub-bar seeking, fast repeated scrubbing, and fast track changes.
+  - `DesktopBassNative` and JNA-only BASS support/tests have been removed; JNI is the only active desktop BASS connector.
 
 Design notes live in `docs/bass-jni-design.md`.
 Native scaffold lives in `native/bass-jni`.
@@ -152,7 +153,7 @@ Native scaffold lives in `native/bass-jni`.
 - [x] Run manual playback smoke tests on Windows.
 - [x] Test cached audio, downloaded audio, direct provider streams, and internet radio.
 - [ ] Test sleep/wake, server disconnects, bad URLs, unsupported formats, and Android gapless/crossfade transitions on device/emulator.
-  - Start this after the obsolete desktop JNA/native connector is removed.
+  - The obsolete desktop JNA/native connector has been removed; this is the next BASS hardening focus.
 - [x] Fix rapid skip stress case where crossfade could leave an older BASS source audible after quick forward/backward navigation.
 - [x] Make BASS the default desktop engine.
 - [x] Remove the active desktop mpv/JLayer fallback path.

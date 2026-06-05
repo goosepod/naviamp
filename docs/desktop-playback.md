@@ -22,7 +22,7 @@ The Kotlin desktop app has its active JNI-backed BASS binding under:
 apps/desktop/src/desktopMain/kotlin/app/naviamp/desktop/playback/bass
 ```
 
-The first Kotlin BASS implementation used JNA to prove loading, packaging, and basic playback quickly. Production BASS work now uses JNI so Naviamp can keep native callbacks, BASSmix, PCM/FFT visualizers, gapless playback, and crossfade behavior fast and consistent across desktop and Android. The old JNA connector remains only as a temporary comparison/removal target until JNI-backed desktop playback is manually proven.
+The first Kotlin BASS implementation used JNA to prove loading, packaging, and basic playback quickly. Production BASS work now uses JNI so Naviamp can keep native callbacks, BASSmix, PCM/FFT visualizers, gapless playback, and crossfade behavior fast and consistent across desktop and Android. The old JNA BASS connector has been removed; JNI is the only active desktop BASS connector.
 
 The JNI production binding design is tracked in `docs/bass-jni-design.md`.
 
@@ -57,7 +57,7 @@ Windows package resources are generated at:
 apps/desktop/build/generated/desktopBassApp/windows-x64/playback/bass/windows-x64
 ```
 
-The Windows x64 set currently includes `bass.dll` plus available BASS add-ons such as FLAC, HLS, mix, Opus, WebM, WavPack, DSD, APE, ALAC, AAC, MPC, WMA, FX, and SSL. The macOS ARM64 set currently includes `libbass.dylib` plus available add-ons and the generated `libnaviamp_bass.dylib` JNI scaffold.
+The Windows x64 set currently includes `bass.dll`, `naviamp_bass.dll`, and available BASS add-ons such as FLAC, HLS, mix, Opus, WebM, WavPack, DSD, APE, ALAC, AAC, MPC, WMA, FX, and SSL. The macOS ARM64 set currently includes `libbass.dylib`, `libnaviamp_bass.dylib`, and available add-ons.
 
 The intended original-stream coverage is:
 

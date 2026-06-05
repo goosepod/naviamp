@@ -229,7 +229,7 @@ Branch: `codex/desktop-main-reduction`
   - Android consumes this directly; desktop still has BASS end-sync and can reuse the helper as polling is normalized further.
 - [x] Keep BASS byte-position conversion inside platform seek implementations.
   - Android and desktop both convert seconds to bytes internally for seek; unused `positionBytes` / `secondsToBytes` facade methods were removed after crossfade moved to volume slides.
-  - The underlying bridge is now JNI on Android and desktop; the old desktop native/JNA connector is only a temporary comparison/removal target.
+  - The underlying bridge is now JNI on Android and desktop; the old desktop native/JNA BASS connector has been removed.
 - [x] Expose Android mixer-channel removal through the shared backend.
   - Android now implements `removeMixerChannel` on `BassAudioBackend`, matching desktop cleanup primitives.
   - Native bridge details remain isolated below the Android backend adapter.
@@ -358,7 +358,6 @@ Follow the convention above: shared/common abstractions keep generic names; plat
   - `playback/DesktopPlaylistEngine.kt`
   - `playback/bass/DesktopBassJniBinding.kt`
   - `playback/bass/DesktopBassLibraryResolver.kt`
-  - `playback/bass/DesktopBassNative.kt`
   - `playback/bass/DesktopBassPlaybackEngine.kt`
 - [x] Desktop lyrics and library helpers:
   - `library/DesktopLibrarySync.kt`

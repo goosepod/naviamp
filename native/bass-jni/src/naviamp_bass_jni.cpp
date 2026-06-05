@@ -8,7 +8,10 @@
 #include "bassmix.h"
 
 #if defined(_WIN32) && !defined(__ANDROID__)
+#include <jawt.h>
+#include <jawt_md.h>
 #include <windows.h>
+#include <dwmapi.h>
 #endif
 
 #include <algorithm>
@@ -26,6 +29,9 @@ constexpr DWORD NETWORK_PREBUFFER_PERCENT = 75;
 constexpr DWORD NETWORK_PLAYLIST_DEPTH = 5;
 
 #if defined(_WIN32) && !defined(__ANDROID__)
+constexpr DWORD DWM_WINDOW_ATTRIBUTE_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1 = 19;
+constexpr DWORD DWM_WINDOW_ATTRIBUTE_USE_IMMERSIVE_DARK_MODE = 20;
+
 struct BassApi {
     using StreamCreateUrlProc = HSTREAM(WINAPI*)(const char*, DWORD, DWORD, DOWNLOADPROC*, void*);
     using StreamCreateFileProc = HSTREAM(WINAPI*)(BOOL, const void*, QWORD, QWORD, DWORD);
@@ -112,6 +118,47 @@ bool load_bass_symbols() {
     ok = load_symbol(bassApi.bass, "BASS_ChannelGetTags", bassApi.BASS_ChannelGetTags) && ok;
     ok = load_symbol(bassApi.bass, "BASS_PluginLoad", bassApi.BASS_PluginLoad) && ok;
     return ok;
+}
+
+bool configure_windows_title_bar(JNIEnv* env, jobject window, bool isDark) {
+    if (window == nullptr) return false;
+
+    JAWT awt{};
+    awt.version = JAWT_VERSION_1_4;
+    if (JAWT_GetAWT(env, &awt) == JNI_FALSE) return false;
+
+    JAWT_DrawingSurface* surface = awt.GetDrawingSurface(env, window);
+    if (surface == nullptr) return false;
+
+    bool configured = false;
+    jint lock = surface->Lock(surface);
+    if ((lock & JAWT_LOCK_ERROR) == 0) {
+        JAWT_DrawingSurfaceInfo* info = surface->GetDrawingSurfaceInfo(surface);
+        if (info != nullptr && info->platformInfo != nullptr) {
+            auto* winInfo = static_cast<JAWT_Win32DrawingSurfaceInfo*>(info->platformInfo);
+            HWND hwnd = winInfo->hwnd;
+            if (hwnd != nullptr) {
+                BOOL value = isDark ? TRUE : FALSE;
+                HRESULT currentResult = DwmSetWindowAttribute(
+                    hwnd,
+                    DWM_WINDOW_ATTRIBUTE_USE_IMMERSIVE_DARK_MODE,
+                    &value,
+                    sizeof(value)
+                );
+                HRESULT legacyResult = DwmSetWindowAttribute(
+                    hwnd,
+                    DWM_WINDOW_ATTRIBUTE_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1,
+                    &value,
+                    sizeof(value)
+                );
+                configured = SUCCEEDED(currentResult) || SUCCEEDED(legacyResult);
+            }
+            surface->FreeDrawingSurfaceInfo(info);
+        }
+        surface->Unlock(surface);
+    }
+    awt.FreeDrawingSurface(surface);
+    return configured;
 }
 
 #define BASS_SetConfig bassApi.BASS_SetConfig
@@ -307,6 +354,14 @@ extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
 #endif
     return JNI_VERSION_1_6;
 }
+
+#if defined(_WIN32) && !defined(__ANDROID__)
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_desktop_DesktopWindowSupportKt_nativeConfigureWindowsTitleBar(JNIEnv* env, jclass clazz, jobject window, jboolean isDark) {
+    (void)clazz;
+    return configure_windows_title_bar(env, window, isDark == JNI_TRUE) ? JNI_TRUE : JNI_FALSE;
+}
+#endif
 
 extern "C" JNIEXPORT jint JNICALL
 Java_app_naviamp_android_playback_AndroidBassJni_nativeBassVersion(JNIEnv* env, jobject thiz) {

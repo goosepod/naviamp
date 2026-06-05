@@ -21,12 +21,11 @@ Naviamp is a Kotlin Multiplatform / Compose Multiplatform music client currently
 Current priorities:
 
 - Windows desktop works and is the main live test path right now.
-- Android is now an active target. The first app milestone is a thin native Android shell that can connect to Navidrome, search tracks, and play a selected stream through Media3.
+- Android is now an active target with BASS-backed playback, shared UI surfaces, cache/sidecar prep, and parity work tracked in the roadmaps.
 - Naviamp should be truly multiplatform. When new work can be platform-agnostic, implement it in shared/domain/app/UI modules first and keep only OS-bound code in the platform app modules.
 - Default bias: if behavior is not inherently tied to OS APIs, keep it platform-agnostic. Visual behavior, color derivation, layout decisions, screen state, queue/action models, and pure transformations should live in shared modules unless there is a concrete platform API boundary. If platform-specific-looking code is encountered during other work and cannot be moved immediately, add a note here so it is not forgotten.
 - Navidrome is the first provider, but the app should stay provider-oriented.
-- Playback uses mpv on desktop when available.
-- Playback direction has changed: BASS is the target engine for desktop and Android. Desktop and Android app-level BASS work now runs through the shared facade with JNI underneath; the old desktop JNA path is retained only as a temporary comparison/removal target. mpv should not remain bundled once BASS is stable.
+- Playback uses BASS on desktop and Android. App-level BASS work runs through the shared facade with JNI underneath; the old desktop JNA BASS path and active mpv/JLayer/Media3 playback fallbacks have been retired.
 - Audio/track caching is now a priority because it will matter for fast desktop skips, network handoff, and the future Android app.
 - Offline downloads are separate from cache files. They can reuse cache/download plumbing, but user-selected downloads should live in their own storage area and should not be evicted by normal cache cleanup.
 - The app should remember state across screens where it feels natural: search query/results, navigation, session queue, window size, and similar context.
@@ -41,8 +40,8 @@ Main source areas:
 - `core/domain/src/commonMain/kotlin/app/naviamp/domain/playback`: shared playback contracts, playback state/progress models, replay-gain settings, and engine capability shape.
 - `core/ui`: shared Compose Multiplatform UI primitives used by desktop and Android. Keep cross-target visual language here first: colors, bottom navigation, transport icons, shared transport controls, cover-art abstraction, popup menu treatment, and row overflow menu primitives.
 - `providers/navidrome`: Navidrome/Subsonic API implementation and mapping.
-- `apps/desktop`: Compose desktop UI, desktop settings/cache, mpv/JLayer playback engine integration, and desktop tests.
-- `apps/android`: Early Android app shell, Android Compose UI, and Media3 playback engine.
+- `apps/desktop`: Compose desktop UI, desktop settings/cache, JNI-backed BASS playback integration, and desktop tests.
+- `apps/android`: Android Compose app, foreground playback service, and JNI-backed BASS playback integration.
 
 Useful docs:
 
