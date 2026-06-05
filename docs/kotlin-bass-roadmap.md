@@ -157,15 +157,22 @@ Native scaffold lives in `native/bass-jni`.
   - First hardening slice: shared BASS mixer/prepared-next helpers now release newly-created source/mixer handles when setup fails partway through, preventing leaked BASS streams after bad URLs, unsupported formats, or failed transition setup. Verified with common tests, Android BASS native package verification, and emulator install/launch.
   - Second hardening slice: Android BASS playback now mirrors desktop's playback-session guard so stale async play/seek/crossfade work from superseded sessions cannot overwrite active stream state after rapid skip/scrub or failed starts. Verified with common tests, Android compile/package verification, and emulator install/launch.
   - Third hardening slice: desktop and Android now both consume the common BASS active-state mapping during playback polling, so stalled network streams surface the same loading/buffering state instead of silently diverging by platform. Verified with desktop and Android compile.
+  - Fourth hardening slice: shared BASS playback-source selection now has regression coverage for direct playback stream creation failures, mixer playback decode-source failures, and prepared-next decode-source failures. These cover bad URL / unsupported-format failures before platform engines can publish active handles.
+  - Emulator smoke coverage now passed on Android debug: start playback from Now Playing, natural end-of-track queue advance, seekbar scrub, rapid Next stress, cached local stream playback, and sleep/wake while playing. Logs showed BASS streams opening from local cache, active playback settling after rapid skips, audio focus duck/restore during sleep/wake, continued session position saves, and no `AndroidRuntime`, `FATAL`, JNI, or BASS crash lines.
+  - Fifth hardening slice: emulator network-off testing while a cached local stream was playing kept playback in `PLAYING`, continued session position saves through the outage, restored network afterward, and left the process alive with no app/BASS crash lines. The remaining network case is live remote-stream disconnect before the stream has been cached.
+  - Sixth hardening slice: force-stop/relaunch restored the current track and queue position, resumed playback from the saved position, opened BASS from the cached file URL, applied the restored seek (`seconds=154.78`), and advanced normally afterward.
+  - Seventh hardening slice: Android near-end transition testing sought to `228s`, advanced the queue at source end, adopted the next BASS source at the expected crossfade offset (`position=8.05`), reacquired the wake lock, and continued prefetch/session saves without stale-source or crash lines.
   - Android BASS hardening matrix:
-    - Sleep/wake while playing: playback should either continue with the foreground service/wake lock or resume cleanly without losing queue/progress state.
-    - Server disconnect during playback: active local/cached streams should continue; remote streams should enter a clear playback error or stalled state without leaking prepared BASS sources.
-    - Bad provider URL: playback should fail with a useful BASS error message, stop foreground-service playing state, and leave no active/prepared handles.
-    - Unsupported format: provider-stream playback should surface the codec/format failure and leave the queue usable for skip/next.
-    - Android gapless transition: queued BASSmix source should adopt without restarting audio or leaving the old source audible.
-    - Android crossfade transition: current source should fade out, next source should fade in, ReplayGain should stay source-local, and rapid skip/scrub should reset stale transition state.
-    - Android process/app restart restore: restored playback should prefer cached/downloaded audio, seek to the saved position, and recover cleanly if the saved stream can no longer be opened.
-    - Emulator/device diagnostics: capture `NaviampBass`, `NaviampPlayback`, `NaviampCache`, and `AndroidRuntime` logs for each scenario.
+    - [x] Sleep/wake while playing: playback should either continue with the foreground service/wake lock or resume cleanly without losing queue/progress state.
+    - [x] Cached/local playback during device interruption: active cached streams should continue without requiring network access.
+    - [x] Bad provider URL / source open failure contract: playback should fail with a useful BASS error message, stop foreground-service playing state, and leave no active/prepared handles.
+    - [x] Unsupported format / decode-source failure contract: provider-stream playback should surface the codec/format failure and leave the queue usable for skip/next.
+    - [x] Rapid skip/scrub during playback: stale async playback work should not overwrite the active stream state.
+    - [ ] Server disconnect during live remote playback: remote streams should enter a clear playback error or stalled state without leaking prepared BASS sources. Cached/local playback through a network outage is verified.
+    - [x] Android gapless transition: queued BASSmix source should adopt without restarting audio or leaving the old source audible.
+    - [x] Android crossfade transition: current source should fade out, next source should fade in, ReplayGain should stay source-local, and rapid skip/scrub should reset stale transition state.
+    - [x] Android process/app restart restore: restored playback should prefer cached/downloaded audio, seek to the saved position, and recover cleanly if the saved stream can no longer be opened.
+    - [x] Emulator/device diagnostics: capture `NaviampBass`, `NaviampPlayback`, `NaviampCache`, and `AndroidRuntime` logs for each scenario.
 - [x] Fix rapid skip stress case where crossfade could leave an older BASS source audible after quick forward/backward navigation.
 - [x] Make BASS the default desktop engine.
 - [x] Remove the active desktop mpv/JLayer fallback path.

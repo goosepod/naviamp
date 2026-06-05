@@ -406,6 +406,20 @@ class BassAudioBackendTest {
     }
 
     @Test
+    fun directBassPlaybackPropagatesStreamCreationFailuresWithoutRelease() {
+        val backend = RecordingBassAudioBackend(createFileStreamSucceeds = false)
+
+        val result = backend.createDirectBassPlayback(
+            localPath = "/tmp/missing.flac",
+            url = "file:///tmp/missing.flac",
+            replayGainFactor = 0.75f,
+        )
+
+        assertTrue(result.isFailure)
+        assertEquals(listOf("file:/tmp/missing.flac"), backend.calls)
+    }
+
+    @Test
     fun createsMixerBassPlaybackFromSharedBackendPrimitives() {
         val backend = RecordingBassAudioBackend()
 
@@ -435,6 +449,22 @@ class BassAudioBackendTest {
             ),
             backend.calls,
         )
+    }
+
+    @Test
+    fun mixerBassPlaybackPropagatesSourceCreationFailuresWithoutRelease() {
+        val backend = RecordingBassAudioBackend(createPlaybackDecodeSucceeds = false)
+
+        val result = backend.createMixerBassPlayback(
+            localPath = "/tmp/unsupported.dsf",
+            url = "file:///tmp/unsupported.dsf",
+            crossfadeDurationSeconds = 3,
+            replayGainFactor = 0.75f,
+            playbackDecode = true,
+        )
+
+        assertTrue(result.isFailure)
+        assertEquals(listOf("filePlaybackDecode:/tmp/unsupported.dsf"), backend.calls)
     }
 
     @Test
@@ -564,6 +594,25 @@ class BassAudioBackendTest {
     }
 
     @Test
+    fun preparedNextBassMixerSourcePropagatesSourceCreationFailuresWithoutRelease() {
+        val backend = RecordingBassAudioBackend(createPlaybackDecodeSucceeds = false)
+
+        val result = backend.prepareNextBassMixerSource(
+            localPath = "/tmp/unsupported.dsf",
+            url = "file:///tmp/unsupported.dsf",
+            mixer = 1,
+            currentSource = 2,
+            currentSourceVolumeFactor = 0.8f,
+            crossfadeDurationSeconds = 5,
+            replayGainFactor = 0.7f,
+            playbackDecode = true,
+        )
+
+        assertTrue(result.isFailure)
+        assertEquals(listOf("filePlaybackDecode:/tmp/unsupported.dsf"), backend.calls)
+    }
+
+    @Test
     fun preparedNextBassMixerSourceReleasesSourceWhenTransitionFails() {
         val backend = RecordingBassAudioBackend(slideSucceeds = false)
 
@@ -671,6 +720,8 @@ class BassAudioBackendTest {
 private class RecordingBassAudioBackend(
     private val removeSucceeds: Boolean = true,
     private val slideSucceeds: Boolean = true,
+    private val createFileStreamSucceeds: Boolean = true,
+    private val createPlaybackDecodeSucceeds: Boolean = true,
     private val createMixerSucceeds: Boolean = true,
     private val addSucceeds: Boolean = true,
     override val lastErrorCode: Int? = null,
@@ -679,7 +730,11 @@ private class RecordingBassAudioBackend(
 
     override fun createFileStream(path: String): Result<BassStreamHandle> {
         calls += "file:$path"
-        return Result.success(BassStreamHandle(10))
+        return if (createFileStreamSucceeds) {
+            Result.success(BassStreamHandle(10))
+        } else {
+            Result.failure(IllegalStateException("file stream failed"))
+        }
     }
 
     override fun createUrlStream(url: String): Result<BassStreamHandle> {
@@ -694,7 +749,11 @@ private class RecordingBassAudioBackend(
 
     override fun createFilePlaybackDecodeStream(path: String): Result<BassStreamHandle> {
         calls += "filePlaybackDecode:$path"
-        return Result.success(BassStreamHandle(13))
+        return if (createPlaybackDecodeSucceeds) {
+            Result.success(BassStreamHandle(13))
+        } else {
+            Result.failure(IllegalStateException("playback decode failed"))
+        }
     }
 
     override fun createUrlDecodeStream(url: String): Result<BassStreamHandle> {
