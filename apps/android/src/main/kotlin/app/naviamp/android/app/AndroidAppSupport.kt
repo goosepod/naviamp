@@ -322,7 +322,8 @@ fun androidNowPlayingUi(
                 lyrics = lyricsByTrackId[track.id.value],
                 menuEnabled = true,
                 streamQuality = streamQuality,
-                embeddedTags = audioTagsByTrackId[track.id.value]?.map { it.key to it.value },
+                embeddedTags = audioTagsByTrackId[track.id.value]?.map { it.key to it.value }
+                    ?: listOf("Status" to "Loading from cached audio"),
                 playlistChoices = playlistChoices,
                 playlistActionStatus = playlistActionStatus,
                 backTo = knownTracks
