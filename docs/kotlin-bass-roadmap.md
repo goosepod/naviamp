@@ -155,6 +155,15 @@ Native scaffold lives in `native/bass-jni`.
 - [ ] Test sleep/wake, server disconnects, bad URLs, unsupported formats, and Android gapless/crossfade transitions on device/emulator.
   - The obsolete desktop JNA/native connector has been removed; this is the next BASS hardening focus.
   - First hardening slice: shared BASS mixer/prepared-next helpers now release newly-created source/mixer handles when setup fails partway through, preventing leaked BASS streams after bad URLs, unsupported formats, or failed transition setup. Verified with common tests, Android BASS native package verification, and emulator install/launch.
+  - Android BASS hardening matrix:
+    - Sleep/wake while playing: playback should either continue with the foreground service/wake lock or resume cleanly without losing queue/progress state.
+    - Server disconnect during playback: active local/cached streams should continue; remote streams should enter a clear playback error or stalled state without leaking prepared BASS sources.
+    - Bad provider URL: playback should fail with a useful BASS error message, stop foreground-service playing state, and leave no active/prepared handles.
+    - Unsupported format: provider-stream playback should surface the codec/format failure and leave the queue usable for skip/next.
+    - Android gapless transition: queued BASSmix source should adopt without restarting audio or leaving the old source audible.
+    - Android crossfade transition: current source should fade out, next source should fade in, ReplayGain should stay source-local, and rapid skip/scrub should reset stale transition state.
+    - Android process/app restart restore: restored playback should prefer cached/downloaded audio, seek to the saved position, and recover cleanly if the saved stream can no longer be opened.
+    - Emulator/device diagnostics: capture `NaviampBass`, `NaviampPlayback`, `NaviampCache`, and `AndroidRuntime` logs for each scenario.
 - [x] Fix rapid skip stress case where crossfade could leave an older BASS source audible after quick forward/backward navigation.
 - [x] Make BASS the default desktop engine.
 - [x] Remove the active desktop mpv/JLayer fallback path.
