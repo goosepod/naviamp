@@ -128,7 +128,6 @@ import app.naviamp.provider.navidrome.withNativeTokenFromPassword
 import app.naviamp.ui.NaviampPlayerColors
 import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.rememberPlatformCoverArtPlayerColors
-import app.naviamp.ui.toDownloadedTrackUi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -1590,50 +1589,24 @@ fun NaviampApp(
                                         onEditStation = { station -> internetRadioStationPendingEdit = station },
                                         onDeleteStation = { station -> internetRadioStationPendingDelete = station },
                                     )
-                                    DesktopAppRoute.Downloads -> {
-                                        val downloads = remember(
-                                            connectedSourceId,
-                                            downloadRefreshToken,
-                                            cacheStats.downloadCount,
-                                        ) {
-                                            connectedSourceId
-                                                ?.let { storage.downloadedTracks(it) }
-                                                .orEmpty()
-                                        }
-                                        val downloadedTrackById = remember(downloads) {
-                                            downloads.associateBy { it.path.toString() }
-                                        }
-                                        val downloadItems = remember(downloads, connectedProvider) {
-                                            downloads.map { download ->
-                                                download.track.toDownloadedTrackUi(
-                                                    id = download.path.toString(),
-                                                    sizeBytes = download.sizeBytes,
-                                                    coverArtUrl = { coverArtId ->
-                                                        coverArtId?.let { connectedProvider?.coverArtUrl(it) }
-                                                    },
-                                                )
-                                            }
-                                        }
-                                        DesktopDownloadsPanel(
-                                            appColors = appColors,
-                                            downloads = downloadItems,
-                                            status = downloadStatus ?: connectionStatus,
-                                            downloadBytes = cacheStats.downloadBytes,
-                                            maxDownloadBytes = cacheSettings.maxDownloadBytes,
-                                            onTrackSelected = { download ->
-                                                val index = downloadItems.indexOfFirst { it.id == download.id }
-                                                if (index >= 0) appActions.playDownloadedTrack(downloads, index)
-                                            },
-                                            onRemoveDownload = { download ->
-                                                downloadedTrackById[download.id]?.let(appActions::removeDownloadedTrack)
-                                            },
-                                            onTrackAddToPlaylist = { download ->
-                                                downloadedTrackById[download.id]?.let {
-                                                    playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(it.track))
-                                                }
-                                            },
-                                        )
-                                    }
+                                    DesktopAppRoute.Downloads -> DesktopDownloadsRoute(
+                                        appColors = appColors,
+                                        connectedSourceId = connectedSourceId,
+                                        downloadRefreshToken = downloadRefreshToken,
+                                        downloadCount = cacheStats.downloadCount,
+                                        downloadBytes = cacheStats.downloadBytes,
+                                        maxDownloadBytes = cacheSettings.maxDownloadBytes,
+                                        status = downloadStatus ?: connectionStatus,
+                                        coverArtUrl = { coverArtId ->
+                                            coverArtId?.let { connectedProvider?.coverArtUrl(it) }
+                                        },
+                                        downloadedTracks = storage::downloadedTracks,
+                                        onPlayDownloadedTrack = appActions::playDownloadedTrack,
+                                        onRemoveDownloadedTrack = appActions::removeDownloadedTrack,
+                                        onAddDownloadedTrackToPlaylist = { download ->
+                                            playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(download.track))
+                                        },
+                                    )
                                     DesktopAppRoute.Settings -> DesktopSettingsPanel(
                                         appColors = appColors,
                                         serverUrl = serverUrl,
