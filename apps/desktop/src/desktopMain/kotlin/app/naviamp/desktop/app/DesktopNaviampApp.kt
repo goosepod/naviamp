@@ -1715,59 +1715,36 @@ fun NaviampApp(
                                 }
                             }
                         }
-                        addToPlaylistTarget?.let { target ->
-                            DesktopAddToPlaylistDialog(
-                                appColors = appColors,
-                                target = target,
-                                playlists = playlists,
-                                status = addToPlaylistStatus,
-                                onDismiss = {
-                                    addToPlaylistTarget = null
-                                    addToPlaylistStatus = null
-                                },
-                                onAddToExisting = { playlist ->
-                                    playlistsController.addTargetToPlaylist(target, playlist = playlist)
-                                },
-                                onCreateAndAdd = { name ->
-                                    playlistsController.addTargetToPlaylist(target, playlist = null, newPlaylistName = name)
-                                },
-                            )
-                        }
-                        playlistPendingRename?.let { playlist ->
-                            DesktopRenamePlaylistDialog(
-                                playlist = playlist,
-                                onDismiss = { playlistPendingRename = null },
-                                onConfirm = { name -> appActions.renamePlaylist(playlist, name) },
-                            )
-                        }
-                        playlistPendingDelete?.let { playlist ->
-                            DesktopDeletePlaylistDialog(
-                                playlist = playlist,
-                                onDismiss = { playlistPendingDelete = null },
-                                onConfirm = { appActions.deletePlaylist(playlist) },
-                            )
-                        }
-                        if (isNewInternetRadioStationDialogOpen) {
-                            DesktopInternetRadioStationDialog(
-                                initialStation = null,
-                                onDismiss = { isNewInternetRadioStationDialogOpen = false },
-                                onConfirm = { station -> internetRadioController.saveStation(station) },
-                            )
-                        }
-                        internetRadioStationPendingEdit?.let { station ->
-                            DesktopInternetRadioStationDialog(
-                                initialStation = station,
-                                onDismiss = { internetRadioStationPendingEdit = null },
-                                onConfirm = { updatedStation -> internetRadioController.saveStation(updatedStation) },
-                            )
-                        }
-                        internetRadioStationPendingDelete?.let { station ->
-                            DesktopDeleteInternetRadioStationDialog(
-                                station = station,
-                                onDismiss = { internetRadioStationPendingDelete = null },
-                                onConfirm = { internetRadioController.deleteStation(station) },
-                            )
-                        }
+                        DesktopAppDialogs(
+                            appColors = appColors,
+                            addToPlaylistTarget = addToPlaylistTarget,
+                            playlists = playlists,
+                            addToPlaylistStatus = addToPlaylistStatus,
+                            playlistPendingRename = playlistPendingRename,
+                            playlistPendingDelete = playlistPendingDelete,
+                            isNewInternetRadioStationDialogOpen = isNewInternetRadioStationDialogOpen,
+                            internetRadioStationPendingEdit = internetRadioStationPendingEdit,
+                            internetRadioStationPendingDelete = internetRadioStationPendingDelete,
+                            onDismissAddToPlaylist = {
+                                addToPlaylistTarget = null
+                                addToPlaylistStatus = null
+                            },
+                            onAddToExistingPlaylist = { target, playlist ->
+                                playlistsController.addTargetToPlaylist(target, playlist = playlist)
+                            },
+                            onCreateAndAddToPlaylist = { target, name ->
+                                playlistsController.addTargetToPlaylist(target, playlist = null, newPlaylistName = name)
+                            },
+                            onDismissRenamePlaylist = { playlistPendingRename = null },
+                            onRenamePlaylist = appActions::renamePlaylist,
+                            onDismissDeletePlaylist = { playlistPendingDelete = null },
+                            onDeletePlaylist = appActions::deletePlaylist,
+                            onDismissNewInternetRadioStation = { isNewInternetRadioStationDialogOpen = false },
+                            onSaveInternetRadioStation = internetRadioController::saveStation,
+                            onDismissEditInternetRadioStation = { internetRadioStationPendingEdit = null },
+                            onDismissDeleteInternetRadioStation = { internetRadioStationPendingDelete = null },
+                            onDeleteInternetRadioStation = internetRadioController::deleteStation,
+                        )
                         if (nowPlayingTrack != null) {
                             DesktopMiniPlayerPanel(
                                 appColors = appColors,
