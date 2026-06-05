@@ -47,6 +47,10 @@ import app.naviamp.domain.provider.playlistDetailAutoRefreshTarget
 import app.naviamp.domain.provider.runPlaylistDetailAutoRefresh
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.home.HomeService
+import app.naviamp.domain.home.HomeStationLibrary
+import app.naviamp.domain.home.HomeStationRandomAlbum
+import app.naviamp.domain.home.homeDecadeStationId
+import app.naviamp.domain.home.homeGenreStationId
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.cache.downloadConnectionRequiredStatus
 import app.naviamp.domain.media.albumDetailLoadErrorStatus
@@ -72,8 +76,12 @@ import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioService
+import app.naviamp.domain.radio.RecentRadioAction
+import app.naviamp.domain.radio.recentRadioAction
+import app.naviamp.domain.radio.recentRadioStreamsWith
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.PlaybackSettings
+import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.domain.settings.downloadStreamQuality
 import app.naviamp.domain.settings.effectiveForEngine
 import app.naviamp.domain.settings.playbackSettingsChange
@@ -84,7 +92,7 @@ import app.naviamp.provider.navidrome.NavidromeApiCall
 import app.naviamp.provider.navidrome.NavidromeApiCallHistory
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.toNavidromeConnection
-import app.naviamp.ui.AndroidTrackRowUi
+import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.NaviampNowPlayingItemUi
 import app.naviamp.ui.NaviampDiagnosticsSectionUi
 import app.naviamp.ui.NaviampDiagnosticsUi
@@ -109,7 +117,7 @@ import app.naviamp.ui.SharedPlaylistSortMode
 import app.naviamp.ui.SharedRoute
 import app.naviamp.ui.SharedSearchResultsUi
 import app.naviamp.ui.SharedSimilarArtistUi
-import app.naviamp.ui.toAndroidTrackRowUi
+import app.naviamp.ui.toSharedTrackRowUi
 import app.naviamp.ui.toNowPlayingItemUi
 import app.naviamp.ui.toNowPlayingStationUi
 import app.naviamp.ui.toNowPlayingUi
@@ -651,6 +659,12 @@ private fun NaviampAndroidApp(
     }
     playAdjacentTrackAction = ::playAdjacentTrack
 
+    fun rememberRecentRadioStream(stream: RecentRadioStream) {
+        val recentStreams = recentRadioStreamsWith(settingsStore.loadRecentRadioStreams(), stream)
+        settingsStore.saveRecentRadioStreams(recentStreams)
+        homeState = homeState.copy(recentRadioStreams = recentStreams)
+    }
+
     fun startTrackRadio(track: Track) {
         startAndroidTrackRadio(
             scope = scope,
@@ -659,6 +673,7 @@ private fun NaviampAndroidApp(
             track = track,
             playTrack = { seedTrack, queue -> playTrack(seedTrack, queue, keepRadioQueueActive = true) },
             providerResponseCacheRepository = storage,
+            rememberRecentRadioStream = ::rememberRecentRadioStream,
         )
     }
 
@@ -671,6 +686,7 @@ private fun NaviampAndroidApp(
             loadedAlbumTracks = loadedAlbumTracks,
             playTrack = { seedTrack, queue -> playTrack(seedTrack, queue, keepRadioQueueActive = true) },
             providerResponseCacheRepository = storage,
+            rememberRecentRadioStream = ::rememberRecentRadioStream,
         )
     }
 
@@ -966,6 +982,13 @@ private fun NaviampAndroidApp(
         saveAndroidSmartPlaylist(scope, appState, definition, storage)
     }
 
+    suspend fun updateSmartPlaylist(playlist: Playlist, definition: SmartPlaylistDefinition) {
+        updateAndroidSmartPlaylist(scope, appState, playlist, definition, storage)
+    }
+
+    suspend fun loadSmartPlaylistDefinition(playlist: Playlist): SmartPlaylistDefinition =
+        loadAndroidSmartPlaylistDefinition(appState, playlist)
+
     fun addTrackToPlaylist(track: Track, playlist: NaviampPlaylistChoiceUi?, newPlaylistName: String? = null) {
         addAndroidTrackToPlaylist(scope, appState, track, playlist, newPlaylistName, storage)
     }
@@ -977,6 +1000,55 @@ private fun NaviampAndroidApp(
         label: String = "tracks",
     ) {
         addAndroidTracksToPlaylist(scope, appState, tracksToAdd, playlist, newPlaylistName, label, storage)
+    }
+
+    fun withPlaylistTracks(playlist: Playlist, onTracks: (List<Track>) -> Unit) {
+        val knownTracks = when {
+            selectedPlaylist?.id == playlist.id && selectedPlaylistTracks.isNotEmpty() -> selectedPlaylistTracks
+            else -> playlistTracksById[playlist.id].orEmpty()
+        }
+        if (knownTracks.isNotEmpty()) {
+            onTracks(knownTracks)
+            return
+        }
+        val activeProvider = provider ?: run {
+            status = "Connect to Navidrome first."
+            return
+        }
+        scope.launch {
+            status = "Loading ${playlist.name}..."
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    ProviderResponseService(storage).playlistTracks(activeProvider, playlist.id)
+                }
+            }.onSuccess { tracks ->
+                playlistTracksById = playlistTracksById + (playlist.id to tracks)
+                if (selectedPlaylist?.id == playlist.id) {
+                    contentState = contentState.showPlaylist(playlist, tracks)
+                    appState.tracks = tracks
+                }
+                status = ""
+                onTracks(tracks)
+            }.onFailure { error ->
+                status = error.message ?: "Could not load ${playlist.name}."
+            }
+        }
+    }
+
+    fun addPlaylistToQueue(playlist: Playlist) {
+        withPlaylistTracks(playlist) { tracks ->
+            appendTracksToQueue(tracks, playlist.name)
+        }
+    }
+
+    fun addPlaylistToPlaylist(
+        playlist: Playlist,
+        targetPlaylist: NaviampPlaylistChoiceUi?,
+        newPlaylistName: String?,
+    ) {
+        withPlaylistTracks(playlist) { tracks ->
+            addTracksToPlaylist(tracks, targetPlaylist, newPlaylistName, playlist.name)
+        }
     }
 
     fun downloadTrack(track: Track) {
@@ -1063,6 +1135,8 @@ private fun NaviampAndroidApp(
             restorePlaybackSession = ::restorePlaybackSession,
             startAndroidLibrarySync = { force -> startAndroidLibrarySync(scope, appState, storage, force) },
             checkAndroidLibraryFreshness = { checkAndroidLibraryFreshness(scope, appState, storage, storage) },
+            recentRadioStreams = settingsStore.loadRecentRadioStreams(),
+            recentInternetRadioStations = settingsStore.loadRecentInternetRadioStations().map { it.toStation() },
         )
     }
 
@@ -1103,7 +1177,7 @@ private fun NaviampAndroidApp(
         playbackEngine = playbackEngine,
     )
 
-    fun handleShellTrackSelected(selectedTrack: AndroidTrackRowUi) {
+    fun handleShellTrackSelected(selectedTrack: SharedTrackRowUi) {
         val playback = selectedAndroidTrackPlayback(appState, selectedTrack.id, activeQueue())
         if (playback == null) {
             status = "Track not found."
@@ -1134,6 +1208,7 @@ private fun NaviampAndroidApp(
             artist = artistDetail?.artist ?: app.naviamp.domain.Artist(artistId, detail.artist.title),
             playTrack = { seedTrack, queue -> playTrack(seedTrack, queue, keepRadioQueueActive = true) },
             providerResponseCacheRepository = storage,
+            rememberRecentRadioStream = ::rememberRecentRadioStream,
         )
     }
 
@@ -1158,6 +1233,7 @@ private fun NaviampAndroidApp(
             popularTracks = artistPopularTracksByArtistId[detail.artist.id].orEmpty(),
             playTrack = { seedTrack, queue -> playTrack(seedTrack, queue, keepRadioQueueActive = true) },
             providerResponseCacheRepository = storage,
+            rememberRecentRadioStream = ::rememberRecentRadioStream,
         )
     }
 
@@ -1169,7 +1245,57 @@ private fun NaviampAndroidApp(
             stationTitle = station.title,
             playTrack = { track, queue -> playTrack(track, queue) },
             providerResponseCacheRepository = storage,
+            rememberRecentRadioStream = ::rememberRecentRadioStream,
         )
+    }
+
+    fun handleShellRecentRadioSelected(item: SharedMediaItemUi) {
+        val stream = homeState.recentRadioStreams.firstOrNull { it.id == item.id }
+            ?: settingsStore.loadRecentRadioStreams().firstOrNull { it.id == item.id }
+            ?: return
+        when (val action = recentRadioAction(stream) ?: return) {
+            RecentRadioAction.PlayLibrary -> handleShellHomeStationSelected(
+                SharedHomeStationUi(
+                    id = HomeStationLibrary,
+                    title = "Library Radio",
+                    subtitle = "Random tracks from your full library",
+                ),
+            )
+            RecentRadioAction.PlayRandomAlbum -> handleShellHomeStationSelected(
+                SharedHomeStationUi(
+                    id = HomeStationRandomAlbum,
+                    title = "Random Album Radio",
+                    subtitle = "Start from a random album",
+                ),
+            )
+            is RecentRadioAction.PlayGenre -> handleShellHomeStationSelected(
+                SharedHomeStationUi(
+                    id = homeGenreStationId(action.genre.name),
+                    title = "${action.genre.name} Radio",
+                    subtitle = "A random ${action.genre.name} station",
+                ),
+            )
+            is RecentRadioAction.PlayDecade -> handleShellHomeStationSelected(
+                SharedHomeStationUi(
+                    id = homeDecadeStationId(action.fromYear, action.toYear),
+                    title = "${action.fromYear}s Radio",
+                    subtitle = "Random songs from ${action.fromYear}s",
+                ),
+            )
+            is RecentRadioAction.PlayArtist -> startAndroidArtistRadio(
+                scope = scope,
+                state = appState,
+                queueController = playbackQueueController,
+                artistId = action.artist.id,
+                artistTitle = action.artist.name,
+                artist = action.artist,
+                playTrack = { seedTrack, queue -> playTrack(seedTrack, queue, keepRadioQueueActive = true) },
+                providerResponseCacheRepository = storage,
+                rememberRecentRadioStream = ::rememberRecentRadioStream,
+            )
+            is RecentRadioAction.PlayAlbum -> startAlbumRadio(action.album)
+            is RecentRadioAction.PlayTrack -> startTrackRadio(action.track)
+        }
     }
 
     fun handleShellResume() {
@@ -1211,6 +1337,7 @@ private fun NaviampAndroidApp(
             track = track,
             playSeed = playSeed,
             playTrack = { seedTrack, queue -> playTrack(seedTrack, queue, keepRadioQueueActive = true) },
+            rememberRecentRadioStream = ::rememberRecentRadioStream,
         )
     }
 
@@ -1282,7 +1409,7 @@ private fun NaviampAndroidApp(
             ?: run { status = "Album is empty." }
     }
 
-    fun handleShellAlbumTrackSelected(selectedTrack: AndroidTrackRowUi) {
+    fun handleShellAlbumTrackSelected(selectedTrack: SharedTrackRowUi) {
         val track = albumDetail?.tracks?.firstOrNull { it.id.value == selectedTrack.id }
             ?: findKnownTrack(selectedTrack.id)
         if (track == null) {
@@ -1298,15 +1425,15 @@ private fun NaviampAndroidApp(
         startAlbumRadio(album, loadedAlbumTracks)
     }
 
-    fun handleAlbumTrackDownload(selectedTrack: AndroidTrackRowUi) {
+    fun handleAlbumTrackDownload(selectedTrack: SharedTrackRowUi) {
         withAndroidKnownTrack(appState, selectedTrack, activeQueue(), ::downloadTrack)
     }
 
-    fun handleAlbumTrackAddToPlaylist(selectedTrack: AndroidTrackRowUi, playlist: NaviampPlaylistChoiceUi?) {
+    fun handleAlbumTrackAddToPlaylist(selectedTrack: SharedTrackRowUi, playlist: NaviampPlaylistChoiceUi?) {
         withAndroidKnownTrack(appState, selectedTrack, activeQueue()) { track -> addTrackToPlaylist(track, playlist) }
     }
 
-    fun handleAlbumTrackCreatePlaylistAndAdd(selectedTrack: AndroidTrackRowUi, name: String) {
+    fun handleAlbumTrackCreatePlaylistAndAdd(selectedTrack: SharedTrackRowUi, name: String) {
         withAndroidKnownTrack(appState, selectedTrack, activeQueue()) { track ->
             addTrackToPlaylist(track, playlist = null, newPlaylistName = name)
         }
@@ -1316,7 +1443,7 @@ private fun NaviampAndroidApp(
         playAndroidArtistPopularTracks(appState, detail.artist.id) { track, queue -> playTrack(track, queue) }
     }
 
-    fun handleArtistPopularTrackSelected(selectedTrack: AndroidTrackRowUi) {
+    fun handleArtistPopularTrackSelected(selectedTrack: SharedTrackRowUi) {
         startAndroidArtistPopularTrackRadio(appState, selectedTrack.id, activeQueue(), ::startTrackRadio)
     }
 
@@ -1324,21 +1451,21 @@ private fun NaviampAndroidApp(
         appendAndroidArtistPopularTracksToQueue(appState, playbackQueueController, detail.artist.id)
     }
 
-    fun handleTrackAddToQueue(selectedTrack: AndroidTrackRowUi) {
+    fun handleTrackAddToQueue(selectedTrack: SharedTrackRowUi) {
         withAndroidKnownTrack(appState, selectedTrack, activeQueue()) { track ->
             appendTracksToQueue(listOf(track), "track")
         }
     }
 
-    fun handleTrackDownload(selectedTrack: AndroidTrackRowUi) {
+    fun handleTrackDownload(selectedTrack: SharedTrackRowUi) {
         withAndroidKnownTrack(appState, selectedTrack, activeQueue(), ::downloadTrack)
     }
 
-    fun handleTrackAddToPlaylist(selectedTrack: AndroidTrackRowUi, playlist: NaviampPlaylistChoiceUi?) {
+    fun handleTrackAddToPlaylist(selectedTrack: SharedTrackRowUi, playlist: NaviampPlaylistChoiceUi?) {
         withAndroidKnownTrack(appState, selectedTrack, activeQueue()) { track -> addTrackToPlaylist(track, playlist) }
     }
 
-    fun handleTrackCreatePlaylistAndAdd(selectedTrack: AndroidTrackRowUi, name: String) {
+    fun handleTrackCreatePlaylistAndAdd(selectedTrack: SharedTrackRowUi, name: String) {
         withAndroidKnownTrack(appState, selectedTrack, activeQueue()) { track ->
             addTrackToPlaylist(track, playlist = null, newPlaylistName = name)
         }
@@ -1374,7 +1501,7 @@ private fun NaviampAndroidApp(
         )
     }
 
-    fun handlePlaylistTrackSelected(selectedTrack: AndroidTrackRowUi) {
+    fun handlePlaylistTrackSelected(selectedTrack: SharedTrackRowUi) {
         val track = selectedPlaylistTracks.firstOrNull { it.id.value == selectedTrack.id } ?: findKnownTrack(selectedTrack.id)
         if (track == null) {
             status = "Track not found."
@@ -1383,13 +1510,62 @@ private fun NaviampAndroidApp(
         playTrack(track, selectedPlaylistTracks.ifEmpty { listOf(track) })
     }
 
-    fun handleRadioStationSelected(selectedStation: SharedMediaItemUi) {
-        val station = homeState.radioStations.firstOrNull { it.id == selectedStation.id }
-        if (station == null) {
-            status = "Station not found."
+    fun handleRadioStationSelected(station: InternetRadioStation) {
+        playInternetRadioStation(station)
+    }
+
+    fun saveInternetRadioStation(station: InternetRadioStation) {
+        val activeProvider = provider
+        if (activeProvider == null) {
+            status = "Not connected."
             return
         }
-        playInternetRadioStation(station)
+        status = "Saving ${station.name}..."
+        scope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    if (station.id == station.streamUrl) {
+                        activeProvider.createInternetRadioStation(
+                            name = station.name,
+                            streamUrl = station.streamUrl,
+                            homePageUrl = station.homePageUrl,
+                        )
+                    } else {
+                        activeProvider.updateInternetRadioStation(station)
+                    }
+                    dependencies.providerResponseService.invalidateInternetRadioStations(activeProvider)
+                    dependencies.providerResponseService.internetRadioStations(activeProvider)
+                }
+            }.onSuccess { stations ->
+                homeState = homeState.copy(radioStations = stations)
+                status = ""
+            }.onFailure { error ->
+                status = error.message ?: "Could not save station."
+            }
+        }
+    }
+
+    fun deleteInternetRadioStation(station: InternetRadioStation) {
+        val activeProvider = provider
+        if (activeProvider == null) {
+            status = "Not connected."
+            return
+        }
+        status = "Deleting ${station.name}..."
+        scope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    activeProvider.deleteInternetRadioStation(station.id)
+                    dependencies.providerResponseService.invalidateInternetRadioStations(activeProvider)
+                    dependencies.providerResponseService.internetRadioStations(activeProvider)
+                }
+            }.onSuccess { stations ->
+                homeState = homeState.copy(radioStations = stations)
+                status = ""
+            }.onFailure { error ->
+                status = error.message ?: "Could not delete station."
+            }
+        }
     }
 
     fun handleNowPlayingAddToPlaylist(playlist: NaviampPlaylistChoiceUi?) {
@@ -1456,12 +1632,19 @@ private fun NaviampAndroidApp(
         openPlaylistDetails = ::openPlaylistDetails,
         playPlaylist = ::playPlaylist,
         downloadPlaylist = ::downloadPlaylist,
+        addPlaylistToQueue = ::addPlaylistToQueue,
+        addPlaylistToPlaylist = ::addPlaylistToPlaylist,
         renamePlaylist = ::renamePlaylist,
         deletePlaylist = ::deletePlaylist,
         saveSmartPlaylist = ::saveSmartPlaylist,
+        updateSmartPlaylist = ::updateSmartPlaylist,
+        loadSmartPlaylist = ::loadSmartPlaylistDefinition,
         closeActivePlaylist = ::closeActivePlaylist,
         handlePlaylistTrackSelected = ::handlePlaylistTrackSelected,
+        handleRecentRadioSelected = ::handleShellRecentRadioSelected,
         handleRadioStationSelected = ::handleRadioStationSelected,
+        saveInternetRadioStation = ::saveInternetRadioStation,
+        deleteInternetRadioStation = ::deleteInternetRadioStation,
         handleShellHomeStationSelected = ::handleShellHomeStationSelected,
         closeActiveDetail = ::closeActiveDetail,
         handleShellResume = ::handleShellResume,

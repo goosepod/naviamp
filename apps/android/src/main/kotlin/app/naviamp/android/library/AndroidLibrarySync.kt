@@ -15,13 +15,19 @@ import java.time.LocalDate
 suspend fun loadBrowseState(
     provider: NavidromeProvider,
     providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
+    recentRadioStreams: List<app.naviamp.domain.settings.RecentRadioStream> = emptyList(),
+    recentInternetRadioStations: List<app.naviamp.domain.InternetRadioStation> = emptyList(),
 ): HomeContent {
     val today = LocalDate.now()
     val home = HomeService(
         provider = provider,
         providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) },
         date = HomeDate(year = today.year, dayOfYear = today.dayOfYear),
-    ).load(artistLimit = AndroidLibraryArtistLimit)
+    ).load(
+        recentRadioStreams = recentRadioStreams,
+        recentInternetRadioStations = recentInternetRadioStations,
+        artistLimit = AndroidLibraryArtistLimit,
+    )
     return home
 }
 

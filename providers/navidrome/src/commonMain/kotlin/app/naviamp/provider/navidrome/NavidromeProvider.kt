@@ -236,10 +236,11 @@ class NavidromeProvider(
             ?.jsonObject
             ?.arrayValue("playlist")
             .orEmpty()
+        val smartPlaylistIds = smartPlaylistIds()
 
         return playlists
             .mapNotNull { playlist ->
-                (playlist as? JsonObject)?.toPlaylist()
+                (playlist as? JsonObject)?.toPlaylist(forceSmart = smartPlaylistIds.contains(playlist.stringValue("id")))
             }
             .take(limit)
     }
@@ -279,7 +280,7 @@ class NavidromeProvider(
             endpoint = "playlist",
             body = json.encodeToString(JsonObject.serializer(), body),
         )
-        return response.toNativeDataObject().toPlaylist()
+        return response.toNativeDataObject().toPlaylist(forceSmart = true)
     }
 
     override suspend fun updateSmartPlaylist(playlistId: String, definition: SmartPlaylistDefinition) {
@@ -801,13 +802,46 @@ class NavidromeProvider(
             name = stringValue("name") ?: "Unknown Artist",
         )
 
-    private fun JsonObject.toPlaylist(): Playlist =
+    private suspend fun smartPlaylistIds(): Set<String> =
+        runCatching {
+            nativePlaylistObjects(getNativeJson("playlist"))
+                .filter { it.isSmartPlaylistObject() }
+                .mapNotNull { it.stringValue("id") }
+                .toSet()
+        }.getOrDefault(emptySet())
+
+    private fun nativePlaylistObjects(response: JsonObject): List<JsonObject> {
+        fun JsonObject.playlistArray(key: String): List<JsonObject>? =
+            (this[key] as? JsonArray)?.mapNotNull { it as? JsonObject }
+
+        val data = response["data"]
+        return when (data) {
+            is JsonArray -> data.mapNotNull { it as? JsonObject }
+            is JsonObject -> data.playlistArray("playlists")
+                ?: data.playlistArray("items")
+                ?: data.playlistArray("rows")
+                ?: listOf(data)
+            else -> response.playlistArray("playlists")
+                ?: response.playlistArray("items")
+                ?: response.playlistArray("rows")
+                ?: emptyList()
+        }
+    }
+
+    private fun JsonObject.isSmartPlaylistObject(): Boolean =
+        this["rules"] != null ||
+            booleanValue("smart") == true ||
+            booleanValue("smartPlaylist") == true ||
+            stringValue("type")?.equals("smart", ignoreCase = true) == true
+
+    private fun JsonObject.toPlaylist(forceSmart: Boolean = false): Playlist =
         Playlist(
             id = stringValue("id") ?: throw NavidromeException("Playlist is missing an id."),
             name = stringValue("name") ?: "Playlist",
             trackCount = intValue("songCount") ?: 0,
             durationSeconds = intValue("duration"),
             coverArtId = stringValue("coverArt"),
+            isSmart = forceSmart || isSmartPlaylistObject(),
         )
 
     private fun JsonObject.toInternetRadioStation(): InternetRadioStation =

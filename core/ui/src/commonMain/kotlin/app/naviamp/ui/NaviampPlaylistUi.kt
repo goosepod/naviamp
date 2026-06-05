@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,6 +32,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
+import app.naviamp.domain.smartplaylist.SmartPlaylistDraft
+import kotlinx.coroutines.launch
 
 @Composable
 internal fun PlaylistsContent(
@@ -42,14 +45,25 @@ internal fun PlaylistsContent(
     onSortModeChanged: (SharedPlaylistSortMode) -> Unit,
     onPlaylistSelected: (SharedMediaItemUi) -> Unit,
     onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit,
+    onPlaylistAddToQueue: (SharedMediaItemUi) -> Unit,
     onPlaylistDownload: (SharedMediaItemUi) -> Unit,
+    onPlaylistAddToPlaylist: (SharedMediaItemUi, NaviampPlaylistChoiceUi?) -> Unit,
+    onPlaylistCreatePlaylistAndAdd: (SharedMediaItemUi, String) -> Unit,
     onPlaylistRename: (SharedMediaItemUi, String) -> Unit,
     onPlaylistDelete: (SharedMediaItemUi) -> Unit,
     onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit,
+    onSmartPlaylistUpdate: suspend (SharedMediaItemUi, SmartPlaylistDefinition) -> Unit,
+    onSmartPlaylistLoad: suspend (SharedMediaItemUi) -> SmartPlaylistDefinition,
+    playlistChoices: List<NaviampPlaylistChoiceUi>,
 ) {
     var playlistToRename by remember { mutableStateOf<SharedMediaItemUi?>(null) }
     var playlistToDelete by remember { mutableStateOf<SharedMediaItemUi?>(null) }
+    var playlistToAddToPlaylist by remember { mutableStateOf<SharedMediaItemUi?>(null) }
     var smartPlaylistBuilderOpen by remember { mutableStateOf(false) }
+    var smartPlaylistEditTarget by remember { mutableStateOf<SharedMediaItemUi?>(null) }
+    var smartPlaylistInitialDraft by remember { mutableStateOf(SmartPlaylistDraft()) }
+    var smartPlaylistLoadMessage by remember { mutableStateOf<String?>(null) }
+    val coroutineScope = rememberCoroutineScope()
     val sortedPlaylists = when (sortMode) {
         SharedPlaylistSortMode.Alphabetical -> playlists.sortedBy { it.title.lowercase() }
         SharedPlaylistSortMode.RecentlyPlayed -> playlists.sortedWith(
@@ -73,7 +87,7 @@ internal fun PlaylistsContent(
                     modifier = Modifier.size(38.dp),
                 ) {
                     Icon(
-                        NaviampIcons.Playlist,
+                        NaviampIcons.Brain,
                         contentDescription = "Create smart playlist",
                         tint = colors.primaryText,
                         modifier = Modifier.size(20.dp),
@@ -95,6 +109,9 @@ internal fun PlaylistsContent(
         status?.let {
             Text(it, color = colors.secondaryText, fontSize = 12.sp)
         }
+        smartPlaylistLoadMessage?.let {
+            Text(it, color = colors.secondaryText, fontSize = 12.sp)
+        }
         sortedPlaylists.forEach { playlist ->
             PlaylistListRow(
                 playlist = playlist,
@@ -102,9 +119,25 @@ internal fun PlaylistsContent(
                 onClick = { onPlaylistSelected(playlist) },
                 onPlay = { onPlaylistPlay(playlist, false) },
                 onShuffle = { onPlaylistPlay(playlist, true) },
+                onAddToQueue = { onPlaylistAddToQueue(playlist) },
                 onDownload = { onPlaylistDownload(playlist) },
+                onAddToPlaylist = { playlistToAddToPlaylist = playlist },
                 onRename = { playlistToRename = playlist },
                 onDelete = { playlistToDelete = playlist },
+                onEditSmartPlaylist = {
+                    coroutineScope.launch {
+                        runCatching { onSmartPlaylistLoad(playlist) }
+                            .onSuccess { definition ->
+                                smartPlaylistInitialDraft = SmartPlaylistDraft.fromDefinition(definition)
+                                smartPlaylistEditTarget = playlist
+                                smartPlaylistBuilderOpen = true
+                                smartPlaylistLoadMessage = null
+                            }
+                            .onFailure { error ->
+                                smartPlaylistLoadMessage = error.message ?: "Could not load smart playlist rules."
+                            }
+                    }
+                },
             )
         }
     }
@@ -131,13 +164,44 @@ internal fun PlaylistsContent(
             },
         )
     }
+    playlistToAddToPlaylist?.let { playlist ->
+        AddToPlaylistDialog(
+            title = playlist.title,
+            colors = colors,
+            playlists = playlistChoices,
+            status = status,
+            onDismissRequest = { playlistToAddToPlaylist = null },
+            onAddToExisting = { choice ->
+                playlistToAddToPlaylist = null
+                onPlaylistAddToPlaylist(playlist, choice)
+            },
+            onCreateAndAdd = { name ->
+                playlistToAddToPlaylist = null
+                onPlaylistCreatePlaylistAndAdd(playlist, name)
+            },
+        )
+    }
     if (smartPlaylistBuilderOpen) {
+        val editTarget = smartPlaylistEditTarget
         SmartPlaylistBuilderDialog(
             colors = colors,
-            onDismissRequest = { smartPlaylistBuilderOpen = false },
-            onSave = { definition ->
-                onSmartPlaylistSave(definition)
+            initialDraft = smartPlaylistInitialDraft,
+            title = if (editTarget == null) "Smart playlist" else "Edit smart playlist",
+            saveLabel = if (editTarget == null) "Save" else "Update",
+            onDismissRequest = {
                 smartPlaylistBuilderOpen = false
+                smartPlaylistEditTarget = null
+                smartPlaylistInitialDraft = SmartPlaylistDraft()
+            },
+            onSave = { definition ->
+                if (editTarget == null) {
+                    onSmartPlaylistSave(definition)
+                } else {
+                    onSmartPlaylistUpdate(editTarget, definition)
+                }
+                smartPlaylistBuilderOpen = false
+                smartPlaylistEditTarget = null
+                smartPlaylistInitialDraft = SmartPlaylistDraft()
             },
         )
     }
@@ -178,9 +242,12 @@ private fun PlaylistListRow(
     onClick: () -> Unit,
     onPlay: () -> Unit,
     onShuffle: () -> Unit,
+    onAddToQueue: () -> Unit,
     onDownload: () -> Unit,
+    onAddToPlaylist: () -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit,
+    onEditSmartPlaylist: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -192,23 +259,50 @@ private fun PlaylistListRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        PlaylistCoverFromUrls(
+        MultiCoverArt(
             colors = colors,
             covers = listOfNotNull(playlist.coverArtUrl).ifEmpty { playlist.coverArtUrls },
-            size = 38.dp,
+            size = 44.dp,
         )
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(playlist.title, color = colors.primaryText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (playlist.isSmartPlaylist) {
+                    Icon(
+                        NaviampIcons.Brain,
+                        contentDescription = "Smart playlist",
+                        tint = colors.secondaryText,
+                        modifier = Modifier.size(14.dp),
+                    )
+                }
+                Text(
+                    playlist.title,
+                    color = colors.primaryText,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             Text(playlist.subtitle, color = colors.secondaryText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         MiniPlayerIconButton(colors, true, NaviampTransportIcons.Play, "Play playlist", onPlay)
         MiniPlayerIconButton(colors, playlist.meta != "1 track", NaviampTransportIcons.Shuffle, "Play playlist in random order", onShuffle)
         NaviampRowOverflowMenu(
             colors = colors,
-            items = playlistRowActions(canDownload = true, canRename = true, canDelete = true).mapNotNull { action ->
+            items = playlistRowActions(
+                canDownload = true,
+                canAddToQueue = true,
+                canAddToPlaylist = true,
+                canRename = true,
+                canEditSmartPlaylist = playlist.isSmartPlaylist,
+                canDelete = true,
+            ).mapNotNull { action ->
                 when (action.action) {
                     NaviampAction.DownloadPlaylist -> NaviampRowMenuItem(action.label, action.icon, onDownload, action.enabled)
+                    NaviampAction.AddToQueue -> NaviampRowMenuItem(action.label, action.icon, onAddToQueue, action.enabled)
+                    NaviampAction.AddPlaylistToPlaylist -> NaviampRowMenuItem(action.label, action.icon, onAddToPlaylist, action.enabled)
                     NaviampAction.RenamePlaylist -> NaviampRowMenuItem(action.label, action.icon, onRename, action.enabled)
+                    NaviampAction.EditSmartPlaylist -> NaviampRowMenuItem(action.label, action.icon, onEditSmartPlaylist, action.enabled)
                     NaviampAction.DeletePlaylist -> NaviampRowMenuItem(action.label, action.icon, onDelete, action.enabled)
                     else -> null
                 }
@@ -226,23 +320,35 @@ internal fun PlaylistDetailContent(
     onShufflePlaylist: () -> Unit,
     onAddPlaylistToQueue: () -> Unit,
     onDownloadPlaylist: () -> Unit,
+    onAddPlaylistToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit,
+    onCreatePlaylistAndAddPlaylist: (String) -> Unit,
     onRenamePlaylist: (SharedMediaItemUi, String) -> Unit,
     onDeletePlaylist: (SharedMediaItemUi) -> Unit,
-    onTrackSelected: (AndroidTrackRowUi) -> Unit,
-    onTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
+    onTrackSelected: (SharedTrackRowUi) -> Unit,
+    onTrackAddToQueue: (SharedTrackRowUi) -> Unit,
+    playlistChoices: List<NaviampPlaylistChoiceUi>,
 ) {
     var renameOpen by remember { mutableStateOf(false) }
     var deleteOpen by remember { mutableStateOf(false) }
+    var addToPlaylistOpen by remember { mutableStateOf(false) }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             IconButton(onClick = onBack, modifier = Modifier.size(32.dp)) {
                 Icon(NaviampIcons.Back, contentDescription = "Back", tint = colors.primaryText, modifier = Modifier.size(18.dp))
             }
+            if (detail.playlist.isSmartPlaylist) {
+                Icon(
+                    NaviampIcons.Brain,
+                    contentDescription = "Smart playlist",
+                    tint = colors.secondaryText,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
             Text(detail.playlist.title, color = colors.primaryText, fontWeight = FontWeight.Bold, fontSize = 18.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            PlaylistCoverFromUrls(
+            MultiCoverArt(
                 colors = colors,
                 covers = listOfNotNull(detail.playlist.coverArtUrl).ifEmpty {
                     detail.tracks.mapNotNull { it.coverArtUrl }.distinct().take(4)
@@ -256,6 +362,9 @@ internal fun PlaylistDetailContent(
                     MiniPlayerIconButton(colors, detail.tracks.size > 1, NaviampTransportIcons.Shuffle, "Play playlist in random order", onShufflePlaylist)
                     MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampIcons.Queue, "Add playlist to queue", onAddPlaylistToQueue)
                     MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampIcons.Downloads, "Download playlist", onDownloadPlaylist)
+                    MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampIcons.Playlist, "Add playlist to playlist") {
+                        addToPlaylistOpen = true
+                    }
                     MiniPlayerIconButton(colors, true, NaviampIcons.Edit, "Rename playlist", { renameOpen = true })
                     MiniPlayerIconButton(colors, true, NaviampIcons.Trash, "Delete playlist", { deleteOpen = true })
                 }
@@ -288,19 +397,36 @@ internal fun PlaylistDetailContent(
             },
         )
     }
+    if (addToPlaylistOpen) {
+        AddToPlaylistDialog(
+            title = detail.playlist.title,
+            colors = colors,
+            playlists = playlistChoices,
+            status = null,
+            onDismissRequest = { addToPlaylistOpen = false },
+            onAddToExisting = { choice ->
+                addToPlaylistOpen = false
+                onAddPlaylistToPlaylist(choice)
+            },
+            onCreateAndAdd = { name ->
+                addToPlaylistOpen = false
+                onCreatePlaylistAndAddPlaylist(name)
+            },
+        )
+    }
 }
 
 @Composable
-private fun PlaylistCoverFromUrls(colors: NaviampColors, covers: List<String>, size: Dp) {
+fun MultiCoverArt(colors: NaviampColors, covers: List<String>, size: Dp, cornerRadius: Dp = 4.dp) {
     val visibleCovers = covers.distinct().take(4)
     Box(
         modifier = Modifier
             .size(size)
-            .clip(RoundedCornerShape(4.dp)),
+            .clip(RoundedCornerShape(cornerRadius)),
     ) {
         when (visibleCovers.size) {
-            0 -> PlatformCoverArt(null, colors, size, 4.dp)
-            1 -> PlatformCoverArt(visibleCovers[0], colors, size, 4.dp)
+            0 -> PlatformCoverArt(null, colors, size, cornerRadius)
+            1 -> PlatformCoverArt(visibleCovers[0], colors, size, cornerRadius)
             else -> {
                 val cell = size / 2
                 Column {
@@ -324,7 +450,7 @@ private fun PlaylistCoverFromUrls(colors: NaviampColors, covers: List<String>, s
 }
 
 @Composable
-private fun RenamePlaylistDialog(
+fun RenamePlaylistDialog(
     playlist: SharedMediaItemUi,
     colors: NaviampColors,
     onDismiss: () -> Unit,
@@ -359,7 +485,7 @@ private fun RenamePlaylistDialog(
 }
 
 @Composable
-private fun DeletePlaylistDialog(
+fun DeletePlaylistDialog(
     playlist: SharedMediaItemUi,
     colors: NaviampColors,
     onDismiss: () -> Unit,

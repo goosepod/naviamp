@@ -42,7 +42,7 @@ import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.provider.navidrome.NavidromeProvider
-import app.naviamp.ui.AndroidTrackRowUi
+import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.NaviampDownloadedTrackUi
 import app.naviamp.ui.NaviampLibrarySyncStatusUi
 import app.naviamp.ui.NaviampNowPlayingItemUi
@@ -90,7 +90,6 @@ data class AndroidShellModels(
     val downloads: List<NaviampDownloadedTrackUi>,
     val playlistItems: List<SharedMediaItemUi>,
     val playlistChoices: List<NaviampPlaylistChoiceUi>,
-    val radioStationItems: List<SharedMediaItemUi>,
     val albumDetail: SharedAlbumDetailUi?,
     val artistDetail: SharedArtistDetailUi?,
     val playlistDetail: SharedPlaylistDetailUi?,
@@ -239,7 +238,6 @@ fun androidShellModels(
             )
         },
         playlistChoices = playlistChoices,
-        radioStationItems = homeState.radioStations.map { it.toSharedMediaItemUi() },
         albumDetail = albumDetail?.let { detail ->
             detail.toSharedAlbumDetailUi(
                 coverArtUrl = coverArtUrl,

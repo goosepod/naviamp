@@ -38,6 +38,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Dp
+import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 
 @Composable
@@ -90,7 +91,7 @@ fun NaviampSharedAppShell(
     playlistSortMode: SharedPlaylistSortMode = SharedPlaylistSortMode.Alphabetical,
     playlistChoices: List<NaviampPlaylistChoiceUi> = emptyList(),
     playlistActionStatus: String? = null,
-    radioStationItems: List<SharedMediaItemUi>,
+    radioStations: List<InternetRadioStation>,
     albumDetail: SharedAlbumDetailUi?,
     artistDetail: SharedArtistDetailUi?,
     playlistDetail: SharedPlaylistDetailUi? = null,
@@ -111,7 +112,7 @@ fun NaviampSharedAppShell(
     onClearSearch: () -> Unit = {},
     onLibraryQueryChanged: (String) -> Unit = {},
     onRefreshLibrary: () -> Unit = {},
-    onTrackSelected: (AndroidTrackRowUi) -> Unit,
+    onTrackSelected: (SharedTrackRowUi) -> Unit,
     onDownloadedTrackSelected: (NaviampDownloadedTrackUi) -> Unit = {},
     onDownloadedTrackAddToPlaylist: (NaviampDownloadedTrackUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
     onDownloadedTrackCreatePlaylistAndAdd: (NaviampDownloadedTrackUi, String) -> Unit = { _, _ -> },
@@ -124,9 +125,9 @@ fun NaviampSharedAppShell(
     onAlbumAddToQueue: (SharedAlbumDetailUi) -> Unit = {},
     onAlbumAddToPlaylist: (SharedAlbumDetailUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
     onAlbumCreatePlaylistAndAdd: (SharedAlbumDetailUi, String) -> Unit = { _, _ -> },
-    onAlbumTrackDownload: (AndroidTrackRowUi) -> Unit = {},
-    onAlbumTrackAddToPlaylist: (AndroidTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
-    onAlbumTrackCreatePlaylistAndAdd: (AndroidTrackRowUi, String) -> Unit = { _, _ -> },
+    onAlbumTrackDownload: (SharedTrackRowUi) -> Unit = {},
+    onAlbumTrackAddToPlaylist: (SharedTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
+    onAlbumTrackCreatePlaylistAndAdd: (SharedTrackRowUi, String) -> Unit = { _, _ -> },
     onArtistSelected: (SharedMediaItemUi) -> Unit,
     onArtistRadio: (SharedArtistDetailUi) -> Unit = {},
     onArtistShuffle: (SharedArtistDetailUi) -> Unit = {},
@@ -136,12 +137,12 @@ fun NaviampSharedAppShell(
     onArtistPopularPlay: (SharedArtistDetailUi) -> Unit = {},
     onArtistPopularRadio: (SharedArtistDetailUi) -> Unit = {},
     onArtistPopularAddToQueue: (SharedArtistDetailUi) -> Unit = {},
-    onArtistPopularTrackSelected: (AndroidTrackRowUi) -> Unit = onTrackSelected,
-    onAlbumTrackSelected: (AndroidTrackRowUi) -> Unit = onTrackSelected,
-    onArtistPopularTrackAddToQueue: (AndroidTrackRowUi) -> Unit = {},
-    onArtistPopularTrackDownload: (AndroidTrackRowUi) -> Unit = {},
-    onArtistPopularTrackAddToPlaylist: (AndroidTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
-    onArtistPopularTrackCreatePlaylistAndAdd: (AndroidTrackRowUi, String) -> Unit = { _, _ -> },
+    onArtistPopularTrackSelected: (SharedTrackRowUi) -> Unit = onTrackSelected,
+    onAlbumTrackSelected: (SharedTrackRowUi) -> Unit = onTrackSelected,
+    onArtistPopularTrackAddToQueue: (SharedTrackRowUi) -> Unit = {},
+    onArtistPopularTrackDownload: (SharedTrackRowUi) -> Unit = {},
+    onArtistPopularTrackAddToPlaylist: (SharedTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
+    onArtistPopularTrackCreatePlaylistAndAdd: (SharedTrackRowUi, String) -> Unit = { _, _ -> },
     onFindSimilarArtists: (SharedArtistDetailUi) -> Unit = {},
     onSimilarArtistSelected: (SharedSimilarArtistUi) -> Unit = {},
     onSimilarArtistExternalSelected: (String) -> Unit = {},
@@ -153,15 +154,27 @@ fun NaviampSharedAppShell(
     onPlaylistSelected: (SharedMediaItemUi) -> Unit,
     onPlaylistSortModeChanged: (SharedPlaylistSortMode) -> Unit = {},
     onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit = { _, _ -> },
+    onPlaylistItemAddToQueue: (SharedMediaItemUi) -> Unit = {},
+    onPlaylistItemAddToPlaylist: (SharedMediaItemUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
+    onPlaylistItemCreatePlaylistAndAdd: (SharedMediaItemUi, String) -> Unit = { _, _ -> },
     onPlaylistAddToQueue: (SharedPlaylistDetailUi) -> Unit = {},
     onPlaylistDownload: (SharedMediaItemUi) -> Unit = {},
+    onPlaylistAddToPlaylist: (SharedPlaylistDetailUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
+    onPlaylistCreatePlaylistAndAdd: (SharedPlaylistDetailUi, String) -> Unit = { _, _ -> },
     onPlaylistRename: (SharedMediaItemUi, String) -> Unit = { _, _ -> },
     onPlaylistDelete: (SharedMediaItemUi) -> Unit = {},
     onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit = {},
+    onSmartPlaylistUpdate: suspend (SharedMediaItemUi, SmartPlaylistDefinition) -> Unit = { _, _ -> },
+    onSmartPlaylistLoad: suspend (SharedMediaItemUi) -> SmartPlaylistDefinition = {
+        throw UnsupportedOperationException("Smart playlist loading is not available.")
+    },
     onPlaylistBack: () -> Unit = {},
-    onPlaylistTrackSelected: (AndroidTrackRowUi) -> Unit = {},
-    onTrackAddToQueue: (AndroidTrackRowUi) -> Unit = {},
-    onRadioStationSelected: (SharedMediaItemUi) -> Unit,
+    onPlaylistTrackSelected: (SharedTrackRowUi) -> Unit = {},
+    onTrackAddToQueue: (SharedTrackRowUi) -> Unit = {},
+    onRecentRadioSelected: (SharedMediaItemUi) -> Unit = {},
+    onRadioStationSelected: (InternetRadioStation) -> Unit,
+    onRadioStationSave: (InternetRadioStation) -> Unit = {},
+    onRadioStationDelete: (InternetRadioStation) -> Unit = {},
     onHomeStationSelected: (SharedHomeStationUi) -> Unit = {},
     onOpenNowPlaying: () -> Unit,
     onCloseNowPlaying: () -> Unit,
@@ -290,7 +303,7 @@ fun NaviampSharedAppShell(
                             playlistSortMode = playlistSortMode,
                             playlistChoices = playlistChoices,
                             playlistActionStatus = playlistActionStatus,
-                            radioStationItems = radioStationItems,
+                            radioStations = radioStations,
                             albumDetail = albumDetail,
                             artistDetail = artistDetail,
                             playlistDetail = playlistDetail,
@@ -357,15 +370,25 @@ fun NaviampSharedAppShell(
                             onPlaylistSelected = onPlaylistSelected,
                             onPlaylistSortModeChanged = onPlaylistSortModeChanged,
                             onPlaylistPlay = onPlaylistPlay,
+                            onPlaylistItemAddToQueue = onPlaylistItemAddToQueue,
+                            onPlaylistItemAddToPlaylist = onPlaylistItemAddToPlaylist,
+                            onPlaylistItemCreatePlaylistAndAdd = onPlaylistItemCreatePlaylistAndAdd,
                             onPlaylistAddToQueue = onPlaylistAddToQueue,
                             onPlaylistDownload = onPlaylistDownload,
+                            onPlaylistAddToPlaylist = onPlaylistAddToPlaylist,
+                            onPlaylistCreatePlaylistAndAdd = onPlaylistCreatePlaylistAndAdd,
                             onPlaylistRename = onPlaylistRename,
                             onPlaylistDelete = onPlaylistDelete,
                             onSmartPlaylistSave = onSmartPlaylistSave,
+                            onSmartPlaylistUpdate = onSmartPlaylistUpdate,
+                            onSmartPlaylistLoad = onSmartPlaylistLoad,
                             onPlaylistBack = onPlaylistBack,
                             onPlaylistTrackSelected = onPlaylistTrackSelected,
                             onTrackAddToQueue = onTrackAddToQueue,
+                            onRecentRadioSelected = onRecentRadioSelected,
                             onRadioStationSelected = onRadioStationSelected,
+                            onRadioStationSave = onRadioStationSave,
+                            onRadioStationDelete = onRadioStationDelete,
                             onHomeStationSelected = onHomeStationSelected,
                             onOpenNowPlaying = onOpenNowPlaying,
                             onCloseNowPlaying = onCloseNowPlaying,
@@ -559,7 +582,7 @@ private fun ConnectedContent(
     playlistSortMode: SharedPlaylistSortMode,
     playlistChoices: List<NaviampPlaylistChoiceUi>,
     playlistActionStatus: String?,
-    radioStationItems: List<SharedMediaItemUi>,
+    radioStations: List<InternetRadioStation>,
     albumDetail: SharedAlbumDetailUi?,
     artistDetail: SharedArtistDetailUi?,
     playlistDetail: SharedPlaylistDetailUi?,
@@ -581,7 +604,7 @@ private fun ConnectedContent(
     onClearSearch: () -> Unit,
     onLibraryQueryChanged: (String) -> Unit,
     onRefreshLibrary: () -> Unit,
-    onTrackSelected: (AndroidTrackRowUi) -> Unit,
+    onTrackSelected: (SharedTrackRowUi) -> Unit,
     onDownloadedTrackSelected: (NaviampDownloadedTrackUi) -> Unit,
     onDownloadedTrackAddToPlaylist: (NaviampDownloadedTrackUi, NaviampPlaylistChoiceUi?) -> Unit,
     onDownloadedTrackCreatePlaylistAndAdd: (NaviampDownloadedTrackUi, String) -> Unit,
@@ -594,9 +617,9 @@ private fun ConnectedContent(
     onAlbumAddToQueue: (SharedAlbumDetailUi) -> Unit,
     onAlbumAddToPlaylist: (SharedAlbumDetailUi, NaviampPlaylistChoiceUi?) -> Unit,
     onAlbumCreatePlaylistAndAdd: (SharedAlbumDetailUi, String) -> Unit,
-    onAlbumTrackDownload: (AndroidTrackRowUi) -> Unit,
-    onAlbumTrackAddToPlaylist: (AndroidTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
-    onAlbumTrackCreatePlaylistAndAdd: (AndroidTrackRowUi, String) -> Unit,
+    onAlbumTrackDownload: (SharedTrackRowUi) -> Unit,
+    onAlbumTrackAddToPlaylist: (SharedTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
+    onAlbumTrackCreatePlaylistAndAdd: (SharedTrackRowUi, String) -> Unit,
     onArtistSelected: (SharedMediaItemUi) -> Unit,
     onArtistRadio: (SharedArtistDetailUi) -> Unit,
     onArtistShuffle: (SharedArtistDetailUi) -> Unit,
@@ -606,12 +629,12 @@ private fun ConnectedContent(
     onArtistPopularPlay: (SharedArtistDetailUi) -> Unit,
     onArtistPopularRadio: (SharedArtistDetailUi) -> Unit,
     onArtistPopularAddToQueue: (SharedArtistDetailUi) -> Unit,
-    onArtistPopularTrackSelected: (AndroidTrackRowUi) -> Unit,
-    onAlbumTrackSelected: (AndroidTrackRowUi) -> Unit,
-    onArtistPopularTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
-    onArtistPopularTrackDownload: (AndroidTrackRowUi) -> Unit,
-    onArtistPopularTrackAddToPlaylist: (AndroidTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
-    onArtistPopularTrackCreatePlaylistAndAdd: (AndroidTrackRowUi, String) -> Unit,
+    onArtistPopularTrackSelected: (SharedTrackRowUi) -> Unit,
+    onAlbumTrackSelected: (SharedTrackRowUi) -> Unit,
+    onArtistPopularTrackAddToQueue: (SharedTrackRowUi) -> Unit,
+    onArtistPopularTrackDownload: (SharedTrackRowUi) -> Unit,
+    onArtistPopularTrackAddToPlaylist: (SharedTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
+    onArtistPopularTrackCreatePlaylistAndAdd: (SharedTrackRowUi, String) -> Unit,
     onFindSimilarArtists: (SharedArtistDetailUi) -> Unit,
     onSimilarArtistSelected: (SharedSimilarArtistUi) -> Unit,
     onSimilarArtistExternalSelected: (String) -> Unit,
@@ -623,15 +646,25 @@ private fun ConnectedContent(
     onPlaylistSelected: (SharedMediaItemUi) -> Unit,
     onPlaylistSortModeChanged: (SharedPlaylistSortMode) -> Unit,
     onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit,
+    onPlaylistItemAddToQueue: (SharedMediaItemUi) -> Unit,
+    onPlaylistItemAddToPlaylist: (SharedMediaItemUi, NaviampPlaylistChoiceUi?) -> Unit,
+    onPlaylistItemCreatePlaylistAndAdd: (SharedMediaItemUi, String) -> Unit,
     onPlaylistAddToQueue: (SharedPlaylistDetailUi) -> Unit,
     onPlaylistDownload: (SharedMediaItemUi) -> Unit,
+    onPlaylistAddToPlaylist: (SharedPlaylistDetailUi, NaviampPlaylistChoiceUi?) -> Unit,
+    onPlaylistCreatePlaylistAndAdd: (SharedPlaylistDetailUi, String) -> Unit,
     onPlaylistRename: (SharedMediaItemUi, String) -> Unit,
     onPlaylistDelete: (SharedMediaItemUi) -> Unit,
     onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit,
+    onSmartPlaylistUpdate: suspend (SharedMediaItemUi, SmartPlaylistDefinition) -> Unit,
+    onSmartPlaylistLoad: suspend (SharedMediaItemUi) -> SmartPlaylistDefinition,
     onPlaylistBack: () -> Unit,
-    onPlaylistTrackSelected: (AndroidTrackRowUi) -> Unit,
-    onTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
-    onRadioStationSelected: (SharedMediaItemUi) -> Unit,
+    onPlaylistTrackSelected: (SharedTrackRowUi) -> Unit,
+    onTrackAddToQueue: (SharedTrackRowUi) -> Unit,
+    onRecentRadioSelected: (SharedMediaItemUi) -> Unit,
+    onRadioStationSelected: (InternetRadioStation) -> Unit,
+    onRadioStationSave: (InternetRadioStation) -> Unit,
+    onRadioStationDelete: (InternetRadioStation) -> Unit,
     onHomeStationSelected: (SharedHomeStationUi) -> Unit,
     onOpenNowPlaying: () -> Unit,
     onCloseNowPlaying: () -> Unit,
@@ -702,7 +735,9 @@ private fun ConnectedContent(
             onToggleFavorite = onToggleFavorite,
             onRatingSelected = onRatingSelected,
             onTrackSelected = onTrackSelected,
-            onRadioStationSelected = onRadioStationSelected,
+            onRadioStationSelected = { item ->
+                radioStations.firstOrNull { it.id == item.id }?.let(onRadioStationSelected)
+            },
         )
         selectedRoute == SharedRoute.Settings -> SettingsContent(
             colors = colors,
@@ -776,13 +811,27 @@ private fun ConnectedContent(
             onShufflePlaylist = { onPlaylistPlay(playlistDetail.playlist, true) },
             onAddPlaylistToQueue = { onPlaylistAddToQueue(playlistDetail) },
             onDownloadPlaylist = { onPlaylistDownload(playlistDetail.playlist) },
+            onAddPlaylistToPlaylist = { playlist -> onPlaylistAddToPlaylist(playlistDetail, playlist) },
+            onCreatePlaylistAndAddPlaylist = { name -> onPlaylistCreatePlaylistAndAdd(playlistDetail, name) },
             onRenamePlaylist = onPlaylistRename,
             onDeletePlaylist = onPlaylistDelete,
             onTrackSelected = onPlaylistTrackSelected,
             onTrackAddToQueue = onTrackAddToQueue,
+            playlistChoices = playlistChoices,
         )
         else -> when (selectedRoute) {
-            SharedRoute.Home -> SharedHome(colors, home, onAlbumSelected, onMixAlbumSelected, onPlaylistSelected, onRadioStationSelected, onHomeStationSelected)
+            SharedRoute.Home -> SharedHome(
+                colors = colors,
+                home = home,
+                onAlbumSelected = onAlbumSelected,
+                onMixAlbumSelected = onMixAlbumSelected,
+                onPlaylistSelected = onPlaylistSelected,
+                onRecentRadioSelected = onRecentRadioSelected,
+                onInternetRadioStationSelected = { item ->
+                    radioStations.firstOrNull { it.id == item.id }?.let(onRadioStationSelected)
+                },
+                onHomeStationSelected = onHomeStationSelected,
+            )
             SharedRoute.Playlists -> PlaylistsContent(
                 colors = colors,
                 playlists = playlistItems,
@@ -792,10 +841,16 @@ private fun ConnectedContent(
                 onSortModeChanged = onPlaylistSortModeChanged,
                 onPlaylistSelected = onPlaylistSelected,
                 onPlaylistPlay = onPlaylistPlay,
+                onPlaylistAddToQueue = onPlaylistItemAddToQueue,
                 onPlaylistDownload = onPlaylistDownload,
+                onPlaylistAddToPlaylist = onPlaylistItemAddToPlaylist,
+                onPlaylistCreatePlaylistAndAdd = onPlaylistItemCreatePlaylistAndAdd,
                 onPlaylistRename = onPlaylistRename,
                 onPlaylistDelete = onPlaylistDelete,
                 onSmartPlaylistSave = onSmartPlaylistSave,
+                onSmartPlaylistUpdate = onSmartPlaylistUpdate,
+                onSmartPlaylistLoad = onSmartPlaylistLoad,
+                playlistChoices = playlistChoices,
             )
             SharedRoute.Library -> LibraryContent(
                 colors = colors,
@@ -818,7 +873,14 @@ private fun ConnectedContent(
                 onAlbumSelected = onAlbumSelected,
                 onArtistSelected = onArtistSelected,
             )
-            SharedRoute.Radio -> MediaListContent(colors, "Internet Radio", radioStationItems, "No stations found.", onRadioStationSelected)
+            SharedRoute.Radio -> InternetRadioContent(
+                colors = colors,
+                stations = radioStations,
+                status = null,
+                onStationSelected = onRadioStationSelected,
+                onSaveStation = onRadioStationSave,
+                onDeleteStation = onRadioStationDelete,
+            )
             SharedRoute.Settings -> Unit
             SharedRoute.Downloads -> DownloadsContent(
                 colors = colors,
@@ -849,16 +911,16 @@ private fun AlbumDetailContent(
     onAlbumAddToQueue: () -> Unit,
     onAlbumAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit,
     onAlbumCreatePlaylistAndAdd: (String) -> Unit,
-    onTrackSelected: (AndroidTrackRowUi) -> Unit,
-    onTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
-    onTrackDownload: (AndroidTrackRowUi) -> Unit,
-    onTrackAddToPlaylist: (AndroidTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
-    onTrackCreatePlaylistAndAdd: (AndroidTrackRowUi, String) -> Unit,
+    onTrackSelected: (SharedTrackRowUi) -> Unit,
+    onTrackAddToQueue: (SharedTrackRowUi) -> Unit,
+    onTrackDownload: (SharedTrackRowUi) -> Unit,
+    onTrackAddToPlaylist: (SharedTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
+    onTrackCreatePlaylistAndAdd: (SharedTrackRowUi, String) -> Unit,
     playlistChoices: List<NaviampPlaylistChoiceUi>,
     playlistActionStatus: String?,
 ) {
     var addAlbumToPlaylistOpen by remember(detail.album.id) { mutableStateOf(false) }
-    var trackForPlaylist by remember(detail.album.id) { mutableStateOf<AndroidTrackRowUi?>(null) }
+    var trackForPlaylist by remember(detail.album.id) { mutableStateOf<SharedTrackRowUi?>(null) }
 
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -968,11 +1030,11 @@ private fun ArtistDetailContent(
     onPopularPlay: () -> Unit,
     onPopularRadio: () -> Unit,
     onPopularAddToQueue: () -> Unit,
-    onPopularTrackSelected: (AndroidTrackRowUi) -> Unit,
-    onPopularTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
-    onPopularTrackDownload: (AndroidTrackRowUi) -> Unit,
-    onPopularTrackAddToPlaylist: (AndroidTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
-    onPopularTrackCreatePlaylistAndAdd: (AndroidTrackRowUi, String) -> Unit,
+    onPopularTrackSelected: (SharedTrackRowUi) -> Unit,
+    onPopularTrackAddToQueue: (SharedTrackRowUi) -> Unit,
+    onPopularTrackDownload: (SharedTrackRowUi) -> Unit,
+    onPopularTrackAddToPlaylist: (SharedTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
+    onPopularTrackCreatePlaylistAndAdd: (SharedTrackRowUi, String) -> Unit,
     onFindSimilarArtists: () -> Unit,
     onSimilarArtistSelected: (SharedSimilarArtistUi) -> Unit,
     onSimilarArtistExternalSelected: (String) -> Unit,
@@ -986,7 +1048,7 @@ private fun ArtistDetailContent(
     playlistActionStatus: String?,
 ) {
     var addArtistToPlaylistOpen by remember(detail.artist.id) { mutableStateOf(false) }
-    var popularTrackForPlaylist by remember(detail.artist.id) { mutableStateOf<AndroidTrackRowUi?>(null) }
+    var popularTrackForPlaylist by remember(detail.artist.id) { mutableStateOf<SharedTrackRowUi?>(null) }
     var albumForPlaylist by remember(detail.artist.id) { mutableStateOf<SharedMediaItemUi?>(null) }
     var biographyExpanded by remember(detail.artist.id) { mutableStateOf(false) }
 
@@ -1288,7 +1350,7 @@ private fun FullNowPlaying(
     onQueueItemDownload: (NaviampNowPlayingItemUi) -> Unit,
     onToggleFavorite: () -> Unit,
     onRatingSelected: (Int?) -> Unit,
-    onTrackSelected: (AndroidTrackRowUi) -> Unit,
+    onTrackSelected: (SharedTrackRowUi) -> Unit,
     onRadioStationSelected: (SharedMediaItemUi) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
@@ -1326,7 +1388,7 @@ private fun FullNowPlaying(
                 onCollapse = onBack,
                 onQueueItemSelected = { item ->
                     onTrackSelected(
-                        AndroidTrackRowUi(
+                        SharedTrackRowUi(
                             id = item.id,
                             title = item.title,
                             subtitle = item.subtitle,
@@ -1337,7 +1399,7 @@ private fun FullNowPlaying(
                 },
                 onRelatedItemSelected = { item ->
                     onTrackSelected(
-                        AndroidTrackRowUi(
+                        SharedTrackRowUi(
                             id = item.id,
                             title = item.title,
                             subtitle = item.subtitle,

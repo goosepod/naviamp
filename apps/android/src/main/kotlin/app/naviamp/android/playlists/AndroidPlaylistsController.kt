@@ -27,6 +27,10 @@ import app.naviamp.domain.provider.shouldStartPlaybackAction
 import app.naviamp.domain.provider.smartPlaylistSaveErrorMessage
 import app.naviamp.domain.provider.smartPlaylistSavedStatus
 import app.naviamp.domain.provider.smartPlaylistSavingStatus
+import app.naviamp.domain.provider.smartPlaylistUpdateErrorMessage
+import app.naviamp.domain.provider.smartPlaylistUpdatedStatus
+import app.naviamp.domain.provider.smartPlaylistUpdatingStatus
+import app.naviamp.domain.provider.updateSmartPlaylistAndRefresh
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.provider.navidrome.NavidromeProvider
 import kotlinx.coroutines.CoroutineScope
@@ -315,5 +319,45 @@ suspend fun saveAndroidSmartPlaylist(
     } catch (error: Exception) {
         state.status = smartPlaylistSaveErrorMessage(error)
         throw error
+    }
+}
+
+suspend fun updateAndroidSmartPlaylist(
+    scope: CoroutineScope,
+    state: AndroidAppState,
+    playlist: Playlist,
+    definition: SmartPlaylistDefinition,
+    providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
+) {
+    val activeProvider = state.provider
+        ?: throw IllegalStateException("Connect to Navidrome before updating smart playlists.")
+    state.status = smartPlaylistUpdatingStatus(definition)
+    try {
+        val refresh = updateSmartPlaylistAndRefresh(activeProvider, playlist, definition)
+        providerResponseCacheRepository
+            ?.let { ProviderResponseService(it) }
+            ?.invalidatePlaylistResponses(activeProvider, refresh.displayPlaylist.id)
+        state.playlistTracksById = state.playlistTracksById + (refresh.displayPlaylist.id to refresh.tracks)
+        state.homeState = state.homeState.copy(playlists = refresh.playlists)
+        if (state.selectedPlaylist?.id == refresh.displayPlaylist.id) {
+            state.contentState = state.contentState.showPlaylist(refresh.displayPlaylist, refresh.tracks)
+            state.tracks = refresh.tracks
+        }
+        preloadAndroidPlaylistTracks(scope, state, activeProvider, refresh.playlists, providerResponseCacheRepository = null)
+        state.status = smartPlaylistUpdatedStatus(refresh.displayPlaylist, refresh.tracks.size)
+    } catch (error: Exception) {
+        state.status = smartPlaylistUpdateErrorMessage(error)
+        throw error
+    }
+}
+
+suspend fun loadAndroidSmartPlaylistDefinition(
+    state: AndroidAppState,
+    playlist: Playlist,
+): SmartPlaylistDefinition {
+    val activeProvider = state.provider
+        ?: throw IllegalStateException("Connect to Navidrome before editing smart playlists.")
+    return withContext(Dispatchers.IO) {
+        activeProvider.smartPlaylistDefinition(playlist.id)
     }
 }

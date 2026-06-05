@@ -19,6 +19,7 @@ import app.naviamp.desktop.settings.CacheSettings
 import app.naviamp.desktop.settings.NavigationSettings
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.provider.navidrome.NavidromeProvider
+import app.naviamp.ui.jvmGeneratedCoverArtBytes
 import app.naviamp.ui.resetJvmPlatformCoverArtByteLoader
 import app.naviamp.ui.setJvmPlatformCoverArtByteLoader
 import kotlinx.coroutines.Dispatchers
@@ -54,7 +55,8 @@ fun DesktopAppEffects(
 
     DisposableEffect(imageCacheRepository, connectedProvider) {
         setJvmPlatformCoverArtByteLoader { url ->
-            connectedProvider
+            jvmGeneratedCoverArtBytes(url)
+                ?: connectedProvider
                 ?.takeIf { it.ownsUrl(url) }
                 ?.bytes(url)
                 ?: imageCacheRepository.imageBytes(url)

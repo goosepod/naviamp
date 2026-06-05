@@ -25,6 +25,7 @@ import app.naviamp.ui.NowPlayingUi
 import app.naviamp.ui.radioArtworkUrl
 import app.naviamp.ui.radioTrackArtworkKey
 import app.naviamp.ui.toNowPlayingItemUi
+import app.naviamp.ui.toNowPlayingStationUi
 import app.naviamp.ui.toNowPlayingUi
 import app.naviamp.ui.toMiniNowPlayingUi
 
@@ -143,13 +144,7 @@ fun DesktopNowPlayingPanel(
     val radioStations = remember(internetRadioStations) {
         internetRadioStations
             .sortedBy { it.name.lowercase() }
-            .map { station ->
-                NaviampNowPlayingItemUi(
-                    id = station.id,
-                    title = station.name,
-                    subtitle = station.homePageUrl ?: station.streamUrl,
-                )
-            }
+            .map { station -> station.toNowPlayingStationUi() }
     }
     val nowPlayingUi = if (nowPlayingTrack != null) {
         nowPlayingTrack.toNowPlayingUi(

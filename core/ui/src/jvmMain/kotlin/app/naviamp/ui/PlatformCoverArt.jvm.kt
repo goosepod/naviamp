@@ -46,6 +46,9 @@ fun resetJvmPlatformCoverArtByteLoader() {
     platformCoverArtByteLoader = ::defaultPlatformCoverArtBytes
 }
 
+fun jvmGeneratedCoverArtBytes(url: String): ByteArray? =
+    generatedRadioTileBytes(url)
+
 suspend fun preloadJvmPlatformCoverArt(urls: Iterable<String>) {
     urls.distinct().forEach { url ->
         runCatching {

@@ -66,7 +66,7 @@ enum class NaviampVisualizer(val label: String) {
 typealias ConnectionFormState = app.naviamp.domain.settings.ConnectionFormState
 typealias PlaybackSettings = app.naviamp.domain.settings.PlaybackSettings
 
-data class AndroidTrackRowUi(
+data class SharedTrackRowUi(
     val id: String,
     val title: String,
     val subtitle: String,
@@ -77,7 +77,7 @@ data class AndroidTrackRowUi(
 
 data class NaviampDownloadedTrackUi(
     val id: String,
-    val track: AndroidTrackRowUi,
+    val track: SharedTrackRowUi,
     val sizeBytes: Long,
 )
 
@@ -88,11 +88,12 @@ data class SharedMediaItemUi(
     val meta: String = "",
     val coverArtUrl: String? = null,
     val coverArtUrls: List<String> = emptyList(),
+    val isSmartPlaylist: Boolean = false,
 )
 
 data class SharedAlbumDetailUi(
     val album: SharedMediaItemUi,
-    val tracks: List<AndroidTrackRowUi>,
+    val tracks: List<SharedTrackRowUi>,
     val totalDurationLabel: String = "",
 )
 
@@ -100,7 +101,7 @@ data class SharedArtistDetailUi(
     val artist: SharedMediaItemUi,
     val albums: List<SharedMediaItemUi>,
     val biography: String? = null,
-    val popularTracks: List<AndroidTrackRowUi> = emptyList(),
+    val popularTracks: List<SharedTrackRowUi> = emptyList(),
     val popularTracksStatus: String? = null,
     val similarArtists: List<SharedSimilarArtistUi> = emptyList(),
     val similarArtistsStatus: String? = null,
@@ -117,7 +118,7 @@ data class SharedSimilarArtistUi(
 
 data class SharedPlaylistDetailUi(
     val playlist: SharedMediaItemUi,
-    val tracks: List<AndroidTrackRowUi>,
+    val tracks: List<SharedTrackRowUi>,
 )
 
 data class SharedHomeUi(
@@ -158,7 +159,7 @@ data class SharedHomeStationUi(
 data class SharedSearchResultsUi(
     val artists: List<SharedMediaItemUi> = emptyList(),
     val albums: List<SharedMediaItemUi> = emptyList(),
-    val tracks: List<AndroidTrackRowUi> = emptyList(),
+    val tracks: List<SharedTrackRowUi> = emptyList(),
 ) {
     val isEmpty: Boolean
         get() = artists.isEmpty() && albums.isEmpty() && tracks.isEmpty()

@@ -29,13 +29,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-internal fun SharedHome(
+fun SharedHome(
     colors: NaviampColors,
     home: SharedHomeUi,
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
     onMixAlbumSelected: (SharedMediaItemUi) -> Unit,
     onPlaylistSelected: (SharedMediaItemUi) -> Unit,
-    onRadioStationSelected: (SharedMediaItemUi) -> Unit,
+    onRecentRadioSelected: (SharedMediaItemUi) -> Unit,
+    onInternetRadioStationSelected: (SharedMediaItemUi) -> Unit,
     onHomeStationSelected: (SharedHomeStationUi) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -56,10 +57,16 @@ internal fun SharedHome(
                 }
             }
         }
+        HomeSection(
+            title = "Recently Played Radio",
+            items = home.recentRadioStreams,
+            colors = colors,
+            onItemSelected = onRecentRadioSelected,
+            emptyText = "Start a radio station to build this list.",
+        )
         HomeSection("Recently Added In Music", home.recentlyAddedAlbums, colors, onAlbumSelected)
         HomeSection("Recent Playlists", home.playlists, colors, onPlaylistSelected)
-        HomeSection("Recently Played Radio", home.recentRadioStreams, colors, onRadioStationSelected, stationStyle = true)
-        HomeSection("Recent Internet Radio", home.radioStations, colors, onRadioStationSelected)
+        HomeSection("Recent Internet Radio", home.radioStations, colors, onInternetRadioStationSelected)
         HomeStationSection(home.stations, colors, onHomeStationSelected)
         HomeSection("Recent Albums", home.recentAlbums, colors, onAlbumSelected)
         HomeSection("Frequently Played Albums", home.frequentAlbums, colors, onAlbumSelected)
@@ -79,8 +86,8 @@ internal fun SearchContent(
     onQueryChanged: (String) -> Unit,
     onSearch: () -> Unit,
     onClearSearch: () -> Unit,
-    onTrackSelected: (AndroidTrackRowUi) -> Unit,
-    onTrackAddToQueue: (AndroidTrackRowUi) -> Unit,
+    onTrackSelected: (SharedTrackRowUi) -> Unit,
+    onTrackAddToQueue: (SharedTrackRowUi) -> Unit,
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
     onArtistSelected: (SharedMediaItemUi) -> Unit,
 ) {

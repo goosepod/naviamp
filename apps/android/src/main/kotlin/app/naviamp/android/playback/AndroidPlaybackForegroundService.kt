@@ -52,6 +52,7 @@ import app.naviamp.domain.network.KtorSharedHttpClient
 import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.radio.recentRadioStreamsWith
 import app.naviamp.domain.radio.recentSavedInternetRadioStationsWith
+import app.naviamp.domain.radio.withRadioCoverArtIds
 import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.settings.RecentRadioKind
 import app.naviamp.domain.settings.RecentRadioStream
@@ -447,16 +448,15 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             }
             mediaId == AndroidAutoPlaybackControls.MediaIdRadioLibrary -> {
                 val provider = NavidromeProvider(source.toNavidromeConnection())
-                rememberRecentRadioStream(
-                    RecentRadioStream(
-                        id = AndroidAutoPlaybackControls.MediaIdRadioLibrary,
-                        label = "Library Radio",
-                        kind = RecentRadioKind.Library,
-                    ),
+                val recent = RecentRadioStream(
+                    id = AndroidAutoPlaybackControls.MediaIdRadioLibrary,
+                    label = "Library Radio",
+                    kind = RecentRadioKind.Library,
                 )
                 AndroidPlaybackRuntime.get(applicationContext).scope.launch {
                     runCatching { withContext(Dispatchers.IO) { RadioService(provider).libraryRadio() } }
                         .onSuccess { tracks ->
+                            rememberRecentRadioStream(recent.withRadioCoverArtIds(tracks))
                             playServiceTrackQueue(storage, sourceId, tracks, currentIndex = 0)
                         }
                         .onFailure { error ->
@@ -717,10 +717,10 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             kind = RecentRadioKind.Artist,
             artist = app.naviamp.domain.settings.SavedArtist.fromArtist(artist),
         )
-        rememberRecentRadioStream(recent)
         AndroidPlaybackRuntime.get(applicationContext).scope.launch {
             runCatching { withContext(Dispatchers.IO) { RadioService(provider).artistRadio(artist.id) } }
                 .onSuccess { tracks ->
+                    rememberRecentRadioStream(recent.withRadioCoverArtIds(tracks))
                     playServiceTrackQueue(playbackSessionRepository, sourceId, tracks, currentIndex = 0)
                 }
                 .onFailure { error ->
@@ -746,7 +746,6 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             kind = RecentRadioKind.Genre,
             genre = query,
         )
-        rememberRecentRadioStream(recent)
         AndroidPlaybackRuntime.get(applicationContext).scope.launch {
             runCatching { withContext(Dispatchers.IO) { provider.randomSongs(genre = query) } }
                 .onSuccess { tracks ->
@@ -754,6 +753,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                         Log.i("NaviampAutoCommand", "No genre radio tracks for query=$query")
                         return@onSuccess
                     }
+                    rememberRecentRadioStream(recent.withRadioCoverArtIds(tracks))
                     playServiceTrackQueue(playbackSessionRepository, sourceId, tracks, currentIndex = 0)
                 }
                 .onFailure { error ->
@@ -859,21 +859,22 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         provider: NavidromeProvider,
         seedTrack: Track,
     ) {
-        rememberRecentRadioStream(
-            RecentRadioStream(
-                id = "track:${seedTrack.id.value}",
-                label = "${seedTrack.title} Radio",
-                kind = RecentRadioKind.Track,
-                track = SavedTrack.fromTrack(seedTrack),
-            ),
+        val recent = RecentRadioStream(
+            id = "track:${seedTrack.id.value}",
+            label = "${seedTrack.title} Radio",
+            kind = RecentRadioKind.Track,
+            track = SavedTrack.fromTrack(seedTrack),
         )
+        rememberRecentRadioStream(recent.withRadioCoverArtIds(listOf(seedTrack)))
         AndroidPlaybackRuntime.get(applicationContext).scope.launch {
             runCatching { withContext(Dispatchers.IO) { RadioService(provider).trackRadio(seedTrack.id) } }
                 .onSuccess { tracks ->
+                    val queueTracks = (listOf(seedTrack) + tracks).distinctBy { it.id }
+                    rememberRecentRadioStream(recent.withRadioCoverArtIds(queueTracks))
                     playServiceTrackQueue(
                         playbackSessionRepository = playbackSessionRepository,
                         sourceId = sourceId,
-                        tracks = (listOf(seedTrack) + tracks).distinctBy { it.id },
+                        tracks = queueTracks,
                         currentIndex = 0,
                     )
                 }
@@ -890,7 +891,6 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         sourceId: String,
         stream: RecentRadioStream,
     ) {
-        rememberRecentRadioStream(stream)
         val source = mediaSourceRepository.latestMediaSource() ?: return
         val provider = NavidromeProvider(source.toNavidromeConnection())
         AndroidPlaybackRuntime.get(applicationContext).scope.launch {
@@ -910,6 +910,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                     }
                 }
             }.onSuccess { tracks ->
+                rememberRecentRadioStream(stream.withRadioCoverArtIds(tracks))
                 playServiceTrackQueue(playbackSessionRepository, sourceId, tracks, currentIndex = 0)
             }.onFailure { error ->
                 Log.w("NaviampAutoCommand", "Could not start recent radio=${stream.label}", error)

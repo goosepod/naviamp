@@ -14,7 +14,7 @@ import app.naviamp.domain.provider.allKnownTracks
 import app.naviamp.domain.provider.createPlaylistOrAddTracks
 import app.naviamp.domain.provider.queueAppendPlan
 import app.naviamp.domain.queue.PlaybackQueue
-import app.naviamp.ui.AndroidTrackRowUi
+import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.NaviampDownloadedTrackUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import kotlinx.coroutines.CoroutineScope
@@ -72,7 +72,7 @@ fun appendAndroidTracksToQueue(
 
 fun withAndroidKnownTrack(
     state: AndroidAppState,
-    selectedTrack: AndroidTrackRowUi,
+    selectedTrack: SharedTrackRowUi,
     activeQueue: List<Track>,
     action: (Track) -> Unit,
 ) {

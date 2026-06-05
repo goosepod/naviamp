@@ -46,6 +46,7 @@ fun Playlist.toSharedMediaItemUi(
         meta = durationSeconds?.durationLabel().orEmpty(),
         coverArtUrl = coverArtUrl(coverArtId),
         coverArtUrls = tracks.mapNotNull { coverArtUrl(it.coverArtId) }.distinct().take(4),
+        isSmartPlaylist = isSmart,
     )
 
 fun InternetRadioStation.toSharedMediaItemUi(): SharedMediaItemUi =
@@ -55,6 +56,9 @@ fun InternetRadioStation.toSharedMediaItemUi(): SharedMediaItemUi =
         subtitle = homePageUrl ?: "Internet radio",
         coverArtUrl = radioStationArtworkUrl(this),
     )
+
+fun InternetRadioStation.defaultRadioArtworkUrl(): String =
+    radioStationArtworkUrl(this)
 
 fun HomeContent.toSharedHomeUi(
     coverArtUrl: (String?) -> String?,
@@ -73,9 +77,16 @@ fun HomeContent.toSharedHomeUi(
             )
         },
         recentRadioStreams = recentRadioStreams.map {
-            SharedMediaItemUi(id = it.id, title = it.label, subtitle = "Radio")
+            val coverArtUrls = it.coverArtIds.mapNotNull(coverArtUrl).distinct().take(4)
+            SharedMediaItemUi(
+                id = it.id,
+                title = it.label,
+                subtitle = "Radio",
+                coverArtUrl = coverArtUrls.firstOrNull(),
+                coverArtUrls = coverArtUrls,
+            )
         },
-        radioStations = radioStations.map { it.toSharedMediaItemUi() },
+        radioStations = recentInternetRadioStations.map { it.toSharedMediaItemUi() },
         stations = homeStations(this).map {
             SharedHomeStationUi(id = it.id, title = it.title, subtitle = it.subtitle)
         },
@@ -85,12 +96,12 @@ fun HomeContent.toSharedHomeUi(
         decadeAlbums = decadeAlbums.map { it.toSharedMediaItemUi(coverArtUrl) },
     )
 
-fun Track.toAndroidTrackRowUi(
+fun Track.toSharedTrackRowUi(
     coverArtUrl: (String?) -> String?,
     fallbackCoverArtId: String? = null,
     popular: Boolean = false,
-): AndroidTrackRowUi =
-    AndroidTrackRowUi(
+): SharedTrackRowUi =
+    SharedTrackRowUi(
         id = id.value,
         title = title,
         subtitle = listOfNotNull(artistName, albumTitle).joinToString(" - "),
@@ -106,7 +117,7 @@ fun Track.toDownloadedTrackUi(
 ): NaviampDownloadedTrackUi =
     NaviampDownloadedTrackUi(
         id = id,
-        track = toAndroidTrackRowUi(coverArtUrl),
+        track = toSharedTrackRowUi(coverArtUrl),
         sizeBytes = sizeBytes,
     )
 
@@ -394,7 +405,7 @@ fun Playlist.toSharedPlaylistDetailUi(
 ): SharedPlaylistDetailUi =
     SharedPlaylistDetailUi(
         playlist = toSharedMediaItemUi(coverArtUrl, tracks),
-        tracks = tracks.map { it.toAndroidTrackRowUi(coverArtUrl) },
+        tracks = tracks.map { it.toSharedTrackRowUi(coverArtUrl) },
     )
 
 fun AlbumDetails.toSharedAlbumDetailUi(
@@ -404,7 +415,7 @@ fun AlbumDetails.toSharedAlbumDetailUi(
     SharedAlbumDetailUi(
         album = album.toSharedMediaItemUi(coverArtUrl),
         tracks = tracks.map {
-            it.toAndroidTrackRowUi(
+            it.toSharedTrackRowUi(
                 coverArtUrl,
                 fallbackCoverArtId = album.coverArtId ?: album.id.value,
                 popular = it.id.value in popularTrackIds,
@@ -429,7 +440,7 @@ fun ArtistDetails.toSharedArtistDetailUi(
         ),
         albums = albums.map { it.toSharedMediaItemUi(coverArtUrl) },
         biography = info?.biography,
-        popularTracks = popularTracks.map { it.toAndroidTrackRowUi(coverArtUrl) },
+        popularTracks = popularTracks.map { it.toSharedTrackRowUi(coverArtUrl) },
         popularTracksStatus = popularTracksStatus,
         similarArtists = similarArtists.map { it.toSharedSimilarArtistUi() },
         similarArtistsStatus = similarArtistsStatus,
@@ -449,7 +460,7 @@ fun MediaSearchResults.toSharedSearchResultsUi(coverArtUrl: (String?) -> String?
     SharedSearchResultsUi(
         artists = artists.map { it.toSharedMediaItemUi(coverArtUrl) },
         albums = albums.map { it.toSharedMediaItemUi(coverArtUrl) },
-        tracks = tracks.map { it.toAndroidTrackRowUi(coverArtUrl) },
+        tracks = tracks.map { it.toSharedTrackRowUi(coverArtUrl) },
     )
 
 fun InternetRadioStation.toNowPlayingStationUi(): NaviampNowPlayingItemUi =
@@ -523,7 +534,7 @@ private fun knownRadioStationArtworkUrl(station: InternetRadioStation): String? 
     return when {
         "somafm" in haystack || "soma.fm" in haystack -> {
             val slug = somaFmStationSlug(station.name)
-            "https://somafm.com/img3/$slug-400.jpg"
+            "https://somafm.com/img3/$slug-400.png"
         }
         else -> null
     }

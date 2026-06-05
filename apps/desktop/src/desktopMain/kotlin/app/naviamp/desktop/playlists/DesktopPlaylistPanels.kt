@@ -9,13 +9,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -100,7 +97,7 @@ fun DesktopPlaylistsPanel(
                     modifier = Modifier.size(32.dp),
                 ) {
                     Icon(
-                        DesktopNavigationIcons.Playlist,
+                        DesktopNavigationIcons.Brain,
                         contentDescription = "Create smart playlist",
                         tint = appColors.primaryText,
                         modifier = Modifier.size(18.dp),
@@ -216,14 +213,24 @@ private fun PlaylistListRow(
             DesktopPlaylistCover(appColors = appColors, tracks = tracks, coverArtUrl = coverArtUrl, size = 38.dp)
         }
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                playlist.name,
-                color = appColors.primaryText,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                fontSize = 13.sp,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (playlist.isSmart) {
+                    Icon(
+                        DesktopNavigationIcons.Brain,
+                        contentDescription = "Smart playlist",
+                        tint = appColors.secondaryText,
+                        modifier = Modifier.size(14.dp),
+                    )
+                }
+                Text(
+                    playlist.name,
+                    color = appColors.primaryText,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    fontSize = 13.sp,
+                )
+            }
             Text(playlist.summaryLabel(), color = appColors.secondaryText, fontSize = 11.sp)
         }
         DetailActionIconButton(appColors, TransportIcons.Play, "Play playlist", true, onPlay)
@@ -235,7 +242,7 @@ private fun PlaylistListRow(
                 canAddToQueue = true,
                 canAddToPlaylist = true,
                 canRename = true,
-                canEditSmartPlaylist = true,
+                canEditSmartPlaylist = playlist.isSmart,
                 canDelete = true,
             ).mapNotNull { action ->
                 when (action.action) {
@@ -281,6 +288,14 @@ fun DesktopPlaylistDetailPanel(
                     imageVector = DesktopNavigationIcons.Back,
                     contentDescription = "Back",
                     tint = appColors.primaryText,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+            if (playlist?.isSmart == true) {
+                Icon(
+                    imageVector = DesktopNavigationIcons.Brain,
+                    contentDescription = "Smart playlist",
+                    tint = appColors.secondaryText,
                     modifier = Modifier.size(18.dp),
                 )
             }
@@ -383,60 +398,6 @@ fun DesktopPlaylistCover(
             }
         }
     }
-}
-
-@Composable
-fun DesktopRenamePlaylistDialog(
-    playlist: Playlist,
-    onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit,
-) {
-    var name by remember(playlist.id) { mutableStateOf(playlist.name) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Rename playlist") },
-        text = {
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text("Playlist name") },
-                singleLine = true,
-            )
-        },
-        confirmButton = {
-            TextButton(enabled = name.isNotBlank(), onClick = { onConfirm(name) }) {
-                Text("Save")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        },
-    )
-}
-
-@Composable
-fun DesktopDeletePlaylistDialog(
-    playlist: Playlist,
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Delete playlist") },
-        text = { Text("Delete ${playlist.name}? This removes the server playlist.") },
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text("Delete")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        },
-    )
 }
 
 fun Playlist.summaryLabel(): String =

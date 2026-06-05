@@ -28,6 +28,7 @@ import app.naviamp.domain.radio.radioRefillSeedTrack
 import app.naviamp.domain.radio.randomAlbumSeededRadioRequest
 import app.naviamp.domain.radio.shouldFinishRadioRefillForSession
 import app.naviamp.domain.radio.trackRadioRequest
+import app.naviamp.domain.radio.withRadioCoverArtIds
 import app.naviamp.provider.navidrome.NavidromeProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -107,7 +108,6 @@ class DesktopRadioController(
     fun play(request: RadioRequest) {
         val provider = provider() ?: return
         val radioService = radioService(provider)
-        rememberRadioStream(request.recentRadioStream)
         setConnectionStatus("Loading ${request.label}...")
         scope.launch {
             try {
@@ -118,6 +118,7 @@ class DesktopRadioController(
                     setConnectionStatus("${request.label} did not return any tracks.")
                     return@launch
                 }
+                rememberRadioStream(request.recentRadioStream.withRadioCoverArtIds(tracks))
                 setConnectionStatus(null)
                 setRadioSessionId(radioSessionId() + 1)
                 setRadioQueueActive(true)
@@ -233,7 +234,7 @@ class DesktopRadioController(
         provider: NavidromeProvider,
         request: SeededRadioRequest,
     ) {
-        rememberRadioStream(request.recentRadioStream)
+        rememberRadioStream(request.recentRadioStream.withRadioCoverArtIds(listOf(request.seedTrack)))
         setConnectionStatus(null)
         setRadioSessionId(radioSessionId() + 1)
         val activeRadioSessionId = radioSessionId()
@@ -258,6 +259,7 @@ class DesktopRadioController(
                 val fetchedTracks = withContext(Dispatchers.IO) {
                     request.loadRest(radioService(provider, count = InitialSimilarRadioCount))
                 }
+                rememberRadioStream(request.recentRadioStream.withRadioCoverArtIds(listOf(request.seedTrack) + fetchedTracks))
                 appendGeneratedRadioTracks(
                     playlistEngine = playlistEngine,
                     radioQueueActive = isRadioQueueActive(),

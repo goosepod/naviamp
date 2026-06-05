@@ -19,6 +19,19 @@ fun recentRadioStreamsWith(
 ): List<RecentRadioStream> =
     (listOf(stream) + recentStreams.filterNot { it.id == stream.id }).take(limit)
 
+fun RecentRadioStream.withRadioCoverArtIds(tracks: List<Track>, limit: Int = 4): RecentRadioStream {
+    val albumCovers = tracks
+        .distinctBy { it.albumId?.value ?: it.albumTitle ?: it.coverArtId ?: it.id.value }
+        .mapNotNull { it.coverArtId }
+        .distinct()
+        .take(limit)
+    val fallbackCovers = tracks
+        .mapNotNull { it.coverArtId }
+        .distinct()
+        .take(limit)
+    return copy(coverArtIds = albumCovers.ifEmpty { fallbackCovers })
+}
+
 fun libraryRecentRadioStream(): RecentRadioStream =
     RecentRadioStream(
         id = "library",

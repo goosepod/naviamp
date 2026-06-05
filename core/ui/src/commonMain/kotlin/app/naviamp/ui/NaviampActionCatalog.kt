@@ -17,7 +17,7 @@ enum class NaviampAction(
     AddToPlaylist("Add to playlist", NaviampIcons.Playlist),
     AddPlaylistToPlaylist("Add playlist to playlist", NaviampIcons.Playlist),
     RenamePlaylist("Rename playlist", NaviampIcons.Edit),
-    EditSmartPlaylist("Edit smart playlist", NaviampIcons.Playlist),
+    EditSmartPlaylist("Edit smart playlist", NaviampIcons.Brain),
     DeletePlaylist("Delete playlist", NaviampIcons.Trash),
     EditStation("Edit station", NaviampIcons.Edit),
     DeleteStation("Delete station", NaviampIcons.Trash),

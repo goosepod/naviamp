@@ -212,9 +212,6 @@ fun NaviampApp(
     var recentRadioStreams by remember { mutableStateOf(savedRecentRadioStreams) }
     var internetRadioStations by remember { mutableStateOf<List<InternetRadioStation>>(emptyList()) }
     var internetRadioStatus by remember { mutableStateOf<String?>(null) }
-    var internetRadioStationPendingEdit by remember { mutableStateOf<InternetRadioStation?>(null) }
-    var internetRadioStationPendingDelete by remember { mutableStateOf<InternetRadioStation?>(null) }
-    var isNewInternetRadioStationDialogOpen by remember { mutableStateOf(false) }
     var recentInternetRadioStations by remember {
         mutableStateOf(savedRecentInternetRadioStations.map { it.toStation() })
     }
@@ -492,9 +489,6 @@ fun NaviampApp(
         setRecentStations = { stations -> recentInternetRadioStations = stations },
         setStations = { stations -> internetRadioStations = stations },
         setStatus = { status -> internetRadioStatus = status },
-        setNewStationDialogOpen = { isOpen -> isNewInternetRadioStationDialogOpen = isOpen },
-        setPendingEdit = { station -> internetRadioStationPendingEdit = station },
-        setPendingDelete = { station -> internetRadioStationPendingDelete = station },
         stopRadioContinuation = { radioController.stopContinuation() },
         clearShuffleSnapshot = ::clearShuffleSnapshot,
         setNowPlayingTrack = { track -> nowPlayingTrack = track },
@@ -1257,9 +1251,8 @@ fun NaviampApp(
                             isSearching = isSearching,
                             internetRadioStations = internetRadioStations,
                             internetRadioStatus = internetRadioStatus,
-                            onNewInternetRadioStation = { isNewInternetRadioStationDialogOpen = true },
-                            onEditInternetRadioStation = { station -> internetRadioStationPendingEdit = station },
-                            onDeleteInternetRadioStation = { station -> internetRadioStationPendingDelete = station },
+                            onSaveInternetRadioStation = internetRadioController::saveStation,
+                            onDeleteInternetRadioStation = internetRadioController::deleteStation,
                             connectedSourceId = connectedSourceId,
                             downloadRefreshToken = downloadRefreshToken,
                             downloadStatus = downloadStatus,
@@ -1308,9 +1301,6 @@ fun NaviampApp(
                             addToPlaylistStatus = addToPlaylistStatus,
                             playlistPendingRename = playlistPendingRename,
                             playlistPendingDelete = playlistPendingDelete,
-                            isNewInternetRadioStationDialogOpen = isNewInternetRadioStationDialogOpen,
-                            internetRadioStationPendingEdit = internetRadioStationPendingEdit,
-                            internetRadioStationPendingDelete = internetRadioStationPendingDelete,
                             onDismissAddToPlaylist = {
                                 addToPlaylistTarget = null
                                 addToPlaylistStatus = null
@@ -1325,11 +1315,6 @@ fun NaviampApp(
                             onRenamePlaylist = appActions::renamePlaylist,
                             onDismissDeletePlaylist = { playlistPendingDelete = null },
                             onDeletePlaylist = appActions::deletePlaylist,
-                            onDismissNewInternetRadioStation = { isNewInternetRadioStationDialogOpen = false },
-                            onSaveInternetRadioStation = internetRadioController::saveStation,
-                            onDismissEditInternetRadioStation = { internetRadioStationPendingEdit = null },
-                            onDismissDeleteInternetRadioStation = { internetRadioStationPendingDelete = null },
-                            onDeleteInternetRadioStation = internetRadioController::deleteStation,
                         )
                         if (nowPlayingTrack != null) {
                             DesktopMiniPlayerPanel(

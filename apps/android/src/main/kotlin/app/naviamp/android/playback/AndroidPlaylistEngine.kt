@@ -18,6 +18,7 @@ import app.naviamp.domain.playback.PlaybackReplayGain
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackLocalAudio
 import app.naviamp.domain.playback.PlaybackSidecarService
+import app.naviamp.domain.playback.PlaybackSidecarPrepResult
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.playback.SidecarTypeLyrics
@@ -114,7 +115,7 @@ class AndroidPlaylistEngine(
         val tracksToPrefetch = audioPrefetchTracks(
             queue = queue,
             depth = AndroidAudioPrefetchDepth,
-            includeCurrentTrack = true,
+            includeCurrentTrack = false,
         )
         if (tracksToPrefetch.isEmpty()) return
 
@@ -125,6 +126,14 @@ class AndroidPlaylistEngine(
                 isActive = { sessionToken == state.playbackSessionToken },
                 cacheAudio = { track ->
                     cacheAudioTrackForPlayback(sourceId, activeProvider, track, quality)
+                },
+                prepareSidecars = { track, _ ->
+                    preparePrefetchedSidecars(
+                        sourceId = sourceId,
+                        provider = activeProvider,
+                        track = track,
+                        quality = quality,
+                    )
                 },
                 onTrackCached = { track, file ->
                     if (file != null) {
@@ -190,7 +199,7 @@ class AndroidPlaylistEngine(
         state.sidecarPrepJob?.cancel()
         val plan = sidecarPrepPlan(
             queue = queue,
-            depth = AndroidSidecarPrepDepth,
+            depth = 1,
             onlineLyricsEnabled = state.playbackSettings.lrclibLyricsEnabled,
             lyricsVisible = state.lyricsVisible,
         )
@@ -211,8 +220,15 @@ class AndroidPlaylistEngine(
                 }.onSuccess { waveform ->
                     if (waveform != null && sessionToken == state.playbackSessionToken) {
                         state.waveformByTrackId = state.waveformByTrackId + (track.id.value to waveform)
+                        android.util.Log.i(
+                            "NaviampWaveform",
+                            "Waveform ready title=${track.title} buckets=${waveform.amplitudes.size}",
+                        )
+                    } else if (sessionToken == state.playbackSessionToken) {
+                        android.util.Log.w("NaviampWaveform", "Waveform unavailable title=${track.title}")
                     }
                 }.onFailure { error ->
+                    android.util.Log.w("NaviampWaveform", "Waveform failed title=${track.title}", error)
                     if (sourceId != null) {
                         sidecarStatusRepository.recordSidecarFailure(
                             sourceId = sourceId,
@@ -274,6 +290,22 @@ class AndroidPlaylistEngine(
             }
         }
     }
+
+    private suspend fun preparePrefetchedSidecars(
+        sourceId: String,
+        provider: NavidromeProvider,
+        track: Track,
+        quality: StreamQuality,
+    ): PlaybackSidecarPrepResult =
+        sidecarService.prepareAll(
+            sourceId = sourceId,
+            provider = provider,
+            track = track,
+            quality = quality,
+            audioCachingEnabled = true,
+            onlineLyricsEnabled = state.playbackSettings.lrclibLyricsEnabled,
+            includeLyrics = false,
+        )
 
     private fun nextQueueIndex(): Int? {
         return playbackQueueController.nextGaplessQueueIndexForExternalQueue(

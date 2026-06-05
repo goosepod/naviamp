@@ -467,6 +467,7 @@ private fun NowPlayingDetails(
     val canSeek = nowPlaying.canSeek && nowPlaying.durationSeconds != null && !nowPlaying.isLive
     val canTogglePlayback = nowPlaying.canPlayPause
     val height = availableHeight ?: Dp.Unspecified
+    val pinBottomActions = !mobileLayout && height != Dp.Unspecified
     val showVolume = !compactLayout || height == Dp.Unspecified || height >= 225.dp
     val showTrackExtras = !compactLayout || height == Dp.Unspecified || height >= 195.dp
     val showTrackIdentity = !compactLayout || height == Dp.Unspecified || height >= 165.dp
@@ -726,7 +727,7 @@ private fun NowPlayingDetails(
             )
         }
 
-        if (compactLayout && mobileLayout) {
+        if ((compactLayout && mobileLayout) || pinBottomActions) {
             Box(modifier = Modifier.weight(1f))
         }
 

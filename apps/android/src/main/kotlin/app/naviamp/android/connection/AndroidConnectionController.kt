@@ -7,6 +7,8 @@ import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
+import app.naviamp.domain.InternetRadioStation
+import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.connectionFormError
 import app.naviamp.provider.navidrome.NavidromeConnection
@@ -52,6 +54,8 @@ fun startNavidromeConnection(
     restorePlaybackSession: (String) -> Boolean,
     startAndroidLibrarySync: (Boolean) -> Unit,
     checkAndroidLibraryFreshness: () -> Unit,
+    recentRadioStreams: List<RecentRadioStream> = emptyList(),
+    recentInternetRadioStations: List<InternetRadioStation> = emptyList(),
 ) {
     scope.launch {
         with(state) {
@@ -67,7 +71,12 @@ fun startNavidromeConnection(
                     cacheNamespace = nextProvider.cacheNamespace,
                     providerId = nextProvider.id.value,
                 )
-                homeState = loadBrowseState(nextProvider, providerResponseCacheRepository)
+                homeState = loadBrowseState(
+                    provider = nextProvider,
+                    providerResponseCacheRepository = providerResponseCacheRepository,
+                    recentRadioStreams = recentRadioStreams,
+                    recentInternetRadioStations = recentInternetRadioStations,
+                )
                 preloadPlaylistTracks(nextProvider, homeState.playlists)
                 provider = nextProvider
                 activeSourceId = mediaSource.id
