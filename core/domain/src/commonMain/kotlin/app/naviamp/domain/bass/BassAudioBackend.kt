@@ -377,31 +377,37 @@ fun BassAudioBackend.createMixerBassPlayback(
     crossfadeDurationSeconds: Int,
     replayGainFactor: Float,
     playbackDecode: Boolean = false,
-): Result<BassCreatedPlayback> =
-    runCatching {
-        val source = createPlaybackStream(
+): Result<BassCreatedPlayback> {
+    var source: BassStreamHandle? = null
+    var mixer: BassStreamHandle? = null
+    return runCatching {
+        val createdSource = createPlaybackStream(
             localPath = localPath,
             url = url,
             decode = true,
             playbackDecode = playbackDecode,
-        ).getOrThrow()
+        ).getOrThrow().also { source = it }
         val mixerPlan = planBassMixerCreation(
-            sourceInfo = channelInfo(source).getOrNull(),
+            sourceInfo = channelInfo(createdSource).getOrNull(),
             crossfadeDurationSeconds = crossfadeDurationSeconds,
         )
-        val mixer = createMixer(
+        val createdMixer = createMixer(
             frequency = mixerPlan.frequency,
             channels = mixerPlan.channels,
             queueSources = mixerPlan.queueSources,
-        ).getOrThrow()
-        setVolume(source, replayGainFactor)
-        addMixerChannel(mixer, source).getOrThrow()
+        ).getOrThrow().also { mixer = it }
+        setVolume(createdSource, replayGainFactor)
+        addMixerChannel(createdMixer, createdSource).getOrThrow()
         BassCreatedPlayback(
-            playbackHandle = mixer.value,
-            sourceHandle = source.value,
+            playbackHandle = createdMixer.value,
+            sourceHandle = createdSource.value,
             replayGainFactor = replayGainFactor,
         )
+    }.onFailure {
+        mixer?.let(::releaseBassStream)
+        source?.let(::releaseBassStream)
     }
+}
 
 fun BassAudioBackend.createBassPlayback(
     localPath: String?,
@@ -436,26 +442,30 @@ fun BassAudioBackend.prepareNextBassMixerSource(
     crossfadeDurationSeconds: Int,
     replayGainFactor: Float,
     playbackDecode: Boolean = false,
-): Result<BassPreparedSource> =
-    runCatching {
-        val source = createQueuedBassSource(
+): Result<BassPreparedSource> {
+    var source: Int = 0
+    return runCatching {
+        val createdSource = createQueuedBassSource(
             localPath = localPath,
             url = url,
             playbackDecode = playbackDecode,
-        ).getOrThrow()
+        ).getOrThrow().also { source = it }
         val transition = planPreparedMixerTransition(crossfadeDurationSeconds, replayGainFactor)
         applyPreparedBassMixerTransition(
             mixer = mixer,
-            nextSource = source,
+            nextSource = createdSource,
             currentSource = currentSource,
             currentSourceVolumeFactor = currentSourceVolumeFactor,
             transition = transition,
         ).getOrThrow()
         BassPreparedSource(
-            sourceHandle = source,
+            sourceHandle = createdSource,
             crossfadeActive = transition.shouldCrossfade,
         )
+    }.onFailure {
+        source.takeIf { it != 0 }?.let(::releaseBassStream)
     }
+}
 
 fun BassAudioBackend.applyBassPlaybackVolume(
     outputStream: Int,

@@ -438,6 +438,60 @@ class BassAudioBackendTest {
     }
 
     @Test
+    fun mixerBassPlaybackReleasesSourceWhenMixerCreationFails() {
+        val backend = RecordingBassAudioBackend(createMixerSucceeds = false)
+
+        val result = backend.createMixerBassPlayback(
+            localPath = "/tmp/song.flac",
+            url = "file:///tmp/song.flac",
+            crossfadeDurationSeconds = 3,
+            replayGainFactor = 0.75f,
+            playbackDecode = true,
+        )
+
+        assertTrue(result.isFailure)
+        assertEquals(
+            listOf(
+                "filePlaybackDecode:/tmp/song.flac",
+                "info:13",
+                "mixer:48000:2:false",
+                "remove:13",
+                "free:13",
+            ),
+            backend.calls,
+        )
+    }
+
+    @Test
+    fun mixerBassPlaybackReleasesMixerAndSourceWhenAddFails() {
+        val backend = RecordingBassAudioBackend(addSucceeds = false)
+
+        val result = backend.createMixerBassPlayback(
+            localPath = "/tmp/song.flac",
+            url = "file:///tmp/song.flac",
+            crossfadeDurationSeconds = 3,
+            replayGainFactor = 0.75f,
+            playbackDecode = true,
+        )
+
+        assertTrue(result.isFailure)
+        assertEquals(
+            listOf(
+                "filePlaybackDecode:/tmp/song.flac",
+                "info:13",
+                "mixer:48000:2:false",
+                "volume:13:0.75",
+                "add:30:13",
+                "remove:30",
+                "free:30",
+                "remove:13",
+                "free:13",
+            ),
+            backend.calls,
+        )
+    }
+
+    @Test
     fun createsBassPlaybackThroughSharedDirectOrMixerSelector() {
         val directBackend = RecordingBassAudioBackend()
         val mixerBackend = RecordingBassAudioBackend()
@@ -504,6 +558,36 @@ class BassAudioBackendTest {
                 "slide:13:0.7:5000",
                 "volume:2:0.8",
                 "slide:2:0.0:5000",
+            ),
+            backend.calls,
+        )
+    }
+
+    @Test
+    fun preparedNextBassMixerSourceReleasesSourceWhenTransitionFails() {
+        val backend = RecordingBassAudioBackend(slideSucceeds = false)
+
+        val result = backend.prepareNextBassMixerSource(
+            localPath = "/tmp/next.flac",
+            url = "file:///tmp/next.flac",
+            mixer = 1,
+            currentSource = 2,
+            currentSourceVolumeFactor = 0.8f,
+            crossfadeDurationSeconds = 5,
+            replayGainFactor = 0.7f,
+            playbackDecode = true,
+        )
+
+        assertTrue(result.isFailure)
+        assertEquals(
+            listOf(
+                "filePlaybackDecode:/tmp/next.flac",
+                "volume:13:0.0",
+                "add:1:13",
+                "volume:13:0.0",
+                "slide:13:0.7:5000",
+                "remove:13",
+                "free:13",
             ),
             backend.calls,
         )
@@ -587,6 +671,8 @@ class BassAudioBackendTest {
 private class RecordingBassAudioBackend(
     private val removeSucceeds: Boolean = true,
     private val slideSucceeds: Boolean = true,
+    private val createMixerSucceeds: Boolean = true,
+    private val addSucceeds: Boolean = true,
     override val lastErrorCode: Int? = null,
 ) : BassAudioBackend {
     val calls = mutableListOf<String>()
@@ -627,7 +713,11 @@ private class RecordingBassAudioBackend(
         queueSources: Boolean,
     ): Result<BassStreamHandle> {
         calls += "mixer:$frequency:$channels:$queueSources"
-        return Result.success(BassStreamHandle(30))
+        return if (createMixerSucceeds) {
+            Result.success(BassStreamHandle(30))
+        } else {
+            Result.failure(IllegalStateException("mixer failed"))
+        }
     }
 
     override fun lengthBytes(stream: BassStreamHandle): Long? =
@@ -660,7 +750,11 @@ private class RecordingBassAudioBackend(
         stream: BassStreamHandle,
     ): Result<Unit> {
         calls += "add:${mixer.value}:${stream.value}"
-        return Result.success(Unit)
+        return if (addSucceeds) {
+            Result.success(Unit)
+        } else {
+            Result.failure(IllegalStateException("add failed"))
+        }
     }
 
     override fun setVolume(stream: BassStreamHandle, volume: Float): Result<Unit> {

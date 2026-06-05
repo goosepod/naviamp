@@ -154,6 +154,7 @@ Native scaffold lives in `native/bass-jni`.
 - [x] Test cached audio, downloaded audio, direct provider streams, and internet radio.
 - [ ] Test sleep/wake, server disconnects, bad URLs, unsupported formats, and Android gapless/crossfade transitions on device/emulator.
   - The obsolete desktop JNA/native connector has been removed; this is the next BASS hardening focus.
+  - First hardening slice: shared BASS mixer/prepared-next helpers now release newly-created source/mixer handles when setup fails partway through, preventing leaked BASS streams after bad URLs, unsupported formats, or failed transition setup. Verified with common tests, Android BASS native package verification, and emulator install/launch.
 - [x] Fix rapid skip stress case where crossfade could leave an older BASS source audible after quick forward/backward navigation.
 - [x] Make BASS the default desktop engine.
 - [x] Remove the active desktop mpv/JLayer fallback path.
