@@ -275,7 +275,13 @@ object NaviampTransportIcons {
         viewportWidth = Viewport,
         viewportHeight = Viewport,
     ).apply {
-        path(fill = SolidColor(Color.Black)) {
+        path(
+            fill = SolidColor(Color.Black),
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 1.55f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+        ) {
             moveTo(12f, 4.3f)
             lineTo(14.25f, 9f)
             lineTo(19.45f, 9.75f)
