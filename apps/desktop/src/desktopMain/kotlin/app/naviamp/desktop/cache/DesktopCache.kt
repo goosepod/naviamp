@@ -124,14 +124,13 @@ class DesktopCache(
         nowMillis = ::nowMillis,
         maxAudioWaveformCacheBytes = maxAudioWaveformCacheBytes,
     )
-    private val hotImages = object : LinkedHashMap<String, ByteArray>(16, 0.75f, true) {}
-    private var hotImageBytes: Long = 0
+    private val hotImages = DesktopHotImageCache(maxHotImageBytes)
     private val httpClient = KtorSharedHttpClient()
     private val imageByteStoreService = ObjectByteStoreService(
         store = DesktopObjectByteStore(
             queries = queries,
             nowMillis = ::nowMillis,
-            afterWrite = ::trimImageStore,
+            maxImageCacheBytes = maxImageCacheBytes,
         ),
         httpClient = httpClient,
     )
@@ -152,11 +151,11 @@ class DesktopCache(
     )
 
     override suspend fun imageBytes(url: String): ByteArray {
-        hotImage(url)?.let { return it }
+        hotImages.get(url)?.let { return it }
 
         return withContext(Dispatchers.IO + NonCancellable) {
             val bytes = imageByteStoreService.remoteBytes(url)
-            putHotImage(url, bytes)
+            hotImages.put(url, bytes)
             bytes
         }
     }
@@ -554,10 +553,7 @@ class DesktopCache(
     }
 
     override fun clearCacheData() {
-        synchronized(hotImages) {
-            hotImages.clear()
-            hotImageBytes = 0
-        }
+        hotImages.clear()
         maintenance.clearCacheDataRows()
         clearAudioFiles()
     }
@@ -582,8 +578,8 @@ class DesktopCache(
         maintenance.stats(
             databaseLabel = databasePath.toAbsolutePath().toString(),
             databaseBytes = databasePath.sizeOrZero(),
-            hotImageCount = synchronized(hotImages) { hotImages.size },
-            hotImageBytes = synchronized(hotImages) { hotImageBytes },
+            hotImageCount = hotImages.count(),
+            hotImageBytes = hotImages.sizeBytes(),
             maxImageBytes = maxImageCacheBytes,
             maxAudioBytes = maxAudioCacheBytes,
             maxAudioWaveformBytes = maxAudioWaveformCacheBytes,
@@ -624,40 +620,6 @@ class DesktopCache(
         fetch: suspend () -> T,
     ): T =
         cachedProviderResponse(provider, resourceType, resourceId, decode, encode, fetch)
-
-    private fun hotImage(url: String): ByteArray? =
-        synchronized(hotImages) {
-            hotImages[url]
-        }
-
-    private fun putHotImage(url: String, bytes: ByteArray) {
-        synchronized(hotImages) {
-            hotImages.remove(url)?.let { hotImageBytes -= it.size.toLong() }
-            hotImages[url] = bytes
-            hotImageBytes += bytes.size.toLong()
-            trimHotImages()
-        }
-    }
-
-    private fun trimHotImages() {
-        val iterator = hotImages.entries.iterator()
-        while (hotImageBytes > maxHotImageBytes && iterator.hasNext()) {
-            val entry = iterator.next()
-            hotImageBytes -= entry.value.size.toLong()
-            iterator.remove()
-        }
-    }
-
-    private fun trimImageStore() {
-        var cacheSize = queries.imageCacheSize().executeAsOne()
-        if (cacheSize <= maxImageCacheBytes) return
-
-        queries.oldestImages(100).executeAsList().forEach { image ->
-            if (cacheSize <= maxImageCacheBytes) return
-            queries.deleteImage(image.url)
-            cacheSize -= image.size_bytes
-        }
-    }
 
     private fun clearAudioFiles() {
         runCatching {

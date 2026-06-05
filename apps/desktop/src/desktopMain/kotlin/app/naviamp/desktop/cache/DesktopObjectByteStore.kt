@@ -10,7 +10,7 @@ import kotlinx.coroutines.withContext
 class DesktopObjectByteStore(
     private val queries: NaviampStorageQueries,
     private val nowMillis: () -> Long,
-    private val afterWrite: () -> Unit = {},
+    private val maxImageCacheBytes: Long,
 ) : ObjectByteStore {
     override suspend fun objectBytes(key: String): ByteArray? =
         withContext(Dispatchers.IO + NonCancellable) {
@@ -30,11 +30,22 @@ class DesktopObjectByteStore(
                 created_at_epoch_millis = now,
                 last_accessed_epoch_millis = now,
             )
-            afterWrite()
+            trim()
             StoredObjectBytes(key = key, sizeBytes = bytes.size.toLong())
         }
 
     override fun deleteObjectBytes(key: String) {
         queries.deleteImage(key)
+    }
+
+    private fun trim() {
+        var cacheSize = queries.imageCacheSize().executeAsOne()
+        if (cacheSize <= maxImageCacheBytes) return
+
+        queries.oldestImages(100).executeAsList().forEach { image ->
+            if (cacheSize <= maxImageCacheBytes) return
+            queries.deleteImage(image.url)
+            cacheSize -= image.size_bytes
+        }
     }
 }
