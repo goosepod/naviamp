@@ -10,6 +10,7 @@ import android.os.PowerManager
 import android.util.Log
 import app.naviamp.domain.bass.BassActiveState
 import app.naviamp.domain.bass.BassAudioBackend
+import app.naviamp.domain.bass.BassCreatedPlayback
 import app.naviamp.domain.bass.BassStreamHandle
 import app.naviamp.domain.bass.activeState
 import app.naviamp.domain.bass.adoptPreparedBassSource
@@ -70,6 +71,8 @@ class AndroidBassPlaybackEngine(
     private var preparedStream: Int = 0
     private var preparedRequest: PlaybackRequest? = null
     private var preparedReplayGainFactor: Float = 1f
+    private var playbackId: Int = 0
+    private var playbackJob: Job? = null
     private var crossfadeDurationSeconds: Int = 0
     private var progressJob: Job? = null
     private var onStateChanged: ((PlaybackState) -> Unit)? = null
@@ -179,32 +182,41 @@ class AndroidBassPlaybackEngine(
             AndroidPlaybackForegroundService.update(appContext, notificationMetadata)
             return
         }
-        stopStreamOnly()
+        val currentPlaybackId = nextPlaybackId()
+        stopStreamOnly(invalidatePlayback = false)
         onStateChanged(PlaybackState.Loading)
         onProgressChanged(PlaybackProgress.Unknown)
         AndroidPlaybackNotificationControls.isPlaying = true
         AndroidPlaybackForegroundService.start(appContext, notificationMetadata)
 
-        scope.launch(Dispatchers.IO) {
+        playbackJob = scope.launch(Dispatchers.IO) {
+            var createdPlayback: BassCreatedPlayback? = null
             try {
                 bass.init().getOrThrow()
                 val verifyNet = !tlsSettings.insecureSkipTlsVerification
                 Log.i(Tag, "Opening BASS stream verifyNet=$verifyNet url=${request.url.sanitizedForLog()}")
                 bass.setVerifyNet(verifyNet).getOrThrow()
                 bass.configureInternetStreams().getOrThrow()
-                val handle = createPlayback(
+                val playback = createPlayback(
                     request = request,
                     useMixer = shouldUseBassMixerPlayback(
                         request = request,
                         supportsMixer = bass.supportsMixer,
                         requireMediaId = true,
                     ),
-                )
+                ).also { createdPlayback = it }
+                if (!isCurrentPlayback(currentPlaybackId)) {
+                    releaseCreatedPlayback(playback)
+                    createdPlayback = null
+                    return@launch
+                }
+                val handle = playback.playbackHandle
+                stream = playback.playbackHandle
+                currentSourceStream = playback.sourceHandle
+                replayGainFactor = playback.replayGainFactor
+                createdPlayback = null
                 Log.i(Tag, "BASS stream handle=$handle source=$currentSourceStream error=${bass.lastErrorCode}")
                 check(handle != 0) { errorMessage("BASS stream creation failed") }
-                if (stream == 0) {
-                    stream = handle
-                }
                 applyVolume()
                 val startPositionSeconds = playbackStartSeekPosition(request.startPositionSeconds)
                 val seekedBeforePlay = startPositionSeconds?.let { seekStreamPosition(it) } ?: false
@@ -212,8 +224,12 @@ class AndroidBassPlaybackEngine(
                     setPlaybackMuted(true)
                 }
                 check(bass.play(handle).isSuccess) { errorMessage("BASS_ChannelPlay failed") }
+                if (!isCurrentPlayback(currentPlaybackId)) {
+                    releaseCreatedPlayback(playback)
+                    return@launch
+                }
                 if (startPositionSeconds != null && !seekedBeforePlay) {
-                    val seekedAfterPlay = retryStartSeek(handle, startPositionSeconds)
+                    val seekedAfterPlay = retryStartSeek(handle, currentPlaybackId, startPositionSeconds)
                     setPlaybackMuted(false)
                     if (!seekedAfterPlay) {
                         error("BASS start seek did not apply seconds=$startPositionSeconds")
@@ -222,11 +238,13 @@ class AndroidBassPlaybackEngine(
                 Log.i(Tag, "BASS playback started handle=$handle")
                 acquirePlaybackWakeLock()
                 onStateChanged(PlaybackState.Playing)
-                startProgressPolling(scope, handle)
+                startProgressPolling(scope, handle, currentPlaybackId)
             } catch (error: Throwable) {
+                createdPlayback?.let(::releaseCreatedPlayback)
+                if (!isCurrentPlayback(currentPlaybackId)) return@launch
                 val message = error.message ?: "BASS playback failed."
                 Log.w(Tag, message, error)
-                stopStreamOnly()
+                stopStreamOnly(invalidatePlayback = false, cancelPlaybackJob = false)
                 releasePlaybackWakeLock()
                 onStateChanged(PlaybackState.Error(message))
                 AndroidPlaybackNotificationControls.isPlaying = false
@@ -275,9 +293,13 @@ class AndroidBassPlaybackEngine(
         return success
     }
 
-    private suspend fun retryStartSeek(handle: Int, positionSeconds: Double): Boolean {
+    private suspend fun retryStartSeek(
+        handle: Int,
+        currentPlaybackId: Int,
+        positionSeconds: Double,
+    ): Boolean {
         repeat(StartSeekRetryCount) { attempt ->
-            if (stream != handle) return false
+            if (stream != handle || !isCurrentPlayback(currentPlaybackId)) return false
             delay(StartSeekRetryDelayMillis)
             Log.i(Tag, "Retrying BASS start seek attempt=${attempt + 1} seconds=$positionSeconds")
             if (seekStreamPosition(positionSeconds)) {
@@ -373,32 +395,30 @@ class AndroidBassPlaybackEngine(
         }
     }
 
-    private fun createPlayback(request: PlaybackRequest, useMixer: Boolean): Int {
+    private fun createPlayback(
+        request: PlaybackRequest,
+        useMixer: Boolean,
+    ): BassCreatedPlayback {
         val file = localFileFromUrl(request.url)
-        val playback = bass.createBassPlayback(
+        return bass.createBassPlayback(
             localPath = file?.absolutePath,
             url = request.url,
             useMixer = useMixer,
             crossfadeDurationSeconds = crossfadeDurationSeconds,
             replayGainFactor = playbackReplayGainFactor(request),
         ).getOrThrow()
-        currentSourceStream = playback.sourceHandle
-        replayGainFactor = playback.replayGainFactor
-        if (useMixer) {
-            stream = playback.playbackHandle
-        }
-        return playback.playbackHandle
     }
 
     private fun startProgressPolling(
         scope: CoroutineScope,
         handle: Int,
+        currentPlaybackId: Int,
     ) {
         progressJob?.cancel()
         progressJob = scope.launch {
             var lastMetadata = PlaybackStreamMetadata()
             var lastActiveState: Int? = null
-            while (isActive && stream == handle) {
+            while (isActive && stream == handle && isCurrentPlayback(currentPlaybackId)) {
                 val snapshot = bass.bassPlaybackSnapshot(handle, currentSourceStream)
                 val active = snapshot.activeState
                 val progress = snapshot.progress
@@ -432,6 +452,20 @@ class AndroidBassPlaybackEngine(
     }
 
     private fun stopStreamOnly() {
+        stopStreamOnly(invalidatePlayback = true)
+    }
+
+    private fun stopStreamOnly(
+        invalidatePlayback: Boolean,
+        cancelPlaybackJob: Boolean = true,
+    ) {
+        if (invalidatePlayback) {
+            nextPlaybackId()
+        }
+        if (cancelPlaybackJob) {
+            playbackJob?.cancel()
+            playbackJob = null
+        }
         progressJob?.cancel()
         progressJob = null
         val handle = stream
@@ -581,6 +615,7 @@ class AndroidBassPlaybackEngine(
             request = request,
         )
         if (!plan.shouldAdopt) return false
+        val currentPlaybackId = nextPlaybackId()
         bass.adoptPreparedBassSource(
             playbackHandle = stream,
             currentSourceHandle = currentSourceStream,
@@ -599,7 +634,7 @@ class AndroidBassPlaybackEngine(
         preparedReplayGainFactor = reset.replayGainFactor
         onProgressChanged(PlaybackProgress.Unknown)
         onStateChanged(PlaybackState.Playing)
-        startProgressPolling(scope, stream)
+        startProgressPolling(scope, stream, currentPlaybackId)
         return true
     }
 
@@ -615,6 +650,22 @@ class AndroidBassPlaybackEngine(
 
     private fun errorMessage(prefix: String): String =
         bass.bassFailureMessage(prefix)
+
+    private fun releaseCreatedPlayback(playback: BassCreatedPlayback) {
+        bass.stopAndReleaseBassPlayback(
+            playbackHandle = playback.playbackHandle,
+            sourceHandle = playback.sourceHandle,
+            preparedHandle = 0,
+        )
+    }
+
+    private fun nextPlaybackId(): Int {
+        playbackId += 1
+        return playbackId
+    }
+
+    private fun isCurrentPlayback(id: Int): Boolean =
+        playbackId == id
 }
 
 private fun localFileFromUrl(url: String): File? =
