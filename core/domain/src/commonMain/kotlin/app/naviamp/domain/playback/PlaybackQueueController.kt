@@ -142,6 +142,7 @@ class PlaybackQueueController(
 
     fun finishedSelection(): PlaybackQueueSelection? {
         val nextIndex = queue.nextIndex(repeatMode = repeatMode) ?: return null
+        playbackSessionId += 1
         return selectQueueIndex(queue.tracks, nextIndex, playbackSessionId)
     }
 

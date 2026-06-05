@@ -83,15 +83,15 @@ class PlaybackQueueControllerTest {
     }
 
     @Test
-    fun finishedSelectionKeepsCurrentSession() {
+    fun finishedSelectionAdvancesSession() {
         val tracks = listOf(track("one"), track("two"))
         val controller = PlaybackQueueController()
         controller.start(tracks, index = 0)
 
         val finished = assertNotNull(controller.finishedSelection())
-        assertEquals(1, finished.sessionId)
+        assertEquals(2, finished.sessionId)
         assertEquals(1, finished.queue.currentIndex)
-        assertEquals(1, controller.playbackSessionId)
+        assertEquals(2, controller.playbackSessionId)
     }
 
     @Test
