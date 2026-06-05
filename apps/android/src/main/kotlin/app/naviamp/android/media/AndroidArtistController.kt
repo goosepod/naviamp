@@ -8,6 +8,9 @@ import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.AlbumId
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.app.NaviampRoute
+import app.naviamp.domain.cache.LocalLibraryIndexRepository
+import app.naviamp.domain.cache.ProviderResponseCacheRepository
+import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.media.albumDetailLoadErrorStatus
 import app.naviamp.domain.media.albumDetailLoadedStatus
 import app.naviamp.domain.media.albumDetailLoadingStatus
@@ -39,7 +42,8 @@ import kotlinx.coroutines.withContext
 fun openAndroidArtistDetails(
     scope: CoroutineScope,
     state: AndroidAppState,
-    storage: AndroidStorage,
+    libraryIndexRepository: LocalLibraryIndexRepository,
+    providerResponseCacheRepository: ProviderResponseCacheRepository,
     popularTracksService: ArtistPopularTracksService,
     artistId: ArtistId,
     fallbackName: String? = null,
@@ -47,6 +51,7 @@ fun openAndroidArtistDetails(
 ) {
     val activeProvider = state.provider ?: return
     val sourceId = state.activeSourceId
+    val providerResponseService = ProviderResponseService(providerResponseCacheRepository)
     with(state) {
         if (pushCurrentArtist) {
             contentState.artistDetail
@@ -58,13 +63,13 @@ fun openAndroidArtistDetails(
     scope.launch {
         with(state) {
             status = artistDetailLoadingStatus(fallbackName)
-            runCatching { activeProvider.artist(artistId) }
+            runCatching { providerResponseService.artist(activeProvider, artistId) }
                 .recoverCatching { error ->
                     val fallbackDetail = sourceId?.let {
                         artistDetailsFromLibraryTracks(
                             artistId = artistId,
                             fallbackName = fallbackName,
-                            tracks = storage.libraryTracksForArtist(it, artistId, limit = 1_000),
+                            tracks = libraryIndexRepository.libraryTracksForArtist(it, artistId, limit = 1_000),
                         )
                     }
                     fallbackDetail ?: throw error
@@ -159,23 +164,25 @@ fun openAndroidExternalArtistUrl(
 fun openAndroidAlbumDetails(
     scope: CoroutineScope,
     state: AndroidAppState,
-    storage: AndroidStorage,
+    libraryIndexRepository: LocalLibraryIndexRepository,
+    providerResponseCacheRepository: ProviderResponseCacheRepository,
     selectedAlbum: SharedMediaItemUi,
 ) {
     val activeProvider = state.provider ?: return
     val sourceId = state.activeSourceId
+    val providerResponseService = ProviderResponseService(providerResponseCacheRepository)
     scope.launch {
         with(state) {
             status = albumDetailLoadingStatus(selectedAlbum.title)
             runCatching {
-                activeProvider.album(AlbumId(selectedAlbum.id))
+                providerResponseService.album(activeProvider, AlbumId(selectedAlbum.id))
             }.recoverCatching { error ->
                 val fallbackDetail = sourceId?.let {
                     albumDetailsFromLibraryTracks(
                         albumId = AlbumId(selectedAlbum.id),
                         fallbackTitle = selectedAlbum.title,
                         fallbackArtistName = selectedAlbum.subtitle,
-                        tracks = storage.libraryTracksForAlbum(it, AlbumId(selectedAlbum.id), limit = 1_000),
+                        tracks = libraryIndexRepository.libraryTracksForAlbum(it, AlbumId(selectedAlbum.id), limit = 1_000),
                     )
                 }
                 fallbackDetail ?: throw error
@@ -192,7 +199,7 @@ fun openAndroidAlbumDetails(
 }
 
 fun albumDetailsFromAndroidTrackFallback(
-    storage: AndroidStorage,
+    libraryIndexRepository: LocalLibraryIndexRepository,
     sourceId: String,
     albumId: AlbumId,
     fallbackTitle: String?,
@@ -202,21 +209,23 @@ fun albumDetailsFromAndroidTrackFallback(
         albumId = albumId,
         fallbackTitle = fallbackTitle,
         fallbackArtistName = fallbackArtistName,
-        tracks = storage.libraryTracksForAlbum(sourceId, albumId, limit = 1_000),
+        tracks = libraryIndexRepository.libraryTracksForAlbum(sourceId, albumId, limit = 1_000),
     )
 
 fun loadAndroidArtistTracks(
     scope: CoroutineScope,
     state: AndroidAppState,
+    providerResponseCacheRepository: ProviderResponseCacheRepository,
     action: (List<Track>) -> Unit,
 ) {
     val albums = state.artistDetail?.albums.orEmpty()
     val activeProvider = state.provider ?: return
+    val providerResponseService = ProviderResponseService(providerResponseCacheRepository)
     scope.launch {
         state.status = "Loading artist tracks..."
         action(
             albums.flatMap { album ->
-                runCatching { activeProvider.album(album.id).tracks }.getOrDefault(emptyList())
+                runCatching { providerResponseService.album(activeProvider, album.id).tracks }.getOrDefault(emptyList())
             },
         )
     }
@@ -225,19 +234,21 @@ fun loadAndroidArtistTracks(
 fun loadAndroidArtistAlbumTracks(
     scope: CoroutineScope,
     state: AndroidAppState,
-    storage: AndroidStorage,
+    libraryIndexRepository: LocalLibraryIndexRepository,
+    providerResponseCacheRepository: ProviderResponseCacheRepository,
     selectedAlbum: SharedMediaItemUi,
     action: (List<Track>) -> Unit,
 ) {
     val activeProvider = state.provider ?: return
     val sourceId = state.activeSourceId
+    val providerResponseService = ProviderResponseService(providerResponseCacheRepository)
     scope.launch {
         state.status = albumDetailLoadingStatus(selectedAlbum.title)
-        runCatching { activeProvider.album(AlbumId(selectedAlbum.id)).tracks }
+        runCatching { providerResponseService.album(activeProvider, AlbumId(selectedAlbum.id)).tracks }
             .recoverCatching { error ->
                 sourceId
                     ?.let { storageSourceId ->
-                        storage.libraryTracksForAlbum(storageSourceId, AlbumId(selectedAlbum.id), limit = 1_000)
+                        libraryIndexRepository.libraryTracksForAlbum(storageSourceId, AlbumId(selectedAlbum.id), limit = 1_000)
                     }
                     ?.takeIf { it.isNotEmpty() }
                     ?: throw error
@@ -252,11 +263,13 @@ fun startAndroidArtistAlbumRadio(
     state: AndroidAppState,
     selectedAlbum: SharedMediaItemUi,
     startAlbumRadio: (Album, List<Track>) -> Unit,
+    providerResponseCacheRepository: ProviderResponseCacheRepository,
 ) {
     val activeProvider = state.provider ?: return
+    val providerResponseService = ProviderResponseService(providerResponseCacheRepository)
     scope.launch {
         state.status = "Starting ${selectedAlbum.title} radio..."
-        runCatching { activeProvider.album(AlbumId(selectedAlbum.id)) }
+        runCatching { providerResponseService.album(activeProvider, AlbumId(selectedAlbum.id)) }
             .onSuccess { detail -> startAlbumRadio(detail.album, detail.tracks) }
             .onFailure { error -> state.status = error.message ?: "Could not start album radio." }
     }

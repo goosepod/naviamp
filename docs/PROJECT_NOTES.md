@@ -21,12 +21,11 @@ Naviamp is a Kotlin Multiplatform / Compose Multiplatform music client currently
 Current priorities:
 
 - Windows desktop works and is the main live test path right now.
-- Android is now an active target. The first app milestone is a thin native Android shell that can connect to Navidrome, search tracks, and play a selected stream through Media3.
+- Android is now an active target with BASS-backed playback, shared UI surfaces, cache/sidecar prep, and parity work tracked in the roadmaps.
 - Naviamp should be truly multiplatform. When new work can be platform-agnostic, implement it in shared/domain/app/UI modules first and keep only OS-bound code in the platform app modules.
 - Default bias: if behavior is not inherently tied to OS APIs, keep it platform-agnostic. Visual behavior, color derivation, layout decisions, screen state, queue/action models, and pure transformations should live in shared modules unless there is a concrete platform API boundary. If platform-specific-looking code is encountered during other work and cannot be moved immediately, add a note here so it is not forgotten.
 - Navidrome is the first provider, but the app should stay provider-oriented.
-- Playback uses mpv on desktop when available.
-- Playback direction has changed: BASS is the target engine for desktop and Android. The current Kotlin desktop BASS path starts with JNA, but production should move to JNI for visualizers, BASSmix, crossfade, gapless playback, and platform parity. mpv should not remain bundled once BASS is stable.
+- Playback uses BASS on desktop and Android. App-level BASS work runs through the shared facade with JNI underneath; the old desktop JNA BASS path and active mpv/JLayer/Media3 playback fallbacks have been retired.
 - Audio/track caching is now a priority because it will matter for fast desktop skips, network handoff, and the future Android app.
 - Offline downloads are separate from cache files. They can reuse cache/download plumbing, but user-selected downloads should live in their own storage area and should not be evicted by normal cache cleanup.
 - The app should remember state across screens where it feels natural: search query/results, navigation, session queue, window size, and similar context.
@@ -41,8 +40,8 @@ Main source areas:
 - `core/domain/src/commonMain/kotlin/app/naviamp/domain/playback`: shared playback contracts, playback state/progress models, replay-gain settings, and engine capability shape.
 - `core/ui`: shared Compose Multiplatform UI primitives used by desktop and Android. Keep cross-target visual language here first: colors, bottom navigation, transport icons, shared transport controls, cover-art abstraction, popup menu treatment, and row overflow menu primitives.
 - `providers/navidrome`: Navidrome/Subsonic API implementation and mapping.
-- `apps/desktop`: Compose desktop UI, desktop settings/cache, mpv/JLayer playback engine integration, and desktop tests.
-- `apps/android`: Early Android app shell, Android Compose UI, and Media3 playback engine.
+- `apps/desktop`: Compose desktop UI, desktop settings/cache, JNI-backed BASS playback integration, and desktop tests.
+- `apps/android`: Android Compose app, foreground playback service, and JNI-backed BASS playback integration.
 
 Useful docs:
 
@@ -90,7 +89,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - The player can toggle track favorites and set/clear 1-5 ratings through Navidrome.
   - Search, album detail, and queue state are patched locally after successful changes.
 - Reusable desktop media rows:
-  - Shared `MediaRow`, `AlbumRow`, `ArtistRow`, and `TrackRow` components back search, home, album detail, and up-next rows.
+  - Shared `DesktopMediaRow`, `DesktopAlbumRow`, `DesktopArtistRow`, and `DesktopTrackRow` components back search, home, album detail, and up-next rows.
 - Artist detail:
   - Search artist results open an artist page.
   - Navidrome `getArtist` supplies the artist album list; `getArtistInfo2` may supply biography and artist image URLs.
@@ -131,7 +130,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - Navidrome connections support self-hosted networking options: default platform TLS, an explicit insecure certificate-verification bypass, a user-supplied trusted certificate/CA file, and mTLS through a PKCS12 client certificate store.
   - Navidrome TLS settings are persisted with saved media sources and applied to JVM HTTPS defaults so API calls, cover art, cached audio/downloads, and URL-based playback share the same trust/client-certificate behavior.
   - Settings Cache exposes audio caching on/off, prefetch depth, current audio cache usage, and max audio cache budget presets.
-  - Popup menus use a shared dark Feishin-inspired treatment through `NaviampDropdownMenu` / `NaviampDropdownMenuItem`.
+  - Popup menus use a shared dark Feishin-inspired treatment through `DesktopNaviampDropdownMenu` / `DesktopNaviampDropdownMenuItem`.
   - The `RELATED` tab is active. It loads same-album and same-artist tracks from the local source-scoped library index, excluding the current track and deduplicating by provider track ID.
   - Related rows can start playback immediately from the related list, and their row menu can start track radio.
 - Album release years:
@@ -173,7 +172,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - Android track-session resume passes the saved position into the first Media3 playback request.
 - Internet radio stream metadata:
   - `PlaybackStreamMetadata.fromProperties` in shared domain code normalizes common stream-title keys such as `icy-title`, `StreamTitle`, and `title`.
-  - Desktop mpv and Android Media3 both feed raw stream metadata through the shared normalizer.
+  - Desktop and Android BASS playback both feed raw stream metadata through the shared normalizer.
   - Android's Media3 HTTP data source sends `Icy-MetaData: 1`; many internet-radio servers do not send current-song metadata unless the client requests ICY metadata.
   - Android now updates the radio Now Playing title and notification title from Media3 ICY/current media metadata, matching the desktop behavior of showing the currently advertised stream title while keeping the station name as the secondary line.
   - Desktop mpv now observes `metadata` and `media-title` property-change events on a persistent IPC connection, so internet-radio title updates do not have to wait for the normal progress polling loop.
@@ -198,14 +197,14 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - Provider contracts now include album lists, playlists, genres, playlist tracks, and random-song queries so other providers can implement the same Home surface.
 - Audio cache V1:
   - Desktop now has a source-scoped file-backed audio cache with SQLite metadata for source, remote track ID, stream quality, local file path, byte count, content type, created time, and last access time.
-  - `PlaylistEngine` prefers cached local files when present and otherwise resolves a fresh provider stream URL.
+  - `DesktopPlaylistEngine` prefers cached local files when present and otherwise resolves a fresh provider stream URL.
   - Playback starts background prefetch for up to 10 upcoming queue items and cancels that work when the queue/session changes.
   - Clear cache removes prefetched audio files in addition to images and provider responses.
   - The cache stores provider IDs and local paths, not long-lived authenticated stream URLs.
   - This opens a practical path to precomputed per-track analysis: waveform scrubber buckets, silence/intro/outro detection, loudness hints, beat/energy markers, cache-hit reporting, and better future offline/network-handoff behavior.
 - Waveform scrubber V1:
   - Desktop now has `cached_audio_waveform` metadata keyed by source, remote track ID, and stream quality.
-  - `AudioWaveformAnalyzer` uses resolved/bundled mpv as a decoder, writes a temporary mono 8 kHz WAV, parses 16-bit PCM amplitude peaks, normalizes them into compact buckets, then removes the temp file.
+  - `DesktopAudioWaveformAnalyzer` uses BASS through the shared backend and desktop JNI binding to decode audio and normalize compact waveform buckets.
   - The current-track waveform is generated only after a cached audio file exists; the UI keeps the normal Material slider until analysis is available.
   - The current-track waveform path actively caches/analyzes the now-playing file; it does not depend on the upcoming-track prefetch job finishing.
   - Restored sessions should keep an already loaded waveform when playback starts for the same track; only clear/reload waveform UI state when the track ID changes.
@@ -245,7 +244,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 - Detail-page and overflow-menu actions now use leading/icon-only controls where appropriate. Keep menu text, but include recognizable leading icons for radio, download, details, album, artist, and playlist actions.
 - Shared UI extraction is underway:
   - `core/ui` owns the shared app colors, navigation icons, bottom navigation bar, transport icon vectors, Android cover-art abstraction, popup/dropdown menu styling, row overflow menu primitive, and the first shared transport control row.
-  - Desktop `AppColors`, `NavigationIcons`, `TransportIcons`, `AppNavigation`, and popup menus are now thin adapters over `core/ui` where possible.
+  - Desktop `DesktopAppColors`, `DesktopNavigationIcons`, `TransportIcons`, `DesktopAppNavigation`, and popup menus are now thin adapters over `core/ui` where possible.
   - When adding Android functionality, prefer moving the existing desktop visual primitive into `core/ui` and having both targets call it, rather than recreating a similar-looking Android-only version.
 - Playlists V1:
   - Playlists are server-backed through the provider contract. Navidrome uses Subsonic `createPlaylist`, `updatePlaylist`, and `deletePlaylist` for create, append, rename, and delete.
@@ -257,7 +256,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 - Internet Radio V1:
   - Internet radio stations are server-backed through the provider contract. Navidrome uses Subsonic `getInternetRadioStations`, `createInternetRadioStation`, `updateInternetRadioStation`, and `deleteInternetRadioStation`.
   - The top navigation includes an Internet Radio screen between Search and Downloads for symmetry. Stations can be added, edited, deleted, and played.
-  - Internet radio playback uses the station stream URL directly through the playback engine instead of `PlaylistEngine`, so stations are not treated as normal library tracks or submitted as play reports.
+  - Internet radio playback uses the station stream URL directly through the playback engine instead of `DesktopPlaylistEngine`, so stations are not treated as normal library tracks or submitted as play reports.
   - The last played internet radio station is saved in the playback session so reopening the app can return to the Player with that station ready to play again.
   - Internet radio playback is treated as live: seeking is disabled, the scrubber shows a live/radio line instead of elapsed/duration playback info, and mpv-backed playback polls stream metadata so ICY/Shoutcast titles can surface when stations provide them.
   - When internet radio is playing, the Now Playing side panel swaps `BACK TO` / `UP NEXT` / `RELATED` for a compact saved station list and highlights the current station.
@@ -295,8 +294,8 @@ Default stance: implement behavior in shared code unless it needs OS APIs, a pla
    - Target shape: a shared app controller/view-model in common code that accepts a `MediaProvider`, playback facade, settings repository, and cache/history interfaces.
    - Keep Compose window setup, Android activity lifecycle, and desktop window state in platform modules.
 2. Shared queue/playback orchestration:
-   - Move browser-history `BACK TO`, `UP NEXT`, previous-button behavior, up-next selection behavior, shuffle snapshot/restore, repeat mode, queue append/replace, and radio refill policy out of desktop `PlaylistEngine`.
-   - `PlaylistEngine` should become a platform adapter around a shared queue session plus a platform `PlaybackEngine`.
+   - Move browser-history `BACK TO`, `UP NEXT`, previous-button behavior, up-next selection behavior, shuffle snapshot/restore, repeat mode, queue append/replace, and radio refill policy out of desktop `DesktopPlaylistEngine`.
+   - `DesktopPlaylistEngine` should become a platform adapter around a shared queue session plus a platform `PlaybackEngine`.
    - The existing tiny `core/domain/queue/PlayQueue` is not enough for current app behavior and should be replaced or expanded from the proven desktop queue behavior.
 3. Shared playback session persistence models:
    - Move `PlaybackSessionSettings`, saved track/album/artist/station DTOs, recent radio streams, recent playlist IDs, navigation/search settings, and playback/cache setting models out of desktop settings into common code.

@@ -37,7 +37,6 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.net.URL
 import java.util.Locale
 
 @Composable
@@ -102,9 +101,8 @@ private fun AndroidShaderVisualizerSurface(
         albumArtBitmap = if (coverArtUrl != null && visualizer == NaviampVisualizer.AlbumArtReactive) {
             withContext(Dispatchers.IO) {
                 runCatching {
-                    URL(coverArtUrl).openStream().use { input ->
-                        decodeSampledBitmap(input.readBytes(), AndroidVisualizerAlbumArtSidePx)
-                    }
+                    androidPlatformCoverArtBytes(coverArtUrl)
+                        ?.let { decodeSampledBitmap(it, AndroidVisualizerAlbumArtSidePx) }
                 }.getOrNull()
             }
         } else {

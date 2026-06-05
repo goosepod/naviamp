@@ -1,11 +1,20 @@
 package app.naviamp.android
 
+import app.naviamp.domain.cache.StorageCacheStats
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import app.naviamp.android.playback.AndroidBassLoadReport
 import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.domain.isInternetRadioTrack
+import app.naviamp.domain.app.StorageStatsRefreshIntervalMillis
+import app.naviamp.domain.app.shouldRefreshStorageStats
+import app.naviamp.domain.cache.CacheMaintenanceRepository
+import app.naviamp.domain.cache.DownloadRepository
+import app.naviamp.domain.library.LibraryFreshnessCheckIntervalMillis
+import app.naviamp.domain.playback.DefaultNowPlayingHeartbeatIntervalMillis
+import app.naviamp.domain.playback.DefaultVisualizerFrameIntervalMillis
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
@@ -54,7 +63,7 @@ fun AndroidAppRuntimeEffects(
                         activeProvider.reportNowPlaying(track.id)
                     }
                 }
-                delay(AndroidNowPlayingHeartbeatIntervalMillis)
+                delay(DefaultNowPlayingHeartbeatIntervalMillis)
             }
         }
 
@@ -70,7 +79,7 @@ fun AndroidAppRuntimeEffects(
             }
             while (visualizerVisible && nowPlayingOpen && (playbackState == PlaybackState.Playing || playbackState == PlaybackState.Loading)) {
                 visualizerFrame = visualizerEngine.visualizerFrame()
-                delay(AndroidVisualizerFrameIntervalMillis)
+                delay(DefaultVisualizerFrameIntervalMillis)
             }
             visualizerFrame = null
         }
@@ -118,7 +127,8 @@ fun AndroidAppRuntimeEffects(
 @Composable
 fun AndroidAppPersistenceEffects(
     state: AndroidAppState,
-    storage: AndroidStorage,
+    downloadRepository: DownloadRepository<AndroidDownloadedAudioFile, AndroidDownloadedTrack>,
+    cacheMaintenanceRepository: CacheMaintenanceRepository<StorageCacheStats>,
     savePlaybackSessionThrottled: (force: Boolean) -> Unit,
     checkAndroidLibraryFreshness: () -> Unit,
 ) {
@@ -148,10 +158,10 @@ fun AndroidAppPersistenceEffects(
         }
 
         LaunchedEffect(selectedRoute, activeSourceId, nowPlaying?.id, nowPlayingStation?.id) {
-            if (selectedRoute != SharedRoute.Settings) return@LaunchedEffect
+            if (!shouldRefreshStorageStats(navigationState.route)) return@LaunchedEffect
             while (true) {
-                storageStats = withContext(Dispatchers.IO) { storage.stats() }
-                delay(5_000)
+                storageStats = withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() }
+                delay(StorageStatsRefreshIntervalMillis)
             }
         }
 
@@ -159,7 +169,7 @@ fun AndroidAppPersistenceEffects(
             if (provider == null || activeSourceId == null) return@LaunchedEffect
             checkAndroidLibraryFreshness()
             while (true) {
-                delay(AndroidLibraryFreshnessCheckIntervalMillis)
+                delay(LibraryFreshnessCheckIntervalMillis)
                 checkAndroidLibraryFreshness()
             }
         }
@@ -168,7 +178,7 @@ fun AndroidAppPersistenceEffects(
             val sourceId = activeSourceId ?: return@LaunchedEffect
             if (selectedRoute != SharedRoute.Downloads) return@LaunchedEffect
             downloadedTracks = withContext(Dispatchers.IO) {
-                storage.downloadedTracks(sourceId)
+                downloadRepository.downloadedTracks(sourceId)
             }
         }
     }

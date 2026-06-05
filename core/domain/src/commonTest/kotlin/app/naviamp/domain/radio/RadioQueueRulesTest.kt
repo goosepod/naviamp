@@ -2,6 +2,8 @@ package app.naviamp.domain.radio
 
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.queue.RepeatMode
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -101,6 +103,65 @@ class RadioQueueRulesTest {
         )
         assertEquals(true, shouldFinishRadioRefillForSession(radioSession = 4, currentRadioSession = 4))
         assertEquals(false, shouldFinishRadioRefillForSession(radioSession = 3, currentRadioSession = 4))
+    }
+
+    @Test
+    fun refillSeedUsesLastQueuedTrackOnlyWhenRepeatIsOffAndNearEnd() {
+        val current = track("current")
+        val middle = track("middle")
+        val tail = track("tail")
+        val queue = PlaybackQueue(
+            tracks = listOf(current, middle, tail),
+            currentIndex = 1,
+        )
+
+        assertEquals(
+            tail,
+            radioRefillSeedTrack(
+                queue = queue,
+                refillThreshold = 2,
+                repeatMode = RepeatMode.Off,
+                isActive = true,
+                isRefilling = false,
+                lastRefillSeedTrackId = null,
+            ),
+        )
+        assertEquals(
+            null,
+            radioRefillSeedTrack(
+                queue = queue,
+                refillThreshold = 2,
+                repeatMode = RepeatMode.Queue,
+                isActive = true,
+                isRefilling = false,
+                lastRefillSeedTrackId = null,
+            ),
+        )
+        assertEquals(
+            null,
+            radioRefillSeedTrack(
+                queue = queue,
+                refillThreshold = 2,
+                repeatMode = RepeatMode.Off,
+                isActive = true,
+                isRefilling = false,
+                lastRefillSeedTrackId = tail.id,
+            ),
+        )
+        assertEquals(
+            null,
+            radioRefillSeedTrack(
+                queue = PlaybackQueue(
+                    tracks = listOf(current, middle, tail, track("four"), track("five")),
+                    currentIndex = 0,
+                ),
+                refillThreshold = 2,
+                repeatMode = RepeatMode.Off,
+                isActive = true,
+                isRefilling = false,
+                lastRefillSeedTrackId = null,
+            ),
+        )
     }
 
     private fun track(id: String): Track =

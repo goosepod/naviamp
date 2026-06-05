@@ -71,6 +71,25 @@ class PlaybackSettingsTest {
         assertEquals(0, effective.crossfadeDurationSeconds)
     }
 
+    @Test
+    fun playbackSettingsChangeReportsWhenLyricsSidecarsNeedReloading() {
+        val previous = PlaybackSettings(lrclibLyricsEnabled = false)
+        val unchanged = playbackSettingsChange(
+            requested = previous.copy(volumePercent = 40),
+            playbackEngine = FakePlaybackEngine(),
+            previous = previous,
+        )
+        val changed = playbackSettingsChange(
+            requested = previous.copy(lrclibLyricsEnabled = true),
+            playbackEngine = FakePlaybackEngine(),
+            previous = previous,
+        )
+
+        assertEquals(40, unchanged.settings.volumePercent)
+        assertFalse(unchanged.shouldReloadLyricsSidecars)
+        assertEquals(true, changed.shouldReloadLyricsSidecars)
+    }
+
     private class FakePlaybackEngine(
         override val supportsGapless: Boolean = true,
         override val supportsCrossfade: Boolean = true,
@@ -97,4 +116,3 @@ class PlaybackSettingsTest {
         override fun stop() = Unit
     }
 }
-

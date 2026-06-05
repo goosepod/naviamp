@@ -83,6 +83,51 @@ fun normalizePcm16Waveform(
     return normalizeBuckets(buckets)
 }
 
+fun normalizeFloatPcmWaveform(
+    totalSamples: Long,
+    bucketCount: Int = DefaultWaveformBucketCount,
+    readSamples: (FloatArray) -> Int,
+): AudioWaveform? {
+    if (totalSamples <= 0 || bucketCount <= 0) return null
+    val buffer = FloatArray(16_384)
+    val buckets = FloatArray(bucketCount)
+    val bucketCounts = IntArray(bucketCount)
+    val bucketSquares = DoubleArray(bucketCount)
+    val bucketPeaks = FloatArray(bucketCount)
+    var sampleIndex = 0L
+
+    while (true) {
+        val read = readSamples(buffer)
+        if (read <= 0) break
+        var bufferIndex = 0
+        while (bufferIndex < read) {
+            if (sampleIndex >= totalSamples) break
+            val bucket = ((sampleIndex * bucketCount) / totalSamples)
+                .toInt()
+                .coerceIn(0, bucketCount - 1)
+            val amplitude = kotlin.math.abs(buffer[bufferIndex]).coerceIn(0f, 1f)
+            bucketSquares[bucket] += (amplitude * amplitude).toDouble()
+            bucketPeaks[bucket] = maxOf(bucketPeaks[bucket], amplitude)
+            bucketCounts[bucket] += 1
+            sampleIndex += 1
+            bufferIndex += 1
+        }
+        if (sampleIndex >= totalSamples) break
+    }
+
+    if (sampleIndex <= 0) return null
+
+    repeat(bucketCount) { bucket ->
+        val count = bucketCounts[bucket]
+        if (count > 0) {
+            val rms = sqrt(bucketSquares[bucket] / count).toFloat()
+            buckets[bucket] = rms * RmsWeight + bucketPeaks[bucket] * PeakWeight
+        }
+    }
+
+    return normalizeBuckets(buckets)
+}
+
 private fun normalizeBuckets(buckets: FloatArray): AudioWaveform {
     val max = buckets.maxOrNull() ?: 0f
     if (max <= 0f) return AudioWaveform(List(buckets.size) { 0f })

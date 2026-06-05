@@ -10,9 +10,9 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
-import app.naviamp.domain.internetRadioTrackId
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.ReplayGainMode
+import app.naviamp.domain.radio.internetRadioTrack
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -47,6 +47,11 @@ data class PlaybackSettings(
     val allowMobileDownloads: Boolean = false,
 )
 
+data class PlaybackSettingsChange(
+    val settings: PlaybackSettings,
+    val shouldReloadLyricsSidecars: Boolean,
+)
+
 fun PlaybackSettings.effectiveForEngine(playbackEngine: PlaybackEngine): PlaybackSettings {
     val effectiveGapless = playbackEngine.supportsGapless && gaplessEnabled
     return copy(
@@ -69,6 +74,18 @@ fun PlaybackSettings.effectiveForEngine(playbackEngine: PlaybackEngine): Playbac
         wifiStreamingQuality = wifiStreamingQuality.normalized(),
         mobileStreamingQuality = mobileStreamingQuality.normalized(),
         downloadQuality = downloadQuality.normalized(),
+    )
+}
+
+fun playbackSettingsChange(
+    requested: PlaybackSettings,
+    playbackEngine: PlaybackEngine,
+    previous: PlaybackSettings?,
+): PlaybackSettingsChange {
+    val effective = requested.effectiveForEngine(playbackEngine)
+    return PlaybackSettingsChange(
+        settings = effective,
+        shouldReloadLyricsSidecars = previous?.lrclibLyricsEnabled != effective.lrclibLyricsEnabled,
     )
 }
 
@@ -299,16 +316,7 @@ data class PlaybackSessionSettings(
 }
 
 private fun SavedInternetRadioStation.toTrack(): Track =
-    Track(
-        id = internetRadioTrackId(id),
-        title = name,
-        artistName = "Internet Radio",
-        albumTitle = homePageUrl ?: streamUrl,
-        durationSeconds = null,
-        coverArtId = null,
-        audioInfo = null,
-        replayGain = null,
-    )
+    internetRadioTrack(toStation())
 
 @Serializable
 data class SavedTrack(

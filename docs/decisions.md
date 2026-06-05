@@ -18,6 +18,8 @@
 - JDK 21 is the local development baseline.
 - Kotlin `2.2.21`, Compose Multiplatform `1.10.3`, and Gradle `8.14` are the initial version targets.
 - Lyrics should prefer embedded file-tag lyrics first and fall back to online lookup, including LRCLIB, when embedded lyrics are missing.
+- New feature and refactor work should start from cross-platform agnosticism: put shared product behavior, plans, reducers, and decision rules in common modules first, then keep desktop and Android code as thin platform adapters for lifecycle, OS, storage, and engine side effects.
+- Cache, downloads, local library indexes, sidecars, playback sessions, and media-source storage should be modeled as shared capabilities behind narrow interfaces. Desktop and Android can choose different engines at startup, but product code should depend on the shared ports.
 
 ## Preferred
 

@@ -1,13 +1,12 @@
 package app.naviamp.desktop
 
 import androidx.compose.ui.window.WindowState
+import app.naviamp.desktop.playback.bass.BassPlatform
+import app.naviamp.desktop.playback.bass.DesktopBassLibraryResolver
 import app.naviamp.desktop.settings.WindowSettings
-import com.sun.jna.Library
-import com.sun.jna.Native
-import com.sun.jna.Pointer
-import com.sun.jna.ptr.IntByReference
 import java.awt.Taskbar
 import java.awt.Window
+import java.io.File
 import javax.imageio.ImageIO
 
 fun configureDesktopApplicationName() {
@@ -55,37 +54,27 @@ private fun configureMacTitleBar(window: Window, isDark: Boolean) {
 private fun configureWindowsTitleBar(window: Window, isDark: Boolean) {
     if (!System.getProperty("os.name").contains("Windows", ignoreCase = true)) return
     runCatching {
-        val hwnd = Native.getComponentPointer(window)
-        val value = IntByReference(if (isDark) 1 else 0)
-        WindowsDwmApi.instance.DwmSetWindowAttribute(
-            hwnd,
-            DwmWindowAttributeUseImmersiveDarkMode,
-            value.pointer,
-            Int.SIZE_BYTES,
-        )
-        WindowsDwmApi.instance.DwmSetWindowAttribute(
-            hwnd,
-            DwmWindowAttributeUseImmersiveDarkModeBefore20H1,
-            value.pointer,
-            Int.SIZE_BYTES,
-        )
+        WindowsTitleBarJni.configure(window, isDark)
     }
 }
 
-private interface WindowsDwmApi : Library {
-    fun DwmSetWindowAttribute(
-        hwnd: Pointer,
-        dwAttribute: Int,
-        pvAttribute: Pointer,
-        cbAttribute: Int,
-    ): Int
+private object WindowsTitleBarJni {
+    private val platform = BassPlatform.current()
+    private val nativeLibraryLoaded: Boolean by lazy(::loadNativeLibrary)
 
-    companion object {
-        val instance: WindowsDwmApi by lazy {
-            Native.load("dwmapi", WindowsDwmApi::class.java)
-        }
+    fun configure(window: Window, isDark: Boolean): Boolean {
+        if (!nativeLibraryLoaded) return false
+        return nativeConfigureWindowsTitleBar(window, isDark)
     }
+
+    private fun loadNativeLibrary(): Boolean =
+        runCatching {
+            val directory = DesktopBassLibraryResolver(platform = platform).resolve() ?: return false
+            System.load(File(directory, platform.libraryName("bass")).absolutePath)
+            System.load(File(directory, platform.libraryName("bassmix")).absolutePath)
+            System.load(File(directory, platform.libraryName("naviamp_bass")).absolutePath)
+            true
+        }.getOrDefault(false)
 }
 
-private const val DwmWindowAttributeUseImmersiveDarkModeBefore20H1 = 19
-private const val DwmWindowAttributeUseImmersiveDarkMode = 20
+private external fun nativeConfigureWindowsTitleBar(window: Window, isDark: Boolean): Boolean

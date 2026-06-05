@@ -1,5 +1,7 @@
 package app.naviamp.android
 
+import app.naviamp.domain.cache.StorageCacheStats
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -12,6 +14,7 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
+import app.naviamp.domain.TrackId
 import app.naviamp.domain.app.NaviampContentState
 import app.naviamp.domain.app.NaviampNavigationState
 import app.naviamp.domain.playback.PlaybackProgress
@@ -20,6 +23,7 @@ import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaSearchResults
+import app.naviamp.domain.provider.PendingPlaybackAction
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
@@ -39,7 +43,7 @@ class AndroidAppState(
     savedPlaybackSettings: PlaybackSettings,
     canAutoConnect: Boolean,
     savedSourceId: String?,
-    initialStorageStats: AndroidStorageStats,
+    initialStorageStats: StorageCacheStats,
     initialOpenNowPlayingRequest: Int,
     initialAutoPlayMediaIdRequest: String?,
     initialAutoCommandRequest: String?,
@@ -106,9 +110,11 @@ class AndroidAppState(
     var volumePercent by mutableStateOf(100)
     var waveformByTrackId by mutableStateOf<Map<String, AudioWaveform>>(emptyMap())
     var playbackQueue by mutableStateOf(PlaybackQueue())
-    var preparedNextTrackId by mutableStateOf<String?>(null)
     var shuffledUpNextSnapshot by mutableStateOf<List<Track>?>(null)
     var repeatMode by mutableStateOf(RepeatMode.Off)
+    var radioQueueActive by mutableStateOf(false)
+    var radioRefilling by mutableStateOf(false)
+    var lastRadioRefillSeedId by mutableStateOf<TrackId?>(null)
     var relatedTracks by mutableStateOf<List<Track>>(emptyList())
     var artistPopularTracksByArtistId by mutableStateOf<Map<String, List<Track>>>(emptyMap())
     var artistPopularTracksStatusByArtistId by mutableStateOf<Map<String, String?>>(emptyMap())
@@ -119,6 +125,7 @@ class AndroidAppState(
     var lyricsByTrackId by mutableStateOf<Map<String, Lyrics?>>(emptyMap())
     var lyricsStatusByTrackId by mutableStateOf<Map<String, String?>>(emptyMap())
     var playlistActionStatus by mutableStateOf<String?>(null)
+    var pendingPlaybackAction by mutableStateOf<PendingPlaybackAction?>(null)
     var audioPrefetchJob by mutableStateOf<Job?>(null)
     var sidecarPrepJob by mutableStateOf<Job?>(null)
     var lastPlaybackSessionSaveAtMillis by mutableStateOf(0L)
@@ -131,7 +138,7 @@ fun rememberAndroidAppState(
     savedPlaybackSettings: PlaybackSettings,
     canAutoConnect: Boolean,
     savedSourceId: String?,
-    initialStorageStats: AndroidStorageStats,
+    initialStorageStats: StorageCacheStats,
     initialOpenNowPlayingRequest: Int,
     initialAutoPlayMediaIdRequest: String?,
     initialAutoCommandRequest: String?,

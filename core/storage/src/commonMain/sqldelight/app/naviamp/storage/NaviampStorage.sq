@@ -335,6 +335,17 @@ UPDATE cached_response
 SET payload = ?
 WHERE cache_key = ?;
 
+deleteResponsesByProviderAndType:
+DELETE FROM cached_response
+WHERE provider_id = ?
+  AND resource_type = ?;
+
+deleteResponseByProviderTypeAndId:
+DELETE FROM cached_response
+WHERE provider_id = ?
+  AND resource_type = ?
+  AND resource_id = ?;
+
 selectLatestMediaSource:
 SELECT *
 FROM media_source
@@ -753,6 +764,14 @@ WHERE source_id = ?
 AND remote_track_id = ?
 AND quality_key = ?;
 
+selectDownloadedAudioFileForTrack:
+SELECT *
+FROM downloaded_audio
+WHERE source_id = ?
+AND remote_track_id = ?
+ORDER BY downloaded_audio.downloaded_at_epoch_millis DESC
+LIMIT 1;
+
 selectDownloadedAudio:
 SELECT *
 FROM downloaded_audio
@@ -790,6 +809,11 @@ DELETE FROM downloaded_audio
 WHERE source_id = ?
 AND remote_track_id = ?
 AND quality_key = ?;
+
+deleteDownloadedAudioForTrack:
+DELETE FROM downloaded_audio
+WHERE source_id = ?
+AND remote_track_id = ?;
 
 downloadedAudioCount:
 SELECT COUNT(*)

@@ -1,5 +1,7 @@
 package app.naviamp.android
 
+import app.naviamp.domain.cache.StorageCacheStats
+
 import app.naviamp.android.playback.AndroidBassLoadReport
 import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.domain.InternetRadioStation
@@ -24,7 +26,7 @@ import app.naviamp.ui.label as streamQualityLabel
 
 fun rememberAndroidDiagnostics(
     selectedRoute: SharedRoute,
-    storageStats: AndroidStorageStats,
+    storageStats: StorageCacheStats,
     provider: MediaProvider?,
     validation: ConnectionValidation?,
     activeSourceId: String?,
@@ -66,7 +68,7 @@ fun rememberAndroidDiagnostics(
 }
 
 fun androidDiagnostics(
-    storageStats: AndroidStorageStats,
+    storageStats: StorageCacheStats,
     provider: MediaProvider?,
     validation: ConnectionValidation?,
     activeSourceId: String?,
@@ -135,7 +137,7 @@ fun androidDiagnostics(
             NaviampDiagnosticsSectionUi(
                 title = "Storage",
                 rows = listOf(
-                    "Database" to storageStats.databaseName,
+                    "Database" to storageStats.databaseLabel,
                     "Saved sources" to storageStats.mediaSourceCount.toString(),
                     "Saved sessions" to storageStats.playbackSessionCount.toString(),
                     "Library index" to "${storageStats.libraryArtistCount} artists, ${storageStats.libraryAlbumCount} albums, ${storageStats.libraryTrackCount} tracks",

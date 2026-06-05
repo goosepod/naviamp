@@ -2,8 +2,13 @@ package app.naviamp.android.playback
 
 import android.content.Context
 import android.net.Uri
+import app.naviamp.domain.bass.BassAudioBackend
+import app.naviamp.domain.bass.BassStreamHandle
 import app.naviamp.domain.waveform.AudioWaveform
+import app.naviamp.domain.waveform.AudioWaveformAnalysisSource
+import app.naviamp.domain.waveform.AudioWaveformAnalyzer
 import app.naviamp.domain.waveform.DefaultWaveformBucketCount
+import app.naviamp.domain.waveform.analyzeBassFloatPcmWaveform
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -11,9 +16,9 @@ import java.io.File
 
 class AndroidAudioWaveformAnalyzer(
     context: Context,
-    private val bass: AndroidBassJni,
+    private val bass: BassAudioBackend,
     private val bucketCount: Int = DefaultWaveformBucketCount,
-) {
+) : AudioWaveformAnalyzer {
     private val cacheDirectory = File(context.cacheDir, "waveforms").apply { mkdirs() }
     private var tlsSettings: NavidromeTlsSettings = NavidromeTlsSettings()
 
@@ -21,25 +26,32 @@ class AndroidAudioWaveformAnalyzer(
         this.tlsSettings = tlsSettings
     }
 
+    override suspend fun analyze(source: AudioWaveformAnalysisSource): AudioWaveform? =
+        analyze(trackId = source.cacheKey, streamUrl = source.streamUrl)
+
     suspend fun analyze(trackId: String, streamUrl: String): AudioWaveform? =
         withContext(Dispatchers.IO) {
             val cached = cachedWaveform(trackId)
             if (cached != null) return@withContext cached
             bass.setVerifyNet(!tlsSettings.insecureSkipTlsVerification)
+                .getOrElse { return@withContext null }
+            bass.configureInternetStreams()
+                .getOrElse { return@withContext null }
             val stream = createDecodeStream(streamUrl)
-            if (stream == 0) return@withContext null
+                .getOrElse { return@withContext null }
             try {
-                val amplitudes = bass.decodeWaveform(stream, bucketCount)
-                    .takeIf { it.isNotEmpty() }
-                    ?.map { it.coerceIn(0f, 1f) }
-                    ?: return@withContext null
-                AudioWaveform(amplitudes).also { cacheWaveform(trackId, it) }
+                val waveform = analyzeBassFloatPcmWaveform(
+                    bass = bass,
+                    stream = stream,
+                    bucketCount = bucketCount,
+                ) ?: return@withContext null
+                waveform.also { cacheWaveform(trackId, it) }
             } finally {
                 bass.freeStream(stream)
             }
         }
 
-    private fun createDecodeStream(streamUrl: String): Int {
+    private fun createDecodeStream(streamUrl: String): Result<BassStreamHandle> {
         val localFile = localFileFromUrl(streamUrl)
         return if (localFile != null) {
             bass.createFileDecodeStream(localFile.absolutePath)

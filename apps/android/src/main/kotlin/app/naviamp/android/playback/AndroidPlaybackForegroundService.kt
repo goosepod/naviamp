@@ -24,52 +24,117 @@ import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import androidx.media.MediaBrowserServiceCompat
 import androidx.media.utils.MediaConstants
-import app.naviamp.android.AndroidStorage
+import app.naviamp.android.AndroidStorageDependencies
 import app.naviamp.android.AndroidSettingsStore
+import app.naviamp.android.AndroidPlaybackAudioAssets
 import app.naviamp.android.R
 import app.naviamp.android.MainActivity
+import app.naviamp.android.resolveInternetRadioStreamUrl
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.InternetRadioStation
-import app.naviamp.domain.StreamQuality
-import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.cache.LocalLibraryIndexRepository
+import app.naviamp.domain.cache.MediaSourceRepository
+import app.naviamp.domain.cache.PlaybackHistoryRepository
+import app.naviamp.domain.cache.PlaybackSessionRepository
+import app.naviamp.domain.cache.ProviderResponseCacheRepository
+import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackRequest
-import app.naviamp.domain.playback.PlaybackState
-import app.naviamp.domain.playback.hasPendingSeekReachedTarget
-import app.naviamp.domain.playback.shouldIgnoreProgressForPendingSeek
-import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.queue.RepeatMode
+import app.naviamp.domain.network.KtorSharedHttpClient
 import app.naviamp.domain.radio.RadioService
+import app.naviamp.domain.radio.recentRadioStreamsWith
+import app.naviamp.domain.radio.recentSavedInternetRadioStationsWith
 import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.settings.RecentRadioKind
 import app.naviamp.domain.settings.RecentRadioStream
-import app.naviamp.domain.settings.SavedInternetRadioStation
 import app.naviamp.domain.settings.SavedTrack
-import app.naviamp.domain.settings.adjacentTrackSession
 import app.naviamp.domain.settings.playbackSessionFromQueue
-import app.naviamp.domain.settings.restoredTrackSession
-import app.naviamp.domain.settings.withPlaybackPosition
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.toNavidromeConnection
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import java.net.HttpURLConnection
-import java.net.URL
 import kotlin.concurrent.thread
 
 private const val VoiceArtistScanLimit = 5_000L
 class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     private var mediaSession: MediaSessionCompat? = null
     private var browserSessionTokenSet = false
-    private var serviceStorageInstance: AndroidStorage? = null
-    private val serviceStorage: AndroidStorage
-        get() = serviceStorageInstance ?: AndroidStorage(applicationContext).also { serviceStorageInstance = it }
+    private var serviceStorageInstance: AndroidStorageDependencies? = null
+    private val notificationArtHttpClient = KtorSharedHttpClient()
+    private val serviceStorage: AndroidStorageDependencies
+        get() = serviceStorageInstance ?: AndroidStorageDependencies(applicationContext).also { serviceStorageInstance = it }
+    private val autoQueueController = PlaybackQueueController()
+    private val autoBrowseController: AndroidAutoBrowseController by lazy {
+        AndroidAutoBrowseController(
+            context = applicationContext,
+            storage = { serviceStorage },
+            currentQueue = { currentAutoQueue },
+            currentMetadata = { currentMetadata },
+            restoredNowPlayingMetadata = { restoredNowPlayingMetadata() },
+            providerResponseService = { cacheRepository -> providerResponseService(cacheRepository) },
+            loadArtistTracks = ::loadServiceArtistTracks,
+            loadAlbumTracks = ::loadServiceAlbumTracks,
+        )
+    }
+    private val autoCommandController: AndroidAutoCommandController by lazy {
+        AndroidAutoCommandController(
+            handleServiceAutoPlayPause = { handleServiceAutoPlayPause() },
+            handleServicePlayMediaId = ::handleServicePlayMediaId,
+            handleServicePlaySearch = ::handleServicePlaySearch,
+            launchMainActivityForAutoMediaId = ::launchMainActivityForAutoMediaId,
+            launchMainActivityForAutoCommand = ::launchMainActivityForAutoCommand,
+            toggleFavorite = { toggleServiceFavorite() },
+            toggleShuffle = { toggleServiceShuffle() },
+            cycleRepeat = { cycleServiceRepeatMode() },
+            refreshNotification = { refreshNotification(null) },
+            isPlaying = { AndroidPlaybackNotificationControls.isPlaying },
+            favoriteAction = ActionFavorite,
+            shuffleAction = ActionShuffle,
+            repeatAction = ActionRepeat,
+        )
+    }
+    private val serviceSessionController: AndroidPlaybackServiceSessionController by lazy {
+        AndroidPlaybackServiceSessionController(
+            storage = { serviceStorage },
+            currentMetadata = { currentMetadata },
+            setCurrentMetadata = { metadata -> currentMetadata = metadata },
+            syncQueue = ::syncAutoQueue,
+            updateMediaSession = { metadata -> updateMediaSession(metadata, currentLargeIcon) },
+            loadCoverArt = { url, metadata -> loadCoverArtAsync(url, metadata) },
+        )
+    }
+    private val servicePlaybackRuntimeController: AndroidServicePlaybackRuntimeController by lazy {
+        AndroidServicePlaybackRuntimeController(
+            context = applicationContext,
+            storage = { serviceStorage },
+            queueController = autoQueueController,
+            currentQueue = { currentAutoQueue },
+            currentQueueIndex = { currentAutoQueueIndex },
+            syncQueue = ::syncAutoQueue,
+            repeatMode = { serviceRepeatModeForQueue() },
+            repeatOne = { serviceRepeatMode == ServiceRepeatMode.One },
+            setCurrentMetadata = { metadata -> currentMetadata = metadata },
+            updateMediaSession = { metadata -> updateMediaSession(metadata, currentLargeIcon) },
+            updateMediaSessionPlaybackState = { updateMediaSessionPlaybackState() },
+            loadCoverArt = { url, metadata -> loadCoverArtAsync(url, metadata) },
+            playTrackQueue = ::playServiceTrackQueue,
+            playInternetRadioStation = ::playServiceInternetRadioStation,
+        )
+    }
+
+    private fun providerResponseService(cacheRepository: ProviderResponseCacheRepository = serviceStorage): ProviderResponseService =
+        ProviderResponseService(cacheRepository)
+
     private val noisyAudioReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action != AudioManager.ACTION_AUDIO_BECOMING_NOISY) return
@@ -265,14 +330,25 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     private fun loadCoverArtAsync(coverArtUrl: String, metadata: AndroidPlaybackNotificationMetadata) {
         thread(name = "naviamp-notification-art") {
             val bitmap = runCatching {
-                URL(coverArtUrl).openStream().use { input ->
-                    decodeSampledBitmap(input.readBytes(), NotificationCoverArtSidePx)
+                runBlocking {
+                    notificationCoverArtBytes(coverArtUrl)
+                        ?.let { decodeSampledBitmap(it, NotificationCoverArtSidePx) }
                 }
             }.getOrNull() ?: return@thread
             if (currentMetadata.coverArtUrl != coverArtUrl) return@thread
             val manager = getSystemService(NotificationManager::class.java)
             manager.notify(NotificationId, buildNotification(metadata, largeIcon = bitmap))
         }
+    }
+
+    private suspend fun notificationCoverArtBytes(url: String): ByteArray? {
+        val provider = serviceStorage.latestNavidromeSource()
+            ?.toNavidromeConnection()
+            ?.let(::NavidromeProvider)
+        return provider
+            ?.takeIf { it.ownsUrl(url) }
+            ?.bytes(url)
+            ?: notificationArtHttpClient.getBytes(url)
     }
 
     private fun launchMainActivityForAutoMediaId(mediaId: String) {
@@ -304,32 +380,19 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     }
 
     private fun handleServiceAutoPlayPause() {
-        if (AndroidPlaybackNotificationControls.isPlaying) {
-            pauseServiceOwnedPlayback("Auto pause")
-            return
-        }
-        playSavedSession()
+        servicePlaybackRuntimeController.handleAutoPlayPause()
     }
 
     private fun pauseServiceOwnedPlayback(reason: String) {
-        if (!serviceOwnedPlayback) return
-        Log.i("NaviampAutoCommand", "Pausing service-owned playback: $reason")
-        runCatching { AndroidPlaybackRuntime.get(applicationContext).playbackEngine.pause() }
-        AndroidPlaybackNotificationControls.isPlaying = false
-        updateMediaSessionPlaybackState()
+        servicePlaybackRuntimeController.pause(reason)
     }
 
     private fun stopServiceOwnedPlayback(reason: String) {
-        Log.i("NaviampAutoCommand", "Stopping service-owned playback: $reason")
-        runCatching { AndroidPlaybackRuntime.get(applicationContext).playbackEngine.stop() }
-        AndroidPlaybackNotificationControls.isPlaying = false
-        serviceOwnedPlayback = false
-        updateMediaSessionPlaybackState()
+        servicePlaybackRuntimeController.stop(reason)
     }
 
     private fun stopPlaybackForUserRequest(reason: String) {
-        AndroidPlaybackNotificationControls.onStop?.invoke()
-            ?: stopServiceOwnedPlayback(reason)
+        servicePlaybackRuntimeController.stopForUserRequest(reason)
     }
 
     private fun stopPlaybackAndService(reason: String) {
@@ -340,185 +403,31 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     }
 
     private fun seekServiceOwnedPlayback(positionMillis: Long) {
-        val currentPositionSeconds = AndroidPlaybackNotificationControls.positionMillis
-            ?.let { it / 1_000.0 }
-            ?: 0.0
-        if (positionMillis == 0L && currentPositionSeconds > ServiceIgnoreZeroSeekAfterSeconds) {
-            Log.i(
-                "NaviampAutoCommand",
-                "Ignoring service zero seek while currentPosition=$currentPositionSeconds",
-            )
-            updateMediaSessionPlaybackState()
-            return
-        }
-        val positionSeconds = (positionMillis.coerceAtLeast(0L) / 1_000.0)
-        Log.i("NaviampAutoCommand", "Service seek requested seconds=$positionSeconds")
-        pendingServiceSeekPositionSeconds = positionSeconds
-        pendingServiceSeekAtMillis = System.currentTimeMillis()
-        AndroidPlaybackNotificationControls.positionMillis = positionMillis.coerceAtLeast(0L)
-        AndroidPlaybackRuntime.get(applicationContext).playbackEngine.seek(positionSeconds)
-        saveServicePlaybackPosition(positionSeconds)
-        updateMediaSessionPlaybackState()
-    }
-
-    private fun saveServicePlaybackPosition(positionSeconds: Double) {
-        val storage = serviceStorage
-        val sourceId = storage.latestNavidromeSource()?.id ?: return
-        val session = storage.loadPlaybackSession(sourceId) ?: return
-        storage.savePlaybackSession(
-            sourceId,
-            session.withPlaybackPosition(positionSeconds),
-        )
+        servicePlaybackRuntimeController.seek(positionMillis)
     }
 
     private fun playSavedSessionAdjacent(delta: Int) {
-        val storage = serviceStorage
-        val sourceId = storage.latestNavidromeSource()?.id ?: return
-        val session = storage.loadPlaybackSession(sourceId) ?: return
-        val nextSession = session.adjacentTrackSession(delta) ?: return
-        storage.savePlaybackSession(sourceId, nextSession)
-        playSavedSession(nextSession)
+        servicePlaybackRuntimeController.playSavedSessionAdjacent(delta)
     }
 
-    private fun playServiceOwnedAdjacent(delta: Int): Boolean {
-        if (!serviceOwnedPlayback) return false
-        val queue = currentAutoQueue
-        if (queue.isEmpty() || currentAutoQueueIndex !in queue.indices) return false
-        val nextIndex = currentAutoQueueIndex + delta
-        if (nextIndex !in queue.indices) {
-            val wrappedIndex = when {
-                delta > 0 && serviceRepeatMode == ServiceRepeatMode.All -> 0
-                delta < 0 && serviceRepeatMode == ServiceRepeatMode.All -> queue.lastIndex
-                else -> null
-            }
-            if (wrappedIndex == null) {
-                Log.i(
-                    "NaviampAutoCommand",
-                    "Service-owned queue has no adjacent track delta=$delta index=$currentAutoQueueIndex size=${queue.size}",
-                )
-                AndroidPlaybackNotificationControls.isPlaying = false
-                updateMediaSessionPlaybackState()
-                return true
-            }
-            val storage = serviceStorage
-            val sourceId = storage.latestNavidromeSource()?.id ?: return false
-            Log.i(
-                "NaviampAutoCommand",
-                "Service-owned queue wrapping delta=$delta from=$currentAutoQueueIndex to=$wrappedIndex size=${queue.size}",
-            )
-            playServiceTrackQueue(storage, sourceId, queue, wrappedIndex)
-            return true
-        }
-        val storage = serviceStorage
-        val sourceId = storage.latestNavidromeSource()?.id ?: return false
-        Log.i(
-            "NaviampAutoCommand",
-            "Service-owned queue advancing delta=$delta from=$currentAutoQueueIndex to=$nextIndex size=${queue.size}",
-        )
-        playServiceTrackQueue(storage, sourceId, queue, nextIndex)
-        return true
+    private fun syncAutoQueue(queue: PlaybackQueue) {
+        autoQueueController.replaceQueue(queue)
+        currentAutoQueue = autoQueueController.queue.tracks
+        currentAutoQueueIndex = autoQueueController.queue.currentIndex
     }
 
-    private fun handleServiceTrackFinished() {
-        if (serviceRepeatMode == ServiceRepeatMode.One) {
-            val queue = currentAutoQueue
-            if (currentAutoQueueIndex in queue.indices) {
-                val storage = serviceStorage
-                val sourceId = storage.latestNavidromeSource()?.id ?: return
-                playServiceTrackQueue(storage, sourceId, queue, currentAutoQueueIndex)
-                return
-            }
+    private fun serviceRepeatModeForQueue(): RepeatMode =
+        when (serviceRepeatMode) {
+            ServiceRepeatMode.Off -> RepeatMode.Off
+            ServiceRepeatMode.All -> RepeatMode.Queue
+            ServiceRepeatMode.One -> RepeatMode.Track
         }
-        playServiceOwnedAdjacent(1)
-    }
+
+    private fun playServiceOwnedAdjacent(delta: Int): Boolean =
+        servicePlaybackRuntimeController.playServiceOwnedAdjacent(delta)
 
     private fun playSavedSession(existingSession: PlaybackSessionSettings? = null) {
-        val storage = serviceStorage
-        val source = storage.latestNavidromeSource() ?: return
-        val session = existingSession ?: storage.loadPlaybackSession(source.id) ?: return
-        session.internetRadioStation?.let { station ->
-            playServiceInternetRadioStation(storage, source.id, station.toStation())
-            return
-        }
-        val restoredSession = session.restoredTrackSession() ?: return
-        val track = restoredSession.currentTrack
-        currentAutoQueue = restoredSession.tracks
-        currentAutoQueueIndex = restoredSession.currentIndex
-        val connection = source.toNavidromeConnection()
-        val provider = NavidromeProvider(connection)
-        val runtime = AndroidPlaybackRuntime.get(applicationContext)
-        val playbackSettings = AndroidSettingsStore(applicationContext).loadPlaybackSettings()
-        val quality = StreamQuality.Original
-        val startPositionSeconds = session.positionSeconds?.takeIf { it > 0.0 }
-
-        runtime.playbackEngine.applyTlsSettings(connection.tlsSettings)
-        AndroidPlaybackNotificationControls.canFavorite = provider.capabilities.supportsTrackFavorites
-        AndroidPlaybackNotificationControls.isFavorite = track.favoritedAtIso8601 != null
-        AndroidPlaybackNotificationControls.isPlaying = true
-        serviceOwnedPlayback = true
-        lastServiceSessionSaveAtMillis = 0L
-        lastServicePlaybackState = null
-        AndroidPlaybackNotificationControls.positionMillis = startPositionSeconds
-            ?.let { (it * 1_000.0).toLong() }
-            ?: 0L
-        AndroidPlaybackNotificationControls.durationMillis = track.durationSeconds
-            ?.takeIf { it > 0 }
-            ?.let { it * 1_000L }
-        currentMetadata = AndroidPlaybackNotificationMetadata(
-            title = track.title,
-            subtitle = track.artistName,
-            coverArtUrl = storage.savedCoverArtUrl(track),
-        )
-        currentMetadata.coverArtUrl?.let { loadCoverArtAsync(it, currentMetadata) }
-        updateMediaSession(currentMetadata, currentLargeIcon)
-        Log.i(
-            "NaviampAutoCommand",
-            "Service playing saved session source=${source.id} title=${track.title} position=$startPositionSeconds",
-        )
-
-        runtime.scope.launch {
-            runCatching {
-                provider.streamUrl(
-                    StreamRequest(
-                        trackId = track.id,
-                        quality = quality,
-                        startPositionSeconds = null,
-                    ),
-                )
-            }.onSuccess { streamUrl ->
-                runtime.playbackEngine.updateNotificationMetadata(
-                    title = track.title,
-                    subtitle = track.artistName,
-                    coverArtUrl = storage.savedCoverArtUrl(track),
-                )
-                runtime.playbackEngine.play(
-                    scope = runtime.scope,
-                    request = PlaybackRequest(
-                        url = streamUrl,
-                        mediaId = track.id.value,
-                        replayGainMode = playbackSettings.replayGainMode,
-                        startPositionSeconds = startPositionSeconds,
-                    ),
-                    onStateChanged = { state ->
-                        if (state != lastServicePlaybackState) {
-                            lastServicePlaybackState = state
-                            AndroidPlaybackNotificationControls.isPlaying = state == PlaybackState.Playing
-                            updateMediaSessionPlaybackState()
-                        }
-                        if (state == PlaybackState.Finished) {
-                            handleServiceTrackFinished()
-                        }
-                    },
-                    onProgressChanged = { progress ->
-                        handleServicePlaybackProgress(storage, source.id, session, progress)
-                    },
-                )
-            }.onFailure { error ->
-                Log.w("NaviampAutoCommand", "Service saved-session playback failed", error)
-                AndroidPlaybackNotificationControls.isPlaying = false
-                updateMediaSessionPlaybackState()
-            }
-        }
+        servicePlaybackRuntimeController.playSavedSession(existingSession)
     }
 
     private fun handleServicePlayMediaId(mediaId: String): Boolean {
@@ -562,7 +471,11 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 val playlistId = Uri.decode(mediaId.removePrefix(AndroidAutoPlaybackControls.MediaIdPlaylistPrefix))
                 val provider = NavidromeProvider(source.toNavidromeConnection())
                 AndroidPlaybackRuntime.get(applicationContext).scope.launch {
-                    runCatching { withContext(Dispatchers.IO) { provider.playlistTracks(playlistId) } }
+                    runCatching {
+                        withContext(Dispatchers.IO) {
+                            providerResponseService(storage).playlistTracks(provider, playlistId)
+                        }
+                    }
                         .onSuccess { tracks ->
                             playServiceTrackQueue(storage, sourceId, tracks, currentIndex = 0)
                         }
@@ -581,7 +494,11 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 if (playlistId.isBlank() || trackId.isBlank()) return false
                 val provider = NavidromeProvider(source.toNavidromeConnection())
                 AndroidPlaybackRuntime.get(applicationContext).scope.launch {
-                    runCatching { withContext(Dispatchers.IO) { provider.playlistTracks(playlistId) } }
+                    runCatching {
+                        withContext(Dispatchers.IO) {
+                            providerResponseService(storage).playlistTracks(provider, playlistId)
+                        }
+                    }
                         .onSuccess { tracks ->
                             val index = tracks.indexOfFirst { it.id.value == trackId }
                             if (index >= 0) {
@@ -605,7 +522,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                     homePageUrl = parts.getOrNull(3)?.takeIf { it.isNotBlank() },
                 )
                 if (station.streamUrl.isBlank()) return false
-                playServiceInternetRadioStation(storage, sourceId, station)
+                playServiceInternetRadioStation(storage, storage, sourceId, station)
                 true
             }
             mediaId.startsWith(AndroidAutoPlaybackControls.MediaIdRecentRadioPrefix) -> {
@@ -613,14 +530,14 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 val settingsStore = AndroidSettingsStore(applicationContext)
                 val recentStream = settingsStore.loadRecentRadioStreams().firstOrNull { it.id == recentId }
                 if (recentStream != null) {
-                    playServiceRecentRadioStream(storage, sourceId, recentStream)
+                    playServiceRecentRadioStream(storage, storage, sourceId, recentStream)
                     return true
                 }
                 val station = settingsStore.loadRecentInternetRadioStations()
                     .firstOrNull { it.id == recentId }
                     ?.toStation()
                 if (station != null) {
-                    playServiceInternetRadioStation(storage, sourceId, station)
+                playServiceInternetRadioStation(storage, storage, sourceId, station)
                     return true
                 }
                 false
@@ -642,7 +559,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 val provider = NavidromeProvider(source.toNavidromeConnection())
                 AndroidPlaybackRuntime.get(applicationContext).scope.launch {
                     runCatching {
-                        loadServiceArtistTracks(storage, sourceId, provider, artistId, artistName)
+                        loadServiceArtistTracks(storage, storage, sourceId, provider, artistId, artistName)
                             .firstOrNull { it.id.value == trackId }
                             ?: storage.libraryTrack(sourceId, TrackId(trackId))
                     }.onSuccess { track ->
@@ -667,7 +584,14 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 if (albumId.isBlank() || trackId.isBlank()) return false
                 val provider = NavidromeProvider(source.toNavidromeConnection())
                 AndroidPlaybackRuntime.get(applicationContext).scope.launch {
-                    runCatching { provider.album(AlbumId(albumId)).tracks.firstOrNull { it.id.value == trackId } }
+                    runCatching {
+                        withContext(Dispatchers.IO) {
+                            providerResponseService(storage)
+                                .album(provider, AlbumId(albumId))
+                                .tracks
+                                .firstOrNull { it.id.value == trackId }
+                        }
+                    }
                         .onSuccess { track ->
                             if (track != null) {
                                 playServiceTrackRadio(storage, sourceId, provider, track)
@@ -692,7 +616,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 val provider = NavidromeProvider(source.toNavidromeConnection())
                 AndroidPlaybackRuntime.get(applicationContext).scope.launch {
                     runCatching {
-                        loadServiceArtistTracks(storage, sourceId, provider, artistId, artistName)
+                        loadServiceArtistTracks(storage, storage, sourceId, provider, artistId, artistName)
                     }.onSuccess { tracks ->
                         playServiceTrackQueue(storage, sourceId, tracks.shuffled(), currentIndex = 0)
                     }.onFailure { error ->
@@ -712,7 +636,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 val provider = NavidromeProvider(source.toNavidromeConnection())
                 AndroidPlaybackRuntime.get(applicationContext).scope.launch {
                     runCatching {
-                        loadServiceAlbumTracks(storage, sourceId, provider, albumId, albumTitle, albumArtist)
+                        loadServiceAlbumTracks(storage, storage, sourceId, provider, albumId, albumTitle, albumArtist)
                     }.onSuccess { tracks ->
                         val shuffled = tracks.shuffled()
                         playServiceTrackQueue(storage, sourceId, shuffled, currentIndex = 0)
@@ -745,8 +669,8 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         val source = storage.latestNavidromeSource() ?: return false
         val radioQuery = trimmedQuery.radioSearchQuery()
         if (radioQuery != null) {
-            if (playServiceArtistRadioSearch(storage, source.id, radioQuery)) return true
-            if (playServiceGenreRadioSearch(storage, source.id, radioQuery)) return true
+            if (playServiceArtistRadioSearch(storage, storage, storage, source.id, radioQuery)) return true
+            if (playServiceGenreRadioSearch(storage, storage, source.id, radioQuery)) return true
         }
         val snapshot = storage.searchLibrary(source.id, trimmedQuery, AndroidAutoBrowseLimit.toLong(), 0)
         snapshot.tracks.firstOrNull()?.let { track ->
@@ -774,16 +698,18 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     }
 
     private fun playServiceArtistRadioSearch(
-        storage: AndroidStorage,
+        libraryIndexRepository: LocalLibraryIndexRepository,
+        mediaSourceRepository: MediaSourceRepository,
+        playbackSessionRepository: PlaybackSessionRepository,
         sourceId: String,
         query: String,
     ): Boolean {
-        val searchArtists = storage.searchLibrary(sourceId, query, AndroidAutoBrowseLimit.toLong(), 0).artists
+        val searchArtists = libraryIndexRepository.searchLibrary(sourceId, query, AndroidAutoBrowseLimit.toLong(), 0).artists
         val artist = searchArtists.firstOrNull { it.name.equals(query, ignoreCase = true) }
             ?: searchArtists.firstOrNull()
-            ?: findVoiceArtistMatch(storage, sourceId, query)
+            ?: findVoiceArtistMatch(libraryIndexRepository, sourceId, query)
             ?: return false
-        val source = storage.latestNavidromeSource() ?: return false
+        val source = mediaSourceRepository.latestMediaSource() ?: return false
         val provider = NavidromeProvider(source.toNavidromeConnection())
         val recent = RecentRadioStream(
             id = "artist:${artist.id.value}",
@@ -795,7 +721,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         AndroidPlaybackRuntime.get(applicationContext).scope.launch {
             runCatching { withContext(Dispatchers.IO) { RadioService(provider).artistRadio(artist.id) } }
                 .onSuccess { tracks ->
-                    playServiceTrackQueue(storage, sourceId, tracks, currentIndex = 0)
+                    playServiceTrackQueue(playbackSessionRepository, sourceId, tracks, currentIndex = 0)
                 }
                 .onFailure { error ->
                     Log.w("NaviampAutoCommand", "Could not start artist radio search=${artist.name}", error)
@@ -807,11 +733,12 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     }
 
     private fun playServiceGenreRadioSearch(
-        storage: AndroidStorage,
+        mediaSourceRepository: MediaSourceRepository,
+        playbackSessionRepository: PlaybackSessionRepository,
         sourceId: String,
         query: String,
     ): Boolean {
-        val source = storage.latestNavidromeSource() ?: return false
+        val source = mediaSourceRepository.latestMediaSource() ?: return false
         val provider = NavidromeProvider(source.toNavidromeConnection())
         val recent = RecentRadioStream(
             id = "genre:${query.lowercase()}",
@@ -827,7 +754,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                         Log.i("NaviampAutoCommand", "No genre radio tracks for query=$query")
                         return@onSuccess
                     }
-                    playServiceTrackQueue(storage, sourceId, tracks, currentIndex = 0)
+                    playServiceTrackQueue(playbackSessionRepository, sourceId, tracks, currentIndex = 0)
                 }
                 .onFailure { error ->
                     Log.w("NaviampAutoCommand", "Could not start genre radio search=$query", error)
@@ -839,34 +766,30 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     }
 
     private fun serviceQueueForLibraryTrack(
-        storage: AndroidStorage,
+        libraryIndexRepository: LocalLibraryIndexRepository,
         sourceId: String,
         track: Track,
     ): List<Track> =
-        track.albumId?.let { storage.libraryTracksForAlbum(sourceId, it, 200) }
+        track.albumId?.let { libraryIndexRepository.libraryTracksForAlbum(sourceId, it, 200) }
             ?.takeIf { tracks -> tracks.any { it.id == track.id } }
-            ?: track.albumTitle?.let { storage.libraryTracksForAlbumTitle(sourceId, it, track.artistName, 200) }
+            ?: track.albumTitle?.let { libraryIndexRepository.libraryTracksForAlbumTitle(sourceId, it, track.artistName, 200) }
                 ?.takeIf { tracks -> tracks.any { it.id == track.id } }
-            ?: track.artistId?.let { storage.libraryTracksForArtist(sourceId, it, 200) }
+            ?: track.artistId?.let { libraryIndexRepository.libraryTracksForArtist(sourceId, it, 200) }
                 ?.takeIf { tracks -> tracks.any { it.id == track.id } }
-            ?: storage.libraryTracksForArtistName(sourceId, track.artistName, 200)
+            ?: libraryIndexRepository.libraryTracksForArtistName(sourceId, track.artistName, 200)
                 .takeIf { tracks -> tracks.any { it.id == track.id } }
             ?: listOf(track)
 
     private fun playServiceTrackQueue(
-        storage: AndroidStorage,
+        playbackSessionRepository: PlaybackSessionRepository,
         sourceId: String,
         tracks: List<Track>,
         currentIndex: Int,
     ) {
         if (tracks.isEmpty()) return
-        val session = playbackSessionFromQueue(
-            PlaybackQueue(
-                tracks = tracks,
-                currentIndex = currentIndex.coerceIn(tracks.indices),
-            ),
-        ) ?: return
-        storage.savePlaybackSession(sourceId, session)
+        syncAutoQueue(PlaybackQueue(tracks = tracks, currentIndex = currentIndex.coerceIn(tracks.indices)))
+        val session = playbackSessionFromQueue(autoQueueController.queue) ?: return
+        playbackSessionRepository.savePlaybackSession(sourceId = sourceId, session = session)
         playSavedSession(session)
     }
 
@@ -879,52 +802,59 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     }
 
     private suspend fun loadServiceAlbumTracks(
-        storage: AndroidStorage,
+        libraryIndexRepository: LocalLibraryIndexRepository,
+        providerResponseCacheRepository: ProviderResponseCacheRepository,
         sourceId: String,
         provider: NavidromeProvider,
         albumId: String,
         albumTitle: String?,
         albumArtist: String?,
     ): List<Track> =
-        storage.libraryTracksForAlbum(sourceId, AlbumId(albumId), AndroidAutoBrowseLimit.toLong())
+        libraryIndexRepository.libraryTracksForAlbum(sourceId, AlbumId(albumId), AndroidAutoBrowseLimit.toLong())
             .ifEmpty {
                 albumTitle?.let { title ->
-                    storage.libraryTracksForAlbumTitle(sourceId, title, albumArtist, AndroidAutoBrowseLimit.toLong())
+                    libraryIndexRepository.libraryTracksForAlbumTitle(sourceId, title, albumArtist, AndroidAutoBrowseLimit.toLong())
                 }.orEmpty()
             }
             .ifEmpty {
                 runCatching {
-                    withContext(Dispatchers.IO) { provider.album(AlbumId(albumId)).tracks }
+                    withContext(Dispatchers.IO) {
+                        providerResponseService(providerResponseCacheRepository).album(provider, AlbumId(albumId)).tracks
+                    }
                 }.getOrDefault(emptyList())
             }
 
     private suspend fun loadServiceArtistTracks(
-        storage: AndroidStorage,
+        libraryIndexRepository: LocalLibraryIndexRepository,
+        providerResponseCacheRepository: ProviderResponseCacheRepository,
         sourceId: String,
         provider: NavidromeProvider,
         artistId: String,
         artistName: String?,
     ): List<Track> =
         artistId.takeIf { it.isNotBlank() }
-            ?.let { id -> storage.libraryTracksForArtist(sourceId, ArtistId(id), AndroidAutoBrowseLimit.toLong()) }
+            ?.let { id -> libraryIndexRepository.libraryTracksForArtist(sourceId, ArtistId(id), AndroidAutoBrowseLimit.toLong()) }
             .orEmpty()
             .ifEmpty {
                 artistName?.let { name ->
-                    storage.libraryTracksForArtistName(sourceId, name, AndroidAutoBrowseLimit.toLong())
+                    libraryIndexRepository.libraryTracksForArtistName(sourceId, name, AndroidAutoBrowseLimit.toLong())
                 }.orEmpty()
             }
             .ifEmpty {
                 artistId.takeIf { it.isNotBlank() }?.let { id ->
                     runCatching {
                         withContext(Dispatchers.IO) {
-                            provider.artist(ArtistId(id)).albums.flatMap { album -> provider.album(album.id).tracks }
+                            val responseService = providerResponseService(providerResponseCacheRepository)
+                            responseService.artist(provider, ArtistId(id)).albums.flatMap { album ->
+                                responseService.album(provider, album.id).tracks
+                            }
                         }
                     }.getOrDefault(emptyList())
                 }.orEmpty()
             }
 
     private fun playServiceTrackRadio(
-        storage: AndroidStorage,
+        playbackSessionRepository: PlaybackSessionRepository,
         sourceId: String,
         provider: NavidromeProvider,
         seedTrack: Track,
@@ -941,7 +871,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             runCatching { withContext(Dispatchers.IO) { RadioService(provider).trackRadio(seedTrack.id) } }
                 .onSuccess { tracks ->
                     playServiceTrackQueue(
-                        storage = storage,
+                        playbackSessionRepository = playbackSessionRepository,
                         sourceId = sourceId,
                         tracks = (listOf(seedTrack) + tracks).distinctBy { it.id },
                         currentIndex = 0,
@@ -949,18 +879,19 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 }
                 .onFailure { error ->
                     Log.w("NaviampAutoCommand", "Could not start track radio=${seedTrack.id.value}", error)
-                    playServiceTrackQueue(storage, sourceId, listOf(seedTrack), currentIndex = 0)
+                    playServiceTrackQueue(playbackSessionRepository, sourceId, listOf(seedTrack), currentIndex = 0)
                 }
         }
     }
 
     private fun playServiceRecentRadioStream(
-        storage: AndroidStorage,
+        mediaSourceRepository: MediaSourceRepository,
+        playbackSessionRepository: PlaybackSessionRepository,
         sourceId: String,
         stream: RecentRadioStream,
     ) {
         rememberRecentRadioStream(stream)
-        val source = storage.latestNavidromeSource() ?: return
+        val source = mediaSourceRepository.latestMediaSource() ?: return
         val provider = NavidromeProvider(source.toNavidromeConnection())
         AndroidPlaybackRuntime.get(applicationContext).scope.launch {
             runCatching {
@@ -979,7 +910,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                     }
                 }
             }.onSuccess { tracks ->
-                playServiceTrackQueue(storage, sourceId, tracks, currentIndex = 0)
+                playServiceTrackQueue(playbackSessionRepository, sourceId, tracks, currentIndex = 0)
             }.onFailure { error ->
                 Log.w("NaviampAutoCommand", "Could not start recent radio=${stream.label}", error)
                 AndroidPlaybackNotificationControls.isPlaying = false
@@ -989,22 +920,25 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     }
 
     private fun playServiceInternetRadioStation(
-        storage: AndroidStorage,
+        mediaSourceRepository: MediaSourceRepository,
+        playbackSessionRepository: PlaybackSessionRepository,
         sourceId: String,
         station: InternetRadioStation,
     ) {
         rememberRecentInternetRadioStation(station)
-        storage.savePlaybackSession(sourceId, PlaybackSessionSettings.fromInternetRadioStation(station))
+        playbackSessionRepository.savePlaybackSession(
+            sourceId = sourceId,
+            session = PlaybackSessionSettings.fromInternetRadioStation(station),
+        )
         val runtime = AndroidPlaybackRuntime.get(applicationContext)
-        runtime.playbackEngine.applyTlsSettings(storage.latestNavidromeSource()?.toNavidromeConnection()?.tlsSettings ?: return)
+        runtime.playbackEngine.applyTlsSettings(mediaSourceRepository.latestMediaSource()?.toNavidromeConnection()?.tlsSettings ?: return)
         AndroidPlaybackNotificationControls.canFavorite = false
         AndroidPlaybackNotificationControls.isFavorite = false
         AndroidPlaybackNotificationControls.isPlaying = true
         AndroidPlaybackNotificationControls.positionMillis = 0L
         AndroidPlaybackNotificationControls.durationMillis = null
-        serviceOwnedPlayback = true
-        currentAutoQueue = emptyList()
-        currentAutoQueueIndex = -1
+        servicePlaybackRuntimeController.markStarted()
+        syncAutoQueue(PlaybackQueue())
         currentMetadata = AndroidPlaybackNotificationMetadata(
             title = station.name,
             subtitle = "Internet radio",
@@ -1023,14 +957,15 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                         scope = runtime.scope,
                         request = PlaybackRequest(streamUrl),
                         onStateChanged = { state ->
-                            if (state != lastServicePlaybackState) {
-                                lastServicePlaybackState = state
-                                AndroidPlaybackNotificationControls.isPlaying = state == PlaybackState.Playing
-                                updateMediaSessionPlaybackState()
-                            }
+                            servicePlaybackRuntimeController.handlePlaybackStateChanged(state)
                         },
                         onProgressChanged = { progress ->
-                            handleServicePlaybackProgress(storage, sourceId, PlaybackSessionSettings.fromInternetRadioStation(station), progress)
+                            handleServicePlaybackProgress(
+                                playbackSessionRepository,
+                                sourceId,
+                                PlaybackSessionSettings.fromInternetRadioStation(station),
+                                progress,
+                            )
                         },
                         onMetadataChanged = { metadata ->
                             metadata.title?.takeIf { it.isNotBlank() }?.let { streamTitle ->
@@ -1054,63 +989,33 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
 
     private fun rememberRecentRadioStream(stream: RecentRadioStream) {
         val settingsStore = AndroidSettingsStore(applicationContext)
-        val recent = (listOf(stream) + settingsStore.loadRecentRadioStreams().filterNot { it.id == stream.id }).take(12)
-        settingsStore.saveRecentRadioStreams(recent)
+        settingsStore.saveRecentRadioStreams(
+            recentRadioStreamsWith(settingsStore.loadRecentRadioStreams(), stream),
+        )
     }
 
     private fun rememberRecentInternetRadioStation(station: InternetRadioStation) {
         val settingsStore = AndroidSettingsStore(applicationContext)
-        val saved = SavedInternetRadioStation.fromStation(station)
-        val recent = (listOf(saved) + settingsStore.loadRecentInternetRadioStations().filterNot { it.id == saved.id }).take(12)
-        settingsStore.saveRecentInternetRadioStations(recent)
+        settingsStore.saveRecentInternetRadioStations(
+            recentSavedInternetRadioStationsWith(
+                settingsStore.loadRecentInternetRadioStations(),
+                station,
+            ),
+        )
     }
 
     private fun handleServicePlaybackProgress(
-        storage: AndroidStorage,
+        playbackSessionRepository: PlaybackSessionRepository,
         sourceId: String,
         session: PlaybackSessionSettings,
         progress: PlaybackProgress,
     ) {
-        val now = System.currentTimeMillis()
-        val progressPositionSeconds = progress.positionSeconds
-        if (progressPositionSeconds == null && progress.durationSeconds == null) return
-        val pendingSeekPosition = pendingServiceSeekPositionSeconds
-        if (
-            shouldIgnoreProgressForPendingSeek(
-                pendingSeekPositionSeconds = pendingSeekPosition,
-                pendingSeekIssuedAtMillis = pendingServiceSeekAtMillis,
-                incomingPositionSeconds = progressPositionSeconds,
-                nowMillis = now,
-                toleranceSeconds = ServiceSeekToleranceSeconds,
-                staleWindowMillis = ServiceSeekStaleProgressWindowMillis,
-            )
-        ) {
-            return
-        }
-        if (
-            hasPendingSeekReachedTarget(
-                pendingSeekPositionSeconds = pendingSeekPosition,
-                incomingPositionSeconds = progressPositionSeconds,
-                toleranceSeconds = ServiceSeekToleranceSeconds,
-            )
-        ) {
-            pendingServiceSeekPositionSeconds = null
-        }
-        val positionMillis = progressPositionSeconds
-            ?.takeIf { it >= 0.0 }
-            ?.let { (it * 1_000.0).toLong() }
-        val durationMillis = progress.durationSeconds
-            ?.takeIf { it > 0.0 }
-            ?.let { (it * 1_000.0).toLong() }
-        AndroidPlaybackNotificationControls.positionMillis = positionMillis
-        AndroidPlaybackNotificationControls.durationMillis = durationMillis
-        if (now - lastServiceSessionSaveAtMillis >= ServicePlaybackSessionSaveIntervalMillis) {
-            lastServiceSessionSaveAtMillis = now
-            storage.savePlaybackSession(
-                sourceId,
-                session.withPlaybackPosition(progressPositionSeconds),
-            )
-        }
+        servicePlaybackRuntimeController.handlePlaybackProgress(
+            playbackSessionRepository = playbackSessionRepository,
+            sourceId = sourceId,
+            session = session,
+            progress = progress,
+        )
     }
 
     private fun ensureMediaSession(): MediaSessionCompat =
@@ -1171,49 +1076,15 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                     }
 
                     override fun onPlayFromMediaId(mediaId: String, extras: Bundle?) {
-                        Log.i("NaviampAutoCommand", "Auto requested mediaId=$mediaId")
-                        if (mediaId == AndroidAutoPlaybackControls.MediaIdNowPlaying && !AndroidPlaybackNotificationControls.isPlaying) {
-                            handleServiceAutoPlayPause()
-                            refreshNotification(null)
-                            return
-                        }
-                        if (handleServicePlayMediaId(mediaId)) {
-                            return
-                        }
-                        val handledInProcess = AndroidAutoPlaybackControls.onPlayMediaId?.let { handler ->
-                            handler(mediaId)
-                            true
-                        } ?: false
-                        if (!handledInProcess) {
-                            launchMainActivityForAutoMediaId(mediaId)
-                        }
+                        autoCommandController.playFromMediaId(mediaId, extras)
                     }
 
                     override fun onPlayFromSearch(query: String, extras: Bundle?) {
-                        Log.i("NaviampAutoCommand", "Auto requested search=$query")
-                        if (!handleServicePlaySearch(query)) {
-                            launchMainActivityForAutoCommand(AndroidAutoPlaybackControls.CommandPlayPause)
-                        }
+                        autoCommandController.playFromSearch(query, extras)
                     }
 
                     override fun onCustomAction(action: String, extras: android.os.Bundle?) {
-                        when (action) {
-                            ActionFavorite -> if (AndroidPlaybackNotificationControls.canFavorite) {
-                                AndroidPlaybackNotificationControls.isFavorite =
-                                    !AndroidPlaybackNotificationControls.isFavorite
-                                AndroidPlaybackNotificationControls.onToggleFavorite?.invoke()
-                                refreshNotification(null)
-                            }
-                            ActionShuffle -> {
-                                toggleServiceShuffle()
-                                refreshNotification(null)
-                            }
-                            ActionRepeat -> {
-                                serviceRepeatMode = serviceRepeatMode.next()
-                                updateMediaSessionPlaybackState()
-                                refreshNotification(null)
-                            }
-                        }
+                        autoCommandController.customAction(action, extras)
                     }
                 },
             )
@@ -1244,305 +1115,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         result: Result<MutableList<MediaBrowserCompat.MediaItem>>,
     ) {
         hydrateSavedPlaybackSession()
-        Log.i("NaviampAutoCommand", "Loading Auto children parent=$parentId")
-        val storage = serviceStorage
-        val sourceId = storage.latestNavidromeSource()?.id
-        if (parentId == AndroidAutoPlaybackControls.MediaIdRadioStations) {
-            loadAsyncChildren(result) {
-                val source = storage.latestNavidromeSource() ?: return@loadAsyncChildren noSourceItems()
-                val provider = NavidromeProvider(source.toNavidromeConnection())
-                withContext(Dispatchers.IO) { provider.internetRadioStations() }
-                    .take(AndroidAutoBrowseLimit)
-                    .map { station ->
-                        playableItem(
-                            mediaId = AndroidAutoPlaybackControls.MediaIdRadioStationPrefix + listOf(
-                                Uri.encode(station.id),
-                                Uri.encode(station.name),
-                                Uri.encode(station.streamUrl),
-                                Uri.encode(station.homePageUrl.orEmpty()),
-                            ).joinToString(MediaIdPartSeparator),
-                            title = station.name,
-                            subtitle = station.homePageUrl ?: "Internet radio",
-                        )
-                    }
-                    .toMutableList()
-            }
-            return
-        }
-        if (parentId == AndroidAutoPlaybackControls.MediaIdRadioRecent) {
-            val settingsStore = AndroidSettingsStore(applicationContext)
-            val recentStreams = settingsStore.loadRecentRadioStreams().map { stream ->
-                playableItem(
-                    mediaId = "${AndroidAutoPlaybackControls.MediaIdRecentRadioPrefix}${Uri.encode(stream.id)}",
-                    title = stream.label,
-                    subtitle = "Radio",
-                )
-            }
-            val recentStations = settingsStore.loadRecentInternetRadioStations().map { station ->
-                playableItem(
-                    mediaId = "${AndroidAutoPlaybackControls.MediaIdRecentRadioPrefix}${Uri.encode(station.id)}",
-                    title = station.name,
-                    subtitle = station.homePageUrl ?: "Internet radio",
-                )
-            }
-            sendChildren(parentId, (recentStreams + recentStations).toMutableList(), result)
-            return
-        }
-        if (parentId == AndroidAutoPlaybackControls.MediaIdQueue) {
-            val queue = currentAutoQueue
-            val children = queue.mapIndexed { index, track ->
-                trackItem(
-                    track = track,
-                    mediaId = "${AndroidAutoPlaybackControls.MediaIdQueueTrackPrefix}${Uri.encode(index.toString())}",
-                )
-            }.toMutableList()
-            sendChildren(parentId, children, result)
-            return
-        }
-        if (parentId == AndroidAutoPlaybackControls.MediaIdPlaylists) {
-            loadAsyncChildren(result) {
-                val source = storage.latestNavidromeSource() ?: return@loadAsyncChildren noSourceItems()
-                val provider = NavidromeProvider(source.toNavidromeConnection())
-                withContext(Dispatchers.IO) { provider.playlists(limit = AndroidAutoBrowseLimit) }
-                    .map { playlist ->
-                        browsableItem(
-                            mediaId = "${AndroidAutoPlaybackControls.MediaIdPlaylistPrefix}${Uri.encode(playlist.id)}",
-                            title = playlist.name,
-                            subtitle = "${playlist.trackCount} tracks",
-                        )
-                    }
-                    .toMutableList()
-            }
-            return
-        }
-        if (parentId == AndroidAutoPlaybackControls.MediaIdHomeRecentlyAdded) {
-            loadAsyncChildren(result) {
-                val source = storage.latestNavidromeSource() ?: return@loadAsyncChildren noSourceItems()
-                val provider = NavidromeProvider(source.toNavidromeConnection())
-                withContext(Dispatchers.IO) { provider.albumList(AlbumListType.Newest, AndroidAutoBrowseLimit) }
-                    .map(::albumItem)
-                    .toMutableList()
-            }
-            return
-        }
-        if (parentId == AndroidAutoPlaybackControls.MediaIdChartsAlbums) {
-            loadAsyncChildren(result) {
-                val source = storage.latestNavidromeSource() ?: return@loadAsyncChildren noSourceItems()
-                val provider = NavidromeProvider(source.toNavidromeConnection())
-                withContext(Dispatchers.IO) { provider.albumList(AlbumListType.Frequent, AndroidAutoBrowseLimit) }
-                    .map(::albumItem)
-                    .toMutableList()
-            }
-            return
-        }
-        val children = when (parentId) {
-            AndroidAutoPlaybackControls.MediaIdRoot -> mutableListOf(
-                browsableItem(AndroidAutoPlaybackControls.MediaIdHome, "Home", "Mixes and recent music", iconName = "ic_auto_home"),
-                browsableItem(AndroidAutoPlaybackControls.MediaIdLibrary, "Library", "Browse your collection", iconName = "ic_auto_library"),
-                browsableItem(AndroidAutoPlaybackControls.MediaIdCharts, "Charts", "Top artists, albums, and tracks", iconName = "ic_auto_charts"),
-                browsableItem(AndroidAutoPlaybackControls.MediaIdRadioStations, "Radio", "Saved internet radio", iconName = "ic_auto_radio"),
-            )
-            AndroidAutoPlaybackControls.MediaIdHome -> mutableListOf(
-                browsableItem(AndroidAutoPlaybackControls.MediaIdHomeMixes, "Mixes For You", "Radio based on your library"),
-                browsableItem(AndroidAutoPlaybackControls.MediaIdHomeRecentPlays, "Recent Plays", "Recently played tracks and radio"),
-                browsableItem(AndroidAutoPlaybackControls.MediaIdHomeRecentlyAdded, "Recently Added in Music", "Newest albums"),
-            )
-            AndroidAutoPlaybackControls.MediaIdLibrary -> mutableListOf(
-                browsableItem(AndroidAutoPlaybackControls.MediaIdLibraryArtists, "Artists A-Z", "Browse indexed artists"),
-                browsableItem(AndroidAutoPlaybackControls.MediaIdLibraryAlbums, "Albums", "Browse indexed albums"),
-                browsableItem(AndroidAutoPlaybackControls.MediaIdLibraryTracks, "Tracks", "Browse indexed tracks"),
-            )
-            AndroidAutoPlaybackControls.MediaIdLibraryArtists -> {
-                sourceId?.let { id ->
-                    storage.librarySnapshot(id, VoiceArtistScanLimit, 0)
-                        .artists
-                        .groupBy { it.name.autoArtistGroupKey() }
-                        .toSortedMap(compareBy<String> { if (it == "#") "0" else it })
-                        .map { (group, artists) ->
-                            browsableItem(
-                                mediaId = "${AndroidAutoPlaybackControls.MediaIdArtistGroupPrefix}${Uri.encode(group)}",
-                                title = group,
-                                subtitle = "${artists.size} artists",
-                            )
-                        }
-                        .toMutableList()
-                } ?: noSourceItems()
-            }
-            AndroidAutoPlaybackControls.MediaIdLibraryAlbums -> {
-                sourceId?.let { id ->
-                    storage.librarySnapshot(id, AndroidAutoBrowseLimit.toLong(), 0).albums.map(::albumItem).toMutableList()
-                } ?: noSourceItems()
-            }
-            AndroidAutoPlaybackControls.MediaIdLibraryTracks -> {
-                sourceId?.let { id ->
-                    storage.librarySnapshot(id, AndroidAutoBrowseLimit.toLong(), 0).tracks.map(::trackItem).toMutableList()
-                } ?: noSourceItems()
-            }
-            AndroidAutoPlaybackControls.MediaIdRadio -> mutableListOf(
-                playableItem(AndroidAutoPlaybackControls.MediaIdRadioLibrary, "Library Radio", "Random tracks from your library"),
-                browsableItem(AndroidAutoPlaybackControls.MediaIdRadioRecent, "Recently Played Radio", "Radio you started from Naviamp"),
-                browsableItem(AndroidAutoPlaybackControls.MediaIdRadioStations, "Internet Radio", "Saved Navidrome stations"),
-            )
-            AndroidAutoPlaybackControls.MediaIdHomeMixes -> mutableListOf(
-                playableItem(AndroidAutoPlaybackControls.MediaIdRadioLibrary, "Library Radio", "Random tracks from your library"),
-                browsableItem(AndroidAutoPlaybackControls.MediaIdRadioRecent, "Recently Played Radio", "Radio you started from Naviamp"),
-            )
-            AndroidAutoPlaybackControls.MediaIdHomeRecentPlays -> {
-                sourceId?.let { id ->
-                    val settingsStore = AndroidSettingsStore(applicationContext)
-                    val recentStreams = settingsStore.loadRecentRadioStreams().map { stream ->
-                        playableItem(
-                            mediaId = "${AndroidAutoPlaybackControls.MediaIdRecentRadioPrefix}${Uri.encode(stream.id)}",
-                            title = stream.label,
-                            subtitle = "Radio",
-                        )
-                    }
-                    val recentTracks = storage.playbackHistory(id, AndroidAutoBrowseLimit)
-                        .map { history -> trackItem(history.track) }
-                    (recentStreams + recentTracks).take(AndroidAutoBrowseLimit).toMutableList()
-                } ?: noSourceItems()
-            }
-            AndroidAutoPlaybackControls.MediaIdCharts -> mutableListOf(
-                browsableItem(AndroidAutoPlaybackControls.MediaIdChartsArtists, "Top Artists", "Library favorites"),
-                browsableItem(AndroidAutoPlaybackControls.MediaIdChartsAlbums, "Top Albums", "Frequently played albums"),
-                browsableItem(AndroidAutoPlaybackControls.MediaIdChartsTracks, "Top Tracks", "Recently played tracks"),
-            )
-            AndroidAutoPlaybackControls.MediaIdChartsArtists -> {
-                sourceId?.let { id ->
-                    storage.librarySnapshot(id, AndroidAutoBrowseLimit.toLong(), 0).artists.map(::artistItem).toMutableList()
-                } ?: noSourceItems()
-            }
-            AndroidAutoPlaybackControls.MediaIdChartsTracks -> {
-                sourceId?.let { id ->
-                    storage.playbackHistory(id, AndroidAutoBrowseLimit)
-                        .map { history -> trackItem(history.track) }
-                        .toMutableList()
-                } ?: noSourceItems()
-            }
-            AndroidAutoPlaybackControls.MediaIdDownloads -> {
-                sourceId?.let { id ->
-                    storage.downloadedTracks(id)
-                        .filter { it.file.exists() }
-                        .take(AndroidAutoBrowseLimit)
-                        .map { download ->
-                            trackItem(
-                                track = download.track,
-                                mediaId = "${AndroidAutoPlaybackControls.MediaIdDownloadPrefix}${Uri.encode(download.track.id.value)}",
-                            )
-                        }
-                        .toMutableList()
-                } ?: noSourceItems()
-            }
-            AndroidAutoPlaybackControls.MediaIdMore -> mutableListOf(
-                currentNowPlayingItem(),
-                browsableItem(AndroidAutoPlaybackControls.MediaIdQueue, "Current queue", "${currentAutoQueue.size} tracks"),
-                browsableItem(AndroidAutoPlaybackControls.MediaIdPlaylists, "Playlists", "Saved Navidrome playlists"),
-                browsableItem(AndroidAutoPlaybackControls.MediaIdRadioStations, "Internet Radio", "Saved Navidrome stations"),
-                browsableItem(AndroidAutoPlaybackControls.MediaIdLibraryTracks, "All Tracks", "Browse indexed tracks"),
-            )
-            else -> when {
-                parentId.startsWith(AndroidAutoPlaybackControls.MediaIdArtistGroupPrefix) -> {
-                    val group = Uri.decode(parentId.removePrefix(AndroidAutoPlaybackControls.MediaIdArtistGroupPrefix))
-                    sourceId?.let { id ->
-                        storage.librarySnapshot(id, VoiceArtistScanLimit, 0)
-                            .artists
-                            .filter { it.name.autoArtistGroupKey() == group }
-                            .take(AndroidAutoBrowseLimit)
-                            .map(::artistItem)
-                            .toMutableList()
-                    } ?: noSourceItems()
-                }
-                parentId.startsWith(AndroidAutoPlaybackControls.MediaIdPlaylistPrefix) -> {
-                    val playlistId = Uri.decode(parentId.removePrefix(AndroidAutoPlaybackControls.MediaIdPlaylistPrefix))
-                    loadAsyncChildren(result) {
-                        val source = storage.latestNavidromeSource() ?: return@loadAsyncChildren noSourceItems()
-                        val provider = NavidromeProvider(source.toNavidromeConnection())
-                        withContext(Dispatchers.IO) { provider.playlistTracks(playlistId) }
-                            .take(AndroidAutoBrowseLimit)
-                            .map { track ->
-                                trackItem(
-                                    track = track,
-                                    mediaId = AndroidAutoPlaybackControls.MediaIdPlaylistTrackPrefix + listOf(
-                                        Uri.encode(playlistId),
-                                        Uri.encode(track.id.value),
-                                    ).joinToString(MediaIdPartSeparator),
-                                )
-                            }
-                            .toMutableList()
-                    }
-                    return
-                }
-                parentId.startsWith(AndroidAutoPlaybackControls.MediaIdArtistPrefix) -> {
-                    val parts = parentId.removePrefix(AndroidAutoPlaybackControls.MediaIdArtistPrefix).mediaIdParts()
-                    val artistId = parts.getOrNull(0).orEmpty()
-                    val artistName = parts.getOrNull(1)
-                    loadAsyncChildren(result) {
-                        val source = storage.latestNavidromeSource() ?: return@loadAsyncChildren noSourceItems()
-                        val provider = NavidromeProvider(source.toNavidromeConnection())
-                        val tracks = loadServiceArtistTracks(storage, source.id, provider, artistId, artistName)
-                        (
-                            listOf(
-                                playableItem(
-                                    mediaId = AndroidAutoPlaybackControls.MediaIdArtistShufflePrefix + listOf(
-                                        Uri.encode(artistId),
-                                        Uri.encode(artistName.orEmpty()),
-                                    ).joinToString(MediaIdPartSeparator),
-                                    title = "Shuffle",
-                                    subtitle = "Shuffle ${artistName ?: "artist"}",
-                                    iconUri = autoDrawableUri("ic_shuffle_24"),
-                                ),
-                            ) + tracks.take(AndroidAutoBrowseLimit).map { track ->
-                                trackItem(
-                                    track = track,
-                                    mediaId = AndroidAutoPlaybackControls.MediaIdArtistTrackPrefix + listOf(
-                                        Uri.encode(artistId),
-                                        Uri.encode(artistName.orEmpty()),
-                                        Uri.encode(track.id.value),
-                                    ).joinToString(MediaIdPartSeparator),
-                                )
-                            }
-                        ).toMutableList()
-                    }
-                    return
-                }
-                parentId.startsWith(AndroidAutoPlaybackControls.MediaIdAlbumPrefix) -> {
-                    val parts = parentId.removePrefix(AndroidAutoPlaybackControls.MediaIdAlbumPrefix).mediaIdParts()
-                    val albumId = parts.getOrNull(0).orEmpty()
-                    val albumTitle = parts.getOrNull(1)
-                    val albumArtist = parts.getOrNull(2)
-                    loadAsyncChildren(result) {
-                        val source = storage.latestNavidromeSource() ?: return@loadAsyncChildren noSourceItems()
-                        val provider = NavidromeProvider(source.toNavidromeConnection())
-                        val tracks = loadServiceAlbumTracks(storage, source.id, provider, albumId, albumTitle, albumArtist)
-                        (
-                            listOf(
-                                playableItem(
-                                    mediaId = AndroidAutoPlaybackControls.MediaIdAlbumShufflePrefix + listOf(
-                                        Uri.encode(albumId),
-                                        Uri.encode(albumTitle.orEmpty()),
-                                        Uri.encode(albumArtist.orEmpty()),
-                                    ).joinToString(MediaIdPartSeparator),
-                                    title = "Shuffle",
-                                    subtitle = "Shuffle ${albumTitle ?: "album"}",
-                                    iconUri = autoDrawableUri("ic_shuffle_24"),
-                                ),
-                            ) + tracks.take(AndroidAutoBrowseLimit).map { track ->
-                            trackItem(
-                                track = track,
-                                mediaId = AndroidAutoPlaybackControls.MediaIdAlbumTrackPrefix + listOf(
-                                    Uri.encode(albumId),
-                                    Uri.encode(track.id.value),
-                                ).joinToString(MediaIdPartSeparator),
-                            )
-                        }).toMutableList()
-                    }
-                    return
-                }
-                else -> mutableListOf()
-            }
-        }
-        Log.i("NaviampAutoCommand", "Loaded Auto children parent=$parentId count=${children.size}")
-        sendChildren(parentId, children, result)
+        autoBrowseController.loadChildren(parentId, result)
     }
 
     override fun onLoadChildren(
@@ -1551,12 +1124,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         options: Bundle,
     ) {
         hydrateSavedPlaybackSession()
-        Log.i("NaviampAutoCommand", "Loading Auto children parent=$parentId options=${options.debugDescription()}")
-        options.autoSearchQuery()?.let { query ->
-            loadAsyncChildren(result) { autoSearchResults(query) }
-            return
-        }
-        onLoadChildren(parentId, result)
+        autoBrowseController.loadChildren(parentId, result, options)
     }
 
     override fun onSearch(
@@ -1565,9 +1133,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         result: Result<MutableList<MediaBrowserCompat.MediaItem>>,
     ) {
         hydrateSavedPlaybackSession()
-        val searchQuery = query.ifBlank { extras?.autoSearchQuery().orEmpty() }
-        Log.i("NaviampAutoCommand", "Loading Auto search query=$searchQuery extras=${extras?.debugDescription().orEmpty()}")
-        loadAsyncChildren(result) { autoSearchResults(searchQuery) }
+        autoBrowseController.search(query, extras, result)
     }
 
     private fun updateMediaSession(metadata: AndroidPlaybackNotificationMetadata, largeIcon: Bitmap?) {
@@ -1604,27 +1170,37 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     private fun toggleServiceShuffle() {
         serviceShuffleEnabled = !serviceShuffleEnabled
         if (serviceShuffleEnabled) {
-            val queue = currentAutoQueue
-            if (queue.size > 2 && currentAutoQueueIndex in queue.indices) {
-                val current = queue[currentAutoQueueIndex]
-                currentAutoQueue = queue.take(currentAutoQueueIndex + 1) + queue.drop(currentAutoQueueIndex + 1).shuffled()
-                currentAutoQueueIndex = currentAutoQueue.indexOfFirst { it.id == current.id }.coerceAtLeast(0)
+            autoQueueController.replaceQueue(PlaybackQueue(currentAutoQueue, currentAutoQueueIndex))
+            val shuffled = autoQueueController.toggleUpcomingShuffle(shuffledSnapshot = null)
+            if (shuffled != null) {
+                currentAutoQueue = shuffled.queue.tracks
+                currentAutoQueueIndex = shuffled.queue.currentIndex
                 lastPublishedAutoQueueSignature = null
                 val storage = serviceStorage
                 val sourceId = storage.latestNavidromeSource()?.id
                 val session = playbackSessionFromQueue(
-                    queue = PlaybackQueue(
-                        tracks = currentAutoQueue,
-                        currentIndex = currentAutoQueueIndex,
-                    ),
+                    queue = autoQueueController.queue,
                     positionSeconds = AndroidPlaybackNotificationControls.positionMillis?.let { it / 1_000.0 },
                 )
                 if (sourceId != null && session != null) {
-                    storage.savePlaybackSession(sourceId, session)
+                    storage.savePlaybackSession(sourceId = sourceId, session = session)
                 }
             }
         }
         updateMediaSession(currentMetadata, currentLargeIcon)
+    }
+
+    private fun toggleServiceFavorite() {
+        if (!AndroidPlaybackNotificationControls.canFavorite) return
+        AndroidPlaybackNotificationControls.isFavorite =
+            !AndroidPlaybackNotificationControls.isFavorite
+        AndroidPlaybackNotificationControls.onToggleFavorite?.invoke()
+        refreshNotification(null)
+    }
+
+    private fun cycleServiceRepeatMode() {
+        serviceRepeatMode = serviceRepeatMode.next()
+        updateMediaSessionPlaybackState()
     }
 
     private fun publishAutoQueue(session: MediaSessionCompat) {
@@ -1712,196 +1288,12 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             .setActiveQueueItemId(currentAutoQueueIndex.takeIf { it >= 0 }?.toLong() ?: -1L)
             .build()
 
-    private fun currentNowPlayingItem(): MediaBrowserCompat.MediaItem {
-        val restored = restoredNowPlayingMetadata()
-        val title = currentMetadata.title?.takeIf { it.isNotBlank() }
-            ?: restored?.title
-            ?: "Resume playback"
-        val subtitle = currentMetadata.subtitle?.takeIf { it.isNotBlank() }
-            ?: restored?.subtitle
-            ?: "Continue your last Naviamp session"
-        return playableItem(AndroidAutoPlaybackControls.MediaIdNowPlaying, title, subtitle)
-    }
-
     private fun hydrateSavedPlaybackSession() {
-        if (!currentMetadata.title.isNullOrBlank()) return
-        val storage = serviceStorage
-        val sourceId = storage.latestNavidromeSource()?.id ?: return
-        val session = storage.loadPlaybackSession(sourceId) ?: return
-        val restoredSession = session.restoredTrackSession() ?: return
-        val track = restoredSession.currentTrack
-        currentAutoQueue = restoredSession.tracks
-        currentAutoQueueIndex = restoredSession.currentIndex
-        val coverArtUrl = storage.savedCoverArtUrl(track)
-        currentMetadata = AndroidPlaybackNotificationMetadata(
-            title = track.title,
-            subtitle = track.artistName,
-            coverArtUrl = coverArtUrl,
-        )
-        AndroidPlaybackNotificationControls.positionMillis = session.positionSeconds
-            ?.takeIf { it > 0.0 }
-            ?.let { (it * 1_000.0).toLong() }
-        AndroidPlaybackNotificationControls.durationMillis = track.durationSeconds
-            ?.takeIf { it > 0 }
-            ?.let { it * 1_000L }
-        updateMediaSession(currentMetadata, currentLargeIcon)
-        coverArtUrl?.let { loadCoverArtAsync(it, currentMetadata) }
-        Log.i(
-            "NaviampSession",
-            "Hydrated Android Auto session source=$sourceId title=${track.title} position=${session.positionSeconds}",
-        )
+        serviceSessionController.hydrateSavedPlaybackSession()
     }
 
-    private fun restoredNowPlayingMetadata(): AndroidPlaybackNotificationMetadata? {
-        val storage = serviceStorage
-        val sourceId = storage.latestNavidromeSource()?.id ?: return null
-        val session = storage.loadPlaybackSession(sourceId) ?: return null
-        session.internetRadioStation?.let { station ->
-            return AndroidPlaybackNotificationMetadata(
-                title = station.name,
-                subtitle = "Internet radio",
-            )
-        }
-        val track = session.currentTrack() ?: return null
-        return AndroidPlaybackNotificationMetadata(
-            title = track.title,
-            subtitle = track.artistName,
-            coverArtUrl = storage.savedCoverArtUrl(track),
-        )
-    }
-
-    private fun trackItem(
-        track: Track,
-        mediaId: String = "${AndroidAutoPlaybackControls.MediaIdTrackPrefix}${Uri.encode(track.id.value)}",
-    ): MediaBrowserCompat.MediaItem =
-        playableItem(
-            mediaId = mediaId,
-            title = track.title,
-            subtitle = listOfNotNull(track.artistName, track.albumTitle).joinToString(" - "),
-            iconUri = serviceStorage.savedCoverArtUrl(track),
-        )
-
-    private fun artistItem(artist: Artist): MediaBrowserCompat.MediaItem =
-        browsableItem(
-            mediaId = AndroidAutoPlaybackControls.MediaIdArtistPrefix + listOf(
-                Uri.encode(artist.id.value),
-                Uri.encode(artist.name),
-            ).joinToString(MediaIdPartSeparator),
-            title = artist.name,
-            subtitle = "Artist",
-        )
-
-    private fun albumItem(album: Album): MediaBrowserCompat.MediaItem =
-        browsableItem(
-            mediaId = AndroidAutoPlaybackControls.MediaIdAlbumPrefix + listOf(
-                Uri.encode(album.id.value),
-                Uri.encode(album.title),
-                Uri.encode(album.artistName),
-            ).joinToString(MediaIdPartSeparator),
-            title = album.title,
-            subtitle = listOfNotNull(album.artistName, album.releaseYear?.toString()).joinToString(" - "),
-            iconUri = serviceStorage.savedCoverArtUrl(album),
-        )
-
-    private suspend fun autoSearchResults(query: String): MutableList<MediaBrowserCompat.MediaItem> =
-        withContext(Dispatchers.IO) {
-            val trimmed = query.trim()
-            if (trimmed.isBlank()) return@withContext mutableListOf()
-            val storage = serviceStorage
-            val source = storage.latestNavidromeSource() ?: return@withContext noSourceItems()
-            val local = storage.searchLibrary(source.id, trimmed, AndroidAutoBrowseLimit.toLong(), 0)
-            val provider = NavidromeProvider(source.toNavidromeConnection())
-            val remote = if (local.isEmpty) {
-                runCatching { provider.search(trimmed, AndroidAutoBrowseLimit) }.getOrNull()
-            } else {
-                null
-            }
-            buildList {
-                addAll(local.artists.ifEmpty { remote?.artists.orEmpty() }.take(8).map(::artistItem))
-                addAll(local.albums.ifEmpty { remote?.albums.orEmpty() }.take(12).map(::albumItem))
-                addAll(local.tracks.ifEmpty { remote?.tracks.orEmpty() }.take(AndroidAutoBrowseLimit).map(::trackItem))
-            }.toMutableList()
-        }
-
-    private fun browsableItem(
-        mediaId: String,
-        title: String,
-        subtitle: String,
-        iconName: String? = null,
-        iconUri: String? = null,
-    ): MediaBrowserCompat.MediaItem =
-        MediaBrowserCompat.MediaItem(
-            MediaDescriptionCompat.Builder()
-                .setMediaId(mediaId)
-                .setTitle(title)
-                .setSubtitle(subtitle)
-                .apply {
-                    iconName?.let { setIconUri(Uri.parse(autoDrawableUri(it))) }
-                    iconUri?.let { setIconUri(Uri.parse(it)) }
-                }
-                .build(),
-            MediaBrowserCompat.MediaItem.FLAG_BROWSABLE,
-        )
-
-    private fun playableItem(
-        mediaId: String,
-        title: String,
-        subtitle: String,
-        iconUri: String? = null,
-    ): MediaBrowserCompat.MediaItem =
-        MediaBrowserCompat.MediaItem(
-            MediaDescriptionCompat.Builder()
-                .setMediaId(mediaId)
-                .setTitle(title)
-                .setSubtitle(subtitle)
-                .apply {
-                    val artUri = iconUri ?: currentMetadata.coverArtUrl?.takeIf { mediaId == AndroidAutoPlaybackControls.MediaIdNowPlaying }
-                    artUri?.let {
-                        setIconUri(Uri.parse(it))
-                    }
-                }
-                .build(),
-            MediaBrowserCompat.MediaItem.FLAG_PLAYABLE,
-        )
-
-    private fun noSourceItems(): MutableList<MediaBrowserCompat.MediaItem> =
-        mutableListOf(
-            browsableItem("naviamp.no_source", "Connect Naviamp first", "Open the phone app and connect to Navidrome."),
-        )
-
-    private fun autoDrawableUri(name: String): String =
-        "android.resource://$packageName/drawable/$name"
-
-    private fun loadAsyncChildren(
-        result: Result<MutableList<MediaBrowserCompat.MediaItem>>,
-        load: suspend () -> MutableList<MediaBrowserCompat.MediaItem>,
-    ) {
-        result.detach()
-        AndroidPlaybackRuntime.get(applicationContext).scope.launch {
-            val children = runCatching { load() }
-                .onFailure { error -> Log.w("NaviampAutoCommand", "Could not load Auto children", error) }
-                .getOrDefault(mutableListOf())
-            sendChildren("async", children, result)
-        }
-    }
-
-    private fun sendChildren(
-        parentId: String,
-        children: MutableList<MediaBrowserCompat.MediaItem>,
-        result: Result<MutableList<MediaBrowserCompat.MediaItem>>,
-    ) {
-        result.sendResult(
-            children.ifEmpty {
-                mutableListOf(
-                    browsableItem(
-                        "$parentId.empty",
-                        "Nothing here yet",
-                        "Open Naviamp on your phone to refresh the library.",
-                    ),
-                )
-            },
-        )
-    }
+    private fun restoredNowPlayingMetadata(): AndroidPlaybackNotificationMetadata? =
+        serviceSessionController.restoredNowPlayingMetadata()
 
     private fun Intent?.toMetadata(): AndroidPlaybackNotificationMetadata {
         val nextCoverArtUrl = this?.getStringExtra(ExtraCoverArtUrl) ?: currentMetadata.coverArtUrl
@@ -1943,7 +1335,6 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         private const val ActionRepeat = "app.naviamp.android.playback.REPEAT"
         private const val ActionProgress = "app.naviamp.android.playback.PROGRESS"
         private const val AndroidAutoBrowseLimit = 50
-        private const val MediaIdPartSeparator = "|"
         private const val ExtraTitle = "title"
         private const val ExtraSubtitle = "subtitle"
         private const val ExtraCoverArtUrl = "coverArtUrl"
@@ -1954,20 +1345,11 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         private var currentMetadata = AndroidPlaybackNotificationMetadata()
         private var currentLargeIcon: Bitmap? = null
         private var currentMediaSessionDurationMillis: Long? = null
-        private var serviceOwnedPlayback = false
         private var currentAutoQueue: List<Track> = emptyList()
         private var currentAutoQueueIndex: Int = -1
         private var lastPublishedAutoQueueSignature: String? = null
         private var serviceShuffleEnabled = false
         private var serviceRepeatMode = ServiceRepeatMode.Off
-        private var lastServiceSessionSaveAtMillis = 0L
-        private var lastServicePlaybackState: PlaybackState? = null
-        private var pendingServiceSeekPositionSeconds: Double? = null
-        private var pendingServiceSeekAtMillis = 0L
-        private const val ServicePlaybackSessionSaveIntervalMillis = 5_000L
-        private const val ServiceSeekToleranceSeconds = 2.0
-        private const val ServiceSeekStaleProgressWindowMillis = 1_500L
-        private const val ServiceIgnoreZeroSeekAfterSeconds = 3.0
 
         fun start(context: Context, metadata: AndroidPlaybackNotificationMetadata) {
             val intent = Intent(context, AndroidPlaybackForegroundService::class.java)
@@ -2082,13 +1464,13 @@ private fun String.radioSearchQuery(): String? {
 }
 
 private fun findVoiceArtistMatch(
-    storage: AndroidStorage,
+    libraryIndexRepository: LocalLibraryIndexRepository,
     sourceId: String,
     query: String,
 ): Artist? {
     val queryKey = query.voiceSearchKey()
     if (queryKey.isBlank()) return null
-    return storage.librarySnapshot(sourceId, VoiceArtistScanLimit, 0)
+    return libraryIndexRepository.librarySnapshot(sourceId, VoiceArtistScanLimit, 0)
         .artists
         .mapNotNull { artist ->
             val score = voiceArtistMatchScore(queryKey, artist.name.voiceSearchKey())
@@ -2114,124 +1496,14 @@ private fun String.voiceSearchKey(): String =
         .replace(Regex("\\b(the|a|an)\\b"), " ")
         .filter { it.isLetterOrDigit() }
 
-private fun String.autoArtistGroupKey(): String {
-    val first = trim().firstOrNull { it.isLetterOrDigit() } ?: return "#"
-    return if (first.isLetter()) first.uppercaseChar().toString() else "#"
-}
-
-@Suppress("DEPRECATION")
-private fun Bundle.debugDescription(): String =
-    keySet().joinToString(prefix = "{", postfix = "}") { key -> "$key=${get(key)}" }
-
-@Suppress("DEPRECATION")
-private fun Bundle.autoSearchQuery(): String? {
-    val keys = keySet()
-    keys.firstOrNull { it.contains("search", ignoreCase = true) || it.contains("query", ignoreCase = true) }
-        ?.let { key -> (get(key) as? String)?.trim()?.takeIf { it.isNotBlank() } }
-        ?.let { return it }
-    return keys.asSequence()
-        .mapNotNull { key -> get(key) as? String }
-        .map { it.trim() }
-        .firstOrNull { it.isNotBlank() }
-}
-
-private fun AndroidStorage.savedCoverArtUrl(track: Track): String? {
+private fun MediaSourceRepository.savedCoverArtUrl(track: Track): String? {
     val coverArtId = track.coverArtId ?: track.albumId?.value ?: return null
-    val connection = latestNavidromeSource()?.toNavidromeConnection() ?: return null
+    val connection = latestMediaSource()?.toNavidromeConnection() ?: return null
     return NavidromeProvider(connection).coverArtUrl(coverArtId)
 }
 
-private fun AndroidStorage.savedCoverArtUrl(album: Album): String? {
+private fun MediaSourceRepository.savedCoverArtUrl(album: Album): String? {
     val coverArtId = album.coverArtId ?: album.id.value
-    val connection = latestNavidromeSource()?.toNavidromeConnection() ?: return null
+    val connection = latestMediaSource()?.toNavidromeConnection() ?: return null
     return NavidromeProvider(connection).coverArtUrl(coverArtId)
 }
-
-private suspend fun resolveInternetRadioStreamUrl(stationUrl: String): String =
-    withContext(Dispatchers.IO) {
-        val connection = (URL(stationUrl).openConnection() as HttpURLConnection).apply {
-            instanceFollowRedirects = true
-            connectTimeout = 10_000
-            readTimeout = 10_000
-            setRequestProperty("User-Agent", "Naviamp Android")
-            setRequestProperty("Icy-MetaData", "1")
-        }
-        val contentType = connection.contentType.orEmpty().lowercase()
-        val resolvedUrl = connection.url.toString()
-        if (!looksLikePlaylistUrl(resolvedUrl) &&
-            !contentType.isPlaylistContentType() &&
-            (contentType.startsWith("audio/") || contentType.contains("ogg"))
-        ) {
-            connection.disconnect()
-            return@withContext resolvedUrl
-        }
-
-        val body = connection.inputStream.bufferedReader().use { it.readText().take(128_000) }
-        connection.disconnect()
-
-        parseRadioPlaylist(body)
-            ?: if (looksLikeDirectAudioUrl(resolvedUrl)) resolvedUrl else stationUrl
-    }
-
-private fun parseRadioPlaylist(body: String): String? {
-    val lines = body.lineSequence()
-        .map { it.trim() }
-        .filter { it.isNotBlank() }
-        .toList()
-
-    lines.firstNotNullOfOrNull { line ->
-        val equalsIndex = line.indexOf('=')
-        if (equalsIndex > 0 && line.substring(0, equalsIndex).trim().lowercase().startsWith("file")) {
-            line.substring(equalsIndex + 1).trim().takeIf { it.startsWith("http", ignoreCase = true) }
-        } else {
-            null
-        }
-    }?.let { return it }
-
-    lines.firstOrNull { line ->
-        line.startsWith("http", ignoreCase = true) && !line.startsWith("#")
-    }?.let { return it }
-
-    Regex("<location>(.*?)</location>", RegexOption.IGNORE_CASE)
-        .find(body)
-        ?.groupValues
-        ?.getOrNull(1)
-        ?.trim()
-        ?.takeIf { it.startsWith("http", ignoreCase = true) }
-        ?.let { return it }
-
-    Regex("https?://[^\\s\"'<>]+", RegexOption.IGNORE_CASE)
-        .find(body)
-        ?.value
-        ?.let { return it }
-
-    return null
-}
-
-private fun looksLikeDirectAudioUrl(url: String): Boolean {
-    val normalized = url.substringBefore('?').lowercase()
-    return normalized.endsWith(".mp3") ||
-        normalized.endsWith(".ogg") ||
-        normalized.endsWith(".opus") ||
-        normalized.endsWith(".aac") ||
-        normalized.endsWith(".m4a") ||
-        normalized.endsWith(".flac")
-}
-
-private fun looksLikePlaylistUrl(url: String): Boolean {
-    val normalized = url.substringBefore('?').lowercase()
-    return normalized.endsWith(".pls") ||
-        normalized.endsWith(".m3u") ||
-        normalized.endsWith(".m3u8") ||
-        normalized.endsWith(".xspf") ||
-        normalized.endsWith(".asx")
-}
-
-private fun String.isPlaylistContentType(): Boolean =
-    contains("mpegurl") ||
-        contains("scpls") ||
-        contains("pls") ||
-        contains("xspf") ||
-        contains("asx") ||
-        contains("text/plain") ||
-        contains("xml")

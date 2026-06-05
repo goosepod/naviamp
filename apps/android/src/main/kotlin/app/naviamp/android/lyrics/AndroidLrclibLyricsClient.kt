@@ -1,60 +1,39 @@
 package app.naviamp.android
 
+import app.naviamp.domain.network.KtorSharedHttpClient
+import app.naviamp.domain.network.SharedHttpCall
 import app.naviamp.domain.lyrics.LrclibLyricsProvider
-import java.net.URI
+import app.naviamp.domain.lyrics.LrclibApiCall
+import app.naviamp.domain.lyrics.LrclibApiCallHistory
+import app.naviamp.domain.lyrics.lrclibApiCall
 
 class AndroidLrclibLyricsClient(
     baseUrl: String = "https://lrclib.net",
 ) : LrclibLyricsProvider(
-    AndroidSharedHttpClient(
+    KtorSharedHttpClient(
         callRecorder = { call -> AndroidLrclibApiCallHistory.record(call.toLrclibCall()) },
     ),
     baseUrl,
 )
 
-data class AndroidLrclibApiCall(
-    val endpoint: String,
-    val sanitizedUrl: String,
-    val startedAtEpochMillis: Long,
-    val durationMillis: Long,
-    val success: Boolean,
-    val errorMessage: String?,
-)
+typealias AndroidLrclibApiCall = LrclibApiCall
 
 object AndroidLrclibApiCallHistory {
-    private const val MaxCalls = 150
-    private val lock = Any()
-    private val calls = ArrayDeque<AndroidLrclibApiCall>()
+    private val history = LrclibApiCallHistory()
 
     fun record(call: AndroidLrclibApiCall) {
-        synchronized(lock) {
-            calls.addLast(call)
-            while (calls.size > MaxCalls) {
-                calls.removeFirst()
-            }
-        }
+        synchronized(history) { history.record(call) }
     }
 
     fun recent(limit: Int = 50): List<AndroidLrclibApiCall> =
-        synchronized(lock) {
-            calls.takeLast(limit.coerceAtLeast(0)).asReversed()
-        }
+        synchronized(history) { history.recent(limit) }
 }
 
-private fun AndroidSharedHttpCall.toLrclibCall(): AndroidLrclibApiCall =
-    AndroidLrclibApiCall(
-        endpoint = url.lrclibEndpointLabel(),
-        sanitizedUrl = url.sanitizedLrclibUrl(),
+private fun SharedHttpCall.toLrclibCall(): AndroidLrclibApiCall =
+    lrclibApiCall(
+        url = url,
         startedAtEpochMillis = startedAtEpochMillis,
         durationMillis = durationMillis,
         success = success,
         errorMessage = errorMessage,
     )
-
-private fun String.lrclibEndpointLabel(): String {
-    val path = runCatching { URI.create(this).path }.getOrNull().orEmpty().trim('/')
-    return path.ifBlank { "unknown" }
-}
-
-private fun String.sanitizedLrclibUrl(): String =
-    replace(Regex("""([?&](track_name|artist_name|album_name)=)[^&]+"""), "$1***")

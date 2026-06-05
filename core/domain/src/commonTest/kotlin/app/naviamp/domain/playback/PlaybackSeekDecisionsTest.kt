@@ -31,6 +31,8 @@ class PlaybackSeekDecisionsTest {
 
         assertEquals(PlaybackProgress(positionSeconds = 30.0, durationSeconds = 180.0), plan?.progress)
         assertEquals(false, plan?.shouldReplayCurrent)
+        assertEquals(30.0, plan?.pendingSeekPositionSeconds)
+        assertEquals(true, plan?.shouldClearRestoredStartPosition)
     }
 
     @Test
@@ -60,6 +62,7 @@ class PlaybackSeekDecisionsTest {
         )
 
         assertEquals(PlaybackProgress(positionSeconds = 0.0, durationSeconds = 200.0), plan?.progress)
+        assertEquals(-5.0, plan?.pendingSeekPositionSeconds)
     }
 
     @Test

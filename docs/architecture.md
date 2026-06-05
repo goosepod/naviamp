@@ -4,6 +4,7 @@
 
 - Keep platform-independent behavior in shared modules.
 - Keep platform-specific playback, storage, and OS integration behind narrow interfaces.
+- Treat cache, downloads, local library indexes, sidecars, playback sessions, and media-source storage as shared capabilities with platform-specific engines behind shared ports.
 - Treat Navidrome as the first media provider, not as a hard-coded assumption throughout the app.
 - Make domain behavior testable without UI, network, or audio devices.
 - Prefer explicit services and contracts over global state.
@@ -98,6 +99,28 @@ Platform-specific logic:
 - OS now-playing integration
 - Android foreground service
 - Android Auto
+
+## Storage, Cache, And Downloads Boundary
+
+Storage should follow a port/adapter model. Shared code should depend on narrow repository or store interfaces; desktop and Android should provide concrete engines at the app composition root.
+
+Shared contracts should cover capabilities such as:
+
+- provider response cache
+- image cache
+- audio cache
+- offline downloads
+- local library index
+- sidecar storage for lyrics, waveform, embedded tags, and status
+- playback session/history
+- cache/download/library stats and maintenance
+
+Platform-specific engines can use different details:
+
+- desktop disk paths, SQLite/JDBC, JVM file APIs, and desktop diagnostics
+- Android app-private files, Android SQLite driver, mobile-data policy inputs, and app storage stats
+
+The product behavior above those engines should remain shared wherever possible. See `docs/shared-storage-cache-architecture.md`.
 
 ## Streaming And Transcoding
 

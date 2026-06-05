@@ -3,6 +3,7 @@ package app.naviamp.domain.provider
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 
 data class PlaylistTrackMutationResult(
@@ -23,6 +24,166 @@ data class PlaylistDetailsRefresh(
     val displayPlaylist: Playlist,
     val tracks: List<Track>,
 )
+
+data class PlaylistDetailsStateUpdate(
+    val playlists: List<Playlist>,
+    val selectedPlaylist: Playlist?,
+    val selectedPlaylistTracks: List<Track>,
+    val playlistTracksById: Map<String, List<Track>>,
+)
+
+data class PlaylistDetailAutoRefreshTarget<Provider : Any>(
+    val provider: Provider,
+    val playlist: Playlist,
+)
+
+data class PlaylistDeleteStateUpdate(
+    val selectedPlaylist: Playlist?,
+    val selectedPlaylistTracks: List<Track>,
+    val playlistTracksById: Map<String, List<Track>>,
+    val recentPlaylistIds: List<String>,
+    val deletedSelectedPlaylist: Boolean,
+)
+
+const val PlaylistDetailRefreshIntervalMillis = 60_000L
+
+data class QueueAppendPlan(
+    val tracks: List<Track>,
+    val status: String,
+)
+
+data class PendingPlaybackAction(
+    val key: String,
+    val status: String,
+)
+
+fun homePlaylists(
+    playlists: List<Playlist>,
+    recentPlaylistIds: List<String>,
+    limit: Int = 6,
+): List<Playlist> =
+    playlists.sortedWith(
+        compareBy<Playlist> {
+            val index = recentPlaylistIds.indexOf(it.id)
+            if (index == -1) Int.MAX_VALUE else index
+        }.thenBy { it.name.lowercase() },
+    ).take(limit)
+
+fun recentPlaylistIdsAfterPlayed(
+    recentPlaylistIds: List<String>,
+    playlistId: String,
+    limit: Int,
+): List<String> =
+    (listOf(playlistId) + recentPlaylistIds.filterNot { it == playlistId }).take(limit)
+
+fun playlistsNeedingTrackPreload(
+    playlists: List<Playlist>,
+    playlistTracksById: Map<String, List<Track>>,
+    limit: Int = 100,
+): List<Playlist> =
+    playlists.take(limit).filter { playlist ->
+        playlistTracksById[playlist.id].isNullOrEmpty()
+    }
+
+fun <Provider : Any> playlistDetailAutoRefreshTarget(
+    provider: Provider?,
+    playlist: Playlist?,
+    enabled: Boolean = true,
+): PlaylistDetailAutoRefreshTarget<Provider>? =
+    if (enabled && provider != null && playlist != null) {
+        PlaylistDetailAutoRefreshTarget(provider, playlist)
+    } else {
+        null
+    }
+
+suspend fun <Provider : Any> runPlaylistDetailAutoRefresh(
+    target: PlaylistDetailAutoRefreshTarget<Provider>,
+    waitForNextRefresh: suspend () -> Unit,
+    refresh: suspend (provider: Provider, playlist: Playlist) -> Unit,
+) {
+    while (true) {
+        waitForNextRefresh()
+        runCatching {
+            refresh(target.provider, target.playlist)
+        }
+    }
+}
+
+suspend fun MediaProvider.refreshPlaylistDetails(
+    playlist: Playlist,
+    playlistLimit: Int = 500,
+    providerResponseService: ProviderResponseService? = null,
+): PlaylistDetailsRefresh {
+    val refreshedPlaylists = providerResponseService?.playlists(this, playlistLimit)
+        ?: playlists(limit = playlistLimit)
+    val refreshedPlaylist = refreshedPlaylists.firstOrNull { it.id == playlist.id } ?: playlist
+    val refreshedTracks = providerResponseService?.playlistTracks(this, refreshedPlaylist.id)
+        ?: playlistTracks(refreshedPlaylist.id)
+    val displayPlaylist = refreshedPlaylist.copy(trackCount = refreshedTracks.size)
+    return PlaylistDetailsRefresh(
+        playlists = refreshedPlaylists.map {
+            if (it.id == displayPlaylist.id) displayPlaylist else it
+        },
+        displayPlaylist = displayPlaylist,
+        tracks = refreshedTracks,
+    )
+}
+
+fun playlistDetailsStateUpdate(
+    currentSelectedPlaylist: Playlist?,
+    currentSelectedPlaylistTracks: List<Track>,
+    currentPlaylistTracksById: Map<String, List<Track>>,
+    refresh: PlaylistDetailsRefresh,
+    requestedPlaylistId: String,
+): PlaylistDetailsStateUpdate {
+    val isCurrentSelection = currentSelectedPlaylist?.id == requestedPlaylistId
+    return PlaylistDetailsStateUpdate(
+        playlists = refresh.playlists,
+        selectedPlaylist = if (isCurrentSelection) refresh.displayPlaylist else currentSelectedPlaylist,
+        selectedPlaylistTracks = if (isCurrentSelection) refresh.tracks else currentSelectedPlaylistTracks,
+        playlistTracksById = currentPlaylistTracksById + (refresh.displayPlaylist.id to refresh.tracks),
+    )
+}
+
+fun playlistPlaybackTracks(
+    tracks: List<Track>,
+    shuffle: Boolean,
+): List<Track> =
+    if (shuffle) tracks.shuffled() else tracks
+
+fun playlistPlaybackAction(
+    playlist: Playlist,
+    shuffle: Boolean,
+): PendingPlaybackAction =
+    PendingPlaybackAction(
+        key = "playlist:${playlist.id}:${if (shuffle) "shuffle" else "play"}",
+        status = if (shuffle) {
+            "Starting ${playlist.name} in random order..."
+        } else {
+            "Loading ${playlist.name}..."
+        },
+    )
+
+fun shouldStartPlaybackAction(pending: PendingPlaybackAction?): Boolean =
+    pending == null
+
+fun clearPendingPlaybackAction(
+    pending: PendingPlaybackAction?,
+    completed: PendingPlaybackAction,
+): PendingPlaybackAction? =
+    pending?.takeUnless { it.key == completed.key }
+
+fun selectedPlaylistTracksForPlayback(
+    selectedPlaylist: Playlist?,
+    selectedPlaylistTracks: List<Track>,
+    playlist: Playlist,
+    loadedTracks: List<Track>,
+): List<Track> =
+    if (selectedPlaylist?.id == playlist.id && selectedPlaylistTracks.isNotEmpty()) {
+        selectedPlaylistTracks
+    } else {
+        loadedTracks
+    }
 
 suspend fun MediaProvider.createPlaylistOrAddMissingTracks(
     playlistId: String?,
@@ -56,6 +217,44 @@ suspend fun MediaProvider.createPlaylistOrAddMissingTracks(
         requestedTrackCount = uniqueTrackIds.size,
         addedTrackIds = missingIds,
         createdPlaylist = false,
+    )
+}
+
+suspend fun MediaProvider.createPlaylistOrAddTracks(
+    playlistId: String?,
+    newPlaylistName: String?,
+    tracks: List<Track>,
+): PlaylistTrackMutationResult =
+    createPlaylistOrAddMissingTracks(
+        playlistId = playlistId,
+        newPlaylistName = newPlaylistName,
+        trackIds = tracks.map { it.id }.distinct(),
+    )
+
+fun queueAppendPlan(
+    tracks: List<Track>,
+    label: String = "tracks",
+    existingTracks: List<Track> = emptyList(),
+    deduplicateExisting: Boolean = false,
+): QueueAppendPlan {
+    val tracksToAdd = if (deduplicateExisting) {
+        val existingIds = existingTracks.map { it.id }.toSet()
+        tracks.filterNot { it.id in existingIds }
+    } else {
+        tracks
+    }
+    return QueueAppendPlan(
+        tracks = tracksToAdd,
+        status = if (tracksToAdd.isEmpty()) {
+            if (deduplicateExisting && tracks.isNotEmpty()) {
+                "${label.replaceFirstChar { it.uppercase() }} are already in the queue."
+            } else {
+                "No tracks found."
+            }
+        } else {
+            val displayLabel = if (tracksToAdd.size == 1 && label == "tracks") "track" else label
+            "Added ${tracksToAdd.size} $displayLabel to queue."
+        },
     )
 }
 
@@ -131,6 +330,23 @@ fun recentPlaylistIdsAfterDelete(
     deletedPlaylistId: String,
 ): List<String> =
     recentPlaylistIds.filterNot { it == deletedPlaylistId }
+
+fun playlistDeleteStateUpdate(
+    currentSelectedPlaylist: Playlist?,
+    currentSelectedPlaylistTracks: List<Track>,
+    currentPlaylistTracksById: Map<String, List<Track>>,
+    currentRecentPlaylistIds: List<String>,
+    deletedPlaylistId: String,
+): PlaylistDeleteStateUpdate {
+    val deletedSelectedPlaylist = currentSelectedPlaylist?.id == deletedPlaylistId
+    return PlaylistDeleteStateUpdate(
+        selectedPlaylist = selectedPlaylistAfterDelete(currentSelectedPlaylist, deletedPlaylistId),
+        selectedPlaylistTracks = if (deletedSelectedPlaylist) emptyList() else currentSelectedPlaylistTracks,
+        playlistTracksById = currentPlaylistTracksById - deletedPlaylistId,
+        recentPlaylistIds = recentPlaylistIdsAfterDelete(currentRecentPlaylistIds, deletedPlaylistId),
+        deletedSelectedPlaylist = deletedSelectedPlaylist,
+    )
+}
 
 suspend fun saveSmartPlaylistAndRefresh(
     provider: MediaProvider,

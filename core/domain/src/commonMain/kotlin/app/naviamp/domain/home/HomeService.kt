@@ -5,6 +5,7 @@ import app.naviamp.domain.Artist
 import app.naviamp.domain.Genre
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Playlist
+import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.settings.RecentRadioStream
@@ -60,6 +61,7 @@ data class HomeAlbumYear(
 
 class HomeService(
     private val provider: MediaProvider,
+    private val providerResponseService: ProviderResponseService? = null,
     private val libraryRepository: HomeLibraryRepository? = null,
     private val sourceId: String? = null,
     private val date: HomeDate,
@@ -76,20 +78,20 @@ class HomeService(
         val decadePick = pickHomeDecade()
 
         return HomeContent(
-            recentlyAddedAlbums = runCatching { provider.albumList(AlbumListType.Newest, limit = 8) }.getOrDefault(emptyList()),
-            mixAlbums = runCatching { provider.albumList(AlbumListType.Random, limit = 8) }.getOrDefault(emptyList()),
-            recentAlbums = runCatching { provider.albumList(AlbumListType.Recent, limit = 6) }.getOrDefault(emptyList()),
-            frequentAlbums = runCatching { provider.albumList(AlbumListType.Frequent, limit = 6) }.getOrDefault(emptyList()),
-            randomAlbums = runCatching { provider.albumList(AlbumListType.Random, limit = 6) }.getOrDefault(emptyList()),
-            artists = runCatching { provider.artists(limit = artistLimit) }.getOrDefault(emptyList()),
-            playlists = runCatching { provider.playlists(limit = 50) }.getOrDefault(emptyList()),
+            recentlyAddedAlbums = runCatching { albumList(AlbumListType.Newest, limit = 8) }.getOrDefault(emptyList()),
+            mixAlbums = runCatching { albumList(AlbumListType.Random, limit = 8) }.getOrDefault(emptyList()),
+            recentAlbums = runCatching { albumList(AlbumListType.Recent, limit = 6) }.getOrDefault(emptyList()),
+            frequentAlbums = runCatching { albumList(AlbumListType.Frequent, limit = 6) }.getOrDefault(emptyList()),
+            randomAlbums = runCatching { albumList(AlbumListType.Random, limit = 6) }.getOrDefault(emptyList()),
+            artists = runCatching { artists(limit = artistLimit) }.getOrDefault(emptyList()),
+            playlists = runCatching { playlists(limit = 50) }.getOrDefault(emptyList()),
             recentRadioStreams = recentRadioStreams,
-            radioStations = runCatching { provider.internetRadioStations() }.getOrDefault(emptyList()),
+            radioStations = runCatching { internetRadioStations() }.getOrDefault(emptyList()),
             recentInternetRadioStations = recentInternetRadioStations,
             genres = genres,
             genreSpotlight = genreSpotlight,
             genreSpotlightAlbums = genreSpotlight?.let { genre ->
-                runCatching { provider.albumsByGenre(genre.name, limit = 6) }.getOrDefault(emptyList())
+                runCatching { albumsByGenre(genre.name, limit = 6) }.getOrDefault(emptyList())
             }.orEmpty(),
             decadeLabel = decadePick?.label ?: "Decade",
             decadeFromYear = decadePick?.fromYear ?: 0,
@@ -107,7 +109,7 @@ class HomeService(
 
         return candidates.firstNotNullOfOrNull { candidate ->
             val albums = runCatching {
-                provider.albumsByYear(candidate.fromYear, candidate.toYear, limit = 6)
+                albumsByYear(candidate.fromYear, candidate.toYear, limit = 6)
             }.getOrDefault(emptyList())
             albums.takeIf { it.isNotEmpty() }?.let {
                 HomeDecadePick(
@@ -119,6 +121,30 @@ class HomeService(
             }
         }
     }
+
+    private suspend fun albumList(type: AlbumListType, limit: Int): List<Album> =
+        providerResponseService?.albumList(provider, type, limit)
+            ?: provider.albumList(type, limit)
+
+    private suspend fun albumsByGenre(genre: String, limit: Int): List<Album> =
+        providerResponseService?.albumsByGenre(provider, genre, limit)
+            ?: provider.albumsByGenre(genre, limit)
+
+    private suspend fun albumsByYear(fromYear: Int, toYear: Int, limit: Int): List<Album> =
+        providerResponseService?.albumsByYear(provider, fromYear, toYear, limit)
+            ?: provider.albumsByYear(fromYear, toYear, limit)
+
+    private suspend fun artists(limit: Int): List<Artist> =
+        providerResponseService?.artists(provider, limit)
+            ?: provider.artists(limit)
+
+    private suspend fun playlists(limit: Int): List<Playlist> =
+        providerResponseService?.playlists(provider, limit)
+            ?: provider.playlists(limit)
+
+    private suspend fun internetRadioStations(): List<InternetRadioStation> =
+        providerResponseService?.internetRadioStations(provider)
+            ?: provider.internetRadioStations()
 }
 
 data class HomeStation(

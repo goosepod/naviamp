@@ -14,30 +14,30 @@ class DesktopMediaDetailsTest {
     @Test
     fun albumBackRouteUsesCurrentDetailRouteRules() {
         assertEquals(
-            AppRoute.Home,
+            DesktopAppRoute.Home,
             resolveAlbumDetailBackRoute(
-                currentRoute = AppRoute.Player,
-                currentBackRoute = AppRoute.Search,
-                lastContentRoute = AppRoute.Home,
+                currentRoute = DesktopAppRoute.Player,
+                currentBackRoute = DesktopAppRoute.Search,
+                lastContentRoute = DesktopAppRoute.Home,
                 backRouteOverride = null,
             ),
         )
         assertEquals(
-            AppRoute.ArtistDetail,
+            DesktopAppRoute.ArtistDetail,
             resolveAlbumDetailBackRoute(
-                currentRoute = AppRoute.ArtistDetail,
-                currentBackRoute = AppRoute.Home,
-                lastContentRoute = AppRoute.Search,
+                currentRoute = DesktopAppRoute.ArtistDetail,
+                currentBackRoute = DesktopAppRoute.Home,
+                lastContentRoute = DesktopAppRoute.Search,
                 backRouteOverride = null,
             ),
         )
         assertEquals(
-            AppRoute.Search,
+            DesktopAppRoute.Search,
             resolveAlbumDetailBackRoute(
-                currentRoute = AppRoute.Home,
-                currentBackRoute = AppRoute.Home,
-                lastContentRoute = AppRoute.Home,
-                backRouteOverride = AppRoute.Search,
+                currentRoute = DesktopAppRoute.Home,
+                currentBackRoute = DesktopAppRoute.Home,
+                lastContentRoute = DesktopAppRoute.Home,
+                backRouteOverride = DesktopAppRoute.Search,
             ),
         )
     }
@@ -50,15 +50,15 @@ class DesktopMediaDetailsTest {
         assertEquals(
             ArtistDetailNavigation(
                 backStack = listOf(currentArtist),
-                backRoute = AppRoute.Home,
+                backRoute = DesktopAppRoute.Home,
             ),
             artistDetailNavigation(
                 artist = nextArtist,
                 currentArtist = currentArtist,
-                currentRoute = AppRoute.ArtistDetail,
+                currentRoute = DesktopAppRoute.ArtistDetail,
                 currentBackStack = emptyList(),
-                currentBackRoute = AppRoute.Home,
-                lastContentRoute = AppRoute.Search,
+                currentBackRoute = DesktopAppRoute.Home,
+                lastContentRoute = DesktopAppRoute.Search,
                 backRouteOverride = null,
                 pushCurrentArtist = true,
             ),
@@ -70,15 +70,15 @@ class DesktopMediaDetailsTest {
         assertEquals(
             ArtistDetailNavigation(
                 backStack = emptyList(),
-                backRoute = AppRoute.Search,
+                backRoute = DesktopAppRoute.Search,
             ),
             artistDetailNavigation(
                 artist = artist("next"),
                 currentArtist = artist("current"),
-                currentRoute = AppRoute.Search,
+                currentRoute = DesktopAppRoute.Search,
                 currentBackStack = listOf(artist("old")),
-                currentBackRoute = AppRoute.Home,
-                lastContentRoute = AppRoute.Home,
+                currentBackRoute = DesktopAppRoute.Home,
+                lastContentRoute = DesktopAppRoute.Home,
                 backRouteOverride = null,
                 pushCurrentArtist = true,
             ),

@@ -4,11 +4,17 @@ import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.android.playback.AndroidPlaybackTls
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.app.NaviampRoute
+import app.naviamp.domain.cache.ProviderMediaSourceConnection
+import app.naviamp.domain.cache.ProviderMediaSourceRepository
+import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.settings.ConnectionFormState
+import app.naviamp.domain.settings.connectionFormError
 import app.naviamp.provider.navidrome.NavidromeConnection
+import app.naviamp.provider.navidrome.NavidromeConnectionLoginRequest
 import app.naviamp.provider.navidrome.NavidromeProvider
-import app.naviamp.provider.navidrome.NavidromeTlsSettings
-import app.naviamp.provider.navidrome.withNativeTokenFromPassword
+import app.naviamp.provider.navidrome.navidromeTlsSettingsFromForm
+import app.naviamp.provider.navidrome.prepareNavidromeConnection
+import app.naviamp.provider.navidrome.resolvedDisplayName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -39,7 +45,8 @@ fun startNavidromeConnection(
     scope: CoroutineScope,
     state: AndroidAppState,
     connection: NavidromeConnection,
-    storage: AndroidStorage,
+    providerMediaSourceRepository: ProviderMediaSourceRepository,
+    providerResponseCacheRepository: ProviderResponseCacheRepository,
     playbackEngine: AndroidPlaybackEngine,
     preloadPlaylistTracks: (NavidromeProvider, List<Playlist>) -> Unit,
     restorePlaybackSession: (String) -> Boolean,
@@ -55,12 +62,12 @@ fun startNavidromeConnection(
                 playbackEngine.applyTlsSettings(tlsSettings)
                 AndroidPlaybackTls.applyDefaults(tlsSettings)
                 validation = nextProvider.validateConnection()
-                val mediaSource = storage.upsertNavidromeSource(
-                    connection = connection,
+                val mediaSource = providerMediaSourceRepository.upsertProviderMediaSource(
+                    connection = connection.toProviderMediaSourceConnection(),
                     cacheNamespace = nextProvider.cacheNamespace,
                     providerId = nextProvider.id.value,
                 )
-                homeState = loadBrowseState(nextProvider)
+                homeState = loadBrowseState(nextProvider, providerResponseCacheRepository)
                 preloadPlaylistTracks(nextProvider, homeState.playlists)
                 provider = nextProvider
                 activeSourceId = mediaSource.id
@@ -85,6 +92,17 @@ fun startNavidromeConnection(
     }
 }
 
+private fun NavidromeConnection.toProviderMediaSourceConnection(): ProviderMediaSourceConnection =
+    ProviderMediaSourceConnection(
+        displayName = resolvedDisplayName(),
+        baseUrl = baseUrl,
+        username = username,
+        token = token,
+        salt = salt,
+        nativeToken = nativeToken,
+        tlsSettings = tlsSettings,
+    )
+
 fun startNavidromeConnectionFromForm(
     scope: CoroutineScope,
     state: AndroidAppState,
@@ -93,37 +111,33 @@ fun startNavidromeConnectionFromForm(
     connectWithNavidromeConnection: (NavidromeConnection) -> Unit,
 ) {
     val connectionForm = state.currentConnectionForm()
-    val tlsSettings = NavidromeTlsSettings(
+    val formError = connectionFormError(
+        form = connectionForm,
+        hasSavedConnectionForLogin = savedProviderConnection != null,
+    )
+    if (formError != null) {
+        state.status = formError
+        state.restoringConnection = false
+        return
+    }
+    val tlsSettings = navidromeTlsSettingsFromForm(
         insecureSkipTlsVerification = connectionForm.skipTlsVerification,
-        customCertificatePath = connectionForm.customCertificatePath.trim().takeIf { it.isNotEmpty() },
-        clientCertificateKeyStorePath = connectionForm.clientCertificatePath.trim().takeIf { it.isNotEmpty() },
-        clientCertificateKeyStorePassword = connectionForm.clientCertificatePassword
-            .takeIf { connectionForm.clientCertificatePath.trim().isNotEmpty() },
+        customCertificatePath = connectionForm.customCertificatePath,
+        clientCertificateKeyStorePath = connectionForm.clientCertificatePath,
+        clientCertificateKeyStorePassword = connectionForm.clientCertificatePassword,
     )
     scope.launch {
         runCatching {
-            val displayName = connectionForm.displayName.trim().takeIf { it.isNotEmpty() }
-            val connection = if (connectionForm.password.isBlank() && savedProviderConnection != null) {
-                savedProviderConnection.copy(
-                    baseUrl = connectionForm.serverUrl,
-                    username = connectionForm.username,
-                    displayName = displayName,
-                    tlsSettings = tlsSettings,
-                )
-            } else {
-                NavidromeConnection.fromPassword(
+            prepareNavidromeConnection(
+                NavidromeConnectionLoginRequest(
                     baseUrl = connectionForm.serverUrl,
                     username = connectionForm.username,
                     password = connectionForm.password,
-                    displayName = displayName,
+                    displayName = connectionForm.displayName.trim().takeIf { it.isNotEmpty() },
                     tlsSettings = tlsSettings,
-                )
-            }
-            if (connectionForm.password.isNotBlank()) {
-                connection.withNativeTokenFromPassword(connectionForm.password)
-            } else {
-                connection
-            }
+                    savedConnectionForLogin = savedProviderConnection,
+                ),
+            ).connection
         }.onSuccess { connection ->
             settingsStore.saveConnection(connectionForm)
             connectWithNavidromeConnection(connection)

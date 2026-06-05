@@ -3,6 +3,7 @@ package app.naviamp.domain.radio
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.queue.RepeatMode
 
 fun radioTracksNotAlreadyQueued(
     candidateTracks: List<Track>,
@@ -41,12 +42,14 @@ fun generatedRadioUpcomingTracksToAppend(
 fun radioRefillSeedTrack(
     queue: PlaybackQueue,
     refillThreshold: Int,
+    repeatMode: RepeatMode,
     isActive: Boolean,
     isRefilling: Boolean,
     lastRefillSeedTrackId: TrackId?,
 ): Track? {
     if (!isActive || isRefilling) return null
-    val seedTrack = queue.current ?: return null
+    if (repeatMode != RepeatMode.Off) return null
+    val seedTrack = queue.tracks.lastOrNull() ?: return null
     if (queue.upNext().size > refillThreshold) return null
     if (lastRefillSeedTrackId == seedTrack.id) return null
     return seedTrack

@@ -1,13 +1,13 @@
 package app.naviamp.desktop
 
-import app.naviamp.desktop.playback.PlaylistEngine
+import app.naviamp.desktop.playback.DesktopPlaylistEngine
 import app.naviamp.domain.Track
 import app.naviamp.domain.radio.generatedRadioAppendTracksForSession
 import app.naviamp.domain.radio.generatedRadioUpcomingAppendTracksForSession
 import app.naviamp.domain.radio.generatedRadioUpcomingReplacementForSession
 
 fun appendGeneratedRadioTracks(
-    playlistEngine: PlaylistEngine,
+    playlistEngine: DesktopPlaylistEngine,
     radioQueueActive: Boolean,
     radioSession: Int,
     currentRadioSession: Int,
@@ -32,7 +32,7 @@ fun appendGeneratedRadioTracks(
 }
 
 fun replaceGeneratedRadioUpcomingTracks(
-    playlistEngine: PlaylistEngine,
+    playlistEngine: DesktopPlaylistEngine,
     radioQueueActive: Boolean,
     radioSession: Int,
     currentRadioSession: Int,
@@ -55,7 +55,7 @@ fun replaceGeneratedRadioUpcomingTracks(
 }
 
 fun appendGeneratedRadioUpcomingTracks(
-    playlistEngine: PlaylistEngine,
+    playlistEngine: DesktopPlaylistEngine,
     radioQueueActive: Boolean,
     radioSession: Int,
     currentRadioSession: Int,

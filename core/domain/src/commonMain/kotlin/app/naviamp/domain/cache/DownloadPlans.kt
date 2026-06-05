@@ -1,6 +1,8 @@
 package app.naviamp.domain.cache
 
+import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
+import app.naviamp.domain.provider.MediaProvider
 
 enum class DownloadBlockReason {
     MissingConnection,
@@ -14,6 +16,12 @@ data class DownloadPlan(
 ) {
     val isReady: Boolean
         get() = blockedReason == null
+}
+
+sealed interface DownloadTracksResult {
+    data class Blocked(val reason: DownloadBlockReason) : DownloadTracksResult
+    data class Completed(val completed: Int) : DownloadTracksResult
+    data class Failed(val completed: Int, val error: Throwable) : DownloadTracksResult
 }
 
 fun planDownloadTracks(
@@ -35,6 +43,146 @@ fun planDownloadTracks(
         return DownloadPlan(emptyList(), DownloadBlockReason.MobileDataDisabled)
     }
     return DownloadPlan(plannedTracks, blockedReason = null)
+}
+
+suspend fun downloadTracksWithStatus(
+    label: String,
+    tracks: List<Track>,
+    hasProvider: Boolean,
+    hasSource: Boolean,
+    isActiveNetworkMobileData: Boolean = false,
+    allowMobileDownloads: Boolean = true,
+    deduplicateTracks: Boolean = true,
+    includeCompletedCount: Boolean = true,
+    setStatus: (String) -> Unit,
+    downloadTrack: suspend (Track) -> Unit,
+): DownloadTracksResult {
+    val plan = planDownloadTracks(
+        tracks = tracks,
+        hasProvider = hasProvider,
+        hasSource = hasSource,
+        isActiveNetworkMobileData = isActiveNetworkMobileData,
+        allowMobileDownloads = allowMobileDownloads,
+        deduplicateTracks = deduplicateTracks,
+    )
+    plan.blockedReason?.let { reason ->
+        setStatus(downloadBlockedStatus(reason, label))
+        return DownloadTracksResult.Blocked(reason)
+    }
+
+    setStatus(downloadStartingStatus(label))
+    var completed = 0
+    return try {
+        plan.tracks.forEachIndexed { index, track ->
+            if (plan.tracks.size > 1) {
+                setStatus(downloadProgressStatus(label, index, plan.tracks.size))
+            }
+            downloadTrack(track)
+            completed += 1
+        }
+        setStatus(downloadCompletedStatus(label, if (includeCompletedCount) completed else null))
+        DownloadTracksResult.Completed(completed)
+    } catch (error: Exception) {
+        setStatus(downloadErrorStatus(label, error))
+        DownloadTracksResult.Failed(completed, error)
+    }
+}
+
+suspend fun redownloadTracksWithStatus(
+    tracks: List<Track>,
+    hasProvider: Boolean,
+    hasSource: Boolean,
+    isActiveNetworkMobileData: Boolean = false,
+    allowMobileDownloads: Boolean = true,
+    setStatus: (String) -> Unit,
+    replaceTrack: suspend (Track) -> Unit,
+): DownloadTracksResult =
+    downloadTracksWithStatus(
+        label = "downloads",
+        tracks = tracks,
+        hasProvider = hasProvider,
+        hasSource = hasSource,
+        isActiveNetworkMobileData = isActiveNetworkMobileData,
+        allowMobileDownloads = allowMobileDownloads,
+        deduplicateTracks = true,
+        includeCompletedCount = true,
+        setStatus = setStatus,
+        downloadTrack = replaceTrack,
+    )
+
+fun shouldRefreshDownloadsAfter(result: DownloadTracksResult): Boolean =
+    result is DownloadTracksResult.Completed || result is DownloadTracksResult.Failed && result.completed > 0
+
+class DownloadService<DownloadedFile, DownloadedTrack>(
+    private val downloadRepository: DownloadRepository<DownloadedFile, DownloadedTrack>,
+    private val replacementRepository: DownloadReplacementRepository<DownloadedFile>,
+) {
+    suspend fun downloadTracksWithStatus(
+        sourceId: String?,
+        provider: MediaProvider?,
+        tracks: List<Track>,
+        quality: StreamQuality,
+        maxDownloadBytes: Long,
+        label: String,
+        isActiveNetworkMobileData: Boolean = false,
+        allowMobileDownloads: Boolean = true,
+        includeCompletedCount: Boolean = true,
+        setStatus: (String) -> Unit,
+    ): DownloadTracksResult {
+        val activeSourceId = sourceId
+        val activeProvider = provider
+        return downloadTracksWithStatus(
+            label = label,
+            tracks = tracks,
+            hasProvider = activeProvider != null,
+            hasSource = activeSourceId != null,
+            isActiveNetworkMobileData = isActiveNetworkMobileData,
+            allowMobileDownloads = allowMobileDownloads,
+            deduplicateTracks = true,
+            includeCompletedCount = includeCompletedCount,
+            setStatus = setStatus,
+            downloadTrack = { track ->
+                downloadRepository.downloadAudioTrack(
+                    sourceId = requireNotNull(activeSourceId),
+                    provider = requireNotNull(activeProvider),
+                    track = track,
+                    quality = quality,
+                    maxDownloadBytes = maxDownloadBytes,
+                )
+            },
+        )
+    }
+
+    suspend fun redownloadTracksWithStatus(
+        sourceId: String?,
+        provider: MediaProvider?,
+        tracks: List<Track>,
+        quality: StreamQuality,
+        maxDownloadBytes: Long,
+        isActiveNetworkMobileData: Boolean = false,
+        allowMobileDownloads: Boolean = true,
+        setStatus: (String) -> Unit,
+    ): DownloadTracksResult {
+        val activeSourceId = sourceId
+        val activeProvider = provider
+        return redownloadTracksWithStatus(
+            tracks = tracks,
+            hasProvider = activeProvider != null,
+            hasSource = activeSourceId != null,
+            isActiveNetworkMobileData = isActiveNetworkMobileData,
+            allowMobileDownloads = allowMobileDownloads,
+            setStatus = setStatus,
+            replaceTrack = { track ->
+                replacementRepository.replaceDownloadedAudioTrack(
+                    sourceId = requireNotNull(activeSourceId),
+                    provider = requireNotNull(activeProvider),
+                    track = track,
+                    quality = quality,
+                    maxDownloadBytes = maxDownloadBytes,
+                )
+            },
+        )
+    }
 }
 
 fun downloadBlockedStatus(reason: DownloadBlockReason, label: String): String =

@@ -1,6 +1,6 @@
 # BASS JNI Binding Design
 
-This document defines the production direction for Naviamp's BASS integration. The current desktop JNA layer is useful as a spike, but the long-term binding should be JNI so desktop and Android can share the same native control surface.
+This document defines the production direction for Naviamp's BASS integration. Desktop and Android route active BASS work through JNI so they can share the same native control surface. The older desktop JNA BASS layer has been removed after proving JNI-backed desktop playback.
 
 ## Goals
 
@@ -12,7 +12,12 @@ This document defines the production direction for Naviamp's BASS integration. T
 
 ## Kotlin Surface
 
-The Kotlin side should expose a small internal API under `apps/desktop` and the future Android player module. It should not become part of the shared domain model.
+The Kotlin side should expose two layers:
+
+- A shared app-facing BASS facade in common code for behavior that desktop and Android should use identically.
+- Platform/native bridge adapters below that facade, where desktop and Android now both wrap JNI.
+
+The shared facade slices are `BassAudioBackend` and `BassStreamHandle`. The facade started with decode-stream waveform reads and now also models playback streams, active state, stream metadata, FFT, seek/progress, volume slides, BASSmix channel creation/add/remove, end sync, stream release, version diagnostics, plugin diagnostics, and shared playback helper operations. App-level playback, waveform, visualizer, gapless, and crossfade code should use this facade before any platform connector details.
 
 ```kotlin
 internal interface BassBinding {
@@ -62,9 +67,11 @@ The initial CMake scaffold lives in `native/bass-jni`.
 The first committed JNI contract exposes BASS version and last-error diagnostics through:
 
 - Android: `app.naviamp.android.playback.AndroidBassJni`
-- Desktop: `app.naviamp.desktop.playback.bass.BassJniBinding`
+- Desktop: `app.naviamp.desktop.playback.bass.DesktopBassJniBinding`
 
-Playback remains on the JNA `BassPlaybackEngine` until the JNI binding reaches stream creation, control, progress, metadata, and plugin parity.
+Android startup logs the packaged JNI diagnostic line after load, including BASS version, BASSmix version, and last error code. Desktop has JNI integration tests that load the packaged `naviamp_bass` library and exercise version, init/free, stream creation, play/pause/stop, seek, position/duration, volume, decode reads, FFT, and mixer creation.
+
+Playback and waveform analysis now use the shared `BassAudioBackend` facade. Desktop wraps JNI below `DesktopBassAudioBackend`; Android wraps JNI below `AndroidBassAudioBackend`. Android debug APKs now build and package `libnaviamp_bass.so` for all vendored ABIs through the Android CMake build, and `:apps:android:verifyDebugBassNativePackage` verifies the packaged JNI/BASS library set. The old desktop native/JNA connector has been removed; JNI is the only active desktop BASS connector.
 
 ## Playback And Mixer Model
 
@@ -76,7 +83,7 @@ The intended model:
 - Decode current and prepared-next sources as decode channels.
 - Add decode channels to the mixer at exact positions.
 - Use mixer envelopes for fade curves.
-- Keep queue advancement in `PlaylistEngine`, driven by native callbacks or high-confidence progress events.
+- Keep queue advancement in `DesktopPlaylistEngine`, driven by native callbacks or high-confidence progress events.
 
 This keeps crossfade and gapless timing in native audio code rather than coroutine polling.
 
@@ -121,7 +128,7 @@ Desktop packages should include:
 - Required BASS add-ons for library codec coverage.
 - `naviamp_bass` JNI library.
 
-Android packages should include ABI-specific libraries under `jniLibs` or generated Gradle outputs:
+Android packages include ABI-specific libraries under `jniLibs` and generated Gradle outputs:
 
 - `arm64-v8a`
 - `armeabi-v7a` if needed
@@ -129,7 +136,7 @@ Android packages should include ABI-specific libraries under `jniLibs` or genera
 
 Android BASS libraries downloaded from Un4seen are vendored for the JNI work under `native/bass-jni/vendor/android`. The current set covers BASS core plus AAC, AC3, FX, MPC, TTA, ALAC, APE, DSD, FLAC, HLS, MIDI, mix, Opus, WebM, and WavPack across `arm64-v8a`, `armeabi-v7a`, `x86`, and `x86_64`.
 
-The app should fail over with a clear diagnostic when the JNI library or BASS core library is missing. During migration only, desktop may still fall back to mpv.
+The app should fail with a clear diagnostic when the JNI library or BASS core library is missing. BASS is the active playback path; legacy fallback behavior should not hide native packaging or load failures.
 
 ## Artifact Policy
 
@@ -137,21 +144,24 @@ Third-party BASS binaries are treated as vendored inputs and live under `native/
 
 Current packaging policy:
 
-- Desktop BASS libraries are copied from the Rust-side vendor tree into generated desktop resources until the Kotlin app owns all desktop vendor inputs.
-- Desktop `naviamp_bass` JNI libraries are built from `native/bass-jni` by Gradle for macOS packages and copied beside the BASS dylibs.
+- Desktop BASS libraries are copied from the desktop vendor tree into generated desktop resources.
+- Desktop `naviamp_bass` JNI libraries are built from `native/bass-jni` by Gradle for desktop packages and copied beside the BASS libraries.
 - Android BASS libraries are packaged from `native/bass-jni/vendor/android` through the Android app's `jniLibs` source set.
-- Android `naviamp_bass` JNI packaging is the next native build step; the BASS dependency libraries are already packaged.
+- Android `naviamp_bass` JNI libraries are built from `native/bass-jni` by Gradle for debug APKs and packaged beside the vendored BASS dependency libraries.
+- `:apps:android:verifyDebugBassNativePackage` fails the build if any debug APK ABI is missing `libnaviamp_bass.so`, `libbass.so`, `libbassmix.so`, or `libc++_shared.so`.
 
 ## Migration Plan
 
-1. Keep the current JNA `BassPlaybackEngine` as a behavior reference.
-2. Add JNI project layout and native build tasks.
-3. Port init, stream creation, playback, pause, stop, seek, volume, duration, and position.
-4. Keep desktop `BassPlaybackEngine` on JNA until JNI reaches playback parity.
-5. Switch desktop `BassPlaybackEngine` from JNA to JNI behind the same Kotlin API.
-6. Add metadata, plugin inventory, and Stats for nerds rows.
-7. Add BASSmix prepare-next support.
-8. Add ReplayGain support.
-9. Add FFT/PCM visualizer path.
-10. Add Android BASS engine using the same JNI binding shape.
-11. Remove mpv packaging when BASS covers known desktop and Android scenarios.
+1. Keep the shared `BassAudioBackend` facade as the app-facing BASS contract.
+2. Keep desktop and Android native loading/package differences below platform backend adapters only.
+3. Continue validating stream creation, playback, pause, stop, seek, volume, duration, position, metadata, FFT, and mixer behavior through shared helpers.
+4. Keep desktop manual playback validation focused on JNI-backed playback, waveform generation, gapless/crossfade, ReplayGain, metadata, and plugin diagnostics.
+5. Keep obsolete connector-specific desktop native/JNA code out of the active app; JNI is now the only desktop BASS connector.
+
+## Current Status
+
+Desktop JNI-backed playback has been manually smoke-tested on macOS and Windows for crossfade, waveform generation, queue jumping, scrub-bar seeking, fast repeated scrubbing, volume changes, track changes, and instant playback after scrub. The old desktop JNA/native BASS connector has been removed.
+
+Android/device hardening is also complete in `docs/kotlin-bass-roadmap.md`. The checked matrix covers sleep/wake, cached/local playback during network interruption, bad provider URLs, unsupported decode/source failures, rapid skip/scrub, live provider-stream network interruption, Android gapless and crossfade transitions, restored playback, and emulator diagnostics.
+
+The BASS/JNI migration is complete for the active desktop and Android playback paths. Future BASS work should be treated as feature polish or diagnostics unless new platform behavior proves otherwise.

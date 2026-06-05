@@ -10,6 +10,15 @@ import app.naviamp.domain.settings.SavedAlbum
 import app.naviamp.domain.settings.SavedArtist
 import app.naviamp.domain.settings.SavedTrack
 
+const val MaxRecentRadioStreams = 12
+
+fun recentRadioStreamsWith(
+    recentStreams: List<RecentRadioStream>,
+    stream: RecentRadioStream,
+    limit: Int = MaxRecentRadioStreams,
+): List<RecentRadioStream> =
+    (listOf(stream) + recentStreams.filterNot { it.id == stream.id }).take(limit)
+
 fun libraryRecentRadioStream(): RecentRadioStream =
     RecentRadioStream(
         id = "library",

@@ -382,8 +382,14 @@ fun ArtistDetails.toSharedArtistDetailUi(
     similarArtistsStatus: String? = null,
 ): SharedArtistDetailUi =
     SharedArtistDetailUi(
-        artist = artist.toSharedMediaItemUi(coverArtUrl),
+        artist = artist.toSharedMediaItemUi(coverArtUrl).copy(
+            coverArtUrl = info?.largeImageUrl
+                ?: info?.mediumImageUrl
+                ?: info?.smallImageUrl
+                ?: coverArtUrl(artist.id.value),
+        ),
         albums = albums.map { it.toSharedMediaItemUi(coverArtUrl) },
+        biography = info?.biography,
         popularTracks = popularTracks.map { it.toAndroidTrackRowUi(coverArtUrl) },
         popularTracksStatus = popularTracksStatus,
         similarArtists = similarArtists.map { it.toSharedSimilarArtistUi() },

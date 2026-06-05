@@ -4,27 +4,25 @@ Naviamp uses a small playback abstraction so queue behavior, UI controls, and pr
 
 ## Current Engine
 
-Desktop uses `BassPlaybackEngine` as the production playback engine. The desktop factory always constructs BASS; if native BASS loading fails, playback reports a BASS error instead of switching to another audio stack.
+Desktop uses `DesktopBassPlaybackEngine` as the production playback engine. The desktop factory always constructs BASS; if native BASS loading fails, playback reports a BASS error instead of switching to another audio stack.
 
 ## Engine Resolution
 
-`PlaybackEngineFactory` accepts `NAVIAMP_PLAYBACK_ENGINE=bass` and `-Dnaviamp.playback.engine=bass` for compatibility with earlier testing scripts, but BASS is the only desktop engine path.
+`DesktopPlaybackEngineFactory` accepts `NAVIAMP_PLAYBACK_ENGINE=bass` and `-Dnaviamp.playback.engine=bass` for compatibility with earlier testing scripts, but BASS is the only desktop engine path.
 
 ## Direction
 
-The production desktop target is bundled BASS so users do not need a separate install.
-
-The next desktop playback investigation is BASS inside the Kotlin app, tracked in `docs/kotlin-bass-roadmap.md`. The intent is to keep the existing Kotlin UI and put BASS behind the current playback interface.
+The production desktop target is bundled BASS so users do not need a separate install. Desktop playback stays behind the current playback interface and uses the shared BASS facade with JNI below the desktop adapter.
 
 ## BASS Packaging
 
-The Kotlin desktop app has an initial JNA-based BASS binding under:
+The Kotlin desktop app has its active JNI-backed BASS binding under:
 
 ```text
 apps/desktop/src/desktopMain/kotlin/app/naviamp/desktop/playback/bass
 ```
 
-The first Kotlin BASS implementation uses JNA to prove loading, packaging, and basic playback quickly. Production BASS work should move to JNI so Naviamp can keep native callbacks, BASSmix, PCM/FFT visualizers, gapless playback, and crossfade behavior fast and consistent across desktop and Android.
+The first Kotlin BASS implementation used JNA to prove loading, packaging, and basic playback quickly. Production BASS work now uses JNI so Naviamp can keep native callbacks, BASSmix, PCM/FFT visualizers, gapless playback, and crossfade behavior fast and consistent across desktop and Android. The old JNA BASS connector has been removed; JNI is the only active desktop BASS connector.
 
 The JNI production binding design is tracked in `docs/bass-jni-design.md`.
 
@@ -59,7 +57,7 @@ Windows package resources are generated at:
 apps/desktop/build/generated/desktopBassApp/windows-x64/playback/bass/windows-x64
 ```
 
-The Windows x64 set currently includes `bass.dll` plus available BASS add-ons such as FLAC, HLS, mix, Opus, WebM, WavPack, DSD, APE, ALAC, AAC, MPC, WMA, FX, and SSL. The macOS ARM64 set currently includes `libbass.dylib` plus available add-ons and the generated `libnaviamp_bass.dylib` JNI scaffold.
+The Windows x64 set currently includes `bass.dll`, `naviamp_bass.dll`, and available BASS add-ons such as FLAC, HLS, mix, Opus, WebM, WavPack, DSD, APE, ALAC, AAC, MPC, WMA, FX, and SSL. The macOS ARM64 set currently includes `libbass.dylib`, `libnaviamp_bass.dylib`, and available add-ons.
 
 The intended original-stream coverage is:
 
@@ -79,7 +77,7 @@ The intended original-stream coverage is:
 | WMA | not packaged | `basswma` | macOS should fall back to provider transcode. |
 | WebM | `basswebm` | `basswebm` | Direct playback requires the add-on. |
 
-When a format is not covered by BASS core or a packaged add-on on the current platform, Naviamp should request provider transcoding instead of surfacing a codec error to the user. During the current spike, Stats for nerds shows the loaded BASS add-ons, current stream info, and latest BASS error. Deeper native channel diagnostics should be added through the JNI binding rather than the current JNA playback path.
+When a format is not covered by BASS core or a packaged add-on on the current platform, Naviamp should request provider transcoding instead of surfacing a codec error to the user. Stats for nerds shows the loaded BASS add-ons, current stream info, and latest BASS error through the shared backend/JNI path.
 
 Override the platform for packaging/copy verification with:
 
@@ -141,7 +139,7 @@ That task deliberately uses the same non-ProGuard app image as local testing and
 apps/desktop/build/compose/distributions/Naviamp-windows-x64-release.zip
 ```
 
-Avoid Compose Desktop's `createReleaseDistributable`, `runRelease`, and `packageReleaseDistributionForCurrentOS` tasks for Naviamp deploy testing. The desktop app uses Compose Desktop plus native JNA/JNI playback bindings, and ProGuard can break runtime-only paths such as native method lookup, callback dispatch, and generated Compose bytecode even when compilation succeeds.
+Avoid Compose Desktop's `createReleaseDistributable`, `runRelease`, and `packageReleaseDistributionForCurrentOS` tasks for Naviamp deploy testing. The desktop app uses Compose Desktop plus native JNI playback bindings, and ProGuard can break runtime-only paths such as native method lookup, callback dispatch, and generated Compose bytecode even when compilation succeeds.
 
 ## macOS Local Build Workflow
 
@@ -200,7 +198,7 @@ Desktop waveform generation uses BASS decode streams against cached or downloade
 
 ## Gapless Playback
 
-The BASS desktop engine implements `QueueAwarePlaybackEngine.prepareNext`. During normal queue playback, `PlaylistEngine` asks BASS to create the next stream shortly before the current track ends.
+The BASS desktop engine implements `QueueAwarePlaybackEngine.prepareNext`. During normal queue playback, `DesktopPlaylistEngine` asks BASS to create the next stream shortly before the current track ends.
 
 For gapless playback, the engine uses BASSmix queued decode channels. The active track plays through a BASS mixer, and the prepared next track is queued into that mixer before the current source ends. When BASS advances to the queued source, the app adopts that source as the current track instead of stopping and reopening playback. Prepared streams are cleared on stop, seek, source changes, queue jumps, shuffle/restore changes, or when the next request no longer matches the prepared stream.
 

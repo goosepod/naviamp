@@ -83,11 +83,13 @@ data class AndroidAppShellActions(
     val onEditConnection: () -> Unit,
     val onCancelEditConnection: () -> Unit,
     val onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
+    val onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit,
     val onClearCache: () -> Unit,
     val onClearLibrary: () -> Unit,
     val onResetDatabase: () -> Unit,
     val onQueryChanged: (String) -> Unit,
     val onSearch: () -> Unit,
+    val onClearSearch: () -> Unit,
     val onLibraryQueryChanged: (String) -> Unit,
     val onRefreshLibrary: () -> Unit,
     val onTrackSelected: (AndroidTrackRowUi) -> Unit,
@@ -133,6 +135,7 @@ data class AndroidAppShellActions(
     val onPlaylistSortModeChanged: (SharedPlaylistSortMode) -> Unit,
     val onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit,
     val onPlaylistAddToQueue: (SharedPlaylistDetailUi) -> Unit,
+    val onPlaylistDownload: (SharedMediaItemUi) -> Unit,
     val onPlaylistRename: (SharedMediaItemUi, String) -> Unit,
     val onPlaylistDelete: (SharedMediaItemUi) -> Unit,
     val onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit,
@@ -218,11 +221,13 @@ fun AndroidAppShellContent(
         onEditConnection = actions.onEditConnection,
         onCancelEditConnection = actions.onCancelEditConnection,
         onPlaybackSettingsChanged = actions.onPlaybackSettingsChanged,
+        onPlaybackSettingsChangedAndRedownload = actions.onPlaybackSettingsChangedAndRedownload,
         onClearCache = actions.onClearCache,
         onClearLibrary = actions.onClearLibrary,
         onResetDatabase = actions.onResetDatabase,
         onQueryChanged = actions.onQueryChanged,
         onSearch = actions.onSearch,
+        onClearSearch = actions.onClearSearch,
         onLibraryQueryChanged = actions.onLibraryQueryChanged,
         onRefreshLibrary = actions.onRefreshLibrary,
         onTrackSelected = actions.onTrackSelected,
@@ -268,6 +273,7 @@ fun AndroidAppShellContent(
         onPlaylistSortModeChanged = actions.onPlaylistSortModeChanged,
         onPlaylistPlay = actions.onPlaylistPlay,
         onPlaylistAddToQueue = actions.onPlaylistAddToQueue,
+        onPlaylistDownload = actions.onPlaylistDownload,
         onPlaylistRename = actions.onPlaylistRename,
         onPlaylistDelete = actions.onPlaylistDelete,
         onSmartPlaylistSave = actions.onSmartPlaylistSave,
@@ -434,6 +440,7 @@ fun androidAppShellActions(
     handleConnectionFormChanged: (ConnectionFormState) -> Unit,
     connectToNavidrome: () -> Unit,
     handlePlaybackSettingsChanged: (PlaybackSettings) -> Unit,
+    handlePlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit,
     handleClearCache: () -> Unit,
     handleClearLibrary: () -> Unit,
     handleResetDatabase: () -> Unit,
@@ -474,6 +481,7 @@ fun androidAppShellActions(
     loadArtistAlbumTracks: (SharedMediaItemUi, (List<Track>) -> Unit) -> Unit,
     openPlaylistDetails: (Playlist) -> Unit,
     playPlaylist: (Playlist, Boolean) -> Unit,
+    downloadPlaylist: (Playlist) -> Unit,
     renamePlaylist: (Playlist, String) -> Unit,
     deletePlaylist: (Playlist) -> Unit,
     saveSmartPlaylist: suspend (SmartPlaylistDefinition) -> Unit,
@@ -511,11 +519,20 @@ fun androidAppShellActions(
             onEditConnection = { editingConnection = true },
             onCancelEditConnection = { editingConnection = false },
             onPlaybackSettingsChanged = handlePlaybackSettingsChanged,
+            onPlaybackSettingsChangedAndRedownload = handlePlaybackSettingsChangedAndRedownload,
             onClearCache = handleClearCache,
             onClearLibrary = handleClearLibrary,
             onResetDatabase = handleResetDatabase,
             onQueryChanged = { contentState = contentState.copy(searchQuery = it) },
             onSearch = handleSearch,
+            onClearSearch = {
+                contentState = contentState.copy(
+                    searchQuery = "",
+                    searchResults = app.naviamp.domain.provider.MediaSearchResults(),
+                )
+                tracks = emptyList()
+                status = ""
+            },
             onLibraryQueryChanged = { libraryQuery = it },
             onRefreshLibrary = { startAndroidLibrarySync(true) },
             onTrackSelected = handleShellTrackSelected,
@@ -579,6 +596,10 @@ fun androidAppShellActions(
                     ?: run { status = "Playlist not found." }
             },
             onPlaylistAddToQueue = { appendTracksToQueue(selectedPlaylistTracks, "playlist tracks") },
+            onPlaylistDownload = { selectedPlaylist ->
+                homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }?.let(downloadPlaylist)
+                    ?: run { status = "Playlist not found." }
+            },
             onPlaylistRename = { selectedPlaylist, name ->
                 homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }?.let { renamePlaylist(it, name) }
                     ?: run { status = "Playlist not found." }

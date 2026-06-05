@@ -38,6 +38,80 @@ class SearchResultsTest {
     }
 
     @Test
+    fun searchResultsStatusReportsEmptyMatchesAndErrors() {
+        assertEquals("No matches found.", searchResultsStatus(MediaSearchResults()))
+        assertEquals(
+            "Found 1 matches.",
+            searchResultsStatus(MediaSearchResults(tracks = listOf(track("one")))),
+        )
+        assertEquals("Search failed.", searchErrorStatus(IllegalStateException()))
+    }
+
+    @Test
+    fun searchResultsUpdateWrapsSuccessAndFailure() = kotlinx.coroutines.test.runTest {
+        val track = track("one")
+
+        assertEquals(
+            SearchResultsUpdate(
+                results = MediaSearchResults(tracks = listOf(track)),
+                status = "Found 1 matches.",
+            ),
+            searchResultsUpdate("query") { _, _ -> MediaSearchResults(tracks = listOf(track)) },
+        )
+        assertEquals(
+            SearchResultsUpdate(
+                results = MediaSearchResults(),
+                status = "Boom",
+            ),
+            searchResultsUpdate("query") { _, _ -> error("Boom") },
+        )
+    }
+
+    @Test
+    fun searchSessionControllerHandlesBlankAndDisconnectedQueries() = kotlinx.coroutines.test.runTest {
+        var results = MediaSearchResults(tracks = listOf(track("old")))
+        var status: String? = "old"
+        var searching = true
+        val controller = SearchSessionController<Any>(
+            provider = { null },
+            setResults = { results = it },
+            setStatus = { status = it },
+            setSearching = { searching = it },
+        ) { _, _, _ -> error("Search should not run") }
+
+        controller.load("  ")
+
+        assertEquals(MediaSearchResults(), results)
+        assertEquals(SearchDisconnectedStatus, status)
+        assertEquals(false, searching)
+    }
+
+    @Test
+    fun searchSessionControllerAppliesSearchResults() = kotlinx.coroutines.test.runTest {
+        val provider = Any()
+        val track = track("one")
+        var results = MediaSearchResults()
+        var status: String? = null
+        var searching = false
+        val controller = SearchSessionController(
+            provider = { provider },
+            setResults = { results = it },
+            setStatus = { status = it },
+            setSearching = { searching = it },
+        ) { _, query, limit ->
+            assertEquals("query", query)
+            assertEquals(SearchResultLimit, limit)
+            MediaSearchResults(tracks = listOf(track))
+        }
+
+        controller.load(" query ")
+
+        assertEquals(MediaSearchResults(tracks = listOf(track)), results)
+        assertEquals("Found 1 matches.", status)
+        assertEquals(false, searching)
+    }
+
+    @Test
     fun allKnownTracksPrefersAlbumDetailTracksWhenPresent() {
         val searchTrack = track("search")
         val albumTrack = track("album")

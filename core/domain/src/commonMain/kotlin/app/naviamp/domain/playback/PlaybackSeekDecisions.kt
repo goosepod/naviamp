@@ -5,6 +5,8 @@ import app.naviamp.domain.StreamQuality
 data class PlaybackSeekPlan(
     val progress: PlaybackProgress,
     val shouldReplayCurrent: Boolean,
+    val pendingSeekPositionSeconds: Double,
+    val shouldClearRestoredStartPosition: Boolean = true,
 )
 
 fun planPlaybackSeek(
@@ -25,6 +27,7 @@ fun planPlaybackSeek(
             streamQuality = streamQuality,
             shouldReplayTranscodedStream = shouldReplayTranscodedStream,
         ),
+        pendingSeekPositionSeconds = positionSeconds,
     )
 }
 

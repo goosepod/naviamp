@@ -1,7 +1,10 @@
 package app.naviamp.domain.library
 
+import app.naviamp.domain.cache.LibraryIndexStats
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class LibraryFreshnessTest {
     @Test
@@ -52,5 +55,16 @@ class LibraryFreshnessTest {
         assertEquals(null, update.signatureToMarkChecked)
         assertEquals(null, update.status)
         assertEquals(true, update.clearStatus)
+    }
+
+    @Test
+    fun librarySyncHelpersShareCommonStatusAndAutoSyncRules() {
+        assertTrue(shouldAutoSyncLibrary(LibraryIndexStats(artistCount = 0, albumCount = 0, trackCount = 0)))
+        assertFalse(shouldAutoSyncLibrary(LibraryIndexStats(artistCount = 1, albumCount = 0, trackCount = 0)))
+        assertEquals("Connect to Navidrome to import your library.", libraryConnectionRequiredStatus())
+        assertEquals("Starting library import...", librarySyncStartingStatus())
+        assertEquals("Library refreshed.", librarySyncCompletedStatus())
+        assertEquals("Could not import library.", librarySyncErrorStatus(IllegalStateException()))
+        assertEquals("Nope", librarySyncErrorStatus(IllegalStateException("Nope")))
     }
 }

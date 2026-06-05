@@ -25,13 +25,30 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
+import app.naviamp.domain.network.KtorSharedHttpClient
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.net.URL
 import java.security.MessageDigest
 import java.util.LinkedHashMap
 import kotlin.math.ceil
+
+@Volatile
+private var androidPlatformCoverArtByteLoader: (suspend (String) -> ByteArray?)? = null
+
+fun setAndroidPlatformCoverArtByteLoader(loader: suspend (String) -> ByteArray?) {
+    androidPlatformCoverArtByteLoader = loader
+}
+
+fun resetAndroidPlatformCoverArtByteLoader() {
+    androidPlatformCoverArtByteLoader = null
+}
+
+internal suspend fun androidPlatformCoverArtBytes(url: String): ByteArray? =
+    androidPlatformCoverArtByteLoader?.invoke(url) ?: AndroidCoverArtHttpClient.getBytes(url)
+
+private val AndroidCoverArtHttpClient = KtorSharedHttpClient()
 
 @Composable
 actual fun PlatformCoverArt(
@@ -128,7 +145,7 @@ private object AndroidCoverArtCache {
     private val hotImages = object : LinkedHashMap<String, ByteArray>(16, 0.75f, true) {}
     private var hotBytes = 0L
 
-    fun imageBytes(context: Context, url: String): ByteArray? {
+    suspend fun imageBytes(context: Context, url: String): ByteArray? {
         synchronized(this) {
             hotImages[url]?.let { bytes ->
                 if (isDecodableImage(bytes)) return bytes
@@ -149,14 +166,14 @@ private object AndroidCoverArtCache {
             runCatching { cacheFile.delete() }
         }
 
-        return runCatching {
-            URL(url).openStream().use { input -> input.readBytes() }
-        }.getOrNull()?.takeIf(::isDecodableImage)?.also { bytes ->
-            runCatching {
-                cacheFile.parentFile?.mkdirs()
-                cacheFile.writeBytes(bytes)
+        return withContext(Dispatchers.IO + NonCancellable) {
+            androidPlatformCoverArtBytes(url)?.takeIf(::isDecodableImage)?.also { bytes ->
+                runCatching {
+                    cacheFile.parentFile?.mkdirs()
+                    cacheFile.writeBytes(bytes)
+                }
+                putHot(url, bytes)
             }
-            putHot(url, bytes)
         }
     }
 

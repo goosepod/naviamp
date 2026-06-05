@@ -2,6 +2,9 @@ package app.naviamp.android
 
 import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
+import app.naviamp.domain.cache.LocalLibraryIndexRepository
+import app.naviamp.domain.cache.ProviderResponseCacheRepository
+import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.home.HomeService
@@ -9,10 +12,14 @@ import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.provider.navidrome.NavidromeProvider
 import java.time.LocalDate
 
-suspend fun loadBrowseState(provider: NavidromeProvider): HomeContent {
+suspend fun loadBrowseState(
+    provider: NavidromeProvider,
+    providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
+): HomeContent {
     val today = LocalDate.now()
     val home = HomeService(
         provider = provider,
+        providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) },
         date = HomeDate(year = today.year, dayOfYear = today.dayOfYear),
     ).load(artistLimit = AndroidLibraryArtistLimit)
     return home
@@ -21,13 +28,13 @@ suspend fun loadBrowseState(provider: NavidromeProvider): HomeContent {
 suspend fun syncAndroidLibrary(
     sourceId: String,
     provider: MediaProvider,
-    storage: AndroidStorage,
+    libraryIndexRepository: LocalLibraryIndexRepository,
     onProgress: suspend (AndroidLibrarySyncProgress) -> Unit = {},
 ) {
-    storage.markLibrarySyncStarted(sourceId)
+    libraryIndexRepository.markLibrarySyncStarted(sourceId)
     onProgress(AndroidLibrarySyncProgress(label = "Loading library artists..."))
     val artists = provider.artists(limit = AndroidLibraryArtistLimit)
-    storage.upsertLibraryArtists(sourceId, artists)
+    libraryIndexRepository.upsertLibraryArtists(sourceId, artists)
     onProgress(AndroidLibrarySyncProgress(label = "Indexed ${artists.size} artists.", artists = artists))
 
     val albums = mutableListOf<Album>()
@@ -37,13 +44,13 @@ suspend fun syncAndroidLibrary(
         val page = provider.albums(limit = AndroidLibraryAlbumPageSize, offset = offset)
         if (page.isEmpty()) break
         albums += page
-        storage.upsertLibraryAlbums(sourceId, page)
+        libraryIndexRepository.upsertLibraryAlbums(sourceId, page)
         onProgress(AndroidLibrarySyncProgress(label = "Indexed ${albums.size} albums."))
         if (page.size < AndroidLibraryAlbumPageSize) break
         offset += AndroidLibraryAlbumPageSize
     }
 
-    storage.markLibrarySyncCompleted(sourceId)
+    libraryIndexRepository.markLibrarySyncCompleted(sourceId)
     onProgress(AndroidLibrarySyncProgress(label = "Library indexed: ${artists.size} artists, ${albums.size} albums."))
 }
 

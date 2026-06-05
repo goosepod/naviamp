@@ -1,0 +1,205 @@
+# Android MainActivity Reduction Worksheet
+
+This tracks the maintainability pass after the original Android warning-driven split. The release/function-size warning work is complete in `docs/android-mainactivity-split.md`; this worksheet is for getting `MainActivity.kt` out of the business of owning whole feature workflows.
+
+Branch: `codex/desktop-main-reduction`
+
+## Baseline
+
+- `apps/android/.../app/MainActivity.kt`: 2,348 lines.
+- `apps/android/.../playback/AndroidPlaybackForegroundService.kt`: 2,234 lines.
+- `apps/android/.../storage/AndroidStorage.kt`: 1,012 lines.
+- `apps/android/.../playback/AndroidBassPlaybackEngine.kt`: 674 lines.
+- `apps/android/.../app/AndroidAppShell.kt`: 646 lines.
+
+`MainActivity.kt` is the first target. `AndroidPlaybackForegroundService.kt` deserves its own worksheet after the activity is slimmer because service, Android Auto, media session, and cold-start playback ownership are tangled enough to review separately.
+
+## Progress
+
+- [x] Extracted playback session startup and playback progress handling into `AndroidPlaybackOrchestration.kt`.
+  - `MainActivity.kt`: 2,348 -> 2,267 lines.
+  - Verification: `.\gradlew.bat :apps:android:assembleDebug`.
+  - Remaining playback work: move `playTrack`, seek handling, adjacent navigation, and prefetch/sidecar orchestration behind a cohesive playback controller.
+- [x] Moved playback progress update decisions into shared domain via `planPlaybackProgressUpdate`.
+  - Android now applies a shared progress plan, then performs Android-only notification, foreground-service, play-report, and gapless/crossfade side effects.
+  - Verification: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:assembleDebug`.
+- [x] Moved playback start queue/target/restored-progress planning into shared domain via `planPlaybackStart`.
+  - Android now uses a shared plan for queue choice, selected index, provider stream request, engine start position, and initial restored progress.
+  - `MainActivity.kt`: 2,267 -> 2,264 lines.
+  - Verification: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:assembleDebug`.
+- [x] Moved adjacent-track navigation decisions into shared domain via `planPlaybackAdjacentAction`.
+  - Android now applies shared actions for previous-button restart, adjacent queue selection, repeat wrapping, and no-op cases.
+  - Verification: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:assembleDebug`.
+- [x] Expanded the shared seek plan with post-seek application fields used by Android and desktop.
+  - Android and desktop now use shared pending-seek position and restored-start clearing guidance when applying seeks.
+  - Verification: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:assembleDebug`, `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
+- [x] Moved track-start presentation decisions into shared domain via `planPlaybackTrackStarted`.
+  - Android and desktop now share decisions for changed-track sidecars, stream metadata reset, live-radio now-playing cleanup, player opening, play reporting, favorite state, and lyrics loading.
+  - `MainActivity.kt`: 2,264 -> 2,274 lines while the shared plan is introduced; the later Android playback adapter extraction should reclaim this wiring.
+  - Verification: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:assembleDebug`, `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
+- [x] Moved Android track playback orchestration into the Android playback adapter.
+  - `MainActivity.kt` now delegates `playTrack` to `playAndroidTrack`, while the adapter applies the shared start and track-start plans.
+  - `MainActivity.kt`: 2,274 -> 2,181 lines.
+  - Verification: `.\gradlew.bat :apps:android:assembleDebug`.
+- [x] Added a shared track-start effects plan used by Android and desktop.
+  - `planPlaybackTrackStartEffects` now describes cross-platform follow-up effects for session saving, radio refill, related tracks, prefetch, sidecars, notification metadata, media id, start position, and finished-track adjacency.
+  - Android and desktop remain platform executors for the plan.
+  - Verification: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:assembleDebug`, `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
+- [x] Added a shared internet-radio start plan and moved Android live-radio playback into the playback adapter.
+  - `planInternetRadioStart` now owns recent-station ordering, default queue/progress/metadata state, station notification metadata, radio-continuation cleanup, and session/status effects.
+  - Android now delegates `playInternetRadioStation` to `playAndroidInternetRadioStation`; desktop internet-radio playback consumes the same shared start plan.
+  - `MainActivity.kt`: 2,181 -> 2,135 lines.
+  - Verification: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:assembleDebug`, `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
+- [x] Moved Android playlist orchestration into a playlist controller.
+  - `AndroidPlaylistsController.kt` now owns playlist open/detail refresh, play/shuffle start, rename/delete, preload/refresh, and smart-playlist save wiring.
+  - Android playlist behavior remains backed by shared `core/domain` helpers for refresh shaping, recent ordering, mutation status, pending playback feedback, and smart-playlist save status.
+  - `MainActivity.kt`: 2,135 -> 1,979 lines.
+  - Verification: `.\gradlew.bat :apps:android:compileDebugKotlin`.
+- [x] Moved Android media action wiring into a media controller.
+  - `AndroidMediaActionsController.kt` now owns queue append, add-to-playlist, favorite/rating, and local metadata update wiring.
+  - Shared rules remain in `core/domain`: queue append planning, playlist mutation status, favorite update, rating update, and track metadata propagation helpers.
+  - `MainActivity.kt`: 1,979 -> 1,868 lines.
+  - Verification: `.\gradlew.bat :apps:android:compileDebugKotlin`.
+- [x] Expanded Android radio controller ownership.
+  - Track-radio queue starts from the Now Playing and queue-item radio actions now delegate to `AndroidRadioController`.
+  - Shared generated-radio queue and append/refill rules remain in `core/domain`.
+  - `MainActivity.kt`: 1,868 -> 1,837 lines.
+  - Verification: `.\gradlew.bat :apps:android:installDebug`.
+- [x] Moved Android artist radio dispatch into the radio controller.
+  - Artist-radio and popular-tracks-radio starts now delegate to `AndroidRadioController`, keeping `MainActivity.kt` as a thin shared-UI callback adapter.
+  - The moved paths still build generated queues through the shared radio queue helpers.
+  - `MainActivity.kt`: 1,837 -> 1,817 lines.
+  - Verification: `.\gradlew.bat :apps:android:compileDebugKotlin`.
+- [x] Moved Android home-station radio dispatch into the radio controller.
+  - Library, random-album, genre, decade, and Android Auto library radio starts now share `startAndroidRadioTracks` / `startAndroidHomeStationRadio`.
+  - Home-station parsing remains in shared domain; Android only applies provider calls and playback startup.
+  - `MainActivity.kt`: 1,817 -> 1,764 lines.
+  - Verification: `.\gradlew.bat :apps:android:compileDebugKotlin`.
+- [x] Centralized Android media track lookup and artist-popular callbacks.
+  - `AndroidMediaActionsController.kt` now owns known-track lookup, selected-track playback targeting, artist popular play, popular-track radio start, and popular-track queue append.
+  - The moved paths keep shared behavior in play through `core/domain` helpers like `allKnownTracks` and `queueAppendPlan`; Android remains the adapter that applies state and playback effects.
+  - `MainActivity.kt`: 1,764 -> 1,737 lines.
+  - Verification: `.\gradlew.bat :apps:android:compileDebugKotlin`.
+- [x] Folded Android track/download action wrappers into the media controller.
+  - Generic track actions, album-track download/add-to-playlist wrappers, and downloaded-track play/add-to-playlist wrappers now use media-controller helpers for lookup and "track not found" handling.
+  - Shared queue and playlist mutation behavior still flows through `core/domain`; the Android helper only bridges shared UI row ids to Android state and platform actions.
+  - `MainActivity.kt`: 1,737 -> 1,730 lines.
+  - Verification: `.\gradlew.bat :apps:android:compileDebugKotlin`.
+- [x] Moved Android library sync and freshness orchestration into a library controller.
+  - `AndroidLibraryController.kt` now owns sync startup, progress application, scan-signature freshness checks, and library status updates.
+  - Shared sync/freshness decisions remain in `core/domain/library`; Android only applies provider, storage, coroutine, and UI-state effects.
+  - `MainActivity.kt`: 1,730 -> 1,655 lines.
+  - Verification: `.\gradlew.bat :apps:android:compileDebugKotlin`.
+- [x] Moved Android maintenance/reset actions into an app controller.
+  - `AndroidMaintenanceController.kt` now owns cache clearing, library-index clearing, database reset, derived-media cleanup, file-cache cleanup, and playback-state reset.
+  - Shared reset/status wording remains in `core/domain/app`; Android only applies local storage, file, playback-engine, queue, and settings effects.
+  - `MainActivity.kt`: 1,655 -> 1,583 lines.
+  - Verification: `.\gradlew.bat :apps:android:compileDebugKotlin`.
+- [x] Moved Android search session orchestration into a search controller.
+  - `AndroidSearchController.kt` now owns manual search, debounced query loading, search result application, and search status updates.
+  - Android uses the same shared `SearchSessionController` as desktop; the platform controller only injects provider search and Android state assignment.
+  - `MainActivity.kt`: 1,583 -> 1,560 lines.
+  - Verification: `.\gradlew.bat :apps:android:compileDebugKotlin`.
+
+## Goals
+
+- [ ] Reduce `MainActivity.kt` by extracting cohesive feature controllers and effect runners.
+- [ ] Keep Android behavior aligned with desktop and shared core by default.
+- [ ] Move duplicated Android/desktop product rules into `core/domain`, `core/ui`, or provider modules before adding platform-local helpers.
+- [ ] Treat Android storage/cache/download code as one platform engine behind shared storage/cache/download ports, not as a separate product implementation.
+- [ ] Prefer shared plan/reducer APIs for product behavior; keep platform files as adapters that apply those plans to lifecycle, storage, engine, and OS side effects.
+- [ ] Keep Android route/shell composition readable and mostly declarative.
+- [ ] Keep every extraction verified with Android debug or release compile/build, plus common tests when shared rules move.
+
+## Guardrails
+
+- Do not move Android lifecycle, `ActivityResultLauncher`, permissions, intents, foreground-service binding, Android Auto handoff, notification, or platform storage APIs into common code.
+- Do not add another giant controller. Feature controllers should map to existing folders: `playback/`, `radio/`, `media/`, `library/`, `downloads/`, `connection/`, `app/`.
+- Keep shared behavior pure or dependency-injected. Provider calls, cache reads/writes, coroutine scope ownership, and Compose state assignment can remain platform-local.
+- Platform-specific helpers should be thin application layers over common plans whenever the same behavior exists or could exist on desktop.
+- Prefer small compile-green slices over broad rewrites.
+- Before each extraction, compare the desktop controller for matching behavior and move common decision/status/planning rules down when both platforms need them.
+
+## Planned Slices
+
+- [ ] **Playback orchestration controller**
+  - Move `playTrack`, seek handling, adjacent-track navigation, current-track replay, playback-state callbacks, notification metadata update wiring, and session-token start logic out of `MainActivity.kt`.
+  - Keep Android playback engine, foreground-service progress publishing, local file lookup, and notification wiring platform-local.
+  - Shared-code checks: playback target planning, repeat/adjacent queue selection, pending-seek behavior, report gating, sidecar prep, and queue mutation already live mostly in `core/domain`; add missing shared helpers only if duplicate desktop logic appears.
+
+- [ ] **Android radio controller expansion**
+  - Continue moving radio helpers out of `MainActivity.kt`: library/genre/decade/random-album/artist/popular/recent radio dispatch, track-radio queue conversion, and shell queue-item radio.
+  - Keep provider execution and queue-controller mutation in Android radio adapter.
+  - Shared-code checks: generated-radio queue construction, tail refill, recent-radio actions, seed selection, and request models should remain shared.
+  - Track-radio queue conversion, shell queue-item radio, artist radio, popular-track radio, and home-station radio dispatch are now in the Android radio adapter; recent radio dispatch still needs follow-up if any inline path remains.
+
+- [x] **Internet radio playback controller**
+  - Move `playInternetRadioStation`, live stream URL resolution, stream metadata notification updates, recent-station persistence, and station state reset into an Android internet-radio controller.
+  - Shared-code checks: station-to-track shaping, stream-title metadata update, recent-station ordering, and URL/playlist parsing are already shared or isolated.
+
+- [x] **Android media action controller**
+  - Move favorite/rating updates, track metadata propagation, album/artist popular-track play/add/radio/download callbacks, and known-track lookup helpers out of `MainActivity.kt`.
+  - Shared-code checks: metadata propagation, action availability, favorite/rating mutation planning, and display models should stay in shared domain/UI where possible.
+  - Queue append, add-to-playlist, favorite/rating, metadata propagation, known-track lookup, selected-track playback targeting, artist popular play/radio/add-to-queue wrappers, generic track wrappers, album-track playlist/download wrappers, and downloaded-track wrappers are now in the media controller.
+
+- [x] **Playlist orchestration controller**
+  - Move playlist play/open/refresh/preload, selected-playlist detail state, playlist delete/rename/create/add flows, and smart-playlist callbacks out of `MainActivity.kt`.
+  - Shared-code checks: playlist mutation planning, detail refresh shaping, recent-playlist cleanup, and queue append planning already belong in `core/domain`.
+  - Cross-platform playback-action feedback is now started in `core/domain`: slow playlist play shows pending text, suppresses stacked taps, and clears on playback start or empty-playlist completion on Android and desktop.
+  - Playlist screens now expose a shuffle-icon random-order start beside Play, using the shared shuffled playlist playback path.
+  - Remaining add-to-playlist dialog flows still live in `MainActivity.kt`; extract those with media actions so track/album/artist/playlist sources can share one adapter shape.
+
+- [ ] **Library and search orchestration cleanup**
+  - Move remaining library query/snapshot/page-jump/search result loading state wiring out of `MainActivity.kt` if it is still inline after playback/media splits.
+  - Shared-code checks: search session orchestration, query normalization, debounce, paging limits, freshness polling, and sync status rules should remain common.
+  - Library sync/freshness orchestration is now in `AndroidLibraryController`; cache/index reset actions are now in `AndroidMaintenanceController`; search orchestration is now in `AndroidSearchController`.
+
+- [ ] **Route/back-stack/effect cleanup**
+  - Move `handleAndroidBack`, route-clear helpers, auto-command effects, and startup/restoration effects into focused app-level helpers where lifecycle-safe.
+  - Keep actual `BackHandler`, `LaunchedEffect`, permissions, and intent collection in activity composition when Compose lifecycle ownership matters.
+
+- [ ] **Final measurement pass**
+  - Recount `MainActivity.kt`.
+  - Re-run Android build validation.
+  - Update this worksheet with new line counts and any remaining high-risk blocks.
+
+- [ ] **Shared storage/cache/download interface pass**
+  - Follow `docs/shared-storage-cache-architecture.md`.
+  - Replace direct `AndroidStorage` dependencies in controllers with narrow shared repository interfaces where practical.
+  - Keep Android `Context`, app-private directories, SQLDelight Android driver, storage permissions/policies, and mobile-network checks Android-local.
+  - Move shared download, cache, sidecar, library-index, playback-session, and playback-source decisions into shared services.
+
+## Suggested Order
+
+1. For every slice, identify the platform-agnostic plan/reducer first and put it in `core/domain`, `core/ui`, or a provider module before adding Android adapter code.
+2. Continue playback orchestration because it is the highest-risk and largest remaining workflow: `playTrack`, seek handling, adjacent navigation, prefetch, sidecars, and state callbacks.
+3. Expand `AndroidRadioController` while the shared tail-refill work is fresh.
+4. Split internet-radio live playback because it is distinct from generated radio.
+5. Move media and playlist actions after playback/radio boundaries are stable.
+6. Clean route/effect wiring last so it can use the new controller APIs.
+
+## Verification
+
+- [x] `.\gradlew.bat :core:domain:allTests`
+- [ ] `.\gradlew.bat :apps:android:assembleDebug`
+- [ ] `.\gradlew.bat :apps:android:compileReleaseKotlin`
+- [x] `.\gradlew.bat :apps:android:compileDebugKotlin`
+- [x] `.\gradlew.bat :apps:android:installDebug`
+- [x] `.\gradlew.bat :apps:desktop:compileKotlinDesktop "-Pnaviamp.bass.platform=windows-x64"`
+- [x] `.\gradlew.bat :apps:android:compileDebugKotlin`
+- [x] `.\gradlew.bat :apps:android:compileDebugKotlin`
+- [x] `.\gradlew.bat :apps:android:compileDebugKotlin`
+- [x] `.\gradlew.bat :apps:android:compileDebugKotlin`
+- [x] `.\gradlew.bat :apps:android:compileDebugKotlin`
+- [x] `.\gradlew.bat :apps:android:compileDebugKotlin`
+- [x] `.\gradlew.bat :apps:android:compileDebugKotlin`
+- [x] `.\gradlew.bat :apps:android:compileDebugKotlin`
+
+## Notes
+
+- `Main.kt` on desktop is currently small enough; the ongoing size problem is `DesktopNaviampApp.kt`, Android `MainActivity.kt`, and Android `AndroidPlaybackForegroundService.kt`.
+- `AndroidPlaybackForegroundService.kt` should be handled after `MainActivity.kt`, likely with separate service/runtime/media-session/Android Auto controllers.
+- The artist-selection feature idea remains parked in `docs/desktop-main-reduction.md` until the current size-reduction pass is stable enough for feature work.
+- Playlist play duplicate-start suppression now has a shared pending/loading playback-action model; album/radio can reuse it when those starts need the same feedback.
+- Cross-platform agnosticism is the guiding constraint for this pass: platform controllers should only apply lifecycle/storage/playback side effects, while product decisions and reusable rules should move into `core/domain`, `core/ui`, or shared provider modules whenever both desktop and Android need them.
+- The storage/cache/download direction is documented in `docs/shared-storage-cache-architecture.md`: Android should provide platform engines behind shared interfaces, not maintain a separate product-level storage model.

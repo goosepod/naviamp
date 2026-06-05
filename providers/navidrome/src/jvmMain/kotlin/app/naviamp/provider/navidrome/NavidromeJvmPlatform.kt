@@ -1,16 +1,18 @@
 package app.naviamp.provider.navidrome
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.cio.CIO
+import io.ktor.network.tls.CertificateAndKey
 import java.io.FileInputStream
-import java.net.HttpURLConnection
-import java.net.URI
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import java.security.Key
 import java.security.KeyStore
 import java.security.MessageDigest
+import java.security.PrivateKey
 import java.security.SecureRandom
 import java.security.cert.CertificateFactory
+import java.security.cert.X509Certificate
 import javax.net.ssl.HostnameVerifier
 import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.KeyManager
@@ -31,92 +33,31 @@ actual fun String.urlEncode(): String =
     URLEncoder.encode(this, StandardCharsets.UTF_8)
 
 actual fun createDefaultNavidromeHttpClient(tlsSettings: NavidromeTlsSettings): NavidromeHttpClient =
-    JavaNavidromeHttpClient(tlsSettings)
+    KtorNavidromeHttpClient(createDefaultNavidromeKtorClient(tlsSettings))
 
-class JavaNavidromeHttpClient : NavidromeHttpClient {
-    constructor() : this(NavidromeTlsSettings())
-
-    constructor(tlsSettings: NavidromeTlsSettings) {
-        NavidromeTls.applyJvmDefaults(tlsSettings)
-    }
-
-    override suspend fun get(url: String): String =
-        request(url = url, method = "GET")
-
-    override suspend fun get(url: String, headers: Map<String, String>): String =
-        request(url = url, method = "GET", headers = headers)
-
-    override suspend fun postJson(url: String, body: String, headers: Map<String, String>): String =
-        request(url = url, method = "POST", body = body, headers = headers)
-
-    override suspend fun putJson(url: String, body: String, headers: Map<String, String>): String =
-        request(url = url, method = "PUT", body = body, headers = headers)
-
-    private suspend fun request(
-        url: String,
-        method: String,
-        body: String? = null,
-        headers: Map<String, String> = emptyMap(),
-    ): String =
-        withContext(Dispatchers.IO) {
-            val startedAt = System.currentTimeMillis()
-
-            try {
-                val connection = URI.create(url).toURL().openConnection() as HttpURLConnection
-                connection.requestMethod = method
-                connection.connectTimeout = 15_000
-                connection.readTimeout = 30_000
-                headers.forEach { (key, value) -> connection.setRequestProperty(key, value) }
-                if (body != null) {
-                    connection.doOutput = true
-                    connection.setRequestProperty("Content-Type", "application/json")
-                    connection.outputStream.use { output ->
-                        output.write(body.toByteArray(StandardCharsets.UTF_8))
+actual fun createDefaultNavidromeKtorClient(tlsSettings: NavidromeTlsSettings): HttpClient {
+    NavidromeTls.applyJvmDefaults(tlsSettings)
+    return HttpClient(CIO) {
+        expectSuccess = false
+        engine {
+            if (tlsSettings != NavidromeTlsSettings()) {
+                https {
+                    with(NavidromeTls) {
+                        tlsSettings.trustManager()?.let { trustManager = it }
+                        tlsSettings.certificateAndKey()?.let { certificates.add(it) }
                     }
                 }
-                if (connection.responseCode !in 200..299) {
-                    throw NavidromeException("Navidrome returned HTTP ${connection.responseCode}.")
-                }
-                connection.inputStream.bufferedReader(StandardCharsets.UTF_8).use { reader ->
-                    reader.readText()
-                }.also {
-                    recordApiCall(
-                        method = method,
-                        url = url,
-                        startedAt = startedAt,
-                        success = true,
-                        errorMessage = null,
-                    )
-                }
-            } catch (exception: Exception) {
-                recordApiCall(
-                    method = method,
-                    url = url,
-                    startedAt = startedAt,
-                    success = false,
-                    errorMessage = exception.message ?: exception::class.simpleName,
-                )
-                throw exception
             }
         }
-
-    private fun recordApiCall(
-        method: String,
-        url: String,
-        startedAt: Long,
-        success: Boolean,
-        errorMessage: String?,
-    ) {
-        recordNavidromeApiCall(
-            url = url,
-            method = method,
-            startedAt = startedAt,
-            durationMillis = (System.currentTimeMillis() - startedAt).coerceAtLeast(0),
-            success = success,
-            errorMessage = errorMessage,
-        )
+        install(io.ktor.client.plugins.HttpTimeout) {
+            connectTimeoutMillis = 15_000
+            requestTimeoutMillis = 30_000
+            socketTimeoutMillis = 30_000
+        }
     }
 }
+
+internal actual fun navidromeCurrentTimeMillis(): Long = System.currentTimeMillis()
 
 object NavidromeTls {
     private val platformSslContext: SSLContext = SSLContext.getDefault()
@@ -185,6 +126,27 @@ object NavidromeTls {
             init(keyStore, password)
             keyManagers
         }
+    }
+
+    fun NavidromeTlsSettings.trustManager(): TrustManager? =
+        trustManagers()?.firstOrNull()
+
+    fun NavidromeTlsSettings.certificateAndKey(): CertificateAndKey? {
+        if (!hasClientCertificate) return null
+        val password = clientCertificateKeyStorePassword.orEmpty().toCharArray()
+        val keyStore = KeyStore.getInstance("PKCS12").apply {
+            FileInputStream(clientCertificateKeyStorePath!!).use { input ->
+                load(input, password)
+            }
+        }
+        val alias = keyStore.aliases().asSequence().firstOrNull { keyStore.isKeyEntry(it) } ?: return null
+        val key: Key = keyStore.getKey(alias, password) ?: return null
+        val privateKey = key as? PrivateKey ?: return null
+        val certificateChain = keyStore.getCertificateChain(alias)
+            ?.mapNotNull { it as? X509Certificate }
+            ?.toTypedArray()
+            ?: return null
+        return CertificateAndKey(certificateChain, privateKey)
     }
 
     private object TrustAllCertificates : X509TrustManager {

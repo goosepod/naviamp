@@ -11,10 +11,10 @@ Kotlin/Compose is the reference desktop UI.
 ## Current State
 
 - The Kotlin app already has a playback abstraction in `core/domain/src/commonMain/kotlin/app/naviamp/domain/playback/PlaybackEngine.kt`.
-- Desktop chooses an engine in `apps/desktop/src/desktopMain/kotlin/app/naviamp/desktop/playback/PlaybackEngineFactory.kt`.
-- Desktop now constructs the BASS engine directly through `PlaybackEngineFactory`.
+- Desktop chooses an engine in `apps/desktop/src/desktopMain/kotlin/app/naviamp/desktop/playback/DesktopPlaybackEngineFactory.kt`.
+- Desktop now constructs the BASS engine directly through `DesktopPlaybackEngineFactory`.
 - The old desktop mpv/JLayer runtime fallback paths have been removed from the active app.
-- `PlaylistEngine` already understands engine capabilities and can use `QueueAwarePlaybackEngine` hooks for prepare-next behavior.
+- `DesktopPlaylistEngine` already understands engine capabilities and can use `QueueAwarePlaybackEngine` hooks for prepare-next behavior.
 - BASS native libraries are already available in the repo through the Rust app vendor tree for macOS ARM64 and Windows x64.
 
 ## Direction Decisions
@@ -22,7 +22,7 @@ Kotlin/Compose is the reference desktop UI.
 - Preserve the Kotlin UI. Do not redesign screens as part of BASS work unless playback behavior requires a UI affordance.
 - Add BASS as a new engine implementation, not a replacement for the playback interface.
 - Keep the playback interface boundary, but make BASS the only active playback engine for the Kotlin app.
-- Use JNA only as the first desktop spike. Move to JNI for the production BASS binding, especially for low-latency visualizers, crossfade/gapless control, and platform parity.
+- Use JNI underneath the shared BASS facade on desktop and Android. The early desktop JNA spike has been removed after JNI playback was manually proven.
 - Keep the Kotlin/domain playback interface clean. Avoid leaking BASS handles or BASS-specific details into UI/domain code.
 - Treat BASSmix as the likely path for serious gapless/crossfade support.
 - Treat live PCM/FFT access as the future visualizer path; do not revive fake/precomputed visualizers as the final solution.
@@ -35,7 +35,7 @@ Kotlin/Compose is the reference desktop UI.
 
 - [x] Decide JNA vs JNI for desktop BASS bindings.
 - [x] Add desktop dependency/build setup for the chosen binding approach.
-- [x] Create a small `BassNative` wrapper for init, free, stream create, play, pause, stop, seek, volume, duration, position, and errors.
+- [x] Create a small `DesktopBassNative` wrapper for init, free, stream create, play, pause, stop, seek, volume, duration, position, and errors. Removed after the JNI connector replaced it.
 - [x] Load `libbass.dylib` on macOS from bundled app resources or development vendor path.
 - [x] Load `bass.dll` on Windows from bundled app resources or development vendor path.
 - [x] Add focused tests around platform/library path resolution where possible.
@@ -44,19 +44,23 @@ Kotlin/Compose is the reference desktop UI.
 ## Phase 1.5: Production Binding Direction
 
 - [x] Design a JNI binding surface for BASS that covers playback, BASSmix, PCM/FFT, tags, plugin loading, and error reporting.
-- [x] Keep the current JNA binding as the comparison spike until JNI reaches feature parity.
+- [x] Retain the old desktop JNA binding as a comparison spike until JNI-backed desktop playback is manually proven.
 - [x] Add native build layout for macOS, Windows, and Android.
 - [x] Decide how generated native artifacts are versioned and copied into app packages.
 - [x] Add initial Kotlin/native JNI contract for BASS version and error diagnostics.
-- [x] Keep `BassPlaybackEngine` on JNA until JNI playback parity is proven.
+- [x] Move `DesktopBassPlaybackEngine` to JNI after stream/control/mixer/FFT/tag/plugin parity is in place.
 - [x] Move desktop waveform generation from mpv process decoding to BASS decode streams.
+- [x] Remove the old desktop JNA/native connector after JNI-backed desktop playback is manually proven.
+  - Manual macOS smoke testing has now passed for crossfade, waveform generation, queue jumping, scrub-bar seeking, and instant playback after scrub.
+  - Manual Windows smoke testing has now passed for playback, crossfade, volume, scrub-bar seeking, fast repeated scrubbing, and fast track changes.
+  - `DesktopBassNative` and JNA-only BASS support/tests have been removed; JNI is the only active desktop BASS connector.
 
 Design notes live in `docs/bass-jni-design.md`.
 Native scaffold lives in `native/bass-jni`.
 
 ## Phase 2: Basic Engine
 
-- [x] Add `BassPlaybackEngine` implementing `PlaybackEngine`.
+- [x] Add `DesktopBassPlaybackEngine` implementing `PlaybackEngine`.
 - [x] Support URL playback from Navidrome provider streams.
 - [x] Support local file playback from cached/downloaded audio paths.
 - [x] Implement pause, resume, stop, seek, and software volume.
@@ -148,7 +152,28 @@ Native scaffold lives in `native/bass-jni`.
 - [x] Run manual playback smoke tests on macOS.
 - [x] Run manual playback smoke tests on Windows.
 - [x] Test cached audio, downloaded audio, direct provider streams, and internet radio.
-- [ ] Test sleep/wake, server disconnects, bad URLs, unsupported formats, and Android gapless/crossfade transitions on device/emulator.
+- [x] Test sleep/wake, server disconnects, bad URLs, unsupported formats, and Android gapless/crossfade transitions on device/emulator.
+  - The obsolete desktop JNA/native connector has been removed; this is the next BASS hardening focus.
+  - First hardening slice: shared BASS mixer/prepared-next helpers now release newly-created source/mixer handles when setup fails partway through, preventing leaked BASS streams after bad URLs, unsupported formats, or failed transition setup. Verified with common tests, Android BASS native package verification, and emulator install/launch.
+  - Second hardening slice: Android BASS playback now mirrors desktop's playback-session guard so stale async play/seek/crossfade work from superseded sessions cannot overwrite active stream state after rapid skip/scrub or failed starts. Verified with common tests, Android compile/package verification, and emulator install/launch.
+  - Third hardening slice: desktop and Android now both consume the common BASS active-state mapping during playback polling, so stalled network streams surface the same loading/buffering state instead of silently diverging by platform. Verified with desktop and Android compile.
+  - Fourth hardening slice: shared BASS playback-source selection now has regression coverage for direct playback stream creation failures, mixer playback decode-source failures, and prepared-next decode-source failures. These cover bad URL / unsupported-format failures before platform engines can publish active handles.
+  - Emulator smoke coverage now passed on Android debug: start playback from Now Playing, natural end-of-track queue advance, seekbar scrub, rapid Next stress, cached local stream playback, and sleep/wake while playing. Logs showed BASS streams opening from local cache, active playback settling after rapid skips, audio focus duck/restore during sleep/wake, continued session position saves, and no `AndroidRuntime`, `FATAL`, JNI, or BASS crash lines.
+  - Fifth hardening slice: emulator network-off testing while a cached local stream was playing kept playback in `PLAYING`, continued session position saves through the outage, restored network afterward, and left the process alive with no app/BASS crash lines.
+  - Sixth hardening slice: force-stop/relaunch restored the current track and queue position, resumed playback from the saved position, opened BASS from the cached file URL, applied the restored seek (`seconds=154.78`), and advanced normally afterward.
+  - Seventh hardening slice: Android near-end transition testing sought to `228s`, advanced the queue at source end, adopted the next BASS source at the expected crossfade offset (`position=8.05`), reacquired the wake lock, and continued prefetch/session saves without stale-source or crash lines.
+  - Eighth hardening slice: live provider-stream interruption was tested by removing the next track's cached file through `run-as`, confirming BASS opened the `https://.../stream.view` provider URL, then disabling emulator wifi/data for 30 seconds. The stream stayed in `PLAYING`, media/session positions advanced from roughly `41s` to `74s`, network restored cleanly, and logs showed no `AndroidRuntime`, `FATAL`, `NaviampBass` error, or stalled-state lines. This confirms buffered live remote playback does not crash, leak, or leave stale state during a device network outage; a server-side socket-kill test remains optional if we need to force BASS into an actual stalled/error state.
+  - Android BASS hardening matrix:
+    - [x] Sleep/wake while playing: playback should either continue with the foreground service/wake lock or resume cleanly without losing queue/progress state.
+    - [x] Cached/local playback during device interruption: active cached streams should continue without requiring network access.
+    - [x] Bad provider URL / source open failure contract: playback should fail with a useful BASS error message, stop foreground-service playing state, and leave no active/prepared handles.
+    - [x] Unsupported format / decode-source failure contract: provider-stream playback should surface the codec/format failure and leave the queue usable for skip/next.
+    - [x] Rapid skip/scrub during playback: stale async playback work should not overwrite the active stream state.
+    - [x] Server disconnect during live remote playback: live provider streams should continue when buffering covers the outage, or enter a clear playback error/stalled state without leaking prepared BASS sources. Emulator network-off testing verified the buffered-provider path through a 30-second outage without app/BASS crash or stale state; server-side socket-kill remains optional diagnostic coverage for forcing a hard remote stall.
+    - [x] Android gapless transition: queued BASSmix source should adopt without restarting audio or leaving the old source audible.
+    - [x] Android crossfade transition: current source should fade out, next source should fade in, ReplayGain should stay source-local, and rapid skip/scrub should reset stale transition state.
+    - [x] Android process/app restart restore: restored playback should prefer cached/downloaded audio, seek to the saved position, and recover cleanly if the saved stream can no longer be opened.
+    - [x] Emulator/device diagnostics: capture `NaviampBass`, `NaviampPlayback`, `NaviampCache`, and `AndroidRuntime` logs for each scenario.
 - [x] Fix rapid skip stress case where crossfade could leave an older BASS source audible after quick forward/backward navigation.
 - [x] Make BASS the default desktop engine.
 - [x] Remove the active desktop mpv/JLayer fallback path.
