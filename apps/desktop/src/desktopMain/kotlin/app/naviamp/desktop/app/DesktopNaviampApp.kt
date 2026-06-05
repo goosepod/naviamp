@@ -983,201 +983,18 @@ fun NaviampApp(
         clientCertificateKeyStorePassword = formState.clientCertificateKeyStorePassword
     }
 
-    fun connectToServer(restoreSavedSession: Boolean = false) {
-        connectionLifecycleController.connectToServer(restoreSavedSession)
-    }
-
-    fun openAlbumDetails(album: Album, backRouteOverride: DesktopAppRoute? = null) {
-        albumController.openAlbumDetails(album, backRouteOverride)
-    }
-
-    fun playAlbumDetails(shuffle: Boolean = false, index: Int = 0) {
-        mediaActionsController.playAlbumDetails(shuffle = shuffle, index = index)
-    }
-
-    fun playSearchTrack(index: Int) {
-        mediaActionsController.playSearchTrack(index)
-    }
-
-    fun playRelatedTrack(index: Int) {
-        mediaActionsController.playRelatedTrack(index)
-    }
-
-    fun playPopularTracks(tracks: List<Track>, index: Int = 0) {
-        mediaActionsController.playPopularTracks(tracks, index)
-    }
-
-    fun addPopularTracksToQueue(tracks: List<Track>) {
-        mediaActionsController.addPopularTracksToQueue(tracks)
-    }
-
-    fun downloadTracks(label: String, tracks: List<Track>) {
-        downloadsController.downloadTracks(label, tracks)
-    }
-
-    fun downloadTrack(track: Track) {
-        downloadsController.downloadTrack(track)
-    }
-
-    fun downloadAlbum(album: Album) {
-        downloadsController.downloadAlbum(album)
-    }
-
-    fun downloadPlaylist(playlist: Playlist) {
-        downloadsController.downloadPlaylist(playlist)
-    }
-
-    fun removeDownloadedTrack(download: DownloadedTrack) {
-        downloadsController.removeDownloadedTrack(download)
-    }
-
-    fun playDownloadedTrack(downloads: List<DownloadedTrack>, index: Int) {
-        downloadsController.playDownloadedTrack(downloads, index)
-    }
-
-    fun playRadio(request: RadioRequest) {
-        radioController.play(request)
-    }
-
-    fun startSeededRadio(
-        provider: NavidromeProvider,
-        request: SeededRadioRequest,
-    ) {
-        radioController.startSeeded(provider, request)
-    }
-
-    fun playPopularTracksRadio(tracks: List<Track>) {
-        radioController.playPopularTracks(tracks)
-    }
-
-    fun playTrackRadio(track: Track) {
-        radioController.playTrack(track)
-    }
-
-    fun convertCurrentTrackToRadio(track: Track) {
-        radioController.convertCurrentTrackToRadio(track, ::playTrackRadio)
-    }
-
-    fun playPlaylist(playlist: Playlist, shuffle: Boolean = false) {
-        playlistsController.playPlaylist(playlist, shuffle)
-    }
-
-    fun openPlaylistDetails(playlist: Playlist) {
-        playlistsController.openPlaylistDetails(playlist)
-    }
-
-    fun playPlaylistDetails(index: Int = 0, shuffle: Boolean = false) {
-        playlistsController.playPlaylistDetails(index, shuffle)
-    }
-
-    fun renamePlaylist(playlist: Playlist, name: String) {
-        playlistsController.renamePlaylist(playlist, name)
-    }
-
-    fun deletePlaylist(playlist: Playlist) {
-        playlistsController.deletePlaylist(playlist)
-    }
-
-    fun playLibraryRadio() {
-        radioController.playLibrary()
-    }
-
-    fun playGenreRadio(genre: Genre) {
-        radioController.playGenre(genre)
-    }
-
-    fun playDecadeRadio(fromYear: Int, toYear: Int) {
-        radioController.playDecade(fromYear, toYear)
-    }
-
-    fun playRandomAlbumRadio() {
-        radioController.playRandomAlbum()
-    }
-
-    fun playArtistRadio(artist: Artist) {
-        radioController.playArtist(artist)
-    }
-
-    fun playAlbumRadio(album: Album) {
-        val loadedAlbumTracks = if (selectedAlbum?.id == album.id || selectedAlbumDetails?.album?.id == album.id) {
-            selectedAlbumDetails?.tracks.orEmpty()
-        } else {
-            emptyList()
-        }
-        radioController.playAlbum(album, loadedAlbumTracks)
-    }
-
-    fun playRecentRadio(stream: RecentRadioStream) {
-        when (val action = recentRadioAction(stream) ?: return) {
-            RecentRadioAction.PlayLibrary -> playLibraryRadio()
-            RecentRadioAction.PlayRandomAlbum -> playRandomAlbumRadio()
-            is RecentRadioAction.PlayGenre -> playGenreRadio(action.genre)
-            is RecentRadioAction.PlayDecade -> playDecadeRadio(action.fromYear, action.toYear)
-            is RecentRadioAction.PlayArtist -> playArtistRadio(action.artist)
-            is RecentRadioAction.PlayAlbum -> playAlbumRadio(action.album)
-            is RecentRadioAction.PlayTrack -> playTrackRadio(action.track)
-        }
-    }
-
-    fun applyTrackMetadataUpdate(updatedTrack: Track) {
-        mediaActionsController.applyTrackMetadataUpdate(updatedTrack)
-    }
-
-    fun toggleTrackFavorite(track: Track) {
-        mediaActionsController.toggleTrackFavorite(track)
-    }
-
-    fun clearCacheData() {
-        libraryController.clearCacheData()
-    }
-
-    fun clearLibraryData() {
-        libraryController.clearLibraryData()
-    }
-
-    fun clearActiveConnectionState() {
-        connectionLifecycleController.clearActiveConnectionState()
-    }
-
-    fun resetDatabase() {
-        connectionLifecycleController.resetDatabase()
-    }
-
-    fun deleteConnection(source: SavedMediaSource) {
-        connectionLifecycleController.deleteConnection(source)
-    }
-
-    fun openExternalArtistUrl(url: String) {
-        artistController.openExternalArtistUrl(url)
-    }
-
-    fun findSimilarArtists(artist: Artist) {
-        artistController.findSimilarArtists(artist)
-    }
-
-    fun openArtistDetails(
-        artist: Artist,
-        backRouteOverride: DesktopAppRoute? = null,
-        pushCurrentArtist: Boolean = true,
-    ) {
-        artistController.openArtistDetails(artist, backRouteOverride, pushCurrentArtist)
-    }
-
-    fun openTrackArtistDetails(track: Track, backRouteOverride: DesktopAppRoute = DesktopAppRoute.Player) {
-        artistController.openTrackArtistDetails(track, backRouteOverride)
-    }
-
-    fun closeArtistDetails() {
-        artistController.closeArtistDetails()
-    }
-
-    fun openTrackAlbumDetails(track: Track) {
-        albumController.openTrackAlbumDetails(track)
-    }
-
-    fun setTrackRating(track: Track, rating: Int?) {
-        mediaActionsController.setTrackRating(track, rating)
-    }
+    val appActions = DesktopAppActions(
+        connectionLifecycleController = connectionLifecycleController,
+        albumController = albumController,
+        artistController = artistController,
+        mediaActionsController = mediaActionsController,
+        downloadsController = downloadsController,
+        radioController = radioController,
+        playlistsController = playlistsController,
+        libraryController = libraryController,
+        selectedAlbum = { selectedAlbum },
+        selectedAlbumDetails = { selectedAlbumDetails },
+    )
 
     refreshLibrarySnapshotAction = libraryController::refreshLibrarySnapshot
     loadHomeContentAction = homeController::loadHomeContent
@@ -1365,22 +1182,22 @@ fun NaviampApp(
                                     nowPlayingVisualizerRequestedVisible = true
                                 },
                                 onToggleTrackFavorite = { track ->
-                                    toggleTrackFavorite(track)
+                                    appActions.toggleTrackFavorite(track)
                                 },
                                 onTrackRatingSelected = { track, rating ->
-                                    setTrackRating(track, rating)
+                                    appActions.setTrackRating(track, rating)
                                 },
                                 onArtistSelected = { track ->
-                                    openTrackArtistDetails(track)
+                                    appActions.openTrackArtistDetails(track)
                                 },
                                 onAlbumSelected = { track ->
-                                    openTrackAlbumDetails(track)
+                                    appActions.openTrackAlbumDetails(track)
                                 },
                                 onTrackRadioSelected = { track ->
-                                    convertCurrentTrackToRadio(track)
+                                    appActions.convertCurrentTrackToRadio(track)
                                 },
                                 onDownloadTrackSelected = { track ->
-                                    downloadTrack(track)
+                                    appActions.downloadTrack(track)
                                 },
                                 onAddTrackToPlaylist = { track ->
                                     playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(track))
@@ -1399,22 +1216,22 @@ fun NaviampApp(
                                     )
                                 },
                                 onUpNextTrackRadioSelected = { track ->
-                                    playTrackRadio(track)
+                                    appActions.playTrackRadio(track)
                                 },
                                 onUpNextTrackDownloadSelected = { track ->
-                                    downloadTrack(track)
+                                    appActions.downloadTrack(track)
                                 },
                                 onUpNextTrackAddToPlaylist = { track ->
                                     playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(track))
                                 },
                                 onRelatedTrackSelected = { index ->
-                                    playRelatedTrack(index)
+                                    appActions.playRelatedTrack(index)
                                 },
                                 onRelatedTrackRadioSelected = { track ->
-                                    playTrackRadio(track)
+                                    appActions.playTrackRadio(track)
                                 },
                                 onRelatedTrackDownloadSelected = { track ->
-                                    downloadTrack(track)
+                                    appActions.downloadTrack(track)
                                 },
                                 onRelatedTrackAddToPlaylist = { track ->
                                     playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(track))
@@ -1457,13 +1274,13 @@ fun NaviampApp(
                                         coverArtId?.let { connectedProvider?.coverArtUrl(it) }
                                     },
                                     onAlbumSelected = { album ->
-                                        openAlbumDetails(album)
+                                        appActions.openAlbumDetails(album)
                                     },
                                     onAlbumRadioSelected = { album ->
-                                        playAlbumRadio(album)
+                                        appActions.playAlbumRadio(album)
                                     },
                                     onAlbumDownloadSelected = { album ->
-                                        downloadAlbum(album)
+                                        appActions.downloadAlbum(album)
                                     },
                                     onAlbumAddToQueue = { album ->
                                         playlistsController.addTargetToQueue(AddToPlaylistTarget.AlbumTarget(album))
@@ -1472,10 +1289,10 @@ fun NaviampApp(
                                         playlistsController.openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(album))
                                     },
                                     onPlaylistSelected = { playlist ->
-                                        openPlaylistDetails(playlist)
+                                        appActions.openPlaylistDetails(playlist)
                                     },
                                     onPlaylistDownloadSelected = { playlist ->
-                                        downloadPlaylist(playlist)
+                                        appActions.downloadPlaylist(playlist)
                                     },
                                     onPlaylistAddToQueue = { playlist ->
                                         playlistsController.addTargetToQueue(AddToPlaylistTarget.PlaylistTarget(playlist))
@@ -1484,22 +1301,22 @@ fun NaviampApp(
                                         playlistsController.openAddToPlaylist(AddToPlaylistTarget.PlaylistTarget(playlist))
                                     },
                                     onRecentRadioSelected = { stream ->
-                                        playRecentRadio(stream)
+                                        appActions.playRecentRadio(stream)
                                     },
                                     onInternetRadioStationSelected = { station ->
                                         internetRadioController.playStation(station)
                                     },
                                     onLibraryRadioSelected = {
-                                        playLibraryRadio()
+                                        appActions.playLibraryRadio()
                                     },
                                     onRandomAlbumRadioSelected = {
-                                        playRandomAlbumRadio()
+                                        appActions.playRandomAlbumRadio()
                                     },
                                     onGenreRadioSelected = { genre ->
-                                        playGenreRadio(genre)
+                                        appActions.playGenreRadio(genre)
                                     },
                                     onDecadeRadioSelected = { fromYear, toYear ->
-                                        playDecadeRadio(fromYear, toYear)
+                                        appActions.playDecadeRadio(fromYear, toYear)
                                     },
                                     onOpenArtistMixBuilder = {
                                         libraryTab = DesktopLibraryTab.Artists
@@ -1520,15 +1337,15 @@ fun NaviampApp(
                                         )?.let { connectedProvider?.coverArtUrl(it) },
                                     popularTrackIds = selectedArtistPopularTracks.map { it.id.value }.toSet(),
                                     onBack = { appRoute = albumDetailBackRoute },
-                                    onPlayAlbum = { playAlbumDetails() },
-                                    onShuffleAlbum = { playAlbumDetails(shuffle = true) },
+                                    onPlayAlbum = { appActions.playAlbumDetails() },
+                                    onShuffleAlbum = { appActions.playAlbumDetails(shuffle = true) },
                                     onAlbumRadio = {
-                                        selectedAlbumDetails?.album?.let { playAlbumRadio(it) }
-                                            ?: selectedAlbum?.let { playAlbumRadio(it) }
+                                        selectedAlbumDetails?.album?.let { appActions.playAlbumRadio(it) }
+                                            ?: selectedAlbum?.let { appActions.playAlbumRadio(it) }
                                     },
                                     onDownloadAlbum = {
-                                        selectedAlbumDetails?.let { downloadTracks(it.album.title, it.tracks) }
-                                            ?: selectedAlbum?.let { downloadAlbum(it) }
+                                        selectedAlbumDetails?.let { appActions.downloadTracks(it.album.title, it.tracks) }
+                                            ?: selectedAlbum?.let { appActions.downloadAlbum(it) }
                                     },
                                     onAddAlbumToQueue = {
                                         selectedAlbumDetails?.album?.let {
@@ -1537,9 +1354,9 @@ fun NaviampApp(
                                             playlistsController.addTargetToQueue(AddToPlaylistTarget.AlbumTarget(it))
                                         }
                                     },
-                                    onPlayTrack = { index -> playAlbumDetails(index = index) },
-                                    onTrackRadio = { track -> playTrackRadio(track) },
-                                    onDownloadTrack = { track -> downloadTrack(track) },
+                                    onPlayTrack = { index -> appActions.playAlbumDetails(index = index) },
+                                    onTrackRadio = { track -> appActions.playTrackRadio(track) },
+                                    onDownloadTrack = { track -> appActions.downloadTrack(track) },
                                     onAddTrackToQueue = { track ->
                                         playlistsController.addTargetToQueue(AddToPlaylistTarget.TrackTarget(track))
                                     },
@@ -1554,7 +1371,7 @@ fun NaviampApp(
                                         playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(track))
                                     },
                                     onArtistSelected = { track ->
-                                        openTrackArtistDetails(track, backRouteOverride = DesktopAppRoute.AlbumDetail)
+                                        appActions.openTrackArtistDetails(track, backRouteOverride = DesktopAppRoute.AlbumDetail)
                                     },
                                 )
                                 DesktopAppRoute.ArtistDetail -> DesktopArtistDetailPanel(
@@ -1569,19 +1386,19 @@ fun NaviampApp(
                                     coverArtUrl = { coverArtId ->
                                         coverArtId?.let { connectedProvider?.coverArtUrl(it) }
                                     },
-                                    onBack = { closeArtistDetails() },
-                                    onArtistRadio = { artist -> playArtistRadio(artist) },
-                                    onFindSimilarArtists = { artist -> findSimilarArtists(artist) },
+                                    onBack = { appActions.closeArtistDetails() },
+                                    onArtistRadio = { artist -> appActions.playArtistRadio(artist) },
+                                    onFindSimilarArtists = { artist -> appActions.findSimilarArtists(artist) },
                                     onSimilarArtistSelected = { artist ->
-                                        openArtistDetails(artist)
+                                        appActions.openArtistDetails(artist)
                                     },
-                                    onSimilarArtistExternalSelected = { url -> openExternalArtistUrl(url) },
-                                    onPopularTracksPlay = { tracks -> playPopularTracks(tracks) },
-                                    onPopularTracksRadio = { tracks -> playPopularTracksRadio(tracks) },
-                                    onPopularTracksAddToQueue = { tracks -> addPopularTracksToQueue(tracks) },
+                                    onSimilarArtistExternalSelected = { url -> appActions.openExternalArtistUrl(url) },
+                                    onPopularTracksPlay = { tracks -> appActions.playPopularTracks(tracks) },
+                                    onPopularTracksRadio = { tracks -> appActions.playPopularTracksRadio(tracks) },
+                                    onPopularTracksAddToQueue = { tracks -> appActions.addPopularTracksToQueue(tracks) },
                                     onPopularTrackSelected = { track ->
                                         val index = selectedArtistPopularTracks.indexOfFirst { it.id == track.id }.coerceAtLeast(0)
-                                        playPopularTracks(selectedArtistPopularTracks, index)
+                                        appActions.playPopularTracks(selectedArtistPopularTracks, index)
                                     },
                                     onPopularTrackAddToQueue = { track ->
                                         playlistsController.addTargetToQueue(AddToPlaylistTarget.TrackTarget(track))
@@ -1592,9 +1409,9 @@ fun NaviampApp(
                                     onAddArtistToPlaylist = { artist ->
                                         playlistsController.openAddToPlaylist(AddToPlaylistTarget.ArtistTarget(artist))
                                     },
-                                    onAlbumSelected = { album -> openAlbumDetails(album) },
-                                    onAlbumRadioSelected = { album -> playAlbumRadio(album) },
-                                    onAlbumDownloadSelected = { album -> downloadAlbum(album) },
+                                    onAlbumSelected = { album -> appActions.openAlbumDetails(album) },
+                                    onAlbumRadioSelected = { album -> appActions.playAlbumRadio(album) },
+                                    onAlbumDownloadSelected = { album -> appActions.downloadAlbum(album) },
                                     onAlbumAddToQueue = { album ->
                                         playlistsController.addTargetToQueue(AddToPlaylistTarget.AlbumTarget(album))
                                     },
@@ -1613,11 +1430,11 @@ fun NaviampApp(
                                         coverArtId?.let { connectedProvider?.coverArtUrl(it) }
                                     },
                                     onSortModeChanged = { playlistSortMode = it },
-                                    onPlaylistSelected = { playlist -> openPlaylistDetails(playlist) },
-                                    onPlayPlaylist = { playlist, shuffle -> playPlaylist(playlist, shuffle) },
+                                    onPlaylistSelected = { playlist -> appActions.openPlaylistDetails(playlist) },
+                                    onPlayPlaylist = { playlist, shuffle -> appActions.playPlaylist(playlist, shuffle) },
                                     onRenamePlaylist = { playlist -> playlistPendingRename = playlist },
                                     onDeletePlaylist = { playlist -> playlistPendingDelete = playlist },
-                                    onDownloadPlaylist = { playlist -> downloadPlaylist(playlist) },
+                                    onDownloadPlaylist = { playlist -> appActions.downloadPlaylist(playlist) },
                                     onAddPlaylistToQueue = { playlist ->
                                         playlistsController.addTargetToQueue(AddToPlaylistTarget.PlaylistTarget(playlist))
                                     },
@@ -1642,12 +1459,12 @@ fun NaviampApp(
                                         coverArtId?.let { connectedProvider?.coverArtUrl(it) }
                                     },
                                     onBack = { appRoute = DesktopAppRoute.Playlists },
-                                    onPlayPlaylist = { playPlaylistDetails() },
-                                    onShufflePlaylist = { playPlaylistDetails(shuffle = true) },
+                                    onPlayPlaylist = { appActions.playPlaylistDetails() },
+                                    onShufflePlaylist = { appActions.playPlaylistDetails(shuffle = true) },
                                     onRenamePlaylist = { selectedPlaylist?.let { playlistPendingRename = it } },
                                     onDeletePlaylist = { selectedPlaylist?.let { playlistPendingDelete = it } },
                                     onDownloadPlaylist = {
-                                        selectedPlaylist?.let { downloadTracks(it.name, selectedPlaylistTracks) }
+                                        selectedPlaylist?.let { appActions.downloadTracks(it.name, selectedPlaylistTracks) }
                                     },
                                     onAddPlaylistToQueue = {
                                         selectedPlaylist?.let {
@@ -1659,9 +1476,9 @@ fun NaviampApp(
                                             playlistsController.openAddToPlaylist(AddToPlaylistTarget.PlaylistTarget(it))
                                         }
                                     },
-                                    onPlayTrack = { index -> playPlaylistDetails(index = index) },
-                                    onTrackRadio = { track -> playTrackRadio(track) },
-                                    onDownloadTrack = { track -> downloadTrack(track) },
+                                    onPlayTrack = { index -> appActions.playPlaylistDetails(index = index) },
+                                    onTrackRadio = { track -> appActions.playTrackRadio(track) },
+                                    onDownloadTrack = { track -> appActions.downloadTrack(track) },
                                     onAddTrackToQueue = { track ->
                                         playlistsController.addTargetToQueue(AddToPlaylistTarget.TrackTarget(track))
                                     },
@@ -1698,17 +1515,17 @@ fun NaviampApp(
                                             },
                                             onLoadMore = { libraryController.loadMoreLibraryRows() },
                                             onJumpToLetter = { letter -> libraryController.jumpLibraryToLetter(letter) },
-                                            onArtistSelected = { artist -> openArtistDetails(artist) },
-                                            onArtistRadioSelected = { artist -> playArtistRadio(artist) },
+                                            onArtistSelected = { artist -> appActions.openArtistDetails(artist) },
+                                            onArtistRadioSelected = { artist -> appActions.playArtistRadio(artist) },
                                             onArtistAddToQueue = { artist ->
                                                 playlistsController.addTargetToQueue(AddToPlaylistTarget.ArtistTarget(artist))
                                             },
                                             onArtistAddToPlaylist = { artist ->
                                                 playlistsController.openAddToPlaylist(AddToPlaylistTarget.ArtistTarget(artist))
                                             },
-                                            onAlbumSelected = { album -> openAlbumDetails(album) },
-                                            onAlbumRadioSelected = { album -> playAlbumRadio(album) },
-                                            onAlbumDownloadSelected = { album -> downloadAlbum(album) },
+                                            onAlbumSelected = { album -> appActions.openAlbumDetails(album) },
+                                            onAlbumRadioSelected = { album -> appActions.playAlbumRadio(album) },
+                                            onAlbumDownloadSelected = { album -> appActions.downloadAlbum(album) },
                                             onAlbumAddToQueue = { album ->
                                                 playlistsController.addTargetToQueue(AddToPlaylistTarget.AlbumTarget(album))
                                             },
@@ -1729,29 +1546,29 @@ fun NaviampApp(
                                         },
                                         onQueryChanged = searchController::updateQuery,
                                         onClearSearch = searchController::clearSearch,
-                                        onArtistSelected = { artist -> openArtistDetails(artist) },
-                                        onArtistRadioSelected = { artist -> playArtistRadio(artist) },
+                                        onArtistSelected = { artist -> appActions.openArtistDetails(artist) },
+                                        onArtistRadioSelected = { artist -> appActions.playArtistRadio(artist) },
                                         onArtistAddToQueue = { artist ->
                                             playlistsController.addTargetToQueue(AddToPlaylistTarget.ArtistTarget(artist))
                                         },
                                         onArtistAddToPlaylist = { artist ->
                                             playlistsController.openAddToPlaylist(AddToPlaylistTarget.ArtistTarget(artist))
                                         },
-                                        onAlbumSelected = { album -> openAlbumDetails(album) },
-                                        onAlbumRadioSelected = { album -> playAlbumRadio(album) },
-                                        onAlbumDownloadSelected = { album -> downloadAlbum(album) },
+                                        onAlbumSelected = { album -> appActions.openAlbumDetails(album) },
+                                        onAlbumRadioSelected = { album -> appActions.playAlbumRadio(album) },
+                                        onAlbumDownloadSelected = { album -> appActions.downloadAlbum(album) },
                                         onAlbumAddToQueue = { album ->
                                             playlistsController.addTargetToQueue(AddToPlaylistTarget.AlbumTarget(album))
                                         },
                                         onAlbumAddToPlaylist = { album ->
                                             playlistsController.openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(album))
                                         },
-                                        onTrackSelected = { index -> playSearchTrack(index) },
+                                        onTrackSelected = { index -> appActions.playSearchTrack(index) },
                                         onTrackRadioSelected = { index ->
-                                            searchResults.tracks.getOrNull(index)?.let { playTrackRadio(it) }
+                                            searchResults.tracks.getOrNull(index)?.let { appActions.playTrackRadio(it) }
                                         },
                                         onTrackDownloadSelected = { index ->
-                                            searchResults.tracks.getOrNull(index)?.let { downloadTrack(it) }
+                                            searchResults.tracks.getOrNull(index)?.let { appActions.downloadTrack(it) }
                                         },
                                         onTrackAddToQueue = { index ->
                                             searchResults.tracks.getOrNull(index)?.let {
@@ -1805,10 +1622,10 @@ fun NaviampApp(
                                             maxDownloadBytes = cacheSettings.maxDownloadBytes,
                                             onTrackSelected = { download ->
                                                 val index = downloadItems.indexOfFirst { it.id == download.id }
-                                                if (index >= 0) playDownloadedTrack(downloads, index)
+                                                if (index >= 0) appActions.playDownloadedTrack(downloads, index)
                                             },
                                             onRemoveDownload = { download ->
-                                                downloadedTrackById[download.id]?.let(::removeDownloadedTrack)
+                                                downloadedTrackById[download.id]?.let(appActions::removeDownloadedTrack)
                                             },
                                             onTrackAddToPlaylist = { download ->
                                                 downloadedTrackById[download.id]?.let {
@@ -1865,7 +1682,7 @@ fun NaviampApp(
                                         onClientCertificateKeyStorePasswordChanged = {
                                             clientCertificateKeyStorePassword = it
                                         },
-                                        onConnect = { connectToServer() },
+                                        onConnect = { appActions.connectToServer() },
                                         onNewConnection = {
                                             applyConnectionFormState(newDesktopConnectionFormState())
                                             isConnectionFormOpen = true
@@ -1879,9 +1696,9 @@ fun NaviampApp(
                                         onConnectSavedConnection = { source ->
                                             applyConnectionFormState(savedDesktopConnectionFormState(source))
                                             isConnectionFormOpen = false
-                                            connectToServer()
+                                            appActions.connectToServer()
                                         },
-                                        onDeleteConnection = { source -> deleteConnection(source) },
+                                        onDeleteConnection = { source -> appActions.deleteConnection(source) },
                                         onCancelConnectionForm = { isConnectionFormOpen = false },
                                         onPlaybackSettingsChanged = ::applyPlaybackSettings,
                                         onPlaybackSettingsChangedAndRedownload = ::applyPlaybackSettingsAndRedownload,
@@ -1890,10 +1707,10 @@ fun NaviampApp(
                                             settingsStore.saveCacheSettings(cacheSettings)
                                         },
                                         onOpenStatsForNerds = { showStatsForNerds = true },
-                                        onClearCache = { clearCacheData() },
-                                        onClearLibrary = { clearLibraryData() },
+                                        onClearCache = { appActions.clearCacheData() },
+                                        onClearLibrary = { appActions.clearLibraryData() },
                                         onRefreshLibrary = { libraryController.startLibrarySync(force = true) },
-                                        onResetDatabase = { resetDatabase() },
+                                        onResetDatabase = { appActions.resetDatabase() },
                                     )
                                 }
                             }
@@ -1920,14 +1737,14 @@ fun NaviampApp(
                             DesktopRenamePlaylistDialog(
                                 playlist = playlist,
                                 onDismiss = { playlistPendingRename = null },
-                                onConfirm = { name -> renamePlaylist(playlist, name) },
+                                onConfirm = { name -> appActions.renamePlaylist(playlist, name) },
                             )
                         }
                         playlistPendingDelete?.let { playlist ->
                             DesktopDeletePlaylistDialog(
                                 playlist = playlist,
                                 onDismiss = { playlistPendingDelete = null },
-                                onConfirm = { deletePlaylist(playlist) },
+                                onConfirm = { appActions.deletePlaylist(playlist) },
                             )
                         }
                         if (isNewInternetRadioStationDialogOpen) {
