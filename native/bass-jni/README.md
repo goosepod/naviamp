@@ -2,7 +2,7 @@
 
 This directory is the production native binding layout for BASS.
 
-The Kotlin desktop and Android players now both route app-level BASS work through the shared Kotlin facade and platform JNI bindings. The older desktop native/JNA spike is kept only as a temporary comparison/removal target until JNI-backed desktop playback has been manually proven.
+The Kotlin desktop and Android players now both route app-level BASS work through the shared Kotlin facade and platform JNI bindings. The older desktop native/JNA spike has been removed; JNI is the only active BASS connector below the shared facade.
 
 ## Targets
 
