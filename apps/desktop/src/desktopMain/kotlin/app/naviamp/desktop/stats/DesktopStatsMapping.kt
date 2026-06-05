@@ -3,18 +3,130 @@ package app.naviamp.desktop
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
+import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.label
+import app.naviamp.domain.provider.MediaSearchResults
+import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.settings.PlaybackSettings
+import app.naviamp.domain.source.SavedMediaSource
+import app.naviamp.desktop.playback.DesktopPlaybackEngineDiagnostics
+import app.naviamp.desktop.playback.DesktopPlaylistEngine
+import app.naviamp.provider.navidrome.NavidromeApiCallHistory
+import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.ui.bytesLabel
 import app.naviamp.ui.durationLabel
 import app.naviamp.ui.label
 import app.naviamp.ui.nowPlayingAlbumLine
+
+fun buildDesktopStatsForNerdsInfo(
+    route: String,
+    serverUrl: String,
+    username: String,
+    connectedProvider: NavidromeProvider?,
+    mediaSource: SavedMediaSource?,
+    connectionStatus: String?,
+    isLibrarySyncing: Boolean,
+    libraryStatus: String?,
+    libraryTabLabel: String,
+    libraryQuery: String,
+    librarySnapshot: app.naviamp.domain.cache.LibrarySnapshot,
+    playbackEngine: PlaybackEngine,
+    playlistEngine: DesktopPlaylistEngine,
+    playbackQueue: PlaybackQueue,
+    nowPlayingTrack: Track?,
+    playbackState: PlaybackState,
+    playbackProgress: PlaybackProgress,
+    playbackSettings: PlaybackSettings,
+    streamQuality: StreamQuality,
+    nowPlayingWaveform: AudioWaveform?,
+    nowPlayingWaveformStatus: String,
+    cachedAudio: CachedAudioMetadata?,
+    nowPlayingInternetRadioStation: InternetRadioStation?,
+    nowPlayingStreamMetadata: PlaybackStreamMetadata,
+    cacheStats: StorageCacheStats,
+): DesktopStatsForNerdsInfo =
+    DesktopStatsForNerdsInfo(
+        route = route,
+        os = "${System.getProperty("os.name")} ${System.getProperty("os.version")} (${System.getProperty("os.arch")})",
+        javaVersion = System.getProperty("java.version"),
+        workingDirectory = System.getProperty("user.dir"),
+        serverUrl = serverUrl,
+        username = username,
+        providerName = connectedProvider?.displayName ?: "Not connected",
+        providerCacheNamespace = connectedProvider?.cacheNamespace ?: "Not connected",
+        mediaSource = mediaSource?.toStats(),
+        connectionStatus = connectionStatus,
+        librarySync = DesktopLibrarySyncStats(
+            isSyncing = isLibrarySyncing,
+            status = libraryStatus ?: "Idle",
+            selectedTab = libraryTabLabel,
+            query = libraryQuery,
+            visibleArtists = librarySnapshot.artists.size,
+            visibleAlbums = librarySnapshot.albums.size,
+            visibleTracks = librarySnapshot.tracks.size,
+        ),
+        playbackEngineName = playbackEngine.name,
+        playbackCapabilities = playbackEngine.capabilitiesLabel(),
+        playbackEngineStats = (playbackEngine as? DesktopPlaybackEngineDiagnostics)?.statsRows().orEmpty(),
+        queueSize = playbackQueue.tracks.size,
+        currentQueueIndex = playbackQueue.currentIndex,
+        cacheRuntime = playlistEngine.cacheRuntimeStats(),
+        stream = nowPlayingTrack?.toStreamStats(
+            playbackState = playbackState,
+            playbackProgress = playbackProgress,
+            playbackSettings = playbackSettings,
+            streamQuality = streamQuality,
+            waveform = nowPlayingWaveform,
+            waveformStatus = nowPlayingWaveformStatus,
+            cachedAudio = cachedAudio,
+            internetRadioStation = nowPlayingInternetRadioStation,
+            streamMetadata = nowPlayingStreamMetadata,
+        ),
+        cacheStats = cacheStats,
+        providerCapabilities = connectedProvider?.capabilities?.asStatsMap().orEmpty(),
+        apiCalls = recentDesktopApiCallStats(),
+    )
+
+private fun recentDesktopApiCallStats(): List<DesktopApiCallStats> =
+    (
+        NavidromeApiCallHistory.recent(50).map { call ->
+            DesktopApiCallStats(
+                source = "Navidrome",
+                endpoint = "${call.method} ${call.endpoint}",
+                sanitizedUrl = call.sanitizedUrl,
+                startedAtEpochMillis = call.startedAtEpochMillis,
+                durationMillis = call.durationMillis,
+                success = call.success,
+                errorMessage = call.errorMessage,
+            )
+        } + DesktopPopularTracksApiCallHistory.recent(50).map { call ->
+            DesktopApiCallStats(
+                source = "Deezer",
+                endpoint = call.endpoint,
+                sanitizedUrl = call.sanitizedUrl,
+                startedAtEpochMillis = call.startedAtEpochMillis,
+                durationMillis = call.durationMillis,
+                success = call.success,
+                errorMessage = call.errorMessage,
+            )
+        } + DesktopLrclibApiCallHistory.recent(50).map { call ->
+            DesktopApiCallStats(
+                source = "LRCLIB",
+                endpoint = call.endpoint,
+                sanitizedUrl = call.sanitizedUrl,
+                startedAtEpochMillis = call.startedAtEpochMillis,
+                durationMillis = call.durationMillis,
+                success = call.success,
+                errorMessage = call.errorMessage,
+            )
+        }
+    ).sortedByDescending { it.startedAtEpochMillis }.take(50)
 
 fun PlaybackEngine.capabilitiesLabel(): String =
     listOf(

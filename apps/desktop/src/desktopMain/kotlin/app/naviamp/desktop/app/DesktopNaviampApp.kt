@@ -55,7 +55,6 @@ import app.naviamp.domain.cache.shouldRefreshDownloadsAfter
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
-import app.naviamp.desktop.playback.DesktopPlaybackEngineDiagnostics
 import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
@@ -123,7 +122,6 @@ import app.naviamp.domain.settings.effectiveForEngine
 import app.naviamp.domain.settings.playbackSettingsChange
 import app.naviamp.domain.settings.restoredPlaybackQueue
 import app.naviamp.domain.settings.restoredTrackSession
-import app.naviamp.provider.navidrome.NavidromeApiCallHistory
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.provider.navidrome.withNativeTokenFromPassword
@@ -1197,79 +1195,37 @@ fun NaviampApp(
                 storage.cachedAudioMetadata(sourceId, track.id, streamQuality)
             }
         }
-    val statsForNerdsInfo = if (showStatsForNerds) DesktopStatsForNerdsInfo(
-        route = appRoute.name,
-        os = "${System.getProperty("os.name")} ${System.getProperty("os.version")} (${System.getProperty("os.arch")})",
-        javaVersion = System.getProperty("java.version"),
-        workingDirectory = System.getProperty("user.dir"),
-        serverUrl = serverUrl,
-        username = username,
-        providerName = connectedProvider?.displayName ?: "Not connected",
-        providerCacheNamespace = connectedProvider?.cacheNamespace ?: "Not connected",
-        mediaSource = statsMediaSource?.toStats(),
-        connectionStatus = connectionStatus,
-        librarySync = DesktopLibrarySyncStats(
-            isSyncing = isLibrarySyncing,
-            status = libraryStatus ?: "Idle",
-            selectedTab = libraryTab.label,
-            query = libraryQuery,
-            visibleArtists = librarySnapshot.artists.size,
-            visibleAlbums = librarySnapshot.albums.size,
-            visibleTracks = librarySnapshot.tracks.size,
-        ),
-        playbackEngineName = playbackEngine.name,
-        playbackCapabilities = playbackEngine.capabilitiesLabel(),
-        playbackEngineStats = (playbackEngine as? DesktopPlaybackEngineDiagnostics)?.statsRows().orEmpty(),
-        queueSize = playbackQueue.tracks.size,
-        currentQueueIndex = playbackQueue.currentIndex,
-        cacheRuntime = playlistEngine.cacheRuntimeStats(),
-        stream = nowPlayingTrack?.toStreamStats(
+    val statsForNerdsInfo = if (showStatsForNerds) {
+        buildDesktopStatsForNerdsInfo(
+            route = appRoute.name,
+            serverUrl = serverUrl,
+            username = username,
+            connectedProvider = connectedProvider,
+            mediaSource = statsMediaSource,
+            connectionStatus = connectionStatus,
+            isLibrarySyncing = isLibrarySyncing,
+            libraryStatus = libraryStatus,
+            libraryTabLabel = libraryTab.label,
+            libraryQuery = libraryQuery,
+            librarySnapshot = librarySnapshot,
+            playbackEngine = playbackEngine,
+            playlistEngine = playlistEngine,
+            playbackQueue = playbackQueue,
+            nowPlayingTrack = nowPlayingTrack,
             playbackState = playbackState,
             playbackProgress = playbackProgress,
             playbackSettings = playbackSettings,
             streamQuality = streamQuality,
-            waveform = nowPlayingWaveform,
-            waveformStatus = nowPlayingWaveformStatus,
+            nowPlayingWaveform = nowPlayingWaveform,
+            nowPlayingWaveformStatus = nowPlayingWaveformStatus,
             cachedAudio = currentAudioCacheMetadata,
-            internetRadioStation = nowPlayingInternetRadioStation,
-            streamMetadata = nowPlayingStreamMetadata,
-        ),
-        cacheStats = cacheStats,
-        providerCapabilities = connectedProvider?.capabilities?.asStatsMap().orEmpty(),
-        apiCalls = (
-            NavidromeApiCallHistory.recent(50).map { call ->
-                DesktopApiCallStats(
-                    source = "Navidrome",
-                    endpoint = "${call.method} ${call.endpoint}",
-                    sanitizedUrl = call.sanitizedUrl,
-                    startedAtEpochMillis = call.startedAtEpochMillis,
-                    durationMillis = call.durationMillis,
-                    success = call.success,
-                    errorMessage = call.errorMessage,
-                )
-            } + DesktopPopularTracksApiCallHistory.recent(50).map { call ->
-                DesktopApiCallStats(
-                    source = "Deezer",
-                    endpoint = call.endpoint,
-                    sanitizedUrl = call.sanitizedUrl,
-                    startedAtEpochMillis = call.startedAtEpochMillis,
-                    durationMillis = call.durationMillis,
-                    success = call.success,
-                    errorMessage = call.errorMessage,
-                )
-            } + DesktopLrclibApiCallHistory.recent(50).map { call ->
-                DesktopApiCallStats(
-                    source = "LRCLIB",
-                    endpoint = call.endpoint,
-                    sanitizedUrl = call.sanitizedUrl,
-                    startedAtEpochMillis = call.startedAtEpochMillis,
-                    durationMillis = call.durationMillis,
-                    success = call.success,
-                    errorMessage = call.errorMessage,
-                )
-            }
-        ).sortedByDescending { it.startedAtEpochMillis }.take(50),
-    ) else null
+            nowPlayingInternetRadioStation = nowPlayingInternetRadioStation,
+            nowPlayingStreamMetadata = nowPlayingStreamMetadata,
+            cacheStats = cacheStats,
+        )
+    } else {
+        null
+    }
 
     MaterialTheme(colorScheme = colorScheme) {
         statsForNerdsInfo?.let { info ->
