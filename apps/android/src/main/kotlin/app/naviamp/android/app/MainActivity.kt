@@ -466,6 +466,36 @@ private fun NaviampAndroidApp(
         )
     }
 
+    fun loadAudioTags(track: Track) {
+        if (audioTagsByTrackId.containsKey(track.id.value)) return
+        val activeProvider = provider ?: return
+        val sourceId = activeSourceId ?: return
+        scope.launch {
+            val tags = withContext(Dispatchers.IO) {
+                runCatching {
+                    val quality = currentStreamQuality()
+                    androidPlaylistEngine.cacheAudioTrackForPlayback(
+                        sourceId = sourceId,
+                        activeProvider = activeProvider,
+                        track = track,
+                        quality = quality,
+                    )
+                    audioMetadataSidecarService.audioTagsForTrack(
+                        sourceId = sourceId,
+                        track = track,
+                        quality = quality,
+                        audioCachingEnabled = true,
+                    )
+                }.getOrElse { emptyList() }
+            }
+            audioTagsByTrackId = audioTagsByTrackId + (track.id.value to tags)
+        }
+    }
+
+    LaunchedEffect(nowPlaying?.id, activeSourceId, provider) {
+        nowPlaying?.takeUnless { it.isInternetRadioTrack() }?.let(::loadAudioTags)
+    }
+
     fun handlePlaybackProgressChanged(sessionToken: Long, progress: PlaybackProgress) {
         handleAndroidPlaybackProgressChanged(
             context = context,
@@ -512,6 +542,7 @@ private fun NaviampAndroidApp(
             reportNowPlaying = ::reportNowPlaying,
             loadRelatedTracks = ::loadRelatedTracks,
             loadLyrics = ::loadLyrics,
+            loadAudioTags = ::loadAudioTags,
             startAudioPrefetch = androidPlaylistEngine::startAudioPrefetch,
             startSidecarPrep = androidPlaylistEngine::startSidecarPrep,
             handlePlaybackProgressChanged = ::handlePlaybackProgressChanged,
