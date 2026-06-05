@@ -1167,443 +1167,113 @@ fun NaviampApp(
                             )
                         }
                     } else {
-                        val contentScrollState = rememberScrollState()
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth()
-                                .then(
-                                    if (
-                                        appRoute == DesktopAppRoute.Library ||
-                                            appRoute == DesktopAppRoute.Settings ||
-                                            appRoute == DesktopAppRoute.AlbumDetail ||
-                                            appRoute == DesktopAppRoute.ArtistDetail
-                                    ) {
-                                        Modifier
-                                    } else {
-                                        Modifier.verticalScroll(contentScrollState)
-                                    },
-                                ),
-                        ) {
-                            Column(
-                                verticalArrangement = Arrangement.spacedBy(3.dp),
-                                modifier = Modifier.fillMaxSize(),
-                            ) {
-                                when (appRoute) {
-                                    DesktopAppRoute.Player -> Unit
-                                DesktopAppRoute.Home -> DesktopHomePanel(
-                                    appColors = appColors,
-                                    connectionStatus = homeStatus ?: connectionStatus,
-                                    homeContent = homeContent,
-                                    coverArtUrl = { coverArtId ->
-                                        coverArtId?.let { connectedProvider?.coverArtUrl(it) }
-                                    },
-                                    onAlbumSelected = { album ->
-                                        appActions.openAlbumDetails(album)
-                                    },
-                                    onAlbumRadioSelected = { album ->
-                                        appActions.playAlbumRadio(album)
-                                    },
-                                    onAlbumDownloadSelected = { album ->
-                                        appActions.downloadAlbum(album)
-                                    },
-                                    onAlbumAddToQueue = { album ->
-                                        playlistsController.addTargetToQueue(AddToPlaylistTarget.AlbumTarget(album))
-                                    },
-                                    onAlbumAddToPlaylist = { album ->
-                                        playlistsController.openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(album))
-                                    },
-                                    onPlaylistSelected = { playlist ->
-                                        appActions.openPlaylistDetails(playlist)
-                                    },
-                                    onPlaylistDownloadSelected = { playlist ->
-                                        appActions.downloadPlaylist(playlist)
-                                    },
-                                    onPlaylistAddToQueue = { playlist ->
-                                        playlistsController.addTargetToQueue(AddToPlaylistTarget.PlaylistTarget(playlist))
-                                    },
-                                    onPlaylistAddToPlaylist = { playlist ->
-                                        playlistsController.openAddToPlaylist(AddToPlaylistTarget.PlaylistTarget(playlist))
-                                    },
-                                    onRecentRadioSelected = { stream ->
-                                        appActions.playRecentRadio(stream)
-                                    },
-                                    onInternetRadioStationSelected = { station ->
-                                        internetRadioController.playStation(station)
-                                    },
-                                    onLibraryRadioSelected = {
-                                        appActions.playLibraryRadio()
-                                    },
-                                    onRandomAlbumRadioSelected = {
-                                        appActions.playRandomAlbumRadio()
-                                    },
-                                    onGenreRadioSelected = { genre ->
-                                        appActions.playGenreRadio(genre)
-                                    },
-                                    onDecadeRadioSelected = { fromYear, toYear ->
-                                        appActions.playDecadeRadio(fromYear, toYear)
-                                    },
-                                    onOpenArtistMixBuilder = {
-                                        libraryTab = DesktopLibraryTab.Artists
-                                        appRoute = DesktopAppRoute.Library
-                                    },
-                                    onOpenAlbumMixBuilder = {
-                                        libraryTab = DesktopLibraryTab.Albums
-                                        appRoute = DesktopAppRoute.Library
-                                    },
-                                )
-                                DesktopAppRoute.AlbumDetail -> DesktopAlbumDetailPanel(
-                                    appColors = appColors,
-                                    album = selectedAlbum,
-                                    albumDetails = selectedAlbumDetails,
-                                    status = selectedAlbumStatus,
-                                    coverArtUrl = (
-                                        selectedAlbumDetails?.album?.coverArtId ?: selectedAlbum?.coverArtId
-                                        )?.let { connectedProvider?.coverArtUrl(it) },
-                                    popularTrackIds = selectedArtistPopularTracks.map { it.id.value }.toSet(),
-                                    onBack = { appRoute = albumDetailBackRoute },
-                                    onPlayAlbum = { appActions.playAlbumDetails() },
-                                    onShuffleAlbum = { appActions.playAlbumDetails(shuffle = true) },
-                                    onAlbumRadio = {
-                                        selectedAlbumDetails?.album?.let { appActions.playAlbumRadio(it) }
-                                            ?: selectedAlbum?.let { appActions.playAlbumRadio(it) }
-                                    },
-                                    onDownloadAlbum = {
-                                        selectedAlbumDetails?.let { appActions.downloadTracks(it.album.title, it.tracks) }
-                                            ?: selectedAlbum?.let { appActions.downloadAlbum(it) }
-                                    },
-                                    onAddAlbumToQueue = {
-                                        selectedAlbumDetails?.album?.let {
-                                            playlistsController.addTargetToQueue(AddToPlaylistTarget.AlbumTarget(it))
-                                        } ?: selectedAlbum?.let {
-                                            playlistsController.addTargetToQueue(AddToPlaylistTarget.AlbumTarget(it))
-                                        }
-                                    },
-                                    onPlayTrack = { index -> appActions.playAlbumDetails(index = index) },
-                                    onTrackRadio = { track -> appActions.playTrackRadio(track) },
-                                    onDownloadTrack = { track -> appActions.downloadTrack(track) },
-                                    onAddTrackToQueue = { track ->
-                                        playlistsController.addTargetToQueue(AddToPlaylistTarget.TrackTarget(track))
-                                    },
-                                    onAddAlbumToPlaylist = {
-                                        selectedAlbumDetails?.album?.let {
-                                            playlistsController.openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(it))
-                                        } ?: selectedAlbum?.let {
-                                            playlistsController.openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(it))
-                                        }
-                                    },
-                                    onAddTrackToPlaylist = { track ->
-                                        playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(track))
-                                    },
-                                    onArtistSelected = { track ->
-                                        appActions.openTrackArtistDetails(track, backRouteOverride = DesktopAppRoute.AlbumDetail)
-                                    },
-                                )
-                                DesktopAppRoute.ArtistDetail -> DesktopArtistDetailPanel(
-                                    appColors = appColors,
-                                    artist = selectedArtist,
-                                    artistDetails = selectedArtistDetails,
-                                    popularTracks = selectedArtistPopularTracks,
-                                    similarArtists = selectedArtistSimilarArtists,
-                                    status = selectedArtistStatus,
-                                    popularTracksStatus = selectedArtistPopularTracksStatus,
-                                    similarArtistsStatus = selectedArtistSimilarArtistsStatus,
-                                    coverArtUrl = { coverArtId ->
-                                        coverArtId?.let { connectedProvider?.coverArtUrl(it) }
-                                    },
-                                    onBack = { appActions.closeArtistDetails() },
-                                    onArtistRadio = { artist -> appActions.playArtistRadio(artist) },
-                                    onFindSimilarArtists = { artist -> appActions.findSimilarArtists(artist) },
-                                    onSimilarArtistSelected = { artist ->
-                                        appActions.openArtistDetails(artist)
-                                    },
-                                    onSimilarArtistExternalSelected = { url -> appActions.openExternalArtistUrl(url) },
-                                    onPopularTracksPlay = { tracks -> appActions.playPopularTracks(tracks) },
-                                    onPopularTracksRadio = { tracks -> appActions.playPopularTracksRadio(tracks) },
-                                    onPopularTracksAddToQueue = { tracks -> appActions.addPopularTracksToQueue(tracks) },
-                                    onPopularTrackSelected = { track ->
-                                        val index = selectedArtistPopularTracks.indexOfFirst { it.id == track.id }.coerceAtLeast(0)
-                                        appActions.playPopularTracks(selectedArtistPopularTracks, index)
-                                    },
-                                    onPopularTrackAddToQueue = { track ->
-                                        playlistsController.addTargetToQueue(AddToPlaylistTarget.TrackTarget(track))
-                                    },
-                                    onAddArtistToQueue = { artist ->
-                                        playlistsController.addTargetToQueue(AddToPlaylistTarget.ArtistTarget(artist))
-                                    },
-                                    onAddArtistToPlaylist = { artist ->
-                                        playlistsController.openAddToPlaylist(AddToPlaylistTarget.ArtistTarget(artist))
-                                    },
-                                    onAlbumSelected = { album -> appActions.openAlbumDetails(album) },
-                                    onAlbumRadioSelected = { album -> appActions.playAlbumRadio(album) },
-                                    onAlbumDownloadSelected = { album -> appActions.downloadAlbum(album) },
-                                    onAlbumAddToQueue = { album ->
-                                        playlistsController.addTargetToQueue(AddToPlaylistTarget.AlbumTarget(album))
-                                    },
-                                    onAlbumAddToPlaylist = { album ->
-                                        playlistsController.openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(album))
-                                    },
-                                )
-                                DesktopAppRoute.Playlists -> DesktopPlaylistsPanel(
-                                    appColors = appColors,
-                                    playlists = playlists,
-                                    playlistTracks = { playlist -> playlistTracksById[playlist.id].orEmpty() },
-                                    recentPlaylistIds = recentPlaylistIds,
-                                    sortMode = playlistSortMode,
-                                    status = playlistStatus ?: connectionStatus,
-                                    coverArtUrl = { coverArtId ->
-                                        coverArtId?.let { connectedProvider?.coverArtUrl(it) }
-                                    },
-                                    onSortModeChanged = { playlistSortMode = it },
-                                    onPlaylistSelected = { playlist -> appActions.openPlaylistDetails(playlist) },
-                                    onPlayPlaylist = { playlist, shuffle -> appActions.playPlaylist(playlist, shuffle) },
-                                    onRenamePlaylist = { playlist -> playlistPendingRename = playlist },
-                                    onDeletePlaylist = { playlist -> playlistPendingDelete = playlist },
-                                    onDownloadPlaylist = { playlist -> appActions.downloadPlaylist(playlist) },
-                                    onAddPlaylistToQueue = { playlist ->
-                                        playlistsController.addTargetToQueue(AddToPlaylistTarget.PlaylistTarget(playlist))
-                                    },
-                                    onAddPlaylistToPlaylist = { playlist ->
-                                        playlistsController.openAddToPlaylist(AddToPlaylistTarget.PlaylistTarget(playlist))
-                                    },
-                                    onSmartPlaylistSave = { definition -> smartPlaylistsController.saveSmartPlaylist(definition) },
-                                    onSmartPlaylistUpdate = { playlist, definition ->
-                                        smartPlaylistsController.updateSmartPlaylist(playlist, definition)
-                                    },
-                                    onSmartPlaylistLoad = { playlist ->
-                                        smartPlaylistsController.loadSmartPlaylistDefinition(playlist)
-                                    },
-                                )
-                                DesktopAppRoute.PlaylistDetail -> DesktopPlaylistDetailPanel(
-                                    appColors = appColors,
-                                    playlist = selectedPlaylist,
-                                    tracks = selectedPlaylistTracks,
-                                    status = selectedPlaylistStatus ?: playlistStatus,
-                                    playlistCoverArtUrl = selectedPlaylist?.coverArtId?.let { connectedProvider?.coverArtUrl(it) },
-                                    coverArtUrl = { coverArtId ->
-                                        coverArtId?.let { connectedProvider?.coverArtUrl(it) }
-                                    },
-                                    onBack = { appRoute = DesktopAppRoute.Playlists },
-                                    onPlayPlaylist = { appActions.playPlaylistDetails() },
-                                    onShufflePlaylist = { appActions.playPlaylistDetails(shuffle = true) },
-                                    onRenamePlaylist = { selectedPlaylist?.let { playlistPendingRename = it } },
-                                    onDeletePlaylist = { selectedPlaylist?.let { playlistPendingDelete = it } },
-                                    onDownloadPlaylist = {
-                                        selectedPlaylist?.let { appActions.downloadTracks(it.name, selectedPlaylistTracks) }
-                                    },
-                                    onAddPlaylistToQueue = {
-                                        selectedPlaylist?.let {
-                                            playlistsController.addTargetToQueue(AddToPlaylistTarget.PlaylistTarget(it))
-                                        }
-                                    },
-                                    onAddPlaylistToPlaylist = {
-                                        selectedPlaylist?.let {
-                                            playlistsController.openAddToPlaylist(AddToPlaylistTarget.PlaylistTarget(it))
-                                        }
-                                    },
-                                    onPlayTrack = { index -> appActions.playPlaylistDetails(index = index) },
-                                    onTrackRadio = { track -> appActions.playTrackRadio(track) },
-                                    onDownloadTrack = { track -> appActions.downloadTrack(track) },
-                                    onAddTrackToQueue = { track ->
-                                        playlistsController.addTargetToQueue(AddToPlaylistTarget.TrackTarget(track))
-                                    },
-                                    onAddTrackToPlaylist = { track ->
-                                        playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(track))
-                                    },
-                                )
-                                    DesktopAppRoute.Library -> {
-                                        DesktopLibraryListLoadMoreEffect(
-                                            selectedTab = libraryTab,
-                                            snapshot = librarySnapshot,
-                                            listState = libraryListState,
-                                            onLoadMore = { libraryController.loadMoreLibraryRows() },
-                                        )
-                                        DesktopLibraryPanel(
-                                            appColors = appColors,
-                                            snapshot = librarySnapshot,
-                                            query = libraryQuery,
-                                            selectedTab = libraryTab,
-                                            status = libraryStatus ?: connectionStatus,
-                                            isSyncing = isLibrarySyncing,
-                                            listState = libraryListState,
-                                            coverArtUrl = { coverArtId ->
-                                                coverArtId?.let { connectedProvider?.coverArtUrl(it) }
-                                            },
-                                            onQueryChanged = { libraryQuery = it },
-                                            onTabSelected = {
-                                                libraryTab = it
-                                                libraryLimit = LibraryPageSize
-                                                libraryController.refreshLibrarySnapshot()
-                                                coroutineScope.launch {
-                                                    libraryListState.scrollToItem(0)
-                                                }
-                                            },
-                                            onLoadMore = { libraryController.loadMoreLibraryRows() },
-                                            onJumpToLetter = { letter -> libraryController.jumpLibraryToLetter(letter) },
-                                            onArtistSelected = { artist -> appActions.openArtistDetails(artist) },
-                                            onArtistRadioSelected = { artist -> appActions.playArtistRadio(artist) },
-                                            onArtistAddToQueue = { artist ->
-                                                playlistsController.addTargetToQueue(AddToPlaylistTarget.ArtistTarget(artist))
-                                            },
-                                            onArtistAddToPlaylist = { artist ->
-                                                playlistsController.openAddToPlaylist(AddToPlaylistTarget.ArtistTarget(artist))
-                                            },
-                                            onAlbumSelected = { album -> appActions.openAlbumDetails(album) },
-                                            onAlbumRadioSelected = { album -> appActions.playAlbumRadio(album) },
-                                            onAlbumDownloadSelected = { album -> appActions.downloadAlbum(album) },
-                                            onAlbumAddToQueue = { album ->
-                                                playlistsController.addTargetToQueue(AddToPlaylistTarget.AlbumTarget(album))
-                                            },
-                                            onAlbumAddToPlaylist = { album ->
-                                                playlistsController.openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(album))
-                                            },
-                                            onRefreshLibrary = { libraryController.startLibrarySync(force = true) },
-                                        )
-                                    }
-                                    DesktopAppRoute.Search -> DesktopSearchPanel(
-                                        appColors = appColors,
-                                        query = searchQuery,
-                                        results = searchResults,
-                                        status = searchStatus,
-                                        isSearching = isSearching,
-                                        coverArtUrl = { coverArtId ->
-                                            coverArtId?.let { connectedProvider?.coverArtUrl(it) }
-                                        },
-                                        onQueryChanged = searchController::updateQuery,
-                                        onClearSearch = searchController::clearSearch,
-                                        onArtistSelected = { artist -> appActions.openArtistDetails(artist) },
-                                        onArtistRadioSelected = { artist -> appActions.playArtistRadio(artist) },
-                                        onArtistAddToQueue = { artist ->
-                                            playlistsController.addTargetToQueue(AddToPlaylistTarget.ArtistTarget(artist))
-                                        },
-                                        onArtistAddToPlaylist = { artist ->
-                                            playlistsController.openAddToPlaylist(AddToPlaylistTarget.ArtistTarget(artist))
-                                        },
-                                        onAlbumSelected = { album -> appActions.openAlbumDetails(album) },
-                                        onAlbumRadioSelected = { album -> appActions.playAlbumRadio(album) },
-                                        onAlbumDownloadSelected = { album -> appActions.downloadAlbum(album) },
-                                        onAlbumAddToQueue = { album ->
-                                            playlistsController.addTargetToQueue(AddToPlaylistTarget.AlbumTarget(album))
-                                        },
-                                        onAlbumAddToPlaylist = { album ->
-                                            playlistsController.openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(album))
-                                        },
-                                        onTrackSelected = { index -> appActions.playSearchTrack(index) },
-                                        onTrackRadioSelected = { index ->
-                                            searchResults.tracks.getOrNull(index)?.let { appActions.playTrackRadio(it) }
-                                        },
-                                        onTrackDownloadSelected = { index ->
-                                            searchResults.tracks.getOrNull(index)?.let { appActions.downloadTrack(it) }
-                                        },
-                                        onTrackAddToQueue = { index ->
-                                            searchResults.tracks.getOrNull(index)?.let {
-                                                playlistsController.addTargetToQueue(AddToPlaylistTarget.TrackTarget(it))
-                                            }
-                                        },
-                                        onTrackAddToPlaylist = { index ->
-                                            searchResults.tracks.getOrNull(index)?.let {
-                                                playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(it))
-                                            }
-                                        },
-                                    )
-                                    DesktopAppRoute.InternetRadio -> DesktopInternetRadioPanel(
-                                        appColors = appColors,
-                                        stations = internetRadioStations,
-                                        status = internetRadioStatus ?: connectionStatus,
-                                        onPlayStation = { station -> internetRadioController.playStation(station) },
-                                        onNewStation = { isNewInternetRadioStationDialogOpen = true },
-                                        onEditStation = { station -> internetRadioStationPendingEdit = station },
-                                        onDeleteStation = { station -> internetRadioStationPendingDelete = station },
-                                    )
-                                    DesktopAppRoute.Downloads -> DesktopDownloadsRoute(
-                                        appColors = appColors,
-                                        connectedSourceId = connectedSourceId,
-                                        downloadRefreshToken = downloadRefreshToken,
-                                        downloadCount = cacheStats.downloadCount,
-                                        downloadBytes = cacheStats.downloadBytes,
-                                        maxDownloadBytes = cacheSettings.maxDownloadBytes,
-                                        status = downloadStatus ?: connectionStatus,
-                                        coverArtUrl = { coverArtId ->
-                                            coverArtId?.let { connectedProvider?.coverArtUrl(it) }
-                                        },
-                                        downloadedTracks = storage::downloadedTracks,
-                                        onPlayDownloadedTrack = appActions::playDownloadedTrack,
-                                        onRemoveDownloadedTrack = appActions::removeDownloadedTrack,
-                                        onAddDownloadedTrackToPlaylist = { download ->
-                                            playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(download.track))
-                                        },
-                                    )
-                                    DesktopAppRoute.Settings -> DesktopSettingsPanel(
-                                        appColors = appColors,
-                                        serverUrl = connectionForm.serverUrl,
-                                        connectionName = connectionForm.connectionName,
-                                        username = connectionForm.username,
-                                        password = connectionForm.password,
-                                        insecureSkipTlsVerification = connectionForm.insecureSkipTlsVerification,
-                                        customCertificatePath = connectionForm.customCertificatePath,
-                                        clientCertificateKeyStorePath = connectionForm.clientCertificateKeyStorePath,
-                                        clientCertificateKeyStorePassword = connectionForm.clientCertificateKeyStorePassword,
-                                        savedConnections = savedMediaSources,
-                                        currentSourceId = connectedSourceId,
-                                        hasSavedConnection = connectionForm.savedConnectionForLogin != null,
-                                        isConnectionFormOpen = connectionForm.isOpen,
-                                        isConnecting = isConnecting,
-                                        connectionStatus = connectionStatus,
-                                        playbackSettings = playbackSettings,
-                                        cacheSettings = cacheSettings,
-                                        cacheStats = cacheStats,
-                                        supportsReplayGain = playbackEngine.supportsReplayGain,
-                                        supportsGapless = playbackEngine.supportsGapless,
-                                        supportsCrossfade = playbackEngine.supportsCrossfade,
-                                        onServerUrlChanged = connectionForm::updateServerUrl,
-                                        onConnectionNameChanged = { connectionForm.connectionName = it },
-                                        onUsernameChanged = connectionForm::updateUsername,
-                                        onPasswordChanged = { connectionForm.password = it },
-                                        onInsecureSkipTlsVerificationChanged = {
-                                            connectionForm.insecureSkipTlsVerification = it
-                                        },
-                                        onCustomCertificatePathChanged = {
-                                            connectionForm.customCertificatePath = it
-                                        },
-                                        onClientCertificateKeyStorePathChanged = {
-                                            connectionForm.clientCertificateKeyStorePath = it
-                                        },
-                                        onClientCertificateKeyStorePasswordChanged = {
-                                            connectionForm.clientCertificateKeyStorePassword = it
-                                        },
-                                        onConnect = { appActions.connectToServer() },
-                                        onNewConnection = {
-                                            applyConnectionFormState(newDesktopConnectionFormState())
-                                            connectionForm.isOpen = true
-                                            connectionStatus = null
-                                        },
-                                        onEditConnection = { source ->
-                                            applyConnectionFormState(savedDesktopConnectionFormState(source))
-                                            connectionForm.isOpen = true
-                                            connectionStatus = "Editing saved connection. Leave password blank to reuse it."
-                                        },
-                                        onConnectSavedConnection = { source ->
-                                            applyConnectionFormState(savedDesktopConnectionFormState(source))
-                                            connectionForm.isOpen = false
-                                            appActions.connectToServer()
-                                        },
-                                        onDeleteConnection = { source -> appActions.deleteConnection(source) },
-                                        onCancelConnectionForm = { connectionForm.isOpen = false },
-                                        onPlaybackSettingsChanged = ::applyPlaybackSettings,
-                                        onPlaybackSettingsChangedAndRedownload = ::applyPlaybackSettingsAndRedownload,
-                                        onCacheSettingsChanged = { settings ->
-                                            cacheSettings = settings.normalized()
-                                            settingsStore.saveCacheSettings(cacheSettings)
-                                        },
-                                        onOpenStatsForNerds = { showStatsForNerds = true },
-                                        onClearCache = { appActions.clearCacheData() },
-                                        onClearLibrary = { appActions.clearLibraryData() },
-                                        onRefreshLibrary = { libraryController.startLibrarySync(force = true) },
-                                        onResetDatabase = { appActions.resetDatabase() },
-                                    )
-                                }
-                            }
-                        }
+                        DesktopAppRouteContent(
+                            appColors = appColors,
+                            appRoute = appRoute,
+                            connectionStatus = connectionStatus,
+                            homeStatus = homeStatus,
+                            homeContent = homeContent,
+                            coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
+                            appActions = appActions,
+                            playlistsController = playlistsController,
+                            internetRadioController = internetRadioController,
+                            libraryController = libraryController,
+                            searchController = searchController,
+                            smartPlaylistsController = smartPlaylistsController,
+                            coroutineScope = coroutineScope,
+                            onRouteSelected = { route -> appRoute = route },
+                            onOpenArtistMixBuilder = {
+                                libraryTab = DesktopLibraryTab.Artists
+                                appRoute = DesktopAppRoute.Library
+                            },
+                            onOpenAlbumMixBuilder = {
+                                libraryTab = DesktopLibraryTab.Albums
+                                appRoute = DesktopAppRoute.Library
+                            },
+                            selectedAlbum = selectedAlbum,
+                            selectedAlbumDetails = selectedAlbumDetails,
+                            selectedAlbumStatus = selectedAlbumStatus,
+                            albumDetailBackRoute = albumDetailBackRoute,
+                            selectedArtist = selectedArtist,
+                            selectedArtistDetails = selectedArtistDetails,
+                            selectedArtistPopularTracks = selectedArtistPopularTracks,
+                            selectedArtistSimilarArtists = selectedArtistSimilarArtists,
+                            selectedArtistStatus = selectedArtistStatus,
+                            selectedArtistPopularTracksStatus = selectedArtistPopularTracksStatus,
+                            selectedArtistSimilarArtistsStatus = selectedArtistSimilarArtistsStatus,
+                            artistDetailBackRoute = artistDetailBackRoute,
+                            playlists = playlists,
+                            playlistTracksById = playlistTracksById,
+                            recentPlaylistIds = recentPlaylistIds,
+                            playlistSortMode = playlistSortMode,
+                            playlistStatus = playlistStatus,
+                            onPlaylistSortModeChanged = { playlistSortMode = it },
+                            onPlaylistRenameRequested = { playlistPendingRename = it },
+                            onPlaylistDeleteRequested = { playlistPendingDelete = it },
+                            selectedPlaylist = selectedPlaylist,
+                            selectedPlaylistTracks = selectedPlaylistTracks,
+                            selectedPlaylistStatus = selectedPlaylistStatus,
+                            librarySnapshot = librarySnapshot,
+                            libraryQuery = libraryQuery,
+                            libraryTab = libraryTab,
+                            libraryStatus = libraryStatus,
+                            isLibrarySyncing = isLibrarySyncing,
+                            libraryListState = libraryListState,
+                            onLibraryQueryChanged = { libraryQuery = it },
+                            onLibraryTabSelected = { tab ->
+                                libraryTab = tab
+                                libraryLimit = LibraryPageSize
+                            },
+                            searchQuery = searchQuery,
+                            searchResults = searchResults,
+                            searchStatus = searchStatus,
+                            isSearching = isSearching,
+                            internetRadioStations = internetRadioStations,
+                            internetRadioStatus = internetRadioStatus,
+                            onNewInternetRadioStation = { isNewInternetRadioStationDialogOpen = true },
+                            onEditInternetRadioStation = { station -> internetRadioStationPendingEdit = station },
+                            onDeleteInternetRadioStation = { station -> internetRadioStationPendingDelete = station },
+                            connectedSourceId = connectedSourceId,
+                            downloadRefreshToken = downloadRefreshToken,
+                            downloadStatus = downloadStatus,
+                            cacheSettings = cacheSettings,
+                            cacheStats = cacheStats,
+                            downloadedTracks = storage::downloadedTracks,
+                            connectionForm = connectionForm,
+                            savedMediaSources = savedMediaSources,
+                            isConnecting = isConnecting,
+                            playbackSettings = playbackSettings,
+                            playbackEngine = playbackEngine,
+                            onConnect = { appActions.connectToServer() },
+                            onNewConnection = {
+                                applyConnectionFormState(newDesktopConnectionFormState())
+                                connectionForm.isOpen = true
+                                connectionStatus = null
+                            },
+                            onEditConnection = { source ->
+                                applyConnectionFormState(savedDesktopConnectionFormState(source))
+                                connectionForm.isOpen = true
+                                connectionStatus = "Editing saved connection. Leave password blank to reuse it."
+                            },
+                            onConnectSavedConnection = { source ->
+                                applyConnectionFormState(savedDesktopConnectionFormState(source))
+                                connectionForm.isOpen = false
+                                appActions.connectToServer()
+                            },
+                            onDeleteConnection = { source -> appActions.deleteConnection(source) },
+                            onCancelConnectionForm = { connectionForm.isOpen = false },
+                            onPlaybackSettingsChanged = ::applyPlaybackSettings,
+                            onPlaybackSettingsChangedAndRedownload = ::applyPlaybackSettingsAndRedownload,
+                            onCacheSettingsChanged = { settings ->
+                                cacheSettings = settings.normalized()
+                                settingsStore.saveCacheSettings(cacheSettings)
+                            },
+                            onOpenStatsForNerds = { showStatsForNerds = true },
+                            onClearCache = { appActions.clearCacheData() },
+                            onClearLibrary = { appActions.clearLibraryData() },
+                            onRefreshLibrary = { libraryController.startLibrarySync(force = true) },
+                            onResetDatabase = { appActions.resetDatabase() },
+                        )
                         DesktopAppDialogs(
                             appColors = appColors,
                             addToPlaylistTarget = addToPlaylistTarget,

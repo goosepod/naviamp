@@ -1,0 +1,491 @@
+package app.naviamp.desktop
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import app.naviamp.desktop.settings.CacheSettings
+import app.naviamp.desktop.settings.PlaybackSettings
+import app.naviamp.domain.Album
+import app.naviamp.domain.AlbumDetails
+import app.naviamp.domain.Artist
+import app.naviamp.domain.ArtistDetails
+import app.naviamp.domain.InternetRadioStation
+import app.naviamp.domain.Playlist
+import app.naviamp.domain.Track
+import app.naviamp.domain.cache.LibrarySnapshot
+import app.naviamp.domain.cache.StorageCacheStats
+import app.naviamp.domain.home.HomeContent
+import app.naviamp.domain.playback.PlaybackEngine
+import app.naviamp.domain.popular.SimilarArtistMatch
+import app.naviamp.domain.provider.MediaSearchResults
+import app.naviamp.domain.source.SavedMediaSource
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+
+@Composable
+fun ColumnScope.DesktopAppRouteContent(
+    appColors: DesktopAppColors,
+    appRoute: DesktopAppRoute,
+    connectionStatus: String?,
+    homeStatus: String?,
+    homeContent: HomeContent,
+    coverArtUrl: (String?) -> String?,
+    appActions: DesktopAppActions,
+    playlistsController: DesktopPlaylistsController,
+    internetRadioController: DesktopInternetRadioController,
+    libraryController: DesktopLibraryController,
+    searchController: DesktopSearchController,
+    smartPlaylistsController: DesktopSmartPlaylistsController,
+    coroutineScope: CoroutineScope,
+    onRouteSelected: (DesktopAppRoute) -> Unit,
+    onOpenArtistMixBuilder: () -> Unit,
+    onOpenAlbumMixBuilder: () -> Unit,
+    selectedAlbum: Album?,
+    selectedAlbumDetails: AlbumDetails?,
+    selectedAlbumStatus: String?,
+    albumDetailBackRoute: DesktopAppRoute,
+    selectedArtist: Artist?,
+    selectedArtistDetails: ArtistDetails?,
+    selectedArtistPopularTracks: List<Track>,
+    selectedArtistSimilarArtists: List<SimilarArtistMatch>,
+    selectedArtistStatus: String?,
+    selectedArtistPopularTracksStatus: String?,
+    selectedArtistSimilarArtistsStatus: String?,
+    artistDetailBackRoute: DesktopAppRoute,
+    playlists: List<Playlist>,
+    playlistTracksById: Map<String, List<Track>>,
+    recentPlaylistIds: List<String>,
+    playlistSortMode: DesktopPlaylistSortMode,
+    playlistStatus: String?,
+    onPlaylistSortModeChanged: (DesktopPlaylistSortMode) -> Unit,
+    onPlaylistRenameRequested: (Playlist) -> Unit,
+    onPlaylistDeleteRequested: (Playlist) -> Unit,
+    selectedPlaylist: Playlist?,
+    selectedPlaylistTracks: List<Track>,
+    selectedPlaylistStatus: String?,
+    librarySnapshot: LibrarySnapshot,
+    libraryQuery: String,
+    libraryTab: DesktopLibraryTab,
+    libraryStatus: String?,
+    isLibrarySyncing: Boolean,
+    libraryListState: LazyListState,
+    onLibraryQueryChanged: (String) -> Unit,
+    onLibraryTabSelected: (DesktopLibraryTab) -> Unit,
+    searchQuery: String,
+    searchResults: MediaSearchResults,
+    searchStatus: String?,
+    isSearching: Boolean,
+    internetRadioStations: List<InternetRadioStation>,
+    internetRadioStatus: String?,
+    onNewInternetRadioStation: () -> Unit,
+    onEditInternetRadioStation: (InternetRadioStation) -> Unit,
+    onDeleteInternetRadioStation: (InternetRadioStation) -> Unit,
+    connectedSourceId: String?,
+    downloadRefreshToken: Int,
+    downloadStatus: String?,
+    cacheSettings: CacheSettings,
+    cacheStats: StorageCacheStats,
+    downloadedTracks: (sourceId: String) -> List<DownloadedTrack>,
+    connectionForm: DesktopConnectionFormStateHolder,
+    savedMediaSources: List<SavedMediaSource>,
+    isConnecting: Boolean,
+    playbackSettings: PlaybackSettings,
+    playbackEngine: PlaybackEngine,
+    onConnect: () -> Unit,
+    onNewConnection: () -> Unit,
+    onEditConnection: (SavedMediaSource) -> Unit,
+    onConnectSavedConnection: (SavedMediaSource) -> Unit,
+    onDeleteConnection: (SavedMediaSource) -> Unit,
+    onCancelConnectionForm: () -> Unit,
+    onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
+    onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit,
+    onCacheSettingsChanged: (CacheSettings) -> Unit,
+    onOpenStatsForNerds: () -> Unit,
+    onClearCache: () -> Unit,
+    onClearLibrary: () -> Unit,
+    onRefreshLibrary: () -> Unit,
+    onResetDatabase: () -> Unit,
+) {
+    val contentScrollState = rememberScrollState()
+    Box(
+        modifier = Modifier
+            .weight(1f)
+            .fillMaxWidth()
+            .then(
+                if (
+                    appRoute == DesktopAppRoute.Library ||
+                        appRoute == DesktopAppRoute.Settings ||
+                        appRoute == DesktopAppRoute.AlbumDetail ||
+                        appRoute == DesktopAppRoute.ArtistDetail
+                ) {
+                    Modifier
+                } else {
+                    Modifier.verticalScroll(contentScrollState)
+                },
+            ),
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            when (appRoute) {
+                DesktopAppRoute.Player -> Unit
+                DesktopAppRoute.Home -> DesktopHomePanel(
+                    appColors = appColors,
+                    connectionStatus = homeStatus ?: connectionStatus,
+                    homeContent = homeContent,
+                    coverArtUrl = coverArtUrl,
+                    onAlbumSelected = appActions::openAlbumDetails,
+                    onAlbumRadioSelected = appActions::playAlbumRadio,
+                    onAlbumDownloadSelected = appActions::downloadAlbum,
+                    onAlbumAddToQueue = { album ->
+                        playlistsController.addTargetToQueue(AddToPlaylistTarget.AlbumTarget(album))
+                    },
+                    onAlbumAddToPlaylist = { album ->
+                        playlistsController.openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(album))
+                    },
+                    onPlaylistSelected = appActions::openPlaylistDetails,
+                    onPlaylistDownloadSelected = appActions::downloadPlaylist,
+                    onPlaylistAddToQueue = { playlist ->
+                        playlistsController.addTargetToQueue(AddToPlaylistTarget.PlaylistTarget(playlist))
+                    },
+                    onPlaylistAddToPlaylist = { playlist ->
+                        playlistsController.openAddToPlaylist(AddToPlaylistTarget.PlaylistTarget(playlist))
+                    },
+                    onRecentRadioSelected = appActions::playRecentRadio,
+                    onInternetRadioStationSelected = internetRadioController::playStation,
+                    onLibraryRadioSelected = appActions::playLibraryRadio,
+                    onRandomAlbumRadioSelected = appActions::playRandomAlbumRadio,
+                    onGenreRadioSelected = appActions::playGenreRadio,
+                    onDecadeRadioSelected = appActions::playDecadeRadio,
+                    onOpenArtistMixBuilder = onOpenArtistMixBuilder,
+                    onOpenAlbumMixBuilder = onOpenAlbumMixBuilder,
+                )
+                DesktopAppRoute.AlbumDetail -> DesktopAlbumDetailPanel(
+                    appColors = appColors,
+                    album = selectedAlbum,
+                    albumDetails = selectedAlbumDetails,
+                    status = selectedAlbumStatus,
+                    coverArtUrl = (
+                        selectedAlbumDetails?.album?.coverArtId ?: selectedAlbum?.coverArtId
+                        )?.let(coverArtUrl),
+                    popularTrackIds = selectedArtistPopularTracks.map { it.id.value }.toSet(),
+                    onBack = { onRouteSelected(albumDetailBackRoute) },
+                    onPlayAlbum = { appActions.playAlbumDetails() },
+                    onShuffleAlbum = { appActions.playAlbumDetails(shuffle = true) },
+                    onAlbumRadio = {
+                        selectedAlbumDetails?.album?.let(appActions::playAlbumRadio)
+                            ?: selectedAlbum?.let(appActions::playAlbumRadio)
+                    },
+                    onDownloadAlbum = {
+                        selectedAlbumDetails?.let { appActions.downloadTracks(it.album.title, it.tracks) }
+                            ?: selectedAlbum?.let(appActions::downloadAlbum)
+                    },
+                    onAddAlbumToQueue = {
+                        selectedAlbumDetails?.album?.let {
+                            playlistsController.addTargetToQueue(AddToPlaylistTarget.AlbumTarget(it))
+                        } ?: selectedAlbum?.let {
+                            playlistsController.addTargetToQueue(AddToPlaylistTarget.AlbumTarget(it))
+                        }
+                    },
+                    onPlayTrack = { index -> appActions.playAlbumDetails(index = index) },
+                    onTrackRadio = appActions::playTrackRadio,
+                    onDownloadTrack = appActions::downloadTrack,
+                    onAddTrackToQueue = { track ->
+                        playlistsController.addTargetToQueue(AddToPlaylistTarget.TrackTarget(track))
+                    },
+                    onAddAlbumToPlaylist = {
+                        selectedAlbumDetails?.album?.let {
+                            playlistsController.openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(it))
+                        } ?: selectedAlbum?.let {
+                            playlistsController.openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(it))
+                        }
+                    },
+                    onAddTrackToPlaylist = { track ->
+                        playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(track))
+                    },
+                    onArtistSelected = { track ->
+                        appActions.openTrackArtistDetails(track, backRouteOverride = DesktopAppRoute.AlbumDetail)
+                    },
+                )
+                DesktopAppRoute.ArtistDetail -> DesktopArtistDetailPanel(
+                    appColors = appColors,
+                    artist = selectedArtist,
+                    artistDetails = selectedArtistDetails,
+                    popularTracks = selectedArtistPopularTracks,
+                    similarArtists = selectedArtistSimilarArtists,
+                    status = selectedArtistStatus,
+                    popularTracksStatus = selectedArtistPopularTracksStatus,
+                    similarArtistsStatus = selectedArtistSimilarArtistsStatus,
+                    coverArtUrl = coverArtUrl,
+                    onBack = appActions::closeArtistDetails,
+                    onArtistRadio = appActions::playArtistRadio,
+                    onFindSimilarArtists = appActions::findSimilarArtists,
+                    onSimilarArtistSelected = appActions::openArtistDetails,
+                    onSimilarArtistExternalSelected = appActions::openExternalArtistUrl,
+                    onPopularTracksPlay = appActions::playPopularTracks,
+                    onPopularTracksRadio = appActions::playPopularTracksRadio,
+                    onPopularTracksAddToQueue = appActions::addPopularTracksToQueue,
+                    onPopularTrackSelected = { track ->
+                        val index = selectedArtistPopularTracks.indexOfFirst { it.id == track.id }.coerceAtLeast(0)
+                        appActions.playPopularTracks(selectedArtistPopularTracks, index)
+                    },
+                    onPopularTrackAddToQueue = { track ->
+                        playlistsController.addTargetToQueue(AddToPlaylistTarget.TrackTarget(track))
+                    },
+                    onAddArtistToQueue = { artist ->
+                        playlistsController.addTargetToQueue(AddToPlaylistTarget.ArtistTarget(artist))
+                    },
+                    onAddArtistToPlaylist = { artist ->
+                        playlistsController.openAddToPlaylist(AddToPlaylistTarget.ArtistTarget(artist))
+                    },
+                    onAlbumSelected = appActions::openAlbumDetails,
+                    onAlbumRadioSelected = appActions::playAlbumRadio,
+                    onAlbumDownloadSelected = appActions::downloadAlbum,
+                    onAlbumAddToQueue = { album ->
+                        playlistsController.addTargetToQueue(AddToPlaylistTarget.AlbumTarget(album))
+                    },
+                    onAlbumAddToPlaylist = { album ->
+                        playlistsController.openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(album))
+                    },
+                )
+                DesktopAppRoute.Playlists -> DesktopPlaylistsPanel(
+                    appColors = appColors,
+                    playlists = playlists,
+                    playlistTracks = { playlist -> playlistTracksById[playlist.id].orEmpty() },
+                    recentPlaylistIds = recentPlaylistIds,
+                    sortMode = playlistSortMode,
+                    status = playlistStatus ?: connectionStatus,
+                    coverArtUrl = coverArtUrl,
+                    onSortModeChanged = onPlaylistSortModeChanged,
+                    onPlaylistSelected = appActions::openPlaylistDetails,
+                    onPlayPlaylist = appActions::playPlaylist,
+                    onRenamePlaylist = onPlaylistRenameRequested,
+                    onDeletePlaylist = onPlaylistDeleteRequested,
+                    onDownloadPlaylist = appActions::downloadPlaylist,
+                    onAddPlaylistToQueue = { playlist ->
+                        playlistsController.addTargetToQueue(AddToPlaylistTarget.PlaylistTarget(playlist))
+                    },
+                    onAddPlaylistToPlaylist = { playlist ->
+                        playlistsController.openAddToPlaylist(AddToPlaylistTarget.PlaylistTarget(playlist))
+                    },
+                    onSmartPlaylistSave = smartPlaylistsController::saveSmartPlaylist,
+                    onSmartPlaylistUpdate = smartPlaylistsController::updateSmartPlaylist,
+                    onSmartPlaylistLoad = smartPlaylistsController::loadSmartPlaylistDefinition,
+                )
+                DesktopAppRoute.PlaylistDetail -> DesktopPlaylistDetailPanel(
+                    appColors = appColors,
+                    playlist = selectedPlaylist,
+                    tracks = selectedPlaylistTracks,
+                    status = selectedPlaylistStatus ?: playlistStatus,
+                    playlistCoverArtUrl = selectedPlaylist?.coverArtId?.let(coverArtUrl),
+                    coverArtUrl = coverArtUrl,
+                    onBack = { onRouteSelected(DesktopAppRoute.Playlists) },
+                    onPlayPlaylist = { appActions.playPlaylistDetails() },
+                    onShufflePlaylist = { appActions.playPlaylistDetails(shuffle = true) },
+                    onRenamePlaylist = { selectedPlaylist?.let(onPlaylistRenameRequested) },
+                    onDeletePlaylist = { selectedPlaylist?.let(onPlaylistDeleteRequested) },
+                    onDownloadPlaylist = {
+                        selectedPlaylist?.let { appActions.downloadTracks(it.name, selectedPlaylistTracks) }
+                    },
+                    onAddPlaylistToQueue = {
+                        selectedPlaylist?.let {
+                            playlistsController.addTargetToQueue(AddToPlaylistTarget.PlaylistTarget(it))
+                        }
+                    },
+                    onAddPlaylistToPlaylist = {
+                        selectedPlaylist?.let {
+                            playlistsController.openAddToPlaylist(AddToPlaylistTarget.PlaylistTarget(it))
+                        }
+                    },
+                    onPlayTrack = { index -> appActions.playPlaylistDetails(index = index) },
+                    onTrackRadio = appActions::playTrackRadio,
+                    onDownloadTrack = appActions::downloadTrack,
+                    onAddTrackToQueue = { track ->
+                        playlistsController.addTargetToQueue(AddToPlaylistTarget.TrackTarget(track))
+                    },
+                    onAddTrackToPlaylist = { track ->
+                        playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(track))
+                    },
+                )
+                DesktopAppRoute.Library -> {
+                    DesktopLibraryListLoadMoreEffect(
+                        selectedTab = libraryTab,
+                        snapshot = librarySnapshot,
+                        listState = libraryListState,
+                        onLoadMore = libraryController::loadMoreLibraryRows,
+                    )
+                    DesktopLibraryPanel(
+                        appColors = appColors,
+                        snapshot = librarySnapshot,
+                        query = libraryQuery,
+                        selectedTab = libraryTab,
+                        status = libraryStatus ?: connectionStatus,
+                        isSyncing = isLibrarySyncing,
+                        listState = libraryListState,
+                        coverArtUrl = coverArtUrl,
+                        onQueryChanged = onLibraryQueryChanged,
+                        onTabSelected = { tab ->
+                            onLibraryTabSelected(tab)
+                            libraryController.refreshLibrarySnapshot()
+                            coroutineScope.launch {
+                                libraryListState.scrollToItem(0)
+                            }
+                        },
+                        onLoadMore = libraryController::loadMoreLibraryRows,
+                        onJumpToLetter = libraryController::jumpLibraryToLetter,
+                        onArtistSelected = appActions::openArtistDetails,
+                        onArtistRadioSelected = appActions::playArtistRadio,
+                        onArtistAddToQueue = { artist ->
+                            playlistsController.addTargetToQueue(AddToPlaylistTarget.ArtistTarget(artist))
+                        },
+                        onArtistAddToPlaylist = { artist ->
+                            playlistsController.openAddToPlaylist(AddToPlaylistTarget.ArtistTarget(artist))
+                        },
+                        onAlbumSelected = appActions::openAlbumDetails,
+                        onAlbumRadioSelected = appActions::playAlbumRadio,
+                        onAlbumDownloadSelected = appActions::downloadAlbum,
+                        onAlbumAddToQueue = { album ->
+                            playlistsController.addTargetToQueue(AddToPlaylistTarget.AlbumTarget(album))
+                        },
+                        onAlbumAddToPlaylist = { album ->
+                            playlistsController.openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(album))
+                        },
+                        onRefreshLibrary = { libraryController.startLibrarySync(force = true) },
+                    )
+                }
+                DesktopAppRoute.Search -> DesktopSearchPanel(
+                    appColors = appColors,
+                    query = searchQuery,
+                    results = searchResults,
+                    status = searchStatus,
+                    isSearching = isSearching,
+                    coverArtUrl = coverArtUrl,
+                    onQueryChanged = searchController::updateQuery,
+                    onClearSearch = searchController::clearSearch,
+                    onArtistSelected = appActions::openArtistDetails,
+                    onArtistRadioSelected = appActions::playArtistRadio,
+                    onArtistAddToQueue = { artist ->
+                        playlistsController.addTargetToQueue(AddToPlaylistTarget.ArtistTarget(artist))
+                    },
+                    onArtistAddToPlaylist = { artist ->
+                        playlistsController.openAddToPlaylist(AddToPlaylistTarget.ArtistTarget(artist))
+                    },
+                    onAlbumSelected = appActions::openAlbumDetails,
+                    onAlbumRadioSelected = appActions::playAlbumRadio,
+                    onAlbumDownloadSelected = appActions::downloadAlbum,
+                    onAlbumAddToQueue = { album ->
+                        playlistsController.addTargetToQueue(AddToPlaylistTarget.AlbumTarget(album))
+                    },
+                    onAlbumAddToPlaylist = { album ->
+                        playlistsController.openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(album))
+                    },
+                    onTrackSelected = appActions::playSearchTrack,
+                    onTrackRadioSelected = { index ->
+                        searchResults.tracks.getOrNull(index)?.let(appActions::playTrackRadio)
+                    },
+                    onTrackDownloadSelected = { index ->
+                        searchResults.tracks.getOrNull(index)?.let(appActions::downloadTrack)
+                    },
+                    onTrackAddToQueue = { index ->
+                        searchResults.tracks.getOrNull(index)?.let {
+                            playlistsController.addTargetToQueue(AddToPlaylistTarget.TrackTarget(it))
+                        }
+                    },
+                    onTrackAddToPlaylist = { index ->
+                        searchResults.tracks.getOrNull(index)?.let {
+                            playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(it))
+                        }
+                    },
+                )
+                DesktopAppRoute.InternetRadio -> DesktopInternetRadioPanel(
+                    appColors = appColors,
+                    stations = internetRadioStations,
+                    status = internetRadioStatus ?: connectionStatus,
+                    onPlayStation = internetRadioController::playStation,
+                    onNewStation = onNewInternetRadioStation,
+                    onEditStation = onEditInternetRadioStation,
+                    onDeleteStation = onDeleteInternetRadioStation,
+                )
+                DesktopAppRoute.Downloads -> DesktopDownloadsRoute(
+                    appColors = appColors,
+                    connectedSourceId = connectedSourceId,
+                    downloadRefreshToken = downloadRefreshToken,
+                    downloadCount = cacheStats.downloadCount,
+                    downloadBytes = cacheStats.downloadBytes,
+                    maxDownloadBytes = cacheSettings.maxDownloadBytes,
+                    status = downloadStatus ?: connectionStatus,
+                    coverArtUrl = coverArtUrl,
+                    downloadedTracks = downloadedTracks,
+                    onPlayDownloadedTrack = appActions::playDownloadedTrack,
+                    onRemoveDownloadedTrack = appActions::removeDownloadedTrack,
+                    onAddDownloadedTrackToPlaylist = { download ->
+                        playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(download.track))
+                    },
+                )
+                DesktopAppRoute.Settings -> DesktopSettingsPanel(
+                    appColors = appColors,
+                    serverUrl = connectionForm.serverUrl,
+                    connectionName = connectionForm.connectionName,
+                    username = connectionForm.username,
+                    password = connectionForm.password,
+                    insecureSkipTlsVerification = connectionForm.insecureSkipTlsVerification,
+                    customCertificatePath = connectionForm.customCertificatePath,
+                    clientCertificateKeyStorePath = connectionForm.clientCertificateKeyStorePath,
+                    clientCertificateKeyStorePassword = connectionForm.clientCertificateKeyStorePassword,
+                    savedConnections = savedMediaSources,
+                    currentSourceId = connectedSourceId,
+                    hasSavedConnection = connectionForm.savedConnectionForLogin != null,
+                    isConnectionFormOpen = connectionForm.isOpen,
+                    isConnecting = isConnecting,
+                    connectionStatus = connectionStatus,
+                    playbackSettings = playbackSettings,
+                    cacheSettings = cacheSettings,
+                    cacheStats = cacheStats,
+                    supportsReplayGain = playbackEngine.supportsReplayGain,
+                    supportsGapless = playbackEngine.supportsGapless,
+                    supportsCrossfade = playbackEngine.supportsCrossfade,
+                    onServerUrlChanged = connectionForm::updateServerUrl,
+                    onConnectionNameChanged = { connectionForm.connectionName = it },
+                    onUsernameChanged = connectionForm::updateUsername,
+                    onPasswordChanged = { connectionForm.password = it },
+                    onInsecureSkipTlsVerificationChanged = {
+                        connectionForm.insecureSkipTlsVerification = it
+                    },
+                    onCustomCertificatePathChanged = {
+                        connectionForm.customCertificatePath = it
+                    },
+                    onClientCertificateKeyStorePathChanged = {
+                        connectionForm.clientCertificateKeyStorePath = it
+                    },
+                    onClientCertificateKeyStorePasswordChanged = {
+                        connectionForm.clientCertificateKeyStorePassword = it
+                    },
+                    onConnect = onConnect,
+                    onNewConnection = onNewConnection,
+                    onEditConnection = onEditConnection,
+                    onConnectSavedConnection = onConnectSavedConnection,
+                    onDeleteConnection = onDeleteConnection,
+                    onCancelConnectionForm = onCancelConnectionForm,
+                    onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+                    onPlaybackSettingsChangedAndRedownload = onPlaybackSettingsChangedAndRedownload,
+                    onCacheSettingsChanged = onCacheSettingsChanged,
+                    onOpenStatsForNerds = onOpenStatsForNerds,
+                    onClearCache = onClearCache,
+                    onClearLibrary = onClearLibrary,
+                    onRefreshLibrary = onRefreshLibrary,
+                    onResetDatabase = onResetDatabase,
+                )
+            }
+        }
+    }
+}
