@@ -64,6 +64,7 @@ fun DesktopArtistDetailPanel(
         ?: artistDetails?.info?.mediumImageUrl
         ?: artistDetails?.info?.smallImageUrl
     var biographyExpanded by remember(effectiveArtist?.id) { mutableStateOf(false) }
+    val similarArtistsVisible = similarArtists.isNotEmpty() || similarArtistsStatus != null
 
     Column(
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -157,7 +158,7 @@ fun DesktopArtistDetailPanel(
                         DetailActionIconButton(
                             appColors = appColors,
                             icon = DesktopNavigationIcons.Artist,
-                            contentDescription = "Find similar artists",
+                            contentDescription = if (similarArtistsVisible) "Hide similar artists" else "Find similar artists",
                             enabled = effectiveArtist != null,
                             onClick = { effectiveArtist?.let(onFindSimilarArtists) },
                         )
@@ -200,7 +201,7 @@ fun DesktopArtistDetailPanel(
                     .weight(1f)
                     .verticalScroll(rememberScrollState()),
             ) {
-                if (similarArtists.isNotEmpty() || similarArtistsStatus != null) {
+                if (similarArtistsVisible) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -214,7 +215,7 @@ fun DesktopArtistDetailPanel(
                         DetailActionIconButton(
                             appColors = appColors,
                             icon = DesktopNavigationIcons.Artist,
-                            contentDescription = "Refresh similar artists",
+                            contentDescription = "Hide similar artists",
                             enabled = effectiveArtist != null,
                             onClick = { effectiveArtist?.let(onFindSimilarArtists) },
                         )
@@ -348,7 +349,7 @@ private fun SimilarArtistRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                if (localArtist != null) "In library" else "Deezer",
+                if (localArtist != null) "In library" else "View in browser",
                 color = appColors.secondaryText,
                 fontSize = 10.sp,
                 maxLines = 1,
@@ -362,7 +363,7 @@ private fun SimilarArtistRow(
             ) {
                 Icon(
                     imageVector = DesktopNavigationIcons.ExternalLink,
-                    contentDescription = "Open Deezer artist page",
+                    contentDescription = "View in browser",
                     tint = appColors.secondaryText,
                     modifier = Modifier.size(16.dp),
                 )

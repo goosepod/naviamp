@@ -122,6 +122,14 @@ fun findAndroidSimilarArtists(
     artistName: String,
 ) {
     with(state) {
+        if (
+            artistSimilarArtistsByArtistId[artistId.value].orEmpty().isNotEmpty() ||
+            artistSimilarArtistsStatusByArtistId[artistId.value] != null
+        ) {
+            artistSimilarArtistsByArtistId = artistSimilarArtistsByArtistId - artistId.value
+            artistSimilarArtistsStatusByArtistId = artistSimilarArtistsStatusByArtistId - artistId.value
+            return
+        }
         artistSimilarArtistsStatusByArtistId = artistSimilarArtistsStatusByArtistId + (artistId.value to loadingSimilarArtistsStatus())
         artistSimilarArtistsByArtistId = artistSimilarArtistsByArtistId - artistId.value
     }

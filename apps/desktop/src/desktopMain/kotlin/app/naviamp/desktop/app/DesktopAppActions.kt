@@ -196,7 +196,7 @@ class DesktopAppActions(
     }
 
     fun findSimilarArtists(artist: Artist) {
-        artistController.findSimilarArtists(artist)
+        artistController.toggleSimilarArtists(artist)
     }
 
     fun openArtistDetails(

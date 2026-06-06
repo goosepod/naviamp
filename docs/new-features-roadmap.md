@@ -89,10 +89,10 @@ This checklist tracks the first feature set for the `new-features` branch. Keep 
 
 ## Artist Details
 
-- [ ] Make the similar artists button a toggle.
+- [x] Make the similar artists button a toggle.
   - Press once to show/load similar artists.
   - Press again to hide them.
-- [ ] Remove provider-specific external artist copy.
+- [x] Remove provider-specific external artist copy.
   - Replace `View on Deezer` style text with generic `View in browser`.
 
 ## Connection

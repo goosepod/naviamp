@@ -1211,6 +1211,7 @@ private fun ArtistDetailContent(
     var popularTrackForPlaylist by remember(detail.artist.id) { mutableStateOf<SharedTrackRowUi?>(null) }
     var albumForPlaylist by remember(detail.artist.id) { mutableStateOf<SharedMediaItemUi?>(null) }
     var biographyExpanded by remember(detail.artist.id) { mutableStateOf(false) }
+    val similarArtistsVisible = detail.similarArtists.isNotEmpty() || detail.similarArtistsStatus != null
 
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -1231,7 +1232,13 @@ private fun ArtistDetailContent(
                         addArtistToPlaylistOpen = true
                     }
                     MiniPlayerIconButton(colors, detail.popularTracks.isNotEmpty(), NaviampTransportIcons.Play, "Play popular tracks", onPopularPlay)
-                    MiniPlayerIconButton(colors, true, NaviampIcons.Artist, "Find similar artists", onFindSimilarArtists)
+                    MiniPlayerIconButton(
+                        colors,
+                        true,
+                        NaviampIcons.Artist,
+                        if (similarArtistsVisible) "Hide similar artists" else "Find similar artists",
+                        onFindSimilarArtists,
+                    )
                 }
                 detail.biography
                     ?.normalizedBiography()
@@ -1268,7 +1275,7 @@ private fun ArtistDetailContent(
                 .weight(1f)
                 .verticalScroll(rememberScrollState()),
         ) {
-            if (detail.similarArtists.isNotEmpty() || detail.similarArtistsStatus != null) {
+            if (similarArtistsVisible) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -1279,7 +1286,7 @@ private fun ArtistDetailContent(
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp,
                     )
-                    MiniPlayerIconButton(colors, true, NaviampIcons.Artist, "Refresh similar artists", onFindSimilarArtists)
+                    MiniPlayerIconButton(colors, true, NaviampIcons.Artist, "Hide similar artists", onFindSimilarArtists)
                 }
                 detail.similarArtistsStatus?.let {
                     Text(it, color = colors.secondaryText, fontSize = 11.sp)
@@ -1462,7 +1469,7 @@ private fun SimilarArtistRow(
             ) {
                 Icon(
                     imageVector = NaviampIcons.ExternalLink,
-                    contentDescription = "Open external artist page",
+                    contentDescription = "View in browser",
                     tint = colors.secondaryText,
                     modifier = Modifier.size(18.dp),
                 )

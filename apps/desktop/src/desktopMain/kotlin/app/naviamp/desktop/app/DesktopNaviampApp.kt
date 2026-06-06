@@ -857,6 +857,8 @@ fun NaviampApp(
         setSelectedArtistStatus = { status -> selectedArtistStatus = status },
         setSelectedArtistPopularTracks = { tracks -> selectedArtistPopularTracks = tracks },
         setSelectedArtistPopularTracksStatus = { status -> selectedArtistPopularTracksStatus = status },
+        selectedArtistSimilarArtists = { selectedArtistSimilarArtists },
+        selectedArtistSimilarArtistsStatus = { selectedArtistSimilarArtistsStatus },
         setSelectedArtistSimilarArtists = { artists -> selectedArtistSimilarArtists = artists },
         setSelectedArtistSimilarArtistsStatus = { status -> selectedArtistSimilarArtistsStatus = status },
         artistDetailBackRoute = { artistDetailBackRoute },

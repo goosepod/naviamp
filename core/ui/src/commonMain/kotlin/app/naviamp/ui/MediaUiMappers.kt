@@ -469,7 +469,7 @@ fun SimilarArtistMatch.toSharedSimilarArtistUi(): SharedSimilarArtistUi =
     SharedSimilarArtistUi(
         id = candidate.sourceArtistId,
         title = candidate.name,
-        subtitle = if (matchedArtist != null) "In library" else "Deezer",
+        subtitle = if (matchedArtist != null) "In library" else "View in browser",
         imageUrl = candidate.imageUrl,
         localArtistId = matchedArtist?.id?.value,
         externalUrl = candidate.externalUrl,

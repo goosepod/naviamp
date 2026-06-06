@@ -98,7 +98,7 @@ fun TrackRow(
                     if (track.popular) {
                         Icon(
                             imageVector = NaviampIcons.Fire,
-                            contentDescription = "Popular on Deezer",
+                            contentDescription = "Popular track",
                             tint = colors.primaryText,
                             modifier = Modifier.size(10.dp),
                         )
