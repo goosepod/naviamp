@@ -985,11 +985,18 @@ private fun AlbumDetailContent(
             IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
                 Icon(NaviampIcons.Back, contentDescription = "Back", tint = colors.primaryText)
             }
-            Text(detail.album.title, color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
             PlatformCoverArt(detail.album.coverArtUrl, colors, 96.dp, 8.dp)
             Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f)) {
+                Text(
+                    detail.album.title,
+                    color = colors.primaryText,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
                 Text(detail.album.subtitle, color = colors.secondaryText, fontSize = 14.sp)
                 if (detail.album.meta.isNotBlank()) {
                     Text(detail.album.meta, color = colors.mutedText, fontSize = 12.sp)
