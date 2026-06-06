@@ -26,6 +26,7 @@ import app.naviamp.ui.NaviampSharedAppShell
 import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.NowPlayingUi
 import app.naviamp.ui.SharedAlbumDetailUi
+import app.naviamp.ui.SharedAlbumMixBuilderUi
 import app.naviamp.ui.SharedArtistMixBuilderUi
 import app.naviamp.ui.SharedArtistDetailUi
 import app.naviamp.ui.SharedHomeStationUi
@@ -60,6 +61,7 @@ data class AndroidAppShellUiState(
     val home: SharedHomeUi,
     val searchResults: SharedSearchResultsUi,
     val artistMixBuilder: SharedArtistMixBuilderUi,
+    val albumMixBuilder: SharedAlbumMixBuilderUi,
     val libraryArtists: List<SharedMediaItemUi>,
     val libraryQuery: String,
     val librarySyncStatus: NaviampLibrarySyncStatusUi,
@@ -101,6 +103,12 @@ data class AndroidAppShellActions(
     val onArtistMixArtistRemoved: (SharedMediaItemUi) -> Unit,
     val onArtistMixReset: () -> Unit,
     val onArtistMixPlay: () -> Unit,
+    val onAlbumMixQueryChanged: (String) -> Unit,
+    val onAlbumMixSearch: () -> Unit,
+    val onAlbumMixAlbumSelected: (SharedMediaItemUi) -> Unit,
+    val onAlbumMixAlbumRemoved: (SharedMediaItemUi) -> Unit,
+    val onAlbumMixReset: () -> Unit,
+    val onAlbumMixPlay: () -> Unit,
     val onLibraryQueryChanged: (String) -> Unit,
     val onRefreshLibrary: () -> Unit,
     val onTrackSelected: (SharedTrackRowUi) -> Unit,
@@ -220,6 +228,7 @@ fun AndroidAppShellContent(
         home = state.home,
         searchResults = state.searchResults,
         artistMixBuilder = state.artistMixBuilder,
+        albumMixBuilder = state.albumMixBuilder,
         libraryArtists = state.libraryArtists,
         libraryQuery = state.libraryQuery,
         librarySyncStatus = state.librarySyncStatus,
@@ -258,6 +267,12 @@ fun AndroidAppShellContent(
         onArtistMixArtistRemoved = actions.onArtistMixArtistRemoved,
         onArtistMixReset = actions.onArtistMixReset,
         onArtistMixPlay = actions.onArtistMixPlay,
+        onAlbumMixQueryChanged = actions.onAlbumMixQueryChanged,
+        onAlbumMixSearch = actions.onAlbumMixSearch,
+        onAlbumMixAlbumSelected = actions.onAlbumMixAlbumSelected,
+        onAlbumMixAlbumRemoved = actions.onAlbumMixAlbumRemoved,
+        onAlbumMixReset = actions.onAlbumMixReset,
+        onAlbumMixPlay = actions.onAlbumMixPlay,
         onLibraryQueryChanged = actions.onLibraryQueryChanged,
         onRefreshLibrary = actions.onRefreshLibrary,
         onTrackSelected = actions.onTrackSelected,
@@ -466,6 +481,17 @@ fun rememberAndroidAppShellUiState(
                 status = artistMixStatus,
                 loading = artistMixLoading,
             ),
+            albumMixBuilder = SharedAlbumMixBuilderUi(
+                query = albumMixQuery,
+                selectedAlbums = albumMixSelectedAlbums.map { album ->
+                    album.toSharedMediaItemUi { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } }
+                },
+                suggestedAlbums = albumMixSuggestions.map { album ->
+                    album.toSharedMediaItemUi { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } }
+                },
+                status = albumMixStatus,
+                loading = albumMixLoading,
+            ),
             libraryArtists = shellModels.libraryArtists,
             libraryQuery = libraryQuery,
             librarySyncStatus = shellModels.librarySyncStatus,
@@ -505,6 +531,11 @@ fun androidAppShellActions(
     handleArtistMixArtistRemoved: (SharedMediaItemUi) -> Unit,
     handleArtistMixReset: () -> Unit,
     handleArtistMixPlay: () -> Unit,
+    handleAlbumMixSearch: () -> Unit,
+    handleAlbumMixAlbumSelected: (SharedMediaItemUi) -> Unit,
+    handleAlbumMixAlbumRemoved: (SharedMediaItemUi) -> Unit,
+    handleAlbumMixReset: () -> Unit,
+    handleAlbumMixPlay: () -> Unit,
     startAndroidLibrarySync: (Boolean) -> Unit,
     handleShellTrackSelected: (SharedTrackRowUi) -> Unit,
     handleDownloadedTrackSelected: (NaviampDownloadedTrackUi) -> Unit,
@@ -608,6 +639,12 @@ fun androidAppShellActions(
             onArtistMixArtistRemoved = handleArtistMixArtistRemoved,
             onArtistMixReset = handleArtistMixReset,
             onArtistMixPlay = handleArtistMixPlay,
+            onAlbumMixQueryChanged = { albumMixQuery = it },
+            onAlbumMixSearch = handleAlbumMixSearch,
+            onAlbumMixAlbumSelected = handleAlbumMixAlbumSelected,
+            onAlbumMixAlbumRemoved = handleAlbumMixAlbumRemoved,
+            onAlbumMixReset = handleAlbumMixReset,
+            onAlbumMixPlay = handleAlbumMixPlay,
             onLibraryQueryChanged = { libraryQuery = it },
             onRefreshLibrary = { startAndroidLibrarySync(true) },
             onTrackSelected = handleShellTrackSelected,

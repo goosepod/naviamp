@@ -7,6 +7,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
@@ -130,6 +131,12 @@ class AndroidAppState(
     var artistMixPopularTracksByArtistId by mutableStateOf<Map<String, List<Track>>>(emptyMap())
     var artistMixStatus by mutableStateOf<String?>(null)
     var artistMixLoading by mutableStateOf(false)
+    var albumMixQuery by mutableStateOf("")
+    var albumMixSelectedAlbums by mutableStateOf<List<Album>>(emptyList())
+    var albumMixSuggestions by mutableStateOf<List<Album>>(emptyList())
+    var albumMixTracksByAlbumId by mutableStateOf<Map<String, List<Track>>>(emptyMap())
+    var albumMixStatus by mutableStateOf<String?>(null)
+    var albumMixLoading by mutableStateOf(false)
     var lyricsVisible by mutableStateOf(false)
     var lyricsByTrackId by mutableStateOf<Map<String, Lyrics?>>(emptyMap())
     var lyricsStatusByTrackId by mutableStateOf<Map<String, String?>>(emptyMap())

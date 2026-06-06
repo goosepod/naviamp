@@ -36,7 +36,9 @@ import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.source.SavedMediaSource
+import app.naviamp.ui.AlbumMixBuilderContent
 import app.naviamp.ui.ArtistMixBuilderContent
+import app.naviamp.ui.SharedAlbumMixBuilderUi
 import app.naviamp.ui.SharedArtistMixBuilderUi
 import app.naviamp.ui.SharedHome
 import app.naviamp.ui.SharedHomeStationUi
@@ -106,6 +108,13 @@ fun ColumnScope.DesktopAppRouteContent(
     onArtistMixArtistRemoved: (SharedMediaItemUi) -> Unit,
     onArtistMixReset: () -> Unit,
     onArtistMixPlay: () -> Unit,
+    albumMixBuilder: SharedAlbumMixBuilderUi,
+    onAlbumMixQueryChanged: (String) -> Unit,
+    onAlbumMixSearch: () -> Unit,
+    onAlbumMixAlbumSelected: (SharedMediaItemUi) -> Unit,
+    onAlbumMixAlbumRemoved: (SharedMediaItemUi) -> Unit,
+    onAlbumMixReset: () -> Unit,
+    onAlbumMixPlay: () -> Unit,
     internetRadioStations: List<InternetRadioStation>,
     internetRadioStatus: String?,
     onSaveInternetRadioStation: (InternetRadioStation) -> Unit,
@@ -202,6 +211,7 @@ fun ColumnScope.DesktopAppRouteContent(
                 if (
                     appRoute == DesktopAppRoute.Library ||
                         appRoute == DesktopAppRoute.ArtistMix ||
+                        appRoute == DesktopAppRoute.AlbumMix ||
                         appRoute == DesktopAppRoute.Settings ||
                         appRoute == DesktopAppRoute.AlbumDetail ||
                         appRoute == DesktopAppRoute.ArtistDetail
@@ -490,6 +500,40 @@ fun ColumnScope.DesktopAppRouteContent(
                     if (artistMixBuilder.selectedArtists.isNotEmpty()) {
                         Button(
                             onClick = onArtistMixPlay,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = appColors.accent,
+                                contentColor = appColors.onAccent,
+                            ),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("Play Mix")
+                        }
+                    }
+                }
+                DesktopAppRoute.AlbumMix -> Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .verticalScroll(contentScrollState),
+                    ) {
+                        AlbumMixBuilderContent(
+                            colors = appColors,
+                            builder = albumMixBuilder,
+                            onQueryChanged = onAlbumMixQueryChanged,
+                            onSearch = onAlbumMixSearch,
+                            onAlbumSelected = onAlbumMixAlbumSelected,
+                            onAlbumRemoved = onAlbumMixAlbumRemoved,
+                            onReset = onAlbumMixReset,
+                            onPlayMix = onAlbumMixPlay,
+                            showPlayMixButton = false,
+                        )
+                    }
+                    if (albumMixBuilder.selectedAlbums.isNotEmpty()) {
+                        Button(
+                            onClick = onAlbumMixPlay,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = appColors.accent,
                                 contentColor = appColors.onAccent,

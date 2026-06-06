@@ -80,6 +80,7 @@ fun NaviampSharedAppShell(
     home: SharedHomeUi,
     searchResults: SharedSearchResultsUi,
     artistMixBuilder: SharedArtistMixBuilderUi = SharedArtistMixBuilderUi(),
+    albumMixBuilder: SharedAlbumMixBuilderUi = SharedAlbumMixBuilderUi(),
     libraryArtists: List<SharedMediaItemUi>,
     libraryQuery: String = "",
     librarySyncStatus: NaviampLibrarySyncStatusUi = NaviampLibrarySyncStatusUi(),
@@ -117,6 +118,12 @@ fun NaviampSharedAppShell(
     onArtistMixArtistRemoved: (SharedMediaItemUi) -> Unit = {},
     onArtistMixReset: () -> Unit = {},
     onArtistMixPlay: () -> Unit = {},
+    onAlbumMixQueryChanged: (String) -> Unit = {},
+    onAlbumMixSearch: () -> Unit = {},
+    onAlbumMixAlbumSelected: (SharedMediaItemUi) -> Unit = {},
+    onAlbumMixAlbumRemoved: (SharedMediaItemUi) -> Unit = {},
+    onAlbumMixReset: () -> Unit = {},
+    onAlbumMixPlay: () -> Unit = {},
     onLibraryQueryChanged: (String) -> Unit = {},
     onRefreshLibrary: () -> Unit = {},
     onTrackSelected: (SharedTrackRowUi) -> Unit,
@@ -227,6 +234,7 @@ fun NaviampSharedAppShell(
                 playlistDetail != null ||
                 selectedRoute == SharedRoute.Library ||
                 selectedRoute == SharedRoute.ArtistMix ||
+                selectedRoute == SharedRoute.AlbumMix ||
                 selectedRoute == SharedRoute.Radio ||
                 selectedRoute == SharedRoute.Downloads
             )
@@ -302,6 +310,7 @@ fun NaviampSharedAppShell(
                             query = query,
                             searchResults = searchResults,
                             artistMixBuilder = artistMixBuilder,
+                            albumMixBuilder = albumMixBuilder,
                             libraryArtists = libraryArtists,
                             libraryQuery = libraryQuery,
                             librarySyncStatus = librarySyncStatus,
@@ -343,6 +352,12 @@ fun NaviampSharedAppShell(
                             onArtistMixArtistRemoved = onArtistMixArtistRemoved,
                             onArtistMixReset = onArtistMixReset,
                             onArtistMixPlay = onArtistMixPlay,
+                            onAlbumMixQueryChanged = onAlbumMixQueryChanged,
+                            onAlbumMixSearch = onAlbumMixSearch,
+                            onAlbumMixAlbumSelected = onAlbumMixAlbumSelected,
+                            onAlbumMixAlbumRemoved = onAlbumMixAlbumRemoved,
+                            onAlbumMixReset = onAlbumMixReset,
+                            onAlbumMixPlay = onAlbumMixPlay,
                             onLibraryQueryChanged = onLibraryQueryChanged,
                             onRefreshLibrary = onRefreshLibrary,
                             onTrackSelected = onTrackSelected,
@@ -590,6 +605,7 @@ private fun ConnectedContent(
     query: String,
     searchResults: SharedSearchResultsUi,
     artistMixBuilder: SharedArtistMixBuilderUi,
+    albumMixBuilder: SharedAlbumMixBuilderUi,
     libraryArtists: List<SharedMediaItemUi>,
     libraryQuery: String,
     librarySyncStatus: NaviampLibrarySyncStatusUi,
@@ -628,6 +644,12 @@ private fun ConnectedContent(
     onArtistMixArtistRemoved: (SharedMediaItemUi) -> Unit,
     onArtistMixReset: () -> Unit,
     onArtistMixPlay: () -> Unit,
+    onAlbumMixQueryChanged: (String) -> Unit,
+    onAlbumMixSearch: () -> Unit,
+    onAlbumMixAlbumSelected: (SharedMediaItemUi) -> Unit,
+    onAlbumMixAlbumRemoved: (SharedMediaItemUi) -> Unit,
+    onAlbumMixReset: () -> Unit,
+    onAlbumMixPlay: () -> Unit,
     onLibraryQueryChanged: (String) -> Unit,
     onRefreshLibrary: () -> Unit,
     onTrackSelected: (SharedTrackRowUi) -> Unit,
@@ -926,6 +948,31 @@ private fun ConnectedContent(
                 }
                 if (artistMixBuilder.selectedArtists.isNotEmpty()) {
                     PrimaryButton("Play Mix", colors, onClick = onArtistMixPlay)
+                }
+            }
+            SharedRoute.AlbumMix -> Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    AlbumMixBuilderContent(
+                        colors = colors,
+                        builder = albumMixBuilder,
+                        onQueryChanged = onAlbumMixQueryChanged,
+                        onSearch = onAlbumMixSearch,
+                        onAlbumSelected = onAlbumMixAlbumSelected,
+                        onAlbumRemoved = onAlbumMixAlbumRemoved,
+                        onReset = onAlbumMixReset,
+                        onPlayMix = onAlbumMixPlay,
+                        showPlayMixButton = false,
+                    )
+                }
+                if (albumMixBuilder.selectedAlbums.isNotEmpty()) {
+                    PrimaryButton("Play Mix", colors, onClick = onAlbumMixPlay)
                 }
             }
             SharedRoute.Radio -> InternetRadioContent(

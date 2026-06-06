@@ -417,6 +417,86 @@ fun ArtistMixBuilderContent(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun AlbumMixBuilderContent(
+    colors: NaviampColors,
+    builder: SharedAlbumMixBuilderUi,
+    onQueryChanged: (String) -> Unit,
+    onSearch: () -> Unit,
+    onAlbumSelected: (SharedMediaItemUi) -> Unit,
+    onAlbumRemoved: (SharedMediaItemUi) -> Unit,
+    onReset: () -> Unit,
+    onPlayMix: () -> Unit,
+    showPlayMixButton: Boolean = true,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Album Mix Builder", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            if (builder.query.isNotBlank() || builder.selectedAlbums.isNotEmpty()) {
+                TextButton(onClick = onReset) {
+                    Text("Reset", fontSize = 12.sp)
+                }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            NaviampTextField(
+                value = builder.query,
+                onValueChange = onQueryChanged,
+                label = "Search albums",
+                colors = colors,
+                modifier = Modifier.weight(1f),
+                onSubmit = onSearch,
+            )
+            Button(onClick = onSearch, modifier = Modifier.height(48.dp)) {
+                Icon(NaviampIcons.Search, contentDescription = "Search albums", modifier = Modifier.size(18.dp))
+            }
+        }
+        if (builder.selectedAlbums.isNotEmpty()) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                builder.selectedAlbums.forEach { album ->
+                    AlbumMixSelectedAlbum(
+                        album = album,
+                        colors = colors,
+                        onRemove = { onAlbumRemoved(album) },
+                        modifier = Modifier.widthIn(min = 128.dp, max = 220.dp),
+                    )
+                }
+            }
+        }
+        (builder.status ?: if (builder.loading) "Loading albums..." else null)?.let {
+            Text(it, color = colors.secondaryText, fontSize = 12.sp)
+        }
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            builder.suggestedAlbums.forEach { album ->
+                AlbumMixAlbumTile(
+                    album = album,
+                    colors = colors,
+                    onClick = { onAlbumSelected(album) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .widthIn(min = 148.dp, max = 220.dp),
+                )
+            }
+        }
+        if (showPlayMixButton && builder.selectedAlbums.isNotEmpty()) {
+            PrimaryButton("Play Mix", colors, onClick = onPlayMix)
+        }
+    }
+}
+
 @Composable
 private fun ArtistMixSelectedArtist(
     artist: SharedMediaItemUi,
@@ -435,6 +515,50 @@ private fun ArtistMixSelectedArtist(
     ) {
         PlatformCoverArt(artist.coverArtUrl, colors, 30.dp, 15.dp)
         Text(artist.title, color = colors.primaryText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@Composable
+private fun AlbumMixSelectedAlbum(
+    album: SharedMediaItemUi,
+    colors: NaviampColors,
+    onRemove: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(Color.Black.copy(alpha = 0.18f))
+            .clickable(onClick = onRemove)
+            .padding(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        PlatformCoverArt(album.coverArtUrl, colors, 30.dp, 4.dp)
+        Text(album.title, color = colors.primaryText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@Composable
+private fun AlbumMixAlbumTile(
+    album: SharedMediaItemUi,
+    colors: NaviampColors,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .height(142.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(Color.Black.copy(alpha = 0.14f))
+            .clickable(onClick = onClick)
+            .padding(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(7.dp),
+    ) {
+        PlatformCoverArt(album.coverArtUrl, colors, 72.dp, 6.dp)
+        Text(album.title, color = colors.primaryText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Text(album.subtitle, color = colors.secondaryText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 

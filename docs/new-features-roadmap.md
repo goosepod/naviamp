@@ -22,8 +22,11 @@ This checklist tracks the first feature set for the `new-features` branch. Keep 
   - Show a bottom `Play Mix` action when at least one artist is selected.
   - Selected artists preload matched popular songs in the background and use those songs as the front of the generated mix queue.
   - Home includes a dedicated `Mix Builders` category for Artist Mix, Album Mix, and Genre Mix entry points.
-- [ ] Add Album Mix Builder.
+- [x] Add Album Mix Builder.
   - Same interaction model as Artist Mix Builder, but with albums and album art.
+  - Random album grid starts the builder.
+  - Selecting an album moves it to the selected row, preloads a few tracks from the album, and refreshes suggestions with albums from similar library artists plus a few random albums.
+  - Play Mix starts with the preloaded selected-album tracks in a mixed random order, then continues with album radio.
 - [ ] Add Genre Mix Radio.
   - Shared cross-platform screen below Artist Mix Builder and Album Mix Builder.
   - Select genres into a selected row.

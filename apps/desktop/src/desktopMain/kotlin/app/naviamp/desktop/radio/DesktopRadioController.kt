@@ -18,6 +18,7 @@ import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioRequest
 import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.radio.SeededRadioRequest
+import app.naviamp.domain.radio.albumMixSeededRadioRequest
 import app.naviamp.domain.radio.albumSeededRadioRequest
 import app.naviamp.domain.radio.artistMixSeededRadioRequest
 import app.naviamp.domain.radio.artistSeededRadioRequest
@@ -253,6 +254,38 @@ class DesktopRadioController(
                 startSeeded(activeProvider, albumSeededRadioRequest(album, seedTrack, loadedAlbumTracks))
             } catch (exception: Exception) {
                 setConnectionStatus(exception.message ?: "Could not start ${album.title} radio.")
+            }
+        }
+    }
+
+    fun playAlbumMix(
+        albums: List<Album>,
+        selectedTracks: List<Track>,
+    ) {
+        val activeProvider = provider() ?: return
+        val distinctAlbums = albums.distinctBy { it.id }
+        if (distinctAlbums.isEmpty()) return
+        setConnectionStatus("Starting album mix...")
+        scope.launch {
+            try {
+                val seedTrack = withContext(Dispatchers.IO) {
+                    selectedTracks.shuffled().firstOrNull()
+                        ?: distinctAlbums.firstNotNullOfOrNull { album ->
+                            albumRadioSeedTrack(
+                                libraryIndexRepository = libraryIndexRepository,
+                                providerResponseService = providerResponseService,
+                                provider = activeProvider,
+                                album = album,
+                                sourceId = sourceId(),
+                            )
+                        }
+                } ?: run {
+                    setConnectionStatus("Album mix did not find a seed track.")
+                    return@launch
+                }
+                startSeeded(activeProvider, albumMixSeededRadioRequest(distinctAlbums, seedTrack, selectedTracks.shuffled()))
+            } catch (exception: Exception) {
+                setConnectionStatus(exception.message ?: "Could not start album mix.")
             }
         }
     }

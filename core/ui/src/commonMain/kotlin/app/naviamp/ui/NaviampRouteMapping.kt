@@ -15,6 +15,7 @@ fun NaviampRoute.toSharedRoute(): SharedRoute =
         NaviampRoute.Player,
         -> SharedRoute.Search
         NaviampRoute.ArtistMix -> SharedRoute.ArtistMix
+        NaviampRoute.AlbumMix -> SharedRoute.AlbumMix
         NaviampRoute.Radio -> SharedRoute.Radio
         NaviampRoute.Downloads -> SharedRoute.Downloads
         NaviampRoute.Settings -> SharedRoute.Settings
@@ -27,6 +28,7 @@ fun SharedRoute.toNaviampRoute(): NaviampRoute =
         SharedRoute.Library -> NaviampRoute.Library
         SharedRoute.Search -> NaviampRoute.Search
         SharedRoute.ArtistMix -> NaviampRoute.ArtistMix
+        SharedRoute.AlbumMix -> NaviampRoute.AlbumMix
         SharedRoute.Radio -> NaviampRoute.Radio
         SharedRoute.Downloads -> NaviampRoute.Downloads
         SharedRoute.Settings -> NaviampRoute.Settings

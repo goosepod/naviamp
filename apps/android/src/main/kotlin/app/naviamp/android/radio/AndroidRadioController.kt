@@ -8,12 +8,14 @@ import app.naviamp.domain.home.HomeStationLibrary
 import app.naviamp.domain.home.HomeStationRandomAlbum
 import app.naviamp.domain.home.parseHomeDecadeStationId
 import app.naviamp.domain.home.parseHomeGenreStationId
+import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.radio.RadioService
+import app.naviamp.domain.radio.albumMixSeededRadioRequest
 import app.naviamp.domain.radio.artistMixSeededRadioRequest
 import app.naviamp.domain.radio.albumRecentRadioStream
 import app.naviamp.domain.radio.artistRecentRadioStream
@@ -24,6 +26,7 @@ import app.naviamp.domain.radio.genreRecentRadioStream
 import app.naviamp.domain.radio.libraryRecentRadioStream
 import app.naviamp.domain.radio.popularTracksRecentRadioStream
 import app.naviamp.domain.radio.radioRefillSeedTrack
+import app.naviamp.domain.radio.selectAlbumRadioSeedTrack
 import app.naviamp.domain.radio.trackRecentRadioStream
 import app.naviamp.domain.radio.withRadioCoverArtIds
 import app.naviamp.domain.settings.RecentRadioStream
@@ -385,6 +388,64 @@ fun startAndroidArtistMixRadio(
                 }
             }.onFailure { error ->
                 status = error.message ?: "Could not start artist mix."
+            }
+        }
+    }
+}
+
+fun startAndroidAlbumMixRadio(
+    scope: CoroutineScope,
+    state: AndroidAppState,
+    queueController: PlaybackQueueController,
+    albums: List<Album>,
+    selectedTracks: List<Track>,
+    playTrack: (Track, List<Track>) -> Unit,
+    libraryIndexRepository: LocalLibraryIndexRepository? = null,
+    providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
+    rememberRecentRadioStream: (RecentRadioStream) -> Unit = {},
+) {
+    val distinctAlbums = albums.distinctBy { it.id }
+    if (distinctAlbums.isEmpty()) return
+    val activeProvider = state.provider ?: return
+    val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
+    scope.launch {
+        with(state) {
+            status = "Starting album mix..."
+            runCatching {
+                selectedTracks.shuffled().firstOrNull()
+                    ?: distinctAlbums.firstNotNullOfOrNull { album ->
+                        selectAlbumRadioSeedTrack(
+                            album = album,
+                            sourceId = activeSourceId,
+                            randomLibraryTrackForAlbum = { sourceId, albumId ->
+                                libraryIndexRepository?.randomLibraryTrackForAlbum(sourceId, albumId)
+                            },
+                            albumDetails = {
+                                providerResponseService?.album(activeProvider, album.id)
+                                    ?: activeProvider.album(album.id)
+                            },
+                        )
+                    }
+            }.onSuccess { seedTrack ->
+                if (seedTrack == null) {
+                    status = "Album mix did not find a seed track."
+                } else {
+                    val request = albumMixSeededRadioRequest(distinctAlbums, seedTrack, selectedTracks.shuffled())
+                    startAndroidSeededRadio(
+                        scope = scope,
+                        state = state,
+                        queueController = queueController,
+                        statusLabel = request.label,
+                        seedTrack = seedTrack,
+                        playTrack = playTrack,
+                        providerResponseCacheRepository = providerResponseCacheRepository,
+                        recentRadioStream = request.recentRadioStream,
+                        rememberRecentRadioStream = rememberRecentRadioStream,
+                        loadRest = request.loadRest,
+                    )
+                }
+            }.onFailure { error ->
+                status = error.message ?: "Could not start album mix."
             }
         }
     }
