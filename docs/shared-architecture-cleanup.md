@@ -650,7 +650,7 @@ Implementation checklist for the first slice:
   - It should represent mutation success/failure, updated media item, status text, and whether platform-only side effects should run.
 - [x] Add focused common tests for track favorite, artist favorite, album favorite, and track rating mutation results.
 - [x] Move common status/error handling into the shared metadata action path.
-- [ ] Move known track/artist/album lookup composition out of platform controllers where practical.
+- [x] Move known track/artist/album lookup composition out of platform controllers where practical.
 - [x] Keep Android notification optimistic toggle/revert and notification metadata update as Android-only adapter behavior.
 - [x] Keep desktop `TrackMetadataRepository.updateTrack` and `DesktopPlaylistEngine.updateTrack` as desktop-only adapter behavior.
 - [ ] Reduce `AndroidMediaActionsController.kt` and `DesktopMediaActionsController.kt` to construction/adaptation around the shared path.
@@ -666,7 +666,11 @@ Progress notes:
 - Desktop platform-only side effects remain adapter-only: `TrackMetadataRepository.updateTrack` and `DesktopPlaylistEngine.updateTrack`.
 - Remaining platform-only Android behavior: notification favorite state and playback notification metadata refresh.
 - Remaining platform-only Desktop behavior: desktop playlist-engine replacement and metadata repository persistence.
-- Remaining work in this slice: reduce the platform controllers further by extracting known media lookup composition and other media action orchestration beyond metadata mutation.
+- Extracted shared media track lookup composition into `MediaTrackLookupSources`, `knownTracksForMediaActions`, `findKnownTrack`, `selectedTrackPlayback`, and `searchOrAlbumTracksForMediaActions`.
+- Android now adapts `AndroidAppState` into shared lookup sources instead of owning track lookup and playback-context rules.
+- Desktop metadata lookup now uses `knownTracksForMediaActions` instead of hand-building its own queue/album/search/related list.
+- Added `TrackMediaActionsTest.kt` coverage for shared lookup order, playback-context selection, and known-track fallback behavior.
+- Remaining work in this slice: reduce the platform controllers further by extracting other media action orchestration beyond metadata mutation and lookup composition.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:

@@ -10,13 +10,17 @@ import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.media.MediaMetadataMutationController
 import app.naviamp.domain.media.MediaMetadataStateUpdater
 import app.naviamp.domain.media.MediaTrackMetadataStateUpdater
+import app.naviamp.domain.media.MediaTrackLookupSources
+import app.naviamp.domain.media.findKnownTrack
 import app.naviamp.domain.media.knownAlbumsForMetadata
 import app.naviamp.domain.media.knownArtistsForMetadata
+import app.naviamp.domain.media.knownTracksForMediaActions
+import app.naviamp.domain.media.searchOrAlbumTracksForMediaActions
+import app.naviamp.domain.media.selectedTrackPlayback
 import app.naviamp.domain.media.withUpdatedAlbum
 import app.naviamp.domain.media.withUpdatedArtist
 import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.provider.addToPlaylistMutationUpdate
-import app.naviamp.domain.provider.allKnownTracks
 import app.naviamp.domain.provider.createPlaylistOrAddTracks
 import app.naviamp.domain.provider.queueAppendPlan
 import app.naviamp.domain.queue.PlaybackQueue
@@ -32,28 +36,27 @@ fun findAndroidKnownTrack(
     trackId: String,
     activeQueue: List<Track>,
 ): Track? =
-    (
-        activeQueue +
-            state.selectedPlaylistTracks +
-            state.relatedTracks +
-            state.artistPopularTracksByArtistId.values.flatten() +
-            allKnownTracks(state.searchResults, state.albumDetail)
-        ).firstOrNull { it.id.value == trackId }
+    findKnownTrack(trackId, androidTrackLookupSources(state, activeQueue))
 
 fun selectedAndroidTrackPlayback(
     state: AndroidAppState,
     trackId: String,
     activeQueue: List<Track>,
-): Pair<Track, List<Track>>? {
-    val currentTracks = activeQueue.takeIf { queue -> queue.any { it.id.value == trackId } }
-        ?: state.relatedTracks.takeIf { queue -> queue.any { it.id.value == trackId } }
-        ?: state.artistPopularTracksByArtistId.values.flatten().takeIf { queue -> queue.any { it.id.value == trackId } }
-        ?: allKnownTracks(state.searchResults, state.albumDetail)
-    val track = currentTracks.firstOrNull { it.id.value == trackId }
-        ?: findAndroidKnownTrack(state, trackId, activeQueue)
-        ?: return null
-    return track to currentTracks
-}
+): Pair<Track, List<Track>>? =
+    selectedTrackPlayback(trackId, androidTrackLookupSources(state, activeQueue))
+        ?.let { playback -> playback.track to playback.tracks }
+
+private fun androidTrackLookupSources(
+    state: AndroidAppState,
+    activeQueue: List<Track>,
+): MediaTrackLookupSources =
+    MediaTrackLookupSources(
+        primaryTracks = activeQueue,
+        selectedPlaylistTracks = state.selectedPlaylistTracks,
+        relatedTracks = state.relatedTracks,
+        artistPopularTracks = state.artistPopularTracksByArtistId.values.flatten(),
+        fallbackTracks = searchOrAlbumTracksForMediaActions(state.searchResults, state.albumDetail),
+    )
 
 fun appendAndroidTracksToQueue(
     state: AndroidAppState,
@@ -273,7 +276,15 @@ private fun androidMediaMetadataMutationController(
         provider = { state.provider },
         favoritedAtIso8601 = { "local" },
         setStatus = { status -> state.status = status },
-        knownTracks = { state.playbackQueue.tracks + state.tracks + allKnownTracks(state.searchResults, state.albumDetail) },
+        knownTracks = {
+            knownTracksForMediaActions(
+                MediaTrackLookupSources(
+                    primaryTracks = state.playbackQueue.tracks,
+                    extraTracks = state.tracks,
+                    fallbackTracks = searchOrAlbumTracksForMediaActions(state.searchResults, state.albumDetail),
+                ),
+            )
+        },
         knownArtists = { androidKnownArtists(state) },
         knownAlbums = { androidKnownAlbums(state) },
         applyTrackUpdate = { updatedTrack ->

@@ -10,8 +10,10 @@ import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.media.MediaMetadataMutationController
 import app.naviamp.domain.media.MediaMetadataStateUpdater
 import app.naviamp.domain.media.MediaTrackMetadataStateUpdater
+import app.naviamp.domain.media.MediaTrackLookupSources
 import app.naviamp.domain.media.knownAlbumsForMetadata
 import app.naviamp.domain.media.knownArtistsForMetadata
+import app.naviamp.domain.media.knownTracksForMediaActions
 import app.naviamp.domain.media.trackPlaybackSelection
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.provider.MediaSearchResults
@@ -127,7 +129,14 @@ class DesktopMediaActionsController(
             provider = provider,
             favoritedAtIso8601 = { Instant.now().toString() },
             setStatus = setConnectionStatus,
-            knownTracks = { playlistEngine.queue.tracks + albumTracks() + searchTracks() + relatedTracks() },
+            knownTracks = {
+                knownTracksForMediaActions(
+                    MediaTrackLookupSources(
+                        primaryTracks = playlistEngine.queue.tracks,
+                        extraTracks = albumTracks() + searchTracks() + relatedTracks(),
+                    ),
+                )
+            },
             knownArtists = {
                 knownArtistsForMetadata(
                     homeContent = homeContent(),

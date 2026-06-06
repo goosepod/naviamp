@@ -28,6 +28,66 @@ class TrackMediaActionsTest {
     }
 
     @Test
+    fun knownTracksForMediaActionsKeepsSharedLookupOrder() {
+        val queue = track("queue")
+        val playlist = track("playlist")
+        val related = track("related")
+        val popular = track("popular")
+        val extra = track("extra")
+        val fallback = track("fallback")
+
+        assertEquals(
+            listOf(queue, playlist, related, popular, extra, fallback),
+            knownTracksForMediaActions(
+                MediaTrackLookupSources(
+                    primaryTracks = listOf(queue),
+                    selectedPlaylistTracks = listOf(playlist),
+                    relatedTracks = listOf(related),
+                    artistPopularTracks = listOf(popular),
+                    extraTracks = listOf(extra),
+                    fallbackTracks = listOf(fallback),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun selectedTrackPlaybackUsesMatchingPlaybackContextBeforeGlobalLookup() {
+        val queue = listOf(track("queue"))
+        val related = listOf(track("related"))
+        val fallback = listOf(track("fallback"))
+
+        assertEquals(
+            SelectedTrackPlayback(track = related.single(), tracks = related),
+            selectedTrackPlayback(
+                trackId = "related",
+                sources = MediaTrackLookupSources(
+                    primaryTracks = queue,
+                    relatedTracks = related,
+                    fallbackTracks = fallback,
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun selectedTrackPlaybackCanFindKnownTrackOutsidePlaybackContext() {
+        val playlist = track("playlist")
+        val fallback = listOf(track("fallback"))
+
+        assertEquals(
+            SelectedTrackPlayback(track = playlist, tracks = fallback),
+            selectedTrackPlayback(
+                trackId = "playlist",
+                sources = MediaTrackLookupSources(
+                    selectedPlaylistTracks = listOf(playlist),
+                    fallbackTracks = fallback,
+                ),
+            ),
+        )
+    }
+
+    @Test
     fun updatedTrackReplacesMatchingEntriesAcrossSharedStateShapes() {
         val original = track("one", rating = 1)
         val updated = original.copy(userRating = 5)
