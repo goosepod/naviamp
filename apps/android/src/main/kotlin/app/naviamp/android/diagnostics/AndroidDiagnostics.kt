@@ -159,6 +159,8 @@ fun androidDiagnostics(
                         "Album radio" to capabilities.supportsAlbumRadio.toString(),
                         "Track radio" to capabilities.supportsTrackRadio.toString(),
                         "Track favorites" to capabilities.supportsTrackFavorites.toString(),
+                        "Artist favorites" to capabilities.supportsArtistFavorites.toString(),
+                        "Album favorites" to capabilities.supportsAlbumFavorites.toString(),
                         "Track ratings" to capabilities.supportsTrackRatings.toString(),
                         "Play reporting" to capabilities.supportsPlayReporting.toString(),
                     )

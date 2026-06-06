@@ -131,6 +131,7 @@ data class AndroidAppShellActions(
     val onDownloadedTrackCreatePlaylistAndAdd: (NaviampDownloadedTrackUi, String) -> Unit,
     val onRemoveDownload: (NaviampDownloadedTrackUi) -> Unit,
     val onAlbumSelected: (SharedMediaItemUi) -> Unit,
+    val onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit,
     val onMixAlbumSelected: (SharedMediaItemUi) -> Unit,
     val onAlbumPlay: (SharedAlbumDetailUi, Boolean) -> Unit,
     val onAlbumTrackSelected: (SharedTrackRowUi) -> Unit,
@@ -159,6 +160,7 @@ data class AndroidAppShellActions(
     val onSimilarArtistSelected: (SharedSimilarArtistUi) -> Unit,
     val onSimilarArtistExternalSelected: (String) -> Unit,
     val onArtistSelected: (SharedMediaItemUi) -> Unit,
+    val onArtistFavoriteToggled: (SharedMediaItemUi) -> Unit,
     val onArtistAlbumRadio: (SharedMediaItemUi) -> Unit,
     val onArtistAlbumDownload: (SharedMediaItemUi) -> Unit,
     val onArtistAlbumAddToQueue: (SharedMediaItemUi) -> Unit,
@@ -306,6 +308,7 @@ fun AndroidAppShellContent(
         onDownloadedTrackCreatePlaylistAndAdd = actions.onDownloadedTrackCreatePlaylistAndAdd,
         onRemoveDownload = actions.onRemoveDownload,
         onAlbumSelected = actions.onAlbumSelected,
+        onAlbumFavoriteToggled = actions.onAlbumFavoriteToggled,
         onMixAlbumSelected = actions.onMixAlbumSelected,
         onAlbumPlay = actions.onAlbumPlay,
         onAlbumTrackSelected = actions.onAlbumTrackSelected,
@@ -334,6 +337,7 @@ fun AndroidAppShellContent(
         onSimilarArtistSelected = actions.onSimilarArtistSelected,
         onSimilarArtistExternalSelected = actions.onSimilarArtistExternalSelected,
         onArtistSelected = actions.onArtistSelected,
+        onArtistFavoriteToggled = actions.onArtistFavoriteToggled,
         onArtistAlbumRadio = actions.onArtistAlbumRadio,
         onArtistAlbumDownload = actions.onArtistAlbumDownload,
         onArtistAlbumAddToQueue = actions.onArtistAlbumAddToQueue,
@@ -504,10 +508,14 @@ fun rememberAndroidAppShellUiState(
             artistMixBuilder = SharedArtistMixBuilderUi(
                 query = artistMixQuery,
                 selectedArtists = artistMixSelectedArtists.map { artist ->
-                    artist.toSharedMediaItemUi { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } }
+                    artist.toSharedMediaItemUi(
+                        coverArtUrl = { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
+                    )
                 },
                 suggestedArtists = artistMixSuggestions.map { artist ->
-                    artist.toSharedMediaItemUi { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } }
+                    artist.toSharedMediaItemUi(
+                        coverArtUrl = { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
+                    )
                 },
                 status = artistMixStatus,
                 loading = artistMixLoading,
@@ -515,10 +523,14 @@ fun rememberAndroidAppShellUiState(
             albumMixBuilder = SharedAlbumMixBuilderUi(
                 query = albumMixQuery,
                 selectedAlbums = albumMixSelectedAlbums.map { album ->
-                    album.toSharedMediaItemUi { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } }
+                    album.toSharedMediaItemUi(
+                        coverArtUrl = { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
+                    )
                 },
                 suggestedAlbums = albumMixSuggestions.map { album ->
-                    album.toSharedMediaItemUi { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } }
+                    album.toSharedMediaItemUi(
+                        coverArtUrl = { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
+                    )
                 },
                 status = albumMixStatus,
                 loading = albumMixLoading,
@@ -586,6 +598,7 @@ fun androidAppShellActions(
     handleDownloadedTrackCreatePlaylistAndAdd: (NaviampDownloadedTrackUi, String) -> Unit,
     removeDownload: (NaviampDownloadedTrackUi) -> Unit,
     handleShellAlbumSelected: (SharedMediaItemUi) -> Unit,
+    handleAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit,
     handleMixAlbumSelected: (SharedMediaItemUi) -> Unit,
     handleShellAlbumPlay: (Boolean) -> Unit,
     handleShellAlbumTrackSelected: (SharedTrackRowUi) -> Unit,
@@ -611,6 +624,7 @@ fun androidAppShellActions(
     handleSimilarArtistSelected: (SharedSimilarArtistUi) -> Unit,
     openExternalArtistUrl: (String) -> Unit,
     openArtistDetails: (app.naviamp.domain.ArtistId, String) -> Unit,
+    handleArtistFavoriteToggled: (SharedMediaItemUi) -> Unit,
     handleArtistAlbumRadio: (SharedMediaItemUi) -> Unit,
     loadArtistAlbumTracks: (SharedMediaItemUi, (List<Track>) -> Unit) -> Unit,
     openPlaylistDetails: (Playlist) -> Unit,
@@ -705,6 +719,7 @@ fun androidAppShellActions(
             onDownloadedTrackCreatePlaylistAndAdd = handleDownloadedTrackCreatePlaylistAndAdd,
             onRemoveDownload = removeDownload,
             onAlbumSelected = handleShellAlbumSelected,
+            onAlbumFavoriteToggled = handleAlbumFavoriteToggled,
             onMixAlbumSelected = handleMixAlbumSelected,
             onAlbumPlay = { _, shuffle -> handleShellAlbumPlay(shuffle) },
             onAlbumTrackSelected = handleShellAlbumTrackSelected,
@@ -741,6 +756,7 @@ fun androidAppShellActions(
             onArtistSelected = { selectedArtist ->
                 openArtistDetails(app.naviamp.domain.ArtistId(selectedArtist.id), selectedArtist.title)
             },
+            onArtistFavoriteToggled = handleArtistFavoriteToggled,
             onArtistAlbumRadio = handleArtistAlbumRadio,
             onArtistAlbumDownload = { selectedAlbum -> loadArtistAlbumTracks(selectedAlbum) { downloadTracks(it, selectedAlbum.title) } },
             onArtistAlbumAddToQueue = { selectedAlbum -> loadArtistAlbumTracks(selectedAlbum) { appendTracksToQueue(it, "album tracks") } },

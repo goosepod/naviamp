@@ -53,11 +53,13 @@ fun DesktopArtistDetailPanel(
     onPopularTrackAddToQueue: (Track) -> Unit,
     onAddArtistToPlaylist: (Artist) -> Unit,
     onAddArtistToQueue: (Artist) -> Unit,
+    onArtistFavoriteToggle: (Artist) -> Unit,
     onAlbumSelected: (Album) -> Unit,
     onAlbumRadioSelected: (Album) -> Unit,
     onAlbumDownloadSelected: (Album) -> Unit,
     onAlbumAddToQueue: (Album) -> Unit,
     onAlbumAddToPlaylist: (Album) -> Unit,
+    onAlbumFavoriteToggle: (Album) -> Unit,
 ) {
     val effectiveArtist = artistDetails?.artist ?: artist
     val imageUrl = artistDetails?.info?.largeImageUrl
@@ -147,6 +149,17 @@ fun DesktopArtistDetailPanel(
                             contentDescription = "Add artist to playlist",
                             enabled = details.albums.isNotEmpty(),
                             onClick = { effectiveArtist?.let(onAddArtistToPlaylist) },
+                        )
+                        DetailActionIconButton(
+                            appColors = appColors,
+                            icon = TransportIcons.Heart,
+                            contentDescription = if (effectiveArtist?.favoritedAtIso8601 != null) {
+                                "Remove artist favorite"
+                            } else {
+                                "Favorite artist"
+                            },
+                            enabled = effectiveArtist != null,
+                            onClick = { effectiveArtist?.let(onArtistFavoriteToggle) },
                         )
                         DetailActionIconButton(
                             appColors = appColors,
@@ -301,6 +314,7 @@ fun DesktopArtistDetailPanel(
                             onDownload = { onAlbumDownloadSelected(album) },
                             onAddToQueue = { onAlbumAddToQueue(album) },
                             onAddToPlaylist = { onAlbumAddToPlaylist(album) },
+                            onFavoriteToggle = { onAlbumFavoriteToggle(album) },
                         )
                     }
                 }

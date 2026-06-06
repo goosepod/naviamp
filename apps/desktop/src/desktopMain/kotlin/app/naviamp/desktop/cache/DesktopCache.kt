@@ -926,11 +926,13 @@ data class AlbumDetailsDto(
 data class ArtistDto(
     val id: String,
     val name: String,
+    val favoritedAtIso8601: String? = null,
 ) {
     fun toArtist(): Artist =
         Artist(
             id = ArtistId(id),
             name = name,
+            favoritedAtIso8601 = favoritedAtIso8601,
         )
 
     companion object {
@@ -938,6 +940,7 @@ data class ArtistDto(
             ArtistDto(
                 id = artist.id.value,
                 name = artist.name,
+                favoritedAtIso8601 = artist.favoritedAtIso8601,
             )
     }
 }
@@ -976,6 +979,7 @@ data class AlbumDto(
     val coverArtId: String? = null,
     val recentlyAddedAtIso8601: String? = null,
     val releaseYear: Int? = null,
+    val favoritedAtIso8601: String? = null,
 ) {
     fun toAlbum(): Album =
         Album(
@@ -985,6 +989,7 @@ data class AlbumDto(
             coverArtId = coverArtId,
             recentlyAddedAtIso8601 = recentlyAddedAtIso8601,
             releaseYear = releaseYear,
+            favoritedAtIso8601 = favoritedAtIso8601,
         )
 
     companion object {
@@ -996,6 +1001,7 @@ data class AlbumDto(
                 coverArtId = album.coverArtId,
                 recentlyAddedAtIso8601 = album.recentlyAddedAtIso8601,
                 releaseYear = album.releaseYear,
+                favoritedAtIso8601 = album.favoritedAtIso8601,
             )
     }
 }
@@ -1015,6 +1021,10 @@ data class TrackDto(
     val replayGain: ReplayGainDto? = null,
     val favoritedAtIso8601: String? = null,
     val userRating: Int? = null,
+    val bpm: Int? = null,
+    val moods: List<String> = emptyList(),
+    val playCount: Int? = null,
+    val lastPlayedAtIso8601: String? = null,
 ) {
     fun toTrack(): Track =
         Track(
@@ -1031,6 +1041,10 @@ data class TrackDto(
             replayGain = replayGain?.toReplayGain(),
             favoritedAtIso8601 = favoritedAtIso8601,
             userRating = userRating,
+            bpm = bpm,
+            moods = moods,
+            playCount = playCount,
+            lastPlayedAtIso8601 = lastPlayedAtIso8601,
         )
 
     companion object {
@@ -1049,6 +1063,10 @@ data class TrackDto(
                 replayGain = track.replayGain?.let { ReplayGainDto.fromReplayGain(it) },
                 favoritedAtIso8601 = track.favoritedAtIso8601,
                 userRating = track.userRating,
+                bpm = track.bpm,
+                moods = track.moods,
+                playCount = track.playCount,
+                lastPlayedAtIso8601 = track.lastPlayedAtIso8601,
             )
     }
 }

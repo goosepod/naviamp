@@ -13,6 +13,8 @@ fun ProviderCapabilities.asStatsMap(): Map<String, Boolean> =
         "Album radio" to supportsAlbumRadio,
         "Track radio" to supportsTrackRadio,
         "Track favorites" to supportsTrackFavorites,
+        "Artist favorites" to supportsArtistFavorites,
+        "Album favorites" to supportsAlbumFavorites,
         "Track ratings" to supportsTrackRatings,
         "Play reporting" to supportsPlayReporting,
     )

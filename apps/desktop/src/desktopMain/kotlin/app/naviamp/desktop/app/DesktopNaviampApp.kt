@@ -18,11 +18,13 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.NonRestartableComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -43,6 +45,7 @@ import app.naviamp.domain.Genre
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Playlist
+import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.internetRadioStationId
@@ -63,6 +66,8 @@ import app.naviamp.domain.albummix.albumMixTrackQueue
 import app.naviamp.domain.genremix.GenreMixBuilderService
 import app.naviamp.domain.genremix.genreMixSelectedGenresAfterRemove
 import app.naviamp.domain.genremix.genreMixSelectedGenresAfterSelect
+import app.naviamp.domain.media.withUpdatedAlbum
+import app.naviamp.domain.media.withUpdatedArtist
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
@@ -144,6 +149,7 @@ import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.provider.navidrome.withNativeTokenFromPassword
 import app.naviamp.ui.NaviampPlayerColors
+import app.naviamp.ui.NaviampSleepTimerUi
 import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.SharedAlbumMixBuilderUi
 import app.naviamp.ui.SharedArtistMixBuilderUi
@@ -161,6 +167,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
+@NonRestartableComposable
 fun NaviampApp(
     dependencies: DesktopAppDependencies = remember { DesktopAppDependencies() },
 ) {
@@ -752,8 +759,16 @@ fun NaviampApp(
         setNowPlayingTrack = { track -> nowPlayingTrack = track },
         searchResults = { searchResults },
         setSearchResults = { results -> searchResults = results },
+        homeContent = { homeContent },
+        setHomeContent = { content -> homeContent = content },
         selectedAlbumDetails = { selectedAlbumDetails },
         setSelectedAlbumDetails = { details -> selectedAlbumDetails = details },
+        selectedArtistDetails = { selectedArtistDetails },
+        setSelectedArtistDetails = { details -> selectedArtistDetails = details },
+        setArtistMixSelectedArtists = { artist -> artistMixSelectedArtists = artistMixSelectedArtists.withUpdatedArtist(artist) },
+        setArtistMixSuggestions = { artist -> artistMixSuggestions = artistMixSuggestions.withUpdatedArtist(artist) },
+        setAlbumMixSelectedAlbums = { album -> albumMixSelectedAlbums = albumMixSelectedAlbums.withUpdatedAlbum(album) },
+        setAlbumMixSuggestions = { album -> albumMixSuggestions = albumMixSuggestions.withUpdatedAlbum(album) },
         stopRadioContinuation = ::stopRadioContinuation,
         clearShuffleSnapshot = ::clearShuffleSnapshot,
         setOpenPlayerOnTrackStart = { shouldOpen -> openPlayerOnTrackStart = shouldOpen },
@@ -1111,13 +1126,13 @@ fun NaviampApp(
         )
     }
 
-    fun artistMixItem(artist: Artist) = artist.toSharedMediaItemUi { coverArtId ->
-        coverArtId?.let { connectedProvider?.coverArtUrl(it) }
-    }
+    fun artistMixItem(artist: Artist) = artist.toSharedMediaItemUi(
+        coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
+    )
 
-    fun albumMixItem(album: Album) = album.toSharedMediaItemUi { coverArtId ->
-        coverArtId?.let { connectedProvider?.coverArtUrl(it) }
-    }
+    fun albumMixItem(album: Album) = album.toSharedMediaItemUi(
+        coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
+    )
 
     fun genreMixItem(genre: Genre) = genre.toSharedGenreMixItemUi()
 
@@ -1382,210 +1397,130 @@ fun NaviampApp(
         null
     }
 
-    MaterialTheme(colorScheme = colorScheme) {
-        statsForNerdsInfo?.let { info ->
-            DesktopStatsForNerdsWindow(
-                appColors = appColors,
-                info = info,
-                onClose = { showStatsForNerds = false },
-            )
-        }
-        Surface(modifier = Modifier.fillMaxSize(), color = Color.Transparent) {
-            BoxWithConstraints(
-                modifier = Modifier
-                    .fillMaxSize(),
-            ) {
-                val density = LocalDensity.current
-                val widthPx = with(density) { maxWidth.toPx() }.coerceAtLeast(1f)
-                val heightPx = with(density) { maxHeight.toPx() }.coerceAtLeast(1f)
-                val narrowLayout = maxWidth < 520.dp
-                val gradientEnd = if (narrowLayout) {
-                    Offset(widthPx * 0.85f, heightPx * 1.05f)
-                } else {
-                    Offset(widthPx * 1.08f, heightPx * 0.82f)
-                }
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            NaviampPlayerColors(
-                                backgroundStart = backgroundStart,
-                                backgroundMid = backgroundMid,
-                                backgroundEnd = backgroundEnd,
-                                accent = targetBackgroundColors.accent,
-                            ).backgroundBrush(gradientEnd),
-                        ),
-                ) {
-                Column(
+    DesktopAppSurface(
+            colorScheme = colorScheme,
+            appColors = appColors,
+            statsForNerdsInfo = statsForNerdsInfo,
+            backgroundStart = backgroundStart,
+            backgroundMid = backgroundMid,
+            backgroundEnd = backgroundEnd,
+            targetBackgroundColors = targetBackgroundColors,
+            onCloseStatsForNerds = { showStatsForNerds = false },
+    ) {
+            Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(2.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
                     if (appRoute == DesktopAppRoute.Player && nowPlayingTrack != null) {
-                        Box(
+                        DesktopNowPlayingRoute(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxWidth(),
-                        ) {
-                            DesktopNowPlayingPanel(
-                                appColors = appColors,
-                                playbackEngineName = playbackEngine.name,
-                                supportsPause = playbackEngine.supportsPause,
-                                supportsSoftwareVolume = playbackEngine.supportsSoftwareVolume,
-                                supportsTrackFavorites = connectedProvider?.capabilities?.supportsTrackFavorites == true,
-                                supportsTrackRatings = connectedProvider?.capabilities?.supportsTrackRatings == true,
-                                nowPlayingTrack = nowPlayingTrack,
-                                nowPlayingWaveform = nowPlayingWaveform,
-                                visualizerBandsProvider = { nowPlayingVisualizerFrame?.bands.orEmpty() },
-                                selectedVisualizer = selectedVisualizer,
-                                visualizerColors = targetBackgroundColors,
-                                nowPlayingAudioTags = nowPlayingAudioTags,
-                                nowPlayingLyrics = nowPlayingLyrics,
-                                nowPlayingLyricsStatus = nowPlayingLyricsStatus,
-                                nowPlayingStreamMetadata = nowPlayingStreamMetadata,
-                                lyricsVisible = nowPlayingLyricsVisible,
-                                visualizerAvailable = (playbackEngine as? VisualizerPlaybackEngine)?.supportsVisualizer == true,
-                                visualizerVisible = nowPlayingVisualizerVisible,
-                                coverArtUrl = nowPlayingCoverArtUrl,
-                                backTo = playbackQueue.backTo(),
-                                upNext = playbackQueue.upNext(),
-                                internetRadioStations = internetRadioStations,
-                                currentInternetRadioStationId =
-                                    nowPlayingInternetRadioStation?.id ?: nowPlayingTrack?.internetRadioStationId(),
-                                radioTrackArtworkByKey = radioTrackArtworkByKey,
-                                firstBackToQueueIndex = playbackQueue.currentIndex - 1,
-                                firstUpNextQueueIndex = playbackQueue.currentIndex + 1,
-                                upNextCoverArtUrl = { track ->
-                                    track.coverArtId?.let { connectedProvider?.coverArtUrl(it) }
-                                },
-                                relatedTracks = relatedTracks,
-                                relatedCoverArtUrl = { track ->
-                                    track.coverArtId?.let { connectedProvider?.coverArtUrl(it) }
-                                },
-                                hasPrevious = canUsePreviousButton(),
-                                hasNext = canUseNextButton(),
-                                shuffleEnabled = playbackQueue.upNext().size > 1,
-                                shuffleActive = shuffledUpNextSnapshot != null,
-                                repeatMode = repeatMode,
-                                playbackState = playbackState,
-                                playbackProgress = playbackProgress,
-                                volumePercent = playbackSettings.volumePercent,
-                                sleepTimer = sleepTimer.toNaviampSleepTimerUi(sleepTimerNowEpochMillis),
-                                streamQuality = playbackSettings.streamQuality(playbackEngine),
-                                supportsSeek = playbackEngine.supportsSeek &&
-                                    nowPlayingTrack?.isInternetRadioTrack() != true,
-                                onPause = {
-                                    playbackEngine.pause()
-                                },
-                                onResume = {
-                                    playbackEngine.resume()
-                                },
-                                onPlayCurrent = {
-                                    internetRadioController.playCurrentSelection()
-                                },
-                                onSeek = { positionSeconds ->
-                                    performSeek(positionSeconds)
-                                },
-                                onPrevious = {
-                                    handlePreviousButton()
-                                },
-                                onNext = {
-                                    openPlayerOnTrackStart = false
-                                    playlistEngine.next(coroutineScope)
-                                },
-                                onToggleShuffle = {
-                                    toggleShuffle()
-                                },
-                                onCycleRepeatMode = {
-                                    cycleRepeatMode()
-                                },
-                                onVolumeChanged = { volumePercent ->
-                                    playbackSettings = playbackSettingsChange(
-                                        requested = playbackSettings.copy(volumePercent = volumePercent),
-                                        playbackEngine = playbackEngine,
-                                        previous = playbackSettings,
-                                    ).settings
-                                    settingsStore.savePlaybackSettings(playbackSettings)
-                                },
-                                onToggleLyrics = {
-                                    nowPlayingLyricsVisible = !nowPlayingLyricsVisible
-                                },
-                                onLyricsOffsetChanged = ::updateNowPlayingLyricsOffset,
-                                onToggleVisualizer = {
-                                    nowPlayingVisualizerRequestedVisible = !nowPlayingVisualizerRequestedVisible
-                                },
-                                onVisualizerSelected = { visualizer ->
-                                    selectedVisualizer = visualizer
-                                    settingsStore.saveVisualizerSettings(
-                                        VisualizerSettings(selectedVisualizer = visualizer.name),
-                                    )
-                                    nowPlayingVisualizerRequestedVisible = true
-                                },
-                                onToggleTrackFavorite = { track ->
-                                    appActions.toggleTrackFavorite(track)
-                                },
-                                onTrackRatingSelected = { track, rating ->
-                                    appActions.setTrackRating(track, rating)
-                                },
-                                onArtistSelected = { track ->
-                                    appActions.openTrackArtistDetails(track)
-                                },
-                                onAlbumSelected = { track ->
-                                    appActions.openTrackAlbumDetails(track)
-                                },
-                                onTrackRadioSelected = { track ->
-                                    appActions.convertCurrentTrackToRadio(track)
-                                },
-                                onDownloadTrackSelected = { track ->
-                                    appActions.downloadTrack(track)
-                                },
-                                onAddTrackToPlaylist = { track ->
-                                    playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(track))
-                                },
-                                onSaveQueueAsPlaylist = playlistsController::saveQueueAsPlaylist,
-                                onSleepTimerSelected = ::handleSleepTimerSelected,
-                                onCancelSleepTimer = ::cancelSleepTimer,
-                                onInternetRadioStationSelected = { station ->
-                                    internetRadioController.playStation(station)
-                                },
-                                onQueueIndexSelected = { queueIndex ->
-                                    openPlayerOnTrackStart = false
-                                    playlistEngine.jumpTo(
-                                        scope = coroutineScope,
-                                        index = queueIndex,
-                                        moveSelectedToCurrent =
-                                            playbackSettings.upNextSelectionBehavior ==
-                                                UpNextSelectionBehavior.MoveSelectedToCurrent,
-                                    )
-                                },
-                                onUpNextTrackRadioSelected = { track ->
-                                    appActions.playTrackRadio(track)
-                                },
-                                onUpNextTrackDownloadSelected = { track ->
-                                    appActions.downloadTrack(track)
-                                },
-                                onUpNextTrackAddToPlaylist = { track ->
-                                    playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(track))
-                                },
-                                onRelatedTrackSelected = { index ->
-                                    appActions.playRelatedTrack(index)
-                                },
-                                onRelatedTrackRadioSelected = { track ->
-                                    appActions.playTrackRadio(track)
-                                },
-                                onRelatedTrackDownloadSelected = { track ->
-                                    appActions.downloadTrack(track)
-                                },
-                                onRelatedTrackAddToPlaylist = { track ->
-                                    playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(track))
-                                },
-                                onCollapseToHome = {
-                                    appRoute = lastContentRoute
-                                },
-                            )
-                        }
+                            appColors = appColors,
+                            playbackEngineName = playbackEngine.name,
+                            supportsPause = playbackEngine.supportsPause,
+                            supportsSoftwareVolume = playbackEngine.supportsSoftwareVolume,
+                            supportsTrackFavorites = connectedProvider?.capabilities?.supportsTrackFavorites == true,
+                            supportsTrackRatings = connectedProvider?.capabilities?.supportsTrackRatings == true,
+                            nowPlayingTrack = nowPlayingTrack,
+                            nowPlayingWaveform = nowPlayingWaveform,
+                            visualizerFrame = nowPlayingVisualizerFrame,
+                            selectedVisualizer = selectedVisualizer,
+                            visualizerColors = targetBackgroundColors,
+                            nowPlayingAudioTags = nowPlayingAudioTags,
+                            nowPlayingLyrics = nowPlayingLyrics,
+                            nowPlayingLyricsStatus = nowPlayingLyricsStatus,
+                            nowPlayingStreamMetadata = nowPlayingStreamMetadata,
+                            lyricsVisible = nowPlayingLyricsVisible,
+                            visualizerAvailable = (playbackEngine as? VisualizerPlaybackEngine)?.supportsVisualizer == true,
+                            visualizerVisible = nowPlayingVisualizerVisible,
+                            coverArtUrl = nowPlayingCoverArtUrl,
+                            playbackQueue = playbackQueue,
+                            internetRadioStations = internetRadioStations,
+                            currentInternetRadioStationId =
+                                nowPlayingInternetRadioStation?.id ?: nowPlayingTrack?.internetRadioStationId(),
+                            radioTrackArtworkByKey = radioTrackArtworkByKey,
+                            relatedTracks = relatedTracks,
+                            coverArtUrlForTrack = { track -> track.coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
+                            hasPrevious = canUsePreviousButton(),
+                            hasNext = canUseNextButton(),
+                            shuffleActive = shuffledUpNextSnapshot != null,
+                            repeatMode = repeatMode,
+                            playbackState = playbackState,
+                            playbackProgress = playbackProgress,
+                            volumePercent = playbackSettings.volumePercent,
+                            sleepTimer = sleepTimer.toNaviampSleepTimerUi(sleepTimerNowEpochMillis),
+                            streamQuality = playbackSettings.streamQuality(playbackEngine),
+                            supportsSeek = playbackEngine.supportsSeek && nowPlayingTrack?.isInternetRadioTrack() != true,
+                            onPause = playbackEngine::pause,
+                            onResume = playbackEngine::resume,
+                            onPlayCurrent = internetRadioController::playCurrentSelection,
+                            onSeek = ::performSeek,
+                            onPrevious = ::handlePreviousButton,
+                            onNext = {
+                                openPlayerOnTrackStart = false
+                                playlistEngine.next(coroutineScope)
+                            },
+                            onToggleShuffle = ::toggleShuffle,
+                            onCycleRepeatMode = ::cycleRepeatMode,
+                            onVolumeChanged = { volumePercent ->
+                                playbackSettings = playbackSettingsChange(
+                                    requested = playbackSettings.copy(volumePercent = volumePercent),
+                                    playbackEngine = playbackEngine,
+                                    previous = playbackSettings,
+                                ).settings
+                                settingsStore.savePlaybackSettings(playbackSettings)
+                            },
+                            onToggleLyrics = { nowPlayingLyricsVisible = !nowPlayingLyricsVisible },
+                            onLyricsOffsetChanged = ::updateNowPlayingLyricsOffset,
+                            onToggleVisualizer = {
+                                nowPlayingVisualizerRequestedVisible = !nowPlayingVisualizerRequestedVisible
+                            },
+                            onVisualizerSelected = { visualizer ->
+                                selectedVisualizer = visualizer
+                                settingsStore.saveVisualizerSettings(
+                                    VisualizerSettings(selectedVisualizer = visualizer.name),
+                                )
+                                nowPlayingVisualizerRequestedVisible = true
+                            },
+                            onToggleTrackFavorite = appActions::toggleTrackFavorite,
+                            onTrackRatingSelected = appActions::setTrackRating,
+                            onArtistSelected = appActions::openTrackArtistDetails,
+                            onAlbumSelected = appActions::openTrackAlbumDetails,
+                            onTrackRadioSelected = appActions::convertCurrentTrackToRadio,
+                            onDownloadTrackSelected = appActions::downloadTrack,
+                            onAddTrackToPlaylist = { track ->
+                                playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(track))
+                            },
+                            onSaveQueueAsPlaylist = playlistsController::saveQueueAsPlaylist,
+                            onSleepTimerSelected = ::handleSleepTimerSelected,
+                            onCancelSleepTimer = ::cancelSleepTimer,
+                            onInternetRadioStationSelected = internetRadioController::playStation,
+                            onQueueIndexSelected = { queueIndex ->
+                                openPlayerOnTrackStart = false
+                                playlistEngine.jumpTo(
+                                    scope = coroutineScope,
+                                    index = queueIndex,
+                                    moveSelectedToCurrent =
+                                        playbackSettings.upNextSelectionBehavior ==
+                                            UpNextSelectionBehavior.MoveSelectedToCurrent,
+                                )
+                            },
+                            onUpNextTrackRadioSelected = appActions::playTrackRadio,
+                            onUpNextTrackDownloadSelected = appActions::downloadTrack,
+                            onUpNextTrackAddToPlaylist = { track ->
+                                playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(track))
+                            },
+                            onRelatedTrackSelected = appActions::playRelatedTrack,
+                            onRelatedTrackRadioSelected = appActions::playTrackRadio,
+                            onRelatedTrackDownloadSelected = appActions::downloadTrack,
+                            onRelatedTrackAddToPlaylist = { track ->
+                                playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(track))
+                            },
+                            onCollapseToHome = { appRoute = lastContentRoute },
+                        )
                     } else {
                         DesktopAppRouteContent(
                             appColors = appColors,
@@ -1824,8 +1759,212 @@ fun NaviampApp(
                         )
                     }
                 }
+            }
+    }
+
+@Composable
+private fun DesktopAppSurface(
+    colorScheme: ColorScheme,
+    appColors: DesktopAppColors,
+    statsForNerdsInfo: DesktopStatsForNerdsInfo?,
+    backgroundStart: Color,
+    backgroundMid: Color,
+    backgroundEnd: Color,
+    targetBackgroundColors: NaviampPlayerColors,
+    onCloseStatsForNerds: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    MaterialTheme(colorScheme = colorScheme) {
+        statsForNerdsInfo?.let { info ->
+            DesktopStatsForNerdsWindow(
+                appColors = appColors,
+                info = info,
+                onClose = onCloseStatsForNerds,
+            )
+        }
+        Surface(modifier = Modifier.fillMaxSize(), color = Color.Transparent) {
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxSize(),
+            ) {
+                val density = LocalDensity.current
+                val widthPx = with(density) { maxWidth.toPx() }.coerceAtLeast(1f)
+                val heightPx = with(density) { maxHeight.toPx() }.coerceAtLeast(1f)
+                val narrowLayout = maxWidth < 520.dp
+                val gradientEnd = if (narrowLayout) {
+                    Offset(widthPx * 0.85f, heightPx * 1.05f)
+                } else {
+                    Offset(widthPx * 1.08f, heightPx * 0.82f)
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            NaviampPlayerColors(
+                                backgroundStart = backgroundStart,
+                                backgroundMid = backgroundMid,
+                                backgroundEnd = backgroundEnd,
+                                accent = targetBackgroundColors.accent,
+                            ).backgroundBrush(gradientEnd),
+                        ),
+                ) {
+                    content()
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun DesktopNowPlayingRoute(
+    modifier: Modifier = Modifier,
+    appColors: DesktopAppColors,
+    playbackEngineName: String,
+    supportsPause: Boolean,
+    supportsSoftwareVolume: Boolean,
+    supportsTrackFavorites: Boolean,
+    supportsTrackRatings: Boolean,
+    nowPlayingTrack: Track?,
+    nowPlayingWaveform: AudioWaveform?,
+    visualizerFrame: PlaybackVisualizerFrame?,
+    selectedVisualizer: NaviampVisualizer,
+    visualizerColors: NaviampPlayerColors,
+    nowPlayingAudioTags: List<AudioTag>?,
+    nowPlayingLyrics: Lyrics?,
+    nowPlayingLyricsStatus: String?,
+    nowPlayingStreamMetadata: PlaybackStreamMetadata,
+    lyricsVisible: Boolean,
+    visualizerAvailable: Boolean,
+    visualizerVisible: Boolean,
+    coverArtUrl: String?,
+    playbackQueue: PlaybackQueue,
+    internetRadioStations: List<InternetRadioStation>,
+    currentInternetRadioStationId: String?,
+    radioTrackArtworkByKey: Map<String, String?>,
+    relatedTracks: List<Track>,
+    coverArtUrlForTrack: (Track) -> String?,
+    hasPrevious: Boolean,
+    hasNext: Boolean,
+    shuffleActive: Boolean,
+    repeatMode: RepeatMode,
+    playbackState: PlaybackState,
+    playbackProgress: PlaybackProgress,
+    volumePercent: Int,
+    sleepTimer: NaviampSleepTimerUi,
+    streamQuality: StreamQuality,
+    supportsSeek: Boolean,
+    onPause: () -> Unit,
+    onResume: () -> Unit,
+    onPlayCurrent: () -> Unit,
+    onSeek: (Double) -> Unit,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    onToggleShuffle: () -> Unit,
+    onCycleRepeatMode: () -> Unit,
+    onVolumeChanged: (Int) -> Unit,
+    onToggleLyrics: () -> Unit,
+    onLyricsOffsetChanged: (Int) -> Unit,
+    onToggleVisualizer: () -> Unit,
+    onVisualizerSelected: (NaviampVisualizer) -> Unit,
+    onToggleTrackFavorite: (Track) -> Unit,
+    onTrackRatingSelected: (Track, Int?) -> Unit,
+    onArtistSelected: (Track) -> Unit,
+    onAlbumSelected: (Track) -> Unit,
+    onTrackRadioSelected: (Track) -> Unit,
+    onDownloadTrackSelected: (Track) -> Unit,
+    onAddTrackToPlaylist: (Track) -> Unit,
+    onSaveQueueAsPlaylist: (String) -> Unit,
+    onSleepTimerSelected: (SleepTimerRequest) -> Unit,
+    onCancelSleepTimer: () -> Unit,
+    onInternetRadioStationSelected: (InternetRadioStation) -> Unit,
+    onQueueIndexSelected: (Int) -> Unit,
+    onUpNextTrackRadioSelected: (Track) -> Unit,
+    onUpNextTrackDownloadSelected: (Track) -> Unit,
+    onUpNextTrackAddToPlaylist: (Track) -> Unit,
+    onRelatedTrackSelected: (Int) -> Unit,
+    onRelatedTrackRadioSelected: (Track) -> Unit,
+    onRelatedTrackDownloadSelected: (Track) -> Unit,
+    onRelatedTrackAddToPlaylist: (Track) -> Unit,
+    onCollapseToHome: () -> Unit,
+) {
+    Box(
+        modifier = modifier,
+    ) {
+        DesktopNowPlayingPanel(
+            appColors = appColors,
+            playbackEngineName = playbackEngineName,
+            supportsPause = supportsPause,
+            supportsSoftwareVolume = supportsSoftwareVolume,
+            supportsTrackFavorites = supportsTrackFavorites,
+            supportsTrackRatings = supportsTrackRatings,
+            nowPlayingTrack = nowPlayingTrack,
+            nowPlayingWaveform = nowPlayingWaveform,
+            visualizerBandsProvider = { visualizerFrame?.bands.orEmpty() },
+            selectedVisualizer = selectedVisualizer,
+            visualizerColors = visualizerColors,
+            nowPlayingAudioTags = nowPlayingAudioTags,
+            nowPlayingLyrics = nowPlayingLyrics,
+            nowPlayingLyricsStatus = nowPlayingLyricsStatus,
+            nowPlayingStreamMetadata = nowPlayingStreamMetadata,
+            lyricsVisible = lyricsVisible,
+            visualizerAvailable = visualizerAvailable,
+            visualizerVisible = visualizerVisible,
+            coverArtUrl = coverArtUrl,
+            backTo = playbackQueue.backTo(),
+            upNext = playbackQueue.upNext(),
+            internetRadioStations = internetRadioStations,
+            currentInternetRadioStationId = currentInternetRadioStationId,
+            radioTrackArtworkByKey = radioTrackArtworkByKey,
+            firstBackToQueueIndex = playbackQueue.currentIndex - 1,
+            firstUpNextQueueIndex = playbackQueue.currentIndex + 1,
+            upNextCoverArtUrl = coverArtUrlForTrack,
+            relatedTracks = relatedTracks,
+            relatedCoverArtUrl = coverArtUrlForTrack,
+            hasPrevious = hasPrevious,
+            hasNext = hasNext,
+            shuffleEnabled = playbackQueue.upNext().size > 1,
+            shuffleActive = shuffleActive,
+            repeatMode = repeatMode,
+            playbackState = playbackState,
+            playbackProgress = playbackProgress,
+            volumePercent = volumePercent,
+            sleepTimer = sleepTimer,
+            streamQuality = streamQuality,
+            supportsSeek = supportsSeek,
+            onPause = onPause,
+            onResume = onResume,
+            onPlayCurrent = onPlayCurrent,
+            onSeek = onSeek,
+            onPrevious = onPrevious,
+            onNext = onNext,
+            onToggleShuffle = onToggleShuffle,
+            onCycleRepeatMode = onCycleRepeatMode,
+            onVolumeChanged = onVolumeChanged,
+            onToggleLyrics = onToggleLyrics,
+            onLyricsOffsetChanged = onLyricsOffsetChanged,
+            onToggleVisualizer = onToggleVisualizer,
+            onVisualizerSelected = onVisualizerSelected,
+            onToggleTrackFavorite = onToggleTrackFavorite,
+            onTrackRatingSelected = onTrackRatingSelected,
+            onArtistSelected = onArtistSelected,
+            onAlbumSelected = onAlbumSelected,
+            onTrackRadioSelected = onTrackRadioSelected,
+            onDownloadTrackSelected = onDownloadTrackSelected,
+            onAddTrackToPlaylist = onAddTrackToPlaylist,
+            onSaveQueueAsPlaylist = onSaveQueueAsPlaylist,
+            onSleepTimerSelected = onSleepTimerSelected,
+            onCancelSleepTimer = onCancelSleepTimer,
+            onInternetRadioStationSelected = onInternetRadioStationSelected,
+            onQueueIndexSelected = onQueueIndexSelected,
+            onUpNextTrackRadioSelected = onUpNextTrackRadioSelected,
+            onUpNextTrackDownloadSelected = onUpNextTrackDownloadSelected,
+            onUpNextTrackAddToPlaylist = onUpNextTrackAddToPlaylist,
+            onRelatedTrackSelected = onRelatedTrackSelected,
+            onRelatedTrackRadioSelected = onRelatedTrackRadioSelected,
+            onRelatedTrackDownloadSelected = onRelatedTrackDownloadSelected,
+            onRelatedTrackAddToPlaylist = onRelatedTrackAddToPlaylist,
+            onCollapseToHome = onCollapseToHome,
+        )
     }
 }

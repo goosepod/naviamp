@@ -39,6 +39,7 @@ fun SharedHome(
     onInternetRadioStationSelected: (SharedMediaItemUi) -> Unit,
     onMixBuilderSelected: (SharedMixBuilderUi) -> Unit,
     onHomeStationSelected: (SharedHomeStationUi) -> Unit,
+    onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text("Music", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
@@ -66,17 +67,17 @@ fun SharedHome(
             emptyText = "Start a radio station to build this list.",
         )
         MixBuilderSection(home.mixBuilders, colors, onMixBuilderSelected)
-        HomeSection("Recently Added In Music", home.recentlyAddedAlbums, colors, onAlbumSelected)
+        HomeSection("Recently Added In Music", home.recentlyAddedAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled)
         HomeSection("Recent Playlists", home.playlists, colors, onPlaylistSelected)
         HomeSection("Recent Internet Radio", home.radioStations, colors, onInternetRadioStationSelected)
         HomeStationSection(home.stations, colors, onHomeStationSelected)
-        HomeSection("Recent Albums", home.recentAlbums, colors, onAlbumSelected)
-        HomeSection("Frequently Played Albums", home.frequentAlbums, colors, onAlbumSelected)
-        HomeSection("Random Albums", home.randomAlbums, colors, onAlbumSelected)
+        HomeSection("Recent Albums", home.recentAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled)
+        HomeSection("Frequently Played Albums", home.frequentAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled)
+        HomeSection("Random Albums", home.randomAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled)
         home.genreSpotlightTitle?.let { title ->
-            HomeSection("More In $title", home.genreSpotlightAlbums, colors, onAlbumSelected)
+            HomeSection("More In $title", home.genreSpotlightAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled)
         }
-        HomeSection("From ${home.decadeLabel}", home.decadeAlbums, colors, onAlbumSelected)
+        HomeSection("From ${home.decadeLabel}", home.decadeAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled)
     }
 }
 
@@ -115,6 +116,8 @@ internal fun SearchContent(
     onTrackAddToQueue: (SharedTrackRowUi) -> Unit,
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
     onArtistSelected: (SharedMediaItemUi) -> Unit,
+    onArtistFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
+    onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -142,8 +145,8 @@ internal fun SearchContent(
         if (query.isNotBlank() && results.isEmpty) {
             Text("No matches found.", color = colors.secondaryText, fontSize = 12.sp)
         }
-        MediaSection("Artists", results.artists, colors, onArtistSelected)
-        MediaSection("Albums", results.albums, colors, onAlbumSelected)
+        MediaSection("Artists", results.artists, colors, onArtistSelected, onArtistFavoriteToggled)
+        MediaSection("Albums", results.albums, colors, onAlbumSelected, onAlbumFavoriteToggled)
         if (results.tracks.isNotEmpty()) {
             SectionHeader("TRACKS", colors)
             results.tracks.forEach { track ->
@@ -195,6 +198,7 @@ internal fun LibraryContent(
     onQueryChanged: (String) -> Unit,
     onRefreshLibrary: () -> Unit,
     onArtistSelected: (SharedMediaItemUi) -> Unit,
+    onArtistFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
 ) {
     val filteredItems = remember(items, query) {
         val normalizedQuery = query.trim().lowercase()
@@ -276,6 +280,7 @@ internal fun LibraryContent(
                 item = item,
                 colors = colors,
                 onClick = { onArtistSelected(item) },
+                onFavoriteToggled = onArtistFavoriteToggled,
             )
         }
     }

@@ -141,6 +141,7 @@ fun NaviampSharedAppShell(
     onDownloadedTrackCreatePlaylistAndAdd: (NaviampDownloadedTrackUi, String) -> Unit = { _, _ -> },
     onRemoveDownload: (NaviampDownloadedTrackUi) -> Unit = {},
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
+    onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
     onMixAlbumSelected: (SharedMediaItemUi) -> Unit = onAlbumSelected,
     onAlbumPlay: (SharedAlbumDetailUi, Boolean) -> Unit = { _, _ -> },
     onAlbumRadio: (SharedAlbumDetailUi) -> Unit = {},
@@ -152,6 +153,7 @@ fun NaviampSharedAppShell(
     onAlbumTrackAddToPlaylist: (SharedTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
     onAlbumTrackCreatePlaylistAndAdd: (SharedTrackRowUi, String) -> Unit = { _, _ -> },
     onArtistSelected: (SharedMediaItemUi) -> Unit,
+    onArtistFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
     onArtistRadio: (SharedArtistDetailUi) -> Unit = {},
     onArtistShuffle: (SharedArtistDetailUi) -> Unit = {},
     onArtistAddToQueue: (SharedArtistDetailUi) -> Unit = {},
@@ -387,6 +389,7 @@ fun NaviampSharedAppShell(
                             onDownloadedTrackCreatePlaylistAndAdd = onDownloadedTrackCreatePlaylistAndAdd,
                             onRemoveDownload = onRemoveDownload,
                             onAlbumSelected = onAlbumSelected,
+                            onAlbumFavoriteToggled = onAlbumFavoriteToggled,
                             onMixAlbumSelected = onMixAlbumSelected,
                             onAlbumPlay = onAlbumPlay,
                             onAlbumRadio = onAlbumRadio,
@@ -399,6 +402,7 @@ fun NaviampSharedAppShell(
                             onAlbumTrackAddToPlaylist = onAlbumTrackAddToPlaylist,
                             onAlbumTrackCreatePlaylistAndAdd = onAlbumTrackCreatePlaylistAndAdd,
                             onArtistSelected = onArtistSelected,
+                            onArtistFavoriteToggled = onArtistFavoriteToggled,
                             onArtistRadio = onArtistRadio,
                             onArtistShuffle = onArtistShuffle,
                             onArtistAddToQueue = onArtistAddToQueue,
@@ -707,6 +711,7 @@ private fun ConnectedContent(
     onDownloadedTrackCreatePlaylistAndAdd: (NaviampDownloadedTrackUi, String) -> Unit,
     onRemoveDownload: (NaviampDownloadedTrackUi) -> Unit,
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
+    onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit,
     onMixAlbumSelected: (SharedMediaItemUi) -> Unit,
     onAlbumPlay: (SharedAlbumDetailUi, Boolean) -> Unit,
     onAlbumRadio: (SharedAlbumDetailUi) -> Unit,
@@ -718,6 +723,7 @@ private fun ConnectedContent(
     onAlbumTrackAddToPlaylist: (SharedTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
     onAlbumTrackCreatePlaylistAndAdd: (SharedTrackRowUi, String) -> Unit,
     onArtistSelected: (SharedMediaItemUi) -> Unit,
+    onArtistFavoriteToggled: (SharedMediaItemUi) -> Unit,
     onArtistRadio: (SharedArtistDetailUi) -> Unit,
     onArtistShuffle: (SharedArtistDetailUi) -> Unit,
     onArtistAddToQueue: (SharedArtistDetailUi) -> Unit,
@@ -873,6 +879,7 @@ private fun ConnectedContent(
             onAlbumAddToQueue = { onAlbumAddToQueue(albumDetail) },
             onAlbumAddToPlaylist = { playlist -> onAlbumAddToPlaylist(albumDetail, playlist) },
             onAlbumCreatePlaylistAndAdd = { name -> onAlbumCreatePlaylistAndAdd(albumDetail, name) },
+            onAlbumFavoriteToggled = { onAlbumFavoriteToggled(albumDetail.album) },
             onTrackSelected = onAlbumTrackSelected,
             onTrackAddToQueue = onTrackAddToQueue,
             onTrackDownload = onAlbumTrackDownload,
@@ -890,6 +897,7 @@ private fun ConnectedContent(
             onArtistAddToQueue = { onArtistAddToQueue(artistDetail) },
             onArtistAddToPlaylist = { playlist -> onArtistAddToPlaylist(artistDetail, playlist) },
             onArtistCreatePlaylistAndAdd = { name -> onArtistCreatePlaylistAndAdd(artistDetail, name) },
+            onArtistFavoriteToggled = { onArtistFavoriteToggled(artistDetail.artist) },
             onPopularPlay = { onArtistPopularPlay(artistDetail) },
             onPopularRadio = { onArtistPopularRadio(artistDetail) },
             onPopularAddToQueue = { onArtistPopularAddToQueue(artistDetail) },
@@ -907,6 +915,7 @@ private fun ConnectedContent(
             onAlbumAddToQueue = onArtistAlbumAddToQueue,
             onAlbumAddToPlaylist = onArtistAlbumAddToPlaylist,
             onAlbumCreatePlaylistAndAdd = onArtistAlbumCreatePlaylistAndAdd,
+            onAlbumFavoriteToggled = onAlbumFavoriteToggled,
             playlistChoices = playlistChoices,
             playlistActionStatus = playlistActionStatus,
         )
@@ -931,6 +940,7 @@ private fun ConnectedContent(
                 colors = colors,
                 home = home,
                 onAlbumSelected = onAlbumSelected,
+                onAlbumFavoriteToggled = onAlbumFavoriteToggled,
                 onMixAlbumSelected = onMixAlbumSelected,
                 onPlaylistSelected = onPlaylistSelected,
                 onRecentRadioSelected = onRecentRadioSelected,
@@ -968,6 +978,7 @@ private fun ConnectedContent(
                 onQueryChanged = onLibraryQueryChanged,
                 onRefreshLibrary = onRefreshLibrary,
                 onArtistSelected = onArtistSelected,
+                onArtistFavoriteToggled = onArtistFavoriteToggled,
             )
             SharedRoute.Search -> SearchContent(
                 colors = colors,
@@ -980,6 +991,8 @@ private fun ConnectedContent(
                 onTrackAddToQueue = onTrackAddToQueue,
                 onAlbumSelected = onAlbumSelected,
                 onArtistSelected = onArtistSelected,
+                onArtistFavoriteToggled = onArtistFavoriteToggled,
+                onAlbumFavoriteToggled = onAlbumFavoriteToggled,
             )
             SharedRoute.ArtistMix -> Column(
                 modifier = Modifier.fillMaxSize(),
@@ -1094,6 +1107,7 @@ private fun AlbumDetailContent(
     onAlbumAddToQueue: () -> Unit,
     onAlbumAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit,
     onAlbumCreatePlaylistAndAdd: (String) -> Unit,
+    onAlbumFavoriteToggled: () -> Unit,
     onTrackSelected: (SharedTrackRowUi) -> Unit,
     onTrackAddToQueue: (SharedTrackRowUi) -> Unit,
     onTrackDownload: (SharedTrackRowUi) -> Unit,
@@ -1146,6 +1160,13 @@ private fun AlbumDetailContent(
                     MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampIcons.Playlist, "Add album to playlist") {
                         addAlbumToPlaylistOpen = true
                     }
+                    MiniPlayerIconButton(
+                        colors,
+                        detail.album.canFavorite,
+                        NaviampTransportIcons.Heart,
+                        if (detail.album.favoriteActive) "Remove album favorite" else "Favorite album",
+                        onAlbumFavoriteToggled,
+                    )
                 }
             }
         }
@@ -1217,6 +1238,7 @@ private fun ArtistDetailContent(
     onArtistAddToQueue: () -> Unit,
     onArtistAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit,
     onArtistCreatePlaylistAndAdd: (String) -> Unit,
+    onArtistFavoriteToggled: () -> Unit,
     onPopularPlay: () -> Unit,
     onPopularRadio: () -> Unit,
     onPopularAddToQueue: () -> Unit,
@@ -1234,6 +1256,7 @@ private fun ArtistDetailContent(
     onAlbumAddToQueue: (SharedMediaItemUi) -> Unit,
     onAlbumAddToPlaylist: (SharedMediaItemUi, NaviampPlaylistChoiceUi?) -> Unit,
     onAlbumCreatePlaylistAndAdd: (SharedMediaItemUi, String) -> Unit,
+    onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit,
     playlistChoices: List<NaviampPlaylistChoiceUi>,
     playlistActionStatus: String?,
 ) {
@@ -1261,6 +1284,13 @@ private fun ArtistDetailContent(
                     MiniPlayerIconButton(colors, detail.albums.isNotEmpty(), NaviampIcons.Playlist, "Add artist to playlist") {
                         addArtistToPlaylistOpen = true
                     }
+                    MiniPlayerIconButton(
+                        colors,
+                        detail.artist.canFavorite,
+                        NaviampTransportIcons.Heart,
+                        if (detail.artist.favoriteActive) "Remove artist favorite" else "Favorite artist",
+                        onArtistFavoriteToggled,
+                    )
                     MiniPlayerIconButton(colors, detail.popularTracks.isNotEmpty(), NaviampTransportIcons.Play, "Play popular tracks", onPopularPlay)
                     MiniPlayerIconButton(
                         colors,
@@ -1376,12 +1406,15 @@ private fun ArtistDetailContent(
                             canDownload = true,
                             canAddToQueue = true,
                             canAddToPlaylist = true,
+                            canFavorite = album.canFavorite,
+                            favoriteActive = album.favoriteActive,
                         ).mapNotNull { action ->
                             when (action.action) {
                                 NaviampAction.StartAlbumRadio -> NaviampRowMenuItem(action.label, action.icon, { onAlbumRadio(album) }, action.enabled)
                                 NaviampAction.DownloadAlbum -> NaviampRowMenuItem(action.label, action.icon, { onAlbumDownload(album) }, action.enabled)
                                 NaviampAction.AddToQueue -> NaviampRowMenuItem(action.label, action.icon, { onAlbumAddToQueue(album) }, action.enabled)
                                 NaviampAction.AddToPlaylist -> NaviampRowMenuItem(action.label, action.icon, { albumForPlaylist = album }, action.enabled)
+                                NaviampAction.ToggleFavorite -> NaviampRowMenuItem(action.label, action.icon, { onAlbumFavoriteToggled(album) }, action.enabled)
                                 else -> null
                             }
                         },

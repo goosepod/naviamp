@@ -79,13 +79,13 @@ This checklist tracks the first feature set for the `new-features` branch. Keep 
 
 ## Favorites and Metadata
 
-- [ ] Add favorite/unfavorite support for artists and albums.
+- [x] Add favorite/unfavorite support for artists and albums.
   - Use Navidrome/Subsonic provider support where available.
   - Surface consistently in lists, search, home, and detail screens.
-- [ ] Expand track details with provider metadata when available.
+- [x] Expand track details with provider metadata when available.
   - BPM, mood, rating, play count, and last played.
   - Hide unavailable fields.
-- [ ] Add `Track details` to every shared track-row overflow menu.
+- [x] Add `Track details` to every shared track-row overflow menu.
 
 ## Artist Details
 

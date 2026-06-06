@@ -54,11 +54,13 @@ fun DesktopLibraryPanel(
     onArtistRadioSelected: (Artist) -> Unit,
     onArtistAddToQueue: (Artist) -> Unit,
     onArtistAddToPlaylist: (Artist) -> Unit,
+    onArtistFavoriteToggle: (Artist) -> Unit,
     onAlbumSelected: (Album) -> Unit,
     onAlbumRadioSelected: (Album) -> Unit,
     onAlbumDownloadSelected: (Album) -> Unit,
     onAlbumAddToQueue: (Album) -> Unit,
     onAlbumAddToPlaylist: (Album) -> Unit,
+    onAlbumFavoriteToggle: (Album) -> Unit,
     onRefreshLibrary: () -> Unit,
 ) {
     val textFieldColors = OutlinedTextFieldDefaults.colors(
@@ -171,6 +173,7 @@ fun DesktopLibraryPanel(
                             onStartRadio = { onArtistRadioSelected(artist) },
                             onAddToQueue = { onArtistAddToQueue(artist) },
                             onAddToPlaylist = { onArtistAddToPlaylist(artist) },
+                            onFavoriteToggle = { onArtistFavoriteToggle(artist) },
                         )
                     }
                     DesktopLibraryTab.Albums -> items(snapshot.albums, key = { it.id.value }) { album ->
@@ -183,6 +186,7 @@ fun DesktopLibraryPanel(
                             onDownload = { onAlbumDownloadSelected(album) },
                             onAddToQueue = { onAlbumAddToQueue(album) },
                             onAddToPlaylist = { onAlbumAddToPlaylist(album) },
+                            onFavoriteToggle = { onAlbumFavoriteToggle(album) },
                         )
                     }
                 }

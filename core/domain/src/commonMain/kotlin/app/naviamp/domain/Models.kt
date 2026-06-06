@@ -15,6 +15,7 @@ value class TrackId(val value: String)
 data class Artist(
     val id: ArtistId,
     val name: String,
+    val favoritedAtIso8601: String? = null,
 )
 
 data class ArtistDetails(
@@ -37,6 +38,7 @@ data class Album(
     val coverArtId: String?,
     val recentlyAddedAtIso8601: String?,
     val releaseYear: Int? = null,
+    val favoritedAtIso8601: String? = null,
 )
 
 data class AlbumDetails(
@@ -58,6 +60,10 @@ data class Track(
     val replayGain: ReplayGain?,
     val favoritedAtIso8601: String? = null,
     val userRating: Int? = null,
+    val bpm: Int? = null,
+    val moods: List<String> = emptyList(),
+    val playCount: Int? = null,
+    val lastPlayedAtIso8601: String? = null,
 )
 
 data class AudioInfo(

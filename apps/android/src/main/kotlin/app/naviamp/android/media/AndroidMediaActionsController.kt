@@ -2,12 +2,18 @@ package app.naviamp.android
 
 import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.android.playback.AndroidPlaybackNotificationControls
+import app.naviamp.domain.Album
+import app.naviamp.domain.Artist
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
-import app.naviamp.domain.media.favoriteTrackUpdate
-import app.naviamp.domain.media.ratedTrackUpdate
-import app.naviamp.domain.media.withUpdatedTrack
+import app.naviamp.domain.media.MediaMetadataMutationController
+import app.naviamp.domain.media.MediaMetadataStateUpdater
+import app.naviamp.domain.media.MediaTrackMetadataStateUpdater
+import app.naviamp.domain.media.knownAlbumsForMetadata
+import app.naviamp.domain.media.knownArtistsForMetadata
+import app.naviamp.domain.media.withUpdatedAlbum
+import app.naviamp.domain.media.withUpdatedArtist
 import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.provider.addToPlaylistMutationUpdate
 import app.naviamp.domain.provider.allKnownTracks
@@ -17,6 +23,7 @@ import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.NaviampDownloadedTrackUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
+import app.naviamp.ui.SharedMediaItemUi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -164,14 +171,7 @@ fun applyAndroidTrackMetadataUpdate(
     playbackEngine: AndroidPlaybackEngine,
     updatedTrack: Track,
 ) {
-    val updatedNowPlaying = state.nowPlaying.withUpdatedTrack(updatedTrack)
-    val currentAlbumDetail = state.albumDetail
-    state.nowPlaying = updatedNowPlaying
-    state.tracks = state.tracks.withUpdatedTrack(updatedTrack)
-    state.contentState = state.contentState.copy(
-        searchResults = state.searchResults.withUpdatedTrack(updatedTrack),
-        albumDetail = currentAlbumDetail?.withUpdatedTrack(updatedTrack),
-    )
+    val updatedNowPlaying = androidTrackMetadataStateUpdater(state).applyTrackUpdate(updatedTrack)
     if (updatedNowPlaying?.id == updatedTrack.id) {
         updateAndroidNotificationFavoriteState(state, updatedNowPlaying)
         playbackEngine.updateNotificationMetadata(
@@ -182,24 +182,73 @@ fun applyAndroidTrackMetadataUpdate(
     }
 }
 
+private fun androidKnownArtists(
+    state: AndroidAppState,
+): List<Artist> =
+    knownArtistsForMetadata(
+        homeContent = state.homeState,
+        searchResults = state.searchResults,
+        artistDetails = state.artistDetail,
+        extraArtists = state.artistMixSelectedArtists + state.artistMixSuggestions,
+    )
+
+private fun androidKnownAlbums(
+    state: AndroidAppState,
+): List<Album> =
+    knownAlbumsForMetadata(
+        homeContent = state.homeState,
+        searchResults = state.searchResults,
+        albumDetails = state.albumDetail,
+        artistDetails = state.artistDetail,
+        extraAlbums = state.albumMixSelectedAlbums + state.albumMixSuggestions,
+    )
+
+fun applyAndroidArtistMetadataUpdate(
+    state: AndroidAppState,
+    updatedArtist: Artist,
+) {
+    androidMediaMetadataStateUpdater(state).applyArtistUpdate(updatedArtist)
+}
+
+fun applyAndroidAlbumMetadataUpdate(
+    state: AndroidAppState,
+    updatedAlbum: Album,
+) {
+    androidMediaMetadataStateUpdater(state).applyAlbumUpdate(updatedAlbum)
+}
+
+fun toggleAndroidArtistFavorite(
+    scope: CoroutineScope,
+    state: AndroidAppState,
+    item: SharedMediaItemUi,
+) {
+    scope.launch {
+        androidMediaMetadataMutationController(state, playbackEngine = null).toggleArtistFavoriteById(item.id)
+    }
+}
+
+fun toggleAndroidAlbumFavorite(
+    scope: CoroutineScope,
+    state: AndroidAppState,
+    item: SharedMediaItemUi,
+) {
+    scope.launch {
+        androidMediaMetadataMutationController(state, playbackEngine = null).toggleAlbumFavoriteById(item.id)
+    }
+}
+
 fun toggleAndroidCurrentFavorite(
     scope: CoroutineScope,
     state: AndroidAppState,
     playbackEngine: AndroidPlaybackEngine,
 ) {
-    val activeProvider = state.provider ?: return
     val currentTrack = state.nowPlaying ?: return
-    if (!activeProvider.capabilities.supportsTrackFavorites) return
     scope.launch {
         val favorite = currentTrack.favoritedAtIso8601 == null
         AndroidPlaybackNotificationControls.isFavorite = favorite
-        runCatching {
-            favoriteTrackUpdate(activeProvider, currentTrack, favoritedAtIso8601 = "android-local")
-        }.onSuccess {
-            it?.let { updatedTrack -> applyAndroidTrackMetadataUpdate(state, playbackEngine, updatedTrack) }
-        }.onFailure { error ->
+        val updated = androidMediaMetadataMutationController(state, playbackEngine).toggleTrackFavorite(currentTrack)
+        if (!updated) {
             AndroidPlaybackNotificationControls.isFavorite = !favorite
-            state.status = error.message ?: "Could not update favorite."
         }
     }
 }
@@ -210,19 +259,69 @@ fun setAndroidCurrentTrackRating(
     playbackEngine: AndroidPlaybackEngine,
     rating: Int?,
 ) {
-    val activeProvider = state.provider ?: return
     val currentTrack = state.nowPlaying ?: return
-    if (!activeProvider.capabilities.supportsTrackRatings) return
     scope.launch {
-        runCatching {
-            ratedTrackUpdate(activeProvider, currentTrack, rating)
-        }.onSuccess {
-            it?.let { updatedTrack -> applyAndroidTrackMetadataUpdate(state, playbackEngine, updatedTrack) }
-        }.onFailure { error ->
-            state.status = error.message ?: "Could not update rating."
-        }
+        androidMediaMetadataMutationController(state, playbackEngine).setTrackRating(currentTrack, rating)
     }
 }
+
+private fun androidMediaMetadataMutationController(
+    state: AndroidAppState,
+    playbackEngine: AndroidPlaybackEngine?,
+): MediaMetadataMutationController =
+    MediaMetadataMutationController(
+        provider = { state.provider },
+        favoritedAtIso8601 = { "local" },
+        setStatus = { status -> state.status = status },
+        knownTracks = { state.playbackQueue.tracks + state.tracks + allKnownTracks(state.searchResults, state.albumDetail) },
+        knownArtists = { androidKnownArtists(state) },
+        knownAlbums = { androidKnownAlbums(state) },
+        applyTrackUpdate = { updatedTrack ->
+            if (playbackEngine != null) {
+                applyAndroidTrackMetadataUpdate(state, playbackEngine, updatedTrack)
+            } else {
+                androidTrackMetadataStateUpdater(state).applyTrackUpdate(updatedTrack)
+            }
+        },
+        applyArtistUpdate = { updatedArtist -> applyAndroidArtistMetadataUpdate(state, updatedArtist) },
+        applyAlbumUpdate = { updatedAlbum -> applyAndroidAlbumMetadataUpdate(state, updatedAlbum) },
+    )
+
+private fun androidTrackMetadataStateUpdater(
+    state: AndroidAppState,
+): MediaTrackMetadataStateUpdater =
+    MediaTrackMetadataStateUpdater(
+        nowPlayingTrack = { state.nowPlaying },
+        setNowPlayingTrack = { track -> state.nowPlaying = track },
+        searchResults = { state.searchResults },
+        setSearchResults = { results -> state.contentState = state.contentState.copy(searchResults = results) },
+        albumDetails = { state.albumDetail },
+        setAlbumDetails = { details -> state.contentState = state.contentState.copy(albumDetail = details) },
+        tracks = { state.tracks },
+        setTracks = { tracks -> state.tracks = tracks },
+    )
+
+private fun androidMediaMetadataStateUpdater(
+    state: AndroidAppState,
+): MediaMetadataStateUpdater =
+    MediaMetadataStateUpdater(
+        homeContent = { state.homeState },
+        setHomeContent = { content -> state.homeState = content },
+        searchResults = { state.searchResults },
+        setSearchResults = { results -> state.contentState = state.contentState.copy(searchResults = results) },
+        albumDetails = { state.albumDetail },
+        setAlbumDetails = { details -> state.contentState = state.contentState.copy(albumDetail = details) },
+        artistDetails = { state.artistDetail },
+        setArtistDetails = { details -> state.contentState = state.contentState.copy(artistDetail = details) },
+        updateExtraArtistCollections = { artist ->
+            state.artistMixSelectedArtists = state.artistMixSelectedArtists.withUpdatedArtist(artist)
+            state.artistMixSuggestions = state.artistMixSuggestions.withUpdatedArtist(artist)
+        },
+        updateExtraAlbumCollections = { album ->
+            state.albumMixSelectedAlbums = state.albumMixSelectedAlbums.withUpdatedAlbum(album)
+            state.albumMixSuggestions = state.albumMixSuggestions.withUpdatedAlbum(album)
+        },
+    )
 
 fun addAndroidTrackToPlaylist(
     scope: CoroutineScope,

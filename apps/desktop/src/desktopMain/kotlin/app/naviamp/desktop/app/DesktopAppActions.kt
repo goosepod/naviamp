@@ -62,6 +62,14 @@ class DesktopAppActions(
         mediaActionsController.toggleTrackFavorite(track)
     }
 
+    fun toggleArtistFavorite(artist: Artist) {
+        mediaActionsController.toggleArtistFavorite(artist)
+    }
+
+    fun toggleAlbumFavorite(album: Album) {
+        mediaActionsController.toggleAlbumFavorite(album)
+    }
+
     fun setTrackRating(track: Track, rating: Int?) {
         mediaActionsController.setTrackRating(track, rating)
     }

@@ -111,6 +111,38 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun setArtistFavoriteCallsStarEndpointWithArtistId() = runTest {
+        val httpClient = RecordingHttpClient()
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        provider.setArtistFavorite(ArtistId("artist-1"), favorite = true)
+
+        assertEquals(
+            "https://music.example.test/rest/star.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&artistId=artist-1",
+            httpClient.urls.single(),
+        )
+    }
+
+    @Test
+    fun setAlbumFavoriteCallsUnstarEndpointWithAlbumId() = runTest {
+        val httpClient = RecordingHttpClient()
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        provider.setAlbumFavorite(AlbumId("album-1"), favorite = false)
+
+        assertEquals(
+            "https://music.example.test/rest/unstar.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&albumId=album-1",
+            httpClient.urls.single(),
+        )
+    }
+
+    @Test
     fun setTrackRatingCallsRatingEndpoint() = runTest {
         val httpClient = RecordingHttpClient()
         val provider = NavidromeProvider(
@@ -182,7 +214,8 @@ class NavidromeProviderTest {
                           "artist": "New Order",
                           "coverArt": "cover-1",
                           "year": 1985,
-                          "created": "2026-05-08T12:00:00Z"
+                          "created": "2026-05-08T12:00:00Z",
+                          "starred": "2026-05-10T08:00:00Z"
                         }
                       ]
                     }
@@ -199,6 +232,7 @@ class NavidromeProviderTest {
         assertEquals("Low-Life", albums.first().title)
         assertEquals("New Order", albums.first().artistName)
         assertEquals(1985, albums.first().releaseYear)
+        assertEquals("2026-05-10T08:00:00Z", albums.first().favoritedAtIso8601)
     }
 
     @Test
@@ -217,6 +251,7 @@ class NavidromeProviderTest {
                       "coverArt": "cover-1",
                       "year": 1985,
                       "created": "2026-05-08T12:00:00Z",
+                      "starred": "2026-05-10T08:00:00Z",
                       "song": [
                         {
                           "id": "track-1",
@@ -232,7 +267,11 @@ class NavidromeProviderTest {
                           "bitRate": 921,
                           "contentType": "audio/flac",
                           "starred": "2026-05-09T13:45:00Z",
-                          "userRating": 4
+                          "userRating": 4,
+                          "bpm": 132,
+                          "mood": ["wistful", "bright"],
+                          "playCount": 12,
+                          "played": "2026-05-12T14:00:00Z"
                         },
                         {
                           "id": "track-2",
@@ -259,12 +298,17 @@ class NavidromeProviderTest {
         assertEquals("artist-1", details.tracks.first().artistId?.value)
         assertEquals("album-1", details.tracks.first().albumId?.value)
         assertEquals(1985, details.album.releaseYear)
+        assertEquals("2026-05-10T08:00:00Z", details.album.favoritedAtIso8601)
         assertEquals(1985, details.tracks.first().albumReleaseYear)
         assertEquals(259, details.tracks.first().durationSeconds)
         assertEquals("FLAC", details.tracks.first().audioInfo?.codec)
         assertEquals(921, details.tracks.first().audioInfo?.bitrateKbps)
         assertEquals("2026-05-09T13:45:00Z", details.tracks.first().favoritedAtIso8601)
         assertEquals(4, details.tracks.first().userRating)
+        assertEquals(132, details.tracks.first().bpm)
+        assertEquals(listOf("wistful", "bright"), details.tracks.first().moods)
+        assertEquals(12, details.tracks.first().playCount)
+        assertEquals("2026-05-12T14:00:00Z", details.tracks.first().lastPlayedAtIso8601)
     }
 
     @Test
@@ -280,13 +324,15 @@ class NavidromeProviderTest {
                         "artist": {
                           "id": "artist-1",
                           "name": "Metallica",
+                          "starred": "2026-05-10T09:00:00Z",
                           "album": [
                             {
                               "id": "album-1",
                               "name": "Master of Puppets",
                               "artist": "Metallica",
                               "year": 1986,
-                              "coverArt": "cover-1"
+                              "coverArt": "cover-1",
+                              "starred": "2026-05-11T09:00:00Z"
                             },
                             {
                               "id": "album-2",
@@ -319,9 +365,11 @@ class NavidromeProviderTest {
         val details = provider.artist(ArtistId("artist-1"))
 
         assertEquals("Metallica", details.artist.name)
+        assertEquals("2026-05-10T09:00:00Z", details.artist.favoritedAtIso8601)
         assertEquals(2, details.albums.size)
         assertEquals("Master of Puppets", details.albums.first().title)
         assertEquals(1986, details.albums.first().releaseYear)
+        assertEquals("2026-05-11T09:00:00Z", details.albums.first().favoritedAtIso8601)
         assertEquals("Garage Days Re-Revisited", details.albums.last().title)
         assertEquals("Thrash metal band.", details.info?.biography)
         assertEquals("https://images.example.test/large.jpg", details.info?.largeImageUrl)

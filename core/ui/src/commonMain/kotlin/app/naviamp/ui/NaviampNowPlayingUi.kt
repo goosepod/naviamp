@@ -1463,7 +1463,7 @@ private const val LyricsAutoScrollLeadMillis = 100L
 private const val LyricsOffsetStepMillis = 100
 
 @Composable
-private fun TrackDetailsDialog(
+fun TrackDetailsDialog(
     sections: List<NaviampDetailSectionUi>,
     colors: NaviampColors,
     onDismissRequest: () -> Unit,

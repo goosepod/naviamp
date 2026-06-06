@@ -66,6 +66,7 @@ fun TrackRow(
     leadingContent: (@Composable RowScope.() -> Unit)? = null,
     trailingContent: (@Composable RowScope.() -> Unit)? = null,
 ) {
+    var detailsOpen by remember(track.id) { mutableStateOf(false) }
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -120,6 +121,7 @@ fun TrackRow(
             canDownload = onDownload != null,
             canAddToQueue = onAddToQueue != null,
             canAddToPlaylist = onAddToPlaylist != null,
+            canShowDetails = track.detailSections.isNotEmpty(),
         ).mapNotNull { action ->
             when (action.action) {
                 NaviampAction.StartTrackRadio -> onStartRadio?.let { startRadio ->
@@ -134,6 +136,12 @@ fun TrackRow(
                 NaviampAction.AddToPlaylist -> onAddToPlaylist?.let { addToPlaylist ->
                     NaviampRowMenuItem(action.label, action.icon, { addToPlaylist(track) }, action.enabled)
                 }
+                NaviampAction.TrackDetails -> NaviampRowMenuItem(
+                    action.label,
+                    action.icon,
+                    { detailsOpen = true },
+                    action.enabled,
+                )
                 else -> null
             }
         }
@@ -143,6 +151,13 @@ fun TrackRow(
                 items = rowActions,
             )
         }
+    }
+    if (detailsOpen) {
+        TrackDetailsDialog(
+            sections = track.detailSections,
+            colors = colors,
+            onDismissRequest = { detailsOpen = false },
+        )
     }
 }
 
@@ -252,6 +267,7 @@ internal fun HomeSection(
     items: List<SharedMediaItemUi>,
     colors: NaviampColors,
     onItemSelected: ((SharedMediaItemUi) -> Unit)? = null,
+    onFavoriteToggled: ((SharedMediaItemUi) -> Unit)? = null,
     stationStyle: Boolean = false,
     emptyText: String? = null,
 ) {
@@ -275,6 +291,7 @@ internal fun HomeSection(
                         item = item,
                         colors = colors,
                         onClick = onItemSelected?.let { { it(item) } },
+                        onFavoriteToggled = onFavoriteToggled,
                     )
                 }
             }
@@ -288,13 +305,19 @@ internal fun MediaSection(
     items: List<SharedMediaItemUi>,
     colors: NaviampColors,
     onItemSelected: ((SharedMediaItemUi) -> Unit)? = null,
+    onFavoriteToggled: ((SharedMediaItemUi) -> Unit)? = null,
 ) {
     if (items.isEmpty()) return
 
     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
         SectionHeader(title.uppercase(), colors)
         items.forEach { item ->
-            SharedMediaRow(item, colors, onClick = onItemSelected?.let { { it(item) } })
+            SharedMediaRow(
+                item = item,
+                colors = colors,
+                onClick = onItemSelected?.let { { it(item) } },
+                onFavoriteToggled = onFavoriteToggled,
+            )
         }
     }
 }
@@ -305,6 +328,7 @@ fun SharedMediaRow(
     colors: NaviampColors,
     onClick: (() -> Unit)? = null,
     menuItems: List<NaviampRowMenuItem> = emptyList(),
+    onFavoriteToggled: ((SharedMediaItemUi) -> Unit)? = null,
     coverArtSize: Dp = 44.dp,
     coverArtCornerRadius: Dp = 5.dp,
     verticalPadding: Dp = 7.dp,
@@ -331,8 +355,26 @@ fun SharedMediaRow(
         if (item.meta.isNotBlank()) {
             Text(item.meta, color = colors.mutedText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        if (menuItems.isNotEmpty()) {
-            NaviampRowOverflowMenu(colors = colors, items = menuItems)
+        if (item.favoriteActive) {
+            Icon(
+                imageVector = NaviampTransportIcons.Heart,
+                contentDescription = "Favorite",
+                tint = colors.accent,
+                modifier = Modifier.size(15.dp),
+            )
+        }
+        val favoriteMenuItem = if (item.canFavorite && onFavoriteToggled != null) {
+            NaviampRowMenuItem(
+                label = if (item.favoriteActive) "Remove favorite" else "Favorite",
+                icon = NaviampTransportIcons.Heart,
+                onClick = { onFavoriteToggled(item) },
+            )
+        } else {
+            null
+        }
+        val allMenuItems = listOfNotNull(favoriteMenuItem) + menuItems
+        if (allMenuItems.isNotEmpty()) {
+            NaviampRowOverflowMenu(colors = colors, items = allMenuItems)
         }
     }
 }

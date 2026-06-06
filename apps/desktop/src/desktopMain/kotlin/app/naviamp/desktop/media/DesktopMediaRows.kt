@@ -39,6 +39,7 @@ import app.naviamp.ui.albumRowActions
 import app.naviamp.ui.artistRowActions
 import app.naviamp.ui.compactFavoriteRatingLabel
 import app.naviamp.ui.durationLabel
+import app.naviamp.ui.toNowPlayingDetailSections
 import app.naviamp.ui.trackRowActions
 
 @Composable
@@ -87,6 +88,7 @@ fun DesktopArtistRow(
     onStartRadio: (() -> Unit)? = null,
     onAddToQueue: (() -> Unit)? = null,
     onAddToPlaylist: (() -> Unit)? = null,
+    onFavoriteToggle: (() -> Unit)? = null,
 ) {
     SharedMediaRow(
         item = SharedMediaItemUi(
@@ -94,6 +96,8 @@ fun DesktopArtistRow(
             title = artist.name,
             subtitle = "Artist",
             coverArtUrl = coverArtUrl.takeIf { showCoverArt },
+            favoriteActive = artist.favoritedAtIso8601 != null,
+            canFavorite = onFavoriteToggle != null,
         ),
         colors = appColors,
         onClick = onClick,
@@ -109,6 +113,7 @@ fun DesktopArtistRow(
                 else -> null
             }
         },
+        onFavoriteToggled = onFavoriteToggle?.let { toggle -> { toggle() } },
         coverArtSize = coverArtSize,
         coverArtCornerRadius = coverArtSize / 2,
         modifier = modifier,
@@ -128,6 +133,7 @@ fun DesktopAlbumRow(
     onDownload: (() -> Unit)? = null,
     onAddToQueue: (() -> Unit)? = null,
     onAddToPlaylist: (() -> Unit)? = null,
+    onFavoriteToggle: (() -> Unit)? = null,
 ) {
     SharedMediaRow(
         item = SharedMediaItemUi(
@@ -139,6 +145,8 @@ fun DesktopAlbumRow(
                 album.releaseYear?.toString(),
             ).joinToString(" "),
             coverArtUrl = coverArtUrl,
+            favoriteActive = album.favoritedAtIso8601 != null,
+            canFavorite = onFavoriteToggle != null,
         ),
         colors = appColors,
         onClick = onClick,
@@ -156,6 +164,7 @@ fun DesktopAlbumRow(
                 else -> null
             }
         },
+        onFavoriteToggled = onFavoriteToggle?.let { toggle -> { toggle() } },
         coverArtSize = coverArtSize,
         coverArtCornerRadius = 4.dp,
         verticalPadding = verticalPadding,
@@ -197,6 +206,7 @@ fun DesktopTrackRow(
         coverArtUrl = coverArtUrl,
         meta = index?.toString().orEmpty(),
         popular = popular,
+        detailSections = track.toNowPlayingDetailSections(),
     )
     TrackRow(
         track = sharedTrack,

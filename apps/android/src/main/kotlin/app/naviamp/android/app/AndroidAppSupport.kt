@@ -204,6 +204,8 @@ fun androidShellModels(
 ): AndroidShellModels {
     val coverArtUrl: (String?) -> String? = { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } }
     val playlistChoices = homeState.playlists.map { it.toPlaylistChoiceUi() }
+    val canFavoriteArtists = provider?.capabilities?.supportsArtistFavorites == true
+    val canFavoriteAlbums = provider?.capabilities?.supportsAlbumFavorites == true
     return AndroidShellModels(
         connectionForm = ConnectionFormState(
             displayName = connectionName,
@@ -218,9 +220,14 @@ fun androidShellModels(
         home = homeState.toSharedHomeUi(
             coverArtUrl = coverArtUrl,
             playlistTracksById = playlistTracksById,
+            canFavoriteAlbums = canFavoriteAlbums,
         ),
-        searchResults = searchResults.toSharedSearchResultsUi(coverArtUrl),
-        libraryArtists = homeState.artists.map { it.toSharedMediaItemUi(coverArtUrl) },
+        searchResults = searchResults.toSharedSearchResultsUi(
+            coverArtUrl = coverArtUrl,
+            canFavoriteArtists = canFavoriteArtists,
+            canFavoriteAlbums = canFavoriteAlbums,
+        ),
+        libraryArtists = homeState.artists.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteArtists) },
         librarySyncStatus = NaviampLibrarySyncStatusUi(
             message = libraryStatus,
             isSyncing = isLibrarySyncing,
@@ -248,6 +255,7 @@ fun androidShellModels(
                     .flatMap { artistId -> artistPopularTracksByArtistId[artistId].orEmpty() }
                     .map { it.id.value }
                     .toSet(),
+                canFavoriteAlbum = canFavoriteAlbums,
             )
         },
         artistDetail = artistDetail?.toSharedArtistDetailUi(
@@ -256,6 +264,8 @@ fun androidShellModels(
             popularTracksStatus = artistPopularTracksStatusByArtistId[artistDetail.artist.id.value],
             similarArtists = artistSimilarArtistsByArtistId[artistDetail.artist.id.value].orEmpty(),
             similarArtistsStatus = artistSimilarArtistsStatusByArtistId[artistDetail.artist.id.value],
+            canFavoriteArtist = canFavoriteArtists,
+            canFavoriteAlbums = canFavoriteAlbums,
         ),
         playlistDetail = selectedPlaylist?.toSharedPlaylistDetailUi(
             tracks = selectedPlaylistTracks,

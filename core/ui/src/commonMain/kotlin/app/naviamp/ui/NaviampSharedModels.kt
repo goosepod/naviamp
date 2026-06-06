@@ -73,6 +73,7 @@ data class SharedTrackRowUi(
     val coverArtUrl: String? = null,
     val meta: String = "",
     val popular: Boolean = false,
+    val detailSections: List<NaviampDetailSectionUi> = emptyList(),
 )
 
 data class NaviampDownloadedTrackUi(
@@ -89,6 +90,8 @@ data class SharedMediaItemUi(
     val coverArtUrl: String? = null,
     val coverArtUrls: List<String> = emptyList(),
     val isSmartPlaylist: Boolean = false,
+    val favoriteActive: Boolean = false,
+    val canFavorite: Boolean = false,
 )
 
 data class SharedAlbumDetailUi(

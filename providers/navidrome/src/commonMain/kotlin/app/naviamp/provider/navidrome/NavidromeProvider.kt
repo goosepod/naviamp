@@ -34,6 +34,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -56,6 +57,8 @@ class NavidromeProvider(
             supportsAlbumRadio = true,
             supportsTrackRadio = true,
             supportsTrackFavorites = true,
+            supportsArtistFavorites = true,
+            supportsAlbumFavorites = true,
             supportsTrackRatings = true,
             supportsPlayReporting = true,
             supportsSmartPlaylists = true,
@@ -529,6 +532,20 @@ class NavidromeProvider(
         )
     }
 
+    override suspend fun setArtistFavorite(artistId: ArtistId, favorite: Boolean) {
+        get(
+            endpoint = if (favorite) "star.view" else "unstar.view",
+            params = mapOf("artistId" to artistId.value),
+        )
+    }
+
+    override suspend fun setAlbumFavorite(albumId: AlbumId, favorite: Boolean) {
+        get(
+            endpoint = if (favorite) "star.view" else "unstar.view",
+            params = mapOf("albumId" to albumId.value),
+        )
+    }
+
     override suspend fun setTrackRating(trackId: TrackId, rating: Int?) {
         val normalizedRating = rating?.coerceIn(1, 5) ?: 0
         get(
@@ -792,6 +809,7 @@ class NavidromeProvider(
             coverArtId = stringValue("coverArt"),
             recentlyAddedAtIso8601 = stringValue("created"),
             releaseYear = intValue("year"),
+            favoritedAtIso8601 = stringValue("starred"),
         )
 
     private fun JsonObject.toArtist(): Artist =
@@ -800,6 +818,7 @@ class NavidromeProvider(
                 stringValue("id") ?: throw NavidromeException("Artist is missing an id."),
             ),
             name = stringValue("name") ?: "Unknown Artist",
+            favoritedAtIso8601 = stringValue("starred"),
         )
 
     private suspend fun smartPlaylistIds(): Set<String> =
@@ -873,7 +892,28 @@ class NavidromeProvider(
             replayGain = replayGainValue(),
             favoritedAtIso8601 = stringValue("starred"),
             userRating = intValue("userRating")?.takeIf { it in 1..5 },
+            bpm = intValue("bpm"),
+            moods = moodValues(),
+            playCount = intValue("playCount"),
+            lastPlayedAtIso8601 = stringValue("played")
+                ?: stringValue("lastPlayed")
+                ?: stringValue("lastPlayedAt"),
         )
+
+    private fun JsonObject.moodValues(): List<String> {
+        val arrayValues = arrayValue("mood").mapNotNull { value ->
+            runCatching { value.jsonPrimitive.contentOrNull }.getOrNull()
+                ?: (value as? JsonObject)?.stringValue("name")
+                ?: (value as? JsonObject)?.stringValue("value")
+        }
+        val scalarValues = stringValue("mood")
+            ?.split(",", ";")
+            ?.map { it.trim() }
+            .orEmpty()
+        return (arrayValues + scalarValues)
+            .filter { it.isNotBlank() }
+            .distinct()
+    }
 
     private fun JsonObject.replayGainValue(): ReplayGain? {
         val replayGain = this["replayGain"]?.jsonObject
@@ -1026,7 +1066,7 @@ private fun String.sanitizedNavidromeUrl(): String =
 private val SensitiveNavidromeQueryKeys = setOf("u", "t", "s")
 
 private fun JsonObject.stringValue(key: String): String? =
-    this[key]?.jsonPrimitive?.content
+    runCatching { this[key]?.jsonPrimitive?.contentOrNull }.getOrNull()
 
 private fun JsonObject.intValue(key: String): Int? =
     stringValue(key)?.toIntOrNull()

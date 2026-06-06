@@ -14,4 +14,5 @@ object TransportIcons {
     val Repeat = NaviampTransportIcons.Repeat
     val Menu = NaviampTransportIcons.Menu
     val Lyrics = NaviampTransportIcons.Lyrics
+    val Heart = NaviampTransportIcons.Heart
 }

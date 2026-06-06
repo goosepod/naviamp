@@ -21,21 +21,31 @@ import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.waveform.AudioWaveform
 import kotlin.math.absoluteValue
 
-fun Artist.toSharedMediaItemUi(coverArtUrl: ((String?) -> String?)? = null): SharedMediaItemUi =
+fun Artist.toSharedMediaItemUi(
+    coverArtUrl: ((String?) -> String?)? = null,
+    canFavorite: Boolean = false,
+): SharedMediaItemUi =
     SharedMediaItemUi(
         id = id.value,
         title = name,
         subtitle = "Artist",
         coverArtUrl = coverArtUrl?.invoke(id.value),
+        favoriteActive = favoritedAtIso8601 != null,
+        canFavorite = canFavorite,
     )
 
-fun Album.toSharedMediaItemUi(coverArtUrl: (String?) -> String?): SharedMediaItemUi =
+fun Album.toSharedMediaItemUi(
+    coverArtUrl: (String?) -> String?,
+    canFavorite: Boolean = false,
+): SharedMediaItemUi =
     SharedMediaItemUi(
         id = id.value,
         title = title,
         subtitle = artistName,
         meta = releaseYear?.toString().orEmpty(),
         coverArtUrl = coverArtUrl(coverArtId ?: id.value),
+        favoriteActive = favoritedAtIso8601 != null,
+        canFavorite = canFavorite,
     )
 
 fun Playlist.toSharedMediaItemUi(
@@ -76,14 +86,15 @@ fun InternetRadioStation.defaultRadioArtworkUrl(): String =
 fun HomeContent.toSharedHomeUi(
     coverArtUrl: (String?) -> String?,
     playlistTracksById: Map<String, List<Track>> = emptyMap(),
+    canFavoriteAlbums: Boolean = false,
 ): SharedHomeUi =
     SharedHomeUi(
         mixBuilders = sharedMixBuilders(),
-        recentlyAddedAlbums = recentlyAddedAlbums.map { it.toSharedMediaItemUi(coverArtUrl) },
-        mixAlbums = mixAlbums.map { it.toSharedMediaItemUi(coverArtUrl) },
-        recentAlbums = recentAlbums.map { it.toSharedMediaItemUi(coverArtUrl) },
-        frequentAlbums = frequentAlbums.map { it.toSharedMediaItemUi(coverArtUrl) },
-        randomAlbums = randomAlbums.map { it.toSharedMediaItemUi(coverArtUrl) },
+        recentlyAddedAlbums = recentlyAddedAlbums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
+        mixAlbums = mixAlbums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
+        recentAlbums = recentAlbums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
+        frequentAlbums = frequentAlbums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
+        randomAlbums = randomAlbums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
         playlists = playlists.map { playlist ->
             playlist.toSharedMediaItemUi(
                 coverArtUrl = coverArtUrl,
@@ -105,9 +116,9 @@ fun HomeContent.toSharedHomeUi(
             SharedHomeStationUi(id = it.id, title = it.title, subtitle = it.subtitle)
         },
         genreSpotlightTitle = genreSpotlight?.name,
-        genreSpotlightAlbums = genreSpotlightAlbums.map { it.toSharedMediaItemUi(coverArtUrl) },
+        genreSpotlightAlbums = genreSpotlightAlbums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
         decadeLabel = decadeLabel,
-        decadeAlbums = decadeAlbums.map { it.toSharedMediaItemUi(coverArtUrl) },
+        decadeAlbums = decadeAlbums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
     )
 
 fun sharedMixBuilders(): List<SharedMixBuilderUi> =
@@ -129,6 +140,7 @@ fun Track.toSharedTrackRowUi(
         coverArtUrl = coverArtUrl(coverArtId ?: fallbackCoverArtId),
         meta = durationSeconds?.durationLabel().orEmpty(),
         popular = popular,
+        detailSections = toNowPlayingDetailSections(),
     )
 
 fun Track.toDownloadedTrackUi(
@@ -240,6 +252,10 @@ fun Track.toNowPlayingDetailSections(
                     albumId?.let { "Album ID" to it.value },
                     "Favorite" to if (favoritedAtIso8601 != null) "Yes" else "No",
                     userRating?.let { "Rating" to it.ratingLabel() },
+                    bpm?.let { "BPM" to it.toString() },
+                    moods.takeIf { it.isNotEmpty() }?.let { "Mood" to it.joinToString(", ") },
+                    playCount?.let { "Play count" to it.toString() },
+                    lastPlayedAtIso8601?.let { "Last played" to it },
                 ),
             ),
         )
@@ -441,9 +457,10 @@ fun Playlist.toSharedPlaylistDetailUi(
 fun AlbumDetails.toSharedAlbumDetailUi(
     coverArtUrl: (String?) -> String?,
     popularTrackIds: Set<String> = emptySet(),
+    canFavoriteAlbum: Boolean = false,
 ): SharedAlbumDetailUi =
     SharedAlbumDetailUi(
-        album = album.toSharedMediaItemUi(coverArtUrl),
+        album = album.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbum),
         tracks = tracks.map {
             it.toSharedTrackRowUi(
                 coverArtUrl,
@@ -460,15 +477,17 @@ fun ArtistDetails.toSharedArtistDetailUi(
     popularTracksStatus: String? = null,
     similarArtists: List<SimilarArtistMatch> = emptyList(),
     similarArtistsStatus: String? = null,
+    canFavoriteArtist: Boolean = false,
+    canFavoriteAlbums: Boolean = false,
 ): SharedArtistDetailUi =
     SharedArtistDetailUi(
-        artist = artist.toSharedMediaItemUi(coverArtUrl).copy(
+        artist = artist.toSharedMediaItemUi(coverArtUrl, canFavoriteArtist).copy(
             coverArtUrl = info?.largeImageUrl
                 ?: info?.mediumImageUrl
                 ?: info?.smallImageUrl
                 ?: coverArtUrl(artist.id.value),
         ),
-        albums = albums.map { it.toSharedMediaItemUi(coverArtUrl) },
+        albums = albums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
         biography = info?.biography,
         popularTracks = popularTracks.map { it.toSharedTrackRowUi(coverArtUrl) },
         popularTracksStatus = popularTracksStatus,
@@ -486,10 +505,14 @@ fun SimilarArtistMatch.toSharedSimilarArtistUi(): SharedSimilarArtistUi =
         externalUrl = candidate.externalUrl,
     )
 
-fun MediaSearchResults.toSharedSearchResultsUi(coverArtUrl: (String?) -> String?): SharedSearchResultsUi =
+fun MediaSearchResults.toSharedSearchResultsUi(
+    coverArtUrl: (String?) -> String?,
+    canFavoriteArtists: Boolean = false,
+    canFavoriteAlbums: Boolean = false,
+): SharedSearchResultsUi =
     SharedSearchResultsUi(
-        artists = artists.map { it.toSharedMediaItemUi(coverArtUrl) },
-        albums = albums.map { it.toSharedMediaItemUi(coverArtUrl) },
+        artists = artists.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteArtists) },
+        albums = albums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
         tracks = tracks.map { it.toSharedTrackRowUi(coverArtUrl) },
     )
 

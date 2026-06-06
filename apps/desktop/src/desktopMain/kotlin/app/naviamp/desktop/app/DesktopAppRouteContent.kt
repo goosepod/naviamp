@@ -157,7 +157,11 @@ fun ColumnScope.DesktopAppRouteContent(
     onResetDatabase: () -> Unit,
 ) {
     val contentScrollState = rememberScrollState()
-    val sharedHome = homeContent.toSharedHomeUi(coverArtUrl, playlistTracksById)
+    val sharedHome = homeContent.toSharedHomeUi(
+        coverArtUrl = coverArtUrl,
+        playlistTracksById = playlistTracksById,
+        canFavoriteAlbums = true,
+    )
     val homeAlbums = (
         homeContent.recentlyAddedAlbums +
             homeContent.mixAlbums +
@@ -244,6 +248,9 @@ fun ColumnScope.DesktopAppRouteContent(
                     colors = appColors,
                     home = sharedHome,
                     onAlbumSelected = ::openHomeAlbum,
+                    onAlbumFavoriteToggled = { item ->
+                        homeAlbums.firstOrNull { it.id.value == item.id }?.let(appActions::toggleAlbumFavorite)
+                    },
                     onMixAlbumSelected = ::openHomeAlbum,
                     onPlaylistSelected = ::openHomePlaylist,
                     onRecentRadioSelected = ::playHomeRecentRadio,
@@ -291,6 +298,7 @@ fun ColumnScope.DesktopAppRouteContent(
                             playlistsController.openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(it))
                         }
                     },
+                    onAlbumFavoriteToggle = appActions::toggleAlbumFavorite,
                     onAddTrackToPlaylist = { track ->
                         playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(track))
                     },
@@ -329,6 +337,7 @@ fun ColumnScope.DesktopAppRouteContent(
                     onAddArtistToPlaylist = { artist ->
                         playlistsController.openAddToPlaylist(AddToPlaylistTarget.ArtistTarget(artist))
                     },
+                    onArtistFavoriteToggle = appActions::toggleArtistFavorite,
                     onAlbumSelected = appActions::openAlbumDetails,
                     onAlbumRadioSelected = appActions::playAlbumRadio,
                     onAlbumDownloadSelected = appActions::downloadAlbum,
@@ -338,6 +347,7 @@ fun ColumnScope.DesktopAppRouteContent(
                     onAlbumAddToPlaylist = { album ->
                         playlistsController.openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(album))
                     },
+                    onAlbumFavoriteToggle = appActions::toggleAlbumFavorite,
                 )
                 DesktopAppRoute.Playlists -> DesktopPlaylistsPanel(
                     appColors = appColors,
@@ -432,6 +442,7 @@ fun ColumnScope.DesktopAppRouteContent(
                         onArtistAddToPlaylist = { artist ->
                             playlistsController.openAddToPlaylist(AddToPlaylistTarget.ArtistTarget(artist))
                         },
+                        onArtistFavoriteToggle = appActions::toggleArtistFavorite,
                         onAlbumSelected = appActions::openAlbumDetails,
                         onAlbumRadioSelected = appActions::playAlbumRadio,
                         onAlbumDownloadSelected = appActions::downloadAlbum,
@@ -441,6 +452,7 @@ fun ColumnScope.DesktopAppRouteContent(
                         onAlbumAddToPlaylist = { album ->
                             playlistsController.openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(album))
                         },
+                        onAlbumFavoriteToggle = appActions::toggleAlbumFavorite,
                         onRefreshLibrary = { libraryController.startLibrarySync(force = true) },
                     )
                 }
@@ -461,6 +473,7 @@ fun ColumnScope.DesktopAppRouteContent(
                     onArtistAddToPlaylist = { artist ->
                         playlistsController.openAddToPlaylist(AddToPlaylistTarget.ArtistTarget(artist))
                     },
+                    onArtistFavoriteToggle = appActions::toggleArtistFavorite,
                     onAlbumSelected = appActions::openAlbumDetails,
                     onAlbumRadioSelected = appActions::playAlbumRadio,
                     onAlbumDownloadSelected = appActions::downloadAlbum,
@@ -470,6 +483,7 @@ fun ColumnScope.DesktopAppRouteContent(
                     onAlbumAddToPlaylist = { album ->
                         playlistsController.openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(album))
                     },
+                    onAlbumFavoriteToggle = appActions::toggleAlbumFavorite,
                     onTrackSelected = appActions::playSearchTrack,
                     onTrackRadioSelected = { index ->
                         searchResults.tracks.getOrNull(index)?.let(appActions::playTrackRadio)
