@@ -97,7 +97,7 @@ This checklist tracks the first feature set for the `new-features` branch. Keep 
 
 ## Connection
 
-- [ ] Simplify the connection form.
+- [x] Simplify the connection form.
   - Initially show only URL, username, and password.
   - Hide TLS/certificate/mTLS fields behind `Show Advanced`.
   - Toggle to `Hide Advanced` when expanded.

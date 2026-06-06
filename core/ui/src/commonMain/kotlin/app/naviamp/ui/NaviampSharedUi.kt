@@ -525,6 +525,8 @@ private fun ConnectionCard(
     onConnect: () -> Unit,
     onCancel: (() -> Unit)?,
 ) {
+    var advancedVisible by remember { mutableStateOf(false) }
+
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SettingsSectionTitle("Connection Details", colors)
         if (isReconnect) {
@@ -534,12 +536,6 @@ private fun ConnectionCard(
                 fontSize = 11.sp,
             )
         }
-        NaviampTextField(
-            value = form.displayName,
-            onValueChange = { onFormChanged(form.copy(displayName = it)) },
-            label = "Connection name (optional)",
-            colors = colors,
-        )
         NaviampTextField(
             value = form.serverUrl,
             onValueChange = { onFormChanged(form.copy(serverUrl = it)) },
@@ -563,39 +559,53 @@ private fun ConnectionCard(
                 modifier = Modifier.weight(1f),
             )
         }
-        SettingsSectionTitle("TLS", colors)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Checkbox(
-                checked = form.skipTlsVerification,
-                onCheckedChange = { onFormChanged(form.copy(skipTlsVerification = it)) },
+        TextButton(onClick = { advancedVisible = !advancedVisible }) {
+            Text(
+                if (advancedVisible) "Hide Advanced" else "Show Advanced",
+                color = colors.accent,
             )
-            Text("Skip TLS certificate verification", color = colors.secondaryText, fontSize = 13.sp)
         }
-        NaviampTextField(
-            value = form.customCertificatePath,
-            onValueChange = { onFormChanged(form.copy(customCertificatePath = it)) },
-            label = "Trusted certificate or CA file",
-            colors = colors,
-            enabled = !form.skipTlsVerification,
-        )
-        SettingsSectionTitle("mTLS", colors)
-        NaviampTextField(
-            value = form.clientCertificatePath,
-            onValueChange = { onFormChanged(form.copy(clientCertificatePath = it)) },
-            label = "Client certificate PKCS12 file",
-            colors = colors,
-        )
-        NaviampTextField(
-            value = form.clientCertificatePassword,
-            onValueChange = { onFormChanged(form.copy(clientCertificatePassword = it)) },
-            label = "Client certificate password",
-            colors = colors,
-            isPassword = true,
-        )
+        if (advancedVisible) {
+            NaviampTextField(
+                value = form.displayName,
+                onValueChange = { onFormChanged(form.copy(displayName = it)) },
+                label = "Connection name (optional)",
+                colors = colors,
+            )
+            SettingsSectionTitle("TLS", colors)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Checkbox(
+                    checked = form.skipTlsVerification,
+                    onCheckedChange = { onFormChanged(form.copy(skipTlsVerification = it)) },
+                )
+                Text("Skip TLS certificate verification", color = colors.secondaryText, fontSize = 13.sp)
+            }
+            NaviampTextField(
+                value = form.customCertificatePath,
+                onValueChange = { onFormChanged(form.copy(customCertificatePath = it)) },
+                label = "Trusted certificate or CA file",
+                colors = colors,
+                enabled = !form.skipTlsVerification,
+            )
+            SettingsSectionTitle("mTLS", colors)
+            NaviampTextField(
+                value = form.clientCertificatePath,
+                onValueChange = { onFormChanged(form.copy(clientCertificatePath = it)) },
+                label = "Client certificate PKCS12 file",
+                colors = colors,
+            )
+            NaviampTextField(
+                value = form.clientCertificatePassword,
+                onValueChange = { onFormChanged(form.copy(clientCertificatePassword = it)) },
+                label = "Client certificate password",
+                colors = colors,
+                isPassword = true,
+            )
+        }
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
