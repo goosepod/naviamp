@@ -48,6 +48,7 @@ import app.naviamp.ui.NaviampLibrarySyncStatusUi
 import app.naviamp.ui.NaviampNowPlayingItemUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampSharedAppShell
+import app.naviamp.ui.NaviampSleepTimerUi
 import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.NowPlayingRadioUiConfig
 import app.naviamp.ui.NowPlayingTrackUiConfig
@@ -285,6 +286,8 @@ fun androidNowPlayingUi(
     streamQuality: StreamQuality,
     playlistChoices: List<NaviampPlaylistChoiceUi>,
     playlistActionStatus: String?,
+    canSaveQueueAsPlaylist: Boolean,
+    sleepTimer: NaviampSleepTimerUi,
     relatedTracks: List<Track>,
     radioTrackArtworkByKey: Map<String, String?>,
     radioStations: List<InternetRadioStation>,
@@ -315,6 +318,8 @@ fun androidNowPlayingUi(
                 canRepeat = knownTracks.isNotEmpty(),
                 canStartRadio = provider?.capabilities?.supportsTrackRadio == true,
                 canAddToPlaylist = true,
+                canSaveQueueAsPlaylist = canSaveQueueAsPlaylist,
+                sleepTimer = sleepTimer,
                 canFavorite = provider?.capabilities?.supportsTrackFavorites == true,
                 canRate = provider?.capabilities?.supportsTrackRatings == true,
                 lyricsAvailable = true,

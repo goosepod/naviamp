@@ -9,6 +9,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
+import app.naviamp.domain.playback.SleepTimerRequest
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.waveform.AudioWaveform
@@ -17,6 +18,7 @@ import app.naviamp.ui.NaviampNowPlayingActions
 import app.naviamp.ui.NaviampNowPlayingItemUi
 import app.naviamp.ui.NaviampNowPlayingPanel
 import app.naviamp.ui.NaviampPlayerColors
+import app.naviamp.ui.NaviampSleepTimerUi
 import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.MiniNowPlayingUiConfig
 import app.naviamp.ui.NowPlayingRadioUiConfig
@@ -69,6 +71,7 @@ fun DesktopNowPlayingPanel(
     playbackState: PlaybackState,
     playbackProgress: PlaybackProgress,
     volumePercent: Int,
+    sleepTimer: NaviampSleepTimerUi,
     streamQuality: StreamQuality,
     onPause: () -> Unit,
     onResume: () -> Unit,
@@ -90,6 +93,9 @@ fun DesktopNowPlayingPanel(
     onTrackRadioSelected: (Track) -> Unit,
     onDownloadTrackSelected: (Track) -> Unit,
     onAddTrackToPlaylist: (Track) -> Unit,
+    onSaveQueueAsPlaylist: (String) -> Unit,
+    onSleepTimerSelected: (SleepTimerRequest) -> Unit,
+    onCancelSleepTimer: () -> Unit,
     onInternetRadioStationSelected: (InternetRadioStation) -> Unit,
     onQueueIndexSelected: (Int) -> Unit,
     onUpNextTrackRadioSelected: (Track) -> Unit,
@@ -172,6 +178,8 @@ fun DesktopNowPlayingPanel(
                 canRepeat = !isLiveStream,
                 canStartRadio = !isLiveStream,
                 canAddToPlaylist = !isLiveStream,
+                canSaveQueueAsPlaylist = !isLiveStream,
+                sleepTimer = sleepTimer,
                 canFavorite = supportsTrackFavorites && !isLiveStream,
                 canRate = supportsTrackRatings && !isLiveStream,
                 lyricsAvailable = !isLiveStream,
@@ -249,6 +257,9 @@ fun DesktopNowPlayingPanel(
             onVisualizerSelected = onVisualizerSelected,
             onTrackRadio = { nowPlayingTrack?.let(onTrackRadioSelected) },
             onAddToPlaylist = { nowPlayingTrack?.let(onAddTrackToPlaylist) },
+            onSaveQueueAsPlaylist = onSaveQueueAsPlaylist,
+            onSleepTimerSelected = onSleepTimerSelected,
+            onCancelSleepTimer = onCancelSleepTimer,
             onDownloadTrack = { nowPlayingTrack?.let(onDownloadTrackSelected) },
             onGoToAlbum = { nowPlayingTrack?.let(onAlbumSelected) },
             onGoToArtist = { nowPlayingTrack?.let(onArtistSelected) },

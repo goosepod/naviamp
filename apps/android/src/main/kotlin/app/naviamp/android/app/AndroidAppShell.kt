@@ -9,6 +9,7 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.playback.nextRepeatMode
+import app.naviamp.domain.playback.SleepTimerRequest
 import app.naviamp.domain.provider.allKnownTracks
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.ConnectionFormState
@@ -44,6 +45,7 @@ import app.naviamp.ui.SharedSimilarArtistUi
 import app.naviamp.ui.toNaviampRoute
 import app.naviamp.ui.toSharedGenreMixItemUi
 import app.naviamp.ui.toSharedMediaItemUi
+import app.naviamp.ui.toNaviampSleepTimerUi
 
 data class AndroidAppShellUiState(
     val modifier: Modifier,
@@ -204,6 +206,9 @@ data class AndroidAppShellActions(
     val onTrackRadio: () -> Unit,
     val onAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit,
     val onCreatePlaylistAndAdd: (String) -> Unit,
+    val onSaveQueueAsPlaylist: (String) -> Unit,
+    val onSleepTimerSelected: (SleepTimerRequest) -> Unit,
+    val onCancelSleepTimer: () -> Unit,
     val onDownloadTrack: () -> Unit,
     val onGoToAlbum: () -> Unit,
     val onGoToArtist: () -> Unit,
@@ -376,6 +381,9 @@ fun AndroidAppShellContent(
         onTrackRadio = actions.onTrackRadio,
         onAddToPlaylist = actions.onAddToPlaylist,
         onCreatePlaylistAndAdd = actions.onCreatePlaylistAndAdd,
+        onSaveQueueAsPlaylist = actions.onSaveQueueAsPlaylist,
+        onSleepTimerSelected = actions.onSleepTimerSelected,
+        onCancelSleepTimer = actions.onCancelSleepTimer,
         onDownloadTrack = actions.onDownloadTrack,
         onGoToAlbum = actions.onGoToAlbum,
         onGoToArtist = actions.onGoToArtist,
@@ -466,6 +474,8 @@ fun rememberAndroidAppShellUiState(
             provider = provider,
             playlistChoices = shellModels.playlistChoices,
             playlistActionStatus = playlistActionStatus,
+            canSaveQueueAsPlaylist = playbackQueue.tracks.isNotEmpty(),
+            sleepTimer = sleepTimer.toNaviampSleepTimerUi(sleepTimerNowEpochMillis),
             relatedTracks = relatedTracks,
             radioTrackArtworkByKey = radioTrackArtworkByKey,
             radioStations = homeState.radioStations,
@@ -631,6 +641,9 @@ fun androidAppShellActions(
     handleShellTrackRadio: () -> Unit,
     handleNowPlayingAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit,
     handleNowPlayingCreatePlaylistAndAdd: (String) -> Unit,
+    handleSaveQueueAsPlaylist: (String) -> Unit,
+    handleSleepTimerSelected: (SleepTimerRequest) -> Unit,
+    handleCancelSleepTimer: () -> Unit,
     downloadTrack: (Track) -> Unit,
     handleShellGoToAlbum: () -> Unit,
     handleShellGoToArtist: () -> Unit,
@@ -834,6 +847,9 @@ fun androidAppShellActions(
             onTrackRadio = handleShellTrackRadio,
             onAddToPlaylist = handleNowPlayingAddToPlaylist,
             onCreatePlaylistAndAdd = handleNowPlayingCreatePlaylistAndAdd,
+            onSaveQueueAsPlaylist = handleSaveQueueAsPlaylist,
+            onSleepTimerSelected = handleSleepTimerSelected,
+            onCancelSleepTimer = handleCancelSleepTimer,
             onDownloadTrack = { nowPlaying?.let(downloadTrack) },
             onGoToAlbum = handleShellGoToAlbum,
             onGoToArtist = handleShellGoToArtist,

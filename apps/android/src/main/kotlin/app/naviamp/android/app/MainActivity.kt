@@ -85,6 +85,11 @@ import app.naviamp.domain.playback.lyricsLoadingStatus
 import app.naviamp.domain.playback.lyricsUnavailableStatus
 import app.naviamp.domain.playback.recordSidecarFailure
 import app.naviamp.domain.playback.recordSidecarSuccess
+import app.naviamp.domain.playback.SleepTimerRequest
+import app.naviamp.domain.playback.shouldExpireSleepTimer
+import app.naviamp.domain.playback.sleepTimerDisplayLabel
+import app.naviamp.domain.playback.sleepTimerPlaybackSnapshot
+import app.naviamp.domain.playback.sleepTimerStateForPlayback
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
@@ -1358,6 +1363,38 @@ private fun NaviampAndroidApp(
         addAndroidTracksToPlaylist(scope, appState, tracksToAdd, playlist, newPlaylistName, label, storage)
     }
 
+    fun saveQueueAsPlaylist(name: String) {
+        saveQueueAsPlaylistFromState(scope, appState, name, storage)
+    }
+
+    fun currentSleepTimerSnapshot() =
+        sleepTimerPlaybackSnapshot(
+            nowPlaying = nowPlaying,
+            playbackQueue = playbackQueue,
+            playbackProgress = playbackProgress,
+            playbackState = playbackState,
+        )
+
+    fun handleSleepTimerSelected(request: SleepTimerRequest) {
+        val nowMillis = System.currentTimeMillis()
+        val timer = sleepTimerStateForPlayback(
+            request = request,
+            nowEpochMillis = nowMillis,
+            nowPlaying = nowPlaying,
+            playbackQueue = playbackQueue,
+            playbackProgress = playbackProgress,
+            playbackState = playbackState,
+        )
+        sleepTimer = timer
+        sleepTimerNowEpochMillis = nowMillis
+        status = sleepTimerDisplayLabel(timer, nowMillis)
+    }
+
+    fun cancelSleepTimer() {
+        sleepTimer = null
+        status = "Sleep timer canceled."
+    }
+
     fun withPlaylistTracks(playlist: Playlist, onTracks: (List<Track>) -> Unit) {
         val knownTracks = when {
             selectedPlaylist?.id == playlist.id && selectedPlaylistTracks.isNotEmpty() -> selectedPlaylistTracks
@@ -1949,6 +1986,20 @@ private fun NaviampAndroidApp(
         currentTrack.artistId?.let { openArtistDetails(it, currentTrack.artistName) }
     }
 
+    LaunchedEffect(sleepTimer, nowPlaying?.id, playbackQueue, playbackProgress, playbackState) {
+        while (sleepTimer != null) {
+            val nowMillis = System.currentTimeMillis()
+            sleepTimerNowEpochMillis = nowMillis
+            if (shouldExpireSleepTimer(sleepTimer, nowMillis, currentSleepTimerSnapshot())) {
+                playbackEngine.stop()
+                sleepTimer = null
+                status = "Sleep timer stopped playback."
+                break
+            }
+            delay(500L)
+        }
+    }
+
     val shellActions = androidAppShellActions(
         state = appState,
         playbackEngine = playbackEngine,
@@ -2038,6 +2089,9 @@ private fun NaviampAndroidApp(
         handleShellTrackRadio = ::handleShellTrackRadio,
         handleNowPlayingAddToPlaylist = ::handleNowPlayingAddToPlaylist,
         handleNowPlayingCreatePlaylistAndAdd = ::handleNowPlayingCreatePlaylistAndAdd,
+        handleSaveQueueAsPlaylist = ::saveQueueAsPlaylist,
+        handleSleepTimerSelected = ::handleSleepTimerSelected,
+        handleCancelSleepTimer = ::cancelSleepTimer,
         downloadTrack = ::downloadTrack,
         handleShellGoToAlbum = ::handleShellGoToAlbum,
         handleShellGoToArtist = ::handleShellGoToArtist,

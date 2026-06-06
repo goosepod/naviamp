@@ -15,6 +15,8 @@ enum class NaviampAction(
     RemoveDownload("Remove download", NaviampIcons.Trash),
     AddToQueue("Add to queue", NaviampIcons.Queue),
     AddToPlaylist("Add to playlist", NaviampIcons.Playlist),
+    SaveQueueAsPlaylist("Save queue as playlist", NaviampIcons.Playlist),
+    SleepTimer("Sleep timer", NaviampIcons.Clock),
     AddPlaylistToPlaylist("Add playlist to playlist", NaviampIcons.Playlist),
     RenamePlaylist("Rename playlist", NaviampIcons.Edit),
     EditSmartPlaylist("Edit smart playlist", NaviampIcons.Brain),
@@ -129,6 +131,8 @@ fun nowPlayingTrackMenuActions(
     canSetTrackPreference: Boolean,
     canStartRadio: Boolean,
     canAddToPlaylist: Boolean,
+    canSaveQueueAsPlaylist: Boolean,
+    sleepTimerLabel: String,
 ): List<NaviampActionSpec> =
     listOf(
         if (lyricsVisible) {
@@ -149,6 +153,8 @@ fun nowPlayingTrackMenuActions(
         NaviampAction.GoToAlbum.toSpec(enabled = !isLive),
         NaviampAction.GoToArtist.toSpec(enabled = !isLive),
         NaviampAction.AddToPlaylist.toSpec(enabled = canAddToPlaylist),
+        NaviampAction.SaveQueueAsPlaylist.toSpec(enabled = canSaveQueueAsPlaylist),
+        NaviampAction.SleepTimer.toSpec(label = sleepTimerLabel),
     )
 
 fun NaviampAction.toSpec(

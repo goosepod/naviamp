@@ -13,6 +13,8 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.homeStations
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
+import app.naviamp.domain.playback.SleepTimerState
+import app.naviamp.domain.playback.sleepTimerDisplayLabel
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.RepeatMode
@@ -280,6 +282,8 @@ data class NowPlayingTrackUiConfig(
     val canRepeat: Boolean = false,
     val canStartRadio: Boolean = false,
     val canAddToPlaylist: Boolean = false,
+    val canSaveQueueAsPlaylist: Boolean = false,
+    val sleepTimer: NaviampSleepTimerUi = NaviampSleepTimerUi(),
     val canFavorite: Boolean = false,
     val canRate: Boolean = false,
     val lyricsAvailable: Boolean = false,
@@ -348,6 +352,8 @@ fun Track.toNowPlayingUi(config: NowPlayingTrackUiConfig): NowPlayingUi =
         canRepeat = config.canRepeat,
         canStartRadio = config.canStartRadio,
         canAddToPlaylist = config.canAddToPlaylist,
+        canSaveQueueAsPlaylist = config.canSaveQueueAsPlaylist,
+        sleepTimer = config.sleepTimer,
         favoriteActive = favoritedAtIso8601 != null,
         canFavorite = config.canFavorite,
         userRating = userRating,
@@ -396,6 +402,11 @@ fun InternetRadioStation.toNowPlayingUi(config: NowPlayingRadioUiConfig): NowPla
         radioStations = config.radioStations,
     )
 }
+
+fun SleepTimerState?.toNaviampSleepTimerUi(nowEpochMillis: Long): NaviampSleepTimerUi =
+    this?.let { timer ->
+        NaviampSleepTimerUi(active = true, label = sleepTimerDisplayLabel(timer, nowEpochMillis))
+    } ?: NaviampSleepTimerUi()
 
 fun Track?.toMiniNowPlayingUi(config: MiniNowPlayingUiConfig): NowPlayingUi =
     NowPlayingUi(

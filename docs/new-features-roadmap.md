@@ -42,12 +42,12 @@ This checklist tracks the first feature set for the `new-features` branch. Keep 
 
 ## Playback and Queue
 
-- [ ] Add a sleep timer.
+- [x] Add a sleep timer.
   - Stop after a duration, current track, current album, or queue end.
   - Shared UI and shared timer state, with platform playback adapters.
 - [ ] Add queue rules as settings.
   - Candidate rules: shuffle upcoming only, remove played tracks, keep radio queue filled, start radio when queue ends.
-- [ ] Add `Save queue as playlist` to the now-playing hamburger menu.
+- [x] Add `Save queue as playlist` to the now-playing hamburger menu.
   - Open shared playlist-name modal.
   - Save the current active queue in order as a provider playlist, including songs in the Back To list.
 

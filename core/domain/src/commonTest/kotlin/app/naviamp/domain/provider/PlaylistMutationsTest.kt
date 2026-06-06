@@ -332,6 +332,42 @@ class PlaylistMutationsTest {
         )
     }
 
+    @Test
+    fun createQueuePlaylistPreservesQueueOrderAndDuplicates() = kotlinx.coroutines.test.runTest {
+        val tracks = listOf(track("one"), track("two"), track("one"))
+        val provider = FakePlaylistProvider(playlists = emptyList(), playlistTracks = emptyList())
+
+        val result = provider.createQueuePlaylist("  Queue Mix  ", tracks)
+
+        assertEquals(playlist("created", "Queue Mix").copy(trackCount = 3), result.playlist)
+        assertEquals(3, result.trackCount)
+        assertEquals("Queue Mix", provider.createdPlaylistName)
+        assertEquals(listOf(TrackId("one"), TrackId("two"), TrackId("one")), provider.createdPlaylistTrackIds)
+    }
+
+    @Test
+    fun createQueuePlaylistRequiresNameAndTracks() = kotlinx.coroutines.test.runTest {
+        val provider = FakePlaylistProvider(playlists = emptyList(), playlistTracks = emptyList())
+
+        assertFailsWith<IllegalArgumentException> {
+            provider.createQueuePlaylist(" ", listOf(track("one")))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            provider.createQueuePlaylist("Queue Mix", emptyList())
+        }
+    }
+
+    @Test
+    fun saveQueueAsPlaylistAndRefreshReturnsUpdatedPlaylists() = kotlinx.coroutines.test.runTest {
+        val existingPlaylist = playlist("existing", "Existing")
+        val provider = FakePlaylistProvider(playlists = listOf(existingPlaylist), playlistTracks = emptyList())
+
+        val refresh = provider.saveQueueAsPlaylistAndRefresh("Queue Mix", listOf(track("one")))
+
+        assertEquals(QueuePlaylistSaveResult(playlist("created", "Queue Mix").copy(trackCount = 1), 1), refresh.result)
+        assertEquals(listOf(existingPlaylist, playlist("created", "Queue Mix").copy(trackCount = 1)), refresh.playlists)
+    }
+
     private fun playlist(id: String, name: String): Playlist =
         Playlist(
             id = id,
@@ -389,10 +425,21 @@ class PlaylistMutationsTest {
             MediaSearchResults()
 
         override suspend fun playlists(limit: Int): List<Playlist> =
-            playlists
+            createdPlaylistName?.let { playlists + Playlist("created", it, createdPlaylistTrackIds.size) } ?: playlists
 
         override suspend fun playlistTracks(playlistId: String): List<Track> =
             playlistTracks
+
+        var createdPlaylistName: String? = null
+            private set
+        var createdPlaylistTrackIds: List<TrackId> = emptyList()
+            private set
+
+        override suspend fun createPlaylist(name: String, trackIds: List<TrackId>): Playlist {
+            createdPlaylistName = name
+            createdPlaylistTrackIds = trackIds
+            return Playlist(id = "created", name = name, trackCount = trackIds.size)
+        }
 
         override suspend fun streamUrl(request: StreamRequest): String =
             ""

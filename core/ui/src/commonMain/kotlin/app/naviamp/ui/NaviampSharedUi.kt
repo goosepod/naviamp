@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Dp
 import app.naviamp.domain.InternetRadioStation
+import app.naviamp.domain.playback.SleepTimerRequest
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 
 @Composable
@@ -217,6 +218,9 @@ fun NaviampSharedAppShell(
     onTrackRadio: () -> Unit = {},
     onAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit = {},
     onCreatePlaylistAndAdd: (String) -> Unit = {},
+    onSaveQueueAsPlaylist: (String) -> Unit = {},
+    onSleepTimerSelected: (SleepTimerRequest) -> Unit = {},
+    onCancelSleepTimer: () -> Unit = {},
     onDownloadTrack: () -> Unit = {},
     onGoToAlbum: () -> Unit = {},
     onGoToArtist: () -> Unit = {},
@@ -458,6 +462,9 @@ fun NaviampSharedAppShell(
                             onTrackRadio = onTrackRadio,
                             onAddToPlaylist = onAddToPlaylist,
                             onCreatePlaylistAndAdd = onCreatePlaylistAndAdd,
+                            onSaveQueueAsPlaylist = onSaveQueueAsPlaylist,
+                            onSleepTimerSelected = onSleepTimerSelected,
+                            onCancelSleepTimer = onCancelSleepTimer,
                             onDownloadTrack = onDownloadTrack,
                             onGoToAlbum = onGoToAlbum,
                             onGoToArtist = onGoToArtist,
@@ -775,6 +782,9 @@ private fun ConnectedContent(
     onTrackRadio: () -> Unit,
     onAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit,
     onCreatePlaylistAndAdd: (String) -> Unit,
+    onSaveQueueAsPlaylist: (String) -> Unit,
+    onSleepTimerSelected: (SleepTimerRequest) -> Unit,
+    onCancelSleepTimer: () -> Unit,
     onDownloadTrack: () -> Unit,
     onGoToAlbum: () -> Unit,
     onGoToArtist: () -> Unit,
@@ -818,6 +828,9 @@ private fun ConnectedContent(
             onTrackRadio = onTrackRadio,
             onAddToPlaylist = onAddToPlaylist,
             onCreatePlaylistAndAdd = onCreatePlaylistAndAdd,
+            onSaveQueueAsPlaylist = onSaveQueueAsPlaylist,
+            onSleepTimerSelected = onSleepTimerSelected,
+            onCancelSleepTimer = onCancelSleepTimer,
             onDownloadTrack = onDownloadTrack,
             onGoToAlbum = onGoToAlbum,
             onGoToArtist = onGoToArtist,
@@ -1526,6 +1539,9 @@ private fun FullNowPlaying(
     onTrackRadio: () -> Unit,
     onAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit,
     onCreatePlaylistAndAdd: (String) -> Unit,
+    onSaveQueueAsPlaylist: (String) -> Unit,
+    onSleepTimerSelected: (SleepTimerRequest) -> Unit,
+    onCancelSleepTimer: () -> Unit,
     onDownloadTrack: () -> Unit,
     onGoToAlbum: () -> Unit,
     onGoToArtist: () -> Unit,
@@ -1562,6 +1578,9 @@ private fun FullNowPlaying(
                 onTrackRadio = onTrackRadio,
                 onAddToPlaylist = onAddToPlaylist,
                 onCreatePlaylistAndAdd = onCreatePlaylistAndAdd,
+                onSaveQueueAsPlaylist = onSaveQueueAsPlaylist,
+                onSleepTimerSelected = onSleepTimerSelected,
+                onCancelSleepTimer = onCancelSleepTimer,
                 onDownloadTrack = onDownloadTrack,
                 onGoToAlbum = onGoToAlbum,
                 onGoToArtist = onGoToArtist,

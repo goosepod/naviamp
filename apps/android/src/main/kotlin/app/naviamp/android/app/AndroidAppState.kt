@@ -24,6 +24,7 @@ import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
+import app.naviamp.domain.playback.SleepTimerState
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.PendingPlaybackAction
@@ -114,6 +115,8 @@ class AndroidAppState(
     var waveformByTrackId by mutableStateOf<Map<String, AudioWaveform>>(emptyMap())
     var audioTagsByTrackId by mutableStateOf<Map<String, List<AudioTag>>>(emptyMap())
     var playbackQueue by mutableStateOf(PlaybackQueue())
+    var sleepTimer by mutableStateOf<SleepTimerState?>(null)
+    var sleepTimerNowEpochMillis by mutableStateOf(System.currentTimeMillis())
     var shuffledUpNextSnapshot by mutableStateOf<List<Track>?>(null)
     var repeatMode by mutableStateOf(RepeatMode.Off)
     var radioQueueActive by mutableStateOf(false)

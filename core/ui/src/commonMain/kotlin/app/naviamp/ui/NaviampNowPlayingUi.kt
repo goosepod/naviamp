@@ -69,6 +69,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.domain.waveform.playbackFraction
 import app.naviamp.domain.waveform.seekSecondsForFraction
+import app.naviamp.domain.playback.SleepTimerRequest
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -107,6 +108,9 @@ data class NaviampNowPlayingActions(
     val onTrackRadio: () -> Unit = {},
     val onAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit = {},
     val onCreatePlaylistAndAdd: (String) -> Unit = {},
+    val onSaveQueueAsPlaylist: (String) -> Unit = {},
+    val onSleepTimerSelected: (SleepTimerRequest) -> Unit = {},
+    val onCancelSleepTimer: () -> Unit = {},
     val onDownloadTrack: () -> Unit = {},
     val onToggleVisualizer: () -> Unit = {},
     val onGoToAlbum: () -> Unit = {},
@@ -463,6 +467,8 @@ private fun NowPlayingDetails(
     var visualizerMenuExpanded by remember { mutableStateOf(false) }
     var trackDetailsOpen by remember { mutableStateOf(false) }
     var playlistDialogOpen by remember { mutableStateOf<NaviampNowPlayingItemUi?>(null) }
+    var saveQueueDialogOpen by remember { mutableStateOf(false) }
+    var sleepTimerDialogOpen by remember { mutableStateOf(false) }
     var scrubberValue by remember(nowPlaying.id) { mutableFloatStateOf(nowPlaying.progressFraction.toFloat()) }
     var isScrubbing by remember { mutableStateOf(false) }
     var volumeValue by remember { mutableFloatStateOf(nowPlaying.volumePercent.coerceIn(0, 100) / 100f) }
@@ -825,6 +831,8 @@ private fun NowPlayingDetails(
                             canSetTrackPreference = canSetTrackPreference,
                             canStartRadio = nowPlaying.canStartRadio,
                             canAddToPlaylist = nowPlaying.canAddToPlaylist,
+                            canSaveQueueAsPlaylist = nowPlaying.canSaveQueueAsPlaylist,
+                            sleepTimerLabel = nowPlaying.sleepTimer.label,
                         ).forEach { action ->
                             NaviampDropdownMenuItem(
                                 label = action.label,
@@ -857,6 +865,8 @@ private fun NowPlayingDetails(
                                                 actions.onAddToPlaylist(null)
                                             }
                                         }
+                                        NaviampAction.SaveQueueAsPlaylist -> saveQueueDialogOpen = true
+                                        NaviampAction.SleepTimer -> sleepTimerDialogOpen = true
                                         else -> Unit
                                     }
                                 },
@@ -886,6 +896,32 @@ private fun NowPlayingDetails(
             sections = nowPlaying.detailSections,
             colors = colors,
             onDismissRequest = { trackDetailsOpen = false },
+        )
+    }
+    if (saveQueueDialogOpen) {
+        SaveQueueAsPlaylistDialog(
+            colors = colors,
+            status = nowPlaying.playlistActionStatus,
+            onDismissRequest = { saveQueueDialogOpen = false },
+            onSave = { name ->
+                saveQueueDialogOpen = false
+                actions.onSaveQueueAsPlaylist(name)
+            },
+        )
+    }
+    if (sleepTimerDialogOpen) {
+        SleepTimerDialog(
+            colors = colors,
+            timer = nowPlaying.sleepTimer,
+            onDismissRequest = { sleepTimerDialogOpen = false },
+            onTimerSelected = { request ->
+                sleepTimerDialogOpen = false
+                actions.onSleepTimerSelected(request)
+            },
+            onCancelTimer = {
+                sleepTimerDialogOpen = false
+                actions.onCancelSleepTimer()
+            },
         )
     }
     playlistDialogOpen?.let { item ->
@@ -1554,6 +1590,117 @@ fun AddToPlaylistDialog(
             }
         },
     )
+}
+
+@Composable
+fun SaveQueueAsPlaylistDialog(
+    colors: NaviampColors,
+    status: String?,
+    onDismissRequest: () -> Unit,
+    onSave: (String) -> Unit,
+) {
+    var playlistName by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        title = { Text("Save queue as playlist", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Save the current queue in order as a server playlist.", color = colors.secondaryText, fontSize = 12.sp)
+                status?.let { Text(it, color = colors.secondaryText, fontSize = 12.sp) }
+                OutlinedTextField(
+                    value = playlistName,
+                    onValueChange = { playlistName = it },
+                    label = { Text("Playlist name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = playlistName.isNotBlank(),
+                onClick = { onSave(playlistName.trim()) },
+            ) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismissRequest) {
+                Text("Cancel")
+            }
+        },
+    )
+}
+
+@Composable
+fun SleepTimerDialog(
+    colors: NaviampColors,
+    timer: NaviampSleepTimerUi,
+    onDismissRequest: () -> Unit,
+    onTimerSelected: (SleepTimerRequest) -> Unit,
+    onCancelTimer: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        title = { Text("Sleep timer", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (timer.active) {
+                    Text(timer.label, color = colors.secondaryText, fontSize = 12.sp)
+                }
+                SleepTimerOptionRow(
+                    labels = listOf("15 min", "30 min", "45 min", "60 min"),
+                    onClick = { label ->
+                        val minutes = label.substringBefore(" ").toIntOrNull() ?: 15
+                        onTimerSelected(SleepTimerRequest.DurationMinutes(minutes))
+                    },
+                )
+                SleepTimerOptionRow(
+                    labels = listOf("Track end", "Album end", "Queue end"),
+                    onClick = { label ->
+                        when (label) {
+                            "Track end" -> onTimerSelected(SleepTimerRequest.TrackEnd)
+                            "Album end" -> onTimerSelected(SleepTimerRequest.AlbumEnd)
+                            "Queue end" -> onTimerSelected(SleepTimerRequest.QueueEnd)
+                        }
+                    },
+                )
+            }
+        },
+        confirmButton = {
+            if (timer.active) {
+                TextButton(onClick = onCancelTimer) {
+                    Text("Cancel timer")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismissRequest) {
+                Text("Close")
+            }
+        },
+    )
+}
+
+@Composable
+private fun SleepTimerOptionRow(
+    labels: List<String>,
+    onClick: (String) -> Unit,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        labels.forEach { label ->
+            TextButton(
+                onClick = { onClick(label) },
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+    }
 }
 
 @Composable

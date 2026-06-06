@@ -77,6 +77,12 @@ import app.naviamp.domain.playback.planPlaybackTrackStarted
 import app.naviamp.domain.playback.shouldClearPendingSeek
 import app.naviamp.domain.playback.shouldIgnoreProgressForPendingSeek
 import app.naviamp.domain.playback.shouldUpdatePlaybackProgressUi
+import app.naviamp.domain.playback.SleepTimerRequest
+import app.naviamp.domain.playback.shouldExpireSleepTimer
+import app.naviamp.domain.playback.sleepTimerDisplayLabel
+import app.naviamp.domain.playback.sleepTimerPlaybackSnapshot
+import app.naviamp.domain.playback.sleepTimerStateForPlayback
+import app.naviamp.domain.playback.SleepTimerState
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.provider.PendingPlaybackAction
 import app.naviamp.domain.popular.SimilarArtistMatch
@@ -148,6 +154,7 @@ import app.naviamp.ui.radioTrackArtworkQuery
 import app.naviamp.ui.rememberPlatformCoverArtPlayerColors
 import app.naviamp.ui.toSharedMediaItemUi
 import app.naviamp.ui.toSharedGenreMixItemUi
+import app.naviamp.ui.toNaviampSleepTimerUi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -329,6 +336,8 @@ fun NaviampApp(
     var playbackQueue by remember {
         mutableStateOf(savedPlaybackSession?.restoredPlaybackQueue() ?: PlaybackQueue())
     }
+    var sleepTimer by remember { mutableStateOf<SleepTimerState?>(null) }
+    var sleepTimerNowEpochMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var playbackSettings by remember {
         mutableStateOf(settingsStore.loadPlaybackSettings().effectiveForEngine(playbackEngine))
     }
@@ -466,6 +475,48 @@ fun NaviampApp(
 
     fun performSeek(positionSeconds: Double) {
         playbackController.performSeek(positionSeconds)
+    }
+
+    fun currentSleepTimerSnapshot() =
+        sleepTimerPlaybackSnapshot(
+            nowPlaying = nowPlayingTrack,
+            playbackQueue = playbackQueue,
+            playbackProgress = playbackProgress,
+            playbackState = playbackState,
+        )
+
+    fun handleSleepTimerSelected(request: SleepTimerRequest) {
+        val nowMillis = System.currentTimeMillis()
+        val timer = sleepTimerStateForPlayback(
+            request = request,
+            nowEpochMillis = nowMillis,
+            nowPlaying = nowPlayingTrack,
+            playbackQueue = playbackQueue,
+            playbackProgress = playbackProgress,
+            playbackState = playbackState,
+        )
+        sleepTimer = timer
+        sleepTimerNowEpochMillis = nowMillis
+        connectionStatus = sleepTimerDisplayLabel(timer, nowMillis)
+    }
+
+    fun cancelSleepTimer() {
+        sleepTimer = null
+        connectionStatus = "Sleep timer canceled."
+    }
+
+    LaunchedEffect(sleepTimer, nowPlayingTrack?.id, playbackQueue, playbackProgress, playbackState) {
+        while (sleepTimer != null) {
+            val nowMillis = System.currentTimeMillis()
+            sleepTimerNowEpochMillis = nowMillis
+            if (shouldExpireSleepTimer(sleepTimer, nowMillis, currentSleepTimerSnapshot())) {
+                playbackEngine.stop()
+                sleepTimer = null
+                connectionStatus = "Sleep timer stopped playback."
+                break
+            }
+            delay(500L)
+        }
     }
 
     fun canUsePreviousButton(): Boolean =
@@ -1421,6 +1472,7 @@ fun NaviampApp(
                                 playbackState = playbackState,
                                 playbackProgress = playbackProgress,
                                 volumePercent = playbackSettings.volumePercent,
+                                sleepTimer = sleepTimer.toNaviampSleepTimerUi(sleepTimerNowEpochMillis),
                                 streamQuality = playbackSettings.streamQuality(playbackEngine),
                                 supportsSeek = playbackEngine.supportsSeek &&
                                     nowPlayingTrack?.isInternetRadioTrack() != true,
@@ -1492,6 +1544,9 @@ fun NaviampApp(
                                 onAddTrackToPlaylist = { track ->
                                     playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(track))
                                 },
+                                onSaveQueueAsPlaylist = playlistsController::saveQueueAsPlaylist,
+                                onSleepTimerSelected = ::handleSleepTimerSelected,
+                                onCancelSleepTimer = ::cancelSleepTimer,
                                 onInternetRadioStationSelected = { station ->
                                     internetRadioController.playStation(station)
                                 },

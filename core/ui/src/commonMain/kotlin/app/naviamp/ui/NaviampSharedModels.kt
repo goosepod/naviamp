@@ -232,6 +232,8 @@ data class NowPlayingUi(
     val canRepeat: Boolean = false,
     val canStartRadio: Boolean = false,
     val canAddToPlaylist: Boolean = false,
+    val canSaveQueueAsPlaylist: Boolean = false,
+    val sleepTimer: NaviampSleepTimerUi = NaviampSleepTimerUi(),
     val favoriteActive: Boolean = false,
     val canFavorite: Boolean = false,
     val userRating: Int? = null,
@@ -250,6 +252,11 @@ data class NowPlayingUi(
     val upNext: List<NaviampNowPlayingItemUi> = emptyList(),
     val related: List<NaviampNowPlayingItemUi> = emptyList(),
     val radioStations: List<NaviampNowPlayingItemUi> = emptyList(),
+)
+
+data class NaviampSleepTimerUi(
+    val active: Boolean = false,
+    val label: String = "Sleep timer",
 )
 
 data class NaviampLyricLineUi(
