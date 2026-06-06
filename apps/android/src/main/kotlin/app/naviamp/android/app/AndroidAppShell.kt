@@ -26,16 +26,19 @@ import app.naviamp.ui.NaviampSharedAppShell
 import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.NowPlayingUi
 import app.naviamp.ui.SharedAlbumDetailUi
+import app.naviamp.ui.SharedArtistMixBuilderUi
 import app.naviamp.ui.SharedArtistDetailUi
 import app.naviamp.ui.SharedHomeStationUi
 import app.naviamp.ui.SharedHomeUi
 import app.naviamp.ui.SharedMediaItemUi
+import app.naviamp.ui.SharedMixBuilderUi
 import app.naviamp.ui.SharedPlaylistDetailUi
 import app.naviamp.ui.SharedPlaylistSortMode
 import app.naviamp.ui.SharedRoute
 import app.naviamp.ui.SharedSearchResultsUi
 import app.naviamp.ui.SharedSimilarArtistUi
 import app.naviamp.ui.toNaviampRoute
+import app.naviamp.ui.toSharedMediaItemUi
 
 data class AndroidAppShellUiState(
     val modifier: Modifier,
@@ -56,6 +59,7 @@ data class AndroidAppShellUiState(
     val query: String,
     val home: SharedHomeUi,
     val searchResults: SharedSearchResultsUi,
+    val artistMixBuilder: SharedArtistMixBuilderUi,
     val libraryArtists: List<SharedMediaItemUi>,
     val libraryQuery: String,
     val librarySyncStatus: NaviampLibrarySyncStatusUi,
@@ -91,6 +95,11 @@ data class AndroidAppShellActions(
     val onQueryChanged: (String) -> Unit,
     val onSearch: () -> Unit,
     val onClearSearch: () -> Unit,
+    val onArtistMixQueryChanged: (String) -> Unit,
+    val onArtistMixSearch: () -> Unit,
+    val onArtistMixArtistSelected: (SharedMediaItemUi) -> Unit,
+    val onArtistMixArtistRemoved: (SharedMediaItemUi) -> Unit,
+    val onArtistMixPlay: () -> Unit,
     val onLibraryQueryChanged: (String) -> Unit,
     val onRefreshLibrary: () -> Unit,
     val onTrackSelected: (SharedTrackRowUi) -> Unit,
@@ -151,6 +160,7 @@ data class AndroidAppShellActions(
     val onPlaylistTrackSelected: (SharedTrackRowUi) -> Unit,
     val onTrackAddToQueue: (SharedTrackRowUi) -> Unit,
     val onRecentRadioSelected: (SharedMediaItemUi) -> Unit,
+    val onMixBuilderSelected: (SharedMixBuilderUi) -> Unit,
     val onRadioStationSelected: (InternetRadioStation) -> Unit,
     val onRadioStationSave: (InternetRadioStation) -> Unit,
     val onRadioStationDelete: (InternetRadioStation) -> Unit,
@@ -208,6 +218,7 @@ fun AndroidAppShellContent(
         query = state.query,
         home = state.home,
         searchResults = state.searchResults,
+        artistMixBuilder = state.artistMixBuilder,
         libraryArtists = state.libraryArtists,
         libraryQuery = state.libraryQuery,
         librarySyncStatus = state.librarySyncStatus,
@@ -240,6 +251,11 @@ fun AndroidAppShellContent(
         onQueryChanged = actions.onQueryChanged,
         onSearch = actions.onSearch,
         onClearSearch = actions.onClearSearch,
+        onArtistMixQueryChanged = actions.onArtistMixQueryChanged,
+        onArtistMixSearch = actions.onArtistMixSearch,
+        onArtistMixArtistSelected = actions.onArtistMixArtistSelected,
+        onArtistMixArtistRemoved = actions.onArtistMixArtistRemoved,
+        onArtistMixPlay = actions.onArtistMixPlay,
         onLibraryQueryChanged = actions.onLibraryQueryChanged,
         onRefreshLibrary = actions.onRefreshLibrary,
         onTrackSelected = actions.onTrackSelected,
@@ -300,6 +316,7 @@ fun AndroidAppShellContent(
         onPlaylistTrackSelected = actions.onPlaylistTrackSelected,
         onTrackAddToQueue = actions.onTrackAddToQueue,
         onRecentRadioSelected = actions.onRecentRadioSelected,
+        onMixBuilderSelected = actions.onMixBuilderSelected,
         onRadioStationSelected = actions.onRadioStationSelected,
         onRadioStationSave = actions.onRadioStationSave,
         onRadioStationDelete = actions.onRadioStationDelete,
@@ -436,6 +453,17 @@ fun rememberAndroidAppShellUiState(
             query = query,
             home = shellModels.home,
             searchResults = shellModels.searchResults,
+            artistMixBuilder = SharedArtistMixBuilderUi(
+                query = artistMixQuery,
+                selectedArtists = artistMixSelectedArtists.map { artist ->
+                    artist.toSharedMediaItemUi { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } }
+                },
+                suggestedArtists = artistMixSuggestions.map { artist ->
+                    artist.toSharedMediaItemUi { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } }
+                },
+                status = artistMixStatus,
+                loading = artistMixLoading,
+            ),
             libraryArtists = shellModels.libraryArtists,
             libraryQuery = libraryQuery,
             librarySyncStatus = shellModels.librarySyncStatus,
@@ -470,6 +498,10 @@ fun androidAppShellActions(
     handleClearLibrary: () -> Unit,
     handleResetDatabase: () -> Unit,
     handleSearch: () -> Unit,
+    handleArtistMixSearch: () -> Unit,
+    handleArtistMixArtistSelected: (SharedMediaItemUi) -> Unit,
+    handleArtistMixArtistRemoved: (SharedMediaItemUi) -> Unit,
+    handleArtistMixPlay: () -> Unit,
     startAndroidLibrarySync: (Boolean) -> Unit,
     handleShellTrackSelected: (SharedTrackRowUi) -> Unit,
     handleDownloadedTrackSelected: (NaviampDownloadedTrackUi) -> Unit,
@@ -517,6 +549,7 @@ fun androidAppShellActions(
     closeActivePlaylist: () -> Unit,
     handlePlaylistTrackSelected: (SharedTrackRowUi) -> Unit,
     handleRecentRadioSelected: (SharedMediaItemUi) -> Unit,
+    handleMixBuilderSelected: (SharedMixBuilderUi) -> Unit,
     handleRadioStationSelected: (InternetRadioStation) -> Unit,
     saveInternetRadioStation: (InternetRadioStation) -> Unit,
     deleteInternetRadioStation: (InternetRadioStation) -> Unit,
@@ -566,6 +599,11 @@ fun androidAppShellActions(
                 tracks = emptyList()
                 status = ""
             },
+            onArtistMixQueryChanged = { artistMixQuery = it },
+            onArtistMixSearch = handleArtistMixSearch,
+            onArtistMixArtistSelected = handleArtistMixArtistSelected,
+            onArtistMixArtistRemoved = handleArtistMixArtistRemoved,
+            onArtistMixPlay = handleArtistMixPlay,
             onLibraryQueryChanged = { libraryQuery = it },
             onRefreshLibrary = { startAndroidLibrarySync(true) },
             onTrackSelected = handleShellTrackSelected,
@@ -674,6 +712,7 @@ fun androidAppShellActions(
             onPlaylistTrackSelected = handlePlaylistTrackSelected,
             onTrackAddToQueue = handleTrackAddToQueue,
             onRecentRadioSelected = handleRecentRadioSelected,
+            onMixBuilderSelected = handleMixBuilderSelected,
             onRadioStationSelected = handleRadioStationSelected,
             onRadioStationSave = saveInternetRadioStation,
             onRadioStationDelete = deleteInternetRadioStation,

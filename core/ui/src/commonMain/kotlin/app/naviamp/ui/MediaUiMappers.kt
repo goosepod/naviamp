@@ -65,6 +65,7 @@ fun HomeContent.toSharedHomeUi(
     playlistTracksById: Map<String, List<Track>> = emptyMap(),
 ): SharedHomeUi =
     SharedHomeUi(
+        mixBuilders = sharedMixBuilders(),
         recentlyAddedAlbums = recentlyAddedAlbums.map { it.toSharedMediaItemUi(coverArtUrl) },
         mixAlbums = mixAlbums.map { it.toSharedMediaItemUi(coverArtUrl) },
         recentAlbums = recentAlbums.map { it.toSharedMediaItemUi(coverArtUrl) },
@@ -94,6 +95,13 @@ fun HomeContent.toSharedHomeUi(
         genreSpotlightAlbums = genreSpotlightAlbums.map { it.toSharedMediaItemUi(coverArtUrl) },
         decadeLabel = decadeLabel,
         decadeAlbums = decadeAlbums.map { it.toSharedMediaItemUi(coverArtUrl) },
+    )
+
+fun sharedMixBuilders(): List<SharedMixBuilderUi> =
+    listOf(
+        SharedMixBuilderUi("artist", "Artist Mix", "Build a station from selected artists"),
+        SharedMixBuilderUi("album", "Album Mix", "Build a station from selected albums"),
+        SharedMixBuilderUi("genre", "Genre Mix", "Start a station from a genre"),
     )
 
 fun Track.toSharedTrackRowUi(

@@ -52,6 +52,10 @@ import app.naviamp.domain.cache.ImageCacheRepository
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.cache.shouldRefreshDownloadsAfter
+import app.naviamp.domain.artistmix.ArtistMixBuilderService
+import app.naviamp.domain.artistmix.artistMixPopularQueue
+import app.naviamp.domain.artistmix.artistMixSelectedArtistsAfterRemove
+import app.naviamp.domain.artistmix.artistMixSelectedArtistsAfterSelect
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
@@ -128,10 +132,12 @@ import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.provider.navidrome.withNativeTokenFromPassword
 import app.naviamp.ui.NaviampPlayerColors
 import app.naviamp.ui.NaviampVisualizer
+import app.naviamp.ui.SharedArtistMixBuilderUi
 import app.naviamp.ui.radioArtworkNeedsTrackLookup
 import app.naviamp.ui.radioTrackArtworkKey
 import app.naviamp.ui.radioTrackArtworkQuery
 import app.naviamp.ui.rememberPlatformCoverArtPlayerColors
+import app.naviamp.ui.toSharedMediaItemUi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -232,6 +238,12 @@ fun NaviampApp(
     var searchResults by remember { mutableStateOf(MediaSearchResults()) }
     var searchStatus by remember { mutableStateOf<String?>(null) }
     var isSearching by remember { mutableStateOf(false) }
+    var artistMixQuery by remember { mutableStateOf("") }
+    var artistMixSelectedArtists by remember { mutableStateOf<List<Artist>>(emptyList()) }
+    var artistMixSuggestions by remember { mutableStateOf<List<Artist>>(emptyList()) }
+    var artistMixPopularTracksByArtistId by remember { mutableStateOf<Map<String, List<Track>>>(emptyMap()) }
+    var artistMixStatus by remember { mutableStateOf<String?>(null) }
+    var artistMixLoading by remember { mutableStateOf(false) }
     var downloadStatus by remember { mutableStateOf<String?>(null) }
     var downloadRefreshToken by remember { mutableStateOf(0) }
     var libraryQuery by remember { mutableStateOf("") }
@@ -955,6 +967,106 @@ fun NaviampApp(
         selectedAlbumDetails = { selectedAlbumDetails },
     )
 
+    val artistMixBuilderService = remember(popularTracksService, similarArtistsService) {
+        ArtistMixBuilderService(
+            sourceId = { connectedSourceId },
+            artistSearch = { query, limit ->
+                val sourceId = connectedSourceId
+                sourceId
+                    ?.let { storage.searchLibrary(it, query, limit).artists }
+                    .orEmpty()
+                    .ifEmpty { connectedProvider?.search(query, limit.toInt())?.artists.orEmpty() }
+            },
+            randomArtists = { limit ->
+                homeContent.artists.shuffled().take(limit.toInt()).ifEmpty {
+                    connectedProvider?.artists(limit.toInt())?.shuffled().orEmpty()
+                }
+            },
+            popularTracksService = popularTracksService,
+            similarArtistsService = similarArtistsService,
+        )
+    }
+
+    fun artistMixItem(artist: Artist) = artist.toSharedMediaItemUi { coverArtId ->
+        coverArtId?.let { connectedProvider?.coverArtUrl(it) }
+    }
+
+    fun refreshArtistMixInitialSuggestions() {
+        coroutineScope.launch {
+            artistMixLoading = true
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    artistMixBuilderService.initialSuggestions(artistMixSelectedArtists)
+                }
+            }.onSuccess { suggestions ->
+                artistMixSuggestions = suggestions
+                artistMixStatus = if (suggestions.isEmpty()) "No artist suggestions yet." else null
+            }.onFailure { error ->
+                artistMixStatus = error.message ?: "Could not load artist suggestions."
+            }
+            artistMixLoading = false
+        }
+    }
+
+    fun searchArtistMixSuggestions() {
+        coroutineScope.launch {
+            artistMixLoading = true
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    artistMixBuilderService.searchSuggestions(artistMixQuery, artistMixSelectedArtists)
+                }
+            }.onSuccess { suggestions ->
+                artistMixSuggestions = suggestions
+                artistMixStatus = if (suggestions.isEmpty()) "No artists matched." else null
+            }.onFailure { error ->
+                artistMixStatus = error.message ?: "Could not search artists."
+            }
+            artistMixLoading = false
+        }
+    }
+
+    fun selectArtistForMix(artist: Artist) {
+        artistMixSelectedArtists = artistMixSelectedArtistsAfterSelect(artistMixSelectedArtists, artist)
+        artistMixStatus = "Loading ${artist.name} songs..."
+        coroutineScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    artistMixBuilderService.popularTracks(artist)
+                }
+            }.onSuccess { tracks ->
+                artistMixPopularTracksByArtistId = artistMixPopularTracksByArtistId + (artist.id.value to tracks)
+                artistMixStatus = if (tracks.isEmpty()) "${artist.name} popular songs were not matched." else null
+            }.onFailure { error ->
+                artistMixStatus = error.message ?: "Could not load ${artist.name} songs."
+            }
+        }
+        coroutineScope.launch {
+            artistMixLoading = true
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    artistMixBuilderService.relatedSuggestions(artistMixSelectedArtists, artist)
+                }
+            }.onSuccess { suggestions ->
+                artistMixSuggestions = suggestions
+            }.onFailure { error ->
+                artistMixStatus = error.message ?: "Could not load similar artists."
+            }
+            artistMixLoading = false
+        }
+    }
+
+    fun removeArtistFromMix(artist: Artist) {
+        artistMixSelectedArtists = artistMixSelectedArtistsAfterRemove(artistMixSelectedArtists, artist)
+        artistMixPopularTracksByArtistId = artistMixPopularTracksByArtistId - artist.id.value
+        refreshArtistMixInitialSuggestions()
+    }
+
+    LaunchedEffect(connectedSourceId, homeContent.artists) {
+        if (connectedSourceId != null && artistMixSuggestions.isEmpty()) {
+            refreshArtistMixInitialSuggestions()
+        }
+    }
+
     refreshLibrarySnapshotAction = libraryController::refreshLibrarySnapshot
     loadHomeContentAction = homeController::loadHomeContent
     refreshPlaylistsAction = playlistsController::refreshPlaylists
@@ -1220,8 +1332,7 @@ fun NaviampApp(
                             coroutineScope = coroutineScope,
                             onRouteSelected = { route -> appRoute = route },
                             onOpenArtistMixBuilder = {
-                                libraryTab = DesktopLibraryTab.Artists
-                                appRoute = DesktopAppRoute.Library
+                                appRoute = DesktopAppRoute.InternetRadio
                             },
                             onOpenAlbumMixBuilder = {
                                 libraryTab = DesktopLibraryTab.Albums
@@ -1265,6 +1376,27 @@ fun NaviampApp(
                             searchResults = searchResults,
                             searchStatus = searchStatus,
                             isSearching = isSearching,
+                            artistMixBuilder = SharedArtistMixBuilderUi(
+                                query = artistMixQuery,
+                                selectedArtists = artistMixSelectedArtists.map(::artistMixItem),
+                                suggestedArtists = artistMixSuggestions.map(::artistMixItem),
+                                status = artistMixStatus,
+                                loading = artistMixLoading,
+                            ),
+                            onArtistMixQueryChanged = { query -> artistMixQuery = query },
+                            onArtistMixSearch = ::searchArtistMixSuggestions,
+                            onArtistMixArtistSelected = { item ->
+                                artistMixSuggestions.firstOrNull { it.id.value == item.id }?.let(::selectArtistForMix)
+                            },
+                            onArtistMixArtistRemoved = { item ->
+                                artistMixSelectedArtists.firstOrNull { it.id.value == item.id }?.let(::removeArtistFromMix)
+                            },
+                            onArtistMixPlay = {
+                                radioController.playArtistMix(
+                                    artistMixSelectedArtists,
+                                    artistMixPopularQueue(artistMixSelectedArtists, artistMixPopularTracksByArtistId),
+                                )
+                            },
                             internetRadioStations = internetRadioStations,
                             internetRadioStatus = internetRadioStatus,
                             onSaveInternetRadioStation = internetRadioController::saveStation,

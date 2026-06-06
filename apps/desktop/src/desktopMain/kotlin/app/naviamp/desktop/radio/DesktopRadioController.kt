@@ -19,6 +19,7 @@ import app.naviamp.domain.radio.RadioRequest
 import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.radio.SeededRadioRequest
 import app.naviamp.domain.radio.albumSeededRadioRequest
+import app.naviamp.domain.radio.artistMixSeededRadioRequest
 import app.naviamp.domain.radio.artistSeededRadioRequest
 import app.naviamp.domain.radio.decadeRadioRequest
 import app.naviamp.domain.radio.genreRadioRequest
@@ -201,6 +202,32 @@ class DesktopRadioController(
                 startSeeded(activeProvider, artistSeededRadioRequest(artist, seedTrack))
             } catch (exception: Exception) {
                 setConnectionStatus(exception.message ?: "Could not start ${artist.name} radio.")
+            }
+        }
+    }
+
+    fun playArtistMix(
+        artists: List<Artist>,
+        popularTracks: List<Track>,
+    ) {
+        val activeProvider = provider() ?: return
+        val distinctArtists = artists.distinctBy { it.id }
+        if (distinctArtists.isEmpty()) return
+        setConnectionStatus("Starting artist mix...")
+        scope.launch {
+            try {
+                val seedTrack = withContext(Dispatchers.IO) {
+                    popularTracks.shuffled().firstOrNull()
+                        ?: distinctArtists.firstNotNullOfOrNull { artist ->
+                            artistRadioSeedTrack(libraryIndexRepository, providerResponseService, activeProvider, artist, sourceId())
+                        }
+                } ?: run {
+                    setConnectionStatus("Artist mix did not find a seed track.")
+                    return@launch
+                }
+                startSeeded(activeProvider, artistMixSeededRadioRequest(distinctArtists, seedTrack, popularTracks.shuffled()))
+            } catch (exception: Exception) {
+                setConnectionStatus(exception.message ?: "Could not start artist mix.")
             }
         }
     }

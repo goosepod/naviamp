@@ -335,6 +335,116 @@ fun SharedMediaRow(
 }
 
 @Composable
+fun ArtistMixBuilderContent(
+    colors: NaviampColors,
+    builder: SharedArtistMixBuilderUi,
+    onQueryChanged: (String) -> Unit,
+    onSearch: () -> Unit,
+    onArtistSelected: (SharedMediaItemUi) -> Unit,
+    onArtistRemoved: (SharedMediaItemUi) -> Unit,
+    onPlayMix: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("Artist Mix Builder", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            NaviampTextField(
+                value = builder.query,
+                onValueChange = onQueryChanged,
+                label = "Search artists",
+                colors = colors,
+                modifier = Modifier.weight(1f),
+            )
+            Button(onClick = onSearch, modifier = Modifier.height(48.dp)) {
+                Icon(NaviampIcons.Search, contentDescription = "Search artists", modifier = Modifier.size(18.dp))
+            }
+        }
+        if (builder.selectedArtists.isNotEmpty()) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                builder.selectedArtists.take(4).forEach { artist ->
+                    ArtistMixSelectedArtist(
+                        artist = artist,
+                        colors = colors,
+                        onRemove = { onArtistRemoved(artist) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        }
+        (builder.status ?: if (builder.loading) "Loading artists..." else null)?.let {
+            Text(it, color = colors.secondaryText, fontSize = 12.sp)
+        }
+        builder.suggestedArtists.chunked(3).forEach { rowArtists ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                rowArtists.forEach { artist ->
+                    ArtistMixArtistTile(
+                        artist = artist,
+                        colors = colors,
+                        onClick = { onArtistSelected(artist) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                repeat(3 - rowArtists.size) {
+                    Box(modifier = Modifier.weight(1f))
+                }
+            }
+        }
+        if (builder.selectedArtists.isNotEmpty()) {
+            PrimaryButton("Play Mix", colors, onClick = onPlayMix)
+        }
+    }
+}
+
+@Composable
+private fun ArtistMixSelectedArtist(
+    artist: SharedMediaItemUi,
+    colors: NaviampColors,
+    onRemove: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(Color.Black.copy(alpha = 0.18f))
+            .clickable(onClick = onRemove)
+            .padding(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        PlatformCoverArt(artist.coverArtUrl, colors, 30.dp, 15.dp)
+        Text(artist.title, color = colors.primaryText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@Composable
+private fun ArtistMixArtistTile(
+    artist: SharedMediaItemUi,
+    colors: NaviampColors,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .height(116.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(Color.Black.copy(alpha = 0.14f))
+            .clickable(onClick = onClick)
+            .padding(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(7.dp),
+    ) {
+        PlatformCoverArt(artist.coverArtUrl, colors, 64.dp, 32.dp)
+        Text(
+            artist.title,
+            color = colors.primaryText,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
 fun InternetRadioContent(
     colors: NaviampColors,
     stations: List<InternetRadioStation>,

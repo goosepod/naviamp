@@ -14,6 +14,7 @@ import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.radio.RadioService
+import app.naviamp.domain.radio.artistMixSeededRadioRequest
 import app.naviamp.domain.radio.albumRecentRadioStream
 import app.naviamp.domain.radio.artistRecentRadioStream
 import app.naviamp.domain.radio.decadeRecentRadioStream
@@ -335,6 +336,55 @@ fun startAndroidArtistRadio(
                 }
             }.onFailure { error ->
                 status = error.message ?: "Could not start artist radio."
+            }
+        }
+    }
+}
+
+fun startAndroidArtistMixRadio(
+    scope: CoroutineScope,
+    state: AndroidAppState,
+    queueController: PlaybackQueueController,
+    artists: List<Artist>,
+    popularTracks: List<Track>,
+    playTrack: (Track, List<Track>) -> Unit,
+    providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
+    rememberRecentRadioStream: (RecentRadioStream) -> Unit = {},
+) {
+    val distinctArtists = artists.distinctBy { it.id }
+    if (distinctArtists.isEmpty()) return
+    val activeProvider = state.provider ?: return
+    val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
+    scope.launch {
+        with(state) {
+            status = "Starting artist mix..."
+            runCatching {
+                popularTracks.shuffled().firstOrNull()
+                    ?: RadioService(
+                        provider = activeProvider,
+                        count = AndroidInitialSimilarRadioCount,
+                        providerResponseService = providerResponseService,
+                    ).artistSeed(distinctArtists.first(), artistDetail?.albums.orEmpty())
+            }.onSuccess { seedTrack ->
+                if (seedTrack == null) {
+                    status = "Artist mix did not find a seed track."
+                } else {
+                    val request = artistMixSeededRadioRequest(distinctArtists, seedTrack, popularTracks.shuffled())
+                    startAndroidSeededRadio(
+                        scope = scope,
+                        state = state,
+                        queueController = queueController,
+                        statusLabel = request.label,
+                        seedTrack = seedTrack,
+                        playTrack = playTrack,
+                        providerResponseCacheRepository = providerResponseCacheRepository,
+                        recentRadioStream = request.recentRadioStream,
+                        rememberRecentRadioStream = rememberRecentRadioStream,
+                        loadRest = request.loadRest,
+                    )
+                }
+            }.onFailure { error ->
+                status = error.message ?: "Could not start artist mix."
             }
         }
     }

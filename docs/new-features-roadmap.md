@@ -12,13 +12,15 @@ This checklist tracks the first feature set for the `new-features` branch. Keep 
 
 ## Mix Builders and Radio
 
-- [ ] Add Artist Mix Builder.
+- [x] Add Artist Mix Builder.
   - Shared cross-platform screen.
   - Search bar at the top.
   - Random artist grid with artist image and name.
   - Selecting an artist moves it to a selected row under the search bar.
   - Once selected, refresh suggestions with similar artists plus a few random artists at the end.
   - Show a bottom `Play Mix` action when at least one artist is selected.
+  - Selected artists preload matched popular songs in the background and use those songs as the front of the generated mix queue.
+  - Home includes a dedicated `Mix Builders` category for Artist Mix, Album Mix, and Genre Mix entry points.
 - [ ] Add Album Mix Builder.
   - Same interaction model as Artist Mix Builder, but with albums and album art.
 - [ ] Add Genre Mix Radio.

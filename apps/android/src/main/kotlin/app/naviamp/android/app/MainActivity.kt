@@ -31,6 +31,7 @@ import app.naviamp.android.playback.AndroidPlaybackForegroundService
 import app.naviamp.android.playback.AndroidPlaybackNotificationControls
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
+import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Lyrics
@@ -53,6 +54,10 @@ import app.naviamp.domain.home.homeDecadeStationId
 import app.naviamp.domain.home.homeGenreStationId
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.cache.downloadConnectionRequiredStatus
+import app.naviamp.domain.artistmix.ArtistMixBuilderService
+import app.naviamp.domain.artistmix.artistMixPopularQueue
+import app.naviamp.domain.artistmix.artistMixSelectedArtistsAfterRemove
+import app.naviamp.domain.artistmix.artistMixSelectedArtistsAfterSelect
 import app.naviamp.domain.media.albumDetailLoadErrorStatus
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackQueueController
@@ -112,6 +117,7 @@ import app.naviamp.ui.SharedArtistDetailUi
 import app.naviamp.ui.SharedHomeStationUi
 import app.naviamp.ui.SharedHomeUi
 import app.naviamp.ui.SharedMediaItemUi
+import app.naviamp.ui.SharedMixBuilderUi
 import app.naviamp.ui.SharedPlaylistDetailUi
 import app.naviamp.ui.SharedPlaylistSortMode
 import app.naviamp.ui.SharedRoute
@@ -940,6 +946,119 @@ private fun NaviampAndroidApp(
         findAndroidSimilarArtists(scope, appState, similarArtistsService, artistId, artistName)
     }
 
+    val artistMixBuilderService = remember(popularTracksService, similarArtistsService) {
+        ArtistMixBuilderService(
+            sourceId = { activeSourceId },
+            artistSearch = { query, limit ->
+                activeSourceId
+                    ?.let { storage.searchLibrary(it, query, limit, 0).artists }
+                    .orEmpty()
+                    .ifEmpty { provider?.search(query, limit.toInt())?.artists.orEmpty() }
+            },
+            randomArtists = { limit ->
+                homeState.artists.shuffled().take(limit.toInt()).ifEmpty {
+                    provider?.artists(limit.toInt())?.shuffled().orEmpty()
+                }
+            },
+            popularTracksService = popularTracksService,
+            similarArtistsService = similarArtistsService,
+        )
+    }
+
+    fun refreshArtistMixInitialSuggestions() {
+        scope.launch {
+            artistMixLoading = true
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    artistMixBuilderService.initialSuggestions(artistMixSelectedArtists)
+                }
+            }.onSuccess { suggestions ->
+                artistMixSuggestions = suggestions
+                artistMixStatus = if (suggestions.isEmpty()) "No artist suggestions yet." else null
+            }.onFailure { error ->
+                artistMixStatus = error.message ?: "Could not load artist suggestions."
+            }
+            artistMixLoading = false
+        }
+    }
+
+    fun handleArtistMixSearch() {
+        scope.launch {
+            artistMixLoading = true
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    artistMixBuilderService.searchSuggestions(artistMixQuery, artistMixSelectedArtists)
+                }
+            }.onSuccess { suggestions ->
+                artistMixSuggestions = suggestions
+                artistMixStatus = if (suggestions.isEmpty()) "No artists matched." else null
+            }.onFailure { error ->
+                artistMixStatus = error.message ?: "Could not search artists."
+            }
+            artistMixLoading = false
+        }
+    }
+
+    fun selectArtistForMix(artist: Artist) {
+        artistMixSelectedArtists = artistMixSelectedArtistsAfterSelect(artistMixSelectedArtists, artist)
+        artistMixStatus = "Loading ${artist.name} songs..."
+        scope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    artistMixBuilderService.popularTracks(artist)
+                }
+            }.onSuccess { tracks ->
+                artistMixPopularTracksByArtistId = artistMixPopularTracksByArtistId + (artist.id.value to tracks)
+                artistMixStatus = if (tracks.isEmpty()) "${artist.name} popular songs were not matched." else null
+            }.onFailure { error ->
+                artistMixStatus = error.message ?: "Could not load ${artist.name} songs."
+            }
+        }
+        scope.launch {
+            artistMixLoading = true
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    artistMixBuilderService.relatedSuggestions(artistMixSelectedArtists, artist)
+                }
+            }.onSuccess { suggestions ->
+                artistMixSuggestions = suggestions
+            }.onFailure { error ->
+                artistMixStatus = error.message ?: "Could not load similar artists."
+            }
+            artistMixLoading = false
+        }
+    }
+
+    fun handleArtistMixArtistSelected(item: SharedMediaItemUi) {
+        artistMixSuggestions.firstOrNull { it.id.value == item.id }?.let(::selectArtistForMix)
+    }
+
+    fun handleArtistMixArtistRemoved(item: SharedMediaItemUi) {
+        val artist = artistMixSelectedArtists.firstOrNull { it.id.value == item.id } ?: return
+        artistMixSelectedArtists = artistMixSelectedArtistsAfterRemove(artistMixSelectedArtists, artist)
+        artistMixPopularTracksByArtistId = artistMixPopularTracksByArtistId - artist.id.value
+        refreshArtistMixInitialSuggestions()
+    }
+
+    fun handleArtistMixPlay() {
+        startAndroidArtistMixRadio(
+            scope = scope,
+            state = appState,
+            queueController = playbackQueueController,
+            artists = artistMixSelectedArtists,
+            popularTracks = artistMixPopularQueue(artistMixSelectedArtists, artistMixPopularTracksByArtistId),
+            playTrack = { seedTrack, queue -> playTrack(seedTrack, queue, keepRadioQueueActive = true) },
+            providerResponseCacheRepository = storage,
+            rememberRecentRadioStream = ::rememberRecentRadioStream,
+        )
+    }
+
+    LaunchedEffect(provider, homeState.artists) {
+        if (provider != null && artistMixSuggestions.isEmpty()) {
+            refreshArtistMixInitialSuggestions()
+        }
+    }
+
     fun openExternalArtistUrl(url: String) {
         openAndroidExternalArtistUrl(context, appState, url)
     }
@@ -1309,6 +1428,15 @@ private fun NaviampAndroidApp(
         }
     }
 
+    fun handleMixBuilderSelected(builder: SharedMixBuilderUi) {
+        contentState = contentState.clearDetails()
+        nowPlayingOpen = false
+        when (builder.id) {
+            "artist", "genre" -> navigationState = navigationState.copy(route = NaviampRoute.Radio)
+            "album" -> navigationState = navigationState.copy(route = NaviampRoute.Library)
+        }
+    }
+
     fun handleShellResume() {
         when (playbackState) {
             PlaybackState.Idle,
@@ -1606,6 +1734,10 @@ private fun NaviampAndroidApp(
         handleClearLibrary = ::handleClearLibrary,
         handleResetDatabase = ::handleResetDatabase,
         handleSearch = ::handleSearch,
+        handleArtistMixSearch = ::handleArtistMixSearch,
+        handleArtistMixArtistSelected = ::handleArtistMixArtistSelected,
+        handleArtistMixArtistRemoved = ::handleArtistMixArtistRemoved,
+        handleArtistMixPlay = ::handleArtistMixPlay,
         startAndroidLibrarySync = { force -> startAndroidLibrarySync(scope, appState, storage, force) },
         handleShellTrackSelected = ::handleShellTrackSelected,
         handleDownloadedTrackSelected = ::handleDownloadedTrackSelected,
@@ -1653,6 +1785,7 @@ private fun NaviampAndroidApp(
         closeActivePlaylist = ::closeActivePlaylist,
         handlePlaylistTrackSelected = ::handlePlaylistTrackSelected,
         handleRecentRadioSelected = ::handleShellRecentRadioSelected,
+        handleMixBuilderSelected = ::handleMixBuilderSelected,
         handleRadioStationSelected = ::handleRadioStationSelected,
         saveInternetRadioStation = ::saveInternetRadioStation,
         deleteInternetRadioStation = ::deleteInternetRadioStation,

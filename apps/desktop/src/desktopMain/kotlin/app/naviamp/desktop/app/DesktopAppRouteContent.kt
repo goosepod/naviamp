@@ -33,9 +33,12 @@ import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.source.SavedMediaSource
+import app.naviamp.ui.ArtistMixBuilderContent
+import app.naviamp.ui.SharedArtistMixBuilderUi
 import app.naviamp.ui.SharedHome
 import app.naviamp.ui.SharedHomeStationUi
 import app.naviamp.ui.SharedMediaItemUi
+import app.naviamp.ui.SharedMixBuilderUi
 import app.naviamp.ui.toSharedHomeUi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -93,6 +96,12 @@ fun ColumnScope.DesktopAppRouteContent(
     searchResults: MediaSearchResults,
     searchStatus: String?,
     isSearching: Boolean,
+    artistMixBuilder: SharedArtistMixBuilderUi,
+    onArtistMixQueryChanged: (String) -> Unit,
+    onArtistMixSearch: () -> Unit,
+    onArtistMixArtistSelected: (SharedMediaItemUi) -> Unit,
+    onArtistMixArtistRemoved: (SharedMediaItemUi) -> Unit,
+    onArtistMixPlay: () -> Unit,
     internetRadioStations: List<InternetRadioStation>,
     internetRadioStatus: String?,
     onSaveInternetRadioStation: (InternetRadioStation) -> Unit,
@@ -173,6 +182,14 @@ fun ColumnScope.DesktopAppRouteContent(
         }
     }
 
+    fun openMixBuilder(builder: SharedMixBuilderUi) {
+        when (builder.id) {
+            "artist" -> onOpenArtistMixBuilder()
+            "album" -> onOpenAlbumMixBuilder()
+            "genre" -> onRouteSelected(DesktopAppRoute.InternetRadio)
+        }
+    }
+
     Box(
         modifier = Modifier
             .weight(1f)
@@ -204,6 +221,7 @@ fun ColumnScope.DesktopAppRouteContent(
                     onPlaylistSelected = ::openHomePlaylist,
                     onRecentRadioSelected = ::playHomeRecentRadio,
                     onInternetRadioStationSelected = ::playHomeInternetRadio,
+                    onMixBuilderSelected = ::openMixBuilder,
                     onHomeStationSelected = ::playHomeStation,
                 )
                 DesktopAppRoute.AlbumDetail -> DesktopAlbumDetailPanel(
@@ -443,14 +461,25 @@ fun ColumnScope.DesktopAppRouteContent(
                         }
                     },
                 )
-                DesktopAppRoute.InternetRadio -> DesktopInternetRadioPanel(
-                    appColors = appColors,
-                    stations = internetRadioStations,
-                    status = internetRadioStatus ?: connectionStatus,
-                    onPlayStation = internetRadioController::playStation,
-                    onSaveStation = onSaveInternetRadioStation,
-                    onDeleteStation = onDeleteInternetRadioStation,
-                )
+                DesktopAppRoute.InternetRadio -> Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                    ArtistMixBuilderContent(
+                        colors = appColors,
+                        builder = artistMixBuilder,
+                        onQueryChanged = onArtistMixQueryChanged,
+                        onSearch = onArtistMixSearch,
+                        onArtistSelected = onArtistMixArtistSelected,
+                        onArtistRemoved = onArtistMixArtistRemoved,
+                        onPlayMix = onArtistMixPlay,
+                    )
+                    DesktopInternetRadioPanel(
+                        appColors = appColors,
+                        stations = internetRadioStations,
+                        status = internetRadioStatus ?: connectionStatus,
+                        onPlayStation = internetRadioController::playStation,
+                        onSaveStation = onSaveInternetRadioStation,
+                        onDeleteStation = onDeleteInternetRadioStation,
+                    )
+                }
                 DesktopAppRoute.Downloads -> DesktopDownloadsRoute(
                     appColors = appColors,
                     connectedSourceId = connectedSourceId,

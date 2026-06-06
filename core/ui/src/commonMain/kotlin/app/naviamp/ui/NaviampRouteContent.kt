@@ -37,6 +37,7 @@ fun SharedHome(
     onPlaylistSelected: (SharedMediaItemUi) -> Unit,
     onRecentRadioSelected: (SharedMediaItemUi) -> Unit,
     onInternetRadioStationSelected: (SharedMediaItemUi) -> Unit,
+    onMixBuilderSelected: (SharedMixBuilderUi) -> Unit,
     onHomeStationSelected: (SharedHomeStationUi) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -57,6 +58,7 @@ fun SharedHome(
                 }
             }
         }
+        MixBuilderSection(home.mixBuilders, colors, onMixBuilderSelected)
         HomeSection(
             title = "Recently Played Radio",
             items = home.recentRadioStreams,
@@ -75,6 +77,29 @@ fun SharedHome(
             HomeSection("More In $title", home.genreSpotlightAlbums, colors, onAlbumSelected)
         }
         HomeSection("From ${home.decadeLabel}", home.decadeAlbums, colors, onAlbumSelected)
+    }
+}
+
+@Composable
+private fun MixBuilderSection(
+    builders: List<SharedMixBuilderUi>,
+    colors: NaviampColors,
+    onBuilderSelected: (SharedMixBuilderUi) -> Unit,
+) {
+    if (builders.isEmpty()) return
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        SectionHeader("MIX BUILDERS", colors)
+        builders.forEach { builder ->
+            SharedMediaRow(
+                item = SharedMediaItemUi(
+                    id = builder.id,
+                    title = builder.title,
+                    subtitle = builder.subtitle,
+                ),
+                colors = colors,
+                onClick = { onBuilderSelected(builder) },
+            )
+        }
     }
 }
 

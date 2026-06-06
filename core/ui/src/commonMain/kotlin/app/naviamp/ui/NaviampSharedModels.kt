@@ -122,6 +122,7 @@ data class SharedPlaylistDetailUi(
 )
 
 data class SharedHomeUi(
+    val mixBuilders: List<SharedMixBuilderUi> = emptyList(),
     val recentlyAddedAlbums: List<SharedMediaItemUi> = emptyList(),
     val mixAlbums: List<SharedMediaItemUi> = emptyList(),
     val recentAlbums: List<SharedMediaItemUi> = emptyList(),
@@ -137,7 +138,8 @@ data class SharedHomeUi(
     val decadeAlbums: List<SharedMediaItemUi> = emptyList(),
 ) {
     val isEmpty: Boolean
-        get() = recentlyAddedAlbums.isEmpty() &&
+        get() = mixBuilders.isEmpty() &&
+            recentlyAddedAlbums.isEmpty() &&
             mixAlbums.isEmpty() &&
             recentAlbums.isEmpty() &&
             frequentAlbums.isEmpty() &&
@@ -149,6 +151,12 @@ data class SharedHomeUi(
             genreSpotlightAlbums.isEmpty() &&
             decadeAlbums.isEmpty()
 }
+
+data class SharedMixBuilderUi(
+    val id: String,
+    val title: String,
+    val subtitle: String,
+)
 
 data class SharedHomeStationUi(
     val id: String,
@@ -164,6 +172,14 @@ data class SharedSearchResultsUi(
     val isEmpty: Boolean
         get() = artists.isEmpty() && albums.isEmpty() && tracks.isEmpty()
 }
+
+data class SharedArtistMixBuilderUi(
+    val query: String = "",
+    val selectedArtists: List<SharedMediaItemUi> = emptyList(),
+    val suggestedArtists: List<SharedMediaItemUi> = emptyList(),
+    val status: String? = null,
+    val loading: Boolean = false,
+)
 
 data class NowPlayingUi(
     val id: String = "",
