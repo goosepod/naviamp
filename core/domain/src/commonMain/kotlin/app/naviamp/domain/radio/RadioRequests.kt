@@ -36,6 +36,28 @@ fun genreRadioRequest(genre: Genre): RadioRequest =
         loadTracks = { radioService -> radioService.genreRadio(genre.name) },
     )
 
+fun genreMixRadioRequest(genres: List<Genre>): RadioRequest {
+    val distinctGenres = genres.distinctBy { it.name.lowercase() }
+    val label = genreMixRadioLabel(distinctGenres)
+    val recentStream = distinctGenres.firstOrNull()
+        ?.let { genreRecentRadioStream(it).copy(id = "genre-mix:${distinctGenres.joinToString(":") { genre -> genre.name }}", label = label) }
+        ?: libraryRecentRadioStream()
+    return RadioRequest(
+        label = label,
+        recentRadioStream = recentStream,
+        loadTracks = { radioService ->
+            coroutineScope {
+                distinctGenres
+                    .map { genre -> async { radioService.genreRadio(genre.name) } }
+                    .awaitAll()
+                    .flatten()
+                    .shuffled()
+                    .distinctBy { it.id }
+            }
+        },
+    )
+}
+
 fun decadeRadioRequest(fromYear: Int, toYear: Int): RadioRequest =
     RadioRequest(
         label = "$fromYear-$toYear radio",
@@ -173,4 +195,12 @@ fun albumMixRadioLabel(albums: List<Album>): String =
         1 -> "${albums.first().title} mix"
         2 -> "${albums[0].title} + ${albums[1].title} mix"
         else -> "${albums[0].title} + ${albums.size - 1} more mix"
+    }
+
+fun genreMixRadioLabel(genres: List<Genre>): String =
+    when (genres.size) {
+        0 -> "Genre mix"
+        1 -> "${genres.first().name} mix"
+        2 -> "${genres[0].name} + ${genres[1].name} mix"
+        else -> "${genres[0].name} + ${genres.size - 1} more mix"
     }

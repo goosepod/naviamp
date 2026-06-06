@@ -29,6 +29,8 @@ import app.naviamp.ui.SharedAlbumDetailUi
 import app.naviamp.ui.SharedAlbumMixBuilderUi
 import app.naviamp.ui.SharedArtistMixBuilderUi
 import app.naviamp.ui.SharedArtistDetailUi
+import app.naviamp.ui.SharedGenreMixBuilderUi
+import app.naviamp.ui.SharedGenreMixItemUi
 import app.naviamp.ui.SharedHomeStationUi
 import app.naviamp.ui.SharedHomeUi
 import app.naviamp.ui.SharedMediaItemUi
@@ -39,6 +41,7 @@ import app.naviamp.ui.SharedRoute
 import app.naviamp.ui.SharedSearchResultsUi
 import app.naviamp.ui.SharedSimilarArtistUi
 import app.naviamp.ui.toNaviampRoute
+import app.naviamp.ui.toSharedGenreMixItemUi
 import app.naviamp.ui.toSharedMediaItemUi
 
 data class AndroidAppShellUiState(
@@ -62,6 +65,7 @@ data class AndroidAppShellUiState(
     val searchResults: SharedSearchResultsUi,
     val artistMixBuilder: SharedArtistMixBuilderUi,
     val albumMixBuilder: SharedAlbumMixBuilderUi,
+    val genreMixBuilder: SharedGenreMixBuilderUi,
     val libraryArtists: List<SharedMediaItemUi>,
     val libraryQuery: String,
     val librarySyncStatus: NaviampLibrarySyncStatusUi,
@@ -109,6 +113,12 @@ data class AndroidAppShellActions(
     val onAlbumMixAlbumRemoved: (SharedMediaItemUi) -> Unit,
     val onAlbumMixReset: () -> Unit,
     val onAlbumMixPlay: () -> Unit,
+    val onGenreMixQueryChanged: (String) -> Unit,
+    val onGenreMixSearch: () -> Unit,
+    val onGenreMixGenreSelected: (SharedGenreMixItemUi) -> Unit,
+    val onGenreMixGenreRemoved: (SharedGenreMixItemUi) -> Unit,
+    val onGenreMixReset: () -> Unit,
+    val onGenreMixPlay: () -> Unit,
     val onLibraryQueryChanged: (String) -> Unit,
     val onRefreshLibrary: () -> Unit,
     val onTrackSelected: (SharedTrackRowUi) -> Unit,
@@ -229,6 +239,7 @@ fun AndroidAppShellContent(
         searchResults = state.searchResults,
         artistMixBuilder = state.artistMixBuilder,
         albumMixBuilder = state.albumMixBuilder,
+        genreMixBuilder = state.genreMixBuilder,
         libraryArtists = state.libraryArtists,
         libraryQuery = state.libraryQuery,
         librarySyncStatus = state.librarySyncStatus,
@@ -273,6 +284,12 @@ fun AndroidAppShellContent(
         onAlbumMixAlbumRemoved = actions.onAlbumMixAlbumRemoved,
         onAlbumMixReset = actions.onAlbumMixReset,
         onAlbumMixPlay = actions.onAlbumMixPlay,
+        onGenreMixQueryChanged = actions.onGenreMixQueryChanged,
+        onGenreMixSearch = actions.onGenreMixSearch,
+        onGenreMixGenreSelected = actions.onGenreMixGenreSelected,
+        onGenreMixGenreRemoved = actions.onGenreMixGenreRemoved,
+        onGenreMixReset = actions.onGenreMixReset,
+        onGenreMixPlay = actions.onGenreMixPlay,
         onLibraryQueryChanged = actions.onLibraryQueryChanged,
         onRefreshLibrary = actions.onRefreshLibrary,
         onTrackSelected = actions.onTrackSelected,
@@ -492,6 +509,13 @@ fun rememberAndroidAppShellUiState(
                 status = albumMixStatus,
                 loading = albumMixLoading,
             ),
+            genreMixBuilder = SharedGenreMixBuilderUi(
+                query = genreMixQuery,
+                selectedGenres = genreMixSelectedGenres.map { genre -> genre.toSharedGenreMixItemUi() },
+                suggestedGenres = genreMixSuggestions.map { genre -> genre.toSharedGenreMixItemUi() },
+                status = genreMixStatus,
+                loading = genreMixLoading,
+            ),
             libraryArtists = shellModels.libraryArtists,
             libraryQuery = libraryQuery,
             librarySyncStatus = shellModels.librarySyncStatus,
@@ -536,6 +560,11 @@ fun androidAppShellActions(
     handleAlbumMixAlbumRemoved: (SharedMediaItemUi) -> Unit,
     handleAlbumMixReset: () -> Unit,
     handleAlbumMixPlay: () -> Unit,
+    handleGenreMixSearch: () -> Unit,
+    handleGenreMixGenreSelected: (SharedGenreMixItemUi) -> Unit,
+    handleGenreMixGenreRemoved: (SharedGenreMixItemUi) -> Unit,
+    handleGenreMixReset: () -> Unit,
+    handleGenreMixPlay: () -> Unit,
     startAndroidLibrarySync: (Boolean) -> Unit,
     handleShellTrackSelected: (SharedTrackRowUi) -> Unit,
     handleDownloadedTrackSelected: (NaviampDownloadedTrackUi) -> Unit,
@@ -645,6 +674,12 @@ fun androidAppShellActions(
             onAlbumMixAlbumRemoved = handleAlbumMixAlbumRemoved,
             onAlbumMixReset = handleAlbumMixReset,
             onAlbumMixPlay = handleAlbumMixPlay,
+            onGenreMixQueryChanged = { genreMixQuery = it },
+            onGenreMixSearch = handleGenreMixSearch,
+            onGenreMixGenreSelected = handleGenreMixGenreSelected,
+            onGenreMixGenreRemoved = handleGenreMixGenreRemoved,
+            onGenreMixReset = handleGenreMixReset,
+            onGenreMixPlay = handleGenreMixPlay,
             onLibraryQueryChanged = { libraryQuery = it },
             onRefreshLibrary = { startAndroidLibrarySync(true) },
             onTrackSelected = handleShellTrackSelected,

@@ -27,7 +27,7 @@ This checklist tracks the first feature set for the `new-features` branch. Keep 
   - Random album grid starts the builder.
   - Selecting an album moves it to the selected row, preloads a few tracks from the album, and refreshes suggestions with albums from similar library artists plus a few random albums.
   - Play Mix starts with the preloaded selected-album tracks in a mixed random order, then continues with album radio.
-- [ ] Add Genre Mix Radio.
+- [x] Add Genre Mix Radio.
   - Shared cross-platform screen below Artist Mix Builder and Album Mix Builder.
   - Select genres into a selected row.
   - Remove selected genres from the main list.

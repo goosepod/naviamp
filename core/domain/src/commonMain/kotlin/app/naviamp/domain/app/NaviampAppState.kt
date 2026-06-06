@@ -19,6 +19,7 @@ enum class NaviampRoute {
     Search,
     ArtistMix,
     AlbumMix,
+    GenreMix,
     Radio,
     Downloads,
     Settings,

@@ -4,6 +4,7 @@ import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
+import app.naviamp.domain.Genre
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Playlist
@@ -55,6 +56,16 @@ fun InternetRadioStation.toSharedMediaItemUi(): SharedMediaItemUi =
         title = name,
         subtitle = homePageUrl ?: "Internet radio",
         coverArtUrl = radioStationArtworkUrl(this),
+    )
+
+fun Genre.toSharedGenreMixItemUi(): SharedGenreMixItemUi =
+    SharedGenreMixItemUi(
+        id = name,
+        title = name,
+        subtitle = listOfNotNull(
+            albumCount?.let { "$it albums" },
+            trackCount?.let { "$it tracks" },
+        ).joinToString(" - "),
     )
 
 fun InternetRadioStation.defaultRadioArtworkUrl(): String =

@@ -60,6 +60,9 @@ import app.naviamp.domain.albummix.AlbumMixBuilderService
 import app.naviamp.domain.albummix.albumMixSelectedAlbumsAfterRemove
 import app.naviamp.domain.albummix.albumMixSelectedAlbumsAfterSelect
 import app.naviamp.domain.albummix.albumMixTrackQueue
+import app.naviamp.domain.genremix.GenreMixBuilderService
+import app.naviamp.domain.genremix.genreMixSelectedGenresAfterRemove
+import app.naviamp.domain.genremix.genreMixSelectedGenresAfterSelect
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
@@ -138,11 +141,13 @@ import app.naviamp.ui.NaviampPlayerColors
 import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.SharedAlbumMixBuilderUi
 import app.naviamp.ui.SharedArtistMixBuilderUi
+import app.naviamp.ui.SharedGenreMixBuilderUi
 import app.naviamp.ui.radioArtworkNeedsTrackLookup
 import app.naviamp.ui.radioTrackArtworkKey
 import app.naviamp.ui.radioTrackArtworkQuery
 import app.naviamp.ui.rememberPlatformCoverArtPlayerColors
 import app.naviamp.ui.toSharedMediaItemUi
+import app.naviamp.ui.toSharedGenreMixItemUi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -255,6 +260,11 @@ fun NaviampApp(
     var albumMixTracksByAlbumId by remember { mutableStateOf<Map<String, List<Track>>>(emptyMap()) }
     var albumMixStatus by remember { mutableStateOf<String?>(null) }
     var albumMixLoading by remember { mutableStateOf(false) }
+    var genreMixQuery by remember { mutableStateOf("") }
+    var genreMixSelectedGenres by remember { mutableStateOf<List<Genre>>(emptyList()) }
+    var genreMixSuggestions by remember { mutableStateOf<List<Genre>>(emptyList()) }
+    var genreMixStatus by remember { mutableStateOf<String?>(null) }
+    var genreMixLoading by remember { mutableStateOf(false) }
     var downloadStatus by remember { mutableStateOf<String?>(null) }
     var downloadRefreshToken by remember { mutableStateOf(0) }
     var libraryQuery by remember { mutableStateOf("") }
@@ -1040,6 +1050,14 @@ fun NaviampApp(
         )
     }
 
+    val genreMixBuilderService = remember(connectedProvider, homeContent.genres) {
+        GenreMixBuilderService(
+            genres = { limit ->
+                connectedProvider?.genres(limit.toInt()).orEmpty().ifEmpty { homeContent.genres }
+            },
+        )
+    }
+
     fun artistMixItem(artist: Artist) = artist.toSharedMediaItemUi { coverArtId ->
         coverArtId?.let { connectedProvider?.coverArtUrl(it) }
     }
@@ -1047,6 +1065,8 @@ fun NaviampApp(
     fun albumMixItem(album: Album) = album.toSharedMediaItemUi { coverArtId ->
         coverArtId?.let { connectedProvider?.coverArtUrl(it) }
     }
+
+    fun genreMixItem(genre: Genre) = genre.toSharedGenreMixItemUi()
 
     fun refreshArtistMixInitialSuggestions() {
         coroutineScope.launch {
@@ -1208,6 +1228,41 @@ fun NaviampApp(
         refreshAlbumMixInitialSuggestions()
     }
 
+    fun refreshGenreMixSuggestions() {
+        coroutineScope.launch {
+            genreMixLoading = true
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    genreMixBuilderService.searchSuggestions(genreMixQuery, genreMixSelectedGenres)
+                }
+            }.onSuccess { suggestions ->
+                genreMixSuggestions = suggestions
+                genreMixStatus = if (suggestions.isEmpty()) "No genres matched." else null
+            }.onFailure { error ->
+                genreMixStatus = error.message ?: "Could not load genres."
+            }
+            genreMixLoading = false
+        }
+    }
+
+    fun selectGenreForMix(genre: Genre) {
+        genreMixSelectedGenres = genreMixSelectedGenresAfterSelect(genreMixSelectedGenres, genre)
+        refreshGenreMixSuggestions()
+    }
+
+    fun removeGenreFromMix(genre: Genre) {
+        genreMixSelectedGenres = genreMixSelectedGenresAfterRemove(genreMixSelectedGenres, genre)
+        refreshGenreMixSuggestions()
+    }
+
+    fun resetGenreMixBuilder() {
+        genreMixQuery = ""
+        genreMixSelectedGenres = emptyList()
+        genreMixStatus = null
+        genreMixLoading = false
+        refreshGenreMixSuggestions()
+    }
+
     LaunchedEffect(connectedSourceId, homeContent.artists) {
         if (connectedSourceId != null && artistMixSuggestions.isEmpty()) {
             refreshArtistMixInitialSuggestions()
@@ -1217,6 +1272,12 @@ fun NaviampApp(
     LaunchedEffect(connectedSourceId, homeContent.randomAlbums, homeContent.mixAlbums) {
         if (connectedSourceId != null && albumMixSuggestions.isEmpty()) {
             refreshAlbumMixInitialSuggestions()
+        }
+    }
+
+    LaunchedEffect(connectedSourceId, homeContent.genres) {
+        if (connectedSourceId != null && genreMixSuggestions.isEmpty()) {
+            refreshGenreMixSuggestions()
         }
     }
 
@@ -1571,6 +1632,25 @@ fun NaviampApp(
                                     albumMixSelectedAlbums,
                                     albumMixTrackQueue(albumMixSelectedAlbums, albumMixTracksByAlbumId),
                                 )
+                            },
+                            genreMixBuilder = SharedGenreMixBuilderUi(
+                                query = genreMixQuery,
+                                selectedGenres = genreMixSelectedGenres.map(::genreMixItem),
+                                suggestedGenres = genreMixSuggestions.map(::genreMixItem),
+                                status = genreMixStatus,
+                                loading = genreMixLoading,
+                            ),
+                            onGenreMixQueryChanged = { query -> genreMixQuery = query },
+                            onGenreMixSearch = ::refreshGenreMixSuggestions,
+                            onGenreMixGenreSelected = { item ->
+                                genreMixSuggestions.firstOrNull { it.name == item.id }?.let(::selectGenreForMix)
+                            },
+                            onGenreMixGenreRemoved = { item ->
+                                genreMixSelectedGenres.firstOrNull { it.name == item.id }?.let(::removeGenreFromMix)
+                            },
+                            onGenreMixReset = ::resetGenreMixBuilder,
+                            onGenreMixPlay = {
+                                radioController.playGenreMix(genreMixSelectedGenres)
                             },
                             internetRadioStations = internetRadioStations,
                             internetRadioStatus = internetRadioStatus,

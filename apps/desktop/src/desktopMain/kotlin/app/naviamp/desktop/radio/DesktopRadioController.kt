@@ -24,6 +24,7 @@ import app.naviamp.domain.radio.artistMixSeededRadioRequest
 import app.naviamp.domain.radio.artistSeededRadioRequest
 import app.naviamp.domain.radio.decadeRadioRequest
 import app.naviamp.domain.radio.genreRadioRequest
+import app.naviamp.domain.radio.genreMixRadioRequest
 import app.naviamp.domain.radio.libraryRadioRequest
 import app.naviamp.domain.radio.popularTracksRadioRequest
 import app.naviamp.domain.radio.radioRefillSeedTrack
@@ -149,6 +150,12 @@ class DesktopRadioController(
 
     fun playGenre(genre: Genre) {
         play(genreRadioRequest(genre))
+    }
+
+    fun playGenreMix(genres: List<Genre>) {
+        val distinctGenres = genres.distinctBy { it.name.lowercase() }
+        if (distinctGenres.isEmpty()) return
+        play(genreMixRadioRequest(distinctGenres))
     }
 
     fun playDecade(fromYear: Int, toYear: Int) {

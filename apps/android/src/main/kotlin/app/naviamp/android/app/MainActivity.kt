@@ -63,6 +63,9 @@ import app.naviamp.domain.albummix.AlbumMixBuilderService
 import app.naviamp.domain.albummix.albumMixSelectedAlbumsAfterRemove
 import app.naviamp.domain.albummix.albumMixSelectedAlbumsAfterSelect
 import app.naviamp.domain.albummix.albumMixTrackQueue
+import app.naviamp.domain.genremix.GenreMixBuilderService
+import app.naviamp.domain.genremix.genreMixSelectedGenresAfterRemove
+import app.naviamp.domain.genremix.genreMixSelectedGenresAfterSelect
 import app.naviamp.domain.media.albumDetailLoadErrorStatus
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackQueueController
@@ -119,6 +122,7 @@ import app.naviamp.ui.radioTrackArtworkKey
 import app.naviamp.ui.radioTrackArtworkQuery
 import app.naviamp.ui.SharedAlbumDetailUi
 import app.naviamp.ui.SharedArtistDetailUi
+import app.naviamp.ui.SharedGenreMixItemUi
 import app.naviamp.ui.SharedHomeStationUi
 import app.naviamp.ui.SharedHomeUi
 import app.naviamp.ui.SharedMediaItemUi
@@ -1206,6 +1210,63 @@ private fun NaviampAndroidApp(
         )
     }
 
+    val genreMixBuilderService = remember(provider, homeState.genres) {
+        GenreMixBuilderService(
+            genres = { limit ->
+                provider?.genres(limit.toInt()).orEmpty().ifEmpty { homeState.genres }
+            },
+        )
+    }
+
+    fun refreshGenreMixSuggestions() {
+        scope.launch {
+            genreMixLoading = true
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    genreMixBuilderService.searchSuggestions(genreMixQuery, genreMixSelectedGenres)
+                }
+            }.onSuccess { suggestions ->
+                genreMixSuggestions = suggestions
+                genreMixStatus = if (suggestions.isEmpty()) "No genres matched." else null
+            }.onFailure { error ->
+                genreMixStatus = error.message ?: "Could not load genres."
+            }
+            genreMixLoading = false
+        }
+    }
+
+    fun handleGenreMixGenreSelected(item: SharedGenreMixItemUi) {
+        val genre = genreMixSuggestions.firstOrNull { it.name == item.id } ?: return
+        genreMixSelectedGenres = genreMixSelectedGenresAfterSelect(genreMixSelectedGenres, genre)
+        refreshGenreMixSuggestions()
+    }
+
+    fun handleGenreMixGenreRemoved(item: SharedGenreMixItemUi) {
+        val genre = genreMixSelectedGenres.firstOrNull { it.name == item.id } ?: return
+        genreMixSelectedGenres = genreMixSelectedGenresAfterRemove(genreMixSelectedGenres, genre)
+        refreshGenreMixSuggestions()
+    }
+
+    fun handleGenreMixReset() {
+        genreMixQuery = ""
+        genreMixSelectedGenres = emptyList()
+        genreMixStatus = null
+        genreMixLoading = false
+        refreshGenreMixSuggestions()
+    }
+
+    fun handleGenreMixPlay() {
+        startAndroidGenreMixRadio(
+            scope = scope,
+            state = appState,
+            queueController = playbackQueueController,
+            genres = genreMixSelectedGenres,
+            playTrack = { track, queue -> playTrack(track, queue, keepRadioQueueActive = true) },
+            providerResponseCacheRepository = storage,
+            rememberRecentRadioStream = ::rememberRecentRadioStream,
+        )
+    }
+
     LaunchedEffect(provider, homeState.artists) {
         if (provider != null && artistMixSuggestions.isEmpty()) {
             refreshArtistMixInitialSuggestions()
@@ -1215,6 +1276,12 @@ private fun NaviampAndroidApp(
     LaunchedEffect(provider, homeState.randomAlbums, homeState.mixAlbums) {
         if (provider != null && albumMixSuggestions.isEmpty()) {
             refreshAlbumMixInitialSuggestions()
+        }
+    }
+
+    LaunchedEffect(provider, homeState.genres) {
+        if (provider != null && genreMixSuggestions.isEmpty()) {
+            refreshGenreMixSuggestions()
         }
     }
 
@@ -1592,7 +1659,7 @@ private fun NaviampAndroidApp(
         nowPlayingOpen = false
         when (builder.id) {
             "artist" -> navigationState = navigationState.copy(route = NaviampRoute.ArtistMix)
-            "genre" -> navigationState = navigationState.copy(route = NaviampRoute.Radio)
+            "genre" -> navigationState = navigationState.copy(route = NaviampRoute.GenreMix)
             "album" -> navigationState = navigationState.copy(route = NaviampRoute.AlbumMix)
         }
     }
@@ -1904,6 +1971,11 @@ private fun NaviampAndroidApp(
         handleAlbumMixAlbumRemoved = ::handleAlbumMixAlbumRemoved,
         handleAlbumMixReset = ::handleAlbumMixReset,
         handleAlbumMixPlay = ::handleAlbumMixPlay,
+        handleGenreMixSearch = ::refreshGenreMixSuggestions,
+        handleGenreMixGenreSelected = ::handleGenreMixGenreSelected,
+        handleGenreMixGenreRemoved = ::handleGenreMixGenreRemoved,
+        handleGenreMixReset = ::handleGenreMixReset,
+        handleGenreMixPlay = ::handleGenreMixPlay,
         startAndroidLibrarySync = { force -> startAndroidLibrarySync(scope, appState, storage, force) },
         handleShellTrackSelected = ::handleShellTrackSelected,
         handleDownloadedTrackSelected = ::handleDownloadedTrackSelected,

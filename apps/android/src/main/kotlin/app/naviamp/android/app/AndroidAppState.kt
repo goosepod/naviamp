@@ -11,6 +11,7 @@ import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
+import app.naviamp.domain.Genre
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Playlist
@@ -137,6 +138,11 @@ class AndroidAppState(
     var albumMixTracksByAlbumId by mutableStateOf<Map<String, List<Track>>>(emptyMap())
     var albumMixStatus by mutableStateOf<String?>(null)
     var albumMixLoading by mutableStateOf(false)
+    var genreMixQuery by mutableStateOf("")
+    var genreMixSelectedGenres by mutableStateOf<List<Genre>>(emptyList())
+    var genreMixSuggestions by mutableStateOf<List<Genre>>(emptyList())
+    var genreMixStatus by mutableStateOf<String?>(null)
+    var genreMixLoading by mutableStateOf(false)
     var lyricsVisible by mutableStateOf(false)
     var lyricsByTrackId by mutableStateOf<Map<String, Lyrics?>>(emptyMap())
     var lyricsStatusByTrackId by mutableStateOf<Map<String, String?>>(emptyMap())

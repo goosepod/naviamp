@@ -497,6 +497,78 @@ fun AlbumMixBuilderContent(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun GenreMixBuilderContent(
+    colors: NaviampColors,
+    builder: SharedGenreMixBuilderUi,
+    onQueryChanged: (String) -> Unit,
+    onSearch: () -> Unit,
+    onGenreSelected: (SharedGenreMixItemUi) -> Unit,
+    onGenreRemoved: (SharedGenreMixItemUi) -> Unit,
+    onReset: () -> Unit,
+    onPlayMix: () -> Unit,
+    showPlayMixButton: Boolean = true,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Genre Mix Builder", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            if (builder.query.isNotBlank() || builder.selectedGenres.isNotEmpty()) {
+                TextButton(onClick = onReset) {
+                    Text("Reset", fontSize = 12.sp)
+                }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            NaviampTextField(
+                value = builder.query,
+                onValueChange = onQueryChanged,
+                label = "Search genres",
+                colors = colors,
+                modifier = Modifier.weight(1f),
+                onSubmit = onSearch,
+            )
+            Button(onClick = onSearch, modifier = Modifier.height(48.dp)) {
+                Icon(NaviampIcons.Search, contentDescription = "Search genres", modifier = Modifier.size(18.dp))
+            }
+        }
+        if (builder.selectedGenres.isNotEmpty()) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                builder.selectedGenres.forEach { genre ->
+                    GenreMixSelectedGenre(
+                        genre = genre,
+                        colors = colors,
+                        onRemove = { onGenreRemoved(genre) },
+                    )
+                }
+            }
+        }
+        (builder.status ?: if (builder.loading) "Loading genres..." else null)?.let {
+            Text(it, color = colors.secondaryText, fontSize = 12.sp)
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            builder.suggestedGenres.forEach { genre ->
+                GenreMixGenreRow(
+                    genre = genre,
+                    colors = colors,
+                    onClick = { onGenreSelected(genre) },
+                )
+            }
+        }
+        if (showPlayMixButton && builder.selectedGenres.isNotEmpty()) {
+            PrimaryButton("Play Mix", colors, onClick = onPlayMix)
+        }
+    }
+}
+
 @Composable
 private fun ArtistMixSelectedArtist(
     artist: SharedMediaItemUi,
@@ -515,6 +587,57 @@ private fun ArtistMixSelectedArtist(
     ) {
         PlatformCoverArt(artist.coverArtUrl, colors, 30.dp, 15.dp)
         Text(artist.title, color = colors.primaryText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@Composable
+private fun GenreMixSelectedGenre(
+    genre: SharedGenreMixItemUi,
+    colors: NaviampColors,
+    onRemove: () -> Unit,
+) {
+    Text(
+        genre.title,
+        color = colors.primaryText,
+        fontSize = 12.sp,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(Color.Black.copy(alpha = 0.18f))
+            .clickable(onClick = onRemove)
+            .padding(horizontal = 10.dp, vertical = 7.dp),
+    )
+}
+
+@Composable
+private fun GenreMixGenreRow(
+    genre: SharedGenreMixItemUi,
+    colors: NaviampColors,
+    onClick: () -> Unit,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(6.dp))
+            .background(Color.Black.copy(alpha = 0.14f))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+    ) {
+        Text(
+            genre.title,
+            color = colors.primaryText,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        if (genre.subtitle.isNotBlank()) {
+            Text(genre.subtitle, color = colors.secondaryText, fontSize = 12.sp)
+        }
     }
 }
 

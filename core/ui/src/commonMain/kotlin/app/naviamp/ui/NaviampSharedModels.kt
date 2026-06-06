@@ -189,6 +189,20 @@ data class SharedAlbumMixBuilderUi(
     val loading: Boolean = false,
 )
 
+data class SharedGenreMixBuilderUi(
+    val query: String = "",
+    val selectedGenres: List<SharedGenreMixItemUi> = emptyList(),
+    val suggestedGenres: List<SharedGenreMixItemUi> = emptyList(),
+    val status: String? = null,
+    val loading: Boolean = false,
+)
+
+data class SharedGenreMixItemUi(
+    val id: String,
+    val title: String,
+    val subtitle: String = "",
+)
+
 data class NowPlayingUi(
     val id: String = "",
     val title: String,
@@ -261,6 +275,7 @@ enum class SharedRoute(val label: String, val icon: ImageVector) {
     Search("Search", NaviampIcons.Search),
     ArtistMix("Artist Mix", NaviampTransportIcons.Radio),
     AlbumMix("Album Mix", NaviampTransportIcons.Radio),
+    GenreMix("Genre Mix", NaviampTransportIcons.Radio),
     Radio("Radio", NaviampIcons.InternetRadio),
     Downloads("Downloads", NaviampIcons.Downloads),
     Settings("Settings", NaviampIcons.Settings),

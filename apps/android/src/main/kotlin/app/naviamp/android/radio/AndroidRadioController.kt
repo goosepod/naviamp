@@ -3,6 +3,7 @@ package app.naviamp.android
 import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistId
+import app.naviamp.domain.Genre
 import app.naviamp.domain.Track
 import app.naviamp.domain.home.HomeStationLibrary
 import app.naviamp.domain.home.HomeStationRandomAlbum
@@ -23,6 +24,7 @@ import app.naviamp.domain.radio.decadeRecentRadioStream
 import app.naviamp.domain.radio.generatedRadioTracksToAppend
 import app.naviamp.domain.radio.generatedRadioQueue
 import app.naviamp.domain.radio.genreRecentRadioStream
+import app.naviamp.domain.radio.genreMixRadioRequest
 import app.naviamp.domain.radio.libraryRecentRadioStream
 import app.naviamp.domain.radio.popularTracksRecentRadioStream
 import app.naviamp.domain.radio.radioRefillSeedTrack
@@ -448,6 +450,31 @@ fun startAndroidAlbumMixRadio(
                 status = error.message ?: "Could not start album mix."
             }
         }
+    }
+}
+
+fun startAndroidGenreMixRadio(
+    scope: CoroutineScope,
+    state: AndroidAppState,
+    queueController: PlaybackQueueController,
+    genres: List<Genre>,
+    playTrack: (Track, List<Track>) -> Unit,
+    providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
+    rememberRecentRadioStream: (RecentRadioStream) -> Unit = {},
+) {
+    val distinctGenres = genres.distinctBy { it.name.lowercase() }
+    if (distinctGenres.isEmpty()) return
+    val request = genreMixRadioRequest(distinctGenres)
+    startAndroidRadioTracks(
+        scope = scope,
+        state = state,
+        statusLabel = request.label,
+        playTrack = playTrack,
+        providerResponseCacheRepository = providerResponseCacheRepository,
+        recentRadioStream = request.recentRadioStream,
+        rememberRecentRadioStream = rememberRecentRadioStream,
+    ) { radioService ->
+        request.loadTracks(radioService)
     }
 }
 
