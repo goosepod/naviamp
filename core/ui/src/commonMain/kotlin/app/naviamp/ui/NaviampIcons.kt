@@ -134,6 +134,16 @@ object NaviampIcons {
         moveTo(18f, 6f)
         lineTo(6f, 18f)
     }
+    val Plus = icon("Plus") {
+        moveTo(12f, 5f)
+        lineTo(12f, 19f)
+        moveTo(5f, 12f)
+        lineTo(19f, 12f)
+    }
+    val Minus = icon("Minus") {
+        moveTo(5f, 12f)
+        lineTo(19f, 12f)
+    }
     val InternetRadio = icon("InternetRadio") {
         moveTo(6f, 10f)
         lineTo(18.5f, 7.5f)

@@ -41,6 +41,7 @@ fun DesktopAlbumDetailPanel(
     onDownloadAlbum: () -> Unit,
     onAddAlbumToQueue: () -> Unit,
     onAddAlbumToPlaylist: () -> Unit,
+    onAlbumFavoriteToggle: (Album) -> Unit,
     onPlayTrack: (Int) -> Unit,
     onTrackRadio: (Track) -> Unit,
     onDownloadTrack: (Track) -> Unit,
@@ -125,6 +126,7 @@ fun DesktopAlbumDetailPanel(
                     Text(it, color = appColors.secondaryText, fontSize = 11.sp)
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    val effectiveAlbum = albumDetails?.album ?: album
                     DetailActionIconButton(
                         appColors = appColors,
                         icon = TransportIcons.Play,
@@ -166,6 +168,17 @@ fun DesktopAlbumDetailPanel(
                         contentDescription = "Add album to playlist",
                         enabled = albumDetails?.tracks?.isNotEmpty() == true,
                         onClick = onAddAlbumToPlaylist,
+                    )
+                    DetailActionIconButton(
+                        appColors = appColors,
+                        icon = TransportIcons.Heart,
+                        contentDescription = if (effectiveAlbum?.favoritedAtIso8601 != null) {
+                            "Remove album favorite"
+                        } else {
+                            "Favorite album"
+                        },
+                        enabled = effectiveAlbum != null,
+                        onClick = { effectiveAlbum?.let(onAlbumFavoriteToggle) },
                     )
                 }
             }

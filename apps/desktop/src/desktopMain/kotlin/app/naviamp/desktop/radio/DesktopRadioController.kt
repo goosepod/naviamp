@@ -18,10 +18,13 @@ import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioRequest
 import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.radio.SeededRadioRequest
+import app.naviamp.domain.radio.albumMixSeededRadioRequest
 import app.naviamp.domain.radio.albumSeededRadioRequest
+import app.naviamp.domain.radio.artistMixSeededRadioRequest
 import app.naviamp.domain.radio.artistSeededRadioRequest
 import app.naviamp.domain.radio.decadeRadioRequest
 import app.naviamp.domain.radio.genreRadioRequest
+import app.naviamp.domain.radio.genreMixRadioRequest
 import app.naviamp.domain.radio.libraryRadioRequest
 import app.naviamp.domain.radio.popularTracksRadioRequest
 import app.naviamp.domain.radio.radioRefillSeedTrack
@@ -149,6 +152,12 @@ class DesktopRadioController(
         play(genreRadioRequest(genre))
     }
 
+    fun playGenreMix(genres: List<Genre>) {
+        val distinctGenres = genres.distinctBy { it.name.lowercase() }
+        if (distinctGenres.isEmpty()) return
+        play(genreMixRadioRequest(distinctGenres))
+    }
+
     fun playDecade(fromYear: Int, toYear: Int) {
         play(decadeRadioRequest(fromYear, toYear))
     }
@@ -205,6 +214,32 @@ class DesktopRadioController(
         }
     }
 
+    fun playArtistMix(
+        artists: List<Artist>,
+        popularTracks: List<Track>,
+    ) {
+        val activeProvider = provider() ?: return
+        val distinctArtists = artists.distinctBy { it.id }
+        if (distinctArtists.isEmpty()) return
+        setConnectionStatus("Starting artist mix...")
+        scope.launch {
+            try {
+                val seedTrack = withContext(Dispatchers.IO) {
+                    popularTracks.shuffled().firstOrNull()
+                        ?: distinctArtists.firstNotNullOfOrNull { artist ->
+                            artistRadioSeedTrack(libraryIndexRepository, providerResponseService, activeProvider, artist, sourceId())
+                        }
+                } ?: run {
+                    setConnectionStatus("Artist mix did not find a seed track.")
+                    return@launch
+                }
+                startSeeded(activeProvider, artistMixSeededRadioRequest(distinctArtists, seedTrack, popularTracks.shuffled()))
+            } catch (exception: Exception) {
+                setConnectionStatus(exception.message ?: "Could not start artist mix.")
+            }
+        }
+    }
+
     fun playAlbum(album: Album, loadedAlbumTracks: List<Track> = emptyList()) {
         val activeProvider = provider() ?: return
         setConnectionStatus("Starting ${album.title} radio...")
@@ -226,6 +261,38 @@ class DesktopRadioController(
                 startSeeded(activeProvider, albumSeededRadioRequest(album, seedTrack, loadedAlbumTracks))
             } catch (exception: Exception) {
                 setConnectionStatus(exception.message ?: "Could not start ${album.title} radio.")
+            }
+        }
+    }
+
+    fun playAlbumMix(
+        albums: List<Album>,
+        selectedTracks: List<Track>,
+    ) {
+        val activeProvider = provider() ?: return
+        val distinctAlbums = albums.distinctBy { it.id }
+        if (distinctAlbums.isEmpty()) return
+        setConnectionStatus("Starting album mix...")
+        scope.launch {
+            try {
+                val seedTrack = withContext(Dispatchers.IO) {
+                    selectedTracks.shuffled().firstOrNull()
+                        ?: distinctAlbums.firstNotNullOfOrNull { album ->
+                            albumRadioSeedTrack(
+                                libraryIndexRepository = libraryIndexRepository,
+                                providerResponseService = providerResponseService,
+                                provider = activeProvider,
+                                album = album,
+                                sourceId = sourceId(),
+                            )
+                        }
+                } ?: run {
+                    setConnectionStatus("Album mix did not find a seed track.")
+                    return@launch
+                }
+                startSeeded(activeProvider, albumMixSeededRadioRequest(distinctAlbums, seedTrack, selectedTracks.shuffled()))
+            } catch (exception: Exception) {
+                setConnectionStatus(exception.message ?: "Could not start album mix.")
             }
         }
     }

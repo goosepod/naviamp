@@ -36,6 +36,28 @@ fun genreRadioRequest(genre: Genre): RadioRequest =
         loadTracks = { radioService -> radioService.genreRadio(genre.name) },
     )
 
+fun genreMixRadioRequest(genres: List<Genre>): RadioRequest {
+    val distinctGenres = genres.distinctBy { it.name.lowercase() }
+    val label = genreMixRadioLabel(distinctGenres)
+    val recentStream = distinctGenres.firstOrNull()
+        ?.let { genreRecentRadioStream(it).copy(id = "genre-mix:${distinctGenres.joinToString(":") { genre -> genre.name }}", label = label) }
+        ?: libraryRecentRadioStream()
+    return RadioRequest(
+        label = label,
+        recentRadioStream = recentStream,
+        loadTracks = { radioService ->
+            coroutineScope {
+                distinctGenres
+                    .map { genre -> async { radioService.genreRadio(genre.name) } }
+                    .awaitAll()
+                    .flatten()
+                    .shuffled()
+                    .distinctBy { it.id }
+            }
+        },
+    )
+}
+
 fun decadeRadioRequest(fromYear: Int, toYear: Int): RadioRequest =
     RadioRequest(
         label = "$fromYear-$toYear radio",
@@ -73,6 +95,33 @@ fun artistSeededRadioRequest(
         loadRest = { radioService -> radioService.artistRadio(artist.id) },
     )
 
+fun artistMixSeededRadioRequest(
+    artists: List<Artist>,
+    seedTrack: Track,
+    preferredTracks: List<Track> = emptyList(),
+): SeededRadioRequest {
+    val distinctArtists = artists.distinctBy { it.id }
+    val label = artistMixRadioLabel(distinctArtists)
+    val recentStream = distinctArtists.firstOrNull()
+        ?.let { artistRecentRadioStream(it).copy(id = "artist-mix:${distinctArtists.joinToString(":") { artist -> artist.id.value }}", label = label) }
+        ?: libraryRecentRadioStream()
+    return SeededRadioRequest(
+        label = label,
+        seedTrack = seedTrack,
+        recentRadioStream = recentStream,
+        loadRest = { radioService ->
+            coroutineScope {
+                val popularQueue = preferredTracks.filterNot { it.id == seedTrack.id }
+                val radioTracks = distinctArtists
+                    .map { artist -> async { radioService.artistRadio(artist.id) } }
+                    .awaitAll()
+                    .flatten()
+                (popularQueue + radioTracks).distinctBy { it.id }
+            }
+        },
+    )
+}
+
 fun albumSeededRadioRequest(
     album: Album,
     seedTrack: Track,
@@ -84,6 +133,33 @@ fun albumSeededRadioRequest(
         recentRadioStream = albumRecentRadioStream(album),
         loadRest = { radioService -> radioService.albumRadio(album.id, loadedAlbumTracks) },
     )
+
+fun albumMixSeededRadioRequest(
+    albums: List<Album>,
+    seedTrack: Track,
+    preferredTracks: List<Track> = emptyList(),
+): SeededRadioRequest {
+    val distinctAlbums = albums.distinctBy { it.id }
+    val label = albumMixRadioLabel(distinctAlbums)
+    val recentStream = distinctAlbums.firstOrNull()
+        ?.let { albumRecentRadioStream(it).copy(id = "album-mix:${distinctAlbums.joinToString(":") { album -> album.id.value }}", label = label) }
+        ?: libraryRecentRadioStream()
+    return SeededRadioRequest(
+        label = label,
+        seedTrack = seedTrack,
+        recentRadioStream = recentStream,
+        loadRest = { radioService ->
+            coroutineScope {
+                val mixedQueue = preferredTracks.filterNot { it.id == seedTrack.id }
+                val radioTracks = distinctAlbums
+                    .map { album -> async { radioService.albumRadio(album.id) } }
+                    .awaitAll()
+                    .flatten()
+                (mixedQueue + radioTracks).distinctBy { it.id }
+            }
+        },
+    )
+}
 
 fun popularTracksRadioRequest(
     tracks: List<Track>,
@@ -104,3 +180,27 @@ fun popularTracksRadioRequest(
         },
     )
 }
+
+fun artistMixRadioLabel(artists: List<Artist>): String =
+    when (artists.size) {
+        0 -> "Artist mix"
+        1 -> "${artists.first().name} mix"
+        2 -> "${artists[0].name} + ${artists[1].name} mix"
+        else -> "${artists[0].name} + ${artists.size - 1} more mix"
+    }
+
+fun albumMixRadioLabel(albums: List<Album>): String =
+    when (albums.size) {
+        0 -> "Album mix"
+        1 -> "${albums.first().title} mix"
+        2 -> "${albums[0].title} + ${albums[1].title} mix"
+        else -> "${albums[0].title} + ${albums.size - 1} more mix"
+    }
+
+fun genreMixRadioLabel(genres: List<Genre>): String =
+    when (genres.size) {
+        0 -> "Genre mix"
+        1 -> "${genres.first().name} mix"
+        2 -> "${genres[0].name} + ${genres[1].name} mix"
+        else -> "${genres[0].name} + ${genres.size - 1} more mix"
+    }

@@ -5,6 +5,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -63,6 +66,7 @@ fun TrackRow(
     leadingContent: (@Composable RowScope.() -> Unit)? = null,
     trailingContent: (@Composable RowScope.() -> Unit)? = null,
 ) {
+    var detailsOpen by remember(track.id) { mutableStateOf(false) }
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -95,7 +99,7 @@ fun TrackRow(
                     if (track.popular) {
                         Icon(
                             imageVector = NaviampIcons.Fire,
-                            contentDescription = "Popular on Deezer",
+                            contentDescription = "Popular track",
                             tint = colors.primaryText,
                             modifier = Modifier.size(10.dp),
                         )
@@ -117,6 +121,7 @@ fun TrackRow(
             canDownload = onDownload != null,
             canAddToQueue = onAddToQueue != null,
             canAddToPlaylist = onAddToPlaylist != null,
+            canShowDetails = track.detailSections.isNotEmpty(),
         ).mapNotNull { action ->
             when (action.action) {
                 NaviampAction.StartTrackRadio -> onStartRadio?.let { startRadio ->
@@ -131,6 +136,12 @@ fun TrackRow(
                 NaviampAction.AddToPlaylist -> onAddToPlaylist?.let { addToPlaylist ->
                     NaviampRowMenuItem(action.label, action.icon, { addToPlaylist(track) }, action.enabled)
                 }
+                NaviampAction.TrackDetails -> NaviampRowMenuItem(
+                    action.label,
+                    action.icon,
+                    { detailsOpen = true },
+                    action.enabled,
+                )
                 else -> null
             }
         }
@@ -140,6 +151,13 @@ fun TrackRow(
                 items = rowActions,
             )
         }
+    }
+    if (detailsOpen) {
+        TrackDetailsDialog(
+            sections = track.detailSections,
+            colors = colors,
+            onDismissRequest = { detailsOpen = false },
+        )
     }
 }
 
@@ -249,6 +267,7 @@ internal fun HomeSection(
     items: List<SharedMediaItemUi>,
     colors: NaviampColors,
     onItemSelected: ((SharedMediaItemUi) -> Unit)? = null,
+    onFavoriteToggled: ((SharedMediaItemUi) -> Unit)? = null,
     stationStyle: Boolean = false,
     emptyText: String? = null,
 ) {
@@ -272,6 +291,7 @@ internal fun HomeSection(
                         item = item,
                         colors = colors,
                         onClick = onItemSelected?.let { { it(item) } },
+                        onFavoriteToggled = onFavoriteToggled,
                     )
                 }
             }
@@ -285,13 +305,19 @@ internal fun MediaSection(
     items: List<SharedMediaItemUi>,
     colors: NaviampColors,
     onItemSelected: ((SharedMediaItemUi) -> Unit)? = null,
+    onFavoriteToggled: ((SharedMediaItemUi) -> Unit)? = null,
 ) {
     if (items.isEmpty()) return
 
     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
         SectionHeader(title.uppercase(), colors)
         items.forEach { item ->
-            SharedMediaRow(item, colors, onClick = onItemSelected?.let { { it(item) } })
+            SharedMediaRow(
+                item = item,
+                colors = colors,
+                onClick = onItemSelected?.let { { it(item) } },
+                onFavoriteToggled = onFavoriteToggled,
+            )
         }
     }
 }
@@ -302,6 +328,7 @@ fun SharedMediaRow(
     colors: NaviampColors,
     onClick: (() -> Unit)? = null,
     menuItems: List<NaviampRowMenuItem> = emptyList(),
+    onFavoriteToggled: ((SharedMediaItemUi) -> Unit)? = null,
     coverArtSize: Dp = 44.dp,
     coverArtCornerRadius: Dp = 5.dp,
     verticalPadding: Dp = 7.dp,
@@ -328,9 +355,419 @@ fun SharedMediaRow(
         if (item.meta.isNotBlank()) {
             Text(item.meta, color = colors.mutedText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        if (menuItems.isNotEmpty()) {
-            NaviampRowOverflowMenu(colors = colors, items = menuItems)
+        if (item.favoriteActive) {
+            Icon(
+                imageVector = NaviampTransportIcons.Heart,
+                contentDescription = "Favorite",
+                tint = colors.accent,
+                modifier = Modifier.size(15.dp),
+            )
         }
+        val favoriteMenuItem = if (item.canFavorite && onFavoriteToggled != null) {
+            NaviampRowMenuItem(
+                label = if (item.favoriteActive) "Remove favorite" else "Favorite",
+                icon = NaviampTransportIcons.Heart,
+                onClick = { onFavoriteToggled(item) },
+            )
+        } else {
+            null
+        }
+        val allMenuItems = listOfNotNull(favoriteMenuItem) + menuItems
+        if (allMenuItems.isNotEmpty()) {
+            NaviampRowOverflowMenu(colors = colors, items = allMenuItems)
+        }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalLayoutApi::class)
+fun ArtistMixBuilderContent(
+    colors: NaviampColors,
+    builder: SharedArtistMixBuilderUi,
+    onQueryChanged: (String) -> Unit,
+    onSearch: () -> Unit,
+    onArtistSelected: (SharedMediaItemUi) -> Unit,
+    onArtistRemoved: (SharedMediaItemUi) -> Unit,
+    onReset: () -> Unit,
+    onPlayMix: () -> Unit,
+    showPlayMixButton: Boolean = true,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Artist Mix Builder", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            if (builder.query.isNotBlank() || builder.selectedArtists.isNotEmpty()) {
+                TextButton(onClick = onReset) {
+                    Text("Reset", fontSize = 12.sp)
+                }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            NaviampTextField(
+                value = builder.query,
+                onValueChange = onQueryChanged,
+                label = "Search artists",
+                colors = colors,
+                modifier = Modifier.weight(1f),
+                onSubmit = onSearch,
+            )
+            Button(onClick = onSearch, modifier = Modifier.height(48.dp)) {
+                Icon(NaviampIcons.Search, contentDescription = "Search artists", modifier = Modifier.size(18.dp))
+            }
+        }
+        if (builder.selectedArtists.isNotEmpty()) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                builder.selectedArtists.forEach { artist ->
+                    ArtistMixSelectedArtist(
+                        artist = artist,
+                        colors = colors,
+                        onRemove = { onArtistRemoved(artist) },
+                        modifier = Modifier.widthIn(min = 128.dp, max = 220.dp),
+                    )
+                }
+            }
+        }
+        (builder.status ?: if (builder.loading) "Loading artists..." else null)?.let {
+            Text(it, color = colors.secondaryText, fontSize = 12.sp)
+        }
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            builder.suggestedArtists.forEach { artist ->
+                ArtistMixArtistTile(
+                    artist = artist,
+                    colors = colors,
+                    onClick = { onArtistSelected(artist) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .widthIn(min = 148.dp, max = 220.dp),
+                )
+            }
+        }
+        if (showPlayMixButton && builder.selectedArtists.isNotEmpty()) {
+            PrimaryButton("Play Mix", colors, onClick = onPlayMix)
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun AlbumMixBuilderContent(
+    colors: NaviampColors,
+    builder: SharedAlbumMixBuilderUi,
+    onQueryChanged: (String) -> Unit,
+    onSearch: () -> Unit,
+    onAlbumSelected: (SharedMediaItemUi) -> Unit,
+    onAlbumRemoved: (SharedMediaItemUi) -> Unit,
+    onReset: () -> Unit,
+    onPlayMix: () -> Unit,
+    showPlayMixButton: Boolean = true,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Album Mix Builder", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            if (builder.query.isNotBlank() || builder.selectedAlbums.isNotEmpty()) {
+                TextButton(onClick = onReset) {
+                    Text("Reset", fontSize = 12.sp)
+                }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            NaviampTextField(
+                value = builder.query,
+                onValueChange = onQueryChanged,
+                label = "Search albums",
+                colors = colors,
+                modifier = Modifier.weight(1f),
+                onSubmit = onSearch,
+            )
+            Button(onClick = onSearch, modifier = Modifier.height(48.dp)) {
+                Icon(NaviampIcons.Search, contentDescription = "Search albums", modifier = Modifier.size(18.dp))
+            }
+        }
+        if (builder.selectedAlbums.isNotEmpty()) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                builder.selectedAlbums.forEach { album ->
+                    AlbumMixSelectedAlbum(
+                        album = album,
+                        colors = colors,
+                        onRemove = { onAlbumRemoved(album) },
+                        modifier = Modifier.widthIn(min = 128.dp, max = 220.dp),
+                    )
+                }
+            }
+        }
+        (builder.status ?: if (builder.loading) "Loading albums..." else null)?.let {
+            Text(it, color = colors.secondaryText, fontSize = 12.sp)
+        }
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            builder.suggestedAlbums.forEach { album ->
+                AlbumMixAlbumTile(
+                    album = album,
+                    colors = colors,
+                    onClick = { onAlbumSelected(album) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .widthIn(min = 148.dp, max = 220.dp),
+                )
+            }
+        }
+        if (showPlayMixButton && builder.selectedAlbums.isNotEmpty()) {
+            PrimaryButton("Play Mix", colors, onClick = onPlayMix)
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun GenreMixBuilderContent(
+    colors: NaviampColors,
+    builder: SharedGenreMixBuilderUi,
+    onQueryChanged: (String) -> Unit,
+    onSearch: () -> Unit,
+    onGenreSelected: (SharedGenreMixItemUi) -> Unit,
+    onGenreRemoved: (SharedGenreMixItemUi) -> Unit,
+    onReset: () -> Unit,
+    onPlayMix: () -> Unit,
+    showPlayMixButton: Boolean = true,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Genre Mix Builder", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            if (builder.query.isNotBlank() || builder.selectedGenres.isNotEmpty()) {
+                TextButton(onClick = onReset) {
+                    Text("Reset", fontSize = 12.sp)
+                }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            NaviampTextField(
+                value = builder.query,
+                onValueChange = onQueryChanged,
+                label = "Search genres",
+                colors = colors,
+                modifier = Modifier.weight(1f),
+                onSubmit = onSearch,
+            )
+            Button(onClick = onSearch, modifier = Modifier.height(48.dp)) {
+                Icon(NaviampIcons.Search, contentDescription = "Search genres", modifier = Modifier.size(18.dp))
+            }
+        }
+        if (builder.selectedGenres.isNotEmpty()) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                builder.selectedGenres.forEach { genre ->
+                    GenreMixSelectedGenre(
+                        genre = genre,
+                        colors = colors,
+                        onRemove = { onGenreRemoved(genre) },
+                    )
+                }
+            }
+        }
+        (builder.status ?: if (builder.loading) "Loading genres..." else null)?.let {
+            Text(it, color = colors.secondaryText, fontSize = 12.sp)
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            builder.suggestedGenres.forEach { genre ->
+                GenreMixGenreRow(
+                    genre = genre,
+                    colors = colors,
+                    onClick = { onGenreSelected(genre) },
+                )
+            }
+        }
+        if (showPlayMixButton && builder.selectedGenres.isNotEmpty()) {
+            PrimaryButton("Play Mix", colors, onClick = onPlayMix)
+        }
+    }
+}
+
+@Composable
+private fun ArtistMixSelectedArtist(
+    artist: SharedMediaItemUi,
+    colors: NaviampColors,
+    onRemove: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(Color.Black.copy(alpha = 0.18f))
+            .clickable(onClick = onRemove)
+            .padding(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        PlatformCoverArt(artist.coverArtUrl, colors, 30.dp, 15.dp)
+        Text(artist.title, color = colors.primaryText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@Composable
+private fun GenreMixSelectedGenre(
+    genre: SharedGenreMixItemUi,
+    colors: NaviampColors,
+    onRemove: () -> Unit,
+) {
+    Text(
+        genre.title,
+        color = colors.primaryText,
+        fontSize = 12.sp,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(Color.Black.copy(alpha = 0.18f))
+            .clickable(onClick = onRemove)
+            .padding(horizontal = 10.dp, vertical = 7.dp),
+    )
+}
+
+@Composable
+private fun GenreMixGenreRow(
+    genre: SharedGenreMixItemUi,
+    colors: NaviampColors,
+    onClick: () -> Unit,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(6.dp))
+            .background(Color.Black.copy(alpha = 0.14f))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+    ) {
+        Text(
+            genre.title,
+            color = colors.primaryText,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        if (genre.subtitle.isNotBlank()) {
+            Text(genre.subtitle, color = colors.secondaryText, fontSize = 12.sp)
+        }
+    }
+}
+
+@Composable
+private fun AlbumMixSelectedAlbum(
+    album: SharedMediaItemUi,
+    colors: NaviampColors,
+    onRemove: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(Color.Black.copy(alpha = 0.18f))
+            .clickable(onClick = onRemove)
+            .padding(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        PlatformCoverArt(album.coverArtUrl, colors, 30.dp, 4.dp)
+        Text(album.title, color = colors.primaryText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@Composable
+private fun AlbumMixAlbumTile(
+    album: SharedMediaItemUi,
+    colors: NaviampColors,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .height(142.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(Color.Black.copy(alpha = 0.14f))
+            .clickable(onClick = onClick)
+            .padding(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        PlatformCoverArt(album.coverArtUrl, colors, 72.dp, 6.dp)
+        Text(
+            album.title,
+            color = colors.primaryText,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            lineHeight = 14.sp,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            album.subtitle,
+            color = colors.secondaryText,
+            fontSize = 11.sp,
+            lineHeight = 13.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun ArtistMixArtistTile(
+    artist: SharedMediaItemUi,
+    colors: NaviampColors,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .height(116.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(Color.Black.copy(alpha = 0.14f))
+            .clickable(onClick = onClick)
+            .padding(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(7.dp),
+    ) {
+        PlatformCoverArt(artist.coverArtUrl, colors, 64.dp, 32.dp)
+        Text(
+            artist.title,
+            color = colors.primaryText,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

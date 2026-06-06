@@ -205,6 +205,9 @@ interface BassAudioBackend {
         durationMillis: Int,
     ): Result<Unit> = unsupportedBassOperation("BASS volume slide")
 
+    fun applyEqualizer(stream: BassStreamHandle, bandsDb: List<Float>): Result<Unit> =
+        unsupportedBassOperation("BASS equalizer")
+
     fun seek(stream: BassStreamHandle, seconds: Double): Result<Unit> =
         unsupportedBassOperation("BASS seek")
 
@@ -307,6 +310,9 @@ fun BassAudioBackend.setVolume(stream: Int, volume: Float): Result<Unit> =
 
 fun BassAudioBackend.slideVolume(stream: Int, volume: Float, durationMillis: Int): Result<Unit> =
     slideVolume(BassStreamHandle(stream), volume, durationMillis)
+
+fun BassAudioBackend.applyEqualizer(stream: Int, bandsDb: List<Float>): Result<Unit> =
+    applyEqualizer(BassStreamHandle(stream), bandsDb)
 
 fun BassAudioBackend.seek(stream: Int, seconds: Double): Result<Unit> =
     seek(BassStreamHandle(stream), seconds)

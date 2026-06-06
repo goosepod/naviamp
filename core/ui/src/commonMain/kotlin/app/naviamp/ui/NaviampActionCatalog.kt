@@ -15,6 +15,8 @@ enum class NaviampAction(
     RemoveDownload("Remove download", NaviampIcons.Trash),
     AddToQueue("Add to queue", NaviampIcons.Queue),
     AddToPlaylist("Add to playlist", NaviampIcons.Playlist),
+    SaveQueueAsPlaylist("Save queue as playlist", NaviampIcons.Playlist),
+    SleepTimer("Sleep timer", NaviampIcons.Clock),
     AddPlaylistToPlaylist("Add playlist to playlist", NaviampIcons.Playlist),
     RenamePlaylist("Rename playlist", NaviampIcons.Edit),
     EditSmartPlaylist("Edit smart playlist", NaviampIcons.Brain),
@@ -22,6 +24,7 @@ enum class NaviampAction(
     EditStation("Edit station", NaviampIcons.Edit),
     DeleteStation("Delete station", NaviampIcons.Trash),
     TrackDetails("Track details", NaviampIcons.Info),
+    ToggleFavorite("Favorite", NaviampTransportIcons.Heart),
     GoToAlbum("Go to album", NaviampIcons.Album),
     GoToArtist("Go to artist", NaviampIcons.Artist),
     ShowLyrics("Show lyrics", NaviampTransportIcons.Lyrics),
@@ -44,12 +47,14 @@ fun trackRowActions(
     canDownload: Boolean = false,
     canAddToQueue: Boolean = false,
     canAddToPlaylist: Boolean = false,
+    canShowDetails: Boolean = true,
 ): List<NaviampActionSpec> =
     listOfNotNull(
         NaviampAction.StartTrackRadio.takeIf { canStartRadio }?.toSpec(),
         NaviampAction.DownloadTrack.takeIf { canDownload }?.toSpec(),
         NaviampAction.AddToQueue.takeIf { canAddToQueue }?.toSpec(),
         NaviampAction.AddToPlaylist.takeIf { canAddToPlaylist }?.toSpec(),
+        NaviampAction.TrackDetails.takeIf { canShowDetails }?.toSpec(),
     )
 
 fun queueRowActions(): List<NaviampActionSpec> =
@@ -64,23 +69,33 @@ fun albumRowActions(
     canDownload: Boolean = false,
     canAddToQueue: Boolean = false,
     canAddToPlaylist: Boolean = false,
+    canFavorite: Boolean = false,
+    favoriteActive: Boolean = false,
 ): List<NaviampActionSpec> =
     listOfNotNull(
         NaviampAction.StartAlbumRadio.takeIf { canStartRadio }?.toSpec(),
         NaviampAction.DownloadAlbum.takeIf { canDownload }?.toSpec(),
         NaviampAction.AddToQueue.takeIf { canAddToQueue }?.toSpec(),
         NaviampAction.AddToPlaylist.takeIf { canAddToPlaylist }?.toSpec(),
+        NaviampAction.ToggleFavorite.takeIf { canFavorite }?.toSpec(
+            label = if (favoriteActive) "Remove album favorite" else "Favorite album",
+        ),
     )
 
 fun artistRowActions(
     canStartRadio: Boolean = false,
     canAddToQueue: Boolean = false,
     canAddToPlaylist: Boolean = false,
+    canFavorite: Boolean = false,
+    favoriteActive: Boolean = false,
 ): List<NaviampActionSpec> =
     listOfNotNull(
         NaviampAction.StartArtistRadio.takeIf { canStartRadio }?.toSpec(),
         NaviampAction.AddToQueue.takeIf { canAddToQueue }?.toSpec(),
         NaviampAction.AddToPlaylist.takeIf { canAddToPlaylist }?.toSpec(),
+        NaviampAction.ToggleFavorite.takeIf { canFavorite }?.toSpec(
+            label = if (favoriteActive) "Remove artist favorite" else "Favorite artist",
+        ),
     )
 
 fun playlistRowActions(
@@ -129,6 +144,8 @@ fun nowPlayingTrackMenuActions(
     canSetTrackPreference: Boolean,
     canStartRadio: Boolean,
     canAddToPlaylist: Boolean,
+    canSaveQueueAsPlaylist: Boolean,
+    sleepTimerLabel: String,
 ): List<NaviampActionSpec> =
     listOf(
         if (lyricsVisible) {
@@ -149,6 +166,8 @@ fun nowPlayingTrackMenuActions(
         NaviampAction.GoToAlbum.toSpec(enabled = !isLive),
         NaviampAction.GoToArtist.toSpec(enabled = !isLive),
         NaviampAction.AddToPlaylist.toSpec(enabled = canAddToPlaylist),
+        NaviampAction.SaveQueueAsPlaylist.toSpec(enabled = canSaveQueueAsPlaylist),
+        NaviampAction.SleepTimer.toSpec(label = sleepTimerLabel),
     )
 
 fun NaviampAction.toSpec(

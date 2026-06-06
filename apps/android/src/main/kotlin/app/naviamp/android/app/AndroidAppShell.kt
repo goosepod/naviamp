@@ -9,11 +9,13 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.playback.nextRepeatMode
+import app.naviamp.domain.playback.SleepTimerRequest
 import app.naviamp.domain.provider.allKnownTracks
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.VisualizerSettings
+import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.ui.SharedTrackRowUi
@@ -26,16 +28,24 @@ import app.naviamp.ui.NaviampSharedAppShell
 import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.NowPlayingUi
 import app.naviamp.ui.SharedAlbumDetailUi
+import app.naviamp.ui.SharedAlbumMixBuilderUi
+import app.naviamp.ui.SharedArtistMixBuilderUi
 import app.naviamp.ui.SharedArtistDetailUi
+import app.naviamp.ui.SharedGenreMixBuilderUi
+import app.naviamp.ui.SharedGenreMixItemUi
 import app.naviamp.ui.SharedHomeStationUi
 import app.naviamp.ui.SharedHomeUi
 import app.naviamp.ui.SharedMediaItemUi
+import app.naviamp.ui.SharedMixBuilderUi
 import app.naviamp.ui.SharedPlaylistDetailUi
 import app.naviamp.ui.SharedPlaylistSortMode
 import app.naviamp.ui.SharedRoute
 import app.naviamp.ui.SharedSearchResultsUi
 import app.naviamp.ui.SharedSimilarArtistUi
 import app.naviamp.ui.toNaviampRoute
+import app.naviamp.ui.toSharedGenreMixItemUi
+import app.naviamp.ui.toSharedMediaItemUi
+import app.naviamp.ui.toNaviampSleepTimerUi
 
 data class AndroidAppShellUiState(
     val modifier: Modifier,
@@ -50,12 +60,16 @@ data class AndroidAppShellUiState(
     val supportsReplayGain: Boolean,
     val supportsGapless: Boolean,
     val supportsCrossfade: Boolean,
+    val supportsEqualizer: Boolean,
     val showMobileNetworkQuality: Boolean,
     val selectedVisualizer: NaviampVisualizer,
     val visualizerBandsProvider: () -> List<Float>,
     val query: String,
     val home: SharedHomeUi,
     val searchResults: SharedSearchResultsUi,
+    val artistMixBuilder: SharedArtistMixBuilderUi,
+    val albumMixBuilder: SharedAlbumMixBuilderUi,
+    val genreMixBuilder: SharedGenreMixBuilderUi,
     val libraryArtists: List<SharedMediaItemUi>,
     val libraryQuery: String,
     val librarySyncStatus: NaviampLibrarySyncStatusUi,
@@ -91,6 +105,24 @@ data class AndroidAppShellActions(
     val onQueryChanged: (String) -> Unit,
     val onSearch: () -> Unit,
     val onClearSearch: () -> Unit,
+    val onArtistMixQueryChanged: (String) -> Unit,
+    val onArtistMixSearch: () -> Unit,
+    val onArtistMixArtistSelected: (SharedMediaItemUi) -> Unit,
+    val onArtistMixArtistRemoved: (SharedMediaItemUi) -> Unit,
+    val onArtistMixReset: () -> Unit,
+    val onArtistMixPlay: () -> Unit,
+    val onAlbumMixQueryChanged: (String) -> Unit,
+    val onAlbumMixSearch: () -> Unit,
+    val onAlbumMixAlbumSelected: (SharedMediaItemUi) -> Unit,
+    val onAlbumMixAlbumRemoved: (SharedMediaItemUi) -> Unit,
+    val onAlbumMixReset: () -> Unit,
+    val onAlbumMixPlay: () -> Unit,
+    val onGenreMixQueryChanged: (String) -> Unit,
+    val onGenreMixSearch: () -> Unit,
+    val onGenreMixGenreSelected: (SharedGenreMixItemUi) -> Unit,
+    val onGenreMixGenreRemoved: (SharedGenreMixItemUi) -> Unit,
+    val onGenreMixReset: () -> Unit,
+    val onGenreMixPlay: () -> Unit,
     val onLibraryQueryChanged: (String) -> Unit,
     val onRefreshLibrary: () -> Unit,
     val onTrackSelected: (SharedTrackRowUi) -> Unit,
@@ -99,6 +131,7 @@ data class AndroidAppShellActions(
     val onDownloadedTrackCreatePlaylistAndAdd: (NaviampDownloadedTrackUi, String) -> Unit,
     val onRemoveDownload: (NaviampDownloadedTrackUi) -> Unit,
     val onAlbumSelected: (SharedMediaItemUi) -> Unit,
+    val onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit,
     val onMixAlbumSelected: (SharedMediaItemUi) -> Unit,
     val onAlbumPlay: (SharedAlbumDetailUi, Boolean) -> Unit,
     val onAlbumTrackSelected: (SharedTrackRowUi) -> Unit,
@@ -127,6 +160,7 @@ data class AndroidAppShellActions(
     val onSimilarArtistSelected: (SharedSimilarArtistUi) -> Unit,
     val onSimilarArtistExternalSelected: (String) -> Unit,
     val onArtistSelected: (SharedMediaItemUi) -> Unit,
+    val onArtistFavoriteToggled: (SharedMediaItemUi) -> Unit,
     val onArtistAlbumRadio: (SharedMediaItemUi) -> Unit,
     val onArtistAlbumDownload: (SharedMediaItemUi) -> Unit,
     val onArtistAlbumAddToQueue: (SharedMediaItemUi) -> Unit,
@@ -151,6 +185,7 @@ data class AndroidAppShellActions(
     val onPlaylistTrackSelected: (SharedTrackRowUi) -> Unit,
     val onTrackAddToQueue: (SharedTrackRowUi) -> Unit,
     val onRecentRadioSelected: (SharedMediaItemUi) -> Unit,
+    val onMixBuilderSelected: (SharedMixBuilderUi) -> Unit,
     val onRadioStationSelected: (InternetRadioStation) -> Unit,
     val onRadioStationSave: (InternetRadioStation) -> Unit,
     val onRadioStationDelete: (InternetRadioStation) -> Unit,
@@ -167,11 +202,15 @@ data class AndroidAppShellActions(
     val onToggleShuffle: () -> Unit,
     val onCycleRepeatMode: () -> Unit,
     val onToggleLyrics: () -> Unit,
+    val onLyricsOffsetChanged: (Int) -> Unit,
     val onToggleVisualizer: () -> Unit,
     val onVisualizerSelected: (NaviampVisualizer) -> Unit,
     val onTrackRadio: () -> Unit,
     val onAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit,
     val onCreatePlaylistAndAdd: (String) -> Unit,
+    val onSaveQueueAsPlaylist: (String) -> Unit,
+    val onSleepTimerSelected: (SleepTimerRequest) -> Unit,
+    val onCancelSleepTimer: () -> Unit,
     val onDownloadTrack: () -> Unit,
     val onGoToAlbum: () -> Unit,
     val onGoToArtist: () -> Unit,
@@ -201,12 +240,16 @@ fun AndroidAppShellContent(
         supportsReplayGain = state.supportsReplayGain,
         supportsGapless = state.supportsGapless,
         supportsCrossfade = state.supportsCrossfade,
+        supportsEqualizer = state.supportsEqualizer,
         showMobileNetworkQuality = state.showMobileNetworkQuality,
         selectedVisualizer = state.selectedVisualizer,
         visualizerBandsProvider = state.visualizerBandsProvider,
         query = state.query,
         home = state.home,
         searchResults = state.searchResults,
+        artistMixBuilder = state.artistMixBuilder,
+        albumMixBuilder = state.albumMixBuilder,
+        genreMixBuilder = state.genreMixBuilder,
         libraryArtists = state.libraryArtists,
         libraryQuery = state.libraryQuery,
         librarySyncStatus = state.librarySyncStatus,
@@ -239,6 +282,24 @@ fun AndroidAppShellContent(
         onQueryChanged = actions.onQueryChanged,
         onSearch = actions.onSearch,
         onClearSearch = actions.onClearSearch,
+        onArtistMixQueryChanged = actions.onArtistMixQueryChanged,
+        onArtistMixSearch = actions.onArtistMixSearch,
+        onArtistMixArtistSelected = actions.onArtistMixArtistSelected,
+        onArtistMixArtistRemoved = actions.onArtistMixArtistRemoved,
+        onArtistMixReset = actions.onArtistMixReset,
+        onArtistMixPlay = actions.onArtistMixPlay,
+        onAlbumMixQueryChanged = actions.onAlbumMixQueryChanged,
+        onAlbumMixSearch = actions.onAlbumMixSearch,
+        onAlbumMixAlbumSelected = actions.onAlbumMixAlbumSelected,
+        onAlbumMixAlbumRemoved = actions.onAlbumMixAlbumRemoved,
+        onAlbumMixReset = actions.onAlbumMixReset,
+        onAlbumMixPlay = actions.onAlbumMixPlay,
+        onGenreMixQueryChanged = actions.onGenreMixQueryChanged,
+        onGenreMixSearch = actions.onGenreMixSearch,
+        onGenreMixGenreSelected = actions.onGenreMixGenreSelected,
+        onGenreMixGenreRemoved = actions.onGenreMixGenreRemoved,
+        onGenreMixReset = actions.onGenreMixReset,
+        onGenreMixPlay = actions.onGenreMixPlay,
         onLibraryQueryChanged = actions.onLibraryQueryChanged,
         onRefreshLibrary = actions.onRefreshLibrary,
         onTrackSelected = actions.onTrackSelected,
@@ -247,6 +308,7 @@ fun AndroidAppShellContent(
         onDownloadedTrackCreatePlaylistAndAdd = actions.onDownloadedTrackCreatePlaylistAndAdd,
         onRemoveDownload = actions.onRemoveDownload,
         onAlbumSelected = actions.onAlbumSelected,
+        onAlbumFavoriteToggled = actions.onAlbumFavoriteToggled,
         onMixAlbumSelected = actions.onMixAlbumSelected,
         onAlbumPlay = actions.onAlbumPlay,
         onAlbumTrackSelected = actions.onAlbumTrackSelected,
@@ -275,6 +337,7 @@ fun AndroidAppShellContent(
         onSimilarArtistSelected = actions.onSimilarArtistSelected,
         onSimilarArtistExternalSelected = actions.onSimilarArtistExternalSelected,
         onArtistSelected = actions.onArtistSelected,
+        onArtistFavoriteToggled = actions.onArtistFavoriteToggled,
         onArtistAlbumRadio = actions.onArtistAlbumRadio,
         onArtistAlbumDownload = actions.onArtistAlbumDownload,
         onArtistAlbumAddToQueue = actions.onArtistAlbumAddToQueue,
@@ -299,6 +362,7 @@ fun AndroidAppShellContent(
         onPlaylistTrackSelected = actions.onPlaylistTrackSelected,
         onTrackAddToQueue = actions.onTrackAddToQueue,
         onRecentRadioSelected = actions.onRecentRadioSelected,
+        onMixBuilderSelected = actions.onMixBuilderSelected,
         onRadioStationSelected = actions.onRadioStationSelected,
         onRadioStationSave = actions.onRadioStationSave,
         onRadioStationDelete = actions.onRadioStationDelete,
@@ -315,11 +379,15 @@ fun AndroidAppShellContent(
         onToggleShuffle = actions.onToggleShuffle,
         onCycleRepeatMode = actions.onCycleRepeatMode,
         onToggleLyrics = actions.onToggleLyrics,
+        onLyricsOffsetChanged = actions.onLyricsOffsetChanged,
         onToggleVisualizer = actions.onToggleVisualizer,
         onVisualizerSelected = actions.onVisualizerSelected,
         onTrackRadio = actions.onTrackRadio,
         onAddToPlaylist = actions.onAddToPlaylist,
         onCreatePlaylistAndAdd = actions.onCreatePlaylistAndAdd,
+        onSaveQueueAsPlaylist = actions.onSaveQueueAsPlaylist,
+        onSleepTimerSelected = actions.onSleepTimerSelected,
+        onCancelSleepTimer = actions.onCancelSleepTimer,
         onDownloadTrack = actions.onDownloadTrack,
         onGoToAlbum = actions.onGoToAlbum,
         onGoToArtist = actions.onGoToArtist,
@@ -410,6 +478,8 @@ fun rememberAndroidAppShellUiState(
             provider = provider,
             playlistChoices = shellModels.playlistChoices,
             playlistActionStatus = playlistActionStatus,
+            canSaveQueueAsPlaylist = playbackQueue.tracks.isNotEmpty(),
+            sleepTimer = sleepTimer.toNaviampSleepTimerUi(sleepTimerNowEpochMillis),
             relatedTracks = relatedTracks,
             radioTrackArtworkByKey = radioTrackArtworkByKey,
             radioStations = homeState.radioStations,
@@ -428,12 +498,50 @@ fun rememberAndroidAppShellUiState(
             supportsReplayGain = playbackEngine.supportsReplayGain,
             supportsGapless = playbackEngine.supportsGapless,
             supportsCrossfade = playbackEngine.supportsCrossfade,
+            supportsEqualizer = (playbackEngine as? EqualizerPlaybackEngine)?.supportsEqualizer == true,
             showMobileNetworkQuality = true,
             selectedVisualizer = selectedVisualizer,
             visualizerBandsProvider = { visualizerFrame?.bands.orEmpty() },
             query = query,
             home = shellModels.home,
             searchResults = shellModels.searchResults,
+            artistMixBuilder = SharedArtistMixBuilderUi(
+                query = artistMixQuery,
+                selectedArtists = artistMixSelectedArtists.map { artist ->
+                    artist.toSharedMediaItemUi(
+                        coverArtUrl = { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
+                    )
+                },
+                suggestedArtists = artistMixSuggestions.map { artist ->
+                    artist.toSharedMediaItemUi(
+                        coverArtUrl = { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
+                    )
+                },
+                status = artistMixStatus,
+                loading = artistMixLoading,
+            ),
+            albumMixBuilder = SharedAlbumMixBuilderUi(
+                query = albumMixQuery,
+                selectedAlbums = albumMixSelectedAlbums.map { album ->
+                    album.toSharedMediaItemUi(
+                        coverArtUrl = { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
+                    )
+                },
+                suggestedAlbums = albumMixSuggestions.map { album ->
+                    album.toSharedMediaItemUi(
+                        coverArtUrl = { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } },
+                    )
+                },
+                status = albumMixStatus,
+                loading = albumMixLoading,
+            ),
+            genreMixBuilder = SharedGenreMixBuilderUi(
+                query = genreMixQuery,
+                selectedGenres = genreMixSelectedGenres.map { genre -> genre.toSharedGenreMixItemUi() },
+                suggestedGenres = genreMixSuggestions.map { genre -> genre.toSharedGenreMixItemUi() },
+                status = genreMixStatus,
+                loading = genreMixLoading,
+            ),
             libraryArtists = shellModels.libraryArtists,
             libraryQuery = libraryQuery,
             librarySyncStatus = shellModels.librarySyncStatus,
@@ -468,6 +576,21 @@ fun androidAppShellActions(
     handleClearLibrary: () -> Unit,
     handleResetDatabase: () -> Unit,
     handleSearch: () -> Unit,
+    handleArtistMixSearch: () -> Unit,
+    handleArtistMixArtistSelected: (SharedMediaItemUi) -> Unit,
+    handleArtistMixArtistRemoved: (SharedMediaItemUi) -> Unit,
+    handleArtistMixReset: () -> Unit,
+    handleArtistMixPlay: () -> Unit,
+    handleAlbumMixSearch: () -> Unit,
+    handleAlbumMixAlbumSelected: (SharedMediaItemUi) -> Unit,
+    handleAlbumMixAlbumRemoved: (SharedMediaItemUi) -> Unit,
+    handleAlbumMixReset: () -> Unit,
+    handleAlbumMixPlay: () -> Unit,
+    handleGenreMixSearch: () -> Unit,
+    handleGenreMixGenreSelected: (SharedGenreMixItemUi) -> Unit,
+    handleGenreMixGenreRemoved: (SharedGenreMixItemUi) -> Unit,
+    handleGenreMixReset: () -> Unit,
+    handleGenreMixPlay: () -> Unit,
     startAndroidLibrarySync: (Boolean) -> Unit,
     handleShellTrackSelected: (SharedTrackRowUi) -> Unit,
     handleDownloadedTrackSelected: (NaviampDownloadedTrackUi) -> Unit,
@@ -475,6 +598,7 @@ fun androidAppShellActions(
     handleDownloadedTrackCreatePlaylistAndAdd: (NaviampDownloadedTrackUi, String) -> Unit,
     removeDownload: (NaviampDownloadedTrackUi) -> Unit,
     handleShellAlbumSelected: (SharedMediaItemUi) -> Unit,
+    handleAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit,
     handleMixAlbumSelected: (SharedMediaItemUi) -> Unit,
     handleShellAlbumPlay: (Boolean) -> Unit,
     handleShellAlbumTrackSelected: (SharedTrackRowUi) -> Unit,
@@ -500,6 +624,7 @@ fun androidAppShellActions(
     handleSimilarArtistSelected: (SharedSimilarArtistUi) -> Unit,
     openExternalArtistUrl: (String) -> Unit,
     openArtistDetails: (app.naviamp.domain.ArtistId, String) -> Unit,
+    handleArtistFavoriteToggled: (SharedMediaItemUi) -> Unit,
     handleArtistAlbumRadio: (SharedMediaItemUi) -> Unit,
     loadArtistAlbumTracks: (SharedMediaItemUi, (List<Track>) -> Unit) -> Unit,
     openPlaylistDetails: (Playlist) -> Unit,
@@ -515,6 +640,7 @@ fun androidAppShellActions(
     closeActivePlaylist: () -> Unit,
     handlePlaylistTrackSelected: (SharedTrackRowUi) -> Unit,
     handleRecentRadioSelected: (SharedMediaItemUi) -> Unit,
+    handleMixBuilderSelected: (SharedMixBuilderUi) -> Unit,
     handleRadioStationSelected: (InternetRadioStation) -> Unit,
     saveInternetRadioStation: (InternetRadioStation) -> Unit,
     deleteInternetRadioStation: (InternetRadioStation) -> Unit,
@@ -525,9 +651,13 @@ fun androidAppShellActions(
     performSeek: (Double) -> Unit,
     handleShellToggleShuffle: () -> Unit,
     loadLyrics: (Track) -> Unit,
+    handleLyricsOffsetChanged: (Int) -> Unit,
     handleShellTrackRadio: () -> Unit,
     handleNowPlayingAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit,
     handleNowPlayingCreatePlaylistAndAdd: (String) -> Unit,
+    handleSaveQueueAsPlaylist: (String) -> Unit,
+    handleSleepTimerSelected: (SleepTimerRequest) -> Unit,
+    handleCancelSleepTimer: () -> Unit,
     downloadTrack: (Track) -> Unit,
     handleShellGoToAlbum: () -> Unit,
     handleShellGoToArtist: () -> Unit,
@@ -563,6 +693,24 @@ fun androidAppShellActions(
                 tracks = emptyList()
                 status = ""
             },
+            onArtistMixQueryChanged = { artistMixQuery = it },
+            onArtistMixSearch = handleArtistMixSearch,
+            onArtistMixArtistSelected = handleArtistMixArtistSelected,
+            onArtistMixArtistRemoved = handleArtistMixArtistRemoved,
+            onArtistMixReset = handleArtistMixReset,
+            onArtistMixPlay = handleArtistMixPlay,
+            onAlbumMixQueryChanged = { albumMixQuery = it },
+            onAlbumMixSearch = handleAlbumMixSearch,
+            onAlbumMixAlbumSelected = handleAlbumMixAlbumSelected,
+            onAlbumMixAlbumRemoved = handleAlbumMixAlbumRemoved,
+            onAlbumMixReset = handleAlbumMixReset,
+            onAlbumMixPlay = handleAlbumMixPlay,
+            onGenreMixQueryChanged = { genreMixQuery = it },
+            onGenreMixSearch = handleGenreMixSearch,
+            onGenreMixGenreSelected = handleGenreMixGenreSelected,
+            onGenreMixGenreRemoved = handleGenreMixGenreRemoved,
+            onGenreMixReset = handleGenreMixReset,
+            onGenreMixPlay = handleGenreMixPlay,
             onLibraryQueryChanged = { libraryQuery = it },
             onRefreshLibrary = { startAndroidLibrarySync(true) },
             onTrackSelected = handleShellTrackSelected,
@@ -571,6 +719,7 @@ fun androidAppShellActions(
             onDownloadedTrackCreatePlaylistAndAdd = handleDownloadedTrackCreatePlaylistAndAdd,
             onRemoveDownload = removeDownload,
             onAlbumSelected = handleShellAlbumSelected,
+            onAlbumFavoriteToggled = handleAlbumFavoriteToggled,
             onMixAlbumSelected = handleMixAlbumSelected,
             onAlbumPlay = { _, shuffle -> handleShellAlbumPlay(shuffle) },
             onAlbumTrackSelected = handleShellAlbumTrackSelected,
@@ -607,6 +756,7 @@ fun androidAppShellActions(
             onArtistSelected = { selectedArtist ->
                 openArtistDetails(app.naviamp.domain.ArtistId(selectedArtist.id), selectedArtist.title)
             },
+            onArtistFavoriteToggled = handleArtistFavoriteToggled,
             onArtistAlbumRadio = handleArtistAlbumRadio,
             onArtistAlbumDownload = { selectedAlbum -> loadArtistAlbumTracks(selectedAlbum) { downloadTracks(it, selectedAlbum.title) } },
             onArtistAlbumAddToQueue = { selectedAlbum -> loadArtistAlbumTracks(selectedAlbum) { appendTracksToQueue(it, "album tracks") } },
@@ -671,6 +821,7 @@ fun androidAppShellActions(
             onPlaylistTrackSelected = handlePlaylistTrackSelected,
             onTrackAddToQueue = handleTrackAddToQueue,
             onRecentRadioSelected = handleRecentRadioSelected,
+            onMixBuilderSelected = handleMixBuilderSelected,
             onRadioStationSelected = handleRadioStationSelected,
             onRadioStationSave = saveInternetRadioStation,
             onRadioStationDelete = deleteInternetRadioStation,
@@ -703,6 +854,7 @@ fun androidAppShellActions(
                     nowPlaying?.let(loadLyrics)
                 }
             },
+            onLyricsOffsetChanged = handleLyricsOffsetChanged,
             onToggleVisualizer = { visualizerRequestedVisible = !visualizerRequestedVisible },
             onVisualizerSelected = { visualizer ->
                 selectedVisualizer = visualizer
@@ -711,6 +863,9 @@ fun androidAppShellActions(
             onTrackRadio = handleShellTrackRadio,
             onAddToPlaylist = handleNowPlayingAddToPlaylist,
             onCreatePlaylistAndAdd = handleNowPlayingCreatePlaylistAndAdd,
+            onSaveQueueAsPlaylist = handleSaveQueueAsPlaylist,
+            onSleepTimerSelected = handleSleepTimerSelected,
+            onCancelSleepTimer = handleCancelSleepTimer,
             onDownloadTrack = { nowPlaying?.let(downloadTrack) },
             onGoToAlbum = handleShellGoToAlbum,
             onGoToArtist = handleShellGoToArtist,

@@ -9,6 +9,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -29,13 +32,22 @@ import app.naviamp.domain.home.HomeStationLibrary
 import app.naviamp.domain.home.HomeStationRandomAlbum
 import app.naviamp.domain.home.parseHomeDecadeStationId
 import app.naviamp.domain.home.parseHomeGenreStationId
+import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.source.SavedMediaSource
+import app.naviamp.ui.AlbumMixBuilderContent
+import app.naviamp.ui.ArtistMixBuilderContent
+import app.naviamp.ui.GenreMixBuilderContent
+import app.naviamp.ui.SharedAlbumMixBuilderUi
+import app.naviamp.ui.SharedArtistMixBuilderUi
+import app.naviamp.ui.SharedGenreMixBuilderUi
+import app.naviamp.ui.SharedGenreMixItemUi
 import app.naviamp.ui.SharedHome
 import app.naviamp.ui.SharedHomeStationUi
 import app.naviamp.ui.SharedMediaItemUi
+import app.naviamp.ui.SharedMixBuilderUi
 import app.naviamp.ui.toSharedHomeUi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -93,6 +105,27 @@ fun ColumnScope.DesktopAppRouteContent(
     searchResults: MediaSearchResults,
     searchStatus: String?,
     isSearching: Boolean,
+    artistMixBuilder: SharedArtistMixBuilderUi,
+    onArtistMixQueryChanged: (String) -> Unit,
+    onArtistMixSearch: () -> Unit,
+    onArtistMixArtistSelected: (SharedMediaItemUi) -> Unit,
+    onArtistMixArtistRemoved: (SharedMediaItemUi) -> Unit,
+    onArtistMixReset: () -> Unit,
+    onArtistMixPlay: () -> Unit,
+    albumMixBuilder: SharedAlbumMixBuilderUi,
+    onAlbumMixQueryChanged: (String) -> Unit,
+    onAlbumMixSearch: () -> Unit,
+    onAlbumMixAlbumSelected: (SharedMediaItemUi) -> Unit,
+    onAlbumMixAlbumRemoved: (SharedMediaItemUi) -> Unit,
+    onAlbumMixReset: () -> Unit,
+    onAlbumMixPlay: () -> Unit,
+    genreMixBuilder: SharedGenreMixBuilderUi,
+    onGenreMixQueryChanged: (String) -> Unit,
+    onGenreMixSearch: () -> Unit,
+    onGenreMixGenreSelected: (SharedGenreMixItemUi) -> Unit,
+    onGenreMixGenreRemoved: (SharedGenreMixItemUi) -> Unit,
+    onGenreMixReset: () -> Unit,
+    onGenreMixPlay: () -> Unit,
     internetRadioStations: List<InternetRadioStation>,
     internetRadioStatus: String?,
     onSaveInternetRadioStation: (InternetRadioStation) -> Unit,
@@ -124,7 +157,11 @@ fun ColumnScope.DesktopAppRouteContent(
     onResetDatabase: () -> Unit,
 ) {
     val contentScrollState = rememberScrollState()
-    val sharedHome = homeContent.toSharedHomeUi(coverArtUrl, playlistTracksById)
+    val sharedHome = homeContent.toSharedHomeUi(
+        coverArtUrl = coverArtUrl,
+        playlistTracksById = playlistTracksById,
+        canFavoriteAlbums = true,
+    )
     val homeAlbums = (
         homeContent.recentlyAddedAlbums +
             homeContent.mixAlbums +
@@ -173,6 +210,14 @@ fun ColumnScope.DesktopAppRouteContent(
         }
     }
 
+    fun openMixBuilder(builder: SharedMixBuilderUi) {
+        when (builder.id) {
+            "artist" -> onOpenArtistMixBuilder()
+            "album" -> onOpenAlbumMixBuilder()
+            "genre" -> onRouteSelected(DesktopAppRoute.GenreMix)
+        }
+    }
+
     Box(
         modifier = Modifier
             .weight(1f)
@@ -180,6 +225,9 @@ fun ColumnScope.DesktopAppRouteContent(
             .then(
                 if (
                     appRoute == DesktopAppRoute.Library ||
+                        appRoute == DesktopAppRoute.ArtistMix ||
+                        appRoute == DesktopAppRoute.AlbumMix ||
+                        appRoute == DesktopAppRoute.GenreMix ||
                         appRoute == DesktopAppRoute.Settings ||
                         appRoute == DesktopAppRoute.AlbumDetail ||
                         appRoute == DesktopAppRoute.ArtistDetail
@@ -200,10 +248,14 @@ fun ColumnScope.DesktopAppRouteContent(
                     colors = appColors,
                     home = sharedHome,
                     onAlbumSelected = ::openHomeAlbum,
+                    onAlbumFavoriteToggled = { item ->
+                        homeAlbums.firstOrNull { it.id.value == item.id }?.let(appActions::toggleAlbumFavorite)
+                    },
                     onMixAlbumSelected = ::openHomeAlbum,
                     onPlaylistSelected = ::openHomePlaylist,
                     onRecentRadioSelected = ::playHomeRecentRadio,
                     onInternetRadioStationSelected = ::playHomeInternetRadio,
+                    onMixBuilderSelected = ::openMixBuilder,
                     onHomeStationSelected = ::playHomeStation,
                 )
                 DesktopAppRoute.AlbumDetail -> DesktopAlbumDetailPanel(
@@ -246,6 +298,7 @@ fun ColumnScope.DesktopAppRouteContent(
                             playlistsController.openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(it))
                         }
                     },
+                    onAlbumFavoriteToggle = appActions::toggleAlbumFavorite,
                     onAddTrackToPlaylist = { track ->
                         playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(track))
                     },
@@ -284,6 +337,7 @@ fun ColumnScope.DesktopAppRouteContent(
                     onAddArtistToPlaylist = { artist ->
                         playlistsController.openAddToPlaylist(AddToPlaylistTarget.ArtistTarget(artist))
                     },
+                    onArtistFavoriteToggle = appActions::toggleArtistFavorite,
                     onAlbumSelected = appActions::openAlbumDetails,
                     onAlbumRadioSelected = appActions::playAlbumRadio,
                     onAlbumDownloadSelected = appActions::downloadAlbum,
@@ -293,6 +347,7 @@ fun ColumnScope.DesktopAppRouteContent(
                     onAlbumAddToPlaylist = { album ->
                         playlistsController.openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(album))
                     },
+                    onAlbumFavoriteToggle = appActions::toggleAlbumFavorite,
                 )
                 DesktopAppRoute.Playlists -> DesktopPlaylistsPanel(
                     appColors = appColors,
@@ -387,6 +442,7 @@ fun ColumnScope.DesktopAppRouteContent(
                         onArtistAddToPlaylist = { artist ->
                             playlistsController.openAddToPlaylist(AddToPlaylistTarget.ArtistTarget(artist))
                         },
+                        onArtistFavoriteToggle = appActions::toggleArtistFavorite,
                         onAlbumSelected = appActions::openAlbumDetails,
                         onAlbumRadioSelected = appActions::playAlbumRadio,
                         onAlbumDownloadSelected = appActions::downloadAlbum,
@@ -396,6 +452,7 @@ fun ColumnScope.DesktopAppRouteContent(
                         onAlbumAddToPlaylist = { album ->
                             playlistsController.openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(album))
                         },
+                        onAlbumFavoriteToggle = appActions::toggleAlbumFavorite,
                         onRefreshLibrary = { libraryController.startLibrarySync(force = true) },
                     )
                 }
@@ -416,6 +473,7 @@ fun ColumnScope.DesktopAppRouteContent(
                     onArtistAddToPlaylist = { artist ->
                         playlistsController.openAddToPlaylist(AddToPlaylistTarget.ArtistTarget(artist))
                     },
+                    onArtistFavoriteToggle = appActions::toggleArtistFavorite,
                     onAlbumSelected = appActions::openAlbumDetails,
                     onAlbumRadioSelected = appActions::playAlbumRadio,
                     onAlbumDownloadSelected = appActions::downloadAlbum,
@@ -425,6 +483,7 @@ fun ColumnScope.DesktopAppRouteContent(
                     onAlbumAddToPlaylist = { album ->
                         playlistsController.openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(album))
                     },
+                    onAlbumFavoriteToggle = appActions::toggleAlbumFavorite,
                     onTrackSelected = appActions::playSearchTrack,
                     onTrackRadioSelected = { index ->
                         searchResults.tracks.getOrNull(index)?.let(appActions::playTrackRadio)
@@ -443,14 +502,118 @@ fun ColumnScope.DesktopAppRouteContent(
                         }
                     },
                 )
-                DesktopAppRoute.InternetRadio -> DesktopInternetRadioPanel(
-                    appColors = appColors,
-                    stations = internetRadioStations,
-                    status = internetRadioStatus ?: connectionStatus,
-                    onPlayStation = internetRadioController::playStation,
-                    onSaveStation = onSaveInternetRadioStation,
-                    onDeleteStation = onDeleteInternetRadioStation,
-                )
+                DesktopAppRoute.ArtistMix -> Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .verticalScroll(contentScrollState),
+                    ) {
+                        ArtistMixBuilderContent(
+                            colors = appColors,
+                            builder = artistMixBuilder,
+                            onQueryChanged = onArtistMixQueryChanged,
+                            onSearch = onArtistMixSearch,
+                            onArtistSelected = onArtistMixArtistSelected,
+                            onArtistRemoved = onArtistMixArtistRemoved,
+                            onReset = onArtistMixReset,
+                            onPlayMix = onArtistMixPlay,
+                            showPlayMixButton = false,
+                        )
+                    }
+                    if (artistMixBuilder.selectedArtists.isNotEmpty()) {
+                        Button(
+                            onClick = onArtistMixPlay,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = appColors.accent,
+                                contentColor = appColors.onAccent,
+                            ),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("Play Mix")
+                        }
+                    }
+                }
+                DesktopAppRoute.AlbumMix -> Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .verticalScroll(contentScrollState),
+                    ) {
+                        AlbumMixBuilderContent(
+                            colors = appColors,
+                            builder = albumMixBuilder,
+                            onQueryChanged = onAlbumMixQueryChanged,
+                            onSearch = onAlbumMixSearch,
+                            onAlbumSelected = onAlbumMixAlbumSelected,
+                            onAlbumRemoved = onAlbumMixAlbumRemoved,
+                            onReset = onAlbumMixReset,
+                            onPlayMix = onAlbumMixPlay,
+                            showPlayMixButton = false,
+                        )
+                    }
+                    if (albumMixBuilder.selectedAlbums.isNotEmpty()) {
+                        Button(
+                            onClick = onAlbumMixPlay,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = appColors.accent,
+                                contentColor = appColors.onAccent,
+                            ),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("Play Mix")
+                        }
+                    }
+                }
+                DesktopAppRoute.GenreMix -> Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .verticalScroll(contentScrollState),
+                    ) {
+                        GenreMixBuilderContent(
+                            colors = appColors,
+                            builder = genreMixBuilder,
+                            onQueryChanged = onGenreMixQueryChanged,
+                            onSearch = onGenreMixSearch,
+                            onGenreSelected = onGenreMixGenreSelected,
+                            onGenreRemoved = onGenreMixGenreRemoved,
+                            onReset = onGenreMixReset,
+                            onPlayMix = onGenreMixPlay,
+                            showPlayMixButton = false,
+                        )
+                    }
+                    if (genreMixBuilder.selectedGenres.isNotEmpty()) {
+                        Button(
+                            onClick = onGenreMixPlay,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = appColors.accent,
+                                contentColor = appColors.onAccent,
+                            ),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("Play Mix")
+                        }
+                    }
+                }
+                DesktopAppRoute.InternetRadio -> Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                    DesktopInternetRadioPanel(
+                        appColors = appColors,
+                        stations = internetRadioStations,
+                        status = internetRadioStatus ?: connectionStatus,
+                        onPlayStation = internetRadioController::playStation,
+                        onSaveStation = onSaveInternetRadioStation,
+                        onDeleteStation = onDeleteInternetRadioStation,
+                    )
+                }
                 DesktopAppRoute.Downloads -> DesktopDownloadsRoute(
                     appColors = appColors,
                     connectedSourceId = connectedSourceId,
@@ -489,6 +652,7 @@ fun ColumnScope.DesktopAppRouteContent(
                     supportsReplayGain = playbackEngine.supportsReplayGain,
                     supportsGapless = playbackEngine.supportsGapless,
                     supportsCrossfade = playbackEngine.supportsCrossfade,
+                    supportsEqualizer = (playbackEngine as? EqualizerPlaybackEngine)?.supportsEqualizer == true,
                     onServerUrlChanged = connectionForm::updateServerUrl,
                     onConnectionNameChanged = { connectionForm.connectionName = it },
                     onUsernameChanged = connectionForm::updateUsername,

@@ -96,7 +96,16 @@ val desktopReleaseAppDir = desktopPackagedAppName.flatMap { appName ->
 }
 
 kotlin {
-    jvm("desktop")
+    jvm("desktop") {
+        compilerOptions {
+            freeCompilerArgs.addAll(
+                "-Xlambdas=indy",
+                "-Xno-call-assertions",
+                "-Xno-param-assertions",
+                "-Xno-receiver-assertions",
+            )
+        }
+    }
 
     sourceSets {
         val desktopMain by getting {
@@ -128,6 +137,11 @@ kotlin {
 compose.resources {
     generateResClass = always
     packageOfResClass = "app.naviamp.desktop.generated.resources"
+}
+
+composeCompiler {
+    includeSourceInformation = false
+    includeTraceMarkers = false
 }
 
 compose.desktop {

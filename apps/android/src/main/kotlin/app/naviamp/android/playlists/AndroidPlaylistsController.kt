@@ -21,6 +21,7 @@ import app.naviamp.domain.provider.playlistsNeedingTrackPreload
 import app.naviamp.domain.provider.recentPlaylistIdsAfterPlayed
 import app.naviamp.domain.provider.refreshPlaylistDetails
 import app.naviamp.domain.provider.renamedSelectedPlaylist
+import app.naviamp.domain.provider.saveQueueAsPlaylistAndRefresh
 import app.naviamp.domain.provider.saveSmartPlaylistAndRefresh
 import app.naviamp.domain.provider.selectedPlaylistTracksForPlayback
 import app.naviamp.domain.provider.shouldStartPlaybackAction
@@ -295,6 +296,37 @@ fun refreshAndroidPlaylists(
                     providerResponseCacheRepository,
                 )
             }
+    }
+}
+
+fun saveQueueAsPlaylistFromState(
+    scope: CoroutineScope,
+    state: AndroidAppState,
+    name: String,
+    providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
+) {
+    val activeProvider = state.provider ?: return
+    val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
+    val queueTracks = state.playbackQueue.tracks
+    state.playlistActionStatus = "Saving queue as playlist..."
+    scope.launch {
+        with(state) {
+            runCatching {
+                activeProvider.saveQueueAsPlaylistAndRefresh(
+                    name = name,
+                    tracks = queueTracks,
+                    providerResponseService = providerResponseService,
+                )
+            }.onSuccess { refresh ->
+                homeState = homeState.copy(playlists = refresh.playlists)
+                playlistActionStatus = null
+                val result = refresh.result
+                status = "Saved ${result.playlist.name} with ${result.trackCount} tracks."
+            }.onFailure { error ->
+                playlistActionStatus = error.message ?: "Could not save queue as playlist."
+                status = playlistActionStatus.orEmpty()
+            }
+        }
     }
 }
 

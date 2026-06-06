@@ -27,6 +27,7 @@ import app.naviamp.domain.provider.queueAppendPlan
 import app.naviamp.domain.provider.recentPlaylistIdsAfterPlayed
 import app.naviamp.domain.provider.refreshPlaylistDetails
 import app.naviamp.domain.provider.renamedSelectedPlaylist
+import app.naviamp.domain.provider.saveQueueAsPlaylistAndRefresh
 import app.naviamp.domain.provider.shouldStartPlaybackAction
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.RecentRadioStream
@@ -184,6 +185,29 @@ class DesktopPlaylistsController(
                 playlistEngine.appendTracks(plan.tracks)
             } catch (exception: Exception) {
                 setConnectionStatus(exception.message ?: "Could not add to queue.")
+            }
+        }
+    }
+
+    fun saveQueueAsPlaylist(name: String) {
+        val activeProvider = provider() ?: return
+        val queueTracks = playlistEngine.queue.tracks
+        setConnectionStatus("Saving queue as playlist...")
+        scope.launch {
+            try {
+                val refresh = withContext(Dispatchers.IO) {
+                    activeProvider.saveQueueAsPlaylistAndRefresh(
+                        name = name,
+                        tracks = queueTracks,
+                        providerResponseService = providerResponseService,
+                    )
+                }
+                val result = refresh.result
+                setConnectionStatus("Saved ${result.playlist.name} with ${result.trackCount} tracks.")
+                setPlaylists(refresh.playlists)
+                refreshHomePlaylists(refresh.playlists)
+            } catch (exception: Exception) {
+                setConnectionStatus(exception.message ?: "Could not save queue as playlist.")
             }
         }
     }

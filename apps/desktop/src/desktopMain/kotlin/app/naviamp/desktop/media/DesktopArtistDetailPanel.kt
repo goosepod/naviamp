@@ -53,17 +53,20 @@ fun DesktopArtistDetailPanel(
     onPopularTrackAddToQueue: (Track) -> Unit,
     onAddArtistToPlaylist: (Artist) -> Unit,
     onAddArtistToQueue: (Artist) -> Unit,
+    onArtistFavoriteToggle: (Artist) -> Unit,
     onAlbumSelected: (Album) -> Unit,
     onAlbumRadioSelected: (Album) -> Unit,
     onAlbumDownloadSelected: (Album) -> Unit,
     onAlbumAddToQueue: (Album) -> Unit,
     onAlbumAddToPlaylist: (Album) -> Unit,
+    onAlbumFavoriteToggle: (Album) -> Unit,
 ) {
     val effectiveArtist = artistDetails?.artist ?: artist
     val imageUrl = artistDetails?.info?.largeImageUrl
         ?: artistDetails?.info?.mediumImageUrl
         ?: artistDetails?.info?.smallImageUrl
     var biographyExpanded by remember(effectiveArtist?.id) { mutableStateOf(false) }
+    val similarArtistsVisible = similarArtists.isNotEmpty() || similarArtistsStatus != null
 
     Column(
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -149,6 +152,17 @@ fun DesktopArtistDetailPanel(
                         )
                         DetailActionIconButton(
                             appColors = appColors,
+                            icon = TransportIcons.Heart,
+                            contentDescription = if (effectiveArtist?.favoritedAtIso8601 != null) {
+                                "Remove artist favorite"
+                            } else {
+                                "Favorite artist"
+                            },
+                            enabled = effectiveArtist != null,
+                            onClick = { effectiveArtist?.let(onArtistFavoriteToggle) },
+                        )
+                        DetailActionIconButton(
+                            appColors = appColors,
                             icon = TransportIcons.Play,
                             contentDescription = "Play popular tracks",
                             enabled = popularTracks.isNotEmpty(),
@@ -157,7 +171,7 @@ fun DesktopArtistDetailPanel(
                         DetailActionIconButton(
                             appColors = appColors,
                             icon = DesktopNavigationIcons.Artist,
-                            contentDescription = "Find similar artists",
+                            contentDescription = if (similarArtistsVisible) "Hide similar artists" else "Find similar artists",
                             enabled = effectiveArtist != null,
                             onClick = { effectiveArtist?.let(onFindSimilarArtists) },
                         )
@@ -200,7 +214,7 @@ fun DesktopArtistDetailPanel(
                     .weight(1f)
                     .verticalScroll(rememberScrollState()),
             ) {
-                if (similarArtists.isNotEmpty() || similarArtistsStatus != null) {
+                if (similarArtistsVisible) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -214,7 +228,7 @@ fun DesktopArtistDetailPanel(
                         DetailActionIconButton(
                             appColors = appColors,
                             icon = DesktopNavigationIcons.Artist,
-                            contentDescription = "Refresh similar artists",
+                            contentDescription = "Hide similar artists",
                             enabled = effectiveArtist != null,
                             onClick = { effectiveArtist?.let(onFindSimilarArtists) },
                         )
@@ -300,6 +314,7 @@ fun DesktopArtistDetailPanel(
                             onDownload = { onAlbumDownloadSelected(album) },
                             onAddToQueue = { onAlbumAddToQueue(album) },
                             onAddToPlaylist = { onAlbumAddToPlaylist(album) },
+                            onFavoriteToggle = { onAlbumFavoriteToggle(album) },
                         )
                     }
                 }
@@ -348,7 +363,7 @@ private fun SimilarArtistRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                if (localArtist != null) "In library" else "Deezer",
+                if (localArtist != null) "In library" else "View in browser",
                 color = appColors.secondaryText,
                 fontSize = 10.sp,
                 maxLines = 1,
@@ -362,7 +377,7 @@ private fun SimilarArtistRow(
             ) {
                 Icon(
                     imageVector = DesktopNavigationIcons.ExternalLink,
-                    contentDescription = "Open Deezer artist page",
+                    contentDescription = "View in browser",
                     tint = appColors.secondaryText,
                     modifier = Modifier.size(16.dp),
                 )

@@ -139,6 +139,13 @@ class AndroidBassAudioBackend(
             Result.failure(IllegalStateException(errorMessage("BASS_ChannelSlideAttribute volume failed")))
         }
 
+    override fun applyEqualizer(stream: BassStreamHandle, bandsDb: List<Float>): Result<Unit> =
+        if (bass.applyEqualizer(stream.value, bandsDb.toFloatArray())) {
+            Result.success(Unit)
+        } else {
+            Result.failure(IllegalStateException(errorMessage("BASS equalizer failed")))
+        }
+
     override fun seek(stream: BassStreamHandle, seconds: Double): Result<Unit> =
         if (bass.seek(stream.value, seconds)) {
             Result.success(Unit)

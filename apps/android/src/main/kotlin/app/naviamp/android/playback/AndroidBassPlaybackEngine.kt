@@ -15,6 +15,7 @@ import app.naviamp.domain.bass.BassStreamHandle
 import app.naviamp.domain.bass.activeState
 import app.naviamp.domain.bass.adoptPreparedBassSource
 import app.naviamp.domain.bass.applyBassPlaybackVolume
+import app.naviamp.domain.bass.applyEqualizer
 import app.naviamp.domain.bass.bassActiveStateLabel
 import app.naviamp.domain.bass.bassFailureMessage
 import app.naviamp.domain.bass.bassPlaybackSnapshot
@@ -35,6 +36,8 @@ import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
+import app.naviamp.domain.playback.EqualizerPlaybackEngine
+import app.naviamp.domain.playback.EqualizerSettings
 import app.naviamp.domain.playback.VisualizerBandCount
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.clearPreparedPlaybackMetadata
@@ -63,7 +66,7 @@ import java.io.File
 class AndroidBassPlaybackEngine(
     context: Context,
     private val bass: BassAudioBackend,
-) : AndroidPlaybackEngine, QueueAwarePlaybackEngine, VisualizerPlaybackEngine {
+) : AndroidPlaybackEngine, QueueAwarePlaybackEngine, VisualizerPlaybackEngine, EqualizerPlaybackEngine {
     private val appContext = context.applicationContext
     private val audioManager = appContext.getSystemService(AudioManager::class.java)
     private var stream: Int = 0
@@ -81,6 +84,7 @@ class AndroidBassPlaybackEngine(
     private var notificationMetadata = AndroidPlaybackNotificationMetadata()
     private var volumePercent: Int = 100
     private var replayGainFactor: Float = 1f
+    private var equalizerSettings: EqualizerSettings = EqualizerSettings()
     private var tlsSettings: NavidromeTlsSettings = NavidromeTlsSettings()
     private var audioFocusRequest: AudioFocusRequest? = null
     private var pausedForTransientFocusLoss = false
@@ -137,6 +141,7 @@ class AndroidBassPlaybackEngine(
     override val supportsGapless: Boolean = featureSupport.supportsGapless
     override val supportsCrossfade: Boolean = featureSupport.supportsCrossfade
     override val supportsReplayGain: Boolean = true
+    override val supportsEqualizer: Boolean = true
     override val supportsSoftwareVolume: Boolean = true
     override val prefersOriginalStream: Boolean = true
     override val supportsVisualizer: Boolean = true
@@ -218,6 +223,7 @@ class AndroidBassPlaybackEngine(
                 Log.i(Tag, "BASS stream handle=$handle source=$currentSourceStream error=${bass.lastErrorCode}")
                 check(handle != 0) { errorMessage("BASS stream creation failed") }
                 applyVolume()
+                applyEqualizer()
                 val startPositionSeconds = playbackStartSeekPosition(request.startPositionSeconds)
                 val seekedBeforePlay = startPositionSeconds?.let { seekStreamPosition(it) } ?: false
                 if (startPositionSeconds != null && !seekedBeforePlay) {
@@ -353,6 +359,11 @@ class AndroidBassPlaybackEngine(
 
     override fun setCrossfadeDuration(seconds: Int) {
         crossfadeDurationSeconds = normalizedCrossfadeDurationSeconds(seconds)
+    }
+
+    override fun setEqualizer(settings: EqualizerSettings) {
+        equalizerSettings = settings.normalized()
+        applyEqualizer()
     }
 
     override fun prepareNext(request: PlaybackRequest) {
@@ -628,6 +639,7 @@ class AndroidBassPlaybackEngine(
         )
         currentSourceStream = source
         replayGainFactor = preparedReplayGainFactor
+        applyEqualizer()
         val reset = clearPreparedPlaybackMetadata()
         preparedStream = 0
         preparedRequest = reset.request
@@ -650,6 +662,11 @@ class AndroidBassPlaybackEngine(
 
     private fun errorMessage(prefix: String): String =
         bass.bassFailureMessage(prefix)
+
+    private fun applyEqualizer() {
+        stream.takeIf { it != 0 }
+            ?.let { handle -> bass.applyEqualizer(handle, equalizerSettings.bandsForBackend()) }
+    }
 
     private fun releaseCreatedPlayback(playback: BassCreatedPlayback) {
         bass.stopAndReleaseBassPlayback(
@@ -676,6 +693,9 @@ private fun localFileFromUrl(url: String): File? =
 
 private fun String.sanitizedForLog(): String =
     replace(Regex("""([?&](?:t|s|p)=)[^&]+"""), "$1***")
+
+private fun EqualizerSettings.bandsForBackend(): List<Float> =
+    if (enabled) bandsDb else emptyList()
 
 private fun Int.audioFocusChangeName(): String =
     when (this) {

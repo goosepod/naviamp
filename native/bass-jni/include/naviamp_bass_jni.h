@@ -10,6 +10,9 @@ Java_app_naviamp_android_playback_AndroidBassJni_nativeBassVersion(JNIEnv* env, 
 extern "C" JNIEXPORT jint JNICALL
 Java_app_naviamp_android_playback_AndroidBassJni_nativeLastErrorCode(JNIEnv* env, jobject thiz);
 
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeApplyEqualizer(JNIEnv* env, jobject thiz, jint stream, jfloatArray bandsDb);
+
 extern "C" JNIEXPORT jint JNICALL
 Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeBassVersion(JNIEnv* env, jobject thiz);
 
@@ -78,6 +81,9 @@ Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeSetVolume(JNI
 
 extern "C" JNIEXPORT jboolean JNICALL
 Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeSlideVolume(JNIEnv* env, jobject thiz, jint stream, jfloat volume, jint millis);
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeApplyEqualizer(JNIEnv* env, jobject thiz, jint stream, jfloatArray bandsDb);
 
 extern "C" JNIEXPORT jboolean JNICALL
 Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeSeek(JNIEnv* env, jobject thiz, jint stream, jdouble seconds);

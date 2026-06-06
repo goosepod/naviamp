@@ -1,6 +1,10 @@
 package app.naviamp.android
 
 import android.content.Context
+import app.naviamp.domain.playback.EqualizerBandFrequencies
+import app.naviamp.domain.playback.EqualizerProfile
+import app.naviamp.domain.playback.EqualizerPreset
+import app.naviamp.domain.playback.EqualizerSettings
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.PlaybackSettings
@@ -58,6 +62,7 @@ class AndroidSettingsStore(
             replayGainMode = enumPreference(KeyReplayGainMode, ReplayGainMode.Off),
             gaplessEnabled = preferences.getBoolean(KeyGaplessEnabled, true),
             crossfadeDurationSeconds = preferences.getInt(KeyCrossfadeDurationSeconds, 0),
+            equalizer = loadEqualizerSettings(),
             debugLoggingEnabled = preferences.getBoolean(KeyDebugLoggingEnabled, false),
             lrclibLyricsEnabled = preferences.getBoolean(KeyLrclibLyricsEnabled, false),
             previousButtonBehavior = enumPreference(
@@ -98,6 +103,7 @@ class AndroidSettingsStore(
             .putString(KeyReplayGainMode, settings.replayGainMode.name)
             .putBoolean(KeyGaplessEnabled, settings.gaplessEnabled)
             .putInt(KeyCrossfadeDurationSeconds, settings.crossfadeDurationSeconds)
+            .putEqualizerSettings(settings.equalizer)
             .putBoolean(KeyDebugLoggingEnabled, settings.debugLoggingEnabled)
             .putBoolean(KeyLrclibLyricsEnabled, settings.lrclibLyricsEnabled)
             .putString(KeyPreviousButtonBehavior, settings.previousButtonBehavior.name)
@@ -181,6 +187,17 @@ class AndroidSettingsStore(
             bitrateKbps = preferences.getInt(bitrateKey, defaultValue.bitrateKbps),
         ).normalized()
 
+    private fun loadEqualizerSettings(): EqualizerSettings =
+        EqualizerSettings(
+            enabled = preferences.getBoolean(KeyEqualizerEnabled, false),
+            preset = enumPreference(KeyEqualizerPreset, EqualizerPreset.Flat),
+            profileId = preferences.getString(KeyEqualizerProfileId, null),
+            savedProfiles = decodeList(KeyEqualizerProfiles, EqualizerProfile.serializer()),
+            bandsDb = EqualizerBandFrequencies.indices.map { index ->
+                preferences.getFloat("${KeyEqualizerBandPrefix}_$index", 0f)
+            },
+        ).normalized()
+
     private fun <T> decodeList(
         key: String,
         serializer: kotlinx.serialization.KSerializer<T>,
@@ -204,6 +221,23 @@ private fun android.content.SharedPreferences.Editor.putStreamQualityPreference(
         .putInt(bitrateKey, normalized.bitrateKbps)
 }
 
+private fun android.content.SharedPreferences.Editor.putEqualizerSettings(
+    settings: EqualizerSettings,
+): android.content.SharedPreferences.Editor {
+    val normalized = settings.normalized()
+    putBoolean(KeyEqualizerEnabled, normalized.enabled)
+    putString(KeyEqualizerPreset, normalized.preset.name)
+    putString(KeyEqualizerProfileId, normalized.profileId)
+    putString(
+        KeyEqualizerProfiles,
+        JsonSettings.encodeToString(ListSerializer(EqualizerProfile.serializer()), normalized.savedProfiles),
+    )
+    EqualizerBandFrequencies.indices.forEach { index ->
+        putFloat("${KeyEqualizerBandPrefix}_$index", normalized.bandsDb.getOrNull(index) ?: 0f)
+    }
+    return this
+}
+
 private const val PreferencesName = "naviamp_android_settings"
 private const val KeyDisplayName = "display_name"
 private const val KeyServerUrl = "server_url"
@@ -216,6 +250,11 @@ private const val KeyClientCertificatePassword = "client_certificate_password"
 private const val KeyReplayGainMode = "replay_gain_mode"
 private const val KeyGaplessEnabled = "gapless_enabled"
 private const val KeyCrossfadeDurationSeconds = "crossfade_duration_seconds"
+private const val KeyEqualizerEnabled = "equalizer_enabled"
+private const val KeyEqualizerPreset = "equalizer_preset"
+private const val KeyEqualizerProfileId = "equalizer_profile_id"
+private const val KeyEqualizerProfiles = "equalizer_profiles"
+private const val KeyEqualizerBandPrefix = "equalizer_band"
 private const val KeyDebugLoggingEnabled = "debug_logging_enabled"
 private const val KeyLrclibLyricsEnabled = "lrclib_lyrics_enabled"
 private const val KeyPreviousButtonBehavior = "previous_button_behavior"

@@ -31,6 +31,7 @@ import app.naviamp.android.playback.AndroidPlaybackForegroundService
 import app.naviamp.android.playback.AndroidPlaybackNotificationControls
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
+import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Lyrics
@@ -40,6 +41,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.app.NaviampRoute
+import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.PlaylistDetailRefreshIntervalMillis
 import app.naviamp.domain.provider.allKnownTracks
@@ -53,6 +55,17 @@ import app.naviamp.domain.home.homeDecadeStationId
 import app.naviamp.domain.home.homeGenreStationId
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.cache.downloadConnectionRequiredStatus
+import app.naviamp.domain.artistmix.ArtistMixBuilderService
+import app.naviamp.domain.artistmix.artistMixPopularQueue
+import app.naviamp.domain.artistmix.artistMixSelectedArtistsAfterRemove
+import app.naviamp.domain.artistmix.artistMixSelectedArtistsAfterSelect
+import app.naviamp.domain.albummix.AlbumMixBuilderService
+import app.naviamp.domain.albummix.albumMixSelectedAlbumsAfterRemove
+import app.naviamp.domain.albummix.albumMixSelectedAlbumsAfterSelect
+import app.naviamp.domain.albummix.albumMixTrackQueue
+import app.naviamp.domain.genremix.GenreMixBuilderService
+import app.naviamp.domain.genremix.genreMixSelectedGenresAfterRemove
+import app.naviamp.domain.genremix.genreMixSelectedGenresAfterSelect
 import app.naviamp.domain.media.albumDetailLoadErrorStatus
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackQueueController
@@ -72,6 +85,11 @@ import app.naviamp.domain.playback.lyricsLoadingStatus
 import app.naviamp.domain.playback.lyricsUnavailableStatus
 import app.naviamp.domain.playback.recordSidecarFailure
 import app.naviamp.domain.playback.recordSidecarSuccess
+import app.naviamp.domain.playback.SleepTimerRequest
+import app.naviamp.domain.playback.shouldExpireSleepTimer
+import app.naviamp.domain.playback.sleepTimerDisplayLabel
+import app.naviamp.domain.playback.sleepTimerPlaybackSnapshot
+import app.naviamp.domain.playback.sleepTimerStateForPlayback
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
@@ -109,9 +127,11 @@ import app.naviamp.ui.radioTrackArtworkKey
 import app.naviamp.ui.radioTrackArtworkQuery
 import app.naviamp.ui.SharedAlbumDetailUi
 import app.naviamp.ui.SharedArtistDetailUi
+import app.naviamp.ui.SharedGenreMixItemUi
 import app.naviamp.ui.SharedHomeStationUi
 import app.naviamp.ui.SharedHomeUi
 import app.naviamp.ui.SharedMediaItemUi
+import app.naviamp.ui.SharedMixBuilderUi
 import app.naviamp.ui.SharedPlaylistDetailUi
 import app.naviamp.ui.SharedPlaylistSortMode
 import app.naviamp.ui.SharedRoute
@@ -309,7 +329,9 @@ private fun NaviampAndroidApp(
                     quality = quality,
                     audioCachingEnabled = true,
                     onlineLyricsEnabled = playbackSettings.lrclibLyricsEnabled,
-                ).lyrics
+                ).lyrics?.copy(
+                    offsetMillis = sourceId?.let { storage.lyricsOffsetMillis(it, track.id) } ?: 0,
+                )
             }
                 .onSuccess { lyrics ->
                     lyricsByTrackId = lyricsByTrackId + (track.id.value to lyrics)
@@ -338,6 +360,15 @@ private fun NaviampAndroidApp(
                     }
                 }
         }
+    }
+
+    fun handleLyricsOffsetChanged(offsetMillis: Int) {
+        val sourceId = activeSourceId ?: return
+        val track = nowPlaying ?: return
+        storage.saveLyricsOffsetMillis(sourceId, track.id, offsetMillis)
+        lyricsByTrackId = lyricsByTrackId + (
+            track.id.value to lyricsByTrackId[track.id.value]?.copy(offsetMillis = offsetMillis)
+            )
     }
 
     fun handleConnectionFormChanged(form: ConnectionFormState) {
@@ -929,6 +960,336 @@ private fun NaviampAndroidApp(
         findAndroidSimilarArtists(scope, appState, similarArtistsService, artistId, artistName)
     }
 
+    val artistMixBuilderService = remember(popularTracksService, similarArtistsService) {
+        ArtistMixBuilderService(
+            sourceId = { activeSourceId },
+            artistSearch = { query, limit ->
+                activeSourceId
+                    ?.let { storage.searchLibrary(it, query, limit, 0).artists }
+                    .orEmpty()
+                    .ifEmpty { provider?.search(query, limit.toInt())?.artists.orEmpty() }
+            },
+            randomArtists = { limit ->
+                homeState.artists.shuffled().take(limit.toInt()).ifEmpty {
+                    provider?.artists(limit.toInt())?.shuffled().orEmpty()
+                }
+            },
+            popularTracksService = popularTracksService,
+            similarArtistsService = similarArtistsService,
+        )
+    }
+
+    fun refreshArtistMixInitialSuggestions() {
+        scope.launch {
+            artistMixLoading = true
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    artistMixBuilderService.initialSuggestions(artistMixSelectedArtists)
+                }
+            }.onSuccess { suggestions ->
+                artistMixSuggestions = suggestions
+                artistMixStatus = if (suggestions.isEmpty()) "No artist suggestions yet." else null
+            }.onFailure { error ->
+                artistMixStatus = error.message ?: "Could not load artist suggestions."
+            }
+            artistMixLoading = false
+        }
+    }
+
+    fun handleArtistMixSearch() {
+        scope.launch {
+            artistMixLoading = true
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    artistMixBuilderService.searchSuggestions(artistMixQuery, artistMixSelectedArtists)
+                }
+            }.onSuccess { suggestions ->
+                artistMixSuggestions = suggestions
+                artistMixStatus = if (suggestions.isEmpty()) "No artists matched." else null
+            }.onFailure { error ->
+                artistMixStatus = error.message ?: "Could not search artists."
+            }
+            artistMixLoading = false
+        }
+    }
+
+    fun selectArtistForMix(artist: Artist) {
+        artistMixSelectedArtists = artistMixSelectedArtistsAfterSelect(artistMixSelectedArtists, artist)
+        artistMixStatus = "Loading ${artist.name} songs..."
+        scope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    artistMixBuilderService.popularTracks(artist)
+                }
+            }.onSuccess { tracks ->
+                artistMixPopularTracksByArtistId = artistMixPopularTracksByArtistId + (artist.id.value to tracks)
+                artistMixStatus = if (tracks.isEmpty()) "${artist.name} popular songs were not matched." else null
+            }.onFailure { error ->
+                artistMixStatus = error.message ?: "Could not load ${artist.name} songs."
+            }
+        }
+        scope.launch {
+            artistMixLoading = true
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    artistMixBuilderService.relatedSuggestions(artistMixSelectedArtists, artist)
+                }
+            }.onSuccess { suggestions ->
+                artistMixSuggestions = suggestions
+            }.onFailure { error ->
+                artistMixStatus = error.message ?: "Could not load similar artists."
+            }
+            artistMixLoading = false
+        }
+    }
+
+    fun handleArtistMixArtistSelected(item: SharedMediaItemUi) {
+        artistMixSuggestions.firstOrNull { it.id.value == item.id }?.let(::selectArtistForMix)
+    }
+
+    fun handleArtistMixArtistRemoved(item: SharedMediaItemUi) {
+        val artist = artistMixSelectedArtists.firstOrNull { it.id.value == item.id } ?: return
+        artistMixSelectedArtists = artistMixSelectedArtistsAfterRemove(artistMixSelectedArtists, artist)
+        artistMixPopularTracksByArtistId = artistMixPopularTracksByArtistId - artist.id.value
+        refreshArtistMixInitialSuggestions()
+    }
+
+    fun handleArtistMixReset() {
+        artistMixQuery = ""
+        artistMixSelectedArtists = emptyList()
+        artistMixSuggestions = emptyList()
+        artistMixPopularTracksByArtistId = emptyMap()
+        artistMixStatus = null
+        artistMixLoading = false
+        refreshArtistMixInitialSuggestions()
+    }
+
+    fun handleArtistMixPlay() {
+        startAndroidArtistMixRadio(
+            scope = scope,
+            state = appState,
+            queueController = playbackQueueController,
+            artists = artistMixSelectedArtists,
+            popularTracks = artistMixPopularQueue(artistMixSelectedArtists, artistMixPopularTracksByArtistId),
+            playTrack = { seedTrack, queue -> playTrack(seedTrack, queue, keepRadioQueueActive = true) },
+            providerResponseCacheRepository = storage,
+            rememberRecentRadioStream = ::rememberRecentRadioStream,
+        )
+    }
+
+    val albumMixBuilderService = remember(similarArtistsService) {
+        AlbumMixBuilderService(
+            albumSearch = { query, limit ->
+                activeSourceId
+                    ?.let { storage.searchLibrary(it, query, limit, 0).albums }
+                    .orEmpty()
+                    .ifEmpty { provider?.search(query, limit.toInt())?.albums.orEmpty() }
+            },
+            randomAlbums = { limit ->
+                (
+                    homeState.randomAlbums +
+                        homeState.mixAlbums +
+                        homeState.recentAlbums +
+                        homeState.frequentAlbums
+                    )
+                    .distinctBy { it.id }
+                    .shuffled()
+                    .take(limit.toInt())
+                    .ifEmpty {
+                        provider?.albumList(AlbumListType.Random, limit.toInt())?.shuffled().orEmpty()
+                    }
+            },
+            albumsForArtist = { artist, limit ->
+                activeSourceId
+                    ?.let { storage.searchLibrary(it, artist.name, limit, 0).albums }
+                    .orEmpty()
+                    .filter { album -> album.artistName.equals(artist.name, ignoreCase = true) }
+            },
+            albumTracks = { album, limit ->
+                val localTracks = activeSourceId?.let { storage.libraryTracksForAlbum(it, album.id, limit) }.orEmpty()
+                val providerTracks = provider?.let { activeProvider ->
+                    runCatching { ProviderResponseService(storage).album(activeProvider, album.id).tracks }.getOrDefault(emptyList())
+                }.orEmpty()
+                providerTracks.ifEmpty { localTracks }.take(limit.toInt())
+            },
+            similarArtistsService = similarArtistsService,
+        )
+    }
+
+    fun refreshAlbumMixInitialSuggestions() {
+        scope.launch {
+            albumMixLoading = true
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    albumMixBuilderService.initialSuggestions(albumMixSelectedAlbums)
+                }
+            }.onSuccess { suggestions ->
+                albumMixSuggestions = suggestions
+                albumMixStatus = if (suggestions.isEmpty()) "No album suggestions yet." else null
+            }.onFailure { error ->
+                albumMixStatus = error.message ?: "Could not load album suggestions."
+            }
+            albumMixLoading = false
+        }
+    }
+
+    fun handleAlbumMixSearch() {
+        scope.launch {
+            albumMixLoading = true
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    albumMixBuilderService.searchSuggestions(albumMixQuery, albumMixSelectedAlbums)
+                }
+            }.onSuccess { suggestions ->
+                albumMixSuggestions = suggestions
+                albumMixStatus = if (suggestions.isEmpty()) "No albums matched." else null
+            }.onFailure { error ->
+                albumMixStatus = error.message ?: "Could not search albums."
+            }
+            albumMixLoading = false
+        }
+    }
+
+    fun selectAlbumForMix(album: Album) {
+        albumMixSelectedAlbums = albumMixSelectedAlbumsAfterSelect(albumMixSelectedAlbums, album)
+        albumMixStatus = "Loading ${album.title} songs..."
+        scope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    albumMixBuilderService.selectedTracks(album)
+                }
+            }.onSuccess { tracks ->
+                albumMixTracksByAlbumId = albumMixTracksByAlbumId + (album.id.value to tracks)
+                albumMixStatus = if (tracks.isEmpty()) "${album.title} did not return tracks." else null
+            }.onFailure { error ->
+                albumMixStatus = error.message ?: "Could not load ${album.title} songs."
+            }
+        }
+        scope.launch {
+            albumMixLoading = true
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    albumMixBuilderService.relatedSuggestions(albumMixSelectedAlbums, album)
+                }
+            }.onSuccess { suggestions ->
+                albumMixSuggestions = suggestions
+            }.onFailure { error ->
+                albumMixStatus = error.message ?: "Could not load related albums."
+            }
+            albumMixLoading = false
+        }
+    }
+
+    fun handleAlbumMixAlbumSelected(item: SharedMediaItemUi) {
+        albumMixSuggestions.firstOrNull { it.id.value == item.id }?.let(::selectAlbumForMix)
+    }
+
+    fun handleAlbumMixAlbumRemoved(item: SharedMediaItemUi) {
+        val album = albumMixSelectedAlbums.firstOrNull { it.id.value == item.id } ?: return
+        albumMixSelectedAlbums = albumMixSelectedAlbumsAfterRemove(albumMixSelectedAlbums, album)
+        albumMixTracksByAlbumId = albumMixTracksByAlbumId - album.id.value
+        refreshAlbumMixInitialSuggestions()
+    }
+
+    fun handleAlbumMixReset() {
+        albumMixQuery = ""
+        albumMixSelectedAlbums = emptyList()
+        albumMixSuggestions = emptyList()
+        albumMixTracksByAlbumId = emptyMap()
+        albumMixStatus = null
+        albumMixLoading = false
+        refreshAlbumMixInitialSuggestions()
+    }
+
+    fun handleAlbumMixPlay() {
+        startAndroidAlbumMixRadio(
+            scope = scope,
+            state = appState,
+            queueController = playbackQueueController,
+            albums = albumMixSelectedAlbums,
+            selectedTracks = albumMixTrackQueue(albumMixSelectedAlbums, albumMixTracksByAlbumId),
+            playTrack = { seedTrack, queue -> playTrack(seedTrack, queue, keepRadioQueueActive = true) },
+            libraryIndexRepository = storage,
+            providerResponseCacheRepository = storage,
+            rememberRecentRadioStream = ::rememberRecentRadioStream,
+        )
+    }
+
+    val genreMixBuilderService = remember(provider, homeState.genres) {
+        GenreMixBuilderService(
+            genres = { limit ->
+                provider?.genres(limit.toInt()).orEmpty().ifEmpty { homeState.genres }
+            },
+        )
+    }
+
+    fun refreshGenreMixSuggestions() {
+        scope.launch {
+            genreMixLoading = true
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    genreMixBuilderService.searchSuggestions(genreMixQuery, genreMixSelectedGenres)
+                }
+            }.onSuccess { suggestions ->
+                genreMixSuggestions = suggestions
+                genreMixStatus = if (suggestions.isEmpty()) "No genres matched." else null
+            }.onFailure { error ->
+                genreMixStatus = error.message ?: "Could not load genres."
+            }
+            genreMixLoading = false
+        }
+    }
+
+    fun handleGenreMixGenreSelected(item: SharedGenreMixItemUi) {
+        val genre = genreMixSuggestions.firstOrNull { it.name == item.id } ?: return
+        genreMixSelectedGenres = genreMixSelectedGenresAfterSelect(genreMixSelectedGenres, genre)
+        refreshGenreMixSuggestions()
+    }
+
+    fun handleGenreMixGenreRemoved(item: SharedGenreMixItemUi) {
+        val genre = genreMixSelectedGenres.firstOrNull { it.name == item.id } ?: return
+        genreMixSelectedGenres = genreMixSelectedGenresAfterRemove(genreMixSelectedGenres, genre)
+        refreshGenreMixSuggestions()
+    }
+
+    fun handleGenreMixReset() {
+        genreMixQuery = ""
+        genreMixSelectedGenres = emptyList()
+        genreMixStatus = null
+        genreMixLoading = false
+        refreshGenreMixSuggestions()
+    }
+
+    fun handleGenreMixPlay() {
+        startAndroidGenreMixRadio(
+            scope = scope,
+            state = appState,
+            queueController = playbackQueueController,
+            genres = genreMixSelectedGenres,
+            playTrack = { track, queue -> playTrack(track, queue, keepRadioQueueActive = true) },
+            providerResponseCacheRepository = storage,
+            rememberRecentRadioStream = ::rememberRecentRadioStream,
+        )
+    }
+
+    LaunchedEffect(provider, homeState.artists) {
+        if (provider != null && artistMixSuggestions.isEmpty()) {
+            refreshArtistMixInitialSuggestions()
+        }
+    }
+
+    LaunchedEffect(provider, homeState.randomAlbums, homeState.mixAlbums) {
+        if (provider != null && albumMixSuggestions.isEmpty()) {
+            refreshAlbumMixInitialSuggestions()
+        }
+    }
+
+    LaunchedEffect(provider, homeState.genres) {
+        if (provider != null && genreMixSuggestions.isEmpty()) {
+            refreshGenreMixSuggestions()
+        }
+    }
+
     fun openExternalArtistUrl(url: String) {
         openAndroidExternalArtistUrl(context, appState, url)
     }
@@ -1000,6 +1361,38 @@ private fun NaviampAndroidApp(
         label: String = "tracks",
     ) {
         addAndroidTracksToPlaylist(scope, appState, tracksToAdd, playlist, newPlaylistName, label, storage)
+    }
+
+    fun saveQueueAsPlaylist(name: String) {
+        saveQueueAsPlaylistFromState(scope, appState, name, storage)
+    }
+
+    fun currentSleepTimerSnapshot() =
+        sleepTimerPlaybackSnapshot(
+            nowPlaying = nowPlaying,
+            playbackQueue = playbackQueue,
+            playbackProgress = playbackProgress,
+            playbackState = playbackState,
+        )
+
+    fun handleSleepTimerSelected(request: SleepTimerRequest) {
+        val nowMillis = System.currentTimeMillis()
+        val timer = sleepTimerStateForPlayback(
+            request = request,
+            nowEpochMillis = nowMillis,
+            nowPlaying = nowPlaying,
+            playbackQueue = playbackQueue,
+            playbackProgress = playbackProgress,
+            playbackState = playbackState,
+        )
+        sleepTimer = timer
+        sleepTimerNowEpochMillis = nowMillis
+        status = sleepTimerDisplayLabel(timer, nowMillis)
+    }
+
+    fun cancelSleepTimer() {
+        sleepTimer = null
+        status = "Sleep timer canceled."
     }
 
     fun withPlaylistTracks(playlist: Playlist, onTracks: (List<Track>) -> Unit) {
@@ -1298,6 +1691,16 @@ private fun NaviampAndroidApp(
         }
     }
 
+    fun handleMixBuilderSelected(builder: SharedMixBuilderUi) {
+        contentState = contentState.clearDetails()
+        nowPlayingOpen = false
+        when (builder.id) {
+            "artist" -> navigationState = navigationState.copy(route = NaviampRoute.ArtistMix)
+            "genre" -> navigationState = navigationState.copy(route = NaviampRoute.GenreMix)
+            "album" -> navigationState = navigationState.copy(route = NaviampRoute.AlbumMix)
+        }
+    }
+
     fun handleShellResume() {
         when (playbackState) {
             PlaybackState.Idle,
@@ -1583,6 +1986,20 @@ private fun NaviampAndroidApp(
         currentTrack.artistId?.let { openArtistDetails(it, currentTrack.artistName) }
     }
 
+    LaunchedEffect(sleepTimer, nowPlaying?.id, playbackQueue, playbackProgress, playbackState) {
+        while (sleepTimer != null) {
+            val nowMillis = System.currentTimeMillis()
+            sleepTimerNowEpochMillis = nowMillis
+            if (shouldExpireSleepTimer(sleepTimer, nowMillis, currentSleepTimerSnapshot())) {
+                playbackEngine.stop()
+                sleepTimer = null
+                status = "Sleep timer stopped playback."
+                break
+            }
+            delay(500L)
+        }
+    }
+
     val shellActions = androidAppShellActions(
         state = appState,
         playbackEngine = playbackEngine,
@@ -1595,6 +2012,21 @@ private fun NaviampAndroidApp(
         handleClearLibrary = ::handleClearLibrary,
         handleResetDatabase = ::handleResetDatabase,
         handleSearch = ::handleSearch,
+        handleArtistMixSearch = ::handleArtistMixSearch,
+        handleArtistMixArtistSelected = ::handleArtistMixArtistSelected,
+        handleArtistMixArtistRemoved = ::handleArtistMixArtistRemoved,
+        handleArtistMixReset = ::handleArtistMixReset,
+        handleArtistMixPlay = ::handleArtistMixPlay,
+        handleAlbumMixSearch = ::handleAlbumMixSearch,
+        handleAlbumMixAlbumSelected = ::handleAlbumMixAlbumSelected,
+        handleAlbumMixAlbumRemoved = ::handleAlbumMixAlbumRemoved,
+        handleAlbumMixReset = ::handleAlbumMixReset,
+        handleAlbumMixPlay = ::handleAlbumMixPlay,
+        handleGenreMixSearch = ::refreshGenreMixSuggestions,
+        handleGenreMixGenreSelected = ::handleGenreMixGenreSelected,
+        handleGenreMixGenreRemoved = ::handleGenreMixGenreRemoved,
+        handleGenreMixReset = ::handleGenreMixReset,
+        handleGenreMixPlay = ::handleGenreMixPlay,
         startAndroidLibrarySync = { force -> startAndroidLibrarySync(scope, appState, storage, force) },
         handleShellTrackSelected = ::handleShellTrackSelected,
         handleDownloadedTrackSelected = ::handleDownloadedTrackSelected,
@@ -1602,6 +2034,7 @@ private fun NaviampAndroidApp(
         handleDownloadedTrackCreatePlaylistAndAdd = ::handleDownloadedTrackCreatePlaylistAndAdd,
         removeDownload = ::removeDownload,
         handleShellAlbumSelected = ::handleShellAlbumSelected,
+        handleAlbumFavoriteToggled = { item -> toggleAndroidAlbumFavorite(scope, appState, item) },
         handleMixAlbumSelected = ::handleMixAlbumSelected,
         handleShellAlbumPlay = ::handleShellAlbumPlay,
         handleShellAlbumTrackSelected = ::handleShellAlbumTrackSelected,
@@ -1627,6 +2060,7 @@ private fun NaviampAndroidApp(
         handleSimilarArtistSelected = ::handleSimilarArtistSelected,
         openExternalArtistUrl = ::openExternalArtistUrl,
         openArtistDetails = ::openArtistDetails,
+        handleArtistFavoriteToggled = { item -> toggleAndroidArtistFavorite(scope, appState, item) },
         handleArtistAlbumRadio = ::handleArtistAlbumRadio,
         loadArtistAlbumTracks = ::loadArtistAlbumTracks,
         openPlaylistDetails = ::openPlaylistDetails,
@@ -1642,6 +2076,7 @@ private fun NaviampAndroidApp(
         closeActivePlaylist = ::closeActivePlaylist,
         handlePlaylistTrackSelected = ::handlePlaylistTrackSelected,
         handleRecentRadioSelected = ::handleShellRecentRadioSelected,
+        handleMixBuilderSelected = ::handleMixBuilderSelected,
         handleRadioStationSelected = ::handleRadioStationSelected,
         saveInternetRadioStation = ::saveInternetRadioStation,
         deleteInternetRadioStation = ::deleteInternetRadioStation,
@@ -1652,9 +2087,13 @@ private fun NaviampAndroidApp(
         performSeek = ::performSeek,
         handleShellToggleShuffle = ::handleShellToggleShuffle,
         loadLyrics = ::loadLyrics,
+        handleLyricsOffsetChanged = ::handleLyricsOffsetChanged,
         handleShellTrackRadio = ::handleShellTrackRadio,
         handleNowPlayingAddToPlaylist = ::handleNowPlayingAddToPlaylist,
         handleNowPlayingCreatePlaylistAndAdd = ::handleNowPlayingCreatePlaylistAndAdd,
+        handleSaveQueueAsPlaylist = ::saveQueueAsPlaylist,
+        handleSleepTimerSelected = ::handleSleepTimerSelected,
+        handleCancelSleepTimer = ::cancelSleepTimer,
         downloadTrack = ::downloadTrack,
         handleShellGoToAlbum = ::handleShellGoToAlbum,
         handleShellGoToArtist = ::handleShellGoToArtist,

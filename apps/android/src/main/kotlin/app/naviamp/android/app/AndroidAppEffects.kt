@@ -15,6 +15,7 @@ import app.naviamp.domain.cache.DownloadRepository
 import app.naviamp.domain.library.LibraryFreshnessCheckIntervalMillis
 import app.naviamp.domain.playback.DefaultNowPlayingHeartbeatIntervalMillis
 import app.naviamp.domain.playback.DefaultVisualizerFrameIntervalMillis
+import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
@@ -113,6 +114,10 @@ fun AndroidAppRuntimeEffects(
         LaunchedEffect(playbackEngine, playbackSettings.crossfadeDurationSeconds) {
             (playbackEngine as? QueueAwarePlaybackEngine)
                 ?.setCrossfadeDuration(playbackSettings.crossfadeDurationSeconds)
+        }
+
+        LaunchedEffect(playbackEngine, playbackSettings.equalizer) {
+            (playbackEngine as? EqualizerPlaybackEngine)?.setEqualizer(playbackSettings.equalizer)
         }
 
         DisposableEffect(playbackEngine) {

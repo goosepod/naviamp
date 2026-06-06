@@ -29,6 +29,7 @@ import app.naviamp.domain.cache.LibraryAlbumYear
 import app.naviamp.domain.cache.LibraryIndexStats
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
+import app.naviamp.domain.cache.LyricsOffsetRepository
 import app.naviamp.domain.cache.LyricsSidecarCacheService
 import app.naviamp.domain.cache.LyricsSidecarRepository
 import app.naviamp.domain.cache.MediaSourceRepository
@@ -81,6 +82,7 @@ class DesktopCache(
     AudioWaveformRepository,
     AudioWaveformStorageRepository,
     LyricsSidecarRepository,
+    LyricsOffsetRepository,
     SidecarStatusRepository,
     DownloadRepository<DownloadedAudioFile, DownloadedTrack>,
     DownloadReplacementRepository<DownloadedAudioFile>,
@@ -117,6 +119,7 @@ class DesktopCache(
         nowMillis = ::nowMillis,
         json = json,
     )
+    private val lyricsOffsets = DesktopLyricsOffsetStore(queries, ::nowMillis)
     private val maintenance = DesktopStorageMaintenanceStore(queries)
     private val audioWaveforms = DesktopAudioWaveformStore(
         queries = queries,
@@ -335,6 +338,13 @@ class DesktopCache(
         client: DesktopLrclibLyricsClient = DesktopLrclibLyricsClient(),
     ): Lyrics? =
         lyricsSidecar.lrclibLyrics(sourceId, track, client)
+
+    override fun lyricsOffsetMillis(sourceId: String, trackId: TrackId): Int =
+        lyricsOffsets.lyricsOffsetMillis(sourceId, trackId)
+
+    override fun saveLyricsOffsetMillis(sourceId: String, trackId: TrackId, offsetMillis: Int) {
+        lyricsOffsets.saveLyricsOffsetMillis(sourceId, trackId, offsetMillis)
+    }
 
     override fun recordSidecarStatus(
         sourceId: String,
@@ -650,6 +660,7 @@ private fun createDatabase(path: Path): NaviampStorageDatabase {
     ensureMediaSourceLibraryScanSchema(driver)
     ensureArtistPopularTracksSchema(driver)
     ensureCachedSidecarStatusSchema(driver)
+    ensureTrackLyricsOffsetSchema(driver)
     driver.execute(null, "PRAGMA foreign_keys=ON", 0)
     return NaviampStorageDatabase(driver)
 }
@@ -748,6 +759,22 @@ private fun ensureCachedSidecarStatusSchema(driver: JdbcSqliteDriver) {
         """
         CREATE INDEX IF NOT EXISTS cached_sidecar_status_track
         ON cached_sidecar_status(source_id, remote_track_id, quality_key)
+        """.trimIndent(),
+        0,
+    )
+}
+
+private fun ensureTrackLyricsOffsetSchema(driver: JdbcSqliteDriver) {
+    driver.execute(
+        null,
+        """
+        CREATE TABLE IF NOT EXISTS track_lyrics_offset (
+          source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+          remote_track_id TEXT NOT NULL,
+          offset_millis INTEGER NOT NULL,
+          updated_at_epoch_millis INTEGER NOT NULL,
+          PRIMARY KEY(source_id, remote_track_id)
+        )
         """.trimIndent(),
         0,
     )
@@ -899,11 +926,13 @@ data class AlbumDetailsDto(
 data class ArtistDto(
     val id: String,
     val name: String,
+    val favoritedAtIso8601: String? = null,
 ) {
     fun toArtist(): Artist =
         Artist(
             id = ArtistId(id),
             name = name,
+            favoritedAtIso8601 = favoritedAtIso8601,
         )
 
     companion object {
@@ -911,6 +940,7 @@ data class ArtistDto(
             ArtistDto(
                 id = artist.id.value,
                 name = artist.name,
+                favoritedAtIso8601 = artist.favoritedAtIso8601,
             )
     }
 }
@@ -949,6 +979,7 @@ data class AlbumDto(
     val coverArtId: String? = null,
     val recentlyAddedAtIso8601: String? = null,
     val releaseYear: Int? = null,
+    val favoritedAtIso8601: String? = null,
 ) {
     fun toAlbum(): Album =
         Album(
@@ -958,6 +989,7 @@ data class AlbumDto(
             coverArtId = coverArtId,
             recentlyAddedAtIso8601 = recentlyAddedAtIso8601,
             releaseYear = releaseYear,
+            favoritedAtIso8601 = favoritedAtIso8601,
         )
 
     companion object {
@@ -969,6 +1001,7 @@ data class AlbumDto(
                 coverArtId = album.coverArtId,
                 recentlyAddedAtIso8601 = album.recentlyAddedAtIso8601,
                 releaseYear = album.releaseYear,
+                favoritedAtIso8601 = album.favoritedAtIso8601,
             )
     }
 }
@@ -988,6 +1021,10 @@ data class TrackDto(
     val replayGain: ReplayGainDto? = null,
     val favoritedAtIso8601: String? = null,
     val userRating: Int? = null,
+    val bpm: Int? = null,
+    val moods: List<String> = emptyList(),
+    val playCount: Int? = null,
+    val lastPlayedAtIso8601: String? = null,
 ) {
     fun toTrack(): Track =
         Track(
@@ -1004,6 +1041,10 @@ data class TrackDto(
             replayGain = replayGain?.toReplayGain(),
             favoritedAtIso8601 = favoritedAtIso8601,
             userRating = userRating,
+            bpm = bpm,
+            moods = moods,
+            playCount = playCount,
+            lastPlayedAtIso8601 = lastPlayedAtIso8601,
         )
 
     companion object {
@@ -1022,6 +1063,10 @@ data class TrackDto(
                 replayGain = track.replayGain?.let { ReplayGainDto.fromReplayGain(it) },
                 favoritedAtIso8601 = track.favoritedAtIso8601,
                 userRating = track.userRating,
+                bpm = track.bpm,
+                moods = track.moods,
+                playCount = track.playCount,
+                lastPlayedAtIso8601 = track.lastPlayedAtIso8601,
             )
     }
 }

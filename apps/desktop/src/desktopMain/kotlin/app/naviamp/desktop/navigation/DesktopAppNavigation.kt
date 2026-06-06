@@ -26,6 +26,9 @@ enum class DesktopAppRoute {
     ArtistDetail,
     Library,
     Search,
+    ArtistMix,
+    AlbumMix,
+    GenreMix,
     InternetRadio,
     Downloads,
     Settings,
@@ -78,6 +81,9 @@ private fun DesktopAppRoute.toSharedRoute(): SharedRoute =
         DesktopAppRoute.AlbumDetail,
         DesktopAppRoute.ArtistDetail,
         -> SharedRoute.Search
+        DesktopAppRoute.ArtistMix -> SharedRoute.ArtistMix
+        DesktopAppRoute.AlbumMix -> SharedRoute.AlbumMix
+        DesktopAppRoute.GenreMix -> SharedRoute.GenreMix
         DesktopAppRoute.InternetRadio -> SharedRoute.Radio
         DesktopAppRoute.Downloads -> SharedRoute.Downloads
         DesktopAppRoute.Settings -> SharedRoute.Settings
@@ -89,6 +95,9 @@ private fun SharedRoute.toAppRoute(): DesktopAppRoute =
         SharedRoute.Playlists -> DesktopAppRoute.Playlists
         SharedRoute.Library -> DesktopAppRoute.Library
         SharedRoute.Search -> DesktopAppRoute.Search
+        SharedRoute.ArtistMix -> DesktopAppRoute.ArtistMix
+        SharedRoute.AlbumMix -> DesktopAppRoute.AlbumMix
+        SharedRoute.GenreMix -> DesktopAppRoute.GenreMix
         SharedRoute.Radio -> DesktopAppRoute.InternetRadio
         SharedRoute.Downloads -> DesktopAppRoute.Downloads
         SharedRoute.Settings -> DesktopAppRoute.Settings
@@ -104,6 +113,9 @@ fun DesktopAppRoute.toNaviampRoute(): NaviampRoute =
         DesktopAppRoute.ArtistDetail -> NaviampRoute.ArtistDetail
         DesktopAppRoute.Library -> NaviampRoute.Library
         DesktopAppRoute.Search -> NaviampRoute.Search
+        DesktopAppRoute.ArtistMix -> NaviampRoute.ArtistMix
+        DesktopAppRoute.AlbumMix -> NaviampRoute.AlbumMix
+        DesktopAppRoute.GenreMix -> NaviampRoute.GenreMix
         DesktopAppRoute.InternetRadio -> NaviampRoute.Radio
         DesktopAppRoute.Downloads -> NaviampRoute.Downloads
         DesktopAppRoute.Settings -> NaviampRoute.Settings

@@ -1,12 +1,18 @@
 package app.naviamp.desktop
 
+import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
+import app.naviamp.domain.Artist
+import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.Track
-import app.naviamp.domain.media.favoriteTrackUpdate
-import app.naviamp.domain.media.ratedTrackUpdate
-import app.naviamp.domain.media.trackPlaybackSelection
-import app.naviamp.domain.media.withUpdatedTrack
 import app.naviamp.domain.cache.TrackMetadataRepository
+import app.naviamp.domain.home.HomeContent
+import app.naviamp.domain.media.MediaMetadataMutationController
+import app.naviamp.domain.media.MediaMetadataStateUpdater
+import app.naviamp.domain.media.MediaTrackMetadataStateUpdater
+import app.naviamp.domain.media.knownAlbumsForMetadata
+import app.naviamp.domain.media.knownArtistsForMetadata
+import app.naviamp.domain.media.trackPlaybackSelection
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.queueAppendPlan
@@ -33,8 +39,16 @@ class DesktopMediaActionsController(
     private val setNowPlayingTrack: (Track?) -> Unit,
     private val searchResults: () -> MediaSearchResults,
     private val setSearchResults: (MediaSearchResults) -> Unit,
+    private val homeContent: () -> HomeContent,
+    private val setHomeContent: (HomeContent) -> Unit,
     private val selectedAlbumDetails: () -> AlbumDetails?,
     private val setSelectedAlbumDetails: (AlbumDetails?) -> Unit,
+    private val selectedArtistDetails: () -> ArtistDetails?,
+    private val setSelectedArtistDetails: (ArtistDetails?) -> Unit,
+    private val setArtistMixSelectedArtists: ((Artist) -> Unit)? = null,
+    private val setArtistMixSuggestions: ((Artist) -> Unit)? = null,
+    private val setAlbumMixSelectedAlbums: ((Album) -> Unit)? = null,
+    private val setAlbumMixSuggestions: ((Album) -> Unit)? = null,
     private val stopRadioContinuation: () -> Unit,
     private val clearShuffleSnapshot: () -> Unit,
     private val setOpenPlayerOnTrackStart: (Boolean) -> Unit,
@@ -71,46 +85,98 @@ class DesktopMediaActionsController(
     }
 
     fun applyTrackMetadataUpdate(updatedTrack: Track) {
-        setNowPlayingTrack(
-            nowPlayingTrack().withUpdatedTrack(updatedTrack),
-        )
-        setSearchResults(
-            searchResults().withUpdatedTrack(updatedTrack),
-        )
-        setSelectedAlbumDetails(
-            selectedAlbumDetails()?.withUpdatedTrack(updatedTrack),
-        )
+        trackMetadataStateUpdater().applyTrackUpdate(updatedTrack)
         playlistEngine.updateTrack(updatedTrack)
         trackMetadataRepository.updateTrack(updatedTrack)
     }
 
-    fun toggleTrackFavorite(track: Track) {
-        val provider = provider() ?: return
-        if (!provider.capabilities.supportsTrackFavorites) return
+    fun applyArtistMetadataUpdate(updatedArtist: Artist) {
+        metadataStateUpdater().applyArtistUpdate(updatedArtist)
+    }
 
+    fun applyAlbumMetadataUpdate(updatedAlbum: Album) {
+        metadataStateUpdater().applyAlbumUpdate(updatedAlbum)
+    }
+
+    fun toggleTrackFavorite(track: Track) {
         scope.launch {
-            try {
-                favoriteTrackUpdate(provider, track, favoritedAtIso8601 = Instant.now().toString())
-                    ?.let(::applyTrackMetadataUpdate)
-            } catch (exception: Exception) {
-                setConnectionStatus(exception.message ?: "Could not update favorite.")
-            }
+            metadataMutationController().toggleTrackFavorite(track)
+        }
+    }
+
+    fun toggleArtistFavorite(artist: Artist) {
+        scope.launch {
+            metadataMutationController().toggleArtistFavorite(artist)
+        }
+    }
+
+    fun toggleAlbumFavorite(album: Album) {
+        scope.launch {
+            metadataMutationController().toggleAlbumFavorite(album)
         }
     }
 
     fun setTrackRating(track: Track, rating: Int?) {
-        val provider = provider() ?: return
-        if (!provider.capabilities.supportsTrackRatings) return
-
         scope.launch {
-            try {
-                ratedTrackUpdate(provider, track, rating)
-                    ?.let(::applyTrackMetadataUpdate)
-            } catch (exception: Exception) {
-                setConnectionStatus(exception.message ?: "Could not update rating.")
-            }
+            metadataMutationController().setTrackRating(track, rating)
         }
     }
+
+    private fun metadataMutationController(): MediaMetadataMutationController =
+        MediaMetadataMutationController(
+            provider = provider,
+            favoritedAtIso8601 = { Instant.now().toString() },
+            setStatus = setConnectionStatus,
+            knownTracks = { playlistEngine.queue.tracks + albumTracks() + searchTracks() + relatedTracks() },
+            knownArtists = {
+                knownArtistsForMetadata(
+                    homeContent = homeContent(),
+                    searchResults = searchResults(),
+                    artistDetails = selectedArtistDetails(),
+                )
+            },
+            knownAlbums = {
+                knownAlbumsForMetadata(
+                    homeContent = homeContent(),
+                    searchResults = searchResults(),
+                    albumDetails = selectedAlbumDetails(),
+                    artistDetails = selectedArtistDetails(),
+                )
+            },
+            applyTrackUpdate = ::applyTrackMetadataUpdate,
+            applyArtistUpdate = ::applyArtistMetadataUpdate,
+            applyAlbumUpdate = ::applyAlbumMetadataUpdate,
+        )
+
+    private fun metadataStateUpdater(): MediaMetadataStateUpdater =
+        MediaMetadataStateUpdater(
+            homeContent = homeContent,
+            setHomeContent = setHomeContent,
+            searchResults = searchResults,
+            setSearchResults = setSearchResults,
+            albumDetails = selectedAlbumDetails,
+            setAlbumDetails = setSelectedAlbumDetails,
+            artistDetails = selectedArtistDetails,
+            setArtistDetails = setSelectedArtistDetails,
+            updateExtraArtistCollections = { artist ->
+                setArtistMixSelectedArtists?.invoke(artist)
+                setArtistMixSuggestions?.invoke(artist)
+            },
+            updateExtraAlbumCollections = { album ->
+                setAlbumMixSelectedAlbums?.invoke(album)
+                setAlbumMixSuggestions?.invoke(album)
+            },
+        )
+
+    private fun trackMetadataStateUpdater(): MediaTrackMetadataStateUpdater =
+        MediaTrackMetadataStateUpdater(
+            nowPlayingTrack = nowPlayingTrack,
+            setNowPlayingTrack = setNowPlayingTrack,
+            searchResults = searchResults,
+            setSearchResults = setSearchResults,
+            albumDetails = selectedAlbumDetails,
+            setAlbumDetails = setSelectedAlbumDetails,
+        )
 
     private fun playTracks(
         tracks: List<Track>,

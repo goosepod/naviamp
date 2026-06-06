@@ -13,6 +13,8 @@ fun ProviderCapabilities.asStatsMap(): Map<String, Boolean> =
         "Album radio" to supportsAlbumRadio,
         "Track radio" to supportsTrackRadio,
         "Track favorites" to supportsTrackFavorites,
+        "Artist favorites" to supportsArtistFavorites,
+        "Album favorites" to supportsAlbumFavorites,
         "Track ratings" to supportsTrackRatings,
         "Play reporting" to supportsPlayReporting,
     )
@@ -41,6 +43,9 @@ private fun NaviampRoute.toAppRoute(): DesktopAppRoute =
         NaviampRoute.ArtistDetail -> DesktopAppRoute.ArtistDetail
         NaviampRoute.Library -> DesktopAppRoute.Library
         NaviampRoute.Search -> DesktopAppRoute.Search
+        NaviampRoute.ArtistMix -> DesktopAppRoute.ArtistMix
+        NaviampRoute.AlbumMix -> DesktopAppRoute.AlbumMix
+        NaviampRoute.GenreMix -> DesktopAppRoute.GenreMix
         NaviampRoute.Radio -> DesktopAppRoute.InternetRadio
         NaviampRoute.Downloads -> DesktopAppRoute.Downloads
         NaviampRoute.Settings -> DesktopAppRoute.Settings

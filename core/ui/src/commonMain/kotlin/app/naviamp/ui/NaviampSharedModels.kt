@@ -73,6 +73,7 @@ data class SharedTrackRowUi(
     val coverArtUrl: String? = null,
     val meta: String = "",
     val popular: Boolean = false,
+    val detailSections: List<NaviampDetailSectionUi> = emptyList(),
 )
 
 data class NaviampDownloadedTrackUi(
@@ -89,6 +90,8 @@ data class SharedMediaItemUi(
     val coverArtUrl: String? = null,
     val coverArtUrls: List<String> = emptyList(),
     val isSmartPlaylist: Boolean = false,
+    val favoriteActive: Boolean = false,
+    val canFavorite: Boolean = false,
 )
 
 data class SharedAlbumDetailUi(
@@ -122,6 +125,7 @@ data class SharedPlaylistDetailUi(
 )
 
 data class SharedHomeUi(
+    val mixBuilders: List<SharedMixBuilderUi> = emptyList(),
     val recentlyAddedAlbums: List<SharedMediaItemUi> = emptyList(),
     val mixAlbums: List<SharedMediaItemUi> = emptyList(),
     val recentAlbums: List<SharedMediaItemUi> = emptyList(),
@@ -137,7 +141,8 @@ data class SharedHomeUi(
     val decadeAlbums: List<SharedMediaItemUi> = emptyList(),
 ) {
     val isEmpty: Boolean
-        get() = recentlyAddedAlbums.isEmpty() &&
+        get() = mixBuilders.isEmpty() &&
+            recentlyAddedAlbums.isEmpty() &&
             mixAlbums.isEmpty() &&
             recentAlbums.isEmpty() &&
             frequentAlbums.isEmpty() &&
@@ -149,6 +154,12 @@ data class SharedHomeUi(
             genreSpotlightAlbums.isEmpty() &&
             decadeAlbums.isEmpty()
 }
+
+data class SharedMixBuilderUi(
+    val id: String,
+    val title: String,
+    val subtitle: String,
+)
 
 data class SharedHomeStationUi(
     val id: String,
@@ -164,6 +175,36 @@ data class SharedSearchResultsUi(
     val isEmpty: Boolean
         get() = artists.isEmpty() && albums.isEmpty() && tracks.isEmpty()
 }
+
+data class SharedArtistMixBuilderUi(
+    val query: String = "",
+    val selectedArtists: List<SharedMediaItemUi> = emptyList(),
+    val suggestedArtists: List<SharedMediaItemUi> = emptyList(),
+    val status: String? = null,
+    val loading: Boolean = false,
+)
+
+data class SharedAlbumMixBuilderUi(
+    val query: String = "",
+    val selectedAlbums: List<SharedMediaItemUi> = emptyList(),
+    val suggestedAlbums: List<SharedMediaItemUi> = emptyList(),
+    val status: String? = null,
+    val loading: Boolean = false,
+)
+
+data class SharedGenreMixBuilderUi(
+    val query: String = "",
+    val selectedGenres: List<SharedGenreMixItemUi> = emptyList(),
+    val suggestedGenres: List<SharedGenreMixItemUi> = emptyList(),
+    val status: String? = null,
+    val loading: Boolean = false,
+)
+
+data class SharedGenreMixItemUi(
+    val id: String,
+    val title: String,
+    val subtitle: String = "",
+)
 
 data class NowPlayingUi(
     val id: String = "",
@@ -194,6 +235,8 @@ data class NowPlayingUi(
     val canRepeat: Boolean = false,
     val canStartRadio: Boolean = false,
     val canAddToPlaylist: Boolean = false,
+    val canSaveQueueAsPlaylist: Boolean = false,
+    val sleepTimer: NaviampSleepTimerUi = NaviampSleepTimerUi(),
     val favoriteActive: Boolean = false,
     val canFavorite: Boolean = false,
     val userRating: Int? = null,
@@ -212,6 +255,11 @@ data class NowPlayingUi(
     val upNext: List<NaviampNowPlayingItemUi> = emptyList(),
     val related: List<NaviampNowPlayingItemUi> = emptyList(),
     val radioStations: List<NaviampNowPlayingItemUi> = emptyList(),
+)
+
+data class NaviampSleepTimerUi(
+    val active: Boolean = false,
+    val label: String = "Sleep timer",
 )
 
 data class NaviampLyricLineUi(
@@ -235,6 +283,9 @@ enum class SharedRoute(val label: String, val icon: ImageVector) {
     Playlists("Playlists", NaviampIcons.Playlist),
     Library("Library", NaviampIcons.Library),
     Search("Search", NaviampIcons.Search),
+    ArtistMix("Artist Mix", NaviampTransportIcons.Radio),
+    AlbumMix("Album Mix", NaviampTransportIcons.Radio),
+    GenreMix("Genre Mix", NaviampTransportIcons.Radio),
     Radio("Radio", NaviampIcons.InternetRadio),
     Downloads("Downloads", NaviampIcons.Downloads),
     Settings("Settings", NaviampIcons.Settings),

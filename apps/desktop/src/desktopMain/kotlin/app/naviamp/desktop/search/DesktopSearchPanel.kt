@@ -32,11 +32,13 @@ fun DesktopSearchPanel(
     onArtistRadioSelected: (Artist) -> Unit,
     onArtistAddToQueue: (Artist) -> Unit,
     onArtistAddToPlaylist: (Artist) -> Unit,
+    onArtistFavoriteToggle: (Artist) -> Unit,
     onAlbumSelected: (Album) -> Unit,
     onAlbumRadioSelected: (Album) -> Unit,
     onAlbumDownloadSelected: (Album) -> Unit,
     onAlbumAddToQueue: (Album) -> Unit,
     onAlbumAddToPlaylist: (Album) -> Unit,
+    onAlbumFavoriteToggle: (Album) -> Unit,
     onTrackSelected: (Int) -> Unit,
     onTrackRadioSelected: (Int) -> Unit,
     onTrackDownloadSelected: (Int) -> Unit,
@@ -97,6 +99,7 @@ fun DesktopSearchPanel(
                         onStartRadio = { onArtistRadioSelected(artist) },
                         onAddToQueue = { onArtistAddToQueue(artist) },
                         onAddToPlaylist = { onArtistAddToPlaylist(artist) },
+                        onFavoriteToggle = { onArtistFavoriteToggle(artist) },
                     )
                 }
             }
@@ -114,6 +117,7 @@ fun DesktopSearchPanel(
                         onDownload = { onAlbumDownloadSelected(album) },
                         onAddToQueue = { onAlbumAddToQueue(album) },
                         onAddToPlaylist = { onAlbumAddToPlaylist(album) },
+                        onFavoriteToggle = { onAlbumFavoriteToggle(album) },
                     )
                 }
             }

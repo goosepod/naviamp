@@ -12,6 +12,16 @@ data class PlaylistTrackMutationResult(
     val createdPlaylist: Boolean,
 )
 
+data class QueuePlaylistSaveResult(
+    val playlist: Playlist,
+    val trackCount: Int,
+)
+
+data class QueuePlaylistSaveRefresh(
+    val result: QueuePlaylistSaveResult,
+    val playlists: List<Playlist>,
+)
+
 data class AddToPlaylistMutationUpdate(
     val closeDialog: Boolean,
     val addToPlaylistStatus: String?,
@@ -230,6 +240,30 @@ suspend fun MediaProvider.createPlaylistOrAddTracks(
         newPlaylistName = newPlaylistName,
         trackIds = tracks.map { it.id }.distinct(),
     )
+
+suspend fun MediaProvider.createQueuePlaylist(
+    name: String,
+    tracks: List<Track>,
+): QueuePlaylistSaveResult {
+    val playlistName = normalizedPlaylistName(name)
+    require(playlistName.isNotBlank()) { "Playlist name is required." }
+    require(tracks.isNotEmpty()) { "Queue is empty." }
+    val playlist = createPlaylist(playlistName, tracks.map { it.id })
+    return QueuePlaylistSaveResult(playlist = playlist, trackCount = tracks.size)
+}
+
+suspend fun MediaProvider.saveQueueAsPlaylistAndRefresh(
+    name: String,
+    tracks: List<Track>,
+    providerResponseService: ProviderResponseService? = null,
+    playlistLimit: Int = 500,
+): QueuePlaylistSaveRefresh {
+    val result = createQueuePlaylist(name, tracks)
+    providerResponseService?.invalidatePlaylists(this)
+    val playlists = providerResponseService?.playlists(this, limit = playlistLimit)
+        ?: playlists(limit = playlistLimit)
+    return QueuePlaylistSaveRefresh(result = result, playlists = playlists)
+}
 
 fun queueAppendPlan(
     tracks: List<Track>,

@@ -7,9 +7,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
+import app.naviamp.domain.Genre
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Playlist
@@ -22,6 +24,7 @@ import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
+import app.naviamp.domain.playback.SleepTimerState
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.PendingPlaybackAction
@@ -112,6 +115,8 @@ class AndroidAppState(
     var waveformByTrackId by mutableStateOf<Map<String, AudioWaveform>>(emptyMap())
     var audioTagsByTrackId by mutableStateOf<Map<String, List<AudioTag>>>(emptyMap())
     var playbackQueue by mutableStateOf(PlaybackQueue())
+    var sleepTimer by mutableStateOf<SleepTimerState?>(null)
+    var sleepTimerNowEpochMillis by mutableStateOf(System.currentTimeMillis())
     var shuffledUpNextSnapshot by mutableStateOf<List<Track>?>(null)
     var repeatMode by mutableStateOf(RepeatMode.Off)
     var radioQueueActive by mutableStateOf(false)
@@ -124,6 +129,23 @@ class AndroidAppState(
     var artistSimilarArtistsByArtistId by mutableStateOf<Map<String, List<SimilarArtistMatch>>>(emptyMap())
     var artistSimilarArtistsStatusByArtistId by mutableStateOf<Map<String, String?>>(emptyMap())
     var artistDetailBackStack by mutableStateOf<List<Artist>>(emptyList())
+    var artistMixQuery by mutableStateOf("")
+    var artistMixSelectedArtists by mutableStateOf<List<Artist>>(emptyList())
+    var artistMixSuggestions by mutableStateOf<List<Artist>>(emptyList())
+    var artistMixPopularTracksByArtistId by mutableStateOf<Map<String, List<Track>>>(emptyMap())
+    var artistMixStatus by mutableStateOf<String?>(null)
+    var artistMixLoading by mutableStateOf(false)
+    var albumMixQuery by mutableStateOf("")
+    var albumMixSelectedAlbums by mutableStateOf<List<Album>>(emptyList())
+    var albumMixSuggestions by mutableStateOf<List<Album>>(emptyList())
+    var albumMixTracksByAlbumId by mutableStateOf<Map<String, List<Track>>>(emptyMap())
+    var albumMixStatus by mutableStateOf<String?>(null)
+    var albumMixLoading by mutableStateOf(false)
+    var genreMixQuery by mutableStateOf("")
+    var genreMixSelectedGenres by mutableStateOf<List<Genre>>(emptyList())
+    var genreMixSuggestions by mutableStateOf<List<Genre>>(emptyList())
+    var genreMixStatus by mutableStateOf<String?>(null)
+    var genreMixLoading by mutableStateOf(false)
     var lyricsVisible by mutableStateOf(false)
     var lyricsByTrackId by mutableStateOf<Map<String, Lyrics?>>(emptyMap())
     var lyricsStatusByTrackId by mutableStateOf<Map<String, String?>>(emptyMap())

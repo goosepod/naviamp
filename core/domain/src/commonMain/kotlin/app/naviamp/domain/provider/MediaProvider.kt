@@ -97,6 +97,12 @@ interface MediaProvider {
     suspend fun setTrackFavorite(trackId: TrackId, favorite: Boolean) {
         throw UnsupportedOperationException("Track favorites are not supported by $displayName.")
     }
+    suspend fun setArtistFavorite(artistId: ArtistId, favorite: Boolean) {
+        throw UnsupportedOperationException("Artist favorites are not supported by $displayName.")
+    }
+    suspend fun setAlbumFavorite(albumId: AlbumId, favorite: Boolean) {
+        throw UnsupportedOperationException("Album favorites are not supported by $displayName.")
+    }
     suspend fun setTrackRating(trackId: TrackId, rating: Int?) {
         throw UnsupportedOperationException("Track ratings are not supported by $displayName.")
     }
@@ -127,6 +133,8 @@ data class ProviderCapabilities(
     val supportsAlbumRadio: Boolean,
     val supportsTrackRadio: Boolean,
     val supportsTrackFavorites: Boolean = false,
+    val supportsArtistFavorites: Boolean = false,
+    val supportsAlbumFavorites: Boolean = false,
     val supportsTrackRatings: Boolean = false,
     val supportsPlayReporting: Boolean = false,
     val supportsSmartPlaylists: Boolean = false,

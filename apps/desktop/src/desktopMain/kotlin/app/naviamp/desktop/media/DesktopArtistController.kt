@@ -43,6 +43,8 @@ class DesktopArtistController(
     private val setSelectedArtistStatus: (String?) -> Unit,
     private val setSelectedArtistPopularTracks: (List<Track>) -> Unit,
     private val setSelectedArtistPopularTracksStatus: (String?) -> Unit,
+    private val selectedArtistSimilarArtists: () -> List<SimilarArtistMatch>,
+    private val selectedArtistSimilarArtistsStatus: () -> String?,
     private val setSelectedArtistSimilarArtists: (List<SimilarArtistMatch>) -> Unit,
     private val setSelectedArtistSimilarArtistsStatus: (String?) -> Unit,
     private val artistDetailBackRoute: () -> DesktopAppRoute,
@@ -64,7 +66,16 @@ class DesktopArtistController(
         }
     }
 
-    fun findSimilarArtists(artist: Artist) {
+    fun toggleSimilarArtists(artist: Artist) {
+        if (selectedArtistSimilarArtists().isNotEmpty() || selectedArtistSimilarArtistsStatus() != null) {
+            setSelectedArtistSimilarArtists(emptyList())
+            setSelectedArtistSimilarArtistsStatus(null)
+            return
+        }
+        findSimilarArtists(artist)
+    }
+
+    private fun findSimilarArtists(artist: Artist) {
         setSelectedArtistSimilarArtistsStatus(loadingSimilarArtistsStatus())
         setSelectedArtistSimilarArtists(emptyList())
         scope.launch {

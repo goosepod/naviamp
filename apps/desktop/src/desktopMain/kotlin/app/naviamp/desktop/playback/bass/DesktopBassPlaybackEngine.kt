@@ -6,6 +6,8 @@ import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
+import app.naviamp.domain.playback.EqualizerPlaybackEngine
+import app.naviamp.domain.playback.EqualizerSettings
 import app.naviamp.domain.playback.PlaybackReplayGainAdjustment
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.VisualizerBandCount
@@ -16,6 +18,7 @@ import app.naviamp.domain.bass.BassActiveState
 import app.naviamp.domain.bass.activeState
 import app.naviamp.domain.bass.adoptPreparedBassSource
 import app.naviamp.domain.bass.applyBassPlaybackVolume
+import app.naviamp.domain.bass.applyEqualizer
 import app.naviamp.domain.bass.bassErrorMessage
 import app.naviamp.domain.bass.bassPlaybackSnapshot
 import app.naviamp.domain.bass.bassPlaybackVisualizerFrame
@@ -55,7 +58,7 @@ import java.net.URI
 
 class DesktopBassPlaybackEngine(
     private val backendResult: Result<BassAudioBackend> = loadDesktopBassAudioBackend(),
-) : QueueAwarePlaybackEngine, VisualizerPlaybackEngine, DesktopPlaybackEngineDiagnostics {
+) : QueueAwarePlaybackEngine, VisualizerPlaybackEngine, EqualizerPlaybackEngine, DesktopPlaybackEngineDiagnostics {
     private val backend: BassAudioBackend? = backendResult.getOrNull()
     private val loadError: Throwable? = backendResult.exceptionOrNull()
 
@@ -67,6 +70,7 @@ class DesktopBassPlaybackEngine(
     override val supportsGapless: Boolean = featureSupport.supportsGapless
     override val supportsCrossfade: Boolean = featureSupport.supportsCrossfade
     override val supportsReplayGain: Boolean = true
+    override val supportsEqualizer: Boolean = backend != null
     override val supportsVisualizer: Boolean = true
     override val supportsSoftwareVolume: Boolean = true
     override val prefersOriginalStream: Boolean = true
@@ -89,6 +93,7 @@ class DesktopBassPlaybackEngine(
     private var crossfadeDurationSeconds: Int = 0
     private var crossfadeActive: Boolean = false
     private var currentReplayGainAdjustment: PlaybackReplayGainAdjustment = PlaybackReplayGainAdjustment.off()
+    private var equalizerSettings: EqualizerSettings = EqualizerSettings()
     @Volatile
     private var currentVisualizerFrame: PlaybackVisualizerFrame? = null
 
@@ -143,6 +148,7 @@ class DesktopBassPlaybackEngine(
                 attachEndSync(bass, createdPlayback.sourceHandle, currentPlaybackId, onStateChanged)
                 createdPlayback = null
                 applyOutputVolume(bass)
+                applyEqualizer(bass)
                 playbackStartSeekPosition(request.startPositionSeconds)
                     ?.let { seekCurrentSource(bass, it) }
                 bass.play(playbackHandle)
@@ -245,6 +251,11 @@ class DesktopBassPlaybackEngine(
 
     override fun setCrossfadeDuration(seconds: Int) {
         crossfadeDurationSeconds = normalizedCrossfadeDurationSeconds(seconds)
+    }
+
+    override fun setEqualizer(settings: EqualizerSettings) {
+        equalizerSettings = settings.normalized()
+        backend?.let(::applyEqualizer)
     }
 
     override fun prepareNext(request: PlaybackRequest) {
@@ -401,6 +412,7 @@ class DesktopBassPlaybackEngine(
         ).forEach { result -> result.onFailure { lastError = it.message } }
         currentSourceStream = queuedSource
         currentReplayGainAdjustment = adjustment
+        applyEqualizer(bass)
         crossfadeActive = false
         attachEndSync(bass, queuedSource, currentPlaybackId, onStateChanged)
         val reset = clearPreparedPlaybackMetadata()
@@ -524,6 +536,12 @@ class DesktopBassPlaybackEngine(
         ).forEach { result -> result.onFailure { lastError = it.message } }
     }
 
+    private fun applyEqualizer(bass: BassAudioBackend) {
+        stream.takeIf { it != 0 }
+            ?.let { handle -> bass.applyEqualizer(handle, equalizerSettings.bandsForBackend()) }
+            ?.onFailure { lastError = it.message }
+    }
+
     private fun replayGainAdjustment(request: PlaybackRequest): PlaybackReplayGainAdjustment =
         playbackReplayGainAdjustment(request)
 
@@ -610,5 +628,8 @@ private fun Float.formatFactor(): String =
 
 private fun Double.formatPeak(): String =
     "%.6f".format(this)
+
+private fun EqualizerSettings.bandsForBackend(): List<Float> =
+    if (enabled) bandsDb else emptyList()
 
 private const val PlaybackStatusPollIntervalMillis = 250L

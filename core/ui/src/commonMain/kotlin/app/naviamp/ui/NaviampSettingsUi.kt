@@ -15,6 +15,8 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -28,6 +30,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.naviamp.domain.playback.EqualizerBandFrequencies
+import app.naviamp.domain.playback.EqualizerPreset
+import app.naviamp.domain.playback.MaxEqualizerGainDb
+import app.naviamp.domain.playback.MinEqualizerGainDb
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.PreviousButtonBehavior
@@ -72,6 +78,7 @@ fun NaviampSharedSettingsContent(
     supportsReplayGain: Boolean = false,
     supportsGapless: Boolean = true,
     supportsCrossfade: Boolean = false,
+    supportsEqualizer: Boolean = false,
     downloadBytes: Long = 0L,
     showQueueBehavior: Boolean = true,
     showDebugLogging: Boolean = true,
@@ -93,6 +100,7 @@ fun NaviampSharedSettingsContent(
                     supportsReplayGain = supportsReplayGain,
                     supportsGapless = supportsGapless,
                     supportsCrossfade = supportsCrossfade,
+                    supportsEqualizer = supportsEqualizer,
                     showReplayGain = true,
                     showCrossfade = true,
                     showQueueBehavior = showQueueBehavior,
@@ -331,6 +339,7 @@ fun NaviampPlaybackSettingsSection(
     supportsReplayGain: Boolean,
     supportsGapless: Boolean,
     supportsCrossfade: Boolean,
+    supportsEqualizer: Boolean,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit = onPlaybackSettingsChanged,
     showReplayGain: Boolean = true,
@@ -414,6 +423,12 @@ fun NaviampPlaybackSettingsSection(
             }
         }
     }
+    EqualizerSettings(
+        colors = colors,
+        playbackSettings = playbackSettings,
+        supportsEqualizer = supportsEqualizer,
+        onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+    )
     if (showQueueBehavior) {
         Text("Previous button", color = colors.secondaryText, fontSize = 12.sp)
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -472,7 +487,7 @@ fun NaviampPlaybackSettingsSection(
         SettingsCheckboxRow(
             colors = colors,
             checked = playbackSettings.lrclibLyricsEnabled,
-            label = "Use LRCLIB when lyrics are missing or unsynced",
+            label = "Download lyrics for tracks",
             onCheckedChange = { enabled ->
                 onPlaybackSettingsChanged(playbackSettings.copy(lrclibLyricsEnabled = enabled))
             },
@@ -491,6 +506,142 @@ fun NaviampPlaybackSettingsSection(
             confirmButton = {
                 TextButton(onClick = { upNextHelpOpen = false }) {
                     Text("Close")
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun EqualizerSettings(
+    colors: NaviampColors,
+    playbackSettings: PlaybackSettings,
+    supportsEqualizer: Boolean,
+    onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
+) {
+    val equalizer = playbackSettings.equalizer.normalized()
+    val activeProfile = equalizer.savedProfiles.firstOrNull { it.id == equalizer.profileId }
+    var profileDialogOpen by remember { mutableStateOf(false) }
+    var profileName by remember(equalizer.profileId, activeProfile?.name) {
+        mutableStateOf(activeProfile?.name.orEmpty())
+    }
+    Text(
+        if (supportsEqualizer) "10-band equalizer" else "Equalizer unavailable with this playback engine",
+        color = colors.secondaryText,
+        fontSize = 12.sp,
+    )
+    SettingsCheckboxRow(
+        colors = colors,
+        checked = equalizer.enabled,
+        enabled = supportsEqualizer,
+        label = "Enabled",
+        onCheckedChange = { enabled ->
+            onPlaybackSettingsChanged(
+                playbackSettings.copy(equalizer = equalizer.copy(enabled = enabled).normalized()),
+            )
+        },
+    )
+    if (equalizer.savedProfiles.isNotEmpty()) {
+        SettingsDropdown(
+            colors = colors,
+            label = activeProfile?.name ?: "Saved profile",
+            options = equalizer.savedProfiles,
+            optionLabel = { it.name },
+            enabled = supportsEqualizer,
+            onOptionSelected = { profile ->
+                onPlaybackSettingsChanged(playbackSettings.copy(equalizer = equalizer.withProfile(profile)))
+            },
+        )
+    }
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SettingsDropdown(
+            colors = colors,
+            label = equalizer.preset.displayName,
+            options = EqualizerPreset.entries,
+            optionLabel = { it.displayName },
+            enabled = supportsEqualizer,
+            onOptionSelected = { preset ->
+                onPlaybackSettingsChanged(playbackSettings.copy(equalizer = equalizer.withPreset(preset)))
+            },
+        )
+        TextButton(
+            enabled = supportsEqualizer,
+            onClick = {
+                onPlaybackSettingsChanged(playbackSettings.copy(equalizer = equalizer.withPreset(EqualizerPreset.Flat)))
+            },
+        ) {
+            Text("Reset", color = if (supportsEqualizer) colors.primaryText else colors.mutedText, fontSize = 12.sp)
+        }
+        TextButton(
+            enabled = supportsEqualizer,
+            onClick = {
+                profileName = activeProfile?.name.orEmpty()
+                profileDialogOpen = true
+            },
+        ) {
+            Text(
+                if (activeProfile == null) "Save profile" else "Rename profile",
+                color = if (supportsEqualizer) colors.primaryText else colors.mutedText,
+                fontSize = 12.sp,
+            )
+        }
+    }
+    EqualizerBandFrequencies.forEachIndexed { index, frequency ->
+        val gain = equalizer.bandsDb.getOrNull(index) ?: 0f
+        Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(frequency.equalizerFrequencyLabel(), color = colors.secondaryText, fontSize = 11.sp)
+                Text(gain.equalizerGainLabel(), color = colors.secondaryText, fontSize = 11.sp)
+            }
+            Slider(
+                enabled = supportsEqualizer,
+                value = gain,
+                onValueChange = { value ->
+                    onPlaybackSettingsChanged(
+                        playbackSettings.copy(equalizer = equalizer.withBandGain(index, value)),
+                    )
+                },
+                valueRange = MinEqualizerGainDb..MaxEqualizerGainDb,
+                steps = 47,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+    if (profileDialogOpen) {
+        AlertDialog(
+            onDismissRequest = { profileDialogOpen = false },
+            title = { Text(if (activeProfile == null) "Save EQ profile" else "Rename EQ profile") },
+            text = {
+                OutlinedTextField(
+                    value = profileName,
+                    onValueChange = { profileName = it },
+                    singleLine = true,
+                    label = { Text("Profile name") },
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = profileName.isNotBlank(),
+                    onClick = {
+                        profileDialogOpen = false
+                        onPlaybackSettingsChanged(
+                            playbackSettings.copy(equalizer = equalizer.savedAsProfile(profileName)),
+                        )
+                    },
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { profileDialogOpen = false }) {
+                    Text("Cancel")
                 }
             },
         )
@@ -634,11 +785,12 @@ private fun <T> SettingsDropdown(
     label: String,
     options: List<T>,
     optionLabel: (T) -> String,
+    enabled: Boolean = true,
     onOptionSelected: (T) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    TextButton(onClick = { expanded = true }) {
-        Text(label, color = colors.primaryText, fontSize = 12.sp)
+    TextButton(enabled = enabled, onClick = { expanded = true }) {
+        Text(label, color = if (enabled) colors.primaryText else colors.mutedText, fontSize = 12.sp)
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             options.forEach { option ->
                 DropdownMenuItem(
@@ -717,5 +869,11 @@ private val StreamingCodec.label: String
         StreamingCodec.Aac -> "AAC"
         StreamingCodec.Opus -> "Opus"
     }
+
+private fun Int.equalizerFrequencyLabel(): String =
+    if (this >= 1_000) "${this / 1_000} kHz" else "$this Hz"
+
+private fun Float.equalizerGainLabel(): String =
+    if (this == 0f) "0 dB" else "%+.1f dB".format(this)
 
 private val CrossfadeDurationOptions = listOf(0, 3, 5, 8, 12)
