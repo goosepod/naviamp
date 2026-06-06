@@ -246,8 +246,8 @@ fun toggleAndroidCurrentFavorite(
     scope.launch {
         val favorite = currentTrack.favoritedAtIso8601 == null
         AndroidPlaybackNotificationControls.isFavorite = favorite
-        val updated = androidMediaMetadataMutationController(state, playbackEngine).toggleTrackFavorite(currentTrack)
-        if (!updated) {
+        val result = androidMediaMetadataMutationController(state, playbackEngine).toggleTrackFavoriteResult(currentTrack)
+        if (!result.shouldRunPlatformSideEffects) {
             AndroidPlaybackNotificationControls.isFavorite = !favorite
         }
     }
