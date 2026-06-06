@@ -58,7 +58,6 @@ fun SharedHome(
                 }
             }
         }
-        MixBuilderSection(home.mixBuilders, colors, onMixBuilderSelected)
         HomeSection(
             title = "Recently Played Radio",
             items = home.recentRadioStreams,
@@ -66,6 +65,7 @@ fun SharedHome(
             onItemSelected = onRecentRadioSelected,
             emptyText = "Start a radio station to build this list.",
         )
+        MixBuilderSection(home.mixBuilders, colors, onMixBuilderSelected)
         HomeSection("Recently Added In Music", home.recentlyAddedAlbums, colors, onAlbumSelected)
         HomeSection("Recent Playlists", home.playlists, colors, onPlaylistSelected)
         HomeSection("Recent Internet Radio", home.radioStations, colors, onInternetRadioStationSelected)

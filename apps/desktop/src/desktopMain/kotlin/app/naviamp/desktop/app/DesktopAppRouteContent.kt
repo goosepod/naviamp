@@ -104,6 +104,7 @@ fun ColumnScope.DesktopAppRouteContent(
     onArtistMixSearch: () -> Unit,
     onArtistMixArtistSelected: (SharedMediaItemUi) -> Unit,
     onArtistMixArtistRemoved: (SharedMediaItemUi) -> Unit,
+    onArtistMixReset: () -> Unit,
     onArtistMixPlay: () -> Unit,
     internetRadioStations: List<InternetRadioStation>,
     internetRadioStatus: String?,
@@ -481,6 +482,7 @@ fun ColumnScope.DesktopAppRouteContent(
                             onSearch = onArtistMixSearch,
                             onArtistSelected = onArtistMixArtistSelected,
                             onArtistRemoved = onArtistMixArtistRemoved,
+                            onReset = onArtistMixReset,
                             onPlayMix = onArtistMixPlay,
                             showPlayMixButton = false,
                         )

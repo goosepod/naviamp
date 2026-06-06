@@ -1061,6 +1061,16 @@ fun NaviampApp(
         refreshArtistMixInitialSuggestions()
     }
 
+    fun resetArtistMixBuilder() {
+        artistMixQuery = ""
+        artistMixSelectedArtists = emptyList()
+        artistMixSuggestions = emptyList()
+        artistMixPopularTracksByArtistId = emptyMap()
+        artistMixStatus = null
+        artistMixLoading = false
+        refreshArtistMixInitialSuggestions()
+    }
+
     LaunchedEffect(connectedSourceId, homeContent.artists) {
         if (connectedSourceId != null && artistMixSuggestions.isEmpty()) {
             refreshArtistMixInitialSuggestions()
@@ -1391,6 +1401,7 @@ fun NaviampApp(
                             onArtistMixArtistRemoved = { item ->
                                 artistMixSelectedArtists.firstOrNull { it.id.value == item.id }?.let(::removeArtistFromMix)
                             },
+                            onArtistMixReset = ::resetArtistMixBuilder,
                             onArtistMixPlay = {
                                 radioController.playArtistMix(
                                     artistMixSelectedArtists,

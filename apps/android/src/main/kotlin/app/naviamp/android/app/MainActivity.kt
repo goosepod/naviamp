@@ -1040,6 +1040,16 @@ private fun NaviampAndroidApp(
         refreshArtistMixInitialSuggestions()
     }
 
+    fun handleArtistMixReset() {
+        artistMixQuery = ""
+        artistMixSelectedArtists = emptyList()
+        artistMixSuggestions = emptyList()
+        artistMixPopularTracksByArtistId = emptyMap()
+        artistMixStatus = null
+        artistMixLoading = false
+        refreshArtistMixInitialSuggestions()
+    }
+
     fun handleArtistMixPlay() {
         startAndroidArtistMixRadio(
             scope = scope,
@@ -1738,6 +1748,7 @@ private fun NaviampAndroidApp(
         handleArtistMixSearch = ::handleArtistMixSearch,
         handleArtistMixArtistSelected = ::handleArtistMixArtistSelected,
         handleArtistMixArtistRemoved = ::handleArtistMixArtistRemoved,
+        handleArtistMixReset = ::handleArtistMixReset,
         handleArtistMixPlay = ::handleArtistMixPlay,
         startAndroidLibrarySync = { force -> startAndroidLibrarySync(scope, appState, storage, force) },
         handleShellTrackSelected = ::handleShellTrackSelected,

@@ -346,11 +346,23 @@ fun ArtistMixBuilderContent(
     onSearch: () -> Unit,
     onArtistSelected: (SharedMediaItemUi) -> Unit,
     onArtistRemoved: (SharedMediaItemUi) -> Unit,
+    onReset: () -> Unit,
     onPlayMix: () -> Unit,
     showPlayMixButton: Boolean = true,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("Artist Mix Builder", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Row(
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Artist Mix Builder", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            if (builder.query.isNotBlank() || builder.selectedArtists.isNotEmpty()) {
+                TextButton(onClick = onReset) {
+                    Text("Reset", fontSize = 12.sp)
+                }
+            }
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             NaviampTextField(
                 value = builder.query,
