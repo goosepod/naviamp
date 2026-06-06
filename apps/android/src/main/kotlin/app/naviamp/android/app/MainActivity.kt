@@ -1432,7 +1432,8 @@ private fun NaviampAndroidApp(
         contentState = contentState.clearDetails()
         nowPlayingOpen = false
         when (builder.id) {
-            "artist", "genre" -> navigationState = navigationState.copy(route = NaviampRoute.Radio)
+            "artist" -> navigationState = navigationState.copy(route = NaviampRoute.ArtistMix)
+            "genre" -> navigationState = navigationState.copy(route = NaviampRoute.Radio)
             "album" -> navigationState = navigationState.copy(route = NaviampRoute.Library)
         }
     }

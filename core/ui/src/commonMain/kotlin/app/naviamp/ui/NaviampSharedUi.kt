@@ -225,6 +225,7 @@ fun NaviampSharedAppShell(
                 artistDetail != null ||
                 playlistDetail != null ||
                 selectedRoute == SharedRoute.Library ||
+                selectedRoute == SharedRoute.ArtistMix ||
                 selectedRoute == SharedRoute.Radio ||
                 selectedRoute == SharedRoute.Downloads
             )
@@ -899,25 +900,38 @@ private fun ConnectedContent(
                 onAlbumSelected = onAlbumSelected,
                 onArtistSelected = onArtistSelected,
             )
-            SharedRoute.Radio -> Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                ArtistMixBuilderContent(
-                    colors = colors,
-                    builder = artistMixBuilder,
-                    onQueryChanged = onArtistMixQueryChanged,
-                    onSearch = onArtistMixSearch,
-                    onArtistSelected = onArtistMixArtistSelected,
-                    onArtistRemoved = onArtistMixArtistRemoved,
-                    onPlayMix = onArtistMixPlay,
-                )
-                InternetRadioContent(
-                    colors = colors,
-                    stations = radioStations,
-                    status = null,
-                    onStationSelected = onRadioStationSelected,
-                    onSaveStation = onRadioStationSave,
-                    onDeleteStation = onRadioStationDelete,
-                )
+            SharedRoute.ArtistMix -> Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    ArtistMixBuilderContent(
+                        colors = colors,
+                        builder = artistMixBuilder,
+                        onQueryChanged = onArtistMixQueryChanged,
+                        onSearch = onArtistMixSearch,
+                        onArtistSelected = onArtistMixArtistSelected,
+                        onArtistRemoved = onArtistMixArtistRemoved,
+                        onPlayMix = onArtistMixPlay,
+                        showPlayMixButton = false,
+                    )
+                }
+                if (artistMixBuilder.selectedArtists.isNotEmpty()) {
+                    PrimaryButton("Play Mix", colors, onClick = onArtistMixPlay)
+                }
             }
+            SharedRoute.Radio -> InternetRadioContent(
+                colors = colors,
+                stations = radioStations,
+                status = null,
+                onStationSelected = onRadioStationSelected,
+                onSaveStation = onRadioStationSave,
+                onDeleteStation = onRadioStationDelete,
+            )
             SharedRoute.Settings -> Unit
             SharedRoute.Downloads -> DownloadsContent(
                 colors = colors,

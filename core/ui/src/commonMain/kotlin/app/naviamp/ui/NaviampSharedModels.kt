@@ -251,6 +251,7 @@ enum class SharedRoute(val label: String, val icon: ImageVector) {
     Playlists("Playlists", NaviampIcons.Playlist),
     Library("Library", NaviampIcons.Library),
     Search("Search", NaviampIcons.Search),
+    ArtistMix("Artist Mix", NaviampTransportIcons.Radio),
     Radio("Radio", NaviampIcons.InternetRadio),
     Downloads("Downloads", NaviampIcons.Downloads),
     Settings("Settings", NaviampIcons.Settings),

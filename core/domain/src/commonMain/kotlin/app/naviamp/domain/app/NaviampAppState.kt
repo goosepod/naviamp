@@ -17,6 +17,7 @@ enum class NaviampRoute {
     ArtistDetail,
     Library,
     Search,
+    ArtistMix,
     Radio,
     Downloads,
     Settings,

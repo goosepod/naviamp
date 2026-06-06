@@ -5,6 +5,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -335,6 +338,7 @@ fun SharedMediaRow(
 }
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 fun ArtistMixBuilderContent(
     colors: NaviampColors,
     builder: SharedArtistMixBuilderUi,
@@ -343,6 +347,7 @@ fun ArtistMixBuilderContent(
     onArtistSelected: (SharedMediaItemUi) -> Unit,
     onArtistRemoved: (SharedMediaItemUi) -> Unit,
     onPlayMix: () -> Unit,
+    showPlayMixButton: Boolean = true,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text("Artist Mix Builder", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
@@ -353,19 +358,24 @@ fun ArtistMixBuilderContent(
                 label = "Search artists",
                 colors = colors,
                 modifier = Modifier.weight(1f),
+                onSubmit = onSearch,
             )
             Button(onClick = onSearch, modifier = Modifier.height(48.dp)) {
                 Icon(NaviampIcons.Search, contentDescription = "Search artists", modifier = Modifier.size(18.dp))
             }
         }
         if (builder.selectedArtists.isNotEmpty()) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                builder.selectedArtists.take(4).forEach { artist ->
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                builder.selectedArtists.forEach { artist ->
                     ArtistMixSelectedArtist(
                         artist = artist,
                         colors = colors,
                         onRemove = { onArtistRemoved(artist) },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.widthIn(min = 128.dp, max = 220.dp),
                     )
                 }
             }
@@ -373,22 +383,23 @@ fun ArtistMixBuilderContent(
         (builder.status ?: if (builder.loading) "Loading artists..." else null)?.let {
             Text(it, color = colors.secondaryText, fontSize = 12.sp)
         }
-        builder.suggestedArtists.chunked(3).forEach { rowArtists ->
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                rowArtists.forEach { artist ->
-                    ArtistMixArtistTile(
-                        artist = artist,
-                        colors = colors,
-                        onClick = { onArtistSelected(artist) },
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-                repeat(3 - rowArtists.size) {
-                    Box(modifier = Modifier.weight(1f))
-                }
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            builder.suggestedArtists.forEach { artist ->
+                ArtistMixArtistTile(
+                    artist = artist,
+                    colors = colors,
+                    onClick = { onArtistSelected(artist) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .widthIn(min = 148.dp, max = 220.dp),
+                )
             }
         }
-        if (builder.selectedArtists.isNotEmpty()) {
+        if (showPlayMixButton && builder.selectedArtists.isNotEmpty()) {
             PrimaryButton("Play Mix", colors, onClick = onPlayMix)
         }
     }

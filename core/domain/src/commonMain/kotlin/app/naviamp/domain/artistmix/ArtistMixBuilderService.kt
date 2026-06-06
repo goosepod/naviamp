@@ -34,11 +34,20 @@ class ArtistMixBuilderService(
         seedArtist: Artist,
         limit: Int = ArtistMixSuggestionLimit,
     ): List<Artist> {
+        val selectedIds = selectedArtists.map { it.id }.toSet()
         val similarArtists = similarArtistsService
             .similarArtists(seedArtist.name, ArtistMixSimilarFetchLimit)
             .mapNotNull { it.matchedArtist }
+            .distinctBy { it.id }
+            .filterNot { it.id in selectedIds }
+            .take(limit)
+        val randomTailLimit = minOf(ArtistMixRandomTailCount, limit - similarArtists.size)
+        if (randomTailLimit <= 0) return similarArtists
         val randomTail = randomArtists((ArtistMixRandomTailCount * 4).toLong())
-        return (similarArtists + randomTail).artistMixSuggestions(selectedArtists, limit)
+            .distinctBy { it.id }
+            .filterNot { it.id in selectedIds || similarArtists.any { similar -> similar.id == it.id } }
+            .take(randomTailLimit)
+        return similarArtists + randomTail
     }
 
     suspend fun popularTracks(

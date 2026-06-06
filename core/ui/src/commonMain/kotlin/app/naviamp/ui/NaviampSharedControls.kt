@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
@@ -30,7 +32,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Dp
@@ -47,6 +55,7 @@ internal fun NaviampTextField(
     modifier: Modifier = Modifier.fillMaxWidth(),
     enabled: Boolean = true,
     isPassword: Boolean = false,
+    onSubmit: (() -> Unit)? = null,
 ) {
     OutlinedTextField(
         value = value,
@@ -55,7 +64,22 @@ internal fun NaviampTextField(
         singleLine = true,
         enabled = enabled,
         visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
-        modifier = modifier,
+        keyboardOptions = KeyboardOptions(imeAction = if (onSubmit != null) ImeAction.Search else ImeAction.Default),
+        keyboardActions = KeyboardActions(onSearch = { onSubmit?.invoke() }),
+        modifier = modifier.then(
+            if (onSubmit != null) {
+                Modifier.onPreviewKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyUp && event.key == Key.Enter) {
+                        onSubmit()
+                        true
+                    } else {
+                        false
+                    }
+                }
+            } else {
+                Modifier
+            },
+        ),
     )
 }
 
@@ -245,6 +269,15 @@ fun SharedBottomNavigationBar(
     selectedRoute: SharedRoute,
     onRouteSelected: (SharedRoute) -> Unit,
 ) {
+    val bottomRoutes = listOf(
+        SharedRoute.Home,
+        SharedRoute.Playlists,
+        SharedRoute.Library,
+        SharedRoute.Search,
+        SharedRoute.Radio,
+        SharedRoute.Downloads,
+        SharedRoute.Settings,
+    )
     Row(
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically,
@@ -253,7 +286,7 @@ fun SharedBottomNavigationBar(
             .background(Color.Black.copy(alpha = 0.28f))
             .padding(vertical = 2.dp),
     ) {
-        SharedRoute.entries.forEach { route ->
+        bottomRoutes.forEach { route ->
             IconButton(onClick = { onRouteSelected(route) }, modifier = Modifier.size(42.dp)) {
                 Icon(
                     route.icon,

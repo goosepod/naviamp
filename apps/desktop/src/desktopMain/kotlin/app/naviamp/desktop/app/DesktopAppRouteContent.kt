@@ -9,6 +9,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -197,6 +200,7 @@ fun ColumnScope.DesktopAppRouteContent(
             .then(
                 if (
                     appRoute == DesktopAppRoute.Library ||
+                        appRoute == DesktopAppRoute.ArtistMix ||
                         appRoute == DesktopAppRoute.Settings ||
                         appRoute == DesktopAppRoute.AlbumDetail ||
                         appRoute == DesktopAppRoute.ArtistDetail
@@ -461,16 +465,40 @@ fun ColumnScope.DesktopAppRouteContent(
                         }
                     },
                 )
+                DesktopAppRoute.ArtistMix -> Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .verticalScroll(contentScrollState),
+                    ) {
+                        ArtistMixBuilderContent(
+                            colors = appColors,
+                            builder = artistMixBuilder,
+                            onQueryChanged = onArtistMixQueryChanged,
+                            onSearch = onArtistMixSearch,
+                            onArtistSelected = onArtistMixArtistSelected,
+                            onArtistRemoved = onArtistMixArtistRemoved,
+                            onPlayMix = onArtistMixPlay,
+                            showPlayMixButton = false,
+                        )
+                    }
+                    if (artistMixBuilder.selectedArtists.isNotEmpty()) {
+                        Button(
+                            onClick = onArtistMixPlay,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = appColors.accent,
+                                contentColor = appColors.onAccent,
+                            ),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("Play Mix")
+                        }
+                    }
+                }
                 DesktopAppRoute.InternetRadio -> Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                    ArtistMixBuilderContent(
-                        colors = appColors,
-                        builder = artistMixBuilder,
-                        onQueryChanged = onArtistMixQueryChanged,
-                        onSearch = onArtistMixSearch,
-                        onArtistSelected = onArtistMixArtistSelected,
-                        onArtistRemoved = onArtistMixArtistRemoved,
-                        onPlayMix = onArtistMixPlay,
-                    )
                     DesktopInternetRadioPanel(
                         appColors = appColors,
                         stations = internetRadioStations,

@@ -1332,7 +1332,7 @@ fun NaviampApp(
                             coroutineScope = coroutineScope,
                             onRouteSelected = { route -> appRoute = route },
                             onOpenArtistMixBuilder = {
-                                appRoute = DesktopAppRoute.InternetRadio
+                                appRoute = DesktopAppRoute.ArtistMix
                             },
                             onOpenAlbumMixBuilder = {
                                 libraryTab = DesktopLibraryTab.Albums
