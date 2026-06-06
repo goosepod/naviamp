@@ -69,6 +69,8 @@ object AndroidBassJni {
 
     fun slideVolume(stream: Int, volume: Float, millis: Int): Boolean = nativeSlideVolume(stream, volume, millis)
 
+    fun applyEqualizer(stream: Int, bandsDb: FloatArray): Boolean = nativeApplyEqualizer(stream, bandsDb)
+
     fun seek(stream: Int, seconds: Double): Boolean = nativeSeek(stream, seconds)
 
     fun positionSeconds(stream: Int): Double? = nativePositionSeconds(stream).takeIf { it >= 0.0 }
@@ -106,6 +108,7 @@ object AndroidBassJni {
     private external fun nativeActiveState(stream: Int): Int
     private external fun nativeSetVolume(stream: Int, volume: Float): Boolean
     private external fun nativeSlideVolume(stream: Int, volume: Float, millis: Int): Boolean
+    private external fun nativeApplyEqualizer(stream: Int, bandsDb: FloatArray): Boolean
     private external fun nativeSeek(stream: Int, seconds: Double): Boolean
     private external fun nativePositionSeconds(stream: Int): Double
     private external fun nativeDurationSeconds(stream: Int): Double

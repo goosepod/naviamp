@@ -14,6 +14,7 @@ import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.VisualizerSettings
+import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.ui.SharedTrackRowUi
@@ -57,6 +58,7 @@ data class AndroidAppShellUiState(
     val supportsReplayGain: Boolean,
     val supportsGapless: Boolean,
     val supportsCrossfade: Boolean,
+    val supportsEqualizer: Boolean,
     val showMobileNetworkQuality: Boolean,
     val selectedVisualizer: NaviampVisualizer,
     val visualizerBandsProvider: () -> List<Float>,
@@ -231,6 +233,7 @@ fun AndroidAppShellContent(
         supportsReplayGain = state.supportsReplayGain,
         supportsGapless = state.supportsGapless,
         supportsCrossfade = state.supportsCrossfade,
+        supportsEqualizer = state.supportsEqualizer,
         showMobileNetworkQuality = state.showMobileNetworkQuality,
         selectedVisualizer = state.selectedVisualizer,
         visualizerBandsProvider = state.visualizerBandsProvider,
@@ -481,6 +484,7 @@ fun rememberAndroidAppShellUiState(
             supportsReplayGain = playbackEngine.supportsReplayGain,
             supportsGapless = playbackEngine.supportsGapless,
             supportsCrossfade = playbackEngine.supportsCrossfade,
+            supportsEqualizer = (playbackEngine as? EqualizerPlaybackEngine)?.supportsEqualizer == true,
             showMobileNetworkQuality = true,
             selectedVisualizer = selectedVisualizer,
             visualizerBandsProvider = { visualizerFrame?.bands.orEmpty() },

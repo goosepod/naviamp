@@ -10,6 +10,7 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.playback.EqualizerSettings
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.radio.internetRadioTrack
@@ -32,6 +33,7 @@ data class PlaybackSettings(
     val replayGainMode: ReplayGainMode = ReplayGainMode.Off,
     val gaplessEnabled: Boolean = true,
     val crossfadeDurationSeconds: Int = 0,
+    val equalizer: EqualizerSettings = EqualizerSettings(),
     val volumePercent: Int = 100,
     val debugLoggingEnabled: Boolean = false,
     val lrclibLyricsEnabled: Boolean = false,
@@ -71,6 +73,7 @@ fun PlaybackSettings.effectiveForEngine(playbackEngine: PlaybackEngine): Playbac
         } else {
             100
         },
+        equalizer = equalizer.normalized(),
         wifiStreamingQuality = wifiStreamingQuality.normalized(),
         mobileStreamingQuality = mobileStreamingQuality.normalized(),
         downloadQuality = downloadQuality.normalized(),

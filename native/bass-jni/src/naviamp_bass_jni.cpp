@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <cmath>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace {
@@ -67,6 +68,9 @@ struct BassApi {
     decltype(&::BASS_ChannelIsActive) BASS_ChannelIsActive = nullptr;
     decltype(&::BASS_ChannelSetAttribute) BASS_ChannelSetAttribute = nullptr;
     decltype(&::BASS_ChannelGetTags) BASS_ChannelGetTags = nullptr;
+    decltype(&::BASS_ChannelSetFX) BASS_ChannelSetFX = nullptr;
+    decltype(&::BASS_ChannelRemoveFX) BASS_ChannelRemoveFX = nullptr;
+    decltype(&::BASS_FXSetParameters) BASS_FXSetParameters = nullptr;
     PluginLoadProc BASS_PluginLoad = nullptr;
 };
 
@@ -116,6 +120,9 @@ bool load_bass_symbols() {
     ok = load_symbol(bassApi.bass, "BASS_ChannelIsActive", bassApi.BASS_ChannelIsActive) && ok;
     ok = load_symbol(bassApi.bass, "BASS_ChannelSetAttribute", bassApi.BASS_ChannelSetAttribute) && ok;
     ok = load_symbol(bassApi.bass, "BASS_ChannelGetTags", bassApi.BASS_ChannelGetTags) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_ChannelSetFX", bassApi.BASS_ChannelSetFX) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_ChannelRemoveFX", bassApi.BASS_ChannelRemoveFX) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_FXSetParameters", bassApi.BASS_FXSetParameters) && ok;
     ok = load_symbol(bassApi.bass, "BASS_PluginLoad", bassApi.BASS_PluginLoad) && ok;
     return ok;
 }
@@ -189,8 +196,17 @@ bool configure_windows_title_bar(JNIEnv* env, jobject window, bool isDark) {
 #define BASS_ChannelIsActive bassApi.BASS_ChannelIsActive
 #define BASS_ChannelSetAttribute bassApi.BASS_ChannelSetAttribute
 #define BASS_ChannelGetTags bassApi.BASS_ChannelGetTags
+#define BASS_ChannelSetFX bassApi.BASS_ChannelSetFX
+#define BASS_ChannelRemoveFX bassApi.BASS_ChannelRemoveFX
+#define BASS_FXSetParameters bassApi.BASS_FXSetParameters
 #define BASS_PluginLoad bassApi.BASS_PluginLoad
 #endif
+
+constexpr int EQUALIZER_BAND_COUNT = 10;
+const float EQUALIZER_FREQUENCIES[EQUALIZER_BAND_COUNT] = {
+    31.0f, 62.0f, 125.0f, 250.0f, 500.0f, 1000.0f, 2000.0f, 4000.0f, 8000.0f, 16000.0f
+};
+std::unordered_map<DWORD, std::vector<HFX>> equalizerFxByChannel;
 
 struct DesktopEndSyncRegistration {
     JavaVM* javaVm;
@@ -288,6 +304,57 @@ jboolean slide_volume(jint stream, jfloat volume, jint millis) {
         safeVolume,
         std::max(0, static_cast<int>(millis))
     ) ? JNI_TRUE : JNI_FALSE;
+}
+
+void clear_equalizer(DWORD channel) {
+    auto existing = equalizerFxByChannel.find(channel);
+    if (existing == equalizerFxByChannel.end()) return;
+    for (HFX fx : existing->second) {
+        if (fx != 0) {
+            BASS_ChannelRemoveFX(channel, fx);
+        }
+    }
+    equalizerFxByChannel.erase(existing);
+}
+
+jboolean apply_equalizer(JNIEnv* env, jint stream, jfloatArray bandsDb) {
+    DWORD channel = static_cast<DWORD>(stream);
+    if (channel == 0) return JNI_FALSE;
+    clear_equalizer(channel);
+    if (bandsDb == nullptr) return JNI_TRUE;
+
+    jsize sourceLength = env->GetArrayLength(bandsDb);
+    if (sourceLength <= 0) return JNI_TRUE;
+    jsize length = std::min<jsize>(sourceLength, EQUALIZER_BAND_COUNT);
+    std::vector<jfloat> gains(static_cast<size_t>(length), 0.0f);
+    env->GetFloatArrayRegion(bandsDb, 0, length, gains.data());
+
+    std::vector<HFX> created;
+    created.reserve(static_cast<size_t>(length));
+    for (jsize index = 0; index < length; ++index) {
+        float gain = std::max(-15.0f, std::min(15.0f, gains[static_cast<size_t>(index)]));
+        if (std::abs(gain) < 0.05f) continue;
+
+        HFX fx = BASS_ChannelSetFX(channel, BASS_FX_DX8_PARAMEQ, 0);
+        if (fx == 0) {
+            clear_equalizer(channel);
+            return JNI_FALSE;
+        }
+        BASS_DX8_PARAMEQ params{};
+        params.fCenter = EQUALIZER_FREQUENCIES[index];
+        params.fBandwidth = 18.0f;
+        params.fGain = gain;
+        if (!BASS_FXSetParameters(fx, &params)) {
+            BASS_ChannelRemoveFX(channel, fx);
+            clear_equalizer(channel);
+            return JNI_FALSE;
+        }
+        created.push_back(fx);
+    }
+    if (!created.empty()) {
+        equalizerFxByChannel[channel] = created;
+    }
+    return JNI_TRUE;
 }
 
 jboolean seek_seconds(jint stream, jdouble seconds) {
@@ -402,6 +469,7 @@ extern "C" JNIEXPORT void JNICALL
 Java_app_naviamp_android_playback_AndroidBassJni_nativeFree(JNIEnv* env, jobject thiz) {
     (void)env;
     (void)thiz;
+    equalizerFxByChannel.clear();
     BASS_Free();
 }
 
@@ -547,6 +615,12 @@ Java_app_naviamp_android_playback_AndroidBassJni_nativeSlideVolume(JNIEnv* env, 
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeApplyEqualizer(JNIEnv* env, jobject thiz, jint stream, jfloatArray bandsDb) {
+    (void)thiz;
+    return apply_equalizer(env, stream, bandsDb);
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
 Java_app_naviamp_android_playback_AndroidBassJni_nativePlay(JNIEnv* env, jobject thiz, jint stream) {
     (void)env;
     (void)thiz;
@@ -571,6 +645,7 @@ extern "C" JNIEXPORT jboolean JNICALL
 Java_app_naviamp_android_playback_AndroidBassJni_nativeFreeStream(JNIEnv* env, jobject thiz, jint stream) {
     (void)env;
     (void)thiz;
+    clear_equalizer(static_cast<DWORD>(stream));
     return BASS_StreamFree(static_cast<HSTREAM>(stream)) ? JNI_TRUE : JNI_FALSE;
 }
 
@@ -730,6 +805,7 @@ extern "C" JNIEXPORT void JNICALL
 Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeFree(JNIEnv* env, jobject thiz) {
     (void)env;
     (void)thiz;
+    equalizerFxByChannel.clear();
     BASS_Free();
 }
 
@@ -869,6 +945,7 @@ extern "C" JNIEXPORT jboolean JNICALL
 Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeFreeStream(JNIEnv* env, jobject thiz, jint stream) {
     (void)env;
     (void)thiz;
+    clear_equalizer(static_cast<DWORD>(stream));
     return BASS_StreamFree(static_cast<HSTREAM>(stream)) ? JNI_TRUE : JNI_FALSE;
 }
 
@@ -892,6 +969,12 @@ Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeSlideVolume(J
     (void)env;
     (void)thiz;
     return slide_volume(stream, volume, millis);
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeApplyEqualizer(JNIEnv* env, jobject thiz, jint stream, jfloatArray bandsDb) {
+    (void)thiz;
+    return apply_equalizer(env, stream, bandsDb);
 }
 
 extern "C" JNIEXPORT jboolean JNICALL

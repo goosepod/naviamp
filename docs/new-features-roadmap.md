@@ -53,7 +53,7 @@ This checklist tracks the first feature set for the `new-features` branch. Keep 
 
 ## Equalizer and Audio Inspector
 
-- [ ] Add a 10-band equalizer.
+- [x] Add a 10-band equalizer.
   - Include common presets: Flat, Bass Boost, Treble Boost, Rock, Pop, Jazz, Classical, Dance/Electronic, Hip Hop, Vocal, Acoustic.
   - Apply through the shared BASS/audio backend where possible.
   - EQ is global for this first version.

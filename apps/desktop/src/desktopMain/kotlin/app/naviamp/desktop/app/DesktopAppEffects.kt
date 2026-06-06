@@ -9,6 +9,7 @@ import app.naviamp.domain.cache.ImageCacheRepository
 import app.naviamp.domain.playback.CrossfadeSettings
 import app.naviamp.domain.playback.DefaultNowPlayingHeartbeatIntervalMillis
 import app.naviamp.domain.playback.DefaultVisualizerFrameIntervalMillis
+import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
@@ -79,6 +80,10 @@ fun DesktopAppEffects(
 
     LaunchedEffect(playbackEngine, playbackSettings.volumePercent) {
         playbackEngine.setVolume(playbackSettings.volumePercent.coerceIn(0, 100))
+    }
+
+    LaunchedEffect(playbackEngine, playbackSettings.equalizer) {
+        (playbackEngine as? EqualizerPlaybackEngine)?.setEqualizer(playbackSettings.equalizer)
     }
 
     LaunchedEffect(nowPlayingTrack?.id) {

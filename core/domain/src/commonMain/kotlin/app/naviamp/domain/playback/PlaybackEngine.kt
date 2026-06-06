@@ -44,6 +44,148 @@ interface VisualizerPlaybackEngine : PlaybackEngine {
     fun visualizerFrame(): PlaybackVisualizerFrame?
 }
 
+interface EqualizerPlaybackEngine : PlaybackEngine {
+    val supportsEqualizer: Boolean
+
+    fun setEqualizer(settings: EqualizerSettings)
+}
+
+@kotlinx.serialization.Serializable
+data class EqualizerSettings(
+    val enabled: Boolean = false,
+    val preset: EqualizerPreset = EqualizerPreset.Flat,
+    val bandsDb: List<Float> = FlatEqualizerBandsDb,
+    val profileId: String? = null,
+    val savedProfiles: List<EqualizerProfile> = emptyList(),
+) {
+    fun normalized(): EqualizerSettings {
+        val normalizedBands = EqualizerBandFrequencies.mapIndexed { index, _ ->
+            (bandsDb.getOrNull(index) ?: 0f).coerceIn(MinEqualizerGainDb, MaxEqualizerGainDb)
+        }
+        val normalizedProfiles = savedProfiles
+            .mapNotNull { it.normalized().takeIf { profile -> profile.name.isNotBlank() } }
+            .distinctBy { it.id }
+            .take(MaxEqualizerSavedProfiles)
+        val activeProfileId = profileId?.takeIf { id -> normalizedProfiles.any { it.id == id } }
+        return copy(
+            enabled = enabled && normalizedBands.any { it != 0f },
+            bandsDb = normalizedBands,
+            profileId = activeProfileId,
+            savedProfiles = normalizedProfiles,
+        )
+    }
+
+    fun withPreset(preset: EqualizerPreset): EqualizerSettings =
+        copy(
+            enabled = preset != EqualizerPreset.Flat,
+            preset = preset,
+            bandsDb = equalizerPresetBandsDb(preset),
+            profileId = null,
+        ).normalized()
+
+    fun withBandGain(index: Int, gainDb: Float): EqualizerSettings =
+        copy(
+            enabled = true,
+            preset = EqualizerPreset.Custom,
+            profileId = null,
+            bandsDb = EqualizerBandFrequencies.mapIndexed { bandIndex, _ ->
+                if (bandIndex == index) gainDb else bandsDb.getOrNull(bandIndex) ?: 0f
+            },
+        ).normalized()
+
+    fun withProfile(profile: EqualizerProfile): EqualizerSettings =
+        copy(
+            enabled = true,
+            preset = EqualizerPreset.Custom,
+            bandsDb = profile.normalized().bandsDb,
+            profileId = profile.id,
+        ).normalized()
+
+    fun savedAsProfile(name: String): EqualizerSettings {
+        val profile = EqualizerProfile(
+            id = equalizerProfileId(name),
+            name = name.trim(),
+            bandsDb = bandsDb,
+        ).normalized()
+        if (profile.name.isBlank()) return normalized()
+        return copy(
+            enabled = true,
+            preset = EqualizerPreset.Custom,
+            profileId = profile.id,
+            savedProfiles = (savedProfiles.filterNot { it.id == profile.id || it.id == profileId } + profile),
+        ).normalized()
+    }
+}
+
+@kotlinx.serialization.Serializable
+data class EqualizerProfile(
+    val id: String,
+    val name: String,
+    val bandsDb: List<Float>,
+) {
+    fun normalized(): EqualizerProfile =
+        copy(
+            id = id.ifBlank { equalizerProfileId(name) },
+            name = name.trim(),
+            bandsDb = EqualizerBandFrequencies.mapIndexed { index, _ ->
+                (bandsDb.getOrNull(index) ?: 0f).coerceIn(MinEqualizerGainDb, MaxEqualizerGainDb)
+            },
+        )
+}
+
+@kotlinx.serialization.Serializable
+enum class EqualizerPreset(
+    val displayName: String,
+) {
+    Flat("Flat"),
+    BassBoost("Bass Boost"),
+    TrebleBoost("Treble Boost"),
+    Rock("Rock"),
+    Pop("Pop"),
+    Jazz("Jazz"),
+    Classical("Classical"),
+    DanceElectronic("Dance/Electronic"),
+    HipHop("Hip Hop"),
+    Vocal("Vocal"),
+    Acoustic("Acoustic"),
+    Custom("Custom"),
+}
+
+val EqualizerBandFrequencies: List<Int> =
+    listOf(31, 62, 125, 250, 500, 1_000, 2_000, 4_000, 8_000, 16_000)
+
+val FlatEqualizerBandsDb: List<Float> =
+    List(EqualizerBandFrequencies.size) { 0f }
+
+const val MinEqualizerGainDb: Float = -12f
+const val MaxEqualizerGainDb: Float = 12f
+const val MaxEqualizerSavedProfiles: Int = 24
+
+fun equalizerProfileId(name: String): String =
+    name
+        .trim()
+        .lowercase()
+        .replace(Regex("[^a-z0-9]+"), "-")
+        .trim('-')
+        .ifBlank { "custom" }
+
+fun equalizerPresetBandsDb(preset: EqualizerPreset): List<Float> =
+    when (preset) {
+        EqualizerPreset.Flat,
+        EqualizerPreset.Custom,
+        -> FlatEqualizerBandsDb
+        EqualizerPreset.BassBoost -> listOf(7f, 6f, 4f, 2f, 0f, 0f, 0f, 0f, 0f, 0f)
+        EqualizerPreset.TrebleBoost -> listOf(0f, 0f, 0f, 0f, 0f, 1f, 3f, 5f, 6f, 7f)
+        EqualizerPreset.Rock -> listOf(5f, 4f, 3f, 1f, -2f, -1f, 2f, 4f, 5f, 5f)
+        EqualizerPreset.Pop -> listOf(-1f, 2f, 4f, 5f, 3f, 0f, -1f, -1f, 1f, 2f)
+        EqualizerPreset.Jazz -> listOf(3f, 2f, 1f, 2f, -1f, -1f, 1f, 2f, 3f, 4f)
+        EqualizerPreset.Classical -> listOf(4f, 3f, 2f, 1f, 0f, 0f, 1f, 2f, 3f, 4f)
+        EqualizerPreset.DanceElectronic -> listOf(6f, 5f, 3f, 0f, -2f, -1f, 1f, 3f, 5f, 6f)
+        EqualizerPreset.HipHop -> listOf(7f, 6f, 4f, 2f, -1f, -1f, 1f, 2f, 3f, 4f)
+        EqualizerPreset.Vocal -> listOf(-2f, -2f, -1f, 1f, 3f, 4f, 3f, 1f, 0f, -1f)
+        EqualizerPreset.Acoustic -> listOf(3f, 2f, 1f, 2f, 3f, 2f, 1f, 2f, 3f, 2f)
+    }
+
 data class PlaybackVisualizerFrame(
     val bands: List<Float>,
     val timestampMillis: Long,

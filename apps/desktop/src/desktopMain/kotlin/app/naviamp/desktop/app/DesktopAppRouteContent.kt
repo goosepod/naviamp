@@ -32,6 +32,7 @@ import app.naviamp.domain.home.HomeStationLibrary
 import app.naviamp.domain.home.HomeStationRandomAlbum
 import app.naviamp.domain.home.parseHomeDecadeStationId
 import app.naviamp.domain.home.parseHomeGenreStationId
+import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.provider.MediaSearchResults
@@ -637,6 +638,7 @@ fun ColumnScope.DesktopAppRouteContent(
                     supportsReplayGain = playbackEngine.supportsReplayGain,
                     supportsGapless = playbackEngine.supportsGapless,
                     supportsCrossfade = playbackEngine.supportsCrossfade,
+                    supportsEqualizer = (playbackEngine as? EqualizerPlaybackEngine)?.supportsEqualizer == true,
                     onServerUrlChanged = connectionForm::updateServerUrl,
                     onConnectionNameChanged = { connectionForm.connectionName = it },
                     onUsernameChanged = connectionForm::updateUsername,
