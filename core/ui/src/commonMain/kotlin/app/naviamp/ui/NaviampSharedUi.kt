@@ -540,6 +540,12 @@ fun NaviampConnectionForm(
             )
         }
         NaviampTextField(
+            value = form.displayName,
+            onValueChange = { onFormChanged(form.copy(displayName = it)) },
+            label = "Connection name (optional)",
+            colors = colors,
+        )
+        NaviampTextField(
             value = form.serverUrl,
             onValueChange = { onFormChanged(form.copy(serverUrl = it)) },
             label = "Server URL",
@@ -569,12 +575,6 @@ fun NaviampConnectionForm(
             )
         }
         if (advancedVisible) {
-            NaviampTextField(
-                value = form.displayName,
-                onValueChange = { onFormChanged(form.copy(displayName = it)) },
-                label = "Connection name (optional)",
-                colors = colors,
-            )
             SettingsSectionTitle("TLS", colors)
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -609,6 +609,9 @@ fun NaviampConnectionForm(
                 isPassword = true,
             )
         }
+        connectionStatus?.let {
+            Text(it, color = colors.secondaryText, fontSize = 11.sp)
+        }
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -623,9 +626,6 @@ fun NaviampConnectionForm(
                 TextButton(enabled = !isConnecting, onClick = it) {
                     Text("Cancel", color = colors.secondaryText)
                 }
-            }
-            connectionStatus?.let {
-                Text(it, color = colors.secondaryText, fontSize = 11.sp)
             }
         }
     }
