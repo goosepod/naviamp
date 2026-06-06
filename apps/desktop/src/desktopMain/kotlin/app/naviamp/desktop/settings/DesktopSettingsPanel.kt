@@ -21,9 +21,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -33,7 +30,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -45,22 +41,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.domain.source.SavedMediaSource
+import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.desktop.settings.CacheSettings
 import app.naviamp.desktop.settings.PlaybackSettings
+import app.naviamp.ui.NaviampConnectionForm
 import app.naviamp.ui.NaviampPlaybackSettingsSection
 import app.naviamp.ui.NaviampSettingsCategory
 import app.naviamp.ui.storageBytesLabel
@@ -115,7 +108,6 @@ fun DesktopSettingsPanel(
     onRefreshLibrary: () -> Unit,
     onResetDatabase: () -> Unit,
 ) {
-    val focusManager = LocalFocusManager.current
     var selectedCategory by remember { mutableStateOf(NaviampSettingsCategory.Connections) }
     var statusClickCount by remember { mutableIntStateOf(0) }
     var lastStatusClickMillis by remember { mutableStateOf(0L) }
@@ -123,15 +115,6 @@ fun DesktopSettingsPanel(
     var clearLibraryDialogOpen by remember { mutableStateOf(false) }
     var resetDialogOpen by remember { mutableStateOf(false) }
     var resetIncludesServers by remember { mutableStateOf(false) }
-    val textFieldColors = OutlinedTextFieldDefaults.colors(
-        focusedTextColor = appColors.primaryText,
-        unfocusedTextColor = appColors.primaryText,
-        focusedLabelColor = appColors.primaryText,
-        unfocusedLabelColor = appColors.secondaryText,
-        cursorColor = appColors.primaryText,
-        focusedBorderColor = appColors.accent,
-        unfocusedBorderColor = appColors.border,
-    )
 
     @Composable
     fun CategoryContent(category: NaviampSettingsCategory) {
@@ -152,8 +135,6 @@ fun DesktopSettingsPanel(
                 isConnectionFormOpen = isConnectionFormOpen,
                 isConnecting = isConnecting,
                 connectionStatus = connectionStatus,
-                textFieldColors = textFieldColors,
-                focusManager = focusManager,
                 onServerUrlChanged = onServerUrlChanged,
                 onConnectionNameChanged = onConnectionNameChanged,
                 onUsernameChanged = onUsernameChanged,
@@ -485,8 +466,6 @@ private fun ConnectionsSettings(
     isConnectionFormOpen: Boolean,
     isConnecting: Boolean,
     connectionStatus: String?,
-    textFieldColors: androidx.compose.material3.TextFieldColors,
-    focusManager: androidx.compose.ui.focus.FocusManager,
     onServerUrlChanged: (String) -> Unit,
     onConnectionNameChanged: (String) -> Unit,
     onUsernameChanged: (String) -> Unit,
@@ -541,31 +520,34 @@ private fun ConnectionsSettings(
             Text(it, color = appColors.secondaryText, fontSize = 12.sp)
         }
         if (isConnectionFormOpen) {
-            ConnectionForm(
-                appColors = appColors,
-                serverUrl = serverUrl,
-                connectionName = connectionName,
-                username = username,
-                password = password,
-                insecureSkipTlsVerification = insecureSkipTlsVerification,
-                customCertificatePath = customCertificatePath,
-                clientCertificateKeyStorePath = clientCertificateKeyStorePath,
-                clientCertificateKeyStorePassword = clientCertificateKeyStorePassword,
-                hasSavedConnection = hasSavedConnection,
+            HorizontalDivider(color = appColors.border)
+            NaviampConnectionForm(
+                form = ConnectionFormState(
+                    serverUrl = serverUrl,
+                    username = username,
+                    password = password,
+                    displayName = connectionName,
+                    skipTlsVerification = insecureSkipTlsVerification,
+                    customCertificatePath = customCertificatePath,
+                    clientCertificatePath = clientCertificateKeyStorePath,
+                    clientCertificatePassword = clientCertificateKeyStorePassword,
+                ),
+                colors = appColors,
+                isReconnect = hasSavedConnection,
                 isConnecting = isConnecting,
                 connectionStatus = connectionStatus,
-                textFieldColors = textFieldColors,
-                focusManager = focusManager,
-                onServerUrlChanged = onServerUrlChanged,
-                onConnectionNameChanged = onConnectionNameChanged,
-                onUsernameChanged = onUsernameChanged,
-                onPasswordChanged = onPasswordChanged,
-                onInsecureSkipTlsVerificationChanged = onInsecureSkipTlsVerificationChanged,
-                onCustomCertificatePathChanged = onCustomCertificatePathChanged,
-                onClientCertificateKeyStorePathChanged = onClientCertificateKeyStorePathChanged,
-                onClientCertificateKeyStorePasswordChanged = onClientCertificateKeyStorePasswordChanged,
+                onFormChanged = { form ->
+                    onServerUrlChanged(form.serverUrl)
+                    onUsernameChanged(form.username)
+                    onPasswordChanged(form.password)
+                    onConnectionNameChanged(form.displayName)
+                    onInsecureSkipTlsVerificationChanged(form.skipTlsVerification)
+                    onCustomCertificatePathChanged(form.customCertificatePath)
+                    onClientCertificateKeyStorePathChanged(form.clientCertificatePath)
+                    onClientCertificateKeyStorePasswordChanged(form.clientCertificatePassword)
+                },
                 onConnect = onConnect,
-                onCancelConnectionForm = onCancelConnectionForm,
+                onCancel = onCancelConnectionForm,
             )
         }
         connectionPendingDelete?.let { connection ->
@@ -578,209 +560,6 @@ private fun ConnectionsSettings(
                 },
             )
         }
-    }
-}
-
-@Composable
-private fun ConnectionForm(
-    appColors: DesktopAppColors,
-    serverUrl: String,
-    connectionName: String,
-    username: String,
-    password: String,
-    insecureSkipTlsVerification: Boolean,
-    customCertificatePath: String,
-    clientCertificateKeyStorePath: String,
-    clientCertificateKeyStorePassword: String,
-    hasSavedConnection: Boolean,
-    isConnecting: Boolean,
-    connectionStatus: String?,
-    textFieldColors: androidx.compose.material3.TextFieldColors,
-    focusManager: androidx.compose.ui.focus.FocusManager,
-    onServerUrlChanged: (String) -> Unit,
-    onConnectionNameChanged: (String) -> Unit,
-    onUsernameChanged: (String) -> Unit,
-    onPasswordChanged: (String) -> Unit,
-    onInsecureSkipTlsVerificationChanged: (Boolean) -> Unit,
-    onCustomCertificatePathChanged: (String) -> Unit,
-    onClientCertificateKeyStorePathChanged: (String) -> Unit,
-    onClientCertificateKeyStorePasswordChanged: (String) -> Unit,
-    onConnect: () -> Unit,
-    onCancelConnectionForm: () -> Unit,
-) {
-    HorizontalDivider(color = appColors.border)
-    Column(
-        verticalArrangement = Arrangement.spacedBy(5.dp),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        SettingsSectionTitle("Connection Details", appColors)
-        if (hasSavedConnection) {
-            Text(
-                "Saved credentials loaded. Leave password blank to reuse them.",
-                color = appColors.mutedText,
-                fontSize = 11.sp,
-            )
-        }
-        CompactConnectionTextField(
-            value = connectionName,
-            onValueChange = onConnectionNameChanged,
-            label = "Connection name (optional)",
-            modifier = Modifier.fillMaxWidth(),
-            keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Next) }),
-            appColors = appColors,
-        )
-        CompactConnectionTextField(
-            value = serverUrl,
-            onValueChange = onServerUrlChanged,
-            label = "Server URL",
-            modifier = Modifier.fillMaxWidth(),
-            keyboardActions = KeyboardActions(
-                onNext = { focusManager.moveFocus(FocusDirection.Next) },
-                onDone = { onConnect() },
-            ),
-            appColors = appColors,
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
-            CompactConnectionTextField(
-                value = username,
-                onValueChange = onUsernameChanged,
-                label = "Username",
-                modifier = Modifier.weight(1f),
-                keyboardActions = KeyboardActions(
-                    onNext = { focusManager.moveFocus(FocusDirection.Next) },
-                    onDone = { onConnect() },
-                ),
-                appColors = appColors,
-            )
-            CompactConnectionTextField(
-                value = password,
-                onValueChange = onPasswordChanged,
-                label = if (hasSavedConnection) "Password (optional)" else "Password",
-                visualTransformation = PasswordVisualTransformation(),
-                modifier = Modifier.weight(1f),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { onConnect() }),
-                appColors = appColors,
-            )
-        }
-        SettingsSectionTitle("TLS", appColors)
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(
-                checked = insecureSkipTlsVerification,
-                onCheckedChange = onInsecureSkipTlsVerificationChanged,
-            )
-            Text("Skip TLS certificate verification", color = appColors.primaryText, fontSize = 11.sp)
-        }
-        CompactConnectionTextField(
-            value = customCertificatePath,
-            onValueChange = onCustomCertificatePathChanged,
-            label = "Trusted certificate or CA file",
-            enabled = !insecureSkipTlsVerification,
-            modifier = Modifier.fillMaxWidth(),
-            keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Next) }),
-            appColors = appColors,
-        )
-        SettingsSectionTitle("mTLS", appColors)
-        CompactConnectionTextField(
-            value = clientCertificateKeyStorePath,
-            onValueChange = onClientCertificateKeyStorePathChanged,
-            label = "Client certificate PKCS12 file",
-            modifier = Modifier.fillMaxWidth(),
-            keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Next) }),
-            appColors = appColors,
-        )
-        CompactConnectionTextField(
-            value = clientCertificateKeyStorePassword,
-            onValueChange = onClientCertificateKeyStorePasswordChanged,
-            label = "Client certificate password",
-            visualTransformation = PasswordVisualTransformation(),
-            modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = { onConnect() }),
-            appColors = appColors,
-        )
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Button(
-                enabled = !isConnecting,
-                onClick = onConnect,
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 3.dp),
-                modifier = Modifier.height(28.dp),
-            ) {
-                Text(if (isConnecting) "Connecting" else "Save and connect", fontSize = 11.sp)
-            }
-            TextButton(
-                enabled = !isConnecting,
-                onClick = onCancelConnectionForm,
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                modifier = Modifier.height(28.dp),
-            ) {
-                Text("Cancel", fontSize = 11.sp)
-            }
-            connectionStatus?.let {
-                Text(it, color = appColors.secondaryText, fontSize = 11.sp)
-            }
-        }
-    }
-}
-
-@Composable
-private fun CompactConnectionTextField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    label: String,
-    modifier: Modifier,
-    appColors: DesktopAppColors,
-    enabled: Boolean = true,
-    visualTransformation: VisualTransformation = VisualTransformation.None,
-    keyboardOptions: KeyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-    keyboardActions: KeyboardActions = KeyboardActions(),
-) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-        modifier = modifier,
-    ) {
-        Text(
-            label,
-            color = if (enabled) appColors.secondaryText else appColors.mutedText,
-            fontSize = 10.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            enabled = enabled,
-            singleLine = true,
-            visualTransformation = visualTransformation,
-            textStyle = MaterialTheme.typography.bodySmall.copy(
-                color = if (enabled) appColors.primaryText else appColors.mutedText,
-                fontSize = 12.sp,
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(30.dp),
-            keyboardOptions = keyboardOptions,
-            keyboardActions = keyboardActions,
-            decorationBox = { innerTextField ->
-                Box(
-                    contentAlignment = Alignment.CenterStart,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(30.dp)
-                        .border(
-                            width = 1.dp,
-                            color = if (enabled) appColors.border else appColors.border.copy(alpha = 0.45f),
-                            shape = RoundedCornerShape(4.dp),
-                        )
-                        .padding(horizontal = 9.dp),
-                ) {
-                    innerTextField()
-                }
-            },
-        )
     }
 }
 

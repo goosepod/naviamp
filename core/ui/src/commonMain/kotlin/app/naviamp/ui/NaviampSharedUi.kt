@@ -303,7 +303,7 @@ fun NaviampSharedAppShell(
                     if (restoringConnection && !editingConnection) {
                         RestoringConnectionCard(status = status, colors = colors)
                     } else if (editingConnection || (!connected && selectedRoute != SharedRoute.Settings)) {
-                        ConnectionCard(
+                        NaviampConnectionForm(
                             form = connectionForm,
                             colors = colors,
                             isReconnect = connected,
@@ -517,17 +517,20 @@ private fun RestoringConnectionCard(
 }
 
 @Composable
-private fun ConnectionCard(
+fun NaviampConnectionForm(
     form: ConnectionFormState,
     colors: NaviampColors,
     isReconnect: Boolean,
+    isConnecting: Boolean = false,
+    connectionStatus: String? = null,
+    modifier: Modifier = Modifier,
     onFormChanged: (ConnectionFormState) -> Unit,
     onConnect: () -> Unit,
     onCancel: (() -> Unit)?,
 ) {
     var advancedVisible by remember { mutableStateOf(false) }
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SettingsSectionTitle("Connection Details", colors)
         if (isReconnect) {
             Text(
@@ -611,14 +614,18 @@ private fun ConnectionCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             PrimaryButton(
-                label = if (isReconnect) "Save and connect" else "Connect",
+                label = if (isConnecting) "Connecting" else if (isReconnect) "Save and connect" else "Connect",
                 colors = colors,
+                enabled = !isConnecting,
                 onClick = onConnect,
             )
             onCancel?.let {
-                TextButton(onClick = it) {
+                TextButton(enabled = !isConnecting, onClick = it) {
                     Text("Cancel", color = colors.secondaryText)
                 }
+            }
+            connectionStatus?.let {
+                Text(it, color = colors.secondaryText, fontSize = 11.sp)
             }
         }
     }
