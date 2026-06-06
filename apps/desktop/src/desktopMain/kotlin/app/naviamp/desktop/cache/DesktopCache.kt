@@ -660,6 +660,7 @@ private fun createDatabase(path: Path): NaviampStorageDatabase {
     ensureMediaSourceLibraryScanSchema(driver)
     ensureArtistPopularTracksSchema(driver)
     ensureCachedSidecarStatusSchema(driver)
+    ensureTrackLyricsOffsetSchema(driver)
     driver.execute(null, "PRAGMA foreign_keys=ON", 0)
     return NaviampStorageDatabase(driver)
 }
@@ -758,6 +759,22 @@ private fun ensureCachedSidecarStatusSchema(driver: JdbcSqliteDriver) {
         """
         CREATE INDEX IF NOT EXISTS cached_sidecar_status_track
         ON cached_sidecar_status(source_id, remote_track_id, quality_key)
+        """.trimIndent(),
+        0,
+    )
+}
+
+private fun ensureTrackLyricsOffsetSchema(driver: JdbcSqliteDriver) {
+    driver.execute(
+        null,
+        """
+        CREATE TABLE IF NOT EXISTS track_lyrics_offset (
+          source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+          remote_track_id TEXT NOT NULL,
+          offset_millis INTEGER NOT NULL,
+          updated_at_epoch_millis INTEGER NOT NULL,
+          PRIMARY KEY(source_id, remote_track_id)
+        )
         """.trimIndent(),
         0,
     )

@@ -1,6 +1,7 @@
 package app.naviamp.android
 
 import android.content.Context
+import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumId
@@ -82,6 +83,7 @@ class AndroidStorage(
         context = appContext,
         name = DatabaseName,
     ).also {
+        it.ensureTrackLyricsOffsetSchema()
         it.execute(null, "PRAGMA foreign_keys=ON", 0)
     }
     private val database = NaviampStorageDatabase(driver)
@@ -596,6 +598,22 @@ private class AndroidAudioByteStore(
 }
 
 private fun nowMillis(): Long = System.currentTimeMillis()
+
+private fun SqlDriver.ensureTrackLyricsOffsetSchema() {
+    execute(
+        null,
+        """
+        CREATE TABLE IF NOT EXISTS track_lyrics_offset (
+          source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+          remote_track_id TEXT NOT NULL,
+          offset_millis INTEGER NOT NULL,
+          updated_at_epoch_millis INTEGER NOT NULL,
+          PRIMARY KEY(source_id, remote_track_id)
+        )
+        """.trimIndent(),
+        0,
+    )
+}
 
 private const val DatabaseName = "naviamp-storage.db"
 private const val MaxAudioWaveformCacheBytes = 32L * 1024L * 1024L
