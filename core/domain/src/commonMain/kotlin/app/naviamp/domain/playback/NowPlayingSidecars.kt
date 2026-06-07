@@ -4,9 +4,11 @@ import app.naviamp.domain.Lyrics
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.audio.AudioTag
 import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.waveform.AudioWaveform
 
 const val SidecarTypeWaveform = "waveform"
 const val SidecarTypeProviderLyrics = "provider_lyrics"
@@ -171,6 +173,57 @@ fun <Provider> currentTrackSidecarWork(
         onlineLyricsEnabled = onlineLyricsEnabled,
         lyricsVisible = lyricsVisible,
     )
+
+suspend fun <Provider> runCurrentTrackSidecars(
+    work: CurrentTrackSidecarWork<Provider>,
+    isActive: () -> Boolean,
+    prepareAudio: suspend (CurrentTrackSidecarWork<Provider>) -> Unit = {},
+    prepareWaveform: suspend (CurrentTrackSidecarWork<Provider>) -> AudioWaveform?,
+    prepareAudioTags: (suspend (CurrentTrackSidecarWork<Provider>) -> List<AudioTag>)? = null,
+    prepareLyrics: (suspend (CurrentTrackSidecarWork<Provider>) -> Lyrics?)? = null,
+    onWaveformReady: suspend (AudioWaveform?) -> Unit = {},
+    onWaveformFailed: suspend (Throwable) -> Unit = {},
+    onAudioTagsReady: suspend (List<AudioTag>) -> Unit = {},
+    onAudioTagsFailed: suspend (Throwable) -> Unit = {},
+    onLyricsReady: suspend (Lyrics?) -> Unit = {},
+    onLyricsFailed: suspend (Throwable, String) -> Unit = { _, _ -> },
+) {
+    if (!isActive()) return
+    runCatching {
+        prepareAudio(work)
+    }.onFailure {
+        return
+    }
+
+    if (!isActive()) return
+    runCatching {
+        prepareWaveform(work)
+    }.onSuccess { waveform ->
+        if (isActive()) onWaveformReady(waveform)
+    }.onFailure { error ->
+        if (isActive()) onWaveformFailed(error)
+    }
+
+    if (!isActive()) return
+    if (prepareAudioTags != null) {
+        runCatching {
+            prepareAudioTags(work)
+        }.onSuccess { tags ->
+            if (isActive()) onAudioTagsReady(tags)
+        }.onFailure { error ->
+            if (isActive()) onAudioTagsFailed(error)
+        }
+    }
+
+    if (!isActive() || !work.loadLyrics || prepareLyrics == null) return
+    runCatching {
+        prepareLyrics(work)
+    }.onSuccess { lyrics ->
+        if (isActive()) onLyricsReady(lyrics)
+    }.onFailure { error ->
+        if (isActive()) onLyricsFailed(error, lyricsUnavailableStatus(error))
+    }
+}
 
 fun coverArtPreloadUrls(
     queue: PlaybackQueue,

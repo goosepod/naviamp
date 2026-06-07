@@ -832,6 +832,14 @@ Progress notes:
   - `AndroidPlaylistEngine.kt` no longer calls `sidecarPrepPlan` for the current-track sidecar path or re-reads quality before each sidecar step.
   - `DesktopPlaylistEngine.kt` no longer performs parallel provider/quality/current-track validation before launching current-track sidecars.
   - Shared domain grew intentionally in `NowPlayingSidecars.kt` with a focused work DTO and planner.
+- Added shared `runCurrentTrackSidecars` so Android and Desktop use the same current-track sidecar execution sequence: active-session gate, optional audio prep, waveform prep, optional audio-tag prep, optional lyrics prep, and per-step failure callbacks.
+- Android and Desktop playlist engines now pass platform-specific lambdas into the shared runner instead of owning parallel waveform/tags/lyrics sequencing.
+- Platform playlist engines still own result application and platform-only behavior: Android state maps/logging/status rows, desktop current-audio cache call and ready callback.
+- Added common `NowPlayingSidecarsTest.kt` coverage for runner ordering, inactive skips, lyrics gating, and audio-prep aborts.
+- Size/reduction note for the current-track sidecar runner slice:
+  - `AndroidPlaylistEngine.kt` no longer owns the imperative waveform -> tags -> lyrics control flow; it supplies sidecar service calls and state appliers.
+  - `DesktopPlaylistEngine.kt` no longer owns its cache -> waveform -> lyrics sequence and dropped the local metadata-sidecar helper.
+  - Shared domain grew intentionally with one callback-based runner that keeps platform effects out of domain.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:

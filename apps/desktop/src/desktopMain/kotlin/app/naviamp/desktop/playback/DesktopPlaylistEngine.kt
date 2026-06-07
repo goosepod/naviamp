@@ -38,6 +38,7 @@ import app.naviamp.domain.playback.planAudioPrefetchWork
 import app.naviamp.domain.playback.playbackStreamUrl
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
 import app.naviamp.domain.playback.runAudioPrefetch
+import app.naviamp.domain.playback.runCurrentTrackSidecars
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import kotlinx.coroutines.CoroutineScope
@@ -361,37 +362,40 @@ class DesktopPlaylistEngine(
 
         currentTrackSidecarJob?.cancel()
         currentTrackSidecarJob = scope.launch {
-            runCatching {
-                audioCache.cacheAudioTrack(
-                    sourceId = sourceId,
-                    provider = work.provider,
-                    track = work.track,
-                    quality = work.quality,
-                )
-                if (activeSessionId == queueController.playbackSessionId) {
+            runCurrentTrackSidecars(
+                work = work,
+                isActive = { activeSessionId == queueController.playbackSessionId },
+                prepareAudio = { sidecarWork ->
+                    audioCache.cacheAudioTrack(
+                        sourceId = sourceId,
+                        provider = sidecarWork.provider,
+                        track = sidecarWork.track,
+                        quality = sidecarWork.quality,
+                    )
+                },
+                prepareWaveform = { sidecarWork ->
                     sidecars.prepareWaveform(
                         sourceId = sourceId,
-                        provider = work.provider,
-                        track = work.track,
-                        quality = work.quality,
-                        audioCachingEnabled = work.audioCachingEnabled,
+                        provider = sidecarWork.provider,
+                        track = sidecarWork.track,
+                        quality = sidecarWork.quality,
+                        audioCachingEnabled = sidecarWork.audioCachingEnabled,
                     )
-                    if (activeSessionId == queueController.playbackSessionId) {
-                        callbacks?.onCurrentTrackSidecarsReady(work.track)
-                    }
-                    if (work.loadLyrics) {
-                        runMetadataSidecars(
-                            sidecarService = sidecars,
-                            sourceId = sourceId,
-                            provider = work.provider,
-                            track = work.track,
-                            quality = work.quality,
-                            audioCachingEnabled = work.audioCachingEnabled,
-                            onlineLyricsEnabled = work.onlineLyricsEnabled,
-                        )
-                    }
-                }
-            }
+                },
+                prepareLyrics = { sidecarWork ->
+                    sidecars.prepareLyrics(
+                        sourceId = sourceId,
+                        provider = sidecarWork.provider,
+                        track = sidecarWork.track,
+                        quality = sidecarWork.quality,
+                        audioCachingEnabled = sidecarWork.audioCachingEnabled,
+                        onlineLyricsEnabled = sidecarWork.onlineLyricsEnabled,
+                    )
+                },
+                onWaveformReady = {
+                    callbacks?.onCurrentTrackSidecarsReady(work.track)
+                },
+            )
         }
     }
 
@@ -468,27 +472,6 @@ class DesktopPlaylistEngine(
             failed = waveformResult.failed + lyricsResult.failed,
             lastError = lyricsResult.lastError ?: waveformResult.lastError,
         )
-    }
-
-    private suspend fun runMetadataSidecars(
-        sidecarService: PlaybackSidecarService,
-        sourceId: String,
-        provider: MediaProvider,
-        track: Track,
-        quality: StreamQuality,
-        audioCachingEnabled: Boolean,
-        onlineLyricsEnabled: Boolean,
-    ) {
-        runCatching {
-            sidecarService.prepareLyrics(
-                sourceId = sourceId,
-                provider = provider,
-                track = track,
-                quality = quality,
-                audioCachingEnabled = audioCachingEnabled,
-                onlineLyricsEnabled = onlineLyricsEnabled,
-            )
-        }
     }
 
     private fun handlePlaybackState(

@@ -28,10 +28,9 @@ import app.naviamp.domain.playback.SidecarTypeWaveform
 import app.naviamp.domain.playback.currentTrackSidecarWork
 import app.naviamp.domain.playback.planAudioPrefetchWork
 import app.naviamp.domain.playback.recordSidecarFailure
-import app.naviamp.domain.playback.recordSidecarSuccess
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
 import app.naviamp.domain.playback.runAudioPrefetch
-import app.naviamp.domain.playback.lyricsUnavailableStatus
+import app.naviamp.domain.playback.runCurrentTrackSidecars
 import app.naviamp.domain.playback.waveformUnavailableStatus
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.waveform.AudioWaveformService
@@ -205,86 +204,87 @@ class AndroidPlaylistEngine(
             lyricsVisible = state.lyricsVisible,
         ) ?: return
         state.sidecarPrepJob = scope.launch {
-            val track = work.track
-            if (sessionToken != state.playbackSessionToken) return@launch
-            runCatching {
-                sidecarService.prepareWaveform(
-                    sourceId = work.sourceId,
-                    provider = work.provider,
-                    track = track,
-                    quality = work.quality,
-                    audioCachingEnabled = work.audioCachingEnabled,
-                )
-            }.onSuccess { waveform ->
-                if (waveform != null && sessionToken == state.playbackSessionToken) {
-                    state.waveformByTrackId = state.waveformByTrackId + (track.id.value to waveform)
-                    android.util.Log.i(
-                        "NaviampWaveform",
-                        "Waveform ready title=${track.title} buckets=${waveform.amplitudes.size}",
+            runCurrentTrackSidecars(
+                work = work,
+                isActive = { sessionToken == state.playbackSessionToken },
+                prepareWaveform = { sidecarWork ->
+                    sidecarService.prepareWaveform(
+                        sourceId = sidecarWork.sourceId,
+                        provider = sidecarWork.provider,
+                        track = sidecarWork.track,
+                        quality = sidecarWork.quality,
+                        audioCachingEnabled = sidecarWork.audioCachingEnabled,
                     )
-                } else if (sessionToken == state.playbackSessionToken) {
-                    android.util.Log.w("NaviampWaveform", "Waveform unavailable title=${track.title}")
-                }
-            }.onFailure { error ->
-                android.util.Log.w("NaviampWaveform", "Waveform failed title=${track.title}", error)
-                val sourceId = work.sourceId
-                if (sourceId != null) {
-                    sidecarStatusRepository.recordSidecarFailure(
-                        sourceId = sourceId,
-                        trackId = track.id,
-                        quality = work.quality,
-                        sidecarType = SidecarTypeWaveform,
-                        errorMessage = waveformUnavailableStatus(error),
+                },
+                prepareAudioTags = { sidecarWork ->
+                    audioMetadataSidecarService.audioTagsForTrack(
+                        sourceId = sidecarWork.sourceId,
+                        track = sidecarWork.track,
+                        quality = sidecarWork.quality,
+                        audioCachingEnabled = sidecarWork.audioCachingEnabled,
                     )
-                }
-            }
-            if (sessionToken != state.playbackSessionToken) return@launch
-            runCatching {
-                audioMetadataSidecarService.audioTagsForTrack(
-                    sourceId = work.sourceId,
-                    track = track,
-                    quality = work.quality,
-                    audioCachingEnabled = work.audioCachingEnabled,
-                )
-            }.onSuccess { tags ->
-                if (sessionToken == state.playbackSessionToken) {
-                    state.audioTagsByTrackId = state.audioTagsByTrackId + (track.id.value to tags)
-                }
-            }.onFailure {
-                if (sessionToken == state.playbackSessionToken) {
-                    state.audioTagsByTrackId = state.audioTagsByTrackId + (track.id.value to emptyList())
-                }
-            }
-            if (sessionToken != state.playbackSessionToken) return@launch
-            if (work.loadLyrics) {
-                runCatching {
+                },
+                prepareLyrics = { sidecarWork ->
                     sidecarService.prepareLyrics(
-                        sourceId = work.sourceId,
-                        provider = work.provider,
-                        track = track,
-                        quality = work.quality,
-                        audioCachingEnabled = work.audioCachingEnabled,
-                        onlineLyricsEnabled = work.onlineLyricsEnabled,
+                        sourceId = sidecarWork.sourceId,
+                        provider = sidecarWork.provider,
+                        track = sidecarWork.track,
+                        quality = sidecarWork.quality,
+                        audioCachingEnabled = sidecarWork.audioCachingEnabled,
+                        onlineLyricsEnabled = sidecarWork.onlineLyricsEnabled,
                     )
-                }.onSuccess { lyrics ->
-                    state.lyricsByTrackId = state.lyricsByTrackId + (track.id.value to lyrics)
-                    state.lyricsStatusByTrackId = state.lyricsStatusByTrackId + (track.id.value to null)
-                }.onFailure { error ->
-                    val message = lyricsUnavailableStatus(error)
-                    state.lyricsByTrackId = state.lyricsByTrackId + (track.id.value to null)
-                    state.lyricsStatusByTrackId = state.lyricsStatusByTrackId + (track.id.value to message)
+                },
+                onWaveformReady = { waveform ->
+                    if (waveform != null) {
+                        state.waveformByTrackId = state.waveformByTrackId + (work.track.id.value to waveform)
+                    }
+                    if (waveform != null) {
+                        android.util.Log.i(
+                            "NaviampWaveform",
+                            "Waveform ready title=${work.track.title} buckets=${waveform.amplitudes.size}",
+                        )
+                    } else {
+                        android.util.Log.w("NaviampWaveform", "Waveform unavailable title=${work.track.title}")
+                    }
+                },
+                onWaveformFailed = { error ->
+                    android.util.Log.w("NaviampWaveform", "Waveform failed title=${work.track.title}", error)
                     val sourceId = work.sourceId
                     if (sourceId != null) {
                         sidecarStatusRepository.recordSidecarFailure(
                             sourceId = sourceId,
-                            trackId = track.id,
+                            trackId = work.track.id,
+                            quality = work.quality,
+                            sidecarType = SidecarTypeWaveform,
+                            errorMessage = waveformUnavailableStatus(error),
+                        )
+                    }
+                },
+                onAudioTagsReady = { tags ->
+                    state.audioTagsByTrackId = state.audioTagsByTrackId + (work.track.id.value to tags)
+                },
+                onAudioTagsFailed = {
+                    state.audioTagsByTrackId = state.audioTagsByTrackId + (work.track.id.value to emptyList())
+                },
+                onLyricsReady = { lyrics ->
+                    state.lyricsByTrackId = state.lyricsByTrackId + (work.track.id.value to lyrics)
+                    state.lyricsStatusByTrackId = state.lyricsStatusByTrackId + (work.track.id.value to null)
+                },
+                onLyricsFailed = { _, message ->
+                    state.lyricsByTrackId = state.lyricsByTrackId + (work.track.id.value to null)
+                    state.lyricsStatusByTrackId = state.lyricsStatusByTrackId + (work.track.id.value to message)
+                    val sourceId = work.sourceId
+                    if (sourceId != null) {
+                        sidecarStatusRepository.recordSidecarFailure(
+                            sourceId = sourceId,
+                            trackId = work.track.id,
                             quality = work.quality,
                             sidecarType = SidecarTypeLyrics,
                             errorMessage = message,
                         )
                     }
-                }
-            }
+                },
+            )
         }
     }
 
