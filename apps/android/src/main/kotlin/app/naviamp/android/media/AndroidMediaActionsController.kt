@@ -20,8 +20,7 @@ import app.naviamp.domain.media.selectedTrackPlayback
 import app.naviamp.domain.media.withUpdatedAlbum
 import app.naviamp.domain.media.withUpdatedArtist
 import app.naviamp.domain.playback.PlaybackQueueController
-import app.naviamp.domain.provider.addToPlaylistMutationUpdate
-import app.naviamp.domain.provider.createPlaylistOrAddTracks
+import app.naviamp.domain.provider.addTracksToPlaylistAndRefresh
 import app.naviamp.domain.provider.queueAppendPlan
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.ui.SharedTrackRowUi
@@ -373,24 +372,18 @@ fun addAndroidTracksToPlaylist(
     scope.launch {
         with(state) {
             runCatching {
-                val result = activeProvider.createPlaylistOrAddTracks(
+                activeProvider.addTracksToPlaylistAndRefresh(
                     playlistId = playlist?.id,
+                    playlistName = playlist?.name,
                     newPlaylistName = newPlaylistName,
                     tracks = uniqueTracks,
+                    providerResponseService = providerResponseService,
                 )
-                val update = addToPlaylistMutationUpdate(result, playlist?.name)
-                val playlists = if (update.refreshPlaylists) {
-                    providerResponseService?.invalidatePlaylistResponses(activeProvider, playlist?.id)
-                    providerResponseService?.playlists(activeProvider, limit = 500)
-                        ?: activeProvider.playlists(limit = 500)
-                } else {
-                    null
-                }
-                update to playlists
-            }.onSuccess { (update, playlists) ->
-                if (playlists != null) {
+            }.onSuccess { refresh ->
+                refresh.playlists?.let { playlists ->
                     homeState = homeState.copy(playlists = playlists)
                 }
+                val update = refresh.update
                 playlistActionStatus = update.addToPlaylistStatus
                 update.connectionStatus?.let { status = it }
                     ?: update.addToPlaylistStatus?.let { status = it }

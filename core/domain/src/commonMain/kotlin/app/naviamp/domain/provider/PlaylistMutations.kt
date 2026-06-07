@@ -29,6 +29,11 @@ data class AddToPlaylistMutationUpdate(
     val refreshPlaylists: Boolean,
 )
 
+data class AddToPlaylistRefresh(
+    val update: AddToPlaylistMutationUpdate,
+    val playlists: List<Playlist>?,
+)
+
 data class PlaylistDetailsRefresh(
     val playlists: List<Playlist>,
     val displayPlaylist: Playlist,
@@ -240,6 +245,34 @@ suspend fun MediaProvider.createPlaylistOrAddTracks(
         newPlaylistName = newPlaylistName,
         trackIds = tracks.map { it.id }.distinct(),
     )
+
+suspend fun MediaProvider.addTracksToPlaylistAndRefresh(
+    playlistId: String?,
+    playlistName: String?,
+    newPlaylistName: String?,
+    tracks: List<Track>,
+    providerResponseService: ProviderResponseService? = null,
+    playlistLimit: Int = 500,
+): AddToPlaylistRefresh {
+    val result = createPlaylistOrAddTracks(
+        playlistId = playlistId,
+        newPlaylistName = newPlaylistName,
+        tracks = tracks.distinctBy { it.id },
+    )
+    val update = addToPlaylistMutationUpdate(result, playlistName)
+    val playlists = if (update.refreshPlaylists) {
+        if (playlistId != null) {
+            providerResponseService?.invalidatePlaylistResponses(this, playlistId)
+        } else {
+            providerResponseService?.invalidatePlaylists(this)
+        }
+        providerResponseService?.playlists(this, limit = playlistLimit)
+            ?: playlists(limit = playlistLimit)
+    } else {
+        null
+    }
+    return AddToPlaylistRefresh(update = update, playlists = playlists)
+}
 
 suspend fun MediaProvider.createQueuePlaylist(
     name: String,

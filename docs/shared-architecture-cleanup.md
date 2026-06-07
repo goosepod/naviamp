@@ -670,7 +670,12 @@ Progress notes:
 - Android now adapts `AndroidAppState` into shared lookup sources instead of owning track lookup and playback-context rules.
 - Desktop metadata lookup now uses `knownTracksForMediaActions` instead of hand-building its own queue/album/search/related list.
 - Added `TrackMediaActionsTest.kt` coverage for shared lookup order, playback-context selection, and known-track fallback behavior.
-- Remaining work in this slice: reduce the platform controllers further by extracting other media action orchestration beyond metadata mutation and lookup composition.
+- Added shared `addTracksToPlaylistAndRefresh` in `PlaylistMutations.kt` so add-to-playlist provider mutation, deduplication, status/update selection, cache invalidation, and refreshed playlist loading use one call path.
+- Android media actions now apply the shared add-to-playlist result instead of owning provider mutation and refresh decisions.
+- Desktop add-to-playlist orchestration was in `DesktopPlaylistsController.kt`; it now resolves target tracks as a platform/UI adapter step and delegates mutation/refresh to the shared path.
+- Removed the duplicated desktop `addTargetTracksToPlaylist` mutation helper.
+- Added `PlaylistMutationsTest.kt` coverage for creating a playlist through the shared add-to-playlist path and adding missing tracks to an existing playlist.
+- Remaining work in this slice: reduce platform controllers further by extracting queue append application and small track-action status wrappers where that can be done without hiding real platform state updates.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:

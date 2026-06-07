@@ -368,6 +368,61 @@ class PlaylistMutationsTest {
         assertEquals(listOf(existingPlaylist, playlist("created", "Queue Mix").copy(trackCount = 1)), refresh.playlists)
     }
 
+    @Test
+    fun addTracksToPlaylistAndRefreshCreatesPlaylistAndReturnsSharedUpdate() = kotlinx.coroutines.test.runTest {
+        val existingPlaylist = playlist("existing", "Existing")
+        val provider = FakePlaylistProvider(playlists = listOf(existingPlaylist), playlistTracks = emptyList())
+
+        val refresh = provider.addTracksToPlaylistAndRefresh(
+            playlistId = null,
+            playlistName = null,
+            newPlaylistName = "New Mix",
+            tracks = listOf(track("one"), track("one")),
+        )
+
+        assertEquals("New Mix", provider.createdPlaylistName)
+        assertEquals(listOf(TrackId("one")), provider.createdPlaylistTrackIds)
+        assertEquals(
+            AddToPlaylistMutationUpdate(
+                closeDialog = true,
+                addToPlaylistStatus = null,
+                connectionStatus = "Added 1 track to playlist.",
+                refreshPlaylists = true,
+            ),
+            refresh.update,
+        )
+        assertEquals(listOf(existingPlaylist, playlist("created", "New Mix").copy(trackCount = 1)), refresh.playlists)
+    }
+
+    @Test
+    fun addTracksToPlaylistAndRefreshAddsMissingTracksToExistingPlaylist() = kotlinx.coroutines.test.runTest {
+        val existingPlaylist = playlist("existing", "Existing")
+        val provider = FakePlaylistProvider(
+            playlists = listOf(existingPlaylist),
+            playlistTracks = listOf(track("one")),
+        )
+
+        val refresh = provider.addTracksToPlaylistAndRefresh(
+            playlistId = existingPlaylist.id,
+            playlistName = existingPlaylist.name,
+            newPlaylistName = null,
+            tracks = listOf(track("one"), track("two")),
+        )
+
+        assertEquals(existingPlaylist.id, provider.addedPlaylistId)
+        assertEquals(listOf(TrackId("two")), provider.addedTrackIds)
+        assertEquals(
+            AddToPlaylistMutationUpdate(
+                closeDialog = true,
+                addToPlaylistStatus = null,
+                connectionStatus = "Added 1 track to playlist.",
+                refreshPlaylists = true,
+            ),
+            refresh.update,
+        )
+        assertEquals(listOf(existingPlaylist), refresh.playlists)
+    }
+
     private fun playlist(id: String, name: String): Playlist =
         Playlist(
             id = id,
@@ -434,11 +489,20 @@ class PlaylistMutationsTest {
             private set
         var createdPlaylistTrackIds: List<TrackId> = emptyList()
             private set
+        var addedPlaylistId: String? = null
+            private set
+        var addedTrackIds: List<TrackId> = emptyList()
+            private set
 
         override suspend fun createPlaylist(name: String, trackIds: List<TrackId>): Playlist {
             createdPlaylistName = name
             createdPlaylistTrackIds = trackIds
             return Playlist(id = "created", name = name, trackCount = trackIds.size)
+        }
+
+        override suspend fun addTracksToPlaylist(playlistId: String, trackIds: List<TrackId>) {
+            addedPlaylistId = playlistId
+            addedTrackIds = trackIds
         }
 
         override suspend fun streamUrl(request: StreamRequest): String =
