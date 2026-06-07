@@ -14,6 +14,7 @@ import app.naviamp.domain.playback.VisualizerBandCount
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.BassPlaybackCleanupReset
 import app.naviamp.domain.playback.PreparedPlaybackMetadataReset
+import app.naviamp.domain.playback.PreparedBassPlaybackStateUpdate
 import app.naviamp.domain.playback.PlaybackStreamStateReset
 import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.adoptPreparedBassSource
@@ -38,7 +39,6 @@ import app.naviamp.domain.playback.BassPlaybackPollingState
 import app.naviamp.domain.playback.BassPlaybackPollingPolicy
 import app.naviamp.domain.playback.clearBassPlaybackCleanupState
 import app.naviamp.domain.playback.clearPreparedPlaybackMetadata
-import app.naviamp.domain.playback.failedPreparedPlaybackMetadata
 import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
 import app.naviamp.domain.playback.PreparedBassPlaybackPlan
 import app.naviamp.domain.playback.planBassPlaybackPollingUpdate
@@ -48,6 +48,9 @@ import app.naviamp.domain.playback.playbackSourceHandle
 import app.naviamp.domain.playback.playbackReplayGainAdjustment
 import app.naviamp.domain.playback.playbackStartSeekPosition
 import app.naviamp.domain.playback.playbackUserVolumeFactor
+import app.naviamp.domain.playback.preparedBassPlaybackAdopted
+import app.naviamp.domain.playback.preparedBassPlaybackFailed
+import app.naviamp.domain.playback.preparedBassPlaybackSucceeded
 import app.naviamp.domain.playback.shouldUseBassMixerPlayback
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -265,38 +268,41 @@ class DesktopBassPlaybackEngine(
             ensureInitialized(bass)
             when (plan) {
                 is PreparedBassPlaybackPlan.PrepareMixer -> {
-                val adjustment = replayGainAdjustment(request)
-                val localFile = localFileFromUrl(request.url)
-                val prepared = bass.prepareNextBassMixerSource(
-                    localPath = localFile?.absolutePath,
-                    url = request.url,
-                    mixer = stream,
-                    currentSource = currentSourceStream,
-                    currentSourceVolumeFactor = currentReplayGainAdjustment.volumeFactor,
-                    crossfadeDurationSeconds = crossfadeDurationSeconds,
-                    replayGainFactor = plan.replayGainFactor,
-                    playbackDecode = true,
-                ).getOrThrow()
-                crossfadeActive = prepared.crossfadeActive
-                attachEndSync(bass, prepared.sourceHandle, playbackId)
-                preparedReplayGainAdjustment = adjustment
-                prepared.sourceHandle
+                    val localFile = localFileFromUrl(request.url)
+                    val prepared = bass.prepareNextBassMixerSource(
+                        localPath = localFile?.absolutePath,
+                        url = request.url,
+                        mixer = stream,
+                        currentSource = currentSourceStream,
+                        currentSourceVolumeFactor = currentReplayGainAdjustment.volumeFactor,
+                        crossfadeDurationSeconds = crossfadeDurationSeconds,
+                        replayGainFactor = plan.replayGainFactor,
+                        playbackDecode = true,
+                    ).getOrThrow()
+                    crossfadeActive = prepared.crossfadeActive
+                    attachEndSync(bass, prepared.sourceHandle, playbackId)
+                    preparedBassPlaybackSucceeded(
+                        preparedHandle = prepared.sourceHandle,
+                        request = request,
+                        replayGainAdjustment = plan.replayGainAdjustment,
+                    )
                 }
                 is PreparedBassPlaybackPlan.PrepareDirect -> {
-                createPlayback(bass, request, useMixer = false).getOrThrow().playbackHandle.also {
-                    preparedReplayGainAdjustment = replayGainAdjustment(request)
-                }
+                    val handle = createPlayback(bass, request, useMixer = false).getOrThrow().playbackHandle
+                    preparedBassPlaybackSucceeded(
+                        preparedHandle = handle,
+                        request = request,
+                        replayGainAdjustment = plan.replayGainAdjustment,
+                    )
                 }
                 PreparedBassPlaybackPlan.NotSupported,
                 PreparedBassPlaybackPlan.ReusePrepared,
                 -> error("Unsupported prepared playback plan: $plan")
             }
-        }.onSuccess { handle ->
-            preparedStream = handle
-            preparedRequest = request
-            preparedError = null
+        }.onSuccess { update ->
+            applyPreparedUpdate(update)
         }.onFailure { error ->
-            applyPreparedReset(failedPreparedPlaybackMetadata(error))
+            applyPreparedUpdate(preparedBassPlaybackFailed(error))
             lastError = preparedError
         }
     }
@@ -389,25 +395,27 @@ class DesktopBassPlaybackEngine(
             supportsMixer = bass.supportsMixer,
             request = request,
         )
-        if (!plan.shouldAdopt) return false
-        val queuedSource = plan.preparedHandle
+        val update = preparedBassPlaybackAdopted(
+            adoption = plan,
+            replayGainAdjustment = preparedReplayGainAdjustment ?: PlaybackReplayGainAdjustment.off(),
+        ) ?: return false
+        val queuedSource = update.currentSourceHandle
         job?.cancel()
         job = null
         val currentPlaybackId = nextPlaybackId()
-        val adjustment = preparedReplayGainAdjustment ?: PlaybackReplayGainAdjustment.off()
         bass.adoptPreparedBassSource(
             playbackHandle = stream,
             currentSourceHandle = currentSourceStream,
             nextSourceHandle = queuedSource,
             userVolumeFactor = outputVolumeFactor(),
-            replayGainFactor = adjustment.volumeFactor,
+            replayGainFactor = update.replayGainFactor,
         ).forEach { result -> result.onFailure { lastError = it.message } }
-        currentSourceStream = queuedSource
-        currentReplayGainAdjustment = adjustment
+        currentSourceStream = update.currentSourceHandle
+        currentReplayGainAdjustment = update.replayGainAdjustment
         applyEqualizer(bass)
         crossfadeActive = false
         attachEndSync(bass, queuedSource, currentPlaybackId, onStateChanged)
-        applyPreparedReset(clearPreparedPlaybackMetadata())
+        applyPreparedReset(update.preparedReset)
         onProgressChanged(PlaybackProgress.Unknown)
         onStateChanged(PlaybackState.Playing)
         job = scope.launch(Dispatchers.IO) {
@@ -560,6 +568,13 @@ class DesktopBassPlaybackEngine(
         preparedRequest = reset.request
         preparedReplayGainAdjustment = reset.replayGainAdjustment
         preparedError = reset.error
+    }
+
+    private fun applyPreparedUpdate(update: PreparedBassPlaybackStateUpdate) {
+        preparedStream = update.preparedHandle
+        preparedRequest = update.preparedRequest
+        preparedReplayGainAdjustment = update.replayGainAdjustment
+        preparedError = update.error
     }
 
     private fun freeCreatedPlayback(

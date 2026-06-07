@@ -762,6 +762,14 @@ Progress notes:
   - `AndroidBassPlaybackEngine.kt` lost its local reuse/can-prepare/adoption gate branching and now applies shared prepare/adopt plans.
   - `DesktopBassPlaybackEngine.kt` lost parallel reuse/can-prepare/adoption gate branching while preserving its direct fallback behavior.
   - Shared domain grew intentionally with a small planner that composes existing transition/replay-gain helpers.
+- Extended `PreparedBassPlaybackPlan` to carry the full replay-gain adjustment, not just the volume factor.
+- Added shared prepared-BASS state updates for prepare success, prepare failure, and prepared-source adoption.
+- Android and Desktop BASS engines still own native prepared stream creation/adoption calls, but prepared result/error/adoption state assignment now flows through shared update models.
+- Added common `PreparedBassPlaybackPlannerTest.kt` coverage for prepared success, failure, and adoption update contracts.
+- Size/reduction note for the prepared-BASS state slice:
+  - `AndroidBassPlaybackEngine.kt` no longer hand-builds prepared success/failure/adoption state after native calls.
+  - `DesktopBassPlaybackEngine.kt` no longer recomputes prepared replay-gain adjustment in `prepareNext` or hand-builds prepared success/failure/adoption state.
+  - Shared domain grew intentionally in `PreparedBassPlaybackPlanner.kt` with small result DTOs and helper functions.
 - Added shared `BassPlaybackPollingState` and `planBassPlaybackPollingUpdate` to reduce duplicated BASS snapshot interpretation.
 - Android and Desktop BASS polling loops now share active-state, progress, metadata, continue/stop, and optional source-end finish decisions.
 - Platform BASS engines still own coroutine loops, polling interval, logging, end-sync callbacks, notification/wake-lock side effects, and stream cleanup.

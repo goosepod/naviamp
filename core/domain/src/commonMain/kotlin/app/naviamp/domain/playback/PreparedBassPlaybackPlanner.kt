@@ -6,16 +6,33 @@ sealed interface PreparedBassPlaybackPlan {
 
     data class PrepareMixer(
         val replayGainFactor: Float,
+        val replayGainAdjustment: PlaybackReplayGainAdjustment,
     ) : PreparedBassPlaybackPlan
 
     data class PrepareDirect(
         val replayGainFactor: Float,
+        val replayGainAdjustment: PlaybackReplayGainAdjustment,
     ) : PreparedBassPlaybackPlan
 }
 
 data class PreparedBassPlaybackAdoption(
     val shouldAdopt: Boolean,
     val preparedHandle: Int,
+)
+
+data class PreparedBassPlaybackStateUpdate(
+    val preparedHandle: Int,
+    val preparedRequest: PlaybackRequest?,
+    val replayGainAdjustment: PlaybackReplayGainAdjustment?,
+    val replayGainFactor: Float,
+    val error: String?,
+)
+
+data class PreparedBassPlaybackAdoptionUpdate(
+    val currentSourceHandle: Int,
+    val replayGainAdjustment: PlaybackReplayGainAdjustment,
+    val replayGainFactor: Float,
+    val preparedReset: PreparedPlaybackMetadataReset,
 )
 
 fun planPreparedBassPlayback(
@@ -30,14 +47,21 @@ fun planPreparedBassPlayback(
     if (shouldReusePreparedPlayback(preparedRequest, preparedHandle != 0, request)) {
         return PreparedBassPlaybackPlan.ReusePrepared
     }
-    val replayGainFactor = playbackReplayGainFactor(request)
+    val replayGainAdjustment = playbackReplayGainAdjustment(request)
+    val replayGainFactor = replayGainAdjustment.volumeFactor
     return when {
         canPrepareBassMixerSource(
             playbackHandle = playbackHandle,
             currentSourceHandle = currentSourceHandle,
             supportsMixer = supportsMixer,
-        ) -> PreparedBassPlaybackPlan.PrepareMixer(replayGainFactor)
-        allowDirectFallback -> PreparedBassPlaybackPlan.PrepareDirect(replayGainFactor)
+        ) -> PreparedBassPlaybackPlan.PrepareMixer(
+            replayGainFactor = replayGainFactor,
+            replayGainAdjustment = replayGainAdjustment,
+        )
+        allowDirectFallback -> PreparedBassPlaybackPlan.PrepareDirect(
+            replayGainFactor = replayGainFactor,
+            replayGainAdjustment = replayGainAdjustment,
+        )
         else -> PreparedBassPlaybackPlan.NotSupported
     }
 }
@@ -61,3 +85,53 @@ fun planPreparedBassPlaybackAdoption(
         preparedHandle = preparedHandle,
     )
 }
+
+fun preparedBassPlaybackSucceeded(
+    preparedHandle: Int,
+    request: PlaybackRequest,
+    replayGainAdjustment: PlaybackReplayGainAdjustment,
+): PreparedBassPlaybackStateUpdate =
+    PreparedBassPlaybackStateUpdate(
+        preparedHandle = preparedHandle,
+        preparedRequest = request,
+        replayGainAdjustment = replayGainAdjustment,
+        replayGainFactor = replayGainAdjustment.volumeFactor,
+        error = null,
+    )
+
+fun preparedBassPlaybackFailed(error: Throwable): PreparedBassPlaybackStateUpdate {
+    val reset = failedPreparedPlaybackMetadata(error)
+    return PreparedBassPlaybackStateUpdate(
+        preparedHandle = 0,
+        preparedRequest = reset.request,
+        replayGainAdjustment = reset.replayGainAdjustment,
+        replayGainFactor = reset.replayGainFactor,
+        error = reset.error,
+    )
+}
+
+fun preparedBassPlaybackAdopted(
+    adoption: PreparedBassPlaybackAdoption,
+    replayGainAdjustment: PlaybackReplayGainAdjustment,
+): PreparedBassPlaybackAdoptionUpdate? =
+    if (adoption.shouldAdopt) {
+        PreparedBassPlaybackAdoptionUpdate(
+            currentSourceHandle = adoption.preparedHandle,
+            replayGainAdjustment = replayGainAdjustment,
+            replayGainFactor = replayGainAdjustment.volumeFactor,
+            preparedReset = clearPreparedPlaybackMetadata(),
+        )
+    } else {
+        null
+    }
+
+fun preparedBassPlaybackAdopted(
+    adoption: PreparedBassPlaybackAdoption,
+    replayGainFactor: Float,
+): PreparedBassPlaybackAdoptionUpdate? =
+    preparedBassPlaybackAdopted(
+        adoption = adoption,
+        replayGainAdjustment = PlaybackReplayGainAdjustment.off().copy(
+            volumeFactor = replayGainFactor,
+        ),
+    )

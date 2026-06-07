@@ -5,6 +5,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class PreparedBassPlaybackPlannerTest {
@@ -39,6 +40,7 @@ class PreparedBassPlaybackPlannerTest {
 
         val mixer = assertIs<PreparedBassPlaybackPlan.PrepareMixer>(plan)
         assertEquals(1f, mixer.replayGainFactor)
+        assertEquals(ReplayGainMode.Off, mixer.replayGainAdjustment.mode)
     }
 
     @Test
@@ -96,6 +98,7 @@ class PreparedBassPlaybackPlannerTest {
         )
 
         assertEquals(0.5011872f, plan.replayGainFactor, absoluteTolerance = 0.000001f)
+        assertEquals(0.5011872f, plan.replayGainAdjustment.volumeFactor, absoluteTolerance = 0.000001f)
     }
 
     @Test
@@ -120,6 +123,57 @@ class PreparedBassPlaybackPlannerTest {
         assertTrue(adopt.shouldAdopt)
         assertEquals(3, adopt.preparedHandle)
         assertFalse(skip.shouldAdopt)
+    }
+
+    @Test
+    fun buildsPreparedSuccessAndFailureStateUpdates() {
+        val request = request("one")
+        val adjustment = PlaybackReplayGainAdjustment.off().copy(volumeFactor = 0.5f)
+
+        val success = preparedBassPlaybackSucceeded(
+            preparedHandle = 8,
+            request = request,
+            replayGainAdjustment = adjustment,
+        )
+        val failure = preparedBassPlaybackFailed(IllegalStateException("No stream"))
+
+        assertEquals(8, success.preparedHandle)
+        assertEquals(request, success.preparedRequest)
+        assertEquals(adjustment, success.replayGainAdjustment)
+        assertEquals(0.5f, success.replayGainFactor)
+        assertNull(success.error)
+        assertEquals(0, failure.preparedHandle)
+        assertNull(failure.preparedRequest)
+        assertNull(failure.replayGainAdjustment)
+        assertEquals(1f, failure.replayGainFactor)
+        assertEquals("No stream", failure.error)
+    }
+
+    @Test
+    fun buildsPreparedAdoptionUpdateAndClearsPreparedState() {
+        val update = preparedBassPlaybackAdopted(
+            adoption = PreparedBassPlaybackAdoption(
+                shouldAdopt = true,
+                preparedHandle = 7,
+            ),
+            replayGainFactor = 0.75f,
+        )
+
+        requireNotNull(update)
+        assertEquals(7, update.currentSourceHandle)
+        assertEquals(0.75f, update.replayGainFactor)
+        assertEquals(0.75f, update.replayGainAdjustment.volumeFactor)
+        assertNull(update.preparedReset.request)
+        assertEquals(1f, update.preparedReset.replayGainFactor)
+        assertNull(
+            preparedBassPlaybackAdopted(
+                adoption = PreparedBassPlaybackAdoption(
+                    shouldAdopt = false,
+                    preparedHandle = 7,
+                ),
+                replayGainFactor = 0.75f,
+            ),
+        )
     }
 
     private fun request(
