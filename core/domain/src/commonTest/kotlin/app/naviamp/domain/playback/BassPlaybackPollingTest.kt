@@ -10,6 +10,48 @@ import kotlin.test.assertTrue
 
 class BassPlaybackPollingTest {
     @Test
+    fun androidServicePolicyEmitsDuplicateProgressAndFinishesOnSourceEnd() {
+        val progress = PlaybackProgress(positionSeconds = 9.5, durationSeconds = 10.0)
+        val update = planBassPlaybackPollingUpdate(
+            snapshot = snapshot(
+                activeState = BassActiveState.Playing,
+                sourceActiveState = BassActiveState.Stopped,
+                progress = progress,
+            ),
+            previous = BassPlaybackPollingState(
+                lastProgress = progress,
+                lastActiveState = BassActiveState.Playing,
+            ),
+            policy = BassPlaybackPollingPolicy.AndroidService,
+        )
+
+        assertEquals(100L, BassPlaybackPollingPolicy.AndroidService.pollIntervalMillis)
+        assertEquals(progress, update.progress)
+        assertTrue(update.finished)
+        assertFalse(update.shouldContinue)
+        assertFalse(BassPlaybackPollingPolicy.AndroidService.finishWhenPollingStops)
+    }
+
+    @Test
+    fun desktopPolicySkipsDuplicateProgressAndFinishesWhenPollingStops() {
+        val progress = PlaybackProgress(positionSeconds = 3.0, durationSeconds = 10.0)
+        val update = planBassPlaybackPollingUpdate(
+            snapshot = snapshot(activeState = BassActiveState.Playing, progress = progress),
+            previous = BassPlaybackPollingState(
+                lastProgress = progress,
+                lastActiveState = BassActiveState.Playing,
+            ),
+            policy = BassPlaybackPollingPolicy.DesktopEngine,
+        )
+
+        assertEquals(250L, BassPlaybackPollingPolicy.DesktopEngine.pollIntervalMillis)
+        assertNull(update.progress)
+        assertFalse(update.finished)
+        assertTrue(update.shouldContinue)
+        assertTrue(BassPlaybackPollingPolicy.DesktopEngine.finishWhenPollingStops)
+    }
+
+    @Test
     fun emitsChangedActiveStateProgressAndMetadata() {
         val metadata = PlaybackStreamMetadata(title = "Live title")
         val update = planBassPlaybackPollingUpdate(

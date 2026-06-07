@@ -35,6 +35,7 @@ import app.naviamp.domain.bass.setEndSync
 import app.naviamp.domain.bass.stopAndReleaseBassPlayback
 import app.naviamp.domain.playback.bassPlaybackFeatureSupport
 import app.naviamp.domain.playback.BassPlaybackPollingState
+import app.naviamp.domain.playback.BassPlaybackPollingPolicy
 import app.naviamp.domain.playback.clearBassPlaybackCleanupState
 import app.naviamp.domain.playback.clearPreparedPlaybackMetadata
 import app.naviamp.domain.playback.failedPreparedPlaybackMetadata
@@ -161,8 +162,7 @@ class DesktopBassPlaybackEngine(
                     val update = planBassPlaybackPollingUpdate(
                         snapshot = snapshot,
                         previous = pollingState,
-                        emitDuplicateProgress = false,
-                        finishOnSourceEnd = false,
+                        policy = BassPlaybackPollingPolicy.DesktopEngine,
                     )
                     pollingState = update.state
                     update.playbackState?.let(onStateChanged)
@@ -171,10 +171,10 @@ class DesktopBassPlaybackEngine(
                     if (!update.shouldContinue) {
                         break
                     }
-                    delay(PlaybackStatusPollIntervalMillis)
+                    delay(BassPlaybackPollingPolicy.DesktopEngine.pollIntervalMillis)
                 }
 
-                if (isCurrentPlayback(currentPlaybackId)) {
+                if (BassPlaybackPollingPolicy.DesktopEngine.finishWhenPollingStops && isCurrentPlayback(currentPlaybackId)) {
                     onStateChanged(PlaybackState.Finished)
                 }
             } catch (exception: Throwable) {
@@ -418,8 +418,7 @@ class DesktopBassPlaybackEngine(
                     val update = planBassPlaybackPollingUpdate(
                         snapshot = snapshot,
                         previous = pollingState,
-                        emitDuplicateProgress = false,
-                        finishOnSourceEnd = false,
+                        policy = BassPlaybackPollingPolicy.DesktopEngine,
                     )
                     pollingState = update.state
                     update.playbackState?.let(onStateChanged)
@@ -428,10 +427,10 @@ class DesktopBassPlaybackEngine(
                     if (!update.shouldContinue) {
                         break
                     }
-                    delay(PlaybackStatusPollIntervalMillis)
+                    delay(BassPlaybackPollingPolicy.DesktopEngine.pollIntervalMillis)
                 }
 
-                if (isCurrentPlayback(currentPlaybackId)) {
+                if (BassPlaybackPollingPolicy.DesktopEngine.finishWhenPollingStops && isCurrentPlayback(currentPlaybackId)) {
                     onStateChanged(PlaybackState.Finished)
                 }
             } catch (exception: Throwable) {
@@ -616,5 +615,3 @@ private fun Double.formatPeak(): String =
 
 private fun EqualizerSettings.bandsForBackend(): List<Float> =
     if (enabled) bandsDb else emptyList()
-
-private const val PlaybackStatusPollIntervalMillis = 250L

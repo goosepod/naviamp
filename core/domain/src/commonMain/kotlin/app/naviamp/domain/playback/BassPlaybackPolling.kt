@@ -8,6 +8,31 @@ data class BassPlaybackPollingState(
     val lastActiveState: Int? = null,
 )
 
+data class BassPlaybackPollingPolicy(
+    val pollIntervalMillis: Long,
+    val emitDuplicateProgress: Boolean,
+    val finishOnSourceEnd: Boolean,
+    val finishWhenPollingStops: Boolean,
+) {
+    companion object {
+        val AndroidService: BassPlaybackPollingPolicy =
+            BassPlaybackPollingPolicy(
+                pollIntervalMillis = DefaultAndroidBassPollingIntervalMillis,
+                emitDuplicateProgress = true,
+                finishOnSourceEnd = true,
+                finishWhenPollingStops = false,
+            )
+
+        val DesktopEngine: BassPlaybackPollingPolicy =
+            BassPlaybackPollingPolicy(
+                pollIntervalMillis = DefaultDesktopBassPollingIntervalMillis,
+                emitDuplicateProgress = false,
+                finishOnSourceEnd = false,
+                finishWhenPollingStops = true,
+            )
+    }
+}
+
 data class BassPlaybackPollingUpdate(
     val state: BassPlaybackPollingState,
     val activeStateChanged: Boolean,
@@ -21,13 +46,12 @@ data class BassPlaybackPollingUpdate(
 fun planBassPlaybackPollingUpdate(
     snapshot: BassPlaybackSnapshot,
     previous: BassPlaybackPollingState,
-    emitDuplicateProgress: Boolean,
-    finishOnSourceEnd: Boolean,
+    policy: BassPlaybackPollingPolicy,
 ): BassPlaybackPollingUpdate {
     val activeStateChanged = snapshot.activeState != previous.lastActiveState
     val progressChanged = snapshot.progress != previous.lastProgress
     val metadataChanged = snapshot.metadata != previous.lastMetadata
-    val finished = finishOnSourceEnd &&
+    val finished = policy.finishOnSourceEnd &&
         shouldFinishPlaybackForBassState(
             activeState = snapshot.activeState,
             progress = snapshot.progress,
@@ -42,15 +66,36 @@ fun planBassPlaybackPollingUpdate(
     }
     return BassPlaybackPollingUpdate(
         state = BassPlaybackPollingState(
-            lastProgress = if (progressChanged || emitDuplicateProgress) snapshot.progress else previous.lastProgress,
+            lastProgress = if (progressChanged || policy.emitDuplicateProgress) snapshot.progress else previous.lastProgress,
             lastMetadata = if (metadataChanged) snapshot.metadata else previous.lastMetadata,
             lastActiveState = if (activeStateChanged) snapshot.activeState else previous.lastActiveState,
         ),
         activeStateChanged = activeStateChanged,
-        progress = snapshot.progress.takeIf { progressChanged || emitDuplicateProgress },
+        progress = snapshot.progress.takeIf { progressChanged || policy.emitDuplicateProgress },
         metadata = snapshot.metadata.takeIf { metadataChanged },
         playbackState = playbackState,
         finished = finished,
         shouldContinue = !finished && shouldContinueBassPlaybackPolling(snapshot.activeState),
     )
 }
+
+fun planBassPlaybackPollingUpdate(
+    snapshot: BassPlaybackSnapshot,
+    previous: BassPlaybackPollingState,
+    emitDuplicateProgress: Boolean,
+    finishOnSourceEnd: Boolean,
+): BassPlaybackPollingUpdate =
+    planBassPlaybackPollingUpdate(
+        snapshot = snapshot,
+        previous = previous,
+        policy = BassPlaybackPollingPolicy(
+            pollIntervalMillis = DefaultBassPollingIntervalMillis,
+            emitDuplicateProgress = emitDuplicateProgress,
+            finishOnSourceEnd = finishOnSourceEnd,
+            finishWhenPollingStops = false,
+        ),
+    )
+
+const val DefaultBassPollingIntervalMillis = 250L
+const val DefaultAndroidBassPollingIntervalMillis = 100L
+const val DefaultDesktopBassPollingIntervalMillis = 250L

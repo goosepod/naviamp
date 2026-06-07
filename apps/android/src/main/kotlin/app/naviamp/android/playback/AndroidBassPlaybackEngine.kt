@@ -38,6 +38,7 @@ import app.naviamp.domain.playback.EqualizerSettings
 import app.naviamp.domain.playback.VisualizerBandCount
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.BassPlaybackPollingState
+import app.naviamp.domain.playback.BassPlaybackPollingPolicy
 import app.naviamp.domain.playback.BassPlaybackCleanupReset
 import app.naviamp.domain.playback.PreparedPlaybackMetadataReset
 import app.naviamp.domain.playback.clearBassPlaybackCleanupState
@@ -430,8 +431,7 @@ class AndroidBassPlaybackEngine(
                 val update = planBassPlaybackPollingUpdate(
                     snapshot = snapshot,
                     previous = pollingState,
-                    emitDuplicateProgress = true,
-                    finishOnSourceEnd = true,
+                    policy = BassPlaybackPollingPolicy.AndroidService,
                 )
                 pollingState = update.state
                 if (update.activeStateChanged) {
@@ -457,7 +457,7 @@ class AndroidBassPlaybackEngine(
                 if (!update.shouldContinue) {
                     return@launch
                 }
-                delay(100)
+                delay(BassPlaybackPollingPolicy.AndroidService.pollIntervalMillis)
             }
         }
     }

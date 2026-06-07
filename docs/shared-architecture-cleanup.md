@@ -778,6 +778,13 @@ Progress notes:
   - `AndroidBassPlaybackEngine.kt` removed duplicated prepared/full cleanup field assignments in stop, prepared adoption, prepare failure, and free-prepared paths.
   - `DesktopBassPlaybackEngine.kt` removed duplicated prepared/full cleanup field assignments in polling finally, stop, prepared adoption, prepare failure, and free-prepared paths.
   - Shared domain grew intentionally by one small reset DTO/function in `PlaybackTransitions.kt`, keeping native release behavior platform-owned.
+- Added shared `BassPlaybackPollingPolicy` with Android service and desktop engine presets for polling interval, duplicate progress emission, source-end finish behavior, and finish-after-loop-stop behavior.
+- Android and Desktop BASS polling loops still host their own coroutines, logging, notifications, wake locks, and cleanup side effects, but the loop policy knobs are now shared and named instead of hidden as platform-local booleans/constants.
+- Added common `BassPlaybackPollingTest.kt` coverage for the Android and desktop policy presets.
+- Size/reduction note for the polling policy slice:
+  - `AndroidBassPlaybackEngine.kt` no longer hard-codes its 100 ms polling delay or source-end finish/duplicate-progress flags.
+  - `DesktopBassPlaybackEngine.kt` no longer hard-codes its 250 ms polling delay or changed-only/finish-after-stop flags.
+  - Shared domain grew intentionally with a small policy DTO and presets in `BassPlaybackPolling.kt`.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
