@@ -8,12 +8,9 @@ import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackTrackStartEffectApplier
 import app.naviamp.domain.playback.applyPlaybackTrackStartEffects
-import app.naviamp.domain.playback.mergeWith
+import app.naviamp.domain.playback.planPlaybackProgressUpdate
 import app.naviamp.domain.playback.planPlaybackTrackStartEffects
 import app.naviamp.domain.playback.planPlaybackTrackStarted
-import app.naviamp.domain.playback.shouldClearPendingSeek
-import app.naviamp.domain.playback.shouldIgnoreProgressForPendingSeek
-import app.naviamp.domain.playback.shouldUpdatePlaybackProgressUi
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.waveform.AudioWaveform
@@ -108,31 +105,35 @@ fun desktopPlaylistCallbacks(
         },
         onPlaybackProgressChanged = progressChanged@{ progress ->
             val pendingSeek = pendingSeekPositionSeconds()
-            val pendingSeekIssuedAt = pendingSeekIssuedAtMillis()
-            val progressPosition = progress.positionSeconds
             val now = System.currentTimeMillis()
-            if (shouldIgnoreProgressForPendingSeek(pendingSeek, pendingSeekIssuedAt, progressPosition, now)) {
-                return@progressChanged
-            }
-            if (shouldClearPendingSeek(pendingSeek, pendingSeekIssuedAt, progressPosition, now)) {
+            val plan = planPlaybackProgressUpdate(
+                sessionToken = 1,
+                activeSessionToken = 1,
+                incomingProgress = progress,
+                currentProgress = playbackProgress(),
+                pendingSeekPositionSeconds = pendingSeek,
+                pendingSeekIssuedAtMillis = pendingSeekIssuedAtMillis(),
+                pendingRestoreStartPositionSeconds = null,
+                nowMillis = now,
+                lastExternalProgressPublishAtMillis = 0,
+                externalProgressPublishIntervalMillis = Long.MAX_VALUE,
+                resetUnknownProgress = false,
+                keepPreviousOnLargeBackwardProgressJump = true,
+                savePlaybackPosition = true,
+                prepareNext = false,
+                lastUiUpdateMillis = lastPlaybackProgressUiUpdateMillis(),
+                positionThresholdSeconds = PlaybackProgressUiUpdateThresholdSeconds,
+                uiUpdateIntervalMillis = PlaybackProgressUiUpdateIntervalMillis,
+            )
+            if (plan.ignore) return@progressChanged
+            if (plan.clearPendingSeek) {
                 setPendingSeekPositionSeconds(null)
                 setPendingSeekIssuedAtMillis(null)
             }
-            val currentProgress = playbackProgress()
-            val mergedProgress = progress.mergeWith(currentProgress)
-            maybeSavePlaybackPosition(mergedProgress)
-            maybeReportPlayed(mergedProgress)
-            if (
-                shouldUpdatePlaybackProgressUi(
-                    pendingSeekPositionSeconds = pendingSeek,
-                    currentProgress = currentProgress,
-                    mergedProgress = mergedProgress,
-                    nowMillis = now,
-                    lastUiUpdateMillis = lastPlaybackProgressUiUpdateMillis(),
-                    positionThresholdSeconds = PlaybackProgressUiUpdateThresholdSeconds,
-                    updateIntervalMillis = PlaybackProgressUiUpdateIntervalMillis,
-                )
-            ) {
+            val mergedProgress = plan.progress ?: return@progressChanged
+            if (plan.shouldSavePlaybackPosition) maybeSavePlaybackPosition(mergedProgress)
+            if (plan.shouldReportPlayed) maybeReportPlayed(mergedProgress)
+            if (plan.shouldUpdateUi) {
                 setPlaybackProgress(mergedProgress)
                 setLastPlaybackProgressUiUpdateMillis(now)
             }

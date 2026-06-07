@@ -76,10 +76,6 @@ import app.naviamp.desktop.playback.desktopPlaylistCallbacks
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.label
-import app.naviamp.domain.playback.mergeWith
-import app.naviamp.domain.playback.shouldClearPendingSeek
-import app.naviamp.domain.playback.shouldIgnoreProgressForPendingSeek
-import app.naviamp.domain.playback.shouldUpdatePlaybackProgressUi
 import app.naviamp.domain.playback.SleepTimerRequest
 import app.naviamp.domain.playback.shouldExpireSleepTimer
 import app.naviamp.domain.playback.sleepTimerDisplayLabel

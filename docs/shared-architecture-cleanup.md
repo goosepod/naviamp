@@ -856,6 +856,14 @@ Progress notes:
   - `AndroidPlaybackOrchestration.kt` no longer owns a long inline chain of effect-gated app state mutations after planning track start.
   - `DesktopPlaybackCallbackCoordinator.kt` no longer duplicates the same effect gates for now-playing/reset/report/refill behavior.
   - Shared domain grew intentionally with a callback-based applier that keeps platform effects outside domain while standardizing the command surface.
+- Extended shared `planPlaybackProgressUpdate` so desktop playlist progress handling can use the same progress-planning vocabulary as Android.
+- Desktop playlist callbacks now delegate pending-seek ignore/clear decisions, stable progress merging, save/report flags, and UI update throttling to the shared progress plan.
+- Android keeps its existing progress call path unchanged, while the shared planner now supports both Android Auto/external progress publication and desktop UI-throttled playlist progress.
+- Added common `PlaybackProgressTest.kt` coverage for stable desktop merge behavior, unknown-progress preservation, save/report flags, and UI update gating.
+- Size/reduction note for the playlist progress planning slice:
+  - `DesktopPlaybackCallbackCoordinator.kt` no longer directly combines pending-seek helpers, `mergeWith`, save/report calls, and UI throttling decisions.
+  - `DesktopNaviampApp.kt` dropped stale direct imports for lower-level progress helpers.
+  - Shared domain grew intentionally by extending one existing progress planner instead of adding a desktop-specific planner.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:

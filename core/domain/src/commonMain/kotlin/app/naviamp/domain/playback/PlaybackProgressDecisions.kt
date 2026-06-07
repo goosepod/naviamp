@@ -49,7 +49,9 @@ data class PlaybackProgressUpdatePlan(
     val progress: PlaybackProgress? = null,
     val clearPendingSeek: Boolean = false,
     val clearPendingRestoreStart: Boolean = false,
+    val shouldSavePlaybackPosition: Boolean = false,
     val shouldReportPlayed: Boolean = false,
+    val shouldUpdateUi: Boolean = false,
     val shouldPublishExternalProgress: Boolean = false,
     val shouldPrepareNext: Boolean = false,
 )
@@ -67,10 +69,18 @@ fun planPlaybackProgressUpdate(
     externalProgressPublishIntervalMillis: Long,
     toleranceSeconds: Double = DefaultPendingSeekToleranceSeconds,
     staleWindowMillis: Long = DefaultPendingSeekStaleProgressWindowMillis,
+    resetUnknownProgress: Boolean = true,
+    keepPreviousOnLargeBackwardProgressJump: Boolean = false,
+    savePlaybackPosition: Boolean = false,
+    reportPlayed: Boolean = true,
+    prepareNext: Boolean = true,
+    lastUiUpdateMillis: Long? = null,
+    positionThresholdSeconds: Double? = null,
+    uiUpdateIntervalMillis: Long? = null,
 ): PlaybackProgressUpdatePlan {
     if (sessionToken != activeSessionToken) return PlaybackProgressUpdatePlan(ignore = true)
     val progressPosition = incomingProgress.positionSeconds
-    if (progressPosition == null && incomingProgress.durationSeconds == null) {
+    if (resetUnknownProgress && progressPosition == null && incomingProgress.durationSeconds == null) {
         return if (pendingRestoreStartPositionSeconds != null) {
             PlaybackProgressUpdatePlan(ignore = true)
         } else {
@@ -119,14 +129,49 @@ fun planPlaybackProgressUpdate(
                 progressPosition != null &&
                 progressPosition >= activePendingRestoreStart - toleranceSeconds
             )
-    val mergedProgress = incomingProgress.mergeMissingWith(currentProgress)
+    val mergedProgress = if (keepPreviousOnLargeBackwardProgressJump) {
+        incomingProgress.mergeWith(currentProgress)
+    } else {
+        incomingProgress.mergeMissingWith(currentProgress)
+    }
     return PlaybackProgressUpdatePlan(
         progress = mergedProgress,
         clearPendingSeek = clearPendingSeek,
         clearPendingRestoreStart = clearPendingRestoreStart,
-        shouldReportPlayed = true,
+        shouldSavePlaybackPosition = savePlaybackPosition,
+        shouldReportPlayed = reportPlayed,
+        shouldUpdateUi = shouldUpdateUi(
+            pendingSeekPositionSeconds = pendingSeekPositionSeconds,
+            currentProgress = currentProgress,
+            mergedProgress = mergedProgress,
+            nowMillis = nowMillis,
+            lastUiUpdateMillis = lastUiUpdateMillis,
+            positionThresholdSeconds = positionThresholdSeconds,
+            uiUpdateIntervalMillis = uiUpdateIntervalMillis,
+        ),
         shouldPublishExternalProgress = nowMillis - lastExternalProgressPublishAtMillis >= externalProgressPublishIntervalMillis,
-        shouldPrepareNext = true,
+        shouldPrepareNext = prepareNext,
+    )
+}
+
+private fun shouldUpdateUi(
+    pendingSeekPositionSeconds: Double?,
+    currentProgress: PlaybackProgress,
+    mergedProgress: PlaybackProgress,
+    nowMillis: Long,
+    lastUiUpdateMillis: Long?,
+    positionThresholdSeconds: Double?,
+    uiUpdateIntervalMillis: Long?,
+): Boolean {
+    if (lastUiUpdateMillis == null || positionThresholdSeconds == null || uiUpdateIntervalMillis == null) return false
+    return shouldUpdatePlaybackProgressUi(
+        pendingSeekPositionSeconds = pendingSeekPositionSeconds,
+        currentProgress = currentProgress,
+        mergedProgress = mergedProgress,
+        nowMillis = nowMillis,
+        lastUiUpdateMillis = lastUiUpdateMillis,
+        positionThresholdSeconds = positionThresholdSeconds,
+        updateIntervalMillis = uiUpdateIntervalMillis,
     )
 }
 
