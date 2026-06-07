@@ -16,7 +16,7 @@ import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.ReplayGainMode
-import app.naviamp.domain.playback.shouldUpdatePlaybackProgressUi
+import app.naviamp.domain.playback.planPlaybackProgressUpdate
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.radio.internetRadioTrack
@@ -138,18 +138,27 @@ class DesktopInternetRadioController(
             onProgressChanged = { progress ->
                 val now = System.currentTimeMillis()
                 val liveProgress = progress.copy(durationSeconds = null)
-                if (
-                    shouldUpdatePlaybackProgressUi(
-                        pendingSeekPositionSeconds = null,
-                        currentProgress = playbackProgress(),
-                        mergedProgress = liveProgress,
-                        nowMillis = now,
-                        lastUiUpdateMillis = lastProgressUiUpdateMillis(),
-                        positionThresholdSeconds = PlaybackProgressUiUpdateThresholdSeconds,
-                        updateIntervalMillis = PlaybackProgressUiUpdateIntervalMillis,
-                    )
-                ) {
-                    setPlaybackProgress(liveProgress)
+                val progressPlan = planPlaybackProgressUpdate(
+                    sessionToken = 1,
+                    activeSessionToken = 1,
+                    incomingProgress = liveProgress,
+                    currentProgress = playbackProgress(),
+                    pendingSeekPositionSeconds = null,
+                    pendingSeekIssuedAtMillis = null,
+                    pendingRestoreStartPositionSeconds = null,
+                    nowMillis = now,
+                    lastExternalProgressPublishAtMillis = 0,
+                    externalProgressPublishIntervalMillis = Long.MAX_VALUE,
+                    resetUnknownProgress = false,
+                    mergeMissingProgressFields = false,
+                    reportPlayed = false,
+                    prepareNext = false,
+                    lastUiUpdateMillis = lastProgressUiUpdateMillis(),
+                    positionThresholdSeconds = PlaybackProgressUiUpdateThresholdSeconds,
+                    uiUpdateIntervalMillis = PlaybackProgressUiUpdateIntervalMillis,
+                )
+                if (progressPlan.shouldUpdateUi) {
+                    setPlaybackProgress(progressPlan.progress ?: liveProgress)
                     setLastProgressUiUpdateMillis(now)
                 }
             },

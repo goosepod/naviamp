@@ -338,6 +338,35 @@ class PlaybackProgressTest {
     }
 
     @Test
+    fun progressUpdatePlanCanPreserveIncomingLiveStreamProgress() {
+        val plan = planPlaybackProgressUpdate(
+            sessionToken = 1,
+            activeSessionToken = 1,
+            incomingProgress = PlaybackProgress(positionSeconds = 8.0, durationSeconds = null),
+            currentProgress = PlaybackProgress(positionSeconds = 7.5, durationSeconds = 180.0),
+            pendingSeekPositionSeconds = null,
+            pendingSeekIssuedAtMillis = null,
+            pendingRestoreStartPositionSeconds = null,
+            nowMillis = 2_000,
+            lastExternalProgressPublishAtMillis = 0,
+            externalProgressPublishIntervalMillis = Long.MAX_VALUE,
+            resetUnknownProgress = false,
+            mergeMissingProgressFields = false,
+            reportPlayed = false,
+            prepareNext = false,
+            lastUiUpdateMillis = 1_000,
+            positionThresholdSeconds = 0.45,
+            uiUpdateIntervalMillis = 500,
+        )
+
+        assertEquals(8.0, plan.progress?.positionSeconds)
+        assertEquals(null, plan.progress?.durationSeconds)
+        assertEquals(false, plan.shouldReportPlayed)
+        assertEquals(true, plan.shouldUpdateUi)
+        assertEquals(false, plan.shouldPrepareNext)
+    }
+
+    @Test
     fun progressUpdatePlanClearsPendingRestoreWhenIncomingProgressReachesStart() {
         val plan = planPlaybackProgressUpdate(
             sessionToken = 1,

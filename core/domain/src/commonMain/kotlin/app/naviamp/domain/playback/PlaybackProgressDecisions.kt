@@ -70,6 +70,7 @@ fun planPlaybackProgressUpdate(
     toleranceSeconds: Double = DefaultPendingSeekToleranceSeconds,
     staleWindowMillis: Long = DefaultPendingSeekStaleProgressWindowMillis,
     resetUnknownProgress: Boolean = true,
+    mergeMissingProgressFields: Boolean = true,
     keepPreviousOnLargeBackwardProgressJump: Boolean = false,
     savePlaybackPosition: Boolean = false,
     reportPlayed: Boolean = true,
@@ -129,10 +130,10 @@ fun planPlaybackProgressUpdate(
                 progressPosition != null &&
                 progressPosition >= activePendingRestoreStart - toleranceSeconds
             )
-    val mergedProgress = if (keepPreviousOnLargeBackwardProgressJump) {
-        incomingProgress.mergeWith(currentProgress)
-    } else {
-        incomingProgress.mergeMissingWith(currentProgress)
+    val mergedProgress = when {
+        keepPreviousOnLargeBackwardProgressJump -> incomingProgress.mergeWith(currentProgress)
+        mergeMissingProgressFields -> incomingProgress.mergeMissingWith(currentProgress)
+        else -> incomingProgress
     }
     return PlaybackProgressUpdatePlan(
         progress = mergedProgress,

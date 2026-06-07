@@ -864,6 +864,13 @@ Progress notes:
   - `DesktopPlaybackCallbackCoordinator.kt` no longer directly combines pending-seek helpers, `mergeWith`, save/report calls, and UI throttling decisions.
   - `DesktopNaviampApp.kt` dropped stale direct imports for lower-level progress helpers.
   - Shared domain grew intentionally by extending one existing progress planner instead of adding a desktop-specific planner.
+- Extended shared progress planning for desktop internet radio progress.
+- `DesktopInternetRadioController` now delegates live-stream progress UI gating to `planPlaybackProgressUpdate` instead of directly calling the lower-level UI-throttle helper.
+- The shared planner can preserve incoming live-stream progress without filling missing duration from previous playlist progress, keeping radio streams durationless.
+- Added common `PlaybackProgressTest.kt` coverage for preserving incoming live-stream progress, disabling played reporting, and keeping prepare-next off for radio progress.
+- Size/reduction note for the internet-radio progress slice:
+  - `DesktopInternetRadioController.kt` no longer owns local progress UI-throttle decisions.
+  - Shared domain grew by one small merge-mode option on the existing progress planner rather than creating a separate radio-only path.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
