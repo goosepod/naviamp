@@ -7,12 +7,10 @@ import app.naviamp.domain.cache.PlaybackSessionRepository
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackProgress
-import app.naviamp.domain.playback.canUseNextButton
-import app.naviamp.domain.playback.canUsePreviousButton
 import app.naviamp.domain.playback.canReportPlaybackTrack
 import app.naviamp.domain.playback.PlaybackQueueManager
+import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
 import app.naviamp.domain.playback.planPlaybackSeek
-import app.naviamp.domain.playback.shouldRestartInsteadOfPrevious
 import app.naviamp.domain.playback.shouldSavePlaybackPosition
 import app.naviamp.domain.playback.shouldSubmitPlayReport
 import app.naviamp.domain.provider.MediaProvider
@@ -48,6 +46,8 @@ class DesktopPlaybackController(
     private val setPendingSeekIssuedAtMillis: (Long?) -> Unit,
     private val setOpenPlayerOnTrackStart: (Boolean) -> Unit,
 ) {
+    private val queueManager = PlaybackQueueManager()
+
     fun savePlaybackSession(
         queue: PlaybackQueue,
         positionSeconds: Double? = playbackProgress().positionSeconds,
@@ -66,7 +66,7 @@ class DesktopPlaybackController(
     }
 
     fun cycleRepeatMode() {
-        val mode = PlaybackQueueManager().cycleRepeatMode(repeatMode())
+        val mode = queueManager.cycleRepeatMode(repeatMode())
         setRepeatMode(mode)
         playlistEngine.setRepeatMode(mode)
     }
@@ -111,7 +111,7 @@ class DesktopPlaybackController(
     }
 
     fun canUsePreviousButton(): Boolean =
-        canUsePreviousButton(
+        queueManager.canUsePreviousButton(
             queue = playbackQueue(),
             previousButtonBehavior = playbackSettings().previousButtonBehavior,
             positionSeconds = playbackProgress().positionSeconds,
@@ -119,25 +119,58 @@ class DesktopPlaybackController(
         )
 
     fun canUseNextButton(): Boolean =
-        canUseNextButton(
+        queueManager.canUseNextButton(
             queue = playbackQueue(),
             repeatMode = repeatMode(),
         )
 
     fun handlePreviousButton() {
         setOpenPlayerOnTrackStart(false)
-        val positionSeconds = playbackProgress().positionSeconds ?: 0.0
-        if (
-            shouldRestartInsteadOfPrevious(
+        when (
+            queueManager.previousCommand(
+                queue = playbackQueue(),
                 previousButtonBehavior = playbackSettings().previousButtonBehavior,
-                positionSeconds = positionSeconds,
+                positionSeconds = playbackProgress().positionSeconds,
                 restartThresholdSeconds = PreviousRestartThresholdSeconds,
             )
         ) {
-            performSeek(0.0)
-            return
+            PlaybackQueueNavigationCommand.None -> Unit
+            PlaybackQueueNavigationCommand.RestartCurrent -> performSeek(0.0)
+            PlaybackQueueNavigationCommand.Previous -> playlistEngine.previous(scope)
+            PlaybackQueueNavigationCommand.Next -> playlistEngine.next(scope)
+            is PlaybackQueueNavigationCommand.JumpTo -> Unit
         }
-        playlistEngine.previous(scope)
+    }
+
+    fun handleNextButton() {
+        setOpenPlayerOnTrackStart(false)
+        when (queueManager.nextCommand(playbackQueue(), repeatMode())) {
+            PlaybackQueueNavigationCommand.Next -> playlistEngine.next(scope)
+            PlaybackQueueNavigationCommand.None,
+            PlaybackQueueNavigationCommand.Previous,
+            PlaybackQueueNavigationCommand.RestartCurrent,
+            is PlaybackQueueNavigationCommand.JumpTo,
+            -> Unit
+        }
+    }
+
+    fun handleQueueIndexSelected(
+        index: Int,
+        moveSelectedToCurrent: Boolean,
+    ) {
+        setOpenPlayerOnTrackStart(false)
+        when (val command = queueManager.jumpCommand(playbackQueue(), index, moveSelectedToCurrent)) {
+            is PlaybackQueueNavigationCommand.JumpTo -> playlistEngine.jumpTo(
+                scope = scope,
+                index = command.index,
+                moveSelectedToCurrent = command.moveSelectedToCurrent,
+            )
+            PlaybackQueueNavigationCommand.None,
+            PlaybackQueueNavigationCommand.Previous,
+            PlaybackQueueNavigationCommand.Next,
+            PlaybackQueueNavigationCommand.RestartCurrent,
+            -> Unit
+        }
     }
 
     fun reportNowPlaying(track: Track) {

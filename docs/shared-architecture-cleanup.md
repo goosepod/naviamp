@@ -685,7 +685,15 @@ Progress notes:
 - Android shell shuffle/repeat and Desktop shuffle/repeat now use `PlaybackQueueManager`; platform code only applies queue state and playback-engine repeat settings.
 - `nextRepeatMode` now delegates to `PlaybackQueueManager` so older callers share the same repeat decision path.
 - Added `PlaybackQueueManagerTest.kt` coverage for repeat cycling, shuffle toggle/restore, and no-change shuffle outcomes.
-- Remaining work in this slice: extract previous/next/jump queue navigation planning once playback command execution has a shared result surface.
+- Added shared `PlaybackQueueNavigationCommand` planning for previous, next, jump, restart-current, and no-op navigation outcomes.
+- `PlaybackControlDecisions.kt` now delegates legacy previous/next/adjacent helpers to `PlaybackQueueManager`, keeping existing Android call sites on the shared path.
+- Desktop previous, next, and queue-index selection callbacks now route through `DesktopPlaybackController`, which applies shared queue-navigation commands to desktop playback side effects.
+- Size/reduction note for this slice:
+  - `DesktopNaviampApp.kt`: relevant direct next/jump callback logic was removed from the root app and replaced with controller calls; net diff was small because a local queue-index adapter was added.
+  - `DesktopPlaybackController.kt`: grew intentionally because it is now the desktop playback adapter boundary for shared navigation commands.
+  - Android platform files stayed flat because Android already used the shared adjacent-action helper; the helper now delegates into the manager.
+  - Shared domain grew intentionally in `PlaybackQueueManager.kt` and tests because navigation policy moved out of platform-local decisions.
+- Remaining work in this slice: move more playback command execution and finished-track command planning behind the same shared result surface.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:

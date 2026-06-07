@@ -10,8 +10,11 @@ fun shouldRestartInsteadOfPrevious(
     positionSeconds: Double?,
     restartThresholdSeconds: Double,
 ): Boolean =
-    previousButtonBehavior == PreviousButtonBehavior.RestartThenPrevious &&
-        (positionSeconds ?: 0.0) > restartThresholdSeconds
+    PlaybackQueueManager().shouldRestartInsteadOfPrevious(
+        previousButtonBehavior = previousButtonBehavior,
+        positionSeconds = positionSeconds,
+        restartThresholdSeconds = restartThresholdSeconds,
+    )
 
 fun nextRepeatMode(mode: RepeatMode): RepeatMode =
     PlaybackQueueManager().cycleRepeatMode(mode)
@@ -22,19 +25,21 @@ fun canUsePreviousButton(
     positionSeconds: Double?,
     restartThresholdSeconds: Double,
 ): Boolean =
-    queue.hasPrevious() ||
-        shouldRestartInsteadOfPrevious(
-            previousButtonBehavior = previousButtonBehavior,
-            positionSeconds = positionSeconds,
-            restartThresholdSeconds = restartThresholdSeconds,
-        )
+    PlaybackQueueManager().canUsePreviousButton(
+        queue = queue,
+        previousButtonBehavior = previousButtonBehavior,
+        positionSeconds = positionSeconds,
+        restartThresholdSeconds = restartThresholdSeconds,
+    )
 
 fun canUseNextButton(
     queue: PlaybackQueue,
     repeatMode: RepeatMode,
 ): Boolean =
-    queue.hasNext() ||
-        queue.nextIndex(repeatMode = repeatMode, repeatTrack = false) != null
+    PlaybackQueueManager().canUseNextButton(
+        queue = queue,
+        repeatMode = repeatMode,
+    )
 
 sealed interface PlaybackAdjacentAction {
     data object None : PlaybackAdjacentAction
@@ -53,23 +58,13 @@ fun planPlaybackAdjacentAction(
     previousButtonBehavior: PreviousButtonBehavior,
     positionSeconds: Double?,
     restartThresholdSeconds: Double,
-): PlaybackAdjacentAction {
-    val track = currentTrack ?: return PlaybackAdjacentAction.None
-    if (
-        offset < 0 &&
-        shouldRestartInsteadOfPrevious(
-            previousButtonBehavior = previousButtonBehavior,
-            positionSeconds = positionSeconds,
-            restartThresholdSeconds = restartThresholdSeconds,
-        )
-    ) {
-        return PlaybackAdjacentAction.RestartCurrent
-    }
-    val currentIndex = activeQueue.indexOfFirst { it.id == track.id }
-    if (currentIndex < 0) return PlaybackAdjacentAction.None
-    val nextIndex = PlaybackQueue(tracks = activeQueue, currentIndex = currentIndex)
-        .adjacentIndex(offset = offset, repeatMode = repeatMode)
-        ?: return PlaybackAdjacentAction.None
-    val nextTrack = activeQueue.getOrNull(nextIndex) ?: return PlaybackAdjacentAction.None
-    return PlaybackAdjacentAction.PlayTrack(nextTrack, activeQueue)
-}
+): PlaybackAdjacentAction =
+    PlaybackQueueManager().planAdjacentAction(
+        currentTrack = currentTrack,
+        activeQueue = activeQueue,
+        offset = offset,
+        repeatMode = repeatMode,
+        previousButtonBehavior = previousButtonBehavior,
+        positionSeconds = positionSeconds,
+        restartThresholdSeconds = restartThresholdSeconds,
+    )

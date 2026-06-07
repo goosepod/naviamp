@@ -4,6 +4,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
+import app.naviamp.domain.settings.PreviousButtonBehavior
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -142,6 +143,117 @@ class PlaybackQueueManagerTest {
                 changed = false,
             ),
             PlaybackQueueManager().toggleUpcomingShuffle(queue, shuffledSnapshot = null),
+        )
+    }
+
+    @Test
+    fun previousCommandRestartsBeforeSelectingPreviousWhenConfigured() {
+        val one = track("one")
+        val two = track("two")
+        val queue = PlaybackQueue(tracks = listOf(one, two), currentIndex = 1)
+
+        assertEquals(
+            PlaybackQueueNavigationCommand.RestartCurrent,
+            PlaybackQueueManager().previousCommand(
+                queue = queue,
+                previousButtonBehavior = PreviousButtonBehavior.RestartThenPrevious,
+                positionSeconds = 4.0,
+                restartThresholdSeconds = 3.0,
+            ),
+        )
+    }
+
+    @Test
+    fun previousCommandSelectsPreviousOnlyWhenAvailable() {
+        val one = track("one")
+        val two = track("two")
+        val manager = PlaybackQueueManager()
+
+        assertEquals(
+            PlaybackQueueNavigationCommand.Previous,
+            manager.previousCommand(
+                queue = PlaybackQueue(tracks = listOf(one, two), currentIndex = 1),
+                previousButtonBehavior = PreviousButtonBehavior.AlwaysPrevious,
+                positionSeconds = 10.0,
+                restartThresholdSeconds = 3.0,
+            ),
+        )
+        assertEquals(
+            PlaybackQueueNavigationCommand.None,
+            manager.previousCommand(
+                queue = PlaybackQueue(tracks = listOf(one, two), currentIndex = 0),
+                previousButtonBehavior = PreviousButtonBehavior.AlwaysPrevious,
+                positionSeconds = 10.0,
+                restartThresholdSeconds = 3.0,
+            ),
+        )
+    }
+
+    @Test
+    fun nextCommandAllowsQueueRepeatWrap() {
+        val one = track("one")
+        val two = track("two")
+        val queue = PlaybackQueue(tracks = listOf(one, two), currentIndex = 1)
+        val manager = PlaybackQueueManager()
+
+        assertEquals(PlaybackQueueNavigationCommand.None, manager.nextCommand(queue, RepeatMode.Off))
+        assertEquals(PlaybackQueueNavigationCommand.Next, manager.nextCommand(queue, RepeatMode.Queue))
+    }
+
+    @Test
+    fun jumpCommandValidatesQueueIndex() {
+        val one = track("one")
+        val two = track("two")
+        val queue = PlaybackQueue(tracks = listOf(one, two), currentIndex = 0)
+
+        assertEquals(
+            PlaybackQueueNavigationCommand.JumpTo(index = 1, moveSelectedToCurrent = false),
+            PlaybackQueueManager().jumpCommand(
+                queue = queue,
+                index = 1,
+                moveSelectedToCurrent = false,
+            ),
+        )
+        assertEquals(
+            PlaybackQueueNavigationCommand.None,
+            PlaybackQueueManager().jumpCommand(queue, index = 0),
+        )
+        assertEquals(
+            PlaybackQueueNavigationCommand.None,
+            PlaybackQueueManager().jumpCommand(queue, index = 2),
+        )
+    }
+
+    @Test
+    fun planAdjacentActionUsesCurrentQueueAndRestartPolicy() {
+        val one = track("one")
+        val two = track("two")
+        val queue = listOf(one, two)
+        val manager = PlaybackQueueManager()
+
+        assertEquals(
+            PlaybackAdjacentAction.PlayTrack(track = two, queue = queue),
+            manager.planAdjacentAction(
+                currentTrack = one,
+                activeQueue = queue,
+                offset = 1,
+                repeatMode = RepeatMode.Off,
+                previousButtonBehavior = PreviousButtonBehavior.RestartThenPrevious,
+                positionSeconds = 0.0,
+                restartThresholdSeconds = 3.0,
+            ),
+        )
+        assertEquals(
+            PlaybackAdjacentAction.RestartCurrent,
+            manager.planAdjacentAction(
+                currentTrack = two,
+                activeQueue = queue,
+                offset = -1,
+                repeatMode = RepeatMode.Off,
+                previousButtonBehavior = PreviousButtonBehavior.RestartThenPrevious,
+                positionSeconds = 4.0,
+                restartThresholdSeconds = 3.0,
+            ),
         )
     }
 

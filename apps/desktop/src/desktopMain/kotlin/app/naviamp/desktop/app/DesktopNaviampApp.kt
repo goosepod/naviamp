@@ -107,12 +107,12 @@ import app.naviamp.domain.radio.recentRadioAction
 import app.naviamp.domain.radio.recentRadioStreamsWith
 import app.naviamp.domain.radio.trackRadioRequest
 import app.naviamp.domain.source.SavedMediaSource
+import app.naviamp.domain.settings.UpNextSelectionBehavior
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.desktop.settings.PlaybackSessionSettings
 import app.naviamp.desktop.settings.RecentRadioStream
-import app.naviamp.desktop.settings.UpNextSelectionBehavior
 import app.naviamp.desktop.settings.VisualizerSettings
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.MediaProvider
@@ -534,6 +534,19 @@ fun NaviampApp(
 
     fun handlePreviousButton() {
         playbackController.handlePreviousButton()
+    }
+
+    fun handleNextButton() {
+        playbackController.handleNextButton()
+    }
+
+    fun handleQueueIndexSelected(queueIndex: Int) {
+        playbackController.handleQueueIndexSelected(
+            index = queueIndex,
+            moveSelectedToCurrent =
+                playbackSettings.upNextSelectionBehavior ==
+                    UpNextSelectionBehavior.MoveSelectedToCurrent,
+        )
     }
 
     fun reportNowPlaying(track: Track) {
@@ -1459,10 +1472,7 @@ fun NaviampApp(
                             onPlayCurrent = internetRadioController::playCurrentSelection,
                             onSeek = ::performSeek,
                             onPrevious = ::handlePreviousButton,
-                            onNext = {
-                                openPlayerOnTrackStart = false
-                                playlistEngine.next(coroutineScope)
-                            },
+                            onNext = ::handleNextButton,
                             onToggleShuffle = ::toggleShuffle,
                             onCycleRepeatMode = ::cycleRepeatMode,
                             onVolumeChanged = { volumePercent ->
@@ -1498,16 +1508,7 @@ fun NaviampApp(
                             onSleepTimerSelected = ::handleSleepTimerSelected,
                             onCancelSleepTimer = ::cancelSleepTimer,
                             onInternetRadioStationSelected = internetRadioController::playStation,
-                            onQueueIndexSelected = { queueIndex ->
-                                openPlayerOnTrackStart = false
-                                playlistEngine.jumpTo(
-                                    scope = coroutineScope,
-                                    index = queueIndex,
-                                    moveSelectedToCurrent =
-                                        playbackSettings.upNextSelectionBehavior ==
-                                            UpNextSelectionBehavior.MoveSelectedToCurrent,
-                                )
-                            },
+                            onQueueIndexSelected = ::handleQueueIndexSelected,
                             onUpNextTrackRadioSelected = appActions::playTrackRadio,
                             onUpNextTrackDownloadSelected = appActions::downloadTrack,
                             onUpNextTrackAddToPlaylist = { track ->
@@ -1732,10 +1733,7 @@ fun NaviampApp(
                                 onPrevious = {
                                     handlePreviousButton()
                                 },
-                                onNext = {
-                                    openPlayerOnTrackStart = false
-                                    playlistEngine.next(coroutineScope)
-                                },
+                                onNext = ::handleNextButton,
                                 onOpenPlayer = {
                                     appRoute = DesktopAppRoute.Player
                                 },
