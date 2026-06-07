@@ -11,7 +11,6 @@ import android.util.Log
 import app.naviamp.domain.bass.BassActiveState
 import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassCreatedPlayback
-import app.naviamp.domain.bass.BassStreamHandle
 import app.naviamp.domain.bass.activeState
 import app.naviamp.domain.bass.adoptPreparedBassSource
 import app.naviamp.domain.bass.applyBassPlaybackVolume
@@ -29,7 +28,6 @@ import app.naviamp.domain.bass.seekBassPlaybackSource
 import app.naviamp.domain.bass.setBassPlaybackMuted
 import app.naviamp.domain.bass.stopAndReleaseBassPlayback
 import app.naviamp.domain.playback.bassPlaybackFeatureSupport
-import app.naviamp.domain.playback.canPrepareBassMixerSource
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
@@ -44,15 +42,16 @@ import app.naviamp.domain.playback.clearPreparedPlaybackMetadata
 import app.naviamp.domain.playback.clearPlaybackStreamState
 import app.naviamp.domain.playback.failedPreparedPlaybackMetadata
 import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
-import app.naviamp.domain.playback.planPreparedPlaybackAdoption
-import app.naviamp.domain.playback.playbackReplayGainFactor
+import app.naviamp.domain.playback.PreparedBassPlaybackPlan
+import app.naviamp.domain.playback.planPreparedBassPlayback
+import app.naviamp.domain.playback.planPreparedBassPlaybackAdoption
 import app.naviamp.domain.playback.playbackSourceHandle
+import app.naviamp.domain.playback.playbackReplayGainFactor
 import app.naviamp.domain.playback.playbackStartSeekPosition
 import app.naviamp.domain.playback.playbackStateForBassActiveState
 import app.naviamp.domain.playback.playbackUserVolumeFactor
 import app.naviamp.domain.playback.shouldContinueBassPlaybackPolling
 import app.naviamp.domain.playback.shouldFinishPlaybackForBassState
-import app.naviamp.domain.playback.shouldReusePreparedPlayback
 import app.naviamp.domain.playback.shouldUseBassMixerPlayback
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import kotlinx.coroutines.CoroutineScope
@@ -367,21 +366,22 @@ class AndroidBassPlaybackEngine(
     }
 
     override fun prepareNext(request: PlaybackRequest) {
-        if (shouldReusePreparedPlayback(preparedRequest, preparedStream != 0, request)) return
+        val plan = planPreparedBassPlayback(
+            playbackHandle = stream,
+            currentSourceHandle = currentSourceStream,
+            preparedRequest = preparedRequest,
+            preparedHandle = preparedStream,
+            supportsMixer = bass.supportsMixer,
+            request = request,
+            allowDirectFallback = false,
+        )
+        if (plan == PreparedBassPlaybackPlan.ReusePrepared) return
         freePreparedStream()
+        if (plan == PreparedBassPlaybackPlan.NotSupported) return
         runCatching {
             bass.init().getOrThrow()
-            if (
-                !canPrepareBassMixerSource(
-                    playbackHandle = stream,
-                    currentSourceHandle = currentSourceStream,
-                    supportsMixer = bass.supportsMixer,
-                )
-            ) {
-                return
-            }
+            val mixerPlan = plan as PreparedBassPlaybackPlan.PrepareMixer
             val mixer = stream
-            val nextReplayGain = playbackReplayGainFactor(request)
             val file = localFileFromUrl(request.url)
             val prepared = bass.prepareNextBassMixerSource(
                 localPath = file?.absolutePath,
@@ -390,9 +390,9 @@ class AndroidBassPlaybackEngine(
                 currentSource = currentSourceStream,
                 currentSourceVolumeFactor = replayGainFactor,
                 crossfadeDurationSeconds = crossfadeDurationSeconds,
-                replayGainFactor = nextReplayGain,
+                replayGainFactor = mixerPlan.replayGainFactor,
             ).getOrThrow()
-            preparedReplayGainFactor = nextReplayGain
+            preparedReplayGainFactor = mixerPlan.replayGainFactor
             prepared.sourceHandle
         }.onSuccess { handle ->
             preparedStream = handle
@@ -617,14 +617,14 @@ class AndroidBassPlaybackEngine(
         onStateChanged: (PlaybackState) -> Unit,
         onProgressChanged: (PlaybackProgress) -> Unit,
     ): Boolean {
-        val source = preparedStream
-        val plan = planPreparedPlaybackAdoption(
-            hasActiveStream = stream != 0,
+        val plan = planPreparedBassPlaybackAdoption(
+            playbackHandle = stream,
             preparedRequest = preparedRequest,
-            hasPreparedStream = source != 0,
+            preparedHandle = preparedStream,
             supportsMixer = bass.supportsMixer,
             request = request,
         )
+        val source = plan.preparedHandle
         if (!plan.shouldAdopt) return false
         val currentPlaybackId = nextPlaybackId()
         bass.adoptPreparedBassSource(

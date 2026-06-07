@@ -13,7 +13,6 @@ import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.VisualizerBandCount
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.bass.BassAudioBackend
-import app.naviamp.domain.bass.BassStreamHandle
 import app.naviamp.domain.bass.BassActiveState
 import app.naviamp.domain.bass.activeState
 import app.naviamp.domain.bass.adoptPreparedBassSource
@@ -34,19 +33,19 @@ import app.naviamp.domain.bass.seekBassPlaybackSource
 import app.naviamp.domain.bass.setEndSync
 import app.naviamp.domain.bass.stopAndReleaseBassPlayback
 import app.naviamp.domain.playback.bassPlaybackFeatureSupport
-import app.naviamp.domain.playback.canPrepareBassMixerSource
 import app.naviamp.domain.playback.clearPreparedPlaybackMetadata
 import app.naviamp.domain.playback.clearPlaybackStreamState
 import app.naviamp.domain.playback.failedPreparedPlaybackMetadata
 import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
-import app.naviamp.domain.playback.planPreparedPlaybackAdoption
+import app.naviamp.domain.playback.PreparedBassPlaybackPlan
+import app.naviamp.domain.playback.planPreparedBassPlayback
+import app.naviamp.domain.playback.planPreparedBassPlaybackAdoption
 import app.naviamp.domain.playback.playbackSourceHandle
 import app.naviamp.domain.playback.playbackReplayGainAdjustment
 import app.naviamp.domain.playback.playbackStartSeekPosition
 import app.naviamp.domain.playback.playbackStateForBassActiveState
 import app.naviamp.domain.playback.playbackUserVolumeFactor
 import app.naviamp.domain.playback.shouldContinueBassPlaybackPolling
-import app.naviamp.domain.playback.shouldReusePreparedPlayback
 import app.naviamp.domain.playback.shouldUseBassMixerPlayback
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -260,17 +259,22 @@ class DesktopBassPlaybackEngine(
 
     override fun prepareNext(request: PlaybackRequest) {
         val bass = backend ?: return
-        if (shouldReusePreparedPlayback(preparedRequest, preparedStream != 0, request)) return
+        val plan = planPreparedBassPlayback(
+            playbackHandle = stream,
+            currentSourceHandle = currentSourceStream,
+            preparedRequest = preparedRequest,
+            preparedHandle = preparedStream,
+            supportsMixer = bass.supportsMixer,
+            request = request,
+            allowDirectFallback = true,
+        )
+        if (plan == PreparedBassPlaybackPlan.ReusePrepared) return
         freePreparedStream()
+        if (plan == PreparedBassPlaybackPlan.NotSupported) return
         runCatching {
             ensureInitialized(bass)
-            if (
-                canPrepareBassMixerSource(
-                    playbackHandle = stream,
-                    currentSourceHandle = currentSourceStream,
-                    supportsMixer = bass.supportsMixer,
-                )
-            ) {
+            when (plan) {
+                is PreparedBassPlaybackPlan.PrepareMixer -> {
                 val adjustment = replayGainAdjustment(request)
                 val localFile = localFileFromUrl(request.url)
                 val prepared = bass.prepareNextBassMixerSource(
@@ -280,17 +284,22 @@ class DesktopBassPlaybackEngine(
                     currentSource = currentSourceStream,
                     currentSourceVolumeFactor = currentReplayGainAdjustment.volumeFactor,
                     crossfadeDurationSeconds = crossfadeDurationSeconds,
-                    replayGainFactor = adjustment.volumeFactor,
+                    replayGainFactor = plan.replayGainFactor,
                     playbackDecode = true,
                 ).getOrThrow()
                 crossfadeActive = prepared.crossfadeActive
                 attachEndSync(bass, prepared.sourceHandle, playbackId)
                 preparedReplayGainAdjustment = adjustment
                 prepared.sourceHandle
-            } else {
+                }
+                is PreparedBassPlaybackPlan.PrepareDirect -> {
                 createPlayback(bass, request, useMixer = false).getOrThrow().playbackHandle.also {
                     preparedReplayGainAdjustment = replayGainAdjustment(request)
                 }
+                }
+                PreparedBassPlaybackPlan.NotSupported,
+                PreparedBassPlaybackPlan.ReusePrepared,
+                -> error("Unsupported prepared playback plan: $plan")
             }
         }.onSuccess { handle ->
             preparedStream = handle
@@ -390,15 +399,15 @@ class DesktopBassPlaybackEngine(
         onMetadataChanged: (PlaybackStreamMetadata) -> Unit,
     ): Boolean {
         val bass = backend ?: return false
-        val queuedSource = preparedStream
-        val plan = planPreparedPlaybackAdoption(
-            hasActiveStream = stream != 0,
+        val plan = planPreparedBassPlaybackAdoption(
+            playbackHandle = stream,
             preparedRequest = preparedRequest,
-            hasPreparedStream = queuedSource != 0,
+            preparedHandle = preparedStream,
             supportsMixer = bass.supportsMixer,
             request = request,
         )
         if (!plan.shouldAdopt) return false
+        val queuedSource = plan.preparedHandle
         job?.cancel()
         job = null
         val currentPlaybackId = nextPlaybackId()

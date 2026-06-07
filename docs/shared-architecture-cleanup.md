@@ -754,7 +754,15 @@ Progress notes:
   - `AndroidPlaylistEngine.kt` and `DesktopPlaylistEngine.kt` both lost their parallel local plan/request construction branches.
   - Shared domain grew intentionally in `PreparedNextPlaybackService.kt` with a focused coordinator around the existing planner functions.
   - `PreparedNextPlaybackServiceTest.kt` now verifies the coordinator entry point that both platform playlist engines call.
-- Remaining work in this playback slice: inspect prepared-playback adoption and BASS transition side effects inside Android/Desktop BASS playback engines, then extract any remaining duplicated transition/adoption policy into shared services while keeping JNI/audio handles platform-owned.
+- Added shared `PreparedBassPlaybackPlan` and adoption planning for the Android/Desktop BASS playback engines.
+- Android and Desktop BASS engines now use the same shared gates for reusing prepared playback, checking mixer preparation support, choosing mixer preparation, and choosing desktop-only direct prepared-stream fallback.
+- Platform BASS engines still own native side effects: BASS initialization, stream handle creation/release, mixer channel wiring, end sync callbacks, audio focus, wake locks, and diagnostics.
+- Added common `PreparedBassPlaybackPlannerTest.kt` coverage for prepared reuse, mixer preparation, direct fallback, replay-gain factor planning, and prepared adoption.
+- Size/reduction note for the prepared-BASS planner slice:
+  - `AndroidBassPlaybackEngine.kt` lost its local reuse/can-prepare/adoption gate branching and now applies shared prepare/adopt plans.
+  - `DesktopBassPlaybackEngine.kt` lost parallel reuse/can-prepare/adoption gate branching while preserving its direct fallback behavior.
+  - Shared domain grew intentionally with a small planner that composes existing transition/replay-gain helpers.
+- Remaining work in this playback slice: inspect the duplicated playback polling loop and finished/error cleanup behavior in Android/Desktop BASS engines; decide whether a shared stream-polling/result planner can reduce duplication without moving platform coroutine, sync callback, or lifecycle ownership into common code.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
