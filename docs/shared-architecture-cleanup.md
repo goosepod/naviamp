@@ -840,6 +840,14 @@ Progress notes:
   - `AndroidPlaylistEngine.kt` no longer owns the imperative waveform -> tags -> lyrics control flow; it supplies sidecar service calls and state appliers.
   - `DesktopPlaylistEngine.kt` no longer owns its cache -> waveform -> lyrics sequence and dropped the local metadata-sidecar helper.
   - Shared domain grew intentionally with one callback-based runner that keeps platform effects out of domain.
+- Added shared `PlaylistTrackStartWork` and `planPlaylistTrackStartWork` so Android and Desktop build the same engine playback request for selected tracks.
+- Android track playback and Desktop playlist playback now share media id, replay-gain support gating, engine start-position filtering, cover-art carrying, playback source, and sidecar/prefetch start flags through one work model.
+- Platform playback paths still own stream URL resolution, TLS/app state updates, queue mutation, notification/callback updates, and `playbackEngine.play`.
+- Added common `PlaybackTargetPlanTest.kt` coverage for playlist track-start work and replay-gain support gating.
+- Size/reduction note for the playlist track-start work slice:
+  - `AndroidPlaybackOrchestration.kt` no longer hand-builds the track `PlaybackRequest` for normal track playback.
+  - `DesktopPlaylistEngine.kt` no longer hand-builds the track `PlaybackRequest` or locally applies replay-gain support gating.
+  - Shared domain grew intentionally with a focused DTO/function that composes existing playback target/effects planning.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:

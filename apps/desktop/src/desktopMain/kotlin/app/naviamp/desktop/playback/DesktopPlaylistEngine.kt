@@ -17,7 +17,6 @@ import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.playback.PlaybackQueueSelection
 import app.naviamp.domain.playback.PlaybackReplayGain
-import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.AudioPrefetchStats
 import app.naviamp.domain.playback.CacheRuntimeStats
 import app.naviamp.domain.playback.DefaultAudioPrefetchDepth
@@ -34,6 +33,7 @@ import app.naviamp.domain.playback.currentTrackSidecarWork
 import app.naviamp.domain.playback.emptyPlaybackAudioAssetRepository
 import app.naviamp.domain.playback.finished
 import app.naviamp.domain.playback.initialAudioPrefetchStats
+import app.naviamp.domain.playback.planPlaylistTrackStartWork
 import app.naviamp.domain.playback.planAudioPrefetchWork
 import app.naviamp.domain.playback.playbackStreamUrl
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
@@ -273,21 +273,26 @@ class DesktopPlaylistEngine(
         scope.launch {
             try {
                 val playbackTarget = playbackTarget(currentProvider, track, currentQuality, startPositionSeconds)
-                playbackSource = playbackTarget.source
                 val replayGain = replayGainForTrack(track, currentQuality)
                 val coverArtUrl = track.coverArtId?.let { currentProvider.coverArtUrl(it) }
-                currentCallbacks.onTrackStarted(track, coverArtUrl)
-                startCurrentTrackSidecars(scope, activeSessionId, track)
-                startAudioPrefetch(scope, activeSessionId)
+                val trackStartWork = planPlaylistTrackStartWork(
+                    sessionId = activeSessionId,
+                    track = track,
+                    playbackSource = playbackTarget.source,
+                    streamUrl = playbackTarget.url,
+                    replayGainMode = replayGainMode,
+                    replayGain = replayGain,
+                    supportsReplayGain = playbackEngine.supportsReplayGain,
+                    engineStartPositionSeconds = playbackTarget.engineStartPositionSeconds,
+                    coverArtUrl = coverArtUrl,
+                )
+                playbackSource = trackStartWork.playbackSource
+                currentCallbacks.onTrackStarted(trackStartWork.track, trackStartWork.coverArtUrl)
+                if (trackStartWork.startSidecarPrep) startCurrentTrackSidecars(scope, activeSessionId, trackStartWork.track)
+                if (trackStartWork.startAudioPrefetch) startAudioPrefetch(scope, activeSessionId)
                 playbackEngine.play(
                     scope = scope,
-                    request = PlaybackRequest(
-                        url = playbackTarget.url,
-                        mediaId = track.id.value,
-                        replayGainMode = replayGainMode.forEngine(playbackEngine),
-                        replayGain = replayGain,
-                        startPositionSeconds = startPositionSeconds?.takeIf { it > 0.0 },
-                    ),
+                    request = trackStartWork.request,
                     onStateChanged = { state ->
                         scope.launch {
                             handlePlaybackState(scope, state, activeSessionId)
@@ -338,6 +343,7 @@ class DesktopPlaylistEngine(
                 providerStreamUrl = { target -> provider.streamUrl(target.providerStreamRequest) },
             ),
             source = plan.source,
+            engineStartPositionSeconds = plan.target.engineStartPositionSeconds,
         )
     }
 
@@ -552,6 +558,7 @@ class DesktopPlaylistEngine(
 private data class PlaybackTarget(
     val url: String,
     val source: PlaybackSource,
+    val engineStartPositionSeconds: Double?,
 )
 
 data class PlaylistCallbacks(
@@ -562,9 +569,6 @@ data class PlaylistCallbacks(
     val onMetadataChanged: (app.naviamp.domain.playback.PlaybackStreamMetadata) -> Unit = {},
     val onCurrentTrackSidecarsReady: (Track) -> Unit = {},
 )
-
-private fun ReplayGainMode.forEngine(playbackEngine: PlaybackEngine): ReplayGainMode =
-    if (playbackEngine.supportsReplayGain) this else ReplayGainMode.Off
 
 private fun ReplayGain.hasAnyValue(): Boolean =
     trackGainDb != null || albumGainDb != null || trackPeak != null || albumPeak != null

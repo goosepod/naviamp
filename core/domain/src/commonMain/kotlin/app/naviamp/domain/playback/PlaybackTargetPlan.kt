@@ -49,6 +49,16 @@ data class PlaybackTrackStartEffectsPlan(
     val finishedAdjacentOffset: Int?,
 )
 
+data class PlaylistTrackStartWork<SessionId>(
+    val sessionId: SessionId,
+    val track: Track,
+    val playbackSource: PlaybackSource,
+    val coverArtUrl: String?,
+    val request: PlaybackRequest,
+    val startAudioPrefetch: Boolean,
+    val startSidecarPrep: Boolean,
+)
+
 fun planPlaybackTrackStartEffects(
     track: Track,
     presentation: PlaybackTrackStartedPlan,
@@ -69,6 +79,35 @@ fun planPlaybackTrackStartEffects(
         engineMediaId = track.id.value,
         engineStartPositionSeconds = startPlan?.target?.engineStartPositionSeconds,
         finishedAdjacentOffset = 1,
+    )
+
+fun <SessionId> planPlaylistTrackStartWork(
+    sessionId: SessionId,
+    track: Track,
+    playbackSource: PlaybackSource,
+    streamUrl: String,
+    replayGainMode: ReplayGainMode,
+    replayGain: PlaybackReplayGain?,
+    supportsReplayGain: Boolean,
+    engineStartPositionSeconds: Double?,
+    coverArtUrl: String?,
+    startAudioPrefetch: Boolean = true,
+    startSidecarPrep: Boolean = true,
+): PlaylistTrackStartWork<SessionId> =
+    PlaylistTrackStartWork(
+        sessionId = sessionId,
+        track = track,
+        playbackSource = playbackSource,
+        coverArtUrl = coverArtUrl,
+        request = PlaybackRequest(
+            url = streamUrl,
+            mediaId = track.id.value,
+            replayGainMode = if (supportsReplayGain) replayGainMode else ReplayGainMode.Off,
+            replayGain = replayGain,
+            startPositionSeconds = engineStartPositionSeconds?.takeIf { it > 0.0 },
+        ),
+        startAudioPrefetch = startAudioPrefetch,
+        startSidecarPrep = startSidecarPrep,
     )
 
 fun planPlaybackTrackStarted(

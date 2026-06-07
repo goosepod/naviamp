@@ -14,6 +14,7 @@ import app.naviamp.domain.playback.PlaybackReplayGain
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
+import app.naviamp.domain.playback.planPlaylistTrackStartWork
 import app.naviamp.domain.playback.planPlaybackProgressUpdate
 import app.naviamp.domain.playback.planPlaybackStart
 import app.naviamp.domain.playback.planPlaybackTrackStartEffects
@@ -172,22 +173,29 @@ fun playAndroidTrack(
                 if (effectsPlan.presentation.shouldLoadLyrics) loadLyrics(track)
                 if (effectsPlan.startAudioPrefetch) startAudioPrefetch(sessionToken, activeProvider, playbackQueue)
                 if (effectsPlan.startSidecarPrep) startSidecarPrep(sessionToken, activeProvider, playbackQueue)
+                val trackStartWork = planPlaylistTrackStartWork(
+                    sessionId = sessionToken,
+                    track = track,
+                    playbackSource = audioSourcePlan.source,
+                    streamUrl = streamUrl,
+                    replayGainMode = playbackSettings.replayGainMode,
+                    replayGain = track.replayGain?.let { PlaybackReplayGain(it, ReplayGainSource.Provider) },
+                    supportsReplayGain = playbackEngine.supportsReplayGain,
+                    engineStartPositionSeconds = effectsPlan.engineStartPositionSeconds,
+                    coverArtUrl = track.coverArtUrl(activeProvider),
+                    startAudioPrefetch = effectsPlan.startAudioPrefetch,
+                    startSidecarPrep = effectsPlan.startSidecarPrep,
+                )
                 if (effectsPlan.updateNotificationMetadata) {
                     playbackEngine.updateNotificationMetadata(
                         title = effectsPlan.notificationTitle,
                         subtitle = effectsPlan.notificationSubtitle,
-                        coverArtUrl = track.coverArtUrl(activeProvider),
+                        coverArtUrl = trackStartWork.coverArtUrl,
                     )
                 }
                 playbackEngine.play(
                     scope = scope,
-                    request = PlaybackRequest(
-                        url = streamUrl,
-                        mediaId = effectsPlan.engineMediaId,
-                        replayGainMode = playbackSettings.replayGainMode,
-                        replayGain = track.replayGain?.let { PlaybackReplayGain(it, ReplayGainSource.Provider) },
-                        startPositionSeconds = effectsPlan.engineStartPositionSeconds,
-                    ),
+                    request = trackStartWork.request,
                     onStateChanged = { playbackState ->
                         state.playbackState = playbackState
                         when (playbackState) {
