@@ -44,3 +44,9 @@ data class PlaybackQueueSelectionUpdate(
     val queue: PlaybackQueue,
     val changed: Boolean,
 )
+
+data class PlaybackQueueMutationUpdate(
+    val queue: PlaybackQueue,
+    val changed: Boolean,
+    val clearPreparedNext: Boolean = false,
+)

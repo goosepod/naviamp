@@ -720,7 +720,14 @@ Progress notes:
   - Desktop platform files stayed flat by design; changing them would only add adapter churn now that `PlaybackQueueController` owns the shared call path.
   - `PlaybackQueueController.kt` shifted from inline queue selection decisions to shared manager calls.
   - `PlaybackQueueManager.kt` grew intentionally with the remaining manual selection policy.
-- Remaining work in this playback slice: inspect queue mutation methods that still mutate `PlaybackQueueController` directly, especially append/update/replace-upcoming/toggle-shuffle, and decide which should become manager updates versus legitimate state application.
+- Added shared queue mutation updates through `PlaybackQueueManager` for append, update-track, and replace-upcoming operations.
+- `PlaybackQueueController.appendTracks`, `updateTrack`, `replaceUpcomingTracks`, and `toggleUpcomingShuffle` now delegate mutation policy to the manager and only apply queue/prepared-next state.
+- Size/reduction note for the queue mutation slice:
+  - Platform files stayed flat because both Android and Desktop already pass through `PlaybackQueueController` or `PlaybackQueueManager`; no adapter churn was needed.
+  - `PlaybackQueueController.kt` now acts more clearly as the queue state/session applier instead of owning mutation rules.
+  - `PlaybackQueueManager.kt` grew intentionally with the remaining shared mutation rules.
+  - `PlaybackQueueUpdates.kt` grew with the typed mutation update DTO.
+- Remaining work in this playback slice: inspect start/restore/clear/replaceQueue responsibilities and decide which are pure queue state application versus shared planning candidates.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:

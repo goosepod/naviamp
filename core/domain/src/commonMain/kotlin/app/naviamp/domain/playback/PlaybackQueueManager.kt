@@ -36,6 +36,52 @@ class PlaybackQueueManager {
         )
     }
 
+    fun appendQueueTracks(
+        currentQueue: PlaybackQueue,
+        tracksToAdd: List<Track>,
+        maxHistory: Int? = null,
+    ): PlaybackQueueMutationUpdate {
+        val update = appendTracks(
+            currentQueue = currentQueue,
+            tracksToAdd = tracksToAdd,
+            maxHistory = maxHistory,
+        )
+        return PlaybackQueueMutationUpdate(
+            queue = update.queue,
+            changed = update.tracksChanged,
+        )
+    }
+
+    fun updateTrack(
+        currentQueue: PlaybackQueue,
+        updatedTrack: Track,
+    ): PlaybackQueueMutationUpdate {
+        val updatedTracks = currentQueue.tracks.map { track ->
+            if (track.id == updatedTrack.id) updatedTrack else track
+        }
+        if (updatedTracks == currentQueue.tracks) {
+            return PlaybackQueueMutationUpdate(queue = currentQueue, changed = false)
+        }
+        return PlaybackQueueMutationUpdate(
+            queue = currentQueue.copy(tracks = updatedTracks),
+            changed = true,
+        )
+    }
+
+    fun replaceUpcomingTracks(
+        currentQueue: PlaybackQueue,
+        currentTrack: Track,
+        upcomingTracks: List<Track>,
+        maxHistory: Int? = null,
+    ): PlaybackQueueMutationUpdate {
+        val nextQueue = currentQueue.replaceUpcomingTracks(currentTrack, upcomingTracks, maxHistory)
+        return PlaybackQueueMutationUpdate(
+            queue = nextQueue,
+            changed = nextQueue != currentQueue,
+            clearPreparedNext = true,
+        )
+    }
+
     fun cycleRepeatMode(currentMode: RepeatMode): RepeatMode =
         when (currentMode) {
             RepeatMode.Off -> RepeatMode.Queue

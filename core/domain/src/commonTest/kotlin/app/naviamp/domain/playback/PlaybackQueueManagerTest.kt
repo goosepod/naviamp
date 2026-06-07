@@ -98,6 +98,72 @@ class PlaybackQueueManagerTest {
     }
 
     @Test
+    fun appendQueueTracksReturnsMutationUpdateWithoutStatus() {
+        val one = track("one")
+        val two = track("two")
+        val queue = PlaybackQueue(tracks = listOf(one), currentIndex = 0)
+
+        assertEquals(
+            PlaybackQueueMutationUpdate(
+                queue = PlaybackQueue(tracks = listOf(one, two), currentIndex = 0),
+                changed = true,
+            ),
+            PlaybackQueueManager().appendQueueTracks(
+                currentQueue = queue,
+                tracksToAdd = listOf(two),
+            ),
+        )
+        assertEquals(
+            PlaybackQueueMutationUpdate(queue = queue, changed = false),
+            PlaybackQueueManager().appendQueueTracks(
+                currentQueue = queue,
+                tracksToAdd = emptyList(),
+            ),
+        )
+    }
+
+    @Test
+    fun updateTrackReplacesMatchingQueueTrackOnly() {
+        val one = track("one")
+        val two = track("two")
+        val updatedTwo = two.copy(title = "Updated")
+        val queue = PlaybackQueue(tracks = listOf(one, two), currentIndex = 0)
+
+        assertEquals(
+            PlaybackQueueMutationUpdate(
+                queue = PlaybackQueue(tracks = listOf(one, updatedTwo), currentIndex = 0),
+                changed = true,
+            ),
+            PlaybackQueueManager().updateTrack(queue, updatedTwo),
+        )
+        assertEquals(
+            PlaybackQueueMutationUpdate(queue = queue, changed = false),
+            PlaybackQueueManager().updateTrack(queue, track("missing")),
+        )
+    }
+
+    @Test
+    fun replaceUpcomingTracksClearsPreparedNext() {
+        val one = track("one")
+        val two = track("two")
+        val three = track("three")
+        val queue = PlaybackQueue(tracks = listOf(one, two), currentIndex = 0)
+
+        assertEquals(
+            PlaybackQueueMutationUpdate(
+                queue = PlaybackQueue(tracks = listOf(one, three), currentIndex = 0),
+                changed = true,
+                clearPreparedNext = true,
+            ),
+            PlaybackQueueManager().replaceUpcomingTracks(
+                currentQueue = queue,
+                currentTrack = one,
+                upcomingTracks = listOf(three),
+            ),
+        )
+    }
+
+    @Test
     fun cycleRepeatModeUsesSharedQueueOrder() {
         val manager = PlaybackQueueManager()
 

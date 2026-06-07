@@ -58,21 +58,24 @@ class PlaybackQueueController(
     }
 
     fun updateTrack(updatedTrack: Track): PlaybackQueue? {
-        val updatedTracks = queue.tracks.map { track ->
-            if (track.id == updatedTrack.id) updatedTrack else track
-        }
-        if (updatedTracks == queue.tracks) return null
-        queue = queue.copy(tracks = updatedTracks)
-        return queue
+        val update = queueManager.updateTrack(queue, updatedTrack)
+        if (!update.changed) return null
+        applyMutation(update)
+        return update.queue
     }
 
     fun appendTracks(
         tracks: List<Track>,
         maxHistory: Int? = null,
     ): PlaybackQueue? {
-        if (tracks.isEmpty()) return null
-        queue = queue.appendTracks(tracks, maxHistory)
-        return queue
+        val update = queueManager.appendQueueTracks(
+            currentQueue = queue,
+            tracksToAdd = tracks,
+            maxHistory = maxHistory,
+        )
+        if (!update.changed) return null
+        applyMutation(update)
+        return update.queue
     }
 
     fun replaceUpcomingTracks(
@@ -80,9 +83,14 @@ class PlaybackQueueController(
         upcomingTracks: List<Track>,
         maxHistory: Int? = null,
     ): PlaybackQueue {
-        queue = queue.replaceUpcomingTracks(currentTrack, upcomingTracks, maxHistory)
-        preparedNextIndex = null
-        return queue
+        val update = queueManager.replaceUpcomingTracks(
+            currentQueue = queue,
+            currentTrack = currentTrack,
+            upcomingTracks = upcomingTracks,
+            maxHistory = maxHistory,
+        )
+        applyMutation(update)
+        return update.queue
     }
 
     fun setRepeatMode(mode: RepeatMode) {
@@ -140,10 +148,16 @@ class PlaybackQueueController(
     }
 
     fun toggleUpcomingShuffle(shuffledSnapshot: List<Track>?): PlaybackShuffleToggle? {
-        val result = queue.toggleUpcomingShuffle(shuffledSnapshot) ?: return null
-        queue = result.queue
-        preparedNextIndex = null
-        return PlaybackShuffleToggle(queue = queue, shuffledSnapshot = result.shuffledSnapshot)
+        val update = queueManager.toggleUpcomingShuffle(queue, shuffledSnapshot)
+        if (!update.changed) return null
+        applyMutation(
+            PlaybackQueueMutationUpdate(
+                queue = update.queue,
+                changed = true,
+                clearPreparedNext = true,
+            ),
+        )
+        return PlaybackShuffleToggle(queue = queue, shuffledSnapshot = update.shuffledSnapshot)
     }
 
     fun finishedSelection(): PlaybackQueueSelection? {
@@ -198,6 +212,11 @@ class PlaybackQueueController(
         queue = PlaybackQueue(tracks = tracks, currentIndex = index)
         preparedNextIndex = null
         return PlaybackQueueSelection(queue = queue, sessionId = sessionId)
+    }
+
+    private fun applyMutation(update: PlaybackQueueMutationUpdate) {
+        queue = update.queue
+        if (update.clearPreparedNext) preparedNextIndex = null
     }
 }
 
