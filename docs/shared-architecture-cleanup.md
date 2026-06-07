@@ -701,7 +701,19 @@ Progress notes:
   - `AndroidServicePlaybackRuntimeController.kt`: grew slightly because it now applies typed shared finished commands to service playback side effects.
   - Desktop platform files stayed flat because `DesktopPlaylistEngine` already goes through `PlaybackQueueController`; the controller now delegates the policy to the manager.
   - Shared domain grew intentionally in `PlaybackQueueManager.kt`, `PlaybackQueueController.kt`, and tests because end-of-track and prepare-next queue policy moved into the shared queue service path.
-- Remaining work in this playback slice: reduce direct platform calls to `PlaybackQueueController` for adjacent/manual navigation and consider splitting `PlaybackQueueManager.kt` into smaller Kotlin files if it continues to grow.
+- Added shared adjacent queue selection through `PlaybackQueueManager.selectAdjacent`.
+- `PlaybackQueueController.adjacent` now delegates adjacent queue policy to the manager.
+- Android service-owned previous/next now uses `PlaybackQueueManager.selectAdjacent` instead of calling `PlaybackQueueController.adjacent` directly.
+- Split `PlaybackQueueManager.kt` composition into smaller focused files:
+  - `PlaybackQueueUpdates.kt` owns queue update DTOs and command/result sealed types.
+  - `PlaybackQueueAppend.kt` owns append filtering and append-status helpers.
+  - `PlaybackQueueManager.kt` now reads as the shared queue service implementation instead of a mixed model/helper/service file.
+- Size/reduction note for the adjacent/split slice:
+  - `AndroidServicePlaybackRuntimeController.kt`: stayed roughly flat because direct controller adjacent policy was replaced by manager command application and the same service side effects remain.
+  - `PlaybackQueueController.kt`: shrank its adjacent decision body and now delegates policy to the manager.
+  - `PlaybackQueueManager.kt`: shrank substantially by moving DTOs and append helpers into focused shared files, while adding `selectAdjacent`.
+  - Desktop platform files stayed flat because desktop manual navigation already routes through `DesktopPlaybackController` and `DesktopPlaylistEngine`.
+- Remaining work in this playback slice: inspect direct `PlaybackQueueController.next/previous/jumpTo/playCurrent` calls in `DesktopPlaylistEngine` and decide whether they should become shared command application helpers or remain the platform playback adapter boundary.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:

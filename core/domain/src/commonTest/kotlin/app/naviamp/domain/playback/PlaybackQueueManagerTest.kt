@@ -319,6 +319,47 @@ class PlaybackQueueManagerTest {
         assertEquals(false, manager.shouldPrepareNextQueueIndex(preparedNextIndex = 1, nextQueueIndex = 1))
     }
 
+    @Test
+    fun selectAdjacentUsesRepeatAndWrapPolicy() {
+        val one = track("one")
+        val two = track("two")
+        val queue = PlaybackQueue(tracks = listOf(one, two), currentIndex = 0)
+        val manager = PlaybackQueueManager()
+
+        assertEquals(
+            PlaybackQueueSelectionUpdate(
+                queue = PlaybackQueue(tracks = listOf(one, two), currentIndex = 1),
+                changed = true,
+            ),
+            manager.selectAdjacent(
+                queue = queue,
+                offset = 1,
+                repeatMode = RepeatMode.Off,
+            ),
+        )
+        assertEquals(
+            PlaybackQueueSelectionUpdate(queue = queue, changed = false),
+            manager.selectAdjacent(
+                queue = queue,
+                offset = -1,
+                repeatMode = RepeatMode.Off,
+                wrapQueue = false,
+            ),
+        )
+        assertEquals(
+            PlaybackQueueSelectionUpdate(
+                queue = PlaybackQueue(tracks = listOf(one, two), currentIndex = 1),
+                changed = true,
+            ),
+            manager.selectAdjacent(
+                queue = queue,
+                offset = -1,
+                repeatMode = RepeatMode.Queue,
+                wrapQueue = true,
+            ),
+        )
+    }
+
     private fun track(id: String): Track =
         Track(
             id = TrackId(id),

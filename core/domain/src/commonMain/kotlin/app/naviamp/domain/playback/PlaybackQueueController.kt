@@ -125,14 +125,15 @@ class PlaybackQueueController(
         offset: Int,
         wrapQueue: Boolean = true,
     ): PlaybackQueueSelection? {
-        val nextIndex = queue.adjacentIndex(
+        val update = queueManager.selectAdjacent(
+            queue = queue,
             offset = offset,
             repeatMode = repeatMode,
-            repeatTrack = false,
             wrapQueue = wrapQueue,
-        ) ?: return null
+        )
+        if (!update.changed) return null
         playbackSessionId += 1
-        return selectQueueIndex(queue.tracks, nextIndex, playbackSessionId)
+        return selectQueueIndex(update.queue.tracks, update.queue.currentIndex, playbackSessionId)
     }
 
     fun toggleUpcomingShuffle(shuffledSnapshot: List<Track>?): PlaybackShuffleToggle? {

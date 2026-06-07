@@ -5,43 +5,6 @@ import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.PreviousButtonBehavior
 
-data class PlaybackQueueUpdate(
-    val queue: PlaybackQueue,
-    val tracksChanged: Boolean,
-    val status: String,
-)
-
-data class PlaybackShuffleUpdate(
-    val queue: PlaybackQueue,
-    val shuffledSnapshot: List<Track>?,
-    val changed: Boolean,
-)
-
-sealed interface PlaybackQueueNavigationCommand {
-    data object None : PlaybackQueueNavigationCommand
-    data object RestartCurrent : PlaybackQueueNavigationCommand
-    data object Previous : PlaybackQueueNavigationCommand
-    data object Next : PlaybackQueueNavigationCommand
-    data class JumpTo(
-        val index: Int,
-        val moveSelectedToCurrent: Boolean,
-    ) : PlaybackQueueNavigationCommand
-}
-
-sealed interface PlaybackQueueFinishedCommand {
-    data object None : PlaybackQueueFinishedCommand
-    data object ReplayCurrent : PlaybackQueueFinishedCommand
-    data object PlayNext : PlaybackQueueFinishedCommand
-}
-
-data class PlaybackQueueFinishedUpdate(
-    val queue: PlaybackQueue,
-    val command: PlaybackQueueFinishedCommand,
-) {
-    val shouldPlay: Boolean
-        get() = command != PlaybackQueueFinishedCommand.None
-}
-
 class PlaybackQueueManager {
     fun appendTracks(
         currentQueue: PlaybackQueue,
@@ -180,6 +143,24 @@ class PlaybackQueueManager {
     ): Boolean =
         preparedNextIndex != nextQueueIndex
 
+    fun selectAdjacent(
+        queue: PlaybackQueue,
+        offset: Int,
+        repeatMode: RepeatMode,
+        wrapQueue: Boolean = true,
+    ): PlaybackQueueSelectionUpdate {
+        val nextIndex = queue.adjacentIndex(
+            offset = offset,
+            repeatMode = repeatMode,
+            repeatTrack = false,
+            wrapQueue = wrapQueue,
+        ) ?: return PlaybackQueueSelectionUpdate(queue = queue, changed = false)
+        return PlaybackQueueSelectionUpdate(
+            queue = queue.copy(currentIndex = nextIndex),
+            changed = nextIndex != queue.currentIndex,
+        )
+    }
+
     fun planAdjacentAction(
         currentTrack: Track?,
         activeQueue: List<Track>,
@@ -229,30 +210,3 @@ class PlaybackQueueManager {
     private val PlaybackQueue.isInactiveEmpty: Boolean
         get() = currentIndex < 0 && tracks.isEmpty()
 }
-
-fun appendableTracks(
-    tracksToAdd: List<Track>,
-    existingTracks: List<Track> = emptyList(),
-    deduplicateExisting: Boolean = false,
-): List<Track> {
-    if (!deduplicateExisting) return tracksToAdd
-    val existingIds = existingTracks.map { it.id }.toSet()
-    return tracksToAdd.filterNot { track -> track.id in existingIds }
-}
-
-fun queueAppendStatus(
-    originalTracks: List<Track>,
-    tracksToAdd: List<Track>,
-    label: String = "tracks",
-    deduplicateExisting: Boolean = false,
-): String =
-    if (tracksToAdd.isEmpty()) {
-        if (deduplicateExisting && originalTracks.isNotEmpty()) {
-            "${label.replaceFirstChar { it.uppercase() }} are already in the queue."
-        } else {
-            "No tracks found."
-        }
-    } else {
-        val displayLabel = if (tracksToAdd.size == 1 && label == "tracks") "track" else label
-        "Added ${tracksToAdd.size} $displayLabel to queue."
-    }

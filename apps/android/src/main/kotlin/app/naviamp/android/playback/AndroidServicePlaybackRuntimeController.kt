@@ -115,10 +115,12 @@ internal class AndroidServicePlaybackRuntimeController(
 
     fun playServiceOwnedAdjacent(delta: Int): Boolean {
         if (!serviceOwnedPlayback) return false
-        queueController.replaceQueue(PlaybackQueue(currentQueue(), currentQueueIndex()))
-        queueController.setRepeatMode(repeatMode())
-        val selection = queueController.adjacent(offset = delta)
-        if (selection == null) {
+        val update = queueManager.selectAdjacent(
+            queue = PlaybackQueue(currentQueue(), currentQueueIndex()),
+            offset = delta,
+            repeatMode = repeatMode(),
+        )
+        if (!update.changed) {
             Log.i(
                 "NaviampAutoCommand",
                 "Service-owned queue has no adjacent track delta=$delta index=${currentQueueIndex()} size=${currentQueue().size}",
@@ -131,9 +133,10 @@ internal class AndroidServicePlaybackRuntimeController(
         val sourceId = storage.latestNavidromeSource()?.id ?: return false
         Log.i(
             "NaviampAutoCommand",
-            "Service-owned queue advancing delta=$delta from=${currentQueueIndex()} to=${selection.queue.currentIndex} size=${selection.queue.tracks.size}",
+            "Service-owned queue advancing delta=$delta from=${currentQueueIndex()} to=${update.queue.currentIndex} size=${update.queue.tracks.size}",
         )
-        playTrackQueue(storage, sourceId, selection.queue.tracks, selection.queue.currentIndex)
+        queueController.replaceQueue(update.queue)
+        playTrackQueue(storage, sourceId, update.queue.tracks, update.queue.currentIndex)
         return true
     }
 
