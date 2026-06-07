@@ -681,7 +681,11 @@ Progress notes:
 - Desktop media and playlist queue additions now use `PlaybackQueueManager`; `DesktopPlaylistEngine` exposes a thin `replaceQueue` adapter so it still owns desktop queue callbacks.
 - `queueAppendPlan` now delegates to shared queue append helpers to keep existing callers on the same decision path.
 - Added `PlaybackQueueManagerTest.kt` coverage for starting an empty queue, appending to an existing queue, deduping, and no-change statuses.
-- Remaining work in this slice: extract small track-action status wrappers where that can be done without hiding real platform state updates.
+- Extended `PlaybackQueueManager` to own repeat cycling and upcoming-shuffle decisions with typed `PlaybackShuffleUpdate` results.
+- Android shell shuffle/repeat and Desktop shuffle/repeat now use `PlaybackQueueManager`; platform code only applies queue state and playback-engine repeat settings.
+- `nextRepeatMode` now delegates to `PlaybackQueueManager` so older callers share the same repeat decision path.
+- Added `PlaybackQueueManagerTest.kt` coverage for repeat cycling, shuffle toggle/restore, and no-change shuffle outcomes.
+- Remaining work in this slice: extract previous/next/jump queue navigation planning once playback command execution has a shared result surface.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:

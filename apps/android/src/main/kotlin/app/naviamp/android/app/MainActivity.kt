@@ -69,6 +69,7 @@ import app.naviamp.domain.genremix.genreMixSelectedGenresAfterSelect
 import app.naviamp.domain.media.albumDetailLoadErrorStatus
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackQueueController
+import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
@@ -1727,9 +1728,11 @@ private fun NaviampAndroidApp(
         val currentIndex = queue.indexOfFirst { it.id == currentTrack.id }
         if (currentIndex < 0) return
         playbackQueueController.replaceQueue(PlaybackQueue(tracks = queue, currentIndex = currentIndex))
-        val toggled = playbackQueueController.toggleUpcomingShuffle(shuffledUpNextSnapshot) ?: return
-        playbackQueue = toggled.queue
-        shuffledUpNextSnapshot = toggled.shuffledSnapshot
+        val update = PlaybackQueueManager().toggleUpcomingShuffle(playbackQueueController.queue, shuffledUpNextSnapshot)
+        if (!update.changed) return
+        playbackQueueController.replaceQueue(update.queue)
+        playbackQueue = update.queue
+        shuffledUpNextSnapshot = update.shuffledSnapshot
     }
 
     fun startTrackRadioQueue(track: Track, playSeed: Boolean) {

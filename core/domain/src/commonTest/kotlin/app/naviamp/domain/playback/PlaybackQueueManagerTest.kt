@@ -3,6 +3,7 @@ package app.naviamp.domain.playback
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.queue.RepeatMode
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -92,6 +93,55 @@ class PlaybackQueueManagerTest {
                 existingTracks = listOf(one),
                 deduplicateExisting = true,
             ),
+        )
+    }
+
+    @Test
+    fun cycleRepeatModeUsesSharedQueueOrder() {
+        val manager = PlaybackQueueManager()
+
+        assertEquals(RepeatMode.Queue, manager.cycleRepeatMode(RepeatMode.Off))
+        assertEquals(RepeatMode.Track, manager.cycleRepeatMode(RepeatMode.Queue))
+        assertEquals(RepeatMode.Off, manager.cycleRepeatMode(RepeatMode.Track))
+        assertEquals(RepeatMode.Queue, nextRepeatMode(RepeatMode.Off))
+    }
+
+    @Test
+    fun toggleUpcomingShuffleReturnsQueueAndSnapshotUpdates() {
+        val one = track("one")
+        val two = track("two")
+        val three = track("three")
+        val queue = PlaybackQueue(tracks = listOf(one, two, three), currentIndex = 0)
+        val manager = PlaybackQueueManager()
+
+        val shuffled = manager.toggleUpcomingShuffle(queue, shuffledSnapshot = null)
+
+        assertEquals(true, shuffled.changed)
+        assertEquals(listOf(two, three), shuffled.shuffledSnapshot)
+        assertEquals(one, shuffled.queue.tracks.first())
+
+        assertEquals(
+            PlaybackShuffleUpdate(
+                queue = queue,
+                shuffledSnapshot = null,
+                changed = true,
+            ),
+            manager.toggleUpcomingShuffle(shuffled.queue, shuffledSnapshot = shuffled.shuffledSnapshot),
+        )
+    }
+
+    @Test
+    fun toggleUpcomingShuffleReportsNoChangeWhenQueueCannotShuffle() {
+        val one = track("one")
+        val queue = PlaybackQueue(tracks = listOf(one), currentIndex = 0)
+
+        assertEquals(
+            PlaybackShuffleUpdate(
+                queue = queue,
+                shuffledSnapshot = null,
+                changed = false,
+            ),
+            PlaybackQueueManager().toggleUpcomingShuffle(queue, shuffledSnapshot = null),
         )
     }
 

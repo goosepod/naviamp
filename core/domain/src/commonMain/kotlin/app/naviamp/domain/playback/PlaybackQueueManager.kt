@@ -2,11 +2,18 @@ package app.naviamp.domain.playback
 
 import app.naviamp.domain.Track
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.queue.RepeatMode
 
 data class PlaybackQueueUpdate(
     val queue: PlaybackQueue,
     val tracksChanged: Boolean,
     val status: String,
+)
+
+data class PlaybackShuffleUpdate(
+    val queue: PlaybackQueue,
+    val shuffledSnapshot: List<Track>?,
+    val changed: Boolean,
 )
 
 class PlaybackQueueManager {
@@ -37,6 +44,30 @@ class PlaybackQueueManager {
                 label = label,
                 deduplicateExisting = deduplicateExisting,
             ),
+        )
+    }
+
+    fun cycleRepeatMode(currentMode: RepeatMode): RepeatMode =
+        when (currentMode) {
+            RepeatMode.Off -> RepeatMode.Queue
+            RepeatMode.Queue -> RepeatMode.Track
+            RepeatMode.Track -> RepeatMode.Off
+        }
+
+    fun toggleUpcomingShuffle(
+        currentQueue: PlaybackQueue,
+        shuffledSnapshot: List<Track>?,
+    ): PlaybackShuffleUpdate {
+        val toggle = currentQueue.toggleUpcomingShuffle(shuffledSnapshot)
+            ?: return PlaybackShuffleUpdate(
+                queue = currentQueue,
+                shuffledSnapshot = shuffledSnapshot,
+                changed = false,
+            )
+        return PlaybackShuffleUpdate(
+            queue = toggle.queue,
+            shuffledSnapshot = toggle.shuffledSnapshot,
+            changed = true,
         )
     }
 

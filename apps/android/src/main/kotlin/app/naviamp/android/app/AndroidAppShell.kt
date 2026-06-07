@@ -8,7 +8,7 @@ import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
-import app.naviamp.domain.playback.nextRepeatMode
+import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.playback.SleepTimerRequest
 import app.naviamp.domain.provider.allKnownTracks
 import app.naviamp.domain.queue.RepeatMode
@@ -846,7 +846,7 @@ fun androidAppShellActions(
             },
             onToggleShuffle = handleShellToggleShuffle,
             onCycleRepeatMode = {
-                repeatMode = nextRepeatMode(repeatMode)
+                repeatMode = PlaybackQueueManager().cycleRepeatMode(repeatMode)
             },
             onToggleLyrics = {
                 lyricsVisible = !lyricsVisible

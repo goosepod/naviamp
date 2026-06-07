@@ -14,11 +14,7 @@ fun shouldRestartInsteadOfPrevious(
         (positionSeconds ?: 0.0) > restartThresholdSeconds
 
 fun nextRepeatMode(mode: RepeatMode): RepeatMode =
-    when (mode) {
-        RepeatMode.Off -> RepeatMode.Queue
-        RepeatMode.Queue -> RepeatMode.Track
-        RepeatMode.Track -> RepeatMode.Off
-    }
+    PlaybackQueueManager().cycleRepeatMode(mode)
 
 fun canUsePreviousButton(
     queue: PlaybackQueue,

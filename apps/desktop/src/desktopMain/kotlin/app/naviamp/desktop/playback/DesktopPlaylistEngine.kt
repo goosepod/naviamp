@@ -14,6 +14,7 @@ import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackAudioAssetRepository
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackQueueController
+import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.playback.PlaybackQueueSelection
 import app.naviamp.domain.playback.PlaybackReplayGain
 import app.naviamp.domain.playback.PlaybackRequest
@@ -232,9 +233,11 @@ class DesktopPlaylistEngine(
     }
 
     fun toggleUpcomingShuffle(shuffledSnapshot: List<Track>?): List<Track>? {
-        val result = queueController.toggleUpcomingShuffle(shuffledSnapshot) ?: return shuffledSnapshot
-        callbacks?.onQueueChanged(result.queue)
-        return result.shuffledSnapshot
+        val update = PlaybackQueueManager().toggleUpcomingShuffle(queueController.queue, shuffledSnapshot)
+        if (!update.changed) return shuffledSnapshot
+        queueController.replaceQueue(update.queue)
+        callbacks?.onQueueChanged(update.queue)
+        return update.shuffledSnapshot
     }
 
     private fun playQueueSelection(

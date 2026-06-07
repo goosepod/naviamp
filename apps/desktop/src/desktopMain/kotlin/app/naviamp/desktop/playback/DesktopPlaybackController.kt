@@ -10,7 +10,7 @@ import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.canUseNextButton
 import app.naviamp.domain.playback.canUsePreviousButton
 import app.naviamp.domain.playback.canReportPlaybackTrack
-import app.naviamp.domain.playback.nextRepeatMode
+import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.playback.planPlaybackSeek
 import app.naviamp.domain.playback.shouldRestartInsteadOfPrevious
 import app.naviamp.domain.playback.shouldSavePlaybackPosition
@@ -66,7 +66,7 @@ class DesktopPlaybackController(
     }
 
     fun cycleRepeatMode() {
-        val mode = nextRepeatMode(repeatMode())
+        val mode = PlaybackQueueManager().cycleRepeatMode(repeatMode())
         setRepeatMode(mode)
         playlistEngine.setRepeatMode(mode)
     }
