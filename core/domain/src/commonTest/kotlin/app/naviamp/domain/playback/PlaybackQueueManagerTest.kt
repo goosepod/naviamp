@@ -10,6 +10,73 @@ import kotlin.test.assertEquals
 
 class PlaybackQueueManagerTest {
     @Test
+    fun startQueueValidatesSelectionIndex() {
+        val one = track("one")
+        val two = track("two")
+
+        assertEquals(
+            PlaybackQueueMutationUpdate(
+                queue = PlaybackQueue(tracks = listOf(one, two), currentIndex = 1),
+                changed = true,
+                clearPreparedNext = true,
+            ),
+            PlaybackQueueManager().startQueue(
+                tracks = listOf(one, two),
+                index = 1,
+            ),
+        )
+        assertEquals(
+            PlaybackQueueMutationUpdate(
+                queue = PlaybackQueue(),
+                changed = false,
+            ),
+            PlaybackQueueManager().startQueue(
+                tracks = listOf(one, two),
+                index = 2,
+            ),
+        )
+    }
+
+    @Test
+    fun restoreQueueUsesSameValidationAsStart() {
+        val one = track("one")
+
+        assertEquals(
+            PlaybackQueueMutationUpdate(
+                queue = PlaybackQueue(tracks = listOf(one), currentIndex = 0),
+                changed = true,
+                clearPreparedNext = true,
+            ),
+            PlaybackQueueManager().restoreQueue(
+                tracks = listOf(one),
+                index = 0,
+            ),
+        )
+        assertEquals(
+            PlaybackQueueMutationUpdate(
+                queue = PlaybackQueue(),
+                changed = false,
+            ),
+            PlaybackQueueManager().restoreQueue(
+                tracks = emptyList(),
+                index = 0,
+            ),
+        )
+    }
+
+    @Test
+    fun clearQueueReturnsEmptyQueueMutation() {
+        assertEquals(
+            PlaybackQueueMutationUpdate(
+                queue = PlaybackQueue(),
+                changed = true,
+                clearPreparedNext = true,
+            ),
+            PlaybackQueueManager().clearQueue(),
+        )
+    }
+
+    @Test
     fun appendTracksStartsInactiveEmptyQueueAtFirstTrack() {
         val one = track("one")
 

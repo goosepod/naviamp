@@ -25,26 +25,28 @@ class PlaybackQueueController(
         tracks: List<Track>,
         index: Int,
     ): PlaybackQueueSelection? {
-        val selectedIndex = index.takeIf { it in tracks.indices } ?: return null
+        val update = queueManager.startQueue(tracks, index)
+        if (!update.changed) return null
         playbackSessionId += 1
-        return selectQueueIndex(tracks, selectedIndex, playbackSessionId)
+        applyMutation(update)
+        return PlaybackQueueSelection(queue = queue, sessionId = playbackSessionId)
     }
 
     fun restore(
         tracks: List<Track>,
         index: Int,
     ): Boolean {
-        if (tracks.isEmpty() || index !in tracks.indices) return false
+        val update = queueManager.restoreQueue(tracks, index)
+        if (!update.changed) return false
         playbackSessionId += 1
-        queue = PlaybackQueue(tracks = tracks, currentIndex = index)
-        preparedNextIndex = null
+        applyMutation(update)
         return true
     }
 
     fun clear() {
+        val update = queueManager.clearQueue()
         playbackSessionId += 1
-        queue = PlaybackQueue()
-        preparedNextIndex = null
+        applyMutation(update)
     }
 
     fun replaceQueue(

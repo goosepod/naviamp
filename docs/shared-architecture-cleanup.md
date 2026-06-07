@@ -727,7 +727,14 @@ Progress notes:
   - `PlaybackQueueController.kt` now acts more clearly as the queue state/session applier instead of owning mutation rules.
   - `PlaybackQueueManager.kt` grew intentionally with the remaining shared mutation rules.
   - `PlaybackQueueUpdates.kt` grew with the typed mutation update DTO.
-- Remaining work in this playback slice: inspect start/restore/clear/replaceQueue responsibilities and decide which are pure queue state application versus shared planning candidates.
+- Added shared lifecycle queue updates through `PlaybackQueueManager` for start, restore, and clear.
+- `PlaybackQueueController.start`, `restore`, and `clear` now delegate queue validation/shape decisions to the manager and keep session application locally.
+- Decision: `PlaybackQueueController.replaceQueue` remains a state-sync method because callers intentionally provide already-shaped queue state from platform/session/radio adapters.
+- Size/reduction note for the lifecycle queue slice:
+  - Platform files stayed flat because existing adapters already call the controller/engine boundary.
+  - `PlaybackQueueController.kt` moved start/restore/clear queue-shape policy into the manager while retaining session updates.
+  - `PlaybackQueueManager.kt` grew intentionally with lifecycle queue planning.
+- Remaining work in this playback slice: review whether `PlaybackQueueManager.kt` should be further decomposed by operation family after these extra manager responsibilities, then move on to playback transition/prepared-next service composition if no split is needed.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
