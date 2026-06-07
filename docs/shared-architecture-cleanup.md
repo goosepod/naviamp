@@ -693,7 +693,15 @@ Progress notes:
   - `DesktopPlaybackController.kt`: grew intentionally because it is now the desktop playback adapter boundary for shared navigation commands.
   - Android platform files stayed flat because Android already used the shared adjacent-action helper; the helper now delegates into the manager.
   - Shared domain grew intentionally in `PlaybackQueueManager.kt` and tests because navigation policy moved out of platform-local decisions.
-- Remaining work in this slice: move more playback command execution and finished-track command planning behind the same shared result surface.
+- Added shared `PlaybackQueueFinishedCommand` planning for finished-track outcomes: play next, replay current, or stop at the end of the queue.
+- `PlaybackQueueController.finishedSelection`, `nextGaplessQueueIndex`, and prepared-next checks now delegate queue finish/prepare policy to `PlaybackQueueManager`.
+- Android service-owned playback now uses `PlaybackQueueManager.finishCurrentTrack` instead of its own repeat-one branch and adjacent-next fallback.
+- Size/reduction note for the finished-track slice:
+  - `AndroidPlaybackForegroundService.kt`: shrank by removing the `repeatOne` adapter callback.
+  - `AndroidServicePlaybackRuntimeController.kt`: grew slightly because it now applies typed shared finished commands to service playback side effects.
+  - Desktop platform files stayed flat because `DesktopPlaylistEngine` already goes through `PlaybackQueueController`; the controller now delegates the policy to the manager.
+  - Shared domain grew intentionally in `PlaybackQueueManager.kt`, `PlaybackQueueController.kt`, and tests because end-of-track and prepare-next queue policy moved into the shared queue service path.
+- Remaining work in this playback slice: reduce direct platform calls to `PlaybackQueueController` for adjacent/manual navigation and consider splitting `PlaybackQueueManager.kt` into smaller Kotlin files if it continues to grow.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:

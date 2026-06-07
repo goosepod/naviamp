@@ -123,7 +123,6 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             currentQueueIndex = { currentAutoQueueIndex },
             syncQueue = ::syncAutoQueue,
             repeatMode = { serviceRepeatModeForQueue() },
-            repeatOne = { serviceRepeatMode == ServiceRepeatMode.One },
             setCurrentMetadata = { metadata -> currentMetadata = metadata },
             updateMediaSession = { metadata -> updateMediaSession(metadata, currentLargeIcon) },
             updateMediaSessionPlaybackState = { updateMediaSessionPlaybackState() },

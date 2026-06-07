@@ -257,6 +257,68 @@ class PlaybackQueueManagerTest {
         )
     }
 
+    @Test
+    fun finishCurrentTrackAdvancesOrStopsFromRepeatMode() {
+        val one = track("one")
+        val two = track("two")
+        val queue = PlaybackQueue(tracks = listOf(one, two), currentIndex = 0)
+        val manager = PlaybackQueueManager()
+
+        assertEquals(
+            PlaybackQueueFinishedUpdate(
+                queue = PlaybackQueue(tracks = listOf(one, two), currentIndex = 1),
+                command = PlaybackQueueFinishedCommand.PlayNext,
+            ),
+            manager.finishCurrentTrack(queue, RepeatMode.Off),
+        )
+        assertEquals(
+            PlaybackQueueFinishedUpdate(
+                queue = PlaybackQueue(tracks = listOf(one, two), currentIndex = 0),
+                command = PlaybackQueueFinishedCommand.ReplayCurrent,
+            ),
+            manager.finishCurrentTrack(queue, RepeatMode.Track),
+        )
+        assertEquals(
+            PlaybackQueueFinishedUpdate(
+                queue = PlaybackQueue(tracks = listOf(one, two), currentIndex = 1),
+                command = PlaybackQueueFinishedCommand.None,
+            ),
+            manager.finishCurrentTrack(
+                queue = PlaybackQueue(tracks = listOf(one, two), currentIndex = 1),
+                repeatMode = RepeatMode.Off,
+            ),
+        )
+    }
+
+    @Test
+    fun finishCurrentTrackWrapsQueueRepeat() {
+        val one = track("one")
+        val two = track("two")
+        val queue = PlaybackQueue(tracks = listOf(one, two), currentIndex = 1)
+
+        assertEquals(
+            PlaybackQueueFinishedUpdate(
+                queue = PlaybackQueue(tracks = listOf(one, two), currentIndex = 0),
+                command = PlaybackQueueFinishedCommand.PlayNext,
+            ),
+            PlaybackQueueManager().finishCurrentTrack(queue, RepeatMode.Queue),
+        )
+    }
+
+    @Test
+    fun preparedNextIndexUsesSharedRepeatModePolicy() {
+        val one = track("one")
+        val two = track("two")
+        val queue = PlaybackQueue(tracks = listOf(one, two), currentIndex = 1)
+        val manager = PlaybackQueueManager()
+
+        assertEquals(null, manager.nextPreparedQueueIndex(queue, RepeatMode.Off))
+        assertEquals(0, manager.nextPreparedQueueIndex(queue, RepeatMode.Queue))
+        assertEquals(1, manager.nextPreparedQueueIndex(queue, RepeatMode.Track))
+        assertEquals(true, manager.shouldPrepareNextQueueIndex(preparedNextIndex = null, nextQueueIndex = 1))
+        assertEquals(false, manager.shouldPrepareNextQueueIndex(preparedNextIndex = 1, nextQueueIndex = 1))
+    }
+
     private fun track(id: String): Track =
         Track(
             id = TrackId(id),

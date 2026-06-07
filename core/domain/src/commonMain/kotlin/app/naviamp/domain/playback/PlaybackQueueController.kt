@@ -7,6 +7,8 @@ import app.naviamp.domain.queue.RepeatMode
 class PlaybackQueueController(
     initialQueue: PlaybackQueue = PlaybackQueue(),
 ) {
+    private val queueManager = PlaybackQueueManager()
+
     var queue: PlaybackQueue = initialQueue
         private set
 
@@ -141,13 +143,17 @@ class PlaybackQueueController(
     }
 
     fun finishedSelection(): PlaybackQueueSelection? {
-        val nextIndex = queue.nextIndex(repeatMode = repeatMode) ?: return null
+        val update = queueManager.finishCurrentTrack(
+            queue = queue,
+            repeatMode = repeatMode,
+        )
+        if (!update.shouldPlay) return null
         playbackSessionId += 1
-        return selectQueueIndex(queue.tracks, nextIndex, playbackSessionId)
+        return selectQueueIndex(update.queue.tracks, update.queue.currentIndex, playbackSessionId)
     }
 
     fun nextGaplessQueueIndex(): Int? =
-        queue.nextIndex(repeatMode = repeatMode)
+        queueManager.nextPreparedQueueIndex(queue, repeatMode)
 
     fun nextGaplessQueueIndexForExternalQueue(
         tracks: List<Track>,
@@ -166,7 +172,10 @@ class PlaybackQueueController(
     }
 
     fun shouldPrepareNext(index: Int): Boolean =
-        preparedNextIndex != index
+        queueManager.shouldPrepareNextQueueIndex(
+            preparedNextIndex = preparedNextIndex,
+            nextQueueIndex = index,
+        )
 
     fun markPreparedNext(index: Int) {
         preparedNextIndex = index

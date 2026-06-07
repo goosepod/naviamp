@@ -28,6 +28,20 @@ sealed interface PlaybackQueueNavigationCommand {
     ) : PlaybackQueueNavigationCommand
 }
 
+sealed interface PlaybackQueueFinishedCommand {
+    data object None : PlaybackQueueFinishedCommand
+    data object ReplayCurrent : PlaybackQueueFinishedCommand
+    data object PlayNext : PlaybackQueueFinishedCommand
+}
+
+data class PlaybackQueueFinishedUpdate(
+    val queue: PlaybackQueue,
+    val command: PlaybackQueueFinishedCommand,
+) {
+    val shouldPlay: Boolean
+        get() = command != PlaybackQueueFinishedCommand.None
+}
+
 class PlaybackQueueManager {
     fun appendTracks(
         currentQueue: PlaybackQueue,
@@ -133,6 +147,38 @@ class PlaybackQueueManager {
         } else {
             PlaybackQueueNavigationCommand.None
         }
+
+    fun finishCurrentTrack(
+        queue: PlaybackQueue,
+        repeatMode: RepeatMode,
+    ): PlaybackQueueFinishedUpdate {
+        val nextIndex = queue.nextIndex(repeatMode = repeatMode)
+            ?: return PlaybackQueueFinishedUpdate(
+                queue = queue,
+                command = PlaybackQueueFinishedCommand.None,
+            )
+        val nextQueue = queue.copy(currentIndex = nextIndex)
+        return PlaybackQueueFinishedUpdate(
+            queue = nextQueue,
+            command = if (nextIndex == queue.currentIndex) {
+                PlaybackQueueFinishedCommand.ReplayCurrent
+            } else {
+                PlaybackQueueFinishedCommand.PlayNext
+            },
+        )
+    }
+
+    fun nextPreparedQueueIndex(
+        queue: PlaybackQueue,
+        repeatMode: RepeatMode,
+    ): Int? =
+        queue.nextIndex(repeatMode = repeatMode)
+
+    fun shouldPrepareNextQueueIndex(
+        preparedNextIndex: Int?,
+        nextQueueIndex: Int,
+    ): Boolean =
+        preparedNextIndex != nextQueueIndex
 
     fun planAdjacentAction(
         currentTrack: Track?,
