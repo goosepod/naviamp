@@ -801,6 +801,14 @@ Progress notes:
   - `AndroidBassPlaybackEngine.kt` no longer calculates initial playback replay gain or mixer-use policy locally.
   - `DesktopBassPlaybackEngine.kt` dropped its local `CreatedPlayback` wrapper and initial replay-gain helper.
   - `PreparedBassPlaybackPlan` now also carries local-file URL classification so prepared creation paths share the same local/remote decision.
+- Added shared `BassPlaybackStartPolicy`, `BassPlaybackStartPlan`, and `BassPlaybackPrePlayPlan` for start-position seek behavior.
+- Android and Desktop BASS engines now share start-position normalization and policy for seek-before-play versus retry-after-play/mute-before-play behavior.
+- Platform engines still own native seek/play/mute calls, Android retry timing, wake locks, logging, and polling startup.
+- Added common `BassPlaybackStartPlannerTest.kt` coverage for Android retry/mute start seek policy, desktop seek-only policy, missing/zero start positions, and successful pre-play seek handling.
+- Size/reduction note for the playback start slice:
+  - `AndroidBassPlaybackEngine.kt` no longer decides start-position retry/mute behavior locally.
+  - `DesktopBassPlaybackEngine.kt` no longer calls raw start-position normalization directly.
+  - Shared domain grew intentionally with a small start planner that composes existing start-position normalization.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:

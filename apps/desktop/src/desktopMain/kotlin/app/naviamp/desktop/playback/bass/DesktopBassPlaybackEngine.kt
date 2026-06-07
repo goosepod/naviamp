@@ -15,6 +15,7 @@ import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.BassPlaybackCleanupReset
 import app.naviamp.domain.playback.BassPlaybackActivationUpdate
 import app.naviamp.domain.playback.BassPlaybackCreationPlan
+import app.naviamp.domain.playback.BassPlaybackStartPolicy
 import app.naviamp.domain.playback.PreparedPlaybackMetadataReset
 import app.naviamp.domain.playback.PreparedBassPlaybackStateUpdate
 import app.naviamp.domain.playback.PlaybackStreamStateReset
@@ -46,10 +47,10 @@ import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
 import app.naviamp.domain.playback.PreparedBassPlaybackPlan
 import app.naviamp.domain.playback.planBassPlaybackPollingUpdate
 import app.naviamp.domain.playback.planBassPlaybackCreation
+import app.naviamp.domain.playback.planBassPlaybackStart
 import app.naviamp.domain.playback.planPreparedBassPlayback
 import app.naviamp.domain.playback.planPreparedBassPlaybackAdoption
 import app.naviamp.domain.playback.playbackSourceHandle
-import app.naviamp.domain.playback.playbackStartSeekPosition
 import app.naviamp.domain.playback.playbackUserVolumeFactor
 import app.naviamp.domain.playback.preparedBassPlaybackAdopted
 import app.naviamp.domain.playback.preparedBassPlaybackFailed
@@ -156,8 +157,13 @@ class DesktopBassPlaybackEngine(
                 createdPlayback = null
                 applyOutputVolume(bass)
                 applyEqualizer(bass)
-                playbackStartSeekPosition(request.startPositionSeconds)
-                    ?.let { seekCurrentSource(bass, it) }
+                val startPlan = planBassPlaybackStart(
+                    request = request,
+                    policy = BassPlaybackStartPolicy.DesktopEngine,
+                )
+                if (startPlan.shouldSeekBeforePlay) {
+                    startPlan.startSeekSeconds?.let { seekCurrentSource(bass, it) }
+                }
                 bass.play(playbackHandle)
                     .getOrThrow()
                 onStateChanged(PlaybackState.Playing)

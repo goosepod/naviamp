@@ -41,6 +41,7 @@ import app.naviamp.domain.playback.BassPlaybackPollingState
 import app.naviamp.domain.playback.BassPlaybackPollingPolicy
 import app.naviamp.domain.playback.BassPlaybackCleanupReset
 import app.naviamp.domain.playback.BassPlaybackCreationPlan
+import app.naviamp.domain.playback.BassPlaybackStartPolicy
 import app.naviamp.domain.playback.PreparedPlaybackMetadataReset
 import app.naviamp.domain.playback.PreparedBassPlaybackStateUpdate
 import app.naviamp.domain.playback.bassPlaybackActivated
@@ -52,8 +53,9 @@ import app.naviamp.domain.playback.planBassPlaybackPollingUpdate
 import app.naviamp.domain.playback.planBassPlaybackCreation
 import app.naviamp.domain.playback.planPreparedBassPlayback
 import app.naviamp.domain.playback.planPreparedBassPlaybackAdoption
+import app.naviamp.domain.playback.planBassPlaybackPrePlay
+import app.naviamp.domain.playback.planBassPlaybackStart
 import app.naviamp.domain.playback.playbackSourceHandle
-import app.naviamp.domain.playback.playbackStartSeekPosition
 import app.naviamp.domain.playback.playbackUserVolumeFactor
 import app.naviamp.domain.playback.preparedBassPlaybackAdopted
 import app.naviamp.domain.playback.preparedBassPlaybackFailed
@@ -230,9 +232,20 @@ class AndroidBassPlaybackEngine(
                 check(handle != 0) { errorMessage("BASS stream creation failed") }
                 applyVolume()
                 applyEqualizer()
-                val startPositionSeconds = playbackStartSeekPosition(request.startPositionSeconds)
-                val seekedBeforePlay = startPositionSeconds?.let { seekStreamPosition(it) } ?: false
-                if (startPositionSeconds != null && !seekedBeforePlay) {
+                val startPlan = planBassPlaybackStart(
+                    request = request,
+                    policy = BassPlaybackStartPolicy.AndroidService,
+                )
+                val seekedBeforePlay = if (startPlan.shouldSeekBeforePlay) {
+                    startPlan.startSeekSeconds?.let { seekStreamPosition(it) } ?: false
+                } else {
+                    false
+                }
+                val prePlayPlan = planBassPlaybackPrePlay(
+                    start = startPlan,
+                    seekedBeforePlay = seekedBeforePlay,
+                )
+                if (prePlayPlan.shouldMuteBeforePlay) {
                     setPlaybackMuted(true)
                 }
                 check(bass.play(handle).isSuccess) { errorMessage("BASS_ChannelPlay failed") }
@@ -240,7 +253,8 @@ class AndroidBassPlaybackEngine(
                     releaseCreatedPlayback(playback)
                     return@launch
                 }
-                if (startPositionSeconds != null && !seekedBeforePlay) {
+                if (prePlayPlan.shouldRetrySeekAfterPlay) {
+                    val startPositionSeconds = requireNotNull(startPlan.startSeekSeconds)
                     val seekedAfterPlay = retryStartSeek(handle, currentPlaybackId, startPositionSeconds)
                     setPlaybackMuted(false)
                     if (!seekedAfterPlay) {
