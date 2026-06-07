@@ -124,6 +124,84 @@ class NowPlayingSidecarsTest {
     }
 
     @Test
+    fun currentTrackSidecarWorkBuildsSharedWork() {
+        val one = track("one")
+        val work = currentTrackSidecarWork(
+            sourceId = "source",
+            provider = "provider",
+            queue = PlaybackQueue(tracks = listOf(one), currentIndex = 0),
+            quality = StreamQuality.Original,
+            audioCachingEnabled = true,
+            onlineLyricsEnabled = false,
+            lyricsVisible = true,
+        )
+
+        requireNotNull(work)
+        assertEquals("source", work.sourceId)
+        assertEquals("provider", work.provider)
+        assertEquals(one, work.track)
+        assertEquals(StreamQuality.Original, work.quality)
+        assertTrue(work.audioCachingEnabled)
+        assertFalse(work.onlineLyricsEnabled)
+        assertTrue(work.loadLyrics)
+    }
+
+    @Test
+    fun currentTrackSidecarWorkSkipsMissingOrRadioTracks() {
+        val queue = PlaybackQueue(tracks = listOf(track("one")), currentIndex = 0)
+        val radioQueue = PlaybackQueue(tracks = listOf(track(internetRadioTrackId("station").value)), currentIndex = 0)
+
+        assertEquals(
+            null,
+            currentTrackSidecarWork(
+                sourceId = "source",
+                provider = null,
+                queue = queue,
+                quality = StreamQuality.Original,
+                audioCachingEnabled = true,
+                onlineLyricsEnabled = false,
+                lyricsVisible = false,
+            ),
+        )
+        assertEquals(
+            null,
+            currentTrackSidecarWork(
+                sourceId = "source",
+                provider = "provider",
+                queue = queue,
+                quality = null,
+                audioCachingEnabled = true,
+                onlineLyricsEnabled = false,
+                lyricsVisible = false,
+            ),
+        )
+        assertEquals(
+            null,
+            currentTrackSidecarWork(
+                sourceId = "source",
+                provider = "provider",
+                queue = PlaybackQueue(),
+                quality = StreamQuality.Original,
+                audioCachingEnabled = true,
+                onlineLyricsEnabled = false,
+                lyricsVisible = false,
+            ),
+        )
+        assertEquals(
+            null,
+            currentTrackSidecarWork(
+                sourceId = "source",
+                provider = "provider",
+                queue = radioQueue,
+                quality = StreamQuality.Original,
+                audioCachingEnabled = true,
+                onlineLyricsEnabled = false,
+                lyricsVisible = false,
+            ),
+        )
+    }
+
+    @Test
     fun coverArtPreloadUrlsIncludeCurrentHistoryAndUpcomingWindows() {
         val one = track("one", coverArtId = "art-one")
         val two = track("two", coverArtId = "art-two")

@@ -109,6 +109,16 @@ data class SidecarPrepPlan(
     val loadLyrics: Boolean,
 )
 
+data class CurrentTrackSidecarWork<Provider>(
+    val sourceId: String?,
+    val provider: Provider,
+    val track: Track,
+    val quality: StreamQuality,
+    val audioCachingEnabled: Boolean,
+    val onlineLyricsEnabled: Boolean,
+    val loadLyrics: Boolean,
+)
+
 fun sidecarPrepPlan(
     queue: PlaybackQueue,
     depth: Int,
@@ -118,6 +128,48 @@ fun sidecarPrepPlan(
     SidecarPrepPlan(
         tracks = sidecarPrepTracks(queue, depth),
         loadLyrics = onlineLyricsEnabled || lyricsVisible,
+    )
+
+fun <Provider> currentTrackSidecarWork(
+    sourceId: String?,
+    provider: Provider?,
+    track: Track?,
+    quality: StreamQuality?,
+    audioCachingEnabled: Boolean,
+    onlineLyricsEnabled: Boolean,
+    lyricsVisible: Boolean,
+): CurrentTrackSidecarWork<Provider>? {
+    val activeProvider = provider ?: return null
+    val activeTrack = track?.takeUnless { it.isInternetRadioTrack() } ?: return null
+    val activeQuality = quality ?: return null
+    return CurrentTrackSidecarWork(
+        sourceId = sourceId,
+        provider = activeProvider,
+        track = activeTrack,
+        quality = activeQuality,
+        audioCachingEnabled = audioCachingEnabled,
+        onlineLyricsEnabled = onlineLyricsEnabled,
+        loadLyrics = onlineLyricsEnabled || lyricsVisible,
+    )
+}
+
+fun <Provider> currentTrackSidecarWork(
+    sourceId: String?,
+    provider: Provider?,
+    queue: PlaybackQueue,
+    quality: StreamQuality?,
+    audioCachingEnabled: Boolean,
+    onlineLyricsEnabled: Boolean,
+    lyricsVisible: Boolean,
+): CurrentTrackSidecarWork<Provider>? =
+    currentTrackSidecarWork(
+        sourceId = sourceId,
+        provider = provider,
+        track = queue.current,
+        quality = quality,
+        audioCachingEnabled = audioCachingEnabled,
+        onlineLyricsEnabled = onlineLyricsEnabled,
+        lyricsVisible = lyricsVisible,
     )
 
 fun coverArtPreloadUrls(

@@ -30,6 +30,7 @@ import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.playback.PlaybackSidecarService
+import app.naviamp.domain.playback.currentTrackSidecarWork
 import app.naviamp.domain.playback.emptyPlaybackAudioAssetRepository
 import app.naviamp.domain.playback.finished
 import app.naviamp.domain.playback.initialAudioPrefetchStats
@@ -347,36 +348,48 @@ class DesktopPlaylistEngine(
         if (!audioCachingEnabledProvider()) return
         val audioCache = audioCacheRepository ?: return
         val sidecars = sidecarService ?: return
-        val sourceId = sourceIdProvider() ?: return
-        val currentProvider = provider ?: return
-        val currentQuality = streamQuality ?: return
+        val work = currentTrackSidecarWork(
+            sourceId = sourceIdProvider(),
+            provider = provider,
+            track = track,
+            quality = streamQuality,
+            audioCachingEnabled = audioCachingEnabledProvider(),
+            onlineLyricsEnabled = true,
+            lyricsVisible = false,
+        ) ?: return
+        val sourceId = work.sourceId ?: return
 
         currentTrackSidecarJob?.cancel()
         currentTrackSidecarJob = scope.launch {
             runCatching {
-                val cachedAudio = audioCache.cacheAudioTrack(
+                audioCache.cacheAudioTrack(
                     sourceId = sourceId,
-                    provider = currentProvider,
-                    track = track,
-                    quality = currentQuality,
+                    provider = work.provider,
+                    track = work.track,
+                    quality = work.quality,
                 )
                 if (activeSessionId == queueController.playbackSessionId) {
                     sidecars.prepareWaveform(
                         sourceId = sourceId,
-                        provider = currentProvider,
-                        track = track,
-                        quality = currentQuality,
-                        audioCachingEnabled = audioCachingEnabledProvider(),
+                        provider = work.provider,
+                        track = work.track,
+                        quality = work.quality,
+                        audioCachingEnabled = work.audioCachingEnabled,
                     )
                     if (activeSessionId == queueController.playbackSessionId) {
-                        callbacks?.onCurrentTrackSidecarsReady(track)
+                        callbacks?.onCurrentTrackSidecarsReady(work.track)
                     }
-                    runMetadataSidecars(
-                        sidecarService = sidecars,
-                        sourceId = sourceId,
-                        provider = currentProvider,
-                        track = track,
-                    )
+                    if (work.loadLyrics) {
+                        runMetadataSidecars(
+                            sidecarService = sidecars,
+                            sourceId = sourceId,
+                            provider = work.provider,
+                            track = work.track,
+                            quality = work.quality,
+                            audioCachingEnabled = work.audioCachingEnabled,
+                            onlineLyricsEnabled = work.onlineLyricsEnabled,
+                        )
+                    }
                 }
             }
         }
@@ -462,16 +475,18 @@ class DesktopPlaylistEngine(
         sourceId: String,
         provider: MediaProvider,
         track: Track,
+        quality: StreamQuality,
+        audioCachingEnabled: Boolean,
+        onlineLyricsEnabled: Boolean,
     ) {
-        val quality = streamQuality ?: return
         runCatching {
             sidecarService.prepareLyrics(
                 sourceId = sourceId,
                 provider = provider,
                 track = track,
                 quality = quality,
-                audioCachingEnabled = audioCachingEnabledProvider(),
-                onlineLyricsEnabled = true,
+                audioCachingEnabled = audioCachingEnabled,
+                onlineLyricsEnabled = onlineLyricsEnabled,
             )
         }
     }

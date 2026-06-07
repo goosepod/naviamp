@@ -824,6 +824,14 @@ Progress notes:
   - `AndroidPlaylistEngine.kt` no longer locally builds the track prefetch list or initial stats for its audio prefetch job.
   - `DesktopPlaylistEngine.kt` no longer locally validates source/provider/quality/depth or builds its upcoming prefetch list.
   - Shared domain grew intentionally in `PlaybackPrefetch.kt` with a small work DTO and planner around the existing `audioPrefetchTracks` and `initialAudioPrefetchStats` helpers.
+- Added shared `CurrentTrackSidecarWork` and `currentTrackSidecarWork` so current-track sidecar eligibility, radio-track skipping, source/provider/quality capture, and lyrics-load decisions use one shared work description.
+- Android and Desktop playlist engines now consume the shared current-track sidecar work instead of separately choosing the current track, provider, stream quality, and lyrics visibility policy.
+- Platform playlist engines still own the correct side effects: Android state maps and sidecar failure recording, desktop current-audio caching and callbacks, coroutine jobs, and actual waveform/tags/lyrics service calls.
+- Added common `NowPlayingSidecarsTest.kt` coverage for current-track sidecar work creation and skip conditions.
+- Size/reduction note for the current-track sidecar planning slice:
+  - `AndroidPlaylistEngine.kt` no longer calls `sidecarPrepPlan` for the current-track sidecar path or re-reads quality before each sidecar step.
+  - `DesktopPlaylistEngine.kt` no longer performs parallel provider/quality/current-track validation before launching current-track sidecars.
+  - Shared domain grew intentionally in `NowPlayingSidecars.kt` with a focused work DTO and planner.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
