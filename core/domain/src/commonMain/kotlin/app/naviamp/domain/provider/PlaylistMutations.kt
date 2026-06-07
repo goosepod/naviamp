@@ -4,6 +4,8 @@ import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.ProviderResponseService
+import app.naviamp.domain.playback.appendableTracks
+import app.naviamp.domain.playback.queueAppendStatus
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 
 data class PlaylistTrackMutationResult(
@@ -304,24 +306,19 @@ fun queueAppendPlan(
     existingTracks: List<Track> = emptyList(),
     deduplicateExisting: Boolean = false,
 ): QueueAppendPlan {
-    val tracksToAdd = if (deduplicateExisting) {
-        val existingIds = existingTracks.map { it.id }.toSet()
-        tracks.filterNot { it.id in existingIds }
-    } else {
-        tracks
-    }
+    val tracksToAdd = appendableTracks(
+        tracksToAdd = tracks,
+        existingTracks = existingTracks,
+        deduplicateExisting = deduplicateExisting,
+    )
     return QueueAppendPlan(
         tracks = tracksToAdd,
-        status = if (tracksToAdd.isEmpty()) {
-            if (deduplicateExisting && tracks.isNotEmpty()) {
-                "${label.replaceFirstChar { it.uppercase() }} are already in the queue."
-            } else {
-                "No tracks found."
-            }
-        } else {
-            val displayLabel = if (tracksToAdd.size == 1 && label == "tracks") "track" else label
-            "Added ${tracksToAdd.size} $displayLabel to queue."
-        },
+        status = queueAppendStatus(
+            originalTracks = tracks,
+            tracksToAdd = tracksToAdd,
+            label = label,
+            deduplicateExisting = deduplicateExisting,
+        ),
     )
 }
 

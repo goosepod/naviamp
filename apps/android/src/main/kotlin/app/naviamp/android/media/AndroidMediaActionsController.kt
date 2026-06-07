@@ -20,9 +20,8 @@ import app.naviamp.domain.media.selectedTrackPlayback
 import app.naviamp.domain.media.withUpdatedAlbum
 import app.naviamp.domain.media.withUpdatedArtist
 import app.naviamp.domain.playback.PlaybackQueueController
+import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.provider.addTracksToPlaylistAndRefresh
-import app.naviamp.domain.provider.queueAppendPlan
-import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.NaviampDownloadedTrackUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
@@ -63,20 +62,16 @@ fun appendAndroidTracksToQueue(
     tracksToAdd: List<Track>,
     label: String = "tracks",
 ) {
-    val plan = queueAppendPlan(tracks = tracksToAdd, label = label)
-    state.status = plan.status
-    if (plan.tracks.isEmpty()) {
-        return
-    }
+    val update = PlaybackQueueManager().appendTracks(
+        currentQueue = state.playbackQueue,
+        tracksToAdd = tracksToAdd,
+        label = label,
+    )
+    state.status = update.status
+    if (!update.tracksChanged) return
     playbackQueueController.replaceQueue(state.playbackQueue)
-    if (state.playbackQueue.currentIndex < 0 && state.playbackQueue.tracks.isEmpty()) {
-        playbackQueueController.replaceQueue(PlaybackQueue(plan.tracks, currentIndex = 0))
-        state.playbackQueue = playbackQueueController.queue
-    } else {
-        playbackQueueController.appendTracks(plan.tracks)?.let { queue ->
-            state.playbackQueue = queue
-        }
-    }
+    playbackQueueController.replaceQueue(update.queue)
+    state.playbackQueue = playbackQueueController.queue
 }
 
 fun withAndroidKnownTrack(
@@ -150,16 +145,18 @@ fun appendAndroidArtistPopularTracksToQueue(
         state.status = "No popular tracks matched your library."
         return
     }
-    val plan = queueAppendPlan(
-        tracks = popularTracks,
+    val update = PlaybackQueueManager().appendTracks(
+        currentQueue = state.playbackQueue,
+        tracksToAdd = popularTracks,
         label = "popular tracks",
         existingTracks = state.playbackQueue.tracks,
         deduplicateExisting = true,
     )
-    state.status = plan.status
-    if (plan.tracks.isNotEmpty()) {
-        appendAndroidTracksToQueue(state, playbackQueueController, plan.tracks, "popular tracks")
-    }
+    state.status = update.status
+    if (!update.tracksChanged) return
+    playbackQueueController.replaceQueue(state.playbackQueue)
+    playbackQueueController.replaceQueue(update.queue)
+    state.playbackQueue = playbackQueueController.queue
 }
 
 fun updateAndroidNotificationFavoriteState(state: AndroidAppState, track: Track? = state.nowPlaying) {

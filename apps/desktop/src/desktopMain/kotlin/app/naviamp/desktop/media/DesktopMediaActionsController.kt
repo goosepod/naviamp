@@ -16,8 +16,8 @@ import app.naviamp.domain.media.knownArtistsForMetadata
 import app.naviamp.domain.media.knownTracksForMediaActions
 import app.naviamp.domain.media.trackPlaybackSelection
 import app.naviamp.domain.playback.PlaybackEngine
+import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.provider.MediaSearchResults
-import app.naviamp.domain.provider.queueAppendPlan
 import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.DesktopPlaylistEngine
 import app.naviamp.desktop.settings.PlaybackSettings
@@ -73,17 +73,17 @@ class DesktopMediaActionsController(
     }
 
     fun addPopularTracksToQueue(tracks: List<Track>) {
-        val plan = queueAppendPlan(
-            tracks = tracks,
+        val update = PlaybackQueueManager().appendTracks(
+            currentQueue = playlistEngine.queue,
+            tracksToAdd = tracks,
             label = "popular tracks",
             existingTracks = playlistEngine.queue.tracks,
             deduplicateExisting = true,
         )
-        if (tracks.isEmpty()) return
-        if (plan.tracks.isNotEmpty()) {
-            playlistEngine.appendTracks(plan.tracks)
+        if (update.tracksChanged) {
+            playlistEngine.replaceQueue(update.queue)
         }
-        setConnectionStatus(plan.status)
+        setConnectionStatus(update.status)
     }
 
     fun applyTrackMetadataUpdate(updatedTrack: Track) {

@@ -675,7 +675,13 @@ Progress notes:
 - Desktop add-to-playlist orchestration was in `DesktopPlaylistsController.kt`; it now resolves target tracks as a platform/UI adapter step and delegates mutation/refresh to the shared path.
 - Removed the duplicated desktop `addTargetTracksToPlaylist` mutation helper.
 - Added `PlaylistMutationsTest.kt` coverage for creating a playlist through the shared add-to-playlist path and adding missing tracks to an existing playlist.
-- Remaining work in this slice: reduce platform controllers further by extracting queue append application and small track-action status wrappers where that can be done without hiding real platform state updates.
+- Added shared `PlaybackQueueManager` as the queue-level service boundary for app queue decisions.
+- `PlaybackQueueManager` now owns append/start-empty/dedupe/status decisions and returns `PlaybackQueueUpdate`.
+- Android media actions now adapt queue append results into `PlaybackQueueController` and app state instead of owning queue branching.
+- Desktop media and playlist queue additions now use `PlaybackQueueManager`; `DesktopPlaylistEngine` exposes a thin `replaceQueue` adapter so it still owns desktop queue callbacks.
+- `queueAppendPlan` now delegates to shared queue append helpers to keep existing callers on the same decision path.
+- Added `PlaybackQueueManagerTest.kt` coverage for starting an empty queue, appending to an existing queue, deduping, and no-change statuses.
+- Remaining work in this slice: extract small track-action status wrappers where that can be done without hiding real platform state updates.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:

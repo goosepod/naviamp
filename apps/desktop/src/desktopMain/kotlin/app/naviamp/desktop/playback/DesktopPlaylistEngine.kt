@@ -157,6 +157,19 @@ class DesktopPlaylistEngine(
         }
     }
 
+    fun replaceQueue(
+        queue: PlaybackQueue,
+        incrementSession: Boolean = false,
+        clearPreparedNext: Boolean = true,
+    ) {
+        queueController.replaceQueue(
+            queue = queue,
+            incrementSession = incrementSession,
+            clearPreparedNext = clearPreparedNext,
+        )
+        callbacks?.onQueueChanged(queue)
+    }
+
     fun replaceUpcomingTracks(
         currentTrack: Track,
         upcomingTracks: List<Track>,

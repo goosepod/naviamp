@@ -23,12 +23,12 @@ import app.naviamp.domain.provider.playlistRenameErrorMessage
 import app.naviamp.domain.provider.playlistRenameLoadingStatus
 import app.naviamp.domain.provider.playlistRenamedStatus
 import app.naviamp.domain.provider.playlistsNeedingTrackPreload
-import app.naviamp.domain.provider.queueAppendPlan
 import app.naviamp.domain.provider.recentPlaylistIdsAfterPlayed
 import app.naviamp.domain.provider.refreshPlaylistDetails
 import app.naviamp.domain.provider.renamedSelectedPlaylist
 import app.naviamp.domain.provider.saveQueueAsPlaylistAndRefresh
 import app.naviamp.domain.provider.shouldStartPlaybackAction
+import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.desktop.playback.PlaylistCallbacks
@@ -181,12 +181,15 @@ class DesktopPlaylistsController(
                 val tracksToAdd = withContext(Dispatchers.IO) {
                     resolveAddToPlaylistTargetTracks(activeProvider, target)
                 }
-                val plan = queueAppendPlan(tracksToAdd)
-                setConnectionStatus(plan.status)
-                if (plan.tracks.isEmpty()) {
+                val update = PlaybackQueueManager().appendTracks(
+                    currentQueue = playlistEngine.queue,
+                    tracksToAdd = tracksToAdd,
+                )
+                setConnectionStatus(update.status)
+                if (!update.tracksChanged) {
                     return@launch
                 }
-                playlistEngine.appendTracks(plan.tracks)
+                playlistEngine.replaceQueue(update.queue)
             } catch (exception: Exception) {
                 setConnectionStatus(exception.message ?: "Could not add to queue.")
             }
