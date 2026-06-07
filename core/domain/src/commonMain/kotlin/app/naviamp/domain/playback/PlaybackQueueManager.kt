@@ -71,6 +71,49 @@ class PlaybackQueueManager {
         queue.hasNext() ||
             queue.nextIndex(repeatMode = repeatMode, repeatTrack = false) != null
 
+    fun selectCurrent(queue: PlaybackQueue): PlaybackQueueSelectionUpdate =
+        if (queue.currentIndex in queue.tracks.indices) {
+            PlaybackQueueSelectionUpdate(queue = queue, changed = true)
+        } else {
+            PlaybackQueueSelectionUpdate(queue = queue, changed = false)
+        }
+
+    fun selectNext(
+        queue: PlaybackQueue,
+        repeatMode: RepeatMode,
+    ): PlaybackQueueSelectionUpdate =
+        selectAdjacent(
+            queue = queue,
+            offset = 1,
+            repeatMode = repeatMode,
+            wrapQueue = true,
+        )
+
+    fun selectPrevious(
+        queue: PlaybackQueue,
+        repeatMode: RepeatMode,
+    ): PlaybackQueueSelectionUpdate =
+        selectAdjacent(
+            queue = queue,
+            offset = -1,
+            repeatMode = repeatMode,
+            wrapQueue = false,
+        )
+
+    fun selectJump(
+        queue: PlaybackQueue,
+        index: Int,
+        moveSelectedToCurrent: Boolean = true,
+    ): PlaybackQueueSelectionUpdate =
+        if (index in queue.tracks.indices && index != queue.currentIndex) {
+            PlaybackQueueSelectionUpdate(
+                queue = queue.jumpTo(index, moveSelectedToCurrent),
+                changed = true,
+            )
+        } else {
+            PlaybackQueueSelectionUpdate(queue = queue, changed = false)
+        }
+
     fun previousCommand(
         queue: PlaybackQueue,
         previousButtonBehavior: PreviousButtonBehavior,

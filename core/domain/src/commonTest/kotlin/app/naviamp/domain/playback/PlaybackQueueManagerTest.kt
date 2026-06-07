@@ -360,6 +360,62 @@ class PlaybackQueueManagerTest {
         )
     }
 
+    @Test
+    fun selectCurrentNextAndPreviousUseSharedPolicy() {
+        val one = track("one")
+        val two = track("two")
+        val queue = PlaybackQueue(tracks = listOf(one, two), currentIndex = 0)
+        val manager = PlaybackQueueManager()
+
+        assertEquals(
+            PlaybackQueueSelectionUpdate(queue = queue, changed = true),
+            manager.selectCurrent(queue),
+        )
+        assertEquals(
+            PlaybackQueueSelectionUpdate(queue = PlaybackQueue(tracks = listOf(one, two), currentIndex = 1), changed = true),
+            manager.selectNext(queue, RepeatMode.Off),
+        )
+        assertEquals(
+            PlaybackQueueSelectionUpdate(queue = queue, changed = false),
+            manager.selectPrevious(queue, RepeatMode.Queue),
+        )
+    }
+
+    @Test
+    fun selectJumpMovesUpcomingTrackWhenRequested() {
+        val one = track("one")
+        val two = track("two")
+        val three = track("three")
+        val queue = PlaybackQueue(tracks = listOf(one, two, three), currentIndex = 0)
+
+        assertEquals(
+            PlaybackQueueSelectionUpdate(
+                queue = PlaybackQueue(tracks = listOf(one, three, two), currentIndex = 1),
+                changed = true,
+            ),
+            PlaybackQueueManager().selectJump(
+                queue = queue,
+                index = 2,
+                moveSelectedToCurrent = true,
+            ),
+        )
+        assertEquals(
+            PlaybackQueueSelectionUpdate(
+                queue = PlaybackQueue(tracks = listOf(one, two, three), currentIndex = 2),
+                changed = true,
+            ),
+            PlaybackQueueManager().selectJump(
+                queue = queue,
+                index = 2,
+                moveSelectedToCurrent = false,
+            ),
+        )
+        assertEquals(
+            PlaybackQueueSelectionUpdate(queue = queue, changed = false),
+            PlaybackQueueManager().selectJump(queue = queue, index = 0),
+        )
+    }
+
     private fun track(id: String): Track =
         Track(
             id = TrackId(id),

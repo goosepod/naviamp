@@ -90,35 +90,38 @@ class PlaybackQueueController(
     }
 
     fun next(): PlaybackQueueSelection? {
-        val nextIndex = queue.nextIndex(repeatMode = repeatMode, repeatTrack = false) ?: return null
+        val update = queueManager.selectNext(queue, repeatMode)
+        if (!update.changed) return null
         playbackSessionId += 1
-        return selectQueueIndex(queue.tracks, nextIndex, playbackSessionId)
+        return selectQueueIndex(update.queue.tracks, update.queue.currentIndex, playbackSessionId)
     }
 
     fun playCurrent(): PlaybackQueueSelection? {
-        if (queue.currentIndex !in queue.tracks.indices) return null
+        val update = queueManager.selectCurrent(queue)
+        if (!update.changed) return null
         playbackSessionId += 1
-        return selectQueueIndex(queue.tracks, queue.currentIndex, playbackSessionId)
+        return selectQueueIndex(update.queue.tracks, update.queue.currentIndex, playbackSessionId)
     }
 
     fun jumpTo(
         index: Int,
         moveSelectedToCurrent: Boolean = true,
     ): PlaybackQueueSelection? {
-        if (index !in queue.tracks.indices || index == queue.currentIndex) return null
+        val update = queueManager.selectJump(
+            queue = queue,
+            index = index,
+            moveSelectedToCurrent = moveSelectedToCurrent,
+        )
+        if (!update.changed) return null
         playbackSessionId += 1
-        val nextQueue = queue.jumpTo(index, moveSelectedToCurrent)
-        return selectQueueIndex(nextQueue.tracks, nextQueue.currentIndex, playbackSessionId)
+        return selectQueueIndex(update.queue.tracks, update.queue.currentIndex, playbackSessionId)
     }
 
     fun previous(): PlaybackQueueSelection? {
-        val previousIndex = queue.previousIndex(
-            repeatMode = repeatMode,
-            repeatTrack = false,
-            wrapQueue = false,
-        ) ?: return null
+        val update = queueManager.selectPrevious(queue, repeatMode)
+        if (!update.changed) return null
         playbackSessionId += 1
-        return selectQueueIndex(queue.tracks, previousIndex, playbackSessionId)
+        return selectQueueIndex(update.queue.tracks, update.queue.currentIndex, playbackSessionId)
     }
 
     fun adjacent(

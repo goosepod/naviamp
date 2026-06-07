@@ -713,7 +713,14 @@ Progress notes:
   - `PlaybackQueueController.kt`: shrank its adjacent decision body and now delegates policy to the manager.
   - `PlaybackQueueManager.kt`: shrank substantially by moving DTOs and append helpers into focused shared files, while adding `selectAdjacent`.
   - Desktop platform files stayed flat because desktop manual navigation already routes through `DesktopPlaybackController` and `DesktopPlaylistEngine`.
-- Remaining work in this playback slice: inspect direct `PlaybackQueueController.next/previous/jumpTo/playCurrent` calls in `DesktopPlaylistEngine` and decide whether they should become shared command application helpers or remain the platform playback adapter boundary.
+- Added shared current, next, previous, and jump selection helpers in `PlaybackQueueManager`.
+- `PlaybackQueueController.next`, `previous`, `jumpTo`, and `playCurrent` now delegate queue selection policy to the manager and only apply session/state updates.
+- Decision: direct `PlaybackQueueController` calls in `DesktopPlaylistEngine` remain acceptable because the engine is the desktop playback side-effect adapter and the controller now delegates policy into shared manager methods.
+- Size/reduction note for the desktop navigation inspection slice:
+  - Desktop platform files stayed flat by design; changing them would only add adapter churn now that `PlaybackQueueController` owns the shared call path.
+  - `PlaybackQueueController.kt` shifted from inline queue selection decisions to shared manager calls.
+  - `PlaybackQueueManager.kt` grew intentionally with the remaining manual selection policy.
+- Remaining work in this playback slice: inspect queue mutation methods that still mutate `PlaybackQueueController` directly, especially append/update/replace-upcoming/toggle-shuffle, and decide which should become manager updates versus legitimate state application.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
