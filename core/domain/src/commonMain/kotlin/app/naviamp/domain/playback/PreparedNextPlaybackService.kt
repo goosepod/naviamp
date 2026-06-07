@@ -11,6 +11,11 @@ data class PreparedNextPlaybackRequest(
     val request: PlaybackRequest,
 )
 
+data class PreparedNextPlaybackWork(
+    val markPreparedNextIndex: Int,
+    val plan: PrepareNextQueuePlaybackPlan,
+)
+
 data class PreparedNextPlaybackSettings(
     val gaplessEnabled: Boolean,
     val supportsGapless: Boolean,
@@ -44,6 +49,24 @@ class PreparedNextPlaybackCoordinator(
             settings = settings,
         )
 
+    fun work(
+        queue: PlaybackQueue,
+        progress: PlaybackProgress,
+        nextQueueIndex: Int?,
+        preparedNextIndex: Int?,
+        settings: PreparedNextPlaybackSettings,
+    ): PreparedNextPlaybackWork? =
+        preparedNextPlaybackWork(
+            queue = queue,
+            progress = progress,
+            nextQueueIndex = nextQueueIndex,
+            preparedNextIndex = preparedNextIndex,
+            settings = settings,
+        )
+
+    suspend fun request(work: PreparedNextPlaybackWork): PreparedNextPlaybackRequest? =
+        request(work.plan)
+
     suspend fun request(plan: PrepareNextQueuePlaybackPlan): PreparedNextPlaybackRequest? {
         val currentProvider = provider() ?: return null
         val currentQuality = quality() ?: return null
@@ -59,6 +82,26 @@ class PreparedNextPlaybackCoordinator(
             replayGainForTrack = replayGainForTrack,
         )
     }
+}
+
+fun preparedNextPlaybackWork(
+    queue: PlaybackQueue,
+    progress: PlaybackProgress,
+    nextQueueIndex: Int?,
+    preparedNextIndex: Int?,
+    settings: PreparedNextPlaybackSettings,
+): PreparedNextPlaybackWork? {
+    val plan = planPreparedNextQueuePlayback(
+        queue = queue,
+        progress = progress,
+        nextQueueIndex = nextQueueIndex,
+        preparedNextIndex = preparedNextIndex,
+        settings = settings,
+    ) ?: return null
+    return PreparedNextPlaybackWork(
+        markPreparedNextIndex = plan.nextQueueIndex,
+        plan = plan,
+    )
 }
 
 fun planPreparedNextQueuePlayback(

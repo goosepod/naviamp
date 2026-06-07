@@ -93,6 +93,40 @@ class PreparedNextPlaybackServiceTest {
     }
 
     @Test
+    fun coordinatorBuildsPreparedNextWorkWithMarkIndex() = runTest {
+        val nextTrack = track("next")
+        val coordinator = PreparedNextPlaybackCoordinator(
+            provider = { FakeMediaProvider() },
+            sourceId = { "source" },
+            quality = { StreamQuality.Original },
+            audioCachingEnabled = { true },
+            audioAssets = RecordingAudioAssets(localAudio("cache/next.flac")),
+            replayGainMode = { ReplayGainMode.Track },
+            supportsReplayGain = { true },
+            replayGainForTrack = { _, _ -> null },
+        )
+        val work = coordinator.work(
+            queue = PlaybackQueue(tracks = listOf(track("current"), nextTrack), currentIndex = 0),
+            progress = PlaybackProgress(positionSeconds = 99.0, durationSeconds = 100.0),
+            nextQueueIndex = 1,
+            preparedNextIndex = null,
+            settings = PreparedNextPlaybackSettings(
+                gaplessEnabled = true,
+                supportsGapless = true,
+                crossfadeDurationSeconds = 0,
+                supportsCrossfade = true,
+                gaplessPrepareWindowSeconds = 8.0,
+            ),
+        ) ?: error("expected prepare work")
+
+        val prepared = coordinator.request(work)
+
+        assertEquals(1, work.markPreparedNextIndex)
+        assertEquals(1, prepared?.nextQueueIndex)
+        assertEquals("next", prepared?.track?.id?.value)
+    }
+
+    @Test
     fun coordinatorSkipsAlreadyPreparedNextIndex() {
         val coordinator = PreparedNextPlaybackCoordinator(
             provider = { FakeMediaProvider() },

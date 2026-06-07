@@ -163,7 +163,7 @@ class AndroidPlaylistEngine(
         val queueAwareEngine = playbackEngine as? QueueAwarePlaybackEngine ?: return
         val nextIndex = nextQueueIndex() ?: return
         val queue = playbackQueueController.queue
-        val plan = preparedNextPlaybackCoordinator.plan(
+        val work = preparedNextPlaybackCoordinator.work(
             queue = queue,
             progress = progress,
             nextQueueIndex = nextIndex,
@@ -176,10 +176,10 @@ class AndroidPlaylistEngine(
                 gaplessPrepareWindowSeconds = AndroidGaplessPrepareWindowSeconds,
             ),
         ) ?: return
-        playbackQueueController.markPreparedNext(plan.nextQueueIndex)
+        playbackQueueController.markPreparedNext(work.markPreparedNextIndex)
         scope.launch {
             runCatching {
-                preparedNextPlaybackCoordinator.request(plan)
+                preparedNextPlaybackCoordinator.request(work)
             }.onSuccess { prepared ->
                 prepared ?: return@onSuccess
                 if (sessionToken != state.playbackSessionToken) return@onSuccess

@@ -754,6 +754,13 @@ Progress notes:
   - `AndroidPlaylistEngine.kt` and `DesktopPlaylistEngine.kt` both lost their parallel local plan/request construction branches.
   - Shared domain grew intentionally in `PreparedNextPlaybackService.kt` with a focused coordinator around the existing planner functions.
   - `PreparedNextPlaybackServiceTest.kt` now verifies the coordinator entry point that both platform playlist engines call.
+- Added shared `PreparedNextPlaybackWork` so prepared-next planning carries the queue index to mark as prepared together with the request-building plan.
+- Android and Desktop playlist engines now call `PreparedNextPlaybackCoordinator.work` and mark `work.markPreparedNextIndex` instead of manually threading the plan index.
+- Platform playlist engines still own coroutine launch, session-token checks, and the actual `QueueAwarePlaybackEngine.prepareNext` call.
+- Added common `PreparedNextPlaybackServiceTest.kt` coverage for the prepared-next work item and request path.
+- Size/reduction note for the prepared-next work slice:
+  - `AndroidPlaylistEngine.kt` and `DesktopPlaylistEngine.kt` each lost one more piece of parallel prepared-next plan/index handling.
+  - Shared domain grew intentionally with a small DTO and helper around existing prepared-next coordinator behavior.
 - Added shared `PreparedBassPlaybackPlan` and adoption planning for the Android/Desktop BASS playback engines.
 - Android and Desktop BASS engines now use the same shared gates for reusing prepared playback, checking mixer preparation support, choosing mixer preparation, and choosing desktop-only direct prepared-stream fallback.
 - Platform BASS engines still own native side effects: BASS initialization, stream handle creation/release, mixer channel wiring, end sync callbacks, audio focus, wake locks, and diagnostics.

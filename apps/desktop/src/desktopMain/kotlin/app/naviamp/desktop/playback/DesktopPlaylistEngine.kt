@@ -504,7 +504,7 @@ class DesktopPlaylistEngine(
     ) {
         val queueAwareEngine = playbackEngine as? QueueAwarePlaybackEngine ?: return
         val nextIndex = queueController.nextGaplessQueueIndex() ?: return
-        val plan = preparedNextPlaybackCoordinator.plan(
+        val work = preparedNextPlaybackCoordinator.work(
             queue = queue,
             progress = progress,
             nextQueueIndex = nextIndex,
@@ -517,12 +517,12 @@ class DesktopPlaylistEngine(
                 gaplessPrepareWindowSeconds = GaplessPrepareWindowSeconds,
             ),
         ) ?: return
-        queueController.markPreparedNext(plan.nextQueueIndex)
+        queueController.markPreparedNext(work.markPreparedNextIndex)
 
         scope.launch {
             if (activeSessionId != queueController.playbackSessionId) return@launch
             try {
-                val prepared = preparedNextPlaybackCoordinator.request(plan) ?: return@launch
+                val prepared = preparedNextPlaybackCoordinator.request(work) ?: return@launch
                 if (activeSessionId == queueController.playbackSessionId) {
                     withContext(Dispatchers.IO) {
                         queueAwareEngine.prepareNext(prepared.request)
