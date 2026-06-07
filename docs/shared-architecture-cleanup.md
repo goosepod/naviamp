@@ -734,7 +734,19 @@ Progress notes:
   - Platform files stayed flat because existing adapters already call the controller/engine boundary.
   - `PlaybackQueueController.kt` moved start/restore/clear queue-shape policy into the manager while retaining session updates.
   - `PlaybackQueueManager.kt` grew intentionally with lifecycle queue planning.
-- Remaining work in this playback slice: review whether `PlaybackQueueManager.kt` should be further decomposed by operation family after these extra manager responsibilities, then move on to playback transition/prepared-next service composition if no split is needed.
+- Reviewed `PlaybackQueueManager.kt` after the lifecycle additions and split it by operation family instead of letting the shared service become a new large catch-all.
+- Added focused shared queue services:
+  - `PlaybackQueueLifecycleManager` owns start, restore, and clear queue shape decisions.
+  - `PlaybackQueueMutationManager` owns append, update-track, replace-upcoming, and upcoming-shuffle mutation decisions.
+  - `PlaybackQueueControlManager` owns repeat and previous/next/jump command decisions.
+  - `PlaybackQueueSelectionManager` owns current/adjacent/manual/finished-track selection decisions and prepare-next policy.
+- `PlaybackQueueManager` is now a composed facade, so existing callers keep one shared queue entry point while the implementation is made of smaller services.
+- Size/reduction note for the queue-manager composition slice:
+  - Platform files stayed flat because this was an internal shared-service decomposition.
+  - `PlaybackQueueManager.kt` shrank substantially and now delegates by operation family.
+  - New focused shared manager files grew intentionally and are each small enough to test or reason about independently.
+  - Existing `PlaybackQueueManagerTest.kt` continues to verify behavior through the public facade.
+- Remaining work in this playback slice: move from queue decisions into playback transition and prepared-next service composition, especially where Android service/runtime and desktop playlist engine still apply platform playback side effects.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
