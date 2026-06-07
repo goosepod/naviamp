@@ -27,7 +27,10 @@ import app.naviamp.domain.playback.playbackStreamUrl
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.radio.InternetRadioStartApplier
+import app.naviamp.domain.radio.InternetRadioMetadataUpdateApplier
 import app.naviamp.domain.radio.applyInternetRadioStart
+import app.naviamp.domain.radio.applyInternetRadioMetadataUpdate
+import app.naviamp.domain.radio.planInternetRadioMetadataUpdate
 import app.naviamp.domain.radio.planInternetRadioStart
 import app.naviamp.provider.navidrome.NavidromeProvider
 import kotlinx.coroutines.CoroutineScope
@@ -299,14 +302,22 @@ fun playAndroidInternetRadioStation(
                 },
                 onProgressChanged = { progress -> handlePlaybackProgressChanged(sessionToken, progress) },
                 onMetadataChanged = { metadata ->
-                    state.nowPlayingStreamMetadata = metadata
-                    metadata.title?.takeIf { it.isNotBlank() }?.let { streamTitle ->
-                        playbackEngine.updateNotificationMetadata(
-                            title = streamTitle,
-                            subtitle = station.name,
-                            coverArtUrl = null,
-                        )
-                    }
+                    applyInternetRadioMetadataUpdate(
+                        plan = planInternetRadioMetadataUpdate(
+                            station = station,
+                            metadata = metadata,
+                        ),
+                        applier = InternetRadioMetadataUpdateApplier(
+                            setStreamMetadata = { streamMetadata -> state.nowPlayingStreamMetadata = streamMetadata },
+                            updateNotificationMetadata = { title, subtitle, coverArtUrl ->
+                                playbackEngine.updateNotificationMetadata(
+                                    title = title,
+                                    subtitle = subtitle,
+                                    coverArtUrl = coverArtUrl,
+                                )
+                            },
+                        ),
+                    )
                 },
             )
         }.onFailure { error ->

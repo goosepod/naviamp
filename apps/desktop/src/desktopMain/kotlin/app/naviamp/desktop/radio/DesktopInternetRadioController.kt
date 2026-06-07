@@ -20,9 +20,11 @@ import app.naviamp.domain.playback.planPlaybackProgressUpdate
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.radio.internetRadioTrack
-import app.naviamp.domain.radio.internetRadioTrackWithMetadata
+import app.naviamp.domain.radio.InternetRadioMetadataUpdateApplier
 import app.naviamp.domain.radio.InternetRadioStartApplier
+import app.naviamp.domain.radio.applyInternetRadioMetadataUpdate
 import app.naviamp.domain.radio.applyInternetRadioStart
+import app.naviamp.domain.radio.planInternetRadioMetadataUpdate
 import app.naviamp.domain.radio.planInternetRadioStart
 import app.naviamp.domain.radio.recentInternetRadioStationsWith
 import app.naviamp.domain.radio.recentSavedInternetRadioStationsWith
@@ -175,8 +177,18 @@ class DesktopInternetRadioController(
                 }
             },
             onMetadataChanged = { metadata ->
-                setNowPlayingStreamMetadata(metadata)
-                setNowPlayingTrack(internetRadioTrackWithMetadata(radioTrack, station, metadata))
+                applyInternetRadioMetadataUpdate(
+                    plan = planInternetRadioMetadataUpdate(
+                        station = station,
+                        metadata = metadata,
+                        fallbackTrack = radioTrack,
+                        updateNotificationMetadata = false,
+                    ),
+                    applier = InternetRadioMetadataUpdateApplier(
+                        setStreamMetadata = setNowPlayingStreamMetadata,
+                        setNowPlayingTrack = setNowPlayingTrack,
+                    ),
+                )
             },
         )
     }

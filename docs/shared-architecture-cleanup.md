@@ -879,6 +879,14 @@ Progress notes:
   - `AndroidPlaybackOrchestration.kt` no longer hand-applies the radio-start plan field by field.
   - `DesktopInternetRadioController.kt` no longer duplicates the same plan gates for recents, queue clearing, status, and route/session behavior.
   - Shared domain grew intentionally with a callback-based applier that keeps platform effects outside domain while standardizing the command surface.
+- Added shared `InternetRadioMetadataUpdatePlan`, `planInternetRadioMetadataUpdate`, and `applyInternetRadioMetadataUpdate`.
+- Android and Desktop now share radio metadata update decisions for stream metadata, optional presentation-track mutation, blank-title handling, and notification metadata updates.
+- Platform playback paths still own the correct side effects: Android writes notification metadata, while Desktop mutates its synthetic now-playing radio track and leaves notifications alone.
+- Added common `InternetRadioPlaybackTest.kt` coverage for notification-title planning, desktop presentation-track planning, blank-title skips, and applier ordering.
+- Size/reduction note for the internet-radio metadata slice:
+  - `AndroidPlaybackOrchestration.kt` no longer directly performs radio metadata title checks before notification updates.
+  - `DesktopInternetRadioController.kt` no longer calls `internetRadioTrackWithMetadata` directly in its playback callback.
+  - Shared domain grew intentionally with a small planner/applier around existing radio metadata mapping.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:

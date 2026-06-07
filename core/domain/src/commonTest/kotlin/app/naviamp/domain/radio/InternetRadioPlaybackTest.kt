@@ -172,6 +172,86 @@ class InternetRadioPlaybackTest {
     }
 
     @Test
+    fun internetRadioMetadataUpdatePlansStreamMetadataAndNotificationTitle() {
+        val station = station("kexp", name = "KEXP")
+        val metadata = PlaybackStreamMetadata(title = "Artist - Song")
+
+        val plan = planInternetRadioMetadataUpdate(
+            station = station,
+            metadata = metadata,
+        )
+
+        assertEquals(metadata, plan.metadata)
+        assertEquals(null, plan.nowPlayingTrack)
+        assertEquals(true, plan.updateNotificationMetadata)
+        assertEquals("Artist - Song", plan.notificationTitle)
+        assertEquals("KEXP", plan.notificationSubtitle)
+        assertEquals(null, plan.notificationCoverArtUrl)
+    }
+
+    @Test
+    fun internetRadioMetadataUpdateCanBuildPresentationTrack() {
+        val station = station("kexp", name = "KEXP")
+        val fallback = internetRadioTrack(station)
+
+        val plan = planInternetRadioMetadataUpdate(
+            station = station,
+            metadata = PlaybackStreamMetadata(title = "Artist - Song"),
+            fallbackTrack = fallback,
+            updateNotificationMetadata = false,
+        )
+
+        assertEquals("Artist - Song", plan.nowPlayingTrack?.title)
+        assertEquals("KEXP", plan.nowPlayingTrack?.artistName)
+        assertEquals(false, plan.updateNotificationMetadata)
+    }
+
+    @Test
+    fun internetRadioMetadataUpdateSkipsBlankNotificationTitleAndTrackChange() {
+        val station = station("kexp", name = "KEXP")
+        val fallback = internetRadioTrack(station)
+
+        val plan = planInternetRadioMetadataUpdate(
+            station = station,
+            metadata = PlaybackStreamMetadata(title = " "),
+            fallbackTrack = fallback,
+        )
+
+        assertEquals(fallback, plan.nowPlayingTrack)
+        assertEquals(false, plan.updateNotificationMetadata)
+        assertEquals(null, plan.notificationTitle)
+    }
+
+    @Test
+    fun internetRadioMetadataUpdateApplierRunsSharedEffects() {
+        val calls = mutableListOf<String>()
+        val station = station("kexp", name = "KEXP")
+        val plan = planInternetRadioMetadataUpdate(
+            station = station,
+            metadata = PlaybackStreamMetadata(title = "Artist - Song"),
+            fallbackTrack = internetRadioTrack(station),
+        )
+
+        applyInternetRadioMetadataUpdate(
+            plan = plan,
+            applier = InternetRadioMetadataUpdateApplier(
+                setStreamMetadata = { calls += "metadata:${it.title}" },
+                setNowPlayingTrack = { calls += "track:${it?.title}" },
+                updateNotificationMetadata = { title, subtitle, cover -> calls += "notification:$title:$subtitle:$cover" },
+            ),
+        )
+
+        assertEquals(
+            listOf(
+                "metadata:Artist - Song",
+                "track:Artist - Song",
+                "notification:Artist - Song:KEXP:null",
+            ),
+            calls,
+        )
+    }
+
+    @Test
     fun radioPlaylistParserFindsPlsFileEntry() {
         val body = """
             [playlist]
