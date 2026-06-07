@@ -40,23 +40,24 @@ import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.BassPlaybackPollingState
 import app.naviamp.domain.playback.BassPlaybackPollingPolicy
 import app.naviamp.domain.playback.BassPlaybackCleanupReset
+import app.naviamp.domain.playback.BassPlaybackCreationPlan
 import app.naviamp.domain.playback.PreparedPlaybackMetadataReset
 import app.naviamp.domain.playback.PreparedBassPlaybackStateUpdate
+import app.naviamp.domain.playback.bassPlaybackActivated
 import app.naviamp.domain.playback.clearBassPlaybackCleanupState
 import app.naviamp.domain.playback.clearPreparedPlaybackMetadata
 import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
 import app.naviamp.domain.playback.PreparedBassPlaybackPlan
 import app.naviamp.domain.playback.planBassPlaybackPollingUpdate
+import app.naviamp.domain.playback.planBassPlaybackCreation
 import app.naviamp.domain.playback.planPreparedBassPlayback
 import app.naviamp.domain.playback.planPreparedBassPlaybackAdoption
 import app.naviamp.domain.playback.playbackSourceHandle
-import app.naviamp.domain.playback.playbackReplayGainAdjustment
 import app.naviamp.domain.playback.playbackStartSeekPosition
 import app.naviamp.domain.playback.playbackUserVolumeFactor
 import app.naviamp.domain.playback.preparedBassPlaybackAdopted
 import app.naviamp.domain.playback.preparedBassPlaybackFailed
 import app.naviamp.domain.playback.preparedBassPlaybackSucceeded
-import app.naviamp.domain.playback.shouldUseBassMixerPlayback
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -205,23 +206,25 @@ class AndroidBassPlaybackEngine(
                 Log.i(Tag, "Opening BASS stream verifyNet=$verifyNet url=${request.url.sanitizedForLog()}")
                 bass.setVerifyNet(verifyNet).getOrThrow()
                 bass.configureInternetStreams().getOrThrow()
+                val creationPlan = planBassPlaybackCreation(
+                    request = request,
+                    supportsMixer = bass.supportsMixer,
+                    requireMediaId = true,
+                )
                 val playback = createPlayback(
                     request = request,
-                    useMixer = shouldUseBassMixerPlayback(
-                        request = request,
-                        supportsMixer = bass.supportsMixer,
-                        requireMediaId = true,
-                    ),
+                    plan = creationPlan,
                 ).also { createdPlayback = it }
                 if (!isCurrentPlayback(currentPlaybackId)) {
                     releaseCreatedPlayback(playback)
                     createdPlayback = null
                     return@launch
                 }
-                val handle = playback.playbackHandle
-                stream = playback.playbackHandle
-                currentSourceStream = playback.sourceHandle
-                replayGainFactor = playback.replayGainFactor
+                val activation = bassPlaybackActivated(playback, creationPlan.replayGainAdjustment)
+                val handle = activation.playbackHandle
+                stream = activation.playbackHandle
+                currentSourceStream = activation.sourceHandle
+                replayGainFactor = activation.replayGainFactor
                 createdPlayback = null
                 Log.i(Tag, "BASS stream handle=$handle source=$currentSourceStream error=${bass.lastErrorCode}")
                 check(handle != 0) { errorMessage("BASS stream creation failed") }
@@ -386,7 +389,7 @@ class AndroidBassPlaybackEngine(
         runCatching {
             bass.init().getOrThrow()
             val mixer = stream
-            val file = localFileFromUrl(request.url)
+            val file = if (mixerPlan.isLocalFileUrl) localFileFromUrl(request.url) else null
             val prepared = bass.prepareNextBassMixerSource(
                 localPath = file?.absolutePath,
                 url = request.url,
@@ -413,16 +416,15 @@ class AndroidBassPlaybackEngine(
 
     private fun createPlayback(
         request: PlaybackRequest,
-        useMixer: Boolean,
+        plan: BassPlaybackCreationPlan,
     ): BassCreatedPlayback {
-        val file = localFileFromUrl(request.url)
-        val replayGainAdjustment = playbackReplayGainAdjustment(request)
+        val file = if (plan.isLocalFileUrl) localFileFromUrl(request.url) else null
         return bass.createBassPlayback(
             localPath = file?.absolutePath,
             url = request.url,
-            useMixer = useMixer,
+            useMixer = plan.useMixer,
             crossfadeDurationSeconds = crossfadeDurationSeconds,
-            replayGainFactor = replayGainAdjustment.volumeFactor,
+            replayGainFactor = plan.replayGainFactor,
         ).getOrThrow()
     }
 

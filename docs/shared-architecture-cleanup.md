@@ -793,6 +793,14 @@ Progress notes:
   - `AndroidBassPlaybackEngine.kt` no longer hard-codes its 100 ms polling delay or source-end finish/duplicate-progress flags.
   - `DesktopBassPlaybackEngine.kt` no longer hard-codes its 250 ms polling delay or changed-only/finish-after-stop flags.
   - Shared domain grew intentionally with a small policy DTO and presets in `BassPlaybackPolling.kt`.
+- Added shared `BassPlaybackCreationPlan` and `BassPlaybackActivationUpdate` for initial BASS playback creation decisions.
+- Android and Desktop BASS engines now share mixer-use selection, replay-gain adjustment calculation, local-file URL classification, and created-playback state mapping.
+- Platform engines still own platform path conversion (`Uri`/`File`) and native stream creation/release.
+- Added common `BassPlaybackCreationPlannerTest.kt` coverage for mixer selection, replay-gain planning, local-file URL classification, and activation mapping.
+- Size/reduction note for the playback creation slice:
+  - `AndroidBassPlaybackEngine.kt` no longer calculates initial playback replay gain or mixer-use policy locally.
+  - `DesktopBassPlaybackEngine.kt` dropped its local `CreatedPlayback` wrapper and initial replay-gain helper.
+  - `PreparedBassPlaybackPlan` now also carries local-file URL classification so prepared creation paths share the same local/remote decision.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:

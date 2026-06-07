@@ -7,11 +7,13 @@ sealed interface PreparedBassPlaybackPlan {
     data class PrepareMixer(
         val replayGainFactor: Float,
         val replayGainAdjustment: PlaybackReplayGainAdjustment,
+        val isLocalFileUrl: Boolean,
     ) : PreparedBassPlaybackPlan
 
     data class PrepareDirect(
         val replayGainFactor: Float,
         val replayGainAdjustment: PlaybackReplayGainAdjustment,
+        val isLocalFileUrl: Boolean,
     ) : PreparedBassPlaybackPlan
 }
 
@@ -49,6 +51,7 @@ fun planPreparedBassPlayback(
     }
     val replayGainAdjustment = playbackReplayGainAdjustment(request)
     val replayGainFactor = replayGainAdjustment.volumeFactor
+    val isLocalFileUrl = isPlaybackLocalFileUrl(request.url)
     return when {
         canPrepareBassMixerSource(
             playbackHandle = playbackHandle,
@@ -57,10 +60,12 @@ fun planPreparedBassPlayback(
         ) -> PreparedBassPlaybackPlan.PrepareMixer(
             replayGainFactor = replayGainFactor,
             replayGainAdjustment = replayGainAdjustment,
+            isLocalFileUrl = isLocalFileUrl,
         )
         allowDirectFallback -> PreparedBassPlaybackPlan.PrepareDirect(
             replayGainFactor = replayGainFactor,
             replayGainAdjustment = replayGainAdjustment,
+            isLocalFileUrl = isLocalFileUrl,
         )
         else -> PreparedBassPlaybackPlan.NotSupported
     }

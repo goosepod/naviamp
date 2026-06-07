@@ -41,13 +41,14 @@ class PreparedBassPlaybackPlannerTest {
         val mixer = assertIs<PreparedBassPlaybackPlan.PrepareMixer>(plan)
         assertEquals(1f, mixer.replayGainFactor)
         assertEquals(ReplayGainMode.Off, mixer.replayGainAdjustment.mode)
+        assertTrue(mixer.isLocalFileUrl)
     }
 
     @Test
     fun preparesDirectFallbackOnlyWhenAllowed() {
         val request = request("two")
 
-        assertIs<PreparedBassPlaybackPlan.PrepareDirect>(
+        val direct = assertIs<PreparedBassPlaybackPlan.PrepareDirect>(
             planPreparedBassPlayback(
                 playbackHandle = 0,
                 currentSourceHandle = 0,
@@ -58,6 +59,7 @@ class PreparedBassPlaybackPlannerTest {
                 allowDirectFallback = true,
             ),
         )
+        assertTrue(direct.isLocalFileUrl)
         assertEquals(
             PreparedBassPlaybackPlan.NotSupported,
             planPreparedBassPlayback(
