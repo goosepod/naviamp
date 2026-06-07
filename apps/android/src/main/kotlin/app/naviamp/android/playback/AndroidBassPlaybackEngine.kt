@@ -8,7 +8,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.util.Log
-import app.naviamp.domain.bass.BassActiveState
 import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassCreatedPlayback
 import app.naviamp.domain.bass.activeState
@@ -38,20 +37,19 @@ import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.playback.EqualizerSettings
 import app.naviamp.domain.playback.VisualizerBandCount
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
+import app.naviamp.domain.playback.BassPlaybackPollingState
 import app.naviamp.domain.playback.clearPreparedPlaybackMetadata
 import app.naviamp.domain.playback.clearPlaybackStreamState
 import app.naviamp.domain.playback.failedPreparedPlaybackMetadata
 import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
 import app.naviamp.domain.playback.PreparedBassPlaybackPlan
+import app.naviamp.domain.playback.planBassPlaybackPollingUpdate
 import app.naviamp.domain.playback.planPreparedBassPlayback
 import app.naviamp.domain.playback.planPreparedBassPlaybackAdoption
 import app.naviamp.domain.playback.playbackSourceHandle
 import app.naviamp.domain.playback.playbackReplayGainFactor
 import app.naviamp.domain.playback.playbackStartSeekPosition
-import app.naviamp.domain.playback.playbackStateForBassActiveState
 import app.naviamp.domain.playback.playbackUserVolumeFactor
-import app.naviamp.domain.playback.shouldContinueBassPlaybackPolling
-import app.naviamp.domain.playback.shouldFinishPlaybackForBassState
 import app.naviamp.domain.playback.shouldUseBassMixerPlayback
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import kotlinx.coroutines.CoroutineScope
@@ -427,36 +425,39 @@ class AndroidBassPlaybackEngine(
     ) {
         progressJob?.cancel()
         progressJob = scope.launch {
-            var lastMetadata = PlaybackStreamMetadata()
-            var lastActiveState: Int? = null
+            var pollingState = BassPlaybackPollingState()
             while (isActive && stream == handle && isCurrentPlayback(currentPlaybackId)) {
                 val snapshot = bass.bassPlaybackSnapshot(handle, currentSourceStream)
-                val active = snapshot.activeState
-                val progress = snapshot.progress
-                if (active != lastActiveState) {
-                    lastActiveState = active
+                val update = planBassPlaybackPollingUpdate(
+                    snapshot = snapshot,
+                    previous = pollingState,
+                    emitDuplicateProgress = true,
+                    finishOnSourceEnd = true,
+                )
+                pollingState = update.state
+                if (update.activeStateChanged) {
                     Log.i(
                         Tag,
-                        "BASS active=${bassActiveStateLabel(active)} handle=$handle source=${playbackSourceHandle(handle, currentSourceStream)} " +
-                            "position=${progress.positionSeconds} duration=${progress.durationSeconds}",
+                        "BASS active=${bassActiveStateLabel(snapshot.activeState)} handle=$handle source=${playbackSourceHandle(handle, currentSourceStream)} " +
+                            "position=${snapshot.progress.positionSeconds} duration=${snapshot.progress.durationSeconds}",
                     )
                 }
-                onProgressChanged?.invoke(progress)
-                val metadata = snapshot.metadata
-                if (metadata != lastMetadata) {
-                    lastMetadata = metadata
-                    onMetadataChanged?.invoke(metadata)
-                }
-                if (shouldFinishPlaybackForBassState(active, progress, snapshot.sourceActiveState)) {
-                    Log.i(Tag, "BASS source reached end position=${progress.positionSeconds} duration=${progress.durationSeconds}")
+                update.progress?.let { onProgressChanged?.invoke(it) }
+                update.metadata?.let { onMetadataChanged?.invoke(it) }
+                if (update.finished) {
+                    Log.i(
+                        Tag,
+                        "BASS source reached end position=${snapshot.progress.positionSeconds} duration=${snapshot.progress.durationSeconds}",
+                    )
                     handlePlaybackFinished()
-                    onStateChanged?.invoke(PlaybackState.Finished)
+                }
+                update.playbackState?.let { onStateChanged?.invoke(it) }
+                if (update.finished) {
                     return@launch
                 }
-                if (!shouldContinueBassPlaybackPolling(active)) {
+                if (!update.shouldContinue) {
                     return@launch
                 }
-                playbackStateForBassActiveState(active)?.let { onStateChanged?.invoke(it) }
                 delay(100)
             }
         }

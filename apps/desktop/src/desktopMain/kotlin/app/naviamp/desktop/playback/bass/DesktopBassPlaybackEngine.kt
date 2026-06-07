@@ -13,8 +13,6 @@ import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.VisualizerBandCount
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.bass.BassAudioBackend
-import app.naviamp.domain.bass.BassActiveState
-import app.naviamp.domain.bass.activeState
 import app.naviamp.domain.bass.adoptPreparedBassSource
 import app.naviamp.domain.bass.applyBassPlaybackVolume
 import app.naviamp.domain.bass.applyEqualizer
@@ -33,19 +31,19 @@ import app.naviamp.domain.bass.seekBassPlaybackSource
 import app.naviamp.domain.bass.setEndSync
 import app.naviamp.domain.bass.stopAndReleaseBassPlayback
 import app.naviamp.domain.playback.bassPlaybackFeatureSupport
+import app.naviamp.domain.playback.BassPlaybackPollingState
 import app.naviamp.domain.playback.clearPreparedPlaybackMetadata
 import app.naviamp.domain.playback.clearPlaybackStreamState
 import app.naviamp.domain.playback.failedPreparedPlaybackMetadata
 import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
 import app.naviamp.domain.playback.PreparedBassPlaybackPlan
+import app.naviamp.domain.playback.planBassPlaybackPollingUpdate
 import app.naviamp.domain.playback.planPreparedBassPlayback
 import app.naviamp.domain.playback.planPreparedBassPlaybackAdoption
 import app.naviamp.domain.playback.playbackSourceHandle
 import app.naviamp.domain.playback.playbackReplayGainAdjustment
 import app.naviamp.domain.playback.playbackStartSeekPosition
-import app.naviamp.domain.playback.playbackStateForBassActiveState
 import app.naviamp.domain.playback.playbackUserVolumeFactor
-import app.naviamp.domain.playback.shouldContinueBassPlaybackPolling
 import app.naviamp.domain.playback.shouldUseBassMixerPlayback
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -154,28 +152,21 @@ class DesktopBassPlaybackEngine(
                     .getOrThrow()
                 onStateChanged(PlaybackState.Playing)
 
-                var lastProgress = PlaybackProgress.Unknown
-                var lastMetadata = PlaybackStreamMetadata()
-                var lastActiveState: Int? = null
-                while (
-                    isCurrentPlayback(currentPlaybackId) &&
-                    shouldContinueBassPlaybackPolling(bass.activeState(playbackHandle))
-                ) {
+                var pollingState = BassPlaybackPollingState()
+                while (isCurrentPlayback(currentPlaybackId)) {
                     val snapshot = bass.bassPlaybackSnapshot(playbackHandle, currentSourceStream)
-                    val activeState = snapshot.activeState
-                    if (activeState != lastActiveState) {
-                        lastActiveState = activeState
-                        playbackStateForBassActiveState(activeState)?.let(onStateChanged)
-                    }
-                    val progress = snapshot.progress
-                    if (progress != lastProgress) {
-                        lastProgress = progress
-                        onProgressChanged(progress)
-                    }
-                    val metadata = snapshot.metadata
-                    if (metadata != lastMetadata) {
-                        lastMetadata = metadata
-                        onMetadataChanged(metadata)
+                    val update = planBassPlaybackPollingUpdate(
+                        snapshot = snapshot,
+                        previous = pollingState,
+                        emitDuplicateProgress = false,
+                        finishOnSourceEnd = false,
+                    )
+                    pollingState = update.state
+                    update.playbackState?.let(onStateChanged)
+                    update.progress?.let(onProgressChanged)
+                    update.metadata?.let(onMetadataChanged)
+                    if (!update.shouldContinue) {
+                        break
                     }
                     delay(PlaybackStatusPollIntervalMillis)
                 }
@@ -432,29 +423,22 @@ class DesktopBassPlaybackEngine(
         onProgressChanged(PlaybackProgress.Unknown)
         onStateChanged(PlaybackState.Playing)
         job = scope.launch(Dispatchers.IO) {
-            var lastProgress = PlaybackProgress.Unknown
-            var lastMetadata = PlaybackStreamMetadata()
-            var lastActiveState: Int? = null
+            var pollingState = BassPlaybackPollingState()
             try {
-                while (
-                    isCurrentPlayback(currentPlaybackId) &&
-                    shouldContinueBassPlaybackPolling(bass.activeState(stream))
-                ) {
+                while (isCurrentPlayback(currentPlaybackId)) {
                     val snapshot = bass.bassPlaybackSnapshot(stream, currentSourceStream)
-                    val activeState = snapshot.activeState
-                    if (activeState != lastActiveState) {
-                        lastActiveState = activeState
-                        playbackStateForBassActiveState(activeState)?.let(onStateChanged)
-                    }
-                    val progress = snapshot.progress
-                    if (progress != lastProgress) {
-                        lastProgress = progress
-                        onProgressChanged(progress)
-                    }
-                    val metadata = snapshot.metadata
-                    if (metadata != lastMetadata) {
-                        lastMetadata = metadata
-                        onMetadataChanged(metadata)
+                    val update = planBassPlaybackPollingUpdate(
+                        snapshot = snapshot,
+                        previous = pollingState,
+                        emitDuplicateProgress = false,
+                        finishOnSourceEnd = false,
+                    )
+                    pollingState = update.state
+                    update.playbackState?.let(onStateChanged)
+                    update.progress?.let(onProgressChanged)
+                    update.metadata?.let(onMetadataChanged)
+                    if (!update.shouldContinue) {
+                        break
                     }
                     delay(PlaybackStatusPollIntervalMillis)
                 }

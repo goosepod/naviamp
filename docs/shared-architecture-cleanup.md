@@ -762,7 +762,15 @@ Progress notes:
   - `AndroidBassPlaybackEngine.kt` lost its local reuse/can-prepare/adoption gate branching and now applies shared prepare/adopt plans.
   - `DesktopBassPlaybackEngine.kt` lost parallel reuse/can-prepare/adoption gate branching while preserving its direct fallback behavior.
   - Shared domain grew intentionally with a small planner that composes existing transition/replay-gain helpers.
-- Remaining work in this playback slice: inspect the duplicated playback polling loop and finished/error cleanup behavior in Android/Desktop BASS engines; decide whether a shared stream-polling/result planner can reduce duplication without moving platform coroutine, sync callback, or lifecycle ownership into common code.
+- Added shared `BassPlaybackPollingState` and `planBassPlaybackPollingUpdate` to reduce duplicated BASS snapshot interpretation.
+- Android and Desktop BASS polling loops now share active-state, progress, metadata, continue/stop, and optional source-end finish decisions.
+- Platform BASS engines still own coroutine loops, polling interval, logging, end-sync callbacks, notification/wake-lock side effects, and stream cleanup.
+- Added common `BassPlaybackPollingTest.kt` coverage for active-state/progress/metadata emission, duplicate progress policy, source-end finish policy, and stopped-output polling termination.
+- Size/reduction note for the polling reducer slice:
+  - `AndroidBassPlaybackEngine.kt` keeps its every-tick progress emission and source-end finish behavior, but delegates snapshot interpretation to the shared reducer.
+  - `DesktopBassPlaybackEngine.kt` keeps changed-only progress emission and its existing finish-after-loop behavior, while both normal and adopted playback polling loops use the same reducer.
+  - Shared domain grew intentionally with a small reducer and focused tests.
+- Remaining work in this playback slice: inspect repeated stream cleanup/reset blocks in Android/Desktop BASS engines and decide whether shared reset DTOs already cover enough, or whether a small shared cleanup application helper would reduce duplication without owning native releases.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
