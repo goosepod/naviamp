@@ -30,10 +30,10 @@ import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.playback.PlaybackSidecarService
-import app.naviamp.domain.playback.audioPrefetchTracks
 import app.naviamp.domain.playback.emptyPlaybackAudioAssetRepository
 import app.naviamp.domain.playback.finished
 import app.naviamp.domain.playback.initialAudioPrefetchStats
+import app.naviamp.domain.playback.planAudioPrefetchWork
 import app.naviamp.domain.playback.playbackStreamUrl
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
 import app.naviamp.domain.playback.runAudioPrefetch
@@ -390,39 +390,37 @@ class DesktopPlaylistEngine(
         if (!audioCachingEnabledProvider()) return
         val audioCache = audioCacheRepository ?: return
         val sidecars = sidecarService ?: return
-        val sourceId = sourceIdProvider() ?: return
-        val currentProvider = provider ?: return
-        val currentQuality = streamQuality ?: return
-        val prefetchDepth = audioPrefetchStats.configuredDepth
-        if (prefetchDepth <= 0) return
-        val upcoming = audioPrefetchTracks(
+        val work = planAudioPrefetchWork(
+            sourceId = sourceIdProvider(),
+            provider = provider,
+            quality = streamQuality,
             queue = queue,
-            depth = prefetchDepth,
+            enabled = audioPrefetchStats.enabled,
+            configuredDepth = audioPrefetchStats.configuredDepth,
             includeCurrentTrack = false,
-        )
-        if (upcoming.isEmpty()) return
+        ) ?: return
 
         audioPrefetchJob?.cancel()
         audioPrefetchJob = scope.launch {
             audioPrefetchStats = runAudioPrefetch(
-                stats = audioPrefetchStats,
-                tracks = upcoming,
+                stats = work.stats,
+                tracks = work.tracks,
                 isActive = { activeSessionId == queueController.playbackSessionId },
                 cacheAudio = { track ->
                     audioCache.cacheAudioTrack(
-                        sourceId = sourceId,
-                        provider = currentProvider,
+                        sourceId = work.sourceId,
+                        provider = work.provider,
                         track = track,
-                        quality = currentQuality,
+                        quality = work.quality,
                     )
                 },
                 prepareSidecars = { track, _ ->
                     runPrefetchSidecars(
                         sidecarService = sidecars,
-                        sourceId = sourceId,
-                        provider = currentProvider,
+                        sourceId = work.sourceId,
+                        provider = work.provider,
                         track = track,
-                        quality = currentQuality,
+                        quality = work.quality,
                     )
                 },
                 onStatsChanged = { stats -> audioPrefetchStats = stats },

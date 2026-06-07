@@ -816,6 +816,14 @@ Progress notes:
   - `AndroidBassPlaybackEngine.kt` no longer decides start-position retry/mute behavior locally.
   - `DesktopBassPlaybackEngine.kt` no longer calls raw start-position normalization directly.
   - Shared domain grew intentionally with a small start planner that composes existing start-position normalization.
+- Added shared `AudioPrefetchWork` and `planAudioPrefetchWork` so playlist prefetch source/provider/quality/depth eligibility and upcoming-track selection use one shared path.
+- Android and Desktop playlist engines now ask the shared prefetch planner for executable work instead of locally repeating source-id, provider, quality, prefetch-depth, and upcoming-track checks.
+- Platform playlist engines still own the correct side effects: job cancellation/launch, cache repository calls, Android logging, desktop cache stats publication, and sidecar execution.
+- Added common `PlaybackPrefetchTest.kt` coverage for prefetch work creation and skip conditions.
+- Size/reduction note for the prefetch planning slice:
+  - `AndroidPlaylistEngine.kt` no longer locally builds the track prefetch list or initial stats for its audio prefetch job.
+  - `DesktopPlaylistEngine.kt` no longer locally validates source/provider/quality/depth or builds its upcoming prefetch list.
+  - Shared domain grew intentionally in `PlaybackPrefetch.kt` with a small work DTO and planner around the existing `audioPrefetchTracks` and `initialAudioPrefetchStats` helpers.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:

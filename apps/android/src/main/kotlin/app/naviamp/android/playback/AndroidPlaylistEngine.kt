@@ -25,8 +25,7 @@ import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.playback.SidecarTypeLyrics
 import app.naviamp.domain.playback.SidecarTypeWaveform
-import app.naviamp.domain.playback.audioPrefetchTracks
-import app.naviamp.domain.playback.initialAudioPrefetchStats
+import app.naviamp.domain.playback.planAudioPrefetchWork
 import app.naviamp.domain.playback.recordSidecarFailure
 import app.naviamp.domain.playback.recordSidecarSuccess
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
@@ -122,29 +121,30 @@ class AndroidPlaylistEngine(
         queue: PlaybackQueue,
     ) {
         state.audioPrefetchJob?.cancel()
-        val sourceId = state.activeSourceId ?: return
-        val quality = currentStreamQuality()
-        val tracksToPrefetch = audioPrefetchTracks(
+        val work = planAudioPrefetchWork(
+            sourceId = state.activeSourceId,
+            provider = activeProvider,
+            quality = currentStreamQuality(),
             queue = queue,
-            depth = AndroidAudioPrefetchDepth,
+            enabled = true,
+            configuredDepth = AndroidAudioPrefetchDepth,
             includeCurrentTrack = false,
-        )
-        if (tracksToPrefetch.isEmpty()) return
+        ) ?: return
 
         state.audioPrefetchJob = scope.launch {
             runAudioPrefetch(
-                stats = initialAudioPrefetchStats(enabled = true, configuredDepth = AndroidAudioPrefetchDepth),
-                tracks = tracksToPrefetch,
+                stats = work.stats,
+                tracks = work.tracks,
                 isActive = { sessionToken == state.playbackSessionToken },
                 cacheAudio = { track ->
-                    cacheAudioTrackForPlayback(sourceId, activeProvider, track, quality)
+                    cacheAudioTrackForPlayback(work.sourceId, work.provider, track, work.quality)
                 },
                 prepareSidecars = { track, _ ->
                     preparePrefetchedSidecars(
-                        sourceId = sourceId,
-                        provider = activeProvider,
+                        sourceId = work.sourceId,
+                        provider = work.provider,
                         track = track,
-                        quality = quality,
+                        quality = work.quality,
                     )
                 },
                 onTrackCached = { track, file ->
