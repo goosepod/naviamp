@@ -21,6 +21,8 @@ import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.radio.internetRadioTrack
 import app.naviamp.domain.radio.internetRadioTrackWithMetadata
+import app.naviamp.domain.radio.InternetRadioStartApplier
+import app.naviamp.domain.radio.applyInternetRadioStart
 import app.naviamp.domain.radio.planInternetRadioStart
 import app.naviamp.domain.radio.recentInternetRadioStationsWith
 import app.naviamp.domain.radio.recentSavedInternetRadioStationsWith
@@ -102,29 +104,39 @@ class DesktopInternetRadioController(
             recentStations = recentStations(),
             recentSavedStations = settingsStore.loadRecentInternetRadioStations(),
         )
-        setRecentStations(plan.recentStations)
-        settingsStore.saveRecentInternetRadioStations(plan.recentSavedStations)
-        setHomeContent(homeContent().copy(recentInternetRadioStations = plan.recentStations))
-        if (plan.clearRadioContinuation) stopRadioContinuation()
-        if (plan.clearShuffleSnapshot) clearShuffleSnapshot()
-        playlistEngine.clear()
         val radioTrack = internetRadioTrack(station)
-        setNowPlayingTrack(radioTrack)
-        setNowPlayingCoverArtUrl(null)
-        setNowPlayingWaveform(null)
-        setNowPlayingWaveformStatus("Internet radio")
-        setNowPlayingAudioTags(null)
-        setNowPlayingLyrics(null)
-        setNowPlayingLyricsStatus(null)
-        setNowPlayingStation(plan.station)
-        setNowPlayingStreamMetadata(plan.streamMetadata)
-        setPlaybackProgress(plan.playbackProgress)
-        setPlaybackQueue(plan.playbackQueue)
-        setStatus(plan.status)
-        if (plan.savePlaybackSession) {
-            playbackSessionRepository.savePlaybackSession(PlaybackSessionSettings.fromInternetRadioStation(station))
-        }
-        if (plan.openNowPlaying) setAppRoute(DesktopAppRoute.Player)
+        applyInternetRadioStart(
+            plan = plan,
+            nowPlayingTrack = radioTrack,
+            applier = InternetRadioStartApplier(
+                saveRecentStations = settingsStore::saveRecentInternetRadioStations,
+                setRecentStations = { updatedRecentStations ->
+                    setRecentStations(updatedRecentStations)
+                    setHomeContent(homeContent().copy(recentInternetRadioStations = updatedRecentStations))
+                },
+                clearRadioContinuation = stopRadioContinuation,
+                clearShuffleSnapshot = clearShuffleSnapshot,
+                clearPlaybackQueue = { playlistEngine.clear() },
+                setNowPlayingTrack = setNowPlayingTrack,
+                setNowPlayingCoverArtUrl = setNowPlayingCoverArtUrl,
+                resetNowPlayingSidecars = {
+                    setNowPlayingWaveform(null)
+                    setNowPlayingWaveformStatus("Internet radio")
+                    setNowPlayingAudioTags(null)
+                    setNowPlayingLyrics(null)
+                    setNowPlayingLyricsStatus(null)
+                },
+                setNowPlayingStation = setNowPlayingStation,
+                setStreamMetadata = setNowPlayingStreamMetadata,
+                setPlaybackProgress = setPlaybackProgress,
+                setPlaybackQueue = setPlaybackQueue,
+                setStatus = setStatus,
+                savePlaybackSession = {
+                    playbackSessionRepository.savePlaybackSession(PlaybackSessionSettings.fromInternetRadioStation(station))
+                },
+                openNowPlaying = { setAppRoute(DesktopAppRoute.Player) },
+            ),
+        )
         playbackEngine.play(
             scope = scope,
             request = PlaybackRequest(

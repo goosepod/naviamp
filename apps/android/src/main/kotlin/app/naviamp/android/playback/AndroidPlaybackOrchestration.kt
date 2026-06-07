@@ -26,6 +26,8 @@ import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.playback.playbackStreamUrl
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.radio.InternetRadioStartApplier
+import app.naviamp.domain.radio.applyInternetRadioStart
 import app.naviamp.domain.radio.planInternetRadioStart
 import app.naviamp.provider.navidrome.NavidromeProvider
 import kotlinx.coroutines.CoroutineScope
@@ -242,33 +244,42 @@ fun playAndroidInternetRadioStation(
         recentStations = state.homeState.recentInternetRadioStations,
         recentSavedStations = settingsStore.loadRecentInternetRadioStations(),
     )
-    settingsStore.saveRecentInternetRadioStations(plan.recentSavedStations)
-    state.homeState = state.homeState.copy(recentInternetRadioStations = plan.recentStations)
-    if (plan.clearShuffleSnapshot) state.shuffledUpNextSnapshot = null
-    if (plan.clearRadioContinuation) {
-        state.radioQueueActive = false
-        state.radioRefilling = false
-        state.lastRadioRefillSeedId = null
-    }
-    state.nowPlaying = plan.nowPlayingTrack
-    AndroidPlaybackNotificationControls.canFavorite = plan.canFavorite
-    AndroidPlaybackNotificationControls.isFavorite = plan.isFavorite
-    state.nowPlayingStation = plan.station
-    state.nowPlayingStreamMetadata = plan.streamMetadata
-    state.playbackProgress = plan.playbackProgress
-    playbackQueueController.clear()
-    state.playbackQueue = plan.playbackQueue
-    if (plan.openNowPlaying) state.nowPlayingOpen = true
-    state.status = plan.status
-    if (plan.savePlaybackSession) {
-        savePlaybackSessionThrottled(true)
-    }
-    playbackEngine.applyTlsSettings(state.activeTlsSettings)
-    playbackEngine.updateNotificationMetadata(
-        title = plan.notificationTitle,
-        subtitle = plan.notificationSubtitle,
-        coverArtUrl = plan.notificationCoverArtUrl,
+    applyInternetRadioStart(
+        plan = plan,
+        applier = InternetRadioStartApplier(
+            saveRecentStations = settingsStore::saveRecentInternetRadioStations,
+            setRecentStations = { recentStations ->
+                state.homeState = state.homeState.copy(recentInternetRadioStations = recentStations)
+            },
+            clearRadioContinuation = {
+                state.radioQueueActive = false
+                state.radioRefilling = false
+                state.lastRadioRefillSeedId = null
+            },
+            clearShuffleSnapshot = { state.shuffledUpNextSnapshot = null },
+            clearPlaybackQueue = { playbackQueueController.clear() },
+            setNowPlayingTrack = { track -> state.nowPlaying = track },
+            applyFavoriteState = { canFavorite, isFavorite ->
+                AndroidPlaybackNotificationControls.canFavorite = canFavorite
+                AndroidPlaybackNotificationControls.isFavorite = isFavorite
+            },
+            setNowPlayingStation = { startedStation -> state.nowPlayingStation = startedStation },
+            setStreamMetadata = { metadata -> state.nowPlayingStreamMetadata = metadata },
+            setPlaybackProgress = { progress -> state.playbackProgress = progress },
+            setPlaybackQueue = { queue -> state.playbackQueue = queue },
+            setStatus = { status -> state.status = status },
+            savePlaybackSession = { savePlaybackSessionThrottled(true) },
+            openNowPlaying = { state.nowPlayingOpen = true },
+            updateNotificationMetadata = { title, subtitle, coverArtUrl ->
+                playbackEngine.updateNotificationMetadata(
+                    title = title,
+                    subtitle = subtitle,
+                    coverArtUrl = coverArtUrl,
+                )
+            },
+        ),
     )
+    playbackEngine.applyTlsSettings(state.activeTlsSettings)
     scope.launch {
         runCatching {
             resolveInternetRadioStreamUrl(station.streamUrl.trim())

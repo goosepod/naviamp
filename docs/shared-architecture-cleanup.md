@@ -871,6 +871,14 @@ Progress notes:
 - Size/reduction note for the internet-radio progress slice:
   - `DesktopInternetRadioController.kt` no longer owns local progress UI-throttle decisions.
   - Shared domain grew by one small merge-mode option on the existing progress planner rather than creating a separate radio-only path.
+- Added shared `InternetRadioStartApplier` and `applyInternetRadioStart` so Android and Desktop consume the same radio-start effect sequence.
+- Android and Desktop now share the gates and ordering for recent-station persistence, radio/shuffle clearing, playback queue clearing, now-playing/station/metadata/progress/queue/status application, session save, open-now-playing, and notification metadata.
+- Platform playback paths still own the correct state writes and side effects: Android session/TLS/notification-control updates and Desktop presentation-track/sidecar reset/route/settings writes remain adapter-owned.
+- Added common `InternetRadioPlaybackTest.kt` coverage for the shared radio-start application sequence and the desktop presentation-track override.
+- Size/reduction note for the internet-radio start application slice:
+  - `AndroidPlaybackOrchestration.kt` no longer hand-applies the radio-start plan field by field.
+  - `DesktopInternetRadioController.kt` no longer duplicates the same plan gates for recents, queue clearing, status, and route/session behavior.
+  - Shared domain grew intentionally with a callback-based applier that keeps platform effects outside domain while standardizing the command surface.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:

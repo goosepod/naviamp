@@ -94,6 +94,84 @@ class InternetRadioPlaybackTest {
     }
 
     @Test
+    fun internetRadioStartApplierRunsSharedStartEffects() {
+        val calls = mutableListOf<String>()
+        val selected = station("two")
+        val plan = planInternetRadioStart(
+            station = selected,
+            recentStations = listOf(station("one")),
+            recentSavedStations = listOf(SavedInternetRadioStation.fromStation(station("one"))),
+        )
+
+        applyInternetRadioStart(
+            plan = plan,
+            applier = InternetRadioStartApplier(
+                saveRecentStations = { calls += "save-recent:${it.map { station -> station.id }}" },
+                setRecentStations = { calls += "set-recent:${it.map { station -> station.id }}" },
+                clearRadioContinuation = { calls += "clear-radio" },
+                clearShuffleSnapshot = { calls += "clear-shuffle" },
+                clearPlaybackQueue = { calls += "clear-queue" },
+                setNowPlayingTrack = { calls += "track:${it?.id?.value}" },
+                setNowPlayingCoverArtUrl = { calls += "cover:$it" },
+                resetNowPlayingSidecars = { calls += "reset-sidecars" },
+                applyFavoriteState = { canFavorite, isFavorite -> calls += "favorite:$canFavorite:$isFavorite" },
+                setNowPlayingStation = { calls += "station:${it.id}" },
+                setStreamMetadata = { calls += "metadata:${it.title}" },
+                setPlaybackProgress = { calls += "progress:${it.positionSeconds}" },
+                setPlaybackQueue = { calls += "queue:${it.tracks.size}" },
+                setStatus = { calls += "status:$it" },
+                savePlaybackSession = { calls += "save-session" },
+                openNowPlaying = { calls += "open" },
+                updateNotificationMetadata = { title, subtitle, cover -> calls += "notification:$title:$subtitle:$cover" },
+            ),
+        )
+
+        assertEquals(
+            listOf(
+                "save-recent:[two, one]",
+                "set-recent:[two, one]",
+                "clear-radio",
+                "clear-shuffle",
+                "clear-queue",
+                "track:null",
+                "cover:null",
+                "reset-sidecars",
+                "favorite:false:false",
+                "station:two",
+                "metadata:null",
+                "progress:null",
+                "queue:0",
+                "status:Loading Station two...",
+                "save-session",
+                "open",
+                "notification:Station two:Internet radio:null",
+            ),
+            calls,
+        )
+    }
+
+    @Test
+    fun internetRadioStartApplierCanUsePresentationTrackOverride() {
+        val station = station("kexp", name = "KEXP")
+        val track = internetRadioTrack(station)
+        var nowPlayingTrackId: String? = null
+
+        applyInternetRadioStart(
+            plan = planInternetRadioStart(
+                station = station,
+                recentStations = emptyList(),
+                recentSavedStations = emptyList(),
+            ),
+            nowPlayingTrack = track,
+            applier = InternetRadioStartApplier(
+                setNowPlayingTrack = { nowPlayingTrackId = it?.id?.value },
+            ),
+        )
+
+        assertEquals(track.id.value, nowPlayingTrackId)
+    }
+
+    @Test
     fun radioPlaylistParserFindsPlsFileEntry() {
         val body = """
             [playlist]
