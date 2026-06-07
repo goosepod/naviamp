@@ -746,7 +746,15 @@ Progress notes:
   - `PlaybackQueueManager.kt` shrank substantially and now delegates by operation family.
   - New focused shared manager files grew intentionally and are each small enough to test or reason about independently.
   - Existing `PlaybackQueueManagerTest.kt` continues to verify behavior through the public facade.
-- Remaining work in this playback slice: move from queue decisions into playback transition and prepared-next service composition, especially where Android service/runtime and desktop playlist engine still apply platform playback side effects.
+- Added shared `PreparedNextPlaybackCoordinator` and `PreparedNextPlaybackSettings` so Android and Desktop use the same prepared-next planning and request-building path.
+- Android `AndroidPlaylistEngine.prepareNextIfNeeded` and desktop `DesktopPlaylistEngine.prepareNextIfNeeded` now delegate transition gating, prepared-index checks, source resolution, replay-gain mode selection, and request construction to the shared coordinator.
+- Platform engines still own the correct platform boundary: session-token gating, queue prepared-index mutation, and `QueueAwarePlaybackEngine.prepareNext`.
+- Added common coordinator tests for building prepared-next requests and skipping already prepared queue indexes.
+- Size/reduction note for the prepared-next coordinator slice:
+  - `AndroidPlaylistEngine.kt` and `DesktopPlaylistEngine.kt` both lost their parallel local plan/request construction branches.
+  - Shared domain grew intentionally in `PreparedNextPlaybackService.kt` with a focused coordinator around the existing planner functions.
+  - `PreparedNextPlaybackServiceTest.kt` now verifies the coordinator entry point that both platform playlist engines call.
+- Remaining work in this playback slice: inspect prepared-playback adoption and BASS transition side effects inside Android/Desktop BASS playback engines, then extract any remaining duplicated transition/adoption policy into shared services while keeping JNI/audio handles platform-owned.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:

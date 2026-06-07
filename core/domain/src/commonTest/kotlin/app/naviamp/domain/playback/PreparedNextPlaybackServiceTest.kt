@@ -19,6 +19,7 @@ import app.naviamp.domain.provider.ProviderCapabilities
 import app.naviamp.domain.queue.PlaybackQueue
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlinx.coroutines.test.runTest
 
 class PreparedNextPlaybackServiceTest {
@@ -54,6 +55,71 @@ class PreparedNextPlaybackServiceTest {
         assertEquals("file://cache/next.flac", prepared.request.url)
         assertEquals("next", prepared.request.mediaId)
         assertEquals(ReplayGainMode.Off, prepared.request.replayGainMode)
+    }
+
+    @Test
+    fun coordinatorPlansAndBuildsPreparedNextRequest() = runTest {
+        val nextTrack = track("next")
+        val coordinator = PreparedNextPlaybackCoordinator(
+            provider = { FakeMediaProvider() },
+            sourceId = { "source" },
+            quality = { StreamQuality.Original },
+            audioCachingEnabled = { true },
+            audioAssets = RecordingAudioAssets(localAudio("cache/next.flac")),
+            replayGainMode = { ReplayGainMode.Track },
+            supportsReplayGain = { true },
+            replayGainForTrack = { _, _ -> null },
+        )
+        val plan = coordinator.plan(
+            queue = PlaybackQueue(tracks = listOf(track("current"), nextTrack), currentIndex = 0),
+            progress = PlaybackProgress(positionSeconds = 99.0, durationSeconds = 100.0),
+            nextQueueIndex = 1,
+            preparedNextIndex = null,
+            settings = PreparedNextPlaybackSettings(
+                gaplessEnabled = true,
+                supportsGapless = true,
+                crossfadeDurationSeconds = 0,
+                supportsCrossfade = true,
+                gaplessPrepareWindowSeconds = 8.0,
+            ),
+        ) ?: error("expected prepare plan")
+
+        val prepared = coordinator.request(plan)
+
+        assertEquals(1, prepared?.nextQueueIndex)
+        assertEquals("next", prepared?.track?.id?.value)
+        assertEquals("file://cache/next.flac", prepared?.request?.url)
+        assertEquals(ReplayGainMode.Track, prepared?.request?.replayGainMode)
+    }
+
+    @Test
+    fun coordinatorSkipsAlreadyPreparedNextIndex() {
+        val coordinator = PreparedNextPlaybackCoordinator(
+            provider = { FakeMediaProvider() },
+            sourceId = { "source" },
+            quality = { StreamQuality.Original },
+            audioCachingEnabled = { true },
+            audioAssets = RecordingAudioAssets(localAudio("cache/next.flac")),
+            replayGainMode = { ReplayGainMode.Track },
+            supportsReplayGain = { true },
+            replayGainForTrack = { _, _ -> null },
+        )
+
+        val plan = coordinator.plan(
+            queue = PlaybackQueue(tracks = listOf(track("current"), track("next")), currentIndex = 0),
+            progress = PlaybackProgress(positionSeconds = 99.0, durationSeconds = 100.0),
+            nextQueueIndex = 1,
+            preparedNextIndex = 1,
+            settings = PreparedNextPlaybackSettings(
+                gaplessEnabled = true,
+                supportsGapless = true,
+                crossfadeDurationSeconds = 0,
+                supportsCrossfade = true,
+                gaplessPrepareWindowSeconds = 8.0,
+            ),
+        )
+
+        assertNull(plan)
     }
 }
 

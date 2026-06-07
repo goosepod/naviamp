@@ -19,14 +19,14 @@ import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackLocalAudio
 import app.naviamp.domain.playback.PlaybackSidecarService
 import app.naviamp.domain.playback.PlaybackSidecarPrepResult
+import app.naviamp.domain.playback.PreparedNextPlaybackCoordinator
+import app.naviamp.domain.playback.PreparedNextPlaybackSettings
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.playback.SidecarTypeLyrics
 import app.naviamp.domain.playback.SidecarTypeWaveform
 import app.naviamp.domain.playback.audioPrefetchTracks
 import app.naviamp.domain.playback.initialAudioPrefetchStats
-import app.naviamp.domain.playback.planPrepareNextQueuePlayback
-import app.naviamp.domain.playback.preparedNextPlaybackRequest
 import app.naviamp.domain.playback.recordSidecarFailure
 import app.naviamp.domain.playback.recordSidecarSuccess
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
@@ -75,6 +75,18 @@ class AndroidPlaylistEngine(
         waveformService = audioWaveformService,
         lyricsSidecarService = lyricsSidecarService,
         sidecarStatusRepository = sidecarStatusRepository,
+    )
+    private val preparedNextPlaybackCoordinator = PreparedNextPlaybackCoordinator(
+        provider = { state.provider },
+        sourceId = { state.activeSourceId },
+        quality = currentStreamQuality,
+        audioCachingEnabled = { true },
+        audioAssets = playbackAudioAssets,
+        replayGainMode = { state.playbackSettings.replayGainMode },
+        supportsReplayGain = { playbackEngine.supportsReplayGain },
+        replayGainForTrack = { track, _ ->
+            track.replayGain?.let { PlaybackReplayGain(it, ReplayGainSource.Provider) }
+        },
     )
 
     suspend fun cacheAudioTrackForPlayback(
@@ -151,38 +163,25 @@ class AndroidPlaylistEngine(
         val queueAwareEngine = playbackEngine as? QueueAwarePlaybackEngine ?: return
         val nextIndex = nextQueueIndex() ?: return
         val queue = playbackQueueController.queue
-        val plan = planPrepareNextQueuePlayback(
+        val plan = preparedNextPlaybackCoordinator.plan(
             queue = queue,
             progress = progress,
             nextQueueIndex = nextIndex,
-            alreadyPreparedNext = !playbackQueueController.shouldPrepareNext(nextIndex),
-            gaplessEnabled = state.playbackSettings.gaplessEnabled,
-            supportsGapless = playbackEngine.supportsGapless,
-            crossfadeDurationSeconds = state.playbackSettings.crossfadeDurationSeconds,
-            supportsCrossfade = playbackEngine.supportsCrossfade,
-            gaplessPrepareWindowSeconds = AndroidGaplessPrepareWindowSeconds,
+            preparedNextIndex = playbackQueueController.preparedNextIndex,
+            settings = PreparedNextPlaybackSettings(
+                gaplessEnabled = state.playbackSettings.gaplessEnabled,
+                supportsGapless = playbackEngine.supportsGapless,
+                crossfadeDurationSeconds = state.playbackSettings.crossfadeDurationSeconds,
+                supportsCrossfade = playbackEngine.supportsCrossfade,
+                gaplessPrepareWindowSeconds = AndroidGaplessPrepareWindowSeconds,
+            ),
         ) ?: return
-        val nextTrack = plan.track
-        val activeProvider = state.provider ?: return
-        val sourceId = state.activeSourceId
         playbackQueueController.markPreparedNext(plan.nextQueueIndex)
         scope.launch {
             runCatching {
-                val quality = currentStreamQuality()
-                preparedNextPlaybackRequest(
-                    plan = plan,
-                    provider = activeProvider,
-                    sourceId = sourceId,
-                    quality = quality,
-                    audioCachingEnabled = true,
-                    audioAssets = playbackAudioAssets,
-                    replayGainMode = state.playbackSettings.replayGainMode,
-                    supportsReplayGain = playbackEngine.supportsReplayGain,
-                    replayGainForTrack = { track, _ ->
-                        track.replayGain?.let { PlaybackReplayGain(it, ReplayGainSource.Provider) }
-                    },
-                )
+                preparedNextPlaybackCoordinator.request(plan)
             }.onSuccess { prepared ->
+                prepared ?: return@onSuccess
                 if (sessionToken != state.playbackSessionToken) return@onSuccess
                 queueAwareEngine.prepareNext(prepared.request)
             }.onFailure {

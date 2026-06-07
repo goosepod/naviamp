@@ -24,6 +24,8 @@ import app.naviamp.domain.playback.DefaultAudioPrefetchDepth
 import app.naviamp.domain.playback.PlaybackSidecarPrepResult
 import app.naviamp.domain.playback.PlaybackSource
 import app.naviamp.domain.playback.PlaybackState
+import app.naviamp.domain.playback.PreparedNextPlaybackCoordinator
+import app.naviamp.domain.playback.PreparedNextPlaybackSettings
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.ReplayGainSource
@@ -32,8 +34,6 @@ import app.naviamp.domain.playback.audioPrefetchTracks
 import app.naviamp.domain.playback.emptyPlaybackAudioAssetRepository
 import app.naviamp.domain.playback.finished
 import app.naviamp.domain.playback.initialAudioPrefetchStats
-import app.naviamp.domain.playback.planPrepareNextQueuePlayback
-import app.naviamp.domain.playback.preparedNextPlaybackRequest
 import app.naviamp.domain.playback.playbackStreamUrl
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
 import app.naviamp.domain.playback.runAudioPrefetch
@@ -67,6 +67,16 @@ class DesktopPlaylistEngine(
     private val queueController = PlaybackQueueController()
     private var playbackSource: PlaybackSource = PlaybackSource.Unknown
     private var audioPrefetchStats = AudioPrefetchStats()
+    private val preparedNextPlaybackCoordinator = PreparedNextPlaybackCoordinator(
+        provider = { provider },
+        sourceId = sourceIdProvider,
+        quality = { streamQuality },
+        audioCachingEnabled = audioCachingEnabledProvider,
+        audioAssets = this.playbackAudioAssets,
+        replayGainMode = { replayGainMode },
+        supportsReplayGain = { playbackEngine.supportsReplayGain },
+        replayGainForTrack = ::replayGainForTrack,
+    )
 
     val queue: PlaybackQueue
         get() = queueController.queue
@@ -494,35 +504,25 @@ class DesktopPlaylistEngine(
     ) {
         val queueAwareEngine = playbackEngine as? QueueAwarePlaybackEngine ?: return
         val nextIndex = queueController.nextGaplessQueueIndex() ?: return
-        val currentProvider = provider ?: return
-        val currentQuality = streamQuality ?: return
-        val plan = planPrepareNextQueuePlayback(
+        val plan = preparedNextPlaybackCoordinator.plan(
             queue = queue,
             progress = progress,
             nextQueueIndex = nextIndex,
-            alreadyPreparedNext = !queueController.shouldPrepareNext(nextIndex),
-            gaplessEnabled = gaplessEnabled,
-            supportsGapless = playbackEngine.supportsGapless,
-            crossfadeDurationSeconds = crossfadeSettings.durationSeconds,
-            supportsCrossfade = playbackEngine.supportsCrossfade,
-            gaplessPrepareWindowSeconds = GaplessPrepareWindowSeconds,
+            preparedNextIndex = queueController.preparedNextIndex,
+            settings = PreparedNextPlaybackSettings(
+                gaplessEnabled = gaplessEnabled,
+                supportsGapless = playbackEngine.supportsGapless,
+                crossfadeDurationSeconds = crossfadeSettings.durationSeconds,
+                supportsCrossfade = playbackEngine.supportsCrossfade,
+                gaplessPrepareWindowSeconds = GaplessPrepareWindowSeconds,
+            ),
         ) ?: return
         queueController.markPreparedNext(plan.nextQueueIndex)
 
         scope.launch {
             if (activeSessionId != queueController.playbackSessionId) return@launch
             try {
-                val prepared = preparedNextPlaybackRequest(
-                    plan = plan,
-                    provider = currentProvider,
-                    sourceId = sourceIdProvider(),
-                    quality = currentQuality,
-                    audioCachingEnabled = audioCachingEnabledProvider(),
-                    audioAssets = playbackAudioAssets,
-                    replayGainMode = replayGainMode,
-                    supportsReplayGain = playbackEngine.supportsReplayGain,
-                    replayGainForTrack = ::replayGainForTrack,
-                )
+                val prepared = preparedNextPlaybackCoordinator.request(plan) ?: return@launch
                 if (activeSessionId == queueController.playbackSessionId) {
                     withContext(Dispatchers.IO) {
                         queueAwareEngine.prepareNext(prepared.request)
