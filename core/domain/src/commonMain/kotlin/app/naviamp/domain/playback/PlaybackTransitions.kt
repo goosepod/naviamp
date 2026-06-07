@@ -59,6 +59,11 @@ data class PlaybackStreamStateReset(
     val replayGainFactor: Float = 1f,
 )
 
+data class BassPlaybackCleanupReset(
+    val stream: PlaybackStreamStateReset,
+    val prepared: PreparedPlaybackMetadataReset,
+)
+
 data class PlaybackVolumeApplicationPlan(
     val outputVolumeFactor: Float,
     val sourceReplayGainFactor: Float?,
@@ -171,6 +176,12 @@ fun failedPreparedPlaybackMetadata(error: Throwable): PreparedPlaybackMetadataRe
 
 fun clearPlaybackStreamState(): PlaybackStreamStateReset =
     PlaybackStreamStateReset()
+
+fun clearBassPlaybackCleanupState(): BassPlaybackCleanupReset =
+    BassPlaybackCleanupReset(
+        stream = clearPlaybackStreamState(),
+        prepared = clearPreparedPlaybackMetadata(),
+    )
 
 fun playbackSourceHandle(
     playbackHandle: Int,

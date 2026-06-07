@@ -12,6 +12,9 @@ import app.naviamp.domain.playback.PlaybackReplayGainAdjustment
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.VisualizerBandCount
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
+import app.naviamp.domain.playback.BassPlaybackCleanupReset
+import app.naviamp.domain.playback.PreparedPlaybackMetadataReset
+import app.naviamp.domain.playback.PlaybackStreamStateReset
 import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.adoptPreparedBassSource
 import app.naviamp.domain.bass.applyBassPlaybackVolume
@@ -32,8 +35,8 @@ import app.naviamp.domain.bass.setEndSync
 import app.naviamp.domain.bass.stopAndReleaseBassPlayback
 import app.naviamp.domain.playback.bassPlaybackFeatureSupport
 import app.naviamp.domain.playback.BassPlaybackPollingState
+import app.naviamp.domain.playback.clearBassPlaybackCleanupState
 import app.naviamp.domain.playback.clearPreparedPlaybackMetadata
-import app.naviamp.domain.playback.clearPlaybackStreamState
 import app.naviamp.domain.playback.failedPreparedPlaybackMetadata
 import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
 import app.naviamp.domain.playback.PreparedBassPlaybackPlan
@@ -183,12 +186,8 @@ class DesktopBassPlaybackEngine(
                 }
             } finally {
                 if (isCurrentPlayback(currentPlaybackId)) {
-                    freeAllStreams(bass)
-                    val reset = clearPlaybackStreamState()
-                    stream = reset.stream
-                    currentSourceStream = reset.currentSourceStream
-                    currentReplayGainAdjustment = reset.replayGainAdjustment
-                    currentVisualizerFrame = null
+                    val reset = freeAllStreams(bass)
+                    applyStreamReset(reset.stream)
                     onProgressChanged(PlaybackProgress.Unknown)
                 }
             }
@@ -297,12 +296,8 @@ class DesktopBassPlaybackEngine(
             preparedRequest = request
             preparedError = null
         }.onFailure { error ->
-            val reset = failedPreparedPlaybackMetadata(error)
-            preparedError = reset.error
+            applyPreparedReset(failedPreparedPlaybackMetadata(error))
             lastError = preparedError
-            preparedStream = 0
-            preparedRequest = reset.request
-            preparedReplayGainAdjustment = reset.replayGainAdjustment
         }
     }
 
@@ -312,15 +307,12 @@ class DesktopBassPlaybackEngine(
         job = null
         val handle = stream
         val bass = backend
-        if (bass != null && handle != 0) {
+        val cleanupReset = if (bass != null && handle != 0) {
             freeAllStreams(bass)
+        } else {
+            clearBassPlaybackCleanupState()
         }
-        val reset = clearPlaybackStreamState()
-        stream = reset.stream
-        currentSourceStream = reset.currentSourceStream
-        crossfadeActive = reset.crossfadeActive
-        currentReplayGainAdjustment = reset.replayGainAdjustment
-        currentVisualizerFrame = null
+        applyStreamReset(cleanupReset.stream)
         endSyncCallbacks.clear()
     }
 
@@ -415,11 +407,7 @@ class DesktopBassPlaybackEngine(
         applyEqualizer(bass)
         crossfadeActive = false
         attachEndSync(bass, queuedSource, currentPlaybackId, onStateChanged)
-        val reset = clearPreparedPlaybackMetadata()
-        preparedStream = 0
-        preparedRequest = reset.request
-        preparedReplayGainAdjustment = reset.replayGainAdjustment
-        preparedError = reset.error
+        applyPreparedReset(clearPreparedPlaybackMetadata())
         onProgressChanged(PlaybackProgress.Unknown)
         onStateChanged(PlaybackState.Playing)
         job = scope.launch(Dispatchers.IO) {
@@ -454,12 +442,8 @@ class DesktopBassPlaybackEngine(
                 }
             } finally {
                 if (isCurrentPlayback(currentPlaybackId)) {
-                    freeAllStreams(bass)
-                    val streamReset = clearPlaybackStreamState()
-                    stream = streamReset.stream
-                    currentSourceStream = streamReset.currentSourceStream
-                    currentReplayGainAdjustment = streamReset.replayGainAdjustment
-                    currentVisualizerFrame = null
+                    val reset = freeAllStreams(bass)
+                    applyStreamReset(reset.stream)
                     onProgressChanged(PlaybackProgress.Unknown)
                 }
             }
@@ -474,11 +458,7 @@ class DesktopBassPlaybackEngine(
             bass.releaseBassStream(handle)
                 .onFailure { lastError = it.message }
         }
-        val reset = clearPreparedPlaybackMetadata()
-        preparedStream = 0
-        preparedRequest = reset.request
-        preparedReplayGainAdjustment = reset.replayGainAdjustment
-        preparedError = reset.error
+        applyPreparedReset(clearPreparedPlaybackMetadata())
     }
 
     private fun createPlayback(
@@ -558,17 +538,29 @@ class DesktopBassPlaybackEngine(
             .onFailure { lastError = it.message }
     }
 
-    private fun freeAllStreams(bass: BassAudioBackend) {
+    private fun freeAllStreams(bass: BassAudioBackend): BassPlaybackCleanupReset {
         bass.stopAndReleaseBassPlayback(stream, currentSourceStream, preparedStream)
             .forEach { result -> result.onFailure { lastError = it.message } }
-        val streamReset = clearPlaybackStreamState()
-        crossfadeActive = streamReset.crossfadeActive
-        val preparedReset = clearPreparedPlaybackMetadata()
-        preparedStream = 0
-        preparedRequest = preparedReset.request
-        preparedReplayGainAdjustment = preparedReset.replayGainAdjustment
-        preparedError = preparedReset.error
+        val reset = clearBassPlaybackCleanupState()
+        crossfadeActive = reset.stream.crossfadeActive
+        applyPreparedReset(reset.prepared)
         currentVisualizerFrame = null
+        return reset
+    }
+
+    private fun applyStreamReset(reset: PlaybackStreamStateReset) {
+        stream = reset.stream
+        currentSourceStream = reset.currentSourceStream
+        crossfadeActive = reset.crossfadeActive
+        currentReplayGainAdjustment = reset.replayGainAdjustment
+        currentVisualizerFrame = null
+    }
+
+    private fun applyPreparedReset(reset: PreparedPlaybackMetadataReset) {
+        preparedStream = 0
+        preparedRequest = reset.request
+        preparedReplayGainAdjustment = reset.replayGainAdjustment
+        preparedError = reset.error
     }
 
     private fun freeCreatedPlayback(

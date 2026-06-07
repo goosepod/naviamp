@@ -38,8 +38,10 @@ import app.naviamp.domain.playback.EqualizerSettings
 import app.naviamp.domain.playback.VisualizerBandCount
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.BassPlaybackPollingState
+import app.naviamp.domain.playback.BassPlaybackCleanupReset
+import app.naviamp.domain.playback.PreparedPlaybackMetadataReset
+import app.naviamp.domain.playback.clearBassPlaybackCleanupState
 import app.naviamp.domain.playback.clearPreparedPlaybackMetadata
-import app.naviamp.domain.playback.clearPlaybackStreamState
 import app.naviamp.domain.playback.failedPreparedPlaybackMetadata
 import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
 import app.naviamp.domain.playback.PreparedBassPlaybackPlan
@@ -397,10 +399,7 @@ class AndroidBassPlaybackEngine(
             preparedRequest = request
         }.onFailure { error ->
             Log.w(Tag, error.message ?: "Could not prepare next BASS stream.", error)
-            val reset = failedPreparedPlaybackMetadata(error)
-            preparedStream = 0
-            preparedRequest = reset.request
-            preparedReplayGainFactor = reset.replayGainFactor
+            applyPreparedReset(failedPreparedPlaybackMetadata(error))
         }
     }
 
@@ -484,15 +483,7 @@ class AndroidBassPlaybackEngine(
         if (handle != 0) {
             bass.stopAndReleaseBassPlayback(handle, currentSourceStream, preparedStream)
         }
-        val streamReset = clearPlaybackStreamState()
-        stream = streamReset.stream
-        currentSourceStream = streamReset.currentSourceStream
-        currentVisualizerFrame = null
-        val preparedReset = clearPreparedPlaybackMetadata()
-        preparedStream = 0
-        preparedRequest = preparedReset.request
-        preparedReplayGainFactor = preparedReset.replayGainFactor
-        replayGainFactor = streamReset.replayGainFactor
+        applyCleanupReset(clearBassPlaybackCleanupState())
     }
 
     private fun handlePlaybackFinished() {
@@ -641,10 +632,7 @@ class AndroidBassPlaybackEngine(
         currentSourceStream = source
         replayGainFactor = preparedReplayGainFactor
         applyEqualizer()
-        val reset = clearPreparedPlaybackMetadata()
-        preparedStream = 0
-        preparedRequest = reset.request
-        preparedReplayGainFactor = reset.replayGainFactor
+        applyPreparedReset(clearPreparedPlaybackMetadata())
         onProgressChanged(PlaybackProgress.Unknown)
         onStateChanged(PlaybackState.Playing)
         startProgressPolling(scope, stream, currentPlaybackId)
@@ -655,7 +643,18 @@ class AndroidBassPlaybackEngine(
         preparedStream.takeIf { it != 0 }?.let {
             bass.releaseBassStream(it)
         }
-        val reset = clearPreparedPlaybackMetadata()
+        applyPreparedReset(clearPreparedPlaybackMetadata())
+    }
+
+    private fun applyCleanupReset(reset: BassPlaybackCleanupReset) {
+        stream = reset.stream.stream
+        currentSourceStream = reset.stream.currentSourceStream
+        replayGainFactor = reset.stream.replayGainFactor
+        currentVisualizerFrame = null
+        applyPreparedReset(reset.prepared)
+    }
+
+    private fun applyPreparedReset(reset: PreparedPlaybackMetadataReset) {
         preparedStream = 0
         preparedRequest = reset.request
         preparedReplayGainFactor = reset.replayGainFactor

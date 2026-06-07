@@ -771,6 +771,13 @@ Progress notes:
   - `DesktopBassPlaybackEngine.kt` keeps changed-only progress emission and its existing finish-after-loop behavior, while both normal and adopted playback polling loops use the same reducer.
   - Shared domain grew intentionally with a small reducer and focused tests.
 - Remaining work in this playback slice: inspect repeated stream cleanup/reset blocks in Android/Desktop BASS engines and decide whether shared reset DTOs already cover enough, or whether a small shared cleanup application helper would reduce duplication without owning native releases.
+- Added shared `BassPlaybackCleanupReset` and `clearBassPlaybackCleanupState` so active stream state and prepared playback metadata clear through one shared reset plan.
+- Android and Desktop BASS engines still own native stream release, coroutine cancellation, notifications, wake locks, and end-sync callback cleanup, but repeated field-reset blocks now flow through small platform appliers fed by the shared cleanup reset.
+- Added common `BassPlaybackCleanupTest.kt` coverage for the combined cleanup reset contract.
+- Size/reduction note for the cleanup reset slice:
+  - `AndroidBassPlaybackEngine.kt` removed duplicated prepared/full cleanup field assignments in stop, prepared adoption, prepare failure, and free-prepared paths.
+  - `DesktopBassPlaybackEngine.kt` removed duplicated prepared/full cleanup field assignments in polling finally, stop, prepared adoption, prepare failure, and free-prepared paths.
+  - Shared domain grew intentionally by one small reset DTO/function in `PlaybackTransitions.kt`, keeping native release behavior platform-owned.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
