@@ -848,6 +848,14 @@ Progress notes:
   - `AndroidPlaybackOrchestration.kt` no longer hand-builds the track `PlaybackRequest` for normal track playback.
   - `DesktopPlaylistEngine.kt` no longer hand-builds the track `PlaybackRequest` or locally applies replay-gain support gating.
   - Shared domain grew intentionally with a focused DTO/function that composes existing playback target/effects planning.
+- Added shared `PlaybackTrackStartEffectApplier` and `applyPlaybackTrackStartEffects` so Android and Desktop consume the same track-start effect sequence.
+- Android and Desktop now share the gates and ordering for shuffle/radio clearing, now-playing presentation, favorite state, session save/report/open behavior, sidecar/progress resets, related/tags/lyrics loading, prefetch/sidecar prep starts, and notification metadata updates.
+- Platform playback paths still own the correct state writes and side effects: Android notification controls/session restore/radio refill calls and Desktop route/callback/waveform state mutations remain adapter-owned.
+- Added common `PlaybackTrackStartEffectsTest.kt` coverage for effect ordering and disabled-effect skips.
+- Size/reduction note for the track-start effects application slice:
+  - `AndroidPlaybackOrchestration.kt` no longer owns a long inline chain of effect-gated app state mutations after planning track start.
+  - `DesktopPlaybackCallbackCoordinator.kt` no longer duplicates the same effect gates for now-playing/reset/report/refill behavior.
+  - Shared domain grew intentionally with a callback-based applier that keeps platform effects outside domain while standardizing the command surface.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:

@@ -14,6 +14,8 @@ import app.naviamp.domain.playback.PlaybackReplayGain
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
+import app.naviamp.domain.playback.PlaybackTrackStartEffectApplier
+import app.naviamp.domain.playback.applyPlaybackTrackStartEffects
 import app.naviamp.domain.playback.planPlaylistTrackStartWork
 import app.naviamp.domain.playback.planPlaybackProgressUpdate
 import app.naviamp.domain.playback.planPlaybackStart
@@ -125,12 +127,6 @@ fun playAndroidTrack(
                     startPlan = startPlan,
                     keepRadioQueueActive = keepRadioQueueActive,
                 )
-                if (effectsPlan.presentation.clearShuffleSnapshot) shuffledUpNextSnapshot = null
-                if (effectsPlan.clearRadioContinuation) {
-                    radioQueueActive = false
-                    radioRefilling = false
-                    lastRadioRefillSeedId = null
-                }
                 val sessionToken = beginAndroidPlaybackSession(
                     state = state,
                     playbackQueueController = playbackQueueController,
@@ -150,29 +146,6 @@ fun playAndroidTrack(
                     AndroidPlaybackNotificationControls.positionMillis = null
                     AndroidPlaybackNotificationControls.durationMillis = track.durationSeconds?.toDouble()?.secondsToMillis()
                 }
-                nowPlaying = track
-                AndroidPlaybackNotificationControls.canFavorite = effectsPlan.presentation.canFavoriteTrack
-                AndroidPlaybackNotificationControls.isFavorite = effectsPlan.presentation.isFavoriteTrack
-                if (effectsPlan.presentation.clearInternetRadioNowPlaying) nowPlayingStation = null
-                if (effectsPlan.presentation.resetStreamMetadata) nowPlayingStreamMetadata = PlaybackStreamMetadata()
-                if (effectsPlan.savePlaybackSession) savePlaybackSessionThrottled(true)
-                if (effectsPlan.presentation.shouldOpenNowPlaying) {
-                    nowPlayingOpen = true
-                }
-                if (effectsPlan.presentation.shouldReportNowPlaying) reportNowPlaying(track)
-                if (effectsPlan.refillRadioQueue) {
-                    refillAndroidRadioIfNeeded(
-                        scope = scope,
-                        state = state,
-                        queue = playbackQueue,
-                        queueController = playbackQueueController,
-                    )
-                }
-                if (effectsPlan.loadRelatedTracks) loadRelatedTracks(track)
-                loadAudioTags(track)
-                if (effectsPlan.presentation.shouldLoadLyrics) loadLyrics(track)
-                if (effectsPlan.startAudioPrefetch) startAudioPrefetch(sessionToken, activeProvider, playbackQueue)
-                if (effectsPlan.startSidecarPrep) startSidecarPrep(sessionToken, activeProvider, playbackQueue)
                 val trackStartWork = planPlaylistTrackStartWork(
                     sessionId = sessionToken,
                     track = track,
@@ -186,13 +159,49 @@ fun playAndroidTrack(
                     startAudioPrefetch = effectsPlan.startAudioPrefetch,
                     startSidecarPrep = effectsPlan.startSidecarPrep,
                 )
-                if (effectsPlan.updateNotificationMetadata) {
-                    playbackEngine.updateNotificationMetadata(
-                        title = effectsPlan.notificationTitle,
-                        subtitle = effectsPlan.notificationSubtitle,
-                        coverArtUrl = trackStartWork.coverArtUrl,
-                    )
-                }
+                applyPlaybackTrackStartEffects(
+                    track = trackStartWork.track,
+                    coverArtUrl = trackStartWork.coverArtUrl,
+                    effects = effectsPlan,
+                    applier = PlaybackTrackStartEffectApplier(
+                        clearShuffleSnapshot = { shuffledUpNextSnapshot = null },
+                        clearRadioContinuation = {
+                            radioQueueActive = false
+                            radioRefilling = false
+                            lastRadioRefillSeedId = null
+                        },
+                        clearInternetRadioNowPlaying = { nowPlayingStation = null },
+                        resetStreamMetadata = { nowPlayingStreamMetadata = PlaybackStreamMetadata() },
+                        setNowPlayingTrack = { startedTrack -> nowPlaying = startedTrack },
+                        applyFavoriteState = { canFavorite, isFavorite ->
+                            AndroidPlaybackNotificationControls.canFavorite = canFavorite
+                            AndroidPlaybackNotificationControls.isFavorite = isFavorite
+                        },
+                        savePlaybackSession = { savePlaybackSessionThrottled(true) },
+                        openNowPlaying = { nowPlayingOpen = true },
+                        reportNowPlaying = reportNowPlaying,
+                        refillRadioQueue = {
+                            refillAndroidRadioIfNeeded(
+                                scope = scope,
+                                state = state,
+                                queue = playbackQueue,
+                                queueController = playbackQueueController,
+                            )
+                        },
+                        loadRelatedTracks = loadRelatedTracks,
+                        loadAudioTags = loadAudioTags,
+                        loadLyrics = loadLyrics,
+                        startAudioPrefetch = { startAudioPrefetch(sessionToken, activeProvider, playbackQueue) },
+                        startSidecarPrep = { startSidecarPrep(sessionToken, activeProvider, playbackQueue) },
+                        updateNotificationMetadata = { title, subtitle, cover ->
+                            playbackEngine.updateNotificationMetadata(
+                                title = title,
+                                subtitle = subtitle,
+                                coverArtUrl = cover,
+                            )
+                        },
+                    ),
+                )
                 playbackEngine.play(
                     scope = scope,
                     request = trackStartWork.request,

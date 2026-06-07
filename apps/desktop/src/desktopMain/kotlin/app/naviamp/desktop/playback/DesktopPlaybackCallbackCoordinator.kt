@@ -6,6 +6,8 @@ import app.naviamp.domain.audio.AudioTag
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
+import app.naviamp.domain.playback.PlaybackTrackStartEffectApplier
+import app.naviamp.domain.playback.applyPlaybackTrackStartEffects
 import app.naviamp.domain.playback.mergeWith
 import app.naviamp.domain.playback.planPlaybackTrackStartEffects
 import app.naviamp.domain.playback.planPlaybackTrackStarted
@@ -70,29 +72,32 @@ fun desktopPlaylistCallbacks(
                 presentation = trackStartedPlan,
                 keepRadioQueueActive = true,
             )
-            if (effectsPlan.presentation.clearShuffleSnapshot) {
-                clearShuffleSnapshot()
-            }
-            if (effectsPlan.presentation.clearInternetRadioNowPlaying) setNowPlayingInternetRadioStation(null)
-            if (effectsPlan.presentation.resetStreamMetadata) setNowPlayingStreamMetadata(PlaybackStreamMetadata())
-            setNowPlayingTrack(track)
-            setNowPlayingCoverArtUrl(coverArtUrl)
-            incrementPlayReportSessionId()
-            clearSubmittedPlayReportSessionId()
-            if (effectsPlan.presentation.shouldReportNowPlaying) reportNowPlaying(track)
-            if (effectsPlan.presentation.resetSidecars) {
-                setNowPlayingWaveform(null)
-                setNowPlayingWaveformStatus("Waiting")
-                setNowPlayingAudioTags(null)
-                setNowPlayingLyrics(null)
-                setNowPlayingLyricsStatus(null)
-                incrementNowPlayingWaveformReloadToken()
-            }
-            if (effectsPlan.presentation.resetProgress) setPlaybackProgress(PlaybackProgress.Unknown)
-            if (effectsPlan.refillRadioQueue) refillRadioIfNeeded(activeQueue())
-            if (effectsPlan.presentation.shouldOpenNowPlaying) {
-                setAppRoute(DesktopAppRoute.Player)
-            }
+            applyPlaybackTrackStartEffects(
+                track = track,
+                coverArtUrl = coverArtUrl,
+                effects = effectsPlan,
+                applier = PlaybackTrackStartEffectApplier(
+                    clearShuffleSnapshot = clearShuffleSnapshot,
+                    clearInternetRadioNowPlaying = { setNowPlayingInternetRadioStation(null) },
+                    resetStreamMetadata = { setNowPlayingStreamMetadata(PlaybackStreamMetadata()) },
+                    setNowPlayingTrack = { startedTrack -> setNowPlayingTrack(startedTrack) },
+                    setNowPlayingCoverArtUrl = setNowPlayingCoverArtUrl,
+                    incrementPlayReportSession = incrementPlayReportSessionId,
+                    clearSubmittedPlayReportSession = clearSubmittedPlayReportSessionId,
+                    openNowPlaying = { setAppRoute(DesktopAppRoute.Player) },
+                    reportNowPlaying = reportNowPlaying,
+                    resetSidecars = {
+                        setNowPlayingWaveform(null)
+                        setNowPlayingWaveformStatus("Waiting")
+                        setNowPlayingAudioTags(null)
+                        setNowPlayingLyrics(null)
+                        setNowPlayingLyricsStatus(null)
+                        incrementNowPlayingWaveformReloadToken()
+                    },
+                    resetProgress = { setPlaybackProgress(PlaybackProgress.Unknown) },
+                    refillRadioQueue = { refillRadioIfNeeded(activeQueue()) },
+                ),
+            )
         },
         onQueueChanged = { queue ->
             setPlaybackQueue(queue)
