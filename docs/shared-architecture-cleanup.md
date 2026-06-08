@@ -981,6 +981,14 @@ Progress notes:
   - `AndroidMediaActionsController.kt` shrank for this slice (`9` added, `13` removed) and no longer owns track deduplication or empty-track branching.
   - `DesktopPlaylistsController.kt` shrank for this slice (`8` added, `10` removed) and consumes one shared add-to-playlist state update after platform target resolution.
   - `DesktopNaviampApp.kt` dropped one stale import of the lower-level mutation helper.
+- Added shared playlist playback application planning with `preparePlaylistPlaybackApplication`.
+- Android and Desktop playlist playback now share loaded-track map updates, loaded-track storage intent, empty-playlist status, playable queue selection, recent-playlist ID planning, and playback error text.
+- Platform code still owns the actual playback execution, Android content-state writes, Desktop settings persistence for recent playlist IDs, and pending-action field assignment.
+- Added common `PlaylistMutationsTest.kt` coverage for playback application updates, empty-playlist application, provider-level prepare/application composition, and shared error text.
+- Size/reduction note for the playlist playback application slice:
+  - `AndroidPlaylistsController.kt` shrank slightly for this slice (`15` added, `16` removed) while delegating loaded-track storage and empty/playable branching to shared domain.
+  - `DesktopPlaylistsController.kt` shrank slightly for this slice (`11` added, `12` removed) and now consumes the same prepared playback application update as Android.
+  - Shared domain and tests grew intentionally so the behavior is tested once and the next playlist step can target larger deletion around selected-playlist playback details.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:

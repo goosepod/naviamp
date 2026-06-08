@@ -439,6 +439,93 @@ class PlaylistMutationsTest {
     }
 
     @Test
+    fun playlistPlaybackApplicationUpdateStoresLoadedTracksAndReportsEmptyState() {
+        val playlist = playlist("one", "Road Mix")
+        val loadedTrack = track("loaded")
+        val currentTracks = mapOf("other" to listOf(track("other")))
+
+        assertEquals(
+            PlaylistPlaybackApplicationUpdate(
+                playlistTracksById = currentTracks + ("one" to listOf(loadedTrack)),
+                loadedTracksToStore = listOf(loadedTrack),
+                firstTrack = loadedTrack,
+                playbackTracks = listOf(loadedTrack),
+                recentPlaylistIds = listOf("one", "two"),
+                status = null,
+            ),
+            playlistPlaybackApplicationUpdate(
+                playlist = playlist,
+                preparation = PlaylistPlaybackPreparation(
+                    loadedTracks = listOf(loadedTrack),
+                    shouldStoreLoadedTracks = true,
+                    readyPlan = PlaylistPlaybackReadyPlan(
+                        tracks = listOf(loadedTrack),
+                        firstTrack = loadedTrack,
+                        recentPlaylistIds = listOf("one", "two"),
+                        emptyStatus = "Road Mix did not return any tracks.",
+                    ),
+                ),
+                currentPlaylistTracksById = currentTracks,
+            ),
+        )
+
+        assertEquals(
+            PlaylistPlaybackApplicationUpdate(
+                playlistTracksById = currentTracks,
+                loadedTracksToStore = null,
+                firstTrack = null,
+                playbackTracks = emptyList(),
+                recentPlaylistIds = emptyList(),
+                status = "Road Mix did not return any tracks.",
+            ),
+            playlistPlaybackApplicationUpdate(
+                playlist = playlist,
+                preparation = PlaylistPlaybackPreparation(
+                    loadedTracks = emptyList(),
+                    shouldStoreLoadedTracks = false,
+                    readyPlan = PlaylistPlaybackReadyPlan(
+                        tracks = emptyList(),
+                        firstTrack = null,
+                        recentPlaylistIds = emptyList(),
+                        emptyStatus = "Road Mix did not return any tracks.",
+                    ),
+                ),
+                currentPlaylistTracksById = currentTracks,
+            ),
+        )
+        assertEquals("Could not play Road Mix.", playlistPlaybackErrorMessage(Exception(), playlist))
+    }
+
+    @Test
+    fun preparePlaylistPlaybackApplicationLoadsAndAppliesTrackMap() = kotlinx.coroutines.test.runTest {
+        val playlist = playlist("one", "Road Mix")
+        val provider = FakePlaylistProvider(
+            playlists = listOf(playlist),
+            playlistTracks = listOf(track("loaded")),
+        )
+
+        assertEquals(
+            PlaylistPlaybackApplicationUpdate(
+                playlistTracksById = mapOf("one" to listOf(track("loaded"))),
+                loadedTracksToStore = listOf(track("loaded")),
+                firstTrack = track("loaded"),
+                playbackTracks = listOf(track("loaded")),
+                recentPlaylistIds = listOf("one", "two"),
+                status = null,
+            ),
+            provider.preparePlaylistPlaybackApplication(
+                playlist = playlist,
+                shuffle = false,
+                selectedPlaylist = null,
+                selectedPlaylistTracks = emptyList(),
+                recentPlaylistIds = listOf("two"),
+                recentPlaylistLimit = 2,
+                currentPlaylistTracksById = emptyMap(),
+            ),
+        )
+    }
+
+    @Test
     fun addToPlaylistMutationUpdateReportsNoTracks() {
         assertEquals(
             AddToPlaylistMutationUpdate(

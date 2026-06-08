@@ -19,8 +19,9 @@ import app.naviamp.domain.provider.playlistDetailsErrorMessage
 import app.naviamp.domain.provider.playlistDetailsLoadingStatus
 import app.naviamp.domain.provider.playlistListErrorMessage
 import app.naviamp.domain.provider.playlistListLoadingStatus
+import app.naviamp.domain.provider.playlistPlaybackErrorMessage
 import app.naviamp.domain.provider.playlistPlaybackStartPlan
-import app.naviamp.domain.provider.preparePlaylistPlayback
+import app.naviamp.domain.provider.preparePlaylistPlaybackApplication
 import app.naviamp.domain.provider.playlistRenameErrorMessage
 import app.naviamp.domain.provider.playlistRenameLoadingStatus
 import app.naviamp.domain.provider.playlistRenameStateUpdate
@@ -228,31 +229,29 @@ class DesktopPlaylistsController(
         setConnectionStatus(startPlan.status)
         scope.launch {
             try {
-                val preparation = withContext(Dispatchers.IO) {
-                    activeProvider.preparePlaylistPlayback(
+                val update = withContext(Dispatchers.IO) {
+                    activeProvider.preparePlaylistPlaybackApplication(
                         playlist = playlist,
                         shuffle = shuffle,
                         selectedPlaylist = null,
                         selectedPlaylistTracks = emptyList(),
                         recentPlaylistIds = recentPlaylistIds(),
                         recentPlaylistLimit = 50,
+                        currentPlaylistTracksById = playlistTracksById(),
                         providerResponseService = providerResponseService,
                         emptyStatus = "${playlist.name} did not return any tracks.",
                     )
                 }
-                if (preparation.shouldStoreLoadedTracks) {
-                    setPlaylistTracksById(playlistTracksById() + (playlist.id to preparation.loadedTracks))
-                }
-                val readyPlan = preparation.readyPlan
-                if (readyPlan.firstTrack == null) {
-                    setConnectionStatus(readyPlan.emptyStatus)
+                setPlaylistTracksById(update.playlistTracksById)
+                if (update.firstTrack == null) {
+                    setConnectionStatus(update.status)
                     return@launch
                 }
-                setConnectionStatus(null)
+                setConnectionStatus(update.status)
                 setPendingPlaybackAction(clearPendingPlaybackAction(pendingPlaybackAction(), startPlan.action))
-                playTracks(playlist, activeProvider, readyPlan.tracks, index = 0)
+                playTracks(playlist, activeProvider, update.playbackTracks, index = 0)
             } catch (exception: Exception) {
-                setConnectionStatus(exception.message ?: "Could not play ${playlist.name}.")
+                setConnectionStatus(playlistPlaybackErrorMessage(exception, playlist))
             } finally {
                 setPendingPlaybackAction(clearPendingPlaybackAction(pendingPlaybackAction(), startPlan.action))
             }

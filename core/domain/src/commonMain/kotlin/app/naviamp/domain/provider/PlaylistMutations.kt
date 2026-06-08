@@ -176,6 +176,15 @@ data class PlaylistPlaybackPreparation(
     val readyPlan: PlaylistPlaybackReadyPlan,
 )
 
+data class PlaylistPlaybackApplicationUpdate(
+    val playlistTracksById: Map<String, List<Track>>,
+    val loadedTracksToStore: List<Track>?,
+    val firstTrack: Track?,
+    val playbackTracks: List<Track>,
+    val recentPlaylistIds: List<String>,
+    val status: String?,
+)
+
 fun homePlaylists(
     playlists: List<Playlist>,
     recentPlaylistIds: List<String>,
@@ -580,6 +589,56 @@ suspend fun MediaProvider.preparePlaylistPlayback(
         ),
     )
 }
+
+fun playlistPlaybackApplicationUpdate(
+    playlist: Playlist,
+    preparation: PlaylistPlaybackPreparation,
+    currentPlaylistTracksById: Map<String, List<Track>>,
+): PlaylistPlaybackApplicationUpdate {
+    val playlistTracksById = if (preparation.shouldStoreLoadedTracks) {
+        currentPlaylistTracksById + (playlist.id to preparation.loadedTracks)
+    } else {
+        currentPlaylistTracksById
+    }
+    val readyPlan = preparation.readyPlan
+    return PlaylistPlaybackApplicationUpdate(
+        playlistTracksById = playlistTracksById,
+        loadedTracksToStore = preparation.loadedTracks.takeIf { preparation.shouldStoreLoadedTracks },
+        firstTrack = readyPlan.firstTrack,
+        playbackTracks = readyPlan.tracks,
+        recentPlaylistIds = readyPlan.recentPlaylistIds,
+        status = if (readyPlan.firstTrack == null) readyPlan.emptyStatus else null,
+    )
+}
+
+fun playlistPlaybackErrorMessage(error: Throwable, playlist: Playlist): String =
+    error.message ?: "Could not play ${playlist.name}."
+
+suspend fun MediaProvider.preparePlaylistPlaybackApplication(
+    playlist: Playlist,
+    shuffle: Boolean,
+    selectedPlaylist: Playlist?,
+    selectedPlaylistTracks: List<Track>,
+    recentPlaylistIds: List<String>,
+    recentPlaylistLimit: Int,
+    currentPlaylistTracksById: Map<String, List<Track>>,
+    providerResponseService: ProviderResponseService? = null,
+    emptyStatus: String = "Playlist is empty.",
+): PlaylistPlaybackApplicationUpdate =
+    playlistPlaybackApplicationUpdate(
+        playlist = playlist,
+        preparation = preparePlaylistPlayback(
+            playlist = playlist,
+            shuffle = shuffle,
+            selectedPlaylist = selectedPlaylist,
+            selectedPlaylistTracks = selectedPlaylistTracks,
+            recentPlaylistIds = recentPlaylistIds,
+            recentPlaylistLimit = recentPlaylistLimit,
+            providerResponseService = providerResponseService,
+            emptyStatus = emptyStatus,
+        ),
+        currentPlaylistTracksById = currentPlaylistTracksById,
+    )
 
 fun playlistPlaybackReadyPlan(
     playlist: Playlist,

@@ -13,8 +13,9 @@ import app.naviamp.domain.provider.playlistDetailsErrorMessage
 import app.naviamp.domain.provider.playlistDetailsLoadedStatus
 import app.naviamp.domain.provider.playlistDetailsLoadingStatus
 import app.naviamp.domain.provider.playlistDetailsOpenPlan
+import app.naviamp.domain.provider.playlistPlaybackErrorMessage
 import app.naviamp.domain.provider.playlistPlaybackStartPlan
-import app.naviamp.domain.provider.preparePlaylistPlayback
+import app.naviamp.domain.provider.preparePlaylistPlaybackApplication
 import app.naviamp.domain.provider.playlistRenameErrorMessage
 import app.naviamp.domain.provider.playlistRenameLoadingStatus
 import app.naviamp.domain.provider.playlistRenameStateUpdate
@@ -132,34 +133,32 @@ fun playAndroidPlaylist(
     scope.launch {
         with(state) {
             try {
-                val preparation = runCatching {
-                    activeProvider.preparePlaylistPlayback(
+                val update = runCatching {
+                    activeProvider.preparePlaylistPlaybackApplication(
                         playlist = playlist,
                         shuffle = shuffle,
                         selectedPlaylist = selectedPlaylist,
                         selectedPlaylistTracks = selectedPlaylistTracks,
                         recentPlaylistIds = recentPlaylistIds,
                         recentPlaylistLimit = 20,
+                        currentPlaylistTracksById = playlistTracksById,
                         providerResponseService = providerResponseService,
                     )
                 }.onSuccess {
-                    if (it.shouldStoreLoadedTracks) {
-                        playlistTracksById = playlistTracksById + (playlist.id to it.loadedTracks)
-                        contentState = contentState.showPlaylist(playlist, it.loadedTracks)
-                        tracks = it.loadedTracks
+                    playlistTracksById = it.playlistTracksById
+                    playlistActionStatus = null
+                    it.status?.let { status = it }
+                    it.loadedTracksToStore?.let { loadedTracks ->
+                        contentState = contentState.showPlaylist(playlist, loadedTracks)
+                        tracks = loadedTracks
                     }
                 }.getOrElse { error ->
-                    status = error.message ?: "Could not play ${playlist.name}."
+                    status = playlistPlaybackErrorMessage(error, playlist)
                     return@launch
                 }
-                val readyPlan = preparation.readyPlan
-                readyPlan.firstTrack?.let { firstTrack ->
-                    recentPlaylistIds = readyPlan.recentPlaylistIds
-                    playlistActionStatus = null
-                    playTrack(firstTrack, readyPlan.tracks)
-                } ?: run {
-                    playlistActionStatus = null
-                    status = readyPlan.emptyStatus
+                update.firstTrack?.let { firstTrack ->
+                    recentPlaylistIds = update.recentPlaylistIds
+                    playTrack(firstTrack, update.playbackTracks)
                 }
             } finally {
                 pendingPlaybackAction = clearPendingPlaybackAction(pendingPlaybackAction, startPlan.action)
