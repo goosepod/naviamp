@@ -24,6 +24,15 @@ data class QueuePlaylistSaveRefresh(
     val playlists: List<Playlist>,
 )
 
+data class PlaylistRenameRefresh(
+    val requestedName: String,
+    val playlists: List<Playlist>,
+)
+
+data class PlaylistDeleteRefresh(
+    val playlists: List<Playlist>,
+)
+
 data class AddToPlaylistMutationUpdate(
     val closeDialog: Boolean,
     val addToPlaylistStatus: String?,
@@ -298,6 +307,32 @@ suspend fun MediaProvider.saveQueueAsPlaylistAndRefresh(
     val playlists = providerResponseService?.playlists(this, limit = playlistLimit)
         ?: playlists(limit = playlistLimit)
     return QueuePlaylistSaveRefresh(result = result, playlists = playlists)
+}
+
+suspend fun MediaProvider.renamePlaylistAndRefresh(
+    playlist: Playlist,
+    name: String,
+    providerResponseService: ProviderResponseService? = null,
+    playlistLimit: Int = 500,
+): PlaylistRenameRefresh {
+    val requestedName = normalizedPlaylistName(name)
+    renamePlaylist(playlist.id, requestedName)
+    providerResponseService?.invalidatePlaylistResponses(this, playlist.id)
+    val playlists = providerResponseService?.playlists(this, limit = playlistLimit)
+        ?: playlists(limit = playlistLimit)
+    return PlaylistRenameRefresh(requestedName = requestedName, playlists = playlists)
+}
+
+suspend fun MediaProvider.deletePlaylistAndRefresh(
+    playlist: Playlist,
+    providerResponseService: ProviderResponseService? = null,
+    playlistLimit: Int = 500,
+): PlaylistDeleteRefresh {
+    deletePlaylist(playlist.id)
+    providerResponseService?.invalidatePlaylistResponses(this, playlist.id)
+    val playlists = providerResponseService?.playlists(this, limit = playlistLimit)
+        ?: playlists(limit = playlistLimit)
+    return PlaylistDeleteRefresh(playlists = playlists)
 }
 
 fun queueAppendPlan(

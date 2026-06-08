@@ -369,6 +369,31 @@ class PlaylistMutationsTest {
     }
 
     @Test
+    fun renamePlaylistAndRefreshNormalizesNameAndReturnsUpdatedPlaylists() = kotlinx.coroutines.test.runTest {
+        val existingPlaylist = playlist("existing", "Existing")
+        val provider = FakePlaylistProvider(playlists = listOf(existingPlaylist), playlistTracks = emptyList())
+
+        val refresh = provider.renamePlaylistAndRefresh(existingPlaylist, "  Renamed  ")
+
+        assertEquals("Renamed", refresh.requestedName)
+        assertEquals("existing", provider.renamedPlaylistId)
+        assertEquals("Renamed", provider.renamedPlaylistName)
+        assertEquals(listOf(playlist("existing", "Renamed")), refresh.playlists)
+    }
+
+    @Test
+    fun deletePlaylistAndRefreshReturnsRemainingPlaylists() = kotlinx.coroutines.test.runTest {
+        val deleted = playlist("deleted", "Deleted")
+        val kept = playlist("kept", "Kept")
+        val provider = FakePlaylistProvider(playlists = listOf(deleted, kept), playlistTracks = emptyList())
+
+        val refresh = provider.deletePlaylistAndRefresh(deleted)
+
+        assertEquals("deleted", provider.deletedPlaylistId)
+        assertEquals(listOf(kept), refresh.playlists)
+    }
+
+    @Test
     fun addTracksToPlaylistAndRefreshCreatesPlaylistAndReturnsSharedUpdate() = kotlinx.coroutines.test.runTest {
         val existingPlaylist = playlist("existing", "Existing")
         val provider = FakePlaylistProvider(playlists = listOf(existingPlaylist), playlistTracks = emptyList())
@@ -479,9 +504,6 @@ class PlaylistMutationsTest {
         override suspend fun search(query: String, limit: Int): MediaSearchResults =
             MediaSearchResults()
 
-        override suspend fun playlists(limit: Int): List<Playlist> =
-            createdPlaylistName?.let { playlists + Playlist("created", it, createdPlaylistTrackIds.size) } ?: playlists
-
         override suspend fun playlistTracks(playlistId: String): List<Track> =
             playlistTracks
 
@@ -492,6 +514,12 @@ class PlaylistMutationsTest {
         var addedPlaylistId: String? = null
             private set
         var addedTrackIds: List<TrackId> = emptyList()
+            private set
+        var renamedPlaylistId: String? = null
+            private set
+        var renamedPlaylistName: String? = null
+            private set
+        var deletedPlaylistId: String? = null
             private set
 
         override suspend fun createPlaylist(name: String, trackIds: List<TrackId>): Playlist {
@@ -504,6 +532,25 @@ class PlaylistMutationsTest {
             addedPlaylistId = playlistId
             addedTrackIds = trackIds
         }
+
+        override suspend fun renamePlaylist(playlistId: String, name: String) {
+            renamedPlaylistId = playlistId
+            renamedPlaylistName = name
+        }
+
+        override suspend fun deletePlaylist(playlistId: String) {
+            deletedPlaylistId = playlistId
+        }
+
+        override suspend fun playlists(limit: Int): List<Playlist> =
+            when {
+                createdPlaylistName != null -> playlists + Playlist("created", createdPlaylistName.orEmpty(), createdPlaylistTrackIds.size)
+                renamedPlaylistId != null -> playlists.map { playlist ->
+                    if (playlist.id == renamedPlaylistId) playlist.copy(name = renamedPlaylistName.orEmpty()) else playlist
+                }
+                deletedPlaylistId != null -> playlists.filterNot { it.id == deletedPlaylistId }
+                else -> playlists
+            }
 
         override suspend fun streamUrl(request: StreamRequest): String =
             ""

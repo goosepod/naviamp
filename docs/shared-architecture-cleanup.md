@@ -916,6 +916,14 @@ Progress notes:
   - `AndroidPlaybackForegroundService.kt` no longer calls the raw saved-recents helper directly.
   - `DesktopInternetRadioController.kt` no longer uses the broader radio-start plan just to remember a station.
   - `InternetRadioPlayback.kt` now composes the shared recents plan instead of rebuilding recent station state inline.
+- Added shared `renamePlaylistAndRefresh` and `deletePlaylistAndRefresh` helpers beside the existing queue-save and add-to-playlist mutation helpers.
+- Android and Desktop playlist controllers now share playlist rename/delete provider mutation, cache invalidation, and refreshed playlist loading behavior.
+- Platform code still owns UI state application: pending dialogs, selected playlist state, home playlist mirroring, route changes, and status display.
+- Added common `PlaylistMutationsTest.kt` coverage for rename/delete refresh results.
+- Size/reduction note for the playlist mutation orchestration slice:
+  - `AndroidPlaylistsController.kt` no longer performs raw rename/delete provider calls, playlist cache invalidation, and playlist reload inline.
+  - `DesktopPlaylistsController.kt` no longer performs raw rename/delete provider calls or launches a second playlist refresh after mutation.
+  - Shared domain grew intentionally by extending the existing playlist mutation helper surface instead of adding a platform-specific service.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:

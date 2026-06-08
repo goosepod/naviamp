@@ -6,7 +6,6 @@ import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.provider.clearPendingPlaybackAction
-import app.naviamp.domain.provider.normalizedPlaylistName
 import app.naviamp.domain.provider.playlistDeleteErrorMessage
 import app.naviamp.domain.provider.playlistDeleteLoadingStatus
 import app.naviamp.domain.provider.playlistDeleteStateUpdate
@@ -21,6 +20,7 @@ import app.naviamp.domain.provider.playlistsNeedingTrackPreload
 import app.naviamp.domain.provider.recentPlaylistIdsAfterPlayed
 import app.naviamp.domain.provider.refreshPlaylistDetails
 import app.naviamp.domain.provider.renamedSelectedPlaylist
+import app.naviamp.domain.provider.renamePlaylistAndRefresh
 import app.naviamp.domain.provider.saveQueueAsPlaylistAndRefresh
 import app.naviamp.domain.provider.saveSmartPlaylistAndRefresh
 import app.naviamp.domain.provider.selectedPlaylistTracksForPlayback
@@ -31,6 +31,7 @@ import app.naviamp.domain.provider.smartPlaylistSavingStatus
 import app.naviamp.domain.provider.smartPlaylistUpdateErrorMessage
 import app.naviamp.domain.provider.smartPlaylistUpdatedStatus
 import app.naviamp.domain.provider.smartPlaylistUpdatingStatus
+import app.naviamp.domain.provider.deletePlaylistAndRefresh
 import app.naviamp.domain.provider.updateSmartPlaylistAndRefresh
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.provider.navidrome.NavidromeProvider
@@ -181,16 +182,17 @@ fun renameAndroidPlaylist(
 ) {
     val activeProvider = state.provider ?: return
     val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
-    val requestedName = normalizedPlaylistName(name)
     scope.launch {
         with(state) {
             status = playlistRenameLoadingStatus(playlist)
             runCatching {
-                activeProvider.renamePlaylist(playlist.id, requestedName)
-                providerResponseService?.invalidatePlaylistResponses(activeProvider, playlist.id)
-                providerResponseService?.playlists(activeProvider, limit = 500)
-                    ?: activeProvider.playlists(limit = 500)
-            }.onSuccess { playlists ->
+                activeProvider.renamePlaylistAndRefresh(
+                    playlist = playlist,
+                    name = name,
+                    providerResponseService = providerResponseService,
+                )
+            }.onSuccess { refresh ->
+                val playlists = refresh.playlists
                 homeState = homeState.copy(playlists = playlists)
                 selectedPlaylist?.let { current ->
                     if (current.id == playlist.id) {
@@ -198,7 +200,7 @@ fun renameAndroidPlaylist(
                             selectedPlaylist = renamedSelectedPlaylist(
                                 current = current,
                                 playlistId = playlist.id,
-                                requestedName = requestedName,
+                                requestedName = refresh.requestedName,
                                 refreshedPlaylists = playlists,
                             ),
                         )
@@ -224,11 +226,12 @@ fun deleteAndroidPlaylist(
         with(state) {
             status = playlistDeleteLoadingStatus(playlist)
             runCatching {
-                activeProvider.deletePlaylist(playlist.id)
-                providerResponseService?.invalidatePlaylistResponses(activeProvider, playlist.id)
-                providerResponseService?.playlists(activeProvider, limit = 500)
-                    ?: activeProvider.playlists(limit = 500)
-            }.onSuccess { playlists ->
+                activeProvider.deletePlaylistAndRefresh(
+                    playlist = playlist,
+                    providerResponseService = providerResponseService,
+                )
+            }.onSuccess { refresh ->
+                val playlists = refresh.playlists
                 homeState = homeState.copy(playlists = playlists)
                 val update = playlistDeleteStateUpdate(
                     currentSelectedPlaylist = selectedPlaylist,

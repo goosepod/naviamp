@@ -10,12 +10,12 @@ import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.addTracksToPlaylistAndRefresh
 import app.naviamp.domain.provider.clearPendingPlaybackAction
 import app.naviamp.domain.provider.homePlaylists
-import app.naviamp.domain.provider.normalizedPlaylistName
 import app.naviamp.domain.provider.PendingPlaybackAction
 import app.naviamp.domain.provider.playlistDeleteErrorMessage
 import app.naviamp.domain.provider.playlistDeleteLoadingStatus
 import app.naviamp.domain.provider.playlistDeleteStateUpdate
 import app.naviamp.domain.provider.playlistDeletedStatus
+import app.naviamp.domain.provider.deletePlaylistAndRefresh
 import app.naviamp.domain.provider.playlistDetailsStateUpdate
 import app.naviamp.domain.provider.playlistPlaybackAction
 import app.naviamp.domain.provider.playlistPlaybackTracks
@@ -26,6 +26,7 @@ import app.naviamp.domain.provider.playlistsNeedingTrackPreload
 import app.naviamp.domain.provider.recentPlaylistIdsAfterPlayed
 import app.naviamp.domain.provider.refreshPlaylistDetails
 import app.naviamp.domain.provider.renamedSelectedPlaylist
+import app.naviamp.domain.provider.renamePlaylistAndRefresh
 import app.naviamp.domain.provider.saveQueueAsPlaylistAndRefresh
 import app.naviamp.domain.provider.shouldStartPlaybackAction
 import app.naviamp.domain.playback.PlaybackQueueManager
@@ -295,25 +296,28 @@ class DesktopPlaylistsController(
 
     fun renamePlaylist(playlist: Playlist, name: String) {
         val activeProvider = provider() ?: return
-        val requestedName = normalizedPlaylistName(name)
         setPlaylistStatus(playlistRenameLoadingStatus(playlist))
         scope.launch {
             try {
-                withContext(Dispatchers.IO) {
-                    activeProvider.renamePlaylist(playlist.id, requestedName)
+                val refresh = withContext(Dispatchers.IO) {
+                    activeProvider.renamePlaylistAndRefresh(
+                        playlist = playlist,
+                        name = name,
+                        providerResponseService = providerResponseService,
+                    )
                 }
-                providerResponseService.invalidatePlaylistResponses(activeProvider, playlist.id)
+                setPlaylists(refresh.playlists)
+                refreshHomePlaylists(refresh.playlists)
                 setPlaylistPendingRename(null)
                 setPlaylistStatus(playlistRenamedStatus())
                 setSelectedPlaylist(
                     renamedSelectedPlaylist(
                         current = selectedPlaylist(),
                         playlistId = playlist.id,
-                        requestedName = requestedName,
-                        refreshedPlaylists = emptyList(),
+                        requestedName = refresh.requestedName,
+                        refreshedPlaylists = refresh.playlists,
                     ),
                 )
-                refreshPlaylists()
             } catch (exception: Exception) {
                 setPlaylistStatus(playlistRenameErrorMessage(exception))
             }
@@ -325,11 +329,15 @@ class DesktopPlaylistsController(
         setPlaylistStatus(playlistDeleteLoadingStatus(playlist))
         scope.launch {
             try {
-                withContext(Dispatchers.IO) {
-                    activeProvider.deletePlaylist(playlist.id)
+                val refresh = withContext(Dispatchers.IO) {
+                    activeProvider.deletePlaylistAndRefresh(
+                        playlist = playlist,
+                        providerResponseService = providerResponseService,
+                    )
                 }
-                providerResponseService.invalidatePlaylistResponses(activeProvider, playlist.id)
                 setPlaylistPendingDelete(null)
+                setPlaylists(refresh.playlists)
+                refreshHomePlaylists(refresh.playlists)
                 val update = playlistDeleteStateUpdate(
                     currentSelectedPlaylist = selectedPlaylist(),
                     currentSelectedPlaylistTracks = selectedPlaylistTracks(),
@@ -345,7 +353,6 @@ class DesktopPlaylistsController(
                 setPlaylistTracksById(update.playlistTracksById)
                 setRecentPlaylistIds(update.recentPlaylistIds)
                 setPlaylistStatus(playlistDeletedStatus())
-                refreshPlaylists()
             } catch (exception: Exception) {
                 setPlaylistStatus(playlistDeleteErrorMessage(exception))
             }
