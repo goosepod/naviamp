@@ -19,6 +19,7 @@ import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.radio.RadioRequestStartResult
 import app.naviamp.domain.radio.SeededRadioBuildResult
 import app.naviamp.domain.radio.SeededRadioExpansionResult
+import app.naviamp.domain.radio.RadioSeedResult
 import app.naviamp.domain.radio.albumMixSeededRadioRequest
 import app.naviamp.domain.radio.artistMixSeededRadioRequest
 import app.naviamp.domain.radio.albumRecentRadioStream
@@ -31,6 +32,7 @@ import app.naviamp.domain.radio.libraryRecentRadioStream
 import app.naviamp.domain.radio.popularTracksRecentRadioStream
 import app.naviamp.domain.radio.radioRefillSeedTrack
 import app.naviamp.domain.radio.radioRequestStartResult
+import app.naviamp.domain.radio.radioSeedResult
 import app.naviamp.domain.radio.selectAlbumRadioSeedTrack
 import app.naviamp.domain.radio.seededRadioBuildResult
 import app.naviamp.domain.radio.seededRadioExpansionResult
@@ -338,23 +340,26 @@ fun startAndroidArtistRadio(
     scope.launch {
         with(state) {
             status = "Starting $artistTitle radio..."
-            runCatching {
-                RadioService(
-                    provider = activeProvider,
-                    count = AndroidInitialSimilarRadioCount,
-                    providerResponseService = providerResponseService,
-                )
-                    .artistSeed(artist, artistDetail?.albums.orEmpty())
-            }.onSuccess { seedTrack ->
-                if (seedTrack == null) {
+            when (
+                val result = radioSeedResult {
+                    RadioService(
+                        provider = activeProvider,
+                        count = AndroidInitialSimilarRadioCount,
+                        providerResponseService = providerResponseService,
+                    )
+                        .artistSeed(artist, artistDetail?.albums.orEmpty())
+                }
+            ) {
+                RadioSeedResult.Missing -> {
                     status = "$artistTitle radio did not find a seed track."
-                } else {
+                }
+                is RadioSeedResult.Ready -> {
                     startAndroidSeededRadio(
                         scope = scope,
                         state = state,
                         queueController = queueController,
                         statusLabel = "$artistTitle radio",
-                        seedTrack = seedTrack,
+                        seedTrack = result.seedTrack,
                         playTrack = playTrack,
                         providerResponseCacheRepository = providerResponseCacheRepository,
                         recentRadioStream = artistRecentRadioStream(artist),
@@ -363,8 +368,9 @@ fun startAndroidArtistRadio(
                         radioService.artistRadio(artistId)
                     }
                 }
-            }.onFailure { error ->
-                status = error.message ?: "Could not start artist radio."
+                is RadioSeedResult.Failed -> {
+                    status = result.error.message ?: "Could not start artist radio."
+                }
             }
         }
     }
@@ -387,24 +393,27 @@ fun startAndroidArtistMixRadio(
     scope.launch {
         with(state) {
             status = "Starting artist mix..."
-            runCatching {
-                popularTracks.shuffled().firstOrNull()
-                    ?: RadioService(
-                        provider = activeProvider,
-                        count = AndroidInitialSimilarRadioCount,
-                        providerResponseService = providerResponseService,
-                    ).artistSeed(distinctArtists.first(), artistDetail?.albums.orEmpty())
-            }.onSuccess { seedTrack ->
-                if (seedTrack == null) {
+            when (
+                val result = radioSeedResult {
+                    popularTracks.shuffled().firstOrNull()
+                        ?: RadioService(
+                            provider = activeProvider,
+                            count = AndroidInitialSimilarRadioCount,
+                            providerResponseService = providerResponseService,
+                        ).artistSeed(distinctArtists.first(), artistDetail?.albums.orEmpty())
+                }
+            ) {
+                RadioSeedResult.Missing -> {
                     status = "Artist mix did not find a seed track."
-                } else {
-                    val request = artistMixSeededRadioRequest(distinctArtists, seedTrack, popularTracks.shuffled())
+                }
+                is RadioSeedResult.Ready -> {
+                    val request = artistMixSeededRadioRequest(distinctArtists, result.seedTrack, popularTracks.shuffled())
                     startAndroidSeededRadio(
                         scope = scope,
                         state = state,
                         queueController = queueController,
                         statusLabel = request.label,
-                        seedTrack = seedTrack,
+                        seedTrack = result.seedTrack,
                         playTrack = playTrack,
                         providerResponseCacheRepository = providerResponseCacheRepository,
                         recentRadioStream = request.recentRadioStream,
@@ -412,8 +421,9 @@ fun startAndroidArtistMixRadio(
                         loadRest = request.loadRest,
                     )
                 }
-            }.onFailure { error ->
-                status = error.message ?: "Could not start artist mix."
+                is RadioSeedResult.Failed -> {
+                    status = result.error.message ?: "Could not start artist mix."
+                }
             }
         }
     }
@@ -437,32 +447,35 @@ fun startAndroidAlbumMixRadio(
     scope.launch {
         with(state) {
             status = "Starting album mix..."
-            runCatching {
-                selectedTracks.shuffled().firstOrNull()
-                    ?: distinctAlbums.firstNotNullOfOrNull { album ->
-                        selectAlbumRadioSeedTrack(
-                            album = album,
-                            sourceId = activeSourceId,
-                            randomLibraryTrackForAlbum = { sourceId, albumId ->
-                                libraryIndexRepository?.randomLibraryTrackForAlbum(sourceId, albumId)
-                            },
-                            albumDetails = {
-                                providerResponseService?.album(activeProvider, album.id)
-                                    ?: activeProvider.album(album.id)
-                            },
-                        )
-                    }
-            }.onSuccess { seedTrack ->
-                if (seedTrack == null) {
+            when (
+                val result = radioSeedResult {
+                    selectedTracks.shuffled().firstOrNull()
+                        ?: distinctAlbums.firstNotNullOfOrNull { album ->
+                            selectAlbumRadioSeedTrack(
+                                album = album,
+                                sourceId = activeSourceId,
+                                randomLibraryTrackForAlbum = { sourceId, albumId ->
+                                    libraryIndexRepository?.randomLibraryTrackForAlbum(sourceId, albumId)
+                                },
+                                albumDetails = {
+                                    providerResponseService?.album(activeProvider, album.id)
+                                        ?: activeProvider.album(album.id)
+                                },
+                            )
+                        }
+                }
+            ) {
+                RadioSeedResult.Missing -> {
                     status = "Album mix did not find a seed track."
-                } else {
-                    val request = albumMixSeededRadioRequest(distinctAlbums, seedTrack, selectedTracks.shuffled())
+                }
+                is RadioSeedResult.Ready -> {
+                    val request = albumMixSeededRadioRequest(distinctAlbums, result.seedTrack, selectedTracks.shuffled())
                     startAndroidSeededRadio(
                         scope = scope,
                         state = state,
                         queueController = queueController,
                         statusLabel = request.label,
-                        seedTrack = seedTrack,
+                        seedTrack = result.seedTrack,
                         playTrack = playTrack,
                         providerResponseCacheRepository = providerResponseCacheRepository,
                         recentRadioStream = request.recentRadioStream,
@@ -470,8 +483,9 @@ fun startAndroidAlbumMixRadio(
                         loadRest = request.loadRest,
                     )
                 }
-            }.onFailure { error ->
-                status = error.message ?: "Could not start album mix."
+                is RadioSeedResult.Failed -> {
+                    status = result.error.message ?: "Could not start album mix."
+                }
             }
         }
     }
@@ -612,22 +626,27 @@ fun startAndroidAlbumRadio(
     scope.launch {
         with(state) {
             status = "Starting ${album.title} radio..."
-            val seedTrack = service.albumSeed(album, loadedAlbumTracks)
-            if (seedTrack == null) {
-                status = "${album.title} did not return any tracks."
-            } else {
-                startAndroidSeededRadio(
-                    scope = scope,
-                    state = state,
-                    queueController = queueController,
-                    statusLabel = "${album.title} radio",
-                    seedTrack = seedTrack,
-                    playTrack = playTrack,
-                    providerResponseCacheRepository = providerResponseCacheRepository,
-                    recentRadioStream = albumRecentRadioStream(album),
-                    rememberRecentRadioStream = rememberRecentRadioStream,
-                ) { radioService ->
-                    radioService.albumRadio(album.id, loadedAlbumTracks)
+            when (val result = radioSeedResult { service.albumSeed(album, loadedAlbumTracks) }) {
+                RadioSeedResult.Missing -> {
+                    status = "${album.title} did not return any tracks."
+                }
+                is RadioSeedResult.Ready -> {
+                    startAndroidSeededRadio(
+                        scope = scope,
+                        state = state,
+                        queueController = queueController,
+                        statusLabel = "${album.title} radio",
+                        seedTrack = result.seedTrack,
+                        playTrack = playTrack,
+                        providerResponseCacheRepository = providerResponseCacheRepository,
+                        recentRadioStream = albumRecentRadioStream(album),
+                        rememberRecentRadioStream = rememberRecentRadioStream,
+                    ) { radioService ->
+                        radioService.albumRadio(album.id, loadedAlbumTracks)
+                    }
+                }
+                is RadioSeedResult.Failed -> {
+                    status = result.error.message ?: "Could not start ${album.title} radio."
                 }
             }
         }

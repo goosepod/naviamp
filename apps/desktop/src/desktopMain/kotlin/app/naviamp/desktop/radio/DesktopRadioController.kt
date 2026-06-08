@@ -18,6 +18,7 @@ import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioRequest
 import app.naviamp.domain.radio.RadioRequestStartResult
 import app.naviamp.domain.radio.RadioService
+import app.naviamp.domain.radio.RadioSeedResult
 import app.naviamp.domain.radio.SeededRadioRequest
 import app.naviamp.domain.radio.SeededRadioBuildResult
 import app.naviamp.domain.radio.SeededRadioExpansionResult
@@ -32,6 +33,7 @@ import app.naviamp.domain.radio.libraryRadioRequest
 import app.naviamp.domain.radio.popularTracksRadioRequest
 import app.naviamp.domain.radio.radioRefillSeedTrack
 import app.naviamp.domain.radio.radioRequestStartResult
+import app.naviamp.domain.radio.radioSeedResult
 import app.naviamp.domain.radio.randomAlbumSeededRadioRequest
 import app.naviamp.domain.radio.shouldFinishRadioRefillForSession
 import app.naviamp.domain.radio.seededRadioBuildResult
@@ -202,13 +204,24 @@ class DesktopRadioController(
                     setConnectionStatus("Random album radio did not find an album.")
                     return@launch
                 }
-                val seedTrack = withContext(Dispatchers.IO) {
-                    albumRadioSeedTrack(libraryIndexRepository, providerResponseService, activeProvider, album, sourceId())
-                } ?: run {
-                    setConnectionStatus("${album.title} did not return any tracks.")
-                    return@launch
+                when (
+                    val result = withContext(Dispatchers.IO) {
+                        radioSeedResult {
+                            albumRadioSeedTrack(libraryIndexRepository, providerResponseService, activeProvider, album, sourceId())
+                        }
+                    }
+                ) {
+                    RadioSeedResult.Missing -> {
+                        setConnectionStatus("${album.title} did not return any tracks.")
+                        return@launch
+                    }
+                    is RadioSeedResult.Ready -> {
+                        startSeeded(activeProvider, randomAlbumSeededRadioRequest(album, result.seedTrack))
+                    }
+                    is RadioSeedResult.Failed -> {
+                        setConnectionStatus(result.error.message ?: "Could not start random album radio.")
+                    }
                 }
-                startSeeded(activeProvider, randomAlbumSeededRadioRequest(album, seedTrack))
             } catch (exception: Exception) {
                 setConnectionStatus(exception.message ?: "Could not start random album radio.")
             }
@@ -219,16 +232,23 @@ class DesktopRadioController(
         val activeProvider = provider() ?: return
         setConnectionStatus("Starting ${artist.name} radio...")
         scope.launch {
-            try {
-                val seedTrack = withContext(Dispatchers.IO) {
-                    artistRadioSeedTrack(libraryIndexRepository, providerResponseService, activeProvider, artist, sourceId())
-                } ?: run {
+            when (
+                val result = withContext(Dispatchers.IO) {
+                    radioSeedResult {
+                        artistRadioSeedTrack(libraryIndexRepository, providerResponseService, activeProvider, artist, sourceId())
+                    }
+                }
+            ) {
+                RadioSeedResult.Missing -> {
                     setConnectionStatus("${artist.name} radio did not find a seed track.")
                     return@launch
                 }
-                startSeeded(activeProvider, artistSeededRadioRequest(artist, seedTrack))
-            } catch (exception: Exception) {
-                setConnectionStatus(exception.message ?: "Could not start ${artist.name} radio.")
+                is RadioSeedResult.Ready -> {
+                    startSeeded(activeProvider, artistSeededRadioRequest(artist, result.seedTrack))
+                }
+                is RadioSeedResult.Failed -> {
+                    setConnectionStatus(result.error.message ?: "Could not start ${artist.name} radio.")
+                }
             }
         }
     }
@@ -242,19 +262,26 @@ class DesktopRadioController(
         if (distinctArtists.isEmpty()) return
         setConnectionStatus("Starting artist mix...")
         scope.launch {
-            try {
-                val seedTrack = withContext(Dispatchers.IO) {
-                    popularTracks.shuffled().firstOrNull()
-                        ?: distinctArtists.firstNotNullOfOrNull { artist ->
-                            artistRadioSeedTrack(libraryIndexRepository, providerResponseService, activeProvider, artist, sourceId())
-                        }
-                } ?: run {
+            when (
+                val result = withContext(Dispatchers.IO) {
+                    radioSeedResult {
+                        popularTracks.shuffled().firstOrNull()
+                            ?: distinctArtists.firstNotNullOfOrNull { artist ->
+                                artistRadioSeedTrack(libraryIndexRepository, providerResponseService, activeProvider, artist, sourceId())
+                            }
+                    }
+                }
+            ) {
+                RadioSeedResult.Missing -> {
                     setConnectionStatus("Artist mix did not find a seed track.")
                     return@launch
                 }
-                startSeeded(activeProvider, artistMixSeededRadioRequest(distinctArtists, seedTrack, popularTracks.shuffled()))
-            } catch (exception: Exception) {
-                setConnectionStatus(exception.message ?: "Could not start artist mix.")
+                is RadioSeedResult.Ready -> {
+                    startSeeded(activeProvider, artistMixSeededRadioRequest(distinctArtists, result.seedTrack, popularTracks.shuffled()))
+                }
+                is RadioSeedResult.Failed -> {
+                    setConnectionStatus(result.error.message ?: "Could not start artist mix.")
+                }
             }
         }
     }
@@ -263,23 +290,30 @@ class DesktopRadioController(
         val activeProvider = provider() ?: return
         setConnectionStatus("Starting ${album.title} radio...")
         scope.launch {
-            try {
-                val seedTrack = withContext(Dispatchers.IO) {
-                    albumRadioSeedTrack(
-                        libraryIndexRepository = libraryIndexRepository,
-                        providerResponseService = providerResponseService,
-                        provider = activeProvider,
-                        album = album,
-                        sourceId = sourceId(),
-                        loadedAlbumTracks = loadedAlbumTracks,
-                    )
-                } ?: run {
+            when (
+                val result = withContext(Dispatchers.IO) {
+                    radioSeedResult {
+                        albumRadioSeedTrack(
+                            libraryIndexRepository = libraryIndexRepository,
+                            providerResponseService = providerResponseService,
+                            provider = activeProvider,
+                            album = album,
+                            sourceId = sourceId(),
+                            loadedAlbumTracks = loadedAlbumTracks,
+                        )
+                    }
+                }
+            ) {
+                RadioSeedResult.Missing -> {
                     setConnectionStatus("${album.title} did not return any tracks.")
                     return@launch
                 }
-                startSeeded(activeProvider, albumSeededRadioRequest(album, seedTrack, loadedAlbumTracks))
-            } catch (exception: Exception) {
-                setConnectionStatus(exception.message ?: "Could not start ${album.title} radio.")
+                is RadioSeedResult.Ready -> {
+                    startSeeded(activeProvider, albumSeededRadioRequest(album, result.seedTrack, loadedAlbumTracks))
+                }
+                is RadioSeedResult.Failed -> {
+                    setConnectionStatus(result.error.message ?: "Could not start ${album.title} radio.")
+                }
             }
         }
     }
@@ -293,25 +327,32 @@ class DesktopRadioController(
         if (distinctAlbums.isEmpty()) return
         setConnectionStatus("Starting album mix...")
         scope.launch {
-            try {
-                val seedTrack = withContext(Dispatchers.IO) {
-                    selectedTracks.shuffled().firstOrNull()
-                        ?: distinctAlbums.firstNotNullOfOrNull { album ->
-                            albumRadioSeedTrack(
-                                libraryIndexRepository = libraryIndexRepository,
-                                providerResponseService = providerResponseService,
-                                provider = activeProvider,
-                                album = album,
-                                sourceId = sourceId(),
-                            )
-                        }
-                } ?: run {
+            when (
+                val result = withContext(Dispatchers.IO) {
+                    radioSeedResult {
+                        selectedTracks.shuffled().firstOrNull()
+                            ?: distinctAlbums.firstNotNullOfOrNull { album ->
+                                albumRadioSeedTrack(
+                                    libraryIndexRepository = libraryIndexRepository,
+                                    providerResponseService = providerResponseService,
+                                    provider = activeProvider,
+                                    album = album,
+                                    sourceId = sourceId(),
+                                )
+                            }
+                    }
+                }
+            ) {
+                RadioSeedResult.Missing -> {
                     setConnectionStatus("Album mix did not find a seed track.")
                     return@launch
                 }
-                startSeeded(activeProvider, albumMixSeededRadioRequest(distinctAlbums, seedTrack, selectedTracks.shuffled()))
-            } catch (exception: Exception) {
-                setConnectionStatus(exception.message ?: "Could not start album mix.")
+                is RadioSeedResult.Ready -> {
+                    startSeeded(activeProvider, albumMixSeededRadioRequest(distinctAlbums, result.seedTrack, selectedTracks.shuffled()))
+                }
+                is RadioSeedResult.Failed -> {
+                    setConnectionStatus(result.error.message ?: "Could not start album mix.")
+                }
             }
         }
     }

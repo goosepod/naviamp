@@ -379,7 +379,7 @@ This checklist reconciles completed discovery outputs with future implementation
 - [x] Extract library sync/freshness orchestration.
   - Move sync gating, freshness evaluation orchestration, scan-check marking plan, progress/status result modeling, and paging limit calculations where shared.
   - Keep scrolling, platform cache repositories, and UI progress application outside the shared service.
-- [ ] Extract radio and generated queue orchestration.
+- [x] Extract radio and generated queue orchestration.
   - Move seed selection, `RadioRequest` construction, refill planning, generated queue append/replace decisions, recent radio stream result data, and expansion sequencing into shared services.
   - Keep actual playback engine calls and platform state assignment in adapters.
 - [ ] Standardize playback command execution.
@@ -1186,6 +1186,11 @@ Progress notes:
   - `DesktopRadioController.kt` no longer hand-catches refill, initial upcoming replacement, or upcoming expansion loads.
   - Shared domain result helpers now cover non-seeded starts, seeded starts, seeded expansion, refill, and generated-upcoming track-radio loads.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.radio.RadioRequestsTest --tests app.naviamp.domain.radio.RadioQueueRulesTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
+- Added shared seed lookup result classification with `RadioSeedResult` and `radioSeedResult`.
+- Android and Desktop artist, album, artist-mix, album-mix, and random-album seed paths now consume the same ready/missing/failed result shape around platform-specific seed adapters.
+- Closed the radio/generated-queue checklist item because request construction, seed result classification, generated queue construction, refill planning, append/replace planning, recent-stream enrichment, and radio load/expansion result modeling now have shared paths.
+- Remaining radio code is platform adapter work: coroutine ownership, provider/cache adapter construction, Android app-state writes, Android queue-controller calls, Desktop playlist-engine calls, Desktop random-album album lookup, route fallback, playback execution, and status target assignment.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.radio.RadioRequestsTest --tests app.naviamp.domain.radio.RadioQueueRulesTest --tests app.naviamp.domain.radio.RadioSeedsTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
 
