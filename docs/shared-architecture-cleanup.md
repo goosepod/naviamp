@@ -1247,6 +1247,9 @@ Progress notes:
 - Moved Android sleep-timer snapshot, selection, and expiry polling adapters into `AndroidSleepTimerEffects.kt`, matching the desktop sleep-timer extraction shape.
 - `MainActivity.kt` dropped to 1,850 lines after the Android sleep-timer adapter extraction; `AndroidSleepTimerEffects.kt` is 78 lines.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Moved Android internet-radio stream artwork lookup into `AndroidRadioArtworkEffects.kt`, matching the desktop radio artwork effect boundary.
+- `MainActivity.kt` dropped to 1,830 lines after the Android artwork-effect extraction; `AndroidRadioArtworkEffects.kt` is 43 lines.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 
