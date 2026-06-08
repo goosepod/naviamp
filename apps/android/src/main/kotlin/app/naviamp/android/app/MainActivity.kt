@@ -78,10 +78,6 @@ import app.naviamp.domain.playback.lyricsUnavailableStatus
 import app.naviamp.domain.playback.recordSidecarFailure
 import app.naviamp.domain.playback.recordSidecarSuccess
 import app.naviamp.domain.playback.SleepTimerRequest
-import app.naviamp.domain.playback.shouldExpireSleepTimer
-import app.naviamp.domain.playback.sleepTimerDisplayLabel
-import app.naviamp.domain.playback.sleepTimerPlaybackSnapshot
-import app.naviamp.domain.playback.sleepTimerStateForPlayback
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
@@ -1126,7 +1122,7 @@ private fun NaviampAndroidApp(
     }
 
     fun currentSleepTimerSnapshot() =
-        sleepTimerPlaybackSnapshot(
+        androidSleepTimerSnapshot(
             nowPlaying = nowPlaying,
             playbackQueue = playbackQueue,
             playbackProgress = playbackProgress,
@@ -1135,7 +1131,7 @@ private fun NaviampAndroidApp(
 
     fun handleSleepTimerSelected(request: SleepTimerRequest) {
         val nowMillis = System.currentTimeMillis()
-        val timer = sleepTimerStateForPlayback(
+        val selection = androidSleepTimerSelection(
             request = request,
             nowEpochMillis = nowMillis,
             nowPlaying = nowPlaying,
@@ -1143,9 +1139,9 @@ private fun NaviampAndroidApp(
             playbackProgress = playbackProgress,
             playbackState = playbackState,
         )
-        sleepTimer = timer
-        sleepTimerNowEpochMillis = nowMillis
-        status = sleepTimerDisplayLabel(timer, nowMillis)
+        sleepTimer = selection.timer
+        sleepTimerNowEpochMillis = selection.nowEpochMillis
+        status = selection.status
     }
 
     fun cancelSleepTimer() {
@@ -1734,19 +1730,16 @@ private fun NaviampAndroidApp(
         currentTrack.artistId?.let { openArtistDetails(it, currentTrack.artistName) }
     }
 
-    LaunchedEffect(sleepTimer, nowPlaying?.id, playbackQueue, playbackProgress, playbackState) {
-        while (sleepTimer != null) {
-            val nowMillis = System.currentTimeMillis()
-            sleepTimerNowEpochMillis = nowMillis
-            if (shouldExpireSleepTimer(sleepTimer, nowMillis, currentSleepTimerSnapshot())) {
-                playbackEngine.stop()
-                sleepTimer = null
-                status = "Sleep timer stopped playback."
-                break
-            }
-            delay(500L)
-        }
-    }
+    AndroidSleepTimerExpiryEffect(
+        sleepTimer = sleepTimer,
+        snapshot = currentSleepTimerSnapshot(),
+        onTick = { nowMillis -> sleepTimerNowEpochMillis = nowMillis },
+        onExpired = {
+            playbackEngine.stop()
+            sleepTimer = null
+            status = "Sleep timer stopped playback."
+        },
+    )
 
     val shellActions = androidAppShellActions(
         state = appState,

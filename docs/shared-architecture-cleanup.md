@@ -1244,6 +1244,9 @@ Progress notes:
 - Moved Android artist/album/genre mix-builder async actions into `AndroidMixBuilderController.kt`; `MainActivity.kt` now wires services and delegates suggestion loading, search, selection, removal, and reset behavior.
 - `MainActivity.kt` dropped to 1,857 lines after the Android mix action controller extraction; `AndroidMixBuilderController.kt` is 234 lines.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Moved Android sleep-timer snapshot, selection, and expiry polling adapters into `AndroidSleepTimerEffects.kt`, matching the desktop sleep-timer extraction shape.
+- `MainActivity.kt` dropped to 1,850 lines after the Android sleep-timer adapter extraction; `AndroidSleepTimerEffects.kt` is 78 lines.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 
