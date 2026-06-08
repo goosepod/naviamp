@@ -2,15 +2,10 @@ package app.naviamp.domain.radio
 
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Track
-import app.naviamp.domain.internetRadioTrackId
 import app.naviamp.domain.playback.PlaybackProgress
-import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackStreamMetadata
-import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.settings.SavedInternetRadioStation
-
-const val MaxRecentInternetRadioStations = 12
 
 data class InternetRadioStartPlan(
     val recentStations: List<InternetRadioStation>,
@@ -82,70 +77,6 @@ fun applyInternetRadioStart(
     )
 }
 
-data class InternetRadioMetadataUpdatePlan(
-    val metadata: PlaybackStreamMetadata,
-    val nowPlayingTrack: Track?,
-    val updateNotificationMetadata: Boolean,
-    val notificationTitle: String?,
-    val notificationSubtitle: String,
-    val notificationCoverArtUrl: String?,
-)
-
-data class InternetRadioMetadataUpdateApplier(
-    val setStreamMetadata: (PlaybackStreamMetadata) -> Unit = {},
-    val setNowPlayingTrack: (Track?) -> Unit = {},
-    val updateNotificationMetadata: (String?, String, String?) -> Unit = { _, _, _ -> },
-)
-
-data class InternetRadioPlaybackRequestPlan(
-    val request: PlaybackRequest,
-)
-
-fun planInternetRadioPlaybackRequest(
-    startPlan: InternetRadioStartPlan,
-    streamUrl: String,
-    replayGainMode: ReplayGainMode,
-): InternetRadioPlaybackRequestPlan =
-    InternetRadioPlaybackRequestPlan(
-        request = PlaybackRequest(
-            url = streamUrl,
-            mediaId = startPlan.engineMediaId,
-            replayGainMode = if (startPlan.replayGainOff) ReplayGainMode.Off else replayGainMode,
-        ),
-    )
-
-fun planInternetRadioMetadataUpdate(
-    station: InternetRadioStation,
-    metadata: PlaybackStreamMetadata,
-    fallbackTrack: Track? = null,
-    updateNotificationMetadata: Boolean = true,
-): InternetRadioMetadataUpdatePlan {
-    val title = metadata.title?.takeIf { it.isNotBlank() }
-    return InternetRadioMetadataUpdatePlan(
-        metadata = metadata,
-        nowPlayingTrack = fallbackTrack?.let { internetRadioTrackWithMetadata(it, station, metadata) },
-        updateNotificationMetadata = updateNotificationMetadata && title != null,
-        notificationTitle = title,
-        notificationSubtitle = station.name,
-        notificationCoverArtUrl = null,
-    )
-}
-
-fun applyInternetRadioMetadataUpdate(
-    plan: InternetRadioMetadataUpdatePlan,
-    applier: InternetRadioMetadataUpdateApplier,
-) {
-    applier.setStreamMetadata(plan.metadata)
-    plan.nowPlayingTrack?.let(applier.setNowPlayingTrack)
-    if (plan.updateNotificationMetadata) {
-        applier.updateNotificationMetadata(
-            plan.notificationTitle,
-            plan.notificationSubtitle,
-            plan.notificationCoverArtUrl,
-        )
-    }
-}
-
 fun planInternetRadioStart(
     station: InternetRadioStation,
     recentStations: List<InternetRadioStation>,
@@ -172,47 +103,3 @@ fun planInternetRadioStart(
         engineMediaId = station.id,
         replayGainOff = true,
     )
-
-fun internetRadioTrack(station: InternetRadioStation): Track =
-    Track(
-        id = internetRadioTrackId(station.id),
-        title = station.name,
-        artistName = "Internet Radio",
-        albumTitle = station.homePageUrl ?: station.streamUrl,
-        durationSeconds = null,
-        coverArtId = null,
-        audioInfo = null,
-        replayGain = null,
-    )
-
-fun internetRadioTrackWithMetadata(
-    fallbackTrack: Track,
-    station: InternetRadioStation,
-    metadata: PlaybackStreamMetadata,
-): Track =
-    metadata.title
-        ?.takeIf { it.isNotBlank() }
-        ?.let { streamTitle ->
-            fallbackTrack.copy(
-                title = streamTitle,
-                artistName = station.name,
-                albumTitle = "Internet Radio",
-            )
-        }
-        ?: fallbackTrack
-
-fun recentInternetRadioStationsWith(
-    recentStations: List<InternetRadioStation>,
-    station: InternetRadioStation,
-    limit: Int = MaxRecentInternetRadioStations,
-): List<InternetRadioStation> =
-    (listOf(station) + recentStations.filterNot { it.id == station.id }).take(limit)
-
-fun recentSavedInternetRadioStationsWith(
-    recentStations: List<SavedInternetRadioStation>,
-    station: InternetRadioStation,
-    limit: Int = MaxRecentInternetRadioStations,
-): List<SavedInternetRadioStation> {
-    val saved = SavedInternetRadioStation.fromStation(station)
-    return (listOf(saved) + recentStations.filterNot { it.id == saved.id }).take(limit)
-}

@@ -894,6 +894,12 @@ Progress notes:
   - `AndroidPlaybackOrchestration.kt` no longer builds radio `PlaybackRequest` directly after playlist URL resolution.
   - `DesktopInternetRadioController.kt` no longer hand-builds its radio `PlaybackRequest` from the station URL.
   - Shared domain grew intentionally with a tiny request plan that composes the existing radio start plan.
+- Split the shared internet-radio domain helpers into focused files by responsibility.
+- `InternetRadioPlayback.kt` now owns only radio start planning and start effect application.
+- `InternetRadioMetadata.kt`, `InternetRadioPlaybackRequest.kt`, `InternetRadioRecents.kt`, and `InternetRadioTracks.kt` now own metadata updates, playback request planning, recent-station list decisions, and synthetic radio track mapping.
+- Size/reduction note for the internet-radio domain composition slice:
+  - No platform behavior changed; this is a module-shape cleanup after the shared radio playback extraction.
+  - Shared radio logic is now easier to compose and test as small focused pieces instead of accumulating in one broad file.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
