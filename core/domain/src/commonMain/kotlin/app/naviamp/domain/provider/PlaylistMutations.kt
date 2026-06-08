@@ -185,6 +185,14 @@ data class PlaylistPlaybackApplicationUpdate(
     val status: String?,
 )
 
+data class SelectedPlaylistPlaybackApplicationUpdate(
+    val firstTrack: Track?,
+    val playbackTracks: List<Track>,
+    val playbackIndex: Int,
+    val recentPlaylistIds: List<String>,
+    val status: String?,
+)
+
 fun homePlaylists(
     playlists: List<Playlist>,
     recentPlaylistIds: List<String>,
@@ -687,6 +695,32 @@ fun selectedPlaylistPlaybackReadyPlan(
         recentPlaylistLimit = recentPlaylistLimit,
         emptyStatus = emptyStatus,
     )
+
+fun selectedPlaylistPlaybackApplicationUpdate(
+    playlist: Playlist,
+    tracks: List<Track>,
+    shuffle: Boolean,
+    recentPlaylistIds: List<String>,
+    recentPlaylistLimit: Int,
+    requestedIndex: Int = 0,
+    emptyStatus: String = "Playlist is empty.",
+): SelectedPlaylistPlaybackApplicationUpdate {
+    val readyPlan = selectedPlaylistPlaybackReadyPlan(
+        playlist = playlist,
+        tracks = tracks,
+        shuffle = shuffle,
+        recentPlaylistIds = recentPlaylistIds,
+        recentPlaylistLimit = recentPlaylistLimit,
+        emptyStatus = emptyStatus,
+    )
+    return SelectedPlaylistPlaybackApplicationUpdate(
+        firstTrack = readyPlan.firstTrack,
+        playbackTracks = readyPlan.tracks,
+        playbackIndex = if (readyPlan.tracks.isEmpty()) 0 else requestedIndex.coerceIn(readyPlan.tracks.indices),
+        recentPlaylistIds = readyPlan.recentPlaylistIds,
+        status = if (readyPlan.firstTrack == null) readyPlan.emptyStatus else null,
+    )
+}
 
 suspend fun MediaProvider.createPlaylistOrAddMissingTracks(
     playlistId: String?,

@@ -404,6 +404,49 @@ class PlaylistMutationsTest {
     }
 
     @Test
+    fun selectedPlaylistPlaybackApplicationPlansQueueIndexAndEmptyStatus() {
+        val playlist = playlist("one", "Road Mix")
+        val tracks = listOf(track("one"), track("two"))
+
+        assertEquals(
+            SelectedPlaylistPlaybackApplicationUpdate(
+                firstTrack = track("one"),
+                playbackTracks = tracks,
+                playbackIndex = 1,
+                recentPlaylistIds = listOf("one", "two"),
+                status = null,
+            ),
+            selectedPlaylistPlaybackApplicationUpdate(
+                playlist = playlist,
+                tracks = tracks,
+                shuffle = false,
+                recentPlaylistIds = listOf("two"),
+                recentPlaylistLimit = 2,
+                requestedIndex = 99,
+            ),
+        )
+
+        assertEquals(
+            SelectedPlaylistPlaybackApplicationUpdate(
+                firstTrack = null,
+                playbackTracks = emptyList(),
+                playbackIndex = 0,
+                recentPlaylistIds = listOf("one"),
+                status = "Road Mix is empty.",
+            ),
+            selectedPlaylistPlaybackApplicationUpdate(
+                playlist = playlist,
+                tracks = emptyList(),
+                shuffle = false,
+                recentPlaylistIds = emptyList(),
+                recentPlaylistLimit = 2,
+                requestedIndex = 3,
+                emptyStatus = "Road Mix is empty.",
+            ),
+        )
+    }
+
+    @Test
     fun preparePlaylistPlaybackLoadsOrReusesTracks() = kotlinx.coroutines.test.runTest {
         val playlist = playlist("one", "Road Mix")
         val selectedTracks = listOf(track("selected"))

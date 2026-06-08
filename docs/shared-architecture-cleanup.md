@@ -989,6 +989,13 @@ Progress notes:
   - `AndroidPlaylistsController.kt` shrank slightly for this slice (`15` added, `16` removed) while delegating loaded-track storage and empty/playable branching to shared domain.
   - `DesktopPlaylistsController.kt` shrank slightly for this slice (`11` added, `12` removed) and now consumes the same prepared playback application update as Android.
   - Shared domain and tests grew intentionally so the behavior is tested once and the next playlist step can target larger deletion around selected-playlist playback details.
+- Added shared selected-playlist detail playback application planning.
+- Desktop playlist detail playback now shares selected-track queue construction, shuffle handling, recent-playlist ID planning, index coercion, and empty-playlist status with the shared playlist mutation surface.
+- Android already reaches selected playlist playback through the broader shared playlist playback application path, so no Android adapter change was needed in this slice.
+- Added common `PlaylistMutationsTest.kt` coverage for selected playlist playback queue/index planning and empty-detail status.
+- Size/reduction note for the selected playlist detail playback slice:
+  - `DesktopPlaylistsController.kt` shrank for this slice (`7` added, `11` removed) and no longer owns selected playlist ready-plan/index coercion directly.
+  - Shared domain and tests grew intentionally to keep this selected-detail behavior in the same playlist playback command surface as normal playlist playback.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:

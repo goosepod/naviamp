@@ -33,7 +33,7 @@ import app.naviamp.domain.provider.refreshPlaylistDetailsApplication
 import app.naviamp.domain.provider.refreshPlaylistListState
 import app.naviamp.domain.provider.renamePlaylistAndRefresh
 import app.naviamp.domain.provider.saveQueueAsPlaylistAndRefresh
-import app.naviamp.domain.provider.selectedPlaylistPlaybackReadyPlan
+import app.naviamp.domain.provider.selectedPlaylistPlaybackApplicationUpdate
 import app.naviamp.domain.provider.preloadPlaylistTracksStateUpdate
 import app.naviamp.domain.provider.withPlaylists
 import app.naviamp.domain.playback.PlaybackQueueManager
@@ -278,19 +278,15 @@ class DesktopPlaylistsController(
         val playlist = selectedPlaylist() ?: return
         val startPlan = playlistPlaybackStartPlan(playlist, shuffle, pendingPlaybackAction())
         if (!startPlan.shouldStart) {
-            setSelectedPlaylistStatus(startPlan.status)
-            return
+            return setSelectedPlaylistStatus(startPlan.status)
         }
-        val readyPlan = selectedPlaylistPlaybackReadyPlan(playlist, selectedPlaylistTracks(), shuffle, recentPlaylistIds(), 50)
-        if (readyPlan.firstTrack == null) return
+        val update = selectedPlaylistPlaybackApplicationUpdate(playlist, selectedPlaylistTracks(), shuffle, recentPlaylistIds(), 50, index)
+        if (update.firstTrack == null) {
+            return setSelectedPlaylistStatus(update.status)
+        }
         setPendingPlaybackAction(startPlan.action)
         setSelectedPlaylistStatus(startPlan.status)
-        playTracks(
-            playlist = playlist,
-            activeProvider = activeProvider,
-            tracks = readyPlan.tracks,
-            index = index.coerceIn(readyPlan.tracks.indices),
-        )
+        playTracks(playlist, activeProvider, update.playbackTracks, update.playbackIndex)
         setSelectedPlaylistStatus(null)
         setPendingPlaybackAction(clearPendingPlaybackAction(pendingPlaybackAction(), startPlan.action))
     }
