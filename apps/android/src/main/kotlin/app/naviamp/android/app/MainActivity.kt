@@ -72,11 +72,6 @@ import app.naviamp.domain.playback.playbackPlayPauseCommand
 import app.naviamp.domain.playback.planPlaybackSeek
 import app.naviamp.domain.playback.canReportPlaybackTrack
 import app.naviamp.domain.playback.shouldSubmitPlayReport
-import app.naviamp.domain.playback.SidecarTypeLyrics
-import app.naviamp.domain.playback.lyricsLoadingStatus
-import app.naviamp.domain.playback.lyricsUnavailableStatus
-import app.naviamp.domain.playback.recordSidecarFailure
-import app.naviamp.domain.playback.recordSidecarSuccess
 import app.naviamp.domain.playback.SleepTimerRequest
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.PlaybackQueue
@@ -301,61 +296,25 @@ private fun NaviampAndroidApp(
     fun currentDownloadQuality(): StreamQuality =
         playbackSettings.downloadStreamQuality()
 
+    val nowPlayingSidecarController = remember(appState, dependencies) {
+        AndroidNowPlayingSidecarController(
+            scope = scope,
+            state = appState,
+            lyricsSidecarService = lyricsSidecarService,
+            audioMetadataSidecarService = audioMetadataSidecarService,
+            sidecarStatusRepository = sidecarStatusRepository,
+            lyricsOffsetRepository = storage,
+            cacheAudioTrack = dependencies::cacheAudioTrack,
+            currentStreamQuality = ::currentStreamQuality,
+        )
+    }
+
     fun loadLyrics(track: Track) {
-        val activeProvider = provider ?: return
-        if (lyricsByTrackId.containsKey(track.id.value) || lyricsStatusByTrackId[track.id.value] != null) return
-        lyricsStatusByTrackId = lyricsStatusByTrackId + (track.id.value to lyricsLoadingStatus(playbackSettings.lrclibLyricsEnabled))
-        scope.launch {
-            runCatching {
-                val sourceId = activeSourceId
-                val quality = currentStreamQuality()
-                lyricsSidecarService.loadLyrics(
-                    sourceId = sourceId,
-                    provider = activeProvider,
-                    track = track,
-                    quality = quality,
-                    audioCachingEnabled = true,
-                    onlineLyricsEnabled = playbackSettings.lrclibLyricsEnabled,
-                ).lyrics?.copy(
-                    offsetMillis = sourceId?.let { storage.lyricsOffsetMillis(it, track.id) } ?: 0,
-                )
-            }
-                .onSuccess { lyrics ->
-                    lyricsByTrackId = lyricsByTrackId + (track.id.value to lyrics)
-                    lyricsStatusByTrackId = lyricsStatusByTrackId + (track.id.value to null)
-                    activeSourceId?.let { sourceId ->
-                        sidecarStatusRepository.recordSidecarSuccess(
-                            sourceId = sourceId,
-                            trackId = track.id,
-                            quality = StreamQuality.Original,
-                            sidecarType = SidecarTypeLyrics,
-                        )
-                    }
-                }
-                .onFailure { error ->
-                    lyricsByTrackId = lyricsByTrackId + (track.id.value to null)
-                    val message = lyricsUnavailableStatus(error)
-                    lyricsStatusByTrackId = lyricsStatusByTrackId + (track.id.value to message)
-                    activeSourceId?.let { sourceId ->
-                        sidecarStatusRepository.recordSidecarFailure(
-                            sourceId = sourceId,
-                            trackId = track.id,
-                            quality = StreamQuality.Original,
-                            sidecarType = SidecarTypeLyrics,
-                            errorMessage = message,
-                        )
-                    }
-                }
-        }
+        nowPlayingSidecarController.loadLyrics(track)
     }
 
     fun handleLyricsOffsetChanged(offsetMillis: Int) {
-        val sourceId = activeSourceId ?: return
-        val track = nowPlaying ?: return
-        storage.saveLyricsOffsetMillis(sourceId, track.id, offsetMillis)
-        lyricsByTrackId = lyricsByTrackId + (
-            track.id.value to lyricsByTrackId[track.id.value]?.copy(offsetMillis = offsetMillis)
-            )
+        nowPlayingSidecarController.handleLyricsOffsetChanged(offsetMillis)
     }
 
     fun handleConnectionFormChanged(form: ConnectionFormState) {
@@ -367,9 +326,7 @@ private fun NaviampAndroidApp(
         playbackSettings = change.settings
         settingsStore.savePlaybackSettings(change.settings)
         if (change.shouldReloadLyricsSidecars) {
-            lyricsByTrackId = emptyMap()
-            lyricsStatusByTrackId = emptyMap()
-            if (lyricsVisible && nowPlayingOpen) nowPlaying?.let(::loadLyrics)
+            nowPlayingSidecarController.reloadVisibleLyrics()
         }
     }
 
@@ -498,29 +455,7 @@ private fun NaviampAndroidApp(
     }
 
     fun loadAudioTags(track: Track) {
-        if (audioTagsByTrackId.containsKey(track.id.value)) return
-        val activeProvider = provider ?: return
-        val sourceId = activeSourceId ?: return
-        scope.launch {
-            val tags = withContext(Dispatchers.IO) {
-                runCatching {
-                    val quality = currentStreamQuality()
-                    androidPlaylistEngine.cacheAudioTrackForPlayback(
-                        sourceId = sourceId,
-                        activeProvider = activeProvider,
-                        track = track,
-                        quality = quality,
-                    )
-                    audioMetadataSidecarService.audioTagsForTrack(
-                        sourceId = sourceId,
-                        track = track,
-                        quality = quality,
-                        audioCachingEnabled = true,
-                    )
-                }.getOrElse { emptyList() }
-            }
-            audioTagsByTrackId = audioTagsByTrackId + (track.id.value to tags)
-        }
+        nowPlayingSidecarController.loadAudioTags(track)
     }
 
     LaunchedEffect(nowPlaying?.id, activeSourceId, provider) {

@@ -1253,6 +1253,9 @@ Progress notes:
 - Moved Android related-track radio loading into `AndroidRadioController.kt`, keeping the root app from calling `RadioService` directly for now-playing related tracks.
 - `MainActivity.kt` dropped to 1,820 lines after the related-track radio helper extraction.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Moved Android now-playing lyrics loading, lyrics offset persistence, visible-lyrics reloads, and audio tag loading/cache warming into `AndroidNowPlayingSidecarController.kt`.
+- `MainActivity.kt` dropped to 1,755 lines after the Android now-playing sidecar controller extraction; `AndroidNowPlayingSidecarController.kt` is 122 lines.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 
