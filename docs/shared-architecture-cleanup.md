@@ -1058,6 +1058,14 @@ Progress notes:
   - `AndroidPlaylistsController.kt` and `DesktopSmartPlaylistsController.kt` both dropped local smart playlist refresh-to-state composition.
   - Shared domain now owns smart playlist create/update, cache invalidation, playlist refresh, selected-detail application planning, and final status text through one tested path.
 - Verification passed: `./gradlew :core:domain:jvmTest --tests app.naviamp.domain.provider.PlaylistMutationsTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Added shared playlist playback start/completion application with `PlaylistPlaybackStartApplication` and `PlaylistPlaybackCompletionApplication`.
+- Android and Desktop playlist playback now share pending-action start assignment, blocked-start status, and completion clearing instead of calling the raw pending-action helper directly from platform controllers.
+- Platform code still owns coroutine launch, target status field assignment, track application, recent-playlist persistence, and actual playback execution.
+- Added common `PlaylistMutationsTest.kt` coverage for start application and matching completion clearing.
+- Size/reduction note for the playlist playback pending-state slice:
+  - `AndroidPlaylistsController.kt` and `DesktopPlaylistsController.kt` no longer call `clearPendingPlaybackAction` directly in playlist playback flows.
+  - Shared domain now owns the pending-action start/completion rules around playlist playback, leaving platform files to apply the typed result to their local state targets.
+- Verification passed: `./gradlew :core:domain:jvmTest --tests app.naviamp.domain.provider.PlaylistMutationsTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 

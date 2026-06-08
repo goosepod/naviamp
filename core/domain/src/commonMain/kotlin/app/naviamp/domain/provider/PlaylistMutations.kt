@@ -176,6 +176,15 @@ data class PlaylistPlaybackStartPlan(
     val status: String,
 )
 
+data class PlaylistPlaybackStartApplication(
+    val pendingPlaybackAction: PendingPlaybackAction?,
+    val status: String,
+)
+
+data class PlaylistPlaybackCompletionApplication(
+    val pendingPlaybackAction: PendingPlaybackAction?,
+)
+
 data class PlaylistPlaybackTrackLoadPlan(
     val shouldLoadTracks: Boolean,
 )
@@ -574,11 +583,27 @@ fun playlistPlaybackStartPlan(
 fun shouldStartPlaybackAction(pending: PendingPlaybackAction?): Boolean =
     pending == null
 
+fun playlistPlaybackStartApplication(
+    plan: PlaylistPlaybackStartPlan,
+): PlaylistPlaybackStartApplication =
+    PlaylistPlaybackStartApplication(
+        pendingPlaybackAction = plan.action.takeIf { plan.shouldStart },
+        status = plan.status,
+    )
+
 fun clearPendingPlaybackAction(
     pending: PendingPlaybackAction?,
     completed: PendingPlaybackAction,
 ): PendingPlaybackAction? =
     pending?.takeUnless { it.key == completed.key }
+
+fun playlistPlaybackCompletionApplication(
+    pending: PendingPlaybackAction?,
+    completed: PendingPlaybackAction,
+): PlaylistPlaybackCompletionApplication =
+    PlaylistPlaybackCompletionApplication(
+        pendingPlaybackAction = clearPendingPlaybackAction(pending, completed),
+    )
 
 fun selectedPlaylistTracksForPlayback(
     selectedPlaylist: Playlist?,

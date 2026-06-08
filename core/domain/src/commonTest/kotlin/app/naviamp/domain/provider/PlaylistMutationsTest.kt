@@ -392,6 +392,27 @@ class PlaylistMutationsTest {
             playlistPlaybackStartPlan(playlist, shuffle = false, pending = pending),
         )
         assertEquals(
+            PlaylistPlaybackStartApplication(
+                pendingPlaybackAction = PendingPlaybackAction("playlist:one:play", "Loading Road Mix..."),
+                status = "Loading Road Mix...",
+            ),
+            playlistPlaybackStartApplication(playlistPlaybackStartPlan(playlist, shuffle = false, pending = null)),
+        )
+        assertEquals(
+            PlaylistPlaybackStartApplication(
+                pendingPlaybackAction = null,
+                status = "Already starting...",
+            ),
+            playlistPlaybackStartApplication(playlistPlaybackStartPlan(playlist, shuffle = false, pending = pending)),
+        )
+        assertEquals(
+            PlaylistPlaybackCompletionApplication(pendingPlaybackAction = null),
+            playlistPlaybackCompletionApplication(
+                pending = PendingPlaybackAction("playlist:one:play", "Loading Road Mix..."),
+                completed = PendingPlaybackAction("playlist:one:play", "Loading Road Mix..."),
+            ),
+        )
+        assertEquals(
             PlaylistPlaybackTrackLoadPlan(shouldLoadTracks = false),
             playlistPlaybackTrackLoadPlan(playlist, selectedTracks, playlist),
         )

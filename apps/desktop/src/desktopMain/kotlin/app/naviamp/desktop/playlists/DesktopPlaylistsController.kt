@@ -9,7 +9,6 @@ import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.addToPlaylistErrorMessage
 import app.naviamp.domain.provider.addToPlaylistResolvingTracksStatus
 import app.naviamp.domain.provider.addTracksToPlaylistStateUpdate
-import app.naviamp.domain.provider.clearPendingPlaybackAction
 import app.naviamp.domain.provider.PendingPlaybackAction
 import app.naviamp.domain.provider.playlistDeleteErrorMessage
 import app.naviamp.domain.provider.playlistDeleteLoadingStatus
@@ -21,7 +20,9 @@ import app.naviamp.domain.provider.PlaylistHomeProjection
 import app.naviamp.domain.provider.playlistListApplication
 import app.naviamp.domain.provider.playlistListErrorMessage
 import app.naviamp.domain.provider.playlistListLoadingStatus
+import app.naviamp.domain.provider.playlistPlaybackCompletionApplication
 import app.naviamp.domain.provider.playlistPlaybackErrorMessage
+import app.naviamp.domain.provider.playlistPlaybackStartApplication
 import app.naviamp.domain.provider.playlistPlaybackStartPlan
 import app.naviamp.domain.provider.preparePlaylistDetailPlaybackApplication
 import app.naviamp.domain.provider.preparePlaylistPlaybackApplication
@@ -220,12 +221,13 @@ class DesktopPlaylistsController(
     fun playPlaylist(playlist: Playlist, shuffle: Boolean = false) {
         val activeProvider = provider() ?: return
         val startPlan = playlistPlaybackStartPlan(playlist, shuffle, pendingPlaybackAction())
+        val startApplication = playlistPlaybackStartApplication(startPlan)
         if (!startPlan.shouldStart) {
-            setConnectionStatus(startPlan.status)
+            setConnectionStatus(startApplication.status)
             return
         }
-        setPendingPlaybackAction(startPlan.action)
-        setConnectionStatus(startPlan.status)
+        setPendingPlaybackAction(startApplication.pendingPlaybackAction)
+        setConnectionStatus(startApplication.status)
         scope.launch {
             try {
                 val update = withContext(Dispatchers.IO) {
@@ -247,7 +249,12 @@ class DesktopPlaylistsController(
                     return@launch
                 }
                 setConnectionStatus(update.status)
-                setPendingPlaybackAction(clearPendingPlaybackAction(pendingPlaybackAction(), startPlan.action))
+                setPendingPlaybackAction(
+                    playlistPlaybackCompletionApplication(
+                        pending = pendingPlaybackAction(),
+                        completed = startPlan.action,
+                    ).pendingPlaybackAction,
+                )
                 playTracks(
                     playlist = playlist,
                     activeProvider = activeProvider,
@@ -258,7 +265,12 @@ class DesktopPlaylistsController(
             } catch (exception: Exception) {
                 setConnectionStatus(playlistPlaybackErrorMessage(exception, playlist))
             } finally {
-                setPendingPlaybackAction(clearPendingPlaybackAction(pendingPlaybackAction(), startPlan.action))
+                setPendingPlaybackAction(
+                    playlistPlaybackCompletionApplication(
+                        pending = pendingPlaybackAction(),
+                        completed = startPlan.action,
+                    ).pendingPlaybackAction,
+                )
             }
         }
     }
@@ -282,11 +294,12 @@ class DesktopPlaylistsController(
         val activeProvider = provider() ?: return
         val playlist = selectedPlaylist() ?: return
         val startPlan = playlistPlaybackStartPlan(playlist, shuffle, pendingPlaybackAction())
+        val startApplication = playlistPlaybackStartApplication(startPlan)
         if (!startPlan.shouldStart) {
-            return setSelectedPlaylistStatus(startPlan.status)
+            return setSelectedPlaylistStatus(startApplication.status)
         }
-        setPendingPlaybackAction(startPlan.action)
-        setSelectedPlaylistStatus(startPlan.status)
+        setPendingPlaybackAction(startApplication.pendingPlaybackAction)
+        setSelectedPlaylistStatus(startApplication.status)
         scope.launch {
             try {
                 val update = withContext(Dispatchers.IO) {
@@ -320,7 +333,12 @@ class DesktopPlaylistsController(
             } catch (exception: Exception) {
                 setSelectedPlaylistStatus(playlistPlaybackErrorMessage(exception, playlist))
             } finally {
-                setPendingPlaybackAction(clearPendingPlaybackAction(pendingPlaybackAction(), startPlan.action))
+                setPendingPlaybackAction(
+                    playlistPlaybackCompletionApplication(
+                        pending = pendingPlaybackAction(),
+                        completed = startPlan.action,
+                    ).pendingPlaybackAction,
+                )
             }
         }
     }

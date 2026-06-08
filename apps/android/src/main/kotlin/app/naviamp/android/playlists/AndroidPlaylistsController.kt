@@ -5,7 +5,6 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
-import app.naviamp.domain.provider.clearPendingPlaybackAction
 import app.naviamp.domain.provider.PlaylistHomeProjection
 import app.naviamp.domain.provider.playlistDeleteErrorMessage
 import app.naviamp.domain.provider.playlistDeleteLoadingStatus
@@ -15,7 +14,9 @@ import app.naviamp.domain.provider.playlistDetailsLoadedStatus
 import app.naviamp.domain.provider.playlistDetailsLoadingStatus
 import app.naviamp.domain.provider.playlistDetailsOpenPlan
 import app.naviamp.domain.provider.playlistListApplication
+import app.naviamp.domain.provider.playlistPlaybackCompletionApplication
 import app.naviamp.domain.provider.playlistPlaybackErrorMessage
+import app.naviamp.domain.provider.playlistPlaybackStartApplication
 import app.naviamp.domain.provider.playlistPlaybackStartPlan
 import app.naviamp.domain.provider.preparePlaylistPlaybackApplication
 import app.naviamp.domain.provider.playlistRenameErrorMessage
@@ -116,15 +117,16 @@ fun playAndroidPlaylist(
     val activeProvider = state.provider ?: return
     val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
     val startPlan = playlistPlaybackStartPlan(playlist, shuffle, state.pendingPlaybackAction)
+    val startApplication = playlistPlaybackStartApplication(startPlan)
     with(state) {
         if (!startPlan.shouldStart) {
-            playlistActionStatus = startPlan.status
-            status = startPlan.status
+            playlistActionStatus = startApplication.status
+            status = startApplication.status
             return
         }
-        pendingPlaybackAction = startPlan.action
-        playlistActionStatus = startPlan.status
-        status = startPlan.status
+        pendingPlaybackAction = startApplication.pendingPlaybackAction
+        playlistActionStatus = startApplication.status
+        status = startApplication.status
     }
     scope.launch {
         with(state) {
@@ -157,7 +159,10 @@ fun playAndroidPlaylist(
                     playTrack(firstTrack, update.playbackTracks)
                 }
             } finally {
-                pendingPlaybackAction = clearPendingPlaybackAction(pendingPlaybackAction, startPlan.action)
+                pendingPlaybackAction = playlistPlaybackCompletionApplication(
+                    pending = pendingPlaybackAction,
+                    completed = startPlan.action,
+                ).pendingPlaybackAction
             }
         }
     }
