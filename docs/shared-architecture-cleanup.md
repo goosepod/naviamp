@@ -940,6 +940,15 @@ Progress notes:
   - `AndroidPlaylistsController.kt` is net smaller for this slice (`33` added, `38` removed) because the controller no longer builds playlist load/ready behavior inline.
   - `DesktopPlaylistsController.kt` is still net larger (`38` added, `27` removed), mainly because the remaining desktop playback adapter path still has explicit state application and playback-engine side effects.
   - Shared domain and tests grew intentionally, but the next playlist cleanup should target larger controller deletion by moving UI-state application plans into shared reducers rather than adding smaller wrappers.
+- Added shared playlist mutation application updates for queue-save, rename, delete, and home playlist projection.
+- Android and Desktop playlist controllers now share queue-save status text, rename selected-playlist update decisions, delete selected-playlist/track-map/recent-ID decisions, and desktop home playlist projection.
+- Platform code still owns the correct boundaries: applying values into Android state, applying values through Desktop setter lambdas, route changes after deleting the selected playlist, and playback execution.
+- Added common `PlaylistMutationsTest.kt` coverage for queue-save, rename, delete, and home playlist application updates.
+- Size/reduction note for the playlist state application slice:
+  - `AndroidPlaylistsController.kt` shrank for this slice (`19` added, `27` removed).
+  - `DesktopPlaylistsController.kt` shrank for this slice (`23` added, `37` removed).
+  - `DesktopNaviampApp.kt` dropped two playlist-controller wiring arguments because `DesktopPlaylistsController` no longer needs radio-recents inputs to rebuild home playlists.
+  - Shared domain and tests still grew, but this slice is the intended direction: fewer platform dependencies and less controller-owned mutation policy.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:

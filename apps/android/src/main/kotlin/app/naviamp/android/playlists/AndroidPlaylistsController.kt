@@ -8,19 +8,20 @@ import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.provider.clearPendingPlaybackAction
 import app.naviamp.domain.provider.playlistDeleteErrorMessage
 import app.naviamp.domain.provider.playlistDeleteLoadingStatus
-import app.naviamp.domain.provider.playlistDeleteStateUpdate
-import app.naviamp.domain.provider.playlistDeletedStatus
+import app.naviamp.domain.provider.playlistDeleteApplicationUpdate
 import app.naviamp.domain.provider.playlistDetailsStateUpdate
 import app.naviamp.domain.provider.playlistListRefresh
 import app.naviamp.domain.provider.playlistPlaybackStartPlan
 import app.naviamp.domain.provider.preparePlaylistPlayback
 import app.naviamp.domain.provider.playlistRenameErrorMessage
 import app.naviamp.domain.provider.playlistRenameLoadingStatus
-import app.naviamp.domain.provider.playlistRenamedStatus
+import app.naviamp.domain.provider.playlistRenameStateUpdate
+import app.naviamp.domain.provider.queuePlaylistSaveErrorMessage
+import app.naviamp.domain.provider.queuePlaylistSaveLoadingStatus
+import app.naviamp.domain.provider.queuePlaylistSaveStateUpdate
 import app.naviamp.domain.provider.recentPlaylistIdsAfterPlayed
 import app.naviamp.domain.provider.refreshPlaylistDetails
 import app.naviamp.domain.provider.refreshPlaylistsAndPlanPreload
-import app.naviamp.domain.provider.renamedSelectedPlaylist
 import app.naviamp.domain.provider.renamePlaylistAndRefresh
 import app.naviamp.domain.provider.saveQueueAsPlaylistAndRefresh
 import app.naviamp.domain.provider.saveSmartPlaylistAndRefresh
@@ -189,21 +190,12 @@ fun renameAndroidPlaylist(
                     providerResponseService = providerResponseService,
                 )
             }.onSuccess { refresh ->
-                val playlists = refresh.playlists
-                homeState = homeState.copy(playlists = playlists)
-                selectedPlaylist?.let { current ->
-                    if (current.id == playlist.id) {
-                        contentState = contentState.copy(
-                            selectedPlaylist = renamedSelectedPlaylist(
-                                current = current,
-                                playlistId = playlist.id,
-                                requestedName = refresh.requestedName,
-                                refreshedPlaylists = playlists,
-                            ),
-                        )
-                    }
+                val update = playlistRenameStateUpdate(selectedPlaylist, refresh, playlist.id)
+                homeState = homeState.copy(playlists = update.playlists)
+                if (update.selectedPlaylistChanged) {
+                    contentState = contentState.copy(selectedPlaylist = update.selectedPlaylist)
                 }
-                status = playlistRenamedStatus()
+                status = update.status
             }.onFailure { error ->
                 status = playlistRenameErrorMessage(error)
             }
@@ -228,15 +220,15 @@ fun deleteAndroidPlaylist(
                     providerResponseService = providerResponseService,
                 )
             }.onSuccess { refresh ->
-                val playlists = refresh.playlists
-                homeState = homeState.copy(playlists = playlists)
-                val update = playlistDeleteStateUpdate(
+                val update = playlistDeleteApplicationUpdate(
+                    refresh = refresh,
                     currentSelectedPlaylist = selectedPlaylist,
                     currentSelectedPlaylistTracks = selectedPlaylistTracks,
                     currentPlaylistTracksById = playlistTracksById,
                     currentRecentPlaylistIds = recentPlaylistIds,
                     deletedPlaylistId = playlist.id,
                 )
+                homeState = homeState.copy(playlists = update.playlists)
                 if (update.deletedSelectedPlaylist) {
                     contentState = contentState.copy(
                         selectedPlaylist = update.selectedPlaylist,
@@ -245,7 +237,7 @@ fun deleteAndroidPlaylist(
                 }
                 playlistTracksById = update.playlistTracksById
                 recentPlaylistIds = update.recentPlaylistIds
-                status = playlistDeletedStatus()
+                status = update.status
             }.onFailure { error ->
                 status = playlistDeleteErrorMessage(error)
             }
@@ -316,7 +308,7 @@ fun saveQueueAsPlaylistFromState(
     val activeProvider = state.provider ?: return
     val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
     val queueTracks = state.playbackQueue.tracks
-    state.playlistActionStatus = "Saving queue as playlist..."
+    state.playlistActionStatus = queuePlaylistSaveLoadingStatus()
     scope.launch {
         with(state) {
             runCatching {
@@ -326,12 +318,12 @@ fun saveQueueAsPlaylistFromState(
                     providerResponseService = providerResponseService,
                 )
             }.onSuccess { refresh ->
-                homeState = homeState.copy(playlists = refresh.playlists)
+                val update = queuePlaylistSaveStateUpdate(refresh)
+                homeState = homeState.copy(playlists = update.playlists)
                 playlistActionStatus = null
-                val result = refresh.result
-                status = "Saved ${result.playlist.name} with ${result.trackCount} tracks."
+                status = update.status
             }.onFailure { error ->
-                playlistActionStatus = error.message ?: "Could not save queue as playlist."
+                playlistActionStatus = queuePlaylistSaveErrorMessage(error)
                 status = playlistActionStatus.orEmpty()
             }
         }

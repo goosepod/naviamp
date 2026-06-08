@@ -866,8 +866,6 @@ fun NaviampApp(
         setRecentPlaylistIds = { ids -> recentPlaylistIds = ids },
         homeContent = { homeContent },
         setHomeContent = { content -> homeContent = content },
-        recentRadioStreams = { recentRadioStreams },
-        recentInternetRadioStations = { recentInternetRadioStations },
         playlistTracksById = { playlistTracksById },
         setPlaylistTracksById = { tracksById -> playlistTracksById = tracksById },
         selectedPlaylist = { selectedPlaylist },

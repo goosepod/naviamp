@@ -4,6 +4,7 @@ import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.ProviderResponseService
+import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.playback.appendableTracks
 import app.naviamp.domain.playback.queueAppendStatus
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
@@ -24,13 +25,35 @@ data class QueuePlaylistSaveRefresh(
     val playlists: List<Playlist>,
 )
 
+data class QueuePlaylistSaveStateUpdate(
+    val playlists: List<Playlist>,
+    val status: String,
+)
+
 data class PlaylistRenameRefresh(
     val requestedName: String,
     val playlists: List<Playlist>,
 )
 
+data class PlaylistRenameStateUpdate(
+    val playlists: List<Playlist>,
+    val selectedPlaylist: Playlist?,
+    val selectedPlaylistChanged: Boolean,
+    val status: String,
+)
+
 data class PlaylistDeleteRefresh(
     val playlists: List<Playlist>,
+)
+
+data class PlaylistDeleteApplicationUpdate(
+    val playlists: List<Playlist>,
+    val selectedPlaylist: Playlist?,
+    val selectedPlaylistTracks: List<Track>,
+    val playlistTracksById: Map<String, List<Track>>,
+    val recentPlaylistIds: List<String>,
+    val deletedSelectedPlaylist: Boolean,
+    val status: String,
 )
 
 data class AddToPlaylistMutationUpdate(
@@ -122,6 +145,12 @@ fun homePlaylists(
             if (index == -1) Int.MAX_VALUE else index
         }.thenBy { it.name.lowercase() },
     ).take(limit)
+
+fun HomeContent.withPlaylists(
+    playlists: List<Playlist>,
+    recentPlaylistIds: List<String>,
+): HomeContent =
+    copy(playlists = homePlaylists(playlists, recentPlaylistIds))
 
 fun recentPlaylistIdsAfterPlayed(
     recentPlaylistIds: List<String>,
@@ -492,6 +521,18 @@ suspend fun MediaProvider.saveQueueAsPlaylistAndRefresh(
     return QueuePlaylistSaveRefresh(result = result, playlists = playlists)
 }
 
+fun queuePlaylistSaveLoadingStatus(): String =
+    "Saving queue as playlist..."
+
+fun queuePlaylistSaveErrorMessage(error: Throwable): String =
+    error.message ?: "Could not save queue as playlist."
+
+fun queuePlaylistSaveStateUpdate(refresh: QueuePlaylistSaveRefresh): QueuePlaylistSaveStateUpdate =
+    QueuePlaylistSaveStateUpdate(
+        playlists = refresh.playlists,
+        status = "Saved ${refresh.result.playlist.name} with ${refresh.result.trackCount} tracks.",
+    )
+
 suspend fun MediaProvider.renamePlaylistAndRefresh(
     playlist: Playlist,
     name: String,
@@ -601,6 +642,25 @@ fun renamedSelectedPlaylist(
         ?: current.copy(name = requestedName)
 }
 
+fun playlistRenameStateUpdate(
+    currentSelectedPlaylist: Playlist?,
+    refresh: PlaylistRenameRefresh,
+    playlistId: String,
+): PlaylistRenameStateUpdate {
+    val selectedPlaylist = renamedSelectedPlaylist(
+        current = currentSelectedPlaylist,
+        playlistId = playlistId,
+        requestedName = refresh.requestedName,
+        refreshedPlaylists = refresh.playlists,
+    )
+    return PlaylistRenameStateUpdate(
+        playlists = refresh.playlists,
+        selectedPlaylist = selectedPlaylist,
+        selectedPlaylistChanged = currentSelectedPlaylist?.id == playlistId,
+        status = playlistRenamedStatus(),
+    )
+}
+
 fun selectedPlaylistAfterDelete(
     current: Playlist?,
     deletedPlaylistId: String,
@@ -627,6 +687,32 @@ fun playlistDeleteStateUpdate(
         playlistTracksById = currentPlaylistTracksById - deletedPlaylistId,
         recentPlaylistIds = recentPlaylistIdsAfterDelete(currentRecentPlaylistIds, deletedPlaylistId),
         deletedSelectedPlaylist = deletedSelectedPlaylist,
+    )
+}
+
+fun playlistDeleteApplicationUpdate(
+    refresh: PlaylistDeleteRefresh,
+    currentSelectedPlaylist: Playlist?,
+    currentSelectedPlaylistTracks: List<Track>,
+    currentPlaylistTracksById: Map<String, List<Track>>,
+    currentRecentPlaylistIds: List<String>,
+    deletedPlaylistId: String,
+): PlaylistDeleteApplicationUpdate {
+    val stateUpdate = playlistDeleteStateUpdate(
+        currentSelectedPlaylist = currentSelectedPlaylist,
+        currentSelectedPlaylistTracks = currentSelectedPlaylistTracks,
+        currentPlaylistTracksById = currentPlaylistTracksById,
+        currentRecentPlaylistIds = currentRecentPlaylistIds,
+        deletedPlaylistId = deletedPlaylistId,
+    )
+    return PlaylistDeleteApplicationUpdate(
+        playlists = refresh.playlists,
+        selectedPlaylist = stateUpdate.selectedPlaylist,
+        selectedPlaylistTracks = stateUpdate.selectedPlaylistTracks,
+        playlistTracksById = stateUpdate.playlistTracksById,
+        recentPlaylistIds = stateUpdate.recentPlaylistIds,
+        deletedSelectedPlaylist = stateUpdate.deletedSelectedPlaylist,
+        status = playlistDeletedStatus(),
     )
 }
 

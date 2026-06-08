@@ -11,6 +11,7 @@ import app.naviamp.domain.ProviderId
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.smartplaylist.SmartPlaylistTemplates
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -29,6 +30,12 @@ class PlaylistMutationsTest {
                 playlists = listOf(beta, recent, alpha),
                 recentPlaylistIds = listOf("recent"),
             ),
+        )
+        assertEquals(
+            listOf(recent, alpha),
+            HomeContent().withPlaylists(listOf(beta, recent, alpha), recentPlaylistIds = listOf("recent"))
+                .playlists
+                .take(2),
         )
     }
 
@@ -399,6 +406,11 @@ class PlaylistMutationsTest {
     fun playlistRenameDeleteHelpersNormalizeStatusAndSelection() {
         val current = playlist("one", "Old")
         val renamed = playlist("one", "New")
+        val renameRefresh = PlaylistRenameRefresh(
+            requestedName = "New",
+            playlists = listOf(renamed),
+        )
+        val deleteRefresh = PlaylistDeleteRefresh(playlists = listOf(playlist("two", "Two")))
 
         assertEquals("New", normalizedPlaylistName("  New  "))
         assertEquals("Renaming Old...", playlistRenameLoadingStatus(current))
@@ -409,6 +421,15 @@ class PlaylistMutationsTest {
         assertEquals(
             playlist("one", "Fallback"),
             renamedSelectedPlaylist(current, "one", "Fallback", emptyList()),
+        )
+        assertEquals(
+            PlaylistRenameStateUpdate(
+                playlists = listOf(renamed),
+                selectedPlaylist = renamed,
+                selectedPlaylistChanged = true,
+                status = "Renamed playlist.",
+            ),
+            playlistRenameStateUpdate(current, renameRefresh, playlistId = "one"),
         )
         assertEquals(null, selectedPlaylistAfterDelete(current, "one"))
         assertEquals(listOf("two"), recentPlaylistIdsAfterDelete(listOf("one", "two"), "one"))
@@ -421,6 +442,25 @@ class PlaylistMutationsTest {
                 deletedSelectedPlaylist = true,
             ),
             playlistDeleteStateUpdate(
+                currentSelectedPlaylist = current,
+                currentSelectedPlaylistTracks = listOf(track("one")),
+                currentPlaylistTracksById = mapOf("one" to listOf(track("one"))),
+                currentRecentPlaylistIds = listOf("one", "two"),
+                deletedPlaylistId = "one",
+            ),
+        )
+        assertEquals(
+            PlaylistDeleteApplicationUpdate(
+                playlists = listOf(playlist("two", "Two")),
+                selectedPlaylist = null,
+                selectedPlaylistTracks = emptyList(),
+                playlistTracksById = emptyMap(),
+                recentPlaylistIds = listOf("two"),
+                deletedSelectedPlaylist = true,
+                status = "Deleted playlist.",
+            ),
+            playlistDeleteApplicationUpdate(
+                refresh = deleteRefresh,
                 currentSelectedPlaylist = current,
                 currentSelectedPlaylistTracks = listOf(track("one")),
                 currentPlaylistTracksById = mapOf("one" to listOf(track("one"))),
@@ -492,6 +532,13 @@ class PlaylistMutationsTest {
 
         assertEquals(QueuePlaylistSaveResult(playlist("created", "Queue Mix").copy(trackCount = 1), 1), refresh.result)
         assertEquals(listOf(existingPlaylist, playlist("created", "Queue Mix").copy(trackCount = 1)), refresh.playlists)
+        assertEquals(
+            QueuePlaylistSaveStateUpdate(
+                playlists = refresh.playlists,
+                status = "Saved Queue Mix with 1 tracks.",
+            ),
+            queuePlaylistSaveStateUpdate(refresh),
+        )
     }
 
     @Test

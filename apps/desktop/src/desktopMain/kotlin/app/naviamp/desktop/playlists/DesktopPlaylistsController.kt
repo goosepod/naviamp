@@ -1,6 +1,5 @@
 package app.naviamp.desktop
 
-import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.ProviderResponseService
@@ -9,12 +8,10 @@ import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.addTracksToPlaylistAndRefresh
 import app.naviamp.domain.provider.clearPendingPlaybackAction
-import app.naviamp.domain.provider.homePlaylists
 import app.naviamp.domain.provider.PendingPlaybackAction
 import app.naviamp.domain.provider.playlistDeleteErrorMessage
 import app.naviamp.domain.provider.playlistDeleteLoadingStatus
-import app.naviamp.domain.provider.playlistDeleteStateUpdate
-import app.naviamp.domain.provider.playlistDeletedStatus
+import app.naviamp.domain.provider.playlistDeleteApplicationUpdate
 import app.naviamp.domain.provider.deletePlaylistAndRefresh
 import app.naviamp.domain.provider.playlistDetailsStateUpdate
 import app.naviamp.domain.provider.loadPlaylistTracksForPreload
@@ -22,17 +19,19 @@ import app.naviamp.domain.provider.playlistPlaybackStartPlan
 import app.naviamp.domain.provider.preparePlaylistPlayback
 import app.naviamp.domain.provider.playlistRenameErrorMessage
 import app.naviamp.domain.provider.playlistRenameLoadingStatus
-import app.naviamp.domain.provider.playlistRenamedStatus
+import app.naviamp.domain.provider.playlistRenameStateUpdate
+import app.naviamp.domain.provider.queuePlaylistSaveErrorMessage
+import app.naviamp.domain.provider.queuePlaylistSaveLoadingStatus
+import app.naviamp.domain.provider.queuePlaylistSaveStateUpdate
 import app.naviamp.domain.provider.recentPlaylistIdsAfterPlayed
 import app.naviamp.domain.provider.refreshPlaylistDetails
 import app.naviamp.domain.provider.refreshPlaylistsAndPlanPreload
-import app.naviamp.domain.provider.renamedSelectedPlaylist
 import app.naviamp.domain.provider.renamePlaylistAndRefresh
 import app.naviamp.domain.provider.saveQueueAsPlaylistAndRefresh
 import app.naviamp.domain.provider.selectedPlaylistPlaybackReadyPlan
+import app.naviamp.domain.provider.withPlaylists
 import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.settings.PlaybackSettings
-import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.DesktopPlaylistEngine
 import app.naviamp.desktop.settings.DesktopSettingsStore
@@ -56,8 +55,6 @@ class DesktopPlaylistsController(
     private val setRecentPlaylistIds: (List<String>) -> Unit,
     private val homeContent: () -> HomeContent,
     private val setHomeContent: (HomeContent) -> Unit,
-    private val recentRadioStreams: () -> List<RecentRadioStream>,
-    private val recentInternetRadioStations: () -> List<InternetRadioStation>,
     private val playlistTracksById: () -> Map<String, List<Track>>,
     private val setPlaylistTracksById: (Map<String, List<Track>>) -> Unit,
     private val selectedPlaylist: () -> Playlist?,
@@ -202,7 +199,7 @@ class DesktopPlaylistsController(
     fun saveQueueAsPlaylist(name: String) {
         val activeProvider = provider() ?: return
         val queueTracks = playlistEngine.queue.tracks
-        setConnectionStatus("Saving queue as playlist...")
+        setConnectionStatus(queuePlaylistSaveLoadingStatus())
         scope.launch {
             try {
                 val refresh = withContext(Dispatchers.IO) {
@@ -212,12 +209,12 @@ class DesktopPlaylistsController(
                         providerResponseService = providerResponseService,
                     )
                 }
-                val result = refresh.result
-                setConnectionStatus("Saved ${result.playlist.name} with ${result.trackCount} tracks.")
-                setPlaylists(refresh.playlists)
-                refreshHomePlaylists(refresh.playlists)
+                val update = queuePlaylistSaveStateUpdate(refresh)
+                setConnectionStatus(update.status)
+                setPlaylists(update.playlists)
+                refreshHomePlaylists(update.playlists)
             } catch (exception: Exception) {
-                setConnectionStatus(exception.message ?: "Could not save queue as playlist.")
+                setConnectionStatus(queuePlaylistSaveErrorMessage(exception))
             }
         }
     }
@@ -319,18 +316,12 @@ class DesktopPlaylistsController(
                         providerResponseService = providerResponseService,
                     )
                 }
-                setPlaylists(refresh.playlists)
-                refreshHomePlaylists(refresh.playlists)
+                val update = playlistRenameStateUpdate(selectedPlaylist(), refresh, playlist.id)
+                setPlaylists(update.playlists)
+                refreshHomePlaylists(update.playlists)
                 setPlaylistPendingRename(null)
-                setPlaylistStatus(playlistRenamedStatus())
-                setSelectedPlaylist(
-                    renamedSelectedPlaylist(
-                        current = selectedPlaylist(),
-                        playlistId = playlist.id,
-                        requestedName = refresh.requestedName,
-                        refreshedPlaylists = refresh.playlists,
-                    ),
-                )
+                setPlaylistStatus(update.status)
+                setSelectedPlaylist(update.selectedPlaylist)
             } catch (exception: Exception) {
                 setPlaylistStatus(playlistRenameErrorMessage(exception))
             }
@@ -349,15 +340,16 @@ class DesktopPlaylistsController(
                     )
                 }
                 setPlaylistPendingDelete(null)
-                setPlaylists(refresh.playlists)
-                refreshHomePlaylists(refresh.playlists)
-                val update = playlistDeleteStateUpdate(
+                val update = playlistDeleteApplicationUpdate(
+                    refresh = refresh,
                     currentSelectedPlaylist = selectedPlaylist(),
                     currentSelectedPlaylistTracks = selectedPlaylistTracks(),
                     currentPlaylistTracksById = playlistTracksById(),
                     currentRecentPlaylistIds = recentPlaylistIds(),
                     deletedPlaylistId = playlist.id,
                 )
+                setPlaylists(update.playlists)
+                refreshHomePlaylists(update.playlists)
                 setSelectedPlaylist(update.selectedPlaylist)
                 setSelectedPlaylistTracks(update.selectedPlaylistTracks)
                 if (update.deletedSelectedPlaylist) {
@@ -365,7 +357,7 @@ class DesktopPlaylistsController(
                 }
                 setPlaylistTracksById(update.playlistTracksById)
                 setRecentPlaylistIds(update.recentPlaylistIds)
-                setPlaylistStatus(playlistDeletedStatus())
+                setPlaylistStatus(update.status)
             } catch (exception: Exception) {
                 setPlaylistStatus(playlistDeleteErrorMessage(exception))
             }
@@ -394,12 +386,6 @@ class DesktopPlaylistsController(
     }
 
     private fun refreshHomePlaylists(refreshedPlaylists: List<Playlist>) {
-        setHomeContent(
-            homeContent().copy(
-                playlists = homePlaylists(refreshedPlaylists, recentPlaylistIds()),
-                recentRadioStreams = recentRadioStreams(),
-                recentInternetRadioStations = recentInternetRadioStations(),
-            ),
-        )
+        setHomeContent(homeContent().withPlaylists(refreshedPlaylists, recentPlaylistIds()))
     }
 }
