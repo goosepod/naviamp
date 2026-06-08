@@ -46,6 +46,7 @@ import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackRequest
+import app.naviamp.domain.playback.nextRepeatMode
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.network.KtorSharedHttpClient
@@ -423,6 +424,13 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             ServiceRepeatMode.Off -> RepeatMode.Off
             ServiceRepeatMode.All -> RepeatMode.Queue
             ServiceRepeatMode.One -> RepeatMode.Track
+        }
+
+    private fun serviceRepeatModeFromQueue(mode: RepeatMode): ServiceRepeatMode =
+        when (mode) {
+            RepeatMode.Off -> ServiceRepeatMode.Off
+            RepeatMode.Queue -> ServiceRepeatMode.All
+            RepeatMode.Track -> ServiceRepeatMode.One
         }
 
     private fun playServiceOwnedAdjacent(delta: Int): Boolean =
@@ -1205,7 +1213,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     }
 
     private fun cycleServiceRepeatMode() {
-        serviceRepeatMode = serviceRepeatMode.next()
+        serviceRepeatMode = serviceRepeatModeFromQueue(nextRepeatMode(serviceRepeatModeForQueue()))
         updateMediaSessionPlaybackState()
     }
 
@@ -1396,14 +1404,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
 private enum class ServiceRepeatMode {
     Off,
     All,
-    One;
-
-    fun next(): ServiceRepeatMode =
-        when (this) {
-            Off -> All
-            All -> One
-            One -> Off
-        }
+    One,
 }
 
 private fun Bitmap.dominantColor(): Int {
