@@ -91,25 +91,32 @@ class DesktopRadioController(
         setLastRadioRefillSeedId(seedTrack.id)
         val activeRadioSessionId = radioSessionId()
         scope.launch {
-            try {
-                val fetchedTracks = withContext(Dispatchers.IO) {
-                    radioService(provider).trackRadio(seedTrack.id)
+            when (
+                val result = withContext(Dispatchers.IO) {
+                    seededRadioExpansionResult(
+                        radioService = radioService(provider),
+                    ) { radioService ->
+                        radioService.trackRadio(seedTrack.id)
+                    }
                 }
-                appendGeneratedRadioTracks(
-                    playlistEngine = playlistEngine,
-                    radioQueueActive = isRadioQueueActive(),
-                    radioSession = activeRadioSessionId,
-                    currentRadioSession = radioSessionId(),
-                    seedTrack = seedTrack,
-                    fetchedTracks = fetchedTracks,
-                    maxHistory = RadioQueueHistoryLimit,
-                )
-            } catch (exception: Exception) {
-                setConnectionStatus(exception.message ?: "Could not extend radio.")
-            } finally {
-                if (shouldFinishRadioRefillForSession(activeRadioSessionId, radioSessionId())) {
-                    setRadioRefilling(false)
+            ) {
+                is SeededRadioExpansionResult.Ready -> {
+                    appendGeneratedRadioTracks(
+                        playlistEngine = playlistEngine,
+                        radioQueueActive = isRadioQueueActive(),
+                        radioSession = activeRadioSessionId,
+                        currentRadioSession = radioSessionId(),
+                        seedTrack = seedTrack,
+                        fetchedTracks = result.fetchedTracks,
+                        maxHistory = RadioQueueHistoryLimit,
+                    )
                 }
+                is SeededRadioExpansionResult.Failed -> {
+                    setConnectionStatus(result.error.message ?: "Could not extend radio.")
+                }
+            }
+            if (shouldFinishRadioRefillForSession(activeRadioSessionId, radioSessionId())) {
+                setRadioRefilling(false)
             }
         }
     }
@@ -410,25 +417,30 @@ class DesktopRadioController(
         setRadioRefilling(true)
         setLastRadioRefillSeedId(track.id)
         scope.launch {
-            try {
-                val fetchedTracks = withContext(Dispatchers.IO) {
-                    radioService(provider, count = InitialSimilarRadioCount).trackRadio(track.id)
+            when (
+                val result = withContext(Dispatchers.IO) {
+                    seededRadioBuildResult(request, radioService(provider, count = InitialSimilarRadioCount))
                 }
-                replaceGeneratedRadioUpcomingTracks(
-                    playlistEngine = playlistEngine,
-                    radioQueueActive = isRadioQueueActive(),
-                    radioSession = activeRadioSessionId,
-                    currentRadioSession = radioSessionId(),
-                    currentTrack = track,
-                    fetchedTracks = fetchedTracks,
-                    maxHistory = RadioQueueHistoryLimit,
-                )
-                if (activeRadioSessionId == radioSessionId()) {
-                    setConnectionStatus("Building ${track.title} radio queue...")
+            ) {
+                is SeededRadioBuildResult.Ready -> {
+                    result.recentRadioStream?.let(rememberRadioStream)
+                    replaceGeneratedRadioUpcomingTracks(
+                        playlistEngine = playlistEngine,
+                        radioQueueActive = isRadioQueueActive(),
+                        radioSession = activeRadioSessionId,
+                        currentRadioSession = radioSessionId(),
+                        currentTrack = track,
+                        fetchedTracks = result.queue.drop(1),
+                        maxHistory = RadioQueueHistoryLimit,
+                    )
+                    if (activeRadioSessionId == radioSessionId()) {
+                        setConnectionStatus("Building ${track.title} radio queue...")
+                    }
                 }
-            } catch (exception: Exception) {
-                if (activeRadioSessionId == radioSessionId()) {
-                    setConnectionStatus(exception.message ?: "Could not build ${track.title} radio.")
+                is SeededRadioBuildResult.Failed -> {
+                    if (activeRadioSessionId == radioSessionId()) {
+                        setConnectionStatus(result.error.message ?: "Could not build ${track.title} radio.")
+                    }
                 }
             }
             if (shouldFinishRadioRefillForSession(activeRadioSessionId, radioSessionId())) {
@@ -436,20 +448,17 @@ class DesktopRadioController(
             }
             SimilarRadioExpansionCounts.forEach { count ->
                 if (!isRadioQueueActive() || activeRadioSessionId != radioSessionId()) return@launch
-                val fetchedTracks = runCatching {
-                    withContext(Dispatchers.IO) {
-                        radioService(provider, count = count).trackRadio(track.id)
-                    }
-                }.getOrElse {
-                    return@forEach
+                val result = withContext(Dispatchers.IO) {
+                    seededRadioExpansionResult(request, radioService(provider, count = count))
                 }
+                if (result !is SeededRadioExpansionResult.Ready) return@forEach
                 appendGeneratedRadioUpcomingTracks(
                     playlistEngine = playlistEngine,
                     radioQueueActive = isRadioQueueActive(),
                     radioSession = activeRadioSessionId,
                     currentRadioSession = radioSessionId(),
                     currentTrack = track,
-                    fetchedTracks = fetchedTracks,
+                    fetchedTracks = result.fetchedTracks,
                     maxHistory = RadioQueueHistoryLimit,
                 )
                 if (activeRadioSessionId == radioSessionId()) {

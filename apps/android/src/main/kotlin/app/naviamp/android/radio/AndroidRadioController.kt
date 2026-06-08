@@ -25,7 +25,6 @@ import app.naviamp.domain.radio.albumRecentRadioStream
 import app.naviamp.domain.radio.artistRecentRadioStream
 import app.naviamp.domain.radio.decadeRecentRadioStream
 import app.naviamp.domain.radio.generatedRadioTracksToAppend
-import app.naviamp.domain.radio.generatedRadioQueue
 import app.naviamp.domain.radio.genreRecentRadioStream
 import app.naviamp.domain.radio.genreMixRadioRequest
 import app.naviamp.domain.radio.libraryRecentRadioStream
@@ -36,6 +35,7 @@ import app.naviamp.domain.radio.selectAlbumRadioSeedTrack
 import app.naviamp.domain.radio.seededRadioBuildResult
 import app.naviamp.domain.radio.seededRadioExpansionResult
 import app.naviamp.domain.radio.trackRecentRadioStream
+import app.naviamp.domain.radio.trackRadioRequest
 import app.naviamp.domain.radio.withRadioCoverArtIds
 import app.naviamp.domain.settings.RecentRadioStream
 import kotlinx.coroutines.CoroutineScope
@@ -85,26 +85,36 @@ fun refillAndroidRadioIfNeeded(
     state.lastRadioRefillSeedId = seedTrack.id
     scope.launch {
         try {
-            val fetchedTracks = withContext(Dispatchers.IO) {
-                RadioService(activeProvider, count = AndroidRadioRefillCount).trackRadio(seedTrack.id)
-            }
-            val newTracks = generatedRadioTracksToAppend(
-                seedTrack = seedTrack,
-                fetchedTracks = fetchedTracks,
-                queuedTracks = state.playbackQueue.tracks,
-            )
-            if (state.radioQueueActive && newTracks.isNotEmpty()) {
-                queueController.replaceQueue(state.playbackQueue, clearPreparedNext = false)
-                queueController.appendTracks(
-                    tracks = newTracks,
-                    maxHistory = AndroidRadioQueueHistoryLimit,
-                )?.let { updatedQueue ->
-                    state.playbackQueue = updatedQueue
+            when (
+                val result = withContext(Dispatchers.IO) {
+                    seededRadioExpansionResult(
+                        radioService = RadioService(activeProvider, count = AndroidRadioRefillCount),
+                    ) { radioService ->
+                        radioService.trackRadio(seedTrack.id)
+                    }
                 }
-                state.status = "Extending radio queue (${state.playbackQueue.tracks.size} tracks)..."
+            ) {
+                is SeededRadioExpansionResult.Ready -> {
+                    val newTracks = generatedRadioTracksToAppend(
+                        seedTrack = seedTrack,
+                        fetchedTracks = result.fetchedTracks,
+                        queuedTracks = state.playbackQueue.tracks,
+                    )
+                    if (state.radioQueueActive && newTracks.isNotEmpty()) {
+                        queueController.replaceQueue(state.playbackQueue, clearPreparedNext = false)
+                        queueController.appendTracks(
+                            tracks = newTracks,
+                            maxHistory = AndroidRadioQueueHistoryLimit,
+                        )?.let { updatedQueue ->
+                            state.playbackQueue = updatedQueue
+                        }
+                        state.status = "Extending radio queue (${state.playbackQueue.tracks.size} tracks)..."
+                    }
+                }
+                is SeededRadioExpansionResult.Failed -> {
+                    state.status = result.error.message ?: "Could not extend radio."
+                }
             }
-        } catch (error: Exception) {
-            state.status = error.message ?: "Could not extend radio."
         } finally {
             if (state.lastRadioRefillSeedId == seedTrack.id) {
                 state.radioRefilling = false
@@ -544,10 +554,16 @@ fun startAndroidTrackRadioQueue(
     scope.launch {
         with(state) {
             status = "Starting ${track.title} radio..."
-            runCatching { RadioService(activeProvider, count = AndroidInitialSimilarRadioCount).trackRadio(track.id) }
-                .onSuccess { radioTracks ->
-                    val queue = generatedRadioQueue(track, radioTracks)
-                    rememberRecentRadioStream(trackRecentRadioStream(track).withRadioCoverArtIds(queue))
+            val request = trackRadioRequest(track)
+            when (
+                val result = seededRadioBuildResult(
+                    request = request,
+                    radioService = RadioService(activeProvider, count = AndroidInitialSimilarRadioCount),
+                )
+            ) {
+                is SeededRadioBuildResult.Ready -> {
+                    val queue = result.queue
+                    result.recentRadioStream?.let(rememberRecentRadioStream)
                     if (playSeed) {
                         playTrack(track, queue)
                     } else {
@@ -560,22 +576,23 @@ fun startAndroidTrackRadioQueue(
                     radioRefilling = false
                     AndroidSimilarRadioExpansionCounts.forEach { count ->
                         if (nowPlaying?.id != track.id) return@launch
-                        val fetchedTracks = runCatching {
-                            RadioService(activeProvider, count = count).trackRadio(track.id)
-                        }.getOrElse {
-                            return@forEach
-                        }
-                        appendAndroidGeneratedRadioTracks(state, queueController, track, fetchedTracks)
+                        val expansionResult = seededRadioExpansionResult(
+                            request = request,
+                            radioService = RadioService(activeProvider, count = count),
+                        )
+                        if (expansionResult !is SeededRadioExpansionResult.Ready) return@forEach
+                        appendAndroidGeneratedRadioTracks(state, queueController, track, expansionResult.fetchedTracks)
                         status = "Building ${track.title} radio queue (${playbackQueue.tracks.size} tracks)..."
                     }
                     if (nowPlaying?.id == track.id) {
                         status = "Track radio loaded."
                     }
                 }
-                .onFailure { error ->
+                is SeededRadioBuildResult.Failed -> {
                     radioRefilling = false
-                    status = error.message ?: "Could not start track radio."
+                    status = result.error.message ?: "Could not start track radio."
                 }
+            }
         }
     }
 }

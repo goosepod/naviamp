@@ -1178,6 +1178,14 @@ Progress notes:
   - `DesktopRadioController.kt` no longer hand-loads seeded initial radio tracks or catches seeded expansion loads inside `startSeeded`.
   - Shared domain now owns generated seeded queue/result shaping, while convert-current-track-to-radio and upcoming-track replacement remain as the next generated-queue extraction target.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.radio.RadioRequestsTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
+- Reused shared seeded expansion/build results for radio refill and generated-upcoming queue conversion.
+- Android `refillAndroidRadioIfNeeded`, Android `startAndroidTrackRadioQueue`, Desktop `refillIfNeeded`, and Desktop `convertCurrentTrackToRadio` now share provider-load failure classification and generated queue construction through the domain radio result helpers.
+- Platform code still owns the correct side effects: Android `PlaybackQueueController` replacement/append, Desktop `DesktopPlaylistEngine` upcoming replacement/append, active-session checks, current-track fallback routing, and concrete status targets.
+- Size/reduction note for this slice:
+  - `AndroidRadioController.kt` no longer hand-catches refill loads or hand-builds generated track-radio queues in `startAndroidTrackRadioQueue`.
+  - `DesktopRadioController.kt` no longer hand-catches refill, initial upcoming replacement, or upcoming expansion loads.
+  - Shared domain result helpers now cover non-seeded starts, seeded starts, seeded expansion, refill, and generated-upcoming track-radio loads.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.radio.RadioRequestsTest --tests app.naviamp.domain.radio.RadioQueueRulesTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
 
