@@ -3,6 +3,7 @@ package app.naviamp.android
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.app.NaviampRoute
+import app.naviamp.domain.cache.downloadConnectionRequiredStatus
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.provider.PlaylistHomeProjection
@@ -42,6 +43,7 @@ import app.naviamp.domain.provider.deletePlaylistAndRefresh
 import app.naviamp.domain.provider.preloadPlaylistTracksStateUpdate
 import app.naviamp.domain.provider.updateSmartPlaylistStateUpdate
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
+import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.provider.navidrome.NavidromeProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -272,6 +274,116 @@ fun preloadAndroidPlaylistTracks(
             currentPlaylistTracksById = state.playlistTracksById,
             providerResponseService = providerResponseService,
         ).playlistTracksById
+    }
+}
+
+fun withAndroidPlaylistTracks(
+    scope: CoroutineScope,
+    state: AndroidAppState,
+    playlist: Playlist,
+    providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
+    onTracks: (List<Track>) -> Unit,
+) {
+    val knownTracks = when {
+        state.selectedPlaylist?.id == playlist.id && state.selectedPlaylistTracks.isNotEmpty() -> {
+            state.selectedPlaylistTracks
+        }
+        else -> state.playlistTracksById[playlist.id].orEmpty()
+    }
+    if (knownTracks.isNotEmpty()) {
+        onTracks(knownTracks)
+        return
+    }
+    val activeProvider = state.provider ?: run {
+        state.status = "Connect to Navidrome first."
+        return
+    }
+    val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
+    scope.launch {
+        state.status = "Loading ${playlist.name}..."
+        runCatching {
+            withContext(Dispatchers.IO) {
+                providerResponseService?.playlistTracks(activeProvider, playlist.id)
+                    ?: activeProvider.playlistTracks(playlist.id)
+            }
+        }.onSuccess { tracks ->
+            state.playlistTracksById = state.playlistTracksById + (playlist.id to tracks)
+            if (state.selectedPlaylist?.id == playlist.id) {
+                state.contentState = state.contentState.showPlaylist(playlist, tracks)
+                state.tracks = tracks
+            }
+            state.status = ""
+            onTracks(tracks)
+        }.onFailure { error ->
+            state.status = error.message ?: "Could not load ${playlist.name}."
+        }
+    }
+}
+
+fun addAndroidPlaylistToQueue(
+    scope: CoroutineScope,
+    state: AndroidAppState,
+    playlist: Playlist,
+    providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
+    appendTracksToQueue: (List<Track>, String) -> Unit,
+) {
+    withAndroidPlaylistTracks(scope, state, playlist, providerResponseCacheRepository) { tracks ->
+        appendTracksToQueue(tracks, playlist.name)
+    }
+}
+
+fun addAndroidPlaylistToPlaylist(
+    scope: CoroutineScope,
+    state: AndroidAppState,
+    playlist: Playlist,
+    targetPlaylist: NaviampPlaylistChoiceUi?,
+    newPlaylistName: String?,
+    providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
+    addTracksToPlaylist: (List<Track>, NaviampPlaylistChoiceUi?, String?, String) -> Unit,
+) {
+    withAndroidPlaylistTracks(scope, state, playlist, providerResponseCacheRepository) { tracks ->
+        addTracksToPlaylist(tracks, targetPlaylist, newPlaylistName, playlist.name)
+    }
+}
+
+fun downloadAndroidPlaylist(
+    scope: CoroutineScope,
+    state: AndroidAppState,
+    playlist: Playlist,
+    providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
+    downloadTracks: (List<Track>, String) -> Unit,
+) {
+    val activeProvider = state.provider ?: run {
+        state.downloadStatus = downloadConnectionRequiredStatus()
+        state.status = state.downloadStatus.orEmpty()
+        return
+    }
+    val loadedTracks = when {
+        state.selectedPlaylist?.id == playlist.id && state.selectedPlaylistTracks.isNotEmpty() -> {
+            state.selectedPlaylistTracks
+        }
+        else -> state.playlistTracksById[playlist.id].orEmpty()
+    }
+    if (loadedTracks.isNotEmpty()) {
+        downloadTracks(loadedTracks, playlist.name)
+        return
+    }
+    val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
+    state.downloadStatus = "Loading ${playlist.name}..."
+    state.status = state.downloadStatus.orEmpty()
+    scope.launch {
+        runCatching {
+            withContext(Dispatchers.IO) {
+                providerResponseService?.playlistTracks(activeProvider, playlist.id)
+                    ?: activeProvider.playlistTracks(playlist.id)
+            }
+        }.onSuccess { tracks ->
+            state.playlistTracksById = state.playlistTracksById + (playlist.id to tracks)
+            downloadTracks(tracks, playlist.name)
+        }.onFailure { error ->
+            state.downloadStatus = error.message ?: "Could not load ${playlist.name}."
+            state.status = state.downloadStatus.orEmpty()
+        }
     }
 }
 

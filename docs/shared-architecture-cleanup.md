@@ -1268,6 +1268,9 @@ Progress notes:
 - Moved Android report-now-playing and report-played provider submissions into `AndroidPlaybackReportController.kt`.
 - `MainActivity.kt` dropped to 1,599 lines after the Android playback reporting extraction; `AndroidPlaybackReportController.kt` is 67 lines.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Moved Android playlist track loading, playlist-to-queue, playlist-to-playlist, and playlist download orchestration into `AndroidPlaylistsController.kt`.
+- `MainActivity.kt` dropped to 1,542 lines after the Android playlist track action extraction.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 

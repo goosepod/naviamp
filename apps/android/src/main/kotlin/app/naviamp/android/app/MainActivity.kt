@@ -52,7 +52,6 @@ import app.naviamp.domain.home.HomeStationRandomAlbum
 import app.naviamp.domain.home.homeDecadeStationId
 import app.naviamp.domain.home.homeGenreStationId
 import app.naviamp.domain.cache.ProviderResponseService
-import app.naviamp.domain.cache.downloadConnectionRequiredStatus
 import app.naviamp.domain.artistmix.artistMixPopularQueue
 import app.naviamp.domain.albummix.albumMixTrackQueue
 import app.naviamp.domain.media.albumDetailLoadErrorStatus
@@ -964,43 +963,8 @@ private fun NaviampAndroidApp(
         status = "Sleep timer canceled."
     }
 
-    fun withPlaylistTracks(playlist: Playlist, onTracks: (List<Track>) -> Unit) {
-        val knownTracks = when {
-            selectedPlaylist?.id == playlist.id && selectedPlaylistTracks.isNotEmpty() -> selectedPlaylistTracks
-            else -> playlistTracksById[playlist.id].orEmpty()
-        }
-        if (knownTracks.isNotEmpty()) {
-            onTracks(knownTracks)
-            return
-        }
-        val activeProvider = provider ?: run {
-            status = "Connect to Navidrome first."
-            return
-        }
-        scope.launch {
-            status = "Loading ${playlist.name}..."
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    ProviderResponseService(storage).playlistTracks(activeProvider, playlist.id)
-                }
-            }.onSuccess { tracks ->
-                playlistTracksById = playlistTracksById + (playlist.id to tracks)
-                if (selectedPlaylist?.id == playlist.id) {
-                    contentState = contentState.showPlaylist(playlist, tracks)
-                    appState.tracks = tracks
-                }
-                status = ""
-                onTracks(tracks)
-            }.onFailure { error ->
-                status = error.message ?: "Could not load ${playlist.name}."
-            }
-        }
-    }
-
     fun addPlaylistToQueue(playlist: Playlist) {
-        withPlaylistTracks(playlist) { tracks ->
-            appendTracksToQueue(tracks, playlist.name)
-        }
+        addAndroidPlaylistToQueue(scope, appState, playlist, storage, ::appendTracksToQueue)
     }
 
     fun addPlaylistToPlaylist(
@@ -1008,9 +972,15 @@ private fun NaviampAndroidApp(
         targetPlaylist: NaviampPlaylistChoiceUi?,
         newPlaylistName: String?,
     ) {
-        withPlaylistTracks(playlist) { tracks ->
-            addTracksToPlaylist(tracks, targetPlaylist, newPlaylistName, playlist.name)
-        }
+        addAndroidPlaylistToPlaylist(
+            scope = scope,
+            state = appState,
+            playlist = playlist,
+            targetPlaylist = targetPlaylist,
+            newPlaylistName = newPlaylistName,
+            providerResponseCacheRepository = storage,
+            addTracksToPlaylist = ::addTracksToPlaylist,
+        )
     }
 
     fun downloadTrack(track: Track) {
@@ -1039,34 +1009,7 @@ private fun NaviampAndroidApp(
     }
 
     fun downloadPlaylist(playlist: Playlist) {
-        val activeProvider = provider ?: run {
-            downloadStatus = downloadConnectionRequiredStatus()
-            status = downloadStatus.orEmpty()
-            return
-        }
-        val loadedTracks = when {
-            selectedPlaylist?.id == playlist.id && selectedPlaylistTracks.isNotEmpty() -> selectedPlaylistTracks
-            else -> playlistTracksById[playlist.id].orEmpty()
-        }
-        if (loadedTracks.isNotEmpty()) {
-            downloadTracks(loadedTracks, playlist.name)
-            return
-        }
-        downloadStatus = "Loading ${playlist.name}..."
-        status = downloadStatus.orEmpty()
-        scope.launch {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    ProviderResponseService(storage).playlistTracks(activeProvider, playlist.id)
-                }
-            }.onSuccess { tracks ->
-                playlistTracksById = playlistTracksById + (playlist.id to tracks)
-                downloadTracks(tracks, playlist.name)
-            }.onFailure { error ->
-                downloadStatus = error.message ?: "Could not load ${playlist.name}."
-                status = downloadStatus.orEmpty()
-            }
-        }
+        downloadAndroidPlaylist(scope, appState, playlist, storage, ::downloadTracks)
     }
 
     fun removeDownload(download: NaviampDownloadedTrackUi) {
