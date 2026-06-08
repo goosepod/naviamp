@@ -27,16 +27,14 @@ import app.naviamp.domain.provider.refreshPlaylistDetailsApplication
 import app.naviamp.domain.provider.refreshPlaylistListState
 import app.naviamp.domain.provider.renamePlaylistAndRefresh
 import app.naviamp.domain.provider.saveQueueAsPlaylistStateUpdate
-import app.naviamp.domain.provider.saveSmartPlaylistAndRefresh
 import app.naviamp.domain.provider.smartPlaylistSaveErrorMessage
-import app.naviamp.domain.provider.smartPlaylistSaveStateUpdate
+import app.naviamp.domain.provider.saveSmartPlaylistStateUpdate
 import app.naviamp.domain.provider.smartPlaylistSavingStatus
 import app.naviamp.domain.provider.smartPlaylistUpdateErrorMessage
-import app.naviamp.domain.provider.smartPlaylistUpdateStateUpdate
 import app.naviamp.domain.provider.smartPlaylistUpdatingStatus
 import app.naviamp.domain.provider.deletePlaylistAndRefresh
 import app.naviamp.domain.provider.preloadPlaylistTracksStateUpdate
-import app.naviamp.domain.provider.updateSmartPlaylistAndRefresh
+import app.naviamp.domain.provider.updateSmartPlaylistStateUpdate
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.provider.navidrome.NavidromeProvider
 import kotlinx.coroutines.CoroutineScope
@@ -336,8 +334,12 @@ suspend fun saveAndroidSmartPlaylist(
     state.status = smartPlaylistSavingStatus(definition)
     try {
         val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
-        val refresh = saveSmartPlaylistAndRefresh(activeProvider, definition, providerResponseService)
-        val update = smartPlaylistSaveStateUpdate(refresh, state.playlistTracksById)
+        val update = saveSmartPlaylistStateUpdate(
+            provider = activeProvider,
+            definition = definition,
+            currentPlaylistTracksById = state.playlistTracksById,
+            providerResponseService = providerResponseService,
+        )
         state.playlistTracksById = update.playlistTracksById
         applyAndroidPlaylistListApplication(state, update.playlists)
         preloadAndroidPlaylistTracks(scope, state, activeProvider, update.playlists, providerResponseCacheRepository = null)
@@ -360,11 +362,13 @@ suspend fun updateAndroidSmartPlaylist(
     state.status = smartPlaylistUpdatingStatus(definition)
     try {
         val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
-        val refresh = updateSmartPlaylistAndRefresh(activeProvider, playlist, definition, providerResponseService)
-        val update = smartPlaylistUpdateStateUpdate(
-            refresh = refresh,
+        val update = updateSmartPlaylistStateUpdate(
+            provider = activeProvider,
+            playlist = playlist,
+            definition = definition,
             currentSelectedPlaylist = state.selectedPlaylist,
             currentPlaylistTracksById = state.playlistTracksById,
+            providerResponseService = providerResponseService,
         )
         state.playlistTracksById = update.playlistTracksById
         applyAndroidPlaylistListApplication(state, update.playlists)

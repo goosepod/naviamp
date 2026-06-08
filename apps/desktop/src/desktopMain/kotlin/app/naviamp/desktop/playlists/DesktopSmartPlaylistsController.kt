@@ -9,16 +9,14 @@ import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.provider.PlaylistHomeProjection
 import app.naviamp.domain.provider.playlistListApplication
-import app.naviamp.domain.provider.saveSmartPlaylistAndRefresh
+import app.naviamp.domain.provider.saveSmartPlaylistStateUpdate
 import app.naviamp.domain.provider.smartPlaylistLoadErrorMessage
 import app.naviamp.domain.provider.smartPlaylistLoadingRulesStatus
 import app.naviamp.domain.provider.smartPlaylistSaveErrorMessage
-import app.naviamp.domain.provider.smartPlaylistSaveStateUpdate
 import app.naviamp.domain.provider.smartPlaylistSavingStatus
 import app.naviamp.domain.provider.smartPlaylistUpdateErrorMessage
-import app.naviamp.domain.provider.smartPlaylistUpdateStateUpdate
 import app.naviamp.domain.provider.smartPlaylistUpdatingStatus
-import app.naviamp.domain.provider.updateSmartPlaylistAndRefresh
+import app.naviamp.domain.provider.updateSmartPlaylistStateUpdate
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
@@ -78,10 +76,14 @@ class DesktopSmartPlaylistsController(
                 activeProvider = refreshedProvider
                 setConnectionStatus("Smart playlist authentication refreshed.")
             }
-            val refresh = withContext(Dispatchers.IO) {
-                saveSmartPlaylistAndRefresh(activeProvider, definition, providerResponseService)
+            val update = withContext(Dispatchers.IO) {
+                saveSmartPlaylistStateUpdate(
+                    provider = activeProvider,
+                    definition = definition,
+                    currentPlaylistTracksById = playlistTracksById(),
+                    providerResponseService = providerResponseService,
+                )
             }
-            val update = smartPlaylistSaveStateUpdate(refresh, playlistTracksById())
             setPlaylistTracksById(update.playlistTracksById)
             applyPlaylistListApplication(update.playlists)
             setPlaylistStatus(update.status)
@@ -100,14 +102,16 @@ class DesktopSmartPlaylistsController(
             ?: throw IllegalStateException("Connect to Navidrome before updating smart playlists.")
         setPlaylistStatus(smartPlaylistUpdatingStatus(definition))
         try {
-            val refresh = withContext(Dispatchers.IO) {
-                updateSmartPlaylistAndRefresh(activeProvider, playlist, definition, providerResponseService)
+            val update = withContext(Dispatchers.IO) {
+                updateSmartPlaylistStateUpdate(
+                    provider = activeProvider,
+                    playlist = playlist,
+                    definition = definition,
+                    currentSelectedPlaylist = selectedPlaylist(),
+                    currentPlaylistTracksById = playlistTracksById(),
+                    providerResponseService = providerResponseService,
+                )
             }
-            val update = smartPlaylistUpdateStateUpdate(
-                refresh = refresh,
-                currentSelectedPlaylist = selectedPlaylist(),
-                currentPlaylistTracksById = playlistTracksById(),
-            )
             setPlaylistTracksById(update.playlistTracksById)
             applyPlaylistListApplication(update.playlists)
             update.selectionApplication?.let { selection ->

@@ -1187,6 +1187,23 @@ fun smartPlaylistSaveStateUpdate(
         status = smartPlaylistSavedStatus(refresh.displayPlaylist, refresh.tracks.size),
     )
 
+suspend fun saveSmartPlaylistStateUpdate(
+    provider: MediaProvider,
+    definition: SmartPlaylistDefinition,
+    currentPlaylistTracksById: Map<String, List<Track>>,
+    providerResponseService: ProviderResponseService? = null,
+    playlistLimit: Int = 500,
+): SmartPlaylistMutationStateUpdate =
+    smartPlaylistSaveStateUpdate(
+        refresh = saveSmartPlaylistAndRefresh(
+            provider = provider,
+            definition = definition,
+            providerResponseService = providerResponseService,
+            playlistLimit = playlistLimit,
+        ),
+        currentPlaylistTracksById = currentPlaylistTracksById,
+    )
+
 fun smartPlaylistUpdateStateUpdate(
     refresh: PlaylistDetailsRefresh,
     currentSelectedPlaylist: Playlist?,
@@ -1210,6 +1227,27 @@ fun smartPlaylistUpdateStateUpdate(
         status = smartPlaylistUpdatedStatus(refresh.displayPlaylist, refresh.tracks.size),
     )
 }
+
+suspend fun updateSmartPlaylistStateUpdate(
+    provider: MediaProvider,
+    playlist: Playlist,
+    definition: SmartPlaylistDefinition,
+    currentSelectedPlaylist: Playlist?,
+    currentPlaylistTracksById: Map<String, List<Track>>,
+    providerResponseService: ProviderResponseService? = null,
+    playlistLimit: Int = 500,
+): SmartPlaylistMutationStateUpdate =
+    smartPlaylistUpdateStateUpdate(
+        refresh = updateSmartPlaylistAndRefresh(
+            provider = provider,
+            playlist = playlist,
+            definition = definition,
+            providerResponseService = providerResponseService,
+            playlistLimit = playlistLimit,
+        ),
+        currentSelectedPlaylist = currentSelectedPlaylist,
+        currentPlaylistTracksById = currentPlaylistTracksById,
+    )
 
 fun smartPlaylistSaveErrorMessage(error: Throwable): String =
     if (error.message == "Reconnect to Navidrome with your password before saving smart playlists.") {

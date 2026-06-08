@@ -1050,6 +1050,14 @@ Progress notes:
   - `AndroidPlaylistsController.kt` and `DesktopPlaylistsController.kt` both dropped local refresh-to-state composition in the queue-save flow.
   - Shared domain keeps provider mutation, cache invalidation, playlist refresh, and final status text in one tested call path.
 - Verification passed: `./gradlew :core:domain:jvmTest --tests app.naviamp.domain.provider.PlaylistMutationsTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Added shared smart playlist provider-backed state composition with `saveSmartPlaylistStateUpdate` and `updateSmartPlaylistStateUpdate`.
+- Android and Desktop smart playlist save/update handlers now ask shared domain for the final playlist/track/status/selection update instead of each composing provider refresh plus state update.
+- Platform code still owns smart-playlist-specific side effects: desktop authentication refresh, saved media-source persistence, password clearing, status target assignment, and stats refresh ticks; Android keeps state assignment and preload launch ownership.
+- Added common `PlaylistMutationsTest.kt` coverage for provider-backed smart playlist save/update state helpers.
+- Size/reduction note for the smart playlist state update slice:
+  - `AndroidPlaylistsController.kt` and `DesktopSmartPlaylistsController.kt` both dropped local smart playlist refresh-to-state composition.
+  - Shared domain now owns smart playlist create/update, cache invalidation, playlist refresh, selected-detail application planning, and final status text through one tested path.
+- Verification passed: `./gradlew :core:domain:jvmTest --tests app.naviamp.domain.provider.PlaylistMutationsTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 

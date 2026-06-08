@@ -12,6 +12,7 @@ import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.home.HomeContent
+import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.smartplaylist.SmartPlaylistTemplates
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -783,7 +784,7 @@ class PlaylistMutationsTest {
     }
 
     @Test
-    fun smartPlaylistStatusMessagesIncludeTrackCount() {
+    fun smartPlaylistStatusMessagesIncludeTrackCount() = kotlinx.coroutines.test.runTest {
         val playlist = playlist("smart", "Smart")
         val definition = SmartPlaylistTemplates.favorites().copy(name = "Smart")
         val tracks = listOf(track("one"), track("two"))
@@ -841,6 +842,25 @@ class PlaylistMutationsTest {
                 currentSelectedPlaylist = playlist("other", "Other"),
                 currentPlaylistTracksById = emptyMap(),
             ).selectionApplication,
+        )
+        val provider = FakePlaylistProvider(playlists = listOf(playlist), playlistTracks = tracks)
+        assertEquals(
+            "Saved smart playlist Smart with 2 tracks.",
+            saveSmartPlaylistStateUpdate(
+                provider = provider,
+                definition = definition,
+                currentPlaylistTracksById = emptyMap(),
+            ).status,
+        )
+        assertEquals(
+            "Updated smart playlist Smart with 2 tracks.",
+            updateSmartPlaylistStateUpdate(
+                provider = provider,
+                playlist = playlist,
+                definition = definition,
+                currentSelectedPlaylist = playlist,
+                currentPlaylistTracksById = emptyMap(),
+            ).status,
         )
     }
 
@@ -1108,6 +1128,14 @@ class PlaylistMutationsTest {
 
         override suspend fun deletePlaylist(playlistId: String) {
             deletedPlaylistId = playlistId
+        }
+
+        override suspend fun createSmartPlaylist(definition: SmartPlaylistDefinition): Playlist =
+            Playlist(id = "smart", name = definition.name, trackCount = playlistTracks.size)
+
+        override suspend fun updateSmartPlaylist(playlistId: String, definition: SmartPlaylistDefinition) {
+            renamedPlaylistId = playlistId
+            renamedPlaylistName = definition.name
         }
 
         override suspend fun playlists(limit: Int): List<Playlist> =
