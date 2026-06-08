@@ -122,6 +122,62 @@ class PlaylistMutationsTest {
                 requestedPlaylistId = "one",
             ).selectedPlaylist,
         )
+        assertEquals(
+            PlaylistDetailsOpenPlan(
+                recentPlaylistIds = listOf("one", "two"),
+                loadingStatus = "Loading Old...",
+            ),
+            playlistDetailsOpenPlan(current, recentPlaylistIds = listOf("two"), recentPlaylistLimit = 2),
+        )
+        assertEquals("Connected.", playlistDetailsLoadedStatus())
+        assertEquals("Playlist failed to load.", playlistDetailsErrorMessage(Exception()))
+        assertEquals(
+            PlaylistDetailsApplicationUpdate(
+                playlists = listOf(refreshed, other),
+                selectedPlaylist = refreshed,
+                selectedPlaylistTracks = tracks,
+                playlistTracksById = mapOf("one" to tracks),
+                selectedPlaylistChanged = true,
+                status = "Connected.",
+            ),
+            playlistDetailsApplicationUpdate(
+                currentSelectedPlaylist = current,
+                currentSelectedPlaylistTracks = emptyList(),
+                currentPlaylistTracksById = emptyMap(),
+                refresh = refresh,
+                requestedPlaylistId = "one",
+                status = playlistDetailsLoadedStatus(),
+            ),
+        )
+    }
+
+    @Test
+    fun refreshPlaylistDetailsApplicationLoadsAndPlansState() = kotlinx.coroutines.test.runTest {
+        val stalePlaylist = playlist("one", "Old")
+        val refreshedPlaylist = playlist("one", "New")
+        val tracks = listOf(track("one"))
+        val provider = FakePlaylistProvider(
+            playlists = listOf(refreshedPlaylist),
+            playlistTracks = tracks,
+        )
+
+        assertEquals(
+            PlaylistDetailsApplicationUpdate(
+                playlists = listOf(refreshedPlaylist.copy(trackCount = 1)),
+                selectedPlaylist = refreshedPlaylist.copy(trackCount = 1),
+                selectedPlaylistTracks = tracks,
+                playlistTracksById = mapOf("one" to tracks),
+                selectedPlaylistChanged = true,
+                status = "Connected.",
+            ),
+            provider.refreshPlaylistDetailsApplication(
+                playlist = stalePlaylist,
+                currentSelectedPlaylist = stalePlaylist,
+                currentSelectedPlaylistTracks = emptyList(),
+                currentPlaylistTracksById = emptyMap(),
+                status = playlistDetailsLoadedStatus(),
+            ),
+        )
     }
 
     @Test

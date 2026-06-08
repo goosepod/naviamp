@@ -9,7 +9,10 @@ import app.naviamp.domain.provider.clearPendingPlaybackAction
 import app.naviamp.domain.provider.playlistDeleteErrorMessage
 import app.naviamp.domain.provider.playlistDeleteLoadingStatus
 import app.naviamp.domain.provider.playlistDeleteApplicationUpdate
-import app.naviamp.domain.provider.playlistDetailsStateUpdate
+import app.naviamp.domain.provider.playlistDetailsErrorMessage
+import app.naviamp.domain.provider.playlistDetailsLoadedStatus
+import app.naviamp.domain.provider.playlistDetailsLoadingStatus
+import app.naviamp.domain.provider.playlistDetailsOpenPlan
 import app.naviamp.domain.provider.playlistListRefresh
 import app.naviamp.domain.provider.playlistPlaybackStartPlan
 import app.naviamp.domain.provider.preparePlaylistPlayback
@@ -19,8 +22,7 @@ import app.naviamp.domain.provider.playlistRenameStateUpdate
 import app.naviamp.domain.provider.queuePlaylistSaveErrorMessage
 import app.naviamp.domain.provider.queuePlaylistSaveLoadingStatus
 import app.naviamp.domain.provider.queuePlaylistSaveStateUpdate
-import app.naviamp.domain.provider.recentPlaylistIdsAfterPlayed
-import app.naviamp.domain.provider.refreshPlaylistDetails
+import app.naviamp.domain.provider.refreshPlaylistDetailsApplication
 import app.naviamp.domain.provider.refreshPlaylistsAndPlanPreload
 import app.naviamp.domain.provider.renamePlaylistAndRefresh
 import app.naviamp.domain.provider.saveQueueAsPlaylistAndRefresh
@@ -49,30 +51,27 @@ suspend fun refreshAndroidPlaylistDetailsFromServer(
     providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
 ) {
     with(state) {
-        if (showLoadingStatus) status = "Loading ${playlist.name}..."
+        if (showLoadingStatus) status = playlistDetailsLoadingStatus(playlist)
         val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
-        val refresh = withContext(Dispatchers.IO) {
-            activeProvider.refreshPlaylistDetails(
+        val update = withContext(Dispatchers.IO) {
+            activeProvider.refreshPlaylistDetailsApplication(
                 playlist = playlist,
+                currentSelectedPlaylist = selectedPlaylist,
+                currentSelectedPlaylistTracks = selectedPlaylistTracks,
+                currentPlaylistTracksById = playlistTracksById,
                 providerResponseService = providerResponseService,
+                status = if (showLoadingStatus) playlistDetailsLoadedStatus() else null,
             )
         }
-        val update = playlistDetailsStateUpdate(
-            currentSelectedPlaylist = selectedPlaylist,
-            currentSelectedPlaylistTracks = selectedPlaylistTracks,
-            currentPlaylistTracksById = playlistTracksById,
-            refresh = refresh,
-            requestedPlaylistId = playlist.id,
-        )
         homeState = homeState.copy(playlists = update.playlists)
         playlistTracksById = update.playlistTracksById
-        if (selectedPlaylist?.id == playlist.id) {
+        if (update.selectedPlaylistChanged) {
             contentState = contentState.showPlaylist(
                 playlist = requireNotNull(update.selectedPlaylist),
                 tracks = update.selectedPlaylistTracks,
             )
             tracks = update.selectedPlaylistTracks
-            if (showLoadingStatus) status = "Connected."
+            update.status?.let { status = it }
         }
     }
 }
@@ -84,28 +83,27 @@ fun openAndroidPlaylistDetails(
     providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
 ) {
     val activeProvider = state.provider ?: return
+    val openPlan = playlistDetailsOpenPlan(playlist, state.recentPlaylistIds, recentPlaylistLimit = 20)
     with(state) {
         contentState = contentState.showPlaylist(playlist)
         navigationState = navigationState.copy(route = NaviampRoute.Playlists)
         nowPlayingOpen = false
-        recentPlaylistIds = recentPlaylistIdsAfterPlayed(recentPlaylistIds, playlist.id, limit = 20)
+        recentPlaylistIds = openPlan.recentPlaylistIds
     }
     scope.launch {
         with(state) {
-            status = "Loading ${playlist.name}..."
+            status = openPlan.loadingStatus
             runCatching {
                 refreshAndroidPlaylistDetailsFromServer(
                     state = state,
                     activeProvider = activeProvider,
                     playlist = playlist,
-                    showLoadingStatus = false,
+                    showLoadingStatus = true,
                     providerResponseCacheRepository = providerResponseCacheRepository,
                 )
-            }.onSuccess {
-                status = "Connected."
             }.onFailure { error ->
                 contentState = contentState.showPlaylist(playlist)
-                status = error.message ?: "Playlist failed to load."
+                status = playlistDetailsErrorMessage(error)
             }
         }
     }

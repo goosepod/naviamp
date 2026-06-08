@@ -92,6 +92,20 @@ data class PlaylistDetailsStateUpdate(
     val playlistTracksById: Map<String, List<Track>>,
 )
 
+data class PlaylistDetailsOpenPlan(
+    val recentPlaylistIds: List<String>,
+    val loadingStatus: String,
+)
+
+data class PlaylistDetailsApplicationUpdate(
+    val playlists: List<Playlist>,
+    val selectedPlaylist: Playlist?,
+    val selectedPlaylistTracks: List<Track>,
+    val playlistTracksById: Map<String, List<Track>>,
+    val selectedPlaylistChanged: Boolean,
+    val status: String?,
+)
+
 data class PlaylistDetailAutoRefreshTarget<Provider : Any>(
     val provider: Provider,
     val playlist: Playlist,
@@ -169,6 +183,25 @@ fun recentPlaylistIdsAfterPlayed(
     limit: Int,
 ): List<String> =
     (listOf(playlistId) + recentPlaylistIds.filterNot { it == playlistId }).take(limit)
+
+fun playlistDetailsLoadingStatus(playlist: Playlist): String =
+    "Loading ${playlist.name}..."
+
+fun playlistDetailsLoadedStatus(): String =
+    "Connected."
+
+fun playlistDetailsErrorMessage(error: Throwable): String =
+    error.message ?: "Playlist failed to load."
+
+fun playlistDetailsOpenPlan(
+    playlist: Playlist,
+    recentPlaylistIds: List<String>,
+    recentPlaylistLimit: Int,
+): PlaylistDetailsOpenPlan =
+    PlaylistDetailsOpenPlan(
+        recentPlaylistIds = recentPlaylistIdsAfterPlayed(recentPlaylistIds, playlist.id, recentPlaylistLimit),
+        loadingStatus = playlistDetailsLoadingStatus(playlist),
+    )
 
 fun playlistsNeedingTrackPreload(
     playlists: List<Playlist>,
@@ -282,6 +315,55 @@ fun playlistDetailsStateUpdate(
         selectedPlaylist = if (isCurrentSelection) refresh.displayPlaylist else currentSelectedPlaylist,
         selectedPlaylistTracks = if (isCurrentSelection) refresh.tracks else currentSelectedPlaylistTracks,
         playlistTracksById = currentPlaylistTracksById + (refresh.displayPlaylist.id to refresh.tracks),
+    )
+}
+
+fun playlistDetailsApplicationUpdate(
+    currentSelectedPlaylist: Playlist?,
+    currentSelectedPlaylistTracks: List<Track>,
+    currentPlaylistTracksById: Map<String, List<Track>>,
+    refresh: PlaylistDetailsRefresh,
+    requestedPlaylistId: String,
+    status: String? = null,
+): PlaylistDetailsApplicationUpdate {
+    val stateUpdate = playlistDetailsStateUpdate(
+        currentSelectedPlaylist = currentSelectedPlaylist,
+        currentSelectedPlaylistTracks = currentSelectedPlaylistTracks,
+        currentPlaylistTracksById = currentPlaylistTracksById,
+        refresh = refresh,
+        requestedPlaylistId = requestedPlaylistId,
+    )
+    return PlaylistDetailsApplicationUpdate(
+        playlists = stateUpdate.playlists,
+        selectedPlaylist = stateUpdate.selectedPlaylist,
+        selectedPlaylistTracks = stateUpdate.selectedPlaylistTracks,
+        playlistTracksById = stateUpdate.playlistTracksById,
+        selectedPlaylistChanged = currentSelectedPlaylist?.id == requestedPlaylistId,
+        status = status,
+    )
+}
+
+suspend fun MediaProvider.refreshPlaylistDetailsApplication(
+    playlist: Playlist,
+    currentSelectedPlaylist: Playlist?,
+    currentSelectedPlaylistTracks: List<Track>,
+    currentPlaylistTracksById: Map<String, List<Track>>,
+    providerResponseService: ProviderResponseService? = null,
+    playlistLimit: Int = 500,
+    status: String? = null,
+): PlaylistDetailsApplicationUpdate {
+    val refresh = refreshPlaylistDetails(
+        playlist = playlist,
+        playlistLimit = playlistLimit,
+        providerResponseService = providerResponseService,
+    )
+    return playlistDetailsApplicationUpdate(
+        currentSelectedPlaylist = currentSelectedPlaylist,
+        currentSelectedPlaylistTracks = currentSelectedPlaylistTracks,
+        currentPlaylistTracksById = currentPlaylistTracksById,
+        refresh = refresh,
+        requestedPlaylistId = playlist.id,
+        status = status,
     )
 }
 

@@ -957,6 +957,14 @@ Progress notes:
   - `AndroidPlaylistsController.kt` grew slightly for this slice (`24` added, `21` removed) while adopting the shared state update.
   - `DesktopSmartPlaylistsController.kt` grew slightly (`24` added, `22` removed), but `DesktopNaviampApp.kt` dropped stale smart-playlist imports and one constructor argument (`0` added, `15` removed).
   - Net platform code moved down for the slice, and the duplicated smart playlist mutation policy is now shared.
+- Added shared playlist detail open/refresh planning and a combined provider refresh/application helper.
+- Android and Desktop playlist detail refresh now share provider/cache loading, playlist list replacement, selected-playlist/tracks updates, track-map updates, recent-ID planning, and detail status/error labels.
+- Platform code still owns route changes, now-playing panel state, and local state assignment.
+- Added common `PlaylistMutationsTest.kt` coverage for detail open plans, detail application updates, and provider refresh application.
+- Size/reduction note for the playlist detail/open slice:
+  - `AndroidPlaylistsController.kt` shrank slightly for this slice (`19` added, `21` removed).
+  - `DesktopPlaylistsController.kt` shrank slightly (`12` added, `15` removed).
+  - Shared domain and tests grew because the provider-refresh/result-composition path is now tested once in common code.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:

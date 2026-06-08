@@ -13,7 +13,8 @@ import app.naviamp.domain.provider.playlistDeleteErrorMessage
 import app.naviamp.domain.provider.playlistDeleteLoadingStatus
 import app.naviamp.domain.provider.playlistDeleteApplicationUpdate
 import app.naviamp.domain.provider.deletePlaylistAndRefresh
-import app.naviamp.domain.provider.playlistDetailsStateUpdate
+import app.naviamp.domain.provider.playlistDetailsErrorMessage
+import app.naviamp.domain.provider.playlistDetailsLoadingStatus
 import app.naviamp.domain.provider.loadPlaylistTracksForPreload
 import app.naviamp.domain.provider.playlistPlaybackStartPlan
 import app.naviamp.domain.provider.preparePlaylistPlayback
@@ -24,7 +25,7 @@ import app.naviamp.domain.provider.queuePlaylistSaveErrorMessage
 import app.naviamp.domain.provider.queuePlaylistSaveLoadingStatus
 import app.naviamp.domain.provider.queuePlaylistSaveStateUpdate
 import app.naviamp.domain.provider.recentPlaylistIdsAfterPlayed
-import app.naviamp.domain.provider.refreshPlaylistDetails
+import app.naviamp.domain.provider.refreshPlaylistDetailsApplication
 import app.naviamp.domain.provider.refreshPlaylistsAndPlanPreload
 import app.naviamp.domain.provider.renamePlaylistAndRefresh
 import app.naviamp.domain.provider.saveQueueAsPlaylistAndRefresh
@@ -115,24 +116,20 @@ class DesktopPlaylistsController(
         playlist: Playlist,
         showLoadingStatus: Boolean,
     ) {
-        if (showLoadingStatus) setSelectedPlaylistStatus("Loading ${playlist.name}...")
-        val refresh = withContext(Dispatchers.IO) {
-            activeProvider.refreshPlaylistDetails(
+        if (showLoadingStatus) setSelectedPlaylistStatus(playlistDetailsLoadingStatus(playlist))
+        val update = withContext(Dispatchers.IO) {
+            activeProvider.refreshPlaylistDetailsApplication(
                 playlist = playlist,
+                currentSelectedPlaylist = selectedPlaylist(),
+                currentSelectedPlaylistTracks = selectedPlaylistTracks(),
+                currentPlaylistTracksById = playlistTracksById(),
                 providerResponseService = providerResponseService,
             )
         }
-        val update = playlistDetailsStateUpdate(
-            currentSelectedPlaylist = selectedPlaylist(),
-            currentSelectedPlaylistTracks = selectedPlaylistTracks(),
-            currentPlaylistTracksById = playlistTracksById(),
-            refresh = refresh,
-            requestedPlaylistId = playlist.id,
-        )
         setPlaylists(update.playlists)
         refreshHomePlaylists(update.playlists)
         setPlaylistTracksById(update.playlistTracksById)
-        if (selectedPlaylist()?.id == playlist.id) {
+        if (update.selectedPlaylistChanged) {
             setSelectedPlaylist(update.selectedPlaylist)
             setSelectedPlaylistTracks(update.selectedPlaylistTracks)
             setSelectedPlaylistStatus(null)
@@ -271,13 +268,13 @@ class DesktopPlaylistsController(
         val activeProvider = provider() ?: return
         setSelectedPlaylist(playlist)
         setSelectedPlaylistTracks(emptyList())
-        setSelectedPlaylistStatus("Loading ${playlist.name}...")
+        setSelectedPlaylistStatus(playlistDetailsLoadingStatus(playlist))
         setAppRoute(DesktopAppRoute.PlaylistDetail)
         scope.launch {
             try {
                 refreshPlaylistDetailsFromServer(activeProvider, playlist, showLoadingStatus = false)
             } catch (exception: Exception) {
-                setSelectedPlaylistStatus(exception.message ?: "Could not load ${playlist.name}.")
+                setSelectedPlaylistStatus(playlistDetailsErrorMessage(exception))
             }
         }
     }
