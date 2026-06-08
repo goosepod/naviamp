@@ -1235,6 +1235,9 @@ Progress notes:
 - Moved desktop artist/album/genre mix-builder async actions into `DesktopMixBuilderController.kt`; the root now wires mix state and delegates suggestion loading, searching, selection, removal, and reset behavior.
 - `DesktopNaviampApp.kt` dropped to 1,509 lines after the mix action controller extraction.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
+- Moved desktop stats-for-nerds info aggregation into `DesktopStatsForNerdsInfoBuilder.kt`, keeping cache/media-source/playback diagnostic model assembly out of the root app.
+- `DesktopNaviampApp.kt` dropped to 1,496 lines after the stats helper extraction.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
 

@@ -1124,46 +1124,33 @@ fun NaviampApp(
     startLibrarySyncAction = libraryController::startLibrarySync
     checkLibraryFreshnessAction = libraryController::checkLibraryFreshness
 
-    val statsMediaSource = connectedSourceId?.let { storage.mediaSource(it) } ?: storage.latestMediaSource()
     val savedMediaSources = mediaSourcesRevision.let { storage.mediaSources() }
-    val streamQuality = playbackSettings.streamQuality(playbackEngine)
-    val currentAudioCacheMetadata = connectedSourceId
-        ?.let { sourceId ->
-            nowPlayingTrack?.let { track ->
-                storage.cachedAudioMetadata(sourceId, track.id, streamQuality)
-            }
-        }
-    val statsForNerdsInfo = if (showStatsForNerds) {
-        buildDesktopStatsForNerdsInfo(
-            route = appRoute.name,
-            serverUrl = connectionForm.serverUrl,
-            username = connectionForm.username,
-            connectedProvider = connectedProvider,
-            mediaSource = statsMediaSource,
-            connectionStatus = connectionStatus,
-            isLibrarySyncing = isLibrarySyncing,
-            libraryStatus = libraryStatus,
-            libraryTabLabel = libraryTab.label,
-            libraryQuery = libraryQuery,
-            librarySnapshot = librarySnapshot,
-            playbackEngine = playbackEngine,
-            playlistEngine = playlistEngine,
-            playbackQueue = playbackQueue,
-            nowPlayingTrack = nowPlayingTrack,
-            playbackState = playbackState,
-            playbackProgress = playbackProgress,
-            playbackSettings = playbackSettings,
-            streamQuality = streamQuality,
-            nowPlayingWaveform = nowPlayingWaveform,
-            nowPlayingWaveformStatus = nowPlayingWaveformStatus,
-            cachedAudio = currentAudioCacheMetadata,
-            nowPlayingInternetRadioStation = nowPlayingInternetRadioStation,
-            nowPlayingStreamMetadata = nowPlayingStreamMetadata,
-            cacheStats = cacheStats,
-        )
-    } else {
-        null
-    }
+    val statsForNerdsInfo = desktopStatsForNerdsInfoOrNull(
+        showStatsForNerds = showStatsForNerds,
+        appRoute = appRoute,
+        connectionForm = connectionForm,
+        connectedProvider = connectedProvider,
+        connectedSourceId = connectedSourceId,
+        storage = storage,
+        connectionStatus = connectionStatus,
+        isLibrarySyncing = isLibrarySyncing,
+        libraryStatus = libraryStatus,
+        libraryTab = libraryTab,
+        libraryQuery = libraryQuery,
+        librarySnapshot = librarySnapshot,
+        playbackEngine = playbackEngine,
+        playlistEngine = playlistEngine,
+        playbackQueue = playbackQueue,
+        nowPlayingTrack = nowPlayingTrack,
+        playbackState = playbackState,
+        playbackProgress = playbackProgress,
+        playbackSettings = playbackSettings,
+        nowPlayingWaveform = nowPlayingWaveform,
+        nowPlayingWaveformStatus = nowPlayingWaveformStatus,
+        nowPlayingInternetRadioStation = nowPlayingInternetRadioStation,
+        nowPlayingStreamMetadata = nowPlayingStreamMetadata,
+        cacheStats = cacheStats,
+    )
 
     DesktopAppSurface(
             colorScheme = colorScheme,
