@@ -7,6 +7,8 @@ import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.home.HomeContent
+import app.naviamp.domain.provider.PlaylistHomeProjection
+import app.naviamp.domain.provider.playlistListApplication
 import app.naviamp.domain.provider.saveSmartPlaylistAndRefresh
 import app.naviamp.domain.provider.smartPlaylistLoadErrorMessage
 import app.naviamp.domain.provider.smartPlaylistLoadingRulesStatus
@@ -17,7 +19,6 @@ import app.naviamp.domain.provider.smartPlaylistUpdateErrorMessage
 import app.naviamp.domain.provider.smartPlaylistUpdateStateUpdate
 import app.naviamp.domain.provider.smartPlaylistUpdatingStatus
 import app.naviamp.domain.provider.updateSmartPlaylistAndRefresh
-import app.naviamp.domain.provider.withPlaylists
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
@@ -82,8 +83,7 @@ class DesktopSmartPlaylistsController(
             }
             val update = smartPlaylistSaveStateUpdate(refresh, playlistTracksById())
             setPlaylistTracksById(update.playlistTracksById)
-            setPlaylists(update.playlists)
-            setHomeContent(homeContent().withPlaylists(update.playlists, recentPlaylistIds()))
+            applyPlaylistListApplication(update.playlists)
             setPlaylistStatus(update.status)
         } catch (error: Exception) {
             val message = smartPlaylistSaveErrorMessage(error)
@@ -106,15 +106,14 @@ class DesktopSmartPlaylistsController(
             val update = smartPlaylistUpdateStateUpdate(
                 refresh = refresh,
                 currentSelectedPlaylist = selectedPlaylist(),
-                currentSelectedPlaylistTracks = emptyList(),
                 currentPlaylistTracksById = playlistTracksById(),
             )
             setPlaylistTracksById(update.playlistTracksById)
-            setPlaylists(update.playlists)
-            if (update.selectedPlaylistChanged) {
-                setSelectedPlaylist(update.selectedPlaylist)
-                setSelectedPlaylistTracks(update.selectedPlaylistTracks)
-                setSelectedPlaylistStatus(null)
+            applyPlaylistListApplication(update.playlists)
+            update.selectionApplication?.let { selection ->
+                setSelectedPlaylist(selection.playlist)
+                setSelectedPlaylistTracks(selection.tracks)
+                setSelectedPlaylistStatus(selection.status)
             }
             setPlaylistStatus(update.status)
         } catch (error: Exception) {
@@ -138,6 +137,17 @@ class DesktopSmartPlaylistsController(
         } finally {
             incrementStatsForNerdsRefreshTick()
         }
+    }
+
+    private fun applyPlaylistListApplication(refreshedPlaylists: List<Playlist>) {
+        val application = playlistListApplication(
+            playlists = refreshedPlaylists,
+            currentHomeContent = homeContent(),
+            recentPlaylistIds = recentPlaylistIds(),
+            projection = PlaylistHomeProjection.RecentLimited,
+        )
+        setPlaylists(application.playlists)
+        setHomeContent(application.homeContent)
     }
 }
 

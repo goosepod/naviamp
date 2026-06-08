@@ -37,6 +37,27 @@ class PlaylistMutationsTest {
                 .playlists
                 .take(2),
         )
+        assertEquals(
+            PlaylistListApplication(
+                playlists = listOf(beta, recent, alpha),
+                homeContent = HomeContent().copy(playlists = listOf(beta, recent, alpha)),
+            ),
+            playlistListApplication(
+                playlists = listOf(beta, recent, alpha),
+                currentHomeContent = HomeContent(),
+                recentPlaylistIds = listOf("recent"),
+                projection = PlaylistHomeProjection.All,
+            ),
+        )
+        assertEquals(
+            listOf(recent, alpha, beta),
+            playlistListApplication(
+                playlists = listOf(beta, recent, alpha),
+                currentHomeContent = HomeContent(),
+                recentPlaylistIds = listOf("recent"),
+                projection = PlaylistHomeProjection.RecentLimited,
+            ).homeContent.playlists,
+        )
     }
 
     @Test
@@ -406,49 +427,6 @@ class PlaylistMutationsTest {
     }
 
     @Test
-    fun selectedPlaylistPlaybackApplicationPlansQueueIndexAndEmptyStatus() {
-        val playlist = playlist("one", "Road Mix")
-        val tracks = listOf(track("one"), track("two"))
-
-        assertEquals(
-            SelectedPlaylistPlaybackApplicationUpdate(
-                firstTrack = track("one"),
-                playbackTracks = tracks,
-                playbackIndex = 1,
-                recentPlaylistIds = listOf("one", "two"),
-                status = null,
-            ),
-            selectedPlaylistPlaybackApplicationUpdate(
-                playlist = playlist,
-                tracks = tracks,
-                shuffle = false,
-                recentPlaylistIds = listOf("two"),
-                recentPlaylistLimit = 2,
-                requestedIndex = 99,
-            ),
-        )
-
-        assertEquals(
-            SelectedPlaylistPlaybackApplicationUpdate(
-                firstTrack = null,
-                playbackTracks = emptyList(),
-                playbackIndex = 0,
-                recentPlaylistIds = listOf("one"),
-                status = "Road Mix is empty.",
-            ),
-            selectedPlaylistPlaybackApplicationUpdate(
-                playlist = playlist,
-                tracks = emptyList(),
-                shuffle = false,
-                recentPlaylistIds = emptyList(),
-                recentPlaylistLimit = 2,
-                requestedIndex = 3,
-                emptyStatus = "Road Mix is empty.",
-            ),
-        )
-    }
-
-    @Test
     fun preparePlaylistPlaybackLoadsOrReusesTracks() = kotlinx.coroutines.test.runTest {
         val playlist = playlist("one", "Road Mix")
         val selectedTracks = listOf(track("selected"))
@@ -571,6 +549,68 @@ class PlaylistMutationsTest {
     }
 
     @Test
+    fun preparePlaylistDetailPlaybackApplicationLoadsMissingTracksAndCoercesIndex() = kotlinx.coroutines.test.runTest {
+        val playlist = playlist("one", "Road Mix")
+        val loadedTracks = listOf(track("loaded-one"), track("loaded-two"))
+        val provider = FakePlaylistProvider(
+            playlists = listOf(playlist),
+            playlistTracks = loadedTracks,
+        )
+
+        assertEquals(
+            PlaylistDetailPlaybackApplicationUpdate(
+                playlistTracksById = mapOf("one" to loadedTracks),
+                loadedTracksToStore = loadedTracks,
+                firstTrack = loadedTracks.first(),
+                playbackTracks = loadedTracks,
+                playbackIndex = 1,
+                recentPlaylistIds = listOf("one", "two"),
+                status = null,
+            ),
+            provider.preparePlaylistDetailPlaybackApplication(
+                playlist = playlist,
+                shuffle = false,
+                selectedPlaylistTracks = emptyList(),
+                recentPlaylistIds = listOf("two"),
+                recentPlaylistLimit = 2,
+                currentPlaylistTracksById = emptyMap(),
+                requestedIndex = 99,
+            ),
+        )
+    }
+
+    @Test
+    fun preparePlaylistDetailPlaybackApplicationUsesLoadedSelectionWithoutProviderFetch() = kotlinx.coroutines.test.runTest {
+        val playlist = playlist("one", "Road Mix")
+        val selectedTracks = listOf(track("selected-one"), track("selected-two"))
+        val provider = FakePlaylistProvider(
+            playlists = listOf(playlist),
+            playlistTracks = listOf(track("provider")),
+        )
+
+        assertEquals(
+            PlaylistDetailPlaybackApplicationUpdate(
+                playlistTracksById = emptyMap(),
+                loadedTracksToStore = null,
+                firstTrack = selectedTracks.first(),
+                playbackTracks = selectedTracks,
+                playbackIndex = 1,
+                recentPlaylistIds = listOf("one", "two"),
+                status = null,
+            ),
+            provider.preparePlaylistDetailPlaybackApplication(
+                playlist = playlist,
+                shuffle = false,
+                selectedPlaylistTracks = selectedTracks,
+                recentPlaylistIds = listOf("two"),
+                recentPlaylistLimit = 2,
+                currentPlaylistTracksById = emptyMap(),
+                requestedIndex = 1,
+            ),
+        )
+    }
+
+    @Test
     fun addToPlaylistMutationUpdateReportsNoTracks() {
         assertEquals(
             AddToPlaylistMutationUpdate(
@@ -675,11 +715,18 @@ class PlaylistMutationsTest {
         assertEquals(
             PlaylistRenameStateUpdate(
                 playlists = listOf(renamed),
-                selectedPlaylist = renamed,
-                selectedPlaylistChanged = true,
+                selectionApplication = PlaylistRenameSelectionApplication(renamed),
                 status = "Renamed playlist.",
             ),
             playlistRenameStateUpdate(current, renameRefresh, playlistId = "one"),
+        )
+        assertEquals(
+            null,
+            playlistRenameStateUpdate(
+                currentSelectedPlaylist = playlist("other", "Other"),
+                refresh = renameRefresh,
+                playlistId = "one",
+            ).selectionApplication,
         )
         assertEquals(null, selectedPlaylistAfterDelete(current, "one"))
         assertEquals(listOf("two"), recentPlaylistIdsAfterDelete(listOf("one", "two"), "one"))
@@ -702,11 +749,12 @@ class PlaylistMutationsTest {
         assertEquals(
             PlaylistDeleteApplicationUpdate(
                 playlists = listOf(playlist("two", "Two")),
-                selectedPlaylist = null,
-                selectedPlaylistTracks = emptyList(),
                 playlistTracksById = emptyMap(),
                 recentPlaylistIds = listOf("two"),
-                deletedSelectedPlaylist = true,
+                selectionApplication = PlaylistDeleteSelectionApplication(
+                    selectedPlaylist = null,
+                    selectedPlaylistTracks = emptyList(),
+                ),
                 status = "Deleted playlist.",
             ),
             playlistDeleteApplicationUpdate(
@@ -717,6 +765,20 @@ class PlaylistMutationsTest {
                 currentRecentPlaylistIds = listOf("one", "two"),
                 deletedPlaylistId = "one",
             ),
+        )
+        assertEquals(
+            null,
+            playlistDeleteApplicationUpdate(
+                refresh = deleteRefresh,
+                currentSelectedPlaylist = playlist("other", "Other"),
+                currentSelectedPlaylistTracks = listOf(track("other")),
+                currentPlaylistTracksById = mapOf(
+                    "one" to listOf(track("one")),
+                    "other" to listOf(track("other")),
+                ),
+                currentRecentPlaylistIds = listOf("one", "other"),
+                deletedPlaylistId = "one",
+            ).selectionApplication,
         )
     }
 
@@ -748,9 +810,7 @@ class PlaylistMutationsTest {
                 displayPlaylist = playlist.copy(trackCount = 2),
                 tracks = tracks,
                 playlistTracksById = mapOf("smart" to tracks),
-                selectedPlaylist = null,
-                selectedPlaylistTracks = emptyList(),
-                selectedPlaylistChanged = false,
+                selectionApplication = null,
                 status = "Saved smart playlist Smart with 2 tracks.",
             ),
             smartPlaylistSaveStateUpdate(refresh, currentPlaylistTracksById = emptyMap()),
@@ -761,17 +821,26 @@ class PlaylistMutationsTest {
                 displayPlaylist = playlist.copy(trackCount = 2),
                 tracks = tracks,
                 playlistTracksById = mapOf("smart" to tracks),
-                selectedPlaylist = playlist.copy(trackCount = 2),
-                selectedPlaylistTracks = tracks,
-                selectedPlaylistChanged = true,
+                selectionApplication = PlaylistDetailsSelectionApplication(
+                    playlist = playlist.copy(trackCount = 2),
+                    tracks = tracks,
+                    status = null,
+                ),
                 status = "Updated smart playlist Smart with 2 tracks.",
             ),
             smartPlaylistUpdateStateUpdate(
                 refresh = refresh,
                 currentSelectedPlaylist = playlist,
-                currentSelectedPlaylistTracks = emptyList(),
                 currentPlaylistTracksById = emptyMap(),
             ),
+        )
+        assertEquals(
+            null,
+            smartPlaylistUpdateStateUpdate(
+                refresh = refresh,
+                currentSelectedPlaylist = playlist("other", "Other"),
+                currentPlaylistTracksById = emptyMap(),
+            ).selectionApplication,
         )
     }
 

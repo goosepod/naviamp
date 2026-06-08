@@ -6,6 +6,7 @@ import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.provider.clearPendingPlaybackAction
+import app.naviamp.domain.provider.PlaylistHomeProjection
 import app.naviamp.domain.provider.playlistDeleteErrorMessage
 import app.naviamp.domain.provider.playlistDeleteLoadingStatus
 import app.naviamp.domain.provider.playlistDeleteApplicationUpdate
@@ -13,6 +14,7 @@ import app.naviamp.domain.provider.playlistDetailsErrorMessage
 import app.naviamp.domain.provider.playlistDetailsLoadedStatus
 import app.naviamp.domain.provider.playlistDetailsLoadingStatus
 import app.naviamp.domain.provider.playlistDetailsOpenPlan
+import app.naviamp.domain.provider.playlistListApplication
 import app.naviamp.domain.provider.playlistPlaybackErrorMessage
 import app.naviamp.domain.provider.playlistPlaybackStartPlan
 import app.naviamp.domain.provider.preparePlaylistPlaybackApplication
@@ -63,7 +65,7 @@ suspend fun refreshAndroidPlaylistDetailsFromServer(
                 status = if (showLoadingStatus) playlistDetailsLoadedStatus() else null,
             )
         }
-        homeState = homeState.copy(playlists = update.playlists)
+        applyAndroidPlaylistListApplication(state, update.playlists)
         playlistTracksById = update.playlistTracksById
         update.selectionApplication?.let { selection ->
             contentState = contentState.showPlaylist(selection.playlist, selection.tracks)
@@ -184,9 +186,9 @@ fun renameAndroidPlaylist(
                 )
             }.onSuccess { refresh ->
                 val update = playlistRenameStateUpdate(selectedPlaylist, refresh, playlist.id)
-                homeState = homeState.copy(playlists = update.playlists)
-                if (update.selectedPlaylistChanged) {
-                    contentState = contentState.copy(selectedPlaylist = update.selectedPlaylist)
+                applyAndroidPlaylistListApplication(state, update.playlists)
+                update.selectionApplication?.let { selection ->
+                    contentState = contentState.copy(selectedPlaylist = selection.selectedPlaylist)
                 }
                 status = update.status
             }.onFailure { error ->
@@ -221,11 +223,11 @@ fun deleteAndroidPlaylist(
                     currentRecentPlaylistIds = recentPlaylistIds,
                     deletedPlaylistId = playlist.id,
                 )
-                homeState = homeState.copy(playlists = update.playlists)
-                if (update.deletedSelectedPlaylist) {
+                applyAndroidPlaylistListApplication(state, update.playlists)
+                update.selectionApplication?.let { selection ->
                     contentState = contentState.copy(
-                        selectedPlaylist = update.selectedPlaylist,
-                        selectedPlaylistTracks = update.selectedPlaylistTracks,
+                        selectedPlaylist = selection.selectedPlaylist,
+                        selectedPlaylistTracks = selection.selectedPlaylistTracks,
                     )
                 }
                 playlistTracksById = update.playlistTracksById
@@ -255,6 +257,19 @@ fun preloadAndroidPlaylistTracks(
     }
 }
 
+private fun applyAndroidPlaylistListApplication(
+    state: AndroidAppState,
+    playlists: List<Playlist>,
+) {
+    val application = playlistListApplication(
+        playlists = playlists,
+        currentHomeContent = state.homeState,
+        recentPlaylistIds = state.recentPlaylistIds,
+        projection = PlaylistHomeProjection.All,
+    )
+    state.homeState = application.homeContent
+}
+
 fun refreshAndroidPlaylists(
     scope: CoroutineScope,
     state: AndroidAppState,
@@ -269,7 +284,7 @@ fun refreshAndroidPlaylists(
                 playlistTracksById = state.playlistTracksById,
             )
         }.onSuccess { update ->
-            state.homeState = state.homeState.copy(playlists = update.playlists)
+            applyAndroidPlaylistListApplication(state, update.playlists)
             preloadAndroidPlaylistTracks(
                 scope,
                 state,
@@ -301,7 +316,7 @@ fun saveQueueAsPlaylistFromState(
                 )
             }.onSuccess { refresh ->
                 val update = queuePlaylistSaveStateUpdate(refresh)
-                homeState = homeState.copy(playlists = update.playlists)
+                applyAndroidPlaylistListApplication(state, update.playlists)
                 playlistActionStatus = null
                 status = update.status
             }.onFailure { error ->
@@ -326,7 +341,7 @@ suspend fun saveAndroidSmartPlaylist(
         val refresh = saveSmartPlaylistAndRefresh(activeProvider, definition, providerResponseService)
         val update = smartPlaylistSaveStateUpdate(refresh, state.playlistTracksById)
         state.playlistTracksById = update.playlistTracksById
-        state.homeState = state.homeState.copy(playlists = update.playlists)
+        applyAndroidPlaylistListApplication(state, update.playlists)
         preloadAndroidPlaylistTracks(scope, state, activeProvider, update.playlists, providerResponseCacheRepository = null)
         state.status = update.status
     } catch (error: Exception) {
@@ -351,14 +366,13 @@ suspend fun updateAndroidSmartPlaylist(
         val update = smartPlaylistUpdateStateUpdate(
             refresh = refresh,
             currentSelectedPlaylist = state.selectedPlaylist,
-            currentSelectedPlaylistTracks = state.selectedPlaylistTracks,
             currentPlaylistTracksById = state.playlistTracksById,
         )
         state.playlistTracksById = update.playlistTracksById
-        state.homeState = state.homeState.copy(playlists = update.playlists)
-        if (update.selectedPlaylistChanged) {
-            state.contentState = state.contentState.showPlaylist(update.displayPlaylist, update.tracks)
-            state.tracks = update.tracks
+        applyAndroidPlaylistListApplication(state, update.playlists)
+        update.selectionApplication?.let { selection ->
+            state.contentState = state.contentState.showPlaylist(selection.playlist, selection.tracks)
+            state.tracks = selection.tracks
         }
         preloadAndroidPlaylistTracks(scope, state, activeProvider, update.playlists, providerResponseCacheRepository = null)
         state.status = update.status

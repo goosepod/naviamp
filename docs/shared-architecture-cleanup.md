@@ -1003,6 +1003,45 @@ Progress notes:
   - `DesktopPlaylistsController.kt` stayed line-flat (`4` added, `4` removed) but no longer maps refreshed selected playlist/tracks/status fields manually.
   - Shared domain grew by one small DTO that makes the application result more explicit and easier for thin platform adapters to consume.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
+- Added shared selected-playlist detail playback preparation with `preparePlaylistDetailPlaybackApplication`.
+- Desktop selected playlist detail playback now shares missing-track loading, loaded-track map updates, playable queue selection, requested-index coercion, empty-playlist status, and recent-playlist ID planning through the same provider-backed playlist application surface.
+- Platform code still owns the correct side effects: desktop selected-track state assignment, pending playback action lifecycle, recent playlist persistence, radio continuation stop, shuffle snapshot cleanup, and `DesktopPlaylistEngine.playFrom`.
+- Added common `PlaylistMutationsTest.kt` coverage for detail playback loading/index coercion and already-loaded selection reuse.
+- Size/reduction note for the selected playlist detail playback preparation slice:
+  - `DesktopPlaylistsController.kt` no longer uses the separate selected-detail-only application helper and now consumes a provider-backed shared update that can load tracks when detail content has not finished loading.
+  - Android already reaches selected playlist playback through the broader shared playlist playback application path, so no Android adapter change was needed.
+  - Shared domain replaced the older selected-detail-only helper with one explicit detail-playback update/helper that composes the provider-backed playlist playback preparation path.
+- Verification passed: `./gradlew :core:domain:jvmTest --tests app.naviamp.domain.provider.PlaylistMutationsTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
+- Tightened shared playlist delete state application with `PlaylistDeleteSelectionApplication`.
+- Android and Desktop playlist delete handlers now consume the same concrete selection application instead of checking the deleted-selected flag and manually applying nullable selected-playlist fields.
+- Platform code still owns route/state assignment side effects: Android content-state copy, Desktop route fallback to the playlist list after deleting the selected detail, playlist-track maps, recent IDs, and status assignment.
+- Added common `PlaylistMutationsTest.kt` coverage for delete selection application and the no-selection-change case.
+- Size/reduction note for the playlist delete selection-application slice:
+  - `AndroidPlaylistsController.kt` no longer checks `deletedSelectedPlaylist` or maps selected playlist fields directly in the delete flow.
+  - `DesktopPlaylistsController.kt` no longer maps deleted selected-playlist fields directly and only changes routes when the shared delete update emits a selection application.
+  - Shared domain replaced exposed delete-selection booleans with a concrete optional selection application, matching the playlist detail refresh shape.
+- Verification passed: `./gradlew :core:domain:jvmTest --tests app.naviamp.domain.provider.PlaylistMutationsTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Tightened playlist rename and smart playlist update selection application.
+- Android and Desktop rename handlers now consume `PlaylistRenameSelectionApplication` instead of exposing selected-playlist-changed booleans and nullable selected playlist fields.
+- Android and Desktop smart playlist update handlers now consume `PlaylistDetailsSelectionApplication` from `SmartPlaylistMutationStateUpdate` instead of checking selected-playlist-changed flags and manually mapping selected playlist/tracks.
+- Platform code still owns platform side effects: Android content-state/track assignment, Desktop selected-playlist setters, selected status clearing, home/list state assignment, smart-playlist authentication refresh, and stats refresh ticks.
+- Added common `PlaylistMutationsTest.kt` coverage for rename no-selection-change and smart-playlist update no-selection-change cases.
+- Size/reduction note for the rename/smart selection-application slice:
+  - `AndroidPlaylistsController.kt` no longer consumes selected-change booleans for rename or smart playlist update.
+  - `DesktopPlaylistsController.kt` only applies rename selection when the shared update emits a rename selection application.
+  - `DesktopSmartPlaylistsController.kt` consumes the same detail-selection DTO used by playlist detail refresh and no longer threads unused selected-track inputs into shared smart playlist update planning.
+  - Shared domain now exposes concrete optional selection applications for rename, delete, detail refresh, and smart playlist update, leaving only shared internals to decide whether selection changed.
+- Verification passed: `./gradlew :core:domain:jvmTest --tests app.naviamp.domain.provider.PlaylistMutationsTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Added shared playlist list/home application with explicit `PlaylistHomeProjection` policies.
+- Android playlist refresh, delete, save-queue, smart-playlist save, and smart-playlist update now apply refreshed playlist lists through `playlistListApplication(..., PlaylistHomeProjection.All)`, preserving Android's full playlist list in home state.
+- Desktop playlist refresh, add-to-playlist refresh, save-queue, detail refresh, rename, delete, and smart-playlist save/update now apply refreshed playlist lists through `playlistListApplication(..., PlaylistHomeProjection.RecentLimited)`, preserving the desktop recent-limited home projection.
+- Platform code still owns concrete state assignment: Android writes `homeState`, Desktop writes playlist list and home content through setter lambdas.
+- Added common `PlaylistMutationsTest.kt` coverage for all-playlists and recent-limited playlist home projections.
+- Size/reduction note for the list/home application slice:
+  - `DesktopPlaylistsController.kt` and `DesktopSmartPlaylistsController.kt` no longer duplicate `setPlaylists` plus `withPlaylists` mapping at each refreshed-list call site.
+  - `AndroidPlaylistsController.kt` no longer directly copies refreshed playlist lists into `homeState.playlists` in playlist controller flows.
+  - Shared domain now names the Android/Desktop projection difference instead of leaving it as implicit platform-local list assignment.
+- Verification passed: `./gradlew :core:domain:jvmTest --tests app.naviamp.domain.provider.PlaylistMutationsTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 
