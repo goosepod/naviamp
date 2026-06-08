@@ -456,6 +456,9 @@ class PlaylistMutationsTest {
                 playlistName = null,
             ),
         )
+        assertEquals("Adding track to playlist...", addToPlaylistLoadingStatus("track"))
+        assertEquals("Loading tracks...", addToPlaylistResolvingTracksStatus())
+        assertEquals("Could not add track to playlist.", addToPlaylistErrorMessage(Exception(), "track"))
     }
 
     @Test
@@ -480,6 +483,16 @@ class PlaylistMutationsTest {
 
     @Test
     fun addToPlaylistMutationUpdateClosesDialogWhenTracksAdded() {
+        val refresh = AddToPlaylistRefresh(
+            update = AddToPlaylistMutationUpdate(
+                closeDialog = true,
+                addToPlaylistStatus = null,
+                connectionStatus = "Added 2 tracks to playlist.",
+                refreshPlaylists = true,
+            ),
+            playlists = listOf(playlist("one", "One")),
+        )
+
         assertEquals(
             AddToPlaylistMutationUpdate(
                 closeDialog = true,
@@ -495,6 +508,15 @@ class PlaylistMutationsTest {
                 ),
                 playlistName = "Playlist",
             ),
+        )
+        assertEquals(
+            AddToPlaylistStateUpdate(
+                playlists = listOf(playlist("one", "One")),
+                closeDialog = true,
+                addToPlaylistStatus = null,
+                connectionStatus = "Added 2 tracks to playlist.",
+            ),
+            addToPlaylistStateUpdate(refresh),
         )
     }
 
@@ -723,6 +745,21 @@ class PlaylistMutationsTest {
             refresh.update,
         )
         assertEquals(listOf(existingPlaylist, playlist("created", "New Mix").copy(trackCount = 1)), refresh.playlists)
+
+        assertEquals(
+            AddToPlaylistStateUpdate(
+                playlists = null,
+                closeDialog = false,
+                addToPlaylistStatus = "No tracks found.",
+                connectionStatus = null,
+            ),
+            provider.addTracksToPlaylistStateUpdate(
+                playlistId = null,
+                playlistName = null,
+                newPlaylistName = "Empty",
+                tracks = emptyList(),
+            ),
+        )
     }
 
     @Test
@@ -752,6 +789,20 @@ class PlaylistMutationsTest {
             refresh.update,
         )
         assertEquals(listOf(existingPlaylist), refresh.playlists)
+        assertEquals(
+            AddToPlaylistStateUpdate(
+                playlists = listOf(existingPlaylist),
+                closeDialog = true,
+                addToPlaylistStatus = null,
+                connectionStatus = "Added 1 track to playlist.",
+            ),
+            provider.addTracksToPlaylistStateUpdate(
+                playlistId = existingPlaylist.id,
+                playlistName = existingPlaylist.name,
+                newPlaylistName = null,
+                tracks = listOf(track("one"), track("two"), track("two")),
+            ),
+        )
     }
 
     private fun playlist(id: String, name: String): Playlist =

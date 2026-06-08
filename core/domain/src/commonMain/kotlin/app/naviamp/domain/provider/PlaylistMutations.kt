@@ -79,6 +79,13 @@ data class AddToPlaylistRefresh(
     val playlists: List<Playlist>?,
 )
 
+data class AddToPlaylistStateUpdate(
+    val playlists: List<Playlist>?,
+    val closeDialog: Boolean,
+    val addToPlaylistStatus: String?,
+    val connectionStatus: String?,
+)
+
 data class PlaylistDetailsRefresh(
     val playlists: List<Playlist>,
     val displayPlaylist: Playlist,
@@ -696,6 +703,34 @@ suspend fun MediaProvider.addTracksToPlaylistAndRefresh(
     return AddToPlaylistRefresh(update = update, playlists = playlists)
 }
 
+suspend fun MediaProvider.addTracksToPlaylistStateUpdate(
+    playlistId: String?,
+    playlistName: String?,
+    newPlaylistName: String?,
+    tracks: List<Track>,
+    providerResponseService: ProviderResponseService? = null,
+    playlistLimit: Int = 500,
+): AddToPlaylistStateUpdate {
+    val uniqueTracks = tracks.distinctBy { it.id }
+    if (uniqueTracks.isEmpty()) {
+        return AddToPlaylistStateUpdate(
+            playlists = null,
+            closeDialog = false,
+            addToPlaylistStatus = "No tracks found.",
+            connectionStatus = null,
+        )
+    }
+    val refresh = addTracksToPlaylistAndRefresh(
+        playlistId = playlistId,
+        playlistName = playlistName,
+        newPlaylistName = newPlaylistName,
+        tracks = uniqueTracks,
+        providerResponseService = providerResponseService,
+        playlistLimit = playlistLimit,
+    )
+    return addToPlaylistStateUpdate(refresh)
+}
+
 suspend fun MediaProvider.createQueuePlaylist(
     name: String,
     tracks: List<Track>,
@@ -808,6 +843,23 @@ fun addToPlaylistMutationUpdate(
             refreshPlaylists = true,
         )
     }
+
+fun addToPlaylistStateUpdate(refresh: AddToPlaylistRefresh): AddToPlaylistStateUpdate =
+    AddToPlaylistStateUpdate(
+        playlists = refresh.playlists,
+        closeDialog = refresh.update.closeDialog,
+        addToPlaylistStatus = refresh.update.addToPlaylistStatus,
+        connectionStatus = refresh.update.connectionStatus,
+    )
+
+fun addToPlaylistLoadingStatus(label: String): String =
+    "Adding $label to playlist..."
+
+fun addToPlaylistResolvingTracksStatus(): String =
+    "Loading tracks..."
+
+fun addToPlaylistErrorMessage(error: Throwable, label: String): String =
+    error.message ?: "Could not add $label to playlist."
 
 fun normalizedPlaylistName(name: String): String =
     name.trim()

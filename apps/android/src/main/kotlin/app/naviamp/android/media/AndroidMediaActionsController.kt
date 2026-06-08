@@ -21,7 +21,9 @@ import app.naviamp.domain.media.withUpdatedAlbum
 import app.naviamp.domain.media.withUpdatedArtist
 import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackQueueManager
-import app.naviamp.domain.provider.addTracksToPlaylistAndRefresh
+import app.naviamp.domain.provider.addToPlaylistErrorMessage
+import app.naviamp.domain.provider.addToPlaylistLoadingStatus
+import app.naviamp.domain.provider.addTracksToPlaylistStateUpdate
 import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.NaviampDownloadedTrackUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
@@ -360,32 +362,26 @@ fun addAndroidTracksToPlaylist(
 ) {
     val activeProvider = state.provider ?: return
     val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
-    val uniqueTracks = tracksToAdd.distinctBy { it.id }
-    if (uniqueTracks.isEmpty()) {
-        state.status = "No tracks found."
-        return
-    }
-    state.playlistActionStatus = "Adding $label to playlist..."
+    state.playlistActionStatus = addToPlaylistLoadingStatus(label)
     scope.launch {
         with(state) {
             runCatching {
-                activeProvider.addTracksToPlaylistAndRefresh(
+                activeProvider.addTracksToPlaylistStateUpdate(
                     playlistId = playlist?.id,
                     playlistName = playlist?.name,
                     newPlaylistName = newPlaylistName,
-                    tracks = uniqueTracks,
+                    tracks = tracksToAdd,
                     providerResponseService = providerResponseService,
                 )
-            }.onSuccess { refresh ->
-                refresh.playlists?.let { playlists ->
+            }.onSuccess { update ->
+                update.playlists?.let { playlists ->
                     homeState = homeState.copy(playlists = playlists)
                 }
-                val update = refresh.update
                 playlistActionStatus = update.addToPlaylistStatus
                 update.connectionStatus?.let { status = it }
                     ?: update.addToPlaylistStatus?.let { status = it }
             }.onFailure { error ->
-                playlistActionStatus = error.message ?: "Could not add $label to playlist."
+                playlistActionStatus = addToPlaylistErrorMessage(error, label)
                 status = playlistActionStatus.orEmpty()
             }
         }

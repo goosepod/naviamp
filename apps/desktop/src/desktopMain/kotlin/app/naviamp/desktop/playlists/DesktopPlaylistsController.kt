@@ -6,7 +6,9 @@ import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.provider.MediaProvider
-import app.naviamp.domain.provider.addTracksToPlaylistAndRefresh
+import app.naviamp.domain.provider.addToPlaylistErrorMessage
+import app.naviamp.domain.provider.addToPlaylistResolvingTracksStatus
+import app.naviamp.domain.provider.addTracksToPlaylistStateUpdate
 import app.naviamp.domain.provider.clearPendingPlaybackAction
 import app.naviamp.domain.provider.PendingPlaybackAction
 import app.naviamp.domain.provider.playlistDeleteErrorMessage
@@ -141,11 +143,11 @@ class DesktopPlaylistsController(
 
     fun addTargetToPlaylist(target: AddToPlaylistTarget, playlist: Playlist?, newPlaylistName: String? = null) {
         val activeProvider = provider() ?: return
-        setAddToPlaylistStatus("Loading tracks...")
+        setAddToPlaylistStatus(addToPlaylistResolvingTracksStatus())
         scope.launch {
             try {
-                val refresh = withContext(Dispatchers.IO) {
-                    activeProvider.addTracksToPlaylistAndRefresh(
+                val update = withContext(Dispatchers.IO) {
+                    activeProvider.addTracksToPlaylistStateUpdate(
                         playlistId = playlist?.id,
                         playlistName = playlist?.name,
                         newPlaylistName = newPlaylistName,
@@ -153,16 +155,12 @@ class DesktopPlaylistsController(
                         providerResponseService = providerResponseService,
                     )
                 }
-                val update = refresh.update
                 if (update.closeDialog) setAddToPlaylistTarget(null)
                 setAddToPlaylistStatus(update.addToPlaylistStatus)
                 update.connectionStatus?.let(setConnectionStatus)
-                refresh.playlists?.let { playlists ->
-                    setPlaylists(playlists)
-                    refreshHomePlaylists(playlists)
-                }
+                update.playlists?.also(setPlaylists)?.let(::refreshHomePlaylists)
             } catch (exception: Exception) {
-                setAddToPlaylistStatus(exception.message ?: "Could not add to playlist.")
+                setAddToPlaylistStatus(addToPlaylistErrorMessage(exception, "tracks"))
             }
         }
     }

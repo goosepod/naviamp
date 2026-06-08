@@ -973,6 +973,14 @@ Progress notes:
   - `AndroidPlaylistsController.kt` shrank for this slice (`17` added, `29` removed) and no longer owns the preload loop or track-map merge.
   - `DesktopPlaylistsController.kt` shrank for this slice (`19` added, `22` removed) and no longer owns the per-playlist preload loop or preload failure policy.
   - Shared domain and tests grew intentionally so the two platform controllers consume one tested playlist refresh/preload state surface.
+- Added shared add-to-playlist state application around the existing provider mutation helper.
+- Android media actions and Desktop playlist actions now share track deduplication, empty-track handling, loading/error labels, mutation refresh result shaping, dialog-close intent, playlist refresh application data, and final status fields.
+- Platform code still owns the correct boundaries: Android state assignment, Desktop dialog target resolution from UI targets, Desktop home playlist projection, and route/dialog setters.
+- Added common `PlaylistMutationsTest.kt` coverage for add-to-playlist state updates, empty-track updates, loading/resolving/error labels, and provider-backed state updates.
+- Size/reduction note for the add-to-playlist state-application slice:
+  - `AndroidMediaActionsController.kt` shrank for this slice (`9` added, `13` removed) and no longer owns track deduplication or empty-track branching.
+  - `DesktopPlaylistsController.kt` shrank for this slice (`8` added, `10` removed) and consumes one shared add-to-playlist state update after platform target resolution.
+  - `DesktopNaviampApp.kt` dropped one stale import of the lower-level mutation helper.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
