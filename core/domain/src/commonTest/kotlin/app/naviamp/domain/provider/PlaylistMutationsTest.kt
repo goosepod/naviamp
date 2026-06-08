@@ -242,6 +242,100 @@ class PlaylistMutationsTest {
     }
 
     @Test
+    fun playlistPlaybackPlansStartTrackLoadingAndReadyQueue() {
+        val playlist = playlist("one", "Road Mix")
+        val selectedTracks = listOf(track("selected"))
+        val loadedTracks = listOf(track("loaded"))
+        val pending = PendingPlaybackAction("other", "Already starting...")
+
+        assertEquals(
+            PlaylistPlaybackStartPlan(
+                action = PendingPlaybackAction("playlist:one:play", "Loading Road Mix..."),
+                shouldStart = true,
+                status = "Loading Road Mix...",
+            ),
+            playlistPlaybackStartPlan(playlist, shuffle = false, pending = null),
+        )
+        assertEquals(
+            PlaylistPlaybackStartPlan(
+                action = PendingPlaybackAction("playlist:one:play", "Loading Road Mix..."),
+                shouldStart = false,
+                status = "Already starting...",
+            ),
+            playlistPlaybackStartPlan(playlist, shuffle = false, pending = pending),
+        )
+        assertEquals(
+            PlaylistPlaybackTrackLoadPlan(shouldLoadTracks = false),
+            playlistPlaybackTrackLoadPlan(playlist, selectedTracks, playlist),
+        )
+        assertEquals(
+            PlaylistPlaybackTrackLoadPlan(shouldLoadTracks = true),
+            playlistPlaybackTrackLoadPlan(null, emptyList(), playlist),
+        )
+
+        val selectedPlan = playlistPlaybackReadyPlan(
+            playlist = playlist,
+            shuffle = false,
+            selectedPlaylist = playlist,
+            selectedPlaylistTracks = selectedTracks,
+            loadedTracks = loadedTracks,
+            recentPlaylistIds = listOf("two", "one"),
+            recentPlaylistLimit = 2,
+        )
+        assertEquals(selectedTracks, selectedPlan.tracks)
+        assertEquals(track("selected"), selectedPlan.firstTrack)
+        assertEquals(listOf("one", "two"), selectedPlan.recentPlaylistIds)
+
+        val emptyPlan = playlistPlaybackReadyPlan(
+            playlist = playlist,
+            shuffle = false,
+            selectedPlaylist = null,
+            selectedPlaylistTracks = emptyList(),
+            loadedTracks = emptyList(),
+            recentPlaylistIds = emptyList(),
+            recentPlaylistLimit = 2,
+            emptyStatus = "Road Mix did not return any tracks.",
+        )
+        assertEquals(null, emptyPlan.firstTrack)
+        assertEquals("Road Mix did not return any tracks.", emptyPlan.emptyStatus)
+    }
+
+    @Test
+    fun preparePlaylistPlaybackLoadsOrReusesTracks() = kotlinx.coroutines.test.runTest {
+        val playlist = playlist("one", "Road Mix")
+        val selectedTracks = listOf(track("selected"))
+        val provider = FakePlaylistProvider(
+            playlists = listOf(playlist),
+            playlistTracks = listOf(track("loaded")),
+        )
+
+        val loaded = provider.preparePlaylistPlayback(
+            playlist = playlist,
+            shuffle = false,
+            selectedPlaylist = null,
+            selectedPlaylistTracks = emptyList(),
+            recentPlaylistIds = listOf("two"),
+            recentPlaylistLimit = 2,
+        )
+        assertEquals(true, loaded.shouldStoreLoadedTracks)
+        assertEquals(listOf(track("loaded")), loaded.loadedTracks)
+        assertEquals(listOf(track("loaded")), loaded.readyPlan.tracks)
+        assertEquals(listOf("one", "two"), loaded.readyPlan.recentPlaylistIds)
+
+        val reused = provider.preparePlaylistPlayback(
+            playlist = playlist,
+            shuffle = false,
+            selectedPlaylist = playlist,
+            selectedPlaylistTracks = selectedTracks,
+            recentPlaylistIds = emptyList(),
+            recentPlaylistLimit = 2,
+        )
+        assertEquals(false, reused.shouldStoreLoadedTracks)
+        assertEquals(emptyList(), reused.loadedTracks)
+        assertEquals(selectedTracks, reused.readyPlan.tracks)
+    }
+
+    @Test
     fun addToPlaylistMutationUpdateReportsNoTracks() {
         assertEquals(
             AddToPlaylistMutationUpdate(

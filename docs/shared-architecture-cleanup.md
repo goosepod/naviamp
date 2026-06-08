@@ -932,6 +932,14 @@ Progress notes:
   - `AndroidPlaylistsController.kt` no longer performs raw playlist list loading or preload target selection in its refresh path.
   - `DesktopPlaylistsController.kt` no longer duplicates cache/no-cache playlist loading branches or preload target selection.
   - Shared domain grew intentionally by composing existing playlist preload rules with provider/cache loading helpers.
+- Added shared playlist playback start/load/ready planning with `preparePlaylistPlayback`.
+- Android and Desktop playlist controllers now share pending playback gating, provider/cache track loading, selected-vs-loaded track selection, shuffle ordering, empty-status results, and recent-playlist ID planning.
+- Platform code still owns playback execution and UI state writes: Android applies loaded tracks into `AndroidAppState`; Desktop applies loaded tracks, status, and calls the playlist engine.
+- Added common `PlaylistMutationsTest.kt` coverage for playback start plans, load plans, ready queue plans, and the shared preparation path.
+- Size/reduction note for the playlist playback preparation slice:
+  - `AndroidPlaylistsController.kt` is net smaller for this slice (`33` added, `38` removed) because the controller no longer builds playlist load/ready behavior inline.
+  - `DesktopPlaylistsController.kt` is still net larger (`38` added, `27` removed), mainly because the remaining desktop playback adapter path still has explicit state application and playback-engine side effects.
+  - Shared domain and tests grew intentionally, but the next playlist cleanup should target larger controller deletion by moving UI-state application plans into shared reducers rather than adding smaller wrappers.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:

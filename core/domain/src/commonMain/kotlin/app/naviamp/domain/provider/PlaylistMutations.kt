@@ -88,6 +88,29 @@ data class PendingPlaybackAction(
     val status: String,
 )
 
+data class PlaylistPlaybackStartPlan(
+    val action: PendingPlaybackAction,
+    val shouldStart: Boolean,
+    val status: String,
+)
+
+data class PlaylistPlaybackTrackLoadPlan(
+    val shouldLoadTracks: Boolean,
+)
+
+data class PlaylistPlaybackReadyPlan(
+    val tracks: List<Track>,
+    val firstTrack: Track?,
+    val recentPlaylistIds: List<String>,
+    val emptyStatus: String,
+)
+
+data class PlaylistPlaybackPreparation(
+    val loadedTracks: List<Track>,
+    val shouldStoreLoadedTracks: Boolean,
+    val readyPlan: PlaylistPlaybackReadyPlan,
+)
+
 fun homePlaylists(
     playlists: List<Playlist>,
     recentPlaylistIds: List<String>,
@@ -241,6 +264,19 @@ fun playlistPlaybackAction(
         },
     )
 
+fun playlistPlaybackStartPlan(
+    playlist: Playlist,
+    shuffle: Boolean,
+    pending: PendingPlaybackAction?,
+): PlaylistPlaybackStartPlan {
+    val action = playlistPlaybackAction(playlist, shuffle)
+    return PlaylistPlaybackStartPlan(
+        action = action,
+        shouldStart = shouldStartPlaybackAction(pending),
+        status = pending?.status ?: action.status,
+    )
+}
+
 fun shouldStartPlaybackAction(pending: PendingPlaybackAction?): Boolean =
     pending == null
 
@@ -261,6 +297,102 @@ fun selectedPlaylistTracksForPlayback(
     } else {
         loadedTracks
     }
+
+fun playlistPlaybackTrackLoadPlan(
+    selectedPlaylist: Playlist?,
+    selectedPlaylistTracks: List<Track>,
+    playlist: Playlist,
+): PlaylistPlaybackTrackLoadPlan =
+    PlaylistPlaybackTrackLoadPlan(
+        shouldLoadTracks = selectedPlaylist?.id != playlist.id || selectedPlaylistTracks.isEmpty(),
+    )
+
+suspend fun MediaProvider.loadPlaylistTracksForPlayback(
+    playlist: Playlist,
+    providerResponseService: ProviderResponseService? = null,
+): List<Track> =
+    providerResponseService?.playlistTracks(this, playlist.id)
+        ?: playlistTracks(playlist.id)
+
+suspend fun MediaProvider.preparePlaylistPlayback(
+    playlist: Playlist,
+    shuffle: Boolean,
+    selectedPlaylist: Playlist?,
+    selectedPlaylistTracks: List<Track>,
+    recentPlaylistIds: List<String>,
+    recentPlaylistLimit: Int,
+    providerResponseService: ProviderResponseService? = null,
+    emptyStatus: String = "Playlist is empty.",
+): PlaylistPlaybackPreparation {
+    val loadPlan = playlistPlaybackTrackLoadPlan(selectedPlaylist, selectedPlaylistTracks, playlist)
+    val loadedTracks = if (loadPlan.shouldLoadTracks) {
+        loadPlaylistTracksForPlayback(playlist, providerResponseService)
+    } else {
+        emptyList()
+    }
+    return PlaylistPlaybackPreparation(
+        loadedTracks = loadedTracks,
+        shouldStoreLoadedTracks = loadPlan.shouldLoadTracks,
+        readyPlan = playlistPlaybackReadyPlan(
+            playlist = playlist,
+            shuffle = shuffle,
+            selectedPlaylist = selectedPlaylist,
+            selectedPlaylistTracks = selectedPlaylistTracks,
+            loadedTracks = loadedTracks,
+            recentPlaylistIds = recentPlaylistIds,
+            recentPlaylistLimit = recentPlaylistLimit,
+            emptyStatus = emptyStatus,
+        ),
+    )
+}
+
+fun playlistPlaybackReadyPlan(
+    playlist: Playlist,
+    shuffle: Boolean,
+    selectedPlaylist: Playlist?,
+    selectedPlaylistTracks: List<Track>,
+    loadedTracks: List<Track>,
+    recentPlaylistIds: List<String>,
+    recentPlaylistLimit: Int,
+    emptyStatus: String = "Playlist is empty.",
+): PlaylistPlaybackReadyPlan {
+    val playbackTracks = selectedPlaylistTracksForPlayback(
+        selectedPlaylist = selectedPlaylist,
+        selectedPlaylistTracks = selectedPlaylistTracks,
+        playlist = playlist,
+        loadedTracks = loadedTracks,
+    )
+    val tracks = playlistPlaybackTracks(playbackTracks, shuffle)
+    return PlaylistPlaybackReadyPlan(
+        tracks = tracks,
+        firstTrack = tracks.firstOrNull(),
+        recentPlaylistIds = recentPlaylistIdsAfterPlayed(
+            recentPlaylistIds = recentPlaylistIds,
+            playlistId = playlist.id,
+            limit = recentPlaylistLimit,
+        ),
+        emptyStatus = emptyStatus,
+    )
+}
+
+fun selectedPlaylistPlaybackReadyPlan(
+    playlist: Playlist,
+    tracks: List<Track>,
+    shuffle: Boolean,
+    recentPlaylistIds: List<String>,
+    recentPlaylistLimit: Int,
+    emptyStatus: String = "Playlist is empty.",
+): PlaylistPlaybackReadyPlan =
+    playlistPlaybackReadyPlan(
+        playlist = playlist,
+        shuffle = shuffle,
+        selectedPlaylist = playlist,
+        selectedPlaylistTracks = tracks,
+        loadedTracks = emptyList(),
+        recentPlaylistIds = recentPlaylistIds,
+        recentPlaylistLimit = recentPlaylistLimit,
+        emptyStatus = emptyStatus,
+    )
 
 suspend fun MediaProvider.createPlaylistOrAddMissingTracks(
     playlistId: String?,

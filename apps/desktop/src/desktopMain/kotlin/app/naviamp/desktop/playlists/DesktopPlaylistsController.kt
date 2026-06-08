@@ -18,8 +18,8 @@ import app.naviamp.domain.provider.playlistDeletedStatus
 import app.naviamp.domain.provider.deletePlaylistAndRefresh
 import app.naviamp.domain.provider.playlistDetailsStateUpdate
 import app.naviamp.domain.provider.loadPlaylistTracksForPreload
-import app.naviamp.domain.provider.playlistPlaybackAction
-import app.naviamp.domain.provider.playlistPlaybackTracks
+import app.naviamp.domain.provider.playlistPlaybackStartPlan
+import app.naviamp.domain.provider.preparePlaylistPlayback
 import app.naviamp.domain.provider.playlistRenameErrorMessage
 import app.naviamp.domain.provider.playlistRenameLoadingStatus
 import app.naviamp.domain.provider.playlistRenamedStatus
@@ -29,7 +29,7 @@ import app.naviamp.domain.provider.refreshPlaylistsAndPlanPreload
 import app.naviamp.domain.provider.renamedSelectedPlaylist
 import app.naviamp.domain.provider.renamePlaylistAndRefresh
 import app.naviamp.domain.provider.saveQueueAsPlaylistAndRefresh
-import app.naviamp.domain.provider.shouldStartPlaybackAction
+import app.naviamp.domain.provider.selectedPlaylistPlaybackReadyPlan
 import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.RecentRadioStream
@@ -230,31 +230,42 @@ class DesktopPlaylistsController(
 
     fun playPlaylist(playlist: Playlist, shuffle: Boolean = false) {
         val activeProvider = provider() ?: return
-        val playbackAction = playlistPlaybackAction(playlist, shuffle)
-        if (!shouldStartPlaybackAction(pendingPlaybackAction())) {
-            pendingPlaybackAction()?.status?.let(setConnectionStatus)
+        val startPlan = playlistPlaybackStartPlan(playlist, shuffle, pendingPlaybackAction())
+        if (!startPlan.shouldStart) {
+            setConnectionStatus(startPlan.status)
             return
         }
-        setPendingPlaybackAction(playbackAction)
-        setConnectionStatus(playbackAction.status)
+        setPendingPlaybackAction(startPlan.action)
+        setConnectionStatus(startPlan.status)
         scope.launch {
             try {
-                val loadedTracks = withContext(Dispatchers.IO) {
-                    providerResponseService.playlistTracks(activeProvider, playlist.id)
+                val preparation = withContext(Dispatchers.IO) {
+                    activeProvider.preparePlaylistPlayback(
+                        playlist = playlist,
+                        shuffle = shuffle,
+                        selectedPlaylist = null,
+                        selectedPlaylistTracks = emptyList(),
+                        recentPlaylistIds = recentPlaylistIds(),
+                        recentPlaylistLimit = 50,
+                        providerResponseService = providerResponseService,
+                        emptyStatus = "${playlist.name} did not return any tracks.",
+                    )
                 }
-                setPlaylistTracksById(playlistTracksById() + (playlist.id to loadedTracks))
-                val tracks = playlistPlaybackTracks(loadedTracks, shuffle)
-                if (tracks.isEmpty()) {
-                    setConnectionStatus("${playlist.name} did not return any tracks.")
+                if (preparation.shouldStoreLoadedTracks) {
+                    setPlaylistTracksById(playlistTracksById() + (playlist.id to preparation.loadedTracks))
+                }
+                val readyPlan = preparation.readyPlan
+                if (readyPlan.firstTrack == null) {
+                    setConnectionStatus(readyPlan.emptyStatus)
                     return@launch
                 }
                 setConnectionStatus(null)
-                setPendingPlaybackAction(clearPendingPlaybackAction(pendingPlaybackAction(), playbackAction))
-                playTracks(playlist, activeProvider, tracks, index = 0)
+                setPendingPlaybackAction(clearPendingPlaybackAction(pendingPlaybackAction(), startPlan.action))
+                playTracks(playlist, activeProvider, readyPlan.tracks, index = 0)
             } catch (exception: Exception) {
                 setConnectionStatus(exception.message ?: "Could not play ${playlist.name}.")
             } finally {
-                setPendingPlaybackAction(clearPendingPlaybackAction(pendingPlaybackAction(), playbackAction))
+                setPendingPlaybackAction(clearPendingPlaybackAction(pendingPlaybackAction(), startPlan.action))
             }
         }
     }
@@ -277,23 +288,23 @@ class DesktopPlaylistsController(
     fun playPlaylistDetails(index: Int = 0, shuffle: Boolean = false) {
         val activeProvider = provider() ?: return
         val playlist = selectedPlaylist() ?: return
-        val playbackAction = playlistPlaybackAction(playlist, shuffle)
-        if (!shouldStartPlaybackAction(pendingPlaybackAction())) {
-            pendingPlaybackAction()?.status?.let(setSelectedPlaylistStatus)
+        val startPlan = playlistPlaybackStartPlan(playlist, shuffle, pendingPlaybackAction())
+        if (!startPlan.shouldStart) {
+            setSelectedPlaylistStatus(startPlan.status)
             return
         }
-        val tracks = playlistPlaybackTracks(selectedPlaylistTracks(), shuffle)
-        if (tracks.isEmpty()) return
-        setPendingPlaybackAction(playbackAction)
-        setSelectedPlaylistStatus(playbackAction.status)
+        val readyPlan = selectedPlaylistPlaybackReadyPlan(playlist, selectedPlaylistTracks(), shuffle, recentPlaylistIds(), 50)
+        if (readyPlan.firstTrack == null) return
+        setPendingPlaybackAction(startPlan.action)
+        setSelectedPlaylistStatus(startPlan.status)
         playTracks(
             playlist = playlist,
             activeProvider = activeProvider,
-            tracks = tracks,
-            index = index.coerceIn(tracks.indices),
+            tracks = readyPlan.tracks,
+            index = index.coerceIn(readyPlan.tracks.indices),
         )
         setSelectedPlaylistStatus(null)
-        setPendingPlaybackAction(clearPendingPlaybackAction(pendingPlaybackAction(), playbackAction))
+        setPendingPlaybackAction(clearPendingPlaybackAction(pendingPlaybackAction(), startPlan.action))
     }
 
     fun renamePlaylist(playlist: Playlist, name: String) {
