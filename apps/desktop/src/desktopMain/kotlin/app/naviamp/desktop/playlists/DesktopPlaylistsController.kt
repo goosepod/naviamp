@@ -30,12 +30,11 @@ import app.naviamp.domain.provider.playlistRenameLoadingStatus
 import app.naviamp.domain.provider.playlistRenameStateUpdate
 import app.naviamp.domain.provider.queuePlaylistSaveErrorMessage
 import app.naviamp.domain.provider.queuePlaylistSaveLoadingStatus
-import app.naviamp.domain.provider.queuePlaylistSaveStateUpdate
 import app.naviamp.domain.provider.recentPlaylistIdsAfterPlayed
 import app.naviamp.domain.provider.refreshPlaylistDetailsApplication
 import app.naviamp.domain.provider.refreshPlaylistListState
 import app.naviamp.domain.provider.renamePlaylistAndRefresh
-import app.naviamp.domain.provider.saveQueueAsPlaylistAndRefresh
+import app.naviamp.domain.provider.saveQueueAsPlaylistStateUpdate
 import app.naviamp.domain.provider.preloadPlaylistTracksStateUpdate
 import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.settings.PlaybackSettings
@@ -194,14 +193,13 @@ class DesktopPlaylistsController(
         setConnectionStatus(queuePlaylistSaveLoadingStatus())
         scope.launch {
             try {
-                val refresh = withContext(Dispatchers.IO) {
-                    activeProvider.saveQueueAsPlaylistAndRefresh(
+                val update = withContext(Dispatchers.IO) {
+                    activeProvider.saveQueueAsPlaylistStateUpdate(
                         name = name,
                         tracks = queueTracks,
                         providerResponseService = providerResponseService,
                     )
                 }
-                val update = queuePlaylistSaveStateUpdate(refresh)
                 setConnectionStatus(update.status)
                 applyPlaylistListApplication(update.playlists)
             } catch (exception: Exception) {

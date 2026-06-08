@@ -894,6 +894,21 @@ suspend fun MediaProvider.saveQueueAsPlaylistAndRefresh(
     return QueuePlaylistSaveRefresh(result = result, playlists = playlists)
 }
 
+suspend fun MediaProvider.saveQueueAsPlaylistStateUpdate(
+    name: String,
+    tracks: List<Track>,
+    providerResponseService: ProviderResponseService? = null,
+    playlistLimit: Int = 500,
+): QueuePlaylistSaveStateUpdate =
+    queuePlaylistSaveStateUpdate(
+        saveQueueAsPlaylistAndRefresh(
+            name = name,
+            tracks = tracks,
+            providerResponseService = providerResponseService,
+            playlistLimit = playlistLimit,
+        ),
+    )
+
 fun queuePlaylistSaveLoadingStatus(): String =
     "Saving queue as playlist..."
 

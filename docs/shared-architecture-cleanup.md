@@ -1042,6 +1042,14 @@ Progress notes:
   - `AndroidPlaylistsController.kt` no longer directly copies refreshed playlist lists into `homeState.playlists` in playlist controller flows.
   - Shared domain now names the Android/Desktop projection difference instead of leaving it as implicit platform-local list assignment.
 - Verification passed: `./gradlew :core:domain:jvmTest --tests app.naviamp.domain.provider.PlaylistMutationsTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Added shared queue-save state composition with `saveQueueAsPlaylistStateUpdate`.
+- Android and Desktop queue-save handlers now ask the shared provider extension for the final playlist/status update instead of each composing `saveQueueAsPlaylistAndRefresh` plus `queuePlaylistSaveStateUpdate`.
+- Platform code still owns queue-track capture and status target assignment: Android uses `playlistActionStatus`/`status`, Desktop uses connection status.
+- Added common `PlaylistMutationsTest.kt` coverage for the new provider-backed queue-save state update.
+- Size/reduction note for the queue-save state update slice:
+  - `AndroidPlaylistsController.kt` and `DesktopPlaylistsController.kt` both dropped local refresh-to-state composition in the queue-save flow.
+  - Shared domain keeps provider mutation, cache invalidation, playlist refresh, and final status text in one tested call path.
+- Verification passed: `./gradlew :core:domain:jvmTest --tests app.naviamp.domain.provider.PlaylistMutationsTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 

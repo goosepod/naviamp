@@ -895,6 +895,16 @@ class PlaylistMutationsTest {
             ),
             queuePlaylistSaveStateUpdate(refresh),
         )
+        assertEquals(
+            QueuePlaylistSaveStateUpdate(
+                playlists = listOf(
+                    existingPlaylist,
+                    playlist("created", "Second Mix").copy(trackCount = 1),
+                ),
+                status = "Saved Second Mix with 1 tracks.",
+            ),
+            provider.saveQueueAsPlaylistStateUpdate("Second Mix", listOf(track("two"))),
+        )
     }
 
     @Test
