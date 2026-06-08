@@ -550,10 +550,18 @@ Every implementation slice should record:
 
 ## Phase 4: Shared Playlist Mutations
 
-- [ ] Create a shared playlist mutation coordinator for save queue, add track, rename, and delete flows.
-- [ ] Keep platform code responsible only for dialogs, text input, and user intent dispatch.
-- [ ] Replace duplicated Android/Desktop queue-save paths with a single shared flow.
-- [ ] Add tests for queue-to-playlist request construction and local state refresh.
+- [x] Create a shared playlist mutation coordinator for save queue, add track, rename, and delete flows.
+- [x] Keep platform code responsible only for dialogs, text input, and user intent dispatch.
+- [x] Replace duplicated Android/Desktop queue-save paths with a single shared flow.
+- [x] Add tests for queue-to-playlist request construction and local state refresh.
+
+Phase 4 close-out:
+
+- Playlist mutation, refresh, and playback preparation logic now lives behind shared provider/domain helpers in `PlaylistMutations.kt`.
+- Covered shared flows include list refresh/preload, detail refresh, playlist playback preparation, selected-detail playback, queue-save, add-to-playlist, rename/delete, smart playlist save/update, selected-playlist reducers, pending playback, and playlist list/home projection.
+- Remaining playlist platform code is intentionally adapter-shaped: coroutine/lifecycle ownership, provider availability checks, dialogs/text input, Android content-state writes, Desktop route/dialog/auth side effects, recent-playlist persistence, and playback execution.
+- `DesktopPlaylistMutations.kt` still resolves desktop add-to-playlist UI targets into concrete tracks. That should move with the broader media-actions extraction because Android reaches the same intent through media action paths rather than through a matching playlist controller.
+- Do not keep adding tiny playlist wrappers unless a future feature exposes duplicated behavior again; the next cleanup area should be media actions or radio.
 
 ## Phase 5: Shared Playback Orchestration
 
