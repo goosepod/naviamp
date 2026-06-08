@@ -77,7 +77,9 @@ import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.playback.PlaybackAdjacentAction
+import app.naviamp.domain.playback.PlaybackPlayPauseCommand
 import app.naviamp.domain.playback.planPlaybackAdjacentAction
+import app.naviamp.domain.playback.playbackPlayPauseCommand
 import app.naviamp.domain.playback.planPlaybackSeek
 import app.naviamp.domain.playback.canReportPlaybackTrack
 import app.naviamp.domain.playback.shouldSubmitPlayReport
@@ -788,16 +790,21 @@ private fun NaviampAndroidApp(
     }
 
     fun handleAutoPlayPauseCommand(): Boolean {
-        return when (playbackState) {
-            PlaybackState.Playing -> {
+        return when (
+            playbackPlayPauseCommand(
+                playbackState = playbackState,
+                hasPlaybackTarget = nowPlaying != null || nowPlayingStation != null || activeSourceId != null,
+            )
+        ) {
+            PlaybackPlayPauseCommand.Pause -> {
                 playbackEngine.pause()
                 true
             }
-            PlaybackState.Paused -> {
+            PlaybackPlayPauseCommand.Resume -> {
                 playbackEngine.resume()
                 true
             }
-            else -> {
+            PlaybackPlayPauseCommand.StartOrRestore -> {
                 if (nowPlaying == null && nowPlayingStation == null) {
                     activeSourceId?.let { sourceId -> restorePlaybackSessionAction(sourceId) }
                 }
@@ -815,6 +822,7 @@ private fun NaviampAndroidApp(
                 restoredStartPositionSeconds = null
                 true
             }
+            PlaybackPlayPauseCommand.None -> false
         }
     }
 

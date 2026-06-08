@@ -23,4 +23,24 @@ class PlaybackCommandsTest {
             playbackVolumeCommand(requestedPercent = 25, supportsSoftwareVolume = false),
         )
     }
+
+    @Test
+    fun playbackPlayPauseCommandMapsStateAndAvailableTargets() {
+        assertEquals(
+            PlaybackPlayPauseCommand.Pause,
+            playbackPlayPauseCommand(PlaybackState.Playing, hasPlaybackTarget = false),
+        )
+        assertEquals(
+            PlaybackPlayPauseCommand.Resume,
+            playbackPlayPauseCommand(PlaybackState.Paused, hasPlaybackTarget = false),
+        )
+        assertEquals(
+            PlaybackPlayPauseCommand.StartOrRestore,
+            playbackPlayPauseCommand(PlaybackState.Stopped, hasPlaybackTarget = true),
+        )
+        assertEquals(
+            PlaybackPlayPauseCommand.None,
+            playbackPlayPauseCommand(PlaybackState.Idle, hasPlaybackTarget = false),
+        )
+    }
 }

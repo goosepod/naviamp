@@ -5,6 +5,13 @@ data class PlaybackVolumeCommand(
     val shouldApplyToEngine: Boolean,
 )
 
+sealed interface PlaybackPlayPauseCommand {
+    data object Pause : PlaybackPlayPauseCommand
+    data object Resume : PlaybackPlayPauseCommand
+    data object StartOrRestore : PlaybackPlayPauseCommand
+    data object None : PlaybackPlayPauseCommand
+}
+
 fun playbackVolumeCommand(
     requestedPercent: Int,
     supportsSoftwareVolume: Boolean,
@@ -17,3 +24,17 @@ fun playbackVolumeCommand(
         },
         shouldApplyToEngine = supportsSoftwareVolume,
     )
+
+fun playbackPlayPauseCommand(
+    playbackState: PlaybackState,
+    hasPlaybackTarget: Boolean,
+): PlaybackPlayPauseCommand =
+    when (playbackState) {
+        PlaybackState.Playing -> PlaybackPlayPauseCommand.Pause
+        PlaybackState.Paused -> PlaybackPlayPauseCommand.Resume
+        else -> if (hasPlaybackTarget) {
+            PlaybackPlayPauseCommand.StartOrRestore
+        } else {
+            PlaybackPlayPauseCommand.None
+        }
+    }

@@ -1199,6 +1199,10 @@ Progress notes:
 - Platform code still owns the correct side effects: Android UI state assignment, Desktop playback settings persistence, and concrete playback-engine calls.
 - Added common `PlaybackCommandsTest.kt` coverage for clamping and unsupported software-volume behavior.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.playback.PlaybackCommandsTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
+- Added shared play/pause toggle command planning with `PlaybackPlayPauseCommand` and `playbackPlayPauseCommand`.
+- Android Auto play/pause now asks shared domain whether to pause, resume, start/restore playback, or no-op; platform code still executes restore, internet-radio start, track playback, and engine calls.
+- Added common `PlaybackCommandsTest.kt` coverage for play/pause command mapping.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.playback.PlaybackCommandsTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
 
