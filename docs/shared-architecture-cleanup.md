@@ -1217,6 +1217,9 @@ Progress notes:
 - Moved desktop surface/window chrome rendering into `DesktopAppSurface.kt` and now-playing route wiring into `DesktopNowPlayingRoute.kt`.
 - `DesktopNaviampApp.kt` dropped from 1,958 lines to 1,751 lines in this slice; the extracted files are route/surface adapters and do not change app behavior.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
+- Moved desktop internet-radio stream artwork lookup into `DesktopRadioArtworkEffects.kt`, keeping provider search and artwork-key branching out of the root app.
+- `DesktopNaviampApp.kt` dropped to 1,739 lines after the artwork-effect extraction.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
 

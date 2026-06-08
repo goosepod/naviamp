@@ -357,27 +357,15 @@ fun NaviampApp(
     } else {
         NaviampPlayerColors.solid(appColors.background)
     }
-    LaunchedEffect(nowPlayingInternetRadioStation?.id, nowPlayingStreamMetadata.title, nowPlayingStreamMetadata.properties, connectedProvider) {
-        val station = nowPlayingInternetRadioStation ?: return@LaunchedEffect
-        if (!radioArtworkNeedsTrackLookup(station, nowPlayingStreamMetadata.title, nowPlayingStreamMetadata.properties)) {
-            return@LaunchedEffect
-        }
-        val key = radioTrackArtworkKey(station, nowPlayingStreamMetadata.title) ?: return@LaunchedEffect
-        if (radioTrackArtworkByKey.containsKey(key)) return@LaunchedEffect
-        val provider = connectedProvider ?: return@LaunchedEffect
-        val query = radioTrackArtworkQuery(nowPlayingStreamMetadata.title) ?: return@LaunchedEffect
-        val artworkUrl = withContext(Dispatchers.IO) {
-            runCatching {
-                provider
-                    .search(query, limit = 5)
-                    .tracks
-                    .firstOrNull { it.coverArtId != null }
-                    ?.coverArtId
-                    ?.let(provider::coverArtUrl)
-            }.getOrNull()
-        }
-        radioTrackArtworkByKey = radioTrackArtworkByKey + (key to artworkUrl)
-    }
+    DesktopRadioArtworkLookupEffect(
+        station = nowPlayingInternetRadioStation,
+        streamMetadata = nowPlayingStreamMetadata,
+        provider = connectedProvider,
+        artworkByKey = radioTrackArtworkByKey,
+        onArtworkResolved = { key, artworkUrl ->
+            radioTrackArtworkByKey = radioTrackArtworkByKey + (key to artworkUrl)
+        },
+    )
     val backgroundStart by animateColorAsState(
         targetValue = targetBackgroundColors.backgroundStart,
         animationSpec = tween(durationMillis = 180, easing = LinearEasing),
