@@ -16,6 +16,7 @@ import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioRequest
+import app.naviamp.domain.radio.RadioRequestStartResult
 import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.radio.SeededRadioRequest
 import app.naviamp.domain.radio.albumMixSeededRadioRequest
@@ -28,6 +29,7 @@ import app.naviamp.domain.radio.genreMixRadioRequest
 import app.naviamp.domain.radio.libraryRadioRequest
 import app.naviamp.domain.radio.popularTracksRadioRequest
 import app.naviamp.domain.radio.radioRefillSeedTrack
+import app.naviamp.domain.radio.radioRequestStartResult
 import app.naviamp.domain.radio.randomAlbumSeededRadioRequest
 import app.naviamp.domain.radio.shouldFinishRadioRefillForSession
 import app.naviamp.domain.radio.trackRadioRequest
@@ -113,33 +115,39 @@ class DesktopRadioController(
         val radioService = radioService(provider)
         setConnectionStatus("Loading ${request.label}...")
         scope.launch {
-            try {
-                val tracks = withContext(Dispatchers.IO) {
-                    request.loadTracks(radioService)
+            when (
+                val result = withContext(Dispatchers.IO) {
+                    radioRequestStartResult(request, radioService)
                 }
-                if (tracks.isEmpty()) {
+            ) {
+                RadioRequestStartResult.Empty -> {
                     setConnectionStatus("${request.label} did not return any tracks.")
                     return@launch
                 }
-                rememberRadioStream(request.recentRadioStream.withRadioCoverArtIds(tracks))
-                setConnectionStatus(null)
-                setRadioSessionId(radioSessionId() + 1)
-                setRadioQueueActive(true)
-                clearShuffleSnapshot()
-                setRadioRefilling(false)
-                setLastRadioRefillSeedId(null)
-                setOpenPlayerOnTrackStart(true)
-                playlistEngine.playFrom(
-                    scope = scope,
-                    provider = provider,
-                    tracks = tracks,
-                    index = 0,
-                    quality = streamQuality(),
-                    replayGainMode = replayGainMode(),
-                    callbacks = playlistCallbacks(),
-                )
-            } catch (exception: Exception) {
-                setConnectionStatus(exception.message ?: "Could not start ${request.label}.")
+                is RadioRequestStartResult.Failed -> {
+                    setConnectionStatus(result.error.message ?: "Could not start ${request.label}.")
+                    return@launch
+                }
+                is RadioRequestStartResult.Ready -> {
+                    result.recentRadioStream?.let(rememberRadioStream)
+                    val tracks = result.queue
+                    setConnectionStatus(null)
+                    setRadioSessionId(radioSessionId() + 1)
+                    setRadioQueueActive(true)
+                    clearShuffleSnapshot()
+                    setRadioRefilling(false)
+                    setLastRadioRefillSeedId(null)
+                    setOpenPlayerOnTrackStart(true)
+                    playlistEngine.playFrom(
+                        scope = scope,
+                        provider = provider,
+                        tracks = tracks,
+                        index = 0,
+                        quality = streamQuality(),
+                        replayGainMode = replayGainMode(),
+                        callbacks = playlistCallbacks(),
+                    )
+                }
             }
         }
     }

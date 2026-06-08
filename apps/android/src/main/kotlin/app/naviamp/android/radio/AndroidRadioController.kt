@@ -16,6 +16,7 @@ import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.radio.RadioService
+import app.naviamp.domain.radio.RadioRequestStartResult
 import app.naviamp.domain.radio.albumMixSeededRadioRequest
 import app.naviamp.domain.radio.artistMixSeededRadioRequest
 import app.naviamp.domain.radio.albumRecentRadioStream
@@ -28,6 +29,7 @@ import app.naviamp.domain.radio.genreMixRadioRequest
 import app.naviamp.domain.radio.libraryRecentRadioStream
 import app.naviamp.domain.radio.popularTracksRecentRadioStream
 import app.naviamp.domain.radio.radioRefillSeedTrack
+import app.naviamp.domain.radio.radioRequestStartResult
 import app.naviamp.domain.radio.selectAlbumRadioSeedTrack
 import app.naviamp.domain.radio.trackRecentRadioStream
 import app.naviamp.domain.radio.withRadioCoverArtIds
@@ -216,18 +218,25 @@ fun startAndroidRadioTracks(
     val service = RadioService(activeProvider, providerResponseService = providerResponseService)
     scope.launch {
         state.status = "Starting $statusLabel..."
-        runCatching { loadTracks(service) }
-            .onSuccess { radioTracks ->
-                val queue = radioTracks.distinctBy { it.id }
-                val firstTrack = queue.firstOrNull()
-                if (firstTrack == null) {
-                    state.status = "No tracks found for $statusLabel."
-                } else {
-                    recentRadioStream?.withRadioCoverArtIds(queue)?.let(rememberRecentRadioStream)
-                    playTrack(firstTrack, queue)
-                }
+        when (
+            val result = radioRequestStartResult(
+                radioService = service,
+                recentRadioStream = recentRadioStream,
+                deduplicateTracks = true,
+                loadTracks = loadTracks,
+            )
+        ) {
+            RadioRequestStartResult.Empty -> {
+                state.status = "No tracks found for $statusLabel."
             }
-            .onFailure { error -> state.status = error.message ?: "Could not start $statusLabel." }
+            is RadioRequestStartResult.Failed -> {
+                state.status = result.error.message ?: "Could not start $statusLabel."
+            }
+            is RadioRequestStartResult.Ready -> {
+                result.recentRadioStream?.let(rememberRecentRadioStream)
+                playTrack(result.firstTrack, result.queue)
+            }
+        }
     }
 }
 

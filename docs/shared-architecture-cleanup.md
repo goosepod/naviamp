@@ -1158,6 +1158,18 @@ Progress notes:
 - Remaining library code is platform adapter work: coroutine ownership, Android home-state progress application, Desktop list scrolling, Desktop snapshot/query state, cache clearing, connection status targets, and concrete UI state writes.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.library.LibrarySyncTest --tests app.naviamp.domain.library.LibraryFreshnessTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
 
+## Radio Progress
+
+- Added shared non-seeded radio start result shaping with `RadioRequestStartResult` and `radioRequestStartResult`.
+- Android and Desktop generic radio starts now share request loading classification, optional duplicate removal, first-track selection, failed/empty result modeling, and recent-radio cover-art enrichment.
+- Platform code still owns the correct side effects: loading/empty/error status wording, recent-stream persistence, playback engine invocation, queue controller calls, coroutine ownership, and concrete app-state assignment.
+- Added common `RadioRequestsTest.kt` coverage for ready, empty, and failed radio start results.
+- Size/reduction note for this slice:
+  - `AndroidRadioController.kt` no longer manually dedupes, selects the first loaded track, enriches recent stream cover art, and classifies empty/failure outcomes in the generic radio start helper.
+  - `DesktopRadioController.kt` no longer manually loads a `RadioRequest`, checks empty results, enriches recent stream cover art, and catches generic load failures in its non-seeded radio path.
+  - Shared domain now owns one tested result shape for non-seeded radio starts while the larger seeded radio, expansion, and refill flows remain to be extracted.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.radio.RadioRequestsTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
+
 Success criteria for the first slice:
 
 - One shared call path owns metadata mutation decisions for Android and Desktop.

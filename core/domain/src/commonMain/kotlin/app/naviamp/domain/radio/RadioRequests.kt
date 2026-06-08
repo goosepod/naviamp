@@ -22,6 +22,57 @@ data class SeededRadioRequest(
     val loadRest: suspend (RadioService) -> List<Track>,
 )
 
+sealed interface RadioRequestStartResult {
+    data class Ready(
+        val firstTrack: Track,
+        val queue: List<Track>,
+        val recentRadioStream: RecentRadioStream?,
+    ) : RadioRequestStartResult
+
+    data object Empty : RadioRequestStartResult
+
+    data class Failed(
+        val error: Throwable,
+    ) : RadioRequestStartResult
+}
+
+suspend fun radioRequestStartResult(
+    request: RadioRequest,
+    radioService: RadioService,
+    deduplicateTracks: Boolean = false,
+): RadioRequestStartResult =
+    radioRequestStartResult(
+        radioService = radioService,
+        recentRadioStream = request.recentRadioStream,
+        deduplicateTracks = deduplicateTracks,
+        loadTracks = request.loadTracks,
+    )
+
+suspend fun radioRequestStartResult(
+    radioService: RadioService,
+    recentRadioStream: RecentRadioStream?,
+    deduplicateTracks: Boolean = false,
+    loadTracks: suspend (RadioService) -> List<Track>,
+): RadioRequestStartResult =
+    runCatching {
+        val tracks = loadTracks(radioService)
+            .let { loadedTracks ->
+                if (deduplicateTracks) {
+                    loadedTracks.distinctBy { track -> track.id }
+                } else {
+                    loadedTracks
+                }
+            }
+        val firstTrack = tracks.firstOrNull() ?: return@runCatching RadioRequestStartResult.Empty
+        RadioRequestStartResult.Ready(
+            firstTrack = firstTrack,
+            queue = tracks,
+            recentRadioStream = recentRadioStream?.withRadioCoverArtIds(tracks),
+        )
+    }.getOrElse { error ->
+        RadioRequestStartResult.Failed(error)
+    }
+
 fun libraryRadioRequest(): RadioRequest =
     RadioRequest(
         label = "Library radio",
