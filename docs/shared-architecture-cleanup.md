@@ -1241,6 +1241,9 @@ Progress notes:
 - Moved Android artist/album/genre mix-builder service construction into `AndroidMixBuilderServices.kt`, matching the desktop mix-builder service boundary.
 - `MainActivity.kt` dropped from 2,112 lines to 2,068 lines after the Android mix service adapter extraction.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Moved Android artist/album/genre mix-builder async actions into `AndroidMixBuilderController.kt`; `MainActivity.kt` now wires services and delegates suggestion loading, search, selection, removal, and reset behavior.
+- `MainActivity.kt` dropped to 1,857 lines after the Android mix action controller extraction; `AndroidMixBuilderController.kt` is 234 lines.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 
