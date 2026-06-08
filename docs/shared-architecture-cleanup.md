@@ -1238,6 +1238,9 @@ Progress notes:
 - Moved desktop stats-for-nerds info aggregation into `DesktopStatsForNerdsInfoBuilder.kt`, keeping cache/media-source/playback diagnostic model assembly out of the root app.
 - `DesktopNaviampApp.kt` dropped to 1,496 lines after the stats helper extraction.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
+- Moved Android artist/album/genre mix-builder service construction into `AndroidMixBuilderServices.kt`, matching the desktop mix-builder service boundary.
+- `MainActivity.kt` dropped from 2,112 lines to 2,068 lines after the Android mix service adapter extraction.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 

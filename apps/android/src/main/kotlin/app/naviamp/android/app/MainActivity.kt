@@ -41,7 +41,6 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.app.NaviampRoute
-import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.PlaylistDetailRefreshIntervalMillis
 import app.naviamp.domain.provider.allKnownTracks
@@ -55,15 +54,12 @@ import app.naviamp.domain.home.homeDecadeStationId
 import app.naviamp.domain.home.homeGenreStationId
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.cache.downloadConnectionRequiredStatus
-import app.naviamp.domain.artistmix.ArtistMixBuilderService
 import app.naviamp.domain.artistmix.artistMixPopularQueue
 import app.naviamp.domain.artistmix.artistMixSelectedArtistsAfterRemove
 import app.naviamp.domain.artistmix.artistMixSelectedArtistsAfterSelect
-import app.naviamp.domain.albummix.AlbumMixBuilderService
 import app.naviamp.domain.albummix.albumMixSelectedAlbumsAfterRemove
 import app.naviamp.domain.albummix.albumMixSelectedAlbumsAfterSelect
 import app.naviamp.domain.albummix.albumMixTrackQueue
-import app.naviamp.domain.genremix.GenreMixBuilderService
 import app.naviamp.domain.genremix.genreMixSelectedGenresAfterRemove
 import app.naviamp.domain.genremix.genreMixSelectedGenresAfterSelect
 import app.naviamp.domain.media.albumDetailLoadErrorStatus
@@ -973,24 +969,14 @@ private fun NaviampAndroidApp(
         findAndroidSimilarArtists(scope, appState, similarArtistsService, artistId, artistName)
     }
 
-    val artistMixBuilderService = remember(popularTracksService, similarArtistsService) {
-        ArtistMixBuilderService(
-            sourceId = { activeSourceId },
-            artistSearch = { query, limit ->
-                activeSourceId
-                    ?.let { storage.searchLibrary(it, query, limit, 0).artists }
-                    .orEmpty()
-                    .ifEmpty { provider?.search(query, limit.toInt())?.artists.orEmpty() }
-            },
-            randomArtists = { limit ->
-                homeState.artists.shuffled().take(limit.toInt()).ifEmpty {
-                    provider?.artists(limit.toInt())?.shuffled().orEmpty()
-                }
-            },
-            popularTracksService = popularTracksService,
-            similarArtistsService = similarArtistsService,
-        )
-    }
+    val artistMixBuilderService = rememberAndroidArtistMixBuilderService(
+        storage = storage,
+        sourceId = { activeSourceId },
+        provider = { provider },
+        homeContent = homeState,
+        popularTracksService = popularTracksService,
+        similarArtistsService = similarArtistsService,
+    )
 
     fun refreshArtistMixInitialSuggestions() {
         scope.launch {
@@ -1090,44 +1076,13 @@ private fun NaviampAndroidApp(
         )
     }
 
-    val albumMixBuilderService = remember(similarArtistsService) {
-        AlbumMixBuilderService(
-            albumSearch = { query, limit ->
-                activeSourceId
-                    ?.let { storage.searchLibrary(it, query, limit, 0).albums }
-                    .orEmpty()
-                    .ifEmpty { provider?.search(query, limit.toInt())?.albums.orEmpty() }
-            },
-            randomAlbums = { limit ->
-                (
-                    homeState.randomAlbums +
-                        homeState.mixAlbums +
-                        homeState.recentAlbums +
-                        homeState.frequentAlbums
-                    )
-                    .distinctBy { it.id }
-                    .shuffled()
-                    .take(limit.toInt())
-                    .ifEmpty {
-                        provider?.albumList(AlbumListType.Random, limit.toInt())?.shuffled().orEmpty()
-                    }
-            },
-            albumsForArtist = { artist, limit ->
-                activeSourceId
-                    ?.let { storage.searchLibrary(it, artist.name, limit, 0).albums }
-                    .orEmpty()
-                    .filter { album -> album.artistName.equals(artist.name, ignoreCase = true) }
-            },
-            albumTracks = { album, limit ->
-                val localTracks = activeSourceId?.let { storage.libraryTracksForAlbum(it, album.id, limit) }.orEmpty()
-                val providerTracks = provider?.let { activeProvider ->
-                    runCatching { ProviderResponseService(storage).album(activeProvider, album.id).tracks }.getOrDefault(emptyList())
-                }.orEmpty()
-                providerTracks.ifEmpty { localTracks }.take(limit.toInt())
-            },
-            similarArtistsService = similarArtistsService,
-        )
-    }
+    val albumMixBuilderService = rememberAndroidAlbumMixBuilderService(
+        storage = storage,
+        sourceId = { activeSourceId },
+        provider = { provider },
+        homeContent = homeState,
+        similarArtistsService = similarArtistsService,
+    )
 
     fun refreshAlbumMixInitialSuggestions() {
         scope.launch {
@@ -1228,13 +1183,10 @@ private fun NaviampAndroidApp(
         )
     }
 
-    val genreMixBuilderService = remember(provider, homeState.genres) {
-        GenreMixBuilderService(
-            genres = { limit ->
-                provider?.genres(limit.toInt()).orEmpty().ifEmpty { homeState.genres }
-            },
-        )
-    }
+    val genreMixBuilderService = rememberAndroidGenreMixBuilderService(
+        provider = { provider },
+        homeContent = homeState,
+    )
 
     fun refreshGenreMixSuggestions() {
         scope.launch {
