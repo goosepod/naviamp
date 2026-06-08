@@ -55,15 +55,12 @@ import app.naviamp.domain.cache.ImageCacheRepository
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.cache.shouldRefreshDownloadsAfter
-import app.naviamp.domain.artistmix.ArtistMixBuilderService
 import app.naviamp.domain.artistmix.artistMixPopularQueue
 import app.naviamp.domain.artistmix.artistMixSelectedArtistsAfterRemove
 import app.naviamp.domain.artistmix.artistMixSelectedArtistsAfterSelect
-import app.naviamp.domain.albummix.AlbumMixBuilderService
 import app.naviamp.domain.albummix.albumMixSelectedAlbumsAfterRemove
 import app.naviamp.domain.albummix.albumMixSelectedAlbumsAfterSelect
 import app.naviamp.domain.albummix.albumMixTrackQueue
-import app.naviamp.domain.genremix.GenreMixBuilderService
 import app.naviamp.domain.genremix.genreMixSelectedGenresAfterRemove
 import app.naviamp.domain.genremix.genreMixSelectedGenresAfterSelect
 import app.naviamp.domain.media.withUpdatedAlbum
@@ -111,7 +108,6 @@ import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.desktop.settings.PlaybackSessionSettings
 import app.naviamp.desktop.settings.RecentRadioStream
 import app.naviamp.desktop.settings.VisualizerSettings
-import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.normalizedPlaylistName
@@ -1050,75 +1046,25 @@ fun NaviampApp(
         selectedAlbumDetails = { selectedAlbumDetails },
     )
 
-    val artistMixBuilderService = remember(popularTracksService, similarArtistsService) {
-        ArtistMixBuilderService(
-            sourceId = { connectedSourceId },
-            artistSearch = { query, limit ->
-                val sourceId = connectedSourceId
-                sourceId
-                    ?.let { storage.searchLibrary(it, query, limit).artists }
-                    .orEmpty()
-                    .ifEmpty { connectedProvider?.search(query, limit.toInt())?.artists.orEmpty() }
-            },
-            randomArtists = { limit ->
-                homeContent.artists.shuffled().take(limit.toInt()).ifEmpty {
-                    connectedProvider?.artists(limit.toInt())?.shuffled().orEmpty()
-                }
-            },
-            popularTracksService = popularTracksService,
-            similarArtistsService = similarArtistsService,
-        )
-    }
-
-    val albumMixBuilderService = remember(similarArtistsService) {
-        AlbumMixBuilderService(
-            albumSearch = { query, limit ->
-                val sourceId = connectedSourceId
-                sourceId
-                    ?.let { storage.searchLibrary(it, query, limit).albums }
-                    .orEmpty()
-                    .ifEmpty { connectedProvider?.search(query, limit.toInt())?.albums.orEmpty() }
-            },
-            randomAlbums = { limit ->
-                (
-                    homeContent.randomAlbums +
-                        homeContent.mixAlbums +
-                        homeContent.recentAlbums +
-                        homeContent.frequentAlbums
-                    )
-                    .distinctBy { it.id }
-                    .shuffled()
-                    .take(limit.toInt())
-                    .ifEmpty {
-                        connectedProvider?.albumList(AlbumListType.Random, limit.toInt())?.shuffled().orEmpty()
-                    }
-            },
-            albumsForArtist = { artist, limit ->
-                val sourceId = connectedSourceId
-                sourceId
-                    ?.let { storage.searchLibrary(it, artist.name, limit).albums }
-                    .orEmpty()
-                    .filter { album -> album.artistName.equals(artist.name, ignoreCase = true) }
-            },
-            albumTracks = { album, limit ->
-                val sourceId = connectedSourceId
-                val localTracks = sourceId?.let { storage.libraryTracksForAlbum(it, album.id, limit) }.orEmpty()
-                val providerTracks = connectedProvider?.let { provider ->
-                    runCatching { ProviderResponseService(storage).album(provider, album.id).tracks }.getOrDefault(emptyList())
-                }.orEmpty()
-                providerTracks.ifEmpty { localTracks }.take(limit.toInt())
-            },
-            similarArtistsService = similarArtistsService,
-        )
-    }
-
-    val genreMixBuilderService = remember(connectedProvider, homeContent.genres) {
-        GenreMixBuilderService(
-            genres = { limit ->
-                connectedProvider?.genres(limit.toInt()).orEmpty().ifEmpty { homeContent.genres }
-            },
-        )
-    }
+    val artistMixBuilderService = rememberDesktopArtistMixBuilderService(
+        storage = storage,
+        sourceId = { connectedSourceId },
+        provider = { connectedProvider },
+        homeContent = homeContent,
+        popularTracksService = popularTracksService,
+        similarArtistsService = similarArtistsService,
+    )
+    val albumMixBuilderService = rememberDesktopAlbumMixBuilderService(
+        storage = storage,
+        sourceId = { connectedSourceId },
+        provider = { connectedProvider },
+        homeContent = homeContent,
+        similarArtistsService = similarArtistsService,
+    )
+    val genreMixBuilderService = rememberDesktopGenreMixBuilderService(
+        provider = { connectedProvider },
+        homeContent = homeContent,
+    )
 
     fun artistMixItem(artist: Artist) = artist.toSharedMediaItemUi(
         coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },

@@ -1229,6 +1229,9 @@ Progress notes:
 - Moved the Android `NaviampSharedAppShell` forwarding wrapper into `AndroidAppShellContent.kt`.
 - `AndroidAppShell.kt` dropped to 537 lines after separating shell contracts and content forwarding from state/action construction.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Moved desktop artist/album/genre mix-builder service construction into `DesktopMixBuilderServices.kt`, keeping provider/cache fallback lambdas out of `DesktopNaviampApp.kt`.
+- `DesktopNaviampApp.kt` dropped to 1,685 lines after the mix service adapter extraction.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
 
