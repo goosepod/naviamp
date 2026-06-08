@@ -14,6 +14,7 @@ import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
+import app.naviamp.domain.playback.playbackVolumeCommand
 import app.naviamp.domain.playback.shouldReportNowPlaying
 import app.naviamp.desktop.playback.DesktopPlaylistEngine
 import app.naviamp.desktop.settings.CacheSettings
@@ -79,7 +80,13 @@ fun DesktopAppEffects(
     }
 
     LaunchedEffect(playbackEngine, playbackSettings.volumePercent) {
-        playbackEngine.setVolume(playbackSettings.volumePercent.coerceIn(0, 100))
+        val command = playbackVolumeCommand(
+            requestedPercent = playbackSettings.volumePercent,
+            supportsSoftwareVolume = playbackEngine.supportsSoftwareVolume,
+        )
+        if (command.shouldApplyToEngine) {
+            playbackEngine.setVolume(command.volumePercent)
+        }
     }
 
     LaunchedEffect(playbackEngine, playbackSettings.equalizer) {

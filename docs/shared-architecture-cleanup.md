@@ -1192,6 +1192,14 @@ Progress notes:
 - Remaining radio code is platform adapter work: coroutine ownership, provider/cache adapter construction, Android app-state writes, Android queue-controller calls, Desktop playlist-engine calls, Desktop random-album album lookup, route fallback, playback execution, and status target assignment.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.radio.RadioRequestsTest --tests app.naviamp.domain.radio.RadioQueueRulesTest --tests app.naviamp.domain.radio.RadioSeedsTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
 
+## Playback Command Progress
+
+- Added shared live volume command planning with `PlaybackVolumeCommand` and `playbackVolumeCommand`.
+- Android now-playing volume changes and Desktop volume application now share software-volume support handling and 0-100 clamping before calling the playback engine.
+- Platform code still owns the correct side effects: Android UI state assignment, Desktop playback settings persistence, and concrete playback-engine calls.
+- Added common `PlaybackCommandsTest.kt` coverage for clamping and unsupported software-volume behavior.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.playback.PlaybackCommandsTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
+
 Success criteria for the first slice:
 
 - One shared call path owns metadata mutation decisions for Android and Desktop.

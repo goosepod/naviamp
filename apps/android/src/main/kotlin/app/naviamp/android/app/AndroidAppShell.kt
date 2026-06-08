@@ -9,6 +9,7 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.playback.PlaybackQueueManager
+import app.naviamp.domain.playback.playbackVolumeCommand
 import app.naviamp.domain.playback.SleepTimerRequest
 import app.naviamp.domain.provider.allKnownTracks
 import app.naviamp.domain.queue.RepeatMode
@@ -841,8 +842,14 @@ fun androidAppShellActions(
             onNext = { playAdjacentTrack(1) },
             onSeek = performSeek,
             onVolumeChanged = { percent ->
-                volumePercent = percent
-                playbackEngine.setVolume(percent)
+                val command = playbackVolumeCommand(
+                    requestedPercent = percent,
+                    supportsSoftwareVolume = playbackEngine.supportsSoftwareVolume,
+                )
+                volumePercent = command.volumePercent
+                if (command.shouldApplyToEngine) {
+                    playbackEngine.setVolume(command.volumePercent)
+                }
             },
             onToggleShuffle = handleShellToggleShuffle,
             onCycleRepeatMode = {
