@@ -1250,6 +1250,9 @@ Progress notes:
 - Moved Android internet-radio stream artwork lookup into `AndroidRadioArtworkEffects.kt`, matching the desktop radio artwork effect boundary.
 - `MainActivity.kt` dropped to 1,830 lines after the Android artwork-effect extraction; `AndroidRadioArtworkEffects.kt` is 43 lines.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Moved Android related-track radio loading into `AndroidRadioController.kt`, keeping the root app from calling `RadioService` directly for now-playing related tracks.
+- `MainActivity.kt` dropped to 1,820 lines after the related-track radio helper extraction.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 

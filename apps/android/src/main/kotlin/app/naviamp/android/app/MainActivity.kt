@@ -81,7 +81,6 @@ import app.naviamp.domain.playback.SleepTimerRequest
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
-import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.radio.RecentRadioAction
 import app.naviamp.domain.radio.internetRadioDeleteErrorStatus
 import app.naviamp.domain.radio.internetRadioDeleteLoadingStatus
@@ -421,16 +420,7 @@ private fun NaviampAndroidApp(
     }
 
     fun loadRelatedTracks(track: Track) {
-        val activeProvider = provider ?: return
-        if (!activeProvider.capabilities.supportsTrackRadio) {
-            relatedTracks = emptyList()
-            return
-        }
-        scope.launch {
-            runCatching { RadioService(activeProvider, count = 20).trackRadio(track.id) }
-                .onSuccess { relatedTracks = it }
-                .onFailure { relatedTracks = emptyList() }
-        }
+        loadAndroidRelatedTracks(scope, appState, track)
     }
 
     AndroidRadioArtworkLookupEffect(

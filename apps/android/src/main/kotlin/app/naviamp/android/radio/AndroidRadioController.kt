@@ -220,6 +220,23 @@ fun startAndroidTrackRadio(
     }
 }
 
+fun loadAndroidRelatedTracks(
+    scope: CoroutineScope,
+    state: AndroidAppState,
+    track: Track,
+) {
+    val activeProvider = state.provider ?: return
+    if (!activeProvider.capabilities.supportsTrackRadio) {
+        state.relatedTracks = emptyList()
+        return
+    }
+    scope.launch {
+        runCatching { RadioService(activeProvider, count = 20).trackRadio(track.id) }
+            .onSuccess { tracks -> state.relatedTracks = tracks }
+            .onFailure { state.relatedTracks = emptyList() }
+    }
+}
+
 fun startAndroidRadioTracks(
     scope: CoroutineScope,
     state: AndroidAppState,
