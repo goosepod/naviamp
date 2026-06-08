@@ -1399,6 +1399,11 @@ suspend fun updateSmartPlaylistStateUpdate(
         currentPlaylistTracksById = currentPlaylistTracksById,
     )
 
+suspend fun MediaProvider.loadSmartPlaylistDefinition(
+    playlist: Playlist,
+): SmartPlaylistDefinition =
+    smartPlaylistDefinition(playlist.id)
+
 fun smartPlaylistSaveErrorMessage(error: Throwable): String =
     if (error.message == "Reconnect to Navidrome with your password before saving smart playlists.") {
         "Edit this saved connection, enter your Navidrome password, then Save and connect before saving smart playlists."

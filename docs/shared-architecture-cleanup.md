@@ -373,7 +373,7 @@ This checklist reconciles completed discovery outputs with future implementation
   - Move shared lookup, queue append, add-to-playlist, metadata mutation composition, and common status handling out of `AndroidMediaActionsController.kt` and `DesktopMediaActionsController.kt`.
   - Keep Android notification updates and downloaded file lookup as platform adapters.
   - Expected platform result: both controllers become thin wiring around shared services plus platform side effects.
-- [ ] Extract playlist mutation and refresh orchestration.
+- [x] Extract playlist mutation and refresh orchestration.
   - Move queue-save, add tracks to playlist, rename/delete, playlist detail refresh, smart playlist save/update/load, preloading decisions, cache invalidation, and home playlist reduction into focused shared services.
   - Keep dialogs, route changes, recent playlist persistence, and playback execution as platform adapters.
 - [ ] Extract library sync/freshness orchestration.
@@ -1023,6 +1023,11 @@ Progress notes:
   - `AndroidPlaylistsController.kt` shrank slightly for this slice (`15` added, `16` removed) while delegating loaded-track storage and empty/playable branching to shared domain.
   - `DesktopPlaylistsController.kt` shrank slightly for this slice (`11` added, `12` removed) and now consumes the same prepared playback application update as Android.
   - Shared domain and tests grew intentionally so the behavior is tested once and the next playlist step can target larger deletion around selected-playlist playback details.
+- Added shared smart-playlist definition loading with `MediaProvider.loadSmartPlaylistDefinition`.
+- Android smart-playlist loading and Desktop smart-playlist loading now share the provider ID lookup path for loading rules.
+- Added common `PlaylistMutationsTest.kt` coverage for smart-playlist definition loading.
+- Closed the playlist mutation/refresh orchestration checklist item because queue save, add-to-playlist, rename/delete, detail refresh, smart playlist save/update/load, preloading decisions, cache invalidation, home playlist reduction, and playlist playback preparation now all have shared paths.
+- Remaining playlist code is platform adapter work: dialogs, route changes, settings persistence for recent playlists, platform state assignment, desktop smart-playlist authentication refresh, and playback execution.
 - Added shared selected-playlist detail playback application planning.
 - Desktop playlist detail playback now shares selected-track queue construction, shuffle handling, recent-playlist ID planning, index coercion, and empty-playlist status with the shared playlist mutation surface.
 - Android already reaches selected playlist playback through the broader shared playlist playback application path, so no Android adapter change was needed in this slice.

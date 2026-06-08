@@ -977,6 +977,8 @@ class PlaylistMutationsTest {
                 currentPlaylistTracksById = emptyMap(),
             ).status,
         )
+        assertEquals(definition, provider.loadSmartPlaylistDefinition(playlist))
+        assertEquals("smart", provider.loadedSmartPlaylistId)
     }
 
     @Test
@@ -1224,6 +1226,8 @@ class PlaylistMutationsTest {
             private set
         var deletedPlaylistId: String? = null
             private set
+        var loadedSmartPlaylistId: String? = null
+            private set
 
         override suspend fun createPlaylist(name: String, trackIds: List<TrackId>): Playlist {
             createdPlaylistName = name
@@ -1251,6 +1255,11 @@ class PlaylistMutationsTest {
         override suspend fun updateSmartPlaylist(playlistId: String, definition: SmartPlaylistDefinition) {
             renamedPlaylistId = playlistId
             renamedPlaylistName = definition.name
+        }
+
+        override suspend fun smartPlaylistDefinition(playlistId: String): SmartPlaylistDefinition {
+            loadedSmartPlaylistId = playlistId
+            return SmartPlaylistTemplates.favorites().copy(name = "Smart")
         }
 
         override suspend fun playlists(limit: Int): List<Playlist> =

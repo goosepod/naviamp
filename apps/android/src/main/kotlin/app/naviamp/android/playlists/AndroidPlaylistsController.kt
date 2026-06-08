@@ -32,6 +32,7 @@ import app.naviamp.domain.provider.refreshPlaylistDetailsApplication
 import app.naviamp.domain.provider.refreshPlaylistListState
 import app.naviamp.domain.provider.renamePlaylistAndRefresh
 import app.naviamp.domain.provider.saveQueueAsPlaylistStateUpdate
+import app.naviamp.domain.provider.loadSmartPlaylistDefinition
 import app.naviamp.domain.provider.smartPlaylistSaveErrorMessage
 import app.naviamp.domain.provider.saveSmartPlaylistStateUpdate
 import app.naviamp.domain.provider.smartPlaylistSavingStatus
@@ -420,6 +421,6 @@ suspend fun loadAndroidSmartPlaylistDefinition(
     val activeProvider = state.provider
         ?: throw IllegalStateException("Connect to Navidrome before editing smart playlists.")
     return withContext(Dispatchers.IO) {
-        activeProvider.smartPlaylistDefinition(playlist.id)
+        activeProvider.loadSmartPlaylistDefinition(playlist)
     }
 }

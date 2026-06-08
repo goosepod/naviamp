@@ -8,6 +8,7 @@ import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.provider.PlaylistHomeProjection
+import app.naviamp.domain.provider.loadSmartPlaylistDefinition
 import app.naviamp.domain.provider.playlistListApplication
 import app.naviamp.domain.provider.saveSmartPlaylistStateUpdate
 import app.naviamp.domain.provider.smartPlaylistLoadErrorMessage
@@ -133,7 +134,7 @@ class DesktopSmartPlaylistsController(
             ?: throw IllegalStateException("Connect to Navidrome before editing smart playlists.")
         setPlaylistStatus(smartPlaylistLoadingRulesStatus(playlist))
         return try {
-            withContext(Dispatchers.IO) { activeProvider.smartPlaylistDefinition(playlist.id) }
+            withContext(Dispatchers.IO) { activeProvider.loadSmartPlaylistDefinition(playlist) }
                 .also { setPlaylistStatus(null) }
         } catch (error: Exception) {
             setPlaylistStatus(smartPlaylistLoadErrorMessage(error))
