@@ -807,8 +807,34 @@ class PlaylistMutationsTest {
                 playlistId = "one",
             ).selectionApplication,
         )
+        assertEquals(
+            PlaylistRenameApplication(
+                playlistListApplication = PlaylistListApplication(
+                    playlists = listOf(renamed),
+                    homeContent = HomeContent(playlists = listOf(renamed)),
+                ),
+                selectionApplication = PlaylistRenameSelectionApplication(renamed),
+                status = "Renamed playlist.",
+            ),
+            playlistRenameApplication(
+                update = playlistRenameStateUpdate(current, renameRefresh, playlistId = "one"),
+                currentHomeContent = HomeContent(),
+                recentPlaylistIds = listOf("one"),
+                projection = PlaylistHomeProjection.RecentLimited,
+            ),
+        )
         assertEquals(null, selectedPlaylistAfterDelete(current, "one"))
         assertEquals(listOf("two"), recentPlaylistIdsAfterDelete(listOf("one", "two"), "one"))
+        val deleteUpdate = PlaylistDeleteApplicationUpdate(
+            playlists = listOf(playlist("two", "Two")),
+            playlistTracksById = emptyMap(),
+            recentPlaylistIds = listOf("two"),
+            selectionApplication = PlaylistDeleteSelectionApplication(
+                selectedPlaylist = null,
+                selectedPlaylistTracks = emptyList(),
+            ),
+            status = "Deleted playlist.",
+        )
         assertEquals(
             PlaylistDeleteStateUpdate(
                 selectedPlaylist = null,
@@ -826,8 +852,22 @@ class PlaylistMutationsTest {
             ),
         )
         assertEquals(
-            PlaylistDeleteApplicationUpdate(
-                playlists = listOf(playlist("two", "Two")),
+            deleteUpdate,
+            playlistDeleteApplicationUpdate(
+                refresh = deleteRefresh,
+                currentSelectedPlaylist = current,
+                currentSelectedPlaylistTracks = listOf(track("one")),
+                currentPlaylistTracksById = mapOf("one" to listOf(track("one"))),
+                currentRecentPlaylistIds = listOf("one", "two"),
+                deletedPlaylistId = "one",
+            ),
+        )
+        assertEquals(
+            PlaylistDeleteApplication(
+                playlistListApplication = PlaylistListApplication(
+                    playlists = listOf(playlist("two", "Two")),
+                    homeContent = HomeContent(playlists = listOf(playlist("two", "Two"))),
+                ),
                 playlistTracksById = emptyMap(),
                 recentPlaylistIds = listOf("two"),
                 selectionApplication = PlaylistDeleteSelectionApplication(
@@ -836,13 +876,10 @@ class PlaylistMutationsTest {
                 ),
                 status = "Deleted playlist.",
             ),
-            playlistDeleteApplicationUpdate(
-                refresh = deleteRefresh,
-                currentSelectedPlaylist = current,
-                currentSelectedPlaylistTracks = listOf(track("one")),
-                currentPlaylistTracksById = mapOf("one" to listOf(track("one"))),
-                currentRecentPlaylistIds = listOf("one", "two"),
-                deletedPlaylistId = "one",
+            playlistDeleteApplication(
+                update = deleteUpdate,
+                currentHomeContent = HomeContent(),
+                projection = PlaylistHomeProjection.RecentLimited,
             ),
         )
         assertEquals(

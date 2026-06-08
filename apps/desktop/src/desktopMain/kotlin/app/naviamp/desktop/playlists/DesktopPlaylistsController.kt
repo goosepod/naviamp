@@ -12,6 +12,7 @@ import app.naviamp.domain.provider.addToPlaylistErrorMessage
 import app.naviamp.domain.provider.addToPlaylistResolvingTracksStatus
 import app.naviamp.domain.provider.addTracksToPlaylistStateUpdate
 import app.naviamp.domain.provider.PendingPlaybackAction
+import app.naviamp.domain.provider.playlistDeleteApplication
 import app.naviamp.domain.provider.playlistDeleteErrorMessage
 import app.naviamp.domain.provider.playlistDeleteLoadingStatus
 import app.naviamp.domain.provider.playlistDeleteApplicationUpdate
@@ -30,6 +31,7 @@ import app.naviamp.domain.provider.playlistPlaybackStartPlan
 import app.naviamp.domain.provider.playlistDetailPlaybackPreparedApplication
 import app.naviamp.domain.provider.preparePlaylistDetailPlaybackApplication
 import app.naviamp.domain.provider.preparePlaylistPlaybackApplication
+import app.naviamp.domain.provider.playlistRenameApplication
 import app.naviamp.domain.provider.playlistRenameErrorMessage
 import app.naviamp.domain.provider.playlistRenameLoadingStatus
 import app.naviamp.domain.provider.playlistRenameStateUpdate
@@ -370,10 +372,16 @@ class DesktopPlaylistsController(
                     )
                 }
                 val update = playlistRenameStateUpdate(selectedPlaylist(), refresh, playlist.id)
-                applyPlaylistListApplication(update.playlists)
+                val application = playlistRenameApplication(
+                    update = update,
+                    currentHomeContent = homeContent(),
+                    recentPlaylistIds = recentPlaylistIds(),
+                    projection = PlaylistHomeProjection.RecentLimited,
+                )
+                applyPlaylistListApplication(application.playlistListApplication)
                 setPlaylistPendingRename(null)
-                setPlaylistStatus(update.status)
-                update.selectionApplication?.let { selection ->
+                setPlaylistStatus(application.status)
+                application.selectionApplication?.let { selection ->
                     setSelectedPlaylist(selection.selectedPlaylist)
                 }
             } catch (exception: Exception) {
@@ -402,15 +410,20 @@ class DesktopPlaylistsController(
                     currentRecentPlaylistIds = recentPlaylistIds(),
                     deletedPlaylistId = playlist.id,
                 )
-                applyPlaylistListApplication(update.playlists)
-                update.selectionApplication?.let { selection ->
+                val application = playlistDeleteApplication(
+                    update = update,
+                    currentHomeContent = homeContent(),
+                    projection = PlaylistHomeProjection.RecentLimited,
+                )
+                applyPlaylistListApplication(application.playlistListApplication)
+                application.selectionApplication?.let { selection ->
                     setSelectedPlaylist(selection.selectedPlaylist)
                     setSelectedPlaylistTracks(selection.selectedPlaylistTracks)
                     setAppRoute(DesktopAppRoute.Playlists)
                 }
-                setPlaylistTracksById(update.playlistTracksById)
-                setRecentPlaylistIds(update.recentPlaylistIds)
-                setPlaylistStatus(update.status)
+                setPlaylistTracksById(application.playlistTracksById)
+                setRecentPlaylistIds(application.recentPlaylistIds)
+                setPlaylistStatus(application.status)
             } catch (exception: Exception) {
                 setPlaylistStatus(playlistDeleteErrorMessage(exception))
             }

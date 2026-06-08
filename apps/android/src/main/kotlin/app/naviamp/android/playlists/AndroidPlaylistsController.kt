@@ -6,6 +6,8 @@ import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.provider.PlaylistHomeProjection
+import app.naviamp.domain.provider.PlaylistListApplication
+import app.naviamp.domain.provider.playlistDeleteApplication
 import app.naviamp.domain.provider.playlistDeleteErrorMessage
 import app.naviamp.domain.provider.playlistDeleteLoadingStatus
 import app.naviamp.domain.provider.playlistDeleteApplicationUpdate
@@ -20,6 +22,7 @@ import app.naviamp.domain.provider.playlistPlaybackPreparedApplication
 import app.naviamp.domain.provider.playlistPlaybackStartApplication
 import app.naviamp.domain.provider.playlistPlaybackStartPlan
 import app.naviamp.domain.provider.preparePlaylistPlaybackApplication
+import app.naviamp.domain.provider.playlistRenameApplication
 import app.naviamp.domain.provider.playlistRenameErrorMessage
 import app.naviamp.domain.provider.playlistRenameLoadingStatus
 import app.naviamp.domain.provider.playlistRenameStateUpdate
@@ -189,11 +192,17 @@ fun renameAndroidPlaylist(
                 )
             }.onSuccess { refresh ->
                 val update = playlistRenameStateUpdate(selectedPlaylist, refresh, playlist.id)
-                applyAndroidPlaylistListApplication(state, update.playlists)
-                update.selectionApplication?.let { selection ->
+                val application = playlistRenameApplication(
+                    update = update,
+                    currentHomeContent = homeState,
+                    recentPlaylistIds = recentPlaylistIds,
+                    projection = PlaylistHomeProjection.All,
+                )
+                applyAndroidPlaylistListApplication(state, application.playlistListApplication)
+                application.selectionApplication?.let { selection ->
                     contentState = contentState.copy(selectedPlaylist = selection.selectedPlaylist)
                 }
-                status = update.status
+                status = application.status
             }.onFailure { error ->
                 status = playlistRenameErrorMessage(error)
             }
@@ -226,16 +235,21 @@ fun deleteAndroidPlaylist(
                     currentRecentPlaylistIds = recentPlaylistIds,
                     deletedPlaylistId = playlist.id,
                 )
-                applyAndroidPlaylistListApplication(state, update.playlists)
-                update.selectionApplication?.let { selection ->
+                val application = playlistDeleteApplication(
+                    update = update,
+                    currentHomeContent = homeState,
+                    projection = PlaylistHomeProjection.All,
+                )
+                applyAndroidPlaylistListApplication(state, application.playlistListApplication)
+                application.selectionApplication?.let { selection ->
                     contentState = contentState.copy(
                         selectedPlaylist = selection.selectedPlaylist,
                         selectedPlaylistTracks = selection.selectedPlaylistTracks,
                     )
                 }
-                playlistTracksById = update.playlistTracksById
-                recentPlaylistIds = update.recentPlaylistIds
-                status = update.status
+                playlistTracksById = application.playlistTracksById
+                recentPlaylistIds = application.recentPlaylistIds
+                status = application.status
             }.onFailure { error ->
                 status = playlistDeleteErrorMessage(error)
             }
@@ -264,12 +278,21 @@ private fun applyAndroidPlaylistListApplication(
     state: AndroidAppState,
     playlists: List<Playlist>,
 ) {
-    val application = playlistListApplication(
-        playlists = playlists,
-        currentHomeContent = state.homeState,
-        recentPlaylistIds = state.recentPlaylistIds,
-        projection = PlaylistHomeProjection.All,
+    applyAndroidPlaylistListApplication(
+        state = state,
+        application = playlistListApplication(
+            playlists = playlists,
+            currentHomeContent = state.homeState,
+            recentPlaylistIds = state.recentPlaylistIds,
+            projection = PlaylistHomeProjection.All,
+        ),
     )
+}
+
+private fun applyAndroidPlaylistListApplication(
+    state: AndroidAppState,
+    application: PlaylistListApplication,
+) {
     state.homeState = application.homeContent
 }
 

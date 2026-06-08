@@ -45,6 +45,12 @@ data class PlaylistRenameStateUpdate(
     val status: String,
 )
 
+data class PlaylistRenameApplication(
+    val playlistListApplication: PlaylistListApplication,
+    val selectionApplication: PlaylistRenameSelectionApplication?,
+    val status: String,
+)
+
 data class PlaylistDeleteRefresh(
     val playlists: List<Playlist>,
 )
@@ -56,6 +62,14 @@ data class PlaylistDeleteSelectionApplication(
 
 data class PlaylistDeleteApplicationUpdate(
     val playlists: List<Playlist>,
+    val playlistTracksById: Map<String, List<Track>>,
+    val recentPlaylistIds: List<String>,
+    val selectionApplication: PlaylistDeleteSelectionApplication?,
+    val status: String,
+)
+
+data class PlaylistDeleteApplication(
+    val playlistListApplication: PlaylistListApplication,
     val playlistTracksById: Map<String, List<Track>>,
     val recentPlaylistIds: List<String>,
     val selectionApplication: PlaylistDeleteSelectionApplication?,
@@ -1171,6 +1185,23 @@ fun playlistRenameStateUpdate(
     )
 }
 
+fun playlistRenameApplication(
+    update: PlaylistRenameStateUpdate,
+    currentHomeContent: HomeContent,
+    recentPlaylistIds: List<String>,
+    projection: PlaylistHomeProjection,
+): PlaylistRenameApplication =
+    PlaylistRenameApplication(
+        playlistListApplication = playlistListApplication(
+            playlists = update.playlists,
+            currentHomeContent = currentHomeContent,
+            recentPlaylistIds = recentPlaylistIds,
+            projection = projection,
+        ),
+        selectionApplication = update.selectionApplication,
+        status = update.status,
+    )
+
 fun selectedPlaylistAfterDelete(
     current: Playlist?,
     deletedPlaylistId: String,
@@ -1230,6 +1261,24 @@ fun playlistDeleteApplicationUpdate(
         status = playlistDeletedStatus(),
     )
 }
+
+fun playlistDeleteApplication(
+    update: PlaylistDeleteApplicationUpdate,
+    currentHomeContent: HomeContent,
+    projection: PlaylistHomeProjection,
+): PlaylistDeleteApplication =
+    PlaylistDeleteApplication(
+        playlistListApplication = playlistListApplication(
+            playlists = update.playlists,
+            currentHomeContent = currentHomeContent,
+            recentPlaylistIds = update.recentPlaylistIds,
+            projection = projection,
+        ),
+        playlistTracksById = update.playlistTracksById,
+        recentPlaylistIds = update.recentPlaylistIds,
+        selectionApplication = update.selectionApplication,
+        status = update.status,
+    )
 
 suspend fun saveSmartPlaylistAndRefresh(
     provider: MediaProvider,

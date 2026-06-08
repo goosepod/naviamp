@@ -1082,6 +1082,14 @@ Progress notes:
   - `DesktopPlaylistsController.kt` no longer branches directly on `AddToPlaylistStateUpdate.playlists` to decide list/home application.
   - Shared domain now owns the add-to-playlist mutation result shape and optional playlist-list projection, while Desktop applies the typed result to its UI targets.
 - Verification passed: `./gradlew :core:domain:jvmTest --tests app.naviamp.domain.provider.PlaylistMutationsTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Added shared rename/delete playlist application wrappers with `PlaylistRenameApplication` and `PlaylistDeleteApplication`.
+- Android and Desktop rename/delete handlers now consume typed application results for playlist list/home projection, selection application, updated track maps/recent IDs, and final status.
+- Platform code still owns concrete side effects: Android content-state assignment, Desktop pending-dialog clearing, Desktop route changes after deleting the selected playlist, and setter calls.
+- Added common `PlaylistMutationsTest.kt` coverage for rename/delete application wrappers and recent-limited playlist projection.
+- Size/reduction note for the rename/delete application slice:
+  - `AndroidPlaylistsController.kt` and `DesktopPlaylistsController.kt` no longer project raw rename/delete playlist lists directly in those mutation handlers.
+  - Shared domain now owns the final rename/delete application shape, while platform files keep only target-specific UI state writes.
+- Verification passed: `./gradlew :core:domain:jvmTest --tests app.naviamp.domain.provider.PlaylistMutationsTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 
