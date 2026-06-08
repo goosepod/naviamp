@@ -382,7 +382,7 @@ This checklist reconciles completed discovery outputs with future implementation
 - [x] Extract radio and generated queue orchestration.
   - Move seed selection, `RadioRequest` construction, refill planning, generated queue append/replace decisions, recent radio stream result data, and expansion sequencing into shared services.
   - Keep actual playback engine calls and platform state assignment in adapters.
-- [ ] Standardize playback command execution.
+- [x] Standardize playback command execution.
   - Define a shared command/result surface for play, pause, resume, seek, previous, next, shuffle, repeat, volume, queue replace, and queue append.
   - Keep BASS/native/session/notification behavior in platform adapters.
 - [ ] Decompose root app shells after the services exist.
@@ -565,11 +565,11 @@ Phase 4 close-out:
 
 ## Phase 5: Shared Playback Orchestration
 
-- [ ] Define a shared playback command surface for play, pause, resume, seek, previous, next, shuffle, repeat, and volume.
-- [ ] Keep BASS interaction behind the existing playback engine boundary.
-- [ ] Move sleep timer expiry and playback command decisions into shared domain/application code.
+- [x] Define a shared playback command surface for play, pause, resume, seek, previous, next, shuffle, repeat, and volume.
+- [x] Keep BASS interaction behind the existing playback engine boundary.
+- [x] Move sleep timer expiry and playback command decisions into shared domain/application code.
 - [ ] Reduce platform playback controllers to lifecycle/audio-session/notification adapters.
-- [ ] Add tests for sleep timer, repeat/shuffle, seek gating, and previous/next decisions.
+- [x] Add tests for sleep timer, repeat/shuffle, seek gating, and previous/next decisions.
 
 ## Phase 6: Shared App Orchestration
 
@@ -1208,6 +1208,9 @@ Progress notes:
 - Android Auto foreground-service repeat cycling now routes through shared `nextRepeatMode`; the service-local repeat enum remains only for notification/session labels.
 - Existing shared repeat tests cover the Off -> Queue -> Track -> Off policy, and Android compile confirms the service adapter wiring.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.playback.PlaybackQueueManagerTest --tests app.naviamp.domain.playback.PlaybackControlDecisionsTest` and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Closed the playback command checklist item because play/pause, seek, previous/next, shuffle, repeat, volume, queue append/replace/update, sleep timer expiry, progress planning, track-start effects, and BASS start planning now route through shared domain planners or queue controllers.
+- Remaining playback platform code is adapter work: concrete playback engine calls, BASS/native implementation, Android foreground service/media-session/notification behavior, audio focus, lifecycle/coroutine ownership, provider/cache adapters, UI state assignment, route changes, and session persistence wiring.
+- The next cleanup step should decompose the root app shells now that media actions, playlists, library sync, radio, and playback command planning have shared service boundaries.
 
 Success criteria for the first slice:
 
