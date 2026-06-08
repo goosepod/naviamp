@@ -50,8 +50,10 @@ import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.network.KtorSharedHttpClient
 import app.naviamp.domain.radio.RadioService
+import app.naviamp.domain.radio.InternetRadioRecentStationApplier
+import app.naviamp.domain.radio.applyRememberInternetRadioStation
+import app.naviamp.domain.radio.planRememberInternetRadioStation
 import app.naviamp.domain.radio.recentRadioStreamsWith
-import app.naviamp.domain.radio.recentSavedInternetRadioStationsWith
 import app.naviamp.domain.radio.withRadioCoverArtIds
 import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.settings.RecentRadioKind
@@ -996,10 +998,14 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
 
     private fun rememberRecentInternetRadioStation(station: InternetRadioStation) {
         val settingsStore = AndroidSettingsStore(applicationContext)
-        settingsStore.saveRecentInternetRadioStations(
-            recentSavedInternetRadioStationsWith(
-                settingsStore.loadRecentInternetRadioStations(),
-                station,
+        applyRememberInternetRadioStation(
+            plan = planRememberInternetRadioStation(
+                station = station,
+                recentStations = emptyList(),
+                recentSavedStations = settingsStore.loadRecentInternetRadioStations(),
+            ),
+            applier = InternetRadioRecentStationApplier(
+                saveRecentStations = settingsStore::saveRecentInternetRadioStations,
             ),
         )
     }

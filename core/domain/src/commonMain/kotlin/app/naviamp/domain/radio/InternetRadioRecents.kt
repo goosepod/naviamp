@@ -5,6 +5,34 @@ import app.naviamp.domain.settings.SavedInternetRadioStation
 
 const val MaxRecentInternetRadioStations = 12
 
+data class InternetRadioRecentStationPlan(
+    val recentStations: List<InternetRadioStation>,
+    val recentSavedStations: List<SavedInternetRadioStation>,
+)
+
+data class InternetRadioRecentStationApplier(
+    val saveRecentStations: (List<SavedInternetRadioStation>) -> Unit = {},
+    val setRecentStations: (List<InternetRadioStation>) -> Unit = {},
+)
+
+fun planRememberInternetRadioStation(
+    station: InternetRadioStation,
+    recentStations: List<InternetRadioStation>,
+    recentSavedStations: List<SavedInternetRadioStation>,
+): InternetRadioRecentStationPlan =
+    InternetRadioRecentStationPlan(
+        recentStations = recentInternetRadioStationsWith(recentStations, station),
+        recentSavedStations = recentSavedInternetRadioStationsWith(recentSavedStations, station),
+    )
+
+fun applyRememberInternetRadioStation(
+    plan: InternetRadioRecentStationPlan,
+    applier: InternetRadioRecentStationApplier,
+) {
+    applier.saveRecentStations(plan.recentSavedStations)
+    applier.setRecentStations(plan.recentStations)
+}
+
 fun recentInternetRadioStationsWith(
     recentStations: List<InternetRadioStation>,
     station: InternetRadioStation,

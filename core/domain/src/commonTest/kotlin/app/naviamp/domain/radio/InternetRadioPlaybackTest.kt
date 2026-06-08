@@ -65,6 +65,35 @@ class InternetRadioPlaybackTest {
     }
 
     @Test
+    fun rememberInternetRadioStationApplierRunsSharedRecentUpdates() {
+        val calls = mutableListOf<String>()
+        val selected = station("two")
+        val plan = planRememberInternetRadioStation(
+            station = selected,
+            recentStations = listOf(station("one"), selected.copy(name = "Old Name")),
+            recentSavedStations = listOf(SavedInternetRadioStation.fromStation(station("one"))),
+        )
+
+        applyRememberInternetRadioStation(
+            plan = plan,
+            applier = InternetRadioRecentStationApplier(
+                saveRecentStations = { calls += "save:${it.map { station -> station.id }}" },
+                setRecentStations = { calls += "set:${it.map { station -> station.id }}" },
+            ),
+        )
+
+        assertEquals(listOf("two", "one"), plan.recentStations.map { it.id })
+        assertEquals(listOf("two", "one"), plan.recentSavedStations.map { it.id })
+        assertEquals(
+            listOf(
+                "save:[two, one]",
+                "set:[two, one]",
+            ),
+            calls,
+        )
+    }
+
+    @Test
     fun internetRadioStartPlanBuildsRecentStateAndPlaybackEffects() {
         val selected = station("two")
         val plan = planInternetRadioStart(

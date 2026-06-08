@@ -54,8 +54,16 @@ fun applyInternetRadioStart(
     applier: InternetRadioStartApplier,
     nowPlayingTrack: Track? = plan.nowPlayingTrack,
 ) {
-    applier.saveRecentStations(plan.recentSavedStations)
-    applier.setRecentStations(plan.recentStations)
+    applyRememberInternetRadioStation(
+        plan = InternetRadioRecentStationPlan(
+            recentStations = plan.recentStations,
+            recentSavedStations = plan.recentSavedStations,
+        ),
+        applier = InternetRadioRecentStationApplier(
+            saveRecentStations = applier.saveRecentStations,
+            setRecentStations = applier.setRecentStations,
+        ),
+    )
     if (plan.clearRadioContinuation) applier.clearRadioContinuation()
     if (plan.clearShuffleSnapshot) applier.clearShuffleSnapshot()
     applier.clearPlaybackQueue()
@@ -81,10 +89,15 @@ fun planInternetRadioStart(
     station: InternetRadioStation,
     recentStations: List<InternetRadioStation>,
     recentSavedStations: List<SavedInternetRadioStation>,
-): InternetRadioStartPlan =
-    InternetRadioStartPlan(
-        recentStations = recentInternetRadioStationsWith(recentStations, station),
-        recentSavedStations = recentSavedInternetRadioStationsWith(recentSavedStations, station),
+): InternetRadioStartPlan {
+    val recentPlan = planRememberInternetRadioStation(
+        station = station,
+        recentStations = recentStations,
+        recentSavedStations = recentSavedStations,
+    )
+    return InternetRadioStartPlan(
+        recentStations = recentPlan.recentStations,
+        recentSavedStations = recentPlan.recentSavedStations,
         nowPlayingTrack = null,
         station = station,
         streamMetadata = PlaybackStreamMetadata(),
@@ -103,3 +116,4 @@ fun planInternetRadioStart(
         engineMediaId = station.id,
         replayGainOff = true,
     )
+}

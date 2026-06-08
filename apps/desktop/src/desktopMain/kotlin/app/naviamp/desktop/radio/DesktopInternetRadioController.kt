@@ -19,9 +19,11 @@ import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.radio.internetRadioTrack
 import app.naviamp.domain.radio.InternetRadioMetadataUpdateApplier
+import app.naviamp.domain.radio.InternetRadioRecentStationApplier
 import app.naviamp.domain.radio.InternetRadioStartApplier
 import app.naviamp.domain.radio.InternetRadioStationManager
 import app.naviamp.domain.radio.applyInternetRadioMetadataUpdate
+import app.naviamp.domain.radio.applyRememberInternetRadioStation
 import app.naviamp.domain.radio.applyInternetRadioStart
 import app.naviamp.domain.radio.internetRadioDeleteErrorStatus
 import app.naviamp.domain.radio.internetRadioDeleteLoadingStatus
@@ -32,6 +34,7 @@ import app.naviamp.domain.radio.internetRadioSaveLoadingStatus
 import app.naviamp.domain.radio.planInternetRadioMetadataUpdate
 import app.naviamp.domain.radio.planInternetRadioPlaybackRequest
 import app.naviamp.domain.radio.planInternetRadioStart
+import app.naviamp.domain.radio.planRememberInternetRadioStation
 import app.naviamp.domain.waveform.AudioWaveform
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -93,14 +96,20 @@ class DesktopInternetRadioController(
     }
 
     fun rememberStation(station: InternetRadioStation) {
-        val plan = planInternetRadioStart(
-            station = station,
-            recentStations = recentStations(),
-            recentSavedStations = settingsStore.loadRecentInternetRadioStations(),
+        applyRememberInternetRadioStation(
+            plan = planRememberInternetRadioStation(
+                station = station,
+                recentStations = recentStations(),
+                recentSavedStations = settingsStore.loadRecentInternetRadioStations(),
+            ),
+            applier = InternetRadioRecentStationApplier(
+                saveRecentStations = settingsStore::saveRecentInternetRadioStations,
+                setRecentStations = { updatedRecentStations ->
+                    setRecentStations(updatedRecentStations)
+                    setHomeContent(homeContent().copy(recentInternetRadioStations = updatedRecentStations))
+                },
+            ),
         )
-        settingsStore.saveRecentInternetRadioStations(plan.recentSavedStations)
-        setRecentStations(plan.recentStations)
-        setHomeContent(homeContent().copy(recentInternetRadioStations = plan.recentStations))
     }
 
     fun playStation(station: InternetRadioStation) {

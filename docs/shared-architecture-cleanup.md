@@ -908,6 +908,14 @@ Progress notes:
   - `MainActivity.kt` no longer owns create-vs-update, invalidate, and reload orchestration for station save/delete.
   - `DesktopInternetRadioController.kt` no longer owns provider mutation sequencing for station save/delete, and refresh now goes through the same shared manager.
   - Shared domain grew intentionally with one focused manager around provider/cache operations.
+- Added shared `InternetRadioRecentStationPlan`, `InternetRadioRecentStationApplier`, `planRememberInternetRadioStation`, and `applyRememberInternetRadioStation`.
+- Android foreground service, Android app playback orchestration, and Desktop internet-radio controller now share recent internet-radio station ordering, saved-recents conversion, duplicate removal, and limit behavior.
+- Platform code still owns the correct state side effects: Android app updates home state, Android foreground service persists Auto recents only, and Desktop mirrors recents into both local UI state and home content.
+- Added common `InternetRadioPlaybackTest.kt` coverage for the shared recents applier.
+- Size/reduction note for the internet-radio recents slice:
+  - `AndroidPlaybackForegroundService.kt` no longer calls the raw saved-recents helper directly.
+  - `DesktopInternetRadioController.kt` no longer uses the broader radio-start plan just to remember a station.
+  - `InternetRadioPlayback.kt` now composes the shared recents plan instead of rebuilding recent station state inline.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
