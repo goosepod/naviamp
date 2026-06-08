@@ -17,6 +17,8 @@ import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.radio.RadioRequestStartResult
+import app.naviamp.domain.radio.SeededRadioBuildResult
+import app.naviamp.domain.radio.SeededRadioExpansionResult
 import app.naviamp.domain.radio.albumMixSeededRadioRequest
 import app.naviamp.domain.radio.artistMixSeededRadioRequest
 import app.naviamp.domain.radio.albumRecentRadioStream
@@ -31,6 +33,8 @@ import app.naviamp.domain.radio.popularTracksRecentRadioStream
 import app.naviamp.domain.radio.radioRefillSeedTrack
 import app.naviamp.domain.radio.radioRequestStartResult
 import app.naviamp.domain.radio.selectAlbumRadioSeedTrack
+import app.naviamp.domain.radio.seededRadioBuildResult
+import app.naviamp.domain.radio.seededRadioExpansionResult
 import app.naviamp.domain.radio.trackRecentRadioStream
 import app.naviamp.domain.radio.withRadioCoverArtIds
 import app.naviamp.domain.settings.RecentRadioStream
@@ -131,45 +135,46 @@ fun startAndroidSeededRadio(
     playTrack(seedTrack, seedQueue)
     scope.launch {
         with(state) {
-            runCatching {
-                loadRest(
-                    RadioService(
+            when (
+                val result = seededRadioBuildResult(
+                    seedTrack = seedTrack,
+                    recentRadioStream = recentRadioStream,
+                    radioService = RadioService(
                         provider = activeProvider,
                         count = AndroidInitialSimilarRadioCount,
                         providerResponseService = providerResponseService,
                     ),
+                    loadRest = loadRest,
                 )
-            }
-                .onSuccess { fetchedTracks ->
-                    val queue = generatedRadioQueue(seedTrack, fetchedTracks)
-                        .ifEmpty { seedQueue }
-                    recentRadioStream?.withRadioCoverArtIds(queue)?.let(rememberRecentRadioStream)
+            ) {
+                is SeededRadioBuildResult.Ready -> {
+                    val queue = result.queue
+                    result.recentRadioStream?.let(rememberRecentRadioStream)
                     if (nowPlaying?.id == seedTrack.id) {
                         playbackQueue = PlaybackQueue(tracks = queue, currentIndex = 0)
                     }
                     status = "Building $statusLabel queue..."
                 }
-                .onFailure { error ->
+                is SeededRadioBuildResult.Failed -> {
                     if (nowPlaying?.id == seedTrack.id) {
-                        status = error.message ?: "Could not build $statusLabel."
+                        status = result.error.message ?: "Could not build $statusLabel."
                     }
                 }
+            }
 
             radioRefilling = false
             AndroidSimilarRadioExpansionCounts.forEach { count ->
                 if (nowPlaying?.id != seedTrack.id) return@launch
-                val fetchedTracks = runCatching {
-                    loadRest(
-                        RadioService(
-                            provider = activeProvider,
-                            count = count,
-                            providerResponseService = providerResponseService,
-                        ),
-                    )
-                }.getOrElse {
-                    return@forEach
-                }
-                appendAndroidGeneratedRadioTracks(state, queueController, seedTrack, fetchedTracks)
+                val result = seededRadioExpansionResult(
+                    radioService = RadioService(
+                        provider = activeProvider,
+                        count = count,
+                        providerResponseService = providerResponseService,
+                    ),
+                    loadRest = loadRest,
+                )
+                if (result !is SeededRadioExpansionResult.Ready) return@forEach
+                appendAndroidGeneratedRadioTracks(state, queueController, seedTrack, result.fetchedTracks)
                 status = "Building $statusLabel queue (${playbackQueue.tracks.size} tracks)..."
             }
             if (nowPlaying?.id == seedTrack.id) {

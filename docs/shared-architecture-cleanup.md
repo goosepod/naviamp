@@ -1169,6 +1169,15 @@ Progress notes:
   - `DesktopRadioController.kt` no longer manually loads a `RadioRequest`, checks empty results, enriches recent stream cover art, and catches generic load failures in its non-seeded radio path.
   - Shared domain now owns one tested result shape for non-seeded radio starts while the larger seeded radio, expansion, and refill flows remain to be extracted.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.radio.RadioRequestsTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
+- Added shared seeded radio build/expansion result shaping with `SeededRadioBuildResult`, `SeededRadioExpansionResult`, `seededRadioBuildResult`, and `seededRadioExpansionResult`.
+- Android `startAndroidSeededRadio` and Desktop `startSeeded` now share initial generated-queue construction, recent-radio cover-art enrichment, build failure classification, and expansion-load failure classification.
+- Platform code still owns the correct side effects: seed-track playback, active-session checks, Android queue-state replacement, Desktop playlist-engine append, status target assignment, radio-refilling flags, and final loaded/cleared status.
+- Added common `RadioRequestsTest.kt` coverage for seeded build ready/failure results and expansion ready/failure results.
+- Size/reduction note for this slice:
+  - `AndroidRadioController.kt` no longer hand-builds the initial generated queue or catches seeded expansion loads inside the reusable seeded-start helper.
+  - `DesktopRadioController.kt` no longer hand-loads seeded initial radio tracks or catches seeded expansion loads inside `startSeeded`.
+  - Shared domain now owns generated seeded queue/result shaping, while convert-current-track-to-radio and upcoming-track replacement remain as the next generated-queue extraction target.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.radio.RadioRequestsTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
 

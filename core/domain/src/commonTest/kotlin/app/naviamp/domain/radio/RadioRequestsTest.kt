@@ -147,6 +147,62 @@ class RadioRequestsTest {
         assertEquals(error, assertIs<RadioRequestStartResult.Failed>(result).error)
     }
 
+    @Test
+    fun seededRadioBuildResultCreatesGeneratedQueueAndRecentStream() = runTest {
+        val seedTrack = track("seed", albumTitle = "Seed Album", coverArtId = "seed-cover")
+        val request = SeededRadioRequest(
+            label = "Seed radio",
+            seedTrack = seedTrack,
+            recentRadioStream = trackRecentRadioStream(seedTrack),
+            loadRest = {
+                listOf(
+                    track("seed", albumTitle = "Seed Album", coverArtId = "duplicate-seed-cover"),
+                    track("similar", albumTitle = "Similar Album", coverArtId = "similar-cover"),
+                )
+            },
+        )
+
+        val result = assertIs<SeededRadioBuildResult.Ready>(
+            seededRadioBuildResult(request, RadioService(FakeRadioProvider())),
+        )
+
+        assertEquals(
+            listOf(seedTrack, track("similar", albumTitle = "Similar Album", coverArtId = "similar-cover")),
+            result.queue,
+        )
+        assertEquals(listOf("seed-cover", "similar-cover"), result.recentRadioStream?.coverArtIds)
+    }
+
+    @Test
+    fun seededRadioBuildResultReturnsFailedWhenLoaderFails() = runTest {
+        val error = IllegalStateException("seeded radio failed")
+        val result = seededRadioBuildResult(
+            seedTrack = track("seed"),
+            recentRadioStream = null,
+            radioService = RadioService(FakeRadioProvider()),
+            loadRest = { throw error },
+        )
+
+        assertEquals(error, assertIs<SeededRadioBuildResult.Failed>(result).error)
+    }
+
+    @Test
+    fun seededRadioExpansionResultReturnsTracksOrFailure() = runTest {
+        val service = RadioService(FakeRadioProvider())
+        val fetchedTracks = listOf(track("similar"))
+
+        val ready = assertIs<SeededRadioExpansionResult.Ready>(
+            seededRadioExpansionResult(service) { fetchedTracks },
+        )
+        assertEquals(fetchedTracks, ready.fetchedTracks)
+
+        val error = IllegalStateException("expansion failed")
+        val failed = assertIs<SeededRadioExpansionResult.Failed>(
+            seededRadioExpansionResult(service) { throw error },
+        )
+        assertEquals(error, failed.error)
+    }
+
     private fun track(
         id: String,
         title: String = "Track $id",

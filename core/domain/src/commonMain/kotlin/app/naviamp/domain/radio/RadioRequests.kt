@@ -36,6 +36,27 @@ sealed interface RadioRequestStartResult {
     ) : RadioRequestStartResult
 }
 
+sealed interface SeededRadioBuildResult {
+    data class Ready(
+        val queue: List<Track>,
+        val recentRadioStream: RecentRadioStream?,
+    ) : SeededRadioBuildResult
+
+    data class Failed(
+        val error: Throwable,
+    ) : SeededRadioBuildResult
+}
+
+sealed interface SeededRadioExpansionResult {
+    data class Ready(
+        val fetchedTracks: List<Track>,
+    ) : SeededRadioExpansionResult
+
+    data class Failed(
+        val error: Throwable,
+    ) : SeededRadioExpansionResult
+}
+
 suspend fun radioRequestStartResult(
     request: RadioRequest,
     radioService: RadioService,
@@ -71,6 +92,55 @@ suspend fun radioRequestStartResult(
         )
     }.getOrElse { error ->
         RadioRequestStartResult.Failed(error)
+    }
+
+suspend fun seededRadioBuildResult(
+    request: SeededRadioRequest,
+    radioService: RadioService,
+): SeededRadioBuildResult =
+    seededRadioBuildResult(
+        seedTrack = request.seedTrack,
+        recentRadioStream = request.recentRadioStream,
+        radioService = radioService,
+        loadRest = request.loadRest,
+    )
+
+suspend fun seededRadioBuildResult(
+    seedTrack: Track,
+    recentRadioStream: RecentRadioStream?,
+    radioService: RadioService,
+    loadRest: suspend (RadioService) -> List<Track>,
+): SeededRadioBuildResult =
+    runCatching {
+        val queue = generatedRadioQueue(
+            seedTrack = seedTrack,
+            fetchedTracks = loadRest(radioService),
+        )
+        SeededRadioBuildResult.Ready(
+            queue = queue,
+            recentRadioStream = recentRadioStream?.withRadioCoverArtIds(queue),
+        )
+    }.getOrElse { error ->
+        SeededRadioBuildResult.Failed(error)
+    }
+
+suspend fun seededRadioExpansionResult(
+    request: SeededRadioRequest,
+    radioService: RadioService,
+): SeededRadioExpansionResult =
+    seededRadioExpansionResult(
+        radioService = radioService,
+        loadRest = request.loadRest,
+    )
+
+suspend fun seededRadioExpansionResult(
+    radioService: RadioService,
+    loadRest: suspend (RadioService) -> List<Track>,
+): SeededRadioExpansionResult =
+    runCatching {
+        SeededRadioExpansionResult.Ready(loadRest(radioService))
+    }.getOrElse { error ->
+        SeededRadioExpansionResult.Failed(error)
     }
 
 fun libraryRadioRequest(): RadioRequest =

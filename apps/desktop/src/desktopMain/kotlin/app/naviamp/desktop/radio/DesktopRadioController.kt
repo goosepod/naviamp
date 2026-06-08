@@ -19,6 +19,8 @@ import app.naviamp.domain.radio.RadioRequest
 import app.naviamp.domain.radio.RadioRequestStartResult
 import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.radio.SeededRadioRequest
+import app.naviamp.domain.radio.SeededRadioBuildResult
+import app.naviamp.domain.radio.SeededRadioExpansionResult
 import app.naviamp.domain.radio.albumMixSeededRadioRequest
 import app.naviamp.domain.radio.albumSeededRadioRequest
 import app.naviamp.domain.radio.artistMixSeededRadioRequest
@@ -32,6 +34,8 @@ import app.naviamp.domain.radio.radioRefillSeedTrack
 import app.naviamp.domain.radio.radioRequestStartResult
 import app.naviamp.domain.radio.randomAlbumSeededRadioRequest
 import app.naviamp.domain.radio.shouldFinishRadioRefillForSession
+import app.naviamp.domain.radio.seededRadioBuildResult
+import app.naviamp.domain.radio.seededRadioExpansionResult
 import app.naviamp.domain.radio.trackRadioRequest
 import app.naviamp.domain.radio.withRadioCoverArtIds
 import app.naviamp.provider.navidrome.NavidromeProvider
@@ -330,26 +334,30 @@ class DesktopRadioController(
         )
 
         scope.launch {
-            try {
-                val fetchedTracks = withContext(Dispatchers.IO) {
-                    request.loadRest(radioService(provider, count = InitialSimilarRadioCount))
+            when (
+                val result = withContext(Dispatchers.IO) {
+                    seededRadioBuildResult(request, radioService(provider, count = InitialSimilarRadioCount))
                 }
-                rememberRadioStream(request.recentRadioStream.withRadioCoverArtIds(listOf(request.seedTrack) + fetchedTracks))
-                appendGeneratedRadioTracks(
-                    playlistEngine = playlistEngine,
-                    radioQueueActive = isRadioQueueActive(),
-                    radioSession = activeRadioSessionId,
-                    currentRadioSession = radioSessionId(),
-                    seedTrack = request.seedTrack,
-                    fetchedTracks = fetchedTracks,
-                    maxHistory = RadioQueueHistoryLimit,
-                )
-                if (activeRadioSessionId == radioSessionId()) {
-                    setConnectionStatus("Building ${request.label} queue...")
+            ) {
+                is SeededRadioBuildResult.Ready -> {
+                    result.recentRadioStream?.let(rememberRadioStream)
+                    appendGeneratedRadioTracks(
+                        playlistEngine = playlistEngine,
+                        radioQueueActive = isRadioQueueActive(),
+                        radioSession = activeRadioSessionId,
+                        currentRadioSession = radioSessionId(),
+                        seedTrack = request.seedTrack,
+                        fetchedTracks = result.queue.drop(1),
+                        maxHistory = RadioQueueHistoryLimit,
+                    )
+                    if (activeRadioSessionId == radioSessionId()) {
+                        setConnectionStatus("Building ${request.label} queue...")
+                    }
                 }
-            } catch (exception: Exception) {
-                if (activeRadioSessionId == radioSessionId()) {
-                    setConnectionStatus(exception.message ?: "Could not build ${request.label}.")
+                is SeededRadioBuildResult.Failed -> {
+                    if (activeRadioSessionId == radioSessionId()) {
+                        setConnectionStatus(result.error.message ?: "Could not build ${request.label}.")
+                    }
                 }
             }
             if (shouldFinishRadioRefillForSession(activeRadioSessionId, radioSessionId())) {
@@ -358,20 +366,17 @@ class DesktopRadioController(
 
             SimilarRadioExpansionCounts.forEach { count ->
                 if (!isRadioQueueActive() || activeRadioSessionId != radioSessionId()) return@launch
-                val fetchedTracks = runCatching {
-                    withContext(Dispatchers.IO) {
-                        request.loadRest(radioService(provider, count = count))
-                    }
-                }.getOrElse {
-                    return@forEach
+                val result = withContext(Dispatchers.IO) {
+                    seededRadioExpansionResult(request, radioService(provider, count = count))
                 }
+                if (result !is SeededRadioExpansionResult.Ready) return@forEach
                 appendGeneratedRadioTracks(
                     playlistEngine = playlistEngine,
                     radioQueueActive = isRadioQueueActive(),
                     radioSession = activeRadioSessionId,
                     currentRadioSession = radioSessionId(),
                     seedTrack = request.seedTrack,
-                    fetchedTracks = fetchedTracks,
+                    fetchedTracks = result.fetchedTracks,
                     maxHistory = RadioQueueHistoryLimit,
                 )
                 if (activeRadioSessionId == radioSessionId()) {
