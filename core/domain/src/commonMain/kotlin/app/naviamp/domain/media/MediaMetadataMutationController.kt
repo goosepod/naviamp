@@ -246,3 +246,91 @@ class MediaMetadataMutationController(
         return applyResult(result)
     }
 }
+
+fun mediaMetadataMutationController(
+    provider: () -> MediaProvider?,
+    favoritedAtIso8601: () -> String,
+    setStatus: (String) -> Unit,
+    trackLookupSources: () -> MediaTrackLookupSources,
+    homeContent: () -> HomeContent,
+    setHomeContent: (HomeContent) -> Unit,
+    searchResults: () -> MediaSearchResults,
+    setSearchResults: (MediaSearchResults) -> Unit,
+    albumDetails: () -> AlbumDetails?,
+    setAlbumDetails: (AlbumDetails?) -> Unit,
+    artistDetails: () -> ArtistDetails?,
+    setArtistDetails: (ArtistDetails?) -> Unit,
+    nowPlayingTrack: () -> Track?,
+    setNowPlayingTrack: (Track?) -> Unit,
+    tracks: () -> List<Track> = { emptyList() },
+    setTracks: (List<Track>) -> Unit = {},
+    extraKnownArtists: () -> List<Artist> = { emptyList() },
+    extraKnownAlbums: () -> List<Album> = { emptyList() },
+    updateExtraArtistCollections: (Artist) -> Unit = {},
+    updateExtraAlbumCollections: (Album) -> Unit = {},
+    afterTrackUpdate: (updatedTrack: Track, updatedNowPlaying: Track?) -> Unit = { _, _ -> },
+): MediaMetadataMutationController =
+    MediaMetadataMutationController(
+        provider = provider,
+        favoritedAtIso8601 = favoritedAtIso8601,
+        setStatus = setStatus,
+        knownTracks = { knownTracksForMediaActions(trackLookupSources()) },
+        knownArtists = {
+            knownArtistsForMetadata(
+                homeContent = homeContent(),
+                searchResults = searchResults(),
+                artistDetails = artistDetails(),
+                extraArtists = extraKnownArtists(),
+            )
+        },
+        knownAlbums = {
+            knownAlbumsForMetadata(
+                homeContent = homeContent(),
+                searchResults = searchResults(),
+                albumDetails = albumDetails(),
+                artistDetails = artistDetails(),
+                extraAlbums = extraKnownAlbums(),
+            )
+        },
+        applyTrackUpdate = { updatedTrack ->
+            val updatedNowPlaying = MediaTrackMetadataStateUpdater(
+                nowPlayingTrack = nowPlayingTrack,
+                setNowPlayingTrack = setNowPlayingTrack,
+                searchResults = searchResults,
+                setSearchResults = setSearchResults,
+                albumDetails = albumDetails,
+                setAlbumDetails = setAlbumDetails,
+                tracks = tracks,
+                setTracks = setTracks,
+            ).applyTrackUpdate(updatedTrack)
+            afterTrackUpdate(updatedTrack, updatedNowPlaying)
+        },
+        applyArtistUpdate = { updatedArtist ->
+            MediaMetadataStateUpdater(
+                homeContent = homeContent,
+                setHomeContent = setHomeContent,
+                searchResults = searchResults,
+                setSearchResults = setSearchResults,
+                albumDetails = albumDetails,
+                setAlbumDetails = setAlbumDetails,
+                artistDetails = artistDetails,
+                setArtistDetails = setArtistDetails,
+                updateExtraArtistCollections = updateExtraArtistCollections,
+                updateExtraAlbumCollections = updateExtraAlbumCollections,
+            ).applyArtistUpdate(updatedArtist)
+        },
+        applyAlbumUpdate = { updatedAlbum ->
+            MediaMetadataStateUpdater(
+                homeContent = homeContent,
+                setHomeContent = setHomeContent,
+                searchResults = searchResults,
+                setSearchResults = setSearchResults,
+                albumDetails = albumDetails,
+                setAlbumDetails = setAlbumDetails,
+                artistDetails = artistDetails,
+                setArtistDetails = setArtistDetails,
+                updateExtraArtistCollections = updateExtraArtistCollections,
+                updateExtraAlbumCollections = updateExtraAlbumCollections,
+            ).applyAlbumUpdate(updatedAlbum)
+        },
+    )

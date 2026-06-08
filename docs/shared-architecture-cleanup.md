@@ -661,7 +661,7 @@ Implementation checklist for the first slice:
 - [x] Move known track/artist/album lookup composition out of platform controllers where practical.
 - [x] Keep Android notification optimistic toggle/revert and notification metadata update as Android-only adapter behavior.
 - [x] Keep desktop `TrackMetadataRepository.updateTrack` and `DesktopPlaylistEngine.updateTrack` as desktop-only adapter behavior.
-- [ ] Reduce `AndroidMediaActionsController.kt` and `DesktopMediaActionsController.kt` to construction/adaptation around the shared path.
+- [x] Reduce `AndroidMediaActionsController.kt` and `DesktopMediaActionsController.kt` to construction/adaptation around the shared path.
 - [x] Verify behavior with common tests plus Android/Desktop compilation.
 - [x] Update this plan with exact files reduced and the remaining platform-only responsibilities.
 
@@ -687,6 +687,17 @@ Progress notes:
 - `PlaybackQueueManager` now owns append/start-empty/dedupe/status decisions and returns `PlaybackQueueUpdate`.
 - Android media actions now adapt queue append results into `PlaybackQueueController` and app state instead of owning queue branching.
 - Desktop media and playlist queue additions now use `PlaybackQueueManager`; `DesktopPlaylistEngine` exposes a thin `replaceQueue` adapter so it still owns desktop queue callbacks.
+- Added shared `mediaMetadataMutationController` construction in `MediaMetadataMutationController.kt`.
+- Android and Desktop media actions now share controller construction, known track/artist/album lookup composition, state updater construction, and status handling through the domain factory.
+- Platform media actions still own the correct side effects: Android notification favorite/metadata refresh and Desktop playlist-engine/repository track updates.
+- Added `MediaMetadataMutationControllerTest.kt` coverage for factory-applied track state and the platform track-update callback.
+- Size/reduction note for this slice:
+  - `AndroidMediaActionsController.kt` and `DesktopMediaActionsController.kt` no longer hand-build `MediaMetadataMutationController` from raw known-media lookup functions and state updater callbacks.
+  - Shared domain grew intentionally with the controller factory so platform files pass adapter getters, setters, and callbacks instead of recreating the same mutation wiring.
+- Verification:
+  - `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.media.MediaMetadataMutationControllerTest --tests app.naviamp.domain.media.TrackMediaActionsTest`
+  - `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`
+  - `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`
 - `queueAppendPlan` now delegates to shared queue append helpers to keep existing callers on the same decision path.
 - Added `PlaybackQueueManagerTest.kt` coverage for starting an empty queue, appending to an existing queue, deduping, and no-change statuses.
 - Extended `PlaybackQueueManager` to own repeat cycling and upcoming-shuffle decisions with typed `PlaybackShuffleUpdate` results.

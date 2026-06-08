@@ -11,9 +11,7 @@ import app.naviamp.domain.media.MediaMetadataMutationController
 import app.naviamp.domain.media.MediaMetadataStateUpdater
 import app.naviamp.domain.media.MediaTrackMetadataStateUpdater
 import app.naviamp.domain.media.MediaTrackLookupSources
-import app.naviamp.domain.media.knownAlbumsForMetadata
-import app.naviamp.domain.media.knownArtistsForMetadata
-import app.naviamp.domain.media.knownTracksForMediaActions
+import app.naviamp.domain.media.mediaMetadataMutationController
 import app.naviamp.domain.media.trackPlaybackSelection
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackQueueManager
@@ -125,36 +123,38 @@ class DesktopMediaActionsController(
     }
 
     private fun metadataMutationController(): MediaMetadataMutationController =
-        MediaMetadataMutationController(
+        mediaMetadataMutationController(
             provider = provider,
             favoritedAtIso8601 = { Instant.now().toString() },
             setStatus = setConnectionStatus,
-            knownTracks = {
-                knownTracksForMediaActions(
-                    MediaTrackLookupSources(
-                        primaryTracks = playlistEngine.queue.tracks,
-                        extraTracks = albumTracks() + searchTracks() + relatedTracks(),
-                    ),
+            trackLookupSources = {
+                MediaTrackLookupSources(
+                    primaryTracks = playlistEngine.queue.tracks,
+                    extraTracks = albumTracks() + searchTracks() + relatedTracks(),
                 )
             },
-            knownArtists = {
-                knownArtistsForMetadata(
-                    homeContent = homeContent(),
-                    searchResults = searchResults(),
-                    artistDetails = selectedArtistDetails(),
-                )
+            homeContent = homeContent,
+            setHomeContent = setHomeContent,
+            searchResults = searchResults,
+            setSearchResults = setSearchResults,
+            albumDetails = selectedAlbumDetails,
+            setAlbumDetails = setSelectedAlbumDetails,
+            artistDetails = selectedArtistDetails,
+            setArtistDetails = setSelectedArtistDetails,
+            nowPlayingTrack = nowPlayingTrack,
+            setNowPlayingTrack = setNowPlayingTrack,
+            updateExtraArtistCollections = { artist ->
+                setArtistMixSelectedArtists?.invoke(artist)
+                setArtistMixSuggestions?.invoke(artist)
             },
-            knownAlbums = {
-                knownAlbumsForMetadata(
-                    homeContent = homeContent(),
-                    searchResults = searchResults(),
-                    albumDetails = selectedAlbumDetails(),
-                    artistDetails = selectedArtistDetails(),
-                )
+            updateExtraAlbumCollections = { album ->
+                setAlbumMixSelectedAlbums?.invoke(album)
+                setAlbumMixSuggestions?.invoke(album)
             },
-            applyTrackUpdate = ::applyTrackMetadataUpdate,
-            applyArtistUpdate = ::applyArtistMetadataUpdate,
-            applyAlbumUpdate = ::applyAlbumMetadataUpdate,
+            afterTrackUpdate = { updatedTrack, _ ->
+                playlistEngine.updateTrack(updatedTrack)
+                trackMetadataRepository.updateTrack(updatedTrack)
+            },
         )
 
     private fun metadataStateUpdater(): MediaMetadataStateUpdater =

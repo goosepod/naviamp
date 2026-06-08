@@ -10,6 +10,7 @@ import app.naviamp.domain.ProviderId
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
@@ -143,6 +144,46 @@ class MediaMetadataMutationControllerTest {
         assertEquals(MediaMetadataMutationResult.Skipped, result)
         assertNull(status)
         assertNull(appliedTrack)
+    }
+
+    @Test
+    fun sharedFactoryAppliesTrackStateAndPlatformCallback() = runTest {
+        val track = track("track")
+        var nowPlaying: Track? = track
+        var searchResults = MediaSearchResults(tracks = listOf(track))
+        var callbackTrack: Track? = null
+        var callbackNowPlaying: Track? = null
+        val provider = FakeMediaProvider(
+            capabilities = providerCapabilities(supportsTrackRatings = true),
+        )
+        val controller = mediaMetadataMutationController(
+            provider = { provider },
+            favoritedAtIso8601 = { "favorite-time" },
+            setStatus = {},
+            trackLookupSources = { MediaTrackLookupSources(primaryTracks = listOf(track)) },
+            homeContent = { HomeContent() },
+            setHomeContent = {},
+            searchResults = { searchResults },
+            setSearchResults = { searchResults = it },
+            albumDetails = { null },
+            setAlbumDetails = {},
+            artistDetails = { null },
+            setArtistDetails = {},
+            nowPlayingTrack = { nowPlaying },
+            setNowPlayingTrack = { nowPlaying = it },
+            afterTrackUpdate = { updatedTrack, updatedNowPlaying ->
+                callbackTrack = updatedTrack
+                callbackNowPlaying = updatedNowPlaying
+            },
+        )
+
+        val result = controller.setTrackRatingResult(track, rating = 5)
+
+        assertTrue(result is MediaMetadataMutationResult.TrackUpdated)
+        assertEquals(5, nowPlaying?.userRating)
+        assertEquals(5, searchResults.tracks.single().userRating)
+        assertEquals(result.track, callbackTrack)
+        assertEquals(nowPlaying, callbackNowPlaying)
     }
 
     private fun controller(
