@@ -7,7 +7,6 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.PlaybackSessionRepository
-import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.playback.PlaybackEngine
@@ -21,13 +20,18 @@ import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.radio.internetRadioTrack
 import app.naviamp.domain.radio.InternetRadioMetadataUpdateApplier
 import app.naviamp.domain.radio.InternetRadioStartApplier
+import app.naviamp.domain.radio.InternetRadioStationManager
 import app.naviamp.domain.radio.applyInternetRadioMetadataUpdate
 import app.naviamp.domain.radio.applyInternetRadioStart
+import app.naviamp.domain.radio.internetRadioDeleteErrorStatus
+import app.naviamp.domain.radio.internetRadioDeleteLoadingStatus
+import app.naviamp.domain.radio.internetRadioRefreshErrorStatus
+import app.naviamp.domain.radio.internetRadioRefreshLoadingStatus
+import app.naviamp.domain.radio.internetRadioSaveErrorStatus
+import app.naviamp.domain.radio.internetRadioSaveLoadingStatus
 import app.naviamp.domain.radio.planInternetRadioMetadataUpdate
 import app.naviamp.domain.radio.planInternetRadioPlaybackRequest
 import app.naviamp.domain.radio.planInternetRadioStart
-import app.naviamp.domain.radio.recentInternetRadioStationsWith
-import app.naviamp.domain.radio.recentSavedInternetRadioStationsWith
 import app.naviamp.domain.waveform.AudioWaveform
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -41,7 +45,7 @@ class DesktopInternetRadioController(
     private val playbackEngine: PlaybackEngine,
     private val playlistEngine: DesktopPlaylistEngine,
     private val provider: () -> MediaProvider?,
-    private val providerResponseService: ProviderResponseService,
+    private val stationManager: InternetRadioStationManager,
     private val homeContent: () -> HomeContent,
     private val setHomeContent: (HomeContent) -> Unit,
     private val recentStations: () -> List<InternetRadioStation>,
@@ -73,31 +77,30 @@ class DesktopInternetRadioController(
 ) {
     fun refreshStations() {
         val activeProvider = provider() ?: return
-        setStatus("Loading internet radio...")
+        setStatus(internetRadioRefreshLoadingStatus())
         scope.launch {
             try {
                 setStations(
                     withContext(Dispatchers.IO) {
-                        providerResponseService.internetRadioStations(activeProvider)
+                        stationManager.refreshStations(activeProvider)
                     },
                 )
                 setStatus(null)
             } catch (exception: Exception) {
-                setStatus(exception.message ?: "Could not load internet radio stations.")
+                setStatus(exception.message ?: internetRadioRefreshErrorStatus())
             }
         }
     }
 
     fun rememberStation(station: InternetRadioStation) {
-        val recent = recentInternetRadioStationsWith(recentStations(), station)
-        setRecentStations(recent)
-        settingsStore.saveRecentInternetRadioStations(
-            recentSavedInternetRadioStationsWith(
-                settingsStore.loadRecentInternetRadioStations(),
-                station,
-            ),
+        val plan = planInternetRadioStart(
+            station = station,
+            recentStations = recentStations(),
+            recentSavedStations = settingsStore.loadRecentInternetRadioStations(),
         )
-        setHomeContent(homeContent().copy(recentInternetRadioStations = recent))
+        settingsStore.saveRecentInternetRadioStations(plan.recentSavedStations)
+        setRecentStations(plan.recentStations)
+        setHomeContent(homeContent().copy(recentInternetRadioStations = plan.recentStations))
     }
 
     fun playStation(station: InternetRadioStation) {
@@ -206,42 +209,28 @@ class DesktopInternetRadioController(
 
     fun saveStation(station: InternetRadioStation) {
         val activeProvider = provider() ?: return
-        setStatus("Saving ${station.name}...")
+        setStatus(internetRadioSaveLoadingStatus(station))
         scope.launch {
             try {
-                withContext(Dispatchers.IO) {
-                    if (station.id == station.streamUrl) {
-                        activeProvider.createInternetRadioStation(
-                            name = station.name,
-                            streamUrl = station.streamUrl,
-                            homePageUrl = station.homePageUrl,
-                        )
-                    } else {
-                        activeProvider.updateInternetRadioStation(station)
-                    }
-                    providerResponseService.invalidateInternetRadioStations(activeProvider)
-                }
+                val stations = withContext(Dispatchers.IO) { stationManager.saveStation(activeProvider, station) }
+                setStations(stations)
                 setStatus(null)
-                refreshStations()
             } catch (exception: Exception) {
-                setStatus(exception.message ?: "Could not save station.")
+                setStatus(exception.message ?: internetRadioSaveErrorStatus())
             }
         }
     }
 
     fun deleteStation(station: InternetRadioStation) {
         val activeProvider = provider() ?: return
-        setStatus("Deleting ${station.name}...")
+        setStatus(internetRadioDeleteLoadingStatus(station))
         scope.launch {
             try {
-                withContext(Dispatchers.IO) {
-                    activeProvider.deleteInternetRadioStation(station.id)
-                    providerResponseService.invalidateInternetRadioStations(activeProvider)
-                }
+                val stations = withContext(Dispatchers.IO) { stationManager.deleteStation(activeProvider, station) }
+                setStations(stations)
                 setStatus(null)
-                refreshStations()
             } catch (exception: Exception) {
-                setStatus(exception.message ?: "Could not delete station.")
+                setStatus(exception.message ?: internetRadioDeleteErrorStatus())
             }
         }
     }

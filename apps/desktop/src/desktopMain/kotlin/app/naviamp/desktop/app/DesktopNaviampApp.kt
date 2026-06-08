@@ -88,6 +88,7 @@ import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioRequest
+import app.naviamp.domain.radio.InternetRadioStationManager
 import app.naviamp.domain.radio.RecentRadioAction
 import app.naviamp.domain.radio.SeededRadioRequest
 import app.naviamp.domain.radio.albumSeededRadioRequest
@@ -595,7 +596,7 @@ fun NaviampApp(
         playbackEngine = playbackEngine,
         playlistEngine = playlistEngine,
         provider = { connectedProvider },
-        providerResponseService = ProviderResponseService(storage),
+        stationManager = InternetRadioStationManager(ProviderResponseService(storage)),
         homeContent = { homeContent },
         setHomeContent = { content -> homeContent = content },
         recentStations = { recentInternetRadioStations },

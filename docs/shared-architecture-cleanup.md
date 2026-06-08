@@ -900,6 +900,14 @@ Progress notes:
 - Size/reduction note for the internet-radio domain composition slice:
   - No platform behavior changed; this is a module-shape cleanup after the shared radio playback extraction.
   - Shared radio logic is now easier to compose and test as small focused pieces instead of accumulating in one broad file.
+- Added shared `InternetRadioStationManager` for internet-radio station refresh, save, delete, cache invalidation, and reload-after-mutation behavior.
+- Android and Desktop now use the same shared create-vs-update decision for internet-radio station saves.
+- Platform code still owns the correct boundaries: coroutine launch, provider availability checks, and applying station/status state into Android or Desktop UI state.
+- Added common `InternetRadioStationManagerTest.kt` coverage for create/update/delete mutation flows, cache invalidation, reload behavior, and shared status labels.
+- Size/reduction note for the internet-radio station management slice:
+  - `MainActivity.kt` no longer owns create-vs-update, invalidate, and reload orchestration for station save/delete.
+  - `DesktopInternetRadioController.kt` no longer owns provider mutation sequencing for station save/delete, and refresh now goes through the same shared manager.
+  - Shared domain grew intentionally with one focused manager around provider/cache operations.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:

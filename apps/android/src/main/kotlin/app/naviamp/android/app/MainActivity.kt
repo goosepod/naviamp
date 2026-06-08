@@ -96,6 +96,10 @@ import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.radio.RecentRadioAction
+import app.naviamp.domain.radio.internetRadioDeleteErrorStatus
+import app.naviamp.domain.radio.internetRadioDeleteLoadingStatus
+import app.naviamp.domain.radio.internetRadioSaveErrorStatus
+import app.naviamp.domain.radio.internetRadioSaveLoadingStatus
 import app.naviamp.domain.radio.recentRadioAction
 import app.naviamp.domain.radio.recentRadioStreamsWith
 import app.naviamp.domain.settings.ConnectionFormState
@@ -1926,27 +1930,17 @@ private fun NaviampAndroidApp(
             status = "Not connected."
             return
         }
-        status = "Saving ${station.name}..."
+        status = internetRadioSaveLoadingStatus(station)
         scope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    if (station.id == station.streamUrl) {
-                        activeProvider.createInternetRadioStation(
-                            name = station.name,
-                            streamUrl = station.streamUrl,
-                            homePageUrl = station.homePageUrl,
-                        )
-                    } else {
-                        activeProvider.updateInternetRadioStation(station)
-                    }
-                    dependencies.providerResponseService.invalidateInternetRadioStations(activeProvider)
-                    dependencies.providerResponseService.internetRadioStations(activeProvider)
+                    dependencies.internetRadioStationManager.saveStation(activeProvider, station)
                 }
             }.onSuccess { stations ->
                 homeState = homeState.copy(radioStations = stations)
                 status = ""
             }.onFailure { error ->
-                status = error.message ?: "Could not save station."
+                status = error.message ?: internetRadioSaveErrorStatus()
             }
         }
     }
@@ -1957,19 +1951,17 @@ private fun NaviampAndroidApp(
             status = "Not connected."
             return
         }
-        status = "Deleting ${station.name}..."
+        status = internetRadioDeleteLoadingStatus(station)
         scope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    activeProvider.deleteInternetRadioStation(station.id)
-                    dependencies.providerResponseService.invalidateInternetRadioStations(activeProvider)
-                    dependencies.providerResponseService.internetRadioStations(activeProvider)
+                    dependencies.internetRadioStationManager.deleteStation(activeProvider, station)
                 }
             }.onSuccess { stations ->
                 homeState = homeState.copy(radioStations = stations)
                 status = ""
             }.onFailure { error ->
-                status = error.message ?: "Could not delete station."
+                status = error.message ?: internetRadioDeleteErrorStatus()
             }
         }
     }

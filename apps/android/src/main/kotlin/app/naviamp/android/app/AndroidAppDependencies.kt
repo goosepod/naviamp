@@ -14,6 +14,7 @@ import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.popular.ArtistPopularTracksService
 import app.naviamp.domain.popular.DeezerPopularTracksClient
 import app.naviamp.domain.popular.SimilarArtistsService
+import app.naviamp.domain.radio.InternetRadioStationManager
 import app.naviamp.provider.navidrome.NavidromeProvider
 
 class AndroidAppDependencies(
@@ -25,6 +26,8 @@ class AndroidAppDependencies(
     val imageCacheRepository: ImageCacheRepository = storage
     val sidecarStatusRepository: SidecarStatusRepository = storage
     val providerResponseService: ProviderResponseService = ProviderResponseService(storage)
+    val internetRadioStationManager: InternetRadioStationManager =
+        InternetRadioStationManager(providerResponseService)
 
     private val deezerDiscoveryClient: DeezerPopularTracksClient =
         DeezerPopularTracksClient(AndroidPopularTracksHttpClient())
