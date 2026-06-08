@@ -1259,6 +1259,9 @@ Progress notes:
 - Moved Android internet-radio station save/delete provider mutations into `AndroidRadioController.kt`, leaving the root app to delegate shell callbacks only.
 - `MainActivity.kt` dropped to 1,717 lines after the Android internet-radio mutation extraction.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Moved Android restore/connect/autoconnect orchestration into `AndroidConnectionSessionController`, keeping saved connection/session restore wiring out of `MainActivity.kt`.
+- `MainActivity.kt` dropped to 1,694 lines after the Android connection session extraction.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 

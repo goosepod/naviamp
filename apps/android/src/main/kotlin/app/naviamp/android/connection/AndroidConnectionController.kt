@@ -8,6 +8,7 @@ import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.InternetRadioStation
+import app.naviamp.domain.Track
 import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.connectionFormError
@@ -19,6 +20,61 @@ import app.naviamp.provider.navidrome.prepareNavidromeConnection
 import app.naviamp.provider.navidrome.resolvedDisplayName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+
+class AndroidConnectionSessionController(
+    private val scope: CoroutineScope,
+    private val state: AndroidAppState,
+    private val storage: AndroidStorageDependencies,
+    private val settingsStore: AndroidSettingsStore,
+    private val savedProviderConnection: NavidromeConnection?,
+    private val savedConnection: ConnectionFormState,
+    private val playbackEngine: AndroidPlaybackEngine,
+    private val preloadPlaylistTracks: (NavidromeProvider, List<Playlist>) -> Unit,
+    private val loadRelatedTracks: (Track) -> Unit,
+    private val startAndroidLibrarySync: (Boolean) -> Unit,
+    private val checkAndroidLibraryFreshness: () -> Unit,
+) {
+    fun restorePlaybackSession(sourceId: String): Boolean =
+        restoreAndroidPlaybackSession(state, storage, sourceId, loadRelatedTracks)
+
+    fun connectWithNavidromeConnection(connection: NavidromeConnection) {
+        startNavidromeConnection(
+            scope = scope,
+            state = state,
+            connection = connection,
+            providerMediaSourceRepository = storage,
+            providerResponseCacheRepository = storage,
+            playbackEngine = playbackEngine,
+            preloadPlaylistTracks = preloadPlaylistTracks,
+            restorePlaybackSession = ::restorePlaybackSession,
+            startAndroidLibrarySync = startAndroidLibrarySync,
+            checkAndroidLibraryFreshness = checkAndroidLibraryFreshness,
+            recentRadioStreams = settingsStore.loadRecentRadioStreams(),
+            recentInternetRadioStations = settingsStore.loadRecentInternetRadioStations().map { it.toStation() },
+        )
+    }
+
+    fun connectToNavidrome() {
+        startNavidromeConnectionFromForm(
+            scope = scope,
+            state = state,
+            settingsStore = settingsStore,
+            savedProviderConnection = savedProviderConnection,
+            connectWithNavidromeConnection = ::connectWithNavidromeConnection,
+        )
+    }
+
+    fun autoConnect() {
+        when {
+            savedProviderConnection != null -> connectWithNavidromeConnection(savedProviderConnection)
+            savedConnection.serverUrl.isNotBlank() &&
+                savedConnection.username.isNotBlank() &&
+                savedConnection.password.isNotBlank() -> {
+                connectToNavidrome()
+            }
+        }
+    }
+}
 
 fun AndroidAppState.applyConnectionForm(form: ConnectionFormState) {
     connectionName = form.displayName

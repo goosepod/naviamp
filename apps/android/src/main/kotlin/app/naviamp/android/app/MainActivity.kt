@@ -87,7 +87,6 @@ import app.naviamp.domain.settings.effectiveForEngine
 import app.naviamp.domain.settings.playbackSettingsChange
 import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
-import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeApiCall
 import app.naviamp.provider.navidrome.NavidromeApiCallHistory
 import app.naviamp.provider.navidrome.NavidromeProvider
@@ -1166,47 +1165,25 @@ private fun NaviampAndroidApp(
         )
     }
 
-    fun restorePlaybackSession(sourceId: String): Boolean {
-        return restoreAndroidPlaybackSession(appState, storage, sourceId, ::loadRelatedTracks)
-    }
-    restorePlaybackSessionAction = ::restorePlaybackSession
-
-    fun connectWithNavidromeConnection(connection: NavidromeConnection) {
-        startNavidromeConnection(
+    val connectionSessionController = remember(appState, storage, settingsStore, savedProviderConnection) {
+        AndroidConnectionSessionController(
             scope = scope,
             state = appState,
-            connection = connection,
-            providerMediaSourceRepository = storage,
-            providerResponseCacheRepository = storage,
-            playbackEngine = playbackEngine,
-            preloadPlaylistTracks = ::preloadPlaylistTracks,
-            restorePlaybackSession = ::restorePlaybackSession,
-            startAndroidLibrarySync = { force -> startAndroidLibrarySync(scope, appState, storage, force) },
-            checkAndroidLibraryFreshness = { checkAndroidLibraryFreshness(scope, appState, storage, storage) },
-            recentRadioStreams = settingsStore.loadRecentRadioStreams(),
-            recentInternetRadioStations = settingsStore.loadRecentInternetRadioStations().map { it.toStation() },
-        )
-    }
-
-    fun connectToNavidrome() {
-        startNavidromeConnectionFromForm(
-            scope = scope,
-            state = appState,
+            storage = storage,
             settingsStore = settingsStore,
             savedProviderConnection = savedProviderConnection,
-            connectWithNavidromeConnection = ::connectWithNavidromeConnection,
+            savedConnection = savedConnection,
+            playbackEngine = playbackEngine,
+            preloadPlaylistTracks = ::preloadPlaylistTracks,
+            loadRelatedTracks = ::loadRelatedTracks,
+            startAndroidLibrarySync = { force -> startAndroidLibrarySync(scope, appState, storage, force) },
+            checkAndroidLibraryFreshness = { checkAndroidLibraryFreshness(scope, appState, storage, storage) },
         )
     }
+    restorePlaybackSessionAction = connectionSessionController::restorePlaybackSession
 
     LaunchedEffect(Unit) {
-        when {
-            savedProviderConnection != null -> connectWithNavidromeConnection(savedProviderConnection)
-            savedConnection.serverUrl.isNotBlank() &&
-                savedConnection.username.isNotBlank() &&
-                savedConnection.password.isNotBlank() -> {
-                connectToNavidrome()
-            }
-        }
+        connectionSessionController.autoConnect()
     }
 
     AndroidAppPersistenceEffects(
@@ -1613,7 +1590,7 @@ private fun NaviampAndroidApp(
         playbackEngine = playbackEngine,
         settingsStore = settingsStore,
         handleConnectionFormChanged = ::handleConnectionFormChanged,
-        connectToNavidrome = ::connectToNavidrome,
+        connectToNavidrome = connectionSessionController::connectToNavidrome,
         handlePlaybackSettingsChanged = ::handlePlaybackSettingsChanged,
         handlePlaybackSettingsChangedAndRedownload = ::handlePlaybackSettingsChangedAndRedownload,
         handleClearCache = ::handleClearCache,
