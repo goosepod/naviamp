@@ -1223,6 +1223,9 @@ Progress notes:
 - Moved desktop sleep-timer snapshot, selection, and expiry polling adapters into `DesktopSleepTimerEffects.kt`; shared domain sleep-timer rules remain in `core/domain`.
 - `DesktopNaviampApp.kt` dropped to 1,735 lines after the sleep-timer adapter extraction.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.playback.SleepTimerTest` and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
+- Moved Android shell state/action contracts into `AndroidAppShellContracts.kt`, leaving `AndroidAppShell.kt` focused on shared shell UI mapping and action construction.
+- `AndroidAppShell.kt` dropped from 890 lines to 715 lines in this slice.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 
