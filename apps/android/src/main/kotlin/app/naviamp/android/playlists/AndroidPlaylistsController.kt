@@ -13,12 +13,13 @@ import app.naviamp.domain.provider.playlistDeletedStatus
 import app.naviamp.domain.provider.playlistDetailsStateUpdate
 import app.naviamp.domain.provider.playlistPlaybackAction
 import app.naviamp.domain.provider.playlistPlaybackTracks
+import app.naviamp.domain.provider.playlistListRefresh
 import app.naviamp.domain.provider.playlistRenameErrorMessage
 import app.naviamp.domain.provider.playlistRenameLoadingStatus
 import app.naviamp.domain.provider.playlistRenamedStatus
-import app.naviamp.domain.provider.playlistsNeedingTrackPreload
 import app.naviamp.domain.provider.recentPlaylistIdsAfterPlayed
 import app.naviamp.domain.provider.refreshPlaylistDetails
+import app.naviamp.domain.provider.refreshPlaylistsAndPlanPreload
 import app.naviamp.domain.provider.renamedSelectedPlaylist
 import app.naviamp.domain.provider.renamePlaylistAndRefresh
 import app.naviamp.domain.provider.saveQueueAsPlaylistAndRefresh
@@ -32,6 +33,7 @@ import app.naviamp.domain.provider.smartPlaylistUpdateErrorMessage
 import app.naviamp.domain.provider.smartPlaylistUpdatedStatus
 import app.naviamp.domain.provider.smartPlaylistUpdatingStatus
 import app.naviamp.domain.provider.deletePlaylistAndRefresh
+import app.naviamp.domain.provider.loadPlaylistTracksForPreload
 import app.naviamp.domain.provider.updateSmartPlaylistAndRefresh
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.provider.navidrome.NavidromeProvider
@@ -265,15 +267,22 @@ fun preloadAndroidPlaylistTracks(
 ) {
     val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
     scope.launch {
-        playlistsNeedingTrackPreload(playlists, state.playlistTracksById).forEach { playlist ->
-            runCatching {
-                providerResponseService?.playlistTracks(activeProvider, playlist.id)
-                    ?: activeProvider.playlistTracks(playlist.id)
-            }
-                .onSuccess { tracks ->
-                    state.playlistTracksById = state.playlistTracksById + (playlist.id to tracks)
+        playlistListRefresh(
+            playlists = playlists,
+            playlistTracksById = state.playlistTracksById,
+        )
+            .playlistsToPreload
+            .forEach { playlist ->
+                runCatching {
+                    activeProvider.loadPlaylistTracksForPreload(
+                        playlist = playlist,
+                        providerResponseService = providerResponseService,
+                    )
                 }
-        }
+                    .onSuccess { tracks ->
+                        state.playlistTracksById = state.playlistTracksById + (playlist.id to tracks)
+                    }
+                }
     }
 }
 
@@ -286,16 +295,17 @@ fun refreshAndroidPlaylists(
     val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
     scope.launch {
         runCatching {
-            providerResponseService?.playlists(activeProvider, limit = 500)
-                ?: activeProvider.playlists(limit = 500)
-        }
-            .onSuccess { playlists ->
-                state.homeState = state.homeState.copy(playlists = playlists)
+            activeProvider.refreshPlaylistsAndPlanPreload(
+                providerResponseService = providerResponseService,
+                playlistTracksById = state.playlistTracksById,
+            )
+        }.onSuccess { refresh ->
+                state.homeState = state.homeState.copy(playlists = refresh.playlists)
                 preloadAndroidPlaylistTracks(
                     scope,
                     state,
                     activeProvider,
-                    playlists,
+                    refresh.playlists,
                     providerResponseCacheRepository,
                 )
             }

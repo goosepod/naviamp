@@ -924,6 +924,14 @@ Progress notes:
   - `AndroidPlaylistsController.kt` no longer performs raw rename/delete provider calls, playlist cache invalidation, and playlist reload inline.
   - `DesktopPlaylistsController.kt` no longer performs raw rename/delete provider calls or launches a second playlist refresh after mutation.
   - Shared domain grew intentionally by extending the existing playlist mutation helper surface instead of adding a platform-specific service.
+- Added shared `PlaylistListRefresh`, `playlistListRefresh`, `refreshPlaylistsAndPlanPreload`, and `loadPlaylistTracksForPreload`.
+- Android and Desktop playlist controllers now share playlist-list refresh, cache/no-cache loading, and track-preload target planning.
+- Platform code still owns state application: Android writes home state and async track maps; Desktop writes playlist state, home playlist projections, status, and async track maps.
+- Added common `PlaylistMutationsTest.kt` coverage for playlist-list refresh and preload planning.
+- Size/reduction note for the playlist refresh/preload slice:
+  - `AndroidPlaylistsController.kt` no longer performs raw playlist list loading or preload target selection in its refresh path.
+  - `DesktopPlaylistsController.kt` no longer duplicates cache/no-cache playlist loading branches or preload target selection.
+  - Shared domain grew intentionally by composing existing playlist preload rules with provider/cache loading helpers.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:

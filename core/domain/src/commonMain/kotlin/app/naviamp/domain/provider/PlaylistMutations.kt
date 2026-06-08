@@ -71,6 +71,11 @@ data class PlaylistDeleteStateUpdate(
     val deletedSelectedPlaylist: Boolean,
 )
 
+data class PlaylistListRefresh(
+    val playlists: List<Playlist>,
+    val playlistsToPreload: List<Playlist>,
+)
+
 const val PlaylistDetailRefreshIntervalMillis = 60_000L
 
 data class QueueAppendPlan(
@@ -109,6 +114,52 @@ fun playlistsNeedingTrackPreload(
 ): List<Playlist> =
     playlists.take(limit).filter { playlist ->
         playlistTracksById[playlist.id].isNullOrEmpty()
+    }
+
+fun playlistListRefresh(
+    playlists: List<Playlist>,
+    playlistTracksById: Map<String, List<Track>>,
+    preloadLimit: Int = 100,
+): PlaylistListRefresh =
+    PlaylistListRefresh(
+        playlists = playlists,
+        playlistsToPreload = playlistsNeedingTrackPreload(
+            playlists = playlists,
+            playlistTracksById = playlistTracksById,
+            limit = preloadLimit,
+        ),
+    )
+
+suspend fun MediaProvider.refreshPlaylistsAndPlanPreload(
+    providerResponseService: ProviderResponseService? = null,
+    useCache: Boolean = true,
+    playlistLimit: Int = 500,
+    preloadLimit: Int = 100,
+    playlistTracksById: Map<String, List<Track>> = emptyMap(),
+): PlaylistListRefresh {
+    val refreshedPlaylists = if (useCache) {
+        providerResponseService?.playlists(this, limit = playlistLimit)
+            ?: playlists(limit = playlistLimit)
+    } else {
+        playlists(limit = playlistLimit)
+    }
+    return playlistListRefresh(
+        playlists = refreshedPlaylists,
+        playlistTracksById = playlistTracksById,
+        preloadLimit = preloadLimit,
+    )
+}
+
+suspend fun MediaProvider.loadPlaylistTracksForPreload(
+    playlist: Playlist,
+    providerResponseService: ProviderResponseService? = null,
+    useCache: Boolean = true,
+): List<Track> =
+    if (useCache) {
+        providerResponseService?.playlistTracks(this, playlist.id)
+            ?: playlistTracks(playlist.id)
+    } else {
+        playlistTracks(playlist.id)
     }
 
 fun <Provider : Any> playlistDetailAutoRefreshTarget(

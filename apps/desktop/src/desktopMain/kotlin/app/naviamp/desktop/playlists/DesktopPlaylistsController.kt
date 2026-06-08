@@ -17,14 +17,15 @@ import app.naviamp.domain.provider.playlistDeleteStateUpdate
 import app.naviamp.domain.provider.playlistDeletedStatus
 import app.naviamp.domain.provider.deletePlaylistAndRefresh
 import app.naviamp.domain.provider.playlistDetailsStateUpdate
+import app.naviamp.domain.provider.loadPlaylistTracksForPreload
 import app.naviamp.domain.provider.playlistPlaybackAction
 import app.naviamp.domain.provider.playlistPlaybackTracks
 import app.naviamp.domain.provider.playlistRenameErrorMessage
 import app.naviamp.domain.provider.playlistRenameLoadingStatus
 import app.naviamp.domain.provider.playlistRenamedStatus
-import app.naviamp.domain.provider.playlistsNeedingTrackPreload
 import app.naviamp.domain.provider.recentPlaylistIdsAfterPlayed
 import app.naviamp.domain.provider.refreshPlaylistDetails
+import app.naviamp.domain.provider.refreshPlaylistsAndPlanPreload
 import app.naviamp.domain.provider.renamedSelectedPlaylist
 import app.naviamp.domain.provider.renamePlaylistAndRefresh
 import app.naviamp.domain.provider.saveQueueAsPlaylistAndRefresh
@@ -82,24 +83,25 @@ class DesktopPlaylistsController(
         setPlaylistStatus("Loading playlists...")
         scope.launch {
             try {
-                val refreshedPlaylists = withContext(Dispatchers.IO) {
-                    if (useCache) {
-                        providerResponseService.playlists(activeProvider, limit = 500)
-                    } else {
-                        activeProvider.playlists(limit = 500)
-                    }
+                val refresh = withContext(Dispatchers.IO) {
+                    activeProvider.refreshPlaylistsAndPlanPreload(
+                        providerResponseService = providerResponseService,
+                        useCache = useCache,
+                        playlistTracksById = playlistTracksById(),
+                    )
                 }
+                val refreshedPlaylists = refresh.playlists
                 setPlaylists(refreshedPlaylists)
                 setPlaylistStatus(null)
                 refreshHomePlaylists(refreshedPlaylists)
-                playlistsNeedingTrackPreload(refreshedPlaylists, playlistTracksById()).forEach { playlist ->
+                refresh.playlistsToPreload.forEach { playlist ->
                     runCatching {
                         withContext(Dispatchers.IO) {
-                            if (useCache) {
-                                providerResponseService.playlistTracks(activeProvider, playlist.id)
-                            } else {
-                                activeProvider.playlistTracks(playlist.id)
-                            }
+                            activeProvider.loadPlaylistTracksForPreload(
+                                playlist = playlist,
+                                providerResponseService = providerResponseService,
+                                useCache = useCache,
+                            )
                         }
                     }.onSuccess { tracks ->
                         setPlaylistTracksById(playlistTracksById() + (playlist.id to tracks))

@@ -136,6 +136,38 @@ class PlaylistMutationsTest {
     }
 
     @Test
+    fun playlistListRefreshPlansTrackPreloadsFromKnownTracks() {
+        val one = playlist("one", "One")
+        val two = playlist("two", "Two")
+
+        assertEquals(
+            PlaylistListRefresh(
+                playlists = listOf(one, two),
+                playlistsToPreload = listOf(two),
+            ),
+            playlistListRefresh(
+                playlists = listOf(one, two),
+                playlistTracksById = mapOf("one" to listOf(track("one"))),
+            ),
+        )
+    }
+
+    @Test
+    fun refreshPlaylistsAndPlanPreloadLoadsPlaylistsAndPreloadTargets() = kotlinx.coroutines.test.runTest {
+        val one = playlist("one", "One")
+        val two = playlist("two", "Two")
+        val provider = FakePlaylistProvider(playlists = listOf(one, two), playlistTracks = listOf(track("two")))
+
+        val refresh = provider.refreshPlaylistsAndPlanPreload(
+            playlistTracksById = mapOf("one" to listOf(track("one"))),
+        )
+
+        assertEquals(listOf(one, two), refresh.playlists)
+        assertEquals(listOf(two), refresh.playlistsToPreload)
+        assertEquals(listOf(track("two")), provider.loadPlaylistTracksForPreload(two))
+    }
+
+    @Test
     fun playlistDetailAutoRefreshTargetRequiresProviderPlaylistAndEnabledState() {
         val provider = Any()
         val playlist = playlist("one", "One")
