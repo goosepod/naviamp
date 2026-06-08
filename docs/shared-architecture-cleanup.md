@@ -1212,6 +1212,12 @@ Progress notes:
 - Remaining playback platform code is adapter work: concrete playback engine calls, BASS/native implementation, Android foreground service/media-session/notification behavior, audio focus, lifecycle/coroutine ownership, provider/cache adapters, UI state assignment, route changes, and session persistence wiring.
 - The next cleanup step should decompose the root app shells now that media actions, playlists, library sync, radio, and playback command planning have shared service boundaries.
 
+## Root App Decomposition Progress
+
+- Moved desktop surface/window chrome rendering into `DesktopAppSurface.kt` and now-playing route wiring into `DesktopNowPlayingRoute.kt`.
+- `DesktopNaviampApp.kt` dropped from 1,958 lines to 1,751 lines in this slice; the extracted files are route/surface adapters and do not change app behavior.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
+
 Success criteria for the first slice:
 
 - One shared call path owns metadata mutation decisions for Android and Desktop.
