@@ -9,8 +9,8 @@ import app.naviamp.domain.cache.CacheMaintenanceRepository
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.MediaSourceRepository
-import app.naviamp.domain.library.evaluateLibraryFreshness
 import app.naviamp.domain.library.libraryConnectionRequiredStatus
+import app.naviamp.domain.library.libraryFreshnessUpdate
 import app.naviamp.domain.library.libraryLimitForOffset
 import app.naviamp.domain.library.librarySyncErrorStatus
 import app.naviamp.domain.library.librarySyncStartingStatus
@@ -110,18 +110,22 @@ class DesktopLibraryController(
         if (isLibrarySyncing()) return
         scope.launch {
             val freshness = withContext(Dispatchers.IO) {
-                mediaSourceRepository.libraryFreshnessFor(activeSourceId, activeProvider)
+                libraryFreshnessUpdate(
+                    sourceId = activeSourceId,
+                    provider = activeProvider,
+                    mediaSourceRepository = mediaSourceRepository,
+                    currentStatus = libraryStatus(),
+                )
             }
-            val update = freshness.evaluateLibraryFreshness(libraryStatus())
-            update.signatureToMarkChecked?.let { signature ->
+            freshness.signatureToMarkChecked?.let { signature ->
                 withContext(Dispatchers.IO) {
                     libraryIndexRepository.markLibraryScanChecked(activeSourceId, signature)
                 }
             }
-            update.status?.let { status ->
+            freshness.status?.let { status ->
                 setLibraryStatus(status)
             }
-            if (update.clearStatus) {
+            if (freshness.clearStatus) {
                 setLibraryStatus(null)
             }
         }

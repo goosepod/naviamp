@@ -1130,6 +1130,19 @@ Progress notes:
   - Shared domain now owns the final rename/delete application shape, while platform files keep only target-specific UI state writes.
 - Verification passed: `./gradlew :core:domain:jvmTest --tests app.naviamp.domain.provider.PlaylistMutationsTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
+## Library Sync/Freshness Progress
+
+- Added shared `libraryFreshnessUpdate` in `LibraryFreshness.kt`.
+- Android and Desktop library controllers now share provider scan-status loading, media-source previous-signature lookup, and freshness evaluation.
+- Removed the desktop-local `MediaSourceRepository.libraryFreshnessFor` helper because shared domain now owns that provider/source composition.
+- Platform code still owns the correct side effects: coroutine launch, UI status assignment, Android home-progress assignment during sync, Desktop list scrolling/paging/cache clearing, and marking scan signatures checked in the local index repository.
+- Added common `LibraryFreshnessTest.kt` coverage for provider/source-backed freshness updates.
+- Size/reduction note for this slice:
+  - `AndroidLibraryController.kt` no longer manually builds `LibraryFreshness` from provider and media-source state.
+  - `DesktopLibraryController.kt` no longer depends on a desktop-only freshness helper.
+  - Shared domain now has one tested freshness orchestration entry point while the broader sync loop remains to be extracted.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.library.LibraryFreshnessTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
+
 Success criteria for the first slice:
 
 - One shared call path owns metadata mutation decisions for Android and Desktop.

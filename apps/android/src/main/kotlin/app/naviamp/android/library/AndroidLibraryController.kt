@@ -2,8 +2,7 @@ package app.naviamp.android
 
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.MediaSourceRepository
-import app.naviamp.domain.library.LibraryFreshness
-import app.naviamp.domain.library.evaluateLibraryFreshness
+import app.naviamp.domain.library.libraryFreshnessUpdate
 import app.naviamp.domain.library.librarySyncCompletedStatus
 import app.naviamp.domain.library.librarySyncErrorStatus
 import app.naviamp.domain.library.librarySyncStartingStatus
@@ -70,23 +69,22 @@ fun checkAndroidLibraryFreshness(
     if (state.isLibrarySyncing) return
     scope.launch {
         val freshness = withContext(Dispatchers.IO) {
-            val scanStatus = activeProvider.libraryScanStatus()
-            LibraryFreshness(
-                signature = scanStatus?.signature,
-                previousSignature = mediaSourceRepository.mediaSource(sourceId)?.lastLibraryScanSignature,
-                scanning = scanStatus?.scanning == true,
+            libraryFreshnessUpdate(
+                sourceId = sourceId,
+                provider = activeProvider,
+                mediaSourceRepository = mediaSourceRepository,
+                currentStatus = state.libraryStatus,
             )
         }
-        val update = freshness.evaluateLibraryFreshness(state.libraryStatus)
-        update.signatureToMarkChecked?.let { signature ->
+        freshness.signatureToMarkChecked?.let { signature ->
             withContext(Dispatchers.IO) {
                 libraryIndexRepository.markLibraryScanChecked(sourceId, signature)
             }
         }
-        update.status?.let { status ->
+        freshness.status?.let { status ->
             state.libraryStatus = status
         }
-        if (update.clearStatus) {
+        if (freshness.clearStatus) {
             state.libraryStatus = null
         }
     }

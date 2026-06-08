@@ -2,9 +2,7 @@ package app.naviamp.desktop
 
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
-import app.naviamp.domain.cache.MediaSourceRepository
 import app.naviamp.domain.cache.ProviderResponseService
-import app.naviamp.domain.library.LibraryFreshness
 import app.naviamp.domain.library.shouldAutoSyncLibrary as shouldAutoSyncLibraryIndex
 import app.naviamp.domain.library.nextLibraryLimit as nextLibraryPageLimit
 import app.naviamp.domain.provider.MediaProvider
@@ -126,17 +124,4 @@ data class DesktopLibrarySyncProgress(
         } else {
             "$phase: $completed/$total"
         }
-}
-
-suspend fun MediaSourceRepository.libraryFreshnessFor(
-    sourceId: String,
-    provider: MediaProvider,
-): LibraryFreshness {
-    val scanStatus = provider.libraryScanStatus()
-    val source = mediaSource(sourceId)
-    return LibraryFreshness(
-        signature = scanStatus?.signature,
-        previousSignature = source?.lastLibraryScanSignature,
-        scanning = scanStatus?.scanning == true,
-    )
 }
