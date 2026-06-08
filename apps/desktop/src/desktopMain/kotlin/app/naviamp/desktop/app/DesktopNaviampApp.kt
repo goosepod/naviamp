@@ -456,7 +456,7 @@ fun NaviampApp(
     }
 
     fun currentSleepTimerSnapshot() =
-        sleepTimerPlaybackSnapshot(
+        desktopSleepTimerSnapshot(
             nowPlaying = nowPlayingTrack,
             playbackQueue = playbackQueue,
             playbackProgress = playbackProgress,
@@ -464,18 +464,17 @@ fun NaviampApp(
         )
 
     fun handleSleepTimerSelected(request: SleepTimerRequest) {
-        val nowMillis = System.currentTimeMillis()
-        val timer = sleepTimerStateForPlayback(
+        val selection = desktopSleepTimerSelection(
             request = request,
-            nowEpochMillis = nowMillis,
+            nowEpochMillis = System.currentTimeMillis(),
             nowPlaying = nowPlayingTrack,
             playbackQueue = playbackQueue,
             playbackProgress = playbackProgress,
             playbackState = playbackState,
         )
-        sleepTimer = timer
-        sleepTimerNowEpochMillis = nowMillis
-        connectionStatus = sleepTimerDisplayLabel(timer, nowMillis)
+        sleepTimer = selection.timer
+        sleepTimerNowEpochMillis = selection.nowEpochMillis
+        connectionStatus = selection.status
     }
 
     fun cancelSleepTimer() {
@@ -483,19 +482,16 @@ fun NaviampApp(
         connectionStatus = "Sleep timer canceled."
     }
 
-    LaunchedEffect(sleepTimer, nowPlayingTrack?.id, playbackQueue, playbackProgress, playbackState) {
-        while (sleepTimer != null) {
-            val nowMillis = System.currentTimeMillis()
-            sleepTimerNowEpochMillis = nowMillis
-            if (shouldExpireSleepTimer(sleepTimer, nowMillis, currentSleepTimerSnapshot())) {
-                playbackEngine.stop()
-                sleepTimer = null
-                connectionStatus = "Sleep timer stopped playback."
-                break
-            }
-            delay(500L)
-        }
-    }
+    DesktopSleepTimerExpiryEffect(
+        sleepTimer = sleepTimer,
+        snapshot = currentSleepTimerSnapshot(),
+        onTick = { nowMillis -> sleepTimerNowEpochMillis = nowMillis },
+        onExpired = {
+            playbackEngine.stop()
+            sleepTimer = null
+            connectionStatus = "Sleep timer stopped playback."
+        },
+    )
 
     fun canUsePreviousButton(): Boolean =
         playbackController.canUsePreviousButton()

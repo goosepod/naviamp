@@ -1220,6 +1220,9 @@ Progress notes:
 - Moved desktop internet-radio stream artwork lookup into `DesktopRadioArtworkEffects.kt`, keeping provider search and artwork-key branching out of the root app.
 - `DesktopNaviampApp.kt` dropped to 1,739 lines after the artwork-effect extraction.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
+- Moved desktop sleep-timer snapshot, selection, and expiry polling adapters into `DesktopSleepTimerEffects.kt`; shared domain sleep-timer rules remain in `core/domain`.
+- `DesktopNaviampApp.kt` dropped to 1,735 lines after the sleep-timer adapter extraction.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.playback.SleepTimerTest` and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
 
