@@ -22,8 +22,10 @@ import app.naviamp.domain.provider.playlistListErrorMessage
 import app.naviamp.domain.provider.playlistListLoadingStatus
 import app.naviamp.domain.provider.playlistPlaybackCompletionApplication
 import app.naviamp.domain.provider.playlistPlaybackErrorMessage
+import app.naviamp.domain.provider.playlistPlaybackPreparedApplication
 import app.naviamp.domain.provider.playlistPlaybackStartApplication
 import app.naviamp.domain.provider.playlistPlaybackStartPlan
+import app.naviamp.domain.provider.playlistDetailPlaybackPreparedApplication
 import app.naviamp.domain.provider.preparePlaylistDetailPlaybackApplication
 import app.naviamp.domain.provider.preparePlaylistPlaybackApplication
 import app.naviamp.domain.provider.playlistRenameErrorMessage
@@ -243,12 +245,14 @@ class DesktopPlaylistsController(
                         emptyStatus = "${playlist.name} did not return any tracks.",
                     )
                 }
-                setPlaylistTracksById(update.playlistTracksById)
-                if (update.firstTrack == null) {
-                    setConnectionStatus(update.status)
+                val prepared = playlistPlaybackPreparedApplication(update)
+                setPlaylistTracksById(prepared.playlistTracksById)
+                val work = prepared.playbackWork
+                if (work == null) {
+                    setConnectionStatus(prepared.status)
                     return@launch
                 }
-                setConnectionStatus(update.status)
+                setConnectionStatus(prepared.status)
                 setPendingPlaybackAction(
                     playlistPlaybackCompletionApplication(
                         pending = pendingPlaybackAction(),
@@ -258,9 +262,9 @@ class DesktopPlaylistsController(
                 playTracks(
                     playlist = playlist,
                     activeProvider = activeProvider,
-                    tracks = update.playbackTracks,
-                    index = 0,
-                    recentPlaylistIdsAfterPlayback = update.recentPlaylistIds,
+                    tracks = work.playbackTracks,
+                    index = work.playbackIndex,
+                    recentPlaylistIdsAfterPlayback = work.recentPlaylistIds,
                 )
             } catch (exception: Exception) {
                 setConnectionStatus(playlistPlaybackErrorMessage(exception, playlist))
@@ -314,20 +318,22 @@ class DesktopPlaylistsController(
                         requestedIndex = index,
                     )
                 }
-                setPlaylistTracksById(update.playlistTracksById)
-                update.loadedTracksToStore?.let { loadedTracks ->
+                val prepared = playlistDetailPlaybackPreparedApplication(update)
+                setPlaylistTracksById(prepared.playlistTracksById)
+                prepared.loadedTracksToStore?.let { loadedTracks ->
                     setSelectedPlaylistTracks(loadedTracks)
                 }
-                if (update.firstTrack == null) {
-                    setSelectedPlaylistStatus(update.status)
+                val work = prepared.playbackWork
+                if (work == null) {
+                    setSelectedPlaylistStatus(prepared.status)
                     return@launch
                 }
                 playTracks(
                     playlist = playlist,
                     activeProvider = activeProvider,
-                    tracks = update.playbackTracks,
-                    index = update.playbackIndex,
-                    recentPlaylistIdsAfterPlayback = update.recentPlaylistIds,
+                    tracks = work.playbackTracks,
+                    index = work.playbackIndex,
+                    recentPlaylistIdsAfterPlayback = work.recentPlaylistIds,
                 )
                 setSelectedPlaylistStatus(null)
             } catch (exception: Exception) {

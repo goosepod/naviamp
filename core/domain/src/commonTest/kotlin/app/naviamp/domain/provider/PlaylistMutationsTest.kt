@@ -488,16 +488,17 @@ class PlaylistMutationsTest {
         val playlist = playlist("one", "Road Mix")
         val loadedTrack = track("loaded")
         val currentTracks = mapOf("other" to listOf(track("other")))
+        val playableUpdate = PlaylistPlaybackApplicationUpdate(
+            playlistTracksById = currentTracks + ("one" to listOf(loadedTrack)),
+            loadedTracksToStore = listOf(loadedTrack),
+            firstTrack = loadedTrack,
+            playbackTracks = listOf(loadedTrack),
+            recentPlaylistIds = listOf("one", "two"),
+            status = null,
+        )
 
         assertEquals(
-            PlaylistPlaybackApplicationUpdate(
-                playlistTracksById = currentTracks + ("one" to listOf(loadedTrack)),
-                loadedTracksToStore = listOf(loadedTrack),
-                firstTrack = loadedTrack,
-                playbackTracks = listOf(loadedTrack),
-                recentPlaylistIds = listOf("one", "two"),
-                status = null,
-            ),
+            playableUpdate,
             playlistPlaybackApplicationUpdate(
                 playlist = playlist,
                 preparation = PlaylistPlaybackPreparation(
@@ -513,16 +514,31 @@ class PlaylistMutationsTest {
                 currentPlaylistTracksById = currentTracks,
             ),
         )
+        assertEquals(
+            PlaylistPlaybackPreparedApplication(
+                playlistTracksById = currentTracks + ("one" to listOf(loadedTrack)),
+                loadedTracksToStore = listOf(loadedTrack),
+                playbackWork = PlaylistPlaybackWork(
+                    firstTrack = loadedTrack,
+                    playbackTracks = listOf(loadedTrack),
+                    playbackIndex = 0,
+                    recentPlaylistIds = listOf("one", "two"),
+                ),
+                status = null,
+            ),
+            playlistPlaybackPreparedApplication(playableUpdate),
+        )
+        val emptyUpdate = PlaylistPlaybackApplicationUpdate(
+            playlistTracksById = currentTracks,
+            loadedTracksToStore = null,
+            firstTrack = null,
+            playbackTracks = emptyList(),
+            recentPlaylistIds = emptyList(),
+            status = "Road Mix did not return any tracks.",
+        )
 
         assertEquals(
-            PlaylistPlaybackApplicationUpdate(
-                playlistTracksById = currentTracks,
-                loadedTracksToStore = null,
-                firstTrack = null,
-                playbackTracks = emptyList(),
-                recentPlaylistIds = emptyList(),
-                status = "Road Mix did not return any tracks.",
-            ),
+            emptyUpdate,
             playlistPlaybackApplicationUpdate(
                 playlist = playlist,
                 preparation = PlaylistPlaybackPreparation(
@@ -537,6 +553,15 @@ class PlaylistMutationsTest {
                 ),
                 currentPlaylistTracksById = currentTracks,
             ),
+        )
+        assertEquals(
+            PlaylistPlaybackPreparedApplication(
+                playlistTracksById = currentTracks,
+                loadedTracksToStore = null,
+                playbackWork = null,
+                status = "Road Mix did not return any tracks.",
+            ),
+            playlistPlaybackPreparedApplication(emptyUpdate),
         )
         assertEquals("Could not play Road Mix.", playlistPlaybackErrorMessage(Exception(), playlist))
     }
@@ -578,17 +603,18 @@ class PlaylistMutationsTest {
             playlists = listOf(playlist),
             playlistTracks = loadedTracks,
         )
+        val update = PlaylistDetailPlaybackApplicationUpdate(
+            playlistTracksById = mapOf("one" to loadedTracks),
+            loadedTracksToStore = loadedTracks,
+            firstTrack = loadedTracks.first(),
+            playbackTracks = loadedTracks,
+            playbackIndex = 1,
+            recentPlaylistIds = listOf("one", "two"),
+            status = null,
+        )
 
         assertEquals(
-            PlaylistDetailPlaybackApplicationUpdate(
-                playlistTracksById = mapOf("one" to loadedTracks),
-                loadedTracksToStore = loadedTracks,
-                firstTrack = loadedTracks.first(),
-                playbackTracks = loadedTracks,
-                playbackIndex = 1,
-                recentPlaylistIds = listOf("one", "two"),
-                status = null,
-            ),
+            update,
             provider.preparePlaylistDetailPlaybackApplication(
                 playlist = playlist,
                 shuffle = false,
@@ -598,6 +624,20 @@ class PlaylistMutationsTest {
                 currentPlaylistTracksById = emptyMap(),
                 requestedIndex = 99,
             ),
+        )
+        assertEquals(
+            PlaylistPlaybackPreparedApplication(
+                playlistTracksById = mapOf("one" to loadedTracks),
+                loadedTracksToStore = loadedTracks,
+                playbackWork = PlaylistPlaybackWork(
+                    firstTrack = loadedTracks.first(),
+                    playbackTracks = loadedTracks,
+                    playbackIndex = 1,
+                    recentPlaylistIds = listOf("one", "two"),
+                ),
+                status = null,
+            ),
+            playlistDetailPlaybackPreparedApplication(update),
         )
     }
 

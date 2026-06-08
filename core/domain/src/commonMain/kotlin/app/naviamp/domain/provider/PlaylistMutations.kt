@@ -221,6 +221,20 @@ data class PlaylistDetailPlaybackApplicationUpdate(
     val status: String?,
 )
 
+data class PlaylistPlaybackWork(
+    val firstTrack: Track,
+    val playbackTracks: List<Track>,
+    val playbackIndex: Int,
+    val recentPlaylistIds: List<String>,
+)
+
+data class PlaylistPlaybackPreparedApplication(
+    val playlistTracksById: Map<String, List<Track>>,
+    val loadedTracksToStore: List<Track>?,
+    val playbackWork: PlaylistPlaybackWork?,
+    val status: String?,
+)
+
 fun homePlaylists(
     playlists: List<Playlist>,
     recentPlaylistIds: List<String>,
@@ -686,6 +700,24 @@ fun playlistPlaybackApplicationUpdate(
     )
 }
 
+fun playlistPlaybackPreparedApplication(
+    update: PlaylistPlaybackApplicationUpdate,
+    playbackIndex: Int = 0,
+): PlaylistPlaybackPreparedApplication =
+    PlaylistPlaybackPreparedApplication(
+        playlistTracksById = update.playlistTracksById,
+        loadedTracksToStore = update.loadedTracksToStore,
+        playbackWork = update.firstTrack?.let { firstTrack ->
+            PlaylistPlaybackWork(
+                firstTrack = firstTrack,
+                playbackTracks = update.playbackTracks,
+                playbackIndex = playbackIndex,
+                recentPlaylistIds = update.recentPlaylistIds,
+            )
+        },
+        status = update.status,
+    )
+
 fun playlistPlaybackErrorMessage(error: Throwable, playlist: Playlist): String =
     error.message ?: "Could not play ${playlist.name}."
 
@@ -736,6 +768,23 @@ fun playlistDetailPlaybackApplicationUpdate(
         status = update.status,
     )
 }
+
+fun playlistDetailPlaybackPreparedApplication(
+    update: PlaylistDetailPlaybackApplicationUpdate,
+): PlaylistPlaybackPreparedApplication =
+    PlaylistPlaybackPreparedApplication(
+        playlistTracksById = update.playlistTracksById,
+        loadedTracksToStore = update.loadedTracksToStore,
+        playbackWork = update.firstTrack?.let { firstTrack ->
+            PlaylistPlaybackWork(
+                firstTrack = firstTrack,
+                playbackTracks = update.playbackTracks,
+                playbackIndex = update.playbackIndex,
+                recentPlaylistIds = update.recentPlaylistIds,
+            )
+        },
+        status = update.status,
+    )
 
 suspend fun MediaProvider.preparePlaylistDetailPlaybackApplication(
     playlist: Playlist,

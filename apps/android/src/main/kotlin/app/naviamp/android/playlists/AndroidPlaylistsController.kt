@@ -16,6 +16,7 @@ import app.naviamp.domain.provider.playlistDetailsOpenPlan
 import app.naviamp.domain.provider.playlistListApplication
 import app.naviamp.domain.provider.playlistPlaybackCompletionApplication
 import app.naviamp.domain.provider.playlistPlaybackErrorMessage
+import app.naviamp.domain.provider.playlistPlaybackPreparedApplication
 import app.naviamp.domain.provider.playlistPlaybackStartApplication
 import app.naviamp.domain.provider.playlistPlaybackStartPlan
 import app.naviamp.domain.provider.preparePlaylistPlaybackApplication
@@ -142,21 +143,21 @@ fun playAndroidPlaylist(
                         currentPlaylistTracksById = playlistTracksById,
                         providerResponseService = providerResponseService,
                     )
-                }.onSuccess {
-                    playlistTracksById = it.playlistTracksById
-                    playlistActionStatus = null
-                    it.status?.let { status = it }
-                    it.loadedTracksToStore?.let { loadedTracks ->
-                        contentState = contentState.showPlaylist(playlist, loadedTracks)
-                        tracks = loadedTracks
-                    }
                 }.getOrElse { error ->
                     status = playlistPlaybackErrorMessage(error, playlist)
                     return@launch
                 }
-                update.firstTrack?.let { firstTrack ->
-                    recentPlaylistIds = update.recentPlaylistIds
-                    playTrack(firstTrack, update.playbackTracks)
+                val prepared = playlistPlaybackPreparedApplication(update)
+                playlistTracksById = prepared.playlistTracksById
+                playlistActionStatus = null
+                prepared.status?.let { status = it }
+                prepared.loadedTracksToStore?.let { loadedTracks ->
+                    contentState = contentState.showPlaylist(playlist, loadedTracks)
+                    tracks = loadedTracks
+                }
+                prepared.playbackWork?.let { work ->
+                    recentPlaylistIds = work.recentPlaylistIds
+                    playTrack(work.firstTrack, work.playbackTracks)
                 }
             } finally {
                 pendingPlaybackAction = playlistPlaybackCompletionApplication(

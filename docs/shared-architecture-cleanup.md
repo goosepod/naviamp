@@ -1066,6 +1066,14 @@ Progress notes:
   - `AndroidPlaylistsController.kt` and `DesktopPlaylistsController.kt` no longer call `clearPendingPlaybackAction` directly in playlist playback flows.
   - Shared domain now owns the pending-action start/completion rules around playlist playback, leaving platform files to apply the typed result to their local state targets.
 - Verification passed: `./gradlew :core:domain:jvmTest --tests app.naviamp.domain.provider.PlaylistMutationsTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Added shared prepared-playlist playback application with `PlaylistPlaybackPreparedApplication` and `PlaylistPlaybackWork`.
+- Android and Desktop playlist playback now consume a typed optional playback work item instead of directly interpreting `firstTrack`, playback tracks, playback index, recent IDs, and empty-status fields from provider-backed preparation updates.
+- Platform code still owns loaded-track state assignment, selected-playlist status clearing, recent-playlist persistence, and the actual playback engine call.
+- Added common `PlaylistMutationsTest.kt` coverage for playable prepared work, empty prepared status, and selected-detail playback index carrying.
+- Size/reduction note for the prepared playlist playback application slice:
+  - `AndroidPlaylistsController.kt` and `DesktopPlaylistsController.kt` no longer branch directly on `PlaylistPlaybackApplicationUpdate.firstTrack` or manually thread playback tracks/recent IDs from that update.
+  - Shared domain now owns the final prepared-playback classification while platform controllers keep only target-specific state writes and playback side effects.
+- Verification passed: `./gradlew :core:domain:jvmTest --tests app.naviamp.domain.provider.PlaylistMutationsTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 
