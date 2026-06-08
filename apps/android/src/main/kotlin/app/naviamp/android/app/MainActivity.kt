@@ -77,10 +77,6 @@ import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RecentRadioAction
-import app.naviamp.domain.radio.internetRadioDeleteErrorStatus
-import app.naviamp.domain.radio.internetRadioDeleteLoadingStatus
-import app.naviamp.domain.radio.internetRadioSaveErrorStatus
-import app.naviamp.domain.radio.internetRadioSaveLoadingStatus
 import app.naviamp.domain.radio.recentRadioAction
 import app.naviamp.domain.radio.recentRadioStreamsWith
 import app.naviamp.domain.settings.ConnectionFormState
@@ -1579,45 +1575,11 @@ private fun NaviampAndroidApp(
     }
 
     fun saveInternetRadioStation(station: InternetRadioStation) {
-        val activeProvider = provider
-        if (activeProvider == null) {
-            status = "Not connected."
-            return
-        }
-        status = internetRadioSaveLoadingStatus(station)
-        scope.launch {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    dependencies.internetRadioStationManager.saveStation(activeProvider, station)
-                }
-            }.onSuccess { stations ->
-                homeState = homeState.copy(radioStations = stations)
-                status = ""
-            }.onFailure { error ->
-                status = error.message ?: internetRadioSaveErrorStatus()
-            }
-        }
+        saveAndroidInternetRadioStation(scope, appState, dependencies.internetRadioStationManager, station)
     }
 
     fun deleteInternetRadioStation(station: InternetRadioStation) {
-        val activeProvider = provider
-        if (activeProvider == null) {
-            status = "Not connected."
-            return
-        }
-        status = internetRadioDeleteLoadingStatus(station)
-        scope.launch {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    dependencies.internetRadioStationManager.deleteStation(activeProvider, station)
-                }
-            }.onSuccess { stations ->
-                homeState = homeState.copy(radioStations = stations)
-                status = ""
-            }.onFailure { error ->
-                status = error.message ?: internetRadioDeleteErrorStatus()
-            }
-        }
+        deleteAndroidInternetRadioStation(scope, appState, dependencies.internetRadioStationManager, station)
     }
 
     fun handleNowPlayingAddToPlaylist(playlist: NaviampPlaylistChoiceUi?) {

@@ -4,6 +4,7 @@ import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.Genre
+import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Track
 import app.naviamp.domain.home.HomeStationLibrary
 import app.naviamp.domain.home.HomeStationRandomAlbum
@@ -15,6 +16,7 @@ import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.radio.InternetRadioStationManager
 import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.radio.RadioRequestStartResult
 import app.naviamp.domain.radio.SeededRadioBuildResult
@@ -28,6 +30,10 @@ import app.naviamp.domain.radio.decadeRecentRadioStream
 import app.naviamp.domain.radio.generatedRadioTracksToAppend
 import app.naviamp.domain.radio.genreRecentRadioStream
 import app.naviamp.domain.radio.genreMixRadioRequest
+import app.naviamp.domain.radio.internetRadioDeleteErrorStatus
+import app.naviamp.domain.radio.internetRadioDeleteLoadingStatus
+import app.naviamp.domain.radio.internetRadioSaveErrorStatus
+import app.naviamp.domain.radio.internetRadioSaveLoadingStatus
 import app.naviamp.domain.radio.libraryRecentRadioStream
 import app.naviamp.domain.radio.popularTracksRecentRadioStream
 import app.naviamp.domain.radio.radioRefillSeedTrack
@@ -234,6 +240,58 @@ fun loadAndroidRelatedTracks(
         runCatching { RadioService(activeProvider, count = 20).trackRadio(track.id) }
             .onSuccess { tracks -> state.relatedTracks = tracks }
             .onFailure { state.relatedTracks = emptyList() }
+    }
+}
+
+fun saveAndroidInternetRadioStation(
+    scope: CoroutineScope,
+    state: AndroidAppState,
+    stationManager: InternetRadioStationManager,
+    station: InternetRadioStation,
+) {
+    val activeProvider = state.provider
+    if (activeProvider == null) {
+        state.status = "Not connected."
+        return
+    }
+    state.status = internetRadioSaveLoadingStatus(station)
+    scope.launch {
+        runCatching {
+            withContext(Dispatchers.IO) {
+                stationManager.saveStation(activeProvider, station)
+            }
+        }.onSuccess { stations ->
+            state.homeState = state.homeState.copy(radioStations = stations)
+            state.status = ""
+        }.onFailure { error ->
+            state.status = error.message ?: internetRadioSaveErrorStatus()
+        }
+    }
+}
+
+fun deleteAndroidInternetRadioStation(
+    scope: CoroutineScope,
+    state: AndroidAppState,
+    stationManager: InternetRadioStationManager,
+    station: InternetRadioStation,
+) {
+    val activeProvider = state.provider
+    if (activeProvider == null) {
+        state.status = "Not connected."
+        return
+    }
+    state.status = internetRadioDeleteLoadingStatus(station)
+    scope.launch {
+        runCatching {
+            withContext(Dispatchers.IO) {
+                stationManager.deleteStation(activeProvider, station)
+            }
+        }.onSuccess { stations ->
+            state.homeState = state.homeState.copy(radioStations = stations)
+            state.status = ""
+        }.onFailure { error ->
+            state.status = error.message ?: internetRadioDeleteErrorStatus()
+        }
     }
 }
 

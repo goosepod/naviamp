@@ -1256,6 +1256,9 @@ Progress notes:
 - Moved Android now-playing lyrics loading, lyrics offset persistence, visible-lyrics reloads, and audio tag loading/cache warming into `AndroidNowPlayingSidecarController.kt`.
 - `MainActivity.kt` dropped to 1,755 lines after the Android now-playing sidecar controller extraction; `AndroidNowPlayingSidecarController.kt` is 122 lines.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Moved Android internet-radio station save/delete provider mutations into `AndroidRadioController.kt`, leaving the root app to delegate shell callbacks only.
+- `MainActivity.kt` dropped to 1,717 lines after the Android internet-radio mutation extraction.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 
