@@ -69,6 +69,7 @@ import app.naviamp.domain.genremix.genreMixSelectedGenresAfterSelect
 import app.naviamp.domain.media.withUpdatedAlbum
 import app.naviamp.domain.media.withUpdatedArtist
 import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.playback.PlaybackPlayPauseCommand
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.desktop.playback.PlaylistCallbacks
@@ -76,6 +77,7 @@ import app.naviamp.desktop.playback.desktopPlaylistCallbacks
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.label
+import app.naviamp.domain.playback.playbackPlayPauseCommand
 import app.naviamp.domain.playback.SleepTimerRequest
 import app.naviamp.domain.playback.shouldExpireSleepTimer
 import app.naviamp.domain.playback.sleepTimerDisplayLabel
@@ -612,6 +614,23 @@ fun NaviampApp(
         setRestoredPlaybackPositionSeconds = { position -> restoredPlaybackPositionSeconds = position },
         setAppRoute = { route -> appRoute = route },
     )
+
+    fun handlePlayPauseCommand() {
+        when (
+            playbackPlayPauseCommand(
+                playbackState = playbackState,
+                hasPlaybackTarget = nowPlayingTrack != null || nowPlayingInternetRadioStation != null,
+            )
+        ) {
+            PlaybackPlayPauseCommand.Pause -> playbackEngine.pause()
+            PlaybackPlayPauseCommand.Resume -> playbackEngine.resume()
+            PlaybackPlayPauseCommand.StartOrRestore -> {
+                openPlayerOnTrackStart = false
+                internetRadioController.playCurrentSelection()
+            }
+            PlaybackPlayPauseCommand.None -> Unit
+        }
+    }
 
     fun stopRadioContinuation() {
         radioController.stopContinuation()
@@ -1445,9 +1464,9 @@ fun NaviampApp(
                             sleepTimer = sleepTimer.toNaviampSleepTimerUi(sleepTimerNowEpochMillis),
                             streamQuality = playbackSettings.streamQuality(playbackEngine),
                             supportsSeek = playbackEngine.supportsSeek && nowPlayingTrack?.isInternetRadioTrack() != true,
-                            onPause = playbackEngine::pause,
-                            onResume = playbackEngine::resume,
-                            onPlayCurrent = internetRadioController::playCurrentSelection,
+                            onPause = ::handlePlayPauseCommand,
+                            onResume = ::handlePlayPauseCommand,
+                            onPlayCurrent = ::handlePlayPauseCommand,
                             onSeek = ::performSeek,
                             onPrevious = ::handlePreviousButton,
                             onNext = ::handleNextButton,
@@ -1698,16 +1717,9 @@ fun NaviampApp(
                                 hasPrevious = canUsePreviousButton(),
                                 hasNext = playbackQueue.hasNext(),
                                 playbackState = playbackState,
-                                onPause = {
-                                    playbackEngine.pause()
-                                },
-                                onResume = {
-                                    playbackEngine.resume()
-                                },
-                                onPlayCurrent = {
-                                    openPlayerOnTrackStart = false
-                                    internetRadioController.playCurrentSelection()
-                                },
+                                onPause = ::handlePlayPauseCommand,
+                                onResume = ::handlePlayPauseCommand,
+                                onPlayCurrent = ::handlePlayPauseCommand,
                                 onPrevious = {
                                     handlePreviousButton()
                                 },
