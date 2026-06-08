@@ -124,6 +124,16 @@ data class PlaylistListRefresh(
     val playlistsToPreload: List<Playlist>,
 )
 
+data class PlaylistListStateUpdate(
+    val playlists: List<Playlist>,
+    val playlistsToPreload: List<Playlist>,
+    val status: String?,
+)
+
+data class PlaylistTrackPreloadStateUpdate(
+    val playlistTracksById: Map<String, List<Track>>,
+)
+
 const val PlaylistDetailRefreshIntervalMillis = 60_000L
 
 data class QueueAppendPlan(
@@ -226,6 +236,39 @@ fun playlistListRefresh(
         ),
     )
 
+fun playlistListLoadingStatus(): String =
+    "Loading playlists..."
+
+fun playlistListErrorMessage(error: Throwable): String =
+    error.message ?: "Could not load playlists."
+
+fun playlistListStateUpdate(refresh: PlaylistListRefresh): PlaylistListStateUpdate =
+    PlaylistListStateUpdate(
+        playlists = refresh.playlists,
+        playlistsToPreload = refresh.playlistsToPreload,
+        status = null,
+    )
+
+fun playlistPreloadTargets(
+    playlists: List<Playlist>,
+    playlistTracksById: Map<String, List<Track>>,
+    preloadLimit: Int = 100,
+): List<Playlist> =
+    playlistListRefresh(
+        playlists = playlists,
+        playlistTracksById = playlistTracksById,
+        preloadLimit = preloadLimit,
+    ).playlistsToPreload
+
+fun playlistTrackPreloadStateUpdate(
+    currentPlaylistTracksById: Map<String, List<Track>>,
+    playlist: Playlist,
+    tracks: List<Track>,
+): PlaylistTrackPreloadStateUpdate =
+    PlaylistTrackPreloadStateUpdate(
+        playlistTracksById = currentPlaylistTracksById + (playlist.id to tracks),
+    )
+
 suspend fun MediaProvider.refreshPlaylistsAndPlanPreload(
     providerResponseService: ProviderResponseService? = null,
     useCache: Boolean = true,
@@ -246,6 +289,23 @@ suspend fun MediaProvider.refreshPlaylistsAndPlanPreload(
     )
 }
 
+suspend fun MediaProvider.refreshPlaylistListState(
+    providerResponseService: ProviderResponseService? = null,
+    useCache: Boolean = true,
+    playlistLimit: Int = 500,
+    preloadLimit: Int = 100,
+    playlistTracksById: Map<String, List<Track>> = emptyMap(),
+): PlaylistListStateUpdate =
+    playlistListStateUpdate(
+        refreshPlaylistsAndPlanPreload(
+            providerResponseService = providerResponseService,
+            useCache = useCache,
+            playlistLimit = playlistLimit,
+            preloadLimit = preloadLimit,
+            playlistTracksById = playlistTracksById,
+        ),
+    )
+
 suspend fun MediaProvider.loadPlaylistTracksForPreload(
     playlist: Playlist,
     providerResponseService: ProviderResponseService? = null,
@@ -257,6 +317,52 @@ suspend fun MediaProvider.loadPlaylistTracksForPreload(
     } else {
         playlistTracks(playlist.id)
     }
+
+suspend fun MediaProvider.loadPlaylistTrackPreloadState(
+    playlist: Playlist,
+    currentPlaylistTracksById: Map<String, List<Track>>,
+    providerResponseService: ProviderResponseService? = null,
+    useCache: Boolean = true,
+): PlaylistTrackPreloadStateUpdate =
+    playlistTrackPreloadStateUpdate(
+        currentPlaylistTracksById = currentPlaylistTracksById,
+        playlist = playlist,
+        tracks = loadPlaylistTracksForPreload(
+            playlist = playlist,
+            providerResponseService = providerResponseService,
+            useCache = useCache,
+        ),
+    )
+
+suspend fun MediaProvider.preloadPlaylistTracksStateUpdate(
+    playlists: List<Playlist>,
+    currentPlaylistTracksById: Map<String, List<Track>>,
+    providerResponseService: ProviderResponseService? = null,
+    useCache: Boolean = true,
+    preloadLimit: Int = 100,
+): PlaylistTrackPreloadStateUpdate {
+    var playlistTracksById = currentPlaylistTracksById
+    playlistPreloadTargets(
+        playlists = playlists,
+        playlistTracksById = playlistTracksById,
+        preloadLimit = preloadLimit,
+    ).forEach { playlist ->
+        runCatching {
+            loadPlaylistTracksForPreload(
+                playlist = playlist,
+                providerResponseService = providerResponseService,
+                useCache = useCache,
+            )
+        }.onSuccess { tracks ->
+            playlistTracksById = playlistTrackPreloadStateUpdate(
+                currentPlaylistTracksById = playlistTracksById,
+                playlist = playlist,
+                tracks = tracks,
+            ).playlistTracksById
+        }
+    }
+    return PlaylistTrackPreloadStateUpdate(playlistTracksById)
+}
 
 fun <Provider : Any> playlistDetailAutoRefreshTarget(
     provider: Provider?,

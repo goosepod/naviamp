@@ -15,7 +15,8 @@ import app.naviamp.domain.provider.playlistDeleteApplicationUpdate
 import app.naviamp.domain.provider.deletePlaylistAndRefresh
 import app.naviamp.domain.provider.playlistDetailsErrorMessage
 import app.naviamp.domain.provider.playlistDetailsLoadingStatus
-import app.naviamp.domain.provider.loadPlaylistTracksForPreload
+import app.naviamp.domain.provider.playlistListErrorMessage
+import app.naviamp.domain.provider.playlistListLoadingStatus
 import app.naviamp.domain.provider.playlistPlaybackStartPlan
 import app.naviamp.domain.provider.preparePlaylistPlayback
 import app.naviamp.domain.provider.playlistRenameErrorMessage
@@ -26,10 +27,11 @@ import app.naviamp.domain.provider.queuePlaylistSaveLoadingStatus
 import app.naviamp.domain.provider.queuePlaylistSaveStateUpdate
 import app.naviamp.domain.provider.recentPlaylistIdsAfterPlayed
 import app.naviamp.domain.provider.refreshPlaylistDetailsApplication
-import app.naviamp.domain.provider.refreshPlaylistsAndPlanPreload
+import app.naviamp.domain.provider.refreshPlaylistListState
 import app.naviamp.domain.provider.renamePlaylistAndRefresh
 import app.naviamp.domain.provider.saveQueueAsPlaylistAndRefresh
 import app.naviamp.domain.provider.selectedPlaylistPlaybackReadyPlan
+import app.naviamp.domain.provider.preloadPlaylistTracksStateUpdate
 import app.naviamp.domain.provider.withPlaylists
 import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.settings.PlaybackSettings
@@ -78,35 +80,30 @@ class DesktopPlaylistsController(
 ) {
     fun refreshPlaylists(useCache: Boolean = true) {
         val activeProvider = provider() ?: return
-        setPlaylistStatus("Loading playlists...")
+        setPlaylistStatus(playlistListLoadingStatus())
         scope.launch {
             try {
-                val refresh = withContext(Dispatchers.IO) {
-                    activeProvider.refreshPlaylistsAndPlanPreload(
+                val update = withContext(Dispatchers.IO) {
+                    activeProvider.refreshPlaylistListState(
                         providerResponseService = providerResponseService,
                         useCache = useCache,
                         playlistTracksById = playlistTracksById(),
                     )
                 }
-                val refreshedPlaylists = refresh.playlists
-                setPlaylists(refreshedPlaylists)
-                setPlaylistStatus(null)
-                refreshHomePlaylists(refreshedPlaylists)
-                refresh.playlistsToPreload.forEach { playlist ->
-                    runCatching {
-                        withContext(Dispatchers.IO) {
-                            activeProvider.loadPlaylistTracksForPreload(
-                                playlist = playlist,
-                                providerResponseService = providerResponseService,
-                                useCache = useCache,
-                            )
-                        }
-                    }.onSuccess { tracks ->
-                        setPlaylistTracksById(playlistTracksById() + (playlist.id to tracks))
-                    }
+                setPlaylists(update.playlists)
+                setPlaylistStatus(update.status)
+                refreshHomePlaylists(update.playlists)
+                val preloadUpdate = withContext(Dispatchers.IO) {
+                    activeProvider.preloadPlaylistTracksStateUpdate(
+                        playlists = update.playlistsToPreload,
+                        currentPlaylistTracksById = playlistTracksById(),
+                        providerResponseService = providerResponseService,
+                        useCache = useCache,
+                    )
                 }
+                setPlaylistTracksById(preloadUpdate.playlistTracksById)
             } catch (exception: Exception) {
-                setPlaylistStatus(exception.message ?: "Could not load playlists.")
+                setPlaylistStatus(playlistListErrorMessage(exception))
             }
         }
     }

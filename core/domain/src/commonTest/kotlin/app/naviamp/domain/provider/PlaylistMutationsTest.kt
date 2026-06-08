@@ -202,6 +202,7 @@ class PlaylistMutationsTest {
     fun playlistListRefreshPlansTrackPreloadsFromKnownTracks() {
         val one = playlist("one", "One")
         val two = playlist("two", "Two")
+        val knownTracks = mapOf("one" to listOf(track("one")))
 
         assertEquals(
             PlaylistListRefresh(
@@ -210,9 +211,20 @@ class PlaylistMutationsTest {
             ),
             playlistListRefresh(
                 playlists = listOf(one, two),
-                playlistTracksById = mapOf("one" to listOf(track("one"))),
+                playlistTracksById = knownTracks,
             ),
         )
+        assertEquals(
+            PlaylistListStateUpdate(
+                playlists = listOf(one, two),
+                playlistsToPreload = listOf(two),
+                status = null,
+            ),
+            playlistListStateUpdate(playlistListRefresh(listOf(one, two), knownTracks)),
+        )
+        assertEquals(listOf(two), playlistPreloadTargets(listOf(one, two), knownTracks))
+        assertEquals("Loading playlists...", playlistListLoadingStatus())
+        assertEquals("Could not load playlists.", playlistListErrorMessage(Exception()))
     }
 
     @Test
@@ -228,6 +240,34 @@ class PlaylistMutationsTest {
         assertEquals(listOf(one, two), refresh.playlists)
         assertEquals(listOf(two), refresh.playlistsToPreload)
         assertEquals(listOf(track("two")), provider.loadPlaylistTracksForPreload(two))
+        assertEquals(
+            PlaylistListStateUpdate(
+                playlists = listOf(one, two),
+                playlistsToPreload = listOf(two),
+                status = null,
+            ),
+            provider.refreshPlaylistListState(
+                playlistTracksById = mapOf("one" to listOf(track("one"))),
+            ),
+        )
+        assertEquals(
+            PlaylistTrackPreloadStateUpdate(
+                playlistTracksById = mapOf("one" to listOf(track("one")), "two" to listOf(track("two"))),
+            ),
+            provider.loadPlaylistTrackPreloadState(
+                playlist = two,
+                currentPlaylistTracksById = mapOf("one" to listOf(track("one"))),
+            ),
+        )
+        assertEquals(
+            PlaylistTrackPreloadStateUpdate(
+                playlistTracksById = mapOf("one" to listOf(track("one")), "two" to listOf(track("two"))),
+            ),
+            provider.preloadPlaylistTracksStateUpdate(
+                playlists = listOf(one, two),
+                currentPlaylistTracksById = mapOf("one" to listOf(track("one"))),
+            ),
+        )
     }
 
     @Test

@@ -965,6 +965,14 @@ Progress notes:
   - `AndroidPlaylistsController.kt` shrank slightly for this slice (`19` added, `21` removed).
   - `DesktopPlaylistsController.kt` shrank slightly (`12` added, `15` removed).
   - Shared domain and tests grew because the provider-refresh/result-composition path is now tested once in common code.
+- Added shared playlist list state application and preload track-map application.
+- Android and Desktop playlist controllers now share playlist-list status text, refreshed-list state updates, preload target planning, silent preload failure behavior, and cumulative playlist-track map merging.
+- Platform code still owns coroutine launch, provider availability checks, Android home-state assignment, Desktop playlist/home/status assignment, and Desktop IO dispatching.
+- Added common `PlaylistMutationsTest.kt` coverage for list state updates, error/loading labels, preload target selection, single preload map updates, and cumulative preload map updates.
+- Size/reduction note for the playlist refresh state-application slice:
+  - `AndroidPlaylistsController.kt` shrank for this slice (`17` added, `29` removed) and no longer owns the preload loop or track-map merge.
+  - `DesktopPlaylistsController.kt` shrank for this slice (`19` added, `22` removed) and no longer owns the per-playlist preload loop or preload failure policy.
+  - Shared domain and tests grew intentionally so the two platform controllers consume one tested playlist refresh/preload state surface.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
