@@ -6,6 +6,8 @@ import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.provider.MediaProvider
+import app.naviamp.domain.provider.PlaylistListApplication
+import app.naviamp.domain.provider.addToPlaylistApplication
 import app.naviamp.domain.provider.addToPlaylistErrorMessage
 import app.naviamp.domain.provider.addToPlaylistResolvingTracksStatus
 import app.naviamp.domain.provider.addTracksToPlaylistStateUpdate
@@ -157,10 +159,16 @@ class DesktopPlaylistsController(
                         providerResponseService = providerResponseService,
                     )
                 }
-                if (update.closeDialog) setAddToPlaylistTarget(null)
-                setAddToPlaylistStatus(update.addToPlaylistStatus)
-                update.connectionStatus?.let(setConnectionStatus)
-                update.playlists?.let(::applyPlaylistListApplication)
+                val application = addToPlaylistApplication(
+                    update = update,
+                    currentHomeContent = homeContent(),
+                    recentPlaylistIds = recentPlaylistIds(),
+                    projection = PlaylistHomeProjection.RecentLimited,
+                )
+                if (application.closeDialog) setAddToPlaylistTarget(null)
+                setAddToPlaylistStatus(application.addToPlaylistStatus)
+                application.connectionStatus?.let(setConnectionStatus)
+                application.playlistListApplication?.let(::applyPlaylistListApplication)
             } catch (exception: Exception) {
                 setAddToPlaylistStatus(addToPlaylistErrorMessage(exception, "tracks"))
             }
@@ -435,6 +443,11 @@ class DesktopPlaylistsController(
         )
     }
 
+    private fun applyPlaylistListApplication(application: PlaylistListApplication) {
+        setPlaylists(application.playlists)
+        setHomeContent(application.homeContent)
+    }
+
     private fun applyPlaylistListApplication(refreshedPlaylists: List<Playlist>) {
         val application = playlistListApplication(
             playlists = refreshedPlaylists,
@@ -442,7 +455,6 @@ class DesktopPlaylistsController(
             recentPlaylistIds = recentPlaylistIds(),
             projection = PlaylistHomeProjection.RecentLimited,
         )
-        setPlaylists(application.playlists)
-        setHomeContent(application.homeContent)
+        applyPlaylistListApplication(application)
     }
 }

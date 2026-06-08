@@ -90,6 +90,13 @@ data class AddToPlaylistStateUpdate(
     val connectionStatus: String?,
 )
 
+data class AddToPlaylistApplication(
+    val closeDialog: Boolean,
+    val addToPlaylistStatus: String?,
+    val connectionStatus: String?,
+    val playlistListApplication: PlaylistListApplication?,
+)
+
 data class PlaylistDetailsRefresh(
     val playlists: List<Playlist>,
     val displayPlaylist: Playlist,
@@ -1078,6 +1085,26 @@ fun addToPlaylistStateUpdate(refresh: AddToPlaylistRefresh): AddToPlaylistStateU
         closeDialog = refresh.update.closeDialog,
         addToPlaylistStatus = refresh.update.addToPlaylistStatus,
         connectionStatus = refresh.update.connectionStatus,
+    )
+
+fun addToPlaylistApplication(
+    update: AddToPlaylistStateUpdate,
+    currentHomeContent: HomeContent,
+    recentPlaylistIds: List<String>,
+    projection: PlaylistHomeProjection,
+): AddToPlaylistApplication =
+    AddToPlaylistApplication(
+        closeDialog = update.closeDialog,
+        addToPlaylistStatus = update.addToPlaylistStatus,
+        connectionStatus = update.connectionStatus,
+        playlistListApplication = update.playlists?.let { playlists ->
+            playlistListApplication(
+                playlists = playlists,
+                currentHomeContent = currentHomeContent,
+                recentPlaylistIds = recentPlaylistIds,
+                projection = projection,
+            )
+        },
     )
 
 fun addToPlaylistLoadingStatus(label: String): String =

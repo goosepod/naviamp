@@ -752,6 +752,23 @@ class PlaylistMutationsTest {
             ),
             addToPlaylistStateUpdate(refresh),
         )
+        assertEquals(
+            AddToPlaylistApplication(
+                closeDialog = true,
+                addToPlaylistStatus = null,
+                connectionStatus = "Added 2 tracks to playlist.",
+                playlistListApplication = PlaylistListApplication(
+                    playlists = listOf(playlist("one", "One")),
+                    homeContent = HomeContent(playlists = listOf(playlist("one", "One"))),
+                ),
+            ),
+            addToPlaylistApplication(
+                update = addToPlaylistStateUpdate(refresh),
+                currentHomeContent = HomeContent(),
+                recentPlaylistIds = listOf("one"),
+                projection = PlaylistHomeProjection.RecentLimited,
+            ),
+        )
     }
 
     @Test

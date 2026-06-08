@@ -1074,6 +1074,14 @@ Progress notes:
   - `AndroidPlaylistsController.kt` and `DesktopPlaylistsController.kt` no longer branch directly on `PlaylistPlaybackApplicationUpdate.firstTrack` or manually thread playback tracks/recent IDs from that update.
   - Shared domain now owns the final prepared-playback classification while platform controllers keep only target-specific state writes and playback side effects.
 - Verification passed: `./gradlew :core:domain:jvmTest --tests app.naviamp.domain.provider.PlaylistMutationsTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Added shared add-to-playlist application with `AddToPlaylistApplication`.
+- Desktop add-to-playlist now consumes a typed application result for dialog close, add-to-playlist status, connection status, and optional playlist list/home projection.
+- Platform code still owns target clearing, setter calls, and resolving the selected add target into concrete tracks before the provider mutation.
+- Added common `PlaylistMutationsTest.kt` coverage for the add-to-playlist application and recent-limited playlist projection.
+- Size/reduction note for the add-to-playlist application slice:
+  - `DesktopPlaylistsController.kt` no longer branches directly on `AddToPlaylistStateUpdate.playlists` to decide list/home application.
+  - Shared domain now owns the add-to-playlist mutation result shape and optional playlist-list projection, while Desktop applies the typed result to its UI targets.
+- Verification passed: `./gradlew :core:domain:jvmTest --tests app.naviamp.domain.provider.PlaylistMutationsTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 
