@@ -108,7 +108,6 @@ import app.naviamp.ui.SharedArtistDetailUi
 import app.naviamp.ui.SharedHomeStationUi
 import app.naviamp.ui.SharedHomeUi
 import app.naviamp.ui.SharedMediaItemUi
-import app.naviamp.ui.SharedMixBuilderUi
 import app.naviamp.ui.SharedPlaylistDetailUi
 import app.naviamp.ui.SharedPlaylistSortMode
 import app.naviamp.ui.SharedRoute
@@ -612,55 +611,6 @@ private fun NaviampAndroidApp(
         )
     }
 
-    lateinit var openArtistDetailsFromBack: (
-        app.naviamp.domain.ArtistId,
-        String?,
-        Boolean,
-    ) -> Unit
-
-    fun closeActiveDetail() {
-        val previousArtist = contentState.artistDetail
-            ?.let { artistDetailBackStack.lastOrNull() }
-        if (previousArtist != null) {
-            artistDetailBackStack = artistDetailBackStack.dropLast(1)
-            openArtistDetailsFromBack(previousArtist.id, previousArtist.name, false)
-        } else {
-            contentState = contentState.clearDetails()
-            artistDetailBackStack = emptyList()
-        }
-    }
-
-    fun closeActivePlaylist() {
-        contentState = contentState.copy(
-            selectedPlaylist = null,
-            selectedPlaylistTracks = emptyList(),
-        )
-    }
-
-    fun handleAndroidBack() {
-        when {
-            nowPlayingOpen -> nowPlayingOpen = false
-            albumDetail != null || artistDetail != null -> closeActiveDetail()
-            selectedPlaylist != null -> closeActivePlaylist()
-            editingConnection && provider != null -> editingConnection = false
-            navigationState.route != NaviampRoute.Home -> {
-                navigationState = navigationState.copy(route = NaviampRoute.Home)
-                contentState = contentState.clearDetails()
-            }
-        }
-    }
-
-    val handlesAndroidBack = nowPlayingOpen ||
-        albumDetail != null ||
-        artistDetail != null ||
-        selectedPlaylist != null ||
-        (editingConnection && provider != null) ||
-        navigationState.route != NaviampRoute.Home
-
-    BackHandler(enabled = handlesAndroidBack) {
-        handleAndroidBack()
-    }
-
     fun updateNotificationFavoriteState(track: Track? = nowPlaying) {
         updateAndroidNotificationFavoriteState(appState, track)
     }
@@ -851,7 +801,14 @@ private fun NaviampAndroidApp(
             pushCurrentArtist = pushCurrentArtist,
         )
     }
-    openArtistDetailsFromBack = ::openArtistDetails
+
+    val navigationController = remember(appState) {
+        AndroidNavigationController(appState, ::openArtistDetails)
+    }
+
+    BackHandler(enabled = navigationController.handlesAndroidBack()) {
+        navigationController.handleAndroidBack()
+    }
 
     fun findSimilarArtists(artistId: app.naviamp.domain.ArtistId, artistName: String) {
         findAndroidSimilarArtists(scope, appState, similarArtistsService, artistId, artistName)
@@ -1323,16 +1280,6 @@ private fun NaviampAndroidApp(
         }
     }
 
-    fun handleMixBuilderSelected(builder: SharedMixBuilderUi) {
-        contentState = contentState.clearDetails()
-        nowPlayingOpen = false
-        when (builder.id) {
-            "artist" -> navigationState = navigationState.copy(route = NaviampRoute.ArtistMix)
-            "genre" -> navigationState = navigationState.copy(route = NaviampRoute.GenreMix)
-            "album" -> navigationState = navigationState.copy(route = NaviampRoute.AlbumMix)
-        }
-    }
-
     fun handleShellResume() {
         when (playbackState) {
             PlaybackState.Idle,
@@ -1658,15 +1605,15 @@ private fun NaviampAndroidApp(
         saveSmartPlaylist = ::saveSmartPlaylist,
         updateSmartPlaylist = ::updateSmartPlaylist,
         loadSmartPlaylist = ::loadSmartPlaylistDefinition,
-        closeActivePlaylist = ::closeActivePlaylist,
+        closeActivePlaylist = navigationController::closeActivePlaylist,
         handlePlaylistTrackSelected = ::handlePlaylistTrackSelected,
         handleRecentRadioSelected = ::handleShellRecentRadioSelected,
-        handleMixBuilderSelected = ::handleMixBuilderSelected,
+        handleMixBuilderSelected = navigationController::handleMixBuilderSelected,
         handleRadioStationSelected = ::handleRadioStationSelected,
         saveInternetRadioStation = ::saveInternetRadioStation,
         deleteInternetRadioStation = ::deleteInternetRadioStation,
         handleShellHomeStationSelected = ::handleShellHomeStationSelected,
-        closeActiveDetail = ::closeActiveDetail,
+        closeActiveDetail = navigationController::closeActiveDetail,
         handleShellResume = ::handleShellResume,
         playAdjacentTrack = ::playAdjacentTrack,
         performSeek = ::performSeek,

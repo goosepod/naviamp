@@ -1262,6 +1262,9 @@ Progress notes:
 - Moved Android restore/connect/autoconnect orchestration into `AndroidConnectionSessionController`, keeping saved connection/session restore wiring out of `MainActivity.kt`.
 - `MainActivity.kt` dropped to 1,694 lines after the Android connection session extraction.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Moved Android detail/playlist close behavior, app-back handling, and mix-builder route selection into `AndroidNavigationController.kt`.
+- `MainActivity.kt` dropped to 1,641 lines after the Android navigation controller extraction; `AndroidNavigationController.kt` is 60 lines.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 
