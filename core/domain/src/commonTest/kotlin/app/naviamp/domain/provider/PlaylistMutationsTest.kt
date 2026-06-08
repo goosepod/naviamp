@@ -474,6 +474,12 @@ class PlaylistMutationsTest {
     fun smartPlaylistStatusMessagesIncludeTrackCount() {
         val playlist = playlist("smart", "Smart")
         val definition = SmartPlaylistTemplates.favorites().copy(name = "Smart")
+        val tracks = listOf(track("one"), track("two"))
+        val refresh = PlaylistDetailsRefresh(
+            playlists = listOf(playlist.copy(trackCount = 2)),
+            displayPlaylist = playlist.copy(trackCount = 2),
+            tracks = tracks,
+        )
 
         assertEquals("Saving Smart...", smartPlaylistSavingStatus(definition))
         assertEquals("Updating Smart...", smartPlaylistUpdatingStatus(definition))
@@ -485,6 +491,37 @@ class PlaylistMutationsTest {
         assertEquals(
             "Updated smart playlist Smart with 4 tracks.",
             smartPlaylistUpdatedStatus(playlist, trackCount = 4),
+        )
+        assertEquals(
+            SmartPlaylistMutationStateUpdate(
+                playlists = refresh.playlists,
+                displayPlaylist = playlist.copy(trackCount = 2),
+                tracks = tracks,
+                playlistTracksById = mapOf("smart" to tracks),
+                selectedPlaylist = null,
+                selectedPlaylistTracks = emptyList(),
+                selectedPlaylistChanged = false,
+                status = "Saved smart playlist Smart with 2 tracks.",
+            ),
+            smartPlaylistSaveStateUpdate(refresh, currentPlaylistTracksById = emptyMap()),
+        )
+        assertEquals(
+            SmartPlaylistMutationStateUpdate(
+                playlists = refresh.playlists,
+                displayPlaylist = playlist.copy(trackCount = 2),
+                tracks = tracks,
+                playlistTracksById = mapOf("smart" to tracks),
+                selectedPlaylist = playlist.copy(trackCount = 2),
+                selectedPlaylistTracks = tracks,
+                selectedPlaylistChanged = true,
+                status = "Updated smart playlist Smart with 2 tracks.",
+            ),
+            smartPlaylistUpdateStateUpdate(
+                refresh = refresh,
+                currentSelectedPlaylist = playlist,
+                currentSelectedPlaylistTracks = emptyList(),
+                currentPlaylistTracksById = emptyMap(),
+            ),
         )
     }
 

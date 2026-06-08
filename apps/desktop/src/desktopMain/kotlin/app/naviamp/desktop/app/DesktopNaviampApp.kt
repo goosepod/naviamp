@@ -116,26 +116,13 @@ import app.naviamp.domain.provider.addToPlaylistMutationUpdate
 import app.naviamp.domain.provider.normalizedPlaylistName
 import app.naviamp.domain.provider.playlistDeleteErrorMessage
 import app.naviamp.domain.provider.playlistDeleteLoadingStatus
-import app.naviamp.domain.provider.playlistDeletedStatus
 import app.naviamp.domain.provider.playlistRenameErrorMessage
 import app.naviamp.domain.provider.playlistRenameLoadingStatus
-import app.naviamp.domain.provider.playlistRenamedStatus
 import app.naviamp.domain.provider.homePlaylists
 import app.naviamp.domain.provider.queueAppendPlan
-import app.naviamp.domain.provider.recentPlaylistIdsAfterDelete
-import app.naviamp.domain.provider.renamedSelectedPlaylist
 import app.naviamp.domain.provider.refreshPlaylistDetails
-import app.naviamp.domain.provider.saveSmartPlaylistAndRefresh
-import app.naviamp.domain.provider.selectedPlaylistAfterDelete
-import app.naviamp.domain.provider.smartPlaylistLoadErrorMessage
-import app.naviamp.domain.provider.smartPlaylistLoadingRulesStatus
 import app.naviamp.domain.provider.smartPlaylistSaveErrorMessage
-import app.naviamp.domain.provider.smartPlaylistSavedStatus
-import app.naviamp.domain.provider.smartPlaylistSavingStatus
 import app.naviamp.domain.provider.smartPlaylistUpdateErrorMessage
-import app.naviamp.domain.provider.smartPlaylistUpdatedStatus
-import app.naviamp.domain.provider.smartPlaylistUpdatingStatus
-import app.naviamp.domain.provider.updateSmartPlaylistAndRefresh
 import app.naviamp.domain.settings.effectiveForEngine
 import app.naviamp.domain.settings.playbackSettingsChange
 import app.naviamp.domain.settings.restoredPlaybackQueue
@@ -899,7 +886,6 @@ fun NaviampApp(
         setConnectedSourceId = { sourceId -> connectedSourceId = sourceId },
         incrementMediaSourcesRevision = { mediaSourcesRevision++ },
         incrementStatsForNerdsRefreshTick = { statsForNerdsRefreshTick++ },
-        playlists = { playlists },
         setPlaylists = { value -> playlists = value },
         recentPlaylistIds = { recentPlaylistIds },
         homeContent = { homeContent },

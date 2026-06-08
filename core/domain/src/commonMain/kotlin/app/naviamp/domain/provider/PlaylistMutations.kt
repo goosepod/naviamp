@@ -56,6 +56,17 @@ data class PlaylistDeleteApplicationUpdate(
     val status: String,
 )
 
+data class SmartPlaylistMutationStateUpdate(
+    val playlists: List<Playlist>,
+    val displayPlaylist: Playlist,
+    val tracks: List<Track>,
+    val playlistTracksById: Map<String, List<Track>>,
+    val selectedPlaylist: Playlist?,
+    val selectedPlaylistTracks: List<Track>,
+    val selectedPlaylistChanged: Boolean,
+    val status: String,
+)
+
 data class AddToPlaylistMutationUpdate(
     val closeDialog: Boolean,
     val addToPlaylistStatus: String?,
@@ -719,9 +730,11 @@ fun playlistDeleteApplicationUpdate(
 suspend fun saveSmartPlaylistAndRefresh(
     provider: MediaProvider,
     definition: SmartPlaylistDefinition,
+    providerResponseService: ProviderResponseService? = null,
     playlistLimit: Int = 500,
 ): PlaylistDetailsRefresh {
     val playlist = provider.createSmartPlaylist(definition)
+    providerResponseService?.invalidatePlaylistResponses(provider, playlist.id)
     val refreshedPlaylists = provider.playlists(limit = playlistLimit)
     val refreshedPlaylist = refreshedPlaylists.firstOrNull { it.id == playlist.id }
         ?: refreshedPlaylists.firstOrNull { it.name == playlist.name }
@@ -740,9 +753,11 @@ suspend fun updateSmartPlaylistAndRefresh(
     provider: MediaProvider,
     playlist: Playlist,
     definition: SmartPlaylistDefinition,
+    providerResponseService: ProviderResponseService? = null,
     playlistLimit: Int = 500,
 ): PlaylistDetailsRefresh {
     provider.updateSmartPlaylist(playlist.id, definition)
+    providerResponseService?.invalidatePlaylistResponses(provider, playlist.id)
     val refreshedPlaylists = provider.playlists(limit = playlistLimit)
     val refreshedPlaylist = refreshedPlaylists.firstOrNull { it.id == playlist.id }
         ?: playlist.copy(name = definition.name)
@@ -753,6 +768,40 @@ suspend fun updateSmartPlaylistAndRefresh(
             .sortedBy { it.name.lowercase() },
         displayPlaylist = displayPlaylist,
         tracks = refreshedTracks,
+    )
+}
+
+fun smartPlaylistSaveStateUpdate(
+    refresh: PlaylistDetailsRefresh,
+    currentPlaylistTracksById: Map<String, List<Track>>,
+): SmartPlaylistMutationStateUpdate =
+    SmartPlaylistMutationStateUpdate(
+        playlists = refresh.playlists,
+        displayPlaylist = refresh.displayPlaylist,
+        tracks = refresh.tracks,
+        playlistTracksById = currentPlaylistTracksById + (refresh.displayPlaylist.id to refresh.tracks),
+        selectedPlaylist = null,
+        selectedPlaylistTracks = emptyList(),
+        selectedPlaylistChanged = false,
+        status = smartPlaylistSavedStatus(refresh.displayPlaylist, refresh.tracks.size),
+    )
+
+fun smartPlaylistUpdateStateUpdate(
+    refresh: PlaylistDetailsRefresh,
+    currentSelectedPlaylist: Playlist?,
+    currentSelectedPlaylistTracks: List<Track>,
+    currentPlaylistTracksById: Map<String, List<Track>>,
+): SmartPlaylistMutationStateUpdate {
+    val selectedPlaylistChanged = currentSelectedPlaylist?.id == refresh.displayPlaylist.id
+    return SmartPlaylistMutationStateUpdate(
+        playlists = refresh.playlists,
+        displayPlaylist = refresh.displayPlaylist,
+        tracks = refresh.tracks,
+        playlistTracksById = currentPlaylistTracksById + (refresh.displayPlaylist.id to refresh.tracks),
+        selectedPlaylist = if (selectedPlaylistChanged) refresh.displayPlaylist else currentSelectedPlaylist,
+        selectedPlaylistTracks = if (selectedPlaylistChanged) refresh.tracks else currentSelectedPlaylistTracks,
+        selectedPlaylistChanged = selectedPlaylistChanged,
+        status = smartPlaylistUpdatedStatus(refresh.displayPlaylist, refresh.tracks.size),
     )
 }
 

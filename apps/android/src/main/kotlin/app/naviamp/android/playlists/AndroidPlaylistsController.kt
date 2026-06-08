@@ -26,10 +26,10 @@ import app.naviamp.domain.provider.renamePlaylistAndRefresh
 import app.naviamp.domain.provider.saveQueueAsPlaylistAndRefresh
 import app.naviamp.domain.provider.saveSmartPlaylistAndRefresh
 import app.naviamp.domain.provider.smartPlaylistSaveErrorMessage
-import app.naviamp.domain.provider.smartPlaylistSavedStatus
+import app.naviamp.domain.provider.smartPlaylistSaveStateUpdate
 import app.naviamp.domain.provider.smartPlaylistSavingStatus
 import app.naviamp.domain.provider.smartPlaylistUpdateErrorMessage
-import app.naviamp.domain.provider.smartPlaylistUpdatedStatus
+import app.naviamp.domain.provider.smartPlaylistUpdateStateUpdate
 import app.naviamp.domain.provider.smartPlaylistUpdatingStatus
 import app.naviamp.domain.provider.deletePlaylistAndRefresh
 import app.naviamp.domain.provider.loadPlaylistTracksForPreload
@@ -340,14 +340,13 @@ suspend fun saveAndroidSmartPlaylist(
         ?: throw IllegalStateException("Connect to Navidrome before saving smart playlists.")
     state.status = smartPlaylistSavingStatus(definition)
     try {
-        val refresh = saveSmartPlaylistAndRefresh(activeProvider, definition)
-        providerResponseCacheRepository
-            ?.let { ProviderResponseService(it) }
-            ?.invalidatePlaylistResponses(activeProvider, refresh.displayPlaylist.id)
-        state.playlistTracksById = state.playlistTracksById + (refresh.displayPlaylist.id to refresh.tracks)
-        state.homeState = state.homeState.copy(playlists = refresh.playlists)
-        preloadAndroidPlaylistTracks(scope, state, activeProvider, refresh.playlists, providerResponseCacheRepository = null)
-        state.status = smartPlaylistSavedStatus(refresh.displayPlaylist, refresh.tracks.size)
+        val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
+        val refresh = saveSmartPlaylistAndRefresh(activeProvider, definition, providerResponseService)
+        val update = smartPlaylistSaveStateUpdate(refresh, state.playlistTracksById)
+        state.playlistTracksById = update.playlistTracksById
+        state.homeState = state.homeState.copy(playlists = update.playlists)
+        preloadAndroidPlaylistTracks(scope, state, activeProvider, update.playlists, providerResponseCacheRepository = null)
+        state.status = update.status
     } catch (error: Exception) {
         state.status = smartPlaylistSaveErrorMessage(error)
         throw error
@@ -365,18 +364,22 @@ suspend fun updateAndroidSmartPlaylist(
         ?: throw IllegalStateException("Connect to Navidrome before updating smart playlists.")
     state.status = smartPlaylistUpdatingStatus(definition)
     try {
-        val refresh = updateSmartPlaylistAndRefresh(activeProvider, playlist, definition)
-        providerResponseCacheRepository
-            ?.let { ProviderResponseService(it) }
-            ?.invalidatePlaylistResponses(activeProvider, refresh.displayPlaylist.id)
-        state.playlistTracksById = state.playlistTracksById + (refresh.displayPlaylist.id to refresh.tracks)
-        state.homeState = state.homeState.copy(playlists = refresh.playlists)
-        if (state.selectedPlaylist?.id == refresh.displayPlaylist.id) {
-            state.contentState = state.contentState.showPlaylist(refresh.displayPlaylist, refresh.tracks)
-            state.tracks = refresh.tracks
+        val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
+        val refresh = updateSmartPlaylistAndRefresh(activeProvider, playlist, definition, providerResponseService)
+        val update = smartPlaylistUpdateStateUpdate(
+            refresh = refresh,
+            currentSelectedPlaylist = state.selectedPlaylist,
+            currentSelectedPlaylistTracks = state.selectedPlaylistTracks,
+            currentPlaylistTracksById = state.playlistTracksById,
+        )
+        state.playlistTracksById = update.playlistTracksById
+        state.homeState = state.homeState.copy(playlists = update.playlists)
+        if (update.selectedPlaylistChanged) {
+            state.contentState = state.contentState.showPlaylist(update.displayPlaylist, update.tracks)
+            state.tracks = update.tracks
         }
-        preloadAndroidPlaylistTracks(scope, state, activeProvider, refresh.playlists, providerResponseCacheRepository = null)
-        state.status = smartPlaylistUpdatedStatus(refresh.displayPlaylist, refresh.tracks.size)
+        preloadAndroidPlaylistTracks(scope, state, activeProvider, update.playlists, providerResponseCacheRepository = null)
+        state.status = update.status
     } catch (error: Exception) {
         state.status = smartPlaylistUpdateErrorMessage(error)
         throw error
