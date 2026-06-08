@@ -376,7 +376,7 @@ This checklist reconciles completed discovery outputs with future implementation
 - [x] Extract playlist mutation and refresh orchestration.
   - Move queue-save, add tracks to playlist, rename/delete, playlist detail refresh, smart playlist save/update/load, preloading decisions, cache invalidation, and home playlist reduction into focused shared services.
   - Keep dialogs, route changes, recent playlist persistence, and playback execution as platform adapters.
-- [ ] Extract library sync/freshness orchestration.
+- [x] Extract library sync/freshness orchestration.
   - Move sync gating, freshness evaluation orchestration, scan-check marking plan, progress/status result modeling, and paging limit calculations where shared.
   - Keep scrolling, platform cache repositories, and UI progress application outside the shared service.
 - [ ] Extract radio and generated queue orchestration.
@@ -1150,6 +1150,12 @@ Progress notes:
   - `AndroidLibrarySync.kt` no longer owns artist/album provider paging or index writes.
   - `DesktopLibrarySync.kt` no longer owns the sync loop or album-track detail indexing loop.
   - Shared domain now owns the library index mutation sequence while platform wrappers preserve existing progress label shapes.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.library.LibrarySyncTest --tests app.naviamp.domain.library.LibraryFreshnessTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
+- Added shared post-sync scan signature marking with `syncLibraryIndexAndMarkScanChecked`.
+- Android and Desktop library sync no longer call `libraryScanStatus()` directly after a sync; shared domain now owns that provider/status-to-local-index sequence.
+- Added common `LibrarySyncTest.kt` coverage for storing the provider scan signature after sync.
+- Closed the library sync/freshness checklist item because auto-sync gating, freshness evaluation, scan-check marking, sync progress/result modeling, provider paging, index mutation, and paging-limit helpers now have shared paths.
+- Remaining library code is platform adapter work: coroutine ownership, Android home-state progress application, Desktop list scrolling, Desktop snapshot/query state, cache clearing, connection status targets, and concrete UI state writes.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.library.LibrarySyncTest --tests app.naviamp.domain.library.LibraryFreshnessTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:

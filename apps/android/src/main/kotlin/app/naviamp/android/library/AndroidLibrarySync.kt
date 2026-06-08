@@ -9,7 +9,7 @@ import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.home.HomeService
 import app.naviamp.domain.library.LibrarySyncProgress
 import app.naviamp.domain.library.LibrarySyncProgressPhase
-import app.naviamp.domain.library.syncLibraryIndex
+import app.naviamp.domain.library.syncLibraryIndexAndMarkScanChecked
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.provider.navidrome.NavidromeProvider
 import java.time.LocalDate
@@ -39,7 +39,7 @@ suspend fun syncAndroidLibrary(
     libraryIndexRepository: LocalLibraryIndexRepository,
     onProgress: suspend (AndroidLibrarySyncProgress) -> Unit = {},
 ) {
-    syncLibraryIndex(
+    syncLibraryIndexAndMarkScanChecked(
         sourceId = sourceId,
         provider = provider,
         libraryIndexRepository = libraryIndexRepository,

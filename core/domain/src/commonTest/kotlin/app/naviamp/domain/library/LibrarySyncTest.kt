@@ -85,10 +85,26 @@ class LibrarySyncTest {
         assertEquals(2, repository.trackDetailAlbumWrites)
     }
 
+    @Test
+    fun syncLibraryIndexAndMarkScanCheckedStoresProviderScanSignature() = kotlinx.coroutines.test.runTest {
+        val repository = FakeLibraryIndexRepository()
+
+        syncLibraryIndexAndMarkScanChecked(
+            sourceId = "source",
+            provider = FakeLibraryProvider(scanSignature = "scan-1"),
+            libraryIndexRepository = repository,
+            artistLimit = 10,
+            albumPageSize = 10,
+        )
+
+        assertEquals("scan-1", repository.checkedScanSignature)
+    }
+
     private class FakeLibraryProvider(
         private val artists: List<Artist> = emptyList(),
         private val albums: List<Album> = emptyList(),
         private val tracksByAlbum: Map<AlbumId, List<Track>> = emptyMap(),
+        private val scanSignature: String? = null,
     ) : MediaProvider {
         override val id: ProviderId = ProviderId("provider")
         override val displayName: String = "Provider"
@@ -102,6 +118,14 @@ class LibrarySyncTest {
 
         override suspend fun validateConnection(): ConnectionValidation =
             ConnectionValidation(serverVersion = null, apiVersion = null)
+
+        override suspend fun libraryScanStatus() =
+            app.naviamp.domain.provider.LibraryScanStatus(
+                scanning = false,
+                count = null,
+                lastScan = scanSignature,
+                folderCount = null,
+            )
 
         override suspend fun recentlyAddedAlbums(limit: Int): List<Album> =
             emptyList()
@@ -143,11 +167,15 @@ class LibrarySyncTest {
         val tracks = mutableListOf<Track>()
         var trackDetailAlbumWrites = 0
             private set
+        var checkedScanSignature: String? = null
+            private set
 
         override fun mediaSource(sourceId: String) =
             null
 
-        override fun markLibraryScanChecked(sourceId: String, signature: String) = Unit
+        override fun markLibraryScanChecked(sourceId: String, signature: String) {
+            checkedScanSignature = signature
+        }
 
         override fun markLibrarySyncStarted(sourceId: String) {
             syncStarted = true

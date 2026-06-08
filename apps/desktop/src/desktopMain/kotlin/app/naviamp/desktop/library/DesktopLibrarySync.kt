@@ -8,6 +8,7 @@ import app.naviamp.domain.library.LibrarySyncProgressPhase
 import app.naviamp.domain.library.shouldAutoSyncLibrary as shouldAutoSyncLibraryIndex
 import app.naviamp.domain.library.nextLibraryLimit as nextLibraryPageLimit
 import app.naviamp.domain.library.syncLibraryIndex
+import app.naviamp.domain.library.syncLibraryIndexAndMarkScanChecked
 import app.naviamp.domain.provider.MediaProvider
 
 class DesktopLibrarySync(
@@ -19,13 +20,16 @@ class DesktopLibrarySync(
         provider: MediaProvider,
         onProgress: suspend (DesktopLibrarySyncProgress) -> Unit = {},
     ) {
-        sync(
+        syncLibraryIndexAndMarkScanChecked(
             sourceId = sourceId,
             provider = provider,
-            onProgress = onProgress,
-        )
-        provider.libraryScanStatus()?.signature?.let { signature ->
-            libraryIndexRepository.markLibraryScanChecked(sourceId, signature)
+            libraryIndexRepository = libraryIndexRepository,
+            artistLimit = 100_000,
+            albumPageSize = 500,
+            includeAlbumTracks = true,
+            providerResponseService = providerResponseService,
+        ) { progress ->
+            onProgress(progress.toDesktopLibrarySyncProgress())
         }
     }
 

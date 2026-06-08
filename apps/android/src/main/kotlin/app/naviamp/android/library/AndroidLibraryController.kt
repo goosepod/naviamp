@@ -41,9 +41,6 @@ fun startAndroidLibrarySync(
                         }
                     }
                 }
-                activeProvider.libraryScanStatus()?.signature?.let { signature ->
-                    libraryIndexRepository.markLibraryScanChecked(sourceId, signature)
-                }
             }
         }.onSuccess {
             state.libraryStatus = null

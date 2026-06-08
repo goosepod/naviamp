@@ -117,3 +117,29 @@ suspend fun syncLibraryIndex(
         trackCount = trackCount,
     )
 }
+
+suspend fun syncLibraryIndexAndMarkScanChecked(
+    sourceId: String,
+    provider: MediaProvider,
+    libraryIndexRepository: LocalLibraryIndexRepository,
+    artistLimit: Int,
+    albumPageSize: Int,
+    includeAlbumTracks: Boolean = false,
+    providerResponseService: ProviderResponseService? = null,
+    onProgress: suspend (LibrarySyncProgress) -> Unit = {},
+): LibrarySyncResult {
+    val result = syncLibraryIndex(
+        sourceId = sourceId,
+        provider = provider,
+        libraryIndexRepository = libraryIndexRepository,
+        artistLimit = artistLimit,
+        albumPageSize = albumPageSize,
+        includeAlbumTracks = includeAlbumTracks,
+        providerResponseService = providerResponseService,
+        onProgress = onProgress,
+    )
+    provider.libraryScanStatus()?.signature?.let { signature ->
+        libraryIndexRepository.markLibraryScanChecked(sourceId, signature)
+    }
+    return result
+}
