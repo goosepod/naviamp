@@ -1265,6 +1265,9 @@ Progress notes:
 - Moved Android detail/playlist close behavior, app-back handling, and mix-builder route selection into `AndroidNavigationController.kt`.
 - `MainActivity.kt` dropped to 1,641 lines after the Android navigation controller extraction; `AndroidNavigationController.kt` is 60 lines.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Moved Android report-now-playing and report-played provider submissions into `AndroidPlaybackReportController.kt`.
+- `MainActivity.kt` dropped to 1,599 lines after the Android playback reporting extraction; `AndroidPlaybackReportController.kt` is 67 lines.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 

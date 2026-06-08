@@ -70,8 +70,6 @@ import app.naviamp.domain.playback.PlaybackPlayPauseCommand
 import app.naviamp.domain.playback.planPlaybackAdjacentAction
 import app.naviamp.domain.playback.playbackPlayPauseCommand
 import app.naviamp.domain.playback.planPlaybackSeek
-import app.naviamp.domain.playback.canReportPlaybackTrack
-import app.naviamp.domain.playback.shouldSubmitPlayReport
 import app.naviamp.domain.playback.SleepTimerRequest
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.PlaybackQueue
@@ -302,6 +300,9 @@ private fun NaviampAndroidApp(
             currentStreamQuality = ::currentStreamQuality,
         )
     }
+    val playbackReportController = remember(appState) {
+        AndroidPlaybackReportController(scope, appState)
+    }
 
     fun loadLyrics(track: Track) {
         nowPlayingSidecarController.loadLyrics(track)
@@ -385,54 +386,11 @@ private fun NaviampAndroidApp(
     )
 
     fun reportNowPlaying(track: Track) {
-        val activeProvider = provider ?: return
-        if (
-            !canReportPlaybackTrack(
-                supportsPlayReporting = activeProvider.capabilities.supportsPlayReporting,
-                isInternetRadioTrack = track.isInternetRadioTrack(),
-            )
-        ) {
-            return
-        }
-        scope.launch {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    activeProvider.reportNowPlaying(track.id)
-                }
-            }
-        }
+        playbackReportController.reportNowPlaying(track)
     }
 
     fun maybeReportPlayed(progress: PlaybackProgress) {
-        val activeProvider = provider ?: return
-        val track = nowPlaying ?: return
-        val durationSeconds = progress.durationSeconds ?: track.durationSeconds?.toDouble()
-        if (
-            !shouldSubmitPlayReport(
-                supportsPlayReporting = activeProvider.capabilities.supportsPlayReporting,
-                isInternetRadioTrack = track.isInternetRadioTrack(),
-                activeSessionId = playbackSessionToken,
-                submittedSessionId = submittedPlayReportSessionToken,
-                positionSeconds = progress.positionSeconds,
-                durationSeconds = durationSeconds,
-            )
-        ) {
-            return
-        }
-
-        val activeSessionToken = playbackSessionToken
-        submittedPlayReportSessionToken = activeSessionToken
-        scope.launch {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    activeProvider.reportPlayed(track.id, System.currentTimeMillis())
-                }
-            }.onFailure {
-                if (submittedPlayReportSessionToken == activeSessionToken) {
-                    submittedPlayReportSessionToken = null
-                }
-            }
-        }
+        playbackReportController.maybeReportPlayed(progress)
     }
 
     val androidPlaylistEngine = remember(
