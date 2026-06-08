@@ -134,11 +134,12 @@ class PlaylistMutationsTest {
         assertEquals(
             PlaylistDetailsApplicationUpdate(
                 playlists = listOf(refreshed, other),
-                selectedPlaylist = refreshed,
-                selectedPlaylistTracks = tracks,
                 playlistTracksById = mapOf("one" to tracks),
-                selectedPlaylistChanged = true,
-                status = "Connected.",
+                selectionApplication = PlaylistDetailsSelectionApplication(
+                    playlist = refreshed,
+                    tracks = tracks,
+                    status = "Connected.",
+                ),
             ),
             playlistDetailsApplicationUpdate(
                 currentSelectedPlaylist = current,
@@ -164,11 +165,12 @@ class PlaylistMutationsTest {
         assertEquals(
             PlaylistDetailsApplicationUpdate(
                 playlists = listOf(refreshedPlaylist.copy(trackCount = 1)),
-                selectedPlaylist = refreshedPlaylist.copy(trackCount = 1),
-                selectedPlaylistTracks = tracks,
                 playlistTracksById = mapOf("one" to tracks),
-                selectedPlaylistChanged = true,
-                status = "Connected.",
+                selectionApplication = PlaylistDetailsSelectionApplication(
+                    playlist = refreshedPlaylist.copy(trackCount = 1),
+                    tracks = tracks,
+                    status = "Connected.",
+                ),
             ),
             provider.refreshPlaylistDetailsApplication(
                 playlist = stalePlaylist,

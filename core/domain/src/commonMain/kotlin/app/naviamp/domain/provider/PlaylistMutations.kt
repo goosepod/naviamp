@@ -104,13 +104,16 @@ data class PlaylistDetailsOpenPlan(
     val loadingStatus: String,
 )
 
+data class PlaylistDetailsSelectionApplication(
+    val playlist: Playlist,
+    val tracks: List<Track>,
+    val status: String?,
+)
+
 data class PlaylistDetailsApplicationUpdate(
     val playlists: List<Playlist>,
-    val selectedPlaylist: Playlist?,
-    val selectedPlaylistTracks: List<Track>,
     val playlistTracksById: Map<String, List<Track>>,
-    val selectedPlaylistChanged: Boolean,
-    val status: String?,
+    val selectionApplication: PlaylistDetailsSelectionApplication?,
 )
 
 data class PlaylistDetailAutoRefreshTarget<Provider : Any>(
@@ -456,6 +459,7 @@ fun playlistDetailsApplicationUpdate(
     requestedPlaylistId: String,
     status: String? = null,
 ): PlaylistDetailsApplicationUpdate {
+    val selectedPlaylistChanged = currentSelectedPlaylist?.id == requestedPlaylistId
     val stateUpdate = playlistDetailsStateUpdate(
         currentSelectedPlaylist = currentSelectedPlaylist,
         currentSelectedPlaylistTracks = currentSelectedPlaylistTracks,
@@ -465,11 +469,16 @@ fun playlistDetailsApplicationUpdate(
     )
     return PlaylistDetailsApplicationUpdate(
         playlists = stateUpdate.playlists,
-        selectedPlaylist = stateUpdate.selectedPlaylist,
-        selectedPlaylistTracks = stateUpdate.selectedPlaylistTracks,
         playlistTracksById = stateUpdate.playlistTracksById,
-        selectedPlaylistChanged = currentSelectedPlaylist?.id == requestedPlaylistId,
-        status = status,
+        selectionApplication = if (selectedPlaylistChanged) {
+            PlaylistDetailsSelectionApplication(
+                playlist = requireNotNull(stateUpdate.selectedPlaylist),
+                tracks = stateUpdate.selectedPlaylistTracks,
+                status = status,
+            )
+        } else {
+            null
+        },
     )
 }
 

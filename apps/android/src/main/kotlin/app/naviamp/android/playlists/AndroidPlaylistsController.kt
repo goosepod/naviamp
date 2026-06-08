@@ -65,13 +65,10 @@ suspend fun refreshAndroidPlaylistDetailsFromServer(
         }
         homeState = homeState.copy(playlists = update.playlists)
         playlistTracksById = update.playlistTracksById
-        if (update.selectedPlaylistChanged) {
-            contentState = contentState.showPlaylist(
-                playlist = requireNotNull(update.selectedPlaylist),
-                tracks = update.selectedPlaylistTracks,
-            )
-            tracks = update.selectedPlaylistTracks
-            update.status?.let { status = it }
+        update.selectionApplication?.let { selection ->
+            contentState = contentState.showPlaylist(selection.playlist, selection.tracks)
+            tracks = selection.tracks
+            selection.status?.let { status = it }
         }
     }
 }

@@ -129,10 +129,10 @@ class DesktopPlaylistsController(
         setPlaylists(update.playlists)
         refreshHomePlaylists(update.playlists)
         setPlaylistTracksById(update.playlistTracksById)
-        if (update.selectedPlaylistChanged) {
-            setSelectedPlaylist(update.selectedPlaylist)
-            setSelectedPlaylistTracks(update.selectedPlaylistTracks)
-            setSelectedPlaylistStatus(null)
+        update.selectionApplication?.let { selection ->
+            setSelectedPlaylist(selection.playlist)
+            setSelectedPlaylistTracks(selection.tracks)
+            setSelectedPlaylistStatus(selection.status)
         }
     }
 

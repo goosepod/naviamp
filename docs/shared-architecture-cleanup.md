@@ -996,6 +996,12 @@ Progress notes:
 - Size/reduction note for the selected playlist detail playback slice:
   - `DesktopPlaylistsController.kt` shrank for this slice (`7` added, `11` removed) and no longer owns selected playlist ready-plan/index coercion directly.
   - Shared domain and tests grew intentionally to keep this selected-detail behavior in the same playlist playback command surface as normal playlist playback.
+- Tightened shared playlist detail refresh application with `PlaylistDetailsSelectionApplication`.
+- Android and Desktop playlist controllers now consume the same concrete detail-selection application instead of checking a shared boolean and pulling nullable selected playlist fields apart themselves.
+- Size/reduction note for the playlist detail selection-application slice:
+  - `AndroidPlaylistsController.kt` shrank for this slice (`4` added, `7` removed) and no longer owns the selected-playlist null assertion or the refreshed-detail field mapping.
+  - `DesktopPlaylistsController.kt` stayed line-flat (`4` added, `4` removed) but no longer maps refreshed selected playlist/tracks/status fields manually.
+  - Shared domain grew by one small DTO that makes the application result more explicit and easier for thin platform adapters to consume.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
