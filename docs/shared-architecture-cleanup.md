@@ -366,7 +366,7 @@ This checklist reconciles completed discovery outputs with future implementation
 - [x] Decide the first implementation slice.
   - Decision: start with media metadata actions.
   - Verification: doc-only diff; no source files touched.
-- [ ] Define shared result models for user-intent operations.
+- [x] Define shared result models for user-intent operations.
   - Covers: loading, success, failure, cache invalidation, refreshed state, playback command, and status text.
   - Verification target after implementation: shared unit tests before platform rewiring.
 - [x] Extract media action orchestration first.
@@ -705,6 +705,14 @@ Progress notes:
   - Desktop media actions still own playback invocation through `DesktopPlaylistEngine` and `PlaybackEngine` settings.
   - Public metadata apply hooks remain for platform callback entry points.
 - Closed the media-action orchestration checklist item because shared lookup, queue append, add-to-playlist, metadata mutation composition, and common status handling now have shared paths.
+- Reconciled the shared user-intent result model checklist against the completed implementation slices.
+- Existing shared models now cover the requested categories:
+  - Loading/status text: playlist, add-to-playlist, smart-playlist, media-detail, internet-radio, and queue status helpers.
+  - Success/failure/skipped outcomes: `MediaMetadataMutationResult`, `DownloadTracksResult`, and playlist mutation/update results.
+  - Cache invalidation/refreshed state: `AddToPlaylistRefresh`, `QueuePlaylistSaveRefresh`, playlist list/detail refresh updates, and related state application models.
+  - Playback commands/results: `PlaybackQueueNavigationCommand`, `PlaybackQueueFinishedCommand`, queue mutation/selection/finished updates, and playlist playback work/application models.
+- Closed the shared result-model checklist item as a cross-slice checkpoint rather than adding an abstract umbrella type; the current codebase uses focused result models per user intent.
+- Future library, radio, and connection extraction should add result models only where those domains still have duplicated provider/status/state choreography.
 - `queueAppendPlan` now delegates to shared queue append helpers to keep existing callers on the same decision path.
 - Added `PlaybackQueueManagerTest.kt` coverage for starting an empty queue, appending to an existing queue, deduping, and no-change statuses.
 - Extended `PlaybackQueueManager` to own repeat cycling and upcoming-shuffle decisions with typed `PlaybackShuffleUpdate` results.
