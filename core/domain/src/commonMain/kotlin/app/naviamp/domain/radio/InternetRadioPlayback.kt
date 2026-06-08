@@ -4,7 +4,9 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Track
 import app.naviamp.domain.internetRadioTrackId
 import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackStreamMetadata
+import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.settings.SavedInternetRadioStation
 
@@ -94,6 +96,23 @@ data class InternetRadioMetadataUpdateApplier(
     val setNowPlayingTrack: (Track?) -> Unit = {},
     val updateNotificationMetadata: (String?, String, String?) -> Unit = { _, _, _ -> },
 )
+
+data class InternetRadioPlaybackRequestPlan(
+    val request: PlaybackRequest,
+)
+
+fun planInternetRadioPlaybackRequest(
+    startPlan: InternetRadioStartPlan,
+    streamUrl: String,
+    replayGainMode: ReplayGainMode,
+): InternetRadioPlaybackRequestPlan =
+    InternetRadioPlaybackRequestPlan(
+        request = PlaybackRequest(
+            url = streamUrl,
+            mediaId = startPlan.engineMediaId,
+            replayGainMode = if (startPlan.replayGainOff) ReplayGainMode.Off else replayGainMode,
+        ),
+    )
 
 fun planInternetRadioMetadataUpdate(
     station: InternetRadioStation,

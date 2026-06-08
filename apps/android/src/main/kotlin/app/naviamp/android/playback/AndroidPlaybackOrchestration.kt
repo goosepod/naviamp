@@ -11,7 +11,6 @@ import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackAudioAssetRepository
 import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackReplayGain
-import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackTrackStartEffectApplier
@@ -31,6 +30,7 @@ import app.naviamp.domain.radio.InternetRadioMetadataUpdateApplier
 import app.naviamp.domain.radio.applyInternetRadioStart
 import app.naviamp.domain.radio.applyInternetRadioMetadataUpdate
 import app.naviamp.domain.radio.planInternetRadioMetadataUpdate
+import app.naviamp.domain.radio.planInternetRadioPlaybackRequest
 import app.naviamp.domain.radio.planInternetRadioStart
 import app.naviamp.provider.navidrome.NavidromeProvider
 import kotlinx.coroutines.CoroutineScope
@@ -287,13 +287,14 @@ fun playAndroidInternetRadioStation(
         runCatching {
             resolveInternetRadioStreamUrl(station.streamUrl.trim())
         }.onSuccess { streamUrl ->
+            val requestPlan = planInternetRadioPlaybackRequest(
+                startPlan = plan,
+                streamUrl = streamUrl,
+                replayGainMode = state.playbackSettings.replayGainMode,
+            )
             playbackEngine.play(
                 scope = scope,
-                request = PlaybackRequest(
-                    url = streamUrl,
-                    mediaId = plan.engineMediaId,
-                    replayGainMode = if (plan.replayGainOff) ReplayGainMode.Off else state.playbackSettings.replayGainMode,
-                ),
+                request = requestPlan.request,
                 onStateChanged = { playbackState ->
                     state.playbackState = playbackState
                     if (playbackState is PlaybackState.Error) {

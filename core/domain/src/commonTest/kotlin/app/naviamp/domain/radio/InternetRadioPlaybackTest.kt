@@ -4,6 +4,7 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.internetRadioTrackId
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackStreamMetadata
+import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.network.SharedHttpClient
 import app.naviamp.domain.network.SharedHttpResponse
 import app.naviamp.domain.queue.PlaybackQueue
@@ -249,6 +250,23 @@ class InternetRadioPlaybackTest {
             ),
             calls,
         )
+    }
+
+    @Test
+    fun internetRadioPlaybackRequestUsesResolvedStreamUrlAndStartPlanMediaId() {
+        val requestPlan = planInternetRadioPlaybackRequest(
+            startPlan = planInternetRadioStart(
+                station = station("kexp", name = "KEXP"),
+                recentStations = emptyList(),
+                recentSavedStations = emptyList(),
+            ),
+            streamUrl = "https://cdn.example/live.mp3",
+            replayGainMode = ReplayGainMode.Track,
+        )
+
+        assertEquals("https://cdn.example/live.mp3", requestPlan.request.url)
+        assertEquals("kexp", requestPlan.request.mediaId)
+        assertEquals(ReplayGainMode.Off, requestPlan.request.replayGainMode)
     }
 
     @Test

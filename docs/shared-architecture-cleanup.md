@@ -887,6 +887,13 @@ Progress notes:
   - `AndroidPlaybackOrchestration.kt` no longer directly performs radio metadata title checks before notification updates.
   - `DesktopInternetRadioController.kt` no longer calls `internetRadioTrackWithMetadata` directly in its playback callback.
   - Shared domain grew intentionally with a small planner/applier around existing radio metadata mapping.
+- Added shared `InternetRadioPlaybackRequestPlan` and `planInternetRadioPlaybackRequest` for radio playback request construction.
+- Android and Desktop now share radio media id and replay-gain-off request decisions while keeping stream URL resolution platform-owned.
+- Added common `InternetRadioPlaybackTest.kt` coverage for resolved stream URL, start-plan media id, and radio replay-gain-off behavior.
+- Size/reduction note for the internet-radio playback request slice:
+  - `AndroidPlaybackOrchestration.kt` no longer builds radio `PlaybackRequest` directly after playlist URL resolution.
+  - `DesktopInternetRadioController.kt` no longer hand-builds its radio `PlaybackRequest` from the station URL.
+  - Shared domain grew intentionally with a tiny request plan that composes the existing radio start plan.
 - Verification passed: `.\gradlew.bat :core:domain:allTests`, `.\gradlew.bat :apps:android:compileDebugKotlin`, and `.\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:

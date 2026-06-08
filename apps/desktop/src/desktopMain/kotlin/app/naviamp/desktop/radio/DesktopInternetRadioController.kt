@@ -12,7 +12,6 @@ import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackProgress
-import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.ReplayGainMode
@@ -25,6 +24,7 @@ import app.naviamp.domain.radio.InternetRadioStartApplier
 import app.naviamp.domain.radio.applyInternetRadioMetadataUpdate
 import app.naviamp.domain.radio.applyInternetRadioStart
 import app.naviamp.domain.radio.planInternetRadioMetadataUpdate
+import app.naviamp.domain.radio.planInternetRadioPlaybackRequest
 import app.naviamp.domain.radio.planInternetRadioStart
 import app.naviamp.domain.radio.recentInternetRadioStationsWith
 import app.naviamp.domain.radio.recentSavedInternetRadioStationsWith
@@ -141,11 +141,11 @@ class DesktopInternetRadioController(
         )
         playbackEngine.play(
             scope = scope,
-            request = PlaybackRequest(
-                url = station.streamUrl,
-                mediaId = plan.engineMediaId,
+            request = planInternetRadioPlaybackRequest(
+                startPlan = plan,
+                streamUrl = station.streamUrl,
                 replayGainMode = ReplayGainMode.Off,
-            ),
+            ).request,
             onStateChanged = { state ->
                 setPlaybackState(state)
             },
