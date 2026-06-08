@@ -1142,6 +1142,15 @@ Progress notes:
   - `DesktopLibraryController.kt` no longer depends on a desktop-only freshness helper.
   - Shared domain now has one tested freshness orchestration entry point while the broader sync loop remains to be extracted.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.library.LibraryFreshnessTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
+- Added shared library sync loop with `syncLibraryIndex`, `LibrarySyncProgress`, and `LibrarySyncResult`.
+- Android and Desktop library sync now share sync-start marking, artist loading/upsert, album paging/upsert, optional album-track detail indexing, sync-completed marking, and progress event sequencing.
+- Platform code still owns the correct differences: Android maps progress to mobile/home-state labels and skips full track indexing; Desktop maps progress to counter-style labels and enables album-track indexing through `ProviderResponseService`.
+- Added common `LibrarySyncTest.kt` coverage for paged artist/album indexing, repository sync markers, progress phases, artist progress payloads, and optional album-track indexing.
+- Size/reduction note for this slice:
+  - `AndroidLibrarySync.kt` no longer owns artist/album provider paging or index writes.
+  - `DesktopLibrarySync.kt` no longer owns the sync loop or album-track detail indexing loop.
+  - Shared domain now owns the library index mutation sequence while platform wrappers preserve existing progress label shapes.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.library.LibrarySyncTest --tests app.naviamp.domain.library.LibraryFreshnessTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
 
