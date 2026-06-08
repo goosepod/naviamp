@@ -56,13 +56,7 @@ import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.cache.shouldRefreshDownloadsAfter
 import app.naviamp.domain.artistmix.artistMixPopularQueue
-import app.naviamp.domain.artistmix.artistMixSelectedArtistsAfterRemove
-import app.naviamp.domain.artistmix.artistMixSelectedArtistsAfterSelect
-import app.naviamp.domain.albummix.albumMixSelectedAlbumsAfterRemove
-import app.naviamp.domain.albummix.albumMixSelectedAlbumsAfterSelect
 import app.naviamp.domain.albummix.albumMixTrackQueue
-import app.naviamp.domain.genremix.genreMixSelectedGenresAfterRemove
-import app.naviamp.domain.genremix.genreMixSelectedGenresAfterSelect
 import app.naviamp.domain.media.withUpdatedAlbum
 import app.naviamp.domain.media.withUpdatedArtist
 import app.naviamp.domain.playback.PlaybackProgress
@@ -1076,216 +1070,50 @@ fun NaviampApp(
 
     fun genreMixItem(genre: Genre) = genre.toSharedGenreMixItemUi()
 
-    fun refreshArtistMixInitialSuggestions() {
-        coroutineScope.launch {
-            artistMixLoading = true
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    artistMixBuilderService.initialSuggestions(artistMixSelectedArtists)
-                }
-            }.onSuccess { suggestions ->
-                artistMixSuggestions = suggestions
-                artistMixStatus = if (suggestions.isEmpty()) "No artist suggestions yet." else null
-            }.onFailure { error ->
-                artistMixStatus = error.message ?: "Could not load artist suggestions."
-            }
-            artistMixLoading = false
-        }
-    }
-
-    fun searchArtistMixSuggestions() {
-        coroutineScope.launch {
-            artistMixLoading = true
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    artistMixBuilderService.searchSuggestions(artistMixQuery, artistMixSelectedArtists)
-                }
-            }.onSuccess { suggestions ->
-                artistMixSuggestions = suggestions
-                artistMixStatus = if (suggestions.isEmpty()) "No artists matched." else null
-            }.onFailure { error ->
-                artistMixStatus = error.message ?: "Could not search artists."
-            }
-            artistMixLoading = false
-        }
-    }
-
-    fun selectArtistForMix(artist: Artist) {
-        artistMixSelectedArtists = artistMixSelectedArtistsAfterSelect(artistMixSelectedArtists, artist)
-        artistMixStatus = "Loading ${artist.name} songs..."
-        coroutineScope.launch {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    artistMixBuilderService.popularTracks(artist)
-                }
-            }.onSuccess { tracks ->
-                artistMixPopularTracksByArtistId = artistMixPopularTracksByArtistId + (artist.id.value to tracks)
-                artistMixStatus = if (tracks.isEmpty()) "${artist.name} popular songs were not matched." else null
-            }.onFailure { error ->
-                artistMixStatus = error.message ?: "Could not load ${artist.name} songs."
-            }
-        }
-        coroutineScope.launch {
-            artistMixLoading = true
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    artistMixBuilderService.relatedSuggestions(artistMixSelectedArtists, artist)
-                }
-            }.onSuccess { suggestions ->
-                artistMixSuggestions = suggestions
-            }.onFailure { error ->
-                artistMixStatus = error.message ?: "Could not load similar artists."
-            }
-            artistMixLoading = false
-        }
-    }
-
-    fun removeArtistFromMix(artist: Artist) {
-        artistMixSelectedArtists = artistMixSelectedArtistsAfterRemove(artistMixSelectedArtists, artist)
-        artistMixPopularTracksByArtistId = artistMixPopularTracksByArtistId - artist.id.value
-        refreshArtistMixInitialSuggestions()
-    }
-
-    fun resetArtistMixBuilder() {
-        artistMixQuery = ""
-        artistMixSelectedArtists = emptyList()
-        artistMixSuggestions = emptyList()
-        artistMixPopularTracksByArtistId = emptyMap()
-        artistMixStatus = null
-        artistMixLoading = false
-        refreshArtistMixInitialSuggestions()
-    }
-
-    fun refreshAlbumMixInitialSuggestions() {
-        coroutineScope.launch {
-            albumMixLoading = true
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    albumMixBuilderService.initialSuggestions(albumMixSelectedAlbums)
-                }
-            }.onSuccess { suggestions ->
-                albumMixSuggestions = suggestions
-                albumMixStatus = if (suggestions.isEmpty()) "No album suggestions yet." else null
-            }.onFailure { error ->
-                albumMixStatus = error.message ?: "Could not load album suggestions."
-            }
-            albumMixLoading = false
-        }
-    }
-
-    fun searchAlbumMixSuggestions() {
-        coroutineScope.launch {
-            albumMixLoading = true
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    albumMixBuilderService.searchSuggestions(albumMixQuery, albumMixSelectedAlbums)
-                }
-            }.onSuccess { suggestions ->
-                albumMixSuggestions = suggestions
-                albumMixStatus = if (suggestions.isEmpty()) "No albums matched." else null
-            }.onFailure { error ->
-                albumMixStatus = error.message ?: "Could not search albums."
-            }
-            albumMixLoading = false
-        }
-    }
-
-    fun selectAlbumForMix(album: Album) {
-        albumMixSelectedAlbums = albumMixSelectedAlbumsAfterSelect(albumMixSelectedAlbums, album)
-        albumMixStatus = "Loading ${album.title} songs..."
-        coroutineScope.launch {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    albumMixBuilderService.selectedTracks(album)
-                }
-            }.onSuccess { tracks ->
-                albumMixTracksByAlbumId = albumMixTracksByAlbumId + (album.id.value to tracks)
-                albumMixStatus = if (tracks.isEmpty()) "${album.title} did not return tracks." else null
-            }.onFailure { error ->
-                albumMixStatus = error.message ?: "Could not load ${album.title} songs."
-            }
-        }
-        coroutineScope.launch {
-            albumMixLoading = true
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    albumMixBuilderService.relatedSuggestions(albumMixSelectedAlbums, album)
-                }
-            }.onSuccess { suggestions ->
-                albumMixSuggestions = suggestions
-            }.onFailure { error ->
-                albumMixStatus = error.message ?: "Could not load related albums."
-            }
-            albumMixLoading = false
-        }
-    }
-
-    fun removeAlbumFromMix(album: Album) {
-        albumMixSelectedAlbums = albumMixSelectedAlbumsAfterRemove(albumMixSelectedAlbums, album)
-        albumMixTracksByAlbumId = albumMixTracksByAlbumId - album.id.value
-        refreshAlbumMixInitialSuggestions()
-    }
-
-    fun resetAlbumMixBuilder() {
-        albumMixQuery = ""
-        albumMixSelectedAlbums = emptyList()
-        albumMixSuggestions = emptyList()
-        albumMixTracksByAlbumId = emptyMap()
-        albumMixStatus = null
-        albumMixLoading = false
-        refreshAlbumMixInitialSuggestions()
-    }
-
-    fun refreshGenreMixSuggestions() {
-        coroutineScope.launch {
-            genreMixLoading = true
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    genreMixBuilderService.searchSuggestions(genreMixQuery, genreMixSelectedGenres)
-                }
-            }.onSuccess { suggestions ->
-                genreMixSuggestions = suggestions
-                genreMixStatus = if (suggestions.isEmpty()) "No genres matched." else null
-            }.onFailure { error ->
-                genreMixStatus = error.message ?: "Could not load genres."
-            }
-            genreMixLoading = false
-        }
-    }
-
-    fun selectGenreForMix(genre: Genre) {
-        genreMixSelectedGenres = genreMixSelectedGenresAfterSelect(genreMixSelectedGenres, genre)
-        refreshGenreMixSuggestions()
-    }
-
-    fun removeGenreFromMix(genre: Genre) {
-        genreMixSelectedGenres = genreMixSelectedGenresAfterRemove(genreMixSelectedGenres, genre)
-        refreshGenreMixSuggestions()
-    }
-
-    fun resetGenreMixBuilder() {
-        genreMixQuery = ""
-        genreMixSelectedGenres = emptyList()
-        genreMixStatus = null
-        genreMixLoading = false
-        refreshGenreMixSuggestions()
-    }
+    val mixBuilderController = DesktopMixBuilderController(
+        scope = coroutineScope,
+        artistMixBuilderService = { artistMixBuilderService },
+        albumMixBuilderService = { albumMixBuilderService },
+        genreMixBuilderService = { genreMixBuilderService },
+        artistMixQuery = { artistMixQuery },
+        artistMixSelectedArtists = { artistMixSelectedArtists },
+        setArtistMixSelectedArtists = { artists -> artistMixSelectedArtists = artists },
+        setArtistMixSuggestions = { artists -> artistMixSuggestions = artists },
+        artistMixPopularTracksByArtistId = { artistMixPopularTracksByArtistId },
+        setArtistMixPopularTracksByArtistId = { tracks -> artistMixPopularTracksByArtistId = tracks },
+        setArtistMixStatus = { status -> artistMixStatus = status },
+        setArtistMixLoading = { loading -> artistMixLoading = loading },
+        albumMixQuery = { albumMixQuery },
+        albumMixSelectedAlbums = { albumMixSelectedAlbums },
+        setAlbumMixSelectedAlbums = { albums -> albumMixSelectedAlbums = albums },
+        setAlbumMixSuggestions = { albums -> albumMixSuggestions = albums },
+        albumMixTracksByAlbumId = { albumMixTracksByAlbumId },
+        setAlbumMixTracksByAlbumId = { tracks -> albumMixTracksByAlbumId = tracks },
+        setAlbumMixStatus = { status -> albumMixStatus = status },
+        setAlbumMixLoading = { loading -> albumMixLoading = loading },
+        genreMixQuery = { genreMixQuery },
+        genreMixSelectedGenres = { genreMixSelectedGenres },
+        setGenreMixSelectedGenres = { genres -> genreMixSelectedGenres = genres },
+        setGenreMixSuggestions = { genres -> genreMixSuggestions = genres },
+        setGenreMixStatus = { status -> genreMixStatus = status },
+        setGenreMixLoading = { loading -> genreMixLoading = loading },
+    )
 
     LaunchedEffect(connectedSourceId, homeContent.artists) {
         if (connectedSourceId != null && artistMixSuggestions.isEmpty()) {
-            refreshArtistMixInitialSuggestions()
+            mixBuilderController.refreshArtistInitialSuggestions()
         }
     }
 
     LaunchedEffect(connectedSourceId, homeContent.randomAlbums, homeContent.mixAlbums) {
         if (connectedSourceId != null && albumMixSuggestions.isEmpty()) {
-            refreshAlbumMixInitialSuggestions()
+            mixBuilderController.refreshAlbumInitialSuggestions()
         }
     }
 
     LaunchedEffect(connectedSourceId, homeContent.genres) {
         if (connectedSourceId != null && genreMixSuggestions.isEmpty()) {
-            refreshGenreMixSuggestions()
+            mixBuilderController.refreshGenreSuggestions()
         }
     }
 
@@ -1517,14 +1345,14 @@ fun NaviampApp(
                                 loading = artistMixLoading,
                             ),
                             onArtistMixQueryChanged = { query -> artistMixQuery = query },
-                            onArtistMixSearch = ::searchArtistMixSuggestions,
+                            onArtistMixSearch = mixBuilderController::searchArtistSuggestions,
                             onArtistMixArtistSelected = { item ->
-                                artistMixSuggestions.firstOrNull { it.id.value == item.id }?.let(::selectArtistForMix)
+                                artistMixSuggestions.firstOrNull { it.id.value == item.id }?.let(mixBuilderController::selectArtist)
                             },
                             onArtistMixArtistRemoved = { item ->
-                                artistMixSelectedArtists.firstOrNull { it.id.value == item.id }?.let(::removeArtistFromMix)
+                                artistMixSelectedArtists.firstOrNull { it.id.value == item.id }?.let(mixBuilderController::removeArtist)
                             },
-                            onArtistMixReset = ::resetArtistMixBuilder,
+                            onArtistMixReset = { mixBuilderController.resetArtistBuilder { query -> artistMixQuery = query } },
                             onArtistMixPlay = {
                                 radioController.playArtistMix(
                                     artistMixSelectedArtists,
@@ -1539,14 +1367,14 @@ fun NaviampApp(
                                 loading = albumMixLoading,
                             ),
                             onAlbumMixQueryChanged = { query -> albumMixQuery = query },
-                            onAlbumMixSearch = ::searchAlbumMixSuggestions,
+                            onAlbumMixSearch = mixBuilderController::searchAlbumSuggestions,
                             onAlbumMixAlbumSelected = { item ->
-                                albumMixSuggestions.firstOrNull { it.id.value == item.id }?.let(::selectAlbumForMix)
+                                albumMixSuggestions.firstOrNull { it.id.value == item.id }?.let(mixBuilderController::selectAlbum)
                             },
                             onAlbumMixAlbumRemoved = { item ->
-                                albumMixSelectedAlbums.firstOrNull { it.id.value == item.id }?.let(::removeAlbumFromMix)
+                                albumMixSelectedAlbums.firstOrNull { it.id.value == item.id }?.let(mixBuilderController::removeAlbum)
                             },
-                            onAlbumMixReset = ::resetAlbumMixBuilder,
+                            onAlbumMixReset = { mixBuilderController.resetAlbumBuilder { query -> albumMixQuery = query } },
                             onAlbumMixPlay = {
                                 radioController.playAlbumMix(
                                     albumMixSelectedAlbums,
@@ -1561,14 +1389,14 @@ fun NaviampApp(
                                 loading = genreMixLoading,
                             ),
                             onGenreMixQueryChanged = { query -> genreMixQuery = query },
-                            onGenreMixSearch = ::refreshGenreMixSuggestions,
+                            onGenreMixSearch = mixBuilderController::refreshGenreSuggestions,
                             onGenreMixGenreSelected = { item ->
-                                genreMixSuggestions.firstOrNull { it.name == item.id }?.let(::selectGenreForMix)
+                                genreMixSuggestions.firstOrNull { it.name == item.id }?.let(mixBuilderController::selectGenre)
                             },
                             onGenreMixGenreRemoved = { item ->
-                                genreMixSelectedGenres.firstOrNull { it.name == item.id }?.let(::removeGenreFromMix)
+                                genreMixSelectedGenres.firstOrNull { it.name == item.id }?.let(mixBuilderController::removeGenre)
                             },
-                            onGenreMixReset = ::resetGenreMixBuilder,
+                            onGenreMixReset = { mixBuilderController.resetGenreBuilder { query -> genreMixQuery = query } },
                             onGenreMixPlay = {
                                 radioController.playGenreMix(genreMixSelectedGenres)
                             },
