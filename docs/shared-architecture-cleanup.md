@@ -369,7 +369,7 @@ This checklist reconciles completed discovery outputs with future implementation
 - [ ] Define shared result models for user-intent operations.
   - Covers: loading, success, failure, cache invalidation, refreshed state, playback command, and status text.
   - Verification target after implementation: shared unit tests before platform rewiring.
-- [ ] Extract media action orchestration first.
+- [x] Extract media action orchestration first.
   - Move shared lookup, queue append, add-to-playlist, metadata mutation composition, and common status handling out of `AndroidMediaActionsController.kt` and `DesktopMediaActionsController.kt`.
   - Keep Android notification updates and downloaded file lookup as platform adapters.
   - Expected platform result: both controllers become thin wiring around shared services plus platform side effects.
@@ -698,6 +698,13 @@ Progress notes:
   - `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.media.MediaMetadataMutationControllerTest --tests app.naviamp.domain.media.TrackMediaActionsTest`
   - `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`
   - `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`
+- Reviewed the remaining media-action surface after the shared metadata factory landed.
+- No additional media-action extraction was taken in this pass because the remaining code is adapter-owned:
+  - Android downloaded-track lookup maps UI/download state back to cached files.
+  - Android `MainActivity` still owns UI callback routing for row actions.
+  - Desktop media actions still own playback invocation through `DesktopPlaylistEngine` and `PlaybackEngine` settings.
+  - Public metadata apply hooks remain for platform callback entry points.
+- Closed the media-action orchestration checklist item because shared lookup, queue append, add-to-playlist, metadata mutation composition, and common status handling now have shared paths.
 - `queueAppendPlan` now delegates to shared queue append helpers to keep existing callers on the same decision path.
 - Added `PlaybackQueueManagerTest.kt` coverage for starting an empty queue, appending to an existing queue, deduping, and no-change statuses.
 - Extended `PlaybackQueueManager` to own repeat cycling and upcoming-shuffle decisions with typed `PlaybackShuffleUpdate` results.
