@@ -1304,6 +1304,9 @@ Progress notes:
 - Moved Android sleep-timer snapshot, selection, cancel, tick, and expiry handling into `AndroidSleepTimerController`.
 - `MainActivity.kt` dropped to 998 lines after the Android sleep timer controller extraction; `AndroidSleepTimerEffects.kt` is 122 lines.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Moved Android Auto play/pause, command, media-id, pending request, notification-control, and Auto seek handling into `AndroidAutoAppController`.
+- `MainActivity.kt` dropped to 868 lines after the Android Auto app controller extraction; `AndroidAutoAppController.kt` is 198 lines.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 

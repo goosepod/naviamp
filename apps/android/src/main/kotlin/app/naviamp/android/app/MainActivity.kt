@@ -5,7 +5,6 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -24,7 +23,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import app.naviamp.android.playback.AndroidAutoPlaybackControls
 import app.naviamp.android.playback.AndroidBassLoadReport
 import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.android.playback.AndroidPlaybackForegroundService
@@ -37,7 +35,6 @@ import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
-import app.naviamp.domain.TrackId
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.domain.provider.ConnectionValidation
@@ -55,9 +52,7 @@ import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.playback.PlaybackAdjacentAction
-import app.naviamp.domain.playback.PlaybackPlayPauseCommand
 import app.naviamp.domain.playback.planPlaybackAdjacentAction
-import app.naviamp.domain.playback.playbackPlayPauseCommand
 import app.naviamp.domain.playback.planPlaybackSeek
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.RepeatMode
@@ -482,162 +477,37 @@ private fun NaviampAndroidApp(
         toggleAndroidCurrentFavorite(scope, appState, playbackEngine)
     }
 
-    fun handleAutoPlayPauseCommand(): Boolean {
-        return when (
-            playbackPlayPauseCommand(
-                playbackState = playbackState,
-                hasPlaybackTarget = nowPlaying != null || nowPlayingStation != null || activeSourceId != null,
-            )
-        ) {
-            PlaybackPlayPauseCommand.Pause -> {
-                playbackEngine.pause()
-                true
-            }
-            PlaybackPlayPauseCommand.Resume -> {
-                playbackEngine.resume()
-                true
-            }
-            PlaybackPlayPauseCommand.StartOrRestore -> {
-                if (nowPlaying == null && nowPlayingStation == null) {
-                    activeSourceId?.let { sourceId -> restorePlaybackSessionAction(sourceId) }
-                }
-                nowPlayingStation?.let { station ->
-                    playInternetRadioStation(station)
-                    return true
-                }
-                val currentTrack = nowPlaying ?: return false
+    val androidAutoController = remember(appState, storage) {
+        AndroidAutoAppController(
+            scope = scope,
+            state = appState,
+            storage = storage,
+            playbackEngine = playbackEngine,
+            restorePlaybackSession = { sourceId -> restorePlaybackSessionAction(sourceId) },
+            playTrack = { track, queue, openNowPlaying, startPositionSeconds ->
                 playTrack(
-                    track = currentTrack,
-                    queue = playbackQueue.tracks.takeIf { it.isNotEmpty() },
-                    openNowPlaying = false,
-                    startPositionSeconds = restoredStartPositionSeconds,
+                    track = track,
+                    queue = queue,
+                    openNowPlaying = openNowPlaying,
+                    startPositionSeconds = startPositionSeconds,
                 )
-                restoredStartPositionSeconds = null
-                true
-            }
-            PlaybackPlayPauseCommand.None -> false
-        }
-    }
-
-    fun handleAndroidAutoCommand(command: String): Boolean =
-        when (command) {
-            AndroidAutoPlaybackControls.CommandPlayPause -> handleAutoPlayPauseCommand()
-            AndroidAutoPlaybackControls.CommandPrevious -> {
-                playAdjacentTrack(-1)
-                nowPlaying != null
-            }
-            AndroidAutoPlaybackControls.CommandNext -> {
-                playAdjacentTrack(1)
-                nowPlaying != null
-            }
-            else -> false
-        }.also { handled ->
-            android.util.Log.i("NaviampAutoCommand", "Handled Auto command=$command handled=$handled state=$playbackState nowPlaying=${nowPlaying?.title}")
-        }
-
-    AndroidPlaybackNotificationControls.onPlayPause = {
-        handleAutoPlayPauseCommand()
-    }
-    AndroidPlaybackNotificationControls.onPrevious = { playAdjacentTrack(-1) }
-    AndroidPlaybackNotificationControls.onNext = { playAdjacentTrack(1) }
-    AndroidPlaybackNotificationControls.onToggleFavorite = { toggleCurrentFavorite() }
-    AndroidPlaybackNotificationControls.onStop = {
-        savePlaybackSessionThrottled(force = true)
-        playbackEngine.stop()
-    }
-    AndroidPlaybackNotificationControls.onSeekTo = seekHandler@{ positionMillis ->
-        val normalizedPositionMillis = normalizeAndroidAutoSeekPositionMillis(
-            rawPositionMillis = positionMillis,
-            durationSeconds = playbackProgress.durationSeconds ?: nowPlaying?.durationSeconds?.toDouble(),
+            },
+            playInternetRadioStation = ::playInternetRadioStation,
+            playAdjacentTrack = ::playAdjacentTrack,
+            performSeek = ::performSeek,
+            toggleCurrentFavorite = ::toggleCurrentFavorite,
+            savePlaybackSessionThrottled = { force -> savePlaybackSessionThrottled(force = force) },
         )
-        android.util.Log.i(
-            "NaviampAutoSeek",
-            "Auto seek raw=$positionMillis normalized=$normalizedPositionMillis duration=${playbackProgress.durationSeconds ?: nowPlaying?.durationSeconds?.toDouble()}",
-        )
-        if (
-            normalizedPositionMillis == 0L &&
-            (playbackProgress.positionSeconds ?: 0.0) > AndroidAutoIgnoreZeroSeekAfterSeconds
-        ) {
-            android.util.Log.i(
-                "NaviampAutoSeek",
-                "Ignoring zero seek while currentPosition=${playbackProgress.positionSeconds}",
-            )
-            return@seekHandler
-        }
-        performSeek(normalizedPositionMillis / 1_000.0)
     }
-
-    fun playAndroidAutoMediaId(mediaId: String): Boolean {
-        val sourceId = activeSourceId
-        val handled = when {
-            mediaId == AndroidAutoPlaybackControls.MediaIdNowPlaying -> handleAutoPlayPauseCommand()
-            mediaId == AndroidAutoPlaybackControls.MediaIdRadioLibrary -> {
-                startAndroidRadioTracks(
-                    scope = scope,
-                    state = appState,
-                    statusLabel = "Library Radio",
-                    playTrack = { track, queue -> playTrack(track, queue) },
-                ) { radioService ->
-                    radioService.libraryRadio()
-                }
-                true
-            }
-            mediaId.startsWith(AndroidAutoPlaybackControls.MediaIdTrackPrefix) && sourceId != null -> {
-                val trackId = Uri.decode(mediaId.removePrefix(AndroidAutoPlaybackControls.MediaIdTrackPrefix))
-                storage.libraryTrack(sourceId, TrackId(trackId))?.let { track ->
-                    val queue = track.albumId?.let { storage.libraryTracksForAlbum(sourceId, it, 200) }
-                        ?.takeIf { tracks -> tracks.any { it.id == track.id } }
-                        ?: track.artistId?.let { storage.libraryTracksForArtist(sourceId, it, 200) }
-                            ?.takeIf { tracks -> tracks.any { it.id == track.id } }
-                    playTrack(track, queue, openNowPlaying = false)
-                    true
-                } ?: run {
-                    status = "Track is not available in the local library index."
-                    false
-                }
-            }
-            mediaId.startsWith(AndroidAutoPlaybackControls.MediaIdDownloadPrefix) && sourceId != null -> {
-                val trackId = Uri.decode(mediaId.removePrefix(AndroidAutoPlaybackControls.MediaIdDownloadPrefix))
-                val download = storage.downloadedTracks(sourceId).firstOrNull { it.track.id.value == trackId }
-                if (download != null) {
-                    val queue = storage.downloadedTracks(sourceId).map { it.track }
-                    playTrack(download.track, queue, openNowPlaying = false)
-                    true
-                } else {
-                    status = "Downloaded track is not available."
-                    false
-                }
-            }
-            else -> {
-                status = "Open Naviamp on your phone before starting Android Auto playback."
-                false
-            }
-        }
-        android.util.Log.i("NaviampAutoCommand", "Handled Auto mediaId=$mediaId handled=$handled state=$playbackState nowPlaying=${nowPlaying?.title}")
-        return handled
-    }
-    AndroidAutoPlaybackControls.onPlayMediaId = { mediaId ->
-        if (!playAndroidAutoMediaId(mediaId)) {
-            pendingAutoPlayMediaId = mediaId
-        }
-    }
+    androidAutoController.installNotificationControls()
+    androidAutoController.installMediaIdHandler()
 
     LaunchedEffect(pendingAutoPlayMediaId, provider, activeSourceId) {
-        val mediaId = pendingAutoPlayMediaId ?: return@LaunchedEffect
-        if (provider == null || activeSourceId == null) return@LaunchedEffect
-        if (playAndroidAutoMediaId(mediaId)) {
-            pendingAutoPlayMediaId = null
-            onAutoPlayMediaIdConsumed()
-        }
+        androidAutoController.consumePendingMediaId(onAutoPlayMediaIdConsumed)
     }
 
     LaunchedEffect(pendingAutoCommand, provider, activeSourceId, nowPlaying?.id, playbackQueue) {
-        val command = pendingAutoCommand ?: return@LaunchedEffect
-        if (provider == null || activeSourceId == null) return@LaunchedEffect
-        if (handleAndroidAutoCommand(command)) {
-            pendingAutoCommand = null
-            onAutoCommandConsumed()
-        }
+        androidAutoController.consumePendingCommand(onAutoCommandConsumed)
     }
 
     LaunchedEffect(nowPlaying?.id, nowPlaying?.favoritedAtIso8601, provider?.capabilities?.supportsTrackFavorites) {
