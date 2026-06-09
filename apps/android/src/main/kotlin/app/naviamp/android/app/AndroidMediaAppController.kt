@@ -1,0 +1,61 @@
+package app.naviamp.android
+
+import app.naviamp.android.playback.AndroidPlaybackEngine
+import app.naviamp.domain.ArtistId
+import app.naviamp.domain.Track
+import app.naviamp.domain.provider.allKnownTracks
+import app.naviamp.domain.playback.PlaybackQueueController
+import app.naviamp.domain.popular.ArtistPopularTracksService
+import kotlinx.coroutines.CoroutineScope
+
+internal class AndroidMediaAppController(
+    private val scope: CoroutineScope,
+    private val state: AndroidAppState,
+    private val storage: AndroidStorageDependencies,
+    private val playbackEngine: AndroidPlaybackEngine,
+    private val queueController: PlaybackQueueController,
+    private val popularTracksService: ArtistPopularTracksService,
+) {
+    fun activeQueue(): List<Track> =
+        state.playbackQueue.tracks.ifEmpty { allKnownTracks(state.searchResults, state.albumDetail) }
+
+    fun findKnownTrack(trackId: String): Track? =
+        findAndroidKnownTrack(state, trackId, activeQueue())
+
+    fun appendTracksToQueue(tracksToAdd: List<Track>, label: String = "tracks") {
+        appendAndroidTracksToQueue(state, queueController, tracksToAdd, label)
+    }
+
+    fun loadRelatedTracks(track: Track) {
+        loadAndroidRelatedTracks(scope, state, track)
+    }
+
+    fun updateNotificationFavoriteState(track: Track? = state.nowPlaying) {
+        updateAndroidNotificationFavoriteState(state, track)
+    }
+
+    fun applyTrackMetadataUpdate(updatedTrack: Track) {
+        applyAndroidTrackMetadataUpdate(state, playbackEngine, updatedTrack)
+    }
+
+    fun toggleCurrentFavorite() {
+        toggleAndroidCurrentFavorite(scope, state, playbackEngine)
+    }
+
+    fun openArtistDetails(
+        artistId: ArtistId,
+        fallbackName: String? = null,
+        pushCurrentArtist: Boolean = true,
+    ) {
+        openAndroidArtistDetails(
+            scope = scope,
+            state = state,
+            libraryIndexRepository = storage,
+            providerResponseCacheRepository = storage,
+            popularTracksService = popularTracksService,
+            artistId = artistId,
+            fallbackName = fallbackName,
+            pushCurrentArtist = pushCurrentArtist,
+        )
+    }
+}

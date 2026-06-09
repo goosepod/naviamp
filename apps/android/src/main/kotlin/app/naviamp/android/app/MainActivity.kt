@@ -26,16 +26,13 @@ import androidx.compose.ui.platform.LocalContext
 import app.naviamp.android.playback.AndroidBassLoadReport
 import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.domain.AlbumDetails
-import app.naviamp.domain.ArtistId
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.StreamQuality
-import app.naviamp.domain.Track
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.PlaylistDetailRefreshIntervalMillis
-import app.naviamp.domain.provider.allKnownTracks
 import app.naviamp.domain.provider.playlistDetailAutoRefreshTarget
 import app.naviamp.domain.provider.runPlaylistDetailAutoRefresh
 import app.naviamp.domain.home.HomeDate
@@ -221,6 +218,16 @@ private fun NaviampAndroidApp(
             providerProvider = { provider },
         )
     }
+    val mediaAppController = remember(appState, storage, popularTracksService) {
+        AndroidMediaAppController(
+            scope = scope,
+            state = appState,
+            storage = storage,
+            playbackEngine = playbackEngine,
+            queueController = playbackQueueController,
+            popularTracksService = popularTracksService,
+        )
+    }
 
     AndroidAppRuntimeEffects(
         state = appState,
@@ -230,16 +237,6 @@ private fun NaviampAndroidApp(
         autoPlayMediaIdRequest = autoPlayMediaIdRequest,
         autoCommandRequest = autoCommandRequest,
     )
-
-    fun activeQueue(): List<Track> =
-        playbackQueue.tracks.ifEmpty { allKnownTracks(searchResults, albumDetail) }
-
-    fun findKnownTrack(trackId: String): Track? =
-        findAndroidKnownTrack(appState, trackId, activeQueue())
-
-    fun appendTracksToQueue(tracksToAdd: List<Track>, label: String = "tracks") {
-        appendAndroidTracksToQueue(appState, playbackQueueController, tracksToAdd, label)
-    }
 
     fun currentStreamQuality(): StreamQuality =
         playbackSettings.streamQualityForNetwork(context.isActiveNetworkMobileData())
@@ -269,10 +266,6 @@ private fun NaviampAndroidApp(
         searchController.load(query, debounce = true)
     }
 
-    fun loadRelatedTracks(track: Track) {
-        loadAndroidRelatedTracks(scope, appState, track)
-    }
-
     AndroidRadioArtworkLookupEffect(
         station = nowPlayingStation,
         streamMetadata = nowPlayingStreamMetadata,
@@ -291,7 +284,7 @@ private fun NaviampAndroidApp(
         dependencies.playlistEngine(
             state = appState,
             playbackQueueController = playbackQueueController,
-            activeQueue = ::activeQueue,
+            activeQueue = mediaAppController::activeQueue,
             currentStreamQuality = ::currentStreamQuality,
         )
     }
@@ -315,22 +308,10 @@ private fun NaviampAndroidApp(
             playlistEngine = androidPlaylistEngine,
             playbackReportController = playbackReportController,
             sidecarController = nowPlayingSidecarController,
-            activeQueue = ::activeQueue,
+            activeQueue = mediaAppController::activeQueue,
             currentStreamQuality = ::currentStreamQuality,
-            loadRelatedTracks = ::loadRelatedTracks,
+            loadRelatedTracks = mediaAppController::loadRelatedTracks,
         )
-    }
-
-    fun updateNotificationFavoriteState(track: Track? = nowPlaying) {
-        updateAndroidNotificationFavoriteState(appState, track)
-    }
-
-    fun applyTrackMetadataUpdate(updatedTrack: Track) {
-        applyAndroidTrackMetadataUpdate(appState, playbackEngine, updatedTrack)
-    }
-
-    fun toggleCurrentFavorite() {
-        toggleAndroidCurrentFavorite(scope, appState, playbackEngine)
     }
 
     val androidAutoController = remember(appState, storage) {
@@ -351,7 +332,7 @@ private fun NaviampAndroidApp(
             playInternetRadioStation = playbackAppController::playInternetRadioStation,
             playAdjacentTrack = playbackAppController::playAdjacentTrack,
             performSeek = playbackAppController::performSeek,
-            toggleCurrentFavorite = ::toggleCurrentFavorite,
+            toggleCurrentFavorite = mediaAppController::toggleCurrentFavorite,
             savePlaybackSessionThrottled = playbackAppController::savePlaybackSessionThrottled,
         )
     }
@@ -367,28 +348,11 @@ private fun NaviampAndroidApp(
     }
 
     LaunchedEffect(nowPlaying?.id, nowPlaying?.favoritedAtIso8601, provider?.capabilities?.supportsTrackFavorites) {
-        updateNotificationFavoriteState()
-    }
-
-    fun openArtistDetails(
-        artistId: app.naviamp.domain.ArtistId,
-        fallbackName: String? = null,
-        pushCurrentArtist: Boolean = true,
-    ) {
-        openAndroidArtistDetails(
-            scope = scope,
-            state = appState,
-            libraryIndexRepository = storage,
-            providerResponseCacheRepository = storage,
-            popularTracksService = popularTracksService,
-            artistId = artistId,
-            fallbackName = fallbackName,
-            pushCurrentArtist = pushCurrentArtist,
-        )
+        mediaAppController.updateNotificationFavoriteState()
     }
 
     val navigationController = remember(appState) {
-        AndroidNavigationController(appState, ::openArtistDetails)
+        AndroidNavigationController(appState, mediaAppController::openArtistDetails)
     }
 
     BackHandler(enabled = navigationController.handlesAndroidBack()) {
@@ -404,8 +368,10 @@ private fun NaviampAndroidApp(
             libraryIndexRepository = storage,
             providerResponseCacheRepository = storage,
             similarArtistsService = similarArtistsService,
-            activeQueue = ::activeQueue,
-            openArtistDetails = ::openArtistDetails,
+            activeQueue = mediaAppController::activeQueue,
+            openArtistDetails = { artistId, fallbackName ->
+                mediaAppController.openArtistDetails(artistId, fallbackName)
+            },
             playTrack = { track, queue -> playbackAppController.playTrack(track, queue) },
             playRadioTrack = { track, queue -> playbackAppController.playTrack(track, queue, keepRadioQueueActive = true) },
             startTrackRadio = playbackAppController::startTrackRadio,
@@ -493,7 +459,7 @@ private fun NaviampAndroidApp(
             state = appState,
             storage = storage,
             playTrack = { track, queue -> playbackAppController.playTrack(track, queue) },
-            appendTracksToQueue = ::appendTracksToQueue,
+            appendTracksToQueue = mediaAppController::appendTracksToQueue,
         )
     }
 
@@ -507,7 +473,7 @@ private fun NaviampAndroidApp(
             scope = scope,
             state = appState,
             storage = storage,
-            findKnownTrack = ::findKnownTrack,
+            findKnownTrack = mediaAppController::findKnownTrack,
         )
     }
 
@@ -534,7 +500,7 @@ private fun NaviampAndroidApp(
             savedConnection = savedConnection,
             playbackEngine = playbackEngine,
             preloadPlaylistTracks = playlistActionController::preloadPlaylistTracks,
-            loadRelatedTracks = ::loadRelatedTracks,
+            loadRelatedTracks = mediaAppController::loadRelatedTracks,
             startAndroidLibrarySync = { force -> startAndroidLibrarySync(scope, appState, storage, force) },
             checkAndroidLibraryFreshness = { checkAndroidLibraryFreshness(scope, appState, storage, storage) },
         )
@@ -567,8 +533,8 @@ private fun NaviampAndroidApp(
             state = appState,
             playbackEngine = playbackEngine,
             playbackQueueController = playbackQueueController,
-            activeQueue = ::activeQueue,
-            findKnownTrack = ::findKnownTrack,
+            activeQueue = mediaAppController::activeQueue,
+            findKnownTrack = mediaAppController::findKnownTrack,
             playTrack = playbackAppController::playTrack,
             playInternetRadioStation = playbackAppController::playInternetRadioStation,
             rememberRecentRadioStream = playbackAppController::rememberRecentRadioStream,
@@ -584,14 +550,16 @@ private fun NaviampAndroidApp(
             queueController = playbackQueueController,
             playbackEngine = playbackEngine,
             internetRadioStationManager = dependencies.internetRadioStationManager,
-            activeQueue = ::activeQueue,
-            findKnownTrack = ::findKnownTrack,
+            activeQueue = mediaAppController::activeQueue,
+            findKnownTrack = mediaAppController::findKnownTrack,
             playTrack = { track, queue -> playbackAppController.playTrack(track, queue) },
             playRadioTrack = { track, queue -> playbackAppController.playTrack(track, queue, keepRadioQueueActive = true) },
             playInternetRadioStation = playbackAppController::playInternetRadioStation,
             startTrackRadio = playbackAppController::startTrackRadio,
             startAlbumRadio = playbackAppController::startAlbumRadio,
-            openArtistDetails = ::openArtistDetails,
+            openArtistDetails = { artistId, fallbackName ->
+                mediaAppController.openArtistDetails(artistId, fallbackName)
+            },
             rememberRecentRadioStream = playbackAppController::rememberRecentRadioStream,
         )
     }
@@ -599,10 +567,10 @@ private fun NaviampAndroidApp(
     val trackActionController = remember(appState) {
         AndroidTrackActionController(
             state = appState,
-            activeQueue = ::activeQueue,
-            findKnownTrack = ::findKnownTrack,
+            activeQueue = mediaAppController::activeQueue,
+            findKnownTrack = mediaAppController::findKnownTrack,
             playTrack = { track, queue -> playbackAppController.playTrack(track, queue) },
-            appendTracksToQueue = ::appendTracksToQueue,
+            appendTracksToQueue = mediaAppController::appendTracksToQueue,
             downloadTrack = downloadActionController::downloadTrack,
             addTrackToPlaylist = playlistActionController::addTrackToPlaylist,
         )
@@ -654,7 +622,7 @@ private fun NaviampAndroidApp(
         handleShellAlbumPlay = shellMediaController::handleShellAlbumPlay,
         handleShellAlbumTrackSelected = shellMediaController::handleShellAlbumTrackSelected,
         handleShellAlbumRadio = shellMediaController::handleShellAlbumRadio,
-        appendTracksToQueue = ::appendTracksToQueue,
+        appendTracksToQueue = mediaAppController::appendTracksToQueue,
         downloadTracks = downloadActionController::downloadTracks,
         addTracksToPlaylist = playlistActionController::addTracksToPlaylist,
         handleAlbumTrackDownload = trackActionController::handleAlbumTrackDownload,
@@ -674,7 +642,9 @@ private fun NaviampAndroidApp(
         findSimilarArtists = artistActionController::findSimilarArtists,
         handleSimilarArtistSelected = artistActionController::handleSimilarArtistSelected,
         openExternalArtistUrl = artistActionController::openExternalArtistUrl,
-        openArtistDetails = ::openArtistDetails,
+        openArtistDetails = { artistId, fallbackName ->
+            mediaAppController.openArtistDetails(artistId, fallbackName)
+        },
         handleArtistFavoriteToggled = { item -> toggleAndroidArtistFavorite(scope, appState, item) },
         handleArtistAlbumRadio = artistActionController::handleArtistAlbumRadio,
         loadArtistAlbumTracks = artistActionController::loadArtistAlbumTracks,
@@ -713,9 +683,9 @@ private fun NaviampAndroidApp(
         handleShellGoToAlbum = shellMediaController::handleShellGoToAlbum,
         handleShellGoToArtist = shellMediaController::handleShellGoToArtist,
         handleShellQueueItemRadio = shellPlaybackController::startQueueItemRadio,
-        findKnownTrack = ::findKnownTrack,
+        findKnownTrack = mediaAppController::findKnownTrack,
         addTrackToPlaylist = playlistActionController::addTrackToPlaylist,
-        toggleCurrentFavorite = ::toggleCurrentFavorite,
+        toggleCurrentFavorite = mediaAppController::toggleCurrentFavorite,
         handleShellRatingSelected = shellMediaController::handleShellRatingSelected,
     )
 

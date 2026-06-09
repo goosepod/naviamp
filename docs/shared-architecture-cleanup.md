@@ -1310,6 +1310,9 @@ Progress notes:
 - Moved Android playback progress, session saving, play-track, internet-radio playback, seek, adjacent-track, recent-radio stream, and seeded track/album radio wrappers into `AndroidPlaybackAppController`.
 - `MainActivity.kt` dropped to 724 lines after the Android playback app controller extraction; `AndroidPlaybackAppController.kt` is 188 lines.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Moved Android active-queue lookup, known-track lookup, queue append, related-track loading, artist-detail opening, notification favorite state, metadata update application, and current-favorite toggling into `AndroidMediaAppController`.
+- `MainActivity.kt` dropped to 694 lines after the Android media app controller extraction; `AndroidMediaAppController.kt` is 61 lines.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 
