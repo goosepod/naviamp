@@ -1307,6 +1307,9 @@ Progress notes:
 - Moved Android Auto play/pause, command, media-id, pending request, notification-control, and Auto seek handling into `AndroidAutoAppController`.
 - `MainActivity.kt` dropped to 868 lines after the Android Auto app controller extraction; `AndroidAutoAppController.kt` is 198 lines.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Moved Android playback progress, session saving, play-track, internet-radio playback, seek, adjacent-track, recent-radio stream, and seeded track/album radio wrappers into `AndroidPlaybackAppController`.
+- `MainActivity.kt` dropped to 724 lines after the Android playback app controller extraction; `AndroidPlaybackAppController.kt` is 188 lines.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 

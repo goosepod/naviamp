@@ -25,12 +25,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import app.naviamp.android.playback.AndroidBassLoadReport
 import app.naviamp.android.playback.AndroidPlaybackEngine
-import app.naviamp.android.playback.AndroidPlaybackForegroundService
-import app.naviamp.android.playback.AndroidPlaybackNotificationControls
-import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.ArtistId
-import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.StreamQuality
@@ -44,20 +40,14 @@ import app.naviamp.domain.provider.playlistDetailAutoRefreshTarget
 import app.naviamp.domain.provider.runPlaylistDetailAutoRefresh
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.home.HomeService
-import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.label
-import app.naviamp.domain.playback.PlaybackAdjacentAction
-import app.naviamp.domain.playback.planPlaybackAdjacentAction
-import app.naviamp.domain.playback.planPlaybackSeek
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.RepeatMode
-import app.naviamp.domain.radio.recentRadioStreamsWith
-import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.domain.settings.downloadStreamQuality
 import app.naviamp.domain.settings.effectiveForEngine
 import app.naviamp.domain.settings.streamQualityForNetwork
@@ -310,158 +300,24 @@ private fun NaviampAndroidApp(
         nowPlaying?.takeUnless { it.isInternetRadioTrack() }?.let(nowPlayingSidecarController::loadAudioTags)
     }
 
-    fun handlePlaybackProgressChanged(sessionToken: Long, progress: PlaybackProgress) {
-        handleAndroidPlaybackProgressChanged(
-            context = context,
-            state = appState,
-            sessionToken = sessionToken,
-            progress = progress,
-            maybeReportPlayed = playbackReportController::maybeReportPlayed,
-            prepareNextIfNeeded = androidPlaylistEngine::prepareNextIfNeeded,
-        )
-    }
-
-    var playAdjacentTrackAction: (Int) -> Unit = {}
     var restorePlaybackSessionAction: (String) -> Boolean = { false }
 
-    fun savePlaybackSession() {
-        saveAndroidPlaybackSession(appState, storage)
-    }
-
-    fun savePlaybackSessionThrottled(force: Boolean = false) {
-        saveAndroidPlaybackSessionThrottled(appState, storage, force)
-    }
-
-    fun playTrack(
-        track: Track,
-        queue: List<Track>? = null,
-        openNowPlaying: Boolean = true,
-        startPositionSeconds: Double? = null,
-        keepRadioQueueActive: Boolean = false,
-    ) {
-        playAndroidTrack(
+    val playbackAppController = remember(appState, storage, settingsStore, context) {
+        AndroidPlaybackAppController(
+            context = context,
             scope = scope,
             state = appState,
+            storage = storage,
+            settingsStore = settingsStore,
             audioAssets = playbackAudioAssets,
             playbackEngine = playbackEngine,
-            playbackQueueController = playbackQueueController,
-            track = track,
-            queue = queue,
-            openNowPlaying = openNowPlaying,
-            startPositionSeconds = startPositionSeconds,
-            keepRadioQueueActive = keepRadioQueueActive,
+            queueController = playbackQueueController,
+            playlistEngine = androidPlaylistEngine,
+            playbackReportController = playbackReportController,
+            sidecarController = nowPlayingSidecarController,
             activeQueue = ::activeQueue,
             currentStreamQuality = ::currentStreamQuality,
-            savePlaybackSessionThrottled = ::savePlaybackSessionThrottled,
-            reportNowPlaying = playbackReportController::reportNowPlaying,
             loadRelatedTracks = ::loadRelatedTracks,
-            loadLyrics = nowPlayingSidecarController::loadLyrics,
-            loadAudioTags = nowPlayingSidecarController::loadAudioTags,
-            startAudioPrefetch = androidPlaylistEngine::startAudioPrefetch,
-            startSidecarPrep = androidPlaylistEngine::startSidecarPrep,
-            handlePlaybackProgressChanged = ::handlePlaybackProgressChanged,
-            playAdjacentTrack = playAdjacentTrackAction,
-        )
-    }
-
-    fun playInternetRadioStation(station: InternetRadioStation) {
-        playAndroidInternetRadioStation(
-            scope = scope,
-            state = appState,
-            settingsStore = settingsStore,
-            playbackEngine = playbackEngine,
-            playbackQueueController = playbackQueueController,
-            station = station,
-            savePlaybackSessionThrottled = ::savePlaybackSessionThrottled,
-            handlePlaybackProgressChanged = ::handlePlaybackProgressChanged,
-        )
-    }
-
-    fun performSeek(positionSeconds: Double) {
-        val currentTrack = nowPlaying
-        val seekPlan = planPlaybackSeek(
-            isInternetRadioTrack = currentTrack?.isInternetRadioTrack() == true,
-            positionSeconds = positionSeconds,
-            currentProgress = playbackProgress,
-            trackDurationSeconds = currentTrack?.durationSeconds,
-            streamQuality = currentStreamQuality(),
-            shouldReplayTranscodedStream = true,
-        ) ?: return
-        if (seekPlan.shouldClearRestoredStartPosition) {
-            restoredStartPositionSeconds = null
-            pendingRestoreStartPositionSeconds = null
-        }
-        playbackProgress = seekPlan.progress
-        val positionMillis = playbackProgress.positionSeconds?.secondsToMillis()
-        val durationMillis = playbackProgress.durationSeconds?.secondsToMillis()
-        AndroidPlaybackNotificationControls.positionMillis = positionMillis
-        AndroidPlaybackNotificationControls.durationMillis = durationMillis
-        AndroidPlaybackForegroundService.updateProgress(context, positionMillis, durationMillis)
-        pendingSeekPositionSeconds = seekPlan.pendingSeekPositionSeconds
-        pendingSeekIssuedAtMillis = System.currentTimeMillis()
-        if (currentTrack != null && seekPlan.shouldReplayCurrent) {
-            playTrack(
-                track = currentTrack,
-                queue = playbackQueue.tracks.takeIf { it.isNotEmpty() },
-                openNowPlaying = false,
-                startPositionSeconds = seekPlan.pendingSeekPositionSeconds,
-            )
-            return
-        }
-        playbackEngine.seek(seekPlan.pendingSeekPositionSeconds)
-    }
-
-    fun playAdjacentTrack(offset: Int) {
-        when (
-            val action = planPlaybackAdjacentAction(
-                currentTrack = nowPlaying,
-                activeQueue = activeQueue(),
-                offset = offset,
-                repeatMode = repeatMode,
-                previousButtonBehavior = playbackSettings.previousButtonBehavior,
-                positionSeconds = playbackProgress.positionSeconds,
-                restartThresholdSeconds = 3.0,
-            )
-        ) {
-            PlaybackAdjacentAction.None -> Unit
-            PlaybackAdjacentAction.RestartCurrent -> performSeek(0.0)
-            is PlaybackAdjacentAction.PlayTrack -> playTrack(
-                action.track,
-                action.queue,
-                openNowPlaying = false,
-            )
-        }
-    }
-    playAdjacentTrackAction = ::playAdjacentTrack
-
-    fun rememberRecentRadioStream(stream: RecentRadioStream) {
-        val recentStreams = recentRadioStreamsWith(settingsStore.loadRecentRadioStreams(), stream)
-        settingsStore.saveRecentRadioStreams(recentStreams)
-        homeState = homeState.copy(recentRadioStreams = recentStreams)
-    }
-
-    fun startTrackRadio(track: Track) {
-        startAndroidTrackRadio(
-            scope = scope,
-            state = appState,
-            queueController = playbackQueueController,
-            track = track,
-            playTrack = { seedTrack, queue -> playTrack(seedTrack, queue, keepRadioQueueActive = true) },
-            providerResponseCacheRepository = storage,
-            rememberRecentRadioStream = ::rememberRecentRadioStream,
-        )
-    }
-
-    fun startAlbumRadio(album: Album, loadedAlbumTracks: List<Track> = emptyList()) {
-        startAndroidAlbumRadio(
-            scope = scope,
-            state = appState,
-            queueController = playbackQueueController,
-            album = album,
-            loadedAlbumTracks = loadedAlbumTracks,
-            playTrack = { seedTrack, queue -> playTrack(seedTrack, queue, keepRadioQueueActive = true) },
-            providerResponseCacheRepository = storage,
-            rememberRecentRadioStream = ::rememberRecentRadioStream,
         )
     }
 
@@ -485,18 +341,18 @@ private fun NaviampAndroidApp(
             playbackEngine = playbackEngine,
             restorePlaybackSession = { sourceId -> restorePlaybackSessionAction(sourceId) },
             playTrack = { track, queue, openNowPlaying, startPositionSeconds ->
-                playTrack(
+                playbackAppController.playTrack(
                     track = track,
                     queue = queue,
                     openNowPlaying = openNowPlaying,
                     startPositionSeconds = startPositionSeconds,
                 )
             },
-            playInternetRadioStation = ::playInternetRadioStation,
-            playAdjacentTrack = ::playAdjacentTrack,
-            performSeek = ::performSeek,
+            playInternetRadioStation = playbackAppController::playInternetRadioStation,
+            playAdjacentTrack = playbackAppController::playAdjacentTrack,
+            performSeek = playbackAppController::performSeek,
             toggleCurrentFavorite = ::toggleCurrentFavorite,
-            savePlaybackSessionThrottled = { force -> savePlaybackSessionThrottled(force = force) },
+            savePlaybackSessionThrottled = playbackAppController::savePlaybackSessionThrottled,
         )
     }
     androidAutoController.installNotificationControls()
@@ -550,11 +406,11 @@ private fun NaviampAndroidApp(
             similarArtistsService = similarArtistsService,
             activeQueue = ::activeQueue,
             openArtistDetails = ::openArtistDetails,
-            playTrack = { track, queue -> playTrack(track, queue) },
-            playRadioTrack = { track, queue -> playTrack(track, queue, keepRadioQueueActive = true) },
-            startTrackRadio = ::startTrackRadio,
-            startAlbumRadio = ::startAlbumRadio,
-            rememberRecentRadioStream = ::rememberRecentRadioStream,
+            playTrack = { track, queue -> playbackAppController.playTrack(track, queue) },
+            playRadioTrack = { track, queue -> playbackAppController.playTrack(track, queue, keepRadioQueueActive = true) },
+            startTrackRadio = playbackAppController::startTrackRadio,
+            startAlbumRadio = playbackAppController::startAlbumRadio,
+            rememberRecentRadioStream = playbackAppController::rememberRecentRadioStream,
         )
     }
 
@@ -588,8 +444,8 @@ private fun NaviampAndroidApp(
         artistMixBuilderService = { artistMixBuilderService },
         albumMixBuilderService = { albumMixBuilderService },
         genreMixBuilderService = { genreMixBuilderService },
-        playTrack = { track, queue -> playTrack(track, queue, keepRadioQueueActive = true) },
-        rememberRecentRadioStream = ::rememberRecentRadioStream,
+        playTrack = { track, queue -> playbackAppController.playTrack(track, queue, keepRadioQueueActive = true) },
+        rememberRecentRadioStream = playbackAppController::rememberRecentRadioStream,
     )
 
     LaunchedEffect(provider, homeState.artists) {
@@ -636,7 +492,7 @@ private fun NaviampAndroidApp(
             scope = scope,
             state = appState,
             storage = storage,
-            playTrack = { track, queue -> playTrack(track, queue) },
+            playTrack = { track, queue -> playbackAppController.playTrack(track, queue) },
             appendTracksToQueue = ::appendTracksToQueue,
         )
     }
@@ -693,7 +549,7 @@ private fun NaviampAndroidApp(
         state = appState,
         downloadRepository = storage,
         cacheMaintenanceRepository = storage,
-        savePlaybackSessionThrottled = ::savePlaybackSessionThrottled,
+        savePlaybackSessionThrottled = playbackAppController::savePlaybackSessionThrottled,
         checkAndroidLibraryFreshness = { checkAndroidLibraryFreshness(scope, appState, storage, storage) },
     )
 
@@ -713,9 +569,9 @@ private fun NaviampAndroidApp(
             playbackQueueController = playbackQueueController,
             activeQueue = ::activeQueue,
             findKnownTrack = ::findKnownTrack,
-            playTrack = ::playTrack,
-            playInternetRadioStation = ::playInternetRadioStation,
-            rememberRecentRadioStream = ::rememberRecentRadioStream,
+            playTrack = playbackAppController::playTrack,
+            playInternetRadioStation = playbackAppController::playInternetRadioStation,
+            rememberRecentRadioStream = playbackAppController::rememberRecentRadioStream,
         )
     }
 
@@ -730,13 +586,13 @@ private fun NaviampAndroidApp(
             internetRadioStationManager = dependencies.internetRadioStationManager,
             activeQueue = ::activeQueue,
             findKnownTrack = ::findKnownTrack,
-            playTrack = { track, queue -> playTrack(track, queue) },
-            playRadioTrack = { track, queue -> playTrack(track, queue, keepRadioQueueActive = true) },
-            playInternetRadioStation = ::playInternetRadioStation,
-            startTrackRadio = ::startTrackRadio,
-            startAlbumRadio = ::startAlbumRadio,
+            playTrack = { track, queue -> playbackAppController.playTrack(track, queue) },
+            playRadioTrack = { track, queue -> playbackAppController.playTrack(track, queue, keepRadioQueueActive = true) },
+            playInternetRadioStation = playbackAppController::playInternetRadioStation,
+            startTrackRadio = playbackAppController::startTrackRadio,
+            startAlbumRadio = playbackAppController::startAlbumRadio,
             openArtistDetails = ::openArtistDetails,
-            rememberRecentRadioStream = ::rememberRecentRadioStream,
+            rememberRecentRadioStream = playbackAppController::rememberRecentRadioStream,
         )
     }
 
@@ -745,7 +601,7 @@ private fun NaviampAndroidApp(
             state = appState,
             activeQueue = ::activeQueue,
             findKnownTrack = ::findKnownTrack,
-            playTrack = { track, queue -> playTrack(track, queue) },
+            playTrack = { track, queue -> playbackAppController.playTrack(track, queue) },
             appendTracksToQueue = ::appendTracksToQueue,
             downloadTrack = downloadActionController::downloadTrack,
             addTrackToPlaylist = playlistActionController::addTrackToPlaylist,
@@ -842,8 +698,8 @@ private fun NaviampAndroidApp(
         handleShellHomeStationSelected = shellMediaController::handleShellHomeStationSelected,
         closeActiveDetail = navigationController::closeActiveDetail,
         handleShellResume = shellPlaybackController::resume,
-        playAdjacentTrack = ::playAdjacentTrack,
-        performSeek = ::performSeek,
+        playAdjacentTrack = playbackAppController::playAdjacentTrack,
+        performSeek = playbackAppController::performSeek,
         handleShellToggleShuffle = shellPlaybackController::toggleShuffle,
         loadLyrics = nowPlayingSidecarController::loadLyrics,
         handleLyricsOffsetChanged = nowPlayingSidecarController::handleLyricsOffsetChanged,
