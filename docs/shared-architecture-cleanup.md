@@ -1313,6 +1313,9 @@ Progress notes:
 - Moved Android active-queue lookup, known-track lookup, queue append, related-track loading, artist-detail opening, notification favorite state, metadata update application, and current-favorite toggling into `AndroidMediaAppController`.
 - `MainActivity.kt` dropped to 694 lines after the Android media app controller extraction; `AndroidMediaAppController.kt` is 61 lines.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Moved Android shell-action callback assembly into `AndroidMainShellActions.kt`, leaving `MainActivity.kt` to compose controllers and pass them into one shell wiring helper.
+- `MainActivity.kt` dropped to 611 lines after the Android shell-action wiring extraction; `AndroidMainShellActions.kt` is 132 lines.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 
