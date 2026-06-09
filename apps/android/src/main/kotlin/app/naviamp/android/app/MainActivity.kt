@@ -86,7 +86,6 @@ import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.NaviampDiagnosticsSectionUi
 import app.naviamp.ui.NaviampDiagnosticsUi
-import app.naviamp.ui.NaviampDownloadedTrackUi
 import app.naviamp.ui.NaviampLibrarySyncStatusUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampSharedAppShell
@@ -986,42 +985,12 @@ private fun NaviampAndroidApp(
         )
     }
 
-    fun downloadTrack(track: Track) {
-        downloadAndroidTrack(
+    val downloadActionController = remember(appState, storage, context) {
+        AndroidDownloadActionController(
             context = context,
             scope = scope,
             state = appState,
-            downloadRepository = storage,
-            downloadReplacementRepository = storage,
-            cacheMaintenanceRepository = storage,
-            track = track,
-        )
-    }
-
-    fun downloadTracks(tracksToDownload: List<Track>, label: String = "tracks") {
-        downloadAndroidTracks(
-            context = context,
-            scope = scope,
-            state = appState,
-            downloadRepository = storage,
-            downloadReplacementRepository = storage,
-            cacheMaintenanceRepository = storage,
-            tracksToDownload = tracksToDownload,
-            label = label,
-        )
-    }
-
-    fun downloadPlaylist(playlist: Playlist) {
-        downloadAndroidPlaylist(scope, appState, playlist, storage, ::downloadTracks)
-    }
-
-    fun removeDownload(download: NaviampDownloadedTrackUi) {
-        removeAndroidDownload(
-            scope = scope,
-            state = appState,
-            downloadRepository = storage,
-            cacheMaintenanceRepository = storage,
-            download = download,
+            storage = storage,
             findKnownTrack = ::findKnownTrack,
         )
     }
@@ -1173,7 +1142,7 @@ private fun NaviampAndroidApp(
             findKnownTrack = ::findKnownTrack,
             playTrack = { track, queue -> playTrack(track, queue) },
             appendTracksToQueue = ::appendTracksToQueue,
-            downloadTrack = ::downloadTrack,
+            downloadTrack = downloadActionController::downloadTrack,
             addTrackToPlaylist = { track, playlist, newPlaylistName ->
                 addTrackToPlaylist(track, playlist, newPlaylistName)
             },
@@ -1269,7 +1238,7 @@ private fun NaviampAndroidApp(
         handleDownloadedTrackSelected = trackActionController::handleDownloadedTrackSelected,
         handleDownloadedTrackAddToPlaylist = trackActionController::handleDownloadedTrackAddToPlaylist,
         handleDownloadedTrackCreatePlaylistAndAdd = trackActionController::handleDownloadedTrackCreatePlaylistAndAdd,
-        removeDownload = ::removeDownload,
+        removeDownload = downloadActionController::removeDownload,
         handleShellAlbumSelected = ::handleShellAlbumSelected,
         handleAlbumFavoriteToggled = { item -> toggleAndroidAlbumFavorite(scope, appState, item) },
         handleMixAlbumSelected = ::handleMixAlbumSelected,
@@ -1277,7 +1246,7 @@ private fun NaviampAndroidApp(
         handleShellAlbumTrackSelected = ::handleShellAlbumTrackSelected,
         handleShellAlbumRadio = ::handleShellAlbumRadio,
         appendTracksToQueue = ::appendTracksToQueue,
-        downloadTracks = ::downloadTracks,
+        downloadTracks = downloadActionController::downloadTracks,
         addTracksToPlaylist = ::addTracksToPlaylist,
         handleAlbumTrackDownload = trackActionController::handleAlbumTrackDownload,
         handleAlbumTrackAddToPlaylist = trackActionController::handleAlbumTrackAddToPlaylist,
@@ -1302,7 +1271,7 @@ private fun NaviampAndroidApp(
         loadArtistAlbumTracks = artistActionController::loadArtistAlbumTracks,
         openPlaylistDetails = ::openPlaylistDetails,
         playPlaylist = ::playPlaylist,
-        downloadPlaylist = ::downloadPlaylist,
+        downloadPlaylist = downloadActionController::downloadPlaylist,
         addPlaylistToQueue = ::addPlaylistToQueue,
         addPlaylistToPlaylist = ::addPlaylistToPlaylist,
         renamePlaylist = ::renamePlaylist,
@@ -1331,7 +1300,7 @@ private fun NaviampAndroidApp(
         handleSaveQueueAsPlaylist = ::saveQueueAsPlaylist,
         handleSleepTimerSelected = ::handleSleepTimerSelected,
         handleCancelSleepTimer = ::cancelSleepTimer,
-        downloadTrack = ::downloadTrack,
+        downloadTrack = downloadActionController::downloadTrack,
         handleShellGoToAlbum = ::handleShellGoToAlbum,
         handleShellGoToArtist = ::handleShellGoToArtist,
         handleShellQueueItemRadio = shellPlaybackController::startQueueItemRadio,

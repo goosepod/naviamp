@@ -12,6 +12,7 @@ import app.naviamp.domain.cache.DownloadTracksResult
 import app.naviamp.domain.cache.downloadRemoveErrorStatus
 import app.naviamp.domain.cache.downloadedTrackRemovedStatus
 import app.naviamp.domain.cache.shouldRefreshDownloadsAfter
+import app.naviamp.domain.Playlist
 import app.naviamp.domain.settings.downloadStreamQuality
 import app.naviamp.ui.NaviampDownloadedTrackUi
 import kotlinx.coroutines.CoroutineScope
@@ -166,5 +167,53 @@ fun removeAndroidDownload(
                 status = downloadStatus.orEmpty()
             }
         }
+    }
+}
+
+internal class AndroidDownloadActionController(
+    private val context: Context,
+    private val scope: CoroutineScope,
+    private val state: AndroidAppState,
+    private val storage: AndroidStorageDependencies,
+    private val findKnownTrack: (String) -> Track?,
+) {
+    fun downloadTrack(track: Track) {
+        downloadAndroidTrack(
+            context = context,
+            scope = scope,
+            state = state,
+            downloadRepository = storage,
+            downloadReplacementRepository = storage,
+            cacheMaintenanceRepository = storage,
+            track = track,
+        )
+    }
+
+    fun downloadTracks(tracksToDownload: List<Track>, label: String = "tracks") {
+        downloadAndroidTracks(
+            context = context,
+            scope = scope,
+            state = state,
+            downloadRepository = storage,
+            downloadReplacementRepository = storage,
+            cacheMaintenanceRepository = storage,
+            tracksToDownload = tracksToDownload,
+            label = label,
+        )
+    }
+
+    fun downloadPlaylist(playlist: Playlist) {
+        downloadAndroidPlaylist(scope, state, playlist, storage, ::downloadTracks)
+    }
+
+    fun removeDownload(download: NaviampDownloadedTrackUi) {
+        removeAndroidDownload(
+            scope = scope,
+            state = state,
+            downloadRepository = storage,
+            cacheMaintenanceRepository = storage,
+            download = download,
+            findKnownTrack = findKnownTrack,
+        )
     }
 }

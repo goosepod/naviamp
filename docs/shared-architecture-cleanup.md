@@ -1283,6 +1283,9 @@ Progress notes:
 - Moved Android artist detail/popular/similar/album action wrappers into `AndroidArtistActionController`.
 - `MainActivity.kt` dropped to 1,348 lines after the Android artist action controller extraction; `AndroidArtistController.kt` is 435 lines.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Moved Android track/download/playlist download and remove-download callback wrappers into `AndroidDownloadActionController`.
+- `MainActivity.kt` dropped to 1,315 lines after the Android download action controller extraction; `AndroidDownloadController.kt` is 219 lines.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 
