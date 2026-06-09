@@ -47,10 +47,6 @@ import app.naviamp.domain.provider.playlistDetailAutoRefreshTarget
 import app.naviamp.domain.provider.runPlaylistDetailAutoRefresh
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.home.HomeService
-import app.naviamp.domain.home.HomeStationLibrary
-import app.naviamp.domain.home.HomeStationRandomAlbum
-import app.naviamp.domain.home.homeDecadeStationId
-import app.naviamp.domain.home.homeGenreStationId
 import app.naviamp.domain.artistmix.artistMixPopularQueue
 import app.naviamp.domain.albummix.albumMixTrackQueue
 import app.naviamp.domain.playback.PlaybackProgress
@@ -68,8 +64,6 @@ import app.naviamp.domain.playback.planPlaybackSeek
 import app.naviamp.domain.playback.SleepTimerRequest
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.RepeatMode
-import app.naviamp.domain.radio.RecentRadioAction
-import app.naviamp.domain.radio.recentRadioAction
 import app.naviamp.domain.radio.recentRadioStreamsWith
 import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.domain.settings.downloadStreamQuality
@@ -88,7 +82,6 @@ import app.naviamp.ui.NowPlayingRadioUiConfig
 import app.naviamp.ui.NowPlayingTrackUiConfig
 import app.naviamp.ui.NowPlayingUi
 import app.naviamp.ui.SharedAlbumDetailUi
-import app.naviamp.ui.SharedHomeStationUi
 import app.naviamp.ui.SharedHomeUi
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedPlaylistDetailUi
@@ -928,87 +921,6 @@ private fun NaviampAndroidApp(
         playbackEngine = playbackEngine,
     )
 
-    fun handleShellTrackSelected(selectedTrack: SharedTrackRowUi) {
-        val playback = selectedAndroidTrackPlayback(appState, selectedTrack.id, activeQueue())
-        if (playback == null) {
-            status = "Track not found."
-            return
-        }
-        val (track, currentTracks) = playback
-        playTrack(track, currentTracks)
-    }
-
-    fun handleShellAlbumSelected(selectedAlbum: SharedMediaItemUi) {
-        openAndroidAlbumDetails(
-            scope = scope,
-            state = appState,
-            libraryIndexRepository = storage,
-            providerResponseCacheRepository = storage,
-            selectedAlbum = selectedAlbum,
-        )
-    }
-
-    fun handleShellHomeStationSelected(station: SharedHomeStationUi) {
-        startAndroidHomeStationRadio(
-            scope = scope,
-            state = appState,
-            stationId = station.id,
-            stationTitle = station.title,
-            playTrack = { track, queue -> playTrack(track, queue) },
-            providerResponseCacheRepository = storage,
-            rememberRecentRadioStream = ::rememberRecentRadioStream,
-        )
-    }
-
-    fun handleShellRecentRadioSelected(item: SharedMediaItemUi) {
-        val stream = homeState.recentRadioStreams.firstOrNull { it.id == item.id }
-            ?: settingsStore.loadRecentRadioStreams().firstOrNull { it.id == item.id }
-            ?: return
-        when (val action = recentRadioAction(stream) ?: return) {
-            RecentRadioAction.PlayLibrary -> handleShellHomeStationSelected(
-                SharedHomeStationUi(
-                    id = HomeStationLibrary,
-                    title = "Library Radio",
-                    subtitle = "Random tracks from your full library",
-                ),
-            )
-            RecentRadioAction.PlayRandomAlbum -> handleShellHomeStationSelected(
-                SharedHomeStationUi(
-                    id = HomeStationRandomAlbum,
-                    title = "Random Album Radio",
-                    subtitle = "Start from a random album",
-                ),
-            )
-            is RecentRadioAction.PlayGenre -> handleShellHomeStationSelected(
-                SharedHomeStationUi(
-                    id = homeGenreStationId(action.genre.name),
-                    title = "${action.genre.name} Radio",
-                    subtitle = "A random ${action.genre.name} station",
-                ),
-            )
-            is RecentRadioAction.PlayDecade -> handleShellHomeStationSelected(
-                SharedHomeStationUi(
-                    id = homeDecadeStationId(action.fromYear, action.toYear),
-                    title = "${action.fromYear}s Radio",
-                    subtitle = "Random songs from ${action.fromYear}s",
-                ),
-            )
-            is RecentRadioAction.PlayArtist -> startAndroidArtistRadio(
-                scope = scope,
-                state = appState,
-                queueController = playbackQueueController,
-                artistId = action.artist.id,
-                artistTitle = action.artist.name,
-                artist = action.artist,
-                playTrack = { seedTrack, queue -> playTrack(seedTrack, queue, keepRadioQueueActive = true) },
-                providerResponseCacheRepository = storage,
-                rememberRecentRadioStream = ::rememberRecentRadioStream,
-            )
-            is RecentRadioAction.PlayAlbum -> startAlbumRadio(action.album)
-            is RecentRadioAction.PlayTrack -> startTrackRadio(action.track)
-        }
-    }
-
     val shellPlaybackController = remember(appState) {
         AndroidShellPlaybackController(
             scope = scope,
@@ -1023,12 +935,25 @@ private fun NaviampAndroidApp(
         )
     }
 
-    fun handleShellGoToAlbum() {
-        openAndroidNowPlayingAlbumDetails(scope, appState, storage, storage)
-    }
-
-    fun handleShellRatingSelected(rating: Int?) {
-        setAndroidCurrentTrackRating(scope, appState, playbackEngine, rating)
+    val shellMediaController = remember(appState, storage, settingsStore) {
+        AndroidShellMediaController(
+            scope = scope,
+            state = appState,
+            storage = storage,
+            settingsStore = settingsStore,
+            queueController = playbackQueueController,
+            playbackEngine = playbackEngine,
+            internetRadioStationManager = dependencies.internetRadioStationManager,
+            activeQueue = ::activeQueue,
+            findKnownTrack = ::findKnownTrack,
+            playTrack = { track, queue -> playTrack(track, queue) },
+            playRadioTrack = { track, queue -> playTrack(track, queue, keepRadioQueueActive = true) },
+            playInternetRadioStation = ::playInternetRadioStation,
+            startTrackRadio = ::startTrackRadio,
+            startAlbumRadio = ::startAlbumRadio,
+            openArtistDetails = ::openArtistDetails,
+            rememberRecentRadioStream = ::rememberRecentRadioStream,
+        )
     }
 
     val trackActionController = remember(appState) {
@@ -1041,52 +966,6 @@ private fun NaviampAndroidApp(
             downloadTrack = downloadActionController::downloadTrack,
             addTrackToPlaylist = playlistActionController::addTrackToPlaylist,
         )
-    }
-
-    fun handleMixAlbumSelected(selectedAlbum: SharedMediaItemUi) {
-        homeState.mixAlbums.firstOrNull { it.id.value == selectedAlbum.id }
-            ?.let { startAlbumRadio(it) }
-            ?: run { status = "Album not found." }
-    }
-
-    fun handleShellAlbumPlay(shuffle: Boolean) {
-        val albumTracks = albumDetail?.tracks.orEmpty()
-        val queue = if (shuffle) albumTracks.shuffled() else albumTracks
-        queue.firstOrNull()?.let { playTrack(it, queue) }
-            ?: run { status = "Album is empty." }
-    }
-
-    fun handleShellAlbumTrackSelected(selectedTrack: SharedTrackRowUi) {
-        val track = albumDetail?.tracks?.firstOrNull { it.id.value == selectedTrack.id }
-            ?: findKnownTrack(selectedTrack.id)
-        if (track == null) {
-            status = "Track not found."
-        } else {
-            startTrackRadio(track)
-        }
-    }
-
-    fun handleShellAlbumRadio() {
-        val loadedAlbumTracks = albumDetail?.tracks.orEmpty()
-        val album = albumDetail?.album ?: return
-        startAlbumRadio(album, loadedAlbumTracks)
-    }
-
-    fun handleRadioStationSelected(station: InternetRadioStation) {
-        playInternetRadioStation(station)
-    }
-
-    fun saveInternetRadioStation(station: InternetRadioStation) {
-        saveAndroidInternetRadioStation(scope, appState, dependencies.internetRadioStationManager, station)
-    }
-
-    fun deleteInternetRadioStation(station: InternetRadioStation) {
-        deleteAndroidInternetRadioStation(scope, appState, dependencies.internetRadioStationManager, station)
-    }
-
-    fun handleShellGoToArtist() {
-        val currentTrack = nowPlaying ?: return
-        currentTrack.artistId?.let { openArtistDetails(it, currentTrack.artistName) }
     }
 
     AndroidSleepTimerExpiryEffect(
@@ -1128,17 +1007,17 @@ private fun NaviampAndroidApp(
         handleGenreMixReset = mixBuilderController::resetGenreBuilder,
         handleGenreMixPlay = ::handleGenreMixPlay,
         startAndroidLibrarySync = { force -> startAndroidLibrarySync(scope, appState, storage, force) },
-        handleShellTrackSelected = ::handleShellTrackSelected,
+        handleShellTrackSelected = shellMediaController::handleShellTrackSelected,
         handleDownloadedTrackSelected = trackActionController::handleDownloadedTrackSelected,
         handleDownloadedTrackAddToPlaylist = trackActionController::handleDownloadedTrackAddToPlaylist,
         handleDownloadedTrackCreatePlaylistAndAdd = trackActionController::handleDownloadedTrackCreatePlaylistAndAdd,
         removeDownload = downloadActionController::removeDownload,
-        handleShellAlbumSelected = ::handleShellAlbumSelected,
+        handleShellAlbumSelected = shellMediaController::handleShellAlbumSelected,
         handleAlbumFavoriteToggled = { item -> toggleAndroidAlbumFavorite(scope, appState, item) },
-        handleMixAlbumSelected = ::handleMixAlbumSelected,
-        handleShellAlbumPlay = ::handleShellAlbumPlay,
-        handleShellAlbumTrackSelected = ::handleShellAlbumTrackSelected,
-        handleShellAlbumRadio = ::handleShellAlbumRadio,
+        handleMixAlbumSelected = shellMediaController::handleMixAlbumSelected,
+        handleShellAlbumPlay = shellMediaController::handleShellAlbumPlay,
+        handleShellAlbumTrackSelected = shellMediaController::handleShellAlbumTrackSelected,
+        handleShellAlbumRadio = shellMediaController::handleShellAlbumRadio,
         appendTracksToQueue = ::appendTracksToQueue,
         downloadTracks = downloadActionController::downloadTracks,
         addTracksToPlaylist = playlistActionController::addTracksToPlaylist,
@@ -1175,12 +1054,12 @@ private fun NaviampAndroidApp(
         loadSmartPlaylist = playlistActionController::loadSmartPlaylistDefinition,
         closeActivePlaylist = navigationController::closeActivePlaylist,
         handlePlaylistTrackSelected = trackActionController::handlePlaylistTrackSelected,
-        handleRecentRadioSelected = ::handleShellRecentRadioSelected,
+        handleRecentRadioSelected = shellMediaController::handleShellRecentRadioSelected,
         handleMixBuilderSelected = navigationController::handleMixBuilderSelected,
-        handleRadioStationSelected = ::handleRadioStationSelected,
-        saveInternetRadioStation = ::saveInternetRadioStation,
-        deleteInternetRadioStation = ::deleteInternetRadioStation,
-        handleShellHomeStationSelected = ::handleShellHomeStationSelected,
+        handleRadioStationSelected = shellMediaController::handleRadioStationSelected,
+        saveInternetRadioStation = shellMediaController::saveInternetRadioStation,
+        deleteInternetRadioStation = shellMediaController::deleteInternetRadioStation,
+        handleShellHomeStationSelected = shellMediaController::handleShellHomeStationSelected,
         closeActiveDetail = navigationController::closeActiveDetail,
         handleShellResume = shellPlaybackController::resume,
         playAdjacentTrack = ::playAdjacentTrack,
@@ -1195,13 +1074,13 @@ private fun NaviampAndroidApp(
         handleSleepTimerSelected = ::handleSleepTimerSelected,
         handleCancelSleepTimer = ::cancelSleepTimer,
         downloadTrack = downloadActionController::downloadTrack,
-        handleShellGoToAlbum = ::handleShellGoToAlbum,
-        handleShellGoToArtist = ::handleShellGoToArtist,
+        handleShellGoToAlbum = shellMediaController::handleShellGoToAlbum,
+        handleShellGoToArtist = shellMediaController::handleShellGoToArtist,
         handleShellQueueItemRadio = shellPlaybackController::startQueueItemRadio,
         findKnownTrack = ::findKnownTrack,
         addTrackToPlaylist = playlistActionController::addTrackToPlaylist,
         toggleCurrentFavorite = ::toggleCurrentFavorite,
-        handleShellRatingSelected = ::handleShellRatingSelected,
+        handleShellRatingSelected = shellMediaController::handleShellRatingSelected,
     )
 
     AndroidAppShellContent(shellUiState, shellActions)

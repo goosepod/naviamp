@@ -1292,6 +1292,9 @@ Progress notes:
 - Moved Android connection-form, playback-settings, redownload, cache-clear, library-clear, and reset-database callback wrappers into `AndroidSettingsMaintenanceController`.
 - `MainActivity.kt` dropped to 1,209 lines after the Android settings/maintenance controller extraction; `AndroidMaintenanceController.kt` is 178 lines.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Moved Android shell selected-track, album, home/recent radio, station mutation, now-playing navigation, and rating callback wrappers into `AndroidShellMediaController`.
+- `MainActivity.kt` dropped to 1,088 lines after the Android shell media controller extraction; `AndroidShellMediaController.kt` is 172 lines.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 
