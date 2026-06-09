@@ -1197,18 +1197,18 @@ private fun NaviampAndroidApp(
         setAndroidCurrentTrackRating(scope, appState, playbackEngine, rating)
     }
 
-    fun handleDownloadedTrackSelected(download: NaviampDownloadedTrackUi) {
-        playAndroidDownloadedTrack(appState, download) { track, queue -> playTrack(track, queue) }
-    }
-
-    fun handleDownloadedTrackAddToPlaylist(download: NaviampDownloadedTrackUi, playlist: NaviampPlaylistChoiceUi?) {
-        withAndroidDownloadedTrack(appState, download) { track -> addTrackToPlaylist(track, playlist) }
-    }
-
-    fun handleDownloadedTrackCreatePlaylistAndAdd(download: NaviampDownloadedTrackUi, name: String) {
-        withAndroidDownloadedTrack(appState, download) { track ->
-            addTrackToPlaylist(track, playlist = null, newPlaylistName = name)
-        }
+    val trackActionController = remember(appState) {
+        AndroidTrackActionController(
+            state = appState,
+            activeQueue = ::activeQueue,
+            findKnownTrack = ::findKnownTrack,
+            playTrack = { track, queue -> playTrack(track, queue) },
+            appendTracksToQueue = ::appendTracksToQueue,
+            downloadTrack = ::downloadTrack,
+            addTrackToPlaylist = { track, playlist, newPlaylistName ->
+                addTrackToPlaylist(track, playlist, newPlaylistName)
+            },
+        )
     }
 
     fun handleMixAlbumSelected(selectedAlbum: SharedMediaItemUi) {
@@ -1240,20 +1240,6 @@ private fun NaviampAndroidApp(
         startAlbumRadio(album, loadedAlbumTracks)
     }
 
-    fun handleAlbumTrackDownload(selectedTrack: SharedTrackRowUi) {
-        withAndroidKnownTrack(appState, selectedTrack, activeQueue(), ::downloadTrack)
-    }
-
-    fun handleAlbumTrackAddToPlaylist(selectedTrack: SharedTrackRowUi, playlist: NaviampPlaylistChoiceUi?) {
-        withAndroidKnownTrack(appState, selectedTrack, activeQueue()) { track -> addTrackToPlaylist(track, playlist) }
-    }
-
-    fun handleAlbumTrackCreatePlaylistAndAdd(selectedTrack: SharedTrackRowUi, name: String) {
-        withAndroidKnownTrack(appState, selectedTrack, activeQueue()) { track ->
-            addTrackToPlaylist(track, playlist = null, newPlaylistName = name)
-        }
-    }
-
     fun handleArtistPopularPlay(detail: SharedArtistDetailUi) {
         playAndroidArtistPopularTracks(appState, detail.artist.id) { track, queue -> playTrack(track, queue) }
     }
@@ -1264,26 +1250,6 @@ private fun NaviampAndroidApp(
 
     fun handleArtistPopularAddToQueue(detail: SharedArtistDetailUi) {
         appendAndroidArtistPopularTracksToQueue(appState, playbackQueueController, detail.artist.id)
-    }
-
-    fun handleTrackAddToQueue(selectedTrack: SharedTrackRowUi) {
-        withAndroidKnownTrack(appState, selectedTrack, activeQueue()) { track ->
-            appendTracksToQueue(listOf(track), "track")
-        }
-    }
-
-    fun handleTrackDownload(selectedTrack: SharedTrackRowUi) {
-        withAndroidKnownTrack(appState, selectedTrack, activeQueue(), ::downloadTrack)
-    }
-
-    fun handleTrackAddToPlaylist(selectedTrack: SharedTrackRowUi, playlist: NaviampPlaylistChoiceUi?) {
-        withAndroidKnownTrack(appState, selectedTrack, activeQueue()) { track -> addTrackToPlaylist(track, playlist) }
-    }
-
-    fun handleTrackCreatePlaylistAndAdd(selectedTrack: SharedTrackRowUi, name: String) {
-        withAndroidKnownTrack(appState, selectedTrack, activeQueue()) { track ->
-            addTrackToPlaylist(track, playlist = null, newPlaylistName = name)
-        }
     }
 
     fun handleSimilarArtistSelected(similarArtist: SharedSimilarArtistUi) {
@@ -1316,15 +1282,6 @@ private fun NaviampAndroidApp(
         )
     }
 
-    fun handlePlaylistTrackSelected(selectedTrack: SharedTrackRowUi) {
-        val track = selectedPlaylistTracks.firstOrNull { it.id.value == selectedTrack.id } ?: findKnownTrack(selectedTrack.id)
-        if (track == null) {
-            status = "Track not found."
-            return
-        }
-        playTrack(track, selectedPlaylistTracks.ifEmpty { listOf(track) })
-    }
-
     fun handleRadioStationSelected(station: InternetRadioStation) {
         playInternetRadioStation(station)
     }
@@ -1335,16 +1292,6 @@ private fun NaviampAndroidApp(
 
     fun deleteInternetRadioStation(station: InternetRadioStation) {
         deleteAndroidInternetRadioStation(scope, appState, dependencies.internetRadioStationManager, station)
-    }
-
-    fun handleNowPlayingAddToPlaylist(playlist: NaviampPlaylistChoiceUi?) {
-        val currentTrack = nowPlaying ?: return
-        addTrackToPlaylist(currentTrack, playlist)
-    }
-
-    fun handleNowPlayingCreatePlaylistAndAdd(name: String) {
-        val currentTrack = nowPlaying ?: return
-        addTrackToPlaylist(currentTrack, playlist = null, newPlaylistName = name)
     }
 
     fun handleShellGoToArtist() {
@@ -1392,9 +1339,9 @@ private fun NaviampAndroidApp(
         handleGenreMixPlay = ::handleGenreMixPlay,
         startAndroidLibrarySync = { force -> startAndroidLibrarySync(scope, appState, storage, force) },
         handleShellTrackSelected = ::handleShellTrackSelected,
-        handleDownloadedTrackSelected = ::handleDownloadedTrackSelected,
-        handleDownloadedTrackAddToPlaylist = ::handleDownloadedTrackAddToPlaylist,
-        handleDownloadedTrackCreatePlaylistAndAdd = ::handleDownloadedTrackCreatePlaylistAndAdd,
+        handleDownloadedTrackSelected = trackActionController::handleDownloadedTrackSelected,
+        handleDownloadedTrackAddToPlaylist = trackActionController::handleDownloadedTrackAddToPlaylist,
+        handleDownloadedTrackCreatePlaylistAndAdd = trackActionController::handleDownloadedTrackCreatePlaylistAndAdd,
         removeDownload = ::removeDownload,
         handleShellAlbumSelected = ::handleShellAlbumSelected,
         handleAlbumFavoriteToggled = { item -> toggleAndroidAlbumFavorite(scope, appState, item) },
@@ -1405,9 +1352,9 @@ private fun NaviampAndroidApp(
         appendTracksToQueue = ::appendTracksToQueue,
         downloadTracks = ::downloadTracks,
         addTracksToPlaylist = ::addTracksToPlaylist,
-        handleAlbumTrackDownload = ::handleAlbumTrackDownload,
-        handleAlbumTrackAddToPlaylist = ::handleAlbumTrackAddToPlaylist,
-        handleAlbumTrackCreatePlaylistAndAdd = ::handleAlbumTrackCreatePlaylistAndAdd,
+        handleAlbumTrackDownload = trackActionController::handleAlbumTrackDownload,
+        handleAlbumTrackAddToPlaylist = trackActionController::handleAlbumTrackAddToPlaylist,
+        handleAlbumTrackCreatePlaylistAndAdd = trackActionController::handleAlbumTrackCreatePlaylistAndAdd,
         handleShellArtistRadio = ::handleShellArtistRadio,
         handleShellArtistShuffle = ::handleShellArtistShuffle,
         loadArtistTracks = ::loadArtistTracks,
@@ -1415,10 +1362,10 @@ private fun NaviampAndroidApp(
         handleShellArtistPopularRadio = ::handleShellArtistPopularRadio,
         handleArtistPopularTrackSelected = ::handleArtistPopularTrackSelected,
         handleArtistPopularAddToQueue = ::handleArtistPopularAddToQueue,
-        handleTrackAddToQueue = ::handleTrackAddToQueue,
-        handleTrackDownload = ::handleTrackDownload,
-        handleTrackAddToPlaylist = ::handleTrackAddToPlaylist,
-        handleTrackCreatePlaylistAndAdd = ::handleTrackCreatePlaylistAndAdd,
+        handleTrackAddToQueue = trackActionController::handleTrackAddToQueue,
+        handleTrackDownload = trackActionController::handleTrackDownload,
+        handleTrackAddToPlaylist = trackActionController::handleTrackAddToPlaylist,
+        handleTrackCreatePlaylistAndAdd = trackActionController::handleTrackCreatePlaylistAndAdd,
         findSimilarArtists = ::findSimilarArtists,
         handleSimilarArtistSelected = ::handleSimilarArtistSelected,
         openExternalArtistUrl = ::openExternalArtistUrl,
@@ -1437,7 +1384,7 @@ private fun NaviampAndroidApp(
         updateSmartPlaylist = ::updateSmartPlaylist,
         loadSmartPlaylist = ::loadSmartPlaylistDefinition,
         closeActivePlaylist = navigationController::closeActivePlaylist,
-        handlePlaylistTrackSelected = ::handlePlaylistTrackSelected,
+        handlePlaylistTrackSelected = trackActionController::handlePlaylistTrackSelected,
         handleRecentRadioSelected = ::handleShellRecentRadioSelected,
         handleMixBuilderSelected = navigationController::handleMixBuilderSelected,
         handleRadioStationSelected = ::handleRadioStationSelected,
@@ -1452,8 +1399,8 @@ private fun NaviampAndroidApp(
         loadLyrics = ::loadLyrics,
         handleLyricsOffsetChanged = ::handleLyricsOffsetChanged,
         handleShellTrackRadio = shellPlaybackController::startCurrentTrackRadio,
-        handleNowPlayingAddToPlaylist = ::handleNowPlayingAddToPlaylist,
-        handleNowPlayingCreatePlaylistAndAdd = ::handleNowPlayingCreatePlaylistAndAdd,
+        handleNowPlayingAddToPlaylist = trackActionController::handleNowPlayingAddToPlaylist,
+        handleNowPlayingCreatePlaylistAndAdd = trackActionController::handleNowPlayingCreatePlaylistAndAdd,
         handleSaveQueueAsPlaylist = ::saveQueueAsPlaylist,
         handleSleepTimerSelected = ::handleSleepTimerSelected,
         handleCancelSleepTimer = ::cancelSleepTimer,

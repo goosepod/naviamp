@@ -383,3 +383,75 @@ fun addAndroidTracksToPlaylist(
         }
     }
 }
+
+internal class AndroidTrackActionController(
+    private val state: AndroidAppState,
+    private val activeQueue: () -> List<Track>,
+    private val findKnownTrack: (String) -> Track?,
+    private val playTrack: (Track, List<Track>?) -> Unit,
+    private val appendTracksToQueue: (List<Track>, String) -> Unit,
+    private val downloadTrack: (Track) -> Unit,
+    private val addTrackToPlaylist: (Track, NaviampPlaylistChoiceUi?, String?) -> Unit,
+) {
+    fun handleDownloadedTrackSelected(download: NaviampDownloadedTrackUi) {
+        playAndroidDownloadedTrack(state, download) { track, queue -> playTrack(track, queue) }
+    }
+
+    fun handleDownloadedTrackAddToPlaylist(download: NaviampDownloadedTrackUi, playlist: NaviampPlaylistChoiceUi?) {
+        withAndroidDownloadedTrack(state, download) { track -> addTrackToPlaylist(track, playlist, null) }
+    }
+
+    fun handleDownloadedTrackCreatePlaylistAndAdd(download: NaviampDownloadedTrackUi, name: String) {
+        withAndroidDownloadedTrack(state, download) { track -> addTrackToPlaylist(track, null, name) }
+    }
+
+    fun handleAlbumTrackDownload(selectedTrack: SharedTrackRowUi) {
+        withAndroidKnownTrack(state, selectedTrack, activeQueue(), downloadTrack)
+    }
+
+    fun handleAlbumTrackAddToPlaylist(selectedTrack: SharedTrackRowUi, playlist: NaviampPlaylistChoiceUi?) {
+        withAndroidKnownTrack(state, selectedTrack, activeQueue()) { track -> addTrackToPlaylist(track, playlist, null) }
+    }
+
+    fun handleAlbumTrackCreatePlaylistAndAdd(selectedTrack: SharedTrackRowUi, name: String) {
+        withAndroidKnownTrack(state, selectedTrack, activeQueue()) { track -> addTrackToPlaylist(track, null, name) }
+    }
+
+    fun handleTrackAddToQueue(selectedTrack: SharedTrackRowUi) {
+        withAndroidKnownTrack(state, selectedTrack, activeQueue()) { track ->
+            appendTracksToQueue(listOf(track), "track")
+        }
+    }
+
+    fun handleTrackDownload(selectedTrack: SharedTrackRowUi) {
+        withAndroidKnownTrack(state, selectedTrack, activeQueue(), downloadTrack)
+    }
+
+    fun handleTrackAddToPlaylist(selectedTrack: SharedTrackRowUi, playlist: NaviampPlaylistChoiceUi?) {
+        withAndroidKnownTrack(state, selectedTrack, activeQueue()) { track -> addTrackToPlaylist(track, playlist, null) }
+    }
+
+    fun handleTrackCreatePlaylistAndAdd(selectedTrack: SharedTrackRowUi, name: String) {
+        withAndroidKnownTrack(state, selectedTrack, activeQueue()) { track -> addTrackToPlaylist(track, null, name) }
+    }
+
+    fun handlePlaylistTrackSelected(selectedTrack: SharedTrackRowUi) {
+        val track = state.selectedPlaylistTracks.firstOrNull { it.id.value == selectedTrack.id }
+            ?: findKnownTrack(selectedTrack.id)
+        if (track == null) {
+            state.status = "Track not found."
+            return
+        }
+        playTrack(track, state.selectedPlaylistTracks.ifEmpty { listOf(track) })
+    }
+
+    fun handleNowPlayingAddToPlaylist(playlist: NaviampPlaylistChoiceUi?) {
+        val currentTrack = state.nowPlaying ?: return
+        addTrackToPlaylist(currentTrack, playlist, null)
+    }
+
+    fun handleNowPlayingCreatePlaylistAndAdd(name: String) {
+        val currentTrack = state.nowPlaying ?: return
+        addTrackToPlaylist(currentTrack, null, name)
+    }
+}
