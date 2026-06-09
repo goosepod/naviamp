@@ -1276,9 +1276,12 @@ Progress notes:
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 - Moved Android shell resume, shuffle, current-track radio, and queue-item radio actions into `AndroidShellPlaybackController.kt`.
 - `MainActivity.kt` dropped to 1,472 lines after the Android shell playback controller extraction; `AndroidShellPlaybackController.kt` is 82 lines.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 - Moved Android downloaded-track, known-track, playlist-track, and now-playing playlist callback wrappers into `AndroidTrackActionController`.
 - `MainActivity.kt` dropped to 1,419 lines after the Android track action controller extraction; `AndroidMediaActionsController.kt` is 457 lines.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Moved Android artist detail/popular/similar/album action wrappers into `AndroidArtistActionController`.
+- `MainActivity.kt` dropped to 1,348 lines after the Android artist action controller extraction; `AndroidArtistController.kt` is 435 lines.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:

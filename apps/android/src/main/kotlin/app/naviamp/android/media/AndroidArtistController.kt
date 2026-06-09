@@ -6,6 +6,7 @@ import android.net.Uri
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.AlbumId
+import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
@@ -33,7 +34,12 @@ import app.naviamp.domain.media.similarArtistsUpdate
 import app.naviamp.domain.popular.ArtistPopularTracksService
 import app.naviamp.domain.popular.SimilarArtistsService
 import app.naviamp.domain.Track
+import app.naviamp.domain.playback.PlaybackQueueController
+import app.naviamp.domain.settings.RecentRadioStream
+import app.naviamp.ui.SharedArtistDetailUi
 import app.naviamp.ui.SharedMediaItemUi
+import app.naviamp.ui.SharedSimilarArtistUi
+import app.naviamp.ui.SharedTrackRowUi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -318,5 +324,112 @@ fun startAndroidArtistAlbumRadio(
         runCatching { providerResponseService.album(activeProvider, AlbumId(selectedAlbum.id)) }
             .onSuccess { detail -> startAlbumRadio(detail.album, detail.tracks) }
             .onFailure { error -> state.status = error.message ?: "Could not start album radio." }
+    }
+}
+
+internal class AndroidArtistActionController(
+    private val context: Context,
+    private val scope: CoroutineScope,
+    private val state: AndroidAppState,
+    private val queueController: PlaybackQueueController,
+    private val libraryIndexRepository: LocalLibraryIndexRepository,
+    private val providerResponseCacheRepository: ProviderResponseCacheRepository,
+    private val similarArtistsService: SimilarArtistsService,
+    private val activeQueue: () -> List<Track>,
+    private val openArtistDetails: (ArtistId, String?) -> Unit,
+    private val playTrack: (Track, List<Track>) -> Unit,
+    private val playRadioTrack: (Track, List<Track>) -> Unit,
+    private val startTrackRadio: (Track) -> Unit,
+    private val startAlbumRadio: (Album, List<Track>) -> Unit,
+    private val rememberRecentRadioStream: (RecentRadioStream) -> Unit,
+) {
+    fun findSimilarArtists(artistId: ArtistId, artistName: String) {
+        findAndroidSimilarArtists(scope, state, similarArtistsService, artistId, artistName)
+    }
+
+    fun openExternalArtistUrl(url: String) {
+        openAndroidExternalArtistUrl(context, state, url)
+    }
+
+    fun handleShellArtistRadio(detail: SharedArtistDetailUi) {
+        val artistId = ArtistId(detail.artist.id)
+        startAndroidArtistRadio(
+            scope = scope,
+            state = state,
+            queueController = queueController,
+            artistId = artistId,
+            artistTitle = detail.artist.title,
+            artist = state.artistDetail?.artist ?: Artist(artistId, detail.artist.title),
+            playTrack = playRadioTrack,
+            providerResponseCacheRepository = providerResponseCacheRepository,
+            rememberRecentRadioStream = rememberRecentRadioStream,
+        )
+    }
+
+    fun loadArtistTracks(action: (List<Track>) -> Unit) {
+        loadAndroidArtistTracks(scope, state, providerResponseCacheRepository, action)
+    }
+
+    fun handleShellArtistShuffle() {
+        loadArtistTracks { artistTracks ->
+            val queue = artistTracks.distinctBy { it.id }.shuffled()
+            queue.firstOrNull()?.let { playTrack(it, queue) }
+                ?: run { state.status = "No artist tracks found." }
+        }
+    }
+
+    fun handleShellArtistPopularRadio(detail: SharedArtistDetailUi) {
+        startAndroidPopularTracksRadio(
+            scope = scope,
+            state = state,
+            queueController = queueController,
+            artistTitle = detail.artist.title,
+            popularTracks = state.artistPopularTracksByArtistId[detail.artist.id].orEmpty(),
+            playTrack = playRadioTrack,
+            providerResponseCacheRepository = providerResponseCacheRepository,
+            rememberRecentRadioStream = rememberRecentRadioStream,
+        )
+    }
+
+    fun handleArtistPopularPlay(detail: SharedArtistDetailUi) {
+        playAndroidArtistPopularTracks(state, detail.artist.id, playTrack)
+    }
+
+    fun handleArtistPopularTrackSelected(selectedTrack: SharedTrackRowUi) {
+        startAndroidArtistPopularTrackRadio(state, selectedTrack.id, activeQueue(), startTrackRadio)
+    }
+
+    fun handleArtistPopularAddToQueue(detail: SharedArtistDetailUi) {
+        appendAndroidArtistPopularTracksToQueue(state, queueController, detail.artist.id)
+    }
+
+    fun handleSimilarArtistSelected(similarArtist: SharedSimilarArtistUi) {
+        val artistId = similarArtist.localArtistId
+        if (artistId == null) {
+            state.status = "Artist is not in your library."
+        } else {
+            openArtistDetails(ArtistId(artistId), similarArtist.title)
+        }
+    }
+
+    fun loadArtistAlbumTracks(selectedAlbum: SharedMediaItemUi, action: (List<Track>) -> Unit) {
+        loadAndroidArtistAlbumTracks(
+            scope = scope,
+            state = state,
+            libraryIndexRepository = libraryIndexRepository,
+            providerResponseCacheRepository = providerResponseCacheRepository,
+            selectedAlbum = selectedAlbum,
+            action = action,
+        )
+    }
+
+    fun handleArtistAlbumRadio(selectedAlbum: SharedMediaItemUi) {
+        startAndroidArtistAlbumRadio(
+            scope = scope,
+            state = state,
+            selectedAlbum = selectedAlbum,
+            startAlbumRadio = startAlbumRadio,
+            providerResponseCacheRepository = providerResponseCacheRepository,
+        )
     }
 }

@@ -95,7 +95,6 @@ import app.naviamp.ui.NowPlayingRadioUiConfig
 import app.naviamp.ui.NowPlayingTrackUiConfig
 import app.naviamp.ui.NowPlayingUi
 import app.naviamp.ui.SharedAlbumDetailUi
-import app.naviamp.ui.SharedArtistDetailUi
 import app.naviamp.ui.SharedHomeStationUi
 import app.naviamp.ui.SharedHomeUi
 import app.naviamp.ui.SharedMediaItemUi
@@ -103,7 +102,6 @@ import app.naviamp.ui.SharedPlaylistDetailUi
 import app.naviamp.ui.SharedPlaylistSortMode
 import app.naviamp.ui.SharedRoute
 import app.naviamp.ui.SharedSearchResultsUi
-import app.naviamp.ui.SharedSimilarArtistUi
 import app.naviamp.ui.toSharedTrackRowUi
 import app.naviamp.ui.toNowPlayingItemUi
 import app.naviamp.ui.toNowPlayingStationUi
@@ -761,8 +759,23 @@ private fun NaviampAndroidApp(
         navigationController.handleAndroidBack()
     }
 
-    fun findSimilarArtists(artistId: app.naviamp.domain.ArtistId, artistName: String) {
-        findAndroidSimilarArtists(scope, appState, similarArtistsService, artistId, artistName)
+    val artistActionController = remember(appState, storage, context) {
+        AndroidArtistActionController(
+            context = context,
+            scope = scope,
+            state = appState,
+            queueController = playbackQueueController,
+            libraryIndexRepository = storage,
+            providerResponseCacheRepository = storage,
+            similarArtistsService = similarArtistsService,
+            activeQueue = ::activeQueue,
+            openArtistDetails = ::openArtistDetails,
+            playTrack = { track, queue -> playTrack(track, queue) },
+            playRadioTrack = { track, queue -> playTrack(track, queue, keepRadioQueueActive = true) },
+            startTrackRadio = ::startTrackRadio,
+            startAlbumRadio = ::startAlbumRadio,
+            rememberRecentRadioStream = ::rememberRecentRadioStream,
+        )
     }
 
     val artistMixBuilderService = rememberAndroidArtistMixBuilderService(
@@ -850,10 +863,6 @@ private fun NaviampAndroidApp(
         if (provider != null && genreMixSuggestions.isEmpty()) {
             mixBuilderController.refreshGenreSuggestions()
         }
-    }
-
-    fun openExternalArtistUrl(url: String) {
-        openAndroidExternalArtistUrl(context, appState, url)
     }
 
     LaunchedEffect(provider, selectedPlaylist?.id) {
@@ -1074,46 +1083,6 @@ private fun NaviampAndroidApp(
         )
     }
 
-    fun handleShellArtistRadio(detail: SharedArtistDetailUi) {
-        val artistId = app.naviamp.domain.ArtistId(detail.artist.id)
-        startAndroidArtistRadio(
-            scope = scope,
-            state = appState,
-            queueController = playbackQueueController,
-            artistId = artistId,
-            artistTitle = detail.artist.title,
-            artist = artistDetail?.artist ?: app.naviamp.domain.Artist(artistId, detail.artist.title),
-            playTrack = { seedTrack, queue -> playTrack(seedTrack, queue, keepRadioQueueActive = true) },
-            providerResponseCacheRepository = storage,
-            rememberRecentRadioStream = ::rememberRecentRadioStream,
-        )
-    }
-
-    fun loadArtistTracks(action: (List<Track>) -> Unit) {
-        loadAndroidArtistTracks(scope, appState, storage, action)
-    }
-
-    fun handleShellArtistShuffle() {
-        loadArtistTracks { artistTracks ->
-            val queue = artistTracks.distinctBy { it.id }.shuffled()
-            queue.firstOrNull()?.let { playTrack(it, queue) }
-                ?: run { status = "No artist tracks found." }
-        }
-    }
-
-    fun handleShellArtistPopularRadio(detail: SharedArtistDetailUi) {
-        startAndroidPopularTracksRadio(
-            scope = scope,
-            state = appState,
-            queueController = playbackQueueController,
-            artistTitle = detail.artist.title,
-            popularTracks = artistPopularTracksByArtistId[detail.artist.id].orEmpty(),
-            playTrack = { seedTrack, queue -> playTrack(seedTrack, queue, keepRadioQueueActive = true) },
-            providerResponseCacheRepository = storage,
-            rememberRecentRadioStream = ::rememberRecentRadioStream,
-        )
-    }
-
     fun handleShellHomeStationSelected(station: SharedHomeStationUi) {
         startAndroidHomeStationRadio(
             scope = scope,
@@ -1240,48 +1209,6 @@ private fun NaviampAndroidApp(
         startAlbumRadio(album, loadedAlbumTracks)
     }
 
-    fun handleArtistPopularPlay(detail: SharedArtistDetailUi) {
-        playAndroidArtistPopularTracks(appState, detail.artist.id) { track, queue -> playTrack(track, queue) }
-    }
-
-    fun handleArtistPopularTrackSelected(selectedTrack: SharedTrackRowUi) {
-        startAndroidArtistPopularTrackRadio(appState, selectedTrack.id, activeQueue(), ::startTrackRadio)
-    }
-
-    fun handleArtistPopularAddToQueue(detail: SharedArtistDetailUi) {
-        appendAndroidArtistPopularTracksToQueue(appState, playbackQueueController, detail.artist.id)
-    }
-
-    fun handleSimilarArtistSelected(similarArtist: SharedSimilarArtistUi) {
-        val artistId = similarArtist.localArtistId
-        if (artistId == null) {
-            status = "Artist is not in your library."
-        } else {
-            openArtistDetails(app.naviamp.domain.ArtistId(artistId), similarArtist.title)
-        }
-    }
-
-    fun loadArtistAlbumTracks(selectedAlbum: SharedMediaItemUi, action: (List<Track>) -> Unit) {
-        loadAndroidArtistAlbumTracks(
-            scope = scope,
-            state = appState,
-            libraryIndexRepository = storage,
-            providerResponseCacheRepository = storage,
-            selectedAlbum = selectedAlbum,
-            action = action,
-        )
-    }
-
-    fun handleArtistAlbumRadio(selectedAlbum: SharedMediaItemUi) {
-        startAndroidArtistAlbumRadio(
-            scope = scope,
-            state = appState,
-            selectedAlbum = selectedAlbum,
-            startAlbumRadio = ::startAlbumRadio,
-            providerResponseCacheRepository = storage,
-        )
-    }
-
     fun handleRadioStationSelected(station: InternetRadioStation) {
         playInternetRadioStation(station)
     }
@@ -1355,24 +1282,24 @@ private fun NaviampAndroidApp(
         handleAlbumTrackDownload = trackActionController::handleAlbumTrackDownload,
         handleAlbumTrackAddToPlaylist = trackActionController::handleAlbumTrackAddToPlaylist,
         handleAlbumTrackCreatePlaylistAndAdd = trackActionController::handleAlbumTrackCreatePlaylistAndAdd,
-        handleShellArtistRadio = ::handleShellArtistRadio,
-        handleShellArtistShuffle = ::handleShellArtistShuffle,
-        loadArtistTracks = ::loadArtistTracks,
-        handleArtistPopularPlay = ::handleArtistPopularPlay,
-        handleShellArtistPopularRadio = ::handleShellArtistPopularRadio,
-        handleArtistPopularTrackSelected = ::handleArtistPopularTrackSelected,
-        handleArtistPopularAddToQueue = ::handleArtistPopularAddToQueue,
+        handleShellArtistRadio = artistActionController::handleShellArtistRadio,
+        handleShellArtistShuffle = artistActionController::handleShellArtistShuffle,
+        loadArtistTracks = artistActionController::loadArtistTracks,
+        handleArtistPopularPlay = artistActionController::handleArtistPopularPlay,
+        handleShellArtistPopularRadio = artistActionController::handleShellArtistPopularRadio,
+        handleArtistPopularTrackSelected = artistActionController::handleArtistPopularTrackSelected,
+        handleArtistPopularAddToQueue = artistActionController::handleArtistPopularAddToQueue,
         handleTrackAddToQueue = trackActionController::handleTrackAddToQueue,
         handleTrackDownload = trackActionController::handleTrackDownload,
         handleTrackAddToPlaylist = trackActionController::handleTrackAddToPlaylist,
         handleTrackCreatePlaylistAndAdd = trackActionController::handleTrackCreatePlaylistAndAdd,
-        findSimilarArtists = ::findSimilarArtists,
-        handleSimilarArtistSelected = ::handleSimilarArtistSelected,
-        openExternalArtistUrl = ::openExternalArtistUrl,
+        findSimilarArtists = artistActionController::findSimilarArtists,
+        handleSimilarArtistSelected = artistActionController::handleSimilarArtistSelected,
+        openExternalArtistUrl = artistActionController::openExternalArtistUrl,
         openArtistDetails = ::openArtistDetails,
         handleArtistFavoriteToggled = { item -> toggleAndroidArtistFavorite(scope, appState, item) },
-        handleArtistAlbumRadio = ::handleArtistAlbumRadio,
-        loadArtistAlbumTracks = ::loadArtistAlbumTracks,
+        handleArtistAlbumRadio = artistActionController::handleArtistAlbumRadio,
+        loadArtistAlbumTracks = artistActionController::loadArtistAlbumTracks,
         openPlaylistDetails = ::openPlaylistDetails,
         playPlaylist = ::playPlaylist,
         downloadPlaylist = ::downloadPlaylist,
