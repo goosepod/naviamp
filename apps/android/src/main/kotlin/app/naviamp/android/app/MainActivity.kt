@@ -71,12 +71,9 @@ import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RecentRadioAction
 import app.naviamp.domain.radio.recentRadioAction
 import app.naviamp.domain.radio.recentRadioStreamsWith
-import app.naviamp.domain.settings.ConnectionFormState
-import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.domain.settings.downloadStreamQuality
 import app.naviamp.domain.settings.effectiveForEngine
-import app.naviamp.domain.settings.playbackSettingsChange
 import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.provider.navidrome.NavidromeApiCall
 import app.naviamp.provider.navidrome.NavidromeApiCallHistory
@@ -297,55 +294,6 @@ private fun NaviampAndroidApp(
 
     fun handleLyricsOffsetChanged(offsetMillis: Int) {
         nowPlayingSidecarController.handleLyricsOffsetChanged(offsetMillis)
-    }
-
-    fun handleConnectionFormChanged(form: ConnectionFormState) {
-        appState.applyConnectionForm(form)
-    }
-
-    fun handlePlaybackSettingsChanged(settings: PlaybackSettings) {
-        val change = playbackSettingsChange(settings, playbackEngine, previous = playbackSettings)
-        playbackSettings = change.settings
-        settingsStore.savePlaybackSettings(change.settings)
-        if (change.shouldReloadLyricsSidecars) {
-            nowPlayingSidecarController.reloadVisibleLyrics()
-        }
-    }
-
-    fun handlePlaybackSettingsChangedAndRedownload(settings: PlaybackSettings) {
-        val tracksToRedownload = downloadedTracks.map { it.track }
-        handlePlaybackSettingsChanged(settings)
-        if (tracksToRedownload.isNotEmpty()) {
-            redownloadAndroidTracks(
-                context = context,
-                scope = scope,
-                state = appState,
-                downloadRepository = storage,
-                downloadReplacementRepository = storage,
-                cacheMaintenanceRepository = storage,
-                tracksToDownload = tracksToRedownload,
-                label = "downloads",
-            )
-        }
-    }
-
-    fun handleClearCache() {
-        handleAndroidClearCache(context, appState, storage)
-    }
-
-    fun handleClearLibrary() {
-        handleAndroidClearLibrary(appState, storage)
-    }
-
-    fun handleResetDatabase() {
-        handleAndroidResetDatabase(
-            context = context,
-            state = appState,
-            cacheMaintenanceRepository = storage,
-            settingsStore = settingsStore,
-            playbackEngine = playbackEngine,
-            queueController = playbackQueueController,
-        )
     }
 
     val searchController = remember(appState, storage) { AndroidSearchController(appState, storage) }
@@ -930,6 +878,19 @@ private fun NaviampAndroidApp(
         )
     }
 
+    val settingsMaintenanceController = remember(appState, storage, settingsStore, context) {
+        AndroidSettingsMaintenanceController(
+            context = context,
+            state = appState,
+            storage = storage,
+            settingsStore = settingsStore,
+            playbackEngine = playbackEngine,
+            queueController = playbackQueueController,
+            reloadVisibleLyrics = nowPlayingSidecarController::reloadVisibleLyrics,
+            redownloadTracks = downloadActionController::redownloadTracks,
+        )
+    }
+
     val connectionSessionController = remember(appState, storage, settingsStore, savedProviderConnection) {
         AndroidConnectionSessionController(
             scope = scope,
@@ -1143,13 +1104,13 @@ private fun NaviampAndroidApp(
         state = appState,
         playbackEngine = playbackEngine,
         settingsStore = settingsStore,
-        handleConnectionFormChanged = ::handleConnectionFormChanged,
+        handleConnectionFormChanged = settingsMaintenanceController::handleConnectionFormChanged,
         connectToNavidrome = connectionSessionController::connectToNavidrome,
-        handlePlaybackSettingsChanged = ::handlePlaybackSettingsChanged,
-        handlePlaybackSettingsChangedAndRedownload = ::handlePlaybackSettingsChangedAndRedownload,
-        handleClearCache = ::handleClearCache,
-        handleClearLibrary = ::handleClearLibrary,
-        handleResetDatabase = ::handleResetDatabase,
+        handlePlaybackSettingsChanged = settingsMaintenanceController::handlePlaybackSettingsChanged,
+        handlePlaybackSettingsChangedAndRedownload = settingsMaintenanceController::handlePlaybackSettingsChangedAndRedownload,
+        handleClearCache = settingsMaintenanceController::handleClearCache,
+        handleClearLibrary = settingsMaintenanceController::handleClearLibrary,
+        handleResetDatabase = settingsMaintenanceController::handleResetDatabase,
         handleSearch = ::handleSearch,
         handleArtistMixSearch = mixBuilderController::searchArtistSuggestions,
         handleArtistMixArtistSelected = { item -> mixBuilderController.selectArtistByItemId(item.id) },

@@ -12,9 +12,15 @@ import app.naviamp.domain.app.libraryIndexClearedStatus
 import app.naviamp.domain.cache.CacheMaintenanceRepository
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
+import app.naviamp.domain.Track
+import app.naviamp.domain.settings.ConnectionFormState
+import app.naviamp.domain.settings.PlaybackSettings
+import app.naviamp.domain.settings.playbackSettingsChange
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
+import app.naviamp.android.playback.AndroidPlaybackEngine
 import java.io.File
 
 fun clearAndroidDerivedMediaState(state: AndroidAppState) {
@@ -38,8 +44,8 @@ fun clearAndroidFileCaches(context: Context) {
 
 fun resetAndroidPlaybackState(
     state: AndroidAppState,
-    playbackEngine: app.naviamp.android.playback.AndroidPlaybackEngine,
-    queueController: app.naviamp.domain.playback.PlaybackQueueController,
+    playbackEngine: AndroidPlaybackEngine,
+    queueController: PlaybackQueueController,
 ) {
     playbackEngine.stop()
     state.audioPrefetchJob?.cancel()
@@ -90,8 +96,8 @@ fun handleAndroidResetDatabase(
     state: AndroidAppState,
     cacheMaintenanceRepository: CacheMaintenanceRepository<StorageCacheStats>,
     settingsStore: AndroidSettingsStore,
-    playbackEngine: app.naviamp.android.playback.AndroidPlaybackEngine,
-    queueController: app.naviamp.domain.playback.PlaybackQueueController,
+    playbackEngine: AndroidPlaybackEngine,
+    queueController: PlaybackQueueController,
 ) {
     resetAndroidPlaybackState(state, playbackEngine, queueController)
     cacheMaintenanceRepository.clearAll()
@@ -118,4 +124,55 @@ fun handleAndroidResetDatabase(
     state.navigationState = NaviampNavigationState(route = NaviampRoute.Settings)
     clearAndroidDerivedMediaState(state)
     state.status = databaseResetStatus()
+}
+
+internal class AndroidSettingsMaintenanceController(
+    private val context: Context,
+    private val state: AndroidAppState,
+    private val storage: AndroidStorageDependencies,
+    private val settingsStore: AndroidSettingsStore,
+    private val playbackEngine: AndroidPlaybackEngine,
+    private val queueController: PlaybackQueueController,
+    private val reloadVisibleLyrics: () -> Unit,
+    private val redownloadTracks: (List<Track>, String) -> Unit,
+) {
+    fun handleConnectionFormChanged(form: ConnectionFormState) {
+        state.applyConnectionForm(form)
+    }
+
+    fun handlePlaybackSettingsChanged(settings: PlaybackSettings) {
+        val change = playbackSettingsChange(settings, playbackEngine, previous = state.playbackSettings)
+        state.playbackSettings = change.settings
+        settingsStore.savePlaybackSettings(change.settings)
+        if (change.shouldReloadLyricsSidecars) {
+            reloadVisibleLyrics()
+        }
+    }
+
+    fun handlePlaybackSettingsChangedAndRedownload(settings: PlaybackSettings) {
+        val tracksToRedownload = state.downloadedTracks.map { it.track }
+        handlePlaybackSettingsChanged(settings)
+        if (tracksToRedownload.isNotEmpty()) {
+            redownloadTracks(tracksToRedownload, "downloads")
+        }
+    }
+
+    fun handleClearCache() {
+        handleAndroidClearCache(context, state, storage)
+    }
+
+    fun handleClearLibrary() {
+        handleAndroidClearLibrary(state, storage)
+    }
+
+    fun handleResetDatabase() {
+        handleAndroidResetDatabase(
+            context = context,
+            state = state,
+            cacheMaintenanceRepository = storage,
+            settingsStore = settingsStore,
+            playbackEngine = playbackEngine,
+            queueController = queueController,
+        )
+    }
 }

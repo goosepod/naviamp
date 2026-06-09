@@ -202,6 +202,19 @@ internal class AndroidDownloadActionController(
         )
     }
 
+    fun redownloadTracks(tracksToDownload: List<Track>, label: String = "downloads") {
+        redownloadAndroidTracks(
+            context = context,
+            scope = scope,
+            state = state,
+            downloadRepository = storage,
+            downloadReplacementRepository = storage,
+            cacheMaintenanceRepository = storage,
+            tracksToDownload = tracksToDownload,
+            label = label,
+        )
+    }
+
     fun downloadPlaylist(playlist: Playlist) {
         downloadAndroidPlaylist(scope, state, playlist, storage, ::downloadTracks)
     }

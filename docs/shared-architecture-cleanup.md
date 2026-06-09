@@ -1289,6 +1289,9 @@ Progress notes:
 - Moved Android playlist open/play/mutation/smart-playlist and add-to-playlist callback wrappers into `AndroidPlaylistActionController`.
 - `MainActivity.kt` dropped to 1,248 lines after the Android playlist action controller extraction; `AndroidPlaylistsController.kt` is 622 lines.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Moved Android connection-form, playback-settings, redownload, cache-clear, library-clear, and reset-database callback wrappers into `AndroidSettingsMaintenanceController`.
+- `MainActivity.kt` dropped to 1,209 lines after the Android settings/maintenance controller extraction; `AndroidMaintenanceController.kt` is 178 lines.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 
