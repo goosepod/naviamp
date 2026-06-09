@@ -1286,6 +1286,9 @@ Progress notes:
 - Moved Android track/download/playlist download and remove-download callback wrappers into `AndroidDownloadActionController`.
 - `MainActivity.kt` dropped to 1,315 lines after the Android download action controller extraction; `AndroidDownloadController.kt` is 219 lines.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Moved Android playlist open/play/mutation/smart-playlist and add-to-playlist callback wrappers into `AndroidPlaylistActionController`.
+- `MainActivity.kt` dropped to 1,248 lines after the Android playlist action controller extraction; `AndroidPlaylistsController.kt` is 622 lines.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 

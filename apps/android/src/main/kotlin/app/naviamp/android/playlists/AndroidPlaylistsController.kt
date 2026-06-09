@@ -536,3 +536,87 @@ suspend fun loadAndroidSmartPlaylistDefinition(
         activeProvider.loadSmartPlaylistDefinition(playlist)
     }
 }
+
+internal class AndroidPlaylistActionController(
+    private val scope: CoroutineScope,
+    private val state: AndroidAppState,
+    private val storage: AndroidStorageDependencies,
+    private val playTrack: (Track, List<Track>) -> Unit,
+    private val appendTracksToQueue: (List<Track>, String) -> Unit,
+) {
+    fun openPlaylistDetails(playlist: Playlist) {
+        openAndroidPlaylistDetails(scope, state, playlist, storage)
+    }
+
+    fun playPlaylist(playlist: Playlist, shuffle: Boolean) {
+        playAndroidPlaylist(scope, state, playlist, shuffle, playTrack, storage)
+    }
+
+    fun renamePlaylist(playlist: Playlist, name: String) {
+        renameAndroidPlaylist(scope, state, playlist, name, storage)
+    }
+
+    fun deletePlaylist(playlist: Playlist) {
+        deleteAndroidPlaylist(scope, state, playlist, storage)
+    }
+
+    fun preloadPlaylistTracks(activeProvider: NavidromeProvider, playlists: List<Playlist>) {
+        preloadAndroidPlaylistTracks(scope, state, activeProvider, playlists, storage)
+    }
+
+    fun refreshPlaylists() {
+        refreshAndroidPlaylists(scope, state, storage)
+    }
+
+    suspend fun saveSmartPlaylist(definition: SmartPlaylistDefinition) {
+        saveAndroidSmartPlaylist(scope, state, definition, storage)
+    }
+
+    suspend fun updateSmartPlaylist(playlist: Playlist, definition: SmartPlaylistDefinition) {
+        updateAndroidSmartPlaylist(scope, state, playlist, definition, storage)
+    }
+
+    suspend fun loadSmartPlaylistDefinition(playlist: Playlist): SmartPlaylistDefinition =
+        loadAndroidSmartPlaylistDefinition(state, playlist)
+
+    fun addTrackToPlaylist(
+        track: Track,
+        playlist: NaviampPlaylistChoiceUi?,
+        newPlaylistName: String? = null,
+    ) {
+        addAndroidTrackToPlaylist(scope, state, track, playlist, newPlaylistName, storage)
+    }
+
+    fun addTracksToPlaylist(
+        tracksToAdd: List<Track>,
+        playlist: NaviampPlaylistChoiceUi?,
+        newPlaylistName: String? = null,
+        label: String = "tracks",
+    ) {
+        addAndroidTracksToPlaylist(scope, state, tracksToAdd, playlist, newPlaylistName, label, storage)
+    }
+
+    fun saveQueueAsPlaylist(name: String) {
+        saveQueueAsPlaylistFromState(scope, state, name, storage)
+    }
+
+    fun addPlaylistToQueue(playlist: Playlist) {
+        addAndroidPlaylistToQueue(scope, state, playlist, storage, appendTracksToQueue)
+    }
+
+    fun addPlaylistToPlaylist(
+        playlist: Playlist,
+        targetPlaylist: NaviampPlaylistChoiceUi?,
+        newPlaylistName: String?,
+    ) {
+        addAndroidPlaylistToPlaylist(
+            scope = scope,
+            state = state,
+            playlist = playlist,
+            targetPlaylist = targetPlaylist,
+            newPlaylistName = newPlaylistName,
+            providerResponseCacheRepository = storage,
+            addTracksToPlaylist = ::addTracksToPlaylist,
+        )
+    }
+}

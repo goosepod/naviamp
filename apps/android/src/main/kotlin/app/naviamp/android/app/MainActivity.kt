@@ -78,16 +78,13 @@ import app.naviamp.domain.settings.downloadStreamQuality
 import app.naviamp.domain.settings.effectiveForEngine
 import app.naviamp.domain.settings.playbackSettingsChange
 import app.naviamp.domain.settings.streamQualityForNetwork
-import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.provider.navidrome.NavidromeApiCall
 import app.naviamp.provider.navidrome.NavidromeApiCallHistory
-import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.NaviampDiagnosticsSectionUi
 import app.naviamp.ui.NaviampDiagnosticsUi
 import app.naviamp.ui.NaviampLibrarySyncStatusUi
-import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampSharedAppShell
 import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.NowPlayingRadioUiConfig
@@ -885,56 +882,14 @@ private fun NaviampAndroidApp(
         }
     }
 
-    fun openPlaylistDetails(playlist: Playlist) {
-        openAndroidPlaylistDetails(scope, appState, playlist, storage)
-    }
-
-    fun playPlaylist(playlist: Playlist, shuffle: Boolean) {
-        playAndroidPlaylist(scope, appState, playlist, shuffle, ::playTrack, storage)
-    }
-
-    fun renamePlaylist(playlist: Playlist, name: String) {
-        renameAndroidPlaylist(scope, appState, playlist, name, storage)
-    }
-
-    fun deletePlaylist(playlist: Playlist) {
-        deleteAndroidPlaylist(scope, appState, playlist, storage)
-    }
-
-    fun preloadPlaylistTracks(activeProvider: NavidromeProvider, playlists: List<Playlist>) {
-        preloadAndroidPlaylistTracks(scope, appState, activeProvider, playlists, storage)
-    }
-
-    fun refreshAndroidPlaylists() {
-        refreshAndroidPlaylists(scope, appState, storage)
-    }
-
-    suspend fun saveSmartPlaylist(definition: SmartPlaylistDefinition) {
-        saveAndroidSmartPlaylist(scope, appState, definition, storage)
-    }
-
-    suspend fun updateSmartPlaylist(playlist: Playlist, definition: SmartPlaylistDefinition) {
-        updateAndroidSmartPlaylist(scope, appState, playlist, definition, storage)
-    }
-
-    suspend fun loadSmartPlaylistDefinition(playlist: Playlist): SmartPlaylistDefinition =
-        loadAndroidSmartPlaylistDefinition(appState, playlist)
-
-    fun addTrackToPlaylist(track: Track, playlist: NaviampPlaylistChoiceUi?, newPlaylistName: String? = null) {
-        addAndroidTrackToPlaylist(scope, appState, track, playlist, newPlaylistName, storage)
-    }
-
-    fun addTracksToPlaylist(
-        tracksToAdd: List<Track>,
-        playlist: NaviampPlaylistChoiceUi?,
-        newPlaylistName: String? = null,
-        label: String = "tracks",
-    ) {
-        addAndroidTracksToPlaylist(scope, appState, tracksToAdd, playlist, newPlaylistName, label, storage)
-    }
-
-    fun saveQueueAsPlaylist(name: String) {
-        saveQueueAsPlaylistFromState(scope, appState, name, storage)
+    val playlistActionController = remember(appState, storage) {
+        AndroidPlaylistActionController(
+            scope = scope,
+            state = appState,
+            storage = storage,
+            playTrack = { track, queue -> playTrack(track, queue) },
+            appendTracksToQueue = ::appendTracksToQueue,
+        )
     }
 
     fun currentSleepTimerSnapshot() =
@@ -965,26 +920,6 @@ private fun NaviampAndroidApp(
         status = "Sleep timer canceled."
     }
 
-    fun addPlaylistToQueue(playlist: Playlist) {
-        addAndroidPlaylistToQueue(scope, appState, playlist, storage, ::appendTracksToQueue)
-    }
-
-    fun addPlaylistToPlaylist(
-        playlist: Playlist,
-        targetPlaylist: NaviampPlaylistChoiceUi?,
-        newPlaylistName: String?,
-    ) {
-        addAndroidPlaylistToPlaylist(
-            scope = scope,
-            state = appState,
-            playlist = playlist,
-            targetPlaylist = targetPlaylist,
-            newPlaylistName = newPlaylistName,
-            providerResponseCacheRepository = storage,
-            addTracksToPlaylist = ::addTracksToPlaylist,
-        )
-    }
-
     val downloadActionController = remember(appState, storage, context) {
         AndroidDownloadActionController(
             context = context,
@@ -1004,7 +939,7 @@ private fun NaviampAndroidApp(
             savedProviderConnection = savedProviderConnection,
             savedConnection = savedConnection,
             playbackEngine = playbackEngine,
-            preloadPlaylistTracks = ::preloadPlaylistTracks,
+            preloadPlaylistTracks = playlistActionController::preloadPlaylistTracks,
             loadRelatedTracks = ::loadRelatedTracks,
             startAndroidLibrarySync = { force -> startAndroidLibrarySync(scope, appState, storage, force) },
             checkAndroidLibraryFreshness = { checkAndroidLibraryFreshness(scope, appState, storage, storage) },
@@ -1143,9 +1078,7 @@ private fun NaviampAndroidApp(
             playTrack = { track, queue -> playTrack(track, queue) },
             appendTracksToQueue = ::appendTracksToQueue,
             downloadTrack = downloadActionController::downloadTrack,
-            addTrackToPlaylist = { track, playlist, newPlaylistName ->
-                addTrackToPlaylist(track, playlist, newPlaylistName)
-            },
+            addTrackToPlaylist = playlistActionController::addTrackToPlaylist,
         )
     }
 
@@ -1247,7 +1180,7 @@ private fun NaviampAndroidApp(
         handleShellAlbumRadio = ::handleShellAlbumRadio,
         appendTracksToQueue = ::appendTracksToQueue,
         downloadTracks = downloadActionController::downloadTracks,
-        addTracksToPlaylist = ::addTracksToPlaylist,
+        addTracksToPlaylist = playlistActionController::addTracksToPlaylist,
         handleAlbumTrackDownload = trackActionController::handleAlbumTrackDownload,
         handleAlbumTrackAddToPlaylist = trackActionController::handleAlbumTrackAddToPlaylist,
         handleAlbumTrackCreatePlaylistAndAdd = trackActionController::handleAlbumTrackCreatePlaylistAndAdd,
@@ -1269,16 +1202,16 @@ private fun NaviampAndroidApp(
         handleArtistFavoriteToggled = { item -> toggleAndroidArtistFavorite(scope, appState, item) },
         handleArtistAlbumRadio = artistActionController::handleArtistAlbumRadio,
         loadArtistAlbumTracks = artistActionController::loadArtistAlbumTracks,
-        openPlaylistDetails = ::openPlaylistDetails,
-        playPlaylist = ::playPlaylist,
+        openPlaylistDetails = playlistActionController::openPlaylistDetails,
+        playPlaylist = playlistActionController::playPlaylist,
         downloadPlaylist = downloadActionController::downloadPlaylist,
-        addPlaylistToQueue = ::addPlaylistToQueue,
-        addPlaylistToPlaylist = ::addPlaylistToPlaylist,
-        renamePlaylist = ::renamePlaylist,
-        deletePlaylist = ::deletePlaylist,
-        saveSmartPlaylist = ::saveSmartPlaylist,
-        updateSmartPlaylist = ::updateSmartPlaylist,
-        loadSmartPlaylist = ::loadSmartPlaylistDefinition,
+        addPlaylistToQueue = playlistActionController::addPlaylistToQueue,
+        addPlaylistToPlaylist = playlistActionController::addPlaylistToPlaylist,
+        renamePlaylist = playlistActionController::renamePlaylist,
+        deletePlaylist = playlistActionController::deletePlaylist,
+        saveSmartPlaylist = playlistActionController::saveSmartPlaylist,
+        updateSmartPlaylist = playlistActionController::updateSmartPlaylist,
+        loadSmartPlaylist = playlistActionController::loadSmartPlaylistDefinition,
         closeActivePlaylist = navigationController::closeActivePlaylist,
         handlePlaylistTrackSelected = trackActionController::handlePlaylistTrackSelected,
         handleRecentRadioSelected = ::handleShellRecentRadioSelected,
@@ -1297,7 +1230,7 @@ private fun NaviampAndroidApp(
         handleShellTrackRadio = shellPlaybackController::startCurrentTrackRadio,
         handleNowPlayingAddToPlaylist = trackActionController::handleNowPlayingAddToPlaylist,
         handleNowPlayingCreatePlaylistAndAdd = trackActionController::handleNowPlayingCreatePlaylistAndAdd,
-        handleSaveQueueAsPlaylist = ::saveQueueAsPlaylist,
+        handleSaveQueueAsPlaylist = playlistActionController::saveQueueAsPlaylist,
         handleSleepTimerSelected = ::handleSleepTimerSelected,
         handleCancelSleepTimer = ::cancelSleepTimer,
         downloadTrack = downloadActionController::downloadTrack,
@@ -1305,7 +1238,7 @@ private fun NaviampAndroidApp(
         handleShellGoToArtist = ::handleShellGoToArtist,
         handleShellQueueItemRadio = shellPlaybackController::startQueueItemRadio,
         findKnownTrack = ::findKnownTrack,
-        addTrackToPlaylist = ::addTrackToPlaylist,
+        addTrackToPlaylist = playlistActionController::addTrackToPlaylist,
         toggleCurrentFavorite = ::toggleCurrentFavorite,
         handleShellRatingSelected = ::handleShellRatingSelected,
     )
