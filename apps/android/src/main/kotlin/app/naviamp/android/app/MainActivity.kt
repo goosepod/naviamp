@@ -51,10 +51,8 @@ import app.naviamp.domain.home.HomeStationLibrary
 import app.naviamp.domain.home.HomeStationRandomAlbum
 import app.naviamp.domain.home.homeDecadeStationId
 import app.naviamp.domain.home.homeGenreStationId
-import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.artistmix.artistMixPopularQueue
 import app.naviamp.domain.albummix.albumMixTrackQueue
-import app.naviamp.domain.media.albumDetailLoadErrorStatus
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackQueueManager
@@ -1236,31 +1234,7 @@ private fun NaviampAndroidApp(
     }
 
     fun handleShellGoToAlbum() {
-        val activeProvider = provider ?: return
-        val albumId = nowPlaying?.albumId ?: return
-        val providerResponseService = ProviderResponseService(storage)
-        scope.launch {
-            runCatching { providerResponseService.album(activeProvider, albumId) }
-                .recoverCatching { error ->
-                    activeSourceId
-                        ?.let { sourceId ->
-                            albumDetailsFromAndroidTrackFallback(
-                                libraryIndexRepository = storage,
-                                sourceId = sourceId,
-                                albumId = albumId,
-                                fallbackTitle = nowPlaying?.albumTitle,
-                                fallbackArtistName = nowPlaying?.artistName,
-                            )
-                        }
-                        ?: throw error
-                }
-                .onSuccess { detail ->
-                    contentState = contentState.showAlbum(detail)
-                    nowPlayingOpen = false
-                    navigationState = navigationState.copy(route = NaviampRoute.Library)
-                }
-                .onFailure { error -> status = albumDetailLoadErrorStatus(error) }
-        }
+        openAndroidNowPlayingAlbumDetails(scope, appState, storage, storage)
     }
 
     fun handleShellRatingSelected(rating: Int?) {

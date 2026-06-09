@@ -206,6 +206,44 @@ fun openAndroidAlbumDetails(
     }
 }
 
+fun openAndroidNowPlayingAlbumDetails(
+    scope: CoroutineScope,
+    state: AndroidAppState,
+    libraryIndexRepository: LocalLibraryIndexRepository,
+    providerResponseCacheRepository: ProviderResponseCacheRepository,
+) {
+    val activeProvider = state.provider ?: return
+    val albumId = state.nowPlaying?.albumId ?: return
+    val sourceId = state.activeSourceId
+    val fallbackTitle = state.nowPlaying?.albumTitle
+    val fallbackArtistName = state.nowPlaying?.artistName
+    val providerResponseService = ProviderResponseService(providerResponseCacheRepository)
+    scope.launch {
+        with(state) {
+            runCatching { providerResponseService.album(activeProvider, albumId) }
+                .recoverCatching { error ->
+                    sourceId
+                        ?.let { storageSourceId ->
+                            albumDetailsFromAndroidTrackFallback(
+                                libraryIndexRepository = libraryIndexRepository,
+                                sourceId = storageSourceId,
+                                albumId = albumId,
+                                fallbackTitle = fallbackTitle,
+                                fallbackArtistName = fallbackArtistName,
+                            )
+                        }
+                        ?: throw error
+                }
+                .onSuccess { detail ->
+                    contentState = contentState.showAlbum(detail)
+                    nowPlayingOpen = false
+                    navigationState = navigationState.copy(route = NaviampRoute.Library)
+                }
+                .onFailure { error -> status = albumDetailLoadErrorStatus(error) }
+        }
+    }
+}
+
 fun albumDetailsFromAndroidTrackFallback(
     libraryIndexRepository: LocalLibraryIndexRepository,
     sourceId: String,

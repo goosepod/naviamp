@@ -1271,6 +1271,9 @@ Progress notes:
 - Moved Android playlist track loading, playlist-to-queue, playlist-to-playlist, and playlist download orchestration into `AndroidPlaylistsController.kt`.
 - `MainActivity.kt` dropped to 1,542 lines after the Android playlist track action extraction.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Moved Android now-playing go-to-album provider lookup and library fallback into `AndroidArtistController.kt`.
+- `MainActivity.kt` dropped to 1,516 lines after the Android now-playing album navigation extraction.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 
