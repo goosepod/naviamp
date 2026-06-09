@@ -2,6 +2,7 @@ package app.naviamp.android
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.domain.Track
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
@@ -55,6 +56,49 @@ internal fun androidSleepTimerSelection(
         nowEpochMillis = nowEpochMillis,
         status = sleepTimerDisplayLabel(timer, nowEpochMillis),
     )
+}
+
+internal class AndroidSleepTimerController(
+    private val state: AndroidAppState,
+    private val playbackEngine: AndroidPlaybackEngine,
+) {
+    fun snapshot(): SleepTimerPlaybackSnapshot =
+        androidSleepTimerSnapshot(
+            nowPlaying = state.nowPlaying,
+            playbackQueue = state.playbackQueue,
+            playbackProgress = state.playbackProgress,
+            playbackState = state.playbackState,
+        )
+
+    fun select(request: SleepTimerRequest) {
+        val nowMillis = System.currentTimeMillis()
+        val selection = androidSleepTimerSelection(
+            request = request,
+            nowEpochMillis = nowMillis,
+            nowPlaying = state.nowPlaying,
+            playbackQueue = state.playbackQueue,
+            playbackProgress = state.playbackProgress,
+            playbackState = state.playbackState,
+        )
+        state.sleepTimer = selection.timer
+        state.sleepTimerNowEpochMillis = selection.nowEpochMillis
+        state.status = selection.status
+    }
+
+    fun cancel() {
+        state.sleepTimer = null
+        state.status = "Sleep timer canceled."
+    }
+
+    fun tick(nowMillis: Long) {
+        state.sleepTimerNowEpochMillis = nowMillis
+    }
+
+    fun expire() {
+        playbackEngine.stop()
+        state.sleepTimer = null
+        state.status = "Sleep timer stopped playback."
+    }
 }
 
 @Composable

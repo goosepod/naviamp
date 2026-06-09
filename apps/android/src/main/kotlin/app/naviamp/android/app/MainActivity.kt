@@ -59,7 +59,6 @@ import app.naviamp.domain.playback.PlaybackPlayPauseCommand
 import app.naviamp.domain.playback.planPlaybackAdjacentAction
 import app.naviamp.domain.playback.playbackPlayPauseCommand
 import app.naviamp.domain.playback.planPlaybackSeek
-import app.naviamp.domain.playback.SleepTimerRequest
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.recentRadioStreamsWith
@@ -772,32 +771,8 @@ private fun NaviampAndroidApp(
         )
     }
 
-    fun currentSleepTimerSnapshot() =
-        androidSleepTimerSnapshot(
-            nowPlaying = nowPlaying,
-            playbackQueue = playbackQueue,
-            playbackProgress = playbackProgress,
-            playbackState = playbackState,
-        )
-
-    fun handleSleepTimerSelected(request: SleepTimerRequest) {
-        val nowMillis = System.currentTimeMillis()
-        val selection = androidSleepTimerSelection(
-            request = request,
-            nowEpochMillis = nowMillis,
-            nowPlaying = nowPlaying,
-            playbackQueue = playbackQueue,
-            playbackProgress = playbackProgress,
-            playbackState = playbackState,
-        )
-        sleepTimer = selection.timer
-        sleepTimerNowEpochMillis = selection.nowEpochMillis
-        status = selection.status
-    }
-
-    fun cancelSleepTimer() {
-        sleepTimer = null
-        status = "Sleep timer canceled."
+    val sleepTimerController = remember(appState) {
+        AndroidSleepTimerController(appState, playbackEngine)
     }
 
     val downloadActionController = remember(appState, storage, context) {
@@ -909,13 +884,9 @@ private fun NaviampAndroidApp(
 
     AndroidSleepTimerExpiryEffect(
         sleepTimer = sleepTimer,
-        snapshot = currentSleepTimerSnapshot(),
-        onTick = { nowMillis -> sleepTimerNowEpochMillis = nowMillis },
-        onExpired = {
-            playbackEngine.stop()
-            sleepTimer = null
-            status = "Sleep timer stopped playback."
-        },
+        snapshot = sleepTimerController.snapshot(),
+        onTick = sleepTimerController::tick,
+        onExpired = sleepTimerController::expire,
     )
 
     val shellActions = androidAppShellActions(
@@ -1010,8 +981,8 @@ private fun NaviampAndroidApp(
         handleNowPlayingAddToPlaylist = trackActionController::handleNowPlayingAddToPlaylist,
         handleNowPlayingCreatePlaylistAndAdd = trackActionController::handleNowPlayingCreatePlaylistAndAdd,
         handleSaveQueueAsPlaylist = playlistActionController::saveQueueAsPlaylist,
-        handleSleepTimerSelected = ::handleSleepTimerSelected,
-        handleCancelSleepTimer = ::cancelSleepTimer,
+        handleSleepTimerSelected = sleepTimerController::select,
+        handleCancelSleepTimer = sleepTimerController::cancel,
         downloadTrack = downloadActionController::downloadTrack,
         handleShellGoToAlbum = shellMediaController::handleShellGoToAlbum,
         handleShellGoToArtist = shellMediaController::handleShellGoToArtist,
