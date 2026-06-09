@@ -1298,6 +1298,9 @@ Progress notes:
 - Wired Android search, lyrics, audio-tag, and playback-report callbacks directly to existing controllers instead of root forwarding functions.
 - `MainActivity.kt` dropped to 1,064 lines after the direct-controller forwarding cleanup.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Moved Android artist/album/genre mix play actions into `AndroidMixBuilderController`.
+- `MainActivity.kt` dropped to 1,027 lines after the Android mix play action extraction; `AndroidMixBuilderController.kt` is 284 lines.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 

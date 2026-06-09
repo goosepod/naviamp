@@ -3,7 +3,9 @@ package app.naviamp.android
 import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
 import app.naviamp.domain.Track
+import app.naviamp.domain.albummix.albumMixTrackQueue
 import app.naviamp.domain.artistmix.ArtistMixBuilderService
+import app.naviamp.domain.artistmix.artistMixPopularQueue
 import app.naviamp.domain.artistmix.artistMixSelectedArtistsAfterRemove
 import app.naviamp.domain.artistmix.artistMixSelectedArtistsAfterSelect
 import app.naviamp.domain.albummix.AlbumMixBuilderService
@@ -12,6 +14,8 @@ import app.naviamp.domain.albummix.albumMixSelectedAlbumsAfterSelect
 import app.naviamp.domain.genremix.GenreMixBuilderService
 import app.naviamp.domain.genremix.genreMixSelectedGenresAfterRemove
 import app.naviamp.domain.genremix.genreMixSelectedGenresAfterSelect
+import app.naviamp.domain.playback.PlaybackQueueController
+import app.naviamp.domain.settings.RecentRadioStream
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -20,9 +24,13 @@ import kotlinx.coroutines.withContext
 internal class AndroidMixBuilderController(
     private val scope: CoroutineScope,
     private val state: AndroidAppState,
+    private val queueController: PlaybackQueueController,
+    private val storage: AndroidStorageDependencies,
     private val artistMixBuilderService: () -> ArtistMixBuilderService,
     private val albumMixBuilderService: () -> AlbumMixBuilderService,
     private val genreMixBuilderService: () -> GenreMixBuilderService,
+    private val playTrack: (Track, List<Track>) -> Unit,
+    private val rememberRecentRadioStream: (RecentRadioStream) -> Unit,
 ) {
     fun refreshArtistInitialSuggestions() {
         scope.launch {
@@ -230,5 +238,47 @@ internal class AndroidMixBuilderController(
         state.genreMixStatus = null
         state.genreMixLoading = false
         refreshGenreSuggestions()
+    }
+
+    fun playArtistMix() {
+        startAndroidArtistMixRadio(
+            scope = scope,
+            state = state,
+            queueController = queueController,
+            artists = state.artistMixSelectedArtists,
+            popularTracks = artistMixPopularQueue(
+                state.artistMixSelectedArtists,
+                state.artistMixPopularTracksByArtistId,
+            ),
+            playTrack = playTrack,
+            providerResponseCacheRepository = storage,
+            rememberRecentRadioStream = rememberRecentRadioStream,
+        )
+    }
+
+    fun playAlbumMix() {
+        startAndroidAlbumMixRadio(
+            scope = scope,
+            state = state,
+            queueController = queueController,
+            albums = state.albumMixSelectedAlbums,
+            selectedTracks = albumMixTrackQueue(state.albumMixSelectedAlbums, state.albumMixTracksByAlbumId),
+            playTrack = playTrack,
+            libraryIndexRepository = storage,
+            providerResponseCacheRepository = storage,
+            rememberRecentRadioStream = rememberRecentRadioStream,
+        )
+    }
+
+    fun playGenreMix() {
+        startAndroidGenreMixRadio(
+            scope = scope,
+            state = state,
+            queueController = queueController,
+            genres = state.genreMixSelectedGenres,
+            playTrack = playTrack,
+            providerResponseCacheRepository = storage,
+            rememberRecentRadioStream = rememberRecentRadioStream,
+        )
     }
 }

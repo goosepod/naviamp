@@ -47,8 +47,6 @@ import app.naviamp.domain.provider.playlistDetailAutoRefreshTarget
 import app.naviamp.domain.provider.runPlaylistDetailAutoRefresh
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.home.HomeService
-import app.naviamp.domain.artistmix.artistMixPopularQueue
-import app.naviamp.domain.albummix.albumMixTrackQueue
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackStreamMetadata
@@ -700,19 +698,6 @@ private fun NaviampAndroidApp(
         similarArtistsService = similarArtistsService,
     )
 
-    fun handleArtistMixPlay() {
-        startAndroidArtistMixRadio(
-            scope = scope,
-            state = appState,
-            queueController = playbackQueueController,
-            artists = artistMixSelectedArtists,
-            popularTracks = artistMixPopularQueue(artistMixSelectedArtists, artistMixPopularTracksByArtistId),
-            playTrack = { seedTrack, queue -> playTrack(seedTrack, queue, keepRadioQueueActive = true) },
-            providerResponseCacheRepository = storage,
-            rememberRecentRadioStream = ::rememberRecentRadioStream,
-        )
-    }
-
     val albumMixBuilderService = rememberAndroidAlbumMixBuilderService(
         storage = storage,
         sourceId = { activeSourceId },
@@ -720,20 +705,6 @@ private fun NaviampAndroidApp(
         homeContent = homeState,
         similarArtistsService = similarArtistsService,
     )
-
-    fun handleAlbumMixPlay() {
-        startAndroidAlbumMixRadio(
-            scope = scope,
-            state = appState,
-            queueController = playbackQueueController,
-            albums = albumMixSelectedAlbums,
-            selectedTracks = albumMixTrackQueue(albumMixSelectedAlbums, albumMixTracksByAlbumId),
-            playTrack = { seedTrack, queue -> playTrack(seedTrack, queue, keepRadioQueueActive = true) },
-            libraryIndexRepository = storage,
-            providerResponseCacheRepository = storage,
-            rememberRecentRadioStream = ::rememberRecentRadioStream,
-        )
-    }
 
     val genreMixBuilderService = rememberAndroidGenreMixBuilderService(
         provider = { provider },
@@ -743,22 +714,14 @@ private fun NaviampAndroidApp(
     val mixBuilderController = AndroidMixBuilderController(
         scope = scope,
         state = appState,
+        queueController = playbackQueueController,
+        storage = storage,
         artistMixBuilderService = { artistMixBuilderService },
         albumMixBuilderService = { albumMixBuilderService },
         genreMixBuilderService = { genreMixBuilderService },
+        playTrack = { track, queue -> playTrack(track, queue, keepRadioQueueActive = true) },
+        rememberRecentRadioStream = ::rememberRecentRadioStream,
     )
-
-    fun handleGenreMixPlay() {
-        startAndroidGenreMixRadio(
-            scope = scope,
-            state = appState,
-            queueController = playbackQueueController,
-            genres = genreMixSelectedGenres,
-            playTrack = { track, queue -> playTrack(track, queue, keepRadioQueueActive = true) },
-            providerResponseCacheRepository = storage,
-            rememberRecentRadioStream = ::rememberRecentRadioStream,
-        )
-    }
 
     LaunchedEffect(provider, homeState.artists) {
         if (provider != null && artistMixSuggestions.isEmpty()) {
@@ -971,17 +934,17 @@ private fun NaviampAndroidApp(
         handleArtistMixArtistSelected = { item -> mixBuilderController.selectArtistByItemId(item.id) },
         handleArtistMixArtistRemoved = { item -> mixBuilderController.removeArtistByItemId(item.id) },
         handleArtistMixReset = mixBuilderController::resetArtistBuilder,
-        handleArtistMixPlay = ::handleArtistMixPlay,
+        handleArtistMixPlay = mixBuilderController::playArtistMix,
         handleAlbumMixSearch = mixBuilderController::searchAlbumSuggestions,
         handleAlbumMixAlbumSelected = { item -> mixBuilderController.selectAlbumByItemId(item.id) },
         handleAlbumMixAlbumRemoved = { item -> mixBuilderController.removeAlbumByItemId(item.id) },
         handleAlbumMixReset = mixBuilderController::resetAlbumBuilder,
-        handleAlbumMixPlay = ::handleAlbumMixPlay,
+        handleAlbumMixPlay = mixBuilderController::playAlbumMix,
         handleGenreMixSearch = mixBuilderController::refreshGenreSuggestions,
         handleGenreMixGenreSelected = { item -> mixBuilderController.selectGenreByItemId(item.id) },
         handleGenreMixGenreRemoved = { item -> mixBuilderController.removeGenreByItemId(item.id) },
         handleGenreMixReset = mixBuilderController::resetGenreBuilder,
-        handleGenreMixPlay = ::handleGenreMixPlay,
+        handleGenreMixPlay = mixBuilderController::playGenreMix,
         startAndroidLibrarySync = { force -> startAndroidLibrarySync(scope, appState, storage, force) },
         handleShellTrackSelected = shellMediaController::handleShellTrackSelected,
         handleDownloadedTrackSelected = trackActionController::handleDownloadedTrackSelected,
