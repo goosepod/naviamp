@@ -1316,6 +1316,9 @@ Progress notes:
 - Moved Android shell-action callback assembly into `AndroidMainShellActions.kt`, leaving `MainActivity.kt` to compose controllers and pass them into one shell wiring helper.
 - `MainActivity.kt` dropped to 611 lines after the Android shell-action wiring extraction; `AndroidMainShellActions.kt` is 132 lines.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Moved Android current stream-quality selection into `AndroidPlaybackQualityController` and removed the stale root download-quality wrapper.
+- `MainActivity.kt` dropped to 605 lines after the Android playback quality extraction; `AndroidPlaybackQualityController.kt` is 13 lines.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 

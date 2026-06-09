@@ -28,7 +28,6 @@ import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Playlist
-import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.domain.provider.ConnectionValidation
@@ -45,9 +44,7 @@ import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.RepeatMode
-import app.naviamp.domain.settings.downloadStreamQuality
 import app.naviamp.domain.settings.effectiveForEngine
-import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.provider.navidrome.NavidromeApiCall
 import app.naviamp.provider.navidrome.NavidromeApiCallHistory
 import app.naviamp.provider.navidrome.toNavidromeConnection
@@ -228,6 +225,9 @@ private fun NaviampAndroidApp(
             popularTracksService = popularTracksService,
         )
     }
+    val playbackQualityController = remember(appState, context) {
+        AndroidPlaybackQualityController(context, appState)
+    }
 
     AndroidAppRuntimeEffects(
         state = appState,
@@ -238,12 +238,6 @@ private fun NaviampAndroidApp(
         autoCommandRequest = autoCommandRequest,
     )
 
-    fun currentStreamQuality(): StreamQuality =
-        playbackSettings.streamQualityForNetwork(context.isActiveNetworkMobileData())
-
-    fun currentDownloadQuality(): StreamQuality =
-        playbackSettings.downloadStreamQuality()
-
     val nowPlayingSidecarController = remember(appState, dependencies) {
         AndroidNowPlayingSidecarController(
             scope = scope,
@@ -253,7 +247,7 @@ private fun NaviampAndroidApp(
             sidecarStatusRepository = sidecarStatusRepository,
             lyricsOffsetRepository = storage,
             cacheAudioTrack = dependencies::cacheAudioTrack,
-            currentStreamQuality = ::currentStreamQuality,
+            currentStreamQuality = playbackQualityController::currentStreamQuality,
         )
     }
     val playbackReportController = remember(appState) {
@@ -285,7 +279,7 @@ private fun NaviampAndroidApp(
             state = appState,
             playbackQueueController = playbackQueueController,
             activeQueue = mediaAppController::activeQueue,
-            currentStreamQuality = ::currentStreamQuality,
+            currentStreamQuality = playbackQualityController::currentStreamQuality,
         )
     }
 
@@ -309,7 +303,7 @@ private fun NaviampAndroidApp(
             playbackReportController = playbackReportController,
             sidecarController = nowPlayingSidecarController,
             activeQueue = mediaAppController::activeQueue,
-            currentStreamQuality = ::currentStreamQuality,
+            currentStreamQuality = playbackQualityController::currentStreamQuality,
             loadRelatedTracks = mediaAppController::loadRelatedTracks,
         )
     }
