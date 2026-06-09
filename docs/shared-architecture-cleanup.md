@@ -1295,6 +1295,9 @@ Progress notes:
 - Moved Android shell selected-track, album, home/recent radio, station mutation, now-playing navigation, and rating callback wrappers into `AndroidShellMediaController`.
 - `MainActivity.kt` dropped to 1,088 lines after the Android shell media controller extraction; `AndroidShellMediaController.kt` is 172 lines.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Wired Android search, lyrics, audio-tag, and playback-report callbacks directly to existing controllers instead of root forwarding functions.
+- `MainActivity.kt` dropped to 1,064 lines after the direct-controller forwarding cleanup.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 

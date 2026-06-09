@@ -281,19 +281,7 @@ private fun NaviampAndroidApp(
         AndroidPlaybackReportController(scope, appState)
     }
 
-    fun loadLyrics(track: Track) {
-        nowPlayingSidecarController.loadLyrics(track)
-    }
-
-    fun handleLyricsOffsetChanged(offsetMillis: Int) {
-        nowPlayingSidecarController.handleLyricsOffsetChanged(offsetMillis)
-    }
-
     val searchController = remember(appState, storage) { AndroidSearchController(appState, storage) }
-
-    fun handleSearch() {
-        searchController.launchSearch(scope)
-    }
 
     LaunchedEffect(query, provider) {
         searchController.load(query, debounce = true)
@@ -313,14 +301,6 @@ private fun NaviampAndroidApp(
         },
     )
 
-    fun reportNowPlaying(track: Track) {
-        playbackReportController.reportNowPlaying(track)
-    }
-
-    fun maybeReportPlayed(progress: PlaybackProgress) {
-        playbackReportController.maybeReportPlayed(progress)
-    }
-
     val androidPlaylistEngine = remember(
         appState,
         dependencies,
@@ -334,12 +314,8 @@ private fun NaviampAndroidApp(
         )
     }
 
-    fun loadAudioTags(track: Track) {
-        nowPlayingSidecarController.loadAudioTags(track)
-    }
-
     LaunchedEffect(nowPlaying?.id, activeSourceId, provider) {
-        nowPlaying?.takeUnless { it.isInternetRadioTrack() }?.let(::loadAudioTags)
+        nowPlaying?.takeUnless { it.isInternetRadioTrack() }?.let(nowPlayingSidecarController::loadAudioTags)
     }
 
     fun handlePlaybackProgressChanged(sessionToken: Long, progress: PlaybackProgress) {
@@ -348,7 +324,7 @@ private fun NaviampAndroidApp(
             state = appState,
             sessionToken = sessionToken,
             progress = progress,
-            maybeReportPlayed = ::maybeReportPlayed,
+            maybeReportPlayed = playbackReportController::maybeReportPlayed,
             prepareNextIfNeeded = androidPlaylistEngine::prepareNextIfNeeded,
         )
     }
@@ -385,10 +361,10 @@ private fun NaviampAndroidApp(
             activeQueue = ::activeQueue,
             currentStreamQuality = ::currentStreamQuality,
             savePlaybackSessionThrottled = ::savePlaybackSessionThrottled,
-            reportNowPlaying = ::reportNowPlaying,
+            reportNowPlaying = playbackReportController::reportNowPlaying,
             loadRelatedTracks = ::loadRelatedTracks,
-            loadLyrics = ::loadLyrics,
-            loadAudioTags = ::loadAudioTags,
+            loadLyrics = nowPlayingSidecarController::loadLyrics,
+            loadAudioTags = nowPlayingSidecarController::loadAudioTags,
             startAudioPrefetch = androidPlaylistEngine::startAudioPrefetch,
             startSidecarPrep = androidPlaylistEngine::startSidecarPrep,
             handlePlaybackProgressChanged = ::handlePlaybackProgressChanged,
@@ -990,7 +966,7 @@ private fun NaviampAndroidApp(
         handleClearCache = settingsMaintenanceController::handleClearCache,
         handleClearLibrary = settingsMaintenanceController::handleClearLibrary,
         handleResetDatabase = settingsMaintenanceController::handleResetDatabase,
-        handleSearch = ::handleSearch,
+        handleSearch = { searchController.launchSearch(scope) },
         handleArtistMixSearch = mixBuilderController::searchArtistSuggestions,
         handleArtistMixArtistSelected = { item -> mixBuilderController.selectArtistByItemId(item.id) },
         handleArtistMixArtistRemoved = { item -> mixBuilderController.removeArtistByItemId(item.id) },
@@ -1065,8 +1041,8 @@ private fun NaviampAndroidApp(
         playAdjacentTrack = ::playAdjacentTrack,
         performSeek = ::performSeek,
         handleShellToggleShuffle = shellPlaybackController::toggleShuffle,
-        loadLyrics = ::loadLyrics,
-        handleLyricsOffsetChanged = ::handleLyricsOffsetChanged,
+        loadLyrics = nowPlayingSidecarController::loadLyrics,
+        handleLyricsOffsetChanged = nowPlayingSidecarController::handleLyricsOffsetChanged,
         handleShellTrackRadio = shellPlaybackController::startCurrentTrackRadio,
         handleNowPlayingAddToPlaylist = trackActionController::handleNowPlayingAddToPlaylist,
         handleNowPlayingCreatePlaylistAndAdd = trackActionController::handleNowPlayingCreatePlaylistAndAdd,
