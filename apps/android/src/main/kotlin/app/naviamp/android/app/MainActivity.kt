@@ -55,8 +55,6 @@ import app.naviamp.domain.artistmix.artistMixPopularQueue
 import app.naviamp.domain.albummix.albumMixTrackQueue
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackQueueController
-import app.naviamp.domain.playback.PlaybackQueueManager
-import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.ReplayGainMode
@@ -69,7 +67,6 @@ import app.naviamp.domain.playback.playbackPlayPauseCommand
 import app.naviamp.domain.playback.planPlaybackSeek
 import app.naviamp.domain.playback.SleepTimerRequest
 import app.naviamp.domain.popular.SimilarArtistMatch
-import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RecentRadioAction
 import app.naviamp.domain.radio.recentRadioAction
@@ -87,7 +84,6 @@ import app.naviamp.provider.navidrome.NavidromeApiCallHistory
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.ui.SharedTrackRowUi
-import app.naviamp.ui.NaviampNowPlayingItemUi
 import app.naviamp.ui.NaviampDiagnosticsSectionUi
 import app.naviamp.ui.NaviampDiagnosticsUi
 import app.naviamp.ui.NaviampDownloadedTrackUi
@@ -1179,58 +1175,18 @@ private fun NaviampAndroidApp(
         }
     }
 
-    fun handleShellResume() {
-        when (playbackState) {
-            PlaybackState.Idle,
-            PlaybackState.Stopped,
-            PlaybackState.Finished,
-            is PlaybackState.Error,
-            -> {
-                nowPlaying?.let { track ->
-                    playTrack(
-                        track = track,
-                        queue = playbackQueue.tracks.ifEmpty { listOf(track) },
-                        startPositionSeconds = restoredStartPositionSeconds,
-                    )
-                    restoredStartPositionSeconds = null
-                } ?: nowPlayingStation?.let(::playInternetRadioStation)
-            }
-            else -> playbackEngine.resume()
-        }
-    }
-
-    fun handleShellToggleShuffle() {
-        val currentTrack = nowPlaying ?: return
-        val queue = activeQueue()
-        val currentIndex = queue.indexOfFirst { it.id == currentTrack.id }
-        if (currentIndex < 0) return
-        playbackQueueController.replaceQueue(PlaybackQueue(tracks = queue, currentIndex = currentIndex))
-        val update = PlaybackQueueManager().toggleUpcomingShuffle(playbackQueueController.queue, shuffledUpNextSnapshot)
-        if (!update.changed) return
-        playbackQueueController.replaceQueue(update.queue)
-        playbackQueue = update.queue
-        shuffledUpNextSnapshot = update.shuffledSnapshot
-    }
-
-    fun startTrackRadioQueue(track: Track, playSeed: Boolean) {
-        startAndroidTrackRadioQueue(
+    val shellPlaybackController = remember(appState) {
+        AndroidShellPlaybackController(
             scope = scope,
             state = appState,
-            queueController = playbackQueueController,
-            track = track,
-            playSeed = playSeed,
-            playTrack = { seedTrack, queue -> playTrack(seedTrack, queue, keepRadioQueueActive = true) },
+            playbackEngine = playbackEngine,
+            playbackQueueController = playbackQueueController,
+            activeQueue = ::activeQueue,
+            findKnownTrack = ::findKnownTrack,
+            playTrack = ::playTrack,
+            playInternetRadioStation = ::playInternetRadioStation,
             rememberRecentRadioStream = ::rememberRecentRadioStream,
         )
-    }
-
-    fun handleShellTrackRadio() {
-        val currentTrack = nowPlaying ?: return
-        startTrackRadioQueue(currentTrack, playSeed = false)
-    }
-
-    fun handleShellQueueItemRadio(item: NaviampNowPlayingItemUi) {
-        findKnownTrack(item.id)?.let { track -> startTrackRadioQueue(track, playSeed = true) }
     }
 
     fun handleShellGoToAlbum() {
@@ -1489,13 +1445,13 @@ private fun NaviampAndroidApp(
         deleteInternetRadioStation = ::deleteInternetRadioStation,
         handleShellHomeStationSelected = ::handleShellHomeStationSelected,
         closeActiveDetail = navigationController::closeActiveDetail,
-        handleShellResume = ::handleShellResume,
+        handleShellResume = shellPlaybackController::resume,
         playAdjacentTrack = ::playAdjacentTrack,
         performSeek = ::performSeek,
-        handleShellToggleShuffle = ::handleShellToggleShuffle,
+        handleShellToggleShuffle = shellPlaybackController::toggleShuffle,
         loadLyrics = ::loadLyrics,
         handleLyricsOffsetChanged = ::handleLyricsOffsetChanged,
-        handleShellTrackRadio = ::handleShellTrackRadio,
+        handleShellTrackRadio = shellPlaybackController::startCurrentTrackRadio,
         handleNowPlayingAddToPlaylist = ::handleNowPlayingAddToPlaylist,
         handleNowPlayingCreatePlaylistAndAdd = ::handleNowPlayingCreatePlaylistAndAdd,
         handleSaveQueueAsPlaylist = ::saveQueueAsPlaylist,
@@ -1504,7 +1460,7 @@ private fun NaviampAndroidApp(
         downloadTrack = ::downloadTrack,
         handleShellGoToAlbum = ::handleShellGoToAlbum,
         handleShellGoToArtist = ::handleShellGoToArtist,
-        handleShellQueueItemRadio = ::handleShellQueueItemRadio,
+        handleShellQueueItemRadio = shellPlaybackController::startQueueItemRadio,
         findKnownTrack = ::findKnownTrack,
         addTrackToPlaylist = ::addTrackToPlaylist,
         toggleCurrentFavorite = ::toggleCurrentFavorite,

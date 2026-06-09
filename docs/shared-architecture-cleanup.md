@@ -1274,6 +1274,9 @@ Progress notes:
 - Moved Android now-playing go-to-album provider lookup and library fallback into `AndroidArtistController.kt`.
 - `MainActivity.kt` dropped to 1,516 lines after the Android now-playing album navigation extraction.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Moved Android shell resume, shuffle, current-track radio, and queue-item radio actions into `AndroidShellPlaybackController.kt`.
+- `MainActivity.kt` dropped to 1,472 lines after the Android shell playback controller extraction; `AndroidShellPlaybackController.kt` is 82 lines.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 
