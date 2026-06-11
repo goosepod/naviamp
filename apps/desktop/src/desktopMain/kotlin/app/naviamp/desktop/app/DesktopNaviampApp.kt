@@ -26,14 +26,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import app.naviamp.domain.Album
-import app.naviamp.domain.AlbumDetails
-import app.naviamp.domain.Artist
-import app.naviamp.domain.ArtistDetails
-import app.naviamp.domain.Genre
-import app.naviamp.domain.InternetRadioStation
-import app.naviamp.domain.Lyrics
-import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.internetRadioStationId
@@ -50,12 +42,9 @@ import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.SleepTimerState
 import app.naviamp.domain.playback.SleepTimerController
 import app.naviamp.domain.home.HomeContent
-import app.naviamp.domain.provider.PendingPlaybackAction
-import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.InternetRadioStationManager
-import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.desktop.settings.PlaybackSessionSettings
 import app.naviamp.desktop.settings.RecentRadioStream
@@ -138,33 +127,7 @@ fun NaviampApp(
     var connectedProvider by remember { mutableStateOf<NavidromeProvider?>(null) }
     var homeContent by remember { mutableStateOf(HomeContent()) }
     var homeStatus by remember { mutableStateOf<String?>(null) }
-    var playlists by remember { mutableStateOf<List<Playlist>>(emptyList()) }
-    var playlistStatus by remember { mutableStateOf<String?>(null) }
-    var pendingPlaybackAction by remember { mutableStateOf<PendingPlaybackAction?>(null) }
-    var playlistSortMode by remember { mutableStateOf(DesktopPlaylistSortMode.Alphabetical) }
-    var recentPlaylistIds by remember { mutableStateOf(savedRecentPlaylistIds) }
-    var selectedPlaylist by remember { mutableStateOf<Playlist?>(null) }
-    var selectedPlaylistTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
-    var playlistTracksById by remember { mutableStateOf<Map<String, List<Track>>>(emptyMap()) }
-    var selectedPlaylistStatus by remember { mutableStateOf<String?>(null) }
-    var playlistPendingRename by remember { mutableStateOf<Playlist?>(null) }
-    var playlistPendingDelete by remember { mutableStateOf<Playlist?>(null) }
-    var addToPlaylistTarget by remember { mutableStateOf<AddToPlaylistTarget?>(null) }
-    var addToPlaylistStatus by remember { mutableStateOf<String?>(null) }
     var recentRadioStreams by remember { mutableStateOf(savedRecentRadioStreams) }
-    var selectedAlbum by remember { mutableStateOf<Album?>(null) }
-    var selectedAlbumDetails by remember { mutableStateOf<AlbumDetails?>(null) }
-    var selectedAlbumStatus by remember { mutableStateOf<String?>(null) }
-    var albumDetailBackRoute by remember { mutableStateOf(DesktopAppRoute.Home) }
-    var selectedArtist by remember { mutableStateOf<Artist?>(null) }
-    var selectedArtistDetails by remember { mutableStateOf<ArtistDetails?>(null) }
-    var selectedArtistStatus by remember { mutableStateOf<String?>(null) }
-    var selectedArtistPopularTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
-    var selectedArtistPopularTracksStatus by remember { mutableStateOf<String?>(null) }
-    var selectedArtistSimilarArtists by remember { mutableStateOf<List<SimilarArtistMatch>>(emptyList()) }
-    var selectedArtistSimilarArtistsStatus by remember { mutableStateOf<String?>(null) }
-    var artistDetailBackRoute by remember { mutableStateOf(DesktopAppRoute.Search) }
-    var artistDetailBackStack by remember { mutableStateOf<List<Artist>>(emptyList()) }
     var appRoute by remember {
         mutableStateOf(
             restoredRoute(
@@ -179,9 +142,6 @@ fun NaviampApp(
     }
     var nowPlayingTrack by remember { mutableStateOf(restoredTrack) }
     var nowPlayingCoverArtUrl by remember { mutableStateOf<String?>(null) }
-    var nowPlayingWaveform by remember { mutableStateOf<AudioWaveform?>(null) }
-    var nowPlayingWaveformStatus by remember { mutableStateOf("No track") }
-    var nowPlayingWaveformReloadToken by remember { mutableStateOf(0) }
     var nowPlayingVisualizerFrame by remember { mutableStateOf<PlaybackVisualizerFrame?>(null) }
     var nowPlayingVisualizerRequestedVisible by remember { mutableStateOf(false) }
     var selectedVisualizer by remember {
@@ -191,14 +151,10 @@ fun NaviampApp(
             } ?: NaviampVisualizer.AudioSphere,
         )
     }
-    var nowPlayingAudioTags by remember { mutableStateOf<List<AudioTag>?>(null) }
-    var nowPlayingLyrics by remember { mutableStateOf<Lyrics?>(null) }
-    var nowPlayingLyricsStatus by remember { mutableStateOf<String?>(null) }
     var nowPlayingLyricsVisible by remember { mutableStateOf(false) }
     var nowPlayingInternetRadioStation by remember { mutableStateOf(restoredInternetRadioStation) }
     var nowPlayingStreamMetadata by remember { mutableStateOf(PlaybackStreamMetadata()) }
     var radioTrackArtworkByKey by remember { mutableStateOf<Map<String, String?>>(emptyMap()) }
-    var relatedTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
     var playbackState by remember { mutableStateOf<PlaybackState>(PlaybackState.Idle) }
     val nowPlayingVisualizerVisible = nowPlayingVisualizerRequestedVisible &&
         (playbackState == PlaybackState.Playing || playbackState == PlaybackState.Loading)
@@ -262,27 +218,6 @@ fun NaviampApp(
         label = "backgroundEnd",
     )
 
-    DesktopAppEffects(
-        playbackEngine = playbackEngine,
-        playlistEngine = playlistEngine,
-        imageCacheRepository = imageCacheRepository,
-        connectedProvider = connectedProvider,
-        nowPlayingTrack = nowPlayingTrack,
-        playbackState = playbackState,
-        nowPlayingVisualizerVisible = nowPlayingVisualizerVisible,
-        appRoute = appRoute,
-        playbackSettings = playbackSettings,
-        cacheSettings = cacheSettings,
-        albumDetailBackRoute = albumDetailBackRoute,
-        artistDetailBackRoute = artistDetailBackRoute,
-        lastContentRoute = lastContentRoute,
-        setLastContentRoute = { route -> lastContentRoute = route },
-        setNowPlayingVisualizerFrame = { frame -> nowPlayingVisualizerFrame = frame },
-        updateAudioCacheLimit = { maxBytes -> storage.updateAudioCacheLimit(maxBytes) },
-        cancelAudioPrefetch = { playlistEngine.cancelAudioPrefetch() },
-        saveNavigationSettings = settingsStore::saveNavigationSettings,
-    )
-
     val playbackController = DesktopPlaybackController(
         scope = coroutineScope,
         playbackSessionRepository = settingsStore,
@@ -344,13 +279,6 @@ fun NaviampApp(
         playbackQueue = { playbackQueue },
         nowPlayingTrack = { nowPlayingTrack },
         nowPlayingCoverArtUrl = { nowPlayingCoverArtUrl },
-        nowPlayingLyrics = { nowPlayingLyrics },
-        setNowPlayingWaveform = { waveform -> nowPlayingWaveform = waveform },
-        setNowPlayingWaveformStatus = { status -> nowPlayingWaveformStatus = status },
-        setNowPlayingAudioTags = { tags -> nowPlayingAudioTags = tags },
-        setNowPlayingLyrics = { lyrics -> nowPlayingLyrics = lyrics },
-        setNowPlayingLyricsStatus = { status -> nowPlayingLyricsStatus = status },
-        setRelatedTracks = { tracks -> relatedTracks = tracks },
     )
 
     fun handleQueueIndexSelected(queueIndex: Int) {
@@ -387,9 +315,8 @@ fun NaviampApp(
         rememberRadioStream = ::rememberRadioStream,
         clearShuffleSnapshot = playbackController::clearShuffleSnapshot,
         resetNowPlayingSidecars = {
-            nowPlayingWaveform = null
-            nowPlayingWaveformStatus = "Waiting"
-            nowPlayingWaveformReloadToken += 1
+            nowPlayingController.resetAnalysis("Waiting")
+            nowPlayingController.incrementWaveformReloadToken()
         },
         setConnectionStatus = { status -> connectionStatus = status },
         radioSessionId = { radioSessionId },
@@ -419,11 +346,11 @@ fun NaviampApp(
         setNowPlayingTrack = { track -> nowPlayingTrack = track },
         nowPlayingTrack = { nowPlayingTrack },
         setNowPlayingCoverArtUrl = { url -> nowPlayingCoverArtUrl = url },
-        setNowPlayingWaveform = { waveform -> nowPlayingWaveform = waveform },
-        setNowPlayingWaveformStatus = { status -> nowPlayingWaveformStatus = status },
-        setNowPlayingAudioTags = { tags -> nowPlayingAudioTags = tags },
+        setNowPlayingWaveform = nowPlayingController::updateWaveform,
+        setNowPlayingWaveformStatus = nowPlayingController::updateWaveformStatus,
+        setNowPlayingAudioTags = nowPlayingController::updateAudioTags,
         setNowPlayingLyrics = nowPlayingController::setNowPlayingLyricsWithSavedOffset,
-        setNowPlayingLyricsStatus = { status -> nowPlayingLyricsStatus = status },
+        setNowPlayingLyricsStatus = nowPlayingController::updateLyricsStatus,
         nowPlayingStation = { nowPlayingInternetRadioStation },
         setNowPlayingStation = { station -> nowPlayingInternetRadioStation = station },
         setNowPlayingStreamMetadata = { metadata -> nowPlayingStreamMetadata = metadata },
@@ -485,7 +412,7 @@ fun NaviampApp(
             homeStatus = state.homeStatus
             nowPlayingTrack = state.nowPlayingTrack
             nowPlayingCoverArtUrl = state.nowPlayingCoverArtUrl
-            nowPlayingLyricsStatus = state.nowPlayingLyricsStatus
+            nowPlayingController.updateLyricsStatus(state.nowPlayingLyricsStatus)
             playbackState = state.playbackState
             playbackProgress = state.playbackProgress
             playbackQueue = state.playbackQueue
@@ -513,11 +440,11 @@ fun NaviampApp(
         setNowPlayingStreamMetadata = { metadata -> nowPlayingStreamMetadata = metadata },
         setNowPlayingTrack = { track -> nowPlayingTrack = track },
         setNowPlayingCoverArtUrl = { url -> nowPlayingCoverArtUrl = url },
-        setNowPlayingWaveform = { waveform -> nowPlayingWaveform = waveform },
-        setNowPlayingWaveformStatus = { status -> nowPlayingWaveformStatus = status },
-        setNowPlayingAudioTags = { tags -> nowPlayingAudioTags = tags },
+        setNowPlayingWaveform = nowPlayingController::updateWaveform,
+        setNowPlayingWaveformStatus = nowPlayingController::updateWaveformStatus,
+        setNowPlayingAudioTags = nowPlayingController::updateAudioTags,
         setNowPlayingLyrics = nowPlayingController::setNowPlayingLyricsWithSavedOffset,
-        setNowPlayingLyricsStatus = { status -> nowPlayingLyricsStatus = status },
+        setNowPlayingLyricsStatus = nowPlayingController::updateLyricsStatus,
         setPlaybackState = { state -> playbackState = state },
         setPlaybackProgress = { progress -> playbackProgress = progress },
         setPlaybackQueue = { queue -> playbackQueue = queue },
@@ -546,16 +473,16 @@ fun NaviampApp(
         nowPlayingTrack = { nowPlayingTrack },
         setNowPlayingTrack = { track -> nowPlayingTrack = track },
         setNowPlayingCoverArtUrl = { url -> nowPlayingCoverArtUrl = url },
-        setNowPlayingWaveform = { waveform -> nowPlayingWaveform = waveform },
-        setNowPlayingWaveformStatus = { status -> nowPlayingWaveformStatus = status },
-        setNowPlayingAudioTags = { tags -> nowPlayingAudioTags = tags },
+        setNowPlayingWaveform = nowPlayingController::updateWaveform,
+        setNowPlayingWaveformStatus = nowPlayingController::updateWaveformStatus,
+        setNowPlayingAudioTags = nowPlayingController::updateAudioTags,
         setNowPlayingLyrics = nowPlayingController::setNowPlayingLyricsWithSavedOffset,
-        setNowPlayingLyricsStatus = { status -> nowPlayingLyricsStatus = status },
+        setNowPlayingLyricsStatus = nowPlayingController::updateLyricsStatus,
         setNowPlayingInternetRadioStation = { station -> nowPlayingInternetRadioStation = station },
         setNowPlayingStreamMetadata = { metadata -> nowPlayingStreamMetadata = metadata },
         incrementPlayReportSessionId = { playReportSessionId++ },
         clearSubmittedPlayReportSessionId = { submittedPlayReportSessionId = null },
-        incrementNowPlayingWaveformReloadToken = { nowPlayingWaveformReloadToken++ },
+        incrementNowPlayingWaveformReloadToken = nowPlayingController::incrementWaveformReloadToken,
         reportNowPlaying = playbackController::reportNowPlaying,
         clearShuffleSnapshot = playbackController::clearShuffleSnapshot,
         refillRadioIfNeeded = radioController::refillIfNeeded,
@@ -610,37 +537,6 @@ fun NaviampApp(
         initialQuery = savedSearch.query,
     )
 
-    val mediaActionsController = DesktopMediaActionsController(
-        scope = coroutineScope,
-        trackMetadataRepository = storage,
-        playbackEngine = playbackEngine,
-        playlistEngine = playlistEngine,
-        provider = { connectedProvider },
-        playbackSettings = { playbackSettings },
-        playlistCallbacks = { playlistCallbacks },
-        albumTracks = { selectedAlbumDetails?.tracks.orEmpty() },
-        searchTracks = { searchController.results.tracks },
-        relatedTracks = { relatedTracks },
-        nowPlayingTrack = { nowPlayingTrack },
-        setNowPlayingTrack = { track -> nowPlayingTrack = track },
-        searchResults = { searchController.results },
-        setSearchResults = searchController::updateResults,
-        homeContent = { homeContent },
-        setHomeContent = { content -> homeContent = content },
-        selectedAlbumDetails = { selectedAlbumDetails },
-        setSelectedAlbumDetails = { details -> selectedAlbumDetails = details },
-        selectedArtistDetails = { selectedArtistDetails },
-        setSelectedArtistDetails = { details -> selectedArtistDetails = details },
-        setArtistMixSelectedArtists = mixBuilderController::updateSelectedArtist,
-        setArtistMixSuggestions = mixBuilderController::updateSuggestedArtist,
-        setAlbumMixSelectedAlbums = mixBuilderController::updateSelectedAlbum,
-        setAlbumMixSuggestions = mixBuilderController::updateSuggestedAlbum,
-        stopRadioContinuation = radioController::stopContinuation,
-        clearShuffleSnapshot = playbackController::clearShuffleSnapshot,
-        setOpenPlayerOnTrackStart = { shouldOpen -> openPlayerOnTrackStart = shouldOpen },
-        setConnectionStatus = { status -> connectionStatus = status },
-    )
-
     val downloadsController = DesktopDownloadsController(
         scope = coroutineScope,
         downloadRepository = storage,
@@ -665,11 +561,7 @@ fun NaviampApp(
         playbackSettings = { playbackSettings },
         setPlaybackSettings = { settings -> playbackSettings = settings },
         savePlaybackSettings = settingsStore::savePlaybackSettings,
-        reloadLyricsSidecars = {
-            nowPlayingLyrics = null
-            nowPlayingLyricsStatus = null
-            nowPlayingWaveformReloadToken += 1
-        },
+        reloadLyricsSidecars = nowPlayingController::clearLyricsAndReloadAnalysis,
         downloadedTracks = {
             connectedSourceId
                 ?.let { storage.downloadedTracks(it) }
@@ -688,26 +580,9 @@ fun NaviampApp(
         provider = { connectedProvider },
         playbackSettings = { playbackSettings },
         playlistCallbacks = { playlistCallbacks },
-        playlists = { playlists },
-        setPlaylists = { value -> playlists = value },
-        recentPlaylistIds = { recentPlaylistIds },
-        setRecentPlaylistIds = { ids -> recentPlaylistIds = ids },
+        initialRecentPlaylistIds = savedRecentPlaylistIds,
         homeContent = { homeContent },
         setHomeContent = { content -> homeContent = content },
-        playlistTracksById = { playlistTracksById },
-        setPlaylistTracksById = { tracksById -> playlistTracksById = tracksById },
-        selectedPlaylist = { selectedPlaylist },
-        setSelectedPlaylist = { playlist -> selectedPlaylist = playlist },
-        selectedPlaylistTracks = { selectedPlaylistTracks },
-        setSelectedPlaylistTracks = { tracks -> selectedPlaylistTracks = tracks },
-        pendingPlaybackAction = { pendingPlaybackAction },
-        setPendingPlaybackAction = { action -> pendingPlaybackAction = action },
-        setSelectedPlaylistStatus = { status -> selectedPlaylistStatus = status },
-        setPlaylistStatus = { status -> playlistStatus = status },
-        setAddToPlaylistTarget = { target -> addToPlaylistTarget = target },
-        setAddToPlaylistStatus = { status -> addToPlaylistStatus = status },
-        setPlaylistPendingRename = { playlist -> playlistPendingRename = playlist },
-        setPlaylistPendingDelete = { playlist -> playlistPendingDelete = playlist },
         setConnectionStatus = { status -> connectionStatus = status },
         setAppRoute = { route -> appRoute = route },
         stopRadioContinuation = radioController::stopContinuation,
@@ -727,17 +602,7 @@ fun NaviampApp(
         setConnectedSourceId = { sourceId -> connectedSourceId = sourceId },
         incrementMediaSourcesRevision = { mediaSourcesRevision++ },
         incrementStatsForNerdsRefreshTick = { statsForNerdsRefreshTick++ },
-        setPlaylists = { value -> playlists = value },
-        recentPlaylistIds = { recentPlaylistIds },
-        homeContent = { homeContent },
-        setHomeContent = { content -> homeContent = content },
-        playlistTracksById = { playlistTracksById },
-        setPlaylistTracksById = { tracksById -> playlistTracksById = tracksById },
-        selectedPlaylist = { selectedPlaylist },
-        setSelectedPlaylist = { playlist -> selectedPlaylist = playlist },
-        setSelectedPlaylistTracks = { tracks -> selectedPlaylistTracks = tracks },
-        setSelectedPlaylistStatus = { status -> selectedPlaylistStatus = status },
-        setPlaylistStatus = { status -> playlistStatus = status },
+        playlistsController = playlistsController,
         setConnectionStatus = { status -> connectionStatus = status },
     )
 
@@ -750,20 +615,6 @@ fun NaviampApp(
         currentRoute = { appRoute },
         lastContentRoute = { lastContentRoute },
         setRoute = { route -> appRoute = route },
-        selectedArtist = { selectedArtist },
-        setSelectedArtist = { artist -> selectedArtist = artist },
-        setSelectedArtistDetails = { details -> selectedArtistDetails = details },
-        setSelectedArtistStatus = { status -> selectedArtistStatus = status },
-        setSelectedArtistPopularTracks = { tracks -> selectedArtistPopularTracks = tracks },
-        setSelectedArtistPopularTracksStatus = { status -> selectedArtistPopularTracksStatus = status },
-        selectedArtistSimilarArtists = { selectedArtistSimilarArtists },
-        selectedArtistSimilarArtistsStatus = { selectedArtistSimilarArtistsStatus },
-        setSelectedArtistSimilarArtists = { artists -> selectedArtistSimilarArtists = artists },
-        setSelectedArtistSimilarArtistsStatus = { status -> selectedArtistSimilarArtistsStatus = status },
-        artistDetailBackRoute = { artistDetailBackRoute },
-        setArtistDetailBackRoute = { route -> artistDetailBackRoute = route },
-        artistDetailBackStack = { artistDetailBackStack },
-        setArtistDetailBackStack = { stack -> artistDetailBackStack = stack },
         popularTracksService = popularTracksService,
         similarArtistsService = similarArtistsService,
     )
@@ -776,12 +627,38 @@ fun NaviampApp(
         sourceId = { connectedSourceId },
         currentRoute = { appRoute },
         lastContentRoute = { lastContentRoute },
-        albumDetailBackRoute = { albumDetailBackRoute },
-        setAlbumDetailBackRoute = { route -> albumDetailBackRoute = route },
         setRoute = { route -> appRoute = route },
-        setSelectedAlbum = { album -> selectedAlbum = album },
-        setSelectedAlbumDetails = { details -> selectedAlbumDetails = details },
-        setSelectedAlbumStatus = { status -> selectedAlbumStatus = status },
+    )
+
+    val mediaActionsController = DesktopMediaActionsController(
+        scope = coroutineScope,
+        trackMetadataRepository = storage,
+        playbackEngine = playbackEngine,
+        playlistEngine = playlistEngine,
+        provider = { connectedProvider },
+        playbackSettings = { playbackSettings },
+        playlistCallbacks = { playlistCallbacks },
+        albumTracks = { albumController.selectedAlbumDetails?.tracks.orEmpty() },
+        searchTracks = { searchController.results.tracks },
+        relatedTracks = { nowPlayingController.relatedTracks },
+        nowPlayingTrack = { nowPlayingTrack },
+        setNowPlayingTrack = { track -> nowPlayingTrack = track },
+        searchResults = { searchController.results },
+        setSearchResults = searchController::updateResults,
+        homeContent = { homeContent },
+        setHomeContent = { content -> homeContent = content },
+        selectedAlbumDetails = { albumController.selectedAlbumDetails },
+        setSelectedAlbumDetails = albumController::updateSelectedAlbumDetails,
+        selectedArtistDetails = { artistController.selectedArtistDetails },
+        setSelectedArtistDetails = artistController::updateSelectedArtistDetails,
+        setArtistMixSelectedArtists = mixBuilderController::updateSelectedArtist,
+        setArtistMixSuggestions = mixBuilderController::updateSuggestedArtist,
+        setAlbumMixSelectedAlbums = mixBuilderController::updateSelectedAlbum,
+        setAlbumMixSuggestions = mixBuilderController::updateSuggestedAlbum,
+        stopRadioContinuation = radioController::stopContinuation,
+        clearShuffleSnapshot = playbackController::clearShuffleSnapshot,
+        setOpenPlayerOnTrackStart = { shouldOpen -> openPlayerOnTrackStart = shouldOpen },
+        setConnectionStatus = { status -> connectionStatus = status },
     )
 
     val homeController = DesktopHomeController(
@@ -806,13 +683,34 @@ fun NaviampApp(
         playlistsController = playlistsController,
         libraryController = libraryController,
         homeContent = { homeContent },
-        playlists = { playlists },
+        playlists = { playlistsController.playlists },
         internetRadioStations = { internetRadioController.stations },
-        selectedAlbum = { selectedAlbum },
-        selectedAlbumDetails = { selectedAlbumDetails },
-        selectedArtistPopularTracks = { selectedArtistPopularTracks },
-        selectedPlaylist = { selectedPlaylist },
-        selectedPlaylistTracks = { selectedPlaylistTracks },
+        selectedAlbum = { albumController.selectedAlbum },
+        selectedAlbumDetails = { albumController.selectedAlbumDetails },
+        selectedArtistPopularTracks = { artistController.selectedArtistPopularTracks },
+        selectedPlaylist = { playlistsController.selectedPlaylist },
+        selectedPlaylistTracks = { playlistsController.selectedPlaylistTracks },
+    )
+
+    DesktopAppEffects(
+        playbackEngine = playbackEngine,
+        playlistEngine = playlistEngine,
+        imageCacheRepository = imageCacheRepository,
+        connectedProvider = connectedProvider,
+        nowPlayingTrack = nowPlayingTrack,
+        playbackState = playbackState,
+        nowPlayingVisualizerVisible = nowPlayingVisualizerVisible,
+        appRoute = appRoute,
+        playbackSettings = playbackSettings,
+        cacheSettings = cacheSettings,
+        albumDetailBackRoute = albumController.albumDetailBackRoute,
+        artistDetailBackRoute = artistController.artistDetailBackRoute,
+        lastContentRoute = lastContentRoute,
+        setLastContentRoute = { route -> lastContentRoute = route },
+        setNowPlayingVisualizerFrame = { frame -> nowPlayingVisualizerFrame = frame },
+        updateAudioCacheLimit = { maxBytes -> storage.updateAudioCacheLimit(maxBytes) },
+        cancelAudioPrefetch = { playlistEngine.cancelAudioPrefetch() },
+        saveNavigationSettings = settingsStore::saveNavigationSettings,
     )
 
     DesktopAppControllerEffects(
@@ -827,12 +725,12 @@ fun NaviampApp(
         connectedSourceId = connectedSourceId,
         connectedProvider = connectedProvider,
         playbackEngine = playbackEngine,
-        nowPlayingWaveformReloadToken = nowPlayingWaveformReloadToken,
+        nowPlayingWaveformReloadToken = nowPlayingController.waveformReloadToken,
         cacheSettings = cacheSettings,
         playbackSettings = playbackSettings,
         nowPlayingLyricsVisible = nowPlayingLyricsVisible,
         appRoute = appRoute,
-        selectedPlaylist = selectedPlaylist,
+        selectedPlaylist = playlistsController.selectedPlaylist,
         homeContent = homeContent,
         showStatsForNerds = showStatsForNerds,
         statsForNerdsRefreshTick = statsForNerdsRefreshTick,
@@ -867,8 +765,8 @@ fun NaviampApp(
         playbackState = playbackState,
         playbackProgress = playbackProgress,
         playbackSettings = playbackSettings,
-        nowPlayingWaveform = nowPlayingWaveform,
-        nowPlayingWaveformStatus = nowPlayingWaveformStatus,
+        nowPlayingWaveform = nowPlayingController.waveform,
+        nowPlayingWaveformStatus = nowPlayingController.waveformStatus,
         nowPlayingInternetRadioStation = nowPlayingInternetRadioStation,
         nowPlayingStreamMetadata = nowPlayingStreamMetadata,
         cacheStats = cacheStats,
@@ -902,13 +800,13 @@ fun NaviampApp(
                             supportsTrackFavorites = connectedProvider?.capabilities?.supportsTrackFavorites == true,
                             supportsTrackRatings = connectedProvider?.capabilities?.supportsTrackRatings == true,
                             nowPlayingTrack = nowPlayingTrack,
-                            nowPlayingWaveform = nowPlayingWaveform,
+                            nowPlayingWaveform = nowPlayingController.waveform,
                             visualizerFrame = nowPlayingVisualizerFrame,
                             selectedVisualizer = selectedVisualizer,
                             visualizerColors = targetBackgroundColors,
-                            nowPlayingAudioTags = nowPlayingAudioTags,
-                            nowPlayingLyrics = nowPlayingLyrics,
-                            nowPlayingLyricsStatus = nowPlayingLyricsStatus,
+                            nowPlayingAudioTags = nowPlayingController.audioTags,
+                            nowPlayingLyrics = nowPlayingController.lyrics,
+                            nowPlayingLyricsStatus = nowPlayingController.lyricsStatus,
                             nowPlayingStreamMetadata = nowPlayingStreamMetadata,
                             lyricsVisible = nowPlayingLyricsVisible,
                             visualizerAvailable = (playbackEngine as? VisualizerPlaybackEngine)?.supportsVisualizer == true,
@@ -919,7 +817,7 @@ fun NaviampApp(
                             currentInternetRadioStationId =
                                 nowPlayingInternetRadioStation?.id ?: nowPlayingTrack?.internetRadioStationId(),
                             radioTrackArtworkByKey = radioTrackArtworkByKey,
-                            relatedTracks = relatedTracks,
+                            relatedTracks = nowPlayingController.relatedTracks,
                             coverArtUrlForTrack = { track -> track.coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
                             hasPrevious = playbackController.canUsePreviousButton(),
                             hasNext = playbackController.canUseNextButton(),
@@ -1003,29 +901,29 @@ fun NaviampApp(
                             onOpenAlbumMixBuilder = {
                                 appRoute = DesktopAppRoute.AlbumMix
                             },
-                            selectedAlbum = selectedAlbum,
-                            selectedAlbumDetails = selectedAlbumDetails,
-                            selectedAlbumStatus = selectedAlbumStatus,
-                            albumDetailBackRoute = albumDetailBackRoute,
-                            selectedArtist = selectedArtist,
-                            selectedArtistDetails = selectedArtistDetails,
-                            selectedArtistPopularTracks = selectedArtistPopularTracks,
-                            selectedArtistSimilarArtists = selectedArtistSimilarArtists,
-                            selectedArtistStatus = selectedArtistStatus,
-                            selectedArtistPopularTracksStatus = selectedArtistPopularTracksStatus,
-                            selectedArtistSimilarArtistsStatus = selectedArtistSimilarArtistsStatus,
-                            artistDetailBackRoute = artistDetailBackRoute,
-                            playlists = playlists,
-                            playlistTracksById = playlistTracksById,
-                            recentPlaylistIds = recentPlaylistIds,
-                            playlistSortMode = playlistSortMode,
-                            playlistStatus = playlistStatus,
-                            onPlaylistSortModeChanged = { playlistSortMode = it },
-                            onPlaylistRenameRequested = { playlistPendingRename = it },
-                            onPlaylistDeleteRequested = { playlistPendingDelete = it },
-                            selectedPlaylist = selectedPlaylist,
-                            selectedPlaylistTracks = selectedPlaylistTracks,
-                            selectedPlaylistStatus = selectedPlaylistStatus,
+                            selectedAlbum = albumController.selectedAlbum,
+                            selectedAlbumDetails = albumController.selectedAlbumDetails,
+                            selectedAlbumStatus = albumController.selectedAlbumStatus,
+                            albumDetailBackRoute = albumController.albumDetailBackRoute,
+                            selectedArtist = artistController.selectedArtist,
+                            selectedArtistDetails = artistController.selectedArtistDetails,
+                            selectedArtistPopularTracks = artistController.selectedArtistPopularTracks,
+                            selectedArtistSimilarArtists = artistController.selectedArtistSimilarArtists,
+                            selectedArtistStatus = artistController.selectedArtistStatus,
+                            selectedArtistPopularTracksStatus = artistController.selectedArtistPopularTracksStatus,
+                            selectedArtistSimilarArtistsStatus = artistController.selectedArtistSimilarArtistsStatus,
+                            artistDetailBackRoute = artistController.artistDetailBackRoute,
+                            playlists = playlistsController.playlists,
+                            playlistTracksById = playlistsController.playlistTracksById,
+                            recentPlaylistIds = playlistsController.recentPlaylistIds,
+                            playlistSortMode = playlistsController.sortMode,
+                            playlistStatus = playlistsController.status,
+                            onPlaylistSortModeChanged = playlistsController::updateSortMode,
+                            onPlaylistRenameRequested = playlistsController::requestPlaylistRename,
+                            onPlaylistDeleteRequested = playlistsController::requestPlaylistDelete,
+                            selectedPlaylist = playlistsController.selectedPlaylist,
+                            selectedPlaylistTracks = playlistsController.selectedPlaylistTracks,
+                            selectedPlaylistStatus = playlistsController.selectedPlaylistStatus,
                             librarySnapshot = libraryController.snapshot,
                             libraryQuery = libraryController.query,
                             libraryTab = libraryController.tab,
@@ -1098,24 +996,21 @@ fun NaviampApp(
                         )
                         DesktopAppDialogs(
                             appColors = appColors,
-                            addToPlaylistTarget = addToPlaylistTarget,
-                            playlists = playlists,
-                            addToPlaylistStatus = addToPlaylistStatus,
-                            playlistPendingRename = playlistPendingRename,
-                            playlistPendingDelete = playlistPendingDelete,
-                            onDismissAddToPlaylist = {
-                                addToPlaylistTarget = null
-                                addToPlaylistStatus = null
-                            },
+                            addToPlaylistTarget = playlistsController.addToPlaylistTarget,
+                            playlists = playlistsController.playlists,
+                            addToPlaylistStatus = playlistsController.addToPlaylistStatus,
+                            playlistPendingRename = playlistsController.pendingRename,
+                            playlistPendingDelete = playlistsController.pendingDelete,
+                            onDismissAddToPlaylist = playlistsController::dismissAddToPlaylist,
                             onAddToExistingPlaylist = { target, playlist ->
                                 playlistsController.addTargetToPlaylist(target, playlist = playlist)
                             },
                             onCreateAndAddToPlaylist = { target, name ->
                                 playlistsController.addTargetToPlaylist(target, playlist = null, newPlaylistName = name)
                             },
-                            onDismissRenamePlaylist = { playlistPendingRename = null },
+                            onDismissRenamePlaylist = playlistsController::dismissRename,
                             onRenamePlaylist = appActions::renamePlaylist,
-                            onDismissDeletePlaylist = { playlistPendingDelete = null },
+                            onDismissDeletePlaylist = playlistsController::dismissDelete,
                             onDeletePlaylist = appActions::deletePlaylist,
                         )
                         if (nowPlayingTrack != null) {
@@ -1139,12 +1034,12 @@ fun NaviampApp(
                         DesktopBottomNavigationBar(
                             appColors = appColors,
                             selectedRoute = when (appRoute) {
-                                DesktopAppRoute.AlbumDetail -> if (albumDetailBackRoute == DesktopAppRoute.ArtistDetail) {
-                                    artistDetailBackRoute
+                                DesktopAppRoute.AlbumDetail -> if (albumController.albumDetailBackRoute == DesktopAppRoute.ArtistDetail) {
+                                    artistController.artistDetailBackRoute
                                 } else {
-                                    albumDetailBackRoute
+                                    albumController.albumDetailBackRoute
                                 }
-                                DesktopAppRoute.ArtistDetail -> artistDetailBackRoute
+                                DesktopAppRoute.ArtistDetail -> artistController.artistDetailBackRoute
                                 DesktopAppRoute.PlaylistDetail -> DesktopAppRoute.Playlists
                                 else -> appRoute
                             },

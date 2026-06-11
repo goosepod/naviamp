@@ -1,5 +1,8 @@
 package app.naviamp.desktop
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.Track
@@ -37,24 +40,32 @@ class DesktopArtistController(
     private val currentRoute: () -> DesktopAppRoute,
     private val lastContentRoute: () -> DesktopAppRoute,
     private val setRoute: (DesktopAppRoute) -> Unit,
-    private val selectedArtist: () -> Artist?,
-    private val setSelectedArtist: (Artist?) -> Unit,
-    private val setSelectedArtistDetails: (ArtistDetails?) -> Unit,
-    private val setSelectedArtistStatus: (String?) -> Unit,
-    private val setSelectedArtistPopularTracks: (List<Track>) -> Unit,
-    private val setSelectedArtistPopularTracksStatus: (String?) -> Unit,
-    private val selectedArtistSimilarArtists: () -> List<SimilarArtistMatch>,
-    private val selectedArtistSimilarArtistsStatus: () -> String?,
-    private val setSelectedArtistSimilarArtists: (List<SimilarArtistMatch>) -> Unit,
-    private val setSelectedArtistSimilarArtistsStatus: (String?) -> Unit,
-    private val artistDetailBackRoute: () -> DesktopAppRoute,
-    private val setArtistDetailBackRoute: (DesktopAppRoute) -> Unit,
-    private val artistDetailBackStack: () -> List<Artist>,
-    private val setArtistDetailBackStack: (List<Artist>) -> Unit,
     private val popularTracksService: ArtistPopularTracksService,
     private val similarArtistsService: SimilarArtistsService,
 ) {
     private val providerResponseService = ProviderResponseService(providerResponseCacheRepository)
+
+    var selectedArtist by mutableStateOf<Artist?>(null)
+        private set
+    var selectedArtistDetails by mutableStateOf<ArtistDetails?>(null)
+        private set
+    var selectedArtistStatus by mutableStateOf<String?>(null)
+        private set
+    var selectedArtistPopularTracks by mutableStateOf<List<Track>>(emptyList())
+        private set
+    var selectedArtistPopularTracksStatus by mutableStateOf<String?>(null)
+        private set
+    var selectedArtistSimilarArtists by mutableStateOf<List<SimilarArtistMatch>>(emptyList())
+        private set
+    var selectedArtistSimilarArtistsStatus by mutableStateOf<String?>(null)
+        private set
+    var artistDetailBackRoute by mutableStateOf(DesktopAppRoute.Search)
+        private set
+    private var artistDetailBackStack by mutableStateOf<List<Artist>>(emptyList())
+
+    fun updateSelectedArtistDetails(details: ArtistDetails?) {
+        selectedArtistDetails = details
+    }
 
     fun openExternalArtistUrl(url: String) {
         runCatching {
@@ -62,22 +73,22 @@ class DesktopArtistController(
                 Desktop.getDesktop().browse(URI.create(url))
             }
         }.onFailure { error ->
-            setSelectedArtistSimilarArtistsStatus("Could not open external artist page: ${error.message ?: "unknown error"}")
+            selectedArtistSimilarArtistsStatus = "Could not open external artist page: ${error.message ?: "unknown error"}"
         }
     }
 
     fun toggleSimilarArtists(artist: Artist) {
-        if (selectedArtistSimilarArtists().isNotEmpty() || selectedArtistSimilarArtistsStatus() != null) {
-            setSelectedArtistSimilarArtists(emptyList())
-            setSelectedArtistSimilarArtistsStatus(null)
+        if (selectedArtistSimilarArtists.isNotEmpty() || selectedArtistSimilarArtistsStatus != null) {
+            selectedArtistSimilarArtists = emptyList()
+            selectedArtistSimilarArtistsStatus = null
             return
         }
         findSimilarArtists(artist)
     }
 
     private fun findSimilarArtists(artist: Artist) {
-        setSelectedArtistSimilarArtistsStatus(loadingSimilarArtistsStatus())
-        setSelectedArtistSimilarArtists(emptyList())
+        selectedArtistSimilarArtistsStatus = loadingSimilarArtistsStatus()
+        selectedArtistSimilarArtists = emptyList()
         scope.launch {
             val update = withContext(Dispatchers.IO) {
                 loadSimilarArtistsUpdate(
@@ -87,9 +98,9 @@ class DesktopArtistController(
                     loadSimilarArtists = similarArtistsService::similarArtists,
                 )
             }
-            if (selectedArtist()?.id == artist.id) {
-                setSelectedArtistSimilarArtists(update.artists)
-                setSelectedArtistSimilarArtistsStatus(update.status)
+            if (selectedArtist?.id == artist.id) {
+                selectedArtistSimilarArtists = update.artists
+                selectedArtistSimilarArtistsStatus = update.status
             }
         }
     }
@@ -102,32 +113,32 @@ class DesktopArtistController(
         val activeProvider = provider() ?: return
         val navigation = artistDetailNavigation(
             artist = artist,
-            currentArtist = selectedArtist(),
+            currentArtist = selectedArtist,
             currentRoute = currentRoute(),
-            currentBackStack = artistDetailBackStack(),
-            currentBackRoute = artistDetailBackRoute(),
+            currentBackStack = artistDetailBackStack,
+            currentBackRoute = artistDetailBackRoute,
             lastContentRoute = lastContentRoute(),
             backRouteOverride = backRouteOverride,
             pushCurrentArtist = pushCurrentArtist,
         )
-        setArtistDetailBackStack(navigation.backStack)
-        setArtistDetailBackRoute(navigation.backRoute)
-        setSelectedArtist(artist)
-        setSelectedArtistDetails(null)
-        setSelectedArtistPopularTracks(emptyList())
-        setSelectedArtistPopularTracksStatus(null)
-        setSelectedArtistSimilarArtists(emptyList())
-        setSelectedArtistSimilarArtistsStatus(null)
-        setSelectedArtistStatus("Loading...")
+        artistDetailBackStack = navigation.backStack
+        artistDetailBackRoute = navigation.backRoute
+        selectedArtist = artist
+        selectedArtistDetails = null
+        selectedArtistPopularTracks = emptyList()
+        selectedArtistPopularTracksStatus = null
+        selectedArtistSimilarArtists = emptyList()
+        selectedArtistSimilarArtistsStatus = null
+        selectedArtistStatus = "Loading..."
         setRoute(DesktopAppRoute.ArtistDetail)
         scope.launch {
             try {
                 val details = loadArtistDetails(libraryIndexRepository, providerResponseService, activeProvider, artist, sourceId())
-                setSelectedArtistDetails(details)
-                setSelectedArtistStatus(null)
+                selectedArtistDetails = details
+                selectedArtistStatus = null
                 loadPopularTracks(artist, details)
             } catch (exception: Exception) {
-                setSelectedArtistStatus(artistDetailLoadErrorStatus(exception))
+                selectedArtistStatus = artistDetailLoadErrorStatus(exception)
             }
         }
     }
@@ -137,21 +148,21 @@ class DesktopArtistController(
     }
 
     fun closeArtistDetails() {
-        val previousArtist = artistDetailBackStack().lastOrNull()
+        val previousArtist = artistDetailBackStack.lastOrNull()
         if (previousArtist != null) {
-            setArtistDetailBackStack(artistDetailBackStack().dropLast(1))
+            artistDetailBackStack = artistDetailBackStack.dropLast(1)
             openArtistDetails(
                 artist = previousArtist,
-                backRouteOverride = artistDetailBackRoute(),
+                backRouteOverride = artistDetailBackRoute,
                 pushCurrentArtist = false,
             )
         } else {
-            setRoute(artistDetailBackRoute())
+            setRoute(artistDetailBackRoute)
         }
     }
 
     private suspend fun loadPopularTracks(artist: Artist, details: ArtistDetails) {
-        setSelectedArtistPopularTracksStatus(loadingPopularTracksStatus())
+        selectedArtistPopularTracksStatus = loadingPopularTracksStatus()
         val update = loadArtistPopularTracksUpdate(
             sourceId = sourceId(),
             artist = details.artist,
@@ -159,9 +170,9 @@ class DesktopArtistController(
             displayLimit = ArtistDetailPopularTracksDisplayLimit,
             loadPopularTracks = popularTracksService::popularTracks,
         )
-        if (selectedArtist()?.id == artist.id) {
-            setSelectedArtistPopularTracks(update.tracks)
-            setSelectedArtistPopularTracksStatus(update.status)
+        if (selectedArtist?.id == artist.id) {
+            selectedArtistPopularTracks = update.tracks
+            selectedArtistPopularTracksStatus = update.status
         }
     }
 }

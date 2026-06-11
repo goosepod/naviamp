@@ -1,5 +1,8 @@
 package app.naviamp.desktop
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Track
 import app.naviamp.domain.audio.AudioMetadataSidecarService
@@ -40,72 +43,108 @@ class DesktopNowPlayingController(
     private val playbackQueue: () -> PlaybackQueue,
     private val nowPlayingTrack: () -> Track?,
     private val nowPlayingCoverArtUrl: () -> String?,
-    private val nowPlayingLyrics: () -> Lyrics?,
-    private val setNowPlayingWaveform: (AudioWaveform?) -> Unit,
-    private val setNowPlayingWaveformStatus: (String) -> Unit,
-    private val setNowPlayingAudioTags: (List<AudioTag>?) -> Unit,
-    private val setNowPlayingLyrics: (Lyrics?) -> Unit,
-    private val setNowPlayingLyricsStatus: (String?) -> Unit,
-    private val setRelatedTracks: (List<Track>) -> Unit,
 ) {
     private val lyricsOffsetController = LyricsOffsetController(lyricsOffsetRepository)
 
+    var waveform by mutableStateOf<AudioWaveform?>(null)
+        private set
+    var waveformStatus by mutableStateOf("No track")
+        private set
+    var waveformReloadToken by mutableStateOf(0)
+        private set
+    var audioTags by mutableStateOf<List<AudioTag>?>(null)
+        private set
+    var lyrics by mutableStateOf<Lyrics?>(null)
+        private set
+    var lyricsStatus by mutableStateOf<String?>(null)
+        private set
+    var relatedTracks by mutableStateOf<List<Track>>(emptyList())
+        private set
+
+    fun updateWaveform(waveform: AudioWaveform?) {
+        this.waveform = waveform
+    }
+
+    fun updateWaveformStatus(status: String) {
+        waveformStatus = status
+    }
+
+    fun updateAudioTags(tags: List<AudioTag>?) {
+        audioTags = tags
+    }
+
+    fun updateLyricsStatus(status: String?) {
+        lyricsStatus = status
+    }
+
+    fun incrementWaveformReloadToken() {
+        waveformReloadToken += 1
+    }
+
+    fun clearLyricsAndReloadAnalysis() {
+        lyrics = null
+        lyricsStatus = null
+        incrementWaveformReloadToken()
+    }
+
+    fun resetAnalysis(status: String) {
+        waveform = null
+        waveformStatus = status
+        audioTags = null
+        setNowPlayingLyricsWithSavedOffset(null)
+        lyricsStatus = null
+    }
+
     fun setNowPlayingLyricsWithSavedOffset(lyrics: Lyrics?) {
-        setNowPlayingLyrics(
-            lyricsOffsetController.withSavedOffset(
-                sourceId = sourceId(),
-                track = nowPlayingTrack(),
-                lyrics = lyrics,
-            ),
+        this.lyrics = lyricsOffsetController.withSavedOffset(
+            sourceId = sourceId(),
+            track = nowPlayingTrack(),
+            lyrics = lyrics,
         )
     }
 
     fun handleLyricsOffsetChanged(offsetMillis: Int) {
-        setNowPlayingLyrics(
-            lyricsOffsetController.saveOffset(
-                sourceId = sourceId(),
-                track = nowPlayingTrack(),
-                lyrics = nowPlayingLyrics(),
-                offsetMillis = offsetMillis,
-            ),
+        lyrics = lyricsOffsetController.saveOffset(
+            sourceId = sourceId(),
+            track = nowPlayingTrack(),
+            lyrics = lyrics,
+            offsetMillis = offsetMillis,
         )
     }
 
     suspend fun loadNowPlayingAnalysis() {
         val lyricsVisibleForWork = lyricsVisible() && appRoute() == DesktopAppRoute.Player
         val track = nowPlayingTrack() ?: run {
-            setNowPlayingWaveform(null)
-            setNowPlayingWaveformStatus("No track")
-            setNowPlayingLyricsStatus(null)
+            waveform = null
+            waveformStatus = "No track"
+            lyricsStatus = null
             return
         }
         if (track.isInternetRadioTrack()) {
-            setNowPlayingWaveform(null)
-            setNowPlayingWaveformStatus("Internet radio")
-            setNowPlayingAudioTags(null)
+            waveform = null
+            waveformStatus = "Internet radio"
+            audioTags = null
             setNowPlayingLyricsWithSavedOffset(null)
-            setNowPlayingLyricsStatus(null)
+            lyricsStatus = null
             return
         }
         val activeSourceId = sourceId() ?: run {
-            setNowPlayingWaveform(null)
-            setNowPlayingWaveformStatus("No source")
-            setNowPlayingLyricsStatus(null)
+            waveform = null
+            waveformStatus = "No source"
+            lyricsStatus = null
             return
         }
         val activeProvider = provider() ?: run {
-            setNowPlayingWaveform(null)
-            setNowPlayingWaveformStatus("No provider")
-            setNowPlayingLyricsStatus(null)
+            waveform = null
+            waveformStatus = "No provider"
+            lyricsStatus = null
             return
         }
         val activePlaybackSettings = playbackSettings()
         val activeCacheSettings = cacheSettings()
         val quality = activePlaybackSettings.streamQuality(playbackEngine)
-        setNowPlayingWaveformStatus("Loading")
-        setNowPlayingLyricsStatus(
-            if (lyricsVisibleForWork) lyricsLoadingStatus(activePlaybackSettings.lrclibLyricsEnabled) else null,
-        )
+        waveformStatus = "Loading"
+        lyricsStatus = if (lyricsVisibleForWork) lyricsLoadingStatus(activePlaybackSettings.lrclibLyricsEnabled) else null
 
         val analysis = withContext(Dispatchers.IO) {
             runCatching {
@@ -143,25 +182,23 @@ class DesktopNowPlayingController(
                 DesktopNowPlayingAnalysis(waveform, status, tags, lyrics)
             }.getOrNull()
         }
-        setNowPlayingWaveform(analysis?.waveform)
-        setNowPlayingWaveformStatus(analysis?.waveformStatus ?: "Unavailable")
-        setNowPlayingAudioTags(analysis?.audioTags)
+        waveform = analysis?.waveform
+        waveformStatus = analysis?.waveformStatus ?: "Unavailable"
+        audioTags = analysis?.audioTags
         setNowPlayingLyricsWithSavedOffset(analysis?.lyrics)
-        setNowPlayingLyricsStatus(null)
+        lyricsStatus = null
     }
 
     suspend fun loadRelatedTracks() {
         val track = nowPlayingTrack()
         val activeSourceId = sourceId()
         if (track == null || activeSourceId == null || track.isInternetRadioTrack()) {
-            setRelatedTracks(emptyList())
+            relatedTracks = emptyList()
             return
         }
-        setRelatedTracks(
-            withContext(Dispatchers.IO) {
-                localLibraryIndexRepository.relatedLibraryTracks(activeSourceId, track, limit = RelatedTracksLimit)
-            },
-        )
+        relatedTracks = withContext(Dispatchers.IO) {
+            localLibraryIndexRepository.relatedLibraryTracks(activeSourceId, track, limit = RelatedTracksLimit)
+        }
     }
 
     suspend fun preloadCoverArt() {

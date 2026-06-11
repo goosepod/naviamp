@@ -1,5 +1,8 @@
 package app.naviamp.desktop
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Track
@@ -21,35 +24,42 @@ class DesktopAlbumController(
     private val sourceId: () -> String?,
     private val currentRoute: () -> DesktopAppRoute,
     private val lastContentRoute: () -> DesktopAppRoute,
-    private val albumDetailBackRoute: () -> DesktopAppRoute,
-    private val setAlbumDetailBackRoute: (DesktopAppRoute) -> Unit,
     private val setRoute: (DesktopAppRoute) -> Unit,
-    private val setSelectedAlbum: (Album?) -> Unit,
-    private val setSelectedAlbumDetails: (AlbumDetails?) -> Unit,
-    private val setSelectedAlbumStatus: (String?) -> Unit,
 ) {
     private val providerResponseService = ProviderResponseService(providerResponseCacheRepository)
 
+    var selectedAlbum by mutableStateOf<Album?>(null)
+        private set
+    var selectedAlbumDetails by mutableStateOf<AlbumDetails?>(null)
+        private set
+    var selectedAlbumStatus by mutableStateOf<String?>(null)
+        private set
+    var albumDetailBackRoute by mutableStateOf(DesktopAppRoute.Home)
+        private set
+
+    fun updateSelectedAlbumDetails(details: AlbumDetails?) {
+        selectedAlbumDetails = details
+    }
+
     fun openAlbumDetails(album: Album, backRouteOverride: DesktopAppRoute? = null) {
         val activeProvider = provider() ?: return
-        setAlbumDetailBackRoute(
+        albumDetailBackRoute =
             resolveAlbumDetailBackRoute(
                 currentRoute = currentRoute(),
-                currentBackRoute = albumDetailBackRoute(),
+                currentBackRoute = albumDetailBackRoute,
                 lastContentRoute = lastContentRoute(),
                 backRouteOverride = backRouteOverride,
-            ),
-        )
-        setSelectedAlbum(album)
-        setSelectedAlbumDetails(null)
-        setSelectedAlbumStatus("Loading...")
+            )
+        selectedAlbum = album
+        selectedAlbumDetails = null
+        selectedAlbumStatus = "Loading..."
         setRoute(DesktopAppRoute.AlbumDetail)
         scope.launch {
             try {
-                setSelectedAlbumDetails(loadAlbumDetails(libraryIndexRepository, providerResponseService, activeProvider, album, sourceId()))
-                setSelectedAlbumStatus(null)
+                selectedAlbumDetails = loadAlbumDetails(libraryIndexRepository, providerResponseService, activeProvider, album, sourceId())
+                selectedAlbumStatus = null
             } catch (exception: Exception) {
-                setSelectedAlbumStatus(albumDetailLoadErrorStatus(exception))
+                selectedAlbumStatus = albumDetailLoadErrorStatus(exception)
             }
         }
     }

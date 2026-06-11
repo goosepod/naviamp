@@ -1420,6 +1420,11 @@ Progress notes:
 - Moved desktop internet-radio station list, status, and recent-station state into `DesktopInternetRadioController`; the root now reads the controller for now-playing, route content, home loading, and action lookup.
 - `DesktopNaviampApp.kt` is now 1,158 lines after the internet-radio state cleanup.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
+- Moved desktop playlist list/detail/dialog/pending-playback state into `DesktopPlaylistsController`, with smart-playlist save/update applying through that controller instead of root playlist lambdas.
+- Moved desktop album and artist detail state into their existing controllers, including artist popular-track and similar-artist detail state.
+- Moved desktop now-playing analysis sidecar state into `DesktopNowPlayingController`, including waveform, audio tags, lyrics/status, related tracks, and waveform reload token.
+- `DesktopNaviampApp.kt` is now 1,053 lines after the playlist/detail/now-playing state cleanup.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
 
