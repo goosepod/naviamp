@@ -6,11 +6,14 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.cache.PlaybackSessionRepository
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.playback.PlaybackEngine
+import app.naviamp.domain.playback.PlaybackPlayPauseCommand
 import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.canReportPlaybackTrack
 import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
 import app.naviamp.domain.playback.planPlaybackSeek
+import app.naviamp.domain.playback.playbackPlayPauseCommand
 import app.naviamp.domain.playback.shouldReplayCurrentForSeek
 import app.naviamp.domain.playback.shouldSavePlaybackPosition
 import app.naviamp.domain.playback.shouldSubmitPlayReport
@@ -22,6 +25,25 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+internal fun handleDesktopPlayPauseCommand(
+    playbackState: PlaybackState,
+    hasPlaybackTarget: Boolean,
+    playbackEngine: PlaybackEngine,
+    startOrRestorePlayback: () -> Unit,
+) {
+    when (
+        playbackPlayPauseCommand(
+            playbackState = playbackState,
+            hasPlaybackTarget = hasPlaybackTarget,
+        )
+    ) {
+        PlaybackPlayPauseCommand.Pause -> playbackEngine.pause()
+        PlaybackPlayPauseCommand.Resume -> playbackEngine.resume()
+        PlaybackPlayPauseCommand.StartOrRestore -> startOrRestorePlayback()
+        PlaybackPlayPauseCommand.None -> Unit
+    }
+}
 
 class DesktopPlaybackController(
     private val scope: CoroutineScope,

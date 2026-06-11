@@ -11,6 +11,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.ProviderResponseService
+import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.queue.PlaybackQueue
@@ -34,6 +35,7 @@ import app.naviamp.domain.radio.popularTracksRadioRequest
 import app.naviamp.domain.radio.radioRefillSeedTrack
 import app.naviamp.domain.radio.radioRequestStartResult
 import app.naviamp.domain.radio.radioSeedResult
+import app.naviamp.domain.radio.recentRadioStreamsWith
 import app.naviamp.domain.radio.randomAlbumSeededRadioRequest
 import app.naviamp.domain.radio.shouldFinishRadioRefillForSession
 import app.naviamp.domain.radio.seededRadioBuildResult
@@ -45,6 +47,20 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+internal fun rememberDesktopRadioStream(
+    stream: RecentRadioStream,
+    recentRadioStreams: List<RecentRadioStream>,
+    setRecentRadioStreams: (List<RecentRadioStream>) -> Unit,
+    saveRecentRadioStreams: (List<RecentRadioStream>) -> Unit,
+    homeContent: HomeContent,
+    setHomeContent: (HomeContent) -> Unit,
+) {
+    val updatedStreams = recentRadioStreamsWith(recentRadioStreams, stream)
+    setRecentRadioStreams(updatedStreams)
+    saveRecentRadioStreams(updatedStreams)
+    setHomeContent(homeContent.copy(recentRadioStreams = updatedStreams))
+}
 
 class DesktopRadioController(
     private val scope: CoroutineScope,

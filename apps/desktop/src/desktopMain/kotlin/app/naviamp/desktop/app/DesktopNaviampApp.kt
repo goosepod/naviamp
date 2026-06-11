@@ -46,14 +46,12 @@ import app.naviamp.domain.albummix.albumMixTrackQueue
 import app.naviamp.domain.media.withUpdatedAlbum
 import app.naviamp.domain.media.withUpdatedArtist
 import app.naviamp.domain.playback.PlaybackProgress
-import app.naviamp.domain.playback.PlaybackPlayPauseCommand
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.desktopPlaylistCallbacks
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
-import app.naviamp.domain.playback.playbackPlayPauseCommand
 import app.naviamp.domain.playback.SleepTimerState
 import app.naviamp.domain.playback.SleepTimerController
 import app.naviamp.domain.home.HomeContent
@@ -62,7 +60,6 @@ import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.InternetRadioStationManager
-import app.naviamp.domain.radio.recentRadioStreamsWith
 import app.naviamp.domain.settings.UpNextSelectionBehavior
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.domain.lyrics.LyricsOffsetController
@@ -407,9 +404,14 @@ fun NaviampApp(
     }
 
     fun rememberRadioStream(stream: RecentRadioStream) {
-        recentRadioStreams = recentRadioStreamsWith(recentRadioStreams, stream)
-        settingsStore.saveRecentRadioStreams(recentRadioStreams)
-        homeContent = homeContent.copy(recentRadioStreams = recentRadioStreams)
+        rememberDesktopRadioStream(
+            stream = stream,
+            recentRadioStreams = recentRadioStreams,
+            setRecentRadioStreams = { streams -> recentRadioStreams = streams },
+            saveRecentRadioStreams = settingsStore::saveRecentRadioStreams,
+            homeContent = homeContent,
+            setHomeContent = { content -> homeContent = content },
+        )
     }
 
     var playlistCallbacksRef: PlaylistCallbacks? = null
@@ -482,20 +484,15 @@ fun NaviampApp(
     )
 
     fun handlePlayPauseCommand() {
-        when (
-            playbackPlayPauseCommand(
-                playbackState = playbackState,
-                hasPlaybackTarget = nowPlayingTrack != null || nowPlayingInternetRadioStation != null,
-            )
-        ) {
-            PlaybackPlayPauseCommand.Pause -> playbackEngine.pause()
-            PlaybackPlayPauseCommand.Resume -> playbackEngine.resume()
-            PlaybackPlayPauseCommand.StartOrRestore -> {
+        handleDesktopPlayPauseCommand(
+            playbackState = playbackState,
+            hasPlaybackTarget = nowPlayingTrack != null || nowPlayingInternetRadioStation != null,
+            playbackEngine = playbackEngine,
+            startOrRestorePlayback = {
                 openPlayerOnTrackStart = false
                 internetRadioController.playCurrentSelection()
-            }
-            PlaybackPlayPauseCommand.None -> Unit
-        }
+            },
+        )
     }
 
     var refreshLibrarySnapshotAction: () -> Unit = {}

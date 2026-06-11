@@ -1398,6 +1398,10 @@ Progress notes:
 - `DesktopNaviampApp.kt` is now 1,326 lines after the direct radio-controller callback cleanup.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
 - Note for the next desktop root slice: larger route/player helper extractions that keep very large composable parameter lists still trip the JVM `MethodTooLargeException` in `NaviampApp`; the next split should reduce root setup/state ownership or use lower-arity state holders instead of adding parameter-heavy composable pass-throughs.
+- Moved desktop play/pause command application into a top-level desktop playback helper without adding controller constructor dependencies, so the root no longer imports the core play/pause enum/decision helper directly.
+- Moved desktop recent-radio stream/home-content application into a top-level desktop radio helper without adding a parameter-heavy composable or controller pass-through.
+- `DesktopNaviampApp.kt` is now 1,323 lines after the compiler-safe playback/radio helper cleanup.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
 
