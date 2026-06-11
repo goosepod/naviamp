@@ -27,6 +27,11 @@ The most visible symptom is `DesktopNaviampApp.kt` hitting the JVM method-size l
 - [x] Restore the small circular handle at the end of the volume bar in packaged Mac and Windows builds.
   - Fixed in shared UI by making the volume thumb draw as a larger high-contrast knob with a halo and inner marker.
 
+## Feature Notes
+
+- [ ] Add shared Related-tab track menu actions on the now-playing screen: `Play Next` and `Add to Queue`.
+  - This must be implemented through shared UI/domain action plumbing because the Related tab and queue intents are not platform-specific.
+
 ## Success criteria
 
 - Platform-prefixed files are thin adapters, not business-logic owners.
