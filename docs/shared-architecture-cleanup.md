@@ -1369,6 +1369,8 @@ Progress notes:
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.provider.PlaylistMutationsTest :apps:android:compileDebugKotlin :apps:desktop:compileKotlinDesktop`.
 - Reused shared `applyPlaybackQueueUpdate` in Desktop playlist add-to-queue and play-next paths, removing the remaining local status/change/replacement branch in that controller.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.playback.PlaybackQueueManagerTest :apps:desktop:compileKotlinDesktop`.
+- Added shared `saveQueueAsPlaylistApplication` so Android and Desktop both apply saved-queue playlist refreshes through the same playlist-list/home-content application model.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.provider.PlaylistMutationsTest :apps:android:compileDebugKotlin :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
 

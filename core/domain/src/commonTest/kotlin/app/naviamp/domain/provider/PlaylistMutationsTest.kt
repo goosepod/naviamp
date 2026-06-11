@@ -1045,6 +1045,24 @@ class PlaylistMutationsTest {
     }
 
     @Test
+    fun saveQueueAsPlaylistApplicationBuildsPlaylistListApplication() = kotlinx.coroutines.test.runTest {
+        val provider = FakePlaylistProvider(playlists = emptyList(), playlistTracks = emptyList())
+
+        val application = provider.saveQueueAsPlaylistApplication(
+            name = "Road Mix",
+            tracks = listOf(track("one")),
+            currentHomeContent = HomeContent(),
+            recentPlaylistIds = emptyList(),
+            projection = PlaylistHomeProjection.All,
+        )
+
+        val savedPlaylist = playlist("created", "Road Mix").copy(trackCount = 1)
+        assertEquals("Saved Road Mix with 1 tracks.", application.status)
+        assertEquals(listOf(savedPlaylist), application.playlistListApplication.playlists)
+        assertEquals(listOf(savedPlaylist), application.playlistListApplication.homeContent.playlists)
+    }
+
+    @Test
     fun renamePlaylistAndRefreshNormalizesNameAndReturnsUpdatedPlaylists() = kotlinx.coroutines.test.runTest {
         val existingPlaylist = playlist("existing", "Existing")
         val provider = FakePlaylistProvider(playlists = listOf(existingPlaylist), playlistTracks = emptyList())

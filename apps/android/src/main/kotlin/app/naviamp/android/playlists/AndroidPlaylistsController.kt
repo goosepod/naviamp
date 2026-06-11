@@ -32,7 +32,7 @@ import app.naviamp.domain.provider.queuePlaylistSaveLoadingStatus
 import app.naviamp.domain.provider.refreshPlaylistDetailsApplication
 import app.naviamp.domain.provider.refreshPlaylistListState
 import app.naviamp.domain.provider.renamePlaylistAndRefresh
-import app.naviamp.domain.provider.saveQueueAsPlaylistStateUpdate
+import app.naviamp.domain.provider.saveQueueAsPlaylistApplication
 import app.naviamp.domain.provider.loadSmartPlaylistDefinition
 import app.naviamp.domain.provider.smartPlaylistSaveErrorMessage
 import app.naviamp.domain.provider.saveSmartPlaylistStateUpdate
@@ -448,15 +448,18 @@ fun saveQueueAsPlaylistFromState(
     scope.launch {
         with(state) {
             runCatching {
-                activeProvider.saveQueueAsPlaylistStateUpdate(
+                activeProvider.saveQueueAsPlaylistApplication(
                     name = name,
                     tracks = queueTracks,
+                    currentHomeContent = homeState,
+                    recentPlaylistIds = recentPlaylistIds,
+                    projection = PlaylistHomeProjection.All,
                     providerResponseService = providerResponseService,
                 )
-            }.onSuccess { update ->
-                applyAndroidPlaylistListApplication(state, update.playlists)
+            }.onSuccess { application ->
+                applyAndroidPlaylistListApplication(state, application.playlistListApplication)
                 playlistActionStatus = null
-                status = update.status
+                status = application.status
             }.onFailure { error ->
                 playlistActionStatus = queuePlaylistSaveErrorMessage(error)
                 status = playlistActionStatus.orEmpty()

@@ -30,6 +30,11 @@ data class QueuePlaylistSaveStateUpdate(
     val status: String,
 )
 
+data class QueuePlaylistSaveApplication(
+    val playlistListApplication: PlaylistListApplication,
+    val status: String,
+)
+
 data class PlaylistRenameRefresh(
     val requestedName: String,
     val playlists: List<Playlist>,
@@ -1027,6 +1032,43 @@ suspend fun MediaProvider.saveQueueAsPlaylistStateUpdate(
             providerResponseService = providerResponseService,
             playlistLimit = playlistLimit,
         ),
+    )
+
+fun queuePlaylistSaveApplication(
+    update: QueuePlaylistSaveStateUpdate,
+    currentHomeContent: HomeContent,
+    recentPlaylistIds: List<String>,
+    projection: PlaylistHomeProjection,
+): QueuePlaylistSaveApplication =
+    QueuePlaylistSaveApplication(
+        playlistListApplication = playlistListApplication(
+            playlists = update.playlists,
+            currentHomeContent = currentHomeContent,
+            recentPlaylistIds = recentPlaylistIds,
+            projection = projection,
+        ),
+        status = update.status,
+    )
+
+suspend fun MediaProvider.saveQueueAsPlaylistApplication(
+    name: String,
+    tracks: List<Track>,
+    currentHomeContent: HomeContent,
+    recentPlaylistIds: List<String>,
+    projection: PlaylistHomeProjection,
+    providerResponseService: ProviderResponseService? = null,
+    playlistLimit: Int = 500,
+): QueuePlaylistSaveApplication =
+    queuePlaylistSaveApplication(
+        update = saveQueueAsPlaylistStateUpdate(
+            name = name,
+            tracks = tracks,
+            providerResponseService = providerResponseService,
+            playlistLimit = playlistLimit,
+        ),
+        currentHomeContent = currentHomeContent,
+        recentPlaylistIds = recentPlaylistIds,
+        projection = projection,
     )
 
 fun queuePlaylistSaveLoadingStatus(): String =
