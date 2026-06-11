@@ -98,6 +98,7 @@ import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.settings.UpNextSelectionBehavior
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.waveform.AudioWaveform
+import app.naviamp.domain.lyrics.LyricsOffsetController
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.desktop.settings.PlaybackSessionSettings
 import app.naviamp.desktop.settings.RecentRadioStream
@@ -290,21 +291,9 @@ fun NaviampApp(
     var nowPlayingLyrics by remember { mutableStateOf<Lyrics?>(null) }
     var nowPlayingLyricsStatus by remember { mutableStateOf<String?>(null) }
     var nowPlayingLyricsVisible by remember { mutableStateOf(false) }
-    fun lyricsWithSavedOffset(track: Track?, lyrics: Lyrics?): Lyrics? {
-        val sourceId = connectedSourceId ?: return lyrics
-        val activeTrack = track ?: return lyrics
-        val savedOffset = storage.lyricsOffsetMillis(sourceId, activeTrack.id)
-        return lyrics?.copy(offsetMillis = savedOffset)
-    }
-    fun setNowPlayingLyricsWithSavedOffset(lyrics: Lyrics?) {
-        nowPlayingLyrics = lyricsWithSavedOffset(nowPlayingTrack, lyrics)
-    }
-    fun updateNowPlayingLyricsOffset(offsetMillis: Int) {
-        val sourceId = connectedSourceId ?: return
-        val track = nowPlayingTrack ?: return
-        storage.saveLyricsOffsetMillis(sourceId, track.id, offsetMillis)
-        nowPlayingLyrics = nowPlayingLyrics?.copy(offsetMillis = offsetMillis)
-    }
+    val lyricsOffsetController = LyricsOffsetController(
+        lyricsOffsetRepository = storage,
+    )
     var nowPlayingInternetRadioStation by remember { mutableStateOf(restoredInternetRadioStation) }
     var nowPlayingStreamMetadata by remember { mutableStateOf(PlaybackStreamMetadata()) }
     var radioTrackArtworkByKey by remember { mutableStateOf<Map<String, String?>>(emptyMap()) }
@@ -573,7 +562,13 @@ fun NaviampApp(
         setNowPlayingWaveform = { waveform -> nowPlayingWaveform = waveform },
         setNowPlayingWaveformStatus = { status -> nowPlayingWaveformStatus = status },
         setNowPlayingAudioTags = { tags -> nowPlayingAudioTags = tags },
-        setNowPlayingLyrics = ::setNowPlayingLyricsWithSavedOffset,
+        setNowPlayingLyrics = { lyrics ->
+            nowPlayingLyrics = lyricsOffsetController.withSavedOffset(
+                sourceId = connectedSourceId,
+                track = nowPlayingTrack,
+                lyrics = lyrics,
+            )
+        },
         setNowPlayingLyricsStatus = { status -> nowPlayingLyricsStatus = status },
         nowPlayingStation = { nowPlayingInternetRadioStation },
         setNowPlayingStation = { station -> nowPlayingInternetRadioStation = station },
@@ -668,7 +663,13 @@ fun NaviampApp(
         setNowPlayingWaveform = { waveform -> nowPlayingWaveform = waveform },
         setNowPlayingWaveformStatus = { status -> nowPlayingWaveformStatus = status },
         setNowPlayingAudioTags = { tags -> nowPlayingAudioTags = tags },
-        setNowPlayingLyrics = ::setNowPlayingLyricsWithSavedOffset,
+        setNowPlayingLyrics = { lyrics ->
+            nowPlayingLyrics = lyricsOffsetController.withSavedOffset(
+                sourceId = connectedSourceId,
+                track = nowPlayingTrack,
+                lyrics = lyrics,
+            )
+        },
         setNowPlayingLyricsStatus = { status -> nowPlayingLyricsStatus = status },
         setPlaybackState = { state -> playbackState = state },
         setPlaybackProgress = { progress -> playbackProgress = progress },
@@ -704,7 +705,13 @@ fun NaviampApp(
         setNowPlayingWaveform = { waveform -> nowPlayingWaveform = waveform },
         setNowPlayingWaveformStatus = { status -> nowPlayingWaveformStatus = status },
         setNowPlayingAudioTags = { tags -> nowPlayingAudioTags = tags },
-        setNowPlayingLyrics = ::setNowPlayingLyricsWithSavedOffset,
+        setNowPlayingLyrics = { lyrics ->
+            nowPlayingLyrics = lyricsOffsetController.withSavedOffset(
+                sourceId = connectedSourceId,
+                track = nowPlayingTrack,
+                lyrics = lyrics,
+            )
+        },
         setNowPlayingLyricsStatus = { status -> nowPlayingLyricsStatus = status },
         setNowPlayingInternetRadioStation = { station -> nowPlayingInternetRadioStation = station },
         setNowPlayingStreamMetadata = { metadata -> nowPlayingStreamMetadata = metadata },
@@ -965,7 +972,13 @@ fun NaviampApp(
         setNowPlayingWaveform = { waveform -> nowPlayingWaveform = waveform },
         setNowPlayingWaveformStatus = { status -> nowPlayingWaveformStatus = status },
         setNowPlayingAudioTags = { tags -> nowPlayingAudioTags = tags },
-        setNowPlayingLyrics = ::setNowPlayingLyricsWithSavedOffset,
+        setNowPlayingLyrics = { lyrics ->
+            nowPlayingLyrics = lyricsOffsetController.withSavedOffset(
+                sourceId = connectedSourceId,
+                track = nowPlayingTrack,
+                lyrics = lyrics,
+            )
+        },
         setNowPlayingLyricsStatus = { status -> nowPlayingLyricsStatus = status },
         setRelatedTracks = { tracks -> relatedTracks = tracks },
     )
@@ -1226,7 +1239,14 @@ fun NaviampApp(
                                 settingsStore.savePlaybackSettings(playbackSettings)
                             },
                             onToggleLyrics = { nowPlayingLyricsVisible = !nowPlayingLyricsVisible },
-                            onLyricsOffsetChanged = ::updateNowPlayingLyricsOffset,
+                            onLyricsOffsetChanged = { offsetMillis ->
+                                nowPlayingLyrics = lyricsOffsetController.saveOffset(
+                                    sourceId = connectedSourceId,
+                                    track = nowPlayingTrack,
+                                    lyrics = nowPlayingLyrics,
+                                    offsetMillis = offsetMillis,
+                                )
+                            },
                             onToggleVisualizer = {
                                 nowPlayingVisualizerRequestedVisible = !nowPlayingVisualizerRequestedVisible
                             },

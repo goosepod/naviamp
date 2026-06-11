@@ -21,6 +21,11 @@ The most visible symptom is `DesktopNaviampApp.kt` hitting the JVM method-size l
 - Shared services should compose other shared services where possible instead of duplicating orchestration in platform code.
 - Files prefixed with `Desktop` or `Android` should be thin by default. If one grows, it needs a written reason.
 
+## Regression Notes
+
+- [ ] Lyrics offset is no longer available in packaged Mac and Windows builds after the recent cleanup work.
+- [ ] The small circular handle at the end of the volume bar is missing in packaged Mac and Windows builds after the recent cleanup work.
+
 ## Success criteria
 
 - Platform-prefixed files are thin adapters, not business-logic owners.
@@ -1238,6 +1243,9 @@ Progress notes:
 - Moved desktop stats-for-nerds info aggregation into `DesktopStatsForNerdsInfoBuilder.kt`, keeping cache/media-source/playback diagnostic model assembly out of the root app.
 - `DesktopNaviampApp.kt` dropped to 1,496 lines after the stats helper extraction.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
+- Moved lyrics offset loading and persistence policy into shared core `LyricsOffsetController`; Android and Desktop now call the same saved-offset application and offset-save path.
+- `DesktopNaviampApp.kt` is 1,516 lines after the shared lyrics-offset wiring; the platform code now only supplies current source/track/lyrics state and applies the shared result.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.lyrics.LyricsOffsetControllerTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
 - Moved Android artist/album/genre mix-builder service construction into `AndroidMixBuilderServices.kt`, matching the desktop mix-builder service boundary.
 - `MainActivity.kt` dropped from 2,112 lines to 2,068 lines after the Android mix service adapter extraction.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.

@@ -5,6 +5,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.audio.AudioMetadataSidecarService
 import app.naviamp.domain.cache.LyricsOffsetRepository
 import app.naviamp.domain.cache.SidecarStatusRepository
+import app.naviamp.domain.lyrics.LyricsOffsetController
 import app.naviamp.domain.lyrics.LyricsSidecarService
 import app.naviamp.domain.playback.SidecarTypeLyrics
 import app.naviamp.domain.playback.lyricsLoadingStatus
@@ -28,6 +29,8 @@ internal class AndroidNowPlayingSidecarController(
     private val cacheAudioTrack: suspend (String, NavidromeProvider, Track, StreamQuality) -> File?,
     private val currentStreamQuality: () -> StreamQuality,
 ) {
+    private val lyricsOffsetController = LyricsOffsetController(lyricsOffsetRepository)
+
     fun loadLyrics(track: Track) {
         val activeProvider = state.provider ?: return
         if (
@@ -49,9 +52,7 @@ internal class AndroidNowPlayingSidecarController(
                     quality = quality,
                     audioCachingEnabled = true,
                     onlineLyricsEnabled = state.playbackSettings.lrclibLyricsEnabled,
-                ).lyrics?.copy(
-                    offsetMillis = sourceId?.let { lyricsOffsetRepository.lyricsOffsetMillis(it, track.id) } ?: 0,
-                )
+                ).lyrics?.let { lyrics -> lyricsOffsetController.withSavedOffset(sourceId, track, lyrics) }
             }
                 .onSuccess { lyrics ->
                     state.lyricsByTrackId = state.lyricsByTrackId + (track.id.value to lyrics)
@@ -85,9 +86,13 @@ internal class AndroidNowPlayingSidecarController(
     fun handleLyricsOffsetChanged(offsetMillis: Int) {
         val sourceId = state.activeSourceId ?: return
         val track = state.nowPlaying ?: return
-        lyricsOffsetRepository.saveLyricsOffsetMillis(sourceId, track.id, offsetMillis)
         state.lyricsByTrackId = state.lyricsByTrackId + (
-            track.id.value to state.lyricsByTrackId[track.id.value]?.copy(offsetMillis = offsetMillis)
+            track.id.value to lyricsOffsetController.saveOffset(
+                sourceId = sourceId,
+                track = track,
+                lyrics = state.lyricsByTrackId[track.id.value],
+                offsetMillis = offsetMillis,
+            )
             )
     }
 
