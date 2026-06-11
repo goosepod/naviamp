@@ -57,6 +57,25 @@ class HomeServiceTest {
         assertEquals(HomeDefaultArtistLimit, provider.artistLimit)
     }
 
+    @Test
+    fun mixBuilderAlbumCandidatesUseHomeMixSourcesWithStableDeduping() {
+        val shared = album("shared")
+        val home = HomeContent(
+            randomAlbums = listOf(album("random"), shared),
+            mixAlbums = listOf(shared, album("mix")),
+            recentAlbums = listOf(album("recent")),
+            frequentAlbums = listOf(album("frequent"), album("random")),
+            recentlyAddedAlbums = listOf(album("newest")),
+            genreSpotlightAlbums = listOf(album("genre")),
+            decadeAlbums = listOf(album("decade")),
+        )
+
+        assertEquals(
+            listOf("random", "shared", "mix", "recent", "frequent"),
+            home.mixBuilderAlbumCandidates().map { it.id.value },
+        )
+    }
+
     private class FakeHomeProvider : MediaProvider {
         override val id: ProviderId = ProviderId("fake-home")
         override val displayName: String = "Fake Home"

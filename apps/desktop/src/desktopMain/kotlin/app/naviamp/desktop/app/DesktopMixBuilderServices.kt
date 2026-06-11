@@ -8,6 +8,7 @@ import app.naviamp.domain.albummix.AlbumMixBuilderService
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.genremix.GenreMixBuilderService
 import app.naviamp.domain.home.HomeContent
+import app.naviamp.domain.home.mixBuilderAlbumCandidates
 import app.naviamp.domain.popular.ArtistPopularTracksService
 import app.naviamp.domain.popular.SimilarArtistsService
 import app.naviamp.domain.provider.AlbumListType
@@ -60,13 +61,7 @@ internal fun rememberDesktopAlbumMixBuilderService(
                     .ifEmpty { provider()?.search(query, limit.toInt())?.albums.orEmpty() }
             },
             randomAlbums = { limit ->
-                (
-                    homeContent.randomAlbums +
-                        homeContent.mixAlbums +
-                        homeContent.recentAlbums +
-                        homeContent.frequentAlbums
-                    )
-                    .distinctBy { it.id }
+                homeContent.mixBuilderAlbumCandidates()
                     .shuffled()
                     .take(limit.toInt())
                     .ifEmpty {

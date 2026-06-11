@@ -1382,6 +1382,8 @@ Progress notes:
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.playback.PlaybackSeekDecisionsTest :apps:android:compileDebugKotlin :apps:desktop:compileKotlinDesktop`.
 - Moved home-station radio action parsing into shared `homeStationRadioAction`; Desktop route content and Android home-station radio startup now use the same typed station action mapper.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.radio.RecentRadioActionsTest :apps:android:compileDebugKotlin :apps:desktop:compileKotlinDesktop`.
+- Moved home mix-builder album candidate selection into shared `HomeContent.mixBuilderAlbumCandidates`; Android and Desktop mix-builder services now share the same random/mix/recent/frequent album policy before provider fallback.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.home.HomeServiceTest :apps:android:compileDebugKotlin :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
 

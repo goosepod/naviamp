@@ -45,6 +45,9 @@ data class HomeContent(
             decadeAlbums.isEmpty()
 }
 
+fun HomeContent.mixBuilderAlbumCandidates(): List<Album> =
+    (randomAlbums + mixAlbums + recentAlbums + frequentAlbums).distinctBy { it.id }
+
 data class HomeDate(
     val year: Int,
     val dayOfYear: Int,
