@@ -43,8 +43,6 @@ import app.naviamp.ui.SharedHome
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedMixBuilderUi
 import app.naviamp.ui.toSharedHomeUi
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
 
 @Composable
 fun ColumnScope.DesktopAppRouteContent(
@@ -60,7 +58,6 @@ fun ColumnScope.DesktopAppRouteContent(
     libraryController: DesktopLibraryController,
     searchController: DesktopSearchController,
     smartPlaylistsController: DesktopSmartPlaylistsController,
-    coroutineScope: CoroutineScope,
     onRouteSelected: (DesktopAppRoute) -> Unit,
     onOpenArtistMixBuilder: () -> Unit,
     onOpenAlbumMixBuilder: () -> Unit,
@@ -94,7 +91,6 @@ fun ColumnScope.DesktopAppRouteContent(
     isLibrarySyncing: Boolean,
     libraryListState: LazyListState,
     onLibraryQueryChanged: (String) -> Unit,
-    onLibraryTabSelected: (DesktopLibraryTab) -> Unit,
     searchQuery: String,
     searchResults: MediaSearchResults,
     searchStatus: String?,
@@ -164,8 +160,6 @@ fun ColumnScope.DesktopAppRouteContent(
         }
     }
 
-    fun currentAlbum(): Album? = selectedAlbumDetails?.album ?: selectedAlbum
-
     Box(
         modifier = Modifier
             .weight(1f)
@@ -216,23 +210,14 @@ fun ColumnScope.DesktopAppRouteContent(
                     onBack = { onRouteSelected(albumDetailBackRoute) },
                     onPlayAlbum = { appActions.playAlbumDetails() },
                     onShuffleAlbum = { appActions.playAlbumDetails(shuffle = true) },
-                    onAlbumRadio = {
-                        currentAlbum()?.let(appActions::playAlbumRadio)
-                    },
-                    onDownloadAlbum = {
-                        selectedAlbumDetails?.let { appActions.downloadTracks(it.album.title, it.tracks) }
-                            ?: selectedAlbum?.let(appActions::downloadAlbum)
-                    },
-                    onAddAlbumToQueue = {
-                        currentAlbum()?.let(playlistsController::addAlbumToQueue)
-                    },
+                    onAlbumRadio = appActions::playCurrentAlbumRadio,
+                    onDownloadAlbum = appActions::downloadCurrentAlbum,
+                    onAddAlbumToQueue = appActions::addCurrentAlbumToQueue,
                     onPlayTrack = { index -> appActions.playAlbumDetails(index = index) },
                     onTrackRadio = appActions::playTrackRadio,
                     onDownloadTrack = appActions::downloadTrack,
                     onAddTrackToQueue = playlistsController::addTrackToQueue,
-                    onAddAlbumToPlaylist = {
-                        currentAlbum()?.let(playlistsController::openAlbumAddToPlaylist)
-                    },
+                    onAddAlbumToPlaylist = appActions::openCurrentAlbumAddToPlaylist,
                     onAlbumFavoriteToggle = appActions::toggleAlbumFavorite,
                     onAddTrackToPlaylist = playlistsController::openTrackAddToPlaylist,
                     onArtistSelected = { track ->
@@ -257,10 +242,7 @@ fun ColumnScope.DesktopAppRouteContent(
                     onPopularTracksPlay = appActions::playPopularTracks,
                     onPopularTracksRadio = appActions::playPopularTracksRadio,
                     onPopularTracksAddToQueue = appActions::addPopularTracksToQueue,
-                    onPopularTrackSelected = { track ->
-                        val index = selectedArtistPopularTracks.indexOfFirst { it.id == track.id }.coerceAtLeast(0)
-                        appActions.playPopularTracks(selectedArtistPopularTracks, index)
-                    },
+                    onPopularTrackSelected = appActions::playSelectedPopularTrack,
                     onPopularTrackAddToQueue = playlistsController::addTrackToQueue,
                     onAddArtistToQueue = playlistsController::addArtistToQueue,
                     onAddArtistToPlaylist = playlistsController::openArtistAddToPlaylist,
@@ -302,17 +284,11 @@ fun ColumnScope.DesktopAppRouteContent(
                     onBack = { onRouteSelected(DesktopAppRoute.Playlists) },
                     onPlayPlaylist = { appActions.playPlaylistDetails() },
                     onShufflePlaylist = { appActions.playPlaylistDetails(shuffle = true) },
-                    onRenamePlaylist = { selectedPlaylist?.let(onPlaylistRenameRequested) },
-                    onDeletePlaylist = { selectedPlaylist?.let(onPlaylistDeleteRequested) },
-                    onDownloadPlaylist = {
-                        selectedPlaylist?.let { appActions.downloadTracks(it.name, selectedPlaylistTracks) }
-                    },
-                    onAddPlaylistToQueue = {
-                        selectedPlaylist?.let(playlistsController::addPlaylistToQueue)
-                    },
-                    onAddPlaylistToPlaylist = {
-                        selectedPlaylist?.let(playlistsController::openPlaylistAddToPlaylist)
-                    },
+                    onRenamePlaylist = playlistsController::requestSelectedPlaylistRename,
+                    onDeletePlaylist = playlistsController::requestSelectedPlaylistDelete,
+                    onDownloadPlaylist = appActions::downloadSelectedPlaylist,
+                    onAddPlaylistToQueue = playlistsController::addSelectedPlaylistToQueue,
+                    onAddPlaylistToPlaylist = playlistsController::openSelectedPlaylistAddToPlaylist,
                     onPlayTrack = { index -> appActions.playPlaylistDetails(index = index) },
                     onTrackRadio = appActions::playTrackRadio,
                     onDownloadTrack = appActions::downloadTrack,
@@ -336,13 +312,7 @@ fun ColumnScope.DesktopAppRouteContent(
                         listState = libraryListState,
                         coverArtUrl = coverArtUrl,
                         onQueryChanged = onLibraryQueryChanged,
-                        onTabSelected = { tab ->
-                            onLibraryTabSelected(tab)
-                            libraryController.refreshLibrarySnapshot()
-                            coroutineScope.launch {
-                                libraryListState.scrollToItem(0)
-                            }
-                        },
+                        onTabSelected = libraryController::selectLibraryTab,
                         onLoadMore = libraryController::loadMoreLibraryRows,
                         onJumpToLetter = libraryController::jumpLibraryToLetter,
                         onArtistSelected = appActions::openArtistDetails,

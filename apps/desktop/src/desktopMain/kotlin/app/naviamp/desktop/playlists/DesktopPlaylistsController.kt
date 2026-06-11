@@ -231,6 +231,22 @@ class DesktopPlaylistsController(
         addTargetToQueue(AddToPlaylistTarget.PlaylistTarget(playlist))
     }
 
+    fun addSelectedPlaylistToQueue() {
+        selectedPlaylist()?.let(::addPlaylistToQueue)
+    }
+
+    fun openSelectedPlaylistAddToPlaylist() {
+        selectedPlaylist()?.let(::openPlaylistAddToPlaylist)
+    }
+
+    fun requestSelectedPlaylistRename() {
+        selectedPlaylist()?.let(setPlaylistPendingRename)
+    }
+
+    fun requestSelectedPlaylistDelete() {
+        selectedPlaylist()?.let(setPlaylistPendingDelete)
+    }
+
     fun playNext(track: Track) {
         val update = PlaybackQueueManager().playNextTracks(
             currentQueue = playlistEngine.queue,

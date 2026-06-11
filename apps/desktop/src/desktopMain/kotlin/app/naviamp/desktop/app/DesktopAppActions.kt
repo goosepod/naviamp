@@ -32,6 +32,9 @@ class DesktopAppActions(
     private val internetRadioStations: () -> List<InternetRadioStation>,
     private val selectedAlbum: () -> Album?,
     private val selectedAlbumDetails: () -> AlbumDetails?,
+    private val selectedArtistPopularTracks: () -> List<Track>,
+    private val selectedPlaylist: () -> Playlist?,
+    private val selectedPlaylistTracks: () -> List<Track>,
 ) {
     fun connectToServer(restoreSavedSession: Boolean = false) {
         connectionLifecycleController.connectToServer(restoreSavedSession)
@@ -168,6 +171,33 @@ class DesktopAppActions(
             emptyList()
         }
         radioController.playAlbum(album, loadedAlbumTracks)
+    }
+
+    fun playCurrentAlbumRadio() {
+        currentAlbum()?.let(::playAlbumRadio)
+    }
+
+    fun downloadCurrentAlbum() {
+        selectedAlbumDetails()?.let { downloadTracks(it.album.title, it.tracks) }
+            ?: selectedAlbum()?.let(::downloadAlbum)
+    }
+
+    fun addCurrentAlbumToQueue() {
+        currentAlbum()?.let(playlistsController::addAlbumToQueue)
+    }
+
+    fun openCurrentAlbumAddToPlaylist() {
+        currentAlbum()?.let(playlistsController::openAlbumAddToPlaylist)
+    }
+
+    fun playSelectedPopularTrack(track: Track) {
+        val tracks = selectedArtistPopularTracks()
+        val index = tracks.indexOfFirst { it.id == track.id }.coerceAtLeast(0)
+        playPopularTracks(tracks, index)
+    }
+
+    fun downloadSelectedPlaylist() {
+        selectedPlaylist()?.let { playlist -> downloadTracks(playlist.name, selectedPlaylistTracks()) }
     }
 
     fun playRecentRadio(stream: RecentRadioStream) {
@@ -307,4 +337,7 @@ class DesktopAppActions(
                 internetRadioStations()
             ).distinctBy { it.id }
     }
+
+    private fun currentAlbum(): Album? =
+        selectedAlbumDetails()?.album ?: selectedAlbum()
 }

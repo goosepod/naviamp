@@ -1393,6 +1393,7 @@ Progress notes:
 - Moved desktop route queue/add-to-playlist target construction behind typed `DesktopPlaylistsController` methods for tracks, albums, artists, and playlists; route/root files now call controller actions instead of constructing `AddToPlaylistTarget` values throughout the UI wiring.
 - Moved desktop connection-form new/edit/connect-saved/cancel handling into the existing `DesktopConnectionLifecycleController`, leaving the root to provide state adapters and trimming `DesktopNaviampApp.kt` to 1,331 lines.
 - Moved desktop home item and search track action resolution into `DesktopAppActions`, with `DesktopMediaActionsController` exposing indexed search-track lookup; `DesktopAppRouteContent.kt` now delegates home/search IDs and indices instead of looking up albums, playlists, stations, or tracks directly.
+- Finished the remaining `DesktopAppRouteContent` action cleanup by moving current-album fallback actions, selected playlist detail actions, popular-track index lookup, and library-tab refresh/scroll sequencing into existing app, playlist, and library controllers; the route content is now 543 lines and contains no direct item lookup or coroutine scroll logic.
 
 Success criteria for the first slice:
 

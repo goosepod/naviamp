@@ -31,6 +31,7 @@ class DesktopLibraryController(
     private val sourceId: () -> String?,
     private val libraryQuery: () -> String,
     private val libraryTab: () -> DesktopLibraryTab,
+    private val setLibraryTab: (DesktopLibraryTab) -> Unit,
     private val libraryLimit: () -> Int,
     private val setLibraryLimit: (Int) -> Unit,
     private val librarySnapshot: () -> LibrarySnapshot,
@@ -57,6 +58,15 @@ class DesktopLibraryController(
         if (nextLimit == libraryLimit()) return
         setLibraryLimit(nextLimit)
         refreshLibrarySnapshot()
+    }
+
+    fun selectLibraryTab(tab: DesktopLibraryTab) {
+        setLibraryTab(tab)
+        setLibraryLimit(LibraryPageSize)
+        refreshLibrarySnapshot()
+        scope.launch {
+            listState.scrollToItem(0)
+        }
     }
 
     fun jumpLibraryToLetter(letter: Char) {

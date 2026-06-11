@@ -856,6 +856,7 @@ fun NaviampApp(
         sourceId = { connectedSourceId },
         libraryQuery = { libraryQuery },
         libraryTab = { libraryTab },
+        setLibraryTab = { tab -> libraryTab = tab },
         libraryLimit = { libraryLimit },
         setLibraryLimit = { limit -> libraryLimit = limit },
         librarySnapshot = { librarySnapshot },
@@ -883,6 +884,9 @@ fun NaviampApp(
         internetRadioStations = { internetRadioStations },
         selectedAlbum = { selectedAlbum },
         selectedAlbumDetails = { selectedAlbumDetails },
+        selectedArtistPopularTracks = { selectedArtistPopularTracks },
+        selectedPlaylist = { selectedPlaylist },
+        selectedPlaylistTracks = { selectedPlaylistTracks },
     )
 
     val artistMixBuilderService = rememberDesktopArtistMixBuilderService(
@@ -1142,7 +1146,6 @@ fun NaviampApp(
                             libraryController = libraryController,
                             searchController = searchController,
                             smartPlaylistsController = smartPlaylistsController,
-                            coroutineScope = coroutineScope,
                             onRouteSelected = { route -> appRoute = route },
                             onOpenArtistMixBuilder = {
                                 appRoute = DesktopAppRoute.ArtistMix
@@ -1180,10 +1183,6 @@ fun NaviampApp(
                             isLibrarySyncing = isLibrarySyncing,
                             libraryListState = libraryListState,
                             onLibraryQueryChanged = { libraryQuery = it },
-                            onLibraryTabSelected = { tab ->
-                                libraryTab = tab
-                                libraryLimit = LibraryPageSize
-                            },
                             searchQuery = searchQuery,
                             searchResults = searchResults,
                             searchStatus = searchStatus,
