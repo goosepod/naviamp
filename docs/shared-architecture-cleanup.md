@@ -1378,6 +1378,8 @@ Progress notes:
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
 - Deleted the single-use `DesktopNowPlayingRoute` pass-through wrapper; `DesktopNaviampApp.kt` now calls the existing `DesktopNowPlayingPanel` directly, and the panel owns its queue-derived now-playing view inputs.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
+- Moved the seek replay source decision from desktop-prefixed code into shared playback decisions; Android and Desktop now use the same helper to decide when provider streams need replay-on-seek, and the stale `DesktopPlaybackProgress.kt` helper was deleted.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.playback.PlaybackSeekDecisionsTest :apps:android:compileDebugKotlin :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
 

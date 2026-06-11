@@ -73,4 +73,13 @@ class PlaybackSeekDecisionsTest {
         assertEquals(false, shouldReplayTranscodedSeek(transcoded, shouldReplayTranscodedStream = false))
         assertEquals(false, shouldReplayTranscodedSeek(StreamQuality.Original, shouldReplayTranscodedStream = true))
     }
+
+    @Test
+    fun seekReplaySourceDecisionOnlyReplaysProviderStreams() {
+        assertEquals(false, shouldReplayCurrentForSeek(PlaybackSource.Unknown))
+        assertEquals(false, shouldReplayCurrentForSeek(PlaybackSource.DownloadedFile))
+        assertEquals(false, shouldReplayCurrentForSeek(PlaybackSource.CachedFile))
+        assertEquals(true, shouldReplayCurrentForSeek(PlaybackSource.ProviderStream))
+        assertEquals(true, shouldReplayCurrentForSeek(PlaybackSource.ProviderStreamCacheDisabled))
+    }
 }

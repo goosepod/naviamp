@@ -13,8 +13,10 @@ import app.naviamp.domain.playback.PlaybackAdjacentAction
 import app.naviamp.domain.playback.PlaybackAudioAssetRepository
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackQueueController
+import app.naviamp.domain.playback.PlaybackSource
 import app.naviamp.domain.playback.planPlaybackAdjacentAction
 import app.naviamp.domain.playback.planPlaybackSeek
+import app.naviamp.domain.playback.shouldReplayCurrentForSeek
 import app.naviamp.domain.radio.recentRadioStreamsWith
 import app.naviamp.domain.settings.RecentRadioStream
 import kotlinx.coroutines.CoroutineScope
@@ -107,7 +109,7 @@ internal class AndroidPlaybackAppController(
             currentProgress = state.playbackProgress,
             trackDurationSeconds = currentTrack?.durationSeconds,
             streamQuality = currentStreamQuality(),
-            shouldReplayTranscodedStream = true,
+            shouldReplayTranscodedStream = shouldReplayCurrentForSeek(PlaybackSource.ProviderStream),
         ) ?: return
         if (seekPlan.shouldClearRestoredStartPosition) {
             state.restoredStartPositionSeconds = null
