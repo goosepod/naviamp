@@ -21,21 +21,18 @@ import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
-import app.naviamp.domain.Genre
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.domain.home.HomeContent
-import app.naviamp.domain.home.HomeStationLibrary
-import app.naviamp.domain.home.HomeStationRandomAlbum
-import app.naviamp.domain.home.parseHomeDecadeStationId
-import app.naviamp.domain.home.parseHomeGenreStationId
 import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.provider.MediaSearchResults
+import app.naviamp.domain.radio.RecentRadioAction
+import app.naviamp.domain.radio.homeStationRadioAction
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.ui.AlbumMixBuilderContent
 import app.naviamp.ui.ArtistMixBuilderContent
@@ -195,18 +192,15 @@ fun ColumnScope.DesktopAppRouteContent(
     }
 
     fun playHomeStation(station: SharedHomeStationUi) {
-        when (station.id) {
-            HomeStationLibrary -> appActions.playLibraryRadio()
-            HomeStationRandomAlbum -> appActions.playRandomAlbumRadio()
-            else -> {
-                parseHomeGenreStationId(station.id)?.let { genre ->
-                    appActions.playGenreRadio(Genre(genre))
-                    return
-                }
-                parseHomeDecadeStationId(station.id)?.let { decade ->
-                    appActions.playDecadeRadio(decade.fromYear, decade.toYear)
-                }
-            }
+        when (val action = homeStationRadioAction(station.id) ?: return) {
+            RecentRadioAction.PlayLibrary -> appActions.playLibraryRadio()
+            RecentRadioAction.PlayRandomAlbum -> appActions.playRandomAlbumRadio()
+            is RecentRadioAction.PlayGenre -> appActions.playGenreRadio(action.genre)
+            is RecentRadioAction.PlayDecade -> appActions.playDecadeRadio(action.fromYear, action.toYear)
+            is RecentRadioAction.PlayArtist,
+            is RecentRadioAction.PlayAlbum,
+            is RecentRadioAction.PlayTrack,
+            -> Unit
         }
     }
 

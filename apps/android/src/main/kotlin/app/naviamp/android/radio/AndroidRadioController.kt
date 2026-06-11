@@ -6,10 +6,8 @@ import app.naviamp.domain.ArtistId
 import app.naviamp.domain.Genre
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Track
-import app.naviamp.domain.home.HomeStationLibrary
-import app.naviamp.domain.home.HomeStationRandomAlbum
-import app.naviamp.domain.home.parseHomeDecadeStationId
-import app.naviamp.domain.home.parseHomeGenreStationId
+import app.naviamp.domain.radio.RecentRadioAction
+import app.naviamp.domain.radio.homeStationRadioAction
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
@@ -342,8 +340,8 @@ fun startAndroidHomeStationRadio(
     rememberRecentRadioStream: (RecentRadioStream) -> Unit = {},
 ) {
     val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
-    when {
-        stationId == HomeStationLibrary -> {
+    when (val action = homeStationRadioAction(stationId) ?: return) {
+        RecentRadioAction.PlayLibrary -> {
             startAndroidRadioTracks(
                 scope,
                 state,
@@ -356,7 +354,7 @@ fun startAndroidHomeStationRadio(
                 radioService.libraryRadio()
             }
         }
-        stationId == HomeStationRandomAlbum -> {
+        RecentRadioAction.PlayRandomAlbum -> {
             startAndroidRadioTracks(scope, state, "Random Album Radio", playTrack, providerResponseCacheRepository) { radioService ->
                 val album = state.homeState.randomAlbums.firstOrNull()
                     ?: state.provider?.let { provider ->
@@ -366,8 +364,8 @@ fun startAndroidHomeStationRadio(
                 album?.let { radioService.albumRadio(it.id) }.orEmpty()
             }
         }
-        parseHomeGenreStationId(stationId) != null -> {
-            val genre = parseHomeGenreStationId(stationId).orEmpty()
+        is RecentRadioAction.PlayGenre -> {
+            val genre = action.genre.name
             startAndroidRadioTracks(
                 scope,
                 state,
@@ -380,22 +378,23 @@ fun startAndroidHomeStationRadio(
                 radioService.genreRadio(genre)
             }
         }
-        parseHomeDecadeStationId(stationId) != null -> {
-            val decade = parseHomeDecadeStationId(stationId)
-            if (decade != null) {
-                startAndroidRadioTracks(
-                    scope,
-                    state,
-                    stationTitle,
-                    playTrack,
-                    providerResponseCacheRepository,
-                    recentRadioStream = decadeRecentRadioStream(decade.fromYear, decade.toYear),
-                    rememberRecentRadioStream = rememberRecentRadioStream,
-                ) { radioService ->
-                    radioService.decadeRadio(decade.fromYear, decade.toYear)
-                }
+        is RecentRadioAction.PlayDecade -> {
+            startAndroidRadioTracks(
+                scope,
+                state,
+                stationTitle,
+                playTrack,
+                providerResponseCacheRepository,
+                recentRadioStream = decadeRecentRadioStream(action.fromYear, action.toYear),
+                rememberRecentRadioStream = rememberRecentRadioStream,
+            ) { radioService ->
+                radioService.decadeRadio(action.fromYear, action.toYear)
             }
         }
+        is RecentRadioAction.PlayArtist,
+        is RecentRadioAction.PlayAlbum,
+        is RecentRadioAction.PlayTrack,
+        -> Unit
     }
 }
 

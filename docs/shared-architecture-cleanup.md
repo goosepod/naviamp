@@ -1380,6 +1380,8 @@ Progress notes:
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
 - Moved the seek replay source decision from desktop-prefixed code into shared playback decisions; Android and Desktop now use the same helper to decide when provider streams need replay-on-seek, and the stale `DesktopPlaybackProgress.kt` helper was deleted.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.playback.PlaybackSeekDecisionsTest :apps:android:compileDebugKotlin :apps:desktop:compileKotlinDesktop`.
+- Moved home-station radio action parsing into shared `homeStationRadioAction`; Desktop route content and Android home-station radio startup now use the same typed station action mapper.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.radio.RecentRadioActionsTest :apps:android:compileDebugKotlin :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
 
