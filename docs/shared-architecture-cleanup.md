@@ -1353,6 +1353,8 @@ Progress notes:
 - Deleted the desktop-only settings-maintenance wrapper before committing it; desktop redownload execution now lives on the existing `DesktopDownloadsController`, matching Android's existing download action boundary.
 - `DesktopNaviampApp.kt` dropped from 1,433 lines to 1,413 lines after the shared settings-maintenance wiring.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.settings.PlaybackSettingsTest :apps:android:compileDebugKotlin :apps:desktop:compileKotlinDesktop`.
+- Replaced Android's duplicated download-refresh result branches with shared `shouldRefreshDownloadsAfter`, matching the redownload path and Desktop's shared download refresh decision.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 

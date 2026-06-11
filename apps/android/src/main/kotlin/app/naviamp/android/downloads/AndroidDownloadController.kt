@@ -8,7 +8,6 @@ import app.naviamp.domain.cache.CacheMaintenanceRepository
 import app.naviamp.domain.cache.DownloadReplacementRepository
 import app.naviamp.domain.cache.DownloadRepository
 import app.naviamp.domain.cache.DownloadService
-import app.naviamp.domain.cache.DownloadTracksResult
 import app.naviamp.domain.cache.downloadRemoveErrorStatus
 import app.naviamp.domain.cache.downloadedTrackRemovedStatus
 import app.naviamp.domain.cache.shouldRefreshDownloadsAfter
@@ -50,10 +49,7 @@ fun downloadAndroidTrack(
                     status = message
                 },
             )
-            if (result is DownloadTracksResult.Completed) {
-                downloadRefreshToken += 1
-                storageStats = withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() }
-            } else if (result is DownloadTracksResult.Failed && result.completed > 0) {
+            if (shouldRefreshDownloadsAfter(result)) {
                 downloadRefreshToken += 1
                 storageStats = withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() }
             }
@@ -91,10 +87,7 @@ fun downloadAndroidTracks(
                     status = message
                 },
             )
-            if (result is DownloadTracksResult.Completed) {
-                downloadRefreshToken += 1
-                storageStats = withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() }
-            } else if (result is DownloadTracksResult.Failed && result.completed > 0) {
+            if (shouldRefreshDownloadsAfter(result)) {
                 downloadRefreshToken += 1
                 storageStats = withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() }
             }
