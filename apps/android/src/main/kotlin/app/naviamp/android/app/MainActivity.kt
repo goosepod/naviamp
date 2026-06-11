@@ -40,6 +40,7 @@ import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.ReplayGainMode
+import app.naviamp.domain.playback.SleepTimerController
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.popular.SimilarArtistMatch
@@ -52,6 +53,7 @@ import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.NaviampDiagnosticsSectionUi
 import app.naviamp.ui.NaviampDiagnosticsUi
 import app.naviamp.ui.NaviampLibrarySyncStatusUi
+import app.naviamp.ui.NaviampSleepTimerExpiryEffect
 import app.naviamp.ui.NaviampSharedAppShell
 import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.NowPlayingRadioUiConfig
@@ -458,7 +460,17 @@ private fun NaviampAndroidApp(
     }
 
     val sleepTimerController = remember(appState) {
-        AndroidSleepTimerController(appState, playbackEngine)
+        SleepTimerController(
+            nowPlaying = { appState.nowPlaying },
+            playbackQueue = { appState.playbackQueue },
+            playbackProgress = { appState.playbackProgress },
+            playbackState = { appState.playbackState },
+            setSleepTimer = { timer -> appState.sleepTimer = timer },
+            setSleepTimerNowEpochMillis = { millis -> appState.sleepTimerNowEpochMillis = millis },
+            setStatus = { status -> appState.status = status },
+            stopPlayback = playbackEngine::stop,
+            nowEpochMillis = { System.currentTimeMillis() },
+        )
     }
 
     val downloadActionController = remember(appState, storage, context) {
@@ -570,7 +582,7 @@ private fun NaviampAndroidApp(
         )
     }
 
-    AndroidSleepTimerExpiryEffect(
+    NaviampSleepTimerExpiryEffect(
         sleepTimer = sleepTimer,
         snapshot = sleepTimerController.snapshot(),
         onTick = sleepTimerController::tick,

@@ -1327,6 +1327,10 @@ Progress notes:
 - Moved Android current stream-quality selection into `AndroidPlaybackQualityController` and removed the stale root download-quality wrapper.
 - `MainActivity.kt` dropped to 605 lines after the Android playback quality extraction; `AndroidPlaybackQualityController.kt` is 13 lines.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Moved sleep-timer selection, cancel, tick, and expiry coordination into shared core `SleepTimerController`; Android and Desktop now supply platform state/effects to the same controller.
+- Moved sleep-timer expiry polling into shared UI `NaviampSleepTimerExpiryEffect`; deleted the platform-specific `AndroidSleepTimerEffects.kt` and `DesktopSleepTimerEffects.kt` wrappers.
+- `MainActivity.kt` is 617 lines and `DesktopNaviampApp.kt` is 1,494 lines after the shared sleep-timer wiring; `SleepTimer.kt` is 255 lines and the shared UI effect is 30 lines.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.playback.SleepTimerTest --tests app.naviamp.domain.lyrics.LyricsOffsetControllerTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
 

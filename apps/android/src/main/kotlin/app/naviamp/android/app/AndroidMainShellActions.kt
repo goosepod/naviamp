@@ -1,6 +1,7 @@
 package app.naviamp.android
 
 import app.naviamp.android.playback.AndroidPlaybackEngine
+import app.naviamp.domain.playback.SleepTimerController
 import kotlinx.coroutines.CoroutineScope
 
 internal fun androidMainShellActions(
@@ -16,7 +17,7 @@ internal fun androidMainShellActions(
     artistActionController: AndroidArtistActionController,
     mixBuilderController: AndroidMixBuilderController,
     playlistActionController: AndroidPlaylistActionController,
-    sleepTimerController: AndroidSleepTimerController,
+    sleepTimerController: SleepTimerController,
     downloadActionController: AndroidDownloadActionController,
     settingsMaintenanceController: AndroidSettingsMaintenanceController,
     connectionSessionController: AndroidConnectionSessionController,

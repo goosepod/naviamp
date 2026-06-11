@@ -69,12 +69,8 @@ import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.playback.playbackPlayPauseCommand
-import app.naviamp.domain.playback.SleepTimerRequest
-import app.naviamp.domain.playback.shouldExpireSleepTimer
-import app.naviamp.domain.playback.sleepTimerDisplayLabel
-import app.naviamp.domain.playback.sleepTimerPlaybackSnapshot
-import app.naviamp.domain.playback.sleepTimerStateForPlayback
 import app.naviamp.domain.playback.SleepTimerState
+import app.naviamp.domain.playback.SleepTimerController
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.provider.PendingPlaybackAction
 import app.naviamp.domain.popular.SimilarArtistMatch
@@ -124,6 +120,7 @@ import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.provider.navidrome.withNativeTokenFromPassword
 import app.naviamp.ui.NaviampPlayerColors
 import app.naviamp.ui.NaviampSleepTimerUi
+import app.naviamp.ui.NaviampSleepTimerExpiryEffect
 import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.SharedAlbumMixBuilderUi
 import app.naviamp.ui.SharedArtistMixBuilderUi
@@ -434,42 +431,23 @@ fun NaviampApp(
         playbackController.performSeek(positionSeconds)
     }
 
-    fun currentSleepTimerSnapshot() =
-        desktopSleepTimerSnapshot(
-            nowPlaying = nowPlayingTrack,
-            playbackQueue = playbackQueue,
-            playbackProgress = playbackProgress,
-            playbackState = playbackState,
-        )
+    val sleepTimerController = SleepTimerController(
+        nowPlaying = { nowPlayingTrack },
+        playbackQueue = { playbackQueue },
+        playbackProgress = { playbackProgress },
+        playbackState = { playbackState },
+        setSleepTimer = { timer -> sleepTimer = timer },
+        setSleepTimerNowEpochMillis = { millis -> sleepTimerNowEpochMillis = millis },
+        setStatus = { status -> connectionStatus = status },
+        stopPlayback = playbackEngine::stop,
+        nowEpochMillis = { System.currentTimeMillis() },
+    )
 
-    fun handleSleepTimerSelected(request: SleepTimerRequest) {
-        val selection = desktopSleepTimerSelection(
-            request = request,
-            nowEpochMillis = System.currentTimeMillis(),
-            nowPlaying = nowPlayingTrack,
-            playbackQueue = playbackQueue,
-            playbackProgress = playbackProgress,
-            playbackState = playbackState,
-        )
-        sleepTimer = selection.timer
-        sleepTimerNowEpochMillis = selection.nowEpochMillis
-        connectionStatus = selection.status
-    }
-
-    fun cancelSleepTimer() {
-        sleepTimer = null
-        connectionStatus = "Sleep timer canceled."
-    }
-
-    DesktopSleepTimerExpiryEffect(
+    NaviampSleepTimerExpiryEffect(
         sleepTimer = sleepTimer,
-        snapshot = currentSleepTimerSnapshot(),
-        onTick = { nowMillis -> sleepTimerNowEpochMillis = nowMillis },
-        onExpired = {
-            playbackEngine.stop()
-            sleepTimer = null
-            connectionStatus = "Sleep timer stopped playback."
-        },
+        snapshot = sleepTimerController.snapshot(),
+        onTick = sleepTimerController::tick,
+        onExpired = sleepTimerController::expire,
     )
 
     fun canUsePreviousButton(): Boolean =
@@ -1267,8 +1245,8 @@ fun NaviampApp(
                                 playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(track))
                             },
                             onSaveQueueAsPlaylist = playlistsController::saveQueueAsPlaylist,
-                            onSleepTimerSelected = ::handleSleepTimerSelected,
-                            onCancelSleepTimer = ::cancelSleepTimer,
+                            onSleepTimerSelected = sleepTimerController::select,
+                            onCancelSleepTimer = sleepTimerController::cancel,
                             onInternetRadioStationSelected = internetRadioController::playStation,
                             onQueueIndexSelected = ::handleQueueIndexSelected,
                             onUpNextTrackRadioSelected = appActions::playTrackRadio,
