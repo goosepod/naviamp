@@ -2,15 +2,19 @@ package app.naviamp.desktop
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
+import app.naviamp.domain.audio.AudioTag
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
+import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.SleepTimerRequest
 import app.naviamp.domain.playback.label
+import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.ui.NaviampMiniNowPlaying
@@ -33,6 +37,7 @@ import app.naviamp.ui.toMiniNowPlayingUi
 
 @Composable
 fun DesktopNowPlayingPanel(
+    modifier: Modifier = Modifier,
     appColors: DesktopAppColors,
     playbackEngineName: String,
     supportsPause: Boolean,
@@ -42,7 +47,7 @@ fun DesktopNowPlayingPanel(
     supportsTrackRatings: Boolean,
     nowPlayingTrack: Track?,
     nowPlayingWaveform: AudioWaveform?,
-    visualizerBandsProvider: () -> List<Float>,
+    visualizerFrame: PlaybackVisualizerFrame?,
     selectedVisualizer: NaviampVisualizer,
     visualizerColors: NaviampPlayerColors,
     nowPlayingAudioTags: List<AudioTag>?,
@@ -53,19 +58,14 @@ fun DesktopNowPlayingPanel(
     visualizerAvailable: Boolean,
     visualizerVisible: Boolean,
     coverArtUrl: String?,
-    backTo: List<Track>,
-    upNext: List<Track>,
+    playbackQueue: PlaybackQueue,
     internetRadioStations: List<InternetRadioStation>,
     currentInternetRadioStationId: String?,
     radioTrackArtworkByKey: Map<String, String?>,
-    firstBackToQueueIndex: Int,
-    firstUpNextQueueIndex: Int,
-    upNextCoverArtUrl: (Track) -> String?,
     relatedTracks: List<Track>,
-    relatedCoverArtUrl: (Track) -> String?,
+    coverArtUrlForTrack: (Track) -> String?,
     hasPrevious: Boolean,
     hasNext: Boolean,
-    shuffleEnabled: Boolean,
     shuffleActive: Boolean,
     repeatMode: RepeatMode,
     playbackState: PlaybackState,
@@ -112,33 +112,37 @@ fun DesktopNowPlayingPanel(
     val isLiveStream = currentInternetRadioStationId != null
     val effectiveDurationSeconds = nowPlayingTrack?.durationSeconds?.toDouble()
         ?: playbackProgress.durationSeconds
+    val backTo = playbackQueue.backTo()
+    val upNext = playbackQueue.upNext()
+    val firstBackToQueueIndex = playbackQueue.currentIndex - 1
+    val firstUpNextQueueIndex = playbackQueue.currentIndex + 1
     val canTogglePlayback = nowPlayingTrack != null &&
         playbackState != PlaybackState.Loading &&
         playbackState !is PlaybackState.Error &&
         (supportsPause || playbackState != PlaybackState.Playing)
-    val backToItems = remember(backTo, firstBackToQueueIndex, upNextCoverArtUrl) {
+    val backToItems = remember(backTo, firstBackToQueueIndex, coverArtUrlForTrack) {
         backTo.mapIndexed { index, track ->
             track.toNowPlayingItemUi(
                 id = "queue:${firstBackToQueueIndex - index}",
-                coverArtUrl = upNextCoverArtUrl(track),
+                coverArtUrl = coverArtUrlForTrack(track),
                 meta = "",
             )
         }
     }
-    val upNextItems = remember(upNext, firstUpNextQueueIndex, upNextCoverArtUrl) {
+    val upNextItems = remember(upNext, firstUpNextQueueIndex, coverArtUrlForTrack) {
         upNext.mapIndexed { index, track ->
             track.toNowPlayingItemUi(
                 id = "queue:${firstUpNextQueueIndex + index}",
-                coverArtUrl = upNextCoverArtUrl(track),
+                coverArtUrl = coverArtUrlForTrack(track),
                 meta = "",
             )
         }
     }
-    val relatedItems = remember(relatedTracks, relatedCoverArtUrl) {
+    val relatedItems = remember(relatedTracks, coverArtUrlForTrack) {
         relatedTracks.mapIndexed { index, track ->
             track.toNowPlayingItemUi(
                 id = "related:$index",
-                coverArtUrl = relatedCoverArtUrl(track),
+                coverArtUrl = coverArtUrlForTrack(track),
                 meta = "",
             )
         }
@@ -174,7 +178,7 @@ fun DesktopNowPlayingPanel(
                 canChangeVolume = supportsSoftwareVolume,
                 hasPrevious = hasPrevious,
                 hasNext = hasNext,
-                shuffleEnabled = shuffleEnabled,
+                shuffleEnabled = upNext.size > 1,
                 shuffleActive = shuffleActive,
                 repeatMode = repeatMode,
                 canRepeat = !isLiveStream,
@@ -238,9 +242,10 @@ fun DesktopNowPlayingPanel(
     }
 
     NaviampNowPlayingPanel(
+        modifier = modifier,
         nowPlaying = nowPlayingUi,
         colors = appColors,
-        visualizerBandsProvider = visualizerBandsProvider,
+        visualizerBandsProvider = { visualizerFrame?.bands.orEmpty() },
         selectedVisualizer = selectedVisualizer,
         visualizerColors = visualizerColors,
         actions = NaviampNowPlayingActions(

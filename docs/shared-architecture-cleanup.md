@@ -1376,6 +1376,8 @@ Progress notes:
 - Removed stale desktop root imports left by earlier extractions and collapsed repeated desktop lyrics-offset assignment wiring into one root helper that still uses the shared `LyricsOffsetController`.
 - `DesktopNaviampApp.kt` dropped from 1,413 lines to 1,360 lines without adding another platform wrapper file.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
+- Deleted the single-use `DesktopNowPlayingRoute` pass-through wrapper; `DesktopNaviampApp.kt` now calls the existing `DesktopNowPlayingPanel` directly, and the panel owns its queue-derived now-playing view inputs.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
 

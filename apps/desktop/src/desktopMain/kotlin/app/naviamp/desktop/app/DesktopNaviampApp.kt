@@ -1030,7 +1030,7 @@ fun NaviampApp(
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
                     if (appRoute == DesktopAppRoute.Player && nowPlayingTrack != null) {
-                        DesktopNowPlayingRoute(
+                        DesktopNowPlayingPanel(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxWidth(),
