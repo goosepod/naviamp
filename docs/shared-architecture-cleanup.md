@@ -1355,6 +1355,10 @@ Progress notes:
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.settings.PlaybackSettingsTest :apps:android:compileDebugKotlin :apps:desktop:compileKotlinDesktop`.
 - Replaced Android's duplicated download-refresh result branches with shared `shouldRefreshDownloadsAfter`, matching the redownload path and Desktop's shared download refresh decision.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Moved artist/album detail provider loading with library fallback, plus track-to-artist/album mapping, from desktop-local media helpers into shared domain media helpers.
+- Android artist detail loading now uses the shared `loadArtistDetails` recovery path instead of its own provider/fallback block; Desktop album/artist controllers import the same shared detail loaders.
+- `DesktopMediaDetails.kt` dropped to 53 lines and now only contains desktop route-navigation helpers.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.media.MediaDetailFallbacksTest :apps:desktop:desktopTest --tests app.naviamp.desktop.DesktopMediaDetailsTest :apps:android:compileDebugKotlin :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
 

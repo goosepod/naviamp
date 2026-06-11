@@ -6,6 +6,9 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
+import app.naviamp.domain.media.albumDetailLoadErrorStatus
+import app.naviamp.domain.media.loadAlbumDetails
+import app.naviamp.domain.media.trackAlbum
 import app.naviamp.domain.provider.MediaProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -46,7 +49,7 @@ class DesktopAlbumController(
                 setSelectedAlbumDetails(loadAlbumDetails(libraryIndexRepository, providerResponseService, activeProvider, album, sourceId()))
                 setSelectedAlbumStatus(null)
             } catch (exception: Exception) {
-                setSelectedAlbumStatus(albumLoadErrorStatus(exception))
+                setSelectedAlbumStatus(albumDetailLoadErrorStatus(exception))
             }
         }
     }

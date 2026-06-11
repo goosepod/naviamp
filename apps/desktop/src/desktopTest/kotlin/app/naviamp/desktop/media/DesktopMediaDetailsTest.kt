@@ -6,6 +6,10 @@ import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.media.albumDetailLoadErrorStatus
+import app.naviamp.domain.media.artistDetailLoadErrorStatus
+import app.naviamp.domain.media.trackAlbum
+import app.naviamp.domain.media.trackArtist
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -118,8 +122,8 @@ class DesktopMediaDetailsTest {
 
     @Test
     fun detailStatusHelpersUseFallbackMessages() {
-        assertEquals("Could not load album.", albumLoadErrorStatus(Exception()))
-        assertEquals("Could not load artist.", artistLoadErrorStatus(Exception()))
+        assertEquals("Could not load album.", albumDetailLoadErrorStatus(Exception()))
+        assertEquals("Could not load artist.", artistDetailLoadErrorStatus(Exception()))
     }
 
     private fun artist(id: String): Artist =

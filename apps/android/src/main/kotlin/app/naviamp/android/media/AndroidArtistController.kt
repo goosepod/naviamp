@@ -24,9 +24,9 @@ import app.naviamp.domain.media.artistPopularTracksUpdate
 import app.naviamp.domain.media.artistDetailLoadErrorStatus
 import app.naviamp.domain.media.artistDetailLoadedStatus
 import app.naviamp.domain.media.artistDetailLoadingStatus
-import app.naviamp.domain.media.artistDetailsFromLibraryTracks
 import app.naviamp.domain.media.loadingPopularTracksStatus
 import app.naviamp.domain.media.loadingSimilarArtistsStatus
+import app.naviamp.domain.media.loadArtistDetails
 import app.naviamp.domain.media.missingPopularTracksSourceStatus
 import app.naviamp.domain.media.popularTracksUnavailableStatus
 import app.naviamp.domain.media.similarArtistsUnavailableStatus
@@ -69,17 +69,16 @@ fun openAndroidArtistDetails(
     scope.launch {
         with(state) {
             status = artistDetailLoadingStatus(fallbackName)
-            runCatching { providerResponseService.artist(activeProvider, artistId) }
-                .recoverCatching { error ->
-                    val fallbackDetail = sourceId?.let {
-                        artistDetailsFromLibraryTracks(
-                            artistId = artistId,
-                            fallbackName = fallbackName,
-                            tracks = libraryIndexRepository.libraryTracksForArtist(it, artistId, limit = 1_000),
-                        )
-                    }
-                    fallbackDetail ?: throw error
-                }
+            runCatching {
+                loadArtistDetails(
+                    libraryIndexRepository = libraryIndexRepository,
+                    providerResponseService = providerResponseService,
+                    provider = activeProvider,
+                    artistId = artistId,
+                    fallbackName = fallbackName,
+                    sourceId = sourceId,
+                )
+            }
                 .onSuccess { detail ->
                     contentState = contentState.showArtist(detail)
                     nowPlayingOpen = false

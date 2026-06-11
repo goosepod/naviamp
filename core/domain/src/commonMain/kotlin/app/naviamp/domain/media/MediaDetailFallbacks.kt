@@ -7,8 +7,11 @@ import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.Track
+import app.naviamp.domain.cache.LocalLibraryIndexRepository
+import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.popular.ArtistPopularTrackMatch
 import app.naviamp.domain.popular.SimilarArtistMatch
+import app.naviamp.domain.provider.MediaProvider
 
 const val ArtistDetailPopularTracksFetchLimit = 25
 const val ArtistDetailPopularTracksDisplayLimit = 10
@@ -90,6 +93,51 @@ fun artistDetailLoadedStatus(detail: ArtistDetails): String =
 fun artistDetailLoadErrorStatus(error: Throwable): String =
     error.message ?: "Could not load artist."
 
+suspend fun loadArtistDetails(
+    libraryIndexRepository: LocalLibraryIndexRepository,
+    providerResponseService: ProviderResponseService,
+    provider: MediaProvider,
+    artist: Artist,
+    sourceId: String?,
+): ArtistDetails =
+    loadArtistDetails(
+        libraryIndexRepository = libraryIndexRepository,
+        providerResponseService = providerResponseService,
+        provider = provider,
+        artistId = artist.id,
+        fallbackName = artist.name,
+        sourceId = sourceId,
+    )
+
+suspend fun loadArtistDetails(
+    libraryIndexRepository: LocalLibraryIndexRepository,
+    providerResponseService: ProviderResponseService,
+    provider: MediaProvider,
+    artistId: ArtistId,
+    fallbackName: String?,
+    sourceId: String?,
+): ArtistDetails =
+    runCatching {
+        providerResponseService.artist(provider, artistId)
+    }.recoverCatching { error ->
+        val fallbackDetail = sourceId?.let {
+            artistDetailsFromLibraryTracks(
+                artistId = artistId,
+                fallbackName = fallbackName,
+                tracks = libraryIndexRepository.libraryTracksForArtist(it, artistId, limit = 1_000),
+            )
+        }
+        fallbackDetail ?: throw error
+    }.getOrThrow()
+
+fun trackArtist(track: Track): Artist? =
+    track.artistId?.let { artistId ->
+        Artist(
+            id = artistId,
+            name = track.artistName,
+        )
+    }
+
 fun missingPopularTracksSourceStatus(): String =
     "Popular tracks unavailable: no connected media source."
 
@@ -137,3 +185,36 @@ fun albumDetailLoadedStatus(): String =
 
 fun albumDetailLoadErrorStatus(error: Throwable): String =
     error.message ?: "Could not load album."
+
+suspend fun loadAlbumDetails(
+    libraryIndexRepository: LocalLibraryIndexRepository,
+    providerResponseService: ProviderResponseService,
+    provider: MediaProvider,
+    album: Album,
+    sourceId: String?,
+): AlbumDetails =
+    runCatching {
+        providerResponseService.album(provider, album.id)
+    }.recoverCatching { error ->
+        val fallbackDetail = sourceId?.let {
+            albumDetailsFromLibraryTracks(
+                albumId = album.id,
+                fallbackTitle = album.title,
+                fallbackArtistName = album.artistName,
+                tracks = libraryIndexRepository.libraryTracksForAlbum(it, album.id, limit = 1_000),
+            )
+        }
+        fallbackDetail ?: throw error
+    }.getOrThrow()
+
+fun trackAlbum(track: Track): Album? =
+    track.albumId?.let { albumId ->
+        Album(
+            id = albumId,
+            title = track.albumTitle ?: "Album",
+            artistName = track.artistName,
+            coverArtId = track.coverArtId,
+            recentlyAddedAtIso8601 = null,
+            releaseYear = track.albumReleaseYear,
+        )
+    }

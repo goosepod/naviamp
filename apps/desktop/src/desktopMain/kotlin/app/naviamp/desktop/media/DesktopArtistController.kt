@@ -11,12 +11,15 @@ import app.naviamp.domain.media.ArtistDetailPopularTracksFetchLimit
 import app.naviamp.domain.media.ArtistDetailSimilarArtistsDisplayLimit
 import app.naviamp.domain.media.ArtistDetailSimilarArtistsFetchLimit
 import app.naviamp.domain.media.artistPopularTracksUpdate
+import app.naviamp.domain.media.artistDetailLoadErrorStatus
 import app.naviamp.domain.media.loadingPopularTracksStatus
 import app.naviamp.domain.media.loadingSimilarArtistsStatus
+import app.naviamp.domain.media.loadArtistDetails
 import app.naviamp.domain.media.missingPopularTracksSourceStatus
 import app.naviamp.domain.media.popularTracksUnavailableStatus
 import app.naviamp.domain.media.similarArtistsUnavailableStatus
 import app.naviamp.domain.media.similarArtistsUpdate
+import app.naviamp.domain.media.trackArtist
 import app.naviamp.domain.popular.ArtistPopularTracksService
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.popular.SimilarArtistsService
@@ -133,7 +136,7 @@ class DesktopArtistController(
                 setSelectedArtistStatus(null)
                 loadPopularTracks(artist, details)
             } catch (exception: Exception) {
-                setSelectedArtistStatus(artistLoadErrorStatus(exception))
+                setSelectedArtistStatus(artistDetailLoadErrorStatus(exception))
             }
         }
     }
