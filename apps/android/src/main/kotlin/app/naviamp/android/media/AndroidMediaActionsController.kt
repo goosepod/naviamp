@@ -19,6 +19,7 @@ import app.naviamp.domain.media.withUpdatedAlbum
 import app.naviamp.domain.media.withUpdatedArtist
 import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackQueueManager
+import app.naviamp.domain.playback.applyPlaybackQueueUpdate
 import app.naviamp.domain.provider.addToPlaylistErrorMessage
 import app.naviamp.domain.provider.addToPlaylistLoadingStatus
 import app.naviamp.domain.provider.addTracksToPlaylistStateUpdate
@@ -67,11 +68,15 @@ fun appendAndroidTracksToQueue(
         tracksToAdd = tracksToAdd,
         label = label,
     )
-    state.status = update.status
-    if (!update.tracksChanged) return
-    playbackQueueController.replaceQueue(state.playbackQueue)
-    playbackQueueController.replaceQueue(update.queue)
-    state.playbackQueue = playbackQueueController.queue
+    applyPlaybackQueueUpdate(
+        update = update,
+        setStatus = { status -> state.status = status },
+        replaceQueue = { queue ->
+            playbackQueueController.replaceQueue(state.playbackQueue)
+            playbackQueueController.replaceQueue(queue)
+            state.playbackQueue = playbackQueueController.queue
+        },
+    )
 }
 
 fun withAndroidKnownTrack(
@@ -152,11 +157,15 @@ fun appendAndroidArtistPopularTracksToQueue(
         existingTracks = state.playbackQueue.tracks,
         deduplicateExisting = true,
     )
-    state.status = update.status
-    if (!update.tracksChanged) return
-    playbackQueueController.replaceQueue(state.playbackQueue)
-    playbackQueueController.replaceQueue(update.queue)
-    state.playbackQueue = playbackQueueController.queue
+    applyPlaybackQueueUpdate(
+        update = update,
+        setStatus = { status -> state.status = status },
+        replaceQueue = { queue ->
+            playbackQueueController.replaceQueue(state.playbackQueue)
+            playbackQueueController.replaceQueue(queue)
+            state.playbackQueue = playbackQueueController.queue
+        },
+    )
 }
 
 fun updateAndroidNotificationFavoriteState(state: AndroidAppState, track: Track? = state.nowPlaying) {

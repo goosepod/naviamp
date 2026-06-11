@@ -226,6 +226,46 @@ class PlaybackQueueManagerTest {
     }
 
     @Test
+    fun applyPlaybackQueueUpdateSetsStatusAndReplacesChangedQueueOnly() {
+        val one = track("one")
+        val two = track("two")
+        val currentQueue = PlaybackQueue(tracks = listOf(one), currentIndex = 0)
+        val nextQueue = PlaybackQueue(tracks = listOf(one, two), currentIndex = 0)
+        val statuses = mutableListOf<String>()
+        val replacements = mutableListOf<PlaybackQueue>()
+
+        assertEquals(
+            true,
+            applyPlaybackQueueUpdate(
+                update = PlaybackQueueUpdate(
+                    queue = nextQueue,
+                    tracksChanged = true,
+                    status = "Added 1 track to queue.",
+                ),
+                setStatus = statuses::add,
+                replaceQueue = replacements::add,
+            ),
+        )
+        assertEquals(listOf("Added 1 track to queue."), statuses)
+        assertEquals(listOf(nextQueue), replacements)
+
+        assertEquals(
+            false,
+            applyPlaybackQueueUpdate(
+                update = PlaybackQueueUpdate(
+                    queue = currentQueue,
+                    tracksChanged = false,
+                    status = "No tracks found.",
+                ),
+                setStatus = statuses::add,
+                replaceQueue = replacements::add,
+            ),
+        )
+        assertEquals(listOf("Added 1 track to queue.", "No tracks found."), statuses)
+        assertEquals(listOf(nextQueue), replacements)
+    }
+
+    @Test
     fun updateTrackReplacesMatchingQueueTrackOnly() {
         val one = track("one")
         val two = track("two")

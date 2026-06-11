@@ -15,6 +15,7 @@ import app.naviamp.domain.media.mediaMetadataMutationController
 import app.naviamp.domain.media.trackPlaybackSelection
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackQueueManager
+import app.naviamp.domain.playback.applyPlaybackQueueUpdate
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.DesktopPlaylistEngine
@@ -78,10 +79,11 @@ class DesktopMediaActionsController(
             existingTracks = playlistEngine.queue.tracks,
             deduplicateExisting = true,
         )
-        if (update.tracksChanged) {
-            playlistEngine.replaceQueue(update.queue)
-        }
-        setConnectionStatus(update.status)
+        applyPlaybackQueueUpdate(
+            update = update,
+            setStatus = setConnectionStatus,
+            replaceQueue = playlistEngine::replaceQueue,
+        )
     }
 
     fun applyTrackMetadataUpdate(updatedTrack: Track) {

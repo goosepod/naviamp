@@ -6,6 +6,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.provider.allKnownTracks
 import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackQueueManager
+import app.naviamp.domain.playback.applyPlaybackQueueUpdate
 import app.naviamp.domain.popular.ArtistPopularTracksService
 import kotlinx.coroutines.CoroutineScope
 
@@ -32,10 +33,14 @@ internal class AndroidMediaAppController(
             currentQueue = state.playbackQueue,
             tracksToAdd = listOf(track),
         )
-        state.status = update.status
-        if (!update.tracksChanged) return
-        state.playbackQueue = update.queue
-        queueController.replaceQueue(update.queue)
+        applyPlaybackQueueUpdate(
+            update = update,
+            setStatus = { status -> state.status = status },
+            replaceQueue = { queue ->
+                state.playbackQueue = queue
+                queueController.replaceQueue(queue)
+            },
+        )
     }
 
     fun addToQueue(track: Track) {

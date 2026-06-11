@@ -9,6 +9,17 @@ data class PlaybackQueueUpdate(
     val status: String,
 )
 
+fun applyPlaybackQueueUpdate(
+    update: PlaybackQueueUpdate,
+    setStatus: (String) -> Unit,
+    replaceQueue: (PlaybackQueue) -> Unit,
+): Boolean {
+    setStatus(update.status)
+    if (!update.tracksChanged) return false
+    replaceQueue(update.queue)
+    return true
+}
+
 data class PlaybackShuffleUpdate(
     val queue: PlaybackQueue,
     val shuffledSnapshot: List<Track>?,
