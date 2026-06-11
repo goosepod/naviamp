@@ -7,10 +7,13 @@ import app.naviamp.domain.cache.DownloadReplacementRepository
 import app.naviamp.domain.cache.DownloadRepository
 import app.naviamp.domain.cache.DownloadService
 import app.naviamp.domain.cache.DownloadTracksResult
+import app.naviamp.domain.cache.CacheMaintenanceRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
+import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.domain.cache.downloadConnectionRequiredStatus
 import app.naviamp.domain.cache.downloadedTrackRemovedStatus
+import app.naviamp.domain.cache.shouldRefreshDownloadsAfter
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.settings.CacheSettings
@@ -26,6 +29,7 @@ class DesktopDownloadsController(
     private val scope: CoroutineScope,
     private val downloadRepository: DownloadRepository<DownloadedAudioFile, DownloadedTrack>,
     private val downloadReplacementRepository: DownloadReplacementRepository<DownloadedAudioFile>,
+    private val cacheMaintenanceRepository: CacheMaintenanceRepository<StorageCacheStats>,
     providerResponseCacheRepository: ProviderResponseCacheRepository,
     private val playbackEngine: PlaybackEngine,
     private val playbackSettings: () -> PlaybackSettings,
@@ -39,6 +43,7 @@ class DesktopDownloadsController(
     private val playlistCallbacks: () -> PlaylistCallbacks,
     private val setDownloadStatus: (String?) -> Unit,
     private val incrementDownloadRefreshToken: () -> Unit,
+    private val setCacheStats: (StorageCacheStats) -> Unit = {},
 ) {
     private val providerResponseService = ProviderResponseService(providerResponseCacheRepository)
 
@@ -66,6 +71,27 @@ class DesktopDownloadsController(
 
     fun downloadTrack(track: Track) {
         downloadTracks(track.title, listOf(track))
+    }
+
+    fun redownloadTracks(tracks: List<Track>, label: String = "downloads") {
+        val activeProvider = provider()
+        val activeSourceId = sourceId()
+        val downloadService = DownloadService(downloadRepository, downloadReplacementRepository)
+        scope.launch {
+            val quality = playbackSettings().streamQuality(playbackEngine)
+            val result = downloadService.redownloadTracksWithStatus(
+                tracks = tracks,
+                sourceId = activeSourceId,
+                provider = activeProvider,
+                quality = quality,
+                maxDownloadBytes = cacheSettings().maxDownloadBytes,
+                setStatus = setDownloadStatus,
+            )
+            if (shouldRefreshDownloadsAfter(result)) {
+                incrementDownloadRefreshToken()
+                setCacheStats(withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() })
+            }
+        }
     }
 
     fun downloadAlbum(album: Album) {

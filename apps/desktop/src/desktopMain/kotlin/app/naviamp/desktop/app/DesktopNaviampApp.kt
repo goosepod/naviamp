@@ -49,11 +49,9 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.internetRadioStationId
 import app.naviamp.domain.isInternetRadioTrack
-import app.naviamp.domain.cache.DownloadService
 import app.naviamp.domain.cache.ImageCacheRepository
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.ProviderResponseService
-import app.naviamp.domain.cache.shouldRefreshDownloadsAfter
 import app.naviamp.domain.artistmix.artistMixPopularQueue
 import app.naviamp.domain.albummix.albumMixTrackQueue
 import app.naviamp.domain.media.withUpdatedAlbum
@@ -111,6 +109,7 @@ import app.naviamp.domain.provider.refreshPlaylistDetails
 import app.naviamp.domain.provider.smartPlaylistSaveErrorMessage
 import app.naviamp.domain.provider.smartPlaylistUpdateErrorMessage
 import app.naviamp.domain.settings.effectiveForEngine
+import app.naviamp.domain.settings.PlaybackSettingsMaintenanceController
 import app.naviamp.domain.settings.playbackSettingsChange
 import app.naviamp.domain.settings.restoredPlaybackQueue
 import app.naviamp.domain.settings.restoredTrackSession
@@ -131,10 +130,8 @@ import app.naviamp.ui.rememberPlatformCoverArtPlayerColors
 import app.naviamp.ui.toSharedMediaItemUi
 import app.naviamp.ui.toSharedGenreMixItemUi
 import app.naviamp.ui.toNaviampSleepTimerUi
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 @Composable
 @NonRestartableComposable
@@ -711,6 +708,7 @@ fun NaviampApp(
         scope = coroutineScope,
         downloadRepository = storage,
         downloadReplacementRepository = storage,
+        cacheMaintenanceRepository = storage,
         providerResponseCacheRepository = storage,
         playbackEngine = playbackEngine,
         playbackSettings = { playbackSettings },
@@ -724,46 +722,27 @@ fun NaviampApp(
         playlistCallbacks = { playlistCallbacks },
         setDownloadStatus = { status -> downloadStatus = status },
         incrementDownloadRefreshToken = { downloadRefreshToken += 1 },
+        setCacheStats = { stats -> cacheStats = stats },
     )
 
-    fun applyPlaybackSettings(settings: PlaybackSettings) {
-        val change = playbackSettingsChange(settings, playbackEngine, previous = playbackSettings)
-        playbackSettings = change.settings
-        if (change.shouldReloadLyricsSidecars) {
+    val settingsMaintenanceController = PlaybackSettingsMaintenanceController(
+        playbackEngine = playbackEngine,
+        playbackSettings = { playbackSettings },
+        setPlaybackSettings = { settings -> playbackSettings = settings },
+        savePlaybackSettings = settingsStore::savePlaybackSettings,
+        reloadLyricsSidecars = {
             nowPlayingLyrics = null
             nowPlayingLyricsStatus = null
             nowPlayingWaveformReloadToken += 1
-        }
-        settingsStore.savePlaybackSettings(playbackSettings)
-    }
-
-    fun applyPlaybackSettingsAndRedownload(settings: PlaybackSettings) {
-        val activeProvider = connectedProvider
-        val activeSourceId = connectedSourceId
-        val tracksToRedownload = activeSourceId
-            ?.let { storage.downloadedTracks(it) }
-            .orEmpty()
-            .map { it.track }
-        applyPlaybackSettings(settings)
-        if (tracksToRedownload.isEmpty()) return
-        coroutineScope.launch {
-            val downloadService = DownloadService(storage, storage)
-            val quality = playbackSettings.streamQuality(playbackEngine)
-            val maxDownloadBytes = cacheSettings.maxDownloadBytes
-            val result = downloadService.redownloadTracksWithStatus(
-                tracks = tracksToRedownload,
-                sourceId = activeSourceId,
-                provider = activeProvider,
-                quality = quality,
-                maxDownloadBytes = maxDownloadBytes,
-                setStatus = { status -> downloadStatus = status },
-            )
-            if (shouldRefreshDownloadsAfter(result)) {
-                downloadRefreshToken += 1
-                cacheStats = withContext(Dispatchers.IO) { storage.stats() }
-            }
-        }
-    }
+        },
+        downloadedTracks = {
+            connectedSourceId
+                ?.let { storage.downloadedTracks(it) }
+                .orEmpty()
+                .map { it.track }
+        },
+        redownloadTracks = downloadsController::redownloadTracks,
+    )
 
     val playlistsController = DesktopPlaylistsController(
         scope = coroutineScope,
@@ -1359,8 +1338,9 @@ fun NaviampApp(
                             },
                             onDeleteConnection = { source -> appActions.deleteConnection(source) },
                             onCancelConnectionForm = { connectionForm.isOpen = false },
-                            onPlaybackSettingsChanged = ::applyPlaybackSettings,
-                            onPlaybackSettingsChangedAndRedownload = ::applyPlaybackSettingsAndRedownload,
+                            onPlaybackSettingsChanged = settingsMaintenanceController::applyPlaybackSettings,
+                            onPlaybackSettingsChangedAndRedownload =
+                                settingsMaintenanceController::applyPlaybackSettingsAndRedownload,
                             onCacheSettingsChanged = { settings ->
                                 cacheSettings = settings.normalized()
                                 settingsStore.saveCacheSettings(cacheSettings)

@@ -18,7 +18,7 @@ import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.Track
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.PlaybackSettings
-import app.naviamp.domain.settings.playbackSettingsChange
+import app.naviamp.domain.settings.PlaybackSettingsMaintenanceController
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import app.naviamp.android.playback.AndroidPlaybackEngine
 import java.io.File
@@ -136,26 +136,25 @@ internal class AndroidSettingsMaintenanceController(
     private val reloadVisibleLyrics: () -> Unit,
     private val redownloadTracks: (List<Track>, String) -> Unit,
 ) {
+    private val playbackSettingsMaintenanceController = PlaybackSettingsMaintenanceController(
+        playbackEngine = playbackEngine,
+        playbackSettings = { state.playbackSettings },
+        setPlaybackSettings = { settings -> state.playbackSettings = settings },
+        savePlaybackSettings = settingsStore::savePlaybackSettings,
+        reloadLyricsSidecars = reloadVisibleLyrics,
+        downloadedTracks = { state.downloadedTracks.map { it.track } },
+        redownloadTracks = redownloadTracks,
+    )
+
     fun handleConnectionFormChanged(form: ConnectionFormState) {
         state.applyConnectionForm(form)
     }
 
-    fun handlePlaybackSettingsChanged(settings: PlaybackSettings) {
-        val change = playbackSettingsChange(settings, playbackEngine, previous = state.playbackSettings)
-        state.playbackSettings = change.settings
-        settingsStore.savePlaybackSettings(change.settings)
-        if (change.shouldReloadLyricsSidecars) {
-            reloadVisibleLyrics()
-        }
-    }
+    fun handlePlaybackSettingsChanged(settings: PlaybackSettings) =
+        playbackSettingsMaintenanceController.applyPlaybackSettings(settings)
 
-    fun handlePlaybackSettingsChangedAndRedownload(settings: PlaybackSettings) {
-        val tracksToRedownload = state.downloadedTracks.map { it.track }
-        handlePlaybackSettingsChanged(settings)
-        if (tracksToRedownload.isNotEmpty()) {
-            redownloadTracks(tracksToRedownload, "downloads")
-        }
-    }
+    fun handlePlaybackSettingsChangedAndRedownload(settings: PlaybackSettings) =
+        playbackSettingsMaintenanceController.applyPlaybackSettingsAndRedownload(settings)
 
     fun handleClearCache() {
         handleAndroidClearCache(context, state, storage)

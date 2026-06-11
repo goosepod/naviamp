@@ -1349,6 +1349,10 @@ Progress notes:
 - Removed direct desktop playback forwarding wrappers from `DesktopNaviampApp.kt`; root route wiring now calls `DesktopPlaybackController` directly for seek, previous/next, shuffle, repeat, queue navigation, playback-session save, and reporting callbacks.
 - `DesktopNaviampApp.kt` dropped from 1,484 lines to 1,433 lines after the direct-controller forwarding cleanup.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
+- Moved playback-settings maintenance into shared domain `PlaybackSettingsMaintenanceController`; Android and Desktop now use the same path for applying effective playback settings, saving them, reloading lyrics sidecars when LRCLIB changes, and redownloading existing downloads after download-quality changes.
+- Deleted the desktop-only settings-maintenance wrapper before committing it; desktop redownload execution now lives on the existing `DesktopDownloadsController`, matching Android's existing download action boundary.
+- `DesktopNaviampApp.kt` dropped from 1,433 lines to 1,413 lines after the shared settings-maintenance wiring.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.settings.PlaybackSettingsTest :apps:android:compileDebugKotlin :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
 

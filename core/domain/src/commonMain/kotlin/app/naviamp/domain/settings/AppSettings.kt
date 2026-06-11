@@ -92,6 +92,33 @@ fun playbackSettingsChange(
     )
 }
 
+class PlaybackSettingsMaintenanceController(
+    private val playbackEngine: PlaybackEngine,
+    private val playbackSettings: () -> PlaybackSettings,
+    private val setPlaybackSettings: (PlaybackSettings) -> Unit,
+    private val savePlaybackSettings: (PlaybackSettings) -> Unit,
+    private val reloadLyricsSidecars: () -> Unit,
+    private val downloadedTracks: () -> List<Track> = { emptyList() },
+    private val redownloadTracks: (List<Track>, String) -> Unit = { _, _ -> },
+) {
+    fun applyPlaybackSettings(settings: PlaybackSettings) {
+        val change = playbackSettingsChange(settings, playbackEngine, previous = playbackSettings())
+        setPlaybackSettings(change.settings)
+        savePlaybackSettings(change.settings)
+        if (change.shouldReloadLyricsSidecars) {
+            reloadLyricsSidecars()
+        }
+    }
+
+    fun applyPlaybackSettingsAndRedownload(settings: PlaybackSettings) {
+        val tracksToRedownload = downloadedTracks()
+        applyPlaybackSettings(settings)
+        if (tracksToRedownload.isNotEmpty()) {
+            redownloadTracks(tracksToRedownload, "downloads")
+        }
+    }
+}
+
 @Serializable
 data class StreamQualityPreference(
     val mode: StreamQualityMode = StreamQualityMode.Original,
