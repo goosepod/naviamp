@@ -493,6 +493,14 @@ fun NaviampPlaybackSettingsSection(
             },
         )
     }
+    SettingsCheckboxRow(
+        colors = colors,
+        checked = playbackSettings.sonicSimilarityEnabled,
+        label = "Use Navidrome sonic similarity for Related tracks",
+        onCheckedChange = { enabled ->
+            onPlaybackSettingsChanged(playbackSettings.copy(sonicSimilarityEnabled = enabled))
+        },
+    )
     if (upNextHelpOpen) {
         AlertDialog(
             onDismissRequest = { upNextHelpOpen = false },

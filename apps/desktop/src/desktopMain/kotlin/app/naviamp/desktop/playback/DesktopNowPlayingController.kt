@@ -196,6 +196,16 @@ class DesktopNowPlayingController(
             relatedTracks = emptyList()
             return
         }
+        val activeProvider = provider()
+        if (
+            playbackSettings().sonicSimilarityEnabled &&
+            activeProvider?.capabilities?.supportsSonicSimilarity == true
+        ) {
+            relatedTracks = withContext(Dispatchers.IO) {
+                activeProvider.sonicSimilarTracks(track.id, count = RelatedTracksLimit.toInt())
+            }
+            if (relatedTracks.isNotEmpty()) return
+        }
         relatedTracks = withContext(Dispatchers.IO) {
             localLibraryIndexRepository.relatedLibraryTracks(activeSourceId, track, limit = RelatedTracksLimit)
         }

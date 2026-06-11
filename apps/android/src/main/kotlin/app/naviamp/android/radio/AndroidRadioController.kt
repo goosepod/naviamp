@@ -235,7 +235,17 @@ fun loadAndroidRelatedTracks(
         return
     }
     scope.launch {
-        runCatching { RadioService(activeProvider, count = 20).trackRadio(track.id) }
+        runCatching {
+            if (
+                state.playbackSettings.sonicSimilarityEnabled &&
+                activeProvider.capabilities.supportsSonicSimilarity
+            ) {
+                activeProvider.sonicSimilarTracks(track.id, count = 20)
+                    .ifEmpty { RadioService(activeProvider, count = 20).trackRadio(track.id) }
+            } else {
+                RadioService(activeProvider, count = 20).trackRadio(track.id)
+            }
+        }
             .onSuccess { tracks -> state.relatedTracks = tracks }
             .onFailure { state.relatedTracks = emptyList() }
     }
