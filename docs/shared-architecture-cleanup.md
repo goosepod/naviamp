@@ -1390,6 +1390,8 @@ Progress notes:
 - Changed mix-builder service wiring to pass `HomeContent` as a live lambda so remembered services do not capture stale home snapshots.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.mixbuilder.MixBuilderServiceFactoriesTest :apps:android:compileDebugKotlin :apps:desktop:compileKotlinDesktop`.
 - Moved the remaining desktop mix-builder item-id selection/removal and query-reset handling into `DesktopMixBuilderController`, matching the Android controller boundary and trimming `DesktopNaviampApp.kt` to 1,354 lines without adding another wrapper file.
+- Moved desktop route queue/add-to-playlist target construction behind typed `DesktopPlaylistsController` methods for tracks, albums, artists, and playlists; route/root files now call controller actions instead of constructing `AddToPlaylistTarget` values throughout the UI wiring.
+- Moved desktop connection-form new/edit/connect-saved/cancel handling into the existing `DesktopConnectionLifecycleController`, leaving the root to provide state adapters and trimming `DesktopNaviampApp.kt` to 1,331 lines.
 
 Success criteria for the first slice:
 

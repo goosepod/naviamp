@@ -212,6 +212,8 @@ fun ColumnScope.DesktopAppRouteContent(
         }
     }
 
+    fun currentAlbum(): Album? = selectedAlbumDetails?.album ?: selectedAlbum
+
     Box(
         modifier = Modifier
             .weight(1f)
@@ -265,37 +267,24 @@ fun ColumnScope.DesktopAppRouteContent(
                     onPlayAlbum = { appActions.playAlbumDetails() },
                     onShuffleAlbum = { appActions.playAlbumDetails(shuffle = true) },
                     onAlbumRadio = {
-                        selectedAlbumDetails?.album?.let(appActions::playAlbumRadio)
-                            ?: selectedAlbum?.let(appActions::playAlbumRadio)
+                        currentAlbum()?.let(appActions::playAlbumRadio)
                     },
                     onDownloadAlbum = {
                         selectedAlbumDetails?.let { appActions.downloadTracks(it.album.title, it.tracks) }
                             ?: selectedAlbum?.let(appActions::downloadAlbum)
                     },
                     onAddAlbumToQueue = {
-                        selectedAlbumDetails?.album?.let {
-                            playlistsController.addTargetToQueue(AddToPlaylistTarget.AlbumTarget(it))
-                        } ?: selectedAlbum?.let {
-                            playlistsController.addTargetToQueue(AddToPlaylistTarget.AlbumTarget(it))
-                        }
+                        currentAlbum()?.let(playlistsController::addAlbumToQueue)
                     },
                     onPlayTrack = { index -> appActions.playAlbumDetails(index = index) },
                     onTrackRadio = appActions::playTrackRadio,
                     onDownloadTrack = appActions::downloadTrack,
-                    onAddTrackToQueue = { track ->
-                        playlistsController.addTargetToQueue(AddToPlaylistTarget.TrackTarget(track))
-                    },
+                    onAddTrackToQueue = playlistsController::addTrackToQueue,
                     onAddAlbumToPlaylist = {
-                        selectedAlbumDetails?.album?.let {
-                            playlistsController.openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(it))
-                        } ?: selectedAlbum?.let {
-                            playlistsController.openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(it))
-                        }
+                        currentAlbum()?.let(playlistsController::openAlbumAddToPlaylist)
                     },
                     onAlbumFavoriteToggle = appActions::toggleAlbumFavorite,
-                    onAddTrackToPlaylist = { track ->
-                        playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(track))
-                    },
+                    onAddTrackToPlaylist = playlistsController::openTrackAddToPlaylist,
                     onArtistSelected = { track ->
                         appActions.openTrackArtistDetails(track, backRouteOverride = DesktopAppRoute.AlbumDetail)
                     },
@@ -322,25 +311,15 @@ fun ColumnScope.DesktopAppRouteContent(
                         val index = selectedArtistPopularTracks.indexOfFirst { it.id == track.id }.coerceAtLeast(0)
                         appActions.playPopularTracks(selectedArtistPopularTracks, index)
                     },
-                    onPopularTrackAddToQueue = { track ->
-                        playlistsController.addTargetToQueue(AddToPlaylistTarget.TrackTarget(track))
-                    },
-                    onAddArtistToQueue = { artist ->
-                        playlistsController.addTargetToQueue(AddToPlaylistTarget.ArtistTarget(artist))
-                    },
-                    onAddArtistToPlaylist = { artist ->
-                        playlistsController.openAddToPlaylist(AddToPlaylistTarget.ArtistTarget(artist))
-                    },
+                    onPopularTrackAddToQueue = playlistsController::addTrackToQueue,
+                    onAddArtistToQueue = playlistsController::addArtistToQueue,
+                    onAddArtistToPlaylist = playlistsController::openArtistAddToPlaylist,
                     onArtistFavoriteToggle = appActions::toggleArtistFavorite,
                     onAlbumSelected = appActions::openAlbumDetails,
                     onAlbumRadioSelected = appActions::playAlbumRadio,
                     onAlbumDownloadSelected = appActions::downloadAlbum,
-                    onAlbumAddToQueue = { album ->
-                        playlistsController.addTargetToQueue(AddToPlaylistTarget.AlbumTarget(album))
-                    },
-                    onAlbumAddToPlaylist = { album ->
-                        playlistsController.openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(album))
-                    },
+                    onAlbumAddToQueue = playlistsController::addAlbumToQueue,
+                    onAlbumAddToPlaylist = playlistsController::openAlbumAddToPlaylist,
                     onAlbumFavoriteToggle = appActions::toggleAlbumFavorite,
                 )
                 DesktopAppRoute.Playlists -> DesktopPlaylistsPanel(
@@ -357,12 +336,8 @@ fun ColumnScope.DesktopAppRouteContent(
                     onRenamePlaylist = onPlaylistRenameRequested,
                     onDeletePlaylist = onPlaylistDeleteRequested,
                     onDownloadPlaylist = appActions::downloadPlaylist,
-                    onAddPlaylistToQueue = { playlist ->
-                        playlistsController.addTargetToQueue(AddToPlaylistTarget.PlaylistTarget(playlist))
-                    },
-                    onAddPlaylistToPlaylist = { playlist ->
-                        playlistsController.openAddToPlaylist(AddToPlaylistTarget.PlaylistTarget(playlist))
-                    },
+                    onAddPlaylistToQueue = playlistsController::addPlaylistToQueue,
+                    onAddPlaylistToPlaylist = playlistsController::openPlaylistAddToPlaylist,
                     onSmartPlaylistSave = smartPlaylistsController::saveSmartPlaylist,
                     onSmartPlaylistUpdate = smartPlaylistsController::updateSmartPlaylist,
                     onSmartPlaylistLoad = smartPlaylistsController::loadSmartPlaylistDefinition,
@@ -383,24 +358,16 @@ fun ColumnScope.DesktopAppRouteContent(
                         selectedPlaylist?.let { appActions.downloadTracks(it.name, selectedPlaylistTracks) }
                     },
                     onAddPlaylistToQueue = {
-                        selectedPlaylist?.let {
-                            playlistsController.addTargetToQueue(AddToPlaylistTarget.PlaylistTarget(it))
-                        }
+                        selectedPlaylist?.let(playlistsController::addPlaylistToQueue)
                     },
                     onAddPlaylistToPlaylist = {
-                        selectedPlaylist?.let {
-                            playlistsController.openAddToPlaylist(AddToPlaylistTarget.PlaylistTarget(it))
-                        }
+                        selectedPlaylist?.let(playlistsController::openPlaylistAddToPlaylist)
                     },
                     onPlayTrack = { index -> appActions.playPlaylistDetails(index = index) },
                     onTrackRadio = appActions::playTrackRadio,
                     onDownloadTrack = appActions::downloadTrack,
-                    onAddTrackToQueue = { track ->
-                        playlistsController.addTargetToQueue(AddToPlaylistTarget.TrackTarget(track))
-                    },
-                    onAddTrackToPlaylist = { track ->
-                        playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(track))
-                    },
+                    onAddTrackToQueue = playlistsController::addTrackToQueue,
+                    onAddTrackToPlaylist = playlistsController::openTrackAddToPlaylist,
                 )
                 DesktopAppRoute.Library -> {
                     DesktopLibraryListLoadMoreEffect(
@@ -430,22 +397,14 @@ fun ColumnScope.DesktopAppRouteContent(
                         onJumpToLetter = libraryController::jumpLibraryToLetter,
                         onArtistSelected = appActions::openArtistDetails,
                         onArtistRadioSelected = appActions::playArtistRadio,
-                        onArtistAddToQueue = { artist ->
-                            playlistsController.addTargetToQueue(AddToPlaylistTarget.ArtistTarget(artist))
-                        },
-                        onArtistAddToPlaylist = { artist ->
-                            playlistsController.openAddToPlaylist(AddToPlaylistTarget.ArtistTarget(artist))
-                        },
+                        onArtistAddToQueue = playlistsController::addArtistToQueue,
+                        onArtistAddToPlaylist = playlistsController::openArtistAddToPlaylist,
                         onArtistFavoriteToggle = appActions::toggleArtistFavorite,
                         onAlbumSelected = appActions::openAlbumDetails,
                         onAlbumRadioSelected = appActions::playAlbumRadio,
                         onAlbumDownloadSelected = appActions::downloadAlbum,
-                        onAlbumAddToQueue = { album ->
-                            playlistsController.addTargetToQueue(AddToPlaylistTarget.AlbumTarget(album))
-                        },
-                        onAlbumAddToPlaylist = { album ->
-                            playlistsController.openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(album))
-                        },
+                        onAlbumAddToQueue = playlistsController::addAlbumToQueue,
+                        onAlbumAddToPlaylist = playlistsController::openAlbumAddToPlaylist,
                         onAlbumFavoriteToggle = appActions::toggleAlbumFavorite,
                         onRefreshLibrary = { libraryController.startLibrarySync(force = true) },
                     )
@@ -461,22 +420,14 @@ fun ColumnScope.DesktopAppRouteContent(
                     onClearSearch = searchController::clearSearch,
                     onArtistSelected = appActions::openArtistDetails,
                     onArtistRadioSelected = appActions::playArtistRadio,
-                    onArtistAddToQueue = { artist ->
-                        playlistsController.addTargetToQueue(AddToPlaylistTarget.ArtistTarget(artist))
-                    },
-                    onArtistAddToPlaylist = { artist ->
-                        playlistsController.openAddToPlaylist(AddToPlaylistTarget.ArtistTarget(artist))
-                    },
+                    onArtistAddToQueue = playlistsController::addArtistToQueue,
+                    onArtistAddToPlaylist = playlistsController::openArtistAddToPlaylist,
                     onArtistFavoriteToggle = appActions::toggleArtistFavorite,
                     onAlbumSelected = appActions::openAlbumDetails,
                     onAlbumRadioSelected = appActions::playAlbumRadio,
                     onAlbumDownloadSelected = appActions::downloadAlbum,
-                    onAlbumAddToQueue = { album ->
-                        playlistsController.addTargetToQueue(AddToPlaylistTarget.AlbumTarget(album))
-                    },
-                    onAlbumAddToPlaylist = { album ->
-                        playlistsController.openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(album))
-                    },
+                    onAlbumAddToQueue = playlistsController::addAlbumToQueue,
+                    onAlbumAddToPlaylist = playlistsController::openAlbumAddToPlaylist,
                     onAlbumFavoriteToggle = appActions::toggleAlbumFavorite,
                     onTrackSelected = appActions::playSearchTrack,
                     onTrackRadioSelected = { index ->
@@ -486,14 +437,10 @@ fun ColumnScope.DesktopAppRouteContent(
                         searchResults.tracks.getOrNull(index)?.let(appActions::downloadTrack)
                     },
                     onTrackAddToQueue = { index ->
-                        searchResults.tracks.getOrNull(index)?.let {
-                            playlistsController.addTargetToQueue(AddToPlaylistTarget.TrackTarget(it))
-                        }
+                        searchResults.tracks.getOrNull(index)?.let(playlistsController::addTrackToQueue)
                     },
                     onTrackAddToPlaylist = { index ->
-                        searchResults.tracks.getOrNull(index)?.let {
-                            playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(it))
-                        }
+                        searchResults.tracks.getOrNull(index)?.let(playlistsController::openTrackAddToPlaylist)
                     },
                 )
                 DesktopAppRoute.ArtistMix -> Column(
@@ -621,7 +568,7 @@ fun ColumnScope.DesktopAppRouteContent(
                     onPlayDownloadedTrack = appActions::playDownloadedTrack,
                     onRemoveDownloadedTrack = appActions::removeDownloadedTrack,
                     onAddDownloadedTrackToPlaylist = { download ->
-                        playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(download.track))
+                        playlistsController.openTrackAddToPlaylist(download.track)
                     },
                 )
                 DesktopAppRoute.Settings -> DesktopSettingsPanel(

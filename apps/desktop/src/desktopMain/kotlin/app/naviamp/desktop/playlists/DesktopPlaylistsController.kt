@@ -1,5 +1,7 @@
 package app.naviamp.desktop
 
+import app.naviamp.domain.Album
+import app.naviamp.domain.Artist
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.ProviderResponseService
@@ -147,6 +149,22 @@ class DesktopPlaylistsController(
         if (playlists().isEmpty()) refreshPlaylists()
     }
 
+    fun openTrackAddToPlaylist(track: Track) {
+        openAddToPlaylist(AddToPlaylistTarget.TrackTarget(track))
+    }
+
+    fun openAlbumAddToPlaylist(album: Album) {
+        openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(album))
+    }
+
+    fun openArtistAddToPlaylist(artist: Artist) {
+        openAddToPlaylist(AddToPlaylistTarget.ArtistTarget(artist))
+    }
+
+    fun openPlaylistAddToPlaylist(playlist: Playlist) {
+        openAddToPlaylist(AddToPlaylistTarget.PlaylistTarget(playlist))
+    }
+
     fun addTargetToPlaylist(target: AddToPlaylistTarget, playlist: Playlist?, newPlaylistName: String? = null) {
         val activeProvider = provider() ?: return
         setAddToPlaylistStatus(addToPlaylistResolvingTracksStatus())
@@ -195,6 +213,22 @@ class DesktopPlaylistsController(
                 setConnectionStatus(exception.message ?: "Could not add to queue.")
             }
         }
+    }
+
+    fun addTrackToQueue(track: Track) {
+        addTargetToQueue(AddToPlaylistTarget.TrackTarget(track))
+    }
+
+    fun addAlbumToQueue(album: Album) {
+        addTargetToQueue(AddToPlaylistTarget.AlbumTarget(album))
+    }
+
+    fun addArtistToQueue(artist: Artist) {
+        addTargetToQueue(AddToPlaylistTarget.ArtistTarget(artist))
+    }
+
+    fun addPlaylistToQueue(playlist: Playlist) {
+        addTargetToQueue(AddToPlaylistTarget.PlaylistTarget(playlist))
     }
 
     fun playNext(track: Track) {

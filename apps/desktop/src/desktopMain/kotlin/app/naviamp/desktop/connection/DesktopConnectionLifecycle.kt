@@ -100,11 +100,34 @@ class DesktopConnectionLifecycleController(
     private val savedConnectionForLogin: () -> NavidromeConnection?,
     private val setSavedConnectionForLogin: (NavidromeConnection?) -> Unit,
     private val incrementMediaSourcesRevision: () -> Unit,
+    private val applyConnectionFormState: (DesktopConnectionFormState) -> Unit,
     private val setConnectionFormOpen: (Boolean) -> Unit,
-    private val setConnectionStatus: (String) -> Unit,
+    private val setConnectionStatus: (String?) -> Unit,
     private val setAppRoute: (DesktopAppRoute) -> Unit,
     private val appRoute: () -> DesktopAppRoute,
 ) {
+    fun openNewConnectionForm() {
+        applyConnectionFormState(newDesktopConnectionFormState())
+        setConnectionFormOpen(true)
+        setConnectionStatus(null)
+    }
+
+    fun openSavedConnectionForm(source: SavedMediaSource) {
+        applyConnectionFormState(savedDesktopConnectionFormState(source))
+        setConnectionFormOpen(true)
+        setConnectionStatus("Editing saved connection. Leave password blank to reuse it.")
+    }
+
+    fun connectSavedConnection(source: SavedMediaSource) {
+        applyConnectionFormState(savedDesktopConnectionFormState(source))
+        setConnectionFormOpen(false)
+        connectToServer()
+    }
+
+    fun closeConnectionForm() {
+        setConnectionFormOpen(false)
+    }
+
     fun connectToServer(restoreSavedSession: Boolean = false) {
         if (isConnecting()) return
         val formError = connectionFormError(

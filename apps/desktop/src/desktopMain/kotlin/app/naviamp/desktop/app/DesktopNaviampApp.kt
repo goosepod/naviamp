@@ -575,6 +575,7 @@ fun NaviampApp(
         savedConnectionForLogin = { connectionForm.savedConnectionForLogin },
         setSavedConnectionForLogin = { connection -> connectionForm.savedConnectionForLogin = connection },
         incrementMediaSourcesRevision = { mediaSourcesRevision++ },
+        applyConnectionFormState = connectionForm::apply,
         setConnectionFormOpen = { isOpen -> connectionForm.isOpen = isOpen },
         setConnectionStatus = { status -> connectionStatus = status },
         setAppRoute = { route -> appRoute = route },
@@ -867,10 +868,6 @@ fun NaviampApp(
         listState = libraryListState,
     )
 
-    fun applyConnectionFormState(formState: DesktopConnectionFormState) {
-        connectionForm.apply(formState)
-    }
-
     val appActions = DesktopAppActions(
         connectionLifecycleController = connectionLifecycleController,
         albumController = albumController,
@@ -1110,9 +1107,7 @@ fun NaviampApp(
                             onAlbumSelected = appActions::openTrackAlbumDetails,
                             onTrackRadioSelected = appActions::convertCurrentTrackToRadio,
                             onDownloadTrackSelected = appActions::downloadTrack,
-                            onAddTrackToPlaylist = { track ->
-                                playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(track))
-                            },
+                            onAddTrackToPlaylist = playlistsController::openTrackAddToPlaylist,
                             onSaveQueueAsPlaylist = playlistsController::saveQueueAsPlaylist,
                             onSleepTimerSelected = sleepTimerController::select,
                             onCancelSleepTimer = sleepTimerController::cancel,
@@ -1120,19 +1115,13 @@ fun NaviampApp(
                             onQueueIndexSelected = ::handleQueueIndexSelected,
                             onUpNextTrackRadioSelected = appActions::playTrackRadio,
                             onUpNextTrackDownloadSelected = appActions::downloadTrack,
-                            onUpNextTrackAddToPlaylist = { track ->
-                                playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(track))
-                            },
+                            onUpNextTrackAddToPlaylist = playlistsController::openTrackAddToPlaylist,
                             onRelatedTrackSelected = appActions::playRelatedTrack,
                             onRelatedTrackPlayNext = playlistsController::playNext,
-                            onRelatedTrackAddToQueue = { track ->
-                                playlistsController.addTargetToQueue(AddToPlaylistTarget.TrackTarget(track))
-                            },
+                            onRelatedTrackAddToQueue = playlistsController::addTrackToQueue,
                             onRelatedTrackRadioSelected = appActions::playTrackRadio,
                             onRelatedTrackDownloadSelected = appActions::downloadTrack,
-                            onRelatedTrackAddToPlaylist = { track ->
-                                playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(track))
-                            },
+                            onRelatedTrackAddToPlaylist = playlistsController::openTrackAddToPlaylist,
                             onCollapseToHome = { appRoute = lastContentRoute },
                         )
                     } else {
@@ -1262,23 +1251,11 @@ fun NaviampApp(
                             playbackSettings = playbackSettings,
                             playbackEngine = playbackEngine,
                             onConnect = { appActions.connectToServer() },
-                            onNewConnection = {
-                                applyConnectionFormState(newDesktopConnectionFormState())
-                                connectionForm.isOpen = true
-                                connectionStatus = null
-                            },
-                            onEditConnection = { source ->
-                                applyConnectionFormState(savedDesktopConnectionFormState(source))
-                                connectionForm.isOpen = true
-                                connectionStatus = "Editing saved connection. Leave password blank to reuse it."
-                            },
-                            onConnectSavedConnection = { source ->
-                                applyConnectionFormState(savedDesktopConnectionFormState(source))
-                                connectionForm.isOpen = false
-                                appActions.connectToServer()
-                            },
+                            onNewConnection = connectionLifecycleController::openNewConnectionForm,
+                            onEditConnection = connectionLifecycleController::openSavedConnectionForm,
+                            onConnectSavedConnection = connectionLifecycleController::connectSavedConnection,
                             onDeleteConnection = { source -> appActions.deleteConnection(source) },
-                            onCancelConnectionForm = { connectionForm.isOpen = false },
+                            onCancelConnectionForm = connectionLifecycleController::closeConnectionForm,
                             onPlaybackSettingsChanged = settingsMaintenanceController::applyPlaybackSettings,
                             onPlaybackSettingsChangedAndRedownload =
                                 settingsMaintenanceController::applyPlaybackSettingsAndRedownload,
