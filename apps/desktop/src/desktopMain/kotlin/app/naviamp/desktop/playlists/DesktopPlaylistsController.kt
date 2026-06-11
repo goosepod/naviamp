@@ -43,6 +43,7 @@ import app.naviamp.domain.provider.renamePlaylistAndRefresh
 import app.naviamp.domain.provider.saveQueueAsPlaylistStateUpdate
 import app.naviamp.domain.provider.preloadPlaylistTracksStateUpdate
 import app.naviamp.domain.playback.PlaybackQueueManager
+import app.naviamp.domain.playback.applyPlaybackQueueUpdate
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.DesktopPlaylistEngine
@@ -185,11 +186,11 @@ class DesktopPlaylistsController(
                     currentQueue = playlistEngine.queue,
                     tracksToAdd = tracksToAdd,
                 )
-                setConnectionStatus(update.status)
-                if (!update.tracksChanged) {
-                    return@launch
-                }
-                playlistEngine.replaceQueue(update.queue)
+                applyPlaybackQueueUpdate(
+                    update = update,
+                    setStatus = setConnectionStatus,
+                    replaceQueue = playlistEngine::replaceQueue,
+                )
             } catch (exception: Exception) {
                 setConnectionStatus(exception.message ?: "Could not add to queue.")
             }
@@ -201,9 +202,11 @@ class DesktopPlaylistsController(
             currentQueue = playlistEngine.queue,
             tracksToAdd = listOf(track),
         )
-        setConnectionStatus(update.status)
-        if (!update.tracksChanged) return
-        playlistEngine.replaceQueue(update.queue)
+        applyPlaybackQueueUpdate(
+            update = update,
+            setStatus = setConnectionStatus,
+            replaceQueue = playlistEngine::replaceQueue,
+        )
     }
 
     fun saveQueueAsPlaylist(name: String) {
