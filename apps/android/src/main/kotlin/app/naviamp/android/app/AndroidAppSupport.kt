@@ -53,6 +53,7 @@ import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.NowPlayingRadioUiConfig
 import app.naviamp.ui.NowPlayingTrackUiConfig
 import app.naviamp.ui.NowPlayingUi
+import app.naviamp.ui.effectiveNowPlayingCoverArtUrl
 import app.naviamp.ui.radioArtworkUrl
 import app.naviamp.ui.radioTrackArtworkKey
 import app.naviamp.ui.SharedAlbumDetailUi
@@ -306,10 +307,17 @@ fun androidNowPlayingUi(
     nowPlaying?.let { track ->
         val currentIndex = knownTracks.indexOfFirst { it.id == track.id }
         val coverArtUrl: (String?) -> String? = { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } }
+        val resolvedCoverArtUrl = effectiveNowPlayingCoverArtUrl(
+            currentCoverArtUrl = track.coverArtUrl(provider),
+            nowPlayingTrack = track,
+            nowPlayingStation = nowPlayingStation,
+            streamMetadata = nowPlayingStreamMetadata,
+            radioTrackArtworkByKey = radioTrackArtworkByKey,
+        )
         track.toNowPlayingUi(
             NowPlayingTrackUiConfig(
                 stateLabel = "${playbackState.label()} ${playbackProgress.positionSeconds?.toInt() ?: 0}s",
-                coverArtUrl = track.coverArtUrl(provider),
+                coverArtUrl = resolvedCoverArtUrl,
                 waveform = waveformByTrackId[track.id.value],
                 visualizerAvailable = (playbackEngine as? VisualizerPlaybackEngine)?.supportsVisualizer == true,
                 visualizerVisible = visualizerVisible,

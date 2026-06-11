@@ -61,6 +61,8 @@ import app.naviamp.ui.NaviampPlayerColors
 import app.naviamp.ui.NaviampSleepTimerUi
 import app.naviamp.ui.NaviampSleepTimerExpiryEffect
 import app.naviamp.ui.NaviampVisualizer
+import app.naviamp.ui.effectiveNowPlayingCoverArtUrl
+import app.naviamp.ui.radioArtworkUrl
 import app.naviamp.ui.radioArtworkNeedsTrackLookup
 import app.naviamp.ui.radioTrackArtworkKey
 import app.naviamp.ui.radioTrackArtworkQuery
@@ -187,7 +189,14 @@ fun NaviampApp(
     var lastPlaybackProgressUiUpdateMillis by remember { mutableLongStateOf(0L) }
     var playReportSessionId by remember { mutableStateOf(0) }
     var submittedPlayReportSessionId by remember { mutableStateOf<Int?>(null) }
-    val coverArtPlayerColors = rememberPlatformCoverArtPlayerColors(nowPlayingCoverArtUrl, appColors)
+    val effectiveNowPlayingCoverArtUrl = effectiveNowPlayingCoverArtUrl(
+        currentCoverArtUrl = nowPlayingCoverArtUrl,
+        nowPlayingTrack = nowPlayingTrack,
+        nowPlayingStation = nowPlayingInternetRadioStation,
+        streamMetadata = nowPlayingStreamMetadata,
+        radioTrackArtworkByKey = radioTrackArtworkByKey,
+    )
+    val coverArtPlayerColors = rememberPlatformCoverArtPlayerColors(effectiveNowPlayingCoverArtUrl, appColors)
     val targetBackgroundColors = if (nowPlayingTrack != null) {
         coverArtPlayerColors
     } else {
@@ -283,7 +292,15 @@ fun NaviampApp(
         lyricsVisible = { nowPlayingLyricsVisible },
         playbackQueue = { playbackQueue },
         nowPlayingTrack = { nowPlayingTrack },
-        nowPlayingCoverArtUrl = { nowPlayingCoverArtUrl },
+        nowPlayingCoverArtUrl = {
+            effectiveNowPlayingCoverArtUrl(
+                currentCoverArtUrl = nowPlayingCoverArtUrl,
+                nowPlayingTrack = nowPlayingTrack,
+                nowPlayingStation = nowPlayingInternetRadioStation,
+                streamMetadata = nowPlayingStreamMetadata,
+                radioTrackArtworkByKey = radioTrackArtworkByKey,
+            )
+        },
     )
     }
 
@@ -847,7 +864,7 @@ fun NaviampApp(
                             lyricsVisible = nowPlayingLyricsVisible,
                             visualizerAvailable = (playbackEngine as? VisualizerPlaybackEngine)?.supportsVisualizer == true,
                             visualizerVisible = nowPlayingVisualizerVisible,
-                            coverArtUrl = nowPlayingCoverArtUrl,
+                            coverArtUrl = effectiveNowPlayingCoverArtUrl,
                             playbackQueue = playbackQueue,
                             internetRadioStations = internetRadioController.stations,
                             currentInternetRadioStationId =
@@ -1054,7 +1071,7 @@ fun NaviampApp(
                             DesktopMiniPlayerPanel(
                                 appColors = appColors,
                                 nowPlayingTrack = nowPlayingTrack,
-                                coverArtUrl = nowPlayingCoverArtUrl,
+                                coverArtUrl = effectiveNowPlayingCoverArtUrl,
                                 hasPrevious = playbackController.canUsePreviousButton(),
                                 hasNext = playbackQueue.hasNext(),
                                 playbackState = playbackState,
@@ -1084,7 +1101,7 @@ fun NaviampApp(
                                 appRoute = route
                             },
                         )
-                    }
-                }
-            }
     }
+}
+}
+}

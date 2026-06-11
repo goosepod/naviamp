@@ -10,8 +10,10 @@ import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
+import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.homeStations
+import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.SleepTimerState
 import app.naviamp.domain.playback.sleepTimerDisplayLabel
@@ -536,6 +538,26 @@ fun radioArtworkUrl(
     streamMetadataArtworkUrl(streamMetadataProperties)
         ?: trackArtworkUrl
         ?: radioStationArtworkUrl(station)
+
+fun effectiveNowPlayingCoverArtUrl(
+    currentCoverArtUrl: String?,
+    nowPlayingTrack: Track?,
+    nowPlayingStation: InternetRadioStation?,
+    streamMetadata: PlaybackStreamMetadata,
+    radioTrackArtworkByKey: Map<String, String?>,
+): String? {
+    val station = nowPlayingStation ?: return currentCoverArtUrl
+    if (nowPlayingTrack?.isInternetRadioTrack() != true && nowPlayingTrack != null) {
+        return currentCoverArtUrl
+    }
+    val trackArtworkUrl = radioTrackArtworkKey(station, streamMetadata.title)
+        ?.let(radioTrackArtworkByKey::get)
+    return radioArtworkUrl(
+        station = station,
+        streamMetadataProperties = streamMetadata.properties,
+        trackArtworkUrl = trackArtworkUrl,
+    )
+}
 
 fun radioArtworkNeedsTrackLookup(
     station: InternetRadioStation,
