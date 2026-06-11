@@ -1339,6 +1339,9 @@ Progress notes:
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.playback.SleepTimerTest --tests app.naviamp.domain.lyrics.LyricsOffsetControllerTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
 - Restored the packaged desktop volume-bar thumb visibility in shared `NaviampNowPlayingUi`; the common volume handle now has a halo, larger radius, and inner marker so it stays visible against the active track.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:ui:jvmTest :apps:android:compileDebugKotlin :apps:desktop:compileKotlinDesktop`.
+- Moved Android root controller-trigger effects into `AndroidMainEffects`, including search loading, audio-tag loading, Auto pending request consumption, notification favorite refresh, back handling, mix-builder initial suggestions, playlist detail auto-refresh, auto-connect, and sleep-timer expiry wiring.
+- `MainActivity.kt` dropped from 605 lines to 549 lines after the Android main effects extraction; `AndroidMainEffects.kt` is 107 lines.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 

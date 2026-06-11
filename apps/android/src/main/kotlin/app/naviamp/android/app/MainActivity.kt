@@ -9,14 +9,12 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,13 +25,8 @@ import app.naviamp.android.playback.AndroidBassLoadReport
 import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Lyrics
-import app.naviamp.domain.Playlist
-import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.domain.provider.ConnectionValidation
-import app.naviamp.domain.provider.PlaylistDetailRefreshIntervalMillis
-import app.naviamp.domain.provider.playlistDetailAutoRefreshTarget
-import app.naviamp.domain.provider.runPlaylistDetailAutoRefresh
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.home.HomeService
 import app.naviamp.domain.playback.PlaybackQueueController
@@ -53,7 +46,6 @@ import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.NaviampDiagnosticsSectionUi
 import app.naviamp.ui.NaviampDiagnosticsUi
 import app.naviamp.ui.NaviampLibrarySyncStatusUi
-import app.naviamp.ui.NaviampSleepTimerExpiryEffect
 import app.naviamp.ui.NaviampSharedAppShell
 import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.NowPlayingRadioUiConfig
@@ -83,7 +75,6 @@ import app.naviamp.ui.setAndroidPlatformCoverArtByteLoader
 import app.naviamp.ui.toSharedSearchResultsUi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
@@ -258,10 +249,6 @@ private fun NaviampAndroidApp(
 
     val searchController = remember(appState, storage) { AndroidSearchController(appState, storage) }
 
-    LaunchedEffect(query, provider) {
-        searchController.load(query, debounce = true)
-    }
-
     AndroidRadioArtworkLookupEffect(
         station = nowPlayingStation,
         streamMetadata = nowPlayingStreamMetadata,
@@ -283,10 +270,6 @@ private fun NaviampAndroidApp(
             activeQueue = mediaAppController::activeQueue,
             currentStreamQuality = playbackQualityController::currentStreamQuality,
         )
-    }
-
-    LaunchedEffect(nowPlaying?.id, activeSourceId, provider) {
-        nowPlaying?.takeUnless { it.isInternetRadioTrack() }?.let(nowPlayingSidecarController::loadAudioTags)
     }
 
     var restorePlaybackSessionAction: (String) -> Boolean = { false }
@@ -335,24 +318,8 @@ private fun NaviampAndroidApp(
     androidAutoController.installNotificationControls()
     androidAutoController.installMediaIdHandler()
 
-    LaunchedEffect(pendingAutoPlayMediaId, provider, activeSourceId) {
-        androidAutoController.consumePendingMediaId(onAutoPlayMediaIdConsumed)
-    }
-
-    LaunchedEffect(pendingAutoCommand, provider, activeSourceId, nowPlaying?.id, playbackQueue) {
-        androidAutoController.consumePendingCommand(onAutoCommandConsumed)
-    }
-
-    LaunchedEffect(nowPlaying?.id, nowPlaying?.favoritedAtIso8601, provider?.capabilities?.supportsTrackFavorites) {
-        mediaAppController.updateNotificationFavoriteState()
-    }
-
     val navigationController = remember(appState) {
         AndroidNavigationController(appState, mediaAppController::openArtistDetails)
-    }
-
-    BackHandler(enabled = navigationController.handlesAndroidBack()) {
-        navigationController.handleAndroidBack()
     }
 
     val artistActionController = remember(appState, storage, context) {
@@ -409,45 +376,6 @@ private fun NaviampAndroidApp(
         playTrack = { track, queue -> playbackAppController.playTrack(track, queue, keepRadioQueueActive = true) },
         rememberRecentRadioStream = playbackAppController::rememberRecentRadioStream,
     )
-
-    LaunchedEffect(provider, homeState.artists) {
-        if (provider != null && artistMixSuggestions.isEmpty()) {
-            mixBuilderController.refreshArtistInitialSuggestions()
-        }
-    }
-
-    LaunchedEffect(provider, homeState.randomAlbums, homeState.mixAlbums) {
-        if (provider != null && albumMixSuggestions.isEmpty()) {
-            mixBuilderController.refreshAlbumInitialSuggestions()
-        }
-    }
-
-    LaunchedEffect(provider, homeState.genres) {
-        if (provider != null && genreMixSuggestions.isEmpty()) {
-            mixBuilderController.refreshGenreSuggestions()
-        }
-    }
-
-    LaunchedEffect(provider, selectedPlaylist?.id) {
-        val target = playlistDetailAutoRefreshTarget(
-            provider = provider,
-            playlist = selectedPlaylist,
-        ) ?: return@LaunchedEffect
-        runPlaylistDetailAutoRefresh(
-            target = target,
-            waitForNextRefresh = {
-                delay(PlaylistDetailRefreshIntervalMillis)
-            },
-        ) { activeProvider, playlist ->
-            refreshAndroidPlaylistDetailsFromServer(
-                state = appState,
-                activeProvider = activeProvider,
-                playlist = playlist,
-                showLoadingStatus = false,
-                providerResponseCacheRepository = storage,
-            )
-        }
-    }
 
     val playlistActionController = remember(appState, storage) {
         AndroidPlaylistActionController(
@@ -512,10 +440,6 @@ private fun NaviampAndroidApp(
         )
     }
     restorePlaybackSessionAction = connectionSessionController::restorePlaybackSession
-
-    LaunchedEffect(Unit) {
-        connectionSessionController.autoConnect()
-    }
 
     AndroidAppPersistenceEffects(
         state = appState,
@@ -582,11 +506,19 @@ private fun NaviampAndroidApp(
         )
     }
 
-    NaviampSleepTimerExpiryEffect(
-        sleepTimer = sleepTimer,
-        snapshot = sleepTimerController.snapshot(),
-        onTick = sleepTimerController::tick,
-        onExpired = sleepTimerController::expire,
+    AndroidMainEffects(
+        state = appState,
+        searchController = searchController,
+        nowPlayingSidecarController = nowPlayingSidecarController,
+        androidAutoController = androidAutoController,
+        navigationController = navigationController,
+        mediaAppController = mediaAppController,
+        mixBuilderController = mixBuilderController,
+        connectionSessionController = connectionSessionController,
+        sleepTimerController = sleepTimerController,
+        providerResponseCacheRepository = storage,
+        onAutoPlayMediaIdConsumed = onAutoPlayMediaIdConsumed,
+        onAutoCommandConsumed = onAutoCommandConsumed,
     )
 
     val shellActions = androidMainShellActions(
