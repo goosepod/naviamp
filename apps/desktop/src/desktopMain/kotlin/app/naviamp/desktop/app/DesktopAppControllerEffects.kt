@@ -7,6 +7,7 @@ import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.app.shouldRefreshStorageStats
 import app.naviamp.domain.cache.StorageCacheStats
+import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.provider.PlaylistDetailRefreshIntervalMillis
 import app.naviamp.domain.provider.playlistDetailAutoRefreshTarget
@@ -19,11 +20,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 @Composable
-fun DesktopAppControllerEffects(
+internal fun DesktopAppControllerEffects(
     nowPlayingController: DesktopNowPlayingController,
     playlistsController: DesktopPlaylistsController,
     searchController: DesktopSearchController,
     libraryController: DesktopLibraryController,
+    mixBuilderController: DesktopMixBuilderController,
     libraryListState: LazyListState,
     hasSavedConnection: Boolean,
     connectToServer: () -> Unit,
@@ -37,8 +39,12 @@ fun DesktopAppControllerEffects(
     nowPlayingLyricsVisible: Boolean,
     appRoute: DesktopAppRoute,
     selectedPlaylist: Playlist?,
+    homeContent: HomeContent,
     searchQuery: String,
     libraryQuery: String,
+    artistMixSuggestionsEmpty: Boolean,
+    albumMixSuggestionsEmpty: Boolean,
+    genreMixSuggestionsEmpty: Boolean,
     setLibraryLimit: (Int) -> Unit,
     showStatsForNerds: Boolean,
     statsForNerdsRefreshTick: Int,
@@ -104,6 +110,24 @@ fun DesktopAppControllerEffects(
         setLibraryLimit(LibraryPageSize)
         libraryController.refreshLibrarySnapshot()
         libraryListState.scrollToItem(0)
+    }
+
+    LaunchedEffect(connectedSourceId, homeContent.artists) {
+        if (connectedSourceId != null && artistMixSuggestionsEmpty) {
+            mixBuilderController.refreshArtistInitialSuggestions()
+        }
+    }
+
+    LaunchedEffect(connectedSourceId, homeContent.randomAlbums, homeContent.mixAlbums) {
+        if (connectedSourceId != null && albumMixSuggestionsEmpty) {
+            mixBuilderController.refreshAlbumInitialSuggestions()
+        }
+    }
+
+    LaunchedEffect(connectedSourceId, homeContent.genres) {
+        if (connectedSourceId != null && genreMixSuggestionsEmpty) {
+            mixBuilderController.refreshGenreSuggestions()
+        }
     }
 
     LaunchedEffect(showStatsForNerds) {

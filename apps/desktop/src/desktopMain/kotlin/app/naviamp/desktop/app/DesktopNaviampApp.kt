@@ -23,7 +23,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.NonRestartableComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -984,36 +983,6 @@ fun NaviampApp(
         listState = libraryListState,
     )
 
-    DesktopAppControllerEffects(
-        nowPlayingController = nowPlayingController,
-        playlistsController = playlistsController,
-        searchController = searchController,
-        libraryController = libraryController,
-        libraryListState = libraryListState,
-        hasSavedConnection = savedConnection != null,
-        connectToServer = { connectionLifecycleController.connectToServer(restoreSavedSession = true) },
-        nowPlayingTrack = nowPlayingTrack,
-        connectedSourceId = connectedSourceId,
-        connectedProvider = connectedProvider,
-        playbackEngine = playbackEngine,
-        nowPlayingWaveformReloadToken = nowPlayingWaveformReloadToken,
-        cacheSettings = cacheSettings,
-        playbackSettings = playbackSettings,
-        nowPlayingLyricsVisible = nowPlayingLyricsVisible,
-        appRoute = appRoute,
-        selectedPlaylist = selectedPlaylist,
-        searchQuery = searchQuery,
-        libraryQuery = libraryQuery,
-        setLibraryLimit = { limit -> libraryLimit = limit },
-        showStatsForNerds = showStatsForNerds,
-        statsForNerdsRefreshTick = statsForNerdsRefreshTick,
-        incrementStatsForNerdsRefreshTick = { statsForNerdsRefreshTick++ },
-        downloadRefreshToken = downloadRefreshToken,
-        mediaSourcesRevision = mediaSourcesRevision,
-        loadStorageStats = { storage.stats() },
-        setCacheStats = { stats -> cacheStats = stats },
-    )
-
     fun applyConnectionFormState(formState: DesktopConnectionFormState) {
         connectionForm.apply(formState)
     }
@@ -1090,23 +1059,40 @@ fun NaviampApp(
         setGenreMixLoading = { loading -> genreMixLoading = loading },
     )
 
-    LaunchedEffect(connectedSourceId, homeContent.artists) {
-        if (connectedSourceId != null && artistMixSuggestions.isEmpty()) {
-            mixBuilderController.refreshArtistInitialSuggestions()
-        }
-    }
-
-    LaunchedEffect(connectedSourceId, homeContent.randomAlbums, homeContent.mixAlbums) {
-        if (connectedSourceId != null && albumMixSuggestions.isEmpty()) {
-            mixBuilderController.refreshAlbumInitialSuggestions()
-        }
-    }
-
-    LaunchedEffect(connectedSourceId, homeContent.genres) {
-        if (connectedSourceId != null && genreMixSuggestions.isEmpty()) {
-            mixBuilderController.refreshGenreSuggestions()
-        }
-    }
+    DesktopAppControllerEffects(
+        nowPlayingController = nowPlayingController,
+        playlistsController = playlistsController,
+        searchController = searchController,
+        libraryController = libraryController,
+        mixBuilderController = mixBuilderController,
+        libraryListState = libraryListState,
+        hasSavedConnection = savedConnection != null,
+        connectToServer = { connectionLifecycleController.connectToServer(restoreSavedSession = true) },
+        nowPlayingTrack = nowPlayingTrack,
+        connectedSourceId = connectedSourceId,
+        connectedProvider = connectedProvider,
+        playbackEngine = playbackEngine,
+        nowPlayingWaveformReloadToken = nowPlayingWaveformReloadToken,
+        cacheSettings = cacheSettings,
+        playbackSettings = playbackSettings,
+        nowPlayingLyricsVisible = nowPlayingLyricsVisible,
+        appRoute = appRoute,
+        selectedPlaylist = selectedPlaylist,
+        homeContent = homeContent,
+        searchQuery = searchQuery,
+        libraryQuery = libraryQuery,
+        artistMixSuggestionsEmpty = artistMixSuggestions.isEmpty(),
+        albumMixSuggestionsEmpty = albumMixSuggestions.isEmpty(),
+        genreMixSuggestionsEmpty = genreMixSuggestions.isEmpty(),
+        setLibraryLimit = { limit -> libraryLimit = limit },
+        showStatsForNerds = showStatsForNerds,
+        statsForNerdsRefreshTick = statsForNerdsRefreshTick,
+        incrementStatsForNerdsRefreshTick = { statsForNerdsRefreshTick++ },
+        downloadRefreshToken = downloadRefreshToken,
+        mediaSourcesRevision = mediaSourcesRevision,
+        loadStorageStats = { storage.stats() },
+        setCacheStats = { stats -> cacheStats = stats },
+    )
 
     refreshLibrarySnapshotAction = libraryController::refreshLibrarySnapshot
     loadHomeContentAction = homeController::loadHomeContent

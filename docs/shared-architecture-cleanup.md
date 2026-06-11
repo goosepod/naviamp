@@ -1342,6 +1342,9 @@ Progress notes:
 - Moved Android root controller-trigger effects into `AndroidMainEffects`, including search loading, audio-tag loading, Auto pending request consumption, notification favorite refresh, back handling, mix-builder initial suggestions, playlist detail auto-refresh, auto-connect, and sleep-timer expiry wiring.
 - `MainActivity.kt` dropped from 605 lines to 549 lines after the Android main effects extraction; `AndroidMainEffects.kt` is 107 lines.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`.
+- Folded the remaining desktop root mix-builder initial-suggestion effects into `DesktopAppControllerEffects`, leaving `DesktopNaviampApp.kt` without direct `LaunchedEffect` wiring.
+- `DesktopNaviampApp.kt` dropped from 1,494 lines to 1,480 lines after the desktop controller-effect consolidation; `DesktopAppControllerEffects.kt` is 145 lines.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
 
