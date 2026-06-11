@@ -7,10 +7,9 @@ import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.PlaylistListApplication
-import app.naviamp.domain.provider.addToPlaylistApplication
 import app.naviamp.domain.provider.addToPlaylistErrorMessage
 import app.naviamp.domain.provider.addToPlaylistResolvingTracksStatus
-import app.naviamp.domain.provider.addTracksToPlaylistStateUpdate
+import app.naviamp.domain.provider.addTracksToPlaylistApplication
 import app.naviamp.domain.provider.PendingPlaybackAction
 import app.naviamp.domain.provider.playlistDeleteApplication
 import app.naviamp.domain.provider.playlistDeleteErrorMessage
@@ -152,21 +151,18 @@ class DesktopPlaylistsController(
         setAddToPlaylistStatus(addToPlaylistResolvingTracksStatus())
         scope.launch {
             try {
-                val update = withContext(Dispatchers.IO) {
-                    activeProvider.addTracksToPlaylistStateUpdate(
+                val application = withContext(Dispatchers.IO) {
+                    activeProvider.addTracksToPlaylistApplication(
                         playlistId = playlist?.id,
                         playlistName = playlist?.name,
                         newPlaylistName = newPlaylistName,
                         tracks = resolveAddToPlaylistTargetTracks(activeProvider, target),
+                        currentHomeContent = homeContent(),
+                        recentPlaylistIds = recentPlaylistIds(),
+                        projection = PlaylistHomeProjection.RecentLimited,
                         providerResponseService = providerResponseService,
                     )
                 }
-                val application = addToPlaylistApplication(
-                    update = update,
-                    currentHomeContent = homeContent(),
-                    recentPlaylistIds = recentPlaylistIds(),
-                    projection = PlaylistHomeProjection.RecentLimited,
-                )
                 if (application.closeDialog) setAddToPlaylistTarget(null)
                 setAddToPlaylistStatus(application.addToPlaylistStatus)
                 application.connectionStatus?.let(setConnectionStatus)

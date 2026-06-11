@@ -1153,6 +1153,34 @@ class PlaylistMutationsTest {
         )
     }
 
+    @Test
+    fun addTracksToPlaylistApplicationBuildsHomePlaylistApplication() = kotlinx.coroutines.test.runTest {
+        val existingPlaylist = playlist("existing", "Existing")
+        val provider = FakePlaylistProvider(playlists = listOf(existingPlaylist), playlistTracks = emptyList())
+
+        val application = provider.addTracksToPlaylistApplication(
+            playlistId = null,
+            playlistName = null,
+            newPlaylistName = "New Mix",
+            tracks = listOf(track("one")),
+            currentHomeContent = HomeContent(),
+            recentPlaylistIds = emptyList(),
+            projection = PlaylistHomeProjection.All,
+        )
+
+        assertEquals(true, application.closeDialog)
+        assertEquals(null, application.addToPlaylistStatus)
+        assertEquals("Added 1 track to playlist.", application.connectionStatus)
+        assertEquals(
+            listOf(existingPlaylist, playlist("created", "New Mix").copy(trackCount = 1)),
+            application.playlistListApplication?.playlists,
+        )
+        assertEquals(
+            listOf(existingPlaylist, playlist("created", "New Mix").copy(trackCount = 1)),
+            application.playlistListApplication?.homeContent?.playlists,
+        )
+    }
+
     private fun playlist(id: String, name: String): Playlist =
         Playlist(
             id = id,

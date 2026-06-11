@@ -22,7 +22,8 @@ import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.playback.applyPlaybackQueueUpdate
 import app.naviamp.domain.provider.addToPlaylistErrorMessage
 import app.naviamp.domain.provider.addToPlaylistLoadingStatus
-import app.naviamp.domain.provider.addTracksToPlaylistStateUpdate
+import app.naviamp.domain.provider.addTracksToPlaylistApplication
+import app.naviamp.domain.provider.PlaylistHomeProjection
 import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.NaviampDownloadedTrackUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
@@ -371,20 +372,23 @@ fun addAndroidTracksToPlaylist(
     scope.launch {
         with(state) {
             runCatching {
-                activeProvider.addTracksToPlaylistStateUpdate(
+                activeProvider.addTracksToPlaylistApplication(
                     playlistId = playlist?.id,
                     playlistName = playlist?.name,
                     newPlaylistName = newPlaylistName,
                     tracks = tracksToAdd,
+                    currentHomeContent = homeState,
+                    recentPlaylistIds = recentPlaylistIds,
+                    projection = PlaylistHomeProjection.All,
                     providerResponseService = providerResponseService,
                 )
-            }.onSuccess { update ->
-                update.playlists?.let { playlists ->
-                    homeState = homeState.copy(playlists = playlists)
+            }.onSuccess { application ->
+                application.playlistListApplication?.let { update ->
+                    homeState = update.homeContent
                 }
-                playlistActionStatus = update.addToPlaylistStatus
-                update.connectionStatus?.let { status = it }
-                    ?: update.addToPlaylistStatus?.let { status = it }
+                playlistActionStatus = application.addToPlaylistStatus
+                application.connectionStatus?.let { status = it }
+                    ?: application.addToPlaylistStatus?.let { status = it }
             }.onFailure { error ->
                 playlistActionStatus = addToPlaylistErrorMessage(error, label)
                 status = playlistActionStatus.orEmpty()

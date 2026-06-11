@@ -1365,6 +1365,8 @@ Progress notes:
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.cache.DownloadPlansTest :apps:android:compileDebugKotlin :apps:desktop:compileKotlinDesktop`.
 - Added shared `applyPlaybackQueueUpdate` so Android and Desktop media actions use the same status-and-replace behavior after queue append/play-next planning; platform code still owns the concrete queue controller/engine calls.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.playback.PlaybackQueueManagerTest :apps:android:compileDebugKotlin :apps:desktop:compileKotlinDesktop`.
+- Added shared `addTracksToPlaylistApplication` so Android and Desktop both get the add-to-playlist dialog/status/home-playlist application from core after resolving platform-specific targets.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.provider.PlaylistMutationsTest :apps:android:compileDebugKotlin :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
 

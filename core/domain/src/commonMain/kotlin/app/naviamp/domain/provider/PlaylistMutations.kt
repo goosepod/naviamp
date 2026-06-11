@@ -965,6 +965,31 @@ suspend fun MediaProvider.addTracksToPlaylistStateUpdate(
     return addToPlaylistStateUpdate(refresh)
 }
 
+suspend fun MediaProvider.addTracksToPlaylistApplication(
+    playlistId: String?,
+    playlistName: String?,
+    newPlaylistName: String?,
+    tracks: List<Track>,
+    currentHomeContent: HomeContent,
+    recentPlaylistIds: List<String>,
+    projection: PlaylistHomeProjection,
+    providerResponseService: ProviderResponseService? = null,
+    playlistLimit: Int = 500,
+): AddToPlaylistApplication =
+    addToPlaylistApplication(
+        update = addTracksToPlaylistStateUpdate(
+            playlistId = playlistId,
+            playlistName = playlistName,
+            newPlaylistName = newPlaylistName,
+            tracks = tracks,
+            providerResponseService = providerResponseService,
+            playlistLimit = playlistLimit,
+        ),
+        currentHomeContent = currentHomeContent,
+        recentPlaylistIds = recentPlaylistIds,
+        projection = projection,
+    )
+
 suspend fun MediaProvider.createQueuePlaylist(
     name: String,
     tracks: List<Track>,
