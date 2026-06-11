@@ -60,7 +60,6 @@ import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.InternetRadioStationManager
-import app.naviamp.domain.settings.UpNextSelectionBehavior
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.domain.lyrics.LyricsOffsetController
 import app.naviamp.desktop.settings.PlaybackSettings
@@ -87,8 +86,6 @@ import app.naviamp.ui.radioArtworkNeedsTrackLookup
 import app.naviamp.ui.radioTrackArtworkKey
 import app.naviamp.ui.radioTrackArtworkQuery
 import app.naviamp.ui.rememberPlatformCoverArtPlayerColors
-import app.naviamp.ui.toSharedMediaItemUi
-import app.naviamp.ui.toSharedGenreMixItemUi
 import app.naviamp.ui.toNaviampSleepTimerUi
 
 @Composable
@@ -395,11 +392,10 @@ fun NaviampApp(
     )
 
     fun handleQueueIndexSelected(queueIndex: Int) {
-        playbackController.handleQueueIndexSelected(
-            index = queueIndex,
-            moveSelectedToCurrent =
-                playbackSettings.upNextSelectionBehavior ==
-                    UpNextSelectionBehavior.MoveSelectedToCurrent,
+        handleDesktopQueueIndexSelected(
+            playbackController = playbackController,
+            queueIndex = queueIndex,
+            upNextSelectionBehavior = playbackSettings.upNextSelectionBehavior,
         )
     }
 
@@ -898,16 +894,6 @@ fun NaviampApp(
         homeContent = { homeContent },
     )
 
-    fun artistMixItem(artist: Artist) = artist.toSharedMediaItemUi(
-        coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
-    )
-
-    fun albumMixItem(album: Album) = album.toSharedMediaItemUi(
-        coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
-    )
-
-    fun genreMixItem(genre: Genre) = genre.toSharedGenreMixItemUi()
-
     val mixBuilderController = DesktopMixBuilderController(
         scope = coroutineScope,
         artistMixBuilderService = { artistMixBuilderService },
@@ -1178,8 +1164,14 @@ fun NaviampApp(
                             isSearching = isSearching,
                             artistMixBuilder = SharedArtistMixBuilderUi(
                                 query = artistMixQuery,
-                                selectedArtists = artistMixSelectedArtists.map(::artistMixItem),
-                                suggestedArtists = artistMixSuggestions.map(::artistMixItem),
+                                selectedArtists = desktopArtistMixItems(
+                                    artistMixSelectedArtists,
+                                    coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
+                                ),
+                                suggestedArtists = desktopArtistMixItems(
+                                    artistMixSuggestions,
+                                    coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
+                                ),
                                 status = artistMixStatus,
                                 loading = artistMixLoading,
                             ),
@@ -1196,8 +1188,14 @@ fun NaviampApp(
                             },
                             albumMixBuilder = SharedAlbumMixBuilderUi(
                                 query = albumMixQuery,
-                                selectedAlbums = albumMixSelectedAlbums.map(::albumMixItem),
-                                suggestedAlbums = albumMixSuggestions.map(::albumMixItem),
+                                selectedAlbums = desktopAlbumMixItems(
+                                    albumMixSelectedAlbums,
+                                    coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
+                                ),
+                                suggestedAlbums = desktopAlbumMixItems(
+                                    albumMixSuggestions,
+                                    coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
+                                ),
                                 status = albumMixStatus,
                                 loading = albumMixLoading,
                             ),
@@ -1214,8 +1212,8 @@ fun NaviampApp(
                             },
                             genreMixBuilder = SharedGenreMixBuilderUi(
                                 query = genreMixQuery,
-                                selectedGenres = genreMixSelectedGenres.map(::genreMixItem),
-                                suggestedGenres = genreMixSuggestions.map(::genreMixItem),
+                                selectedGenres = desktopGenreMixItems(genreMixSelectedGenres),
+                                suggestedGenres = desktopGenreMixItems(genreMixSuggestions),
                                 status = genreMixStatus,
                                 loading = genreMixLoading,
                             ),

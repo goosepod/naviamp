@@ -20,6 +20,7 @@ import app.naviamp.domain.playback.shouldSubmitPlayReport
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
+import app.naviamp.domain.settings.UpNextSelectionBehavior
 import app.naviamp.domain.settings.playbackSessionFromQueue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -43,6 +44,17 @@ internal fun handleDesktopPlayPauseCommand(
         PlaybackPlayPauseCommand.StartOrRestore -> startOrRestorePlayback()
         PlaybackPlayPauseCommand.None -> Unit
     }
+}
+
+internal fun handleDesktopQueueIndexSelected(
+    playbackController: DesktopPlaybackController,
+    queueIndex: Int,
+    upNextSelectionBehavior: UpNextSelectionBehavior,
+) {
+    playbackController.handleQueueIndexSelected(
+        index = queueIndex,
+        moveSelectedToCurrent = upNextSelectionBehavior == UpNextSelectionBehavior.MoveSelectedToCurrent,
+    )
 }
 
 class DesktopPlaybackController(

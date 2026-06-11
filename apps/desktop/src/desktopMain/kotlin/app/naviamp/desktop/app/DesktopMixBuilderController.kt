@@ -13,10 +13,39 @@ import app.naviamp.domain.albummix.albumMixSelectedAlbumsAfterSelect
 import app.naviamp.domain.genremix.GenreMixBuilderService
 import app.naviamp.domain.genremix.genreMixSelectedGenresAfterRemove
 import app.naviamp.domain.genremix.genreMixSelectedGenresAfterSelect
+import app.naviamp.ui.SharedGenreMixItemUi
+import app.naviamp.ui.SharedMediaItemUi
+import app.naviamp.ui.toSharedGenreMixItemUi
+import app.naviamp.ui.toSharedMediaItemUi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+internal fun desktopArtistMixItem(
+    artist: Artist,
+    coverArtUrl: (String?) -> String?,
+): SharedMediaItemUi = artist.toSharedMediaItemUi(coverArtUrl = coverArtUrl)
+
+internal fun desktopArtistMixItems(
+    artists: List<Artist>,
+    coverArtUrl: (String?) -> String?,
+): List<SharedMediaItemUi> = artists.map { artist -> desktopArtistMixItem(artist, coverArtUrl) }
+
+internal fun desktopAlbumMixItem(
+    album: Album,
+    coverArtUrl: (String?) -> String?,
+): SharedMediaItemUi = album.toSharedMediaItemUi(coverArtUrl = coverArtUrl)
+
+internal fun desktopAlbumMixItems(
+    albums: List<Album>,
+    coverArtUrl: (String?) -> String?,
+): List<SharedMediaItemUi> = albums.map { album -> desktopAlbumMixItem(album, coverArtUrl) }
+
+internal fun desktopGenreMixItem(genre: Genre): SharedGenreMixItemUi = genre.toSharedGenreMixItemUi()
+
+internal fun desktopGenreMixItems(genres: List<Genre>): List<SharedGenreMixItemUi> =
+    genres.map(::desktopGenreMixItem)
 
 internal class DesktopMixBuilderController(
     private val scope: CoroutineScope,

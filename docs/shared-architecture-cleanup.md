@@ -1402,6 +1402,9 @@ Progress notes:
 - Moved desktop recent-radio stream/home-content application into a top-level desktop radio helper without adding a parameter-heavy composable or controller pass-through.
 - `DesktopNaviampApp.kt` is now 1,323 lines after the compiler-safe playback/radio helper cleanup.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
+- Moved desktop queue-index selection behavior into a small playback helper, and moved desktop mix-builder item UI mapping into mix-builder helpers so `DesktopNaviampApp.kt` no longer owns those shared UI mapper imports.
+- `DesktopNaviampApp.kt` is now 1,321 lines after the queue-selection and mix-builder mapper cleanup.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
 
