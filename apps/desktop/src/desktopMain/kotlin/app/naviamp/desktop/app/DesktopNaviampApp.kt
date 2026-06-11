@@ -41,10 +41,6 @@ import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.cache.ImageCacheRepository
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.ProviderResponseService
-import app.naviamp.domain.artistmix.artistMixPopularQueue
-import app.naviamp.domain.albummix.albumMixTrackQueue
-import app.naviamp.domain.media.withUpdatedAlbum
-import app.naviamp.domain.media.withUpdatedArtist
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
@@ -65,7 +61,6 @@ import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.desktop.settings.PlaybackSessionSettings
 import app.naviamp.desktop.settings.RecentRadioStream
 import app.naviamp.desktop.settings.VisualizerSettings
-import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.settings.effectiveForEngine
 import app.naviamp.domain.settings.PlaybackSettingsMaintenanceController
 import app.naviamp.domain.settings.playbackSettingsChange
@@ -78,9 +73,6 @@ import app.naviamp.ui.NaviampPlayerColors
 import app.naviamp.ui.NaviampSleepTimerUi
 import app.naviamp.ui.NaviampSleepTimerExpiryEffect
 import app.naviamp.ui.NaviampVisualizer
-import app.naviamp.ui.SharedAlbumMixBuilderUi
-import app.naviamp.ui.SharedArtistMixBuilderUi
-import app.naviamp.ui.SharedGenreMixBuilderUi
 import app.naviamp.ui.radioArtworkNeedsTrackLookup
 import app.naviamp.ui.radioTrackArtworkKey
 import app.naviamp.ui.radioTrackArtworkQuery
@@ -179,27 +171,6 @@ fun NaviampApp(
     var selectedArtistSimilarArtistsStatus by remember { mutableStateOf<String?>(null) }
     var artistDetailBackRoute by remember { mutableStateOf(DesktopAppRoute.Search) }
     var artistDetailBackStack by remember { mutableStateOf<List<Artist>>(emptyList()) }
-    var searchQuery by remember { mutableStateOf(savedSearch.query) }
-    var searchResults by remember { mutableStateOf(MediaSearchResults()) }
-    var searchStatus by remember { mutableStateOf<String?>(null) }
-    var isSearching by remember { mutableStateOf(false) }
-    var artistMixQuery by remember { mutableStateOf("") }
-    var artistMixSelectedArtists by remember { mutableStateOf<List<Artist>>(emptyList()) }
-    var artistMixSuggestions by remember { mutableStateOf<List<Artist>>(emptyList()) }
-    var artistMixPopularTracksByArtistId by remember { mutableStateOf<Map<String, List<Track>>>(emptyMap()) }
-    var artistMixStatus by remember { mutableStateOf<String?>(null) }
-    var artistMixLoading by remember { mutableStateOf(false) }
-    var albumMixQuery by remember { mutableStateOf("") }
-    var albumMixSelectedAlbums by remember { mutableStateOf<List<Album>>(emptyList()) }
-    var albumMixSuggestions by remember { mutableStateOf<List<Album>>(emptyList()) }
-    var albumMixTracksByAlbumId by remember { mutableStateOf<Map<String, List<Track>>>(emptyMap()) }
-    var albumMixStatus by remember { mutableStateOf<String?>(null) }
-    var albumMixLoading by remember { mutableStateOf(false) }
-    var genreMixQuery by remember { mutableStateOf("") }
-    var genreMixSelectedGenres by remember { mutableStateOf<List<Genre>>(emptyList()) }
-    var genreMixSuggestions by remember { mutableStateOf<List<Genre>>(emptyList()) }
-    var genreMixStatus by remember { mutableStateOf<String?>(null) }
-    var genreMixLoading by remember { mutableStateOf(false) }
     var downloadStatus by remember { mutableStateOf<String?>(null) }
     var downloadRefreshToken by remember { mutableStateOf(0) }
     var libraryQuery by remember { mutableStateOf("") }
@@ -614,6 +585,40 @@ fun NaviampApp(
     )
     playlistCallbacksRef = playlistCallbacks
 
+    val artistMixBuilderService = rememberDesktopArtistMixBuilderService(
+        storage = storage,
+        sourceId = { connectedSourceId },
+        provider = { connectedProvider },
+        homeContent = { homeContent },
+        popularTracksService = popularTracksService,
+        similarArtistsService = similarArtistsService,
+    )
+    val albumMixBuilderService = rememberDesktopAlbumMixBuilderService(
+        storage = storage,
+        sourceId = { connectedSourceId },
+        provider = { connectedProvider },
+        homeContent = { homeContent },
+        similarArtistsService = similarArtistsService,
+    )
+    val genreMixBuilderService = rememberDesktopGenreMixBuilderService(
+        provider = { connectedProvider },
+        homeContent = { homeContent },
+    )
+
+    val mixBuilderController = DesktopMixBuilderController(
+        scope = coroutineScope,
+        artistMixBuilderService = { artistMixBuilderService },
+        albumMixBuilderService = { albumMixBuilderService },
+        genreMixBuilderService = { genreMixBuilderService },
+    )
+
+    val searchController = DesktopSearchController(
+        settingsStore = settingsStore,
+        providerResponseCacheRepository = storage,
+        provider = { connectedProvider },
+        initialQuery = savedSearch.query,
+    )
+
     val mediaActionsController = DesktopMediaActionsController(
         scope = coroutineScope,
         trackMetadataRepository = storage,
@@ -623,36 +628,26 @@ fun NaviampApp(
         playbackSettings = { playbackSettings },
         playlistCallbacks = { playlistCallbacks },
         albumTracks = { selectedAlbumDetails?.tracks.orEmpty() },
-        searchTracks = { searchResults.tracks },
+        searchTracks = { searchController.results.tracks },
         relatedTracks = { relatedTracks },
         nowPlayingTrack = { nowPlayingTrack },
         setNowPlayingTrack = { track -> nowPlayingTrack = track },
-        searchResults = { searchResults },
-        setSearchResults = { results -> searchResults = results },
+        searchResults = { searchController.results },
+        setSearchResults = searchController::updateResults,
         homeContent = { homeContent },
         setHomeContent = { content -> homeContent = content },
         selectedAlbumDetails = { selectedAlbumDetails },
         setSelectedAlbumDetails = { details -> selectedAlbumDetails = details },
         selectedArtistDetails = { selectedArtistDetails },
         setSelectedArtistDetails = { details -> selectedArtistDetails = details },
-        setArtistMixSelectedArtists = { artist -> artistMixSelectedArtists = artistMixSelectedArtists.withUpdatedArtist(artist) },
-        setArtistMixSuggestions = { artist -> artistMixSuggestions = artistMixSuggestions.withUpdatedArtist(artist) },
-        setAlbumMixSelectedAlbums = { album -> albumMixSelectedAlbums = albumMixSelectedAlbums.withUpdatedAlbum(album) },
-        setAlbumMixSuggestions = { album -> albumMixSuggestions = albumMixSuggestions.withUpdatedAlbum(album) },
+        setArtistMixSelectedArtists = mixBuilderController::updateSelectedArtist,
+        setArtistMixSuggestions = mixBuilderController::updateSuggestedArtist,
+        setAlbumMixSelectedAlbums = mixBuilderController::updateSelectedAlbum,
+        setAlbumMixSuggestions = mixBuilderController::updateSuggestedAlbum,
         stopRadioContinuation = radioController::stopContinuation,
         clearShuffleSnapshot = playbackController::clearShuffleSnapshot,
         setOpenPlayerOnTrackStart = { shouldOpen -> openPlayerOnTrackStart = shouldOpen },
         setConnectionStatus = { status -> connectionStatus = status },
-    )
-
-    val searchController = DesktopSearchController(
-        settingsStore = settingsStore,
-        providerResponseCacheRepository = storage,
-        provider = { connectedProvider },
-        setQuery = { query -> searchQuery = query },
-        setResults = { results -> searchResults = results },
-        setStatus = { status -> searchStatus = status },
-        setSearching = { searching -> isSearching = searching },
     )
 
     val downloadsController = DesktopDownloadsController(
@@ -855,61 +850,6 @@ fun NaviampApp(
         selectedPlaylistTracks = { selectedPlaylistTracks },
     )
 
-    val artistMixBuilderService = rememberDesktopArtistMixBuilderService(
-        storage = storage,
-        sourceId = { connectedSourceId },
-        provider = { connectedProvider },
-        homeContent = { homeContent },
-        popularTracksService = popularTracksService,
-        similarArtistsService = similarArtistsService,
-    )
-    val albumMixBuilderService = rememberDesktopAlbumMixBuilderService(
-        storage = storage,
-        sourceId = { connectedSourceId },
-        provider = { connectedProvider },
-        homeContent = { homeContent },
-        similarArtistsService = similarArtistsService,
-    )
-    val genreMixBuilderService = rememberDesktopGenreMixBuilderService(
-        provider = { connectedProvider },
-        homeContent = { homeContent },
-    )
-
-    val mixBuilderController = DesktopMixBuilderController(
-        scope = coroutineScope,
-        artistMixBuilderService = { artistMixBuilderService },
-        albumMixBuilderService = { albumMixBuilderService },
-        genreMixBuilderService = { genreMixBuilderService },
-        artistMixQuery = { artistMixQuery },
-        setArtistMixQuery = { query -> artistMixQuery = query },
-        artistMixSelectedArtists = { artistMixSelectedArtists },
-        artistMixSuggestions = { artistMixSuggestions },
-        setArtistMixSelectedArtists = { artists -> artistMixSelectedArtists = artists },
-        setArtistMixSuggestions = { artists -> artistMixSuggestions = artists },
-        artistMixPopularTracksByArtistId = { artistMixPopularTracksByArtistId },
-        setArtistMixPopularTracksByArtistId = { tracks -> artistMixPopularTracksByArtistId = tracks },
-        setArtistMixStatus = { status -> artistMixStatus = status },
-        setArtistMixLoading = { loading -> artistMixLoading = loading },
-        albumMixQuery = { albumMixQuery },
-        setAlbumMixQuery = { query -> albumMixQuery = query },
-        albumMixSelectedAlbums = { albumMixSelectedAlbums },
-        albumMixSuggestions = { albumMixSuggestions },
-        setAlbumMixSelectedAlbums = { albums -> albumMixSelectedAlbums = albums },
-        setAlbumMixSuggestions = { albums -> albumMixSuggestions = albums },
-        albumMixTracksByAlbumId = { albumMixTracksByAlbumId },
-        setAlbumMixTracksByAlbumId = { tracks -> albumMixTracksByAlbumId = tracks },
-        setAlbumMixStatus = { status -> albumMixStatus = status },
-        setAlbumMixLoading = { loading -> albumMixLoading = loading },
-        genreMixQuery = { genreMixQuery },
-        setGenreMixQuery = { query -> genreMixQuery = query },
-        genreMixSelectedGenres = { genreMixSelectedGenres },
-        genreMixSuggestions = { genreMixSuggestions },
-        setGenreMixSelectedGenres = { genres -> genreMixSelectedGenres = genres },
-        setGenreMixSuggestions = { genres -> genreMixSuggestions = genres },
-        setGenreMixStatus = { status -> genreMixStatus = status },
-        setGenreMixLoading = { loading -> genreMixLoading = loading },
-    )
-
     DesktopAppControllerEffects(
         nowPlayingController = nowPlayingController,
         playlistsController = playlistsController,
@@ -930,11 +870,7 @@ fun NaviampApp(
         appRoute = appRoute,
         selectedPlaylist = selectedPlaylist,
         homeContent = homeContent,
-        searchQuery = searchQuery,
         libraryQuery = libraryQuery,
-        artistMixSuggestionsEmpty = artistMixSuggestions.isEmpty(),
-        albumMixSuggestionsEmpty = albumMixSuggestions.isEmpty(),
-        genreMixSuggestionsEmpty = genreMixSuggestions.isEmpty(),
         setLibraryLimit = { limit -> libraryLimit = limit },
         showStatsForNerds = showStatsForNerds,
         statsForNerdsRefreshTick = statsForNerdsRefreshTick,
@@ -1139,73 +1075,35 @@ fun NaviampApp(
                             isLibrarySyncing = isLibrarySyncing,
                             libraryListState = libraryListState,
                             onLibraryQueryChanged = { libraryQuery = it },
-                            searchQuery = searchQuery,
-                            searchResults = searchResults,
-                            searchStatus = searchStatus,
-                            isSearching = isSearching,
-                            artistMixBuilder = SharedArtistMixBuilderUi(
-                                query = artistMixQuery,
-                                selectedArtists = desktopArtistMixItems(
-                                    artistMixSelectedArtists,
-                                    coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
-                                ),
-                                suggestedArtists = desktopArtistMixItems(
-                                    artistMixSuggestions,
-                                    coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
-                                ),
-                                status = artistMixStatus,
-                                loading = artistMixLoading,
+                            searchQuery = searchController.query,
+                            searchResults = searchController.results,
+                            searchStatus = searchController.status,
+                            isSearching = searchController.searching,
+                            artistMixBuilder = mixBuilderController.artistUi(
+                                coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
                             ),
-                            onArtistMixQueryChanged = { query -> artistMixQuery = query },
+                            onArtistMixQueryChanged = mixBuilderController::setArtistQuery,
                             onArtistMixSearch = mixBuilderController::searchArtistSuggestions,
                             onArtistMixArtistSelected = { item -> mixBuilderController.selectArtistByItemId(item.id) },
                             onArtistMixArtistRemoved = { item -> mixBuilderController.removeArtistByItemId(item.id) },
                             onArtistMixReset = mixBuilderController::resetArtistBuilder,
-                            onArtistMixPlay = {
-                                radioController.playArtistMix(
-                                    artistMixSelectedArtists,
-                                    artistMixPopularQueue(artistMixSelectedArtists, artistMixPopularTracksByArtistId),
-                                )
-                            },
-                            albumMixBuilder = SharedAlbumMixBuilderUi(
-                                query = albumMixQuery,
-                                selectedAlbums = desktopAlbumMixItems(
-                                    albumMixSelectedAlbums,
-                                    coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
-                                ),
-                                suggestedAlbums = desktopAlbumMixItems(
-                                    albumMixSuggestions,
-                                    coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
-                                ),
-                                status = albumMixStatus,
-                                loading = albumMixLoading,
+                            onArtistMixPlay = { mixBuilderController.playArtistMix(radioController) },
+                            albumMixBuilder = mixBuilderController.albumUi(
+                                coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
                             ),
-                            onAlbumMixQueryChanged = { query -> albumMixQuery = query },
+                            onAlbumMixQueryChanged = mixBuilderController::setAlbumQuery,
                             onAlbumMixSearch = mixBuilderController::searchAlbumSuggestions,
                             onAlbumMixAlbumSelected = { item -> mixBuilderController.selectAlbumByItemId(item.id) },
                             onAlbumMixAlbumRemoved = { item -> mixBuilderController.removeAlbumByItemId(item.id) },
                             onAlbumMixReset = mixBuilderController::resetAlbumBuilder,
-                            onAlbumMixPlay = {
-                                radioController.playAlbumMix(
-                                    albumMixSelectedAlbums,
-                                    albumMixTrackQueue(albumMixSelectedAlbums, albumMixTracksByAlbumId),
-                                )
-                            },
-                            genreMixBuilder = SharedGenreMixBuilderUi(
-                                query = genreMixQuery,
-                                selectedGenres = desktopGenreMixItems(genreMixSelectedGenres),
-                                suggestedGenres = desktopGenreMixItems(genreMixSuggestions),
-                                status = genreMixStatus,
-                                loading = genreMixLoading,
-                            ),
-                            onGenreMixQueryChanged = { query -> genreMixQuery = query },
+                            onAlbumMixPlay = { mixBuilderController.playAlbumMix(radioController) },
+                            genreMixBuilder = mixBuilderController.genreUi(),
+                            onGenreMixQueryChanged = mixBuilderController::setGenreQuery,
                             onGenreMixSearch = mixBuilderController::refreshGenreSuggestions,
                             onGenreMixGenreSelected = { item -> mixBuilderController.selectGenreByItemId(item.id) },
                             onGenreMixGenreRemoved = { item -> mixBuilderController.removeGenreByItemId(item.id) },
                             onGenreMixReset = mixBuilderController::resetGenreBuilder,
-                            onGenreMixPlay = {
-                                radioController.playGenreMix(genreMixSelectedGenres)
-                            },
+                            onGenreMixPlay = { mixBuilderController.playGenreMix(radioController) },
                             internetRadioStations = internetRadioStations,
                             internetRadioStatus = internetRadioStatus,
                             onSaveInternetRadioStation = internetRadioController::saveStation,

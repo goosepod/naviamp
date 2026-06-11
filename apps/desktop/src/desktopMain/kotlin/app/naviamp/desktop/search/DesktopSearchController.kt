@@ -1,5 +1,8 @@
 package app.naviamp.desktop
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import app.naviamp.desktop.settings.DesktopSettingsStore
 import app.naviamp.desktop.settings.SearchSettings
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
@@ -14,17 +17,23 @@ class DesktopSearchController(
     private val settingsStore: DesktopSettingsStore,
     providerResponseCacheRepository: ProviderResponseCacheRepository,
     private val provider: () -> MediaProvider?,
-    private val setQuery: (String) -> Unit,
-    private val setResults: (MediaSearchResults) -> Unit,
-    private val setStatus: (String?) -> Unit,
-    private val setSearching: (Boolean) -> Unit,
+    initialQuery: String,
 ) {
+    var query by mutableStateOf(initialQuery)
+        private set
+    var results by mutableStateOf(MediaSearchResults())
+        private set
+    var status by mutableStateOf<String?>(null)
+        private set
+    var searching by mutableStateOf(false)
+        private set
+
     private val providerResponseService = ProviderResponseService(providerResponseCacheRepository)
     private val searchSessionController = SearchSessionController(
         provider = provider,
-        setResults = setResults,
-        setStatus = setStatus,
-        setSearching = setSearching,
+        setResults = { searchResults -> results = searchResults },
+        setStatus = { searchStatus -> status = searchStatus },
+        setSearching = { isSearching -> searching = isSearching },
         emptyStatus = null,
         matchedStatus = null,
     ) { activeProvider, searchQuery, limit ->
@@ -32,16 +41,20 @@ class DesktopSearchController(
     }
 
     fun updateQuery(query: String) {
-        setQuery(query)
+        this.query = query
         settingsStore.saveSearchSettings(SearchSettings(query = query))
     }
 
     fun clearSearch() {
-        setQuery("")
-        setResults(MediaSearchResults())
-        setStatus(null)
-        setSearching(false)
+        query = ""
+        results = MediaSearchResults()
+        status = null
+        searching = false
         settingsStore.saveSearchSettings(SearchSettings(query = ""))
+    }
+
+    fun updateResults(searchResults: MediaSearchResults) {
+        results = searchResults
     }
 
     suspend fun loadSearchResults(query: String) {

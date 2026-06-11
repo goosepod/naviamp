@@ -40,11 +40,7 @@ internal fun DesktopAppControllerEffects(
     appRoute: DesktopAppRoute,
     selectedPlaylist: Playlist?,
     homeContent: HomeContent,
-    searchQuery: String,
     libraryQuery: String,
-    artistMixSuggestionsEmpty: Boolean,
-    albumMixSuggestionsEmpty: Boolean,
-    genreMixSuggestionsEmpty: Boolean,
     setLibraryLimit: (Int) -> Unit,
     showStatsForNerds: Boolean,
     statsForNerdsRefreshTick: Int,
@@ -102,8 +98,8 @@ internal fun DesktopAppControllerEffects(
         }
     }
 
-    LaunchedEffect(searchQuery, connectedProvider) {
-        searchController.loadSearchResults(searchQuery)
+    LaunchedEffect(searchController.query, connectedProvider) {
+        searchController.loadSearchResults(searchController.query)
     }
 
     LaunchedEffect(libraryQuery, connectedSourceId) {
@@ -113,19 +109,19 @@ internal fun DesktopAppControllerEffects(
     }
 
     LaunchedEffect(connectedSourceId, homeContent.artists) {
-        if (connectedSourceId != null && artistMixSuggestionsEmpty) {
+        if (connectedSourceId != null && mixBuilderController.artistSuggestionsEmpty) {
             mixBuilderController.refreshArtistInitialSuggestions()
         }
     }
 
     LaunchedEffect(connectedSourceId, homeContent.randomAlbums, homeContent.mixAlbums) {
-        if (connectedSourceId != null && albumMixSuggestionsEmpty) {
+        if (connectedSourceId != null && mixBuilderController.albumSuggestionsEmpty) {
             mixBuilderController.refreshAlbumInitialSuggestions()
         }
     }
 
     LaunchedEffect(connectedSourceId, homeContent.genres) {
-        if (connectedSourceId != null && genreMixSuggestionsEmpty) {
+        if (connectedSourceId != null && mixBuilderController.genreSuggestionsEmpty) {
             mixBuilderController.refreshGenreSuggestions()
         }
     }

@@ -1408,6 +1408,12 @@ Progress notes:
 - Moved desktop lyrics-offset application and save handling into the existing `DesktopNowPlayingController`, matching Android's now-playing sidecar boundary while still using the shared core `LyricsOffsetController`.
 - `DesktopNaviampApp.kt` is now 1,302 lines after the now-playing lyrics-offset cleanup.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
+- Moved desktop mix-builder state into `DesktopMixBuilderController`; the app root no longer owns mix query, selection, suggestion, loading/status, route UI model construction, or mix play queue construction.
+- `DesktopNaviampApp.kt` is now 1,209 lines after the mix-builder state ownership cleanup.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
+- Moved desktop search query/results/status/loading state into `DesktopSearchController`; route content, metadata actions, and search effects now read/write through the controller instead of root variables.
+- `DesktopNaviampApp.kt` is now 1,200 lines after the desktop search state cleanup.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
 
