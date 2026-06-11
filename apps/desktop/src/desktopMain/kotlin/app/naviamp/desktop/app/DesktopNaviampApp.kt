@@ -875,8 +875,12 @@ fun NaviampApp(
         mediaActionsController = mediaActionsController,
         downloadsController = downloadsController,
         radioController = radioController,
+        internetRadioController = internetRadioController,
         playlistsController = playlistsController,
         libraryController = libraryController,
+        homeContent = { homeContent },
+        playlists = { playlists },
+        internetRadioStations = { internetRadioStations },
         selectedAlbum = { selectedAlbum },
         selectedAlbumDetails = { selectedAlbumDetails },
     )

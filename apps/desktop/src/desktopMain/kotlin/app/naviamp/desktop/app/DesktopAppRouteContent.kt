@@ -31,8 +31,6 @@ import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.provider.MediaSearchResults
-import app.naviamp.domain.radio.RecentRadioAction
-import app.naviamp.domain.radio.homeStationRadioAction
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.ui.AlbumMixBuilderContent
 import app.naviamp.ui.ArtistMixBuilderContent
@@ -42,7 +40,6 @@ import app.naviamp.ui.SharedArtistMixBuilderUi
 import app.naviamp.ui.SharedGenreMixBuilderUi
 import app.naviamp.ui.SharedGenreMixItemUi
 import app.naviamp.ui.SharedHome
-import app.naviamp.ui.SharedHomeStationUi
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedMixBuilderUi
 import app.naviamp.ui.toSharedHomeUi
@@ -159,51 +156,6 @@ fun ColumnScope.DesktopAppRouteContent(
         playlistTracksById = playlistTracksById,
         canFavoriteAlbums = true,
     )
-    val homeAlbums = (
-        homeContent.recentlyAddedAlbums +
-            homeContent.mixAlbums +
-            homeContent.recentAlbums +
-            homeContent.frequentAlbums +
-            homeContent.randomAlbums +
-            homeContent.genreSpotlightAlbums +
-            homeContent.decadeAlbums
-        ).distinctBy { it.id }
-    val homePlaylists = (homeContent.playlists + playlists).distinctBy { it.id }
-    val homeInternetRadioStations = (
-        homeContent.recentInternetRadioStations +
-            homeContent.radioStations +
-            internetRadioStations
-        ).distinctBy { it.id }
-
-    fun openHomeAlbum(item: SharedMediaItemUi) {
-        homeAlbums.firstOrNull { it.id.value == item.id }?.let(appActions::openAlbumDetails)
-    }
-
-    fun openHomePlaylist(item: SharedMediaItemUi) {
-        homePlaylists.firstOrNull { it.id == item.id }?.let(appActions::openPlaylistDetails)
-    }
-
-    fun playHomeRecentRadio(item: SharedMediaItemUi) {
-        homeContent.recentRadioStreams.firstOrNull { it.id == item.id }?.let(appActions::playRecentRadio)
-    }
-
-    fun playHomeInternetRadio(item: SharedMediaItemUi) {
-        homeInternetRadioStations.firstOrNull { it.id == item.id }?.let(internetRadioController::playStation)
-    }
-
-    fun playHomeStation(station: SharedHomeStationUi) {
-        when (val action = homeStationRadioAction(station.id) ?: return) {
-            RecentRadioAction.PlayLibrary -> appActions.playLibraryRadio()
-            RecentRadioAction.PlayRandomAlbum -> appActions.playRandomAlbumRadio()
-            is RecentRadioAction.PlayGenre -> appActions.playGenreRadio(action.genre)
-            is RecentRadioAction.PlayDecade -> appActions.playDecadeRadio(action.fromYear, action.toYear)
-            is RecentRadioAction.PlayArtist,
-            is RecentRadioAction.PlayAlbum,
-            is RecentRadioAction.PlayTrack,
-            -> Unit
-        }
-    }
-
     fun openMixBuilder(builder: SharedMixBuilderUi) {
         when (builder.id) {
             "artist" -> onOpenArtistMixBuilder()
@@ -243,16 +195,14 @@ fun ColumnScope.DesktopAppRouteContent(
                 DesktopAppRoute.Home -> SharedHome(
                     colors = appColors,
                     home = sharedHome,
-                    onAlbumSelected = ::openHomeAlbum,
-                    onAlbumFavoriteToggled = { item ->
-                        homeAlbums.firstOrNull { it.id.value == item.id }?.let(appActions::toggleAlbumFavorite)
-                    },
-                    onMixAlbumSelected = ::openHomeAlbum,
-                    onPlaylistSelected = ::openHomePlaylist,
-                    onRecentRadioSelected = ::playHomeRecentRadio,
-                    onInternetRadioStationSelected = ::playHomeInternetRadio,
+                    onAlbumSelected = { item -> appActions.openHomeAlbum(item.id) },
+                    onAlbumFavoriteToggled = { item -> appActions.toggleHomeAlbumFavorite(item.id) },
+                    onMixAlbumSelected = { item -> appActions.openHomeAlbum(item.id) },
+                    onPlaylistSelected = { item -> appActions.openHomePlaylist(item.id) },
+                    onRecentRadioSelected = { item -> appActions.playHomeRecentRadio(item.id) },
+                    onInternetRadioStationSelected = { item -> appActions.playHomeInternetRadio(item.id) },
                     onMixBuilderSelected = ::openMixBuilder,
-                    onHomeStationSelected = ::playHomeStation,
+                    onHomeStationSelected = { station -> appActions.playHomeStation(station.id) },
                 )
                 DesktopAppRoute.AlbumDetail -> DesktopAlbumDetailPanel(
                     appColors = appColors,
@@ -430,18 +380,10 @@ fun ColumnScope.DesktopAppRouteContent(
                     onAlbumAddToPlaylist = playlistsController::openAlbumAddToPlaylist,
                     onAlbumFavoriteToggle = appActions::toggleAlbumFavorite,
                     onTrackSelected = appActions::playSearchTrack,
-                    onTrackRadioSelected = { index ->
-                        searchResults.tracks.getOrNull(index)?.let(appActions::playTrackRadio)
-                    },
-                    onTrackDownloadSelected = { index ->
-                        searchResults.tracks.getOrNull(index)?.let(appActions::downloadTrack)
-                    },
-                    onTrackAddToQueue = { index ->
-                        searchResults.tracks.getOrNull(index)?.let(playlistsController::addTrackToQueue)
-                    },
-                    onTrackAddToPlaylist = { index ->
-                        searchResults.tracks.getOrNull(index)?.let(playlistsController::openTrackAddToPlaylist)
-                    },
+                    onTrackRadioSelected = appActions::playSearchTrackRadio,
+                    onTrackDownloadSelected = appActions::downloadSearchTrack,
+                    onTrackAddToQueue = appActions::addSearchTrackToQueue,
+                    onTrackAddToPlaylist = appActions::openSearchTrackAddToPlaylist,
                 )
                 DesktopAppRoute.ArtistMix -> Column(
                     modifier = Modifier.fillMaxSize(),

@@ -63,6 +63,9 @@ class DesktopMediaActionsController(
         playTracks(searchTracks(), index = index)
     }
 
+    fun searchTrackAt(index: Int): Track? =
+        searchTracks().getOrNull(index)
+
     fun playRelatedTrack(index: Int) {
         playTracks(relatedTracks(), index = index)
     }
