@@ -10,15 +10,12 @@ import app.naviamp.domain.media.ArtistDetailPopularTracksDisplayLimit
 import app.naviamp.domain.media.ArtistDetailPopularTracksFetchLimit
 import app.naviamp.domain.media.ArtistDetailSimilarArtistsDisplayLimit
 import app.naviamp.domain.media.ArtistDetailSimilarArtistsFetchLimit
-import app.naviamp.domain.media.artistPopularTracksUpdate
 import app.naviamp.domain.media.artistDetailLoadErrorStatus
 import app.naviamp.domain.media.loadingPopularTracksStatus
 import app.naviamp.domain.media.loadingSimilarArtistsStatus
 import app.naviamp.domain.media.loadArtistDetails
-import app.naviamp.domain.media.missingPopularTracksSourceStatus
-import app.naviamp.domain.media.popularTracksUnavailableStatus
-import app.naviamp.domain.media.similarArtistsUnavailableStatus
-import app.naviamp.domain.media.similarArtistsUpdate
+import app.naviamp.domain.media.loadArtistPopularTracksUpdate
+import app.naviamp.domain.media.loadSimilarArtistsUpdate
 import app.naviamp.domain.media.trackArtist
 import app.naviamp.domain.popular.ArtistPopularTracksService
 import app.naviamp.domain.popular.SimilarArtistMatch
@@ -82,23 +79,17 @@ class DesktopArtistController(
         setSelectedArtistSimilarArtistsStatus(loadingSimilarArtistsStatus())
         setSelectedArtistSimilarArtists(emptyList())
         scope.launch {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    similarArtistsService.similarArtists(
-                        artistName = artist.name,
-                        limit = ArtistDetailSimilarArtistsFetchLimit,
-                    )
-                }
-            }.onSuccess { artists ->
-                if (selectedArtist()?.id == artist.id) {
-                    val update = similarArtistsUpdate(artists, ArtistDetailSimilarArtistsDisplayLimit)
-                    setSelectedArtistSimilarArtists(update.artists)
-                    setSelectedArtistSimilarArtistsStatus(update.status)
-                }
-            }.onFailure { error ->
-                if (selectedArtist()?.id == artist.id) {
-                    setSelectedArtistSimilarArtistsStatus(similarArtistsUnavailableStatus(error))
-                }
+            val update = withContext(Dispatchers.IO) {
+                loadSimilarArtistsUpdate(
+                    artistName = artist.name,
+                    fetchLimit = ArtistDetailSimilarArtistsFetchLimit,
+                    displayLimit = ArtistDetailSimilarArtistsDisplayLimit,
+                    loadSimilarArtists = similarArtistsService::similarArtists,
+                )
+            }
+            if (selectedArtist()?.id == artist.id) {
+                setSelectedArtistSimilarArtists(update.artists)
+                setSelectedArtistSimilarArtistsStatus(update.status)
             }
         }
     }
@@ -160,28 +151,17 @@ class DesktopArtistController(
     }
 
     private suspend fun loadPopularTracks(artist: Artist, details: ArtistDetails) {
-        val activeSourceId = sourceId()
-        if (activeSourceId == null) {
-            setSelectedArtistPopularTracksStatus(missingPopularTracksSourceStatus())
-            return
-        }
         setSelectedArtistPopularTracksStatus(loadingPopularTracksStatus())
-        runCatching {
-            popularTracksService.popularTracks(
-                sourceId = activeSourceId,
-                artist = details.artist,
-                limit = ArtistDetailPopularTracksFetchLimit,
-            )
-        }.onSuccess { matches ->
-            if (selectedArtist()?.id == artist.id) {
-                val update = artistPopularTracksUpdate(matches, ArtistDetailPopularTracksDisplayLimit)
-                setSelectedArtistPopularTracks(update.tracks)
-                setSelectedArtistPopularTracksStatus(update.status)
-            }
-        }.onFailure { error ->
-            if (selectedArtist()?.id == artist.id) {
-                setSelectedArtistPopularTracksStatus(popularTracksUnavailableStatus(error))
-            }
+        val update = loadArtistPopularTracksUpdate(
+            sourceId = sourceId(),
+            artist = details.artist,
+            fetchLimit = ArtistDetailPopularTracksFetchLimit,
+            displayLimit = ArtistDetailPopularTracksDisplayLimit,
+            loadPopularTracks = popularTracksService::popularTracks,
+        )
+        if (selectedArtist()?.id == artist.id) {
+            setSelectedArtistPopularTracks(update.tracks)
+            setSelectedArtistPopularTracksStatus(update.status)
         }
     }
 }

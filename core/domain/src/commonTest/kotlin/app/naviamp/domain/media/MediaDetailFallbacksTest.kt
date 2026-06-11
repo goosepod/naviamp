@@ -11,6 +11,7 @@ import app.naviamp.domain.popular.ArtistPopularTrackCandidate
 import app.naviamp.domain.popular.ArtistPopularTrackMatch
 import app.naviamp.domain.popular.SimilarArtistCandidate
 import app.naviamp.domain.popular.SimilarArtistMatch
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -169,6 +170,33 @@ class MediaDetailFallbacksTest {
     }
 
     @Test
+    fun loadArtistPopularTracksUpdateHandlesMissingSourceAndFailure() = runTest {
+        val artist = Artist(ArtistId("artist"), "Artist")
+        assertEquals(
+            ArtistPopularTracksUpdate(
+                tracks = emptyList(),
+                status = "Popular tracks unavailable: no connected media source.",
+            ),
+            loadArtistPopularTracksUpdate(
+                sourceId = null,
+                artist = artist,
+                loadPopularTracks = { _, _, _ -> error("Should not load without source") },
+            ),
+        )
+        assertEquals(
+            ArtistPopularTracksUpdate(
+                tracks = emptyList(),
+                status = "Popular tracks unavailable: failed",
+            ),
+            loadArtistPopularTracksUpdate(
+                sourceId = "source",
+                artist = artist,
+                loadPopularTracks = { _, _, _ -> throw RuntimeException("failed") },
+            ),
+        )
+    }
+
+    @Test
     fun similarArtistsUpdateLimitsArtistsAndReportsEmptyMatches() {
         val artists = listOf(similarArtist("one"), similarArtist("two"), similarArtist("three"))
 
@@ -188,6 +216,20 @@ class MediaDetailFallbacksTest {
         )
         assertEquals("Finding similar artists...", loadingSimilarArtistsStatus())
         assertEquals("Similar artists unavailable: unknown error", similarArtistsUnavailableStatus(RuntimeException()))
+    }
+
+    @Test
+    fun loadSimilarArtistsUpdateHandlesFailure() = runTest {
+        assertEquals(
+            SimilarArtistsUpdate(
+                artists = emptyList(),
+                status = "Similar artists unavailable: failed",
+            ),
+            loadSimilarArtistsUpdate(
+                artistName = "Artist",
+                loadSimilarArtists = { _, _ -> throw RuntimeException("failed") },
+            ),
+        )
     }
 
     @Test

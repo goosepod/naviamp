@@ -18,7 +18,6 @@ import app.naviamp.domain.media.ArtistDetailPopularTracksDisplayLimit
 import app.naviamp.domain.media.ArtistDetailPopularTracksFetchLimit
 import app.naviamp.domain.media.ArtistDetailSimilarArtistsDisplayLimit
 import app.naviamp.domain.media.ArtistDetailSimilarArtistsFetchLimit
-import app.naviamp.domain.media.artistPopularTracksUpdate
 import app.naviamp.domain.media.artistDetailLoadErrorStatus
 import app.naviamp.domain.media.artistDetailLoadedStatus
 import app.naviamp.domain.media.artistDetailLoadingStatus
@@ -26,10 +25,8 @@ import app.naviamp.domain.media.loadingPopularTracksStatus
 import app.naviamp.domain.media.loadingSimilarArtistsStatus
 import app.naviamp.domain.media.loadAlbumDetails
 import app.naviamp.domain.media.loadArtistDetails
-import app.naviamp.domain.media.missingPopularTracksSourceStatus
-import app.naviamp.domain.media.popularTracksUnavailableStatus
-import app.naviamp.domain.media.similarArtistsUnavailableStatus
-import app.naviamp.domain.media.similarArtistsUpdate
+import app.naviamp.domain.media.loadArtistPopularTracksUpdate
+import app.naviamp.domain.media.loadSimilarArtistsUpdate
 import app.naviamp.domain.popular.ArtistPopularTracksService
 import app.naviamp.domain.popular.SimilarArtistsService
 import app.naviamp.domain.Track
@@ -83,34 +80,22 @@ fun openAndroidArtistDetails(
                     nowPlayingOpen = false
                     navigationState = navigationState.copy(route = NaviampRoute.Library)
                     status = artistDetailLoadedStatus(detail)
-                    if (sourceId != null) {
-                        artistPopularTracksStatusByArtistId =
-                            artistPopularTracksStatusByArtistId + (artistId.value to loadingPopularTracksStatus())
-                        scope.launch(Dispatchers.IO) {
-                            runCatching {
-                                popularTracksService.popularTracks(
-                                    sourceId = sourceId,
-                                    artist = detail.artist,
-                                    limit = ArtistDetailPopularTracksFetchLimit,
-                                )
-                            }.onSuccess { matches ->
-                                val update = artistPopularTracksUpdate(matches, ArtistDetailPopularTracksDisplayLimit)
-                                withContext(Dispatchers.Main) {
-                                    artistPopularTracksByArtistId =
-                                        artistPopularTracksByArtistId + (artistId.value to update.tracks)
-                                    artistPopularTracksStatusByArtistId =
-                                        artistPopularTracksStatusByArtistId + (artistId.value to update.status)
-                                }
-                            }.onFailure { error ->
-                                withContext(Dispatchers.Main) {
-                                    artistPopularTracksStatusByArtistId =
-                                        artistPopularTracksStatusByArtistId + (artistId.value to popularTracksUnavailableStatus(error))
-                                }
-                            }
+                    artistPopularTracksStatusByArtistId =
+                        artistPopularTracksStatusByArtistId + (artistId.value to loadingPopularTracksStatus())
+                    scope.launch(Dispatchers.IO) {
+                        val update = loadArtistPopularTracksUpdate(
+                            sourceId = sourceId,
+                            artist = detail.artist,
+                            fetchLimit = ArtistDetailPopularTracksFetchLimit,
+                            displayLimit = ArtistDetailPopularTracksDisplayLimit,
+                            loadPopularTracks = popularTracksService::popularTracks,
+                        )
+                        withContext(Dispatchers.Main) {
+                            artistPopularTracksByArtistId =
+                                artistPopularTracksByArtistId + (artistId.value to update.tracks)
+                            artistPopularTracksStatusByArtistId =
+                                artistPopularTracksStatusByArtistId + (artistId.value to update.status)
                         }
-                    } else {
-                        artistPopularTracksStatusByArtistId =
-                            artistPopularTracksStatusByArtistId + (artistId.value to missingPopularTracksSourceStatus())
                     }
                 }
                 .onFailure { error -> status = artistDetailLoadErrorStatus(error) }
@@ -139,24 +124,18 @@ fun findAndroidSimilarArtists(
     }
     scope.launch {
         with(state) {
-            runCatching {
-                similarArtistsService.similarArtists(
-                    artistName = artistName,
-                    limit = ArtistDetailSimilarArtistsFetchLimit,
+            val update = loadSimilarArtistsUpdate(
+                artistName = artistName,
+                fetchLimit = ArtistDetailSimilarArtistsFetchLimit,
+                displayLimit = ArtistDetailSimilarArtistsDisplayLimit,
+                loadSimilarArtists = similarArtistsService::similarArtists,
+            )
+            artistSimilarArtistsByArtistId = artistSimilarArtistsByArtistId + (
+                artistId.value to update.artists
                 )
-            }.onSuccess { artists ->
-                val update = similarArtistsUpdate(artists, ArtistDetailSimilarArtistsDisplayLimit)
-                artistSimilarArtistsByArtistId = artistSimilarArtistsByArtistId + (
-                    artistId.value to update.artists
-                    )
-                artistSimilarArtistsStatusByArtistId = artistSimilarArtistsStatusByArtistId + (
-                    artistId.value to update.status
-                    )
-            }.onFailure { error ->
-                artistSimilarArtistsStatusByArtistId = artistSimilarArtistsStatusByArtistId + (
-                    artistId.value to similarArtistsUnavailableStatus(error)
-                    )
-            }
+            artistSimilarArtistsStatusByArtistId = artistSimilarArtistsStatusByArtistId + (
+                artistId.value to update.status
+                )
         }
     }
 }

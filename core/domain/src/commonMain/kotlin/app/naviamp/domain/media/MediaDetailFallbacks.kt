@@ -162,6 +162,30 @@ fun artistPopularTracksUpdate(
 fun popularTracksUnavailableStatus(error: Throwable): String =
     "Popular tracks unavailable: ${error.message ?: "unknown error"}"
 
+suspend fun loadArtistPopularTracksUpdate(
+    sourceId: String?,
+    artist: Artist,
+    fetchLimit: Int = ArtistDetailPopularTracksFetchLimit,
+    displayLimit: Int = ArtistDetailPopularTracksDisplayLimit,
+    loadPopularTracks: suspend (sourceId: String, artist: Artist, limit: Int) -> List<ArtistPopularTrackMatch>,
+): ArtistPopularTracksUpdate {
+    val activeSourceId = sourceId ?: return ArtistPopularTracksUpdate(
+        tracks = emptyList(),
+        status = missingPopularTracksSourceStatus(),
+    )
+    return runCatching {
+        artistPopularTracksUpdate(
+            matches = loadPopularTracks(activeSourceId, artist, fetchLimit),
+            displayLimit = displayLimit,
+        )
+    }.getOrElse { error ->
+        ArtistPopularTracksUpdate(
+            tracks = emptyList(),
+            status = popularTracksUnavailableStatus(error),
+        )
+    }
+}
+
 fun loadingSimilarArtistsStatus(): String =
     "Finding similar artists..."
 
@@ -176,6 +200,24 @@ fun similarArtistsUpdate(
 
 fun similarArtistsUnavailableStatus(error: Throwable): String =
     "Similar artists unavailable: ${error.message ?: "unknown error"}"
+
+suspend fun loadSimilarArtistsUpdate(
+    artistName: String,
+    fetchLimit: Int = ArtistDetailSimilarArtistsFetchLimit,
+    displayLimit: Int = ArtistDetailSimilarArtistsDisplayLimit,
+    loadSimilarArtists: suspend (artistName: String, limit: Int) -> List<SimilarArtistMatch>,
+): SimilarArtistsUpdate =
+    runCatching {
+        similarArtistsUpdate(
+            artists = loadSimilarArtists(artistName, fetchLimit),
+            displayLimit = displayLimit,
+        )
+    }.getOrElse { error ->
+        SimilarArtistsUpdate(
+            artists = emptyList(),
+            status = similarArtistsUnavailableStatus(error),
+        )
+    }
 
 fun albumDetailLoadingStatus(fallbackTitle: String?): String =
     "Loading ${fallbackTitle ?: "album"}..."

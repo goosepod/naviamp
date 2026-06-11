@@ -1359,6 +1359,8 @@ Progress notes:
 - Android artist and album detail loading now use the shared `loadArtistDetails`/`loadAlbumDetails` recovery paths instead of local provider/fallback blocks; Desktop album/artist controllers import the same shared detail loaders.
 - `DesktopMediaDetails.kt` dropped to 53 lines and now only contains desktop route-navigation helpers.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.media.MediaDetailFallbacksTest :apps:desktop:desktopTest --tests app.naviamp.desktop.DesktopMediaDetailsTest :apps:android:compileDebugKotlin :apps:desktop:compileKotlinDesktop`.
+- Moved artist popular-track and similar-artist fetch/result shaping into shared media detail helpers; Android and Desktop artist controllers now only set loading state, call the shared loader, and apply the returned tracks/artists/status to their platform state.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.media.MediaDetailFallbacksTest :apps:android:compileDebugKotlin :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
 
