@@ -1361,6 +1361,8 @@ Progress notes:
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.media.MediaDetailFallbacksTest :apps:desktop:desktopTest --tests app.naviamp.desktop.DesktopMediaDetailsTest :apps:android:compileDebugKotlin :apps:desktop:compileKotlinDesktop`.
 - Moved artist popular-track and similar-artist fetch/result shaping into shared media detail helpers; Android and Desktop artist controllers now only set loading state, call the shared loader, and apply the returned tracks/artists/status to their platform state.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.media.MediaDetailFallbacksTest :apps:android:compileDebugKotlin :apps:desktop:compileKotlinDesktop`.
+- Added shared download execution helpers that wrap `DownloadService`, preserve the shared refresh decision, and optionally return refreshed cache stats; Android and Desktop download controllers now supply only platform inputs and apply the returned refresh/status results.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.cache.DownloadPlansTest :apps:android:compileDebugKotlin :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
 

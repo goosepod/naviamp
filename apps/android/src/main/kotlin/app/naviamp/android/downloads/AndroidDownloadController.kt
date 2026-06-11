@@ -9,8 +9,9 @@ import app.naviamp.domain.cache.DownloadReplacementRepository
 import app.naviamp.domain.cache.DownloadRepository
 import app.naviamp.domain.cache.DownloadService
 import app.naviamp.domain.cache.downloadRemoveErrorStatus
+import app.naviamp.domain.cache.downloadTracksWithRefresh
 import app.naviamp.domain.cache.downloadedTrackRemovedStatus
-import app.naviamp.domain.cache.shouldRefreshDownloadsAfter
+import app.naviamp.domain.cache.redownloadTracksWithRefresh
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.settings.downloadStreamQuality
 import app.naviamp.ui.NaviampDownloadedTrackUi
@@ -34,7 +35,7 @@ fun downloadAndroidTrack(
     scope.launch {
         with(state) {
             val quality = playbackSettings.downloadStreamQuality()
-            val result = downloadService.downloadTracksWithStatus(
+            val result = downloadService.downloadTracksWithRefresh(
                 label = track.title,
                 tracks = listOf(track),
                 sourceId = sourceId,
@@ -48,10 +49,11 @@ fun downloadAndroidTrack(
                     downloadStatus = message
                     status = message
                 },
+                loadStats = { withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() } },
             )
-            if (shouldRefreshDownloadsAfter(result)) {
+            if (result.refreshDownloads) {
                 downloadRefreshToken += 1
-                storageStats = withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() }
+                result.stats?.let { storageStats = it }
             }
         }
     }
@@ -73,7 +75,7 @@ fun downloadAndroidTracks(
     scope.launch {
         with(state) {
             val quality = playbackSettings.downloadStreamQuality()
-            val result = downloadService.downloadTracksWithStatus(
+            val result = downloadService.downloadTracksWithRefresh(
                 label = label,
                 tracks = tracksToDownload,
                 sourceId = sourceId,
@@ -86,10 +88,11 @@ fun downloadAndroidTracks(
                     downloadStatus = message
                     status = message
                 },
+                loadStats = { withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() } },
             )
-            if (shouldRefreshDownloadsAfter(result)) {
+            if (result.refreshDownloads) {
                 downloadRefreshToken += 1
-                storageStats = withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() }
+                result.stats?.let { storageStats = it }
             }
         }
     }
@@ -111,7 +114,7 @@ fun redownloadAndroidTracks(
     scope.launch {
         with(state) {
             val quality = playbackSettings.downloadStreamQuality()
-            val result = downloadService.redownloadTracksWithStatus(
+            val result = downloadService.redownloadTracksWithRefresh(
                 tracks = tracksToDownload,
                 sourceId = sourceId,
                 provider = activeProvider,
@@ -123,10 +126,11 @@ fun redownloadAndroidTracks(
                     downloadStatus = message
                     status = message
                 },
+                loadStats = { withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() } },
             )
-            if (shouldRefreshDownloadsAfter(result)) {
+            if (result.refreshDownloads) {
                 downloadRefreshToken += 1
-                storageStats = withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() }
+                result.stats?.let { storageStats = it }
             }
         }
     }

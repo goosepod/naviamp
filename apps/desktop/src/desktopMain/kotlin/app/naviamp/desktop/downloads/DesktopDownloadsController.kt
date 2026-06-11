@@ -12,8 +12,9 @@ import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.domain.cache.downloadConnectionRequiredStatus
+import app.naviamp.domain.cache.downloadTracksWithRefresh
 import app.naviamp.domain.cache.downloadedTrackRemovedStatus
-import app.naviamp.domain.cache.shouldRefreshDownloadsAfter
+import app.naviamp.domain.cache.redownloadTracksWithRefresh
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.settings.CacheSettings
@@ -54,7 +55,7 @@ class DesktopDownloadsController(
         scope.launch {
             val quality = playbackSettings().streamQuality(playbackEngine)
             val maxDownloadBytes = cacheSettings().maxDownloadBytes
-            val result = downloadService.downloadTracksWithStatus(
+            val result = downloadService.downloadTracksWithRefresh(
                 label = label,
                 tracks = tracks,
                 sourceId = activeSourceId,
@@ -62,8 +63,10 @@ class DesktopDownloadsController(
                 quality = quality,
                 maxDownloadBytes = maxDownloadBytes,
                 setStatus = setDownloadStatus,
+                shouldRefreshDownloads = { it !is DownloadTracksResult.Blocked },
+                loadStats = {},
             )
-            if (result !is DownloadTracksResult.Blocked) {
+            if (result.refreshDownloads) {
                 incrementDownloadRefreshToken()
             }
         }
@@ -79,17 +82,18 @@ class DesktopDownloadsController(
         val downloadService = DownloadService(downloadRepository, downloadReplacementRepository)
         scope.launch {
             val quality = playbackSettings().streamQuality(playbackEngine)
-            val result = downloadService.redownloadTracksWithStatus(
+            val result = downloadService.redownloadTracksWithRefresh(
                 tracks = tracks,
                 sourceId = activeSourceId,
                 provider = activeProvider,
                 quality = quality,
                 maxDownloadBytes = cacheSettings().maxDownloadBytes,
                 setStatus = setDownloadStatus,
+                loadStats = { withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() } },
             )
-            if (shouldRefreshDownloadsAfter(result)) {
+            if (result.refreshDownloads) {
                 incrementDownloadRefreshToken()
-                setCacheStats(withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() })
+                result.stats?.let(setCacheStats)
             }
         }
     }

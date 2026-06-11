@@ -24,6 +24,12 @@ sealed interface DownloadTracksResult {
     data class Failed(val completed: Int, val error: Throwable) : DownloadTracksResult
 }
 
+data class DownloadExecutionResult<Stats>(
+    val result: DownloadTracksResult,
+    val refreshDownloads: Boolean,
+    val stats: Stats?,
+)
+
 fun planDownloadTracks(
     tracks: List<Track>,
     hasProvider: Boolean,
@@ -183,6 +189,69 @@ class DownloadService<DownloadedFile, DownloadedTrack>(
             },
         )
     }
+}
+
+suspend fun <DownloadedFile, DownloadedTrack, Stats> DownloadService<DownloadedFile, DownloadedTrack>.downloadTracksWithRefresh(
+    sourceId: String?,
+    provider: MediaProvider?,
+    tracks: List<Track>,
+    quality: StreamQuality,
+    maxDownloadBytes: Long,
+    label: String,
+    isActiveNetworkMobileData: Boolean = false,
+    allowMobileDownloads: Boolean = true,
+    includeCompletedCount: Boolean = true,
+    setStatus: (String) -> Unit,
+    shouldRefreshDownloads: (DownloadTracksResult) -> Boolean = ::shouldRefreshDownloadsAfter,
+    loadStats: (suspend () -> Stats)? = null,
+): DownloadExecutionResult<Stats> {
+    val result = downloadTracksWithStatus(
+        sourceId = sourceId,
+        provider = provider,
+        tracks = tracks,
+        quality = quality,
+        maxDownloadBytes = maxDownloadBytes,
+        label = label,
+        isActiveNetworkMobileData = isActiveNetworkMobileData,
+        allowMobileDownloads = allowMobileDownloads,
+        includeCompletedCount = includeCompletedCount,
+        setStatus = setStatus,
+    )
+    val refreshDownloads = shouldRefreshDownloads(result)
+    return DownloadExecutionResult(
+        result = result,
+        refreshDownloads = refreshDownloads,
+        stats = if (refreshDownloads) loadStats?.invoke() else null,
+    )
+}
+
+suspend fun <DownloadedFile, DownloadedTrack, Stats> DownloadService<DownloadedFile, DownloadedTrack>.redownloadTracksWithRefresh(
+    sourceId: String?,
+    provider: MediaProvider?,
+    tracks: List<Track>,
+    quality: StreamQuality,
+    maxDownloadBytes: Long,
+    isActiveNetworkMobileData: Boolean = false,
+    allowMobileDownloads: Boolean = true,
+    setStatus: (String) -> Unit,
+    loadStats: (suspend () -> Stats)? = null,
+): DownloadExecutionResult<Stats> {
+    val result = redownloadTracksWithStatus(
+        sourceId = sourceId,
+        provider = provider,
+        tracks = tracks,
+        quality = quality,
+        maxDownloadBytes = maxDownloadBytes,
+        isActiveNetworkMobileData = isActiveNetworkMobileData,
+        allowMobileDownloads = allowMobileDownloads,
+        setStatus = setStatus,
+    )
+    val refreshDownloads = shouldRefreshDownloadsAfter(result)
+    return DownloadExecutionResult(
+        result = result,
+        refreshDownloads = refreshDownloads,
+        stats = if (refreshDownloads) loadStats?.invoke() else null,
+    )
 }
 
 fun downloadBlockedStatus(reason: DownloadBlockReason, label: String): String =

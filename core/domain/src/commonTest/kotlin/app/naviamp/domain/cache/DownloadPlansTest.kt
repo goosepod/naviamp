@@ -306,6 +306,71 @@ class DownloadPlansTest {
     }
 
     @Test
+    fun downloadTracksWithRefreshLoadsStatsOnlyWhenRefreshIsNeeded() = runTest {
+        val repository = RecordingDownloadRepository()
+        val provider = FakeMediaProvider()
+        var statsLoads = 0
+
+        val completed = DownloadService(repository, repository).downloadTracksWithRefresh(
+            sourceId = "source-one",
+            provider = provider,
+            tracks = listOf(track("one")),
+            quality = StreamQuality.Original,
+            maxDownloadBytes = 5000L,
+            label = "Playlist",
+            setStatus = {},
+            loadStats = {
+                statsLoads += 1
+                "fresh-stats"
+            },
+        )
+
+        assertIs<DownloadTracksResult.Completed>(completed.result)
+        assertTrue(completed.refreshDownloads)
+        assertEquals("fresh-stats", completed.stats)
+        assertEquals(1, statsLoads)
+
+        val blocked = DownloadService(repository, repository).downloadTracksWithRefresh(
+            sourceId = null,
+            provider = provider,
+            tracks = listOf(track("two")),
+            quality = StreamQuality.Original,
+            maxDownloadBytes = 5000L,
+            label = "Playlist",
+            setStatus = {},
+            loadStats = {
+                statsLoads += 1
+                "stale-stats"
+            },
+        )
+
+        assertIs<DownloadTracksResult.Blocked>(blocked.result)
+        assertFalse(blocked.refreshDownloads)
+        assertNull(blocked.stats)
+        assertEquals(1, statsLoads)
+    }
+
+    @Test
+    fun downloadTracksWithRefreshCanUseCustomRefreshDecision() = runTest {
+        val repository = RecordingDownloadRepository()
+
+        val result = DownloadService(repository, repository).downloadTracksWithRefresh(
+            sourceId = null,
+            provider = FakeMediaProvider(),
+            tracks = listOf(track("one")),
+            quality = StreamQuality.Original,
+            maxDownloadBytes = 5000L,
+            label = "Playlist",
+            setStatus = {},
+            shouldRefreshDownloads = { it is DownloadTracksResult.Blocked },
+            loadStats = { Unit },
+        )
+
+        assertIs<DownloadTracksResult.Blocked>(result.result)
+        assertTrue(result.refreshDownloads)
+    }
+
+    @Test
     fun shouldRefreshDownloadsAfterIgnoresBlockedAndEmptyFailures() {
         assertFalse(shouldRefreshDownloadsAfter(DownloadTracksResult.Blocked(DownloadBlockReason.MissingConnection)))
         assertFalse(shouldRefreshDownloadsAfter(DownloadTracksResult.Failed(0, RuntimeException())))
