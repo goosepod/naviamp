@@ -888,7 +888,7 @@ fun NaviampApp(
         storage = storage,
         sourceId = { connectedSourceId },
         provider = { connectedProvider },
-        homeContent = homeContent,
+        homeContent = { homeContent },
         popularTracksService = popularTracksService,
         similarArtistsService = similarArtistsService,
     )
@@ -896,12 +896,12 @@ fun NaviampApp(
         storage = storage,
         sourceId = { connectedSourceId },
         provider = { connectedProvider },
-        homeContent = homeContent,
+        homeContent = { homeContent },
         similarArtistsService = similarArtistsService,
     )
     val genreMixBuilderService = rememberDesktopGenreMixBuilderService(
         provider = { connectedProvider },
-        homeContent = homeContent,
+        homeContent = { homeContent },
     )
 
     fun artistMixItem(artist: Artist) = artist.toSharedMediaItemUi(

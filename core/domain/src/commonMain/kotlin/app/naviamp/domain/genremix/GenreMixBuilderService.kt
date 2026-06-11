@@ -1,6 +1,8 @@
 package app.naviamp.domain.genremix
 
 import app.naviamp.domain.Genre
+import app.naviamp.domain.home.HomeContent
+import app.naviamp.domain.provider.MediaProvider
 
 class GenreMixBuilderService(
     private val genres: suspend (Long) -> List<Genre>,
@@ -20,6 +22,16 @@ class GenreMixBuilderService(
         return filtered.genreMixSuggestions(selectedGenres, limit)
     }
 }
+
+fun genreMixBuilderService(
+    provider: () -> MediaProvider?,
+    homeContent: () -> HomeContent,
+): GenreMixBuilderService =
+    GenreMixBuilderService(
+        genres = { limit ->
+            provider()?.genres(limit.toInt()).orEmpty().ifEmpty { homeContent().genres }
+        },
+    )
 
 fun List<Genre>.genreMixSuggestions(
     selectedGenres: List<Genre>,

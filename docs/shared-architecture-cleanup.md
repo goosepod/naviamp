@@ -1386,6 +1386,9 @@ Progress notes:
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.home.HomeServiceTest :apps:android:compileDebugKotlin :apps:desktop:compileKotlinDesktop`.
 - Moved home mix-builder artist candidate selection into shared `HomeContent.mixBuilderArtistCandidates`; Android and Desktop artist mix builders now share home artist de-duping before provider fallback.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.home.HomeServiceTest :apps:android:compileDebugKotlin :apps:desktop:compileKotlinDesktop`.
+- Moved Android/Desktop mix-builder service composition into shared artist, album, and genre factory functions; platform files now only adapt local storage lookups and cached provider album details, while shared core owns provider fallback, home fallback, and album-track fallback ordering.
+- Changed mix-builder service wiring to pass `HomeContent` as a live lambda so remembered services do not capture stale home snapshots.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.mixbuilder.MixBuilderServiceFactoriesTest :apps:android:compileDebugKotlin :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
 

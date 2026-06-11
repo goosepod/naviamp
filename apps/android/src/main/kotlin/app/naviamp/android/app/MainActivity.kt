@@ -347,7 +347,7 @@ private fun NaviampAndroidApp(
         storage = storage,
         sourceId = { activeSourceId },
         provider = { provider },
-        homeContent = homeState,
+        homeContent = { homeState },
         popularTracksService = popularTracksService,
         similarArtistsService = similarArtistsService,
     )
@@ -356,13 +356,13 @@ private fun NaviampAndroidApp(
         storage = storage,
         sourceId = { activeSourceId },
         provider = { provider },
-        homeContent = homeState,
+        homeContent = { homeState },
         similarArtistsService = similarArtistsService,
     )
 
     val genreMixBuilderService = rememberAndroidGenreMixBuilderService(
         provider = { provider },
-        homeContent = homeState,
+        homeContent = { homeState },
     )
 
     val mixBuilderController = AndroidMixBuilderController(
