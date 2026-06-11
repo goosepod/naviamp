@@ -76,6 +76,22 @@ class HomeServiceTest {
         )
     }
 
+    @Test
+    fun mixBuilderArtistCandidatesUseHomeArtistsWithStableDeduping() {
+        val home = HomeContent(
+            artists = listOf(
+                Artist(ArtistId("artist-1"), "New Order"),
+                Artist(ArtistId("artist-1"), "New Order duplicate"),
+                Artist(ArtistId("artist-2"), "Slowdive"),
+            ),
+        )
+
+        assertEquals(
+            listOf("artist-1", "artist-2"),
+            home.mixBuilderArtistCandidates().map { it.id.value },
+        )
+    }
+
     private class FakeHomeProvider : MediaProvider {
         override val id: ProviderId = ProviderId("fake-home")
         override val displayName: String = "Fake Home"
