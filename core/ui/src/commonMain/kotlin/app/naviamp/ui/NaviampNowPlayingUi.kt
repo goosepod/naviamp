@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -1279,6 +1280,9 @@ private fun NowPlayingSidePanel(
             return@Column
         }
 
+        val backToListState = remember(nowPlaying.id, nowPlaying.isLive) { LazyListState() }
+        val upNextListState = remember(nowPlaying.id, nowPlaying.isLive) { LazyListState() }
+        val relatedListState = remember(nowPlaying.id, nowPlaying.isLive) { LazyListState() }
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
@@ -1313,9 +1317,15 @@ private fun NowPlayingSidePanel(
             NaviampNowPlayingTab.Related -> relatedTrackRowActions()
             else -> queueRowActions()
         }
+        val listState = when (selectedTab) {
+            NaviampNowPlayingTab.BackTo -> backToListState
+            NaviampNowPlayingTab.UpNext -> upNextListState
+            NaviampNowPlayingTab.Related -> relatedListState
+        }
         NowPlayingItemList(
             items = items,
             colors = colors,
+            listState = listState,
             emptyLabel = when (selectedTab) {
                 NaviampNowPlayingTab.BackTo -> "Playback history will appear here."
                 NaviampNowPlayingTab.UpNext -> "Queue is empty."
@@ -1742,6 +1752,7 @@ private fun NowPlayingItemList(
     items: List<NaviampNowPlayingItemUi>,
     colors: NaviampColors,
     modifier: Modifier = Modifier,
+    listState: LazyListState = rememberLazyListState(),
     currentId: String? = null,
     emptyLabel: String = "Nothing here yet.",
     playlistChoices: List<NaviampPlaylistChoiceUi> = emptyList(),
@@ -1762,7 +1773,11 @@ private fun NowPlayingItemList(
         }
         return
     }
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(5.dp), modifier = modifier.fillMaxWidth()) {
+    LazyColumn(
+        state = listState,
+        verticalArrangement = Arrangement.spacedBy(5.dp),
+        modifier = modifier.fillMaxWidth(),
+    ) {
         items(items, key = { it.id }) { item ->
             val selected = item.id == currentId
             var menuExpanded by remember { mutableStateOf(false) }
