@@ -1417,6 +1417,9 @@ Progress notes:
 - Moved desktop download status/refresh bookkeeping into `DesktopDownloadsController`, and moved library query/tab/snapshot/status/sync/page-limit state into `DesktopLibraryController`.
 - `DesktopNaviampApp.kt` is now 1,168 lines after the download and library state cleanup.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
+- Moved desktop internet-radio station list, status, and recent-station state into `DesktopInternetRadioController`; the root now reads the controller for now-playing, route content, home loading, and action lookup.
+- `DesktopNaviampApp.kt` is now 1,158 lines after the internet-radio state cleanup.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
 

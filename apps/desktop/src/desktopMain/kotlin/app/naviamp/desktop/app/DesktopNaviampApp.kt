@@ -152,11 +152,6 @@ fun NaviampApp(
     var addToPlaylistTarget by remember { mutableStateOf<AddToPlaylistTarget?>(null) }
     var addToPlaylistStatus by remember { mutableStateOf<String?>(null) }
     var recentRadioStreams by remember { mutableStateOf(savedRecentRadioStreams) }
-    var internetRadioStations by remember { mutableStateOf<List<InternetRadioStation>>(emptyList()) }
-    var internetRadioStatus by remember { mutableStateOf<String?>(null) }
-    var recentInternetRadioStations by remember {
-        mutableStateOf(savedRecentInternetRadioStations.map { it.toStation() })
-    }
     var selectedAlbum by remember { mutableStateOf<Album?>(null) }
     var selectedAlbumDetails by remember { mutableStateOf<AlbumDetails?>(null) }
     var selectedAlbumStatus by remember { mutableStateOf<String?>(null) }
@@ -418,10 +413,7 @@ fun NaviampApp(
         stationManager = InternetRadioStationManager(ProviderResponseService(storage)),
         homeContent = { homeContent },
         setHomeContent = { content -> homeContent = content },
-        recentStations = { recentInternetRadioStations },
-        setRecentStations = { stations -> recentInternetRadioStations = stations },
-        setStations = { stations -> internetRadioStations = stations },
-        setStatus = { status -> internetRadioStatus = status },
+        initialRecentStations = savedRecentInternetRadioStations.map { it.toStation() },
         stopRadioContinuation = radioController::stopContinuation,
         clearShuffleSnapshot = playbackController::clearShuffleSnapshot,
         setNowPlayingTrack = { track -> nowPlayingTrack = track },
@@ -473,7 +465,6 @@ fun NaviampApp(
 
     var loadHomeContentAction: (NavidromeProvider) -> Unit = {}
     var refreshPlaylistsAction: () -> Unit = {}
-    var refreshInternetRadioStationsAction: () -> Unit = {}
 
     val connectionLifecycleController = DesktopConnectionLifecycleController(
         scope = coroutineScope,
@@ -533,7 +524,7 @@ fun NaviampApp(
         refreshLibrarySnapshot = libraryController::refreshLibrarySnapshot,
         loadHomeContent = { provider -> loadHomeContentAction(provider) },
         refreshPlaylists = { refreshPlaylistsAction() },
-        refreshInternetRadioStations = { refreshInternetRadioStationsAction() },
+        refreshInternetRadioStations = internetRadioController::refreshStations,
         startLibrarySync = libraryController::startLibrarySync,
         checkLibraryFreshness = libraryController::checkLibraryFreshness,
         connectedSourceId = { connectedSourceId },
@@ -799,7 +790,7 @@ fun NaviampApp(
         homeLibraryRepository = storage.asHomeLibraryRepository(),
         sourceId = { connectedSourceId },
         recentRadioStreams = { recentRadioStreams },
-        recentInternetRadioStations = { recentInternetRadioStations },
+        recentInternetRadioStations = { internetRadioController.recentStations },
         setHomeContent = { content -> homeContent = content },
         setHomeStatus = { status -> homeStatus = status },
     )
@@ -816,7 +807,7 @@ fun NaviampApp(
         libraryController = libraryController,
         homeContent = { homeContent },
         playlists = { playlists },
-        internetRadioStations = { internetRadioStations },
+        internetRadioStations = { internetRadioController.stations },
         selectedAlbum = { selectedAlbum },
         selectedAlbumDetails = { selectedAlbumDetails },
         selectedArtistPopularTracks = { selectedArtistPopularTracks },
@@ -854,7 +845,6 @@ fun NaviampApp(
 
     loadHomeContentAction = homeController::loadHomeContent
     refreshPlaylistsAction = playlistsController::refreshPlaylists
-    refreshInternetRadioStationsAction = internetRadioController::refreshStations
 
     val savedMediaSources = mediaSourcesRevision.let { storage.mediaSources() }
     val statsForNerdsInfo = desktopStatsForNerdsInfoOrNull(
@@ -925,7 +915,7 @@ fun NaviampApp(
                             visualizerVisible = nowPlayingVisualizerVisible,
                             coverArtUrl = nowPlayingCoverArtUrl,
                             playbackQueue = playbackQueue,
-                            internetRadioStations = internetRadioStations,
+                            internetRadioStations = internetRadioController.stations,
                             currentInternetRadioStationId =
                                 nowPlayingInternetRadioStation?.id ?: nowPlayingTrack?.internetRadioStationId(),
                             radioTrackArtworkByKey = radioTrackArtworkByKey,
@@ -1072,8 +1062,8 @@ fun NaviampApp(
                             onGenreMixGenreRemoved = { item -> mixBuilderController.removeGenreByItemId(item.id) },
                             onGenreMixReset = mixBuilderController::resetGenreBuilder,
                             onGenreMixPlay = { mixBuilderController.playGenreMix(radioController) },
-                            internetRadioStations = internetRadioStations,
-                            internetRadioStatus = internetRadioStatus,
+                            internetRadioStations = internetRadioController.stations,
+                            internetRadioStatus = internetRadioController.status,
                             onSaveInternetRadioStation = internetRadioController::saveStation,
                             onDeleteInternetRadioStation = internetRadioController::deleteStation,
                             connectedSourceId = connectedSourceId,
