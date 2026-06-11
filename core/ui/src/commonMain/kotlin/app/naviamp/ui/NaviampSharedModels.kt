@@ -254,6 +254,8 @@ data class NowPlayingUi(
     val backTo: List<NaviampNowPlayingItemUi> = emptyList(),
     val upNext: List<NaviampNowPlayingItemUi> = emptyList(),
     val related: List<NaviampNowPlayingItemUi> = emptyList(),
+    val relatedTabLabel: String = "RELATED",
+    val relatedEmptyLabel: String = "Related tracks are not loaded.",
     val radioStations: List<NaviampNowPlayingItemUi> = emptyList(),
 )
 

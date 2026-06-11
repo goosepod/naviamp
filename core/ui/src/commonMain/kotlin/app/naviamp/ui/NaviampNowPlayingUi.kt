@@ -1294,7 +1294,7 @@ private fun NowPlayingSidePanel(
                 }
             }
             Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
-                NowPlayingTabButton("RELATED", selectedTab == NaviampNowPlayingTab.Related, colors) {
+                NowPlayingTabButton(nowPlaying.relatedTabLabel, selectedTab == NaviampNowPlayingTab.Related, colors) {
                     onTabSelected(NaviampNowPlayingTab.Related)
                 }
             }
@@ -1319,7 +1319,7 @@ private fun NowPlayingSidePanel(
             emptyLabel = when (selectedTab) {
                 NaviampNowPlayingTab.BackTo -> "Playback history will appear here."
                 NaviampNowPlayingTab.UpNext -> "Queue is empty."
-                NaviampNowPlayingTab.Related -> "Related tracks are not loaded."
+                NaviampNowPlayingTab.Related -> nowPlaying.relatedEmptyLabel
             },
             playlistChoices = nowPlaying.playlistChoices,
             useInlinePlaylistPicker = nowPlaying.useInlinePlaylistPicker,

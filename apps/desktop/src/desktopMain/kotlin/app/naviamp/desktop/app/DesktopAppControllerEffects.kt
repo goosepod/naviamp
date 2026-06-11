@@ -60,7 +60,12 @@ internal fun DesktopAppControllerEffects(
         nowPlayingController.loadNowPlayingAnalysis()
     }
 
-    LaunchedEffect(nowPlayingTrack?.id, connectedSourceId) {
+    LaunchedEffect(
+        nowPlayingTrack?.id,
+        connectedSourceId,
+        connectedProvider,
+        playbackSettings.sonicSimilarityEnabled,
+    ) {
         nowPlayingController.loadRelatedTracks()
     }
 

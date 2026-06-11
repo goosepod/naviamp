@@ -129,6 +129,7 @@ fun rememberAndroidAppShellUiState(
             canSaveQueueAsPlaylist = playbackQueue.tracks.isNotEmpty(),
             sleepTimer = sleepTimer.toNaviampSleepTimerUi(sleepTimerNowEpochMillis),
             relatedTracks = relatedTracks,
+            sonicSimilarityEnabled = playbackSettings.sonicSimilarityEnabled,
             radioTrackArtworkByKey = radioTrackArtworkByKey,
             radioStations = homeState.radioStations,
         )

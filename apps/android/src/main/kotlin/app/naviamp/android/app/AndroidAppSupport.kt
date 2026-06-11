@@ -299,6 +299,7 @@ fun androidNowPlayingUi(
     canSaveQueueAsPlaylist: Boolean,
     sleepTimer: NaviampSleepTimerUi,
     relatedTracks: List<Track>,
+    sonicSimilarityEnabled: Boolean,
     radioTrackArtworkByKey: Map<String, String?>,
     radioStations: List<InternetRadioStation>,
 ): NowPlayingUi? =
@@ -352,6 +353,12 @@ fun androidNowPlayingUi(
                     emptyList()
                 },
                 related = relatedTracks.map { it.toNowPlayingItemUi(coverArtUrl) },
+                relatedTabLabel = if (sonicSimilarityEnabled) "SONIC" else "RELATED",
+                relatedEmptyLabel = if (sonicSimilarityEnabled) {
+                    "Sonic matches are not loaded."
+                } else {
+                    "Related tracks are not loaded."
+                },
             ),
         )
     } ?: nowPlayingStation?.let { station ->

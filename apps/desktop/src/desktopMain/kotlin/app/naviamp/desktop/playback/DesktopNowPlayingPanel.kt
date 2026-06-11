@@ -73,6 +73,7 @@ fun DesktopNowPlayingPanel(
     volumePercent: Int,
     sleepTimer: NaviampSleepTimerUi,
     streamQuality: StreamQuality,
+    sonicSimilarityEnabled: Boolean,
     onPause: () -> Unit,
     onResume: () -> Unit,
     onPlayCurrent: () -> Unit,
@@ -200,6 +201,12 @@ fun DesktopNowPlayingPanel(
                 backTo = backToItems,
                 upNext = upNextItems,
                 related = relatedItems,
+                relatedTabLabel = if (sonicSimilarityEnabled) "SONIC" else "RELATED",
+                relatedEmptyLabel = if (sonicSimilarityEnabled) {
+                    "Sonic matches are not loaded."
+                } else {
+                    "Related tracks are not loaded."
+                },
             ),
         ).copy(
             isLive = isLiveStream,

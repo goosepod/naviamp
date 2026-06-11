@@ -218,7 +218,8 @@ fun NaviampApp(
         label = "backgroundEnd",
     )
 
-    val playbackController = DesktopPlaybackController(
+    val playbackController = remember {
+        DesktopPlaybackController(
         scope = coroutineScope,
         playbackSessionRepository = settingsStore,
         playbackEngine = playbackEngine,
@@ -242,8 +243,10 @@ fun NaviampApp(
         setPendingSeekIssuedAtMillis = { millis -> pendingSeekIssuedAtMillis = millis },
         setOpenPlayerOnTrackStart = { shouldOpen -> openPlayerOnTrackStart = shouldOpen },
     )
+    }
 
-    val sleepTimerController = SleepTimerController(
+    val sleepTimerController = remember {
+        SleepTimerController(
         nowPlaying = { nowPlayingTrack },
         playbackQueue = { playbackQueue },
         playbackProgress = { playbackProgress },
@@ -254,6 +257,7 @@ fun NaviampApp(
         stopPlayback = playbackEngine::stop,
         nowEpochMillis = { System.currentTimeMillis() },
     )
+    }
 
     NaviampSleepTimerExpiryEffect(
         sleepTimer = sleepTimer,
@@ -262,7 +266,8 @@ fun NaviampApp(
         onExpired = sleepTimerController::expire,
     )
 
-    val nowPlayingController = DesktopNowPlayingController(
+    val nowPlayingController = remember {
+        DesktopNowPlayingController(
         audioWaveformService = audioWaveformService,
         lyricsSidecarService = lyricsSidecarService,
         audioMetadataSidecarService = audioMetadataSidecarService,
@@ -280,6 +285,7 @@ fun NaviampApp(
         nowPlayingTrack = { nowPlayingTrack },
         nowPlayingCoverArtUrl = { nowPlayingCoverArtUrl },
     )
+    }
 
     fun handleQueueIndexSelected(queueIndex: Int) {
         handleDesktopQueueIndexSelected(
@@ -300,8 +306,9 @@ fun NaviampApp(
         )
     }
 
-    var playlistCallbacksRef: PlaylistCallbacks? = null
-    val radioController = DesktopRadioController(
+    val playlistCallbacksRef = remember { mutableStateOf<PlaylistCallbacks?>(null) }
+    val radioController = remember {
+        DesktopRadioController(
         scope = coroutineScope,
         libraryIndexRepository = storage,
         providerResponseService = ProviderResponseService(storage),
@@ -311,7 +318,7 @@ fun NaviampApp(
         streamQuality = { playbackSettings.streamQuality(playbackEngine) },
         replayGainMode = { playbackSettings.replayGainMode },
         repeatMode = { repeatMode },
-        playlistCallbacks = { playlistCallbacksRef ?: error("Playlist callbacks are not ready.") },
+        playlistCallbacks = { playlistCallbacksRef.value ?: error("Playlist callbacks are not ready.") },
         rememberRadioStream = ::rememberRadioStream,
         clearShuffleSnapshot = playbackController::clearShuffleSnapshot,
         resetNowPlayingSidecars = {
@@ -329,8 +336,10 @@ fun NaviampApp(
         setLastRadioRefillSeedId = { trackId -> lastRadioRefillSeedId = trackId },
         setOpenPlayerOnTrackStart = { shouldOpen -> openPlayerOnTrackStart = shouldOpen },
     )
+    }
 
-    val internetRadioController = DesktopInternetRadioController(
+    val internetRadioController = remember {
+        DesktopInternetRadioController(
         scope = coroutineScope,
         settingsStore = settingsStore,
         playbackSessionRepository = settingsStore,
@@ -364,6 +373,7 @@ fun NaviampApp(
         setRestoredPlaybackPositionSeconds = { position -> restoredPlaybackPositionSeconds = position },
         setAppRoute = { route -> appRoute = route },
     )
+    }
 
     fun handlePlayPauseCommand() {
         handleDesktopPlayPauseCommand(
@@ -377,7 +387,8 @@ fun NaviampApp(
         )
     }
 
-    val libraryController = DesktopLibraryController(
+    val libraryController = remember {
+        DesktopLibraryController(
         scope = coroutineScope,
         libraryIndexRepository = storage,
         mediaSourceRepository = storage,
@@ -389,11 +400,13 @@ fun NaviampApp(
         setConnectionStatus = { status -> connectionStatus = status },
         listState = libraryListState,
     )
+    }
 
-    var loadHomeContentAction: (NavidromeProvider) -> Unit = {}
-    var refreshPlaylistsAction: () -> Unit = {}
+    val loadHomeContentAction = remember { mutableStateOf<(NavidromeProvider) -> Unit>({}) }
+    val refreshPlaylistsAction = remember { mutableStateOf<() -> Unit>({}) }
 
-    val connectionLifecycleController = DesktopConnectionLifecycleController(
+    val connectionLifecycleController = remember {
+        DesktopConnectionLifecycleController(
         scope = coroutineScope,
         cacheMaintenanceRepository = storage,
         mediaSourceRepository = storage,
@@ -429,7 +442,7 @@ fun NaviampApp(
         isConnecting = { isConnecting },
         setConnecting = { connecting -> isConnecting = connecting },
         savedPlaybackSession = { savedPlaybackSession },
-        playlistCallbacks = { playlistCallbacksRef ?: error("Playlist callbacks are not ready.") },
+        playlistCallbacks = { playlistCallbacksRef.value ?: error("Playlist callbacks are not ready.") },
         streamQuality = { playbackSettings.streamQuality(playbackEngine) },
         replayGainMode = { playbackSettings.replayGainMode },
         setConnectedProvider = { provider -> connectedProvider = provider },
@@ -449,8 +462,8 @@ fun NaviampApp(
         setPlaybackProgress = { progress -> playbackProgress = progress },
         setPlaybackQueue = { queue -> playbackQueue = queue },
         refreshLibrarySnapshot = libraryController::refreshLibrarySnapshot,
-        loadHomeContent = { provider -> loadHomeContentAction(provider) },
-        refreshPlaylists = { refreshPlaylistsAction() },
+        loadHomeContent = { provider -> loadHomeContentAction.value(provider) },
+        refreshPlaylists = { refreshPlaylistsAction.value() },
         refreshInternetRadioStations = internetRadioController::refreshStations,
         startLibrarySync = libraryController::startLibrarySync,
         checkLibraryFreshness = libraryController::checkLibraryFreshness,
@@ -464,6 +477,7 @@ fun NaviampApp(
         setAppRoute = { route -> appRoute = route },
         appRoute = { appRoute },
     )
+    }
 
     val playlistCallbacks = desktopPlaylistCallbacks(
         provider = { connectedProvider },
@@ -501,7 +515,7 @@ fun NaviampApp(
         maybeSavePlaybackPosition = playbackController::maybeSavePlaybackPosition,
         maybeReportPlayed = playbackController::maybeReportPlayed,
     )
-    playlistCallbacksRef = playlistCallbacks
+    playlistCallbacksRef.value = playlistCallbacks
 
     val artistMixBuilderService = rememberDesktopArtistMixBuilderService(
         storage = storage,
@@ -523,21 +537,26 @@ fun NaviampApp(
         homeContent = { homeContent },
     )
 
-    val mixBuilderController = DesktopMixBuilderController(
+    val mixBuilderController = remember {
+        DesktopMixBuilderController(
         scope = coroutineScope,
         artistMixBuilderService = { artistMixBuilderService },
         albumMixBuilderService = { albumMixBuilderService },
         genreMixBuilderService = { genreMixBuilderService },
     )
+    }
 
-    val searchController = DesktopSearchController(
+    val searchController = remember {
+        DesktopSearchController(
         settingsStore = settingsStore,
         providerResponseCacheRepository = storage,
         provider = { connectedProvider },
         initialQuery = savedSearch.query,
     )
+    }
 
-    val downloadsController = DesktopDownloadsController(
+    val downloadsController = remember {
+        DesktopDownloadsController(
         scope = coroutineScope,
         downloadRepository = storage,
         downloadReplacementRepository = storage,
@@ -555,8 +574,10 @@ fun NaviampApp(
         playlistCallbacks = { playlistCallbacks },
         setCacheStats = { stats -> cacheStats = stats },
     )
+    }
 
-    val settingsMaintenanceController = PlaybackSettingsMaintenanceController(
+    val settingsMaintenanceController = remember {
+        PlaybackSettingsMaintenanceController(
         playbackEngine = playbackEngine,
         playbackSettings = { playbackSettings },
         setPlaybackSettings = { settings -> playbackSettings = settings },
@@ -570,8 +591,10 @@ fun NaviampApp(
         },
         redownloadTracks = downloadsController::redownloadTracks,
     )
+    }
 
-    val playlistsController = DesktopPlaylistsController(
+    val playlistsController = remember {
+        DesktopPlaylistsController(
         scope = coroutineScope,
         settingsStore = settingsStore,
         playbackEngine = playbackEngine,
@@ -589,8 +612,10 @@ fun NaviampApp(
         clearShuffleSnapshot = playbackController::clearShuffleSnapshot,
         setOpenPlayerOnTrackStart = { shouldOpen -> openPlayerOnTrackStart = shouldOpen },
     )
+    }
 
-    val smartPlaylistsController = DesktopSmartPlaylistsController(
+    val smartPlaylistsController = remember {
+        DesktopSmartPlaylistsController(
         providerMediaSourceRepository = storage,
         providerResponseCacheRepository = storage,
         provider = { connectedProvider },
@@ -605,8 +630,10 @@ fun NaviampApp(
         playlistsController = playlistsController,
         setConnectionStatus = { status -> connectionStatus = status },
     )
+    }
 
-    val artistController = DesktopArtistController(
+    val artistController = remember {
+        DesktopArtistController(
         scope = coroutineScope,
         libraryIndexRepository = storage,
         providerResponseCacheRepository = storage,
@@ -618,8 +645,10 @@ fun NaviampApp(
         popularTracksService = popularTracksService,
         similarArtistsService = similarArtistsService,
     )
+    }
 
-    val albumController = DesktopAlbumController(
+    val albumController = remember {
+        DesktopAlbumController(
         scope = coroutineScope,
         libraryIndexRepository = storage,
         providerResponseCacheRepository = storage,
@@ -629,8 +658,10 @@ fun NaviampApp(
         lastContentRoute = { lastContentRoute },
         setRoute = { route -> appRoute = route },
     )
+    }
 
-    val mediaActionsController = DesktopMediaActionsController(
+    val mediaActionsController = remember {
+        DesktopMediaActionsController(
         scope = coroutineScope,
         trackMetadataRepository = storage,
         playbackEngine = playbackEngine,
@@ -660,8 +691,10 @@ fun NaviampApp(
         setOpenPlayerOnTrackStart = { shouldOpen -> openPlayerOnTrackStart = shouldOpen },
         setConnectionStatus = { status -> connectionStatus = status },
     )
+    }
 
-    val homeController = DesktopHomeController(
+    val homeController = remember {
+        DesktopHomeController(
         scope = coroutineScope,
         providerResponseCacheRepository = storage,
         homeLibraryRepository = storage.asHomeLibraryRepository(),
@@ -671,8 +704,10 @@ fun NaviampApp(
         setHomeContent = { content -> homeContent = content },
         setHomeStatus = { status -> homeStatus = status },
     )
+    }
 
-    val appActions = DesktopAppActions(
+    val appActions = remember {
+        DesktopAppActions(
         connectionLifecycleController = connectionLifecycleController,
         albumController = albumController,
         artistController = artistController,
@@ -691,6 +726,7 @@ fun NaviampApp(
         selectedPlaylist = { playlistsController.selectedPlaylist },
         selectedPlaylistTracks = { playlistsController.selectedPlaylistTracks },
     )
+    }
 
     DesktopAppEffects(
         playbackEngine = playbackEngine,
@@ -741,8 +777,8 @@ fun NaviampApp(
         setCacheStats = { stats -> cacheStats = stats },
     )
 
-    loadHomeContentAction = homeController::loadHomeContent
-    refreshPlaylistsAction = playlistsController::refreshPlaylists
+    loadHomeContentAction.value = homeController::loadHomeContent
+    refreshPlaylistsAction.value = playlistsController::refreshPlaylists
 
     val savedMediaSources = mediaSourcesRevision.let { storage.mediaSources() }
     val statsForNerdsInfo = desktopStatsForNerdsInfoOrNull(
@@ -828,6 +864,7 @@ fun NaviampApp(
                             volumePercent = playbackSettings.volumePercent,
                             sleepTimer = sleepTimer.toNaviampSleepTimerUi(sleepTimerNowEpochMillis),
                             streamQuality = playbackSettings.streamQuality(playbackEngine),
+                            sonicSimilarityEnabled = playbackSettings.sonicSimilarityEnabled,
                             supportsSeek = playbackEngine.supportsSeek && nowPlayingTrack?.isInternetRadioTrack() != true,
                             onPause = ::handlePlayPauseCommand,
                             onResume = ::handlePlayPauseCommand,

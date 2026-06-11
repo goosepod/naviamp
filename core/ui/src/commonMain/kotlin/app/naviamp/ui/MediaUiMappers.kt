@@ -315,6 +315,8 @@ data class NowPlayingTrackUiConfig(
     val backTo: List<NaviampNowPlayingItemUi> = emptyList(),
     val upNext: List<NaviampNowPlayingItemUi> = emptyList(),
     val related: List<NaviampNowPlayingItemUi> = emptyList(),
+    val relatedTabLabel: String = "RELATED",
+    val relatedEmptyLabel: String = "Related tracks are not loaded.",
 )
 
 data class NowPlayingRadioUiConfig(
@@ -392,6 +394,8 @@ fun Track.toNowPlayingUi(config: NowPlayingTrackUiConfig): NowPlayingUi =
         backTo = config.backTo,
         upNext = config.upNext,
         related = config.related,
+        relatedTabLabel = config.relatedTabLabel,
+        relatedEmptyLabel = config.relatedEmptyLabel,
     )
 
 fun InternetRadioStation.toNowPlayingUi(config: NowPlayingRadioUiConfig): NowPlayingUi {
