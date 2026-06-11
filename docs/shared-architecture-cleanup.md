@@ -1405,6 +1405,9 @@ Progress notes:
 - Moved desktop queue-index selection behavior into a small playback helper, and moved desktop mix-builder item UI mapping into mix-builder helpers so `DesktopNaviampApp.kt` no longer owns those shared UI mapper imports.
 - `DesktopNaviampApp.kt` is now 1,321 lines after the queue-selection and mix-builder mapper cleanup.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
+- Moved desktop lyrics-offset application and save handling into the existing `DesktopNowPlayingController`, matching Android's now-playing sidecar boundary while still using the shared core `LyricsOffsetController`.
+- `DesktopNaviampApp.kt` is now 1,302 lines after the now-playing lyrics-offset cleanup.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
 

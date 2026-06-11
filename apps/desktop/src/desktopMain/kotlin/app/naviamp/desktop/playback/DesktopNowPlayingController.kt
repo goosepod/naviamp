@@ -3,8 +3,10 @@ package app.naviamp.desktop
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Track
 import app.naviamp.domain.audio.AudioMetadataSidecarService
+import app.naviamp.domain.cache.LyricsOffsetRepository
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.isInternetRadioTrack
+import app.naviamp.domain.lyrics.LyricsOffsetController
 import app.naviamp.domain.lyrics.LyricsSidecarService
 import app.naviamp.domain.playback.PlaybackAudioAssetRepository
 import app.naviamp.domain.playback.PlaybackEngine
@@ -26,6 +28,7 @@ class DesktopNowPlayingController(
     private val lyricsSidecarService: LyricsSidecarService,
     private val audioMetadataSidecarService: AudioMetadataSidecarService,
     private val localLibraryIndexRepository: LocalLibraryIndexRepository,
+    lyricsOffsetRepository: LyricsOffsetRepository,
     private val playbackAudioAssets: PlaybackAudioAssetRepository,
     private val playbackEngine: PlaybackEngine,
     private val provider: () -> MediaProvider?,
@@ -37,6 +40,7 @@ class DesktopNowPlayingController(
     private val playbackQueue: () -> PlaybackQueue,
     private val nowPlayingTrack: () -> Track?,
     private val nowPlayingCoverArtUrl: () -> String?,
+    private val nowPlayingLyrics: () -> Lyrics?,
     private val setNowPlayingWaveform: (AudioWaveform?) -> Unit,
     private val setNowPlayingWaveformStatus: (String) -> Unit,
     private val setNowPlayingAudioTags: (List<AudioTag>?) -> Unit,
@@ -44,6 +48,29 @@ class DesktopNowPlayingController(
     private val setNowPlayingLyricsStatus: (String?) -> Unit,
     private val setRelatedTracks: (List<Track>) -> Unit,
 ) {
+    private val lyricsOffsetController = LyricsOffsetController(lyricsOffsetRepository)
+
+    fun setNowPlayingLyricsWithSavedOffset(lyrics: Lyrics?) {
+        setNowPlayingLyrics(
+            lyricsOffsetController.withSavedOffset(
+                sourceId = sourceId(),
+                track = nowPlayingTrack(),
+                lyrics = lyrics,
+            ),
+        )
+    }
+
+    fun handleLyricsOffsetChanged(offsetMillis: Int) {
+        setNowPlayingLyrics(
+            lyricsOffsetController.saveOffset(
+                sourceId = sourceId(),
+                track = nowPlayingTrack(),
+                lyrics = nowPlayingLyrics(),
+                offsetMillis = offsetMillis,
+            ),
+        )
+    }
+
     suspend fun loadNowPlayingAnalysis() {
         val lyricsVisibleForWork = lyricsVisible() && appRoute() == DesktopAppRoute.Player
         val track = nowPlayingTrack() ?: run {
@@ -56,7 +83,7 @@ class DesktopNowPlayingController(
             setNowPlayingWaveform(null)
             setNowPlayingWaveformStatus("Internet radio")
             setNowPlayingAudioTags(null)
-            setNowPlayingLyrics(null)
+            setNowPlayingLyricsWithSavedOffset(null)
             setNowPlayingLyricsStatus(null)
             return
         }
@@ -119,7 +146,7 @@ class DesktopNowPlayingController(
         setNowPlayingWaveform(analysis?.waveform)
         setNowPlayingWaveformStatus(analysis?.waveformStatus ?: "Unavailable")
         setNowPlayingAudioTags(analysis?.audioTags)
-        setNowPlayingLyrics(analysis?.lyrics)
+        setNowPlayingLyricsWithSavedOffset(analysis?.lyrics)
         setNowPlayingLyricsStatus(null)
     }
 

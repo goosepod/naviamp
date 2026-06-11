@@ -61,7 +61,6 @@ import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.InternetRadioStationManager
 import app.naviamp.domain.waveform.AudioWaveform
-import app.naviamp.domain.lyrics.LyricsOffsetController
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.desktop.settings.PlaybackSessionSettings
 import app.naviamp.desktop.settings.RecentRadioStream
@@ -239,26 +238,6 @@ fun NaviampApp(
     var nowPlayingLyrics by remember { mutableStateOf<Lyrics?>(null) }
     var nowPlayingLyricsStatus by remember { mutableStateOf<String?>(null) }
     var nowPlayingLyricsVisible by remember { mutableStateOf(false) }
-    val lyricsOffsetController = LyricsOffsetController(
-        lyricsOffsetRepository = storage,
-    )
-    fun setNowPlayingLyricsWithSavedOffset(lyrics: Lyrics?) {
-        nowPlayingLyrics = lyricsOffsetController.withSavedOffset(
-            sourceId = connectedSourceId,
-            track = nowPlayingTrack,
-            lyrics = lyrics,
-        )
-    }
-
-    fun handleLyricsOffsetChanged(offsetMillis: Int) {
-        nowPlayingLyrics = lyricsOffsetController.saveOffset(
-            sourceId = connectedSourceId,
-            track = nowPlayingTrack,
-            lyrics = nowPlayingLyrics,
-            offsetMillis = offsetMillis,
-        )
-    }
-
     var nowPlayingInternetRadioStation by remember { mutableStateOf(restoredInternetRadioStation) }
     var nowPlayingStreamMetadata by remember { mutableStateOf(PlaybackStreamMetadata()) }
     var radioTrackArtworkByKey by remember { mutableStateOf<Map<String, String?>>(emptyMap()) }
@@ -391,6 +370,32 @@ fun NaviampApp(
         onExpired = sleepTimerController::expire,
     )
 
+    val nowPlayingController = DesktopNowPlayingController(
+        audioWaveformService = audioWaveformService,
+        lyricsSidecarService = lyricsSidecarService,
+        audioMetadataSidecarService = audioMetadataSidecarService,
+        localLibraryIndexRepository = storage,
+        lyricsOffsetRepository = storage,
+        playbackAudioAssets = desktopPlaybackAudioAssets,
+        playbackEngine = playbackEngine,
+        provider = { connectedProvider },
+        sourceId = { connectedSourceId },
+        playbackSettings = { playbackSettings },
+        cacheSettings = { cacheSettings },
+        appRoute = { appRoute },
+        lyricsVisible = { nowPlayingLyricsVisible },
+        playbackQueue = { playbackQueue },
+        nowPlayingTrack = { nowPlayingTrack },
+        nowPlayingCoverArtUrl = { nowPlayingCoverArtUrl },
+        nowPlayingLyrics = { nowPlayingLyrics },
+        setNowPlayingWaveform = { waveform -> nowPlayingWaveform = waveform },
+        setNowPlayingWaveformStatus = { status -> nowPlayingWaveformStatus = status },
+        setNowPlayingAudioTags = { tags -> nowPlayingAudioTags = tags },
+        setNowPlayingLyrics = { lyrics -> nowPlayingLyrics = lyrics },
+        setNowPlayingLyricsStatus = { status -> nowPlayingLyricsStatus = status },
+        setRelatedTracks = { tracks -> relatedTracks = tracks },
+    )
+
     fun handleQueueIndexSelected(queueIndex: Int) {
         handleDesktopQueueIndexSelected(
             playbackController = playbackController,
@@ -463,7 +468,7 @@ fun NaviampApp(
         setNowPlayingWaveform = { waveform -> nowPlayingWaveform = waveform },
         setNowPlayingWaveformStatus = { status -> nowPlayingWaveformStatus = status },
         setNowPlayingAudioTags = { tags -> nowPlayingAudioTags = tags },
-        setNowPlayingLyrics = ::setNowPlayingLyricsWithSavedOffset,
+        setNowPlayingLyrics = nowPlayingController::setNowPlayingLyricsWithSavedOffset,
         setNowPlayingLyricsStatus = { status -> nowPlayingLyricsStatus = status },
         nowPlayingStation = { nowPlayingInternetRadioStation },
         setNowPlayingStation = { station -> nowPlayingInternetRadioStation = station },
@@ -549,7 +554,7 @@ fun NaviampApp(
         setNowPlayingWaveform = { waveform -> nowPlayingWaveform = waveform },
         setNowPlayingWaveformStatus = { status -> nowPlayingWaveformStatus = status },
         setNowPlayingAudioTags = { tags -> nowPlayingAudioTags = tags },
-        setNowPlayingLyrics = ::setNowPlayingLyricsWithSavedOffset,
+        setNowPlayingLyrics = nowPlayingController::setNowPlayingLyricsWithSavedOffset,
         setNowPlayingLyricsStatus = { status -> nowPlayingLyricsStatus = status },
         setPlaybackState = { state -> playbackState = state },
         setPlaybackProgress = { progress -> playbackProgress = progress },
@@ -582,7 +587,7 @@ fun NaviampApp(
         setNowPlayingWaveform = { waveform -> nowPlayingWaveform = waveform },
         setNowPlayingWaveformStatus = { status -> nowPlayingWaveformStatus = status },
         setNowPlayingAudioTags = { tags -> nowPlayingAudioTags = tags },
-        setNowPlayingLyrics = ::setNowPlayingLyricsWithSavedOffset,
+        setNowPlayingLyrics = nowPlayingController::setNowPlayingLyricsWithSavedOffset,
         setNowPlayingLyricsStatus = { status -> nowPlayingLyricsStatus = status },
         setNowPlayingInternetRadioStation = { station -> nowPlayingInternetRadioStation = station },
         setNowPlayingStreamMetadata = { metadata -> nowPlayingStreamMetadata = metadata },
@@ -804,30 +809,6 @@ fun NaviampApp(
         recentInternetRadioStations = { recentInternetRadioStations },
         setHomeContent = { content -> homeContent = content },
         setHomeStatus = { status -> homeStatus = status },
-    )
-
-    val nowPlayingController = DesktopNowPlayingController(
-        audioWaveformService = audioWaveformService,
-        lyricsSidecarService = lyricsSidecarService,
-        audioMetadataSidecarService = audioMetadataSidecarService,
-        localLibraryIndexRepository = storage,
-        playbackAudioAssets = desktopPlaybackAudioAssets,
-        playbackEngine = playbackEngine,
-        provider = { connectedProvider },
-        sourceId = { connectedSourceId },
-        playbackSettings = { playbackSettings },
-        cacheSettings = { cacheSettings },
-        appRoute = { appRoute },
-        lyricsVisible = { nowPlayingLyricsVisible },
-        playbackQueue = { playbackQueue },
-        nowPlayingTrack = { nowPlayingTrack },
-        nowPlayingCoverArtUrl = { nowPlayingCoverArtUrl },
-        setNowPlayingWaveform = { waveform -> nowPlayingWaveform = waveform },
-        setNowPlayingWaveformStatus = { status -> nowPlayingWaveformStatus = status },
-        setNowPlayingAudioTags = { tags -> nowPlayingAudioTags = tags },
-        setNowPlayingLyrics = ::setNowPlayingLyricsWithSavedOffset,
-        setNowPlayingLyricsStatus = { status -> nowPlayingLyricsStatus = status },
-        setRelatedTracks = { tracks -> relatedTracks = tracks },
     )
 
     val libraryController = DesktopLibraryController(
@@ -1073,7 +1054,7 @@ fun NaviampApp(
                                 settingsStore.savePlaybackSettings(playbackSettings)
                             },
                             onToggleLyrics = { nowPlayingLyricsVisible = !nowPlayingLyricsVisible },
-                            onLyricsOffsetChanged = ::handleLyricsOffsetChanged,
+                            onLyricsOffsetChanged = nowPlayingController::handleLyricsOffsetChanged,
                             onToggleVisualizer = {
                                 nowPlayingVisualizerRequestedVisible = !nowPlayingVisualizerRequestedVisible
                             },
