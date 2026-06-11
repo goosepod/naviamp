@@ -1394,6 +1394,10 @@ Progress notes:
 - Moved desktop connection-form new/edit/connect-saved/cancel handling into the existing `DesktopConnectionLifecycleController`, leaving the root to provide state adapters and trimming `DesktopNaviampApp.kt` to 1,331 lines.
 - Moved desktop home item and search track action resolution into `DesktopAppActions`, with `DesktopMediaActionsController` exposing indexed search-track lookup; `DesktopAppRouteContent.kt` now delegates home/search IDs and indices instead of looking up albums, playlists, stations, or tracks directly.
 - Finished the remaining `DesktopAppRouteContent` action cleanup by moving current-album fallback actions, selected playlist detail actions, popular-track index lookup, and library-tab refresh/scroll sequencing into existing app, playlist, and library controllers; the route content is now 543 lines and contains no direct item lookup or coroutine scroll logic.
+- Removed desktop root radio-forwarding helpers for radio continuation stop and queue refill; `DesktopNaviampApp.kt` now passes `DesktopRadioController` method references directly to internet radio, connection lifecycle, playback callbacks, downloads, and playlist controllers.
+- `DesktopNaviampApp.kt` is now 1,326 lines after the direct radio-controller callback cleanup.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
+- Note for the next desktop root slice: larger route/player helper extractions that keep very large composable parameter lists still trip the JVM `MethodTooLargeException` in `NaviampApp`; the next split should reduce root setup/state ownership or use lower-arity state holders instead of adding parameter-heavy composable pass-throughs.
 
 Success criteria for the first slice:
 
