@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import app.naviamp.domain.Album
-import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistId
@@ -15,7 +14,6 @@ import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.media.albumDetailLoadErrorStatus
 import app.naviamp.domain.media.albumDetailLoadedStatus
 import app.naviamp.domain.media.albumDetailLoadingStatus
-import app.naviamp.domain.media.albumDetailsFromLibraryTracks
 import app.naviamp.domain.media.ArtistDetailPopularTracksDisplayLimit
 import app.naviamp.domain.media.ArtistDetailPopularTracksFetchLimit
 import app.naviamp.domain.media.ArtistDetailSimilarArtistsDisplayLimit
@@ -26,6 +24,7 @@ import app.naviamp.domain.media.artistDetailLoadedStatus
 import app.naviamp.domain.media.artistDetailLoadingStatus
 import app.naviamp.domain.media.loadingPopularTracksStatus
 import app.naviamp.domain.media.loadingSimilarArtistsStatus
+import app.naviamp.domain.media.loadAlbumDetails
 import app.naviamp.domain.media.loadArtistDetails
 import app.naviamp.domain.media.missingPopularTracksSourceStatus
 import app.naviamp.domain.media.popularTracksUnavailableStatus
@@ -188,17 +187,15 @@ fun openAndroidAlbumDetails(
         with(state) {
             status = albumDetailLoadingStatus(selectedAlbum.title)
             runCatching {
-                providerResponseService.album(activeProvider, AlbumId(selectedAlbum.id))
-            }.recoverCatching { error ->
-                val fallbackDetail = sourceId?.let {
-                    albumDetailsFromLibraryTracks(
-                        albumId = AlbumId(selectedAlbum.id),
-                        fallbackTitle = selectedAlbum.title,
-                        fallbackArtistName = selectedAlbum.subtitle,
-                        tracks = libraryIndexRepository.libraryTracksForAlbum(it, AlbumId(selectedAlbum.id), limit = 1_000),
-                    )
-                }
-                fallbackDetail ?: throw error
+                loadAlbumDetails(
+                    libraryIndexRepository = libraryIndexRepository,
+                    providerResponseService = providerResponseService,
+                    provider = activeProvider,
+                    albumId = AlbumId(selectedAlbum.id),
+                    fallbackTitle = selectedAlbum.title,
+                    fallbackArtistName = selectedAlbum.subtitle,
+                    sourceId = sourceId,
+                )
             }.onSuccess { detail ->
                 contentState = contentState.showAlbum(detail)
                 tracks = detail.tracks
@@ -225,20 +222,17 @@ fun openAndroidNowPlayingAlbumDetails(
     val providerResponseService = ProviderResponseService(providerResponseCacheRepository)
     scope.launch {
         with(state) {
-            runCatching { providerResponseService.album(activeProvider, albumId) }
-                .recoverCatching { error ->
-                    sourceId
-                        ?.let { storageSourceId ->
-                            albumDetailsFromAndroidTrackFallback(
-                                libraryIndexRepository = libraryIndexRepository,
-                                sourceId = storageSourceId,
-                                albumId = albumId,
-                                fallbackTitle = fallbackTitle,
-                                fallbackArtistName = fallbackArtistName,
-                            )
-                        }
-                        ?: throw error
-                }
+            runCatching {
+                loadAlbumDetails(
+                    libraryIndexRepository = libraryIndexRepository,
+                    providerResponseService = providerResponseService,
+                    provider = activeProvider,
+                    albumId = albumId,
+                    fallbackTitle = fallbackTitle,
+                    fallbackArtistName = fallbackArtistName,
+                    sourceId = sourceId,
+                )
+            }
                 .onSuccess { detail ->
                     contentState = contentState.showAlbum(detail)
                     nowPlayingOpen = false
@@ -248,20 +242,6 @@ fun openAndroidNowPlayingAlbumDetails(
         }
     }
 }
-
-fun albumDetailsFromAndroidTrackFallback(
-    libraryIndexRepository: LocalLibraryIndexRepository,
-    sourceId: String,
-    albumId: AlbumId,
-    fallbackTitle: String?,
-    fallbackArtistName: String?,
-): AlbumDetails? =
-    albumDetailsFromLibraryTracks(
-        albumId = albumId,
-        fallbackTitle = fallbackTitle,
-        fallbackArtistName = fallbackArtistName,
-        tracks = libraryIndexRepository.libraryTracksForAlbum(sourceId, albumId, limit = 1_000),
-    )
 
 fun loadAndroidArtistTracks(
     scope: CoroutineScope,
@@ -295,15 +275,17 @@ fun loadAndroidArtistAlbumTracks(
     val providerResponseService = ProviderResponseService(providerResponseCacheRepository)
     scope.launch {
         state.status = albumDetailLoadingStatus(selectedAlbum.title)
-        runCatching { providerResponseService.album(activeProvider, AlbumId(selectedAlbum.id)).tracks }
-            .recoverCatching { error ->
-                sourceId
-                    ?.let { storageSourceId ->
-                        libraryIndexRepository.libraryTracksForAlbum(storageSourceId, AlbumId(selectedAlbum.id), limit = 1_000)
-                    }
-                    ?.takeIf { it.isNotEmpty() }
-                    ?: throw error
-            }
+        runCatching {
+            loadAlbumDetails(
+                libraryIndexRepository = libraryIndexRepository,
+                providerResponseService = providerResponseService,
+                provider = activeProvider,
+                albumId = AlbumId(selectedAlbum.id),
+                fallbackTitle = selectedAlbum.title,
+                fallbackArtistName = selectedAlbum.subtitle,
+                sourceId = sourceId,
+            ).tracks
+        }
             .onSuccess(action)
             .onFailure { error -> state.status = albumDetailLoadErrorStatus(error) }
     }

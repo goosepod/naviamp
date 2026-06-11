@@ -193,15 +193,34 @@ suspend fun loadAlbumDetails(
     album: Album,
     sourceId: String?,
 ): AlbumDetails =
+    loadAlbumDetails(
+        libraryIndexRepository = libraryIndexRepository,
+        providerResponseService = providerResponseService,
+        provider = provider,
+        albumId = album.id,
+        fallbackTitle = album.title,
+        fallbackArtistName = album.artistName,
+        sourceId = sourceId,
+    )
+
+suspend fun loadAlbumDetails(
+    libraryIndexRepository: LocalLibraryIndexRepository,
+    providerResponseService: ProviderResponseService,
+    provider: MediaProvider,
+    albumId: AlbumId,
+    fallbackTitle: String?,
+    fallbackArtistName: String?,
+    sourceId: String?,
+): AlbumDetails =
     runCatching {
-        providerResponseService.album(provider, album.id)
+        providerResponseService.album(provider, albumId)
     }.recoverCatching { error ->
         val fallbackDetail = sourceId?.let {
             albumDetailsFromLibraryTracks(
-                albumId = album.id,
-                fallbackTitle = album.title,
-                fallbackArtistName = album.artistName,
-                tracks = libraryIndexRepository.libraryTracksForAlbum(it, album.id, limit = 1_000),
+                albumId = albumId,
+                fallbackTitle = fallbackTitle,
+                fallbackArtistName = fallbackArtistName,
+                tracks = libraryIndexRepository.libraryTracksForAlbum(it, albumId, limit = 1_000),
             )
         }
         fallbackDetail ?: throw error
