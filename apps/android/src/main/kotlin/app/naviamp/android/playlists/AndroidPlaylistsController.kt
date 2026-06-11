@@ -33,6 +33,7 @@ import app.naviamp.domain.provider.refreshPlaylistDetailsApplication
 import app.naviamp.domain.provider.refreshPlaylistListState
 import app.naviamp.domain.provider.renamePlaylistAndRefresh
 import app.naviamp.domain.provider.saveQueueAsPlaylistApplication
+import app.naviamp.domain.provider.selectedPlaylistTracksForPlayback
 import app.naviamp.domain.provider.loadSmartPlaylistDefinition
 import app.naviamp.domain.provider.smartPlaylistSaveErrorMessage
 import app.naviamp.domain.provider.saveSmartPlaylistStateUpdate
@@ -284,12 +285,12 @@ fun withAndroidPlaylistTracks(
     providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
     onTracks: (List<Track>) -> Unit,
 ) {
-    val knownTracks = when {
-        state.selectedPlaylist?.id == playlist.id && state.selectedPlaylistTracks.isNotEmpty() -> {
-            state.selectedPlaylistTracks
-        }
-        else -> state.playlistTracksById[playlist.id].orEmpty()
-    }
+    val knownTracks = selectedPlaylistTracksForPlayback(
+        selectedPlaylist = state.selectedPlaylist,
+        selectedPlaylistTracks = state.selectedPlaylistTracks,
+        playlist = playlist,
+        loadedTracks = state.playlistTracksById[playlist.id].orEmpty(),
+    )
     if (knownTracks.isNotEmpty()) {
         onTracks(knownTracks)
         return
@@ -358,12 +359,12 @@ fun downloadAndroidPlaylist(
         state.status = state.downloadStatus.orEmpty()
         return
     }
-    val loadedTracks = when {
-        state.selectedPlaylist?.id == playlist.id && state.selectedPlaylistTracks.isNotEmpty() -> {
-            state.selectedPlaylistTracks
-        }
-        else -> state.playlistTracksById[playlist.id].orEmpty()
-    }
+    val loadedTracks = selectedPlaylistTracksForPlayback(
+        selectedPlaylist = state.selectedPlaylist,
+        selectedPlaylistTracks = state.selectedPlaylistTracks,
+        playlist = playlist,
+        loadedTracks = state.playlistTracksById[playlist.id].orEmpty(),
+    )
     if (loadedTracks.isNotEmpty()) {
         downloadTracks(loadedTracks, playlist.name)
         return

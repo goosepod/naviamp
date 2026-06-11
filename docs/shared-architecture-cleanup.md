@@ -1371,6 +1371,8 @@ Progress notes:
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.playback.PlaybackQueueManagerTest :apps:desktop:compileKotlinDesktop`.
 - Added shared `saveQueueAsPlaylistApplication` so Android and Desktop both apply saved-queue playlist refreshes through the same playlist-list/home-content application model.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.provider.PlaylistMutationsTest :apps:android:compileDebugKotlin :apps:desktop:compileKotlinDesktop`.
+- Reused shared `selectedPlaylistTracksForPlayback` for Android playlist add/download track selection, replacing duplicate selected-playlist-versus-cache branching.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.provider.PlaylistMutationsTest :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 
