@@ -920,7 +920,9 @@ fun NaviampApp(
         albumMixBuilderService = { albumMixBuilderService },
         genreMixBuilderService = { genreMixBuilderService },
         artistMixQuery = { artistMixQuery },
+        setArtistMixQuery = { query -> artistMixQuery = query },
         artistMixSelectedArtists = { artistMixSelectedArtists },
+        artistMixSuggestions = { artistMixSuggestions },
         setArtistMixSelectedArtists = { artists -> artistMixSelectedArtists = artists },
         setArtistMixSuggestions = { artists -> artistMixSuggestions = artists },
         artistMixPopularTracksByArtistId = { artistMixPopularTracksByArtistId },
@@ -928,7 +930,9 @@ fun NaviampApp(
         setArtistMixStatus = { status -> artistMixStatus = status },
         setArtistMixLoading = { loading -> artistMixLoading = loading },
         albumMixQuery = { albumMixQuery },
+        setAlbumMixQuery = { query -> albumMixQuery = query },
         albumMixSelectedAlbums = { albumMixSelectedAlbums },
+        albumMixSuggestions = { albumMixSuggestions },
         setAlbumMixSelectedAlbums = { albums -> albumMixSelectedAlbums = albums },
         setAlbumMixSuggestions = { albums -> albumMixSuggestions = albums },
         albumMixTracksByAlbumId = { albumMixTracksByAlbumId },
@@ -936,7 +940,9 @@ fun NaviampApp(
         setAlbumMixStatus = { status -> albumMixStatus = status },
         setAlbumMixLoading = { loading -> albumMixLoading = loading },
         genreMixQuery = { genreMixQuery },
+        setGenreMixQuery = { query -> genreMixQuery = query },
         genreMixSelectedGenres = { genreMixSelectedGenres },
+        genreMixSuggestions = { genreMixSuggestions },
         setGenreMixSelectedGenres = { genres -> genreMixSelectedGenres = genres },
         setGenreMixSuggestions = { genres -> genreMixSuggestions = genres },
         setGenreMixStatus = { status -> genreMixStatus = status },
@@ -1198,13 +1204,9 @@ fun NaviampApp(
                             ),
                             onArtistMixQueryChanged = { query -> artistMixQuery = query },
                             onArtistMixSearch = mixBuilderController::searchArtistSuggestions,
-                            onArtistMixArtistSelected = { item ->
-                                artistMixSuggestions.firstOrNull { it.id.value == item.id }?.let(mixBuilderController::selectArtist)
-                            },
-                            onArtistMixArtistRemoved = { item ->
-                                artistMixSelectedArtists.firstOrNull { it.id.value == item.id }?.let(mixBuilderController::removeArtist)
-                            },
-                            onArtistMixReset = { mixBuilderController.resetArtistBuilder { query -> artistMixQuery = query } },
+                            onArtistMixArtistSelected = { item -> mixBuilderController.selectArtistByItemId(item.id) },
+                            onArtistMixArtistRemoved = { item -> mixBuilderController.removeArtistByItemId(item.id) },
+                            onArtistMixReset = mixBuilderController::resetArtistBuilder,
                             onArtistMixPlay = {
                                 radioController.playArtistMix(
                                     artistMixSelectedArtists,
@@ -1220,13 +1222,9 @@ fun NaviampApp(
                             ),
                             onAlbumMixQueryChanged = { query -> albumMixQuery = query },
                             onAlbumMixSearch = mixBuilderController::searchAlbumSuggestions,
-                            onAlbumMixAlbumSelected = { item ->
-                                albumMixSuggestions.firstOrNull { it.id.value == item.id }?.let(mixBuilderController::selectAlbum)
-                            },
-                            onAlbumMixAlbumRemoved = { item ->
-                                albumMixSelectedAlbums.firstOrNull { it.id.value == item.id }?.let(mixBuilderController::removeAlbum)
-                            },
-                            onAlbumMixReset = { mixBuilderController.resetAlbumBuilder { query -> albumMixQuery = query } },
+                            onAlbumMixAlbumSelected = { item -> mixBuilderController.selectAlbumByItemId(item.id) },
+                            onAlbumMixAlbumRemoved = { item -> mixBuilderController.removeAlbumByItemId(item.id) },
+                            onAlbumMixReset = mixBuilderController::resetAlbumBuilder,
                             onAlbumMixPlay = {
                                 radioController.playAlbumMix(
                                     albumMixSelectedAlbums,
@@ -1242,13 +1240,9 @@ fun NaviampApp(
                             ),
                             onGenreMixQueryChanged = { query -> genreMixQuery = query },
                             onGenreMixSearch = mixBuilderController::refreshGenreSuggestions,
-                            onGenreMixGenreSelected = { item ->
-                                genreMixSuggestions.firstOrNull { it.name == item.id }?.let(mixBuilderController::selectGenre)
-                            },
-                            onGenreMixGenreRemoved = { item ->
-                                genreMixSelectedGenres.firstOrNull { it.name == item.id }?.let(mixBuilderController::removeGenre)
-                            },
-                            onGenreMixReset = { mixBuilderController.resetGenreBuilder { query -> genreMixQuery = query } },
+                            onGenreMixGenreSelected = { item -> mixBuilderController.selectGenreByItemId(item.id) },
+                            onGenreMixGenreRemoved = { item -> mixBuilderController.removeGenreByItemId(item.id) },
+                            onGenreMixReset = mixBuilderController::resetGenreBuilder,
                             onGenreMixPlay = {
                                 radioController.playGenreMix(genreMixSelectedGenres)
                             },

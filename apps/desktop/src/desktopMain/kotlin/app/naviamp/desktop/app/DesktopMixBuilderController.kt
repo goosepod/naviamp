@@ -24,7 +24,9 @@ internal class DesktopMixBuilderController(
     private val albumMixBuilderService: () -> AlbumMixBuilderService,
     private val genreMixBuilderService: () -> GenreMixBuilderService,
     private val artistMixQuery: () -> String,
+    private val setArtistMixQuery: (String) -> Unit,
     private val artistMixSelectedArtists: () -> List<Artist>,
+    private val artistMixSuggestions: () -> List<Artist>,
     private val setArtistMixSelectedArtists: (List<Artist>) -> Unit,
     private val setArtistMixSuggestions: (List<Artist>) -> Unit,
     private val artistMixPopularTracksByArtistId: () -> Map<String, List<Track>>,
@@ -32,7 +34,9 @@ internal class DesktopMixBuilderController(
     private val setArtistMixStatus: (String?) -> Unit,
     private val setArtistMixLoading: (Boolean) -> Unit,
     private val albumMixQuery: () -> String,
+    private val setAlbumMixQuery: (String) -> Unit,
     private val albumMixSelectedAlbums: () -> List<Album>,
+    private val albumMixSuggestions: () -> List<Album>,
     private val setAlbumMixSelectedAlbums: (List<Album>) -> Unit,
     private val setAlbumMixSuggestions: (List<Album>) -> Unit,
     private val albumMixTracksByAlbumId: () -> Map<String, List<Track>>,
@@ -40,7 +44,9 @@ internal class DesktopMixBuilderController(
     private val setAlbumMixStatus: (String?) -> Unit,
     private val setAlbumMixLoading: (Boolean) -> Unit,
     private val genreMixQuery: () -> String,
+    private val setGenreMixQuery: (String) -> Unit,
     private val genreMixSelectedGenres: () -> List<Genre>,
+    private val genreMixSuggestions: () -> List<Genre>,
     private val setGenreMixSelectedGenres: (List<Genre>) -> Unit,
     private val setGenreMixSuggestions: (List<Genre>) -> Unit,
     private val setGenreMixStatus: (String?) -> Unit,
@@ -116,8 +122,16 @@ internal class DesktopMixBuilderController(
         refreshArtistInitialSuggestions()
     }
 
-    fun resetArtistBuilder(setQuery: (String) -> Unit) {
-        setQuery("")
+    fun selectArtistByItemId(itemId: String) {
+        artistMixSuggestions().firstOrNull { it.id.value == itemId }?.let(::selectArtist)
+    }
+
+    fun removeArtistByItemId(itemId: String) {
+        artistMixSelectedArtists().firstOrNull { it.id.value == itemId }?.let(::removeArtist)
+    }
+
+    fun resetArtistBuilder() {
+        setArtistMixQuery("")
         setArtistMixSelectedArtists(emptyList())
         setArtistMixSuggestions(emptyList())
         setArtistMixPopularTracksByArtistId(emptyMap())
@@ -196,8 +210,16 @@ internal class DesktopMixBuilderController(
         refreshAlbumInitialSuggestions()
     }
 
-    fun resetAlbumBuilder(setQuery: (String) -> Unit) {
-        setQuery("")
+    fun selectAlbumByItemId(itemId: String) {
+        albumMixSuggestions().firstOrNull { it.id.value == itemId }?.let(::selectAlbum)
+    }
+
+    fun removeAlbumByItemId(itemId: String) {
+        albumMixSelectedAlbums().firstOrNull { it.id.value == itemId }?.let(::removeAlbum)
+    }
+
+    fun resetAlbumBuilder() {
+        setAlbumMixQuery("")
         setAlbumMixSelectedAlbums(emptyList())
         setAlbumMixSuggestions(emptyList())
         setAlbumMixTracksByAlbumId(emptyMap())
@@ -233,8 +255,16 @@ internal class DesktopMixBuilderController(
         refreshGenreSuggestions()
     }
 
-    fun resetGenreBuilder(setQuery: (String) -> Unit) {
-        setQuery("")
+    fun selectGenreByItemId(itemId: String) {
+        genreMixSuggestions().firstOrNull { it.name == itemId }?.let(::selectGenre)
+    }
+
+    fun removeGenreByItemId(itemId: String) {
+        genreMixSelectedGenres().firstOrNull { it.name == itemId }?.let(::removeGenre)
+    }
+
+    fun resetGenreBuilder() {
+        setGenreMixQuery("")
         setGenreMixSelectedGenres(emptyList())
         setGenreMixStatus(null)
         setGenreMixLoading(false)
