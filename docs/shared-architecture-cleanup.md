@@ -1373,6 +1373,9 @@ Progress notes:
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.provider.PlaylistMutationsTest :apps:android:compileDebugKotlin :apps:desktop:compileKotlinDesktop`.
 - Reused shared `selectedPlaylistTracksForPlayback` for Android playlist add/download track selection, replacing duplicate selected-playlist-versus-cache branching.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.provider.PlaylistMutationsTest :apps:android:compileDebugKotlin`.
+- Removed stale desktop root imports left by earlier extractions and collapsed repeated desktop lyrics-offset assignment wiring into one root helper that still uses the shared `LyricsOffsetController`.
+- `DesktopNaviampApp.kt` dropped from 1,413 lines to 1,360 lines without adding another platform wrapper file.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
 

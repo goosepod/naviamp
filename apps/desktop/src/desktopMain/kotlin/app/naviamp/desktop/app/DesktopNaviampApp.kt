@@ -8,18 +8,11 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ColorScheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -32,9 +25,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
@@ -44,7 +34,6 @@ import app.naviamp.domain.Genre
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Playlist
-import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.internetRadioStationId
@@ -64,7 +53,6 @@ import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.desktopPlaylistCallbacks
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
-import app.naviamp.domain.playback.label
 import app.naviamp.domain.playback.playbackPlayPauseCommand
 import app.naviamp.domain.playback.SleepTimerState
 import app.naviamp.domain.playback.SleepTimerController
@@ -73,41 +61,16 @@ import app.naviamp.domain.provider.PendingPlaybackAction
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
-import app.naviamp.domain.radio.RadioRequest
 import app.naviamp.domain.radio.InternetRadioStationManager
-import app.naviamp.domain.radio.RecentRadioAction
-import app.naviamp.domain.radio.SeededRadioRequest
-import app.naviamp.domain.radio.albumSeededRadioRequest
-import app.naviamp.domain.radio.artistSeededRadioRequest
-import app.naviamp.domain.radio.decadeRadioRequest
-import app.naviamp.domain.radio.genreRadioRequest
-import app.naviamp.domain.radio.libraryRadioRequest
-import app.naviamp.domain.radio.popularTracksRadioRequest
-import app.naviamp.domain.radio.randomAlbumSeededRadioRequest
-import app.naviamp.domain.radio.recentRadioAction
 import app.naviamp.domain.radio.recentRadioStreamsWith
-import app.naviamp.domain.radio.trackRadioRequest
-import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.settings.UpNextSelectionBehavior
-import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.domain.lyrics.LyricsOffsetController
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.desktop.settings.PlaybackSessionSettings
 import app.naviamp.desktop.settings.RecentRadioStream
 import app.naviamp.desktop.settings.VisualizerSettings
-import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
-import app.naviamp.domain.provider.normalizedPlaylistName
-import app.naviamp.domain.provider.playlistDeleteErrorMessage
-import app.naviamp.domain.provider.playlistDeleteLoadingStatus
-import app.naviamp.domain.provider.playlistRenameErrorMessage
-import app.naviamp.domain.provider.playlistRenameLoadingStatus
-import app.naviamp.domain.provider.homePlaylists
-import app.naviamp.domain.provider.queueAppendPlan
-import app.naviamp.domain.provider.refreshPlaylistDetails
-import app.naviamp.domain.provider.smartPlaylistSaveErrorMessage
-import app.naviamp.domain.provider.smartPlaylistUpdateErrorMessage
 import app.naviamp.domain.settings.effectiveForEngine
 import app.naviamp.domain.settings.PlaybackSettingsMaintenanceController
 import app.naviamp.domain.settings.playbackSettingsChange
@@ -130,8 +93,6 @@ import app.naviamp.ui.rememberPlatformCoverArtPlayerColors
 import app.naviamp.ui.toSharedMediaItemUi
 import app.naviamp.ui.toSharedGenreMixItemUi
 import app.naviamp.ui.toNaviampSleepTimerUi
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 @Composable
 @NonRestartableComposable
@@ -287,6 +248,23 @@ fun NaviampApp(
     val lyricsOffsetController = LyricsOffsetController(
         lyricsOffsetRepository = storage,
     )
+    fun setNowPlayingLyricsWithSavedOffset(lyrics: Lyrics?) {
+        nowPlayingLyrics = lyricsOffsetController.withSavedOffset(
+            sourceId = connectedSourceId,
+            track = nowPlayingTrack,
+            lyrics = lyrics,
+        )
+    }
+
+    fun handleLyricsOffsetChanged(offsetMillis: Int) {
+        nowPlayingLyrics = lyricsOffsetController.saveOffset(
+            sourceId = connectedSourceId,
+            track = nowPlayingTrack,
+            lyrics = nowPlayingLyrics,
+            offsetMillis = offsetMillis,
+        )
+    }
+
     var nowPlayingInternetRadioStation by remember { mutableStateOf(restoredInternetRadioStation) }
     var nowPlayingStreamMetadata by remember { mutableStateOf(PlaybackStreamMetadata()) }
     var radioTrackArtworkByKey by remember { mutableStateOf<Map<String, String?>>(emptyMap()) }
@@ -487,13 +465,7 @@ fun NaviampApp(
         setNowPlayingWaveform = { waveform -> nowPlayingWaveform = waveform },
         setNowPlayingWaveformStatus = { status -> nowPlayingWaveformStatus = status },
         setNowPlayingAudioTags = { tags -> nowPlayingAudioTags = tags },
-        setNowPlayingLyrics = { lyrics ->
-            nowPlayingLyrics = lyricsOffsetController.withSavedOffset(
-                sourceId = connectedSourceId,
-                track = nowPlayingTrack,
-                lyrics = lyrics,
-            )
-        },
+        setNowPlayingLyrics = ::setNowPlayingLyricsWithSavedOffset,
         setNowPlayingLyricsStatus = { status -> nowPlayingLyricsStatus = status },
         nowPlayingStation = { nowPlayingInternetRadioStation },
         setNowPlayingStation = { station -> nowPlayingInternetRadioStation = station },
@@ -588,13 +560,7 @@ fun NaviampApp(
         setNowPlayingWaveform = { waveform -> nowPlayingWaveform = waveform },
         setNowPlayingWaveformStatus = { status -> nowPlayingWaveformStatus = status },
         setNowPlayingAudioTags = { tags -> nowPlayingAudioTags = tags },
-        setNowPlayingLyrics = { lyrics ->
-            nowPlayingLyrics = lyricsOffsetController.withSavedOffset(
-                sourceId = connectedSourceId,
-                track = nowPlayingTrack,
-                lyrics = lyrics,
-            )
-        },
+        setNowPlayingLyrics = ::setNowPlayingLyricsWithSavedOffset,
         setNowPlayingLyricsStatus = { status -> nowPlayingLyricsStatus = status },
         setPlaybackState = { state -> playbackState = state },
         setPlaybackProgress = { progress -> playbackProgress = progress },
@@ -630,13 +596,7 @@ fun NaviampApp(
         setNowPlayingWaveform = { waveform -> nowPlayingWaveform = waveform },
         setNowPlayingWaveformStatus = { status -> nowPlayingWaveformStatus = status },
         setNowPlayingAudioTags = { tags -> nowPlayingAudioTags = tags },
-        setNowPlayingLyrics = { lyrics ->
-            nowPlayingLyrics = lyricsOffsetController.withSavedOffset(
-                sourceId = connectedSourceId,
-                track = nowPlayingTrack,
-                lyrics = lyrics,
-            )
-        },
+        setNowPlayingLyrics = ::setNowPlayingLyricsWithSavedOffset,
         setNowPlayingLyricsStatus = { status -> nowPlayingLyricsStatus = status },
         setNowPlayingInternetRadioStation = { station -> nowPlayingInternetRadioStation = station },
         setNowPlayingStreamMetadata = { metadata -> nowPlayingStreamMetadata = metadata },
@@ -879,13 +839,7 @@ fun NaviampApp(
         setNowPlayingWaveform = { waveform -> nowPlayingWaveform = waveform },
         setNowPlayingWaveformStatus = { status -> nowPlayingWaveformStatus = status },
         setNowPlayingAudioTags = { tags -> nowPlayingAudioTags = tags },
-        setNowPlayingLyrics = { lyrics ->
-            nowPlayingLyrics = lyricsOffsetController.withSavedOffset(
-                sourceId = connectedSourceId,
-                track = nowPlayingTrack,
-                lyrics = lyrics,
-            )
-        },
+        setNowPlayingLyrics = ::setNowPlayingLyricsWithSavedOffset,
         setNowPlayingLyricsStatus = { status -> nowPlayingLyricsStatus = status },
         setRelatedTracks = { tracks -> relatedTracks = tracks },
     )
@@ -1133,14 +1087,7 @@ fun NaviampApp(
                                 settingsStore.savePlaybackSettings(playbackSettings)
                             },
                             onToggleLyrics = { nowPlayingLyricsVisible = !nowPlayingLyricsVisible },
-                            onLyricsOffsetChanged = { offsetMillis ->
-                                nowPlayingLyrics = lyricsOffsetController.saveOffset(
-                                    sourceId = connectedSourceId,
-                                    track = nowPlayingTrack,
-                                    lyrics = nowPlayingLyrics,
-                                    offsetMillis = offsetMillis,
-                                )
-                            },
+                            onLyricsOffsetChanged = ::handleLyricsOffsetChanged,
                             onToggleVisualizer = {
                                 nowPlayingVisualizerRequestedVisible = !nowPlayingVisualizerRequestedVisible
                             },
