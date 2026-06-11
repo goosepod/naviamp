@@ -403,33 +403,6 @@ fun NaviampApp(
         setOpenPlayerOnTrackStart = { shouldOpen -> openPlayerOnTrackStart = shouldOpen },
     )
 
-    fun savePlaybackSession(
-        queue: PlaybackQueue,
-        positionSeconds: Double? = playbackProgress.positionSeconds,
-    ) {
-        playbackController.savePlaybackSession(queue, positionSeconds)
-    }
-
-    fun clearShuffleSnapshot() {
-        playbackController.clearShuffleSnapshot()
-    }
-
-    fun toggleShuffle() {
-        playbackController.toggleShuffle()
-    }
-
-    fun cycleRepeatMode() {
-        playbackController.cycleRepeatMode()
-    }
-
-    fun maybeSavePlaybackPosition(progress: PlaybackProgress) {
-        playbackController.maybeSavePlaybackPosition(progress)
-    }
-
-    fun performSeek(positionSeconds: Double) {
-        playbackController.performSeek(positionSeconds)
-    }
-
     val sleepTimerController = SleepTimerController(
         nowPlaying = { nowPlayingTrack },
         playbackQueue = { playbackQueue },
@@ -449,20 +422,6 @@ fun NaviampApp(
         onExpired = sleepTimerController::expire,
     )
 
-    fun canUsePreviousButton(): Boolean =
-        playbackController.canUsePreviousButton()
-
-    fun canUseNextButton(): Boolean =
-        playbackController.canUseNextButton()
-
-    fun handlePreviousButton() {
-        playbackController.handlePreviousButton()
-    }
-
-    fun handleNextButton() {
-        playbackController.handleNextButton()
-    }
-
     fun handleQueueIndexSelected(queueIndex: Int) {
         playbackController.handleQueueIndexSelected(
             index = queueIndex,
@@ -470,14 +429,6 @@ fun NaviampApp(
                 playbackSettings.upNextSelectionBehavior ==
                     UpNextSelectionBehavior.MoveSelectedToCurrent,
         )
-    }
-
-    fun reportNowPlaying(track: Track) {
-        playbackController.reportNowPlaying(track)
-    }
-
-    fun maybeReportPlayed(progress: PlaybackProgress) {
-        playbackController.maybeReportPlayed(progress)
     }
 
     fun rememberRadioStream(stream: RecentRadioStream) {
@@ -499,7 +450,7 @@ fun NaviampApp(
         repeatMode = { repeatMode },
         playlistCallbacks = { playlistCallbacksRef ?: error("Playlist callbacks are not ready.") },
         rememberRadioStream = ::rememberRadioStream,
-        clearShuffleSnapshot = ::clearShuffleSnapshot,
+        clearShuffleSnapshot = playbackController::clearShuffleSnapshot,
         resetNowPlayingSidecars = {
             nowPlayingWaveform = null
             nowPlayingWaveformStatus = "Waiting"
@@ -532,7 +483,7 @@ fun NaviampApp(
         setStations = { stations -> internetRadioStations = stations },
         setStatus = { status -> internetRadioStatus = status },
         stopRadioContinuation = { radioController.stopContinuation() },
-        clearShuffleSnapshot = ::clearShuffleSnapshot,
+        clearShuffleSnapshot = playbackController::clearShuffleSnapshot,
         setNowPlayingTrack = { track -> nowPlayingTrack = track },
         nowPlayingTrack = { nowPlayingTrack },
         setNowPlayingCoverArtUrl = { url -> nowPlayingCoverArtUrl = url },
@@ -599,7 +550,7 @@ fun NaviampApp(
         playbackEngine = playbackEngine,
         playlistEngine = playlistEngine,
         stopRadioContinuation = ::stopRadioContinuation,
-        clearShuffleSnapshot = ::clearShuffleSnapshot,
+        clearShuffleSnapshot = playbackController::clearShuffleSnapshot,
         applyClearedConnectionState = { state ->
             connectedProvider = state.connectedProvider
             connectedSourceId = state.connectedSourceId
@@ -695,12 +646,12 @@ fun NaviampApp(
         incrementPlayReportSessionId = { playReportSessionId++ },
         clearSubmittedPlayReportSessionId = { submittedPlayReportSessionId = null },
         incrementNowPlayingWaveformReloadToken = { nowPlayingWaveformReloadToken++ },
-        reportNowPlaying = ::reportNowPlaying,
-        clearShuffleSnapshot = ::clearShuffleSnapshot,
+        reportNowPlaying = playbackController::reportNowPlaying,
+        clearShuffleSnapshot = playbackController::clearShuffleSnapshot,
         refillRadioIfNeeded = ::refillRadioIfNeeded,
         activeQueue = { playlistEngine.queue },
         setPlaybackQueue = { queue -> playbackQueue = queue },
-        savePlaybackSession = ::savePlaybackSession,
+        savePlaybackSession = playbackController::savePlaybackSession,
         playbackProgress = { playbackProgress },
         setPlaybackProgress = { progress -> playbackProgress = progress },
         setPlaybackState = { state -> playbackState = state },
@@ -710,8 +661,8 @@ fun NaviampApp(
         setPendingSeekIssuedAtMillis = { millis -> pendingSeekIssuedAtMillis = millis },
         lastPlaybackProgressUiUpdateMillis = { lastPlaybackProgressUiUpdateMillis },
         setLastPlaybackProgressUiUpdateMillis = { millis -> lastPlaybackProgressUiUpdateMillis = millis },
-        maybeSavePlaybackPosition = ::maybeSavePlaybackPosition,
-        maybeReportPlayed = ::maybeReportPlayed,
+        maybeSavePlaybackPosition = playbackController::maybeSavePlaybackPosition,
+        maybeReportPlayed = playbackController::maybeReportPlayed,
     )
     playlistCallbacksRef = playlistCallbacks
 
@@ -741,7 +692,7 @@ fun NaviampApp(
         setAlbumMixSelectedAlbums = { album -> albumMixSelectedAlbums = albumMixSelectedAlbums.withUpdatedAlbum(album) },
         setAlbumMixSuggestions = { album -> albumMixSuggestions = albumMixSuggestions.withUpdatedAlbum(album) },
         stopRadioContinuation = ::stopRadioContinuation,
-        clearShuffleSnapshot = ::clearShuffleSnapshot,
+        clearShuffleSnapshot = playbackController::clearShuffleSnapshot,
         setOpenPlayerOnTrackStart = { shouldOpen -> openPlayerOnTrackStart = shouldOpen },
         setConnectionStatus = { status -> connectionStatus = status },
     )
@@ -767,7 +718,7 @@ fun NaviampApp(
         provider = { connectedProvider },
         sourceId = { connectedSourceId },
         stopRadioContinuation = ::stopRadioContinuation,
-        clearShuffleSnapshot = ::clearShuffleSnapshot,
+        clearShuffleSnapshot = playbackController::clearShuffleSnapshot,
         setOpenPlayerOnTrackStart = { shouldOpen -> openPlayerOnTrackStart = shouldOpen },
         playlistEngine = playlistEngine,
         playlistCallbacks = { playlistCallbacks },
@@ -846,7 +797,7 @@ fun NaviampApp(
         setConnectionStatus = { status -> connectionStatus = status },
         setAppRoute = { route -> appRoute = route },
         stopRadioContinuation = ::stopRadioContinuation,
-        clearShuffleSnapshot = ::clearShuffleSnapshot,
+        clearShuffleSnapshot = playbackController::clearShuffleSnapshot,
         setOpenPlayerOnTrackStart = { shouldOpen -> openPlayerOnTrackStart = shouldOpen },
     )
 
@@ -1176,8 +1127,8 @@ fun NaviampApp(
                             radioTrackArtworkByKey = radioTrackArtworkByKey,
                             relatedTracks = relatedTracks,
                             coverArtUrlForTrack = { track -> track.coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
-                            hasPrevious = canUsePreviousButton(),
-                            hasNext = canUseNextButton(),
+                            hasPrevious = playbackController.canUsePreviousButton(),
+                            hasNext = playbackController.canUseNextButton(),
                             shuffleActive = shuffledUpNextSnapshot != null,
                             repeatMode = repeatMode,
                             playbackState = playbackState,
@@ -1189,11 +1140,11 @@ fun NaviampApp(
                             onPause = ::handlePlayPauseCommand,
                             onResume = ::handlePlayPauseCommand,
                             onPlayCurrent = ::handlePlayPauseCommand,
-                            onSeek = ::performSeek,
-                            onPrevious = ::handlePreviousButton,
-                            onNext = ::handleNextButton,
-                            onToggleShuffle = ::toggleShuffle,
-                            onCycleRepeatMode = ::cycleRepeatMode,
+                            onSeek = playbackController::performSeek,
+                            onPrevious = playbackController::handlePreviousButton,
+                            onNext = playbackController::handleNextButton,
+                            onToggleShuffle = playbackController::toggleShuffle,
+                            onCycleRepeatMode = playbackController::cycleRepeatMode,
                             onVolumeChanged = { volumePercent ->
                                 playbackSettings = playbackSettingsChange(
                                     requested = playbackSettings.copy(volumePercent = volumePercent),
@@ -1447,16 +1398,14 @@ fun NaviampApp(
                                 appColors = appColors,
                                 nowPlayingTrack = nowPlayingTrack,
                                 coverArtUrl = nowPlayingCoverArtUrl,
-                                hasPrevious = canUsePreviousButton(),
+                                hasPrevious = playbackController.canUsePreviousButton(),
                                 hasNext = playbackQueue.hasNext(),
                                 playbackState = playbackState,
                                 onPause = ::handlePlayPauseCommand,
                                 onResume = ::handlePlayPauseCommand,
                                 onPlayCurrent = ::handlePlayPauseCommand,
-                                onPrevious = {
-                                    handlePreviousButton()
-                                },
-                                onNext = ::handleNextButton,
+                                onPrevious = playbackController::handlePreviousButton,
+                                onNext = playbackController::handleNextButton,
                                 onOpenPlayer = {
                                     appRoute = DesktopAppRoute.Player
                                 },

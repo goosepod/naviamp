@@ -1346,6 +1346,9 @@ Progress notes:
 - Folded the remaining desktop root mix-builder initial-suggestion effects into `DesktopAppControllerEffects`, leaving `DesktopNaviampApp.kt` without direct `LaunchedEffect` wiring.
 - `DesktopNaviampApp.kt` dropped from 1,494 lines to 1,480 lines after the desktop controller-effect consolidation; `DesktopAppControllerEffects.kt` is 145 lines.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
+- Removed direct desktop playback forwarding wrappers from `DesktopNaviampApp.kt`; root route wiring now calls `DesktopPlaybackController` directly for seek, previous/next, shuffle, repeat, queue navigation, playback-session save, and reporting callbacks.
+- `DesktopNaviampApp.kt` dropped from 1,484 lines to 1,433 lines after the direct-controller forwarding cleanup.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
 
