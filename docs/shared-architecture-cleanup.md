@@ -24,7 +24,8 @@ The most visible symptom is `DesktopNaviampApp.kt` hitting the JVM method-size l
 ## Regression Notes
 
 - [ ] Lyrics offset is no longer available in packaged Mac and Windows builds after the recent cleanup work.
-- [ ] The small circular handle at the end of the volume bar is missing in packaged Mac and Windows builds after the recent cleanup work.
+- [x] Restore the small circular handle at the end of the volume bar in packaged Mac and Windows builds.
+  - Fixed in shared UI by making the volume thumb draw as a larger high-contrast knob with a halo and inner marker.
 
 ## Success criteria
 
@@ -1331,6 +1332,8 @@ Progress notes:
 - Moved sleep-timer expiry polling into shared UI `NaviampSleepTimerExpiryEffect`; deleted the platform-specific `AndroidSleepTimerEffects.kt` and `DesktopSleepTimerEffects.kt` wrappers.
 - `MainActivity.kt` is 617 lines and `DesktopNaviampApp.kt` is 1,494 lines after the shared sleep-timer wiring; `SleepTimer.kt` is 255 lines and the shared UI effect is 30 lines.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:jvmTest --tests app.naviamp.domain.playback.SleepTimerTest --tests app.naviamp.domain.lyrics.LyricsOffsetControllerTest`, `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin`, and `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
+- Restored the packaged desktop volume-bar thumb visibility in shared `NaviampNowPlayingUi`; the common volume handle now has a halo, larger radius, and inner marker so it stays visible against the active track.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:ui:jvmTest :apps:android:compileDebugKotlin :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
 

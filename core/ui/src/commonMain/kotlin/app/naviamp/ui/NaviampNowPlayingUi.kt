@@ -1226,15 +1226,25 @@ private fun VolumeRow(
                 cap = StrokeCap.Round,
             )
             drawCircle(
+                color = Color.Black.copy(alpha = 0.32f),
+                radius = thumbRadius + 2f,
+                center = Offset(endX, centerY),
+            )
+            drawCircle(
                 color = volumeColor,
                 radius = thumbRadius,
+                center = Offset(endX, centerY),
+            )
+            drawCircle(
+                color = colors.primaryText.copy(alpha = 0.86f),
+                radius = thumbRadius * 0.42f,
                 center = Offset(endX, centerY),
             )
         }
     }
 }
 
-private val VolumeThumbRadius = 5.dp
+private val VolumeThumbRadius = 6.dp
 
 @Composable
 private fun NowPlayingSidePanel(
