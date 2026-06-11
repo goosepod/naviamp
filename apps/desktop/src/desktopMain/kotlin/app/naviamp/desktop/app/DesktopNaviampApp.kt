@@ -1241,6 +1241,10 @@ fun NaviampApp(
                                 playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(track))
                             },
                             onRelatedTrackSelected = appActions::playRelatedTrack,
+                            onRelatedTrackPlayNext = playlistsController::playNext,
+                            onRelatedTrackAddToQueue = { track ->
+                                playlistsController.addTargetToQueue(AddToPlaylistTarget.TrackTarget(track))
+                            },
                             onRelatedTrackRadioSelected = appActions::playTrackRadio,
                             onRelatedTrackDownloadSelected = appActions::downloadTrack,
                             onRelatedTrackAddToPlaylist = { track ->

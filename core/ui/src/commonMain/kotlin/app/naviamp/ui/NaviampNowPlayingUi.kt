@@ -122,6 +122,8 @@ data class NaviampNowPlayingActions(
     val onRelatedItemSelected: (NaviampNowPlayingItemUi) -> Unit = {},
     val onRadioStationSelected: (NaviampNowPlayingItemUi) -> Unit = {},
     val onQueueItemRadio: (NaviampNowPlayingItemUi) -> Unit = {},
+    val onQueueItemPlayNext: (NaviampNowPlayingItemUi) -> Unit = {},
+    val onQueueItemAddToQueue: (NaviampNowPlayingItemUi) -> Unit = {},
     val onQueueItemAddToPlaylist: (NaviampNowPlayingItemUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
     val onQueueItemCreatePlaylistAndAdd: (NaviampNowPlayingItemUi, String) -> Unit = { _, _ -> },
     val onQueueItemDownload: (NaviampNowPlayingItemUi) -> Unit = {},
@@ -1307,6 +1309,10 @@ private fun NowPlayingSidePanel(
             NaviampNowPlayingTab.Related -> actions.onRelatedItemSelected
             else -> actions.onQueueItemSelected
         }
+        val rowActions = when (selectedTab) {
+            NaviampNowPlayingTab.Related -> relatedTrackRowActions()
+            else -> queueRowActions()
+        }
         NowPlayingItemList(
             items = items,
             colors = colors,
@@ -1318,7 +1324,10 @@ private fun NowPlayingSidePanel(
             playlistChoices = nowPlaying.playlistChoices,
             useInlinePlaylistPicker = nowPlaying.useInlinePlaylistPicker,
             onClick = onClick,
+            rowActions = rowActions,
             onRadio = actions.onQueueItemRadio,
+            onPlayNext = actions.onQueueItemPlayNext,
+            onAddToQueue = actions.onQueueItemAddToQueue,
             onAddToPlaylist = actions.onQueueItemAddToPlaylist,
             onCreatePlaylistAndAdd = actions.onQueueItemCreatePlaylistAndAdd,
             onDownload = actions.onQueueItemDownload,
@@ -1739,7 +1748,10 @@ private fun NowPlayingItemList(
     useInlinePlaylistPicker: Boolean = true,
     showActions: Boolean = true,
     onClick: (NaviampNowPlayingItemUi) -> Unit,
+    rowActions: List<NaviampActionSpec> = queueRowActions(),
     onRadio: (NaviampNowPlayingItemUi) -> Unit = {},
+    onPlayNext: (NaviampNowPlayingItemUi) -> Unit = {},
+    onAddToQueue: (NaviampNowPlayingItemUi) -> Unit = {},
     onAddToPlaylist: (NaviampNowPlayingItemUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
     onCreatePlaylistAndAdd: (NaviampNowPlayingItemUi, String) -> Unit = { _, _ -> },
     onDownload: (NaviampNowPlayingItemUi) -> Unit = {},
@@ -1785,7 +1797,7 @@ private fun NowPlayingItemList(
                         expanded = menuExpanded,
                         onDismissRequest = { menuExpanded = false },
                     ) {
-                        queueRowActions().forEach { action ->
+                        rowActions.forEach { action ->
                             NaviampDropdownMenuItem(
                                 label = action.label,
                                 icon = action.icon,
@@ -1793,6 +1805,8 @@ private fun NowPlayingItemList(
                                 onClick = {
                                     menuExpanded = false
                                     when (action.action) {
+                                        NaviampAction.PlayNext -> onPlayNext(item)
+                                        NaviampAction.AddToQueue -> onAddToQueue(item)
                                         NaviampAction.StartTrackRadio -> onRadio(item)
                                         NaviampAction.DownloadTrack -> onDownload(item)
                                         NaviampAction.AddToPlaylist -> {

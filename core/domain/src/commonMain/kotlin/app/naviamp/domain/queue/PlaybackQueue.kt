@@ -118,6 +118,26 @@ data class PlaybackQueue(
         )
     }
 
+    fun playNextTracks(
+        tracks: List<Track>,
+        maxHistory: Int? = null,
+    ): PlaybackQueue {
+        if (tracks.isEmpty()) return this
+        if (currentIndex !in this.tracks.indices) return appendTracks(tracks, maxHistory)
+
+        val prunedTrackCount = maxHistory
+            ?.let { (currentIndex - it.coerceAtLeast(0)).coerceAtLeast(0) }
+            ?: 0
+        val currentAndHistory = this.tracks
+            .take(currentIndex + 1)
+            .drop(prunedTrackCount)
+        val upcoming = this.tracks.drop(currentIndex + 1)
+        return PlaybackQueue(
+            tracks = currentAndHistory + tracks + upcoming,
+            currentIndex = currentIndex - prunedTrackCount,
+        )
+    }
+
     fun replaceUpcomingTracks(
         currentTrack: Track,
         upcomingTracks: List<Track>,

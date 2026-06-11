@@ -50,6 +50,23 @@ class PlaybackQueueManager(
     ): PlaybackQueueMutationUpdate =
         mutation.appendQueueTracks(currentQueue, tracksToAdd, maxHistory)
 
+    fun playNextTracks(
+        currentQueue: PlaybackQueue,
+        tracksToAdd: List<Track>,
+        label: String = "tracks",
+        existingTracks: List<Track> = currentQueue.tracks,
+        deduplicateExisting: Boolean = false,
+        maxHistory: Int? = null,
+    ): PlaybackQueueUpdate =
+        mutation.playNextTracks(
+            currentQueue = currentQueue,
+            tracksToAdd = tracksToAdd,
+            label = label,
+            existingTracks = existingTracks,
+            deduplicateExisting = deduplicateExisting,
+            maxHistory = maxHistory,
+        )
+
     fun updateTrack(
         currentQueue: PlaybackQueue,
         updatedTrack: Track,

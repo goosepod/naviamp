@@ -50,6 +50,36 @@ class PlaybackQueueMutationManager {
         )
     }
 
+    fun playNextTracks(
+        currentQueue: PlaybackQueue,
+        tracksToAdd: List<Track>,
+        label: String = "tracks",
+        existingTracks: List<Track> = currentQueue.tracks,
+        deduplicateExisting: Boolean = false,
+        maxHistory: Int? = null,
+    ): PlaybackQueueUpdate {
+        val tracks = appendableTracks(
+            tracksToAdd = tracksToAdd,
+            existingTracks = existingTracks,
+            deduplicateExisting = deduplicateExisting,
+        )
+        val nextQueue = when {
+            tracks.isEmpty() -> currentQueue
+            currentQueue.isInactiveEmpty -> PlaybackQueue(tracks = tracks, currentIndex = 0)
+            else -> currentQueue.playNextTracks(tracks, maxHistory = maxHistory)
+        }
+        return PlaybackQueueUpdate(
+            queue = nextQueue,
+            tracksChanged = tracks.isNotEmpty(),
+            status = queuePlayNextStatus(
+                originalTracks = tracksToAdd,
+                tracksToAdd = tracks,
+                label = label,
+                deduplicateExisting = deduplicateExisting,
+            ),
+        )
+    }
+
     fun updateTrack(
         currentQueue: PlaybackQueue,
         updatedTrack: Track,

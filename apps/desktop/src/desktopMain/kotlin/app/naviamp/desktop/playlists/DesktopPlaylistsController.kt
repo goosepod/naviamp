@@ -200,6 +200,16 @@ class DesktopPlaylistsController(
         }
     }
 
+    fun playNext(track: Track) {
+        val update = PlaybackQueueManager().playNextTracks(
+            currentQueue = playlistEngine.queue,
+            tracksToAdd = listOf(track),
+        )
+        setConnectionStatus(update.status)
+        if (!update.tracksChanged) return
+        playlistEngine.replaceQueue(update.queue)
+    }
+
     fun saveQueueAsPlaylist(name: String) {
         val activeProvider = provider() ?: return
         val queueTracks = playlistEngine.queue.tracks

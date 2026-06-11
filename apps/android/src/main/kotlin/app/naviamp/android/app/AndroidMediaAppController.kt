@@ -5,6 +5,7 @@ import app.naviamp.domain.ArtistId
 import app.naviamp.domain.Track
 import app.naviamp.domain.provider.allKnownTracks
 import app.naviamp.domain.playback.PlaybackQueueController
+import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.popular.ArtistPopularTracksService
 import kotlinx.coroutines.CoroutineScope
 
@@ -24,6 +25,21 @@ internal class AndroidMediaAppController(
 
     fun appendTracksToQueue(tracksToAdd: List<Track>, label: String = "tracks") {
         appendAndroidTracksToQueue(state, queueController, tracksToAdd, label)
+    }
+
+    fun playNext(track: Track) {
+        val update = PlaybackQueueManager().playNextTracks(
+            currentQueue = state.playbackQueue,
+            tracksToAdd = listOf(track),
+        )
+        state.status = update.status
+        if (!update.tracksChanged) return
+        state.playbackQueue = update.queue
+        queueController.replaceQueue(update.queue)
+    }
+
+    fun addToQueue(track: Track) {
+        appendTracksToQueue(listOf(track), "track")
     }
 
     fun loadRelatedTracks(track: Track) {

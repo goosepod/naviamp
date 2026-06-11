@@ -126,6 +126,8 @@ internal fun androidMainShellActions(
         handleShellGoToAlbum = shellMediaController::handleShellGoToAlbum,
         handleShellGoToArtist = shellMediaController::handleShellGoToArtist,
         handleShellQueueItemRadio = shellPlaybackController::startQueueItemRadio,
+        handleQueueItemPlayNext = { item -> mediaAppController.findKnownTrack(item.id)?.let(mediaAppController::playNext) },
+        handleQueueItemAddToQueue = { item -> mediaAppController.findKnownTrack(item.id)?.let(mediaAppController::addToQueue) },
         findKnownTrack = mediaAppController::findKnownTrack,
         addTrackToPlaylist = playlistActionController::addTrackToPlaylist,
         toggleCurrentFavorite = mediaAppController::toggleCurrentFavorite,

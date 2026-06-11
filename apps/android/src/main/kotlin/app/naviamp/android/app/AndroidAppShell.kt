@@ -310,6 +310,8 @@ fun androidAppShellActions(
     handleShellGoToAlbum: () -> Unit,
     handleShellGoToArtist: () -> Unit,
     handleShellQueueItemRadio: (NaviampNowPlayingItemUi) -> Unit,
+    handleQueueItemPlayNext: (NaviampNowPlayingItemUi) -> Unit,
+    handleQueueItemAddToQueue: (NaviampNowPlayingItemUi) -> Unit,
     findKnownTrack: (String) -> Track?,
     addTrackToPlaylist: (Track, NaviampPlaylistChoiceUi?, String?) -> Unit,
     toggleCurrentFavorite: () -> Unit,
@@ -524,6 +526,8 @@ fun androidAppShellActions(
             onGoToAlbum = handleShellGoToAlbum,
             onGoToArtist = handleShellGoToArtist,
             onQueueItemRadio = handleShellQueueItemRadio,
+            onQueueItemPlayNext = handleQueueItemPlayNext,
+            onQueueItemAddToQueue = handleQueueItemAddToQueue,
             onQueueItemAddToPlaylist = { item, playlist ->
                 findKnownTrack(item.id)?.let { addTrackToPlaylist(it, playlist, null) }
             },

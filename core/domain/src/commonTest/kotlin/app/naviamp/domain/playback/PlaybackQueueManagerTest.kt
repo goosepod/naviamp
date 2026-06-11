@@ -112,6 +112,42 @@ class PlaybackQueueManagerTest {
     }
 
     @Test
+    fun playNextTracksInsertsAfterCurrentAndKeepsCurrentIndex() {
+        val one = track("one")
+        val two = track("two")
+        val three = track("three")
+
+        assertEquals(
+            PlaybackQueueUpdate(
+                queue = PlaybackQueue(tracks = listOf(one, three, two), currentIndex = 0),
+                tracksChanged = true,
+                status = "Added 1 track to play next.",
+            ),
+            PlaybackQueueManager().playNextTracks(
+                currentQueue = PlaybackQueue(tracks = listOf(one, two), currentIndex = 0),
+                tracksToAdd = listOf(three),
+            ),
+        )
+    }
+
+    @Test
+    fun playNextTracksStartsInactiveEmptyQueueAtFirstTrack() {
+        val one = track("one")
+
+        assertEquals(
+            PlaybackQueueUpdate(
+                queue = PlaybackQueue(tracks = listOf(one), currentIndex = 0),
+                tracksChanged = true,
+                status = "Added 1 track to play next.",
+            ),
+            PlaybackQueueManager().playNextTracks(
+                currentQueue = PlaybackQueue(),
+                tracksToAdd = listOf(one),
+            ),
+        )
+    }
+
+    @Test
     fun appendTracksDeduplicatesExistingTracksWhenRequested() {
         val one = track("one")
         val two = track("two")

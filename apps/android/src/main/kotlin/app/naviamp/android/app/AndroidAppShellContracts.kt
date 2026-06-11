@@ -200,6 +200,8 @@ data class AndroidAppShellActions(
     val onGoToAlbum: () -> Unit,
     val onGoToArtist: () -> Unit,
     val onQueueItemRadio: (NaviampNowPlayingItemUi) -> Unit,
+    val onQueueItemPlayNext: (NaviampNowPlayingItemUi) -> Unit,
+    val onQueueItemAddToQueue: (NaviampNowPlayingItemUi) -> Unit,
     val onQueueItemAddToPlaylist: (NaviampNowPlayingItemUi, NaviampPlaylistChoiceUi?) -> Unit,
     val onQueueItemCreatePlaylistAndAdd: (NaviampNowPlayingItemUi, String) -> Unit,
     val onQueueItemDownload: (NaviampNowPlayingItemUi) -> Unit,

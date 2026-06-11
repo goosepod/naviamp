@@ -102,6 +102,8 @@ fun DesktopNowPlayingPanel(
     onUpNextTrackDownloadSelected: (Track) -> Unit,
     onUpNextTrackAddToPlaylist: (Track) -> Unit,
     onRelatedTrackSelected: (Int) -> Unit,
+    onRelatedTrackPlayNext: (Track) -> Unit,
+    onRelatedTrackAddToQueue: (Track) -> Unit,
     onRelatedTrackRadioSelected: (Track) -> Unit,
     onRelatedTrackDownloadSelected: (Track) -> Unit,
     onRelatedTrackAddToPlaylist: (Track) -> Unit,
@@ -283,6 +285,12 @@ fun DesktopNowPlayingPanel(
                         onUpNextTrackRadioSelected(it)
                     }
                 }
+            },
+            onQueueItemPlayNext = { item ->
+                itemTracks[item.id]?.takeIf { item.id.startsWith("related:") }?.let(onRelatedTrackPlayNext)
+            },
+            onQueueItemAddToQueue = { item ->
+                itemTracks[item.id]?.takeIf { item.id.startsWith("related:") }?.let(onRelatedTrackAddToQueue)
             },
             onQueueItemAddToPlaylist = { item, _ ->
                 itemTracks[item.id]?.let {

@@ -29,8 +29,9 @@ The most visible symptom is `DesktopNaviampApp.kt` hitting the JVM method-size l
 
 ## Feature Notes
 
-- [ ] Add shared Related-tab track menu actions on the now-playing screen: `Play Next` and `Add to Queue`.
+- [x] Add shared Related-tab track menu actions on the now-playing screen: `Play Next` and `Add to Queue`.
   - This must be implemented through shared UI/domain action plumbing because the Related tab and queue intents are not platform-specific.
+  - Implemented through shared now-playing row action specs and shared playback queue mutations, with Android/Desktop only resolving the selected related item to a track.
 
 ## Success criteria
 

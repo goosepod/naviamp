@@ -173,6 +173,8 @@ fun AndroidAppShellContent(
         onGoToAlbum = actions.onGoToAlbum,
         onGoToArtist = actions.onGoToArtist,
         onQueueItemRadio = actions.onQueueItemRadio,
+        onQueueItemPlayNext = actions.onQueueItemPlayNext,
+        onQueueItemAddToQueue = actions.onQueueItemAddToQueue,
         onQueueItemAddToPlaylist = actions.onQueueItemAddToPlaylist,
         onQueueItemCreatePlaylistAndAdd = actions.onQueueItemCreatePlaylistAndAdd,
         onQueueItemDownload = actions.onQueueItemDownload,
