@@ -1414,6 +1414,9 @@ Progress notes:
 - Moved desktop search query/results/status/loading state into `DesktopSearchController`; route content, metadata actions, and search effects now read/write through the controller instead of root variables.
 - `DesktopNaviampApp.kt` is now 1,200 lines after the desktop search state cleanup.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
+- Moved desktop download status/refresh bookkeeping into `DesktopDownloadsController`, and moved library query/tab/snapshot/status/sync/page-limit state into `DesktopLibraryController`.
+- `DesktopNaviampApp.kt` is now 1,168 lines after the download and library state cleanup.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:
 

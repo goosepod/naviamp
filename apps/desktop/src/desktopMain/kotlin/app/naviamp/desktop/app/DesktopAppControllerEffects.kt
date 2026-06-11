@@ -1,6 +1,5 @@
 package app.naviamp.desktop
 
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import app.naviamp.domain.Playlist
@@ -26,7 +25,6 @@ internal fun DesktopAppControllerEffects(
     searchController: DesktopSearchController,
     libraryController: DesktopLibraryController,
     mixBuilderController: DesktopMixBuilderController,
-    libraryListState: LazyListState,
     hasSavedConnection: Boolean,
     connectToServer: () -> Unit,
     nowPlayingTrack: Track?,
@@ -40,8 +38,6 @@ internal fun DesktopAppControllerEffects(
     appRoute: DesktopAppRoute,
     selectedPlaylist: Playlist?,
     homeContent: HomeContent,
-    libraryQuery: String,
-    setLibraryLimit: (Int) -> Unit,
     showStatsForNerds: Boolean,
     statsForNerdsRefreshTick: Int,
     incrementStatsForNerdsRefreshTick: () -> Unit,
@@ -102,10 +98,8 @@ internal fun DesktopAppControllerEffects(
         searchController.loadSearchResults(searchController.query)
     }
 
-    LaunchedEffect(libraryQuery, connectedSourceId) {
-        setLibraryLimit(LibraryPageSize)
-        libraryController.refreshLibrarySnapshot()
-        libraryListState.scrollToItem(0)
+    LaunchedEffect(libraryController.query, connectedSourceId) {
+        libraryController.refreshAfterQueryOrSourceChange()
     }
 
     LaunchedEffect(connectedSourceId, homeContent.artists) {

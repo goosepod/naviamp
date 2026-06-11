@@ -3,6 +3,10 @@ package app.naviamp.desktop
 import app.naviamp.domain.cache.StorageCacheStats
 
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import app.naviamp.domain.app.cacheDataClearedStatus
 import app.naviamp.domain.app.libraryIndexClearedStatus
 import app.naviamp.domain.cache.CacheMaintenanceRepository
@@ -29,40 +33,59 @@ class DesktopLibraryController(
     private val librarySync: DesktopLibrarySync,
     private val provider: () -> MediaProvider?,
     private val sourceId: () -> String?,
-    private val libraryQuery: () -> String,
-    private val libraryTab: () -> DesktopLibraryTab,
-    private val setLibraryTab: (DesktopLibraryTab) -> Unit,
-    private val libraryLimit: () -> Int,
-    private val setLibraryLimit: (Int) -> Unit,
-    private val librarySnapshot: () -> LibrarySnapshot,
-    private val setLibrarySnapshot: (LibrarySnapshot) -> Unit,
-    private val libraryStatus: () -> String?,
-    private val setLibraryStatus: (String?) -> Unit,
     private val setConnectionStatus: (String) -> Unit,
-    private val isLibrarySyncing: () -> Boolean,
-    private val setLibrarySyncing: (Boolean) -> Unit,
     private val listState: LazyListState,
 ) {
+    var query by mutableStateOf("")
+        private set
+    var tab by mutableStateOf(DesktopLibraryTab.Artists)
+        private set
+    var limit by mutableIntStateOf(LibraryPageSize)
+        private set
+    var snapshot by mutableStateOf(LibrarySnapshot())
+        private set
+    var status by mutableStateOf<String?>(null)
+        private set
+    var syncing by mutableStateOf(false)
+        private set
+
+    fun updateQuery(query: String) {
+        this.query = query
+    }
+
+    fun applyClearedState(snapshot: LibrarySnapshot, status: String?) {
+        this.snapshot = snapshot
+        this.status = status
+    }
+
+    fun refreshAfterQueryOrSourceChange() {
+        limit = LibraryPageSize
+        refreshLibrarySnapshot()
+        scope.launch {
+            listState.scrollToItem(0)
+        }
+    }
+
     fun refreshLibrarySnapshot() {
         val activeSourceId = sourceId()
         if (activeSourceId == null) {
-            setLibrarySnapshot(LibrarySnapshot())
-            setLibraryStatus(libraryConnectionRequiredStatus())
+            snapshot = LibrarySnapshot()
+            status = libraryConnectionRequiredStatus()
             return
         }
-        setLibrarySnapshot(libraryIndexRepository.librarySnapshotFor(activeSourceId, libraryQuery(), libraryLimit()))
+        snapshot = libraryIndexRepository.librarySnapshotFor(activeSourceId, query, limit)
     }
 
     fun loadMoreLibraryRows() {
-        val nextLimit = nextLibraryLimit(librarySnapshot(), libraryTab(), libraryLimit(), LibraryPageSize)
-        if (nextLimit == libraryLimit()) return
-        setLibraryLimit(nextLimit)
+        val nextLimit = nextLibraryLimit(snapshot, tab, limit, LibraryPageSize)
+        if (nextLimit == limit) return
+        limit = nextLimit
         refreshLibrarySnapshot()
     }
 
     fun selectLibraryTab(tab: DesktopLibraryTab) {
-        setLibraryTab(tab)
-        setLibraryLimit(LibraryPageSize)
+        this.tab = tab
+        limit = LibraryPageSize
         refreshLibrarySnapshot()
         scope.launch {
             listState.scrollToItem(0)
@@ -71,9 +94,9 @@ class DesktopLibraryController(
 
     fun jumpLibraryToLetter(letter: Char) {
         val activeSourceId = sourceId() ?: return
-        if (libraryQuery().isNotBlank()) return
-        val offset = libraryOffsetForLetter(activeSourceId, libraryTab(), letter).toInt()
-        setLibraryLimit(libraryLimitForOffset(offset, LibraryPageSize))
+        if (query.isNotBlank()) return
+        val offset = libraryOffsetForLetter(activeSourceId, tab, letter).toInt()
+        limit = libraryLimitForOffset(offset, LibraryPageSize)
         refreshLibrarySnapshot()
         scope.launch {
             listState.scrollToItem((offset + 1).coerceAtLeast(0))
@@ -83,13 +106,13 @@ class DesktopLibraryController(
     fun startLibrarySync(force: Boolean = false) {
         val activeProvider = provider() ?: return
         val activeSourceId = sourceId() ?: return
-        if (isLibrarySyncing()) return
+        if (syncing) return
         if (!force && !shouldAutoSyncLibrary(activeSourceId, libraryIndexRepository)) {
-            setLibraryStatus(null)
+            status = null
             return
         }
-        setLibrarySyncing(true)
-        setLibraryStatus(librarySyncStartingStatus())
+        syncing = true
+        status = librarySyncStartingStatus()
         scope.launch {
             val uiContext = coroutineContext
             try {
@@ -99,17 +122,17 @@ class DesktopLibraryController(
                         provider = activeProvider,
                         onProgress = { progress ->
                             withContext(uiContext) {
-                                setLibraryStatus(progress.label())
+                                status = progress.label()
                             }
                         },
                     )
                 }
                 refreshLibrarySnapshot()
-                setLibraryStatus(null)
+                status = null
             } catch (exception: Exception) {
-                setLibraryStatus(librarySyncErrorStatus(exception))
+                status = librarySyncErrorStatus(exception)
             } finally {
-                setLibrarySyncing(false)
+                syncing = false
             }
         }
     }
@@ -117,14 +140,14 @@ class DesktopLibraryController(
     fun checkLibraryFreshness() {
         val activeProvider = provider() ?: return
         val activeSourceId = sourceId() ?: return
-        if (isLibrarySyncing()) return
+        if (syncing) return
         scope.launch {
             val freshness = withContext(Dispatchers.IO) {
                 libraryFreshnessUpdate(
                     sourceId = activeSourceId,
                     provider = activeProvider,
                     mediaSourceRepository = mediaSourceRepository,
-                    currentStatus = libraryStatus(),
+                    currentStatus = status,
                 )
             }
             freshness.signatureToMarkChecked?.let { signature ->
@@ -133,10 +156,10 @@ class DesktopLibraryController(
                 }
             }
             freshness.status?.let { status ->
-                setLibraryStatus(status)
+                this@DesktopLibraryController.status = status
             }
             if (freshness.clearStatus) {
-                setLibraryStatus(null)
+                status = null
             }
         }
     }
@@ -150,7 +173,7 @@ class DesktopLibraryController(
         sourceId()?.let { activeSourceId ->
             libraryIndexRepository.clearLibraryData(activeSourceId)
         } ?: libraryIndexRepository.clearLibraryData(null)
-        setLibrarySnapshot(LibrarySnapshot())
+        snapshot = LibrarySnapshot()
         setConnectionStatus(libraryIndexClearedStatus(detailed = true))
     }
 }

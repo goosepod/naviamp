@@ -39,7 +39,6 @@ import app.naviamp.domain.TrackId
 import app.naviamp.domain.internetRadioStationId
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.cache.ImageCacheRepository
-import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
@@ -171,14 +170,6 @@ fun NaviampApp(
     var selectedArtistSimilarArtistsStatus by remember { mutableStateOf<String?>(null) }
     var artistDetailBackRoute by remember { mutableStateOf(DesktopAppRoute.Search) }
     var artistDetailBackStack by remember { mutableStateOf<List<Artist>>(emptyList()) }
-    var downloadStatus by remember { mutableStateOf<String?>(null) }
-    var downloadRefreshToken by remember { mutableStateOf(0) }
-    var libraryQuery by remember { mutableStateOf("") }
-    var librarySnapshot by remember { mutableStateOf(LibrarySnapshot()) }
-    var libraryTab by remember { mutableStateOf(DesktopLibraryTab.Artists) }
-    var libraryLimit by remember { mutableStateOf(LibraryPageSize) }
-    var libraryStatus by remember { mutableStateOf<String?>(null) }
-    var isLibrarySyncing by remember { mutableStateOf(false) }
     var appRoute by remember {
         mutableStateOf(
             restoredRoute(
@@ -467,12 +458,22 @@ fun NaviampApp(
         )
     }
 
-    var refreshLibrarySnapshotAction: () -> Unit = {}
+    val libraryController = DesktopLibraryController(
+        scope = coroutineScope,
+        libraryIndexRepository = storage,
+        mediaSourceRepository = storage,
+        cacheMaintenanceRepository = storage,
+        libraryOffsetForLetter = storage::libraryOffsetForLetter,
+        librarySync = librarySync,
+        provider = { connectedProvider },
+        sourceId = { connectedSourceId },
+        setConnectionStatus = { status -> connectionStatus = status },
+        listState = libraryListState,
+    )
+
     var loadHomeContentAction: (NavidromeProvider) -> Unit = {}
     var refreshPlaylistsAction: () -> Unit = {}
     var refreshInternetRadioStationsAction: () -> Unit = {}
-    var startLibrarySyncAction: (Boolean) -> Unit = {}
-    var checkLibraryFreshnessAction: () -> Unit = {}
 
     val connectionLifecycleController = DesktopConnectionLifecycleController(
         scope = coroutineScope,
@@ -488,8 +489,7 @@ fun NaviampApp(
         applyClearedConnectionState = { state ->
             connectedProvider = state.connectedProvider
             connectedSourceId = state.connectedSourceId
-            librarySnapshot = state.librarySnapshot
-            libraryStatus = state.libraryStatus
+            libraryController.applyClearedState(state.librarySnapshot, state.libraryStatus)
             homeContent = state.homeContent
             homeStatus = state.homeStatus
             nowPlayingTrack = state.nowPlayingTrack
@@ -530,12 +530,12 @@ fun NaviampApp(
         setPlaybackState = { state -> playbackState = state },
         setPlaybackProgress = { progress -> playbackProgress = progress },
         setPlaybackQueue = { queue -> playbackQueue = queue },
-        refreshLibrarySnapshot = { refreshLibrarySnapshotAction() },
+        refreshLibrarySnapshot = libraryController::refreshLibrarySnapshot,
         loadHomeContent = { provider -> loadHomeContentAction(provider) },
         refreshPlaylists = { refreshPlaylistsAction() },
         refreshInternetRadioStations = { refreshInternetRadioStationsAction() },
-        startLibrarySync = { force -> startLibrarySyncAction(force) },
-        checkLibraryFreshness = { checkLibraryFreshnessAction() },
+        startLibrarySync = libraryController::startLibrarySync,
+        checkLibraryFreshness = libraryController::checkLibraryFreshness,
         connectedSourceId = { connectedSourceId },
         savedConnectionForLogin = { connectionForm.savedConnectionForLogin },
         setSavedConnectionForLogin = { connection -> connectionForm.savedConnectionForLogin = connection },
@@ -666,8 +666,6 @@ fun NaviampApp(
         setOpenPlayerOnTrackStart = { shouldOpen -> openPlayerOnTrackStart = shouldOpen },
         playlistEngine = playlistEngine,
         playlistCallbacks = { playlistCallbacks },
-        setDownloadStatus = { status -> downloadStatus = status },
-        incrementDownloadRefreshToken = { downloadRefreshToken += 1 },
         setCacheStats = { stats -> cacheStats = stats },
     )
 
@@ -806,30 +804,6 @@ fun NaviampApp(
         setHomeStatus = { status -> homeStatus = status },
     )
 
-    val libraryController = DesktopLibraryController(
-        scope = coroutineScope,
-        libraryIndexRepository = storage,
-        mediaSourceRepository = storage,
-        cacheMaintenanceRepository = storage,
-        libraryOffsetForLetter = storage::libraryOffsetForLetter,
-        librarySync = librarySync,
-        provider = { connectedProvider },
-        sourceId = { connectedSourceId },
-        libraryQuery = { libraryQuery },
-        libraryTab = { libraryTab },
-        setLibraryTab = { tab -> libraryTab = tab },
-        libraryLimit = { libraryLimit },
-        setLibraryLimit = { limit -> libraryLimit = limit },
-        librarySnapshot = { librarySnapshot },
-        setLibrarySnapshot = { snapshot -> librarySnapshot = snapshot },
-        libraryStatus = { libraryStatus },
-        setLibraryStatus = { status -> libraryStatus = status },
-        setConnectionStatus = { status -> connectionStatus = status },
-        isLibrarySyncing = { isLibrarySyncing },
-        setLibrarySyncing = { syncing -> isLibrarySyncing = syncing },
-        listState = libraryListState,
-    )
-
     val appActions = DesktopAppActions(
         connectionLifecycleController = connectionLifecycleController,
         albumController = albumController,
@@ -856,7 +830,6 @@ fun NaviampApp(
         searchController = searchController,
         libraryController = libraryController,
         mixBuilderController = mixBuilderController,
-        libraryListState = libraryListState,
         hasSavedConnection = savedConnection != null,
         connectToServer = { connectionLifecycleController.connectToServer(restoreSavedSession = true) },
         nowPlayingTrack = nowPlayingTrack,
@@ -870,23 +843,18 @@ fun NaviampApp(
         appRoute = appRoute,
         selectedPlaylist = selectedPlaylist,
         homeContent = homeContent,
-        libraryQuery = libraryQuery,
-        setLibraryLimit = { limit -> libraryLimit = limit },
         showStatsForNerds = showStatsForNerds,
         statsForNerdsRefreshTick = statsForNerdsRefreshTick,
         incrementStatsForNerdsRefreshTick = { statsForNerdsRefreshTick++ },
-        downloadRefreshToken = downloadRefreshToken,
+        downloadRefreshToken = downloadsController.refreshToken,
         mediaSourcesRevision = mediaSourcesRevision,
         loadStorageStats = { storage.stats() },
         setCacheStats = { stats -> cacheStats = stats },
     )
 
-    refreshLibrarySnapshotAction = libraryController::refreshLibrarySnapshot
     loadHomeContentAction = homeController::loadHomeContent
     refreshPlaylistsAction = playlistsController::refreshPlaylists
     refreshInternetRadioStationsAction = internetRadioController::refreshStations
-    startLibrarySyncAction = libraryController::startLibrarySync
-    checkLibraryFreshnessAction = libraryController::checkLibraryFreshness
 
     val savedMediaSources = mediaSourcesRevision.let { storage.mediaSources() }
     val statsForNerdsInfo = desktopStatsForNerdsInfoOrNull(
@@ -897,11 +865,11 @@ fun NaviampApp(
         connectedSourceId = connectedSourceId,
         storage = storage,
         connectionStatus = connectionStatus,
-        isLibrarySyncing = isLibrarySyncing,
-        libraryStatus = libraryStatus,
-        libraryTab = libraryTab,
-        libraryQuery = libraryQuery,
-        librarySnapshot = librarySnapshot,
+        isLibrarySyncing = libraryController.syncing,
+        libraryStatus = libraryController.status,
+        libraryTab = libraryController.tab,
+        libraryQuery = libraryController.query,
+        librarySnapshot = libraryController.snapshot,
         playbackEngine = playbackEngine,
         playlistEngine = playlistEngine,
         playbackQueue = playbackQueue,
@@ -1068,13 +1036,13 @@ fun NaviampApp(
                             selectedPlaylist = selectedPlaylist,
                             selectedPlaylistTracks = selectedPlaylistTracks,
                             selectedPlaylistStatus = selectedPlaylistStatus,
-                            librarySnapshot = librarySnapshot,
-                            libraryQuery = libraryQuery,
-                            libraryTab = libraryTab,
-                            libraryStatus = libraryStatus,
-                            isLibrarySyncing = isLibrarySyncing,
+                            librarySnapshot = libraryController.snapshot,
+                            libraryQuery = libraryController.query,
+                            libraryTab = libraryController.tab,
+                            libraryStatus = libraryController.status,
+                            isLibrarySyncing = libraryController.syncing,
                             libraryListState = libraryListState,
-                            onLibraryQueryChanged = { libraryQuery = it },
+                            onLibraryQueryChanged = libraryController::updateQuery,
                             searchQuery = searchController.query,
                             searchResults = searchController.results,
                             searchStatus = searchController.status,
@@ -1109,8 +1077,8 @@ fun NaviampApp(
                             onSaveInternetRadioStation = internetRadioController::saveStation,
                             onDeleteInternetRadioStation = internetRadioController::deleteStation,
                             connectedSourceId = connectedSourceId,
-                            downloadRefreshToken = downloadRefreshToken,
-                            downloadStatus = downloadStatus,
+                            downloadRefreshToken = downloadsController.refreshToken,
+                            downloadStatus = downloadsController.status,
                             cacheSettings = cacheSettings,
                             cacheStats = cacheStats,
                             downloadedTracks = storage::downloadedTracks,
