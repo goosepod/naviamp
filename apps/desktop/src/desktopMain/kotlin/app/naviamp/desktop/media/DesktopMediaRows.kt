@@ -132,6 +132,7 @@ fun DesktopArtistRow(
             }
             SharedMediaItemAction.Play,
             SharedMediaItemAction.Shuffle,
+            SharedMediaItemAction.FindSimilar,
             SharedMediaItemAction.Download,
             SharedMediaItemAction.CreatePlaylistAndAdd,
             SharedMediaItemAction.Rename,
@@ -254,6 +255,7 @@ fun DesktopAlbumRow(
             }
             SharedMediaItemAction.Play,
             SharedMediaItemAction.Shuffle,
+            SharedMediaItemAction.FindSimilar,
             SharedMediaItemAction.CreatePlaylistAndAdd,
             SharedMediaItemAction.Rename,
             SharedMediaItemAction.EditSmartPlaylist,

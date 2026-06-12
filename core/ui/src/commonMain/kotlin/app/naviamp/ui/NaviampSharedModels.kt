@@ -104,6 +104,17 @@ data class SharedTrackRowActionRequest(
     val playlistName: String? = null,
 )
 
+enum class SharedTrackGroupAction {
+    Play,
+    StartRadio,
+    AddToQueue,
+}
+
+data class SharedTrackGroupActionRequest(
+    val tracks: List<SharedTrackRowUi>,
+    val action: SharedTrackGroupAction,
+)
+
 data class SharedTrackRowActionHandlers(
     val onSelect: (SharedTrackRowUi) -> Unit = {},
     val onStartRadio: (SharedTrackRowUi) -> Unit = {},
@@ -194,6 +205,7 @@ enum class SharedMediaItemAction {
     Play,
     Shuffle,
     StartRadio,
+    FindSimilar,
     AddToQueue,
     Download,
     AddToPlaylist,
@@ -220,6 +232,7 @@ data class SharedMediaItemActionHandlers(
     val onSelect: (SharedMediaItemUi) -> Unit = {},
     val onPlay: (SharedMediaItemUi, Boolean) -> Unit = { _, _ -> },
     val onStartRadio: (SharedMediaItemUi) -> Unit = {},
+    val onFindSimilar: (SharedMediaItemUi) -> Unit = {},
     val onAddToQueue: (SharedMediaItemUi) -> Unit = {},
     val onDownload: (SharedMediaItemUi) -> Unit = {},
     val onAddToPlaylist: (SharedMediaItemUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
@@ -241,6 +254,7 @@ fun handleSharedMediaItemAction(
         SharedMediaItemAction.Play -> handlers.onPlay(request.item, false)
         SharedMediaItemAction.Shuffle -> handlers.onPlay(request.item, true)
         SharedMediaItemAction.StartRadio -> handlers.onStartRadio(request.item)
+        SharedMediaItemAction.FindSimilar -> handlers.onFindSimilar(request.item)
         SharedMediaItemAction.AddToQueue -> handlers.onAddToQueue(request.item)
         SharedMediaItemAction.Download -> handlers.onDownload(request.item)
         SharedMediaItemAction.AddToPlaylist -> handlers.onAddToPlaylist(request.item, request.playlistChoice)

@@ -43,6 +43,8 @@ import app.naviamp.ui.SharedHome
 import app.naviamp.ui.SharedMediaItemAction
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedMixBuilderUi
+import app.naviamp.ui.SharedTrackGroupAction
+import app.naviamp.ui.SharedTrackGroupActionRequest
 import app.naviamp.ui.SharedTrackRowAction
 import app.naviamp.ui.StationRowAction
 import app.naviamp.ui.toSharedHomeUi
@@ -169,6 +171,7 @@ fun ColumnScope.DesktopAppRouteContent(
         when (requestAction) {
             SharedMediaItemAction.Select -> appActions.openArtistDetails(artist)
             SharedMediaItemAction.StartRadio -> appActions.playArtistRadio(artist)
+            SharedMediaItemAction.FindSimilar -> appActions.findSimilarArtists(artist)
             SharedMediaItemAction.AddToQueue -> playlistsController.addArtistToQueue(artist)
             SharedMediaItemAction.AddToPlaylist -> playlistsController.openArtistAddToPlaylist(artist)
             SharedMediaItemAction.ToggleFavorite -> appActions.toggleArtistFavorite(artist)
@@ -197,6 +200,7 @@ fun ColumnScope.DesktopAppRouteContent(
             SharedMediaItemAction.ToggleFavorite -> appActions.toggleAlbumFavorite(album)
             SharedMediaItemAction.Play,
             SharedMediaItemAction.Shuffle,
+            SharedMediaItemAction.FindSimilar,
             SharedMediaItemAction.CreatePlaylistAndAdd,
             SharedMediaItemAction.Rename,
             SharedMediaItemAction.EditSmartPlaylist,
@@ -218,6 +222,7 @@ fun ColumnScope.DesktopAppRouteContent(
                 appActions.toggleAlbumFavorite(it)
             }
             SharedMediaItemAction.Select,
+            SharedMediaItemAction.FindSimilar,
             SharedMediaItemAction.CreatePlaylistAndAdd,
             SharedMediaItemAction.Rename,
             SharedMediaItemAction.EditSmartPlaylist,
@@ -242,6 +247,7 @@ fun ColumnScope.DesktopAppRouteContent(
             SharedMediaItemAction.Rename -> onPlaylistRenameRequested(playlist)
             SharedMediaItemAction.Delete -> onPlaylistDeleteRequested(playlist)
             SharedMediaItemAction.StartRadio,
+            SharedMediaItemAction.FindSimilar,
             SharedMediaItemAction.ToggleFavorite,
             SharedMediaItemAction.CreatePlaylistAndAdd,
             SharedMediaItemAction.EditSmartPlaylist,
@@ -261,12 +267,21 @@ fun ColumnScope.DesktopAppRouteContent(
             SharedMediaItemAction.AddToPlaylist -> playlistsController.openSelectedPlaylistAddToPlaylist()
             SharedMediaItemAction.Select,
             SharedMediaItemAction.StartRadio,
+            SharedMediaItemAction.FindSimilar,
             SharedMediaItemAction.ToggleFavorite,
             SharedMediaItemAction.CreatePlaylistAndAdd,
             SharedMediaItemAction.EditSmartPlaylist,
             SharedMediaItemAction.EditStation,
             SharedMediaItemAction.DeleteStation,
             -> Unit
+        }
+    }
+    fun handlePopularTracksGroupAction(request: SharedTrackGroupActionRequest) {
+        if (request.tracks.isEmpty()) return
+        when (request.action) {
+            SharedTrackGroupAction.Play -> appActions.playPopularTracks(selectedArtistPopularTracks)
+            SharedTrackGroupAction.StartRadio -> appActions.playPopularTracksRadio(selectedArtistPopularTracks)
+            SharedTrackGroupAction.AddToQueue -> appActions.addPopularTracksToQueue(selectedArtistPopularTracks)
         }
     }
 
@@ -348,13 +363,13 @@ fun ColumnScope.DesktopAppRouteContent(
                     similarArtistsStatus = selectedArtistSimilarArtistsStatus,
                     coverArtUrl = coverArtUrl,
                     onBack = appActions::closeArtistDetails,
-                    onArtistRadio = appActions::playArtistRadio,
-                    onFindSimilarArtists = appActions::findSimilarArtists,
                     onSimilarArtistSelected = appActions::openArtistDetails,
                     onSimilarArtistExternalSelected = appActions::openExternalArtistUrl,
-                    onPopularTracksPlay = appActions::playPopularTracks,
-                    onPopularTracksRadio = appActions::playPopularTracksRadio,
-                    onPopularTracksAddToQueue = appActions::addPopularTracksToQueue,
+                    onArtistAction = { request ->
+                        (selectedArtistDetails?.artist ?: selectedArtist)
+                            ?.let { artist -> handleArtistMediaAction(request.action, artist) }
+                    },
+                    onPopularTracksAction = ::handlePopularTracksGroupAction,
                     onPopularTrackAction = { request ->
                         selectedArtistPopularTracks
                             .firstOrNull { track -> track.id.value == request.track.id }
@@ -370,9 +385,6 @@ fun ColumnScope.DesktopAppRouteContent(
                                 }
                             }
                     },
-                    onAddArtistToQueue = playlistsController::addArtistToQueue,
-                    onAddArtistToPlaylist = playlistsController::openArtistAddToPlaylist,
-                    onArtistFavoriteToggle = appActions::toggleArtistFavorite,
                     onAlbumAction = { request ->
                         selectedArtistDetails?.albums
                             ?.firstOrNull { album -> album.id.value == request.item.id }

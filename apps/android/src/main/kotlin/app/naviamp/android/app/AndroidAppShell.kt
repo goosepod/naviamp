@@ -468,6 +468,7 @@ fun androidAppShellActions(
                             SharedMediaItemAction.ToggleFavorite -> handleAlbumFavoriteToggled(request.item)
                             SharedMediaItemAction.Play,
                             SharedMediaItemAction.Shuffle,
+                            SharedMediaItemAction.FindSimilar,
                             SharedMediaItemAction.Rename,
                             SharedMediaItemAction.EditSmartPlaylist,
                             SharedMediaItemAction.Delete,
@@ -484,6 +485,7 @@ fun androidAppShellActions(
                             SharedMediaItemAction.Play,
                             SharedMediaItemAction.Shuffle,
                             SharedMediaItemAction.StartRadio,
+                            SharedMediaItemAction.FindSimilar,
                             SharedMediaItemAction.AddToQueue,
                             SharedMediaItemAction.Download,
                             SharedMediaItemAction.AddToPlaylist,
@@ -515,6 +517,7 @@ fun androidAppShellActions(
                                     request.textValue?.let { name -> renamePlaylist(playlist, name) }
                                 SharedMediaItemAction.Delete -> deletePlaylist(playlist)
                                 SharedMediaItemAction.StartRadio,
+                                SharedMediaItemAction.FindSimilar,
                                 SharedMediaItemAction.ToggleFavorite,
                                 SharedMediaItemAction.EditSmartPlaylist,
                                 SharedMediaItemAction.EditStation,
