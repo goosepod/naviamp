@@ -80,11 +80,15 @@ Outcome: superseded by Phase 3.1. Sonic similarity should behave as the preferre
 
 ### Phase 5: Sonic Mix Builder
 
-- [ ] Add a shared sonic mix service that accepts multiple seed tracks.
-- [ ] Blend results across seeds, dedupe tracks, and avoid over-representing one artist/album.
-- [ ] Add options for target length and bias toward favorites, unplayed tracks, or recent plays.
-- [ ] Reuse existing mix-builder UI patterns where possible.
-- [ ] Add queue and playlist-save actions.
+- [x] Add a shared sonic mix service that accepts multiple seed tracks.
+- [x] Show Sonic Mix in the Home builder section beside Sonic Path.
+- [x] Gate Sonic Mix so it only appears when sonic similarity is enabled and available from the server.
+- [x] Blend results across seeds, dedupe tracks, and avoid over-representing one artist/album.
+- [x] Add options for target length and bias toward favorites, unplayed tracks, or recent plays.
+- [x] Reuse existing mix-builder UI patterns where possible.
+- [x] Keep Sonic Mix output as a standard track list that feeds the existing queue handler.
+- [x] Add play and add-to-queue actions using the normal queue/playback handlers.
+- [ ] Add playlist save if an existing shared playlist creation pattern emerges.
 
 ### Phase 6: Home Discovery Rows
 

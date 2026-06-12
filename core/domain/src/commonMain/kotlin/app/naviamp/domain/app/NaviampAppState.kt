@@ -21,6 +21,7 @@ enum class NaviampRoute {
     AlbumMix,
     GenreMix,
     SonicPath,
+    SonicMix,
     Radio,
     Downloads,
     Settings,

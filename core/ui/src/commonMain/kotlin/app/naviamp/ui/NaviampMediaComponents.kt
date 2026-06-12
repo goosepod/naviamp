@@ -831,6 +831,155 @@ fun SonicPathBuilderContent(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun SonicMixBuilderContent(
+    colors: NaviampColors,
+    builder: SharedSonicMixBuilderUi,
+    onQueryChanged: (String) -> Unit,
+    onSearch: () -> Unit,
+    onTrackSelected: (SharedTrackRowUi) -> Unit,
+    onTrackRemoved: (SharedTrackRowUi) -> Unit,
+    onTargetLengthChanged: (Int) -> Unit,
+    onBiasChanged: (SharedSonicMixBiasUi) -> Unit,
+    onBuildMix: () -> Unit,
+    onReset: () -> Unit,
+    onPlayMix: () -> Unit,
+    onAddMixToQueue: () -> Unit,
+    showMixActions: Boolean = true,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Sonic Mix", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            if (
+                builder.query.isNotBlank() ||
+                builder.selectedTracks.isNotEmpty() ||
+                builder.suggestedTracks.isNotEmpty() ||
+                builder.hasMix
+            ) {
+                TextButton(onClick = onReset) {
+                    Text("Reset", fontSize = 12.sp)
+                }
+            }
+        }
+        Text("Seed Tracks", color = colors.primaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            NaviampTextField(
+                value = builder.query,
+                onValueChange = onQueryChanged,
+                label = "Search tracks",
+                colors = colors,
+                modifier = Modifier.weight(1f),
+                onSubmit = onSearch,
+            )
+            Button(onClick = onSearch, modifier = Modifier.height(48.dp)) {
+                Icon(NaviampIcons.Search, contentDescription = "Search tracks", modifier = Modifier.size(18.dp))
+            }
+        }
+        if (builder.selectedTracks.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                builder.selectedTracks.forEach { track ->
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        TrackRow(
+                            track = track,
+                            colors = colors,
+                            onTrackSelected = null,
+                            modifier = Modifier.weight(1f),
+                        )
+                        TextButton(onClick = { onTrackRemoved(track) }) {
+                            Text("Remove", fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
+        }
+        if (builder.suggestedTracks.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                builder.suggestedTracks.forEach { track ->
+                    TrackRow(
+                        track = track,
+                        colors = colors,
+                        onTrackSelected = onTrackSelected,
+                    )
+                }
+            }
+        }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Target tracks", color = colors.secondaryText, fontSize = 13.sp, modifier = Modifier.weight(1f))
+            Button(
+                enabled = builder.targetLength > 5,
+                onClick = { onTargetLengthChanged(builder.targetLength - 5) },
+            ) {
+                Text("-")
+            }
+            Text(builder.targetLength.toString(), color = colors.primaryText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Button(
+                enabled = builder.targetLength < 100,
+                onClick = { onTargetLengthChanged(builder.targetLength + 5) },
+            ) {
+                Text("+")
+            }
+        }
+        Text("Bias", color = colors.secondaryText, fontSize = 13.sp)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            SharedSonicMixBiasUi.entries.forEach { bias ->
+                Button(
+                    onClick = { onBiasChanged(bias) },
+                    enabled = builder.bias != bias,
+                ) {
+                    Text(bias.label)
+                }
+            }
+        }
+        (builder.status ?: if (builder.loading) "Building mix..." else null)?.let {
+            Text(it, color = colors.secondaryText, fontSize = 12.sp)
+        }
+        PrimaryButton(
+            label = "Build Mix",
+            colors = colors,
+            enabled = builder.canBuild && !builder.loading,
+            onClick = onBuildMix,
+        )
+        if (builder.mixTracks.isNotEmpty()) {
+            Text("Mix", color = colors.primaryText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                builder.mixTracks.forEachIndexed { index, track ->
+                    TrackRow(
+                        track = track,
+                        colors = colors,
+                        onTrackSelected = null,
+                        trailingContent = {
+                            Text((index + 1).toString(), color = colors.mutedText, fontSize = 11.sp)
+                        },
+                    )
+                }
+            }
+            if (showMixActions) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    Button(onClick = onPlayMix, modifier = Modifier.weight(1f)) {
+                        Text("Play Mix")
+                    }
+                    Button(onClick = onAddMixToQueue, modifier = Modifier.weight(1f)) {
+                        Text("Add to Queue")
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun SonicPathTrackPicker(
     title: String,

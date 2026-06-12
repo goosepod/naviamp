@@ -97,9 +97,10 @@ fun HomeContent.toSharedHomeUi(
     playlistTracksById: Map<String, List<Track>> = emptyMap(),
     canFavoriteAlbums: Boolean = false,
     showSonicPathBuilder: Boolean = false,
+    showSonicMixBuilder: Boolean = false,
 ): SharedHomeUi =
     SharedHomeUi(
-        mixBuilders = sharedMixBuilders(showSonicPathBuilder),
+        mixBuilders = sharedMixBuilders(showSonicPathBuilder, showSonicMixBuilder),
         recentlyAddedAlbums = recentlyAddedAlbums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
         mixAlbums = mixAlbums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
         recentAlbums = recentAlbums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
@@ -131,13 +132,19 @@ fun HomeContent.toSharedHomeUi(
         decadeAlbums = decadeAlbums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
     )
 
-fun sharedMixBuilders(showSonicPathBuilder: Boolean = false): List<SharedMixBuilderUi> =
+fun sharedMixBuilders(
+    showSonicPathBuilder: Boolean = false,
+    showSonicMixBuilder: Boolean = false,
+): List<SharedMixBuilderUi> =
     listOfNotNull(
         SharedMixBuilderUi("artist", "Artist Mix", "Build a station from selected artists"),
         SharedMixBuilderUi("album", "Album Mix", "Build a station from selected albums"),
         SharedMixBuilderUi("genre", "Genre Mix", "Start a station from a genre"),
         SharedMixBuilderUi("sonic-path", "Sonic Path", "Find a path between two tracks").takeIf {
             showSonicPathBuilder
+        },
+        SharedMixBuilderUi("sonic-mix", "Sonic Mix", "Blend multiple seed tracks").takeIf {
+            showSonicMixBuilder
         },
     )
 

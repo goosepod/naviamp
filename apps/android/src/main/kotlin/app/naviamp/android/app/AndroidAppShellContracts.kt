@@ -37,6 +37,8 @@ import app.naviamp.ui.SharedPlaylistSortMode
 import app.naviamp.ui.SharedRoute
 import app.naviamp.ui.SharedSearchResultsUi
 import app.naviamp.ui.SharedSimilarArtistUi
+import app.naviamp.ui.SharedSonicMixBiasUi
+import app.naviamp.ui.SharedSonicMixBuilderUi
 import app.naviamp.ui.SharedSonicPathBuilderUi
 import app.naviamp.ui.StationRowActionRequest
 import app.naviamp.ui.SharedTrackRowActionRequest
@@ -67,6 +69,7 @@ data class AndroidAppShellUiState(
     val albumMixBuilder: SharedAlbumMixBuilderUi,
     val genreMixBuilder: SharedGenreMixBuilderUi,
     val sonicPathBuilder: SharedSonicPathBuilderUi,
+    val sonicMixBuilder: SharedSonicMixBuilderUi,
     val libraryArtists: List<SharedMediaItemUi>,
     val libraryQuery: String,
     val librarySyncStatus: NaviampLibrarySyncStatusUi,
@@ -133,6 +136,16 @@ data class AndroidAppShellActions(
     val onSonicPathReset: () -> Unit,
     val onSonicPathPlay: () -> Unit,
     val onSonicPathAddToQueue: () -> Unit,
+    val onSonicMixQueryChanged: (String) -> Unit,
+    val onSonicMixSearch: () -> Unit,
+    val onSonicMixTrackSelected: (SharedTrackRowUi) -> Unit,
+    val onSonicMixTrackRemoved: (SharedTrackRowUi) -> Unit,
+    val onSonicMixTargetLengthChanged: (Int) -> Unit,
+    val onSonicMixBiasChanged: (SharedSonicMixBiasUi) -> Unit,
+    val onSonicMixBuild: () -> Unit,
+    val onSonicMixReset: () -> Unit,
+    val onSonicMixPlay: () -> Unit,
+    val onSonicMixAddToQueue: () -> Unit,
     val onLibraryQueryChanged: (String) -> Unit,
     val onRefreshLibrary: () -> Unit,
     val onTrackSelected: (SharedTrackRowUi) -> Unit,

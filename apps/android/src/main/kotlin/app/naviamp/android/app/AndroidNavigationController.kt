@@ -56,6 +56,7 @@ internal class AndroidNavigationController(
             "genre" -> state.navigationState = state.navigationState.copy(route = NaviampRoute.GenreMix)
             "album" -> state.navigationState = state.navigationState.copy(route = NaviampRoute.AlbumMix)
             "sonic-path" -> state.navigationState = state.navigationState.copy(route = NaviampRoute.SonicPath)
+            "sonic-mix" -> state.navigationState = state.navigationState.copy(route = NaviampRoute.SonicMix)
         }
     }
 }

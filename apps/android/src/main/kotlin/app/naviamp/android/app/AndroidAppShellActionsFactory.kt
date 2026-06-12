@@ -35,6 +35,7 @@ import app.naviamp.ui.SharedMediaItemKind
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedMixBuilderUi
 import app.naviamp.ui.SharedSimilarArtistUi
+import app.naviamp.ui.SharedSonicMixBiasUi
 import app.naviamp.ui.StationRowAction
 import app.naviamp.ui.StationRowActionRequest
 import app.naviamp.ui.SharedTrackRowActionRequest
@@ -81,6 +82,16 @@ fun androidAppShellActions(
     handleSonicPathReset: () -> Unit,
     handleSonicPathPlay: () -> Unit,
     handleSonicPathAddToQueue: () -> Unit,
+    handleSonicMixQueryChanged: (String) -> Unit,
+    handleSonicMixSearch: () -> Unit,
+    handleSonicMixTrackSelected: (SharedTrackRowUi) -> Unit,
+    handleSonicMixTrackRemoved: (SharedTrackRowUi) -> Unit,
+    handleSonicMixTargetLengthChanged: (Int) -> Unit,
+    handleSonicMixBiasChanged: (SharedSonicMixBiasUi) -> Unit,
+    handleSonicMixBuild: () -> Unit,
+    handleSonicMixReset: () -> Unit,
+    handleSonicMixPlay: () -> Unit,
+    handleSonicMixAddToQueue: () -> Unit,
     startAndroidLibrarySync: (Boolean) -> Unit,
     handleShellTrackSelected: (SharedTrackRowUi) -> Unit,
     handleDownloadedTrackAction: (DownloadedTrackActionRequest) -> Unit,
@@ -232,6 +243,16 @@ fun androidAppShellActions(
             onSonicPathReset = handleSonicPathReset,
             onSonicPathPlay = handleSonicPathPlay,
             onSonicPathAddToQueue = handleSonicPathAddToQueue,
+            onSonicMixQueryChanged = handleSonicMixQueryChanged,
+            onSonicMixSearch = handleSonicMixSearch,
+            onSonicMixTrackSelected = handleSonicMixTrackSelected,
+            onSonicMixTrackRemoved = handleSonicMixTrackRemoved,
+            onSonicMixTargetLengthChanged = handleSonicMixTargetLengthChanged,
+            onSonicMixBiasChanged = handleSonicMixBiasChanged,
+            onSonicMixBuild = handleSonicMixBuild,
+            onSonicMixReset = handleSonicMixReset,
+            onSonicMixPlay = handleSonicMixPlay,
+            onSonicMixAddToQueue = handleSonicMixAddToQueue,
             onLibraryQueryChanged = { libraryQuery = it },
             onRefreshLibrary = { startAndroidLibrarySync(true) },
             onTrackSelected = handleShellTrackSelected,

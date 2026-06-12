@@ -510,6 +510,21 @@ fun NaviampApp(
         )
     }
 
+    val sonicMixController = remember {
+        DesktopSonicMixController(
+            scope = coroutineScope,
+            playbackEngine = playbackEngine,
+            playlistEngine = playlistEngine,
+            provider = { connectedProvider },
+            playbackSettings = { playbackSettings },
+            playlistCallbacks = { playlistCallbacksRef.value ?: error("Playlist callbacks are not ready.") },
+            stopRadioContinuation = radioController::stopContinuation,
+            clearShuffleSnapshot = playbackController::clearShuffleSnapshot,
+            setOpenPlayerOnTrackStart = { shouldOpen -> openPlayerOnTrackStart = shouldOpen },
+            setConnectionStatus = { status -> connectionStatus = status },
+        )
+    }
+
     val searchController = remember {
         DesktopSearchController(
         settingsStore = settingsStore,
@@ -972,6 +987,19 @@ fun NaviampApp(
                             onSonicPathReset = sonicPathController::reset,
                             onSonicPathPlay = sonicPathController::playPath,
                             onSonicPathAddToQueue = sonicPathController::addPathToQueue,
+                            sonicMixBuilder = sonicMixController.ui(
+                                coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
+                            ),
+                            onSonicMixQueryChanged = sonicMixController::updateQuery,
+                            onSonicMixSearch = sonicMixController::searchTracks,
+                            onSonicMixTrackSelected = sonicMixController::selectTrack,
+                            onSonicMixTrackRemoved = sonicMixController::removeTrack,
+                            onSonicMixTargetLengthChanged = sonicMixController::updateTargetLength,
+                            onSonicMixBiasChanged = sonicMixController::updateBias,
+                            onSonicMixBuild = sonicMixController::buildMix,
+                            onSonicMixReset = sonicMixController::reset,
+                            onSonicMixPlay = sonicMixController::playMix,
+                            onSonicMixAddToQueue = sonicMixController::addMixToQueue,
                             internetRadioStations = internetRadioController.stations,
                             internetRadioStatus = internetRadioController.status,
                             onSaveInternetRadioStation = internetRadioController::saveStation,

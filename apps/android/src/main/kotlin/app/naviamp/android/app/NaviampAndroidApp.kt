@@ -353,6 +353,14 @@ fun NaviampAndroidApp(
             playTrack = { track, queue -> playbackAppController.playTrack(track, queue) },
         )
     }
+    val sonicMixController = remember(appState) {
+        AndroidSonicMixController(
+            scope = scope,
+            state = appState,
+            queueController = playbackQueueController,
+            playTrack = { track, queue -> playbackAppController.playTrack(track, queue) },
+        )
+    }
     val coverArtUrlForUi: (String?) -> String? = { coverArtId -> coverArtId?.let { appState.provider?.coverArtUrl(it) } }
 
     val shellUiState = rememberAndroidAppShellUiState(
@@ -362,6 +370,7 @@ fun NaviampAndroidApp(
         bassLoadReport = bassLoadReport,
         playbackEngine = playbackEngine,
         sonicPathBuilder = sonicPathController.ui(coverArtUrlForUi),
+        sonicMixBuilder = sonicMixController.ui(coverArtUrlForUi),
     )
 
     val shellPlaybackController = remember(appState) {
@@ -451,6 +460,7 @@ fun NaviampAndroidApp(
         shellMediaController = shellMediaController,
         trackActionController = trackActionController,
         sonicPathController = sonicPathController,
+        sonicMixController = sonicMixController,
         nowPlayingSidecarController = nowPlayingSidecarController,
     )
 

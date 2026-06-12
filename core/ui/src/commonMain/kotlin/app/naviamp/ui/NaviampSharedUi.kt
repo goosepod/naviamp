@@ -86,6 +86,7 @@ fun NaviampSharedAppShell(
     albumMixBuilder: SharedAlbumMixBuilderUi = SharedAlbumMixBuilderUi(),
     genreMixBuilder: SharedGenreMixBuilderUi = SharedGenreMixBuilderUi(),
     sonicPathBuilder: SharedSonicPathBuilderUi = SharedSonicPathBuilderUi(),
+    sonicMixBuilder: SharedSonicMixBuilderUi = SharedSonicMixBuilderUi(),
     libraryArtists: List<SharedMediaItemUi>,
     libraryQuery: String = "",
     librarySyncStatus: NaviampLibrarySyncStatusUi = NaviampLibrarySyncStatusUi(),
@@ -148,6 +149,16 @@ fun NaviampSharedAppShell(
     onSonicPathReset: () -> Unit = {},
     onSonicPathPlay: () -> Unit = {},
     onSonicPathAddToQueue: () -> Unit = {},
+    onSonicMixQueryChanged: (String) -> Unit = {},
+    onSonicMixSearch: () -> Unit = {},
+    onSonicMixTrackSelected: (SharedTrackRowUi) -> Unit = {},
+    onSonicMixTrackRemoved: (SharedTrackRowUi) -> Unit = {},
+    onSonicMixTargetLengthChanged: (Int) -> Unit = {},
+    onSonicMixBiasChanged: (SharedSonicMixBiasUi) -> Unit = {},
+    onSonicMixBuild: () -> Unit = {},
+    onSonicMixReset: () -> Unit = {},
+    onSonicMixPlay: () -> Unit = {},
+    onSonicMixAddToQueue: () -> Unit = {},
     onLibraryQueryChanged: (String) -> Unit = {},
     onRefreshLibrary: () -> Unit = {},
     onTrackSelected: (SharedTrackRowUi) -> Unit,
@@ -282,6 +293,7 @@ fun NaviampSharedAppShell(
                 selectedRoute == SharedRoute.AlbumMix ||
                 selectedRoute == SharedRoute.GenreMix ||
                 selectedRoute == SharedRoute.SonicPath ||
+                selectedRoute == SharedRoute.SonicMix ||
                 selectedRoute == SharedRoute.Radio ||
                 selectedRoute == SharedRoute.Downloads
             )
@@ -369,6 +381,7 @@ fun NaviampSharedAppShell(
             albumMixBuilder = albumMixBuilder,
             genreMixBuilder = genreMixBuilder,
             sonicPathBuilder = sonicPathBuilder,
+            sonicMixBuilder = sonicMixBuilder,
                             libraryArtists = libraryArtists,
                             libraryQuery = libraryQuery,
                             librarySyncStatus = librarySyncStatus,
@@ -437,6 +450,16 @@ fun NaviampSharedAppShell(
             onSonicPathReset = onSonicPathReset,
             onSonicPathPlay = onSonicPathPlay,
             onSonicPathAddToQueue = onSonicPathAddToQueue,
+            onSonicMixQueryChanged = onSonicMixQueryChanged,
+            onSonicMixSearch = onSonicMixSearch,
+            onSonicMixTrackSelected = onSonicMixTrackSelected,
+            onSonicMixTrackRemoved = onSonicMixTrackRemoved,
+            onSonicMixTargetLengthChanged = onSonicMixTargetLengthChanged,
+            onSonicMixBiasChanged = onSonicMixBiasChanged,
+            onSonicMixBuild = onSonicMixBuild,
+            onSonicMixReset = onSonicMixReset,
+            onSonicMixPlay = onSonicMixPlay,
+            onSonicMixAddToQueue = onSonicMixAddToQueue,
                             onLibraryQueryChanged = onLibraryQueryChanged,
                             onRefreshLibrary = onRefreshLibrary,
                             onTrackSelected = onTrackSelected,
@@ -668,6 +691,7 @@ private fun ConnectedContent(
     albumMixBuilder: SharedAlbumMixBuilderUi,
     genreMixBuilder: SharedGenreMixBuilderUi,
     sonicPathBuilder: SharedSonicPathBuilderUi,
+    sonicMixBuilder: SharedSonicMixBuilderUi,
     libraryArtists: List<SharedMediaItemUi>,
     libraryQuery: String,
     librarySyncStatus: NaviampLibrarySyncStatusUi,
@@ -733,6 +757,16 @@ private fun ConnectedContent(
     onSonicPathReset: () -> Unit,
     onSonicPathPlay: () -> Unit,
     onSonicPathAddToQueue: () -> Unit,
+    onSonicMixQueryChanged: (String) -> Unit,
+    onSonicMixSearch: () -> Unit,
+    onSonicMixTrackSelected: (SharedTrackRowUi) -> Unit,
+    onSonicMixTrackRemoved: (SharedTrackRowUi) -> Unit,
+    onSonicMixTargetLengthChanged: (Int) -> Unit,
+    onSonicMixBiasChanged: (SharedSonicMixBiasUi) -> Unit,
+    onSonicMixBuild: () -> Unit,
+    onSonicMixReset: () -> Unit,
+    onSonicMixPlay: () -> Unit,
+    onSonicMixAddToQueue: () -> Unit,
     onLibraryQueryChanged: (String) -> Unit,
     onRefreshLibrary: () -> Unit,
     onTrackSelected: (SharedTrackRowUi) -> Unit,
@@ -1105,6 +1139,42 @@ private fun ConnectedContent(
                             Text("Play Path")
                         }
                         Button(onClick = onSonicPathAddToQueue, modifier = Modifier.weight(1f)) {
+                            Text("Add to Queue")
+                        }
+                    }
+                }
+            }
+            SharedRoute.SonicMix -> Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    SonicMixBuilderContent(
+                        colors = colors,
+                        builder = sonicMixBuilder,
+                        onQueryChanged = onSonicMixQueryChanged,
+                        onSearch = onSonicMixSearch,
+                        onTrackSelected = onSonicMixTrackSelected,
+                        onTrackRemoved = onSonicMixTrackRemoved,
+                        onTargetLengthChanged = onSonicMixTargetLengthChanged,
+                        onBiasChanged = onSonicMixBiasChanged,
+                        onBuildMix = onSonicMixBuild,
+                        onReset = onSonicMixReset,
+                        onPlayMix = onSonicMixPlay,
+                        onAddMixToQueue = onSonicMixAddToQueue,
+                        showMixActions = false,
+                    )
+                }
+                if (sonicMixBuilder.hasMix) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        Button(onClick = onSonicMixPlay, modifier = Modifier.weight(1f)) {
+                            Text("Play Mix")
+                        }
+                        Button(onClick = onSonicMixAddToQueue, modifier = Modifier.weight(1f)) {
                             Text("Add to Queue")
                         }
                     }

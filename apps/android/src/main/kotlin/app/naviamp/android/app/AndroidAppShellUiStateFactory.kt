@@ -12,6 +12,7 @@ import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.ui.SharedAlbumMixBuilderUi
 import app.naviamp.ui.SharedArtistMixBuilderUi
 import app.naviamp.ui.SharedGenreMixBuilderUi
+import app.naviamp.ui.SharedSonicMixBuilderUi
 import app.naviamp.ui.SharedSonicPathBuilderUi
 import app.naviamp.ui.toSharedGenreMixItemUi
 import app.naviamp.ui.toSharedMediaItemUi
@@ -25,6 +26,7 @@ fun rememberAndroidAppShellUiState(
     bassLoadReport: AndroidBassLoadReport,
     playbackEngine: AndroidPlaybackEngine,
     sonicPathBuilder: SharedSonicPathBuilderUi,
+    sonicMixBuilder: SharedSonicMixBuilderUi,
 ): AndroidAppShellUiState =
     with(state) {
         val activeQueueForUi = playbackQueue.tracks.ifEmpty { allKnownTracks(searchResults, albumDetail) }
@@ -166,6 +168,7 @@ fun rememberAndroidAppShellUiState(
                 loading = genreMixLoading,
             ),
             sonicPathBuilder = sonicPathBuilder,
+            sonicMixBuilder = sonicMixBuilder,
             libraryArtists = shellModels.libraryArtists,
             libraryQuery = libraryQuery,
             librarySyncStatus = shellModels.librarySyncStatus,

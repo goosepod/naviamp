@@ -226,6 +226,7 @@ fun androidShellModels(
             playlistTracksById = playlistTracksById,
             canFavoriteAlbums = canFavoriteAlbums,
             showSonicPathBuilder = sonicSimilarityEnabled && provider?.capabilities?.supportsSonicSimilarity == true,
+            showSonicMixBuilder = sonicSimilarityEnabled && provider?.capabilities?.supportsSonicSimilarity == true,
         ),
         searchResults = searchResults.toSharedSearchResultsUi(
             coverArtUrl = coverArtUrl,

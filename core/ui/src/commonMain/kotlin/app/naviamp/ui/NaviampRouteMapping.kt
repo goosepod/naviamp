@@ -18,6 +18,7 @@ fun NaviampRoute.toSharedRoute(): SharedRoute =
         NaviampRoute.AlbumMix -> SharedRoute.AlbumMix
         NaviampRoute.GenreMix -> SharedRoute.GenreMix
         NaviampRoute.SonicPath -> SharedRoute.SonicPath
+        NaviampRoute.SonicMix -> SharedRoute.SonicMix
         NaviampRoute.Radio -> SharedRoute.Radio
         NaviampRoute.Downloads -> SharedRoute.Downloads
         NaviampRoute.Settings -> SharedRoute.Settings
@@ -33,6 +34,7 @@ fun SharedRoute.toNaviampRoute(): NaviampRoute =
         SharedRoute.AlbumMix -> NaviampRoute.AlbumMix
         SharedRoute.GenreMix -> NaviampRoute.GenreMix
         SharedRoute.SonicPath -> NaviampRoute.SonicPath
+        SharedRoute.SonicMix -> NaviampRoute.SonicMix
         SharedRoute.Radio -> NaviampRoute.Radio
         SharedRoute.Downloads -> NaviampRoute.Downloads
         SharedRoute.Settings -> NaviampRoute.Settings

@@ -466,6 +466,30 @@ data class SharedSonicPathBuilderUi(
         get() = pathTracks.isNotEmpty()
 }
 
+data class SharedSonicMixBuilderUi(
+    val query: String = "",
+    val selectedTracks: List<SharedTrackRowUi> = emptyList(),
+    val suggestedTracks: List<SharedTrackRowUi> = emptyList(),
+    val mixTracks: List<SharedTrackRowUi> = emptyList(),
+    val targetLength: Int = 50,
+    val bias: SharedSonicMixBiasUi = SharedSonicMixBiasUi.Balanced,
+    val status: String? = null,
+    val loading: Boolean = false,
+) {
+    val canBuild: Boolean
+        get() = selectedTracks.size >= 2
+
+    val hasMix: Boolean
+        get() = mixTracks.isNotEmpty()
+}
+
+enum class SharedSonicMixBiasUi(val label: String) {
+    Balanced("Balanced"),
+    Favorites("Favorites"),
+    Unplayed("Unplayed"),
+    Recent("Recent"),
+}
+
 data class SharedGenreMixItemUi(
     val id: String,
     val title: String,
@@ -555,6 +579,7 @@ enum class SharedRoute(val label: String, val icon: ImageVector) {
     AlbumMix("Album Mix", NaviampTransportIcons.Radio),
     GenreMix("Genre Mix", NaviampTransportIcons.Radio),
     SonicPath("Sonic Path", NaviampIcons.Brain),
+    SonicMix("Sonic Mix", NaviampIcons.Brain),
     Radio("Radio", NaviampIcons.InternetRadio),
     Downloads("Downloads", NaviampIcons.Downloads),
     Settings("Settings", NaviampIcons.Settings),

@@ -43,12 +43,15 @@ import app.naviamp.ui.SharedHome
 import app.naviamp.ui.SharedMediaItemAction
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedMixBuilderUi
+import app.naviamp.ui.SharedSonicMixBiasUi
+import app.naviamp.ui.SharedSonicMixBuilderUi
 import app.naviamp.ui.SharedSonicPathBuilderUi
 import app.naviamp.ui.SharedTrackGroupAction
 import app.naviamp.ui.SharedTrackGroupActionRequest
 import app.naviamp.ui.SharedTrackRowAction
 import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.StationRowAction
+import app.naviamp.ui.SonicMixBuilderContent
 import app.naviamp.ui.SonicPathBuilderContent
 import app.naviamp.ui.toSharedHomeUi
 
@@ -138,6 +141,17 @@ fun ColumnScope.DesktopAppRouteContent(
     onSonicPathReset: () -> Unit,
     onSonicPathPlay: () -> Unit,
     onSonicPathAddToQueue: () -> Unit,
+    sonicMixBuilder: SharedSonicMixBuilderUi,
+    onSonicMixQueryChanged: (String) -> Unit,
+    onSonicMixSearch: () -> Unit,
+    onSonicMixTrackSelected: (SharedTrackRowUi) -> Unit,
+    onSonicMixTrackRemoved: (SharedTrackRowUi) -> Unit,
+    onSonicMixTargetLengthChanged: (Int) -> Unit,
+    onSonicMixBiasChanged: (SharedSonicMixBiasUi) -> Unit,
+    onSonicMixBuild: () -> Unit,
+    onSonicMixReset: () -> Unit,
+    onSonicMixPlay: () -> Unit,
+    onSonicMixAddToQueue: () -> Unit,
     internetRadioStations: List<InternetRadioStation>,
     internetRadioStatus: String?,
     onSaveInternetRadioStation: (InternetRadioStation) -> Unit,
@@ -175,6 +189,7 @@ fun ColumnScope.DesktopAppRouteContent(
         playlistTracksById = playlistTracksById,
         canFavoriteAlbums = true,
         showSonicPathBuilder = playbackSettings.sonicSimilarityEnabled && supportsSonicSimilarity,
+        showSonicMixBuilder = playbackSettings.sonicSimilarityEnabled && supportsSonicSimilarity,
     )
     fun openMixBuilder(builder: SharedMixBuilderUi) {
         when (builder.id) {
@@ -182,6 +197,7 @@ fun ColumnScope.DesktopAppRouteContent(
             "album" -> onOpenAlbumMixBuilder()
             "genre" -> onRouteSelected(DesktopAppRoute.GenreMix)
             "sonic-path" -> onRouteSelected(DesktopAppRoute.SonicPath)
+            "sonic-mix" -> onRouteSelected(DesktopAppRoute.SonicMix)
         }
     }
     fun handleArtistMediaAction(
@@ -316,6 +332,7 @@ fun ColumnScope.DesktopAppRouteContent(
                         appRoute == DesktopAppRoute.AlbumMix ||
                         appRoute == DesktopAppRoute.GenreMix ||
                         appRoute == DesktopAppRoute.SonicPath ||
+                        appRoute == DesktopAppRoute.SonicMix ||
                         appRoute == DesktopAppRoute.Settings ||
                         appRoute == DesktopAppRoute.AlbumDetail ||
                         appRoute == DesktopAppRoute.ArtistDetail
@@ -672,6 +689,55 @@ fun ColumnScope.DesktopAppRouteContent(
                             }
                             Button(
                                 onClick = onSonicPathAddToQueue,
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Text("Add to Queue")
+                            }
+                        }
+                    }
+                }
+                DesktopAppRoute.SonicMix -> Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .verticalScroll(contentScrollState),
+                    ) {
+                        SonicMixBuilderContent(
+                            colors = appColors,
+                            builder = sonicMixBuilder,
+                            onQueryChanged = onSonicMixQueryChanged,
+                            onSearch = onSonicMixSearch,
+                            onTrackSelected = onSonicMixTrackSelected,
+                            onTrackRemoved = onSonicMixTrackRemoved,
+                            onTargetLengthChanged = onSonicMixTargetLengthChanged,
+                            onBiasChanged = onSonicMixBiasChanged,
+                            onBuildMix = onSonicMixBuild,
+                            onReset = onSonicMixReset,
+                            onPlayMix = onSonicMixPlay,
+                            onAddMixToQueue = onSonicMixAddToQueue,
+                            showMixActions = false,
+                        )
+                    }
+                    if (sonicMixBuilder.hasMix) {
+                        androidx.compose.foundation.layout.Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Button(
+                                onClick = onSonicMixPlay,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = appColors.accent,
+                                    contentColor = appColors.onAccent,
+                                ),
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Text("Play Mix")
+                            }
+                            Button(
+                                onClick = onSonicMixAddToQueue,
                                 modifier = Modifier.weight(1f),
                             ) {
                                 Text("Add to Queue")
