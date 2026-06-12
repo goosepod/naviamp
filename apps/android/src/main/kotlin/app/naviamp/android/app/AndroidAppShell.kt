@@ -27,6 +27,8 @@ import app.naviamp.ui.NaviampNowPlayingItemUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampSharedAppShell
 import app.naviamp.ui.NaviampVisualizer
+import app.naviamp.ui.NowPlayingItemAction
+import app.naviamp.ui.NowPlayingItemActionRequest
 import app.naviamp.ui.NowPlayingUi
 import app.naviamp.ui.SharedAlbumDetailUi
 import app.naviamp.ui.SharedAlbumMixBuilderUi
@@ -315,6 +317,18 @@ fun androidAppShellActions(
     handleQueueItemAddToQueue: (NaviampNowPlayingItemUi) -> Unit,
     resolveNowPlayingItemTrack: (NaviampNowPlayingItemUi) -> Track?,
     addTrackToPlaylist: (Track, NaviampPlaylistChoiceUi?, String?) -> Unit,
+    handleQueueItemAction: (NowPlayingItemActionRequest) -> Unit = { request ->
+        val track = resolveNowPlayingItemTrack(request.item)
+        when (request.action) {
+            NowPlayingItemAction.StartRadio -> handleShellQueueItemRadio(request.item)
+            NowPlayingItemAction.PlayNext -> handleQueueItemPlayNext(request.item)
+            NowPlayingItemAction.AddToQueue -> handleQueueItemAddToQueue(request.item)
+            NowPlayingItemAction.AddToPlaylist -> track?.let { addTrackToPlaylist(it, request.playlistChoice, null) }
+            NowPlayingItemAction.CreatePlaylistAndAdd ->
+                track?.let { addTrackToPlaylist(it, null, request.playlistName) }
+            NowPlayingItemAction.Download -> track?.let(downloadTrack)
+        }
+    },
     toggleCurrentFavorite: () -> Unit,
     handleShellRatingSelected: (Int?) -> Unit,
 ): AndroidAppShellActions =
@@ -536,6 +550,7 @@ fun androidAppShellActions(
                 resolveNowPlayingItemTrack(item)?.let { addTrackToPlaylist(it, null, name) }
             },
             onQueueItemDownload = { item -> resolveNowPlayingItemTrack(item)?.let(downloadTrack) },
+            onQueueItemAction = handleQueueItemAction,
             onToggleFavorite = { toggleCurrentFavorite() },
             onRatingSelected = handleShellRatingSelected,
         )

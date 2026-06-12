@@ -200,6 +200,23 @@ sealed interface NowPlayingItemTarget {
     data class TrackId(val id: String) : NowPlayingItemTarget
 }
 
+enum class NowPlayingItemAction {
+    StartRadio,
+    PlayNext,
+    AddToQueue,
+    AddToPlaylist,
+    CreatePlaylistAndAdd,
+    Download,
+}
+
+data class NowPlayingItemActionRequest(
+    val item: NaviampNowPlayingItemUi,
+    val target: NowPlayingItemTarget,
+    val action: NowPlayingItemAction,
+    val playlistChoice: NaviampPlaylistChoiceUi? = null,
+    val playlistName: String? = null,
+)
+
 fun nowPlayingQueueItemId(index: Int): String = "queue:$index"
 
 fun nowPlayingRelatedItemId(index: Int): String = "related:$index"
@@ -221,13 +238,42 @@ fun nowPlayingQueueIndex(item: NaviampNowPlayingItemUi): Int? =
 fun nowPlayingRelatedIndex(item: NaviampNowPlayingItemUi): Int? =
     (nowPlayingItemTarget(item) as? NowPlayingItemTarget.RelatedIndex)?.index
 
+fun nowPlayingItemActionRequest(
+    item: NaviampNowPlayingItemUi,
+    action: NowPlayingItemAction,
+    playlistChoice: NaviampPlaylistChoiceUi? = null,
+    playlistName: String? = null,
+): NowPlayingItemActionRequest =
+    NowPlayingItemActionRequest(
+        item = item,
+        target = nowPlayingItemTarget(item),
+        action = action,
+        playlistChoice = playlistChoice,
+        playlistName = playlistName,
+    )
+
 fun resolveNowPlayingItemTrack(
     item: NaviampNowPlayingItemUi,
     queueTracks: List<Track> = emptyList(),
     relatedTracks: List<Track> = emptyList(),
     knownTracks: List<Track> = emptyList(),
 ): Track? =
-    when (val target = nowPlayingItemTarget(item)) {
+    resolveNowPlayingTargetTrack(nowPlayingItemTarget(item), queueTracks, relatedTracks, knownTracks)
+
+fun NowPlayingItemActionRequest.resolveTrack(
+    queueTracks: List<Track> = emptyList(),
+    relatedTracks: List<Track> = emptyList(),
+    knownTracks: List<Track> = emptyList(),
+): Track? =
+    resolveNowPlayingTargetTrack(target, queueTracks, relatedTracks, knownTracks)
+
+private fun resolveNowPlayingTargetTrack(
+    target: NowPlayingItemTarget,
+    queueTracks: List<Track>,
+    relatedTracks: List<Track>,
+    knownTracks: List<Track>,
+): Track? =
+    when (target) {
         is NowPlayingItemTarget.QueueIndex -> queueTracks.getOrNull(target.index)
         is NowPlayingItemTarget.RelatedIndex -> relatedTracks.getOrNull(target.index)
         is NowPlayingItemTarget.TrackId ->

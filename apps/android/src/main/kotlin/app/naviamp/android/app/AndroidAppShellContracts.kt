@@ -14,6 +14,7 @@ import app.naviamp.ui.NaviampLibrarySyncStatusUi
 import app.naviamp.ui.NaviampNowPlayingItemUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampVisualizer
+import app.naviamp.ui.NowPlayingItemActionRequest
 import app.naviamp.ui.NowPlayingUi
 import app.naviamp.ui.SharedAlbumDetailUi
 import app.naviamp.ui.SharedAlbumMixBuilderUi
@@ -205,6 +206,7 @@ data class AndroidAppShellActions(
     val onQueueItemAddToPlaylist: (NaviampNowPlayingItemUi, NaviampPlaylistChoiceUi?) -> Unit,
     val onQueueItemCreatePlaylistAndAdd: (NaviampNowPlayingItemUi, String) -> Unit,
     val onQueueItemDownload: (NaviampNowPlayingItemUi) -> Unit,
+    val onQueueItemAction: (NowPlayingItemActionRequest) -> Unit,
     val onToggleFavorite: () -> Unit,
     val onRatingSelected: (Int?) -> Unit,
 )

@@ -1441,6 +1441,8 @@ Progress notes:
 - Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 - Moved now-playing row target IDs and item-to-track resolution into shared `core/ui` helpers. Desktop no longer parses `queue:`/`related:` IDs or builds a local item-track map in the panel, and Android now-playing row actions resolve through the same target helper instead of assuming raw track IDs at each callback.
 - Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
+- Added shared now-playing item action requests so the common now-playing list emits one typed action/target payload for radio, play-next, add-to-queue, playlist-add/create, and download actions. Android and Desktop now handle row actions through that shared request shape while preserving platform-specific playback, playlist, and download adapters.
+- Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 

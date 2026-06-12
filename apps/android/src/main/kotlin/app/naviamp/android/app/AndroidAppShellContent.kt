@@ -178,6 +178,7 @@ fun AndroidAppShellContent(
         onQueueItemAddToPlaylist = actions.onQueueItemAddToPlaylist,
         onQueueItemCreatePlaylistAndAdd = actions.onQueueItemCreatePlaylistAndAdd,
         onQueueItemDownload = actions.onQueueItemDownload,
+        onQueueItemAction = actions.onQueueItemAction,
         onToggleFavorite = actions.onToggleFavorite,
         onRatingSelected = actions.onRatingSelected,
     )

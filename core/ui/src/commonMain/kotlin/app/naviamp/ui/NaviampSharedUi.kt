@@ -232,6 +232,17 @@ fun NaviampSharedAppShell(
     onQueueItemAddToPlaylist: (NaviampNowPlayingItemUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
     onQueueItemCreatePlaylistAndAdd: (NaviampNowPlayingItemUi, String) -> Unit = { _, _ -> },
     onQueueItemDownload: (NaviampNowPlayingItemUi) -> Unit = {},
+    onQueueItemAction: (NowPlayingItemActionRequest) -> Unit = { request ->
+        when (request.action) {
+            NowPlayingItemAction.StartRadio -> onQueueItemRadio(request.item)
+            NowPlayingItemAction.PlayNext -> onQueueItemPlayNext(request.item)
+            NowPlayingItemAction.AddToQueue -> onQueueItemAddToQueue(request.item)
+            NowPlayingItemAction.AddToPlaylist -> onQueueItemAddToPlaylist(request.item, request.playlistChoice)
+            NowPlayingItemAction.CreatePlaylistAndAdd ->
+                request.playlistName?.let { name -> onQueueItemCreatePlaylistAndAdd(request.item, name) }
+            NowPlayingItemAction.Download -> onQueueItemDownload(request.item)
+        }
+    },
     onToggleFavorite: () -> Unit = {},
     onRatingSelected: (Int?) -> Unit = {},
     onClearCache: () -> Unit = {},
@@ -480,6 +491,7 @@ fun NaviampSharedAppShell(
                             onQueueItemAddToPlaylist = onQueueItemAddToPlaylist,
                             onQueueItemCreatePlaylistAndAdd = onQueueItemCreatePlaylistAndAdd,
                             onQueueItemDownload = onQueueItemDownload,
+                            onQueueItemAction = onQueueItemAction,
                             onToggleFavorite = onToggleFavorite,
                             onRatingSelected = onRatingSelected,
                         )
@@ -804,6 +816,7 @@ private fun ConnectedContent(
     onQueueItemAddToPlaylist: (NaviampNowPlayingItemUi, NaviampPlaylistChoiceUi?) -> Unit,
     onQueueItemCreatePlaylistAndAdd: (NaviampNowPlayingItemUi, String) -> Unit,
     onQueueItemDownload: (NaviampNowPlayingItemUi) -> Unit,
+    onQueueItemAction: (NowPlayingItemActionRequest) -> Unit,
     onToggleFavorite: () -> Unit,
     onRatingSelected: (Int?) -> Unit,
     onClearCache: () -> Unit,
@@ -852,6 +865,7 @@ private fun ConnectedContent(
             onQueueItemAddToPlaylist = onQueueItemAddToPlaylist,
             onQueueItemCreatePlaylistAndAdd = onQueueItemCreatePlaylistAndAdd,
             onQueueItemDownload = onQueueItemDownload,
+            onQueueItemAction = onQueueItemAction,
             onToggleFavorite = onToggleFavorite,
             onRatingSelected = onRatingSelected,
             onTrackSelected = onTrackSelected,
@@ -1592,6 +1606,7 @@ private fun FullNowPlaying(
     onQueueItemAddToPlaylist: (NaviampNowPlayingItemUi, NaviampPlaylistChoiceUi?) -> Unit,
     onQueueItemCreatePlaylistAndAdd: (NaviampNowPlayingItemUi, String) -> Unit,
     onQueueItemDownload: (NaviampNowPlayingItemUi) -> Unit,
+    onQueueItemAction: (NowPlayingItemActionRequest) -> Unit,
     onToggleFavorite: () -> Unit,
     onRatingSelected: (Int?) -> Unit,
     onTrackSelected: (SharedTrackRowUi) -> Unit,
@@ -1633,6 +1648,7 @@ private fun FullNowPlaying(
                 onQueueItemAddToPlaylist = onQueueItemAddToPlaylist,
                 onQueueItemCreatePlaylistAndAdd = onQueueItemCreatePlaylistAndAdd,
                 onQueueItemDownload = onQueueItemDownload,
+                onQueueItemAction = onQueueItemAction,
                 onToggleFavorite = onToggleFavorite,
                 onRatingSelected = onRatingSelected,
                 onCollapse = onBack,

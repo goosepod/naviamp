@@ -93,6 +93,19 @@ class MediaUiMappersTest {
         )
     }
 
+    @Test
+    fun nowPlayingItemActionRequestCarriesActionTargetAndPlaylistData() {
+        val request = nowPlayingItemActionRequest(
+            item = item(nowPlayingRelatedItemId(2)),
+            action = NowPlayingItemAction.CreatePlaylistAndAdd,
+            playlistName = "Road Mix",
+        )
+
+        assertEquals(NowPlayingItemAction.CreatePlaylistAndAdd, request.action)
+        assertEquals(NowPlayingItemTarget.RelatedIndex(2), request.target)
+        assertEquals("Road Mix", request.playlistName)
+    }
+
     private fun item(id: String): NaviampNowPlayingItemUi =
         NaviampNowPlayingItemUi(id = id, title = id, subtitle = "")
 

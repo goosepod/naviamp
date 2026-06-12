@@ -128,6 +128,17 @@ data class NaviampNowPlayingActions(
     val onQueueItemAddToPlaylist: (NaviampNowPlayingItemUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
     val onQueueItemCreatePlaylistAndAdd: (NaviampNowPlayingItemUi, String) -> Unit = { _, _ -> },
     val onQueueItemDownload: (NaviampNowPlayingItemUi) -> Unit = {},
+    val onQueueItemAction: (NowPlayingItemActionRequest) -> Unit = { request ->
+        when (request.action) {
+            NowPlayingItemAction.StartRadio -> onQueueItemRadio(request.item)
+            NowPlayingItemAction.PlayNext -> onQueueItemPlayNext(request.item)
+            NowPlayingItemAction.AddToQueue -> onQueueItemAddToQueue(request.item)
+            NowPlayingItemAction.AddToPlaylist -> onQueueItemAddToPlaylist(request.item, request.playlistChoice)
+            NowPlayingItemAction.CreatePlaylistAndAdd ->
+                request.playlistName?.let { name -> onQueueItemCreatePlaylistAndAdd(request.item, name) }
+            NowPlayingItemAction.Download -> onQueueItemDownload(request.item)
+        }
+    },
     val onVisualizerSelected: (NaviampVisualizer) -> Unit = {},
 )
 
@@ -1335,12 +1346,7 @@ private fun NowPlayingSidePanel(
             useInlinePlaylistPicker = nowPlaying.useInlinePlaylistPicker,
             onClick = onClick,
             rowActions = rowActions,
-            onRadio = actions.onQueueItemRadio,
-            onPlayNext = actions.onQueueItemPlayNext,
-            onAddToQueue = actions.onQueueItemAddToQueue,
-            onAddToPlaylist = actions.onQueueItemAddToPlaylist,
-            onCreatePlaylistAndAdd = actions.onQueueItemCreatePlaylistAndAdd,
-            onDownload = actions.onQueueItemDownload,
+            onAction = actions.onQueueItemAction,
             modifier = Modifier.weight(if (showLyrics) 0.62f else 1f),
         )
         if (showLyrics) {
@@ -1760,12 +1766,7 @@ private fun NowPlayingItemList(
     showActions: Boolean = true,
     onClick: (NaviampNowPlayingItemUi) -> Unit,
     rowActions: List<NaviampActionSpec> = queueRowActions(),
-    onRadio: (NaviampNowPlayingItemUi) -> Unit = {},
-    onPlayNext: (NaviampNowPlayingItemUi) -> Unit = {},
-    onAddToQueue: (NaviampNowPlayingItemUi) -> Unit = {},
-    onAddToPlaylist: (NaviampNowPlayingItemUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
-    onCreatePlaylistAndAdd: (NaviampNowPlayingItemUi, String) -> Unit = { _, _ -> },
-    onDownload: (NaviampNowPlayingItemUi) -> Unit = {},
+    onAction: (NowPlayingItemActionRequest) -> Unit = {},
 ) {
     if (items.isEmpty()) {
         Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -1820,15 +1821,19 @@ private fun NowPlayingItemList(
                                 onClick = {
                                     menuExpanded = false
                                     when (action.action) {
-                                        NaviampAction.PlayNext -> onPlayNext(item)
-                                        NaviampAction.AddToQueue -> onAddToQueue(item)
-                                        NaviampAction.StartTrackRadio -> onRadio(item)
-                                        NaviampAction.DownloadTrack -> onDownload(item)
+                                        NaviampAction.PlayNext ->
+                                            onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.PlayNext))
+                                        NaviampAction.AddToQueue ->
+                                            onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.AddToQueue))
+                                        NaviampAction.StartTrackRadio ->
+                                            onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.StartRadio))
+                                        NaviampAction.DownloadTrack ->
+                                            onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.Download))
                                         NaviampAction.AddToPlaylist -> {
                                             if (useInlinePlaylistPicker) {
                                                 playlistDialogOpen = true
                                             } else {
-                                                onAddToPlaylist(item, null)
+                                                onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.AddToPlaylist))
                                             }
                                         }
                                         else -> Unit
@@ -1849,11 +1854,23 @@ private fun NowPlayingItemList(
                     onDismissRequest = { playlistDialogOpen = false },
                     onAddToExisting = { playlist ->
                         playlistDialogOpen = false
-                        onAddToPlaylist(item, playlist)
+                        onAction(
+                            nowPlayingItemActionRequest(
+                                item = item,
+                                action = NowPlayingItemAction.AddToPlaylist,
+                                playlistChoice = playlist,
+                            ),
+                        )
                     },
                     onCreateAndAdd = { name ->
                         playlistDialogOpen = false
-                        onCreatePlaylistAndAdd(item, name)
+                        onAction(
+                            nowPlayingItemActionRequest(
+                                item = item,
+                                action = NowPlayingItemAction.CreatePlaylistAndAdd,
+                                playlistName = name,
+                            ),
+                        )
                     },
                 )
             }
