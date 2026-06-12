@@ -38,6 +38,9 @@ import app.naviamp.ui.SharedGenreMixBuilderUi
 import app.naviamp.ui.SharedGenreMixItemUi
 import app.naviamp.ui.SharedHomeStationUi
 import app.naviamp.ui.SharedHomeUi
+import app.naviamp.ui.SharedMediaItemAction
+import app.naviamp.ui.SharedMediaItemActionRequest
+import app.naviamp.ui.SharedMediaItemKind
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedMixBuilderUi
 import app.naviamp.ui.SharedPlaylistDetailUi
@@ -462,6 +465,88 @@ fun androidAppShellActions(
             onPlaylistDelete = { selectedPlaylist ->
                 homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }?.let(deletePlaylist)
                     ?: run { status = "Playlist not found." }
+            },
+            onMediaItemAction = { request ->
+                when (request.kind) {
+                    SharedMediaItemKind.Album -> {
+                        when (request.action) {
+                            SharedMediaItemAction.Select -> handleShellAlbumSelected(request.item)
+                            SharedMediaItemAction.StartRadio -> handleArtistAlbumRadio(request.item)
+                            SharedMediaItemAction.AddToQueue ->
+                                loadArtistAlbumTracks(request.item) { appendTracksToQueue(it, "album tracks") }
+                            SharedMediaItemAction.Download ->
+                                loadArtistAlbumTracks(request.item) { downloadTracks(it, request.item.title) }
+                            SharedMediaItemAction.AddToPlaylist ->
+                                loadArtistAlbumTracks(request.item) {
+                                    addTracksToPlaylist(it, request.playlistChoice, null, request.item.title)
+                                }
+                            SharedMediaItemAction.CreatePlaylistAndAdd ->
+                                loadArtistAlbumTracks(request.item) {
+                                    addTracksToPlaylist(it, null, request.playlistName, request.item.title)
+                                }
+                            SharedMediaItemAction.ToggleFavorite -> handleAlbumFavoriteToggled(request.item)
+                            SharedMediaItemAction.Play,
+                            SharedMediaItemAction.Shuffle,
+                            SharedMediaItemAction.Rename,
+                            SharedMediaItemAction.EditSmartPlaylist,
+                            SharedMediaItemAction.Delete,
+                            SharedMediaItemAction.EditStation,
+                            SharedMediaItemAction.DeleteStation,
+                            -> Unit
+                        }
+                    }
+                    SharedMediaItemKind.Artist -> {
+                        when (request.action) {
+                            SharedMediaItemAction.Select ->
+                                openArtistDetails(app.naviamp.domain.ArtistId(request.item.id), request.item.title)
+                            SharedMediaItemAction.ToggleFavorite -> handleArtistFavoriteToggled(request.item)
+                            SharedMediaItemAction.Play,
+                            SharedMediaItemAction.Shuffle,
+                            SharedMediaItemAction.StartRadio,
+                            SharedMediaItemAction.AddToQueue,
+                            SharedMediaItemAction.Download,
+                            SharedMediaItemAction.AddToPlaylist,
+                            SharedMediaItemAction.CreatePlaylistAndAdd,
+                            SharedMediaItemAction.Rename,
+                            SharedMediaItemAction.EditSmartPlaylist,
+                            SharedMediaItemAction.Delete,
+                            SharedMediaItemAction.EditStation,
+                            SharedMediaItemAction.DeleteStation,
+                            -> Unit
+                        }
+                    }
+                    SharedMediaItemKind.Playlist -> {
+                        val playlist = homeState.playlists.firstOrNull { it.id == request.item.id }
+                        if (playlist == null) {
+                            status = "Playlist not found."
+                        } else {
+                            when (request.action) {
+                                SharedMediaItemAction.Select -> openPlaylistDetails(playlist)
+                                SharedMediaItemAction.Play -> playPlaylist(playlist, false)
+                                SharedMediaItemAction.Shuffle -> playPlaylist(playlist, true)
+                                SharedMediaItemAction.AddToQueue -> addPlaylistToQueue(playlist)
+                                SharedMediaItemAction.Download -> downloadPlaylist(playlist)
+                                SharedMediaItemAction.AddToPlaylist ->
+                                    addPlaylistToPlaylist(playlist, request.playlistChoice, null)
+                                SharedMediaItemAction.CreatePlaylistAndAdd ->
+                                    addPlaylistToPlaylist(playlist, null, request.playlistName)
+                                SharedMediaItemAction.Rename ->
+                                    request.textValue?.let { name -> renamePlaylist(playlist, name) }
+                                SharedMediaItemAction.Delete -> deletePlaylist(playlist)
+                                SharedMediaItemAction.StartRadio,
+                                SharedMediaItemAction.ToggleFavorite,
+                                SharedMediaItemAction.EditSmartPlaylist,
+                                SharedMediaItemAction.EditStation,
+                                SharedMediaItemAction.DeleteStation,
+                                -> Unit
+                            }
+                        }
+                    }
+                    SharedMediaItemKind.Unknown,
+                    SharedMediaItemKind.RadioStation,
+                    SharedMediaItemKind.MixBuilder,
+                    -> Unit
+                }
             },
             onSmartPlaylistSave = { definition -> saveSmartPlaylist(definition) },
             onSmartPlaylistUpdate = { playlist, definition ->

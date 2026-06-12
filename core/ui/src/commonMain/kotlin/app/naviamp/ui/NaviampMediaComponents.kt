@@ -304,6 +304,7 @@ internal fun HomeSection(
     colors: NaviampColors,
     onItemSelected: ((SharedMediaItemUi) -> Unit)? = null,
     onFavoriteToggled: ((SharedMediaItemUi) -> Unit)? = null,
+    itemKind: SharedMediaItemKind = SharedMediaItemKind.Unknown,
     stationStyle: Boolean = false,
     emptyText: String? = null,
 ) {
@@ -326,6 +327,7 @@ internal fun HomeSection(
                     SharedMediaRow(
                         item = item,
                         colors = colors,
+                        itemKind = itemKind,
                         onClick = onItemSelected?.let { { it(item) } },
                         onFavoriteToggled = onFavoriteToggled,
                     )
@@ -342,6 +344,7 @@ internal fun MediaSection(
     colors: NaviampColors,
     onItemSelected: ((SharedMediaItemUi) -> Unit)? = null,
     onFavoriteToggled: ((SharedMediaItemUi) -> Unit)? = null,
+    itemKind: SharedMediaItemKind = SharedMediaItemKind.Unknown,
 ) {
     if (items.isEmpty()) return
 
@@ -351,6 +354,7 @@ internal fun MediaSection(
             SharedMediaRow(
                 item = item,
                 colors = colors,
+                itemKind = itemKind,
                 onClick = onItemSelected?.let { { it(item) } },
                 onFavoriteToggled = onFavoriteToggled,
             )
@@ -365,6 +369,7 @@ fun SharedMediaRow(
     onClick: (() -> Unit)? = null,
     menuItems: List<NaviampRowMenuItem> = emptyList(),
     onFavoriteToggled: ((SharedMediaItemUi) -> Unit)? = null,
+    itemKind: SharedMediaItemKind = SharedMediaItemKind.Unknown,
     onItemAction: (SharedMediaItemActionRequest) -> Unit = { request ->
         handleSharedMediaItemAction(
             request,
@@ -387,7 +392,13 @@ fun SharedMediaRow(
             .let { rowModifier ->
                 if (onClick != null) {
                     rowModifier.clickable {
-                        onItemAction(SharedMediaItemActionRequest(item, SharedMediaItemAction.Select))
+                        onItemAction(
+                            SharedMediaItemActionRequest(
+                                item = item,
+                                action = SharedMediaItemAction.Select,
+                                kind = itemKind,
+                            ),
+                        )
                     }
                 } else {
                     rowModifier
@@ -418,7 +429,15 @@ fun SharedMediaRow(
             NaviampRowMenuItem(
                 label = if (item.favoriteActive) "Remove favorite" else "Favorite",
                 icon = NaviampTransportIcons.Heart,
-                onClick = { onItemAction(SharedMediaItemActionRequest(item, SharedMediaItemAction.ToggleFavorite)) },
+                onClick = {
+                    onItemAction(
+                        SharedMediaItemActionRequest(
+                            item = item,
+                            action = SharedMediaItemAction.ToggleFavorite,
+                            kind = itemKind,
+                        ),
+                    )
+                },
             )
         } else {
             null
@@ -868,6 +887,7 @@ fun InternetRadioContent(
             SharedMediaRow(
                 item = stationItem,
                 colors = colors,
+                itemKind = SharedMediaItemKind.RadioStation,
                 onClick = { onStationSelected(station) },
                 onItemAction = { request ->
                     when (request.action) {

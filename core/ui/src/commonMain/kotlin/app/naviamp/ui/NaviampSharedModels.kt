@@ -180,6 +180,15 @@ data class SharedMediaItemUi(
     val canFavorite: Boolean = false,
 )
 
+enum class SharedMediaItemKind {
+    Unknown,
+    Album,
+    Artist,
+    Playlist,
+    RadioStation,
+    MixBuilder,
+}
+
 enum class SharedMediaItemAction {
     Select,
     Play,
@@ -200,6 +209,7 @@ enum class SharedMediaItemAction {
 data class SharedMediaItemActionRequest(
     val item: SharedMediaItemUi,
     val action: SharedMediaItemAction,
+    val kind: SharedMediaItemKind = SharedMediaItemKind.Unknown,
     val playlistChoice: NaviampPlaylistChoiceUi? = null,
     val playlistName: String? = null,
     val textValue: String? = null,

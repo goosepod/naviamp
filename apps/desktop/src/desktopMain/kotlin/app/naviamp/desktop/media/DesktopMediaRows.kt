@@ -31,6 +31,7 @@ import app.naviamp.ui.NaviampActionSpec
 import app.naviamp.ui.NaviampIcons
 import app.naviamp.ui.NaviampRowMenuItem
 import app.naviamp.ui.NaviampRowOverflowMenu
+import app.naviamp.ui.SharedMediaItemKind
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedMediaRow
 import app.naviamp.ui.SharedTrackRowUi
@@ -101,6 +102,7 @@ fun DesktopArtistRow(
         ),
         colors = appColors,
         onClick = onClick,
+        itemKind = SharedMediaItemKind.Artist,
         menuItems = artistRowActions(
             canStartRadio = onStartRadio != null,
             canAddToQueue = onAddToQueue != null,
@@ -150,6 +152,7 @@ fun DesktopAlbumRow(
         ),
         colors = appColors,
         onClick = onClick,
+        itemKind = SharedMediaItemKind.Album,
         menuItems = albumRowActions(
             canStartRadio = onStartRadio != null,
             canDownload = onDownload != null,

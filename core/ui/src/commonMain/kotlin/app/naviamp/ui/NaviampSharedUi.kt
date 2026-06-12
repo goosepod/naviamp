@@ -188,6 +188,92 @@ fun NaviampSharedAppShell(
     onPlaylistCreatePlaylistAndAdd: (SharedPlaylistDetailUi, String) -> Unit = { _, _ -> },
     onPlaylistRename: (SharedMediaItemUi, String) -> Unit = { _, _ -> },
     onPlaylistDelete: (SharedMediaItemUi) -> Unit = {},
+    onMediaItemAction: (SharedMediaItemActionRequest) -> Unit = { request ->
+        handleSharedMediaItemAction(
+            request,
+            SharedMediaItemActionHandlers(
+                onSelect = { item ->
+                    when (request.kind) {
+                        SharedMediaItemKind.Album -> onAlbumSelected(item)
+                        SharedMediaItemKind.Artist -> onArtistSelected(item)
+                        SharedMediaItemKind.Playlist -> onPlaylistSelected(item)
+                        SharedMediaItemKind.Unknown,
+                        SharedMediaItemKind.RadioStation,
+                        SharedMediaItemKind.MixBuilder,
+                        -> Unit
+                    }
+                },
+                onPlay = { item, shuffle ->
+                    if (request.kind == SharedMediaItemKind.Playlist) {
+                        onPlaylistPlay(item, shuffle)
+                    }
+                },
+                onStartRadio = { item ->
+                    if (request.kind == SharedMediaItemKind.Album) {
+                        onArtistAlbumRadio(item)
+                    }
+                },
+                onAddToQueue = { item ->
+                    when (request.kind) {
+                        SharedMediaItemKind.Album -> onArtistAlbumAddToQueue(item)
+                        SharedMediaItemKind.Playlist -> onPlaylistItemAddToQueue(item)
+                        SharedMediaItemKind.Unknown,
+                        SharedMediaItemKind.Artist,
+                        SharedMediaItemKind.RadioStation,
+                        SharedMediaItemKind.MixBuilder,
+                        -> Unit
+                    }
+                },
+                onDownload = { item ->
+                    when (request.kind) {
+                        SharedMediaItemKind.Album -> onArtistAlbumDownload(item)
+                        SharedMediaItemKind.Playlist -> onPlaylistDownload(item)
+                        SharedMediaItemKind.Unknown,
+                        SharedMediaItemKind.Artist,
+                        SharedMediaItemKind.RadioStation,
+                        SharedMediaItemKind.MixBuilder,
+                        -> Unit
+                    }
+                },
+                onAddToPlaylist = { item, playlist ->
+                    when (request.kind) {
+                        SharedMediaItemKind.Album -> onArtistAlbumAddToPlaylist(item, playlist)
+                        SharedMediaItemKind.Playlist -> onPlaylistItemAddToPlaylist(item, playlist)
+                        SharedMediaItemKind.Unknown,
+                        SharedMediaItemKind.Artist,
+                        SharedMediaItemKind.RadioStation,
+                        SharedMediaItemKind.MixBuilder,
+                        -> Unit
+                    }
+                },
+                onCreatePlaylistAndAdd = { item, name ->
+                    when (request.kind) {
+                        SharedMediaItemKind.Album -> onArtistAlbumCreatePlaylistAndAdd(item, name)
+                        SharedMediaItemKind.Playlist -> onPlaylistItemCreatePlaylistAndAdd(item, name)
+                        SharedMediaItemKind.Unknown,
+                        SharedMediaItemKind.Artist,
+                        SharedMediaItemKind.RadioStation,
+                        SharedMediaItemKind.MixBuilder,
+                        -> Unit
+                    }
+                },
+                onToggleFavorite = { item ->
+                    when (request.kind) {
+                        SharedMediaItemKind.Album -> onAlbumFavoriteToggled(item)
+                        SharedMediaItemKind.Artist -> onArtistFavoriteToggled(item)
+                        SharedMediaItemKind.Unknown,
+                        SharedMediaItemKind.Playlist,
+                        SharedMediaItemKind.RadioStation,
+                        SharedMediaItemKind.MixBuilder,
+                        -> Unit
+                    }
+                },
+                onRename = onPlaylistRename,
+                onEditSmartPlaylist = {},
+                onDelete = onPlaylistDelete,
+            ),
+        )
+    },
     onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit = {},
     onSmartPlaylistUpdate: suspend (SharedMediaItemUi, SmartPlaylistDefinition) -> Unit = { _, _ -> },
     onSmartPlaylistLoad: suspend (SharedMediaItemUi) -> SmartPlaylistDefinition = {
@@ -461,6 +547,7 @@ fun NaviampSharedAppShell(
                             onPlaylistCreatePlaylistAndAdd = onPlaylistCreatePlaylistAndAdd,
                             onPlaylistRename = onPlaylistRename,
                             onPlaylistDelete = onPlaylistDelete,
+                            onMediaItemAction = onMediaItemAction,
                             onSmartPlaylistSave = onSmartPlaylistSave,
                             onSmartPlaylistUpdate = onSmartPlaylistUpdate,
                             onSmartPlaylistLoad = onSmartPlaylistLoad,
@@ -787,6 +874,7 @@ private fun ConnectedContent(
     onPlaylistCreatePlaylistAndAdd: (SharedPlaylistDetailUi, String) -> Unit,
     onPlaylistRename: (SharedMediaItemUi, String) -> Unit,
     onPlaylistDelete: (SharedMediaItemUi) -> Unit,
+    onMediaItemAction: (SharedMediaItemActionRequest) -> Unit,
     onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit,
     onSmartPlaylistUpdate: suspend (SharedMediaItemUi, SmartPlaylistDefinition) -> Unit,
     onSmartPlaylistLoad: suspend (SharedMediaItemUi) -> SmartPlaylistDefinition,
@@ -991,6 +1079,7 @@ private fun ConnectedContent(
             onAlbumAddToQueue = onArtistAlbumAddToQueue,
             onAlbumAddToPlaylist = onArtistAlbumAddToPlaylist,
             onAlbumCreatePlaylistAndAdd = onArtistAlbumCreatePlaylistAndAdd,
+            onAlbumAction = onMediaItemAction,
             onAlbumFavoriteToggled = onAlbumFavoriteToggled,
             playlistChoices = playlistChoices,
             playlistActionStatus = playlistActionStatus,
@@ -1043,6 +1132,7 @@ private fun ConnectedContent(
                 onPlaylistCreatePlaylistAndAdd = onPlaylistItemCreatePlaylistAndAdd,
                 onPlaylistRename = onPlaylistRename,
                 onPlaylistDelete = onPlaylistDelete,
+                onPlaylistAction = onMediaItemAction,
                 onSmartPlaylistSave = onSmartPlaylistSave,
                 onSmartPlaylistUpdate = onSmartPlaylistUpdate,
                 onSmartPlaylistLoad = onSmartPlaylistLoad,
@@ -1364,6 +1454,20 @@ private fun ArtistDetailContent(
     onAlbumAddToPlaylist: (SharedMediaItemUi, NaviampPlaylistChoiceUi?) -> Unit,
     onAlbumCreatePlaylistAndAdd: (SharedMediaItemUi, String) -> Unit,
     onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit,
+    onAlbumAction: (SharedMediaItemActionRequest) -> Unit = { request ->
+        handleSharedMediaItemAction(
+            request,
+            SharedMediaItemActionHandlers(
+                onSelect = onAlbumSelected,
+                onStartRadio = onAlbumRadio,
+                onAddToQueue = onAlbumAddToQueue,
+                onDownload = onAlbumDownload,
+                onAddToPlaylist = onAlbumAddToPlaylist,
+                onCreatePlaylistAndAdd = onAlbumCreatePlaylistAndAdd,
+                onToggleFavorite = onAlbumFavoriteToggled,
+            ),
+        )
+    },
     playlistChoices: List<NaviampPlaylistChoiceUi>,
     playlistActionStatus: String?,
 ) {
@@ -1375,15 +1479,15 @@ private fun ArtistDetailContent(
         handleSharedMediaItemAction(
             request,
             SharedMediaItemActionHandlers(
-                onSelect = onAlbumSelected,
-                onStartRadio = onAlbumRadio,
-                onAddToQueue = onAlbumAddToQueue,
-                onDownload = onAlbumDownload,
+                onSelect = { onAlbumAction(request) },
+                onStartRadio = { onAlbumAction(request) },
+                onAddToQueue = { onAlbumAction(request) },
+                onDownload = { onAlbumAction(request) },
                 onAddToPlaylist = { album, playlist ->
-                    if (playlist == null) albumForPlaylist = album else onAlbumAddToPlaylist(album, playlist)
+                    if (playlist == null) albumForPlaylist = album else onAlbumAction(request)
                 },
-                onCreatePlaylistAndAdd = onAlbumCreatePlaylistAndAdd,
-                onToggleFavorite = onAlbumFavoriteToggled,
+                onCreatePlaylistAndAdd = { _, _ -> onAlbumAction(request) },
+                onToggleFavorite = { onAlbumAction(request) },
             ),
         )
     }
@@ -1538,6 +1642,7 @@ private fun ArtistDetailContent(
                     SharedMediaRow(
                         item = album,
                         colors = colors,
+                        itemKind = SharedMediaItemKind.Album,
                         onClick = { onAlbumSelected(album) },
                         onItemAction = handleAlbumAction,
                         menuItems = albumRowActions(
@@ -1552,31 +1657,31 @@ private fun ArtistDetailContent(
                                 NaviampAction.StartAlbumRadio -> NaviampRowMenuItem(
                                     action.label,
                                     action.icon,
-                                    { handleAlbumAction(SharedMediaItemActionRequest(album, SharedMediaItemAction.StartRadio)) },
+                                    { handleAlbumAction(SharedMediaItemActionRequest(album, SharedMediaItemAction.StartRadio, kind = SharedMediaItemKind.Album)) },
                                     action.enabled,
                                 )
                                 NaviampAction.DownloadAlbum -> NaviampRowMenuItem(
                                     action.label,
                                     action.icon,
-                                    { handleAlbumAction(SharedMediaItemActionRequest(album, SharedMediaItemAction.Download)) },
+                                    { handleAlbumAction(SharedMediaItemActionRequest(album, SharedMediaItemAction.Download, kind = SharedMediaItemKind.Album)) },
                                     action.enabled,
                                 )
                                 NaviampAction.AddToQueue -> NaviampRowMenuItem(
                                     action.label,
                                     action.icon,
-                                    { handleAlbumAction(SharedMediaItemActionRequest(album, SharedMediaItemAction.AddToQueue)) },
+                                    { handleAlbumAction(SharedMediaItemActionRequest(album, SharedMediaItemAction.AddToQueue, kind = SharedMediaItemKind.Album)) },
                                     action.enabled,
                                 )
                                 NaviampAction.AddToPlaylist -> NaviampRowMenuItem(
                                     action.label,
                                     action.icon,
-                                    { handleAlbumAction(SharedMediaItemActionRequest(album, SharedMediaItemAction.AddToPlaylist)) },
+                                    { handleAlbumAction(SharedMediaItemActionRequest(album, SharedMediaItemAction.AddToPlaylist, kind = SharedMediaItemKind.Album)) },
                                     action.enabled,
                                 )
                                 NaviampAction.ToggleFavorite -> NaviampRowMenuItem(
                                     action.label,
                                     action.icon,
-                                    { handleAlbumAction(SharedMediaItemActionRequest(album, SharedMediaItemAction.ToggleFavorite)) },
+                                    { handleAlbumAction(SharedMediaItemActionRequest(album, SharedMediaItemAction.ToggleFavorite, kind = SharedMediaItemKind.Album)) },
                                     action.enabled,
                                 )
                                 else -> null
@@ -1649,6 +1754,7 @@ private fun ArtistDetailContent(
                     SharedMediaItemActionRequest(
                         item = album,
                         action = SharedMediaItemAction.AddToPlaylist,
+                        kind = SharedMediaItemKind.Album,
                         playlistChoice = playlist,
                     ),
                 )
@@ -1659,6 +1765,7 @@ private fun ArtistDetailContent(
                     SharedMediaItemActionRequest(
                         item = album,
                         action = SharedMediaItemAction.CreatePlaylistAndAdd,
+                        kind = SharedMediaItemKind.Album,
                         playlistName = name,
                     ),
                 )
