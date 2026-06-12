@@ -607,7 +607,7 @@ Phase 5 close-out:
 - [x] Extract shared coordinators for home loading and refresh.
 - [x] Extract shared coordinators for artist, album, playlist, search, downloads, and internet radio flows.
 - [x] Extract shared coordinators for artist mix, album mix, genre mix, and future generated queues.
-- [ ] Make Android/Desktop app shells compose shared coordinators rather than owning equivalent orchestration.
+- [x] Make Android/Desktop app shells compose shared coordinators rather than owning equivalent orchestration.
 
 Connection/provider lifecycle close-out:
 
@@ -643,6 +643,12 @@ Mix/generated-queue close-out:
 - Android and desktop mix builder controllers both compose `MixSuggestionsCoordinator`, `MixItemTracksCoordinator`, and generated queue input helpers; platforms keep coroutine dispatching, mutable UI state, and playback execution local.
 - Artist mix, album mix, and genre mix now share the same queue input normalization before handing off to platform radio controllers.
 - Shared tests cover suggestion coordinator sequencing, item-track coordinator sequencing, status helpers, reducers, and generated queue inputs.
+
+Phase 6 close-out:
+
+- Android and desktop roots now consume platform controller/composition helpers for the shared orchestration surfaces instead of rebuilding equivalent service graphs in root shell code.
+- Mix-builder service graph composition moved behind `rememberAndroidMixBuilderController` and `rememberDesktopMixBuilderController`, matching the controller boundary used by connection, library, home, media details, search, downloads, playlists, radio, and playback orchestration.
+- Remaining platform root size is now tracked by Phase 7 as root decomposition work, not as missing shared app orchestration.
 
 ## Phase 7: Platform Root Decomposition
 

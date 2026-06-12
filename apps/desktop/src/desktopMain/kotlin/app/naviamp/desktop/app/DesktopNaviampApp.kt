@@ -492,7 +492,8 @@ fun NaviampApp(
     )
     playlistCallbacksRef.value = playlistCallbacks
 
-    val artistMixBuilderService = rememberDesktopArtistMixBuilderService(
+    val mixBuilderController = rememberDesktopMixBuilderController(
+        scope = coroutineScope,
         storage = storage,
         sourceId = { connectedSourceId },
         provider = { connectedProvider },
@@ -500,26 +501,6 @@ fun NaviampApp(
         popularTracksService = popularTracksService,
         similarArtistsService = similarArtistsService,
     )
-    val albumMixBuilderService = rememberDesktopAlbumMixBuilderService(
-        storage = storage,
-        sourceId = { connectedSourceId },
-        provider = { connectedProvider },
-        homeContent = { homeContent },
-        similarArtistsService = similarArtistsService,
-    )
-    val genreMixBuilderService = rememberDesktopGenreMixBuilderService(
-        provider = { connectedProvider },
-        homeContent = { homeContent },
-    )
-
-    val mixBuilderController = remember {
-        DesktopMixBuilderController(
-        scope = coroutineScope,
-        artistMixBuilderService = { artistMixBuilderService },
-        albumMixBuilderService = { albumMixBuilderService },
-        genreMixBuilderService = { genreMixBuilderService },
-    )
-    }
 
     val searchController = remember {
         DesktopSearchController(

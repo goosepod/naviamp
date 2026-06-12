@@ -337,36 +337,16 @@ private fun NaviampAndroidApp(
         )
     }
 
-    val artistMixBuilderService = rememberAndroidArtistMixBuilderService(
+    val mixBuilderController = rememberAndroidMixBuilderController(
+        scope = scope,
+        state = appState,
+        queueController = playbackQueueController,
         storage = storage,
         sourceId = { activeSourceId },
         provider = { provider },
         homeContent = { homeState },
         popularTracksService = popularTracksService,
         similarArtistsService = similarArtistsService,
-    )
-
-    val albumMixBuilderService = rememberAndroidAlbumMixBuilderService(
-        storage = storage,
-        sourceId = { activeSourceId },
-        provider = { provider },
-        homeContent = { homeState },
-        similarArtistsService = similarArtistsService,
-    )
-
-    val genreMixBuilderService = rememberAndroidGenreMixBuilderService(
-        provider = { provider },
-        homeContent = { homeState },
-    )
-
-    val mixBuilderController = AndroidMixBuilderController(
-        scope = scope,
-        state = appState,
-        queueController = playbackQueueController,
-        storage = storage,
-        artistMixBuilderService = { artistMixBuilderService },
-        albumMixBuilderService = { albumMixBuilderService },
-        genreMixBuilderService = { genreMixBuilderService },
         playTrack = { track, queue -> playbackAppController.playTrack(track, queue, keepRadioQueueActive = true) },
         rememberRecentRadioStream = playbackAppController::rememberRecentRadioStream,
     )
