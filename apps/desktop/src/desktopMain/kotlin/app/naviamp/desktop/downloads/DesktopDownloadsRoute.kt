@@ -2,6 +2,7 @@ package app.naviamp.desktop
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import app.naviamp.ui.DownloadedTrackAction
 import app.naviamp.ui.toDownloadedTrackUi
 
 @Composable
@@ -46,15 +47,18 @@ fun DesktopDownloadsRoute(
         status = status,
         downloadBytes = downloadBytes,
         maxDownloadBytes = maxDownloadBytes,
-        onTrackSelected = { download ->
-            val index = downloadItems.indexOfFirst { it.id == download.id }
-            if (index >= 0) onPlayDownloadedTrack(downloads, index)
-        },
-        onRemoveDownload = { download ->
-            downloadedTrackById[download.id]?.let(onRemoveDownloadedTrack)
-        },
-        onTrackAddToPlaylist = { download ->
-            downloadedTrackById[download.id]?.let(onAddDownloadedTrackToPlaylist)
+        onDownloadAction = { request ->
+            when (request.action) {
+                DownloadedTrackAction.Select -> {
+                    val index = downloadItems.indexOfFirst { it.id == request.download.id }
+                    if (index >= 0) onPlayDownloadedTrack(downloads, index)
+                }
+                DownloadedTrackAction.AddToPlaylist ->
+                    downloadedTrackById[request.download.id]?.let(onAddDownloadedTrackToPlaylist)
+                DownloadedTrackAction.Remove ->
+                    downloadedTrackById[request.download.id]?.let(onRemoveDownloadedTrack)
+                DownloadedTrackAction.CreatePlaylistAndAdd -> Unit
+            }
         },
     )
 }

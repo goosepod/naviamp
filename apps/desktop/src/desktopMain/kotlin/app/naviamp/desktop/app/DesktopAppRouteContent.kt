@@ -42,6 +42,7 @@ import app.naviamp.ui.SharedGenreMixItemUi
 import app.naviamp.ui.SharedHome
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedMixBuilderUi
+import app.naviamp.ui.StationRowAction
 import app.naviamp.ui.toSharedHomeUi
 
 @Composable
@@ -462,9 +463,16 @@ fun ColumnScope.DesktopAppRouteContent(
                         appColors = appColors,
                         stations = internetRadioStations,
                         status = internetRadioStatus ?: connectionStatus,
-                        onPlayStation = internetRadioController::playStation,
+                        onStationAction = { request ->
+                            internetRadioStations.firstOrNull { station -> station.id == request.station.id }?.let { station ->
+                                when (request.action) {
+                                    StationRowAction.Select -> internetRadioController.playStation(station)
+                                    StationRowAction.Edit -> Unit
+                                    StationRowAction.Delete -> onDeleteInternetRadioStation(station)
+                                }
+                            }
+                        },
                         onSaveStation = onSaveInternetRadioStation,
-                        onDeleteStation = onDeleteInternetRadioStation,
                     )
                 }
                 DesktopAppRoute.Downloads -> DesktopDownloadsRoute(

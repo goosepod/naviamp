@@ -1463,6 +1463,8 @@ Progress notes:
 - Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 - Collapsed downloaded-track and internet-radio station row actions into typed shell dispatchers. Shared downloads now emit `DownloadedTrackActionRequest`, shared radio rows emit `StationRowActionRequest` for select/delete while keeping create/edit save as the dialog result, and Android consumes those requests through thin platform lookup handlers instead of separate row callback fields.
 - Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
+- Finished the desktop side of the remaining row-action collapse. Desktop downloads now route select/add-to-playlist/remove through `DownloadedTrackActionRequest`, and the desktop internet-radio wrapper exposes one `StationRowActionRequest` callback instead of separate play/delete row callbacks.
+- Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 
