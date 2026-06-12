@@ -606,7 +606,7 @@ Phase 5 close-out:
 - [x] Extract shared coordinators for library sync/freshness.
 - [x] Extract shared coordinators for home loading and refresh.
 - [x] Extract shared coordinators for artist, album, playlist, search, downloads, and internet radio flows.
-- [ ] Extract shared coordinators for artist mix, album mix, genre mix, and future generated queues.
+- [x] Extract shared coordinators for artist mix, album mix, genre mix, and future generated queues.
 - [ ] Make Android/Desktop app shells compose shared coordinators rather than owning equivalent orchestration.
 
 Connection/provider lifecycle close-out:
@@ -636,6 +636,13 @@ Flow coordinator close-out:
 - Download flows already compose `DownloadService` and shared download plans/statuses for blocking, progress, completed/failed refresh decisions, and stats refresh; platforms only supply mobile-data policy, max-size settings, repository adapters, and UI refresh tokens.
 - Internet radio flows already compose `InternetRadioStationManager`, station recents helpers, internet-radio playback planners, and metadata planners; platforms only apply playback engine/session state and screen-specific station lists.
 - Shared tests now cover media detail coordinator success/failure sequencing in addition to the existing playlist, search, download, and internet-radio service tests.
+
+Mix/generated-queue close-out:
+
+- Shared domain now owns mix-builder suggestion loading, loading flags, empty/error status mapping, selected artist/album/genre reducers, per-selection track loading, and generated queue input construction in `MixBuilderFlowCoordinator.kt`.
+- Android and desktop mix builder controllers both compose `MixSuggestionsCoordinator`, `MixItemTracksCoordinator`, and generated queue input helpers; platforms keep coroutine dispatching, mutable UI state, and playback execution local.
+- Artist mix, album mix, and genre mix now share the same queue input normalization before handing off to platform radio controllers.
+- Shared tests cover suggestion coordinator sequencing, item-track coordinator sequencing, status helpers, reducers, and generated queue inputs.
 
 ## Phase 7: Platform Root Decomposition
 
