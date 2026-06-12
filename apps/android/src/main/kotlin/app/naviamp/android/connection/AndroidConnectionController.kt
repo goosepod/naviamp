@@ -12,6 +12,9 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.connectionFormError
+import app.naviamp.domain.source.ProviderConnectionLifecycleRequest
+import app.naviamp.domain.source.connectionFailureStatus
+import app.naviamp.domain.source.openProviderConnectionSession
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeConnectionLoginRequest
 import app.naviamp.provider.navidrome.NavidromeProvider
@@ -117,16 +120,24 @@ fun startNavidromeConnection(
         with(state) {
             status = "Connecting..."
             runCatching {
-                val tlsSettings = connection.tlsSettings
-                val nextProvider = NavidromeProvider(connection)
-                playbackEngine.applyTlsSettings(tlsSettings)
-                AndroidPlaybackTls.applyDefaults(tlsSettings)
-                validation = nextProvider.validateConnection()
-                val mediaSource = providerMediaSourceRepository.upsertProviderMediaSource(
-                    connection = connection.toProviderMediaSourceConnection(),
-                    cacheNamespace = nextProvider.cacheNamespace,
-                    providerId = nextProvider.id.value,
+                val session = openProviderConnectionSession(
+                    request = ProviderConnectionLifecycleRequest(
+                        connection = connection,
+                        prepareConnection = { requestedConnection -> requestedConnection },
+                        preparedConnection = { preparedConnection -> preparedConnection },
+                        provider = { preparedConnection -> NavidromeProvider(preparedConnection) },
+                        mediaSourceConnection = { preparedConnection ->
+                            preparedConnection.toProviderMediaSourceConnection()
+                        },
+                        applyTlsDefaults = { preparedConnection ->
+                            playbackEngine.applyTlsSettings(preparedConnection.tlsSettings)
+                            AndroidPlaybackTls.applyDefaults(preparedConnection.tlsSettings)
+                        },
+                    ),
+                    providerMediaSourceRepository = providerMediaSourceRepository,
                 )
+                val nextProvider = session.provider
+                validation = session.validation
                 homeState = loadBrowseState(
                     provider = nextProvider,
                     providerResponseCacheRepository = providerResponseCacheRepository,
@@ -135,9 +146,9 @@ fun startNavidromeConnection(
                 )
                 preloadPlaylistTracks(nextProvider, homeState.playlists)
                 provider = nextProvider
-                activeSourceId = mediaSource.id
-                activeTlsSettings = tlsSettings
-                restorePlaybackSession(mediaSource.id)
+                activeSourceId = session.sourceId
+                activeTlsSettings = session.connection.tlsSettings
+                restorePlaybackSession(session.sourceId)
             }.onSuccess {
                 if (nowPlaying == null && nowPlayingStation == null) {
                     status = "Connected."
@@ -148,7 +159,7 @@ fun startNavidromeConnection(
                 startAndroidLibrarySync(false)
                 checkAndroidLibraryFreshness()
             }.onFailure { error ->
-                status = error.message ?: "Connection failed."
+                status = connectionFailureStatus(error)
                 restoringConnection = false
                 provider = null
                 validation = null
@@ -207,7 +218,7 @@ fun startNavidromeConnectionFromForm(
             settingsStore.saveConnection(connectionForm)
             connectWithNavidromeConnection(connection)
         }.onFailure { error ->
-            state.status = error.message ?: "Connection failed."
+            state.status = connectionFailureStatus(error)
             state.restoringConnection = false
             state.provider = null
             state.validation = null

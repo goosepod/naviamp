@@ -17,6 +17,7 @@ import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.settings.connectionFormError
 import app.naviamp.domain.source.SavedMediaSource
+import app.naviamp.domain.source.connectionFailureStatus
 import app.naviamp.domain.source.deletedMediaSourceUpdate
 import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.DesktopPlaylistEngine
@@ -215,7 +216,7 @@ class DesktopConnectionLifecycleController(
             } catch (exception: Exception) {
                 setConnectedProvider(null)
                 setAppRoute(DesktopAppRoute.Settings)
-                setConnectionStatus(exception.message ?: "Could not connect to Navidrome.")
+                setConnectionStatus(connectionFailureStatus(exception, fallback = "Could not connect to Navidrome."))
             } finally {
                 setConnecting(false)
             }
