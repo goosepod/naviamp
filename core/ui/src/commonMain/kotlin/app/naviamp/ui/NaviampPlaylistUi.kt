@@ -331,6 +331,16 @@ internal fun PlaylistDetailContent(
     var renameOpen by remember { mutableStateOf(false) }
     var deleteOpen by remember { mutableStateOf(false) }
     var addToPlaylistOpen by remember { mutableStateOf(false) }
+    val handleTrackAction: (SharedTrackRowActionRequest) -> Unit = { request ->
+        when (request.action) {
+            SharedTrackRowAction.Select -> onTrackSelected(request.track)
+            SharedTrackRowAction.AddToQueue -> onTrackAddToQueue(request.track)
+            SharedTrackRowAction.StartRadio,
+            SharedTrackRowAction.Download,
+            SharedTrackRowAction.AddToPlaylist,
+            -> Unit
+        }
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -371,7 +381,13 @@ internal fun PlaylistDetailContent(
             }
         }
         detail.tracks.forEach { track ->
-            TrackRow(track, colors, onTrackSelected, onAddToQueue = onTrackAddToQueue)
+            TrackRow(
+                track,
+                colors,
+                onTrackSelected,
+                onAddToQueue = onTrackAddToQueue,
+                onTrackAction = handleTrackAction,
+            )
         }
     }
 

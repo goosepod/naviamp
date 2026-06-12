@@ -50,6 +50,15 @@ fun TrackRow(
     onAddToQueue: ((SharedTrackRowUi) -> Unit)? = null,
     onDownload: ((SharedTrackRowUi) -> Unit)? = null,
     onAddToPlaylist: ((SharedTrackRowUi) -> Unit)? = null,
+    onTrackAction: (SharedTrackRowActionRequest) -> Unit = { request ->
+        when (request.action) {
+            SharedTrackRowAction.Select -> onTrackSelected?.invoke(request.track)
+            SharedTrackRowAction.StartRadio -> onStartRadio?.invoke(request.track)
+            SharedTrackRowAction.AddToQueue -> onAddToQueue?.invoke(request.track)
+            SharedTrackRowAction.Download -> onDownload?.invoke(request.track)
+            SharedTrackRowAction.AddToPlaylist -> onAddToPlaylist?.invoke(request.track)
+        }
+    },
     reservePopularIndicatorSpace: Boolean = false,
     modifier: Modifier = Modifier,
     background: Boolean = false,
@@ -80,7 +89,13 @@ fun TrackRow(
                 },
             )
             .let { rowModifier ->
-                if (onTrackSelected != null) rowModifier.clickable { onTrackSelected(track) } else rowModifier
+                if (onTrackSelected != null) {
+                    rowModifier.clickable {
+                        onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.Select))
+                    }
+                } else {
+                    rowModifier
+                }
             }
             .padding(horizontal = horizontalPadding, vertical = verticalPadding),
         verticalAlignment = Alignment.CenterVertically,
@@ -124,17 +139,37 @@ fun TrackRow(
             canShowDetails = track.detailSections.isNotEmpty(),
         ).mapNotNull { action ->
             when (action.action) {
-                NaviampAction.StartTrackRadio -> onStartRadio?.let { startRadio ->
-                    NaviampRowMenuItem(action.label, action.icon, { startRadio(track) }, action.enabled)
+                NaviampAction.StartTrackRadio -> onStartRadio?.let {
+                    NaviampRowMenuItem(
+                        action.label,
+                        action.icon,
+                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.StartRadio)) },
+                        action.enabled,
+                    )
                 }
-                NaviampAction.DownloadTrack -> onDownload?.let { download ->
-                    NaviampRowMenuItem(action.label, action.icon, { download(track) }, action.enabled)
+                NaviampAction.DownloadTrack -> onDownload?.let {
+                    NaviampRowMenuItem(
+                        action.label,
+                        action.icon,
+                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.Download)) },
+                        action.enabled,
+                    )
                 }
-                NaviampAction.AddToQueue -> onAddToQueue?.let { addToQueue ->
-                    NaviampRowMenuItem(action.label, action.icon, { addToQueue(track) }, action.enabled)
+                NaviampAction.AddToQueue -> onAddToQueue?.let {
+                    NaviampRowMenuItem(
+                        action.label,
+                        action.icon,
+                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.AddToQueue)) },
+                        action.enabled,
+                    )
                 }
-                NaviampAction.AddToPlaylist -> onAddToPlaylist?.let { addToPlaylist ->
-                    NaviampRowMenuItem(action.label, action.icon, { addToPlaylist(track) }, action.enabled)
+                NaviampAction.AddToPlaylist -> onAddToPlaylist?.let {
+                    NaviampRowMenuItem(
+                        action.label,
+                        action.icon,
+                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.AddToPlaylist)) },
+                        action.enabled,
+                    )
                 }
                 NaviampAction.TrackDetails -> NaviampRowMenuItem(
                     action.label,

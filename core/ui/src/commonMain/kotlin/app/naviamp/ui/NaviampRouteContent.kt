@@ -119,6 +119,16 @@ internal fun SearchContent(
     onArtistFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
     onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
 ) {
+    val handleTrackAction: (SharedTrackRowActionRequest) -> Unit = { request ->
+        when (request.action) {
+            SharedTrackRowAction.Select -> onTrackSelected(request.track)
+            SharedTrackRowAction.AddToQueue -> onTrackAddToQueue(request.track)
+            SharedTrackRowAction.StartRadio,
+            SharedTrackRowAction.Download,
+            SharedTrackRowAction.AddToPlaylist,
+            -> Unit
+        }
+    }
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize(),
@@ -150,7 +160,13 @@ internal fun SearchContent(
         if (results.tracks.isNotEmpty()) {
             SectionHeader("TRACKS", colors)
             results.tracks.forEach { track ->
-                TrackRow(track, colors, onTrackSelected, onAddToQueue = onTrackAddToQueue)
+                TrackRow(
+                    track,
+                    colors,
+                    onTrackSelected,
+                    onAddToQueue = onTrackAddToQueue,
+                    onTrackAction = handleTrackAction,
+                )
             }
         }
     }

@@ -1140,6 +1140,15 @@ private fun AlbumDetailContent(
 ) {
     var addAlbumToPlaylistOpen by remember(detail.album.id) { mutableStateOf(false) }
     var trackForPlaylist by remember(detail.album.id) { mutableStateOf<SharedTrackRowUi?>(null) }
+    val handleTrackAction: (SharedTrackRowActionRequest) -> Unit = { request ->
+        when (request.action) {
+            SharedTrackRowAction.Select -> onTrackSelected(request.track)
+            SharedTrackRowAction.AddToQueue -> onTrackAddToQueue(request.track)
+            SharedTrackRowAction.Download -> onTrackDownload(request.track)
+            SharedTrackRowAction.AddToPlaylist -> trackForPlaylist = request.track
+            SharedTrackRowAction.StartRadio -> Unit
+        }
+    }
 
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -1207,6 +1216,7 @@ private fun AlbumDetailContent(
                     onAddToQueue = onTrackAddToQueue,
                     onDownload = onTrackDownload,
                     onAddToPlaylist = { selectedTrack -> trackForPlaylist = selectedTrack },
+                    onTrackAction = handleTrackAction,
                     reservePopularIndicatorSpace = reservePopularIndicatorSpace,
                 )
             }
@@ -1286,6 +1296,15 @@ private fun ArtistDetailContent(
     var popularTrackForPlaylist by remember(detail.artist.id) { mutableStateOf<SharedTrackRowUi?>(null) }
     var albumForPlaylist by remember(detail.artist.id) { mutableStateOf<SharedMediaItemUi?>(null) }
     var biographyExpanded by remember(detail.artist.id) { mutableStateOf(false) }
+    val handlePopularTrackAction: (SharedTrackRowActionRequest) -> Unit = { request ->
+        when (request.action) {
+            SharedTrackRowAction.Select -> onPopularTrackSelected(request.track)
+            SharedTrackRowAction.AddToQueue -> onPopularTrackAddToQueue(request.track)
+            SharedTrackRowAction.Download -> onPopularTrackDownload(request.track)
+            SharedTrackRowAction.AddToPlaylist -> popularTrackForPlaylist = request.track
+            SharedTrackRowAction.StartRadio -> Unit
+        }
+    }
     val similarArtistsVisible = detail.similarArtists.isNotEmpty() || detail.similarArtistsStatus != null
 
     Column(
@@ -1410,6 +1429,7 @@ private fun ArtistDetailContent(
                             onAddToQueue = onPopularTrackAddToQueue,
                             onDownload = onPopularTrackDownload,
                             onAddToPlaylist = { selectedTrack -> popularTrackForPlaylist = selectedTrack },
+                            onTrackAction = handlePopularTrackAction,
                         )
                     }
                 }

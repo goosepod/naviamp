@@ -88,6 +88,19 @@ data class SharedTrackRowUi(
     val detailSections: List<NaviampDetailSectionUi> = emptyList(),
 )
 
+enum class SharedTrackRowAction {
+    Select,
+    StartRadio,
+    AddToQueue,
+    Download,
+    AddToPlaylist,
+}
+
+data class SharedTrackRowActionRequest(
+    val track: SharedTrackRowUi,
+    val action: SharedTrackRowAction,
+)
+
 data class NaviampDownloadedTrackUi(
     val id: String,
     val track: SharedTrackRowUi,
