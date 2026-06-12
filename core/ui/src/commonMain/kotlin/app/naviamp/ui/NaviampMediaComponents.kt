@@ -408,11 +408,7 @@ fun SharedMediaRow(
                 if (canSelect) {
                     rowModifier.clickable {
                         onItemAction(
-                            SharedMediaItemActionRequest(
-                                item = item,
-                                action = SharedMediaItemAction.Select,
-                                kind = itemKind,
-                            ),
+                            item.actionRequest(SharedMediaItemAction.Select, kind = itemKind),
                         )
                     }
                 } else {
@@ -446,11 +442,7 @@ fun SharedMediaRow(
                 icon = NaviampTransportIcons.Heart,
                 onClick = {
                     onItemAction(
-                        SharedMediaItemActionRequest(
-                            item = item,
-                            action = SharedMediaItemAction.ToggleFavorite,
-                            kind = itemKind,
-                        ),
+                        item.actionRequest(SharedMediaItemAction.ToggleFavorite, kind = itemKind),
                     )
                 },
             )

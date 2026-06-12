@@ -34,6 +34,7 @@ import app.naviamp.ui.SharedMediaItemKind
 import app.naviamp.ui.SharedTrackGroupAction
 import app.naviamp.ui.SharedTrackGroupActionRequest
 import app.naviamp.ui.SharedTrackRowActionRequest
+import app.naviamp.ui.actionRequest
 import app.naviamp.ui.toSharedMediaItemUi
 import app.naviamp.ui.toSharedTrackRowUi
 
@@ -68,13 +69,7 @@ fun DesktopArtistDetailPanel(
     )
     fun requestArtistAction(action: SharedMediaItemAction) {
         artistItem?.let { item ->
-            onArtistAction(
-                SharedMediaItemActionRequest(
-                    item = item,
-                    action = action,
-                    kind = SharedMediaItemKind.Artist,
-                ),
-            )
+            onArtistAction(item.actionRequest(action, kind = SharedMediaItemKind.Artist))
         }
     }
     fun requestPopularTracksAction(action: SharedTrackGroupAction) {

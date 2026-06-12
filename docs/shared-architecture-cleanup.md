@@ -674,10 +674,17 @@ Phase 7 audit:
 
 ## Phase 8: Shared UI and Route Contracts
 
-- [ ] Audit shared UI models for platform-specific leakage.
-- [ ] Move duplicated action catalog/menu item construction into shared UI/domain helpers.
-- [ ] Ensure Android/Desktop route content takes shared state models instead of rebuilding equivalent models separately.
-- [ ] Keep platform-specific layout only where viewport, window chrome, or lifecycle genuinely differs.
+- [x] Audit shared UI models for platform-specific leakage.
+- [x] Move duplicated action catalog/menu item construction into shared UI/domain helpers.
+- [x] Ensure Android/Desktop route content takes shared state models instead of rebuilding equivalent models separately.
+- [x] Keep platform-specific layout only where viewport, window chrome, or lifecycle genuinely differs.
+
+Phase 8 close-out:
+
+- Shared UI contracts now carry typed action requests (`SharedTrackRowActionRequest`, `SharedMediaItemActionRequest`, `DownloadedTrackActionRequest`, `StationRowActionRequest`, and now-playing request groups) instead of platform callback clusters.
+- Android route content is built from shared shell UI state in `AndroidAppShellUiStateFactory`, and desktop route/detail panels consume shared row/detail models where behavior overlaps. Remaining platform UI is layout/window/lifecycle-specific.
+- Shared media-item request construction lives behind `sharedMediaItemActionRequest` / `SharedMediaItemUi.actionRequest`; shared UI and desktop panels no longer hand-build production `SharedMediaItemActionRequest` payloads at each menu/action site.
+- Phase 8 verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 
 ## Phase 9: Verification and Diff Discipline
 
@@ -1560,6 +1567,8 @@ Progress notes:
 - Broader verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 - Finished the Android Phase 7 root split. `MainActivity.kt` is now a 73-line activity/intent entrypoint, app composition and controller wiring moved to `NaviampAndroidApp.kt`, shell UI-state construction moved to `AndroidAppShellUiStateFactory.kt`, and shell action construction moved to `AndroidAppShellActionsFactory.kt`.
 - Phase 7 close-out verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
+- Finished Phase 8 by auditing the shared UI route/action contracts and removing the remaining production `SharedMediaItemActionRequest` construction from shared UI and desktop panels. `sharedMediaItemActionRequest` and `SharedMediaItemUi.actionRequest` now centralize media-item action payload creation, including shuffle, playlist choice/name, text values, and explicit item kind.
+- Phase 8 close-out verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 

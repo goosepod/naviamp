@@ -39,6 +39,7 @@ import app.naviamp.ui.SharedMediaItemActionRequest
 import app.naviamp.ui.SharedMediaItemKind
 import app.naviamp.ui.SharedTrackRowActionRequest
 import app.naviamp.ui.SmartPlaylistBuilderDialog
+import app.naviamp.ui.actionRequest
 import app.naviamp.ui.playlistRowActions
 import app.naviamp.ui.toSpec
 import app.naviamp.ui.toSharedMediaItemUi
@@ -193,14 +194,7 @@ private fun PlaylistListRow(
 ) {
     val playlistItem = playlist.toSharedMediaItemUi(coverArtUrl, tracks)
     fun request(action: SharedMediaItemAction, shuffle: Boolean = false) {
-        onPlaylistAction(
-            SharedMediaItemActionRequest(
-                item = playlistItem,
-                action = action,
-                kind = SharedMediaItemKind.Playlist,
-                shuffle = shuffle,
-            ),
-        )
+        onPlaylistAction(playlistItem.actionRequest(action, kind = SharedMediaItemKind.Playlist, shuffle = shuffle))
     }
     DesktopMediaRow(appColors = appColors, onClick = { request(SharedMediaItemAction.Select) }) {
         if (playlistCoverArtUrl != null) {
@@ -321,14 +315,7 @@ fun DesktopPlaylistDetailPanel(
                     val playlistItem = playlist?.toSharedMediaItemUi(coverArtUrl, tracks)
                     fun request(action: SharedMediaItemAction, shuffle: Boolean = false) {
                         playlistItem?.let { item ->
-                            onPlaylistAction(
-                                SharedMediaItemActionRequest(
-                                    item = item,
-                                    action = action,
-                                    kind = SharedMediaItemKind.Playlist,
-                                    shuffle = shuffle,
-                                ),
-                            )
+                            onPlaylistAction(item.actionRequest(action, kind = SharedMediaItemKind.Playlist, shuffle = shuffle))
                         }
                     }
                     val playlistActions = playlistRowActions(

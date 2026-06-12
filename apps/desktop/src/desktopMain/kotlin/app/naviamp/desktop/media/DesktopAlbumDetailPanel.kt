@@ -29,6 +29,7 @@ import app.naviamp.ui.SharedMediaItemAction
 import app.naviamp.ui.SharedMediaItemActionRequest
 import app.naviamp.ui.SharedMediaItemKind
 import app.naviamp.ui.SharedTrackRowActionRequest
+import app.naviamp.ui.actionRequest
 import app.naviamp.ui.toSharedMediaItemUi
 
 @Composable
@@ -128,14 +129,7 @@ fun DesktopAlbumDetailPanel(
                     )
                     fun request(action: SharedMediaItemAction, shuffle: Boolean = false) {
                         albumItem?.let { item ->
-                            onAlbumAction(
-                                SharedMediaItemActionRequest(
-                                    item = item,
-                                    action = action,
-                                    kind = SharedMediaItemKind.Album,
-                                    shuffle = shuffle,
-                                ),
-                            )
+                            onAlbumAction(item.actionRequest(action, kind = SharedMediaItemKind.Album, shuffle = shuffle))
                         }
                     }
                     DetailActionIconButton(

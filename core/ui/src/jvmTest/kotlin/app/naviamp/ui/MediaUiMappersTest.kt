@@ -10,7 +10,9 @@ import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class MediaUiMappersTest {
     @Test
@@ -188,6 +190,18 @@ class MediaUiMappersTest {
         )
 
         assertEquals("playlist-1" to "target-1", received)
+    }
+
+    @Test
+    fun sharedMediaItemActionRequestHelperDefaultsShuffleFlag() {
+        val playlist = SharedMediaItemUi(id = "playlist-1", title = "Playlist", subtitle = "4 tracks")
+
+        val play = playlist.actionRequest(SharedMediaItemAction.Play, kind = SharedMediaItemKind.Playlist)
+        val shuffle = playlist.actionRequest(SharedMediaItemAction.Shuffle, kind = SharedMediaItemKind.Playlist)
+
+        assertFalse(play.shuffle)
+        assertTrue(shuffle.shuffle)
+        assertEquals(SharedMediaItemKind.Playlist, shuffle.kind)
     }
 
     @Test

@@ -878,9 +878,8 @@ private fun ConnectedContent(
             onAddPlaylistToQueue = { onPlaylistAddToQueue(playlistDetail) },
             onDownloadPlaylist = {
                 onMediaItemAction(
-                    SharedMediaItemActionRequest(
-                        item = playlistDetail.playlist,
-                        action = SharedMediaItemAction.Download,
+                    playlistDetail.playlist.actionRequest(
+                        SharedMediaItemAction.Download,
                         kind = SharedMediaItemKind.Playlist,
                     ),
                 )
@@ -1420,31 +1419,31 @@ private fun ArtistDetailContent(
                                 NaviampAction.StartAlbumRadio -> NaviampRowMenuItem(
                                     action.label,
                                     action.icon,
-                                    { handleAlbumAction(SharedMediaItemActionRequest(album, SharedMediaItemAction.StartRadio, kind = SharedMediaItemKind.Album)) },
+                                    { handleAlbumAction(album.actionRequest(SharedMediaItemAction.StartRadio, kind = SharedMediaItemKind.Album)) },
                                     action.enabled,
                                 )
                                 NaviampAction.DownloadAlbum -> NaviampRowMenuItem(
                                     action.label,
                                     action.icon,
-                                    { handleAlbumAction(SharedMediaItemActionRequest(album, SharedMediaItemAction.Download, kind = SharedMediaItemKind.Album)) },
+                                    { handleAlbumAction(album.actionRequest(SharedMediaItemAction.Download, kind = SharedMediaItemKind.Album)) },
                                     action.enabled,
                                 )
                                 NaviampAction.AddToQueue -> NaviampRowMenuItem(
                                     action.label,
                                     action.icon,
-                                    { handleAlbumAction(SharedMediaItemActionRequest(album, SharedMediaItemAction.AddToQueue, kind = SharedMediaItemKind.Album)) },
+                                    { handleAlbumAction(album.actionRequest(SharedMediaItemAction.AddToQueue, kind = SharedMediaItemKind.Album)) },
                                     action.enabled,
                                 )
                                 NaviampAction.AddToPlaylist -> NaviampRowMenuItem(
                                     action.label,
                                     action.icon,
-                                    { handleAlbumAction(SharedMediaItemActionRequest(album, SharedMediaItemAction.AddToPlaylist, kind = SharedMediaItemKind.Album)) },
+                                    { handleAlbumAction(album.actionRequest(SharedMediaItemAction.AddToPlaylist, kind = SharedMediaItemKind.Album)) },
                                     action.enabled,
                                 )
                                 NaviampAction.ToggleFavorite -> NaviampRowMenuItem(
                                     action.label,
                                     action.icon,
-                                    { handleAlbumAction(SharedMediaItemActionRequest(album, SharedMediaItemAction.ToggleFavorite, kind = SharedMediaItemKind.Album)) },
+                                    { handleAlbumAction(album.actionRequest(SharedMediaItemAction.ToggleFavorite, kind = SharedMediaItemKind.Album)) },
                                     action.enabled,
                                 )
                                 else -> null
@@ -1514,9 +1513,8 @@ private fun ArtistDetailContent(
             onAddToExisting = { playlist ->
                 albumForPlaylist = null
                 handleAlbumAction(
-                    SharedMediaItemActionRequest(
-                        item = album,
-                        action = SharedMediaItemAction.AddToPlaylist,
+                    album.actionRequest(
+                        SharedMediaItemAction.AddToPlaylist,
                         kind = SharedMediaItemKind.Album,
                         playlistChoice = playlist,
                     ),
@@ -1525,9 +1523,8 @@ private fun ArtistDetailContent(
             onCreateAndAdd = { name ->
                 albumForPlaylist = null
                 handleAlbumAction(
-                    SharedMediaItemActionRequest(
-                        item = album,
-                        action = SharedMediaItemAction.CreatePlaylistAndAdd,
+                    album.actionRequest(
+                        SharedMediaItemAction.CreatePlaylistAndAdd,
                         kind = SharedMediaItemKind.Album,
                         playlistName = name,
                     ),

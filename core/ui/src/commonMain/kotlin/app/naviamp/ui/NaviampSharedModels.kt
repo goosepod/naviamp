@@ -228,6 +228,43 @@ data class SharedMediaItemActionRequest(
     val shuffle: Boolean = false,
 )
 
+fun sharedMediaItemActionRequest(
+    item: SharedMediaItemUi,
+    action: SharedMediaItemAction,
+    kind: SharedMediaItemKind = SharedMediaItemKind.Unknown,
+    playlistChoice: NaviampPlaylistChoiceUi? = null,
+    playlistName: String? = null,
+    textValue: String? = null,
+    shuffle: Boolean = action == SharedMediaItemAction.Shuffle,
+): SharedMediaItemActionRequest =
+    SharedMediaItemActionRequest(
+        item = item,
+        action = action,
+        kind = kind,
+        playlistChoice = playlistChoice,
+        playlistName = playlistName,
+        textValue = textValue,
+        shuffle = shuffle,
+    )
+
+fun SharedMediaItemUi.actionRequest(
+    action: SharedMediaItemAction,
+    kind: SharedMediaItemKind = SharedMediaItemKind.Unknown,
+    playlistChoice: NaviampPlaylistChoiceUi? = null,
+    playlistName: String? = null,
+    textValue: String? = null,
+    shuffle: Boolean = action == SharedMediaItemAction.Shuffle,
+): SharedMediaItemActionRequest =
+    sharedMediaItemActionRequest(
+        item = this,
+        action = action,
+        kind = kind,
+        playlistChoice = playlistChoice,
+        playlistName = playlistName,
+        textValue = textValue,
+        shuffle = shuffle,
+    )
+
 data class SharedMediaItemActionHandlers(
     val onSelect: (SharedMediaItemUi) -> Unit = {},
     val onPlay: (SharedMediaItemUi, Boolean) -> Unit = { _, _ -> },

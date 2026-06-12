@@ -40,6 +40,7 @@ import app.naviamp.ui.SharedTrackRowAction
 import app.naviamp.ui.SharedTrackRowActionRequest
 import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.TrackRow
+import app.naviamp.ui.actionRequest
 import app.naviamp.ui.albumRowActions
 import app.naviamp.ui.artistRowActions
 import app.naviamp.ui.compactFavoriteRatingLabel
@@ -157,27 +158,21 @@ fun DesktopArtistRow(
             when (action.action) {
                 NaviampAction.StartArtistRadio -> if (canStartRadio) {
                     action.toRowMenuItem {
-                        handleItemAction(
-                            SharedMediaItemActionRequest(item, SharedMediaItemAction.StartRadio, kind = SharedMediaItemKind.Artist),
-                        )
+                        handleItemAction(item.actionRequest(SharedMediaItemAction.StartRadio, kind = SharedMediaItemKind.Artist))
                     }.toSharedMenuItem()
                 } else {
                     null
                 }
                 NaviampAction.AddToQueue -> if (canAddToQueue) {
                     action.toRowMenuItem {
-                        handleItemAction(
-                            SharedMediaItemActionRequest(item, SharedMediaItemAction.AddToQueue, kind = SharedMediaItemKind.Artist),
-                        )
+                        handleItemAction(item.actionRequest(SharedMediaItemAction.AddToQueue, kind = SharedMediaItemKind.Artist))
                     }.toSharedMenuItem()
                 } else {
                     null
                 }
                 NaviampAction.AddToPlaylist -> if (canAddToPlaylist) {
                     action.toRowMenuItem {
-                        handleItemAction(
-                            SharedMediaItemActionRequest(item, SharedMediaItemAction.AddToPlaylist, kind = SharedMediaItemKind.Artist),
-                        )
+                        handleItemAction(item.actionRequest(SharedMediaItemAction.AddToPlaylist, kind = SharedMediaItemKind.Artist))
                     }.toSharedMenuItem()
                 } else {
                     null
@@ -280,36 +275,28 @@ fun DesktopAlbumRow(
             when (action.action) {
                 NaviampAction.StartAlbumRadio -> if (canStartRadio) {
                     action.toRowMenuItem {
-                        handleItemAction(
-                            SharedMediaItemActionRequest(item, SharedMediaItemAction.StartRadio, kind = SharedMediaItemKind.Album),
-                        )
+                        handleItemAction(item.actionRequest(SharedMediaItemAction.StartRadio, kind = SharedMediaItemKind.Album))
                     }.toSharedMenuItem()
                 } else {
                     null
                 }
                 NaviampAction.DownloadAlbum -> if (canDownload) {
                     action.toRowMenuItem {
-                        handleItemAction(
-                            SharedMediaItemActionRequest(item, SharedMediaItemAction.Download, kind = SharedMediaItemKind.Album),
-                        )
+                        handleItemAction(item.actionRequest(SharedMediaItemAction.Download, kind = SharedMediaItemKind.Album))
                     }.toSharedMenuItem()
                 } else {
                     null
                 }
                 NaviampAction.AddToQueue -> if (canAddToQueue) {
                     action.toRowMenuItem {
-                        handleItemAction(
-                            SharedMediaItemActionRequest(item, SharedMediaItemAction.AddToQueue, kind = SharedMediaItemKind.Album),
-                        )
+                        handleItemAction(item.actionRequest(SharedMediaItemAction.AddToQueue, kind = SharedMediaItemKind.Album))
                     }.toSharedMenuItem()
                 } else {
                     null
                 }
                 NaviampAction.AddToPlaylist -> if (canAddToPlaylist) {
                     action.toRowMenuItem {
-                        handleItemAction(
-                            SharedMediaItemActionRequest(item, SharedMediaItemAction.AddToPlaylist, kind = SharedMediaItemKind.Album),
-                        )
+                        handleItemAction(item.actionRequest(SharedMediaItemAction.AddToPlaylist, kind = SharedMediaItemKind.Album))
                     }.toSharedMenuItem()
                 } else {
                     null

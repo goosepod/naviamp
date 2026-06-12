@@ -155,9 +155,8 @@ internal fun PlaylistsContent(
             onConfirm = { name ->
                 playlistToRename = null
                 handlePlaylistAction(
-                    SharedMediaItemActionRequest(
-                        item = playlist,
-                        action = SharedMediaItemAction.Rename,
+                    playlist.actionRequest(
+                        SharedMediaItemAction.Rename,
                         kind = SharedMediaItemKind.Playlist,
                         textValue = name,
                     ),
@@ -173,11 +172,7 @@ internal fun PlaylistsContent(
             onConfirm = {
                 playlistToDelete = null
                 handlePlaylistAction(
-                    SharedMediaItemActionRequest(
-                        item = playlist,
-                        action = SharedMediaItemAction.Delete,
-                        kind = SharedMediaItemKind.Playlist,
-                    ),
+                    playlist.actionRequest(SharedMediaItemAction.Delete, kind = SharedMediaItemKind.Playlist),
                 )
             },
         )
@@ -192,9 +187,8 @@ internal fun PlaylistsContent(
             onAddToExisting = { choice ->
                 playlistToAddToPlaylist = null
                 handlePlaylistAction(
-                    SharedMediaItemActionRequest(
-                        item = playlist,
-                        action = SharedMediaItemAction.AddToPlaylist,
+                    playlist.actionRequest(
+                        SharedMediaItemAction.AddToPlaylist,
                         kind = SharedMediaItemKind.Playlist,
                         playlistChoice = choice,
                     ),
@@ -203,9 +197,8 @@ internal fun PlaylistsContent(
             onCreateAndAdd = { name ->
                 playlistToAddToPlaylist = null
                 handlePlaylistAction(
-                    SharedMediaItemActionRequest(
-                        item = playlist,
-                        action = SharedMediaItemAction.CreatePlaylistAndAdd,
+                    playlist.actionRequest(
+                        SharedMediaItemAction.CreatePlaylistAndAdd,
                         kind = SharedMediaItemKind.Playlist,
                         playlistName = name,
                     ),
@@ -282,11 +275,7 @@ private fun PlaylistListRow(
             .background(Color.Black.copy(alpha = 0.12f))
             .clickable {
                 onAction(
-                    SharedMediaItemActionRequest(
-                        item = playlist,
-                        action = SharedMediaItemAction.Select,
-                        kind = SharedMediaItemKind.Playlist,
-                    ),
+                    playlist.actionRequest(SharedMediaItemAction.Select, kind = SharedMediaItemKind.Playlist),
                 )
             }
             .padding(horizontal = 8.dp, vertical = 7.dp),
@@ -320,10 +309,10 @@ private fun PlaylistListRow(
             Text(playlist.subtitle, color = colors.secondaryText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         MiniPlayerIconButton(colors, true, NaviampTransportIcons.Play, "Play playlist") {
-            onAction(SharedMediaItemActionRequest(playlist, SharedMediaItemAction.Play, kind = SharedMediaItemKind.Playlist))
+            onAction(playlist.actionRequest(SharedMediaItemAction.Play, kind = SharedMediaItemKind.Playlist))
         }
         MiniPlayerIconButton(colors, playlist.meta != "1 track", NaviampTransportIcons.Shuffle, "Play playlist in random order") {
-            onAction(SharedMediaItemActionRequest(playlist, SharedMediaItemAction.Shuffle, kind = SharedMediaItemKind.Playlist))
+            onAction(playlist.actionRequest(SharedMediaItemAction.Shuffle, kind = SharedMediaItemKind.Playlist))
         }
         NaviampRowOverflowMenu(
             colors = colors,
@@ -339,19 +328,19 @@ private fun PlaylistListRow(
                     NaviampAction.DownloadPlaylist -> NaviampRowMenuItem(
                         action.label,
                         action.icon,
-                        { onAction(SharedMediaItemActionRequest(playlist, SharedMediaItemAction.Download, kind = SharedMediaItemKind.Playlist)) },
+                        { onAction(playlist.actionRequest(SharedMediaItemAction.Download, kind = SharedMediaItemKind.Playlist)) },
                         action.enabled,
                     )
                     NaviampAction.AddToQueue -> NaviampRowMenuItem(
                         action.label,
                         action.icon,
-                        { onAction(SharedMediaItemActionRequest(playlist, SharedMediaItemAction.AddToQueue, kind = SharedMediaItemKind.Playlist)) },
+                        { onAction(playlist.actionRequest(SharedMediaItemAction.AddToQueue, kind = SharedMediaItemKind.Playlist)) },
                         action.enabled,
                     )
                     NaviampAction.AddPlaylistToPlaylist -> NaviampRowMenuItem(
                         action.label,
                         action.icon,
-                        { onAction(SharedMediaItemActionRequest(playlist, SharedMediaItemAction.AddToPlaylist, kind = SharedMediaItemKind.Playlist)) },
+                        { onAction(playlist.actionRequest(SharedMediaItemAction.AddToPlaylist, kind = SharedMediaItemKind.Playlist)) },
                         action.enabled,
                     )
                     NaviampAction.RenamePlaylist -> NaviampRowMenuItem(action.label, action.icon, onRename, action.enabled)
@@ -360,9 +349,8 @@ private fun PlaylistListRow(
                         action.icon,
                         {
                             onAction(
-                                SharedMediaItemActionRequest(
-                                    item = playlist,
-                                    action = SharedMediaItemAction.EditSmartPlaylist,
+                                playlist.actionRequest(
+                                    SharedMediaItemAction.EditSmartPlaylist,
                                     kind = SharedMediaItemKind.Playlist,
                                 ),
                             )
