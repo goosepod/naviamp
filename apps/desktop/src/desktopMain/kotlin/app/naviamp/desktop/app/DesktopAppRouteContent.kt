@@ -342,6 +342,9 @@ fun ColumnScope.DesktopAppRouteContent(
                             when (request.action) {
                                 SharedTrackRowAction.Select -> appActions.playAlbumDetails(index = index)
                                 SharedTrackRowAction.StartRadio -> appActions.playTrackRadio(track)
+                                SharedTrackRowAction.PlayMoreLikeThis -> appActions.playMoreLikeThis(track)
+                                SharedTrackRowAction.PlayMoreLikeThisNext -> appActions.playMoreLikeThisNext(track)
+                                SharedTrackRowAction.AddMoreLikeThisToQueue -> appActions.addMoreLikeThisToQueue(track)
                                 SharedTrackRowAction.Download -> appActions.downloadTrack(track)
                                 SharedTrackRowAction.AddToQueue -> playlistsController.addTrackToQueue(track)
                                 SharedTrackRowAction.AddToPlaylist -> playlistsController.openTrackAddToPlaylist(track)
@@ -378,6 +381,9 @@ fun ColumnScope.DesktopAppRouteContent(
                                 when (request.action) {
                                     SharedTrackRowAction.Select -> appActions.playSelectedPopularTrack(track)
                                     SharedTrackRowAction.StartRadio -> appActions.playPopularTracksRadio(listOf(track))
+                                    SharedTrackRowAction.PlayMoreLikeThis -> appActions.playMoreLikeThis(track)
+                                    SharedTrackRowAction.PlayMoreLikeThisNext -> appActions.playMoreLikeThisNext(track)
+                                    SharedTrackRowAction.AddMoreLikeThisToQueue -> appActions.addMoreLikeThisToQueue(track)
                                     SharedTrackRowAction.AddToQueue -> playlistsController.addTrackToQueue(track)
                                     SharedTrackRowAction.Download,
                                     SharedTrackRowAction.AddToPlaylist,
@@ -426,6 +432,9 @@ fun ColumnScope.DesktopAppRouteContent(
                             when (request.action) {
                                 SharedTrackRowAction.Select -> appActions.playPlaylistDetails(index = index)
                                 SharedTrackRowAction.StartRadio -> appActions.playTrackRadio(track)
+                                SharedTrackRowAction.PlayMoreLikeThis -> appActions.playMoreLikeThis(track)
+                                SharedTrackRowAction.PlayMoreLikeThisNext -> appActions.playMoreLikeThisNext(track)
+                                SharedTrackRowAction.AddMoreLikeThisToQueue -> appActions.addMoreLikeThisToQueue(track)
                                 SharedTrackRowAction.Download -> appActions.downloadTrack(track)
                                 SharedTrackRowAction.AddToQueue -> playlistsController.addTrackToQueue(track)
                                 SharedTrackRowAction.AddToPlaylist -> playlistsController.openTrackAddToPlaylist(track)
@@ -488,6 +497,12 @@ fun ColumnScope.DesktopAppRouteContent(
                             when (request.action) {
                                 SharedTrackRowAction.Select -> appActions.playSearchTrack(index)
                                 SharedTrackRowAction.StartRadio -> appActions.playSearchTrackRadio(index)
+                                SharedTrackRowAction.PlayMoreLikeThis ->
+                                    searchResults.tracks.getOrNull(index)?.let(appActions::playMoreLikeThis)
+                                SharedTrackRowAction.PlayMoreLikeThisNext ->
+                                    searchResults.tracks.getOrNull(index)?.let(appActions::playMoreLikeThisNext)
+                                SharedTrackRowAction.AddMoreLikeThisToQueue ->
+                                    searchResults.tracks.getOrNull(index)?.let(appActions::addMoreLikeThisToQueue)
                                 SharedTrackRowAction.Download -> appActions.downloadSearchTrack(index)
                                 SharedTrackRowAction.AddToQueue -> appActions.addSearchTrackToQueue(index)
                                 SharedTrackRowAction.AddToPlaylist -> appActions.openSearchTrackAddToPlaylist(index)

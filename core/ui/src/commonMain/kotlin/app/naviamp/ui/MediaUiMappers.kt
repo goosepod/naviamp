@@ -320,6 +320,9 @@ sealed interface NowPlayingItemTarget {
 
 enum class NowPlayingItemAction {
     StartRadio,
+    PlayMoreLikeThis,
+    PlayMoreLikeThisNext,
+    AddMoreLikeThisToQueue,
     PlayNext,
     AddToQueue,
     AddToPlaylist,
@@ -335,6 +338,9 @@ enum class NowPlayingItemSource {
 
 enum class NowPlayingCurrentTrackAction {
     StartRadio,
+    PlayMoreLikeThis,
+    PlayMoreLikeThisNext,
+    AddMoreLikeThisToQueue,
     AddToPlaylist,
     CreatePlaylistAndAdd,
     Download,

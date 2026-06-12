@@ -11,6 +11,7 @@ import app.naviamp.domain.media.MediaMetadataMutationController
 import app.naviamp.domain.media.MediaTrackLookupSources
 import app.naviamp.domain.media.findKnownTrack
 import app.naviamp.domain.media.mediaMetadataMutationController
+import app.naviamp.domain.media.playMoreLikeThisQueue
 import app.naviamp.domain.media.searchOrAlbumTracksForMediaActions
 import app.naviamp.domain.media.selectedTrackPlayback
 import app.naviamp.domain.media.withUpdatedAlbum
@@ -357,10 +358,12 @@ fun addAndroidTracksToPlaylist(
 }
 
 internal class AndroidTrackActionController(
+    private val scope: CoroutineScope,
     private val state: AndroidAppState,
     private val activeQueue: () -> List<Track>,
     private val findKnownTrack: (String) -> Track?,
     private val playTrack: (Track, List<Track>?) -> Unit,
+    private val playNextTracks: (List<Track>, String) -> Unit,
     private val appendTracksToQueue: (List<Track>, String) -> Unit,
     private val downloadTrack: (Track) -> Unit,
     private val addTrackToPlaylist: (Track, NaviampPlaylistChoiceUi?, String?) -> Unit,
@@ -403,6 +406,9 @@ internal class AndroidTrackActionController(
             SharedTrackRowAction.Select,
             SharedTrackRowAction.StartRadio,
             -> Unit
+            SharedTrackRowAction.PlayMoreLikeThis -> playMoreLikeThis(track)
+            SharedTrackRowAction.PlayMoreLikeThisNext -> playMoreLikeThisNext(track)
+            SharedTrackRowAction.AddMoreLikeThisToQueue -> addMoreLikeThisToQueue(track)
             SharedTrackRowAction.AddToQueue -> appendTracksToQueue(listOf(track), "track")
             SharedTrackRowAction.Download -> downloadTrack(track)
             SharedTrackRowAction.AddToPlaylist -> addTrackToPlaylist(track, resolved.playlistChoice, null)
@@ -430,4 +436,51 @@ internal class AndroidTrackActionController(
         val currentTrack = state.nowPlaying ?: return
         addTrackToPlaylist(currentTrack, null, name)
     }
+
+    fun playMoreLikeThis(track: Track) {
+        scope.launch {
+            val queue = loadPlayMoreLikeThisQueue(track, includeSeedTrack = true)
+            if (queue.isNotEmpty()) {
+                playTrack(queue.first(), queue)
+            }
+        }
+    }
+
+    fun playMoreLikeThisNext(track: Track) {
+        scope.launch {
+            val queue = loadPlayMoreLikeThisQueue(track, includeSeedTrack = false)
+            if (queue.isNotEmpty()) {
+                playNextTracks(queue, "similar tracks")
+            }
+        }
+    }
+
+    fun addMoreLikeThisToQueue(track: Track) {
+        scope.launch {
+            val queue = loadPlayMoreLikeThisQueue(track, includeSeedTrack = false)
+            if (queue.isNotEmpty()) {
+                appendTracksToQueue(queue, "similar tracks")
+            }
+        }
+    }
+
+    private suspend fun loadPlayMoreLikeThisQueue(
+        track: Track,
+        includeSeedTrack: Boolean,
+    ): List<Track> =
+        runCatching {
+            playMoreLikeThisQueue(
+                seedTrack = track,
+                provider = state.provider,
+                preferSonicSimilarity = state.playbackSettings.sonicSimilarityEnabled,
+                includeSeedTrack = includeSeedTrack,
+            )
+        }.getOrElse { error ->
+            state.status = "Could not load similar tracks: ${error.message ?: "Unknown error"}"
+            app.naviamp.domain.media.PlayMoreLikeThisQueue.Empty
+        }.also { queue ->
+            if (queue.isEmpty) {
+                state.status = "No similar tracks found for ${track.title}."
+            }
+        }.tracks
 }

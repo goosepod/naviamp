@@ -62,6 +62,69 @@ class RelatedTracksTest {
         assertEquals(emptyMap(), result.similarityByTrackId)
     }
 
+    @Test
+    fun playMoreLikeThisQueueIncludesSeedForPlayNow() = runTest {
+        val provider = FakeRelatedProvider(
+            supportsSonicSimilarity = true,
+            sonicMatches = listOf(
+                SonicSimilarTrack(track("match-one"), similarity = 0.92),
+                SonicSimilarTrack(track("match-two"), similarity = 0.88),
+            ),
+            radioTracks = listOf(track("radio")),
+        )
+
+        val queue = playMoreLikeThisQueue(
+            seedTrack = track("seed"),
+            provider = provider,
+            preferSonicSimilarity = true,
+            includeSeedTrack = true,
+        )
+
+        assertEquals(RelatedTracksSource.SonicSimilarity, queue.source)
+        assertEquals(listOf("seed", "match-one", "match-two"), queue.tracks.map { it.id.value })
+    }
+
+    @Test
+    fun playMoreLikeThisQueueOmitsSeedForQueueInsertion() = runTest {
+        val provider = FakeRelatedProvider(
+            supportsSonicSimilarity = true,
+            sonicMatches = listOf(
+                SonicSimilarTrack(track("seed"), similarity = 1.0),
+                SonicSimilarTrack(track("match"), similarity = 0.92),
+            ),
+            radioTracks = listOf(track("radio")),
+        )
+
+        val queue = playMoreLikeThisQueue(
+            seedTrack = track("seed"),
+            provider = provider,
+            preferSonicSimilarity = true,
+            includeSeedTrack = false,
+        )
+
+        assertEquals(RelatedTracksSource.SonicSimilarity, queue.source)
+        assertEquals(listOf("match"), queue.tracks.map { it.id.value })
+    }
+
+    @Test
+    fun playMoreLikeThisQueueFallsBackToTrackRadioWithoutSonicSupport() = runTest {
+        val provider = FakeRelatedProvider(
+            supportsSonicSimilarity = false,
+            sonicMatches = listOf(SonicSimilarTrack(track("sonic"), similarity = 0.92)),
+            radioTracks = listOf(track("radio")),
+        )
+
+        val queue = playMoreLikeThisQueue(
+            seedTrack = track("seed"),
+            provider = provider,
+            preferSonicSimilarity = true,
+            includeSeedTrack = true,
+        )
+
+        assertEquals(RelatedTracksSource.ProviderRadio, queue.source)
+        assertEquals(listOf("seed", "radio"), queue.tracks.map { it.id.value })
+    }
+
     private class FakeRelatedProvider(
         supportsSonicSimilarity: Boolean,
         private val sonicMatches: List<SonicSimilarTrack>,

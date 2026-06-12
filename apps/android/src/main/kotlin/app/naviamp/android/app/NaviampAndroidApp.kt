@@ -391,10 +391,12 @@ fun NaviampAndroidApp(
 
     val trackActionController = remember(appState) {
         AndroidTrackActionController(
+            scope = scope,
             state = appState,
             activeQueue = mediaAppController::activeQueue,
             findKnownTrack = mediaAppController::findKnownTrack,
             playTrack = { track, queue -> playbackAppController.playTrack(track, queue) },
+            playNextTracks = mediaAppController::playNextTracks,
             appendTracksToQueue = mediaAppController::appendTracksToQueue,
             downloadTrack = downloadActionController::downloadTrack,
             addTrackToPlaylist = playlistActionController::addTrackToPlaylist,

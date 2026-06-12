@@ -49,11 +49,11 @@ The first product rule is that sonic features are server capabilities, not only 
 
 ### Phase 3: Play More Like This
 
-- [ ] Add a shared action request for "Play more like this" from track menus.
-- [ ] Build a shared service that turns a seed track into a queue using sonic matches when supported.
-- [ ] Add desktop and Android menu entries through shared UI action specs.
-- [ ] Support play now, play next, and add to queue variants.
-- [ ] Fall back to current track radio when sonic support is unavailable.
+- [x] Add a shared action request for "Play more like this" from track menus.
+- [x] Build a shared service that turns a seed track into a queue using sonic matches when supported.
+- [x] Add desktop and Android menu entries through shared UI action specs.
+- [x] Support play now, play next, and add to queue variants.
+- [x] Fall back to current track radio when sonic support is unavailable.
 
 ### Phase 4: Sonic Path
 

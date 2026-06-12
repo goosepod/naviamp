@@ -130,6 +130,9 @@ fun androidAppShellActions(
     loadLyrics: (Track) -> Unit,
     handleLyricsOffsetChanged: (Int) -> Unit,
     handleShellTrackRadio: () -> Unit,
+    handleMoreLikeThis: (Track) -> Unit,
+    handleMoreLikeThisNext: (Track) -> Unit,
+    handleAddMoreLikeThisToQueue: (Track) -> Unit,
     handleNowPlayingAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit,
     handleNowPlayingCreatePlaylistAndAdd: (String) -> Unit,
     handleSaveQueueAsPlaylist: (String) -> Unit,
@@ -147,6 +150,9 @@ fun androidAppShellActions(
         val action = request.resolveAction(fallbackTrack = resolveNowPlayingItemTrack(request.item))
         when (action.action) {
             NowPlayingItemAction.StartRadio -> handleShellQueueItemRadio(action.item)
+            NowPlayingItemAction.PlayMoreLikeThis -> action.track?.let(handleMoreLikeThis)
+            NowPlayingItemAction.PlayMoreLikeThisNext -> action.track?.let(handleMoreLikeThisNext)
+            NowPlayingItemAction.AddMoreLikeThisToQueue -> action.track?.let(handleAddMoreLikeThisToQueue)
             NowPlayingItemAction.PlayNext -> handleQueueItemPlayNext(action.item)
             NowPlayingItemAction.AddToQueue -> handleQueueItemAddToQueue(action.item)
             NowPlayingItemAction.AddToPlaylist -> action.track?.let { addTrackToPlaylist(it, action.playlistChoice, null) }
@@ -427,6 +433,12 @@ fun androidAppShellActions(
             onNowPlayingCurrentTrackAction = { request: NowPlayingCurrentTrackUiActionRequest ->
                 when (request.action) {
                     NowPlayingCurrentTrackAction.StartRadio -> handleShellTrackRadio()
+                    NowPlayingCurrentTrackAction.PlayMoreLikeThis ->
+                        nowPlaying?.let(handleMoreLikeThis)
+                    NowPlayingCurrentTrackAction.PlayMoreLikeThisNext ->
+                        nowPlaying?.let(handleMoreLikeThisNext)
+                    NowPlayingCurrentTrackAction.AddMoreLikeThisToQueue ->
+                        nowPlaying?.let(handleAddMoreLikeThisToQueue)
                     NowPlayingCurrentTrackAction.AddToPlaylist ->
                         handleNowPlayingAddToPlaylist(request.playlistChoice)
                     NowPlayingCurrentTrackAction.CreatePlaylistAndAdd ->

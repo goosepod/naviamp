@@ -39,9 +39,14 @@ internal class AndroidMediaAppController(
     }
 
     fun playNext(track: Track) {
+        playNextTracks(listOf(track))
+    }
+
+    fun playNextTracks(tracksToAdd: List<Track>, label: String = "tracks") {
         val update = PlaybackQueueManager().playNextTracks(
             currentQueue = state.playbackQueue,
-            tracksToAdd = listOf(track),
+            tracksToAdd = tracksToAdd,
+            label = label,
         )
         applyPlaybackQueueUpdate(
             update = update,

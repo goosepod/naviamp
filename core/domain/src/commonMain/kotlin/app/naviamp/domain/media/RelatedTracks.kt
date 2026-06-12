@@ -4,6 +4,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.provider.MediaProvider
+import app.naviamp.domain.radio.generatedRadioQueue
 
 enum class RelatedTracksSource {
     None,
@@ -33,6 +34,45 @@ data class RelatedTracksResult(
         val Empty = RelatedTracksResult(RelatedTracksSource.None, emptyList())
     }
 }
+
+data class PlayMoreLikeThisQueue(
+    val source: RelatedTracksSource,
+    val tracks: List<Track>,
+) {
+    val isEmpty: Boolean
+        get() = tracks.isEmpty()
+
+    companion object {
+        val Empty = PlayMoreLikeThisQueue(RelatedTracksSource.None, emptyList())
+    }
+}
+
+suspend fun playMoreLikeThisQueue(
+    seedTrack: Track,
+    provider: MediaProvider?,
+    preferSonicSimilarity: Boolean,
+    limit: Int = DefaultPlayMoreLikeThisLimit,
+    includeSeedTrack: Boolean = true,
+): PlayMoreLikeThisQueue {
+    val result = relatedTracksResult(
+        seedTrack = seedTrack,
+        activeSourceId = null,
+        provider = provider,
+        localLibraryIndexRepository = null,
+        preferSonicSimilarity = preferSonicSimilarity,
+        limit = limit,
+        fallbackSources = listOf(RelatedTracksSource.ProviderRadio),
+    )
+    if (result.matches.isEmpty()) return PlayMoreLikeThisQueue.Empty
+    val tracks = if (includeSeedTrack) {
+        generatedRadioQueue(seedTrack, result.tracks)
+    } else {
+        result.tracks.distinctBy { track -> track.id }
+    }
+    return PlayMoreLikeThisQueue(source = result.source, tracks = tracks)
+}
+
+private const val DefaultPlayMoreLikeThisLimit = 50
 
 suspend fun relatedTracksResult(
     seedTrack: Track,

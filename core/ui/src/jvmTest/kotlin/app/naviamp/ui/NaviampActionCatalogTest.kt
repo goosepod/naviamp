@@ -5,6 +5,25 @@ import kotlin.test.assertEquals
 
 class NaviampActionCatalogTest {
     @Test
+    fun trackRowActionsIncludeMoreLikeThisVariantsWhenAvailable() {
+        val actions = trackRowActions(
+            canStartRadio = true,
+            canPlayMoreLikeThis = true,
+        )
+
+        assertEquals(
+            listOf(
+                NaviampAction.StartTrackRadio,
+                NaviampAction.PlayMoreLikeThis,
+                NaviampAction.PlayMoreLikeThisNext,
+                NaviampAction.AddMoreLikeThisToQueue,
+                NaviampAction.TrackDetails,
+            ),
+            actions.map { it.action },
+        )
+    }
+
+    @Test
     fun playlistRowActionsIncludeOnlyAvailablePlaylistActionsInMenuOrder() {
         val actions = playlistRowActions(
             canDownload = true,
@@ -38,4 +57,3 @@ class NaviampActionCatalogTest {
         )
     }
 }
-

@@ -7,6 +7,9 @@ enum class NaviampAction(
     val icon: ImageVector,
 ) {
     StartTrackRadio("Start track radio", NaviampTransportIcons.Radio),
+    PlayMoreLikeThis("Play more like this", NaviampIcons.Brain),
+    PlayMoreLikeThisNext("Play more like this next", NaviampIcons.Player),
+    AddMoreLikeThisToQueue("Add more like this to queue", NaviampIcons.Queue),
     StartAlbumRadio("Start album radio", NaviampTransportIcons.Radio),
     StartArtistRadio("Start artist radio", NaviampTransportIcons.Radio),
     DownloadTrack("Download track", NaviampIcons.Downloads),
@@ -49,9 +52,13 @@ fun trackRowActions(
     canAddToQueue: Boolean = false,
     canAddToPlaylist: Boolean = false,
     canShowDetails: Boolean = true,
+    canPlayMoreLikeThis: Boolean = false,
 ): List<NaviampActionSpec> =
     listOfNotNull(
         NaviampAction.StartTrackRadio.takeIf { canStartRadio }?.toSpec(),
+        NaviampAction.PlayMoreLikeThis.takeIf { canPlayMoreLikeThis }?.toSpec(),
+        NaviampAction.PlayMoreLikeThisNext.takeIf { canPlayMoreLikeThis }?.toSpec(),
+        NaviampAction.AddMoreLikeThisToQueue.takeIf { canPlayMoreLikeThis }?.toSpec(),
         NaviampAction.DownloadTrack.takeIf { canDownload }?.toSpec(),
         NaviampAction.AddToQueue.takeIf { canAddToQueue }?.toSpec(),
         NaviampAction.AddToPlaylist.takeIf { canAddToPlaylist }?.toSpec(),
@@ -69,6 +76,9 @@ fun relatedTrackRowActions(): List<NaviampActionSpec> =
     listOf(
         NaviampAction.PlayNext.toSpec(),
         NaviampAction.AddToQueue.toSpec(),
+        NaviampAction.PlayMoreLikeThis.toSpec(),
+        NaviampAction.PlayMoreLikeThisNext.toSpec(),
+        NaviampAction.AddMoreLikeThisToQueue.toSpec(),
     ) + queueRowActions()
 
 fun albumRowActions(
@@ -170,6 +180,9 @@ fun nowPlayingTrackMenuActions(
         NaviampAction.TrackDetails.toSpec(enabled = hasDetails),
         NaviampAction.TrackPreference.toSpec(label = trackPreferenceLabel, enabled = canSetTrackPreference),
         NaviampAction.StartTrackRadio.toSpec(enabled = canStartRadio),
+        NaviampAction.PlayMoreLikeThis.toSpec(enabled = canStartRadio),
+        NaviampAction.PlayMoreLikeThisNext.toSpec(enabled = canStartRadio),
+        NaviampAction.AddMoreLikeThisToQueue.toSpec(enabled = canStartRadio),
         NaviampAction.GoToAlbum.toSpec(enabled = !isLive),
         NaviampAction.GoToArtist.toSpec(enabled = !isLive),
         NaviampAction.AddToPlaylist.toSpec(enabled = canAddToPlaylist),

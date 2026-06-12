@@ -897,6 +897,12 @@ private fun NowPlayingDetails(
                                         NaviampAction.TrackPreference -> cycleTrackPreference()
                                         NaviampAction.StartTrackRadio ->
                                             actions.currentTrack(NowPlayingCurrentTrackAction.StartRadio)
+                                        NaviampAction.PlayMoreLikeThis ->
+                                            actions.currentTrack(NowPlayingCurrentTrackAction.PlayMoreLikeThis)
+                                        NaviampAction.PlayMoreLikeThisNext ->
+                                            actions.currentTrack(NowPlayingCurrentTrackAction.PlayMoreLikeThisNext)
+                                        NaviampAction.AddMoreLikeThisToQueue ->
+                                            actions.currentTrack(NowPlayingCurrentTrackAction.AddMoreLikeThisToQueue)
                                         NaviampAction.GoToAlbum ->
                                             actions.currentTrack(NowPlayingCurrentTrackAction.GoToAlbum)
                                         NaviampAction.GoToArtist ->
@@ -1886,6 +1892,12 @@ private fun NowPlayingItemList(
                                             onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.AddToQueue))
                                         NaviampAction.StartTrackRadio ->
                                             onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.StartRadio))
+                                        NaviampAction.PlayMoreLikeThis ->
+                                            onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.PlayMoreLikeThis))
+                                        NaviampAction.PlayMoreLikeThisNext ->
+                                            onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.PlayMoreLikeThisNext))
+                                        NaviampAction.AddMoreLikeThisToQueue ->
+                                            onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.AddMoreLikeThisToQueue))
                                         NaviampAction.DownloadTrack ->
                                             onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.Download))
                                         NaviampAction.AddToPlaylist -> {
