@@ -210,7 +210,7 @@ These files are not automatically wrong because of size, but they are too large 
 | File | Lines | Discovery concern |
 | --- | ---: | --- |
 | `DesktopNaviampApp.kt` | 1970 | Root state/render/orchestration is too large; already hit JVM method-size pressure. |
-| `AndroidAppShell.kt` | 883 | Large platform shell; likely owns app orchestration that should be shared. |
+| `NaviampAndroidApp.kt` / Android shell factories | 445 / 182 / 473 | Android root is split between app composition, shared-shell UI-state construction, and shell action construction. |
 | `AndroidRadioController.kt` | 604 | Radio and generated queue orchestration likely overlaps desktop. |
 | `DesktopRadioController.kt` | 465 | Radio and generated queue orchestration likely overlaps Android. |
 | `AndroidPlaylistsController.kt` | 395 | Playlist mutation/detail/playback orchestration likely overlaps desktop. |
@@ -653,7 +653,7 @@ Phase 6 close-out:
 ## Phase 7: Platform Root Decomposition
 
 - [x] Split `DesktopNaviampApp.kt` into smaller state holders and route coordinators.
-- [ ] Split oversized Android app shell/activity responsibilities using the same boundaries.
+- [x] Split oversized Android app shell/activity responsibilities using the same boundaries.
 - [x] Extract connection/provider setup into a desktop adapter plus shared connection coordinator.
 - [x] Extract library sync/freshness orchestration.
 - [x] Extract now-playing/session restoration orchestration.
@@ -669,7 +669,8 @@ Phase 7 audit:
 - Mix-builder behavior moved into shared `MixBuilderFlowCoordinator` and platform `remember*MixBuilderController` helpers; Android and desktop roots now consume controller boundaries instead of building the equivalent service graph inline.
 - Desktop player-route presentation wiring now lives in `DesktopPlayerRouteContent`, dropping `DesktopNaviampApp.kt` to 1,029 lines and removing the densest now-playing panel block from the root composable.
 - The desktop Compose compiler bytecode workaround was removed from `apps/desktop/build.gradle.kts`; `:apps:desktop:compileKotlinDesktop` passes without the method-size flags.
-- Still open: `AndroidAppShell.kt` and `MainActivity.kt` remain large root/shell files. Those should be handled before closing the remaining Phase 7 item.
+- Android root responsibilities are split: `MainActivity.kt` is now the activity/intent entrypoint, `NaviampAndroidApp.kt` owns app composition and controller wiring, `AndroidAppShellUiStateFactory.kt` builds shell UI state, and `AndroidAppShellActionsFactory.kt` builds shell action callbacks.
+- Phase 7 is complete.
 
 ## Phase 8: Shared UI and Route Contracts
 
@@ -1557,6 +1558,8 @@ Progress notes:
 - Removed the desktop Kotlin compiler bytecode workaround flags from `apps/desktop/build.gradle.kts`; the desktop target keeps only the `jvm("desktop")` declaration.
 - Verification passed without the removed workaround: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
 - Broader verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
+- Finished the Android Phase 7 root split. `MainActivity.kt` is now a 73-line activity/intent entrypoint, app composition and controller wiring moved to `NaviampAndroidApp.kt`, shell UI-state construction moved to `AndroidAppShellUiStateFactory.kt`, and shell action construction moved to `AndroidAppShellActionsFactory.kt`.
+- Phase 7 close-out verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 
