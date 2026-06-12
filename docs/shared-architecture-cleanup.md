@@ -23,7 +23,8 @@ The most visible symptom is `DesktopNaviampApp.kt` hitting the JVM method-size l
 
 ## Regression Notes
 
-- [ ] Lyrics offset is no longer available in packaged Mac and Windows builds after the recent cleanup work.
+- [x] Verify lyrics offset in packaged Mac and Windows builds after the recent cleanup work.
+  - Confirmed as a stale note: lyrics offset works in the Windows desktop app and in the local macOS packaged app at `build/local-test/Naviamp.app`.
 - [x] Restore the small circular handle at the end of the volume bar in packaged Mac and Windows builds.
   - Fixed in shared UI by making the volume thumb draw as a larger high-contrast knob with a halo and inner marker.
 
