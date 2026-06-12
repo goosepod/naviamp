@@ -104,9 +104,10 @@ Windows packaging tasks are present, but must run on Windows because `jpackage` 
 ```shell
 make windows-test
 make windows-standalone
+make windows-installer
 ```
 
-`make windows-installer` is reserved until a real Windows installer task exists.
+`make windows-installer` creates Windows MSI/EXE installers through `jpackage`. It must run on Windows with WiX Toolset 3.x available on `PATH`.
 
 ## Release Direction
 
@@ -115,7 +116,7 @@ The desired release path is a Forgejo-based automation that builds all supported
 Planned artifacts include:
 
 - macOS app bundle and standalone zip.
-- Windows standalone zip, then an installer once the installer path is defined.
+- Windows standalone zip plus MSI/EXE installers.
 - Android APK/AAB release outputs.
 - Linux packages or archives once Linux desktop support is formalized.
 - iOS artifacts if/when an iOS target becomes realistic.
