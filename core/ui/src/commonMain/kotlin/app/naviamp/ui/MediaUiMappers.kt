@@ -211,6 +211,52 @@ fun nowPlayingRelatedUiLabels(sonicSimilarityEnabled: Boolean): NowPlayingRelate
         )
     }
 
+data class NowPlayingTrackCapabilities(
+    val canPlayPause: Boolean,
+    val canSeek: Boolean,
+    val canChangeVolume: Boolean,
+    val canRepeat: Boolean,
+    val canStartRadio: Boolean,
+    val canAddToPlaylist: Boolean,
+    val canSaveQueueAsPlaylist: Boolean,
+    val canFavorite: Boolean,
+    val canRate: Boolean,
+    val lyricsAvailable: Boolean,
+)
+
+fun nowPlayingTrackCapabilities(
+    isLiveStream: Boolean,
+    playbackState: PlaybackState,
+    hasPlaybackTarget: Boolean = true,
+    supportsPause: Boolean = true,
+    supportsSeek: Boolean = true,
+    supportsSoftwareVolume: Boolean = false,
+    supportsTrackRadio: Boolean = false,
+    supportsTrackFavorites: Boolean = false,
+    supportsTrackRatings: Boolean = false,
+    canRepeatQueue: Boolean = false,
+    canSaveQueueAsPlaylist: Boolean = false,
+    canAddToPlaylist: Boolean = true,
+): NowPlayingTrackCapabilities =
+    NowPlayingTrackCapabilities(
+        canPlayPause = hasPlaybackTarget &&
+            playbackState != PlaybackState.Loading &&
+            playbackState !is PlaybackState.Error &&
+            (supportsPause || playbackState != PlaybackState.Playing),
+        canSeek = supportsSeek && !isLiveStream,
+        canChangeVolume = supportsSoftwareVolume,
+        canRepeat = canRepeatQueue && !isLiveStream,
+        canStartRadio = supportsTrackRadio && !isLiveStream,
+        canAddToPlaylist = canAddToPlaylist && !isLiveStream,
+        canSaveQueueAsPlaylist = canSaveQueueAsPlaylist && !isLiveStream,
+        canFavorite = supportsTrackFavorites && !isLiveStream,
+        canRate = supportsTrackRatings && !isLiveStream,
+        lyricsAvailable = !isLiveStream,
+    )
+
+fun nowPlayingEmbeddedTagRows(tags: List<Pair<String, String>>?): List<Pair<String, String>> =
+    tags ?: listOf("Status" to "Loading from cached audio")
+
 fun Track.compactFavoriteRatingLabel(): String? {
     val parts = listOfNotNull(
         favoritedAtIso8601?.let { "♥" },

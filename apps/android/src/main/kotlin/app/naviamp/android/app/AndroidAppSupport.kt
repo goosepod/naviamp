@@ -74,7 +74,9 @@ import app.naviamp.ui.toSharedMediaItemUi
 import app.naviamp.ui.toSharedPlaylistDetailUi
 import app.naviamp.ui.toSharedSearchResultsUi
 import app.naviamp.ui.toSharedRoute
+import app.naviamp.ui.nowPlayingEmbeddedTagRows
 import app.naviamp.ui.nowPlayingRelatedUiLabels
+import app.naviamp.ui.nowPlayingTrackCapabilities
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -306,6 +308,17 @@ fun androidNowPlayingUi(
         val coverArtUrl: (String?) -> String? = { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } }
         val trackCoverArtUrl: (Track) -> String? = { item -> coverArtUrl(item.coverArtId) }
         val relatedLabels = nowPlayingRelatedUiLabels(sonicSimilarityEnabled)
+        val capabilities = nowPlayingTrackCapabilities(
+            isLiveStream = false,
+            playbackState = playbackState,
+            supportsSeek = true,
+            supportsSoftwareVolume = false,
+            supportsTrackRadio = provider?.capabilities?.supportsTrackRadio == true,
+            supportsTrackFavorites = provider?.capabilities?.supportsTrackFavorites == true,
+            supportsTrackRatings = provider?.capabilities?.supportsTrackRatings == true,
+            canRepeatQueue = knownTracks.isNotEmpty(),
+            canSaveQueueAsPlaylist = canSaveQueueAsPlaylist,
+        )
         val resolvedCoverArtUrl = effectiveNowPlayingCoverArtUrl(
             currentCoverArtUrl = track.coverArtUrl(provider),
             nowPlayingTrack = track,
@@ -325,29 +338,29 @@ fun androidNowPlayingUi(
                 volumePercent = volumePercent,
                 isPlaying = playbackState == PlaybackState.Playing,
                 isPaused = playbackState == PlaybackState.Paused,
-                canSeek = true,
-                canChangeVolume = false,
+                canPlayPause = capabilities.canPlayPause,
+                canSeek = capabilities.canSeek,
+                canChangeVolume = capabilities.canChangeVolume,
                 hasPrevious = currentIndex > 0 || (repeatMode == RepeatMode.Queue && knownTracks.size > 1),
                 hasNext = (currentIndex >= 0 && currentIndex < knownTracks.lastIndex) ||
                     (repeatMode == RepeatMode.Queue && knownTracks.size > 1),
                 shuffleEnabled = knownTracks.drop(currentIndex + 1).size > 1,
                 shuffleActive = shuffledUpNextSnapshot != null,
                 repeatMode = repeatMode,
-                canRepeat = knownTracks.isNotEmpty(),
-                canStartRadio = provider?.capabilities?.supportsTrackRadio == true,
-                canAddToPlaylist = true,
-                canSaveQueueAsPlaylist = canSaveQueueAsPlaylist,
+                canRepeat = capabilities.canRepeat,
+                canStartRadio = capabilities.canStartRadio,
+                canAddToPlaylist = capabilities.canAddToPlaylist,
+                canSaveQueueAsPlaylist = capabilities.canSaveQueueAsPlaylist,
                 sleepTimer = sleepTimer,
-                canFavorite = provider?.capabilities?.supportsTrackFavorites == true,
-                canRate = provider?.capabilities?.supportsTrackRatings == true,
-                lyricsAvailable = true,
+                canFavorite = capabilities.canFavorite,
+                canRate = capabilities.canRate,
+                lyricsAvailable = capabilities.lyricsAvailable,
                 lyricsVisible = lyricsVisible && nowPlayingOpen,
                 lyricsStatus = lyricsStatusByTrackId[track.id.value],
                 lyrics = lyricsByTrackId[track.id.value],
                 menuEnabled = true,
                 streamQuality = streamQuality,
-                embeddedTags = audioTagsByTrackId[track.id.value]?.map { it.key to it.value }
-                    ?: listOf("Status" to "Loading from cached audio"),
+                embeddedTags = nowPlayingEmbeddedTagRows(audioTagsByTrackId[track.id.value]?.map { it.key to it.value }),
                 playlistChoices = playlistChoices,
                 playlistActionStatus = playlistActionStatus,
                 backTo = knownTracks

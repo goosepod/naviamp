@@ -793,6 +793,7 @@ fun NaviampApp(
                             playbackEngineName = playbackEngine.name,
                             supportsPause = playbackEngine.supportsPause,
                             supportsSoftwareVolume = playbackEngine.supportsSoftwareVolume,
+                            supportsTrackRadio = connectedProvider?.capabilities?.supportsTrackRadio == true,
                             supportsTrackFavorites = connectedProvider?.capabilities?.supportsTrackFavorites == true,
                             supportsTrackRatings = connectedProvider?.capabilities?.supportsTrackRatings == true,
                             nowPlayingTrack = nowPlayingTrack,

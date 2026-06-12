@@ -1434,6 +1434,9 @@ Progress notes:
 - Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 - Moved shared now-playing item-list and related-tab label mapping into `core/ui`, so Android and Desktop share back-to/up-next/related row construction and Sonic/Related empty-state copy while preserving platform-specific item IDs.
 - Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
+- Moved track now-playing capability decisions and embedded-tag fallback rows into shared `core/ui`, including play/pause eligibility, live-stream gating, seek/volume, repeat, track radio, playlist actions, favorite/rating support, lyrics availability, and the cached-audio loading row.
+- Desktop now passes provider track-radio capability into the shared mapper instead of assuming track radio locally; Android and Desktop still supply their platform-specific queue/save/engine capability inputs.
+- Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 

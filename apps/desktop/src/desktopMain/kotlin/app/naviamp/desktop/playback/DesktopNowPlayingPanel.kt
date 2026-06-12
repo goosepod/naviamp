@@ -32,7 +32,9 @@ import app.naviamp.ui.toNowPlayingStationUi
 import app.naviamp.ui.toNowPlayingUi
 import app.naviamp.ui.toMiniNowPlayingUi
 import app.naviamp.ui.toRadioNowPlayingUi
+import app.naviamp.ui.nowPlayingEmbeddedTagRows
 import app.naviamp.ui.nowPlayingRelatedUiLabels
+import app.naviamp.ui.nowPlayingTrackCapabilities
 
 @Composable
 fun DesktopNowPlayingPanel(
@@ -42,6 +44,7 @@ fun DesktopNowPlayingPanel(
     supportsPause: Boolean,
     supportsSeek: Boolean,
     supportsSoftwareVolume: Boolean,
+    supportsTrackRadio: Boolean,
     supportsTrackFavorites: Boolean,
     supportsTrackRatings: Boolean,
     nowPlayingTrack: Track?,
@@ -117,10 +120,19 @@ fun DesktopNowPlayingPanel(
     val firstBackToQueueIndex = playbackQueue.currentIndex - 1
     val firstUpNextQueueIndex = playbackQueue.currentIndex + 1
     val relatedLabels = nowPlayingRelatedUiLabels(sonicSimilarityEnabled)
-    val canTogglePlayback = nowPlayingTrack != null &&
-        playbackState != PlaybackState.Loading &&
-        playbackState !is PlaybackState.Error &&
-        (supportsPause || playbackState != PlaybackState.Playing)
+    val trackCapabilities = nowPlayingTrackCapabilities(
+        isLiveStream = isLiveStream,
+        playbackState = playbackState,
+        hasPlaybackTarget = nowPlayingTrack != null || isLiveStream,
+        supportsPause = supportsPause,
+        supportsSeek = supportsSeek,
+        supportsSoftwareVolume = supportsSoftwareVolume,
+        supportsTrackRadio = supportsTrackRadio,
+        supportsTrackFavorites = supportsTrackFavorites,
+        supportsTrackRatings = supportsTrackRatings,
+        canRepeatQueue = true,
+        canSaveQueueAsPlaylist = true,
+    )
     val backToItems = remember(backTo, firstBackToQueueIndex, coverArtUrlForTrack) {
         backTo.toNowPlayingItemUis(
             coverArtUrl = coverArtUrlForTrack,
@@ -168,29 +180,28 @@ fun DesktopNowPlayingPanel(
                 volumePercent = volumePercent,
                 isPlaying = playbackState == PlaybackState.Playing,
                 isPaused = playbackState == PlaybackState.Paused,
-                canPlayPause = canTogglePlayback,
-                canSeek = supportsSeek && !isLiveStream,
-                canChangeVolume = supportsSoftwareVolume,
+                canPlayPause = trackCapabilities.canPlayPause,
+                canSeek = trackCapabilities.canSeek,
+                canChangeVolume = trackCapabilities.canChangeVolume,
                 hasPrevious = hasPrevious,
                 hasNext = hasNext,
                 shuffleEnabled = upNext.size > 1,
                 shuffleActive = shuffleActive,
                 repeatMode = repeatMode,
-                canRepeat = !isLiveStream,
-                canStartRadio = !isLiveStream,
-                canAddToPlaylist = !isLiveStream,
-                canSaveQueueAsPlaylist = !isLiveStream,
+                canRepeat = trackCapabilities.canRepeat,
+                canStartRadio = trackCapabilities.canStartRadio,
+                canAddToPlaylist = trackCapabilities.canAddToPlaylist,
+                canSaveQueueAsPlaylist = trackCapabilities.canSaveQueueAsPlaylist,
                 sleepTimer = sleepTimer,
-                canFavorite = supportsTrackFavorites && !isLiveStream,
-                canRate = supportsTrackRatings && !isLiveStream,
-                lyricsAvailable = !isLiveStream,
+                canFavorite = trackCapabilities.canFavorite,
+                canRate = trackCapabilities.canRate,
+                lyricsAvailable = trackCapabilities.lyricsAvailable,
                 lyricsVisible = lyricsVisible,
                 lyricsStatus = nowPlayingLyricsStatus,
                 lyrics = nowPlayingLyrics,
                 menuEnabled = true,
                 streamQuality = streamQuality,
-                embeddedTags = nowPlayingAudioTags?.map { it.key to it.value }
-                    ?: listOf("Status" to "Loading from cached audio"),
+                embeddedTags = nowPlayingEmbeddedTagRows(nowPlayingAudioTags?.map { it.key to it.value }),
                 useInlinePlaylistPicker = false,
                 backTo = backToItems,
                 upNext = upNextItems,
@@ -210,7 +221,7 @@ fun DesktopNowPlayingPanel(
                 volumePercent = volumePercent,
                 radioStations = internetRadioStations,
                 radioTrackArtworkByKey = radioTrackArtworkByKey,
-                canPlayPause = canTogglePlayback,
+                canPlayPause = trackCapabilities.canPlayPause,
                 canChangeVolume = supportsSoftwareVolume,
             )
         } ?: NowPlayingUi(
@@ -221,7 +232,7 @@ fun DesktopNowPlayingPanel(
             volumePercent = volumePercent,
             isPlaying = playbackState == PlaybackState.Playing,
             isPaused = playbackState == PlaybackState.Paused,
-            canPlayPause = canTogglePlayback,
+            canPlayPause = trackCapabilities.canPlayPause,
             canChangeVolume = supportsSoftwareVolume,
             hasPrevious = hasPrevious,
             hasNext = hasNext,
