@@ -1483,6 +1483,8 @@ Progress notes:
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 - Threaded the now-playing typed request groups through `NaviampSharedAppShell`, `ConnectedContent`, `FullNowPlaying`, the shared mini-player, and Android shell contracts/content. The shared shell and Android boundary now pass playback, display, current-track, queue, sleep-timer, selection, and queue-item actions as grouped requests instead of re-expanding them into the old callback cluster.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
+- Collapsed the remaining desktop now-playing wrapper boundaries onto the same grouped request handlers. `DesktopNowPlayingPanel`, `DesktopMiniPlayerPanel`, and shared `NaviampMiniNowPlaying` now receive playback/display/queue/sleep/selection actions as typed groups, with `DesktopNaviampApp` owning the platform adapter logic for both full and mini player surfaces.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 

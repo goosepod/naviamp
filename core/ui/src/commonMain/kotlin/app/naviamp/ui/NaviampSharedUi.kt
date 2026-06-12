@@ -474,21 +474,7 @@ fun NaviampSharedAppShell(
                             nowPlaying = nowPlaying,
                             colors = colors,
                             onOpen = onOpenNowPlaying,
-                            onPause = {
-                                nowPlayingActions.playback(NowPlayingPlaybackAction.Pause)
-                            },
-                            onResume = {
-                                nowPlayingActions.playback(NowPlayingPlaybackAction.Resume)
-                            },
-                            onPlayCurrent = {
-                                nowPlayingActions.playback(NowPlayingPlaybackAction.PlayCurrent)
-                            },
-                            onPrevious = {
-                                nowPlayingActions.playback(NowPlayingPlaybackAction.Previous)
-                            },
-                            onNext = {
-                                nowPlayingActions.playback(NowPlayingPlaybackAction.Next)
-                            },
+                            actions = nowPlayingActions,
                             modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
                         )
                     }
@@ -1694,11 +1680,7 @@ fun NaviampMiniNowPlaying(
     nowPlaying: NowPlayingUi,
     colors: NaviampColors,
     onOpen: () -> Unit,
-    onPause: () -> Unit,
-    onResume: () -> Unit,
-    onPlayCurrent: () -> Unit,
-    onPrevious: () -> Unit,
-    onNext: () -> Unit,
+    actions: NaviampNowPlayingActions,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -1740,7 +1722,7 @@ fun NaviampMiniNowPlaying(
             enabled = nowPlaying.hasPrevious,
             icon = NaviampTransportIcons.Previous,
             contentDescription = "Previous",
-            onClick = onPrevious,
+            onClick = { actions.playback(NowPlayingPlaybackAction.Previous) },
         )
         MiniPlayerIconButton(
             colors = colors,
@@ -1749,11 +1731,11 @@ fun NaviampMiniNowPlaying(
             contentDescription = if (nowPlaying.isPlaying) "Pause" else "Play",
             onClick = {
                 if (nowPlaying.isPlaying) {
-                    onPause()
+                    actions.playback(NowPlayingPlaybackAction.Pause)
                 } else if (nowPlaying.isPaused) {
-                    onResume()
+                    actions.playback(NowPlayingPlaybackAction.Resume)
                 } else {
-                    onPlayCurrent()
+                    actions.playback(NowPlayingPlaybackAction.PlayCurrent)
                 }
             },
         )
@@ -1762,7 +1744,7 @@ fun NaviampMiniNowPlaying(
             enabled = nowPlaying.hasNext,
             icon = NaviampTransportIcons.Next,
             contentDescription = "Next",
-            onClick = onNext,
+            onClick = { actions.playback(NowPlayingPlaybackAction.Next) },
         )
     }
 }

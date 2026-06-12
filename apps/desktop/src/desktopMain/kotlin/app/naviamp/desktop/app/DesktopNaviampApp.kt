@@ -56,7 +56,19 @@ import app.naviamp.provider.navidrome.withNativeTokenFromPassword
 import app.naviamp.ui.NaviampSleepTimerUi
 import app.naviamp.ui.NaviampSleepTimerExpiryEffect
 import app.naviamp.ui.NowPlayingCurrentTrackAction
+import app.naviamp.ui.NowPlayingDisplayAction
+import app.naviamp.ui.NowPlayingDisplayActionRequest
 import app.naviamp.ui.NowPlayingItemAction
+import app.naviamp.ui.NowPlayingPlaybackAction
+import app.naviamp.ui.NowPlayingPlaybackActionRequest
+import app.naviamp.ui.NowPlayingQueueAction
+import app.naviamp.ui.NowPlayingQueueActionRequest
+import app.naviamp.ui.NowPlayingSelectionAction
+import app.naviamp.ui.NowPlayingSelectionActionRequest
+import app.naviamp.ui.NowPlayingSleepTimerAction
+import app.naviamp.ui.NowPlayingSleepTimerActionRequest
+import app.naviamp.ui.nowPlayingQueueIndex
+import app.naviamp.ui.nowPlayingRelatedIndex
 import app.naviamp.ui.resolveAction
 import app.naviamp.ui.toNaviampSleepTimerUi
 
@@ -770,6 +782,63 @@ fun NaviampApp(
         nowPlayingStreamMetadata = nowPlayingStreamMetadata,
         cacheStats = cacheStats,
     )
+    val handleNowPlayingPlaybackAction: (NowPlayingPlaybackActionRequest) -> Unit = { request ->
+        when (request.action) {
+            NowPlayingPlaybackAction.Pause -> handlePlayPauseCommand()
+            NowPlayingPlaybackAction.Resume -> handlePlayPauseCommand()
+            NowPlayingPlaybackAction.PlayCurrent -> handlePlayPauseCommand()
+            NowPlayingPlaybackAction.Seek -> request.seekSeconds?.let(playbackController::performSeek)
+            NowPlayingPlaybackAction.Previous -> playbackController.handlePreviousButton()
+            NowPlayingPlaybackAction.Next -> playbackController.handleNextButton()
+            NowPlayingPlaybackAction.ToggleShuffle -> playbackController.toggleShuffle()
+            NowPlayingPlaybackAction.CycleRepeatMode -> playbackController.cycleRepeatMode()
+            NowPlayingPlaybackAction.ChangeVolume -> request.volumePercent?.let { volumePercent ->
+                playbackSettings = playbackSettingsChange(
+                    requested = playbackSettings.copy(volumePercent = volumePercent),
+                    playbackEngine = playbackEngine,
+                    previous = playbackSettings,
+                ).settings
+                settingsStore.savePlaybackSettings(playbackSettings)
+            }
+        }
+    }
+    val handleNowPlayingDisplayAction: (NowPlayingDisplayActionRequest) -> Unit = { request ->
+        when (request.action) {
+            NowPlayingDisplayAction.ToggleLyrics -> nowPlayingLyricsVisible = !nowPlayingLyricsVisible
+            NowPlayingDisplayAction.ChangeLyricsOffset ->
+                request.lyricsOffsetMillis?.let(nowPlayingController::handleLyricsOffsetChanged)
+            NowPlayingDisplayAction.ToggleVisualizer -> nowPlayingPresentation.toggleVisualizer()
+            NowPlayingDisplayAction.SelectVisualizer -> request.visualizer?.let { visualizer ->
+                nowPlayingPresentation.selectVisualizer(visualizer)
+                settingsStore.saveVisualizerSettings(
+                    VisualizerSettings(selectedVisualizer = visualizer.name),
+                )
+            }
+            NowPlayingDisplayAction.Collapse -> appRoute = lastContentRoute
+        }
+    }
+    val handleNowPlayingQueueAction: (NowPlayingQueueActionRequest) -> Unit = { request ->
+        when (request.action) {
+            NowPlayingQueueAction.SaveQueueAsPlaylist -> playlistsController.saveQueueAsPlaylist(request.playlistName)
+        }
+    }
+    val handleNowPlayingSleepTimerAction: (NowPlayingSleepTimerActionRequest) -> Unit = { request ->
+        when (request.action) {
+            NowPlayingSleepTimerAction.Select -> request.request?.let(sleepTimerController::select)
+            NowPlayingSleepTimerAction.Cancel -> sleepTimerController.cancel()
+        }
+    }
+    val handleNowPlayingSelectionAction: (NowPlayingSelectionActionRequest) -> Unit = { request ->
+        when (request.action) {
+            NowPlayingSelectionAction.SelectQueueItem ->
+                nowPlayingQueueIndex(request.item)?.let(::handleQueueIndexSelected)
+            NowPlayingSelectionAction.SelectRelatedItem ->
+                nowPlayingRelatedIndex(request.item)?.let(appActions::playRelatedTrack)
+            NowPlayingSelectionAction.SelectRadioStation ->
+                internetRadioController.stations.firstOrNull { it.id == request.item.id }
+                    ?.let(internetRadioController::playStation)
+        }
+    }
 
     DesktopAppSurface(
             colorScheme = colorScheme,
@@ -830,37 +899,11 @@ fun NaviampApp(
                             streamQuality = playbackSettings.streamQuality(playbackEngine),
                             sonicSimilarityEnabled = playbackSettings.sonicSimilarityEnabled,
                             supportsSeek = playbackEngine.supportsSeek && nowPlayingTrack?.isInternetRadioTrack() != true,
-                            onPause = ::handlePlayPauseCommand,
-                            onResume = ::handlePlayPauseCommand,
-                            onPlayCurrent = ::handlePlayPauseCommand,
-                            onSeek = playbackController::performSeek,
-                            onPrevious = playbackController::handlePreviousButton,
-                            onNext = playbackController::handleNextButton,
-                            onToggleShuffle = playbackController::toggleShuffle,
-                            onCycleRepeatMode = playbackController::cycleRepeatMode,
-                            onVolumeChanged = { volumePercent ->
-                                playbackSettings = playbackSettingsChange(
-                                    requested = playbackSettings.copy(volumePercent = volumePercent),
-                                    playbackEngine = playbackEngine,
-                                    previous = playbackSettings,
-                                ).settings
-                                settingsStore.savePlaybackSettings(playbackSettings)
-                            },
-                            onToggleLyrics = { nowPlayingLyricsVisible = !nowPlayingLyricsVisible },
-                            onLyricsOffsetChanged = nowPlayingController::handleLyricsOffsetChanged,
-                            onToggleVisualizer = nowPlayingPresentation::toggleVisualizer,
-                            onVisualizerSelected = { visualizer ->
-                                nowPlayingPresentation.selectVisualizer(visualizer)
-                                settingsStore.saveVisualizerSettings(
-                                    VisualizerSettings(selectedVisualizer = visualizer.name),
-                                )
-                            },
-                            onSaveQueueAsPlaylist = playlistsController::saveQueueAsPlaylist,
-                            onSleepTimerSelected = sleepTimerController::select,
-                            onCancelSleepTimer = sleepTimerController::cancel,
-                            onInternetRadioStationSelected = internetRadioController::playStation,
-                            onQueueIndexSelected = ::handleQueueIndexSelected,
-                            onRelatedTrackSelected = appActions::playRelatedTrack,
+                            onPlaybackAction = handleNowPlayingPlaybackAction,
+                            onDisplayAction = handleNowPlayingDisplayAction,
+                            onQueueAction = handleNowPlayingQueueAction,
+                            onSleepTimerAction = handleNowPlayingSleepTimerAction,
+                            onSelectionAction = handleNowPlayingSelectionAction,
                             onCurrentTrackAction = { request ->
                                 when (request.action) {
                                     NowPlayingCurrentTrackAction.StartRadio ->
@@ -901,7 +944,6 @@ fun NaviampApp(
                                         action.track?.let(appActions::downloadTrack)
                                 }
                             },
-                            onCollapseToHome = { appRoute = lastContentRoute },
                         )
                     } else {
                         DesktopAppRouteContent(
@@ -1044,11 +1086,7 @@ fun NaviampApp(
                                 hasPrevious = playbackController.canUsePreviousButton(),
                                 hasNext = playbackQueue.hasNext(),
                                 playbackState = playbackState,
-                                onPause = ::handlePlayPauseCommand,
-                                onResume = ::handlePlayPauseCommand,
-                                onPlayCurrent = ::handlePlayPauseCommand,
-                                onPrevious = playbackController::handlePreviousButton,
-                                onNext = playbackController::handleNextButton,
+                                onPlaybackAction = handleNowPlayingPlaybackAction,
                                 onOpenPlayer = {
                                     appRoute = DesktopAppRoute.Player
                                 },

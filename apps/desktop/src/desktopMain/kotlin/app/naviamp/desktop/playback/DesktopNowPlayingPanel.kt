@@ -12,29 +12,25 @@ import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
-import app.naviamp.domain.playback.SleepTimerRequest
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.ui.NaviampMiniNowPlaying
 import app.naviamp.ui.NaviampNowPlayingActions
-import app.naviamp.ui.NaviampNowPlayingItemUi
 import app.naviamp.ui.NaviampNowPlayingPanel
 import app.naviamp.ui.NaviampPlayerColors
 import app.naviamp.ui.NaviampSleepTimerUi
 import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.MiniNowPlayingUiConfig
 import app.naviamp.ui.NowPlayingCurrentTrackActionRequest
-import app.naviamp.ui.NowPlayingDisplayAction
+import app.naviamp.ui.NowPlayingDisplayActionRequest
 import app.naviamp.ui.NowPlayingItemActionRequest
-import app.naviamp.ui.NowPlayingPlaybackAction
-import app.naviamp.ui.NowPlayingQueueAction
-import app.naviamp.ui.NowPlayingSelectionAction
-import app.naviamp.ui.NowPlayingSleepTimerAction
+import app.naviamp.ui.NowPlayingPlaybackActionRequest
+import app.naviamp.ui.NowPlayingQueueActionRequest
+import app.naviamp.ui.NowPlayingSelectionActionRequest
+import app.naviamp.ui.NowPlayingSleepTimerActionRequest
 import app.naviamp.ui.NowPlayingUi
-import app.naviamp.ui.nowPlayingQueueIndex
-import app.naviamp.ui.nowPlayingRelatedIndex
 import app.naviamp.ui.toNowPlayingStationUi
 import app.naviamp.ui.toMiniNowPlayingUi
 import app.naviamp.ui.toRadioNowPlayingUi
@@ -82,28 +78,13 @@ fun DesktopNowPlayingPanel(
     sleepTimer: NaviampSleepTimerUi,
     streamQuality: StreamQuality,
     sonicSimilarityEnabled: Boolean,
-    onPause: () -> Unit,
-    onResume: () -> Unit,
-    onPlayCurrent: () -> Unit,
-    onSeek: (Double) -> Unit,
-    onPrevious: () -> Unit,
-    onNext: () -> Unit,
-    onToggleShuffle: () -> Unit,
-    onCycleRepeatMode: () -> Unit,
-    onVolumeChanged: (Int) -> Unit,
-    onToggleLyrics: () -> Unit,
-    onLyricsOffsetChanged: (Int) -> Unit,
-    onToggleVisualizer: () -> Unit,
-    onVisualizerSelected: (NaviampVisualizer) -> Unit,
-    onSaveQueueAsPlaylist: (String) -> Unit,
-    onSleepTimerSelected: (SleepTimerRequest) -> Unit,
-    onCancelSleepTimer: () -> Unit,
-    onInternetRadioStationSelected: (InternetRadioStation) -> Unit,
-    onQueueIndexSelected: (Int) -> Unit,
-    onRelatedTrackSelected: (Int) -> Unit,
+    onPlaybackAction: (NowPlayingPlaybackActionRequest) -> Unit,
+    onDisplayAction: (NowPlayingDisplayActionRequest) -> Unit,
+    onQueueAction: (NowPlayingQueueActionRequest) -> Unit,
+    onSleepTimerAction: (NowPlayingSleepTimerActionRequest) -> Unit,
+    onSelectionAction: (NowPlayingSelectionActionRequest) -> Unit,
     onCurrentTrackAction: (NowPlayingCurrentTrackActionRequest) -> Unit,
     onQueueItemAction: (NowPlayingItemActionRequest) -> Unit,
-    onCollapseToHome: () -> Unit,
 ) {
     val isLiveStream = currentInternetRadioStationId != null
     val effectiveDurationSeconds = nowPlayingTrack?.durationSeconds?.toDouble()
@@ -202,30 +183,8 @@ fun DesktopNowPlayingPanel(
         selectedVisualizer = selectedVisualizer,
         visualizerColors = visualizerColors,
         actions = NaviampNowPlayingActions(
-            onPlaybackAction = { request ->
-                when (request.action) {
-                    NowPlayingPlaybackAction.Pause -> onPause()
-                    NowPlayingPlaybackAction.Resume -> onResume()
-                    NowPlayingPlaybackAction.PlayCurrent -> onPlayCurrent()
-                    NowPlayingPlaybackAction.Seek -> request.seekSeconds?.let(onSeek)
-                    NowPlayingPlaybackAction.Previous -> onPrevious()
-                    NowPlayingPlaybackAction.Next -> onNext()
-                    NowPlayingPlaybackAction.ToggleShuffle -> onToggleShuffle()
-                    NowPlayingPlaybackAction.CycleRepeatMode -> onCycleRepeatMode()
-                    NowPlayingPlaybackAction.ChangeVolume -> request.volumePercent?.let(onVolumeChanged)
-                }
-            },
-            onDisplayAction = { request ->
-                when (request.action) {
-                    NowPlayingDisplayAction.ToggleLyrics -> onToggleLyrics()
-                    NowPlayingDisplayAction.ChangeLyricsOffset ->
-                        request.lyricsOffsetMillis?.let(onLyricsOffsetChanged)
-                    NowPlayingDisplayAction.ToggleVisualizer -> onToggleVisualizer()
-                    NowPlayingDisplayAction.SelectVisualizer ->
-                        request.visualizer?.let(onVisualizerSelected)
-                    NowPlayingDisplayAction.Collapse -> onCollapseToHome()
-                }
-            },
+            onPlaybackAction = onPlaybackAction,
+            onDisplayAction = onDisplayAction,
             onCurrentTrackAction = { request ->
                 nowPlayingTrack?.let { track ->
                     onCurrentTrackAction(
@@ -239,28 +198,9 @@ fun DesktopNowPlayingPanel(
                     )
                 }
             },
-            onQueueAction = { request ->
-                when (request.action) {
-                    NowPlayingQueueAction.SaveQueueAsPlaylist -> onSaveQueueAsPlaylist(request.playlistName)
-                }
-            },
-            onSleepTimerAction = { request ->
-                when (request.action) {
-                    NowPlayingSleepTimerAction.Select -> request.request?.let(onSleepTimerSelected)
-                    NowPlayingSleepTimerAction.Cancel -> onCancelSleepTimer()
-                }
-            },
-            onSelectionAction = { request ->
-                when (request.action) {
-                    NowPlayingSelectionAction.SelectQueueItem ->
-                        nowPlayingQueueIndex(request.item)?.let(onQueueIndexSelected)
-                    NowPlayingSelectionAction.SelectRelatedItem ->
-                        nowPlayingRelatedIndex(request.item)?.let(onRelatedTrackSelected)
-                    NowPlayingSelectionAction.SelectRadioStation ->
-                        internetRadioStations.firstOrNull { it.id == request.item.id }
-                            ?.let(onInternetRadioStationSelected)
-                }
-            },
+            onQueueAction = onQueueAction,
+            onSleepTimerAction = onSleepTimerAction,
+            onSelectionAction = onSelectionAction,
             onQueueItemAction = onQueueItemAction,
         ),
     )
@@ -274,11 +214,7 @@ fun DesktopMiniPlayerPanel(
     hasPrevious: Boolean,
     hasNext: Boolean,
     playbackState: PlaybackState,
-    onPause: () -> Unit,
-    onResume: () -> Unit,
-    onPlayCurrent: () -> Unit,
-    onPrevious: () -> Unit,
-    onNext: () -> Unit,
+    onPlaybackAction: (NowPlayingPlaybackActionRequest) -> Unit,
     onOpenPlayer: () -> Unit,
 ) {
     val canTogglePause = nowPlayingTrack != null &&
@@ -298,10 +234,6 @@ fun DesktopMiniPlayerPanel(
         ),
         colors = appColors,
         onOpen = onOpenPlayer,
-        onPause = onPause,
-        onResume = onResume,
-        onPlayCurrent = onPlayCurrent,
-        onPrevious = onPrevious,
-        onNext = onNext,
+        actions = NaviampNowPlayingActions(onPlaybackAction = onPlaybackAction),
     )
 }
