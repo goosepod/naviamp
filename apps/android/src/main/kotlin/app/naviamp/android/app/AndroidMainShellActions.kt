@@ -108,9 +108,6 @@ internal fun androidMainShellActions(
         loadLyrics = nowPlayingSidecarController::loadLyrics,
         handleLyricsOffsetChanged = nowPlayingSidecarController::handleLyricsOffsetChanged,
         handleShellTrackRadio = shellPlaybackController::startCurrentTrackRadio,
-        handleMoreLikeThis = trackActionController::playMoreLikeThis,
-        handleMoreLikeThisNext = trackActionController::playMoreLikeThisNext,
-        handleAddMoreLikeThisToQueue = trackActionController::addMoreLikeThisToQueue,
         handleNowPlayingAddToPlaylist = trackActionController::handleNowPlayingAddToPlaylist,
         handleNowPlayingCreatePlaylistAndAdd = trackActionController::handleNowPlayingCreatePlaylistAndAdd,
         handleSaveQueueAsPlaylist = playlistActionController::saveQueueAsPlaylist,
@@ -126,6 +123,8 @@ internal fun androidMainShellActions(
         handleQueueItemAddToQueue = { item ->
             mediaAppController.resolveNowPlayingItemTrack(item)?.let(mediaAppController::addToQueue)
         },
+        handleTrackRadioNext = trackActionController::playTrackRadioNext,
+        handleAddTrackRadioToQueue = trackActionController::addTrackRadioToQueue,
         resolveNowPlayingItemTrack = mediaAppController::resolveNowPlayingItemTrack,
         addTrackToPlaylist = playlistActionController::addTrackToPlaylist,
         toggleCurrentFavorite = mediaAppController::toggleCurrentFavorite,

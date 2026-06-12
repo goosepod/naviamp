@@ -378,9 +378,8 @@ fun DesktopTrackRow(
                     onStartRadio?.invoke()
                     Unit
                 }
-                SharedTrackRowAction.PlayMoreLikeThis,
-                SharedTrackRowAction.PlayMoreLikeThisNext,
-                SharedTrackRowAction.AddMoreLikeThisToQueue,
+                SharedTrackRowAction.PlayTrackRadioNext,
+                SharedTrackRowAction.AddTrackRadioToQueue,
                 -> Unit
                 SharedTrackRowAction.AddToQueue -> {
                     onAddToQueue?.invoke()

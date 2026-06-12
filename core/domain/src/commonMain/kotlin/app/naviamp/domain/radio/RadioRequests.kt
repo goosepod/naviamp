@@ -186,12 +186,15 @@ fun decadeRadioRequest(fromYear: Int, toYear: Int): RadioRequest =
         loadTracks = { radioService -> radioService.decadeRadio(fromYear, toYear) },
     )
 
-fun trackRadioRequest(track: Track): SeededRadioRequest =
+fun trackRadioRequest(
+    track: Track,
+    preferSonicSimilarity: Boolean = false,
+): SeededRadioRequest =
     SeededRadioRequest(
         label = "${track.title} radio",
         seedTrack = track,
         recentRadioStream = trackRecentRadioStream(track),
-        loadRest = { radioService -> radioService.trackRadio(track.id) },
+        loadRest = { radioService -> radioService.trackRadio(track, preferSonicSimilarity) },
     )
 
 fun randomAlbumSeededRadioRequest(

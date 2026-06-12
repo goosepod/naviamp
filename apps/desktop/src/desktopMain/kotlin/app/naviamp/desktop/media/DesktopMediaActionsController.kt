@@ -10,7 +10,6 @@ import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.media.MediaMetadataMutationController
 import app.naviamp.domain.media.MediaTrackLookupSources
 import app.naviamp.domain.media.mediaMetadataMutationController
-import app.naviamp.domain.media.playMoreLikeThisQueue
 import app.naviamp.domain.media.trackPlaybackSelection
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackQueueManager
@@ -88,52 +87,6 @@ class DesktopMediaActionsController(
         )
     }
 
-    fun playMoreLikeThis(track: Track) {
-        scope.launch {
-            val queue = loadPlayMoreLikeThisQueue(track, includeSeedTrack = true)
-            if (queue.isEmpty) return@launch
-            playTracks(queue.tracks, index = 0)
-        }
-    }
-
-    fun playMoreLikeThisNext(track: Track) {
-        scope.launch {
-            val queue = loadPlayMoreLikeThisQueue(track, includeSeedTrack = false)
-            if (queue.isEmpty) return@launch
-            val update = PlaybackQueueManager().playNextTracks(
-                currentQueue = playlistEngine.queue,
-                tracksToAdd = queue.tracks,
-                label = "similar tracks",
-                existingTracks = playlistEngine.queue.tracks,
-                deduplicateExisting = true,
-            )
-            applyPlaybackQueueUpdate(
-                update = update,
-                setStatus = setConnectionStatus,
-                replaceQueue = playlistEngine::replaceQueue,
-            )
-        }
-    }
-
-    fun addMoreLikeThisToQueue(track: Track) {
-        scope.launch {
-            val queue = loadPlayMoreLikeThisQueue(track, includeSeedTrack = false)
-            if (queue.isEmpty) return@launch
-            val update = PlaybackQueueManager().appendTracks(
-                currentQueue = playlistEngine.queue,
-                tracksToAdd = queue.tracks,
-                label = "similar tracks",
-                existingTracks = playlistEngine.queue.tracks,
-                deduplicateExisting = true,
-            )
-            applyPlaybackQueueUpdate(
-                update = update,
-                setStatus = setConnectionStatus,
-                replaceQueue = playlistEngine::replaceQueue,
-            )
-        }
-    }
-
     fun applyTrackMetadataUpdate(updatedTrack: Track) {
         metadataMutationController().applyTrackUpdateResult(updatedTrack)
     }
@@ -204,25 +157,6 @@ class DesktopMediaActionsController(
                 trackMetadataRepository.updateTrack(updatedTrack)
             },
         )
-
-    private suspend fun loadPlayMoreLikeThisQueue(
-        track: Track,
-        includeSeedTrack: Boolean,
-    ) = runCatching {
-        playMoreLikeThisQueue(
-            seedTrack = track,
-            provider = provider(),
-            preferSonicSimilarity = playbackSettings().sonicSimilarityEnabled,
-            includeSeedTrack = includeSeedTrack,
-        )
-    }.getOrElse { error ->
-        setConnectionStatus("Could not load similar tracks: ${error.message ?: "Unknown error"}")
-        app.naviamp.domain.media.PlayMoreLikeThisQueue.Empty
-    }.also { queue ->
-        if (queue.isEmpty) {
-            setConnectionStatus("No similar tracks found for ${track.title}.")
-        }
-    }
 
     private fun playTracks(
         tracks: List<Track>,

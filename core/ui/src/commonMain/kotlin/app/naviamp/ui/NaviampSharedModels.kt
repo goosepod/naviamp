@@ -91,9 +91,8 @@ data class SharedTrackRowUi(
 enum class SharedTrackRowAction {
     Select,
     StartRadio,
-    PlayMoreLikeThis,
-    PlayMoreLikeThisNext,
-    AddMoreLikeThisToQueue,
+    PlayTrackRadioNext,
+    AddTrackRadioToQueue,
     AddToQueue,
     Download,
     AddToPlaylist,
@@ -121,9 +120,8 @@ data class SharedTrackGroupActionRequest(
 data class SharedTrackRowActionHandlers(
     val onSelect: (SharedTrackRowUi) -> Unit = {},
     val onStartRadio: (SharedTrackRowUi) -> Unit = {},
-    val onPlayMoreLikeThis: (SharedTrackRowUi) -> Unit = {},
-    val onPlayMoreLikeThisNext: (SharedTrackRowUi) -> Unit = {},
-    val onAddMoreLikeThisToQueue: (SharedTrackRowUi) -> Unit = {},
+    val onPlayTrackRadioNext: (SharedTrackRowUi) -> Unit = {},
+    val onAddTrackRadioToQueue: (SharedTrackRowUi) -> Unit = {},
     val onAddToQueue: (SharedTrackRowUi) -> Unit = {},
     val onDownload: (SharedTrackRowUi) -> Unit = {},
     val onAddToPlaylist: (SharedTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
@@ -137,9 +135,8 @@ fun handleSharedTrackRowAction(
     when (request.action) {
         SharedTrackRowAction.Select -> handlers.onSelect(request.track)
         SharedTrackRowAction.StartRadio -> handlers.onStartRadio(request.track)
-        SharedTrackRowAction.PlayMoreLikeThis -> handlers.onPlayMoreLikeThis(request.track)
-        SharedTrackRowAction.PlayMoreLikeThisNext -> handlers.onPlayMoreLikeThisNext(request.track)
-        SharedTrackRowAction.AddMoreLikeThisToQueue -> handlers.onAddMoreLikeThisToQueue(request.track)
+        SharedTrackRowAction.PlayTrackRadioNext -> handlers.onPlayTrackRadioNext(request.track)
+        SharedTrackRowAction.AddTrackRadioToQueue -> handlers.onAddTrackRadioToQueue(request.track)
         SharedTrackRowAction.AddToQueue -> handlers.onAddToQueue(request.track)
         SharedTrackRowAction.Download -> handlers.onDownload(request.track)
         SharedTrackRowAction.AddToPlaylist -> handlers.onAddToPlaylist(request.track, request.playlistChoice)

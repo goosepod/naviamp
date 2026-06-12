@@ -5,18 +5,22 @@ import kotlin.test.assertEquals
 
 class NaviampActionCatalogTest {
     @Test
-    fun trackRowActionsIncludeMoreLikeThisVariantsWhenAvailable() {
+    fun trackRowActionsIncludeRadioQueueActionsWhenRadioIsAvailable() {
         val actions = trackRowActions(
             canStartRadio = true,
-            canPlayMoreLikeThis = true,
+            canDownload = true,
+            canAddToQueue = true,
+            canAddToPlaylist = true,
         )
 
         assertEquals(
             listOf(
                 NaviampAction.StartTrackRadio,
-                NaviampAction.PlayMoreLikeThis,
-                NaviampAction.PlayMoreLikeThisNext,
-                NaviampAction.AddMoreLikeThisToQueue,
+                NaviampAction.PlayTrackRadioNext,
+                NaviampAction.AddTrackRadioToQueue,
+                NaviampAction.DownloadTrack,
+                NaviampAction.AddToQueue,
+                NaviampAction.AddToPlaylist,
                 NaviampAction.TrackDetails,
             ),
             actions.map { it.action },

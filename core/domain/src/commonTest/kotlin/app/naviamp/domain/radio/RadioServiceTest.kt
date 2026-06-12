@@ -54,6 +54,34 @@ class RadioServiceTest {
         assertEquals(1, provider.albumCalls)
     }
 
+    @Test
+    fun trackRadioPrefersSonicTracksWhenEnabledAndSupported() = runTest {
+        val provider = FakeRadioProvider(
+            supportsSonicSimilarity = true,
+            sonicTracks = listOf(track("seed"), track("sonic-one"), track("sonic-two")),
+            radioTracks = listOf(track("provider-radio")),
+        )
+        val service = RadioService(provider)
+
+        val tracks = service.trackRadio(track("seed"), preferSonicSimilarity = true)
+
+        assertEquals(listOf("sonic-one", "sonic-two"), tracks.map { it.id.value })
+    }
+
+    @Test
+    fun trackRadioFallsBackToProviderRadioWhenSonicIsDisabledOrEmpty() = runTest {
+        val provider = FakeRadioProvider(
+            supportsSonicSimilarity = true,
+            sonicTracks = emptyList(),
+            radioTracks = listOf(track("provider-radio")),
+        )
+        val service = RadioService(provider)
+
+        val tracks = service.trackRadio(track("seed"), preferSonicSimilarity = true)
+
+        assertEquals(listOf("provider-radio"), tracks.map { it.id.value })
+    }
+
     private class RecordingProviderResponseCacheRepository : ProviderResponseCacheRepository {
         private val values = mutableMapOf<String, String>()
         val keys = mutableListOf<String>()
@@ -92,7 +120,11 @@ class RadioServiceTest {
         }
     }
 
-    private class FakeRadioProvider : MediaProvider {
+    private class FakeRadioProvider(
+        private val supportsSonicSimilarity: Boolean = false,
+        private val sonicTracks: List<Track> = emptyList(),
+        private val radioTracks: List<Track> = emptyList(),
+    ) : MediaProvider {
         override val id: ProviderId = ProviderId("provider-one")
         override val displayName: String = "Provider One"
         override val capabilities: ProviderCapabilities = ProviderCapabilities(
@@ -101,6 +133,7 @@ class RadioServiceTest {
             supportsArtistRadio = true,
             supportsAlbumRadio = true,
             supportsTrackRadio = true,
+            supportsSonicSimilarity = supportsSonicSimilarity,
         )
         var albumCalls: Int = 0
         var artistCalls: Int = 0
@@ -126,6 +159,12 @@ class RadioServiceTest {
 
         override suspend fun tracks(limit: Int): List<Track> =
             error("unused")
+
+        override suspend fun trackRadio(trackId: TrackId, count: Int): List<Track> =
+            radioTracks
+
+        override suspend fun sonicSimilarTracks(trackId: TrackId, count: Int): List<Track> =
+            sonicTracks
 
         override suspend fun search(query: String, limit: Int): MediaSearchResults =
             error("unused")

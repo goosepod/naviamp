@@ -14,6 +14,8 @@ import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.provider.AlbumListType
+import app.naviamp.domain.playback.PlaybackQueueManager
+import app.naviamp.domain.playback.applyPlaybackQueueUpdate
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioRequest
@@ -71,6 +73,7 @@ class DesktopRadioController(
     private val sourceId: () -> String?,
     private val streamQuality: () -> StreamQuality,
     private val replayGainMode: () -> ReplayGainMode,
+    private val preferSonicSimilarity: () -> Boolean,
     private val repeatMode: () -> RepeatMode,
     private val playlistCallbacks: () -> PlaylistCallbacks,
     private val rememberRadioStream: (RecentRadioStream) -> Unit,
@@ -114,7 +117,7 @@ class DesktopRadioController(
                     seededRadioExpansionResult(
                         radioService = radioService(provider),
                     ) { radioService ->
-                        radioService.trackRadio(seedTrack.id)
+                        radioService.trackRadio(seedTrack, preferSonicSimilarity())
                     }
                 }
             ) {
@@ -206,7 +209,62 @@ class DesktopRadioController(
 
     fun playTrack(track: Track) {
         val activeProvider = provider() ?: return
-        startSeeded(activeProvider, trackRadioRequest(track))
+        startSeeded(activeProvider, trackRadioRequest(track, preferSonicSimilarity()))
+    }
+
+    fun playTrackRadioNext(track: Track) {
+        enqueueTrackRadio(track, insertNext = true)
+    }
+
+    fun addTrackRadioToQueue(track: Track) {
+        enqueueTrackRadio(track, insertNext = false)
+    }
+
+    private fun enqueueTrackRadio(
+        track: Track,
+        insertNext: Boolean,
+    ) {
+        val activeProvider = provider() ?: return
+        val label = "track radio"
+        setConnectionStatus("Loading $label...")
+        scope.launch {
+            try {
+                val tracks = withContext(Dispatchers.IO) {
+                    radioService(activeProvider, count = InitialSimilarRadioCount)
+                        .trackRadio(track, preferSonicSimilarity())
+                }.filterNot { radioTrack -> radioTrack.id == track.id }
+                if (tracks.isEmpty()) {
+                    setConnectionStatus("Track radio did not return any tracks.")
+                    return@launch
+                }
+                val update = if (insertNext) {
+                    PlaybackQueueManager().playNextTracks(
+                        currentQueue = playlistEngine.queue,
+                        tracksToAdd = tracks,
+                        label = label,
+                        existingTracks = playlistEngine.queue.tracks,
+                        deduplicateExisting = true,
+                        maxHistory = RadioQueueHistoryLimit,
+                    )
+                } else {
+                    PlaybackQueueManager().appendTracks(
+                        currentQueue = playlistEngine.queue,
+                        tracksToAdd = tracks,
+                        label = label,
+                        existingTracks = playlistEngine.queue.tracks,
+                        deduplicateExisting = true,
+                        maxHistory = RadioQueueHistoryLimit,
+                    )
+                }
+                applyPlaybackQueueUpdate(
+                    update = update,
+                    setStatus = setConnectionStatus,
+                    replaceQueue = playlistEngine::replaceQueue,
+                )
+            } catch (exception: Exception) {
+                setConnectionStatus(exception.message ?: "Could not load track radio.")
+            }
+        }
     }
 
     fun playRandomAlbum() {
@@ -465,7 +523,7 @@ class DesktopRadioController(
             return
         }
 
-        val request = trackRadioRequest(track)
+        val request = trackRadioRequest(track, preferSonicSimilarity())
         setConnectionStatus("Building ${track.title} radio...")
         rememberRadioStream(request.recentRadioStream)
         setRadioSessionId(radioSessionId() + 1)

@@ -59,9 +59,8 @@ fun TrackRow(
         when (request.action) {
             SharedTrackRowAction.Select -> onTrackSelected?.invoke(request.track)
             SharedTrackRowAction.StartRadio -> onStartRadio?.invoke(request.track)
-            SharedTrackRowAction.PlayMoreLikeThis,
-            SharedTrackRowAction.PlayMoreLikeThisNext,
-            SharedTrackRowAction.AddMoreLikeThisToQueue,
+            SharedTrackRowAction.PlayTrackRadioNext,
+            SharedTrackRowAction.AddTrackRadioToQueue,
             -> Unit
             SharedTrackRowAction.AddToQueue -> onAddToQueue?.invoke(request.track)
             SharedTrackRowAction.Download -> onDownload?.invoke(request.track)
@@ -147,7 +146,6 @@ fun TrackRow(
             canAddToQueue = canAddToQueue,
             canAddToPlaylist = canAddToPlaylist,
             canShowDetails = track.detailSections.isNotEmpty(),
-            canPlayMoreLikeThis = canStartRadio,
         ).mapNotNull { action ->
             when (action.action) {
                 NaviampAction.StartTrackRadio -> if (canStartRadio) {
@@ -155,6 +153,26 @@ fun TrackRow(
                         action.label,
                         action.icon,
                         { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.StartRadio)) },
+                        action.enabled,
+                    )
+                } else {
+                    null
+                }
+                NaviampAction.PlayTrackRadioNext -> if (canStartRadio) {
+                    NaviampRowMenuItem(
+                        action.label,
+                        action.icon,
+                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.PlayTrackRadioNext)) },
+                        action.enabled,
+                    )
+                } else {
+                    null
+                }
+                NaviampAction.AddTrackRadioToQueue -> if (canStartRadio) {
+                    NaviampRowMenuItem(
+                        action.label,
+                        action.icon,
+                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.AddTrackRadioToQueue)) },
                         action.enabled,
                     )
                 } else {
@@ -175,36 +193,6 @@ fun TrackRow(
                         action.label,
                         action.icon,
                         { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.AddToQueue)) },
-                        action.enabled,
-                    )
-                } else {
-                    null
-                }
-                NaviampAction.PlayMoreLikeThis -> if (canStartRadio) {
-                    NaviampRowMenuItem(
-                        action.label,
-                        action.icon,
-                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.PlayMoreLikeThis)) },
-                        action.enabled,
-                    )
-                } else {
-                    null
-                }
-                NaviampAction.PlayMoreLikeThisNext -> if (canStartRadio) {
-                    NaviampRowMenuItem(
-                        action.label,
-                        action.icon,
-                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.PlayMoreLikeThisNext)) },
-                        action.enabled,
-                    )
-                } else {
-                    null
-                }
-                NaviampAction.AddMoreLikeThisToQueue -> if (canStartRadio) {
-                    NaviampRowMenuItem(
-                        action.label,
-                        action.icon,
-                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.AddMoreLikeThisToQueue)) },
                         action.enabled,
                     )
                 } else {

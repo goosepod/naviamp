@@ -520,32 +520,7 @@ private fun NowPlayingDetails(
     val showVolume = !compactLayout || height == Dp.Unspecified || height >= 225.dp
     val showTrackExtras = !compactLayout || height == Dp.Unspecified || height >= 195.dp
     val showTrackIdentity = !compactLayout || height == Dp.Unspecified || height >= 165.dp
-    val canSetTrackPreference = !nowPlaying.isLive && (nowPlaying.canFavorite || nowPlaying.canRate)
     val controlColors = colors.copy(accent = playerColors.accent)
-    val trackPreferenceLabel = when {
-        nowPlaying.favoriteActive && nowPlaying.canRate -> "Dislike track"
-        nowPlaying.favoriteActive -> "Remove favorite"
-        nowPlaying.userRating == 1 && nowPlaying.canRate -> "Clear track preference"
-        else -> "Favorite track"
-    }
-
-    fun cycleTrackPreference() {
-        when {
-            nowPlaying.favoriteActive -> {
-                if (nowPlaying.canFavorite) actions.currentTrack(NowPlayingCurrentTrackAction.ToggleFavorite)
-                if (nowPlaying.canRate) actions.currentTrack(NowPlayingCurrentTrackAction.SetRating, rating = 1)
-            }
-            nowPlaying.userRating == 1 && nowPlaying.canRate -> {
-                actions.currentTrack(NowPlayingCurrentTrackAction.SetRating, rating = null)
-            }
-            nowPlaying.canFavorite -> {
-                actions.currentTrack(NowPlayingCurrentTrackAction.ToggleFavorite)
-            }
-            nowPlaying.canRate -> {
-                actions.currentTrack(NowPlayingCurrentTrackAction.SetRating, rating = 5)
-            }
-        }
-    }
 
     LaunchedEffect(nowPlaying.progressFraction) {
         if (!isScrubbing) {
@@ -866,15 +841,9 @@ private fun NowPlayingDetails(
                         offset = DpOffset(0.dp, 6.dp),
                     ) {
                         nowPlayingTrackMenuActions(
-                            lyricsVisible = nowPlaying.lyricsVisible,
-                            lyricsAvailable = nowPlaying.lyricsAvailable,
-                            visualizerVisible = nowPlaying.visualizerVisible,
                             visualizerAvailable = nowPlaying.visualizerAvailable,
                             isLive = nowPlaying.isLive,
                             hasDetails = nowPlaying.detailSections.isNotEmpty(),
-                            trackPreferenceLabel = trackPreferenceLabel,
-                            canSetTrackPreference = canSetTrackPreference,
-                            canStartRadio = nowPlaying.canStartRadio,
                             canAddToPlaylist = nowPlaying.canAddToPlaylist,
                             canSaveQueueAsPlaylist = nowPlaying.canSaveQueueAsPlaylist,
                             sleepTimerLabel = nowPlaying.sleepTimer.label,
@@ -886,23 +855,10 @@ private fun NowPlayingDetails(
                                 onClick = {
                                     actionMenuExpanded = false
                                     when (action.action) {
-                                        NaviampAction.ShowLyrics,
-                                        NaviampAction.HideLyrics -> actions.display(NowPlayingDisplayAction.ToggleLyrics)
-                                        NaviampAction.ShowVisualizer,
-                                        NaviampAction.HideVisualizer -> actions.display(NowPlayingDisplayAction.ToggleVisualizer)
                                         NaviampAction.ChangeVisualizer -> visualizerMenuExpanded = true
                                         NaviampAction.DownloadTrack ->
                                             actions.currentTrack(NowPlayingCurrentTrackAction.Download)
                                         NaviampAction.TrackDetails -> trackDetailsOpen = true
-                                        NaviampAction.TrackPreference -> cycleTrackPreference()
-                                        NaviampAction.StartTrackRadio ->
-                                            actions.currentTrack(NowPlayingCurrentTrackAction.StartRadio)
-                                        NaviampAction.PlayMoreLikeThis ->
-                                            actions.currentTrack(NowPlayingCurrentTrackAction.PlayMoreLikeThis)
-                                        NaviampAction.PlayMoreLikeThisNext ->
-                                            actions.currentTrack(NowPlayingCurrentTrackAction.PlayMoreLikeThisNext)
-                                        NaviampAction.AddMoreLikeThisToQueue ->
-                                            actions.currentTrack(NowPlayingCurrentTrackAction.AddMoreLikeThisToQueue)
                                         NaviampAction.GoToAlbum ->
                                             actions.currentTrack(NowPlayingCurrentTrackAction.GoToAlbum)
                                         NaviampAction.GoToArtist ->
@@ -1892,12 +1848,10 @@ private fun NowPlayingItemList(
                                             onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.AddToQueue))
                                         NaviampAction.StartTrackRadio ->
                                             onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.StartRadio))
-                                        NaviampAction.PlayMoreLikeThis ->
-                                            onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.PlayMoreLikeThis))
-                                        NaviampAction.PlayMoreLikeThisNext ->
-                                            onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.PlayMoreLikeThisNext))
-                                        NaviampAction.AddMoreLikeThisToQueue ->
-                                            onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.AddMoreLikeThisToQueue))
+                                        NaviampAction.PlayTrackRadioNext ->
+                                            onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.PlayTrackRadioNext))
+                                        NaviampAction.AddTrackRadioToQueue ->
+                                            onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.AddTrackRadioToQueue))
                                         NaviampAction.DownloadTrack ->
                                             onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.Download))
                                         NaviampAction.AddToPlaylist -> {

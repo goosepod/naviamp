@@ -140,16 +140,12 @@ class DesktopAppActions(
         radioController.playTrack(track)
     }
 
-    fun playMoreLikeThis(track: Track) {
-        mediaActionsController.playMoreLikeThis(track)
+    fun playTrackRadioNext(track: Track) {
+        radioController.playTrackRadioNext(track)
     }
 
-    fun playMoreLikeThisNext(track: Track) {
-        mediaActionsController.playMoreLikeThisNext(track)
-    }
-
-    fun addMoreLikeThisToQueue(track: Track) {
-        mediaActionsController.addMoreLikeThisToQueue(track)
+    fun addTrackRadioToQueue(track: Track) {
+        radioController.addTrackRadioToQueue(track)
     }
 
     fun convertCurrentTrackToRadio(track: Track) {

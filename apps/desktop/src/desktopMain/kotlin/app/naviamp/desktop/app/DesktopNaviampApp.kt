@@ -284,6 +284,7 @@ fun NaviampApp(
         sourceId = { connectedSourceId },
         streamQuality = { playbackSettings.streamQuality(playbackEngine) },
         replayGainMode = { playbackSettings.replayGainMode },
+        preferSonicSimilarity = { playbackSettings.sonicSimilarityEnabled },
         repeatMode = { repeatMode },
         playlistCallbacks = { playlistCallbacksRef.value ?: error("Playlist callbacks are not ready.") },
         rememberRadioStream = ::rememberRadioStream,

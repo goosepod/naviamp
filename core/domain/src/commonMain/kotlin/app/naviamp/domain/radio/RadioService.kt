@@ -44,6 +44,18 @@ class RadioService(
     suspend fun trackRadio(trackId: TrackId): List<Track> =
         provider.trackRadio(trackId, count = count)
 
+    suspend fun trackRadio(
+        seedTrack: Track,
+        preferSonicSimilarity: Boolean,
+    ): List<Track> {
+        if (preferSonicSimilarity && provider.capabilities.supportsSonicSimilarity) {
+            val sonicTracks = provider.sonicSimilarTracks(seedTrack.id, count = count)
+                .filterNot { track -> track.id == seedTrack.id }
+            if (sonicTracks.isNotEmpty()) return sonicTracks
+        }
+        return trackRadio(seedTrack.id)
+    }
+
     suspend fun libraryRadio(): List<Track> =
         provider.randomSongs(limit = count)
 

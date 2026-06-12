@@ -1,6 +1,6 @@
 # Sonic Similarity Roadmap
 
-Status: Phase 2 complete
+Status: Phase 3 complete; consolidating sonic similarity into Track Radio
 
 ## Why this exists
 
@@ -55,12 +55,25 @@ The first product rule is that sonic features are server capabilities, not only 
 - [x] Support play now, play next, and add to queue variants.
 - [x] Fall back to current track radio when sonic support is unavailable.
 
+Outcome: superseded by Phase 3.1. Sonic similarity should behave as the preferred Track Radio engine, not as a separate parallel action surface.
+
+### Phase 3.1: Track Radio Consolidation
+
+- [x] Use sonic similarity as the preferred Track Radio engine when the setting is enabled and the provider supports it.
+- [x] Fall back to provider Track Radio, then local same-album/same-artist fallback.
+- [x] Remove separate "Play more like this" track-menu actions so Track Radio remains the single user-facing concept.
+- [x] Preserve "Play track radio next" and "Add track radio to queue" as Track Radio actions backed by the same sonic-first generator.
+- [x] Audit the Now Playing hamburger menu. Removed duplicate Show Lyrics, Show Visualizer, Favorite Track, and Start Track Radio entries from the current-track overflow menu.
+
 ### Phase 4: Sonic Path
 
 - [ ] Add provider support for `findSonicPath`.
 - [ ] Create a shared "Sonic path" request model with start track, destination track, and max count.
-- [ ] Add a simple UI flow: start from current track, choose destination from search, then preview/play the path.
+- [ ] Show Sonic Path on Home underneath Artist Builder, Album Builder, and Genre Builder.
+- [ ] Gate Sonic Path so it only appears when sonic similarity is enabled and available from the server.
+- [ ] Add a simple UI flow with two track search fields and a count selector for the maximum number of tracks between the start and destination tracks.
 - [ ] Filter duplicate tracks and preserve start/destination semantics.
+- [ ] Add path actions for preview, play, add to queue, and playlist save where existing patterns make that cheap.
 - [ ] Add tests for request construction, response mapping, and empty-path fallback.
 
 ### Phase 5: Sonic Mix Builder

@@ -99,7 +99,7 @@ fun refillAndroidRadioIfNeeded(
                     seededRadioExpansionResult(
                         radioService = RadioService(activeProvider, count = AndroidRadioRefillCount),
                     ) { radioService ->
-                        radioService.trackRadio(seedTrack.id)
+                        radioService.trackRadio(seedTrack, state.playbackSettings.sonicSimilarityEnabled)
                     }
                 }
             ) {
@@ -223,7 +223,7 @@ fun startAndroidTrackRadio(
         recentRadioStream = trackRecentRadioStream(track),
         rememberRecentRadioStream = rememberRecentRadioStream,
     ) { radioService ->
-        radioService.trackRadio(track.id)
+        radioService.trackRadio(track, state.playbackSettings.sonicSimilarityEnabled)
     }
 }
 
@@ -665,7 +665,7 @@ fun startAndroidTrackRadioQueue(
     scope.launch {
         with(state) {
             status = "Starting ${track.title} radio..."
-            val request = trackRadioRequest(track)
+            val request = trackRadioRequest(track, playbackSettings.sonicSimilarityEnabled)
             when (
                 val result = seededRadioBuildResult(
                     request = request,

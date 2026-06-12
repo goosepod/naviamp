@@ -109,12 +109,6 @@ internal fun ColumnScope.DesktopPlayerRouteContent(
             when (request.action) {
                 NowPlayingCurrentTrackAction.StartRadio ->
                     appActions.convertCurrentTrackToRadio(request.track)
-                NowPlayingCurrentTrackAction.PlayMoreLikeThis ->
-                    appActions.playMoreLikeThis(request.track)
-                NowPlayingCurrentTrackAction.PlayMoreLikeThisNext ->
-                    appActions.playMoreLikeThisNext(request.track)
-                NowPlayingCurrentTrackAction.AddMoreLikeThisToQueue ->
-                    appActions.addMoreLikeThisToQueue(request.track)
                 NowPlayingCurrentTrackAction.AddToPlaylist ->
                     playlistsController.openTrackAddToPlaylist(request.track)
                 NowPlayingCurrentTrackAction.CreatePlaylistAndAdd -> Unit
@@ -138,12 +132,10 @@ internal fun ColumnScope.DesktopPlayerRouteContent(
             when (action.action) {
                 NowPlayingItemAction.StartRadio ->
                     action.track?.let(appActions::playTrackRadio)
-                NowPlayingItemAction.PlayMoreLikeThis ->
-                    action.track?.let(appActions::playMoreLikeThis)
-                NowPlayingItemAction.PlayMoreLikeThisNext ->
-                    action.track?.let(appActions::playMoreLikeThisNext)
-                NowPlayingItemAction.AddMoreLikeThisToQueue ->
-                    action.track?.let(appActions::addMoreLikeThisToQueue)
+                NowPlayingItemAction.PlayTrackRadioNext ->
+                    action.track?.let(appActions::playTrackRadioNext)
+                NowPlayingItemAction.AddTrackRadioToQueue ->
+                    action.track?.let(appActions::addTrackRadioToQueue)
                 NowPlayingItemAction.PlayNext -> {
                     if (action.isRelated) action.track?.let(playlistsController::playNext)
                 }

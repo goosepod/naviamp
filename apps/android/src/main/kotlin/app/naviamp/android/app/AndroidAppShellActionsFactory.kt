@@ -130,9 +130,6 @@ fun androidAppShellActions(
     loadLyrics: (Track) -> Unit,
     handleLyricsOffsetChanged: (Int) -> Unit,
     handleShellTrackRadio: () -> Unit,
-    handleMoreLikeThis: (Track) -> Unit,
-    handleMoreLikeThisNext: (Track) -> Unit,
-    handleAddMoreLikeThisToQueue: (Track) -> Unit,
     handleNowPlayingAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit,
     handleNowPlayingCreatePlaylistAndAdd: (String) -> Unit,
     handleSaveQueueAsPlaylist: (String) -> Unit,
@@ -144,15 +141,16 @@ fun androidAppShellActions(
     handleShellQueueItemRadio: (NaviampNowPlayingItemUi) -> Unit,
     handleQueueItemPlayNext: (NaviampNowPlayingItemUi) -> Unit,
     handleQueueItemAddToQueue: (NaviampNowPlayingItemUi) -> Unit,
+    handleTrackRadioNext: (Track) -> Unit,
+    handleAddTrackRadioToQueue: (Track) -> Unit,
     resolveNowPlayingItemTrack: (NaviampNowPlayingItemUi) -> Track?,
     addTrackToPlaylist: (Track, NaviampPlaylistChoiceUi?, String?) -> Unit,
     handleQueueItemAction: (NowPlayingItemActionRequest) -> Unit = { request ->
         val action = request.resolveAction(fallbackTrack = resolveNowPlayingItemTrack(request.item))
         when (action.action) {
             NowPlayingItemAction.StartRadio -> handleShellQueueItemRadio(action.item)
-            NowPlayingItemAction.PlayMoreLikeThis -> action.track?.let(handleMoreLikeThis)
-            NowPlayingItemAction.PlayMoreLikeThisNext -> action.track?.let(handleMoreLikeThisNext)
-            NowPlayingItemAction.AddMoreLikeThisToQueue -> action.track?.let(handleAddMoreLikeThisToQueue)
+            NowPlayingItemAction.PlayTrackRadioNext -> action.track?.let(handleTrackRadioNext)
+            NowPlayingItemAction.AddTrackRadioToQueue -> action.track?.let(handleAddTrackRadioToQueue)
             NowPlayingItemAction.PlayNext -> handleQueueItemPlayNext(action.item)
             NowPlayingItemAction.AddToQueue -> handleQueueItemAddToQueue(action.item)
             NowPlayingItemAction.AddToPlaylist -> action.track?.let { addTrackToPlaylist(it, action.playlistChoice, null) }
@@ -433,12 +431,6 @@ fun androidAppShellActions(
             onNowPlayingCurrentTrackAction = { request: NowPlayingCurrentTrackUiActionRequest ->
                 when (request.action) {
                     NowPlayingCurrentTrackAction.StartRadio -> handleShellTrackRadio()
-                    NowPlayingCurrentTrackAction.PlayMoreLikeThis ->
-                        nowPlaying?.let(handleMoreLikeThis)
-                    NowPlayingCurrentTrackAction.PlayMoreLikeThisNext ->
-                        nowPlaying?.let(handleMoreLikeThisNext)
-                    NowPlayingCurrentTrackAction.AddMoreLikeThisToQueue ->
-                        nowPlaying?.let(handleAddMoreLikeThisToQueue)
                     NowPlayingCurrentTrackAction.AddToPlaylist ->
                         handleNowPlayingAddToPlaylist(request.playlistChoice)
                     NowPlayingCurrentTrackAction.CreatePlaylistAndAdd ->

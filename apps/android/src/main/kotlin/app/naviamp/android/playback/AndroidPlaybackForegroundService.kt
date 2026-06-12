@@ -876,7 +876,14 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         )
         rememberRecentRadioStream(recent.withRadioCoverArtIds(listOf(seedTrack)))
         AndroidPlaybackRuntime.get(applicationContext).scope.launch {
-            runCatching { withContext(Dispatchers.IO) { RadioService(provider).trackRadio(seedTrack.id) } }
+            val preferSonicSimilarity = AndroidSettingsStore(applicationContext)
+                .loadPlaybackSettings()
+                .sonicSimilarityEnabled
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    RadioService(provider).trackRadio(seedTrack, preferSonicSimilarity)
+                }
+            }
                 .onSuccess { tracks ->
                     val queueTracks = (listOf(seedTrack) + tracks).distinctBy { it.id }
                     rememberRecentRadioStream(recent.withRadioCoverArtIds(queueTracks))
