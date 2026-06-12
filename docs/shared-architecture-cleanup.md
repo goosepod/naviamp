@@ -652,14 +652,14 @@ Phase 6 close-out:
 
 ## Phase 7: Platform Root Decomposition
 
-- [ ] Split `DesktopNaviampApp.kt` into smaller state holders and route coordinators.
+- [x] Split `DesktopNaviampApp.kt` into smaller state holders and route coordinators.
 - [ ] Split oversized Android app shell/activity responsibilities using the same boundaries.
 - [x] Extract connection/provider setup into a desktop adapter plus shared connection coordinator.
 - [x] Extract library sync/freshness orchestration.
 - [x] Extract now-playing/session restoration orchestration.
 - [x] Extract mix-builder state wiring into shared application state where possible.
-- [ ] Remove desktop Compose compiler bytecode workaround once root composables are small enough.
-- [ ] Verify desktop compile fails no method-size limits without workaround.
+- [x] Remove desktop Compose compiler bytecode workaround once root composables are small enough.
+- [x] Verify desktop compile has no method-size limits without workaround.
 
 Phase 7 audit:
 
@@ -667,7 +667,9 @@ Phase 7 audit:
 - Library sync/freshness is already shared through `LibrarySyncCoordinator` and platform controllers only provide dispatching, persistence adapters, and UI state updates.
 - Now-playing/session restoration orchestration is already shared through playback session save/restore plans and platform playback/session controllers; remaining now-playing root variables are state placement work, not missing shared session planning.
 - Mix-builder behavior moved into shared `MixBuilderFlowCoordinator` and platform `remember*MixBuilderController` helpers; Android and desktop roots now consume controller boundaries instead of building the equivalent service graph inline.
-- Still open: `DesktopNaviampApp.kt`, `AndroidAppShell.kt`, and `MainActivity.kt` remain large root/shell files, and the desktop compiler workaround in `apps/desktop/build.gradle.kts` is still present. Those should be handled before closing the remaining Phase 7 items.
+- Desktop player-route presentation wiring now lives in `DesktopPlayerRouteContent`, dropping `DesktopNaviampApp.kt` to 1,029 lines and removing the densest now-playing panel block from the root composable.
+- The desktop Compose compiler bytecode workaround was removed from `apps/desktop/build.gradle.kts`; `:apps:desktop:compileKotlinDesktop` passes without the method-size flags.
+- Still open: `AndroidAppShell.kt` and `MainActivity.kt` remain large root/shell files. Those should be handled before closing the remaining Phase 7 item.
 
 ## Phase 8: Shared UI and Route Contracts
 
@@ -1551,6 +1553,10 @@ Progress notes:
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 - Collapsed the remaining desktop now-playing wrapper boundaries onto the same grouped request handlers. `DesktopNowPlayingPanel`, `DesktopMiniPlayerPanel`, and shared `NaviampMiniNowPlaying` now receive playback/display/queue/sleep/selection actions as typed groups, with `DesktopNaviampApp` owning the platform adapter logic for both full and mini player surfaces.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
+- Moved the full desktop player route presentation wiring out of `DesktopNaviampApp.kt` and into `DesktopPlayerRouteContent`. The root app now delegates the now-playing panel route instead of owning the full `DesktopNowPlayingPanel` parameter/action block inline, dropping `DesktopNaviampApp.kt` to 1,029 lines.
+- Removed the desktop Kotlin compiler bytecode workaround flags from `apps/desktop/build.gradle.kts`; the desktop target keeps only the `jvm("desktop")` declaration.
+- Verification passed without the removed workaround: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
+- Broader verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 

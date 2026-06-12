@@ -7,7 +7,6 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.darkColorScheme
@@ -25,12 +24,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
-import app.naviamp.domain.internetRadioStationId
-import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.cache.ImageCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.playback.PlaybackProgress
-import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.desktopPlaylistCallbacks
 import app.naviamp.domain.playback.PlaybackState
@@ -55,10 +51,8 @@ import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.provider.navidrome.withNativeTokenFromPassword
 import app.naviamp.ui.NaviampSleepTimerUi
 import app.naviamp.ui.NaviampSleepTimerExpiryEffect
-import app.naviamp.ui.NowPlayingCurrentTrackAction
 import app.naviamp.ui.NowPlayingDisplayAction
 import app.naviamp.ui.NowPlayingDisplayActionRequest
-import app.naviamp.ui.NowPlayingItemAction
 import app.naviamp.ui.NowPlayingPlaybackAction
 import app.naviamp.ui.NowPlayingPlaybackActionRequest
 import app.naviamp.ui.NowPlayingQueueAction
@@ -69,8 +63,6 @@ import app.naviamp.ui.NowPlayingSleepTimerAction
 import app.naviamp.ui.NowPlayingSleepTimerActionRequest
 import app.naviamp.ui.nowPlayingQueueIndex
 import app.naviamp.ui.nowPlayingRelatedIndex
-import app.naviamp.ui.resolveAction
-import app.naviamp.ui.toNaviampSleepTimerUi
 
 @Composable
 @NonRestartableComposable
@@ -837,94 +829,36 @@ fun NaviampApp(
                         .padding(2.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
-                    if (appRoute == DesktopAppRoute.Player && nowPlayingTrack != null) {
-                        DesktopNowPlayingPanel(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth(),
+                    val playerTrack = nowPlayingTrack
+                    if (appRoute == DesktopAppRoute.Player && playerTrack != null) {
+                        DesktopPlayerRouteContent(
                             appColors = appColors,
-                            playbackEngineName = playbackEngine.name,
-                            supportsPause = playbackEngine.supportsPause,
-                            supportsSoftwareVolume = playbackEngine.supportsSoftwareVolume,
-                            supportsTrackRadio = connectedProvider?.capabilities?.supportsTrackRadio == true,
-                            supportsTrackFavorites = connectedProvider?.capabilities?.supportsTrackFavorites == true,
-                            supportsTrackRatings = connectedProvider?.capabilities?.supportsTrackRatings == true,
-                            nowPlayingTrack = nowPlayingTrack,
-                            nowPlayingWaveform = nowPlayingController.waveform,
-                            visualizerFrame = nowPlayingPresentation.visualizerFrame,
-                            selectedVisualizer = nowPlayingPresentation.selectedVisualizer,
-                            visualizerColors = nowPlayingPresentation.targetBackgroundColors,
-                            nowPlayingAudioTags = nowPlayingController.audioTags,
-                            nowPlayingLyrics = nowPlayingController.lyrics,
-                            nowPlayingLyricsStatus = nowPlayingController.lyricsStatus,
+                            playbackEngine = playbackEngine,
+                            connectedProvider = connectedProvider,
+                            nowPlayingTrack = playerTrack,
+                            nowPlayingController = nowPlayingController,
+                            nowPlayingPresentation = nowPlayingPresentation,
                             nowPlayingStreamMetadata = nowPlayingStreamMetadata,
-                            lyricsVisible = nowPlayingLyricsVisible,
-                            visualizerAvailable = (playbackEngine as? VisualizerPlaybackEngine)?.supportsVisualizer == true,
-                            visualizerVisible = nowPlayingVisualizerVisible,
-                            coverArtUrl = nowPlayingPresentation.effectiveCoverArtUrl,
+                            nowPlayingLyricsVisible = nowPlayingLyricsVisible,
+                            nowPlayingVisualizerVisible = nowPlayingVisualizerVisible,
                             playbackQueue = playbackQueue,
-                            internetRadioStations = internetRadioController.stations,
-                            currentInternetRadioStationId =
-                                nowPlayingInternetRadioStation?.id ?: nowPlayingTrack?.internetRadioStationId(),
-                            radioTrackArtworkByKey = nowPlayingPresentation.radioTrackArtworkByKey,
-                            relatedTracks = nowPlayingController.relatedTracks,
-                            coverArtUrlForTrack = { track -> track.coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
-                            hasPrevious = playbackController.canUsePreviousButton(),
-                            hasNext = playbackController.canUseNextButton(),
-                            shuffleActive = shuffledUpNextSnapshot != null,
+                            internetRadioController = internetRadioController,
+                            nowPlayingInternetRadioStationId = nowPlayingInternetRadioStation?.id,
+                            playbackController = playbackController,
+                            shuffledUpNextSnapshot = shuffledUpNextSnapshot,
                             repeatMode = repeatMode,
                             playbackState = playbackState,
                             playbackProgress = playbackProgress,
-                            volumePercent = playbackSettings.volumePercent,
-                            sleepTimer = sleepTimer.toNaviampSleepTimerUi(sleepTimerNowEpochMillis),
-                            streamQuality = playbackSettings.streamQuality(playbackEngine),
-                            sonicSimilarityEnabled = playbackSettings.sonicSimilarityEnabled,
-                            supportsSeek = playbackEngine.supportsSeek && nowPlayingTrack?.isInternetRadioTrack() != true,
+                            playbackSettings = playbackSettings,
+                            sleepTimer = sleepTimer,
+                            sleepTimerNowEpochMillis = sleepTimerNowEpochMillis,
                             onPlaybackAction = handleNowPlayingPlaybackAction,
                             onDisplayAction = handleNowPlayingDisplayAction,
                             onQueueAction = handleNowPlayingQueueAction,
                             onSleepTimerAction = handleNowPlayingSleepTimerAction,
                             onSelectionAction = handleNowPlayingSelectionAction,
-                            onCurrentTrackAction = { request ->
-                                when (request.action) {
-                                    NowPlayingCurrentTrackAction.StartRadio ->
-                                        appActions.convertCurrentTrackToRadio(request.track)
-                                    NowPlayingCurrentTrackAction.AddToPlaylist ->
-                                        playlistsController.openTrackAddToPlaylist(request.track)
-                                    NowPlayingCurrentTrackAction.CreatePlaylistAndAdd -> Unit
-                                    NowPlayingCurrentTrackAction.Download ->
-                                        appActions.downloadTrack(request.track)
-                                    NowPlayingCurrentTrackAction.GoToAlbum ->
-                                        appActions.openTrackAlbumDetails(request.track)
-                                    NowPlayingCurrentTrackAction.GoToArtist ->
-                                        appActions.openTrackArtistDetails(request.track)
-                                    NowPlayingCurrentTrackAction.ToggleFavorite ->
-                                        appActions.toggleTrackFavorite(request.track)
-                                    NowPlayingCurrentTrackAction.SetRating ->
-                                        appActions.setTrackRating(request.track, request.rating)
-                                }
-                            },
-                            onQueueItemAction = { request ->
-                                val action = request.resolveAction(
-                                    queueTracks = playbackQueue.tracks,
-                                    relatedTracks = nowPlayingController.relatedTracks,
-                                )
-                                when (action.action) {
-                                    NowPlayingItemAction.StartRadio ->
-                                        action.track?.let(appActions::playTrackRadio)
-                                    NowPlayingItemAction.PlayNext -> {
-                                        if (action.isRelated) action.track?.let(playlistsController::playNext)
-                                    }
-                                    NowPlayingItemAction.AddToQueue -> {
-                                        if (action.isRelated) action.track?.let(playlistsController::addTrackToQueue)
-                                    }
-                                    NowPlayingItemAction.AddToPlaylist ->
-                                        action.track?.let(playlistsController::openTrackAddToPlaylist)
-                                    NowPlayingItemAction.CreatePlaylistAndAdd -> Unit
-                                    NowPlayingItemAction.Download ->
-                                        action.track?.let(appActions::downloadTrack)
-                                }
-                            },
+                            appActions = appActions,
+                            playlistsController = playlistsController,
                         )
                     } else {
                         DesktopAppRouteContent(

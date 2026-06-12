@@ -97,16 +97,7 @@ val desktopReleaseAppDir = desktopPackagedAppName.flatMap { appName ->
 }
 
 kotlin {
-    jvm("desktop") {
-        compilerOptions {
-            freeCompilerArgs.addAll(
-                "-Xlambdas=indy",
-                "-Xno-call-assertions",
-                "-Xno-param-assertions",
-                "-Xno-receiver-assertions",
-            )
-        }
-    }
+    jvm("desktop")
 
     sourceSets {
         val desktopMain by getting {
