@@ -171,19 +171,10 @@ fun NaviampSharedAppShell(
     onFindSimilarArtists: (SharedArtistDetailUi) -> Unit = {},
     onSimilarArtistSelected: (SharedSimilarArtistUi) -> Unit = {},
     onSimilarArtistExternalSelected: (String) -> Unit = {},
-    onArtistAlbumRadio: (SharedMediaItemUi) -> Unit = {},
-    onArtistAlbumDownload: (SharedMediaItemUi) -> Unit = {},
-    onArtistAlbumAddToQueue: (SharedMediaItemUi) -> Unit = {},
-    onArtistAlbumAddToPlaylist: (SharedMediaItemUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
-    onArtistAlbumCreatePlaylistAndAdd: (SharedMediaItemUi, String) -> Unit = { _, _ -> },
     onPlaylistSelected: (SharedMediaItemUi) -> Unit,
     onPlaylistSortModeChanged: (SharedPlaylistSortMode) -> Unit = {},
     onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit = { _, _ -> },
-    onPlaylistItemAddToQueue: (SharedMediaItemUi) -> Unit = {},
-    onPlaylistItemAddToPlaylist: (SharedMediaItemUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
-    onPlaylistItemCreatePlaylistAndAdd: (SharedMediaItemUi, String) -> Unit = { _, _ -> },
     onPlaylistAddToQueue: (SharedPlaylistDetailUi) -> Unit = {},
-    onPlaylistDownload: (SharedMediaItemUi) -> Unit = {},
     onPlaylistAddToPlaylist: (SharedPlaylistDetailUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
     onPlaylistCreatePlaylistAndAdd: (SharedPlaylistDetailUi, String) -> Unit = { _, _ -> },
     onPlaylistRename: (SharedMediaItemUi, String) -> Unit = { _, _ -> },
@@ -206,55 +197,6 @@ fun NaviampSharedAppShell(
                 onPlay = { item, shuffle ->
                     if (request.kind == SharedMediaItemKind.Playlist) {
                         onPlaylistPlay(item, shuffle)
-                    }
-                },
-                onStartRadio = { item ->
-                    if (request.kind == SharedMediaItemKind.Album) {
-                        onArtistAlbumRadio(item)
-                    }
-                },
-                onAddToQueue = { item ->
-                    when (request.kind) {
-                        SharedMediaItemKind.Album -> onArtistAlbumAddToQueue(item)
-                        SharedMediaItemKind.Playlist -> onPlaylistItemAddToQueue(item)
-                        SharedMediaItemKind.Unknown,
-                        SharedMediaItemKind.Artist,
-                        SharedMediaItemKind.RadioStation,
-                        SharedMediaItemKind.MixBuilder,
-                        -> Unit
-                    }
-                },
-                onDownload = { item ->
-                    when (request.kind) {
-                        SharedMediaItemKind.Album -> onArtistAlbumDownload(item)
-                        SharedMediaItemKind.Playlist -> onPlaylistDownload(item)
-                        SharedMediaItemKind.Unknown,
-                        SharedMediaItemKind.Artist,
-                        SharedMediaItemKind.RadioStation,
-                        SharedMediaItemKind.MixBuilder,
-                        -> Unit
-                    }
-                },
-                onAddToPlaylist = { item, playlist ->
-                    when (request.kind) {
-                        SharedMediaItemKind.Album -> onArtistAlbumAddToPlaylist(item, playlist)
-                        SharedMediaItemKind.Playlist -> onPlaylistItemAddToPlaylist(item, playlist)
-                        SharedMediaItemKind.Unknown,
-                        SharedMediaItemKind.Artist,
-                        SharedMediaItemKind.RadioStation,
-                        SharedMediaItemKind.MixBuilder,
-                        -> Unit
-                    }
-                },
-                onCreatePlaylistAndAdd = { item, name ->
-                    when (request.kind) {
-                        SharedMediaItemKind.Album -> onArtistAlbumCreatePlaylistAndAdd(item, name)
-                        SharedMediaItemKind.Playlist -> onPlaylistItemCreatePlaylistAndAdd(item, name)
-                        SharedMediaItemKind.Unknown,
-                        SharedMediaItemKind.Artist,
-                        SharedMediaItemKind.RadioStation,
-                        SharedMediaItemKind.MixBuilder,
-                        -> Unit
                     }
                 },
                 onToggleFavorite = { item ->
@@ -530,19 +472,10 @@ fun NaviampSharedAppShell(
                             onFindSimilarArtists = onFindSimilarArtists,
                             onSimilarArtistSelected = onSimilarArtistSelected,
                             onSimilarArtistExternalSelected = onSimilarArtistExternalSelected,
-                            onArtistAlbumRadio = onArtistAlbumRadio,
-                            onArtistAlbumDownload = onArtistAlbumDownload,
-                            onArtistAlbumAddToQueue = onArtistAlbumAddToQueue,
-                            onArtistAlbumAddToPlaylist = onArtistAlbumAddToPlaylist,
-                            onArtistAlbumCreatePlaylistAndAdd = onArtistAlbumCreatePlaylistAndAdd,
                             onPlaylistSelected = onPlaylistSelected,
                             onPlaylistSortModeChanged = onPlaylistSortModeChanged,
                             onPlaylistPlay = onPlaylistPlay,
-                            onPlaylistItemAddToQueue = onPlaylistItemAddToQueue,
-                            onPlaylistItemAddToPlaylist = onPlaylistItemAddToPlaylist,
-                            onPlaylistItemCreatePlaylistAndAdd = onPlaylistItemCreatePlaylistAndAdd,
                             onPlaylistAddToQueue = onPlaylistAddToQueue,
-                            onPlaylistDownload = onPlaylistDownload,
                             onPlaylistAddToPlaylist = onPlaylistAddToPlaylist,
                             onPlaylistCreatePlaylistAndAdd = onPlaylistCreatePlaylistAndAdd,
                             onPlaylistRename = onPlaylistRename,
@@ -857,19 +790,10 @@ private fun ConnectedContent(
     onFindSimilarArtists: (SharedArtistDetailUi) -> Unit,
     onSimilarArtistSelected: (SharedSimilarArtistUi) -> Unit,
     onSimilarArtistExternalSelected: (String) -> Unit,
-    onArtistAlbumRadio: (SharedMediaItemUi) -> Unit,
-    onArtistAlbumDownload: (SharedMediaItemUi) -> Unit,
-    onArtistAlbumAddToQueue: (SharedMediaItemUi) -> Unit,
-    onArtistAlbumAddToPlaylist: (SharedMediaItemUi, NaviampPlaylistChoiceUi?) -> Unit,
-    onArtistAlbumCreatePlaylistAndAdd: (SharedMediaItemUi, String) -> Unit,
     onPlaylistSelected: (SharedMediaItemUi) -> Unit,
     onPlaylistSortModeChanged: (SharedPlaylistSortMode) -> Unit,
     onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit,
-    onPlaylistItemAddToQueue: (SharedMediaItemUi) -> Unit,
-    onPlaylistItemAddToPlaylist: (SharedMediaItemUi, NaviampPlaylistChoiceUi?) -> Unit,
-    onPlaylistItemCreatePlaylistAndAdd: (SharedMediaItemUi, String) -> Unit,
     onPlaylistAddToQueue: (SharedPlaylistDetailUi) -> Unit,
-    onPlaylistDownload: (SharedMediaItemUi) -> Unit,
     onPlaylistAddToPlaylist: (SharedPlaylistDetailUi, NaviampPlaylistChoiceUi?) -> Unit,
     onPlaylistCreatePlaylistAndAdd: (SharedPlaylistDetailUi, String) -> Unit,
     onPlaylistRename: (SharedMediaItemUi, String) -> Unit,
@@ -1074,11 +998,6 @@ private fun ConnectedContent(
             onSimilarArtistSelected = onSimilarArtistSelected,
             onSimilarArtistExternalSelected = onSimilarArtistExternalSelected,
             onAlbumSelected = onAlbumSelected,
-            onAlbumRadio = onArtistAlbumRadio,
-            onAlbumDownload = onArtistAlbumDownload,
-            onAlbumAddToQueue = onArtistAlbumAddToQueue,
-            onAlbumAddToPlaylist = onArtistAlbumAddToPlaylist,
-            onAlbumCreatePlaylistAndAdd = onArtistAlbumCreatePlaylistAndAdd,
             onAlbumAction = onMediaItemAction,
             onAlbumFavoriteToggled = onAlbumFavoriteToggled,
             playlistChoices = playlistChoices,
@@ -1091,7 +1010,15 @@ private fun ConnectedContent(
             onPlayPlaylist = { onPlaylistPlay(playlistDetail.playlist, false) },
             onShufflePlaylist = { onPlaylistPlay(playlistDetail.playlist, true) },
             onAddPlaylistToQueue = { onPlaylistAddToQueue(playlistDetail) },
-            onDownloadPlaylist = { onPlaylistDownload(playlistDetail.playlist) },
+            onDownloadPlaylist = {
+                onMediaItemAction(
+                    SharedMediaItemActionRequest(
+                        item = playlistDetail.playlist,
+                        action = SharedMediaItemAction.Download,
+                        kind = SharedMediaItemKind.Playlist,
+                    ),
+                )
+            },
             onAddPlaylistToPlaylist = { playlist -> onPlaylistAddToPlaylist(playlistDetail, playlist) },
             onCreatePlaylistAndAddPlaylist = { name -> onPlaylistCreatePlaylistAndAdd(playlistDetail, name) },
             onRenamePlaylist = onPlaylistRename,
@@ -1124,14 +1051,6 @@ private fun ConnectedContent(
                 sortMode = playlistSortMode,
                 status = playlistActionStatus,
                 onSortModeChanged = onPlaylistSortModeChanged,
-                onPlaylistSelected = onPlaylistSelected,
-                onPlaylistPlay = onPlaylistPlay,
-                onPlaylistAddToQueue = onPlaylistItemAddToQueue,
-                onPlaylistDownload = onPlaylistDownload,
-                onPlaylistAddToPlaylist = onPlaylistItemAddToPlaylist,
-                onPlaylistCreatePlaylistAndAdd = onPlaylistItemCreatePlaylistAndAdd,
-                onPlaylistRename = onPlaylistRename,
-                onPlaylistDelete = onPlaylistDelete,
                 onPlaylistAction = onMediaItemAction,
                 onSmartPlaylistSave = onSmartPlaylistSave,
                 onSmartPlaylistUpdate = onSmartPlaylistUpdate,
@@ -1448,26 +1367,8 @@ private fun ArtistDetailContent(
     onSimilarArtistSelected: (SharedSimilarArtistUi) -> Unit,
     onSimilarArtistExternalSelected: (String) -> Unit,
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
-    onAlbumRadio: (SharedMediaItemUi) -> Unit,
-    onAlbumDownload: (SharedMediaItemUi) -> Unit,
-    onAlbumAddToQueue: (SharedMediaItemUi) -> Unit,
-    onAlbumAddToPlaylist: (SharedMediaItemUi, NaviampPlaylistChoiceUi?) -> Unit,
-    onAlbumCreatePlaylistAndAdd: (SharedMediaItemUi, String) -> Unit,
     onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit,
-    onAlbumAction: (SharedMediaItemActionRequest) -> Unit = { request ->
-        handleSharedMediaItemAction(
-            request,
-            SharedMediaItemActionHandlers(
-                onSelect = onAlbumSelected,
-                onStartRadio = onAlbumRadio,
-                onAddToQueue = onAlbumAddToQueue,
-                onDownload = onAlbumDownload,
-                onAddToPlaylist = onAlbumAddToPlaylist,
-                onCreatePlaylistAndAdd = onAlbumCreatePlaylistAndAdd,
-                onToggleFavorite = onAlbumFavoriteToggled,
-            ),
-        )
-    },
+    onAlbumAction: (SharedMediaItemActionRequest) -> Unit,
     playlistChoices: List<NaviampPlaylistChoiceUi>,
     playlistActionStatus: String?,
 ) {

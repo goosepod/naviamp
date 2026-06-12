@@ -415,15 +415,6 @@ fun androidAppShellActions(
                 openArtistDetails(app.naviamp.domain.ArtistId(selectedArtist.id), selectedArtist.title)
             },
             onArtistFavoriteToggled = handleArtistFavoriteToggled,
-            onArtistAlbumRadio = handleArtistAlbumRadio,
-            onArtistAlbumDownload = { selectedAlbum -> loadArtistAlbumTracks(selectedAlbum) { downloadTracks(it, selectedAlbum.title) } },
-            onArtistAlbumAddToQueue = { selectedAlbum -> loadArtistAlbumTracks(selectedAlbum) { appendTracksToQueue(it, "album tracks") } },
-            onArtistAlbumAddToPlaylist = { selectedAlbum, playlist ->
-                loadArtistAlbumTracks(selectedAlbum) { addTracksToPlaylist(it, playlist, null, selectedAlbum.title) }
-            },
-            onArtistAlbumCreatePlaylistAndAdd = { selectedAlbum, name ->
-                loadArtistAlbumTracks(selectedAlbum) { addTracksToPlaylist(it, null, name, selectedAlbum.title) }
-            },
             onPlaylistSelected = { selectedPlaylist ->
                 homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }?.let(openPlaylistDetails)
                     ?: run { status = "Playlist not found." }
@@ -433,23 +424,7 @@ fun androidAppShellActions(
                 homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }?.let { playPlaylist(it, shuffle) }
                     ?: run { status = "Playlist not found." }
             },
-            onPlaylistItemAddToQueue = { selectedPlaylist ->
-                homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }?.let(addPlaylistToQueue)
-                    ?: run { status = "Playlist not found." }
-            },
-            onPlaylistItemAddToPlaylist = { selectedPlaylist, playlist ->
-                homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }?.let { addPlaylistToPlaylist(it, playlist, null) }
-                    ?: run { status = "Playlist not found." }
-            },
-            onPlaylistItemCreatePlaylistAndAdd = { selectedPlaylist, name ->
-                homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }?.let { addPlaylistToPlaylist(it, null, name) }
-                    ?: run { status = "Playlist not found." }
-            },
             onPlaylistAddToQueue = { appendTracksToQueue(selectedPlaylistTracks, "playlist tracks") },
-            onPlaylistDownload = { selectedPlaylist ->
-                homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }?.let(downloadPlaylist)
-                    ?: run { status = "Playlist not found." }
-            },
             onPlaylistAddToPlaylist = { _, playlist ->
                 selectedPlaylist?.let { addPlaylistToPlaylist(it, playlist, null) }
                     ?: run { status = "Playlist not found." }

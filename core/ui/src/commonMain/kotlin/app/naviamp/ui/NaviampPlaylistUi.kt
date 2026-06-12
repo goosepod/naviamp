@@ -43,29 +43,7 @@ internal fun PlaylistsContent(
     sortMode: SharedPlaylistSortMode,
     status: String?,
     onSortModeChanged: (SharedPlaylistSortMode) -> Unit,
-    onPlaylistSelected: (SharedMediaItemUi) -> Unit,
-    onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit,
-    onPlaylistAddToQueue: (SharedMediaItemUi) -> Unit,
-    onPlaylistDownload: (SharedMediaItemUi) -> Unit,
-    onPlaylistAddToPlaylist: (SharedMediaItemUi, NaviampPlaylistChoiceUi?) -> Unit,
-    onPlaylistCreatePlaylistAndAdd: (SharedMediaItemUi, String) -> Unit,
-    onPlaylistRename: (SharedMediaItemUi, String) -> Unit,
-    onPlaylistDelete: (SharedMediaItemUi) -> Unit,
-    onPlaylistAction: (SharedMediaItemActionRequest) -> Unit = { request ->
-        handleSharedMediaItemAction(
-            request,
-            SharedMediaItemActionHandlers(
-                onSelect = onPlaylistSelected,
-                onPlay = onPlaylistPlay,
-                onAddToQueue = onPlaylistAddToQueue,
-                onDownload = onPlaylistDownload,
-                onAddToPlaylist = onPlaylistAddToPlaylist,
-                onCreatePlaylistAndAdd = onPlaylistCreatePlaylistAndAdd,
-                onRename = onPlaylistRename,
-                onDelete = onPlaylistDelete,
-            ),
-        )
-    },
+    onPlaylistAction: (SharedMediaItemActionRequest) -> Unit,
     onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit,
     onSmartPlaylistUpdate: suspend (SharedMediaItemUi, SmartPlaylistDefinition) -> Unit,
     onSmartPlaylistLoad: suspend (SharedMediaItemUi) -> SmartPlaylistDefinition,
@@ -83,10 +61,10 @@ internal fun PlaylistsContent(
         handleSharedMediaItemAction(
             request,
             SharedMediaItemActionHandlers(
-                onSelect = onPlaylistSelected,
-                onPlay = onPlaylistPlay,
-                onAddToQueue = onPlaylistAddToQueue,
-                onDownload = onPlaylistDownload,
+                onSelect = { onPlaylistAction(request) },
+                onPlay = { _, _ -> onPlaylistAction(request) },
+                onAddToQueue = { onPlaylistAction(request) },
+                onDownload = { onPlaylistAction(request) },
                 onAddToPlaylist = { playlist, choice ->
                     if (choice == null) playlistToAddToPlaylist = playlist else onPlaylistAction(request)
                 },

@@ -1459,6 +1459,8 @@ Progress notes:
 - Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 - Added shared media-item row kind metadata and threaded `SharedMediaItemActionRequest` through the shared app-shell boundary. Playlist and artist-album rows now leave shared UI through one typed media-item callback, and Android consumes album, artist, and playlist media-row actions through that shared request shape instead of only route-specific callback clusters.
 - Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
+- Removed the redundant shared-shell and Android action fields for artist-album row actions and playlist-list item actions now covered by `onMediaItemAction`. The shared playlist screen and artist detail album rows require the typed media-item dispatcher, shrinking the platform callback surface while preserving playlist-detail actions that still need full detail context.
+- Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 
