@@ -22,6 +22,7 @@ fun AndroidAppShellContent(
         supportsGapless = state.supportsGapless,
         supportsCrossfade = state.supportsCrossfade,
         supportsEqualizer = state.supportsEqualizer,
+        supportsSonicSimilarity = state.supportsSonicSimilarity,
         showMobileNetworkQuality = state.showMobileNetworkQuality,
         selectedVisualizer = state.selectedVisualizer,
         visualizerBandsProvider = state.visualizerBandsProvider,

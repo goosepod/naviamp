@@ -163,6 +163,8 @@ fun androidDiagnostics(
                         "Album favorites" to capabilities.supportsAlbumFavorites.toString(),
                         "Track ratings" to capabilities.supportsTrackRatings.toString(),
                         "Play reporting" to capabilities.supportsPlayReporting.toString(),
+                        "Smart playlists" to capabilities.supportsSmartPlaylists.toString(),
+                        "Sonic similarity" to capabilities.supportsSonicSimilarity.toString(),
                     )
                 }.orEmpty(),
             ),

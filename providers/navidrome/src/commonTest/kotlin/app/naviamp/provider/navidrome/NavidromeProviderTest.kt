@@ -17,6 +17,8 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class NavidromeProviderTest {
     @Test
@@ -195,6 +197,111 @@ class NavidromeProviderTest {
 
         assertEquals("0.55.0", validation.serverVersion)
         assertEquals("1.16.1", validation.apiVersion)
+    }
+
+    @Test
+    fun validateConnectionEnablesSonicSimilarityWhenOpenSubsonicExtensionIsAdvertised() = runTest {
+        val httpClient = SequencedHttpClient(
+            listOf(
+                """
+                {
+                  "subsonic-response": {
+                    "status": "ok",
+                    "version": "1.16.1",
+                    "serverVersion": "0.62.0"
+                  }
+                }
+                """.trimIndent(),
+                """
+                {
+                  "subsonic-response": {
+                    "status": "ok",
+                    "openSubsonicExtensions": [
+                      { "name": "transcodeOffset", "versions": [1] },
+                      { "name": "sonicSimilarity", "versions": [1] }
+                    ]
+                  }
+                }
+                """.trimIndent(),
+            ),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        assertFalse(provider.capabilities.supportsSonicSimilarity)
+        provider.validateConnection()
+
+        assertTrue(provider.capabilities.supportsSonicSimilarity)
+        assertEquals(
+            listOf(
+                "https://music.example.test/rest/ping.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json",
+                "https://music.example.test/rest/getOpenSubsonicExtensions.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json",
+            ),
+            httpClient.urls,
+        )
+    }
+
+    @Test
+    fun validateConnectionLeavesSonicSimilarityDisabledWhenExtensionIsMissing() = runTest {
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = SequencedHttpClient(
+                listOf(
+                    """
+                    {
+                      "subsonic-response": {
+                        "status": "ok",
+                        "version": "1.16.1",
+                        "serverVersion": "0.62.0"
+                      }
+                    }
+                    """.trimIndent(),
+                    """
+                    {
+                      "subsonic-response": {
+                        "status": "ok",
+                        "openSubsonicExtensions": [
+                          { "name": "transcodeOffset", "versions": [1] }
+                        ]
+                      }
+                    }
+                    """.trimIndent(),
+                ),
+            ),
+        )
+
+        provider.validateConnection()
+
+        assertFalse(provider.capabilities.supportsSonicSimilarity)
+    }
+
+    @Test
+    fun validateConnectionLeavesSonicSimilarityDisabledWhenExtensionsEndpointFails() = runTest {
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = object : NavidromeHttpClient {
+                override suspend fun get(url: String): String =
+                    if (url.contains("ping.view")) {
+                        """
+                        {
+                          "subsonic-response": {
+                            "status": "ok",
+                            "version": "1.16.1",
+                            "serverVersion": "0.62.0"
+                          }
+                        }
+                        """.trimIndent()
+                    } else {
+                        throw NavidromeException("Extensions endpoint unavailable.")
+                    }
+            },
+        )
+
+        provider.validateConnection()
+
+        assertFalse(provider.capabilities.supportsSonicSimilarity)
     }
 
     @Test
@@ -1082,10 +1189,13 @@ class NavidromeProviderTest {
     }
 
     private class SequencedHttpClient(private val responses: List<String>) : NavidromeHttpClient {
+        val urls = mutableListOf<String>()
         private var index = 0
 
-        override suspend fun get(url: String): String =
-            responses[index++]
+        override suspend fun get(url: String): String {
+            urls += url
+            return responses[index++]
+        }
     }
 
     private class RecordingHttpClient : NavidromeHttpClient {

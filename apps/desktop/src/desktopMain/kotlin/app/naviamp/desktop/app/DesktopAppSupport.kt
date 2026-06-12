@@ -17,6 +17,8 @@ fun ProviderCapabilities.asStatsMap(): Map<String, Boolean> =
         "Album favorites" to supportsAlbumFavorites,
         "Track ratings" to supportsTrackRatings,
         "Play reporting" to supportsPlayReporting,
+        "Smart playlists" to supportsSmartPlaylists,
+        "Sonic similarity" to supportsSonicSimilarity,
     )
 
 fun restoredRoute(

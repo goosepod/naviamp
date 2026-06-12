@@ -116,6 +116,7 @@ fun rememberAndroidAppShellUiState(
             supportsGapless = playbackEngine.supportsGapless,
             supportsCrossfade = playbackEngine.supportsCrossfade,
             supportsEqualizer = (playbackEngine as? EqualizerPlaybackEngine)?.supportsEqualizer == true,
+            supportsSonicSimilarity = provider?.capabilities?.supportsSonicSimilarity == true,
             showMobileNetworkQuality = true,
             selectedVisualizer = selectedVisualizer,
             visualizerBandsProvider = { visualizerFrame?.bands.orEmpty() },

@@ -36,6 +36,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
@@ -49,7 +50,7 @@ class NavidromeProvider(
     override val displayName: String = "Navidrome"
     override val cacheNamespace: String =
         "${id.value}:${connection.normalizedBaseUrl}:${connection.username}"
-    override val capabilities: ProviderCapabilities =
+    private val baseCapabilities: ProviderCapabilities =
         ProviderCapabilities(
             supportsStreamingTranscode = true,
             supportsDownloadTranscode = true,
@@ -62,14 +63,21 @@ class NavidromeProvider(
             supportsTrackRatings = true,
             supportsPlayReporting = true,
             supportsSmartPlaylists = true,
-            supportsSonicSimilarity = true,
         )
+    override var capabilities: ProviderCapabilities = baseCapabilities
+        private set
 
     private val json = Json { ignoreUnknownKeys = true }
 
     override suspend fun validateConnection(): ConnectionValidation {
         val response = get("ping.view")
         val root = response.subsonicResponse()
+        capabilities = baseCapabilities.copy(
+            supportsSonicSimilarity = supportsOpenSubsonicExtension(
+                name = "sonicSimilarity",
+                minimumVersion = 1,
+            ),
+        )
 
         return ConnectionValidation(
             serverVersion = root.stringValue("serverVersion"),
@@ -665,6 +673,25 @@ class NavidromeProvider(
         )
         return response.subsonicResponse()["song"]?.jsonObject?.toTrack()
     }
+
+    private suspend fun supportsOpenSubsonicExtension(name: String, minimumVersion: Int): Boolean =
+        runCatching {
+            val response = get("getOpenSubsonicExtensions.view")
+            response.subsonicResponse()
+                .arrayValue("openSubsonicExtensions")
+                .any { extension ->
+                    val item = extension as? JsonObject ?: return@any false
+                    item.stringValue("name") == name &&
+                        item.extensionVersions().any { version -> version >= minimumVersion }
+                }
+        }.getOrDefault(false)
+
+    private fun JsonObject.extensionVersions(): List<Int> =
+        arrayValue("versions").mapNotNull { version ->
+            version.jsonPrimitive.intOrNull ?: version.jsonPrimitive.contentOrNull?.toIntOrNull()
+        }.ifEmpty {
+            listOfNotNull(intValue("version"))
+        }
 
     private suspend fun scrobble(
         trackId: TrackId,

@@ -955,6 +955,8 @@ fun NaviampApp(
                             isConnecting = isConnecting,
                             playbackSettings = playbackSettings,
                             playbackEngine = playbackEngine,
+                            supportsSonicSimilarity =
+                                connectedProvider?.capabilities?.supportsSonicSimilarity == true,
                             onConnect = { appActions.connectToServer() },
                             onNewConnection = connectionLifecycleController::openNewConnectionForm,
                             onEditConnection = connectionLifecycleController::openSavedConnectionForm,

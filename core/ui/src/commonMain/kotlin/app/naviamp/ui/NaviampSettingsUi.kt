@@ -79,6 +79,7 @@ fun NaviampSharedSettingsContent(
     supportsGapless: Boolean = true,
     supportsCrossfade: Boolean = false,
     supportsEqualizer: Boolean = false,
+    supportsSonicSimilarity: Boolean = false,
     downloadBytes: Long = 0L,
     showQueueBehavior: Boolean = true,
     showDebugLogging: Boolean = true,
@@ -101,6 +102,7 @@ fun NaviampSharedSettingsContent(
                     supportsGapless = supportsGapless,
                     supportsCrossfade = supportsCrossfade,
                     supportsEqualizer = supportsEqualizer,
+                    supportsSonicSimilarity = supportsSonicSimilarity,
                     showReplayGain = true,
                     showCrossfade = true,
                     showQueueBehavior = showQueueBehavior,
@@ -340,6 +342,7 @@ fun NaviampPlaybackSettingsSection(
     supportsGapless: Boolean,
     supportsCrossfade: Boolean,
     supportsEqualizer: Boolean,
+    supportsSonicSimilarity: Boolean = false,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit = onPlaybackSettingsChanged,
     showReplayGain: Boolean = true,
@@ -493,14 +496,16 @@ fun NaviampPlaybackSettingsSection(
             },
         )
     }
-    SettingsCheckboxRow(
-        colors = colors,
-        checked = playbackSettings.sonicSimilarityEnabled,
-        label = "Use Navidrome sonic similarity for Related tracks",
-        onCheckedChange = { enabled ->
-            onPlaybackSettingsChanged(playbackSettings.copy(sonicSimilarityEnabled = enabled))
-        },
-    )
+    if (supportsSonicSimilarity) {
+        SettingsCheckboxRow(
+            colors = colors,
+            checked = playbackSettings.sonicSimilarityEnabled,
+            label = "Use Navidrome sonic similarity for Related tracks",
+            onCheckedChange = { enabled ->
+                onPlaybackSettingsChanged(playbackSettings.copy(sonicSimilarityEnabled = enabled))
+            },
+        )
+    }
     if (upNextHelpOpen) {
         AlertDialog(
             onDismissRequest = { upNextHelpOpen = false },

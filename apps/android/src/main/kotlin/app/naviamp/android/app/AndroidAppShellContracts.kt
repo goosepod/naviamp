@@ -55,6 +55,7 @@ data class AndroidAppShellUiState(
     val supportsGapless: Boolean,
     val supportsCrossfade: Boolean,
     val supportsEqualizer: Boolean,
+    val supportsSonicSimilarity: Boolean,
     val showMobileNetworkQuality: Boolean,
     val selectedVisualizer: NaviampVisualizer,
     val visualizerBandsProvider: () -> List<Float>,
