@@ -1469,6 +1469,8 @@ Progress notes:
 - Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 - Collapsed desktop search and library artist/album rows onto `SharedMediaItemActionRequest`. The desktop artist/album row wrappers now support typed media-item dispatch with explicit action availability, and search/library panels expose one media-item callback instead of copied selected/radio/queue/playlist/download/favorite callback clusters.
 - Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
+- Collapsed the remaining desktop detail row clusters onto typed shared actions. Album-detail, artist-detail popular-track, artist-detail album, and playlist-detail track rows now leave their panels as `SharedTrackRowActionRequest` or `SharedMediaItemActionRequest`, with desktop route content doing the thin lookup into selected detail state before invoking platform actions.
+- Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 

@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Track
+import app.naviamp.ui.SharedTrackRowActionRequest
 
 @Composable
 fun DesktopAlbumDetailPanel(
@@ -42,11 +43,7 @@ fun DesktopAlbumDetailPanel(
     onAddAlbumToQueue: () -> Unit,
     onAddAlbumToPlaylist: () -> Unit,
     onAlbumFavoriteToggle: (Album) -> Unit,
-    onPlayTrack: (Int) -> Unit,
-    onTrackRadio: (Track) -> Unit,
-    onDownloadTrack: (Track) -> Unit,
-    onAddTrackToQueue: (Track) -> Unit,
-    onAddTrackToPlaylist: (Track) -> Unit,
+    onTrackAction: (SharedTrackRowActionRequest) -> Unit,
     onArtistSelected: (Track) -> Unit,
 ) {
     Column(
@@ -214,11 +211,11 @@ fun DesktopAlbumDetailPanel(
                         showMenu = true,
                         popular = track.id.value in popularTrackIds,
                         reservePopularIndicatorSpace = reservePopularIndicatorSpace,
-                        onClick = { onPlayTrack(index) },
-                        onStartRadio = { onTrackRadio(track) },
-                        onDownload = { onDownloadTrack(track) },
-                        onAddToQueue = { onAddTrackToQueue(track) },
-                        onAddToPlaylist = { onAddTrackToPlaylist(track) },
+                        canStartRadio = true,
+                        canDownload = true,
+                        canAddToQueue = true,
+                        canAddToPlaylist = true,
+                        onTrackAction = onTrackAction,
                     )
                 }
             }

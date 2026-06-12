@@ -260,13 +260,22 @@ fun ColumnScope.DesktopAppRouteContent(
                     onAlbumRadio = appActions::playCurrentAlbumRadio,
                     onDownloadAlbum = appActions::downloadCurrentAlbum,
                     onAddAlbumToQueue = appActions::addCurrentAlbumToQueue,
-                    onPlayTrack = { index -> appActions.playAlbumDetails(index = index) },
-                    onTrackRadio = appActions::playTrackRadio,
-                    onDownloadTrack = appActions::downloadTrack,
-                    onAddTrackToQueue = playlistsController::addTrackToQueue,
+                    onTrackAction = { request ->
+                        val index = selectedAlbumDetails?.tracks?.indexOfFirst { track -> track.id.value == request.track.id } ?: -1
+                        val track = selectedAlbumDetails?.tracks?.getOrNull(index)
+                        if (track != null) {
+                            when (request.action) {
+                                SharedTrackRowAction.Select -> appActions.playAlbumDetails(index = index)
+                                SharedTrackRowAction.StartRadio -> appActions.playTrackRadio(track)
+                                SharedTrackRowAction.Download -> appActions.downloadTrack(track)
+                                SharedTrackRowAction.AddToQueue -> playlistsController.addTrackToQueue(track)
+                                SharedTrackRowAction.AddToPlaylist -> playlistsController.openTrackAddToPlaylist(track)
+                                SharedTrackRowAction.CreatePlaylistAndAdd -> Unit
+                            }
+                        }
+                    },
                     onAddAlbumToPlaylist = appActions::openCurrentAlbumAddToPlaylist,
                     onAlbumFavoriteToggle = appActions::toggleAlbumFavorite,
-                    onAddTrackToPlaylist = playlistsController::openTrackAddToPlaylist,
                     onArtistSelected = { track ->
                         appActions.openTrackArtistDetails(track, backRouteOverride = DesktopAppRoute.AlbumDetail)
                     },
@@ -289,17 +298,29 @@ fun ColumnScope.DesktopAppRouteContent(
                     onPopularTracksPlay = appActions::playPopularTracks,
                     onPopularTracksRadio = appActions::playPopularTracksRadio,
                     onPopularTracksAddToQueue = appActions::addPopularTracksToQueue,
-                    onPopularTrackSelected = appActions::playSelectedPopularTrack,
-                    onPopularTrackAddToQueue = playlistsController::addTrackToQueue,
+                    onPopularTrackAction = { request ->
+                        selectedArtistPopularTracks
+                            .firstOrNull { track -> track.id.value == request.track.id }
+                            ?.let { track ->
+                                when (request.action) {
+                                    SharedTrackRowAction.Select -> appActions.playSelectedPopularTrack(track)
+                                    SharedTrackRowAction.StartRadio -> appActions.playPopularTracksRadio(listOf(track))
+                                    SharedTrackRowAction.AddToQueue -> playlistsController.addTrackToQueue(track)
+                                    SharedTrackRowAction.Download,
+                                    SharedTrackRowAction.AddToPlaylist,
+                                    SharedTrackRowAction.CreatePlaylistAndAdd,
+                                    -> Unit
+                                }
+                            }
+                    },
                     onAddArtistToQueue = playlistsController::addArtistToQueue,
                     onAddArtistToPlaylist = playlistsController::openArtistAddToPlaylist,
                     onArtistFavoriteToggle = appActions::toggleArtistFavorite,
-                    onAlbumSelected = appActions::openAlbumDetails,
-                    onAlbumRadioSelected = appActions::playAlbumRadio,
-                    onAlbumDownloadSelected = appActions::downloadAlbum,
-                    onAlbumAddToQueue = playlistsController::addAlbumToQueue,
-                    onAlbumAddToPlaylist = playlistsController::openAlbumAddToPlaylist,
-                    onAlbumFavoriteToggle = appActions::toggleAlbumFavorite,
+                    onAlbumAction = { request ->
+                        selectedArtistDetails?.albums
+                            ?.firstOrNull { album -> album.id.value == request.item.id }
+                            ?.let { album -> handleAlbumMediaAction(request.action, album) }
+                    },
                 )
                 DesktopAppRoute.Playlists -> DesktopPlaylistsPanel(
                     appColors = appColors,
@@ -336,11 +357,20 @@ fun ColumnScope.DesktopAppRouteContent(
                     onDownloadPlaylist = appActions::downloadSelectedPlaylist,
                     onAddPlaylistToQueue = playlistsController::addSelectedPlaylistToQueue,
                     onAddPlaylistToPlaylist = playlistsController::openSelectedPlaylistAddToPlaylist,
-                    onPlayTrack = { index -> appActions.playPlaylistDetails(index = index) },
-                    onTrackRadio = appActions::playTrackRadio,
-                    onDownloadTrack = appActions::downloadTrack,
-                    onAddTrackToQueue = playlistsController::addTrackToQueue,
-                    onAddTrackToPlaylist = playlistsController::openTrackAddToPlaylist,
+                    onTrackAction = { request ->
+                        val index = selectedPlaylistTracks.indexOfFirst { track -> track.id.value == request.track.id }
+                        val track = selectedPlaylistTracks.getOrNull(index)
+                        if (track != null) {
+                            when (request.action) {
+                                SharedTrackRowAction.Select -> appActions.playPlaylistDetails(index = index)
+                                SharedTrackRowAction.StartRadio -> appActions.playTrackRadio(track)
+                                SharedTrackRowAction.Download -> appActions.downloadTrack(track)
+                                SharedTrackRowAction.AddToQueue -> playlistsController.addTrackToQueue(track)
+                                SharedTrackRowAction.AddToPlaylist -> playlistsController.openTrackAddToPlaylist(track)
+                                SharedTrackRowAction.CreatePlaylistAndAdd -> Unit
+                            }
+                        }
+                    },
                 )
                 DesktopAppRoute.Library -> {
                     DesktopLibraryListLoadMoreEffect(

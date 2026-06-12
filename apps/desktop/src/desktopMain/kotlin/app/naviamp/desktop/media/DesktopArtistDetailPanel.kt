@@ -24,11 +24,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.Track
 import app.naviamp.domain.popular.SimilarArtistMatch
+import app.naviamp.ui.SharedMediaItemActionRequest
+import app.naviamp.ui.SharedTrackRowActionRequest
 
 @Composable
 fun DesktopArtistDetailPanel(
@@ -49,17 +50,11 @@ fun DesktopArtistDetailPanel(
     onPopularTracksPlay: (List<Track>) -> Unit,
     onPopularTracksRadio: (List<Track>) -> Unit,
     onPopularTracksAddToQueue: (List<Track>) -> Unit,
-    onPopularTrackSelected: (Track) -> Unit,
-    onPopularTrackAddToQueue: (Track) -> Unit,
+    onPopularTrackAction: (SharedTrackRowActionRequest) -> Unit,
     onAddArtistToPlaylist: (Artist) -> Unit,
     onAddArtistToQueue: (Artist) -> Unit,
     onArtistFavoriteToggle: (Artist) -> Unit,
-    onAlbumSelected: (Album) -> Unit,
-    onAlbumRadioSelected: (Album) -> Unit,
-    onAlbumDownloadSelected: (Album) -> Unit,
-    onAlbumAddToQueue: (Album) -> Unit,
-    onAlbumAddToPlaylist: (Album) -> Unit,
-    onAlbumFavoriteToggle: (Album) -> Unit,
+    onAlbumAction: (SharedMediaItemActionRequest) -> Unit,
 ) {
     val effectiveArtist = artistDetails?.artist ?: artist
     val imageUrl = artistDetails?.info?.largeImageUrl
@@ -289,10 +284,10 @@ fun DesktopArtistDetailPanel(
                                 track = track,
                                 coverArtUrl = coverArtUrl(track.coverArtId),
                                 showCoverArt = true,
-                                onClick = { onPopularTrackSelected(track) },
-                                onStartRadio = { onPopularTracksRadio(listOf(track)) },
-                                onDownload = {},
-                                onAddToQueue = { onPopularTrackAddToQueue(track) },
+                                canStartRadio = true,
+                                canDownload = false,
+                                canAddToQueue = true,
+                                onTrackAction = onPopularTrackAction,
                             )
                         }
                     }
@@ -309,12 +304,12 @@ fun DesktopArtistDetailPanel(
                             appColors = appColors,
                             album = album,
                             coverArtUrl = coverArtUrl(album.coverArtId),
-                            onClick = { onAlbumSelected(album) },
-                            onStartRadio = { onAlbumRadioSelected(album) },
-                            onDownload = { onAlbumDownloadSelected(album) },
-                            onAddToQueue = { onAlbumAddToQueue(album) },
-                            onAddToPlaylist = { onAlbumAddToPlaylist(album) },
-                            onFavoriteToggle = { onAlbumFavoriteToggle(album) },
+                            canStartRadio = true,
+                            canDownload = true,
+                            canAddToQueue = true,
+                            canAddToPlaylist = true,
+                            canFavorite = true,
+                            onItemAction = onAlbumAction,
                         )
                     }
                 }

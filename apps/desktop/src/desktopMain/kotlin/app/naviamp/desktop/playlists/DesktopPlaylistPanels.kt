@@ -34,6 +34,7 @@ import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.smartplaylist.SmartPlaylistDraft
 import app.naviamp.ui.NaviampAction
 import app.naviamp.ui.NaviampActionSpec
+import app.naviamp.ui.SharedTrackRowActionRequest
 import app.naviamp.ui.SmartPlaylistBuilderDialog
 import app.naviamp.ui.playlistRowActions
 import app.naviamp.ui.toSpec
@@ -275,11 +276,7 @@ fun DesktopPlaylistDetailPanel(
     onDownloadPlaylist: () -> Unit,
     onAddPlaylistToQueue: () -> Unit,
     onAddPlaylistToPlaylist: () -> Unit,
-    onPlayTrack: (Int) -> Unit,
-    onTrackRadio: (Track) -> Unit,
-    onDownloadTrack: (Track) -> Unit,
-    onAddTrackToQueue: (Track) -> Unit,
-    onAddTrackToPlaylist: (Track) -> Unit,
+    onTrackAction: (SharedTrackRowActionRequest) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -349,11 +346,11 @@ fun DesktopPlaylistDetailPanel(
                 background = false,
                 horizontalPadding = 0.dp,
                 verticalPadding = 0.dp,
-                onClick = { onPlayTrack(index) },
-                onStartRadio = { onTrackRadio(track) },
-                onDownload = { onDownloadTrack(track) },
-                onAddToQueue = { onAddTrackToQueue(track) },
-                onAddToPlaylist = { onAddTrackToPlaylist(track) },
+                canStartRadio = true,
+                canDownload = true,
+                canAddToQueue = true,
+                canAddToPlaylist = true,
+                onTrackAction = onTrackAction,
             )
         }
     }
