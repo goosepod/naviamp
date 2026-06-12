@@ -1478,6 +1478,8 @@ Progress notes:
 - Collapsed desktop artist-detail header and popular-track group actions. Artist radio, similar-artist lookup, queue, playlist-add, and favorite actions now leave the panel through `SharedMediaItemActionRequest`, while popular-track group play/radio/queue actions use a shared `SharedTrackGroupActionRequest` instead of direct platform callbacks.
 - Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 - Collapsed desktop now-playing current-track actions onto `NowPlayingCurrentTrackActionRequest`. Favorite, rating, artist/album navigation, track radio, download, and add-to-playlist now leave `DesktopNowPlayingPanel` through one typed shared UI request, with `DesktopNaviampApp` acting as the thin platform adapter.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
+- Collapsed the remaining `NaviampNowPlayingActions` callback surface into typed request groups. Playback controls, display/lyrics/visualizer actions, current-track actions, queue saves, sleep-timer actions, item selection, and queue-item menu actions now leave shared now-playing UI through typed dispatchers instead of individual callback fields; desktop and shared wrappers translate those requests at their platform boundary.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:ui:jvmTest :apps:desktop:compileKotlinDesktop`.
 
 Success criteria for the first slice:

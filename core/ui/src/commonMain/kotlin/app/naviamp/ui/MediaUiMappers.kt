@@ -17,6 +17,7 @@ import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
+import app.naviamp.domain.playback.SleepTimerRequest
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.playback.SleepTimerState
 import app.naviamp.domain.playback.sleepTimerDisplayLabel
@@ -337,6 +338,75 @@ data class NowPlayingCurrentTrackActionRequest(
     val playlistChoice: NaviampPlaylistChoiceUi? = null,
     val playlistName: String? = null,
     val rating: Int? = null,
+)
+
+data class NowPlayingCurrentTrackUiActionRequest(
+    val action: NowPlayingCurrentTrackAction,
+    val playlistChoice: NaviampPlaylistChoiceUi? = null,
+    val playlistName: String? = null,
+    val rating: Int? = null,
+)
+
+enum class NowPlayingPlaybackAction {
+    Pause,
+    Resume,
+    PlayCurrent,
+    Seek,
+    Previous,
+    Next,
+    ToggleShuffle,
+    CycleRepeatMode,
+    ChangeVolume,
+}
+
+data class NowPlayingPlaybackActionRequest(
+    val action: NowPlayingPlaybackAction,
+    val seekSeconds: Double? = null,
+    val volumePercent: Int? = null,
+)
+
+enum class NowPlayingDisplayAction {
+    ToggleLyrics,
+    ChangeLyricsOffset,
+    ToggleVisualizer,
+    SelectVisualizer,
+    Collapse,
+}
+
+data class NowPlayingDisplayActionRequest(
+    val action: NowPlayingDisplayAction,
+    val lyricsOffsetMillis: Int? = null,
+    val visualizer: NaviampVisualizer? = null,
+)
+
+enum class NowPlayingQueueAction {
+    SaveQueueAsPlaylist,
+}
+
+data class NowPlayingQueueActionRequest(
+    val action: NowPlayingQueueAction,
+    val playlistName: String,
+)
+
+enum class NowPlayingSleepTimerAction {
+    Select,
+    Cancel,
+}
+
+data class NowPlayingSleepTimerActionRequest(
+    val action: NowPlayingSleepTimerAction,
+    val request: SleepTimerRequest? = null,
+)
+
+enum class NowPlayingSelectionAction {
+    SelectQueueItem,
+    SelectRelatedItem,
+    SelectRadioStation,
+}
+
+data class NowPlayingSelectionActionRequest(
+    val item: NaviampNowPlayingItemUi,
+    val action: NowPlayingSelectionAction,
 )
 
 data class NowPlayingItemActionRequest(

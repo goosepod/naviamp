@@ -1781,71 +1781,79 @@ private fun FullNowPlaying(
             selectedVisualizer = selectedVisualizer,
             visualizerColors = playerColors,
             actions = NaviampNowPlayingActions(
-                onPause = onPause,
-                onResume = onResume,
-                onPlayCurrent = onResume,
-                onSeek = onSeek,
-                onPrevious = onPrevious,
-                onNext = onNext,
-                onVolumeChanged = onVolumeChanged,
-                onToggleShuffle = onToggleShuffle,
-                onCycleRepeatMode = onCycleRepeatMode,
-                onToggleLyrics = onToggleLyrics,
-                onLyricsOffsetChanged = onLyricsOffsetChanged,
-                onToggleVisualizer = onToggleVisualizer,
-                onVisualizerSelected = onVisualizerSelected,
-                onTrackRadio = onTrackRadio,
-                onAddToPlaylist = onAddToPlaylist,
-                onCreatePlaylistAndAdd = onCreatePlaylistAndAdd,
-                onSaveQueueAsPlaylist = onSaveQueueAsPlaylist,
-                onSleepTimerSelected = onSleepTimerSelected,
-                onCancelSleepTimer = onCancelSleepTimer,
-                onDownloadTrack = onDownloadTrack,
-                onGoToAlbum = onGoToAlbum,
-                onGoToArtist = onGoToArtist,
-                onQueueItemRadio = onQueueItemRadio,
-                onQueueItemPlayNext = onQueueItemPlayNext,
-                onQueueItemAddToQueue = onQueueItemAddToQueue,
-                onQueueItemAddToPlaylist = onQueueItemAddToPlaylist,
-                onQueueItemCreatePlaylistAndAdd = onQueueItemCreatePlaylistAndAdd,
-                onQueueItemDownload = onQueueItemDownload,
+                onPlaybackAction = { request ->
+                    when (request.action) {
+                        NowPlayingPlaybackAction.Pause -> onPause()
+                        NowPlayingPlaybackAction.Resume -> onResume()
+                        NowPlayingPlaybackAction.PlayCurrent -> onResume()
+                        NowPlayingPlaybackAction.Seek -> request.seekSeconds?.let(onSeek)
+                        NowPlayingPlaybackAction.Previous -> onPrevious()
+                        NowPlayingPlaybackAction.Next -> onNext()
+                        NowPlayingPlaybackAction.ToggleShuffle -> onToggleShuffle()
+                        NowPlayingPlaybackAction.CycleRepeatMode -> onCycleRepeatMode()
+                        NowPlayingPlaybackAction.ChangeVolume -> request.volumePercent?.let(onVolumeChanged)
+                    }
+                },
+                onDisplayAction = { request ->
+                    when (request.action) {
+                        NowPlayingDisplayAction.ToggleLyrics -> onToggleLyrics()
+                        NowPlayingDisplayAction.ChangeLyricsOffset ->
+                            request.lyricsOffsetMillis?.let(onLyricsOffsetChanged)
+                        NowPlayingDisplayAction.ToggleVisualizer -> onToggleVisualizer()
+                        NowPlayingDisplayAction.SelectVisualizer ->
+                            request.visualizer?.let(onVisualizerSelected)
+                        NowPlayingDisplayAction.Collapse -> onBack()
+                    }
+                },
+                onCurrentTrackAction = { request ->
+                    when (request.action) {
+                        NowPlayingCurrentTrackAction.StartRadio -> onTrackRadio()
+                        NowPlayingCurrentTrackAction.AddToPlaylist ->
+                            onAddToPlaylist(request.playlistChoice)
+                        NowPlayingCurrentTrackAction.CreatePlaylistAndAdd ->
+                            request.playlistName?.let(onCreatePlaylistAndAdd)
+                        NowPlayingCurrentTrackAction.Download -> onDownloadTrack()
+                        NowPlayingCurrentTrackAction.GoToAlbum -> onGoToAlbum()
+                        NowPlayingCurrentTrackAction.GoToArtist -> onGoToArtist()
+                        NowPlayingCurrentTrackAction.ToggleFavorite -> onToggleFavorite()
+                        NowPlayingCurrentTrackAction.SetRating -> onRatingSelected(request.rating)
+                    }
+                },
+                onQueueAction = { request ->
+                    when (request.action) {
+                        NowPlayingQueueAction.SaveQueueAsPlaylist -> onSaveQueueAsPlaylist(request.playlistName)
+                    }
+                },
+                onSleepTimerAction = { request ->
+                    when (request.action) {
+                        NowPlayingSleepTimerAction.Select -> request.request?.let(onSleepTimerSelected)
+                        NowPlayingSleepTimerAction.Cancel -> onCancelSleepTimer()
+                    }
+                },
+                onSelectionAction = { request ->
+                    when (request.action) {
+                        NowPlayingSelectionAction.SelectQueueItem,
+                        NowPlayingSelectionAction.SelectRelatedItem -> onTrackSelected(
+                            SharedTrackRowUi(
+                                id = request.item.id,
+                                title = request.item.title,
+                                subtitle = request.item.subtitle,
+                                coverArtUrl = request.item.coverArtUrl,
+                                meta = request.item.meta,
+                            ),
+                        )
+                        NowPlayingSelectionAction.SelectRadioStation -> onRadioStationSelected(
+                            SharedMediaItemUi(
+                                id = request.item.id,
+                                title = request.item.title,
+                                subtitle = request.item.subtitle,
+                                meta = request.item.meta,
+                                coverArtUrl = request.item.coverArtUrl,
+                            ),
+                        )
+                    }
+                },
                 onQueueItemAction = onQueueItemAction,
-                onToggleFavorite = onToggleFavorite,
-                onRatingSelected = onRatingSelected,
-                onCollapse = onBack,
-                onQueueItemSelected = { item ->
-                    onTrackSelected(
-                        SharedTrackRowUi(
-                            id = item.id,
-                            title = item.title,
-                            subtitle = item.subtitle,
-                            coverArtUrl = item.coverArtUrl,
-                            meta = item.meta,
-                        ),
-                    )
-                },
-                onRelatedItemSelected = { item ->
-                    onTrackSelected(
-                        SharedTrackRowUi(
-                            id = item.id,
-                            title = item.title,
-                            subtitle = item.subtitle,
-                            coverArtUrl = item.coverArtUrl,
-                            meta = item.meta,
-                        ),
-                    )
-                },
-                onRadioStationSelected = { item ->
-                    onRadioStationSelected(
-                        SharedMediaItemUi(
-                            id = item.id,
-                            title = item.title,
-                            subtitle = item.subtitle,
-                            meta = item.meta,
-                            coverArtUrl = item.coverArtUrl,
-                        ),
-                    )
-                },
             ),
             modifier = Modifier
                 .fillMaxWidth()
