@@ -91,6 +91,41 @@ class PlaybackQueueTest {
     }
 
     @Test
+    fun removeAtRemovesUpcomingTrackWithoutChangingCurrent() {
+        val queue = PlaybackQueue(
+            tracks = listOf(track("1"), track("2"), track("3")),
+            currentIndex = 0,
+        ).removeAt(1)
+
+        assertEquals(track("1"), queue.current)
+        assertEquals(listOf(track("3")), queue.upNext())
+    }
+
+    @Test
+    fun removeAtAdjustsCurrentIndexWhenRemovingHistory() {
+        val queue = PlaybackQueue(
+            tracks = listOf(track("1"), track("2"), track("3")),
+            currentIndex = 2,
+        ).removeAt(0)
+
+        assertEquals(1, queue.currentIndex)
+        assertEquals(track("3"), queue.current)
+        assertEquals(listOf(track("2")), queue.backTo())
+    }
+
+    @Test
+    fun clearUpcomingKeepsCurrentAndHistory() {
+        val queue = PlaybackQueue(
+            tracks = listOf(track("1"), track("2"), track("3"), track("4")),
+            currentIndex = 2,
+        ).clearUpcoming()
+
+        assertEquals(track("3"), queue.current)
+        assertEquals(listOf(track("2"), track("1")), queue.backTo())
+        assertEquals(emptyList(), queue.upNext())
+    }
+
+    @Test
     fun jumpingToHistoryMakesLaterHistoryUpcoming() {
         val queue = PlaybackQueue(
             tracks = listOf(track("1"), track("2"), track("3"), track("4")),

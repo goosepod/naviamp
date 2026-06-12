@@ -150,6 +150,8 @@ internal fun androidMainShellActions(
         handleQueueItemAddToQueue = { item ->
             mediaAppController.resolveNowPlayingItemTrack(item)?.let(mediaAppController::addToQueue)
         },
+        handleQueueItemRemoveFromQueue = mediaAppController::removeFromQueue,
+        handleEmptyQueue = mediaAppController::emptyQueue,
         handleTrackRadioNext = trackActionController::playTrackRadioNext,
         handleAddTrackRadioToQueue = trackActionController::addTrackRadioToQueue,
         resolveNowPlayingItemTrack = mediaAppController::resolveNowPlayingItemTrack,

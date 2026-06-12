@@ -186,6 +186,27 @@ data class PlaybackQueue(
         )
     }
 
+    fun removeAt(index: Int): PlaybackQueue {
+        if (index !in tracks.indices) return this
+        val nextTracks = tracks.filterIndexed { trackIndex, _ -> trackIndex != index }
+        if (nextTracks.isEmpty()) return PlaybackQueue()
+        val nextCurrentIndex = when {
+            currentIndex !in tracks.indices -> currentIndex
+            index < currentIndex -> currentIndex - 1
+            index == currentIndex -> currentIndex.coerceAtMost(nextTracks.lastIndex)
+            else -> currentIndex
+        }
+        return PlaybackQueue(
+            tracks = nextTracks,
+            currentIndex = nextCurrentIndex.takeIf { it in nextTracks.indices } ?: -1,
+        )
+    }
+
+    fun clearUpcoming(): PlaybackQueue {
+        if (currentIndex !in tracks.indices) return PlaybackQueue()
+        return copy(tracks = tracks.take(currentIndex + 1))
+    }
+
     fun jumpTo(
         index: Int,
         moveSelectedToCurrent: Boolean = true,

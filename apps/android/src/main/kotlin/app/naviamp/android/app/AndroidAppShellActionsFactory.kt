@@ -167,6 +167,8 @@ fun androidAppShellActions(
     handleShellQueueItemRadio: (NaviampNowPlayingItemUi) -> Unit,
     handleQueueItemPlayNext: (NaviampNowPlayingItemUi) -> Unit,
     handleQueueItemAddToQueue: (NaviampNowPlayingItemUi) -> Unit,
+    handleQueueItemRemoveFromQueue: (Int) -> Unit,
+    handleEmptyQueue: () -> Unit,
     handleTrackRadioNext: (Track) -> Unit,
     handleAddTrackRadioToQueue: (Track) -> Unit,
     resolveNowPlayingItemTrack: (NaviampNowPlayingItemUi) -> Track?,
@@ -183,6 +185,9 @@ fun androidAppShellActions(
             NowPlayingItemAction.CreatePlaylistAndAdd ->
                 action.track?.let { addTrackToPlaylist(it, null, action.playlistName) }
             NowPlayingItemAction.Download -> action.track?.let(downloadTrack)
+            NowPlayingItemAction.RemoveFromQueue ->
+                (request.target as? app.naviamp.ui.NowPlayingItemTarget.QueueIndex)
+                    ?.let { handleQueueItemRemoveFromQueue(it.index) }
         }
     },
     toggleCurrentFavorite: () -> Unit,
@@ -494,7 +499,9 @@ fun androidAppShellActions(
             },
             onNowPlayingQueueAction = { request: NowPlayingQueueActionRequest ->
                 when (request.action) {
-                    NowPlayingQueueAction.SaveQueueAsPlaylist -> handleSaveQueueAsPlaylist(request.playlistName)
+                    NowPlayingQueueAction.SaveQueueAsPlaylist -> request.playlistName?.let(handleSaveQueueAsPlaylist)
+                    NowPlayingQueueAction.RemoveFromQueue -> request.queueIndex?.let(handleQueueItemRemoveFromQueue)
+                    NowPlayingQueueAction.EmptyQueue -> handleEmptyQueue()
                 }
             },
             onNowPlayingSleepTimerAction = { request: NowPlayingSleepTimerActionRequest ->

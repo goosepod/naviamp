@@ -21,9 +21,11 @@ import app.naviamp.ui.NowPlayingCurrentTrackAction
 import app.naviamp.ui.NowPlayingDisplayActionRequest
 import app.naviamp.ui.NowPlayingItemAction
 import app.naviamp.ui.NowPlayingPlaybackActionRequest
+import app.naviamp.ui.NowPlayingQueueAction
 import app.naviamp.ui.NowPlayingQueueActionRequest
 import app.naviamp.ui.NowPlayingSelectionActionRequest
 import app.naviamp.ui.NowPlayingSleepTimerActionRequest
+import app.naviamp.ui.nowPlayingQueueIndex
 import app.naviamp.ui.resolveAction
 import app.naviamp.ui.toNaviampSleepTimerUi
 
@@ -147,6 +149,15 @@ internal fun ColumnScope.DesktopPlayerRouteContent(
                 NowPlayingItemAction.CreatePlaylistAndAdd -> Unit
                 NowPlayingItemAction.Download ->
                     action.track?.let(appActions::downloadTrack)
+                NowPlayingItemAction.RemoveFromQueue ->
+                    nowPlayingQueueIndex(request.item)?.let { index ->
+                        onQueueAction(
+                            NowPlayingQueueActionRequest(
+                                action = NowPlayingQueueAction.RemoveFromQueue,
+                                queueIndex = index,
+                            ),
+                        )
+                    }
             }
         },
     )

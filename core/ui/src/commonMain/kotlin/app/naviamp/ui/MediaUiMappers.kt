@@ -347,6 +347,7 @@ enum class NowPlayingItemAction {
     AddToPlaylist,
     CreatePlaylistAndAdd,
     Download,
+    RemoveFromQueue,
 }
 
 enum class NowPlayingItemSource {
@@ -415,11 +416,14 @@ data class NowPlayingDisplayActionRequest(
 
 enum class NowPlayingQueueAction {
     SaveQueueAsPlaylist,
+    RemoveFromQueue,
+    EmptyQueue,
 }
 
 data class NowPlayingQueueActionRequest(
     val action: NowPlayingQueueAction,
-    val playlistName: String,
+    val playlistName: String? = null,
+    val queueIndex: Int? = null,
 )
 
 enum class NowPlayingSleepTimerAction {

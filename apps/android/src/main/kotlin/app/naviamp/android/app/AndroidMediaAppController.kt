@@ -62,6 +62,18 @@ internal class AndroidMediaAppController(
         appendTracksToQueue(listOf(track), "track")
     }
 
+    fun removeFromQueue(index: Int) {
+        val queue = state.playbackQueue.removeAt(index)
+        state.playbackQueue = queue
+        queueController.replaceQueue(queue)
+    }
+
+    fun emptyQueue() {
+        val queue = state.playbackQueue.clearUpcoming()
+        state.playbackQueue = queue
+        queueController.replaceQueue(queue)
+    }
+
     fun loadRelatedTracks(track: Track) {
         loadAndroidRelatedTracks(scope, state, track)
     }

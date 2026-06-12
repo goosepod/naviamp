@@ -160,7 +160,15 @@ data class NaviampNowPlayingActions(
     }
 
     fun saveQueueAsPlaylist(name: String) {
-        onQueueAction(NowPlayingQueueActionRequest(NowPlayingQueueAction.SaveQueueAsPlaylist, name))
+        onQueueAction(NowPlayingQueueActionRequest(NowPlayingQueueAction.SaveQueueAsPlaylist, playlistName = name))
+    }
+
+    fun removeFromQueue(index: Int) {
+        onQueueAction(NowPlayingQueueActionRequest(NowPlayingQueueAction.RemoveFromQueue, queueIndex = index))
+    }
+
+    fun emptyQueue() {
+        onQueueAction(NowPlayingQueueActionRequest(NowPlayingQueueAction.EmptyQueue))
     }
 
     fun selectSleepTimer(request: SleepTimerRequest) {
@@ -509,6 +517,7 @@ private fun NowPlayingDetails(
     var playlistDialogOpen by remember { mutableStateOf<NaviampNowPlayingItemUi?>(null) }
     var saveQueueDialogOpen by remember { mutableStateOf(false) }
     var sleepTimerDialogOpen by remember { mutableStateOf(false) }
+    var emptyQueueDialogOpen by remember { mutableStateOf(false) }
     var scrubberValue by remember(nowPlaying.id) { mutableFloatStateOf(nowPlaying.progressFraction.toFloat()) }
     var isScrubbing by remember { mutableStateOf(false) }
     var volumeValue by remember { mutableFloatStateOf(nowPlaying.volumePercent.coerceIn(0, 100) / 100f) }
@@ -846,6 +855,7 @@ private fun NowPlayingDetails(
                             hasDetails = nowPlaying.detailSections.isNotEmpty(),
                             canAddToPlaylist = nowPlaying.canAddToPlaylist,
                             canSaveQueueAsPlaylist = nowPlaying.canSaveQueueAsPlaylist,
+                            canEmptyQueue = nowPlaying.upNext.isNotEmpty(),
                             sleepTimerLabel = nowPlaying.sleepTimer.label,
                         ).forEach { action ->
                             NaviampDropdownMenuItem(
@@ -877,6 +887,7 @@ private fun NowPlayingDetails(
                                             }
                                         }
                                         NaviampAction.SaveQueueAsPlaylist -> saveQueueDialogOpen = true
+                                        NaviampAction.EmptyQueue -> emptyQueueDialogOpen = true
                                         NaviampAction.SleepTimer -> sleepTimerDialogOpen = true
                                         else -> Unit
                                     }
@@ -932,6 +943,19 @@ private fun NowPlayingDetails(
             onCancelTimer = {
                 sleepTimerDialogOpen = false
                 actions.cancelSleepTimer()
+            },
+        )
+    }
+    if (emptyQueueDialogOpen) {
+        ConfirmActionDialog(
+            title = "Empty queue?",
+            message = "Remove all tracks from Up Next.",
+            confirmLabel = "Empty queue",
+            colors = colors,
+            onDismissRequest = { emptyQueueDialogOpen = false },
+            onConfirm = {
+                emptyQueueDialogOpen = false
+                actions.emptyQueue()
             },
         )
     }
@@ -1347,6 +1371,7 @@ private fun NowPlayingSidePanel(
         }
         val rowActions = when (selectedTab) {
             NaviampNowPlayingTab.Related -> relatedTrackRowActions()
+            NaviampNowPlayingTab.UpNext -> upNextQueueRowActions()
             else -> queueRowActions()
         }
         val listState = when (selectedTab) {
@@ -1563,6 +1588,32 @@ fun TrackDetailsDialog(
         confirmButton = {
             TextButton(onClick = onDismissRequest) {
                 Text("Close")
+            }
+        },
+    )
+}
+
+@Composable
+fun ConfirmActionDialog(
+    title: String,
+    message: String,
+    confirmLabel: String,
+    colors: NaviampColors,
+    onDismissRequest: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        title = { Text(title, fontWeight = FontWeight.Bold) },
+        text = { Text(message, color = colors.secondaryText, fontSize = 12.sp) },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(confirmLabel)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismissRequest) {
+                Text("Cancel")
             }
         },
     )
@@ -1852,6 +1903,16 @@ private fun NowPlayingItemList(
                                             onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.PlayTrackRadioNext))
                                         NaviampAction.AddTrackRadioToQueue ->
                                             onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.AddTrackRadioToQueue))
+                                        NaviampAction.RemoveFromQueue ->
+                                            nowPlayingQueueIndex(item)?.let { index ->
+                                                onAction(
+                                                    NowPlayingItemActionRequest(
+                                                        item = item,
+                                                        target = NowPlayingItemTarget.QueueIndex(index),
+                                                        action = NowPlayingItemAction.RemoveFromQueue,
+                                                    ),
+                                                )
+                                            }
                                         NaviampAction.DownloadTrack ->
                                             onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.Download))
                                         NaviampAction.AddToPlaylist -> {

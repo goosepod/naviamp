@@ -17,8 +17,10 @@ enum class NaviampAction(
     RemoveDownload("Remove download", NaviampIcons.Trash),
     PlayNext("Play next", NaviampIcons.Player),
     AddToQueue("Add to queue", NaviampIcons.Queue),
+    RemoveFromQueue("Remove from queue", NaviampIcons.Trash),
     AddToPlaylist("Add to playlist", NaviampIcons.Playlist),
     SaveQueueAsPlaylist("Save queue as playlist", NaviampIcons.Playlist),
+    EmptyQueue("Empty queue", NaviampIcons.Trash),
     SleepTimer("Sleep timer", NaviampIcons.Clock),
     AddPlaylistToPlaylist("Add playlist to playlist", NaviampIcons.Playlist),
     RenamePlaylist("Rename playlist", NaviampIcons.Edit),
@@ -68,6 +70,9 @@ fun queueRowActions(): List<NaviampActionSpec> =
         canDownload = true,
         canAddToPlaylist = true,
     )
+
+fun upNextQueueRowActions(): List<NaviampActionSpec> =
+    listOf(NaviampAction.RemoveFromQueue.toSpec()) + queueRowActions()
 
 fun relatedTrackRowActions(): List<NaviampActionSpec> =
     listOf(
@@ -150,6 +155,7 @@ fun nowPlayingTrackMenuActions(
     hasDetails: Boolean,
     canAddToPlaylist: Boolean,
     canSaveQueueAsPlaylist: Boolean,
+    canEmptyQueue: Boolean,
     sleepTimerLabel: String,
 ): List<NaviampActionSpec> =
     listOf(
@@ -160,6 +166,7 @@ fun nowPlayingTrackMenuActions(
         NaviampAction.GoToArtist.toSpec(enabled = !isLive),
         NaviampAction.AddToPlaylist.toSpec(enabled = canAddToPlaylist),
         NaviampAction.SaveQueueAsPlaylist.toSpec(enabled = canSaveQueueAsPlaylist),
+        NaviampAction.EmptyQueue.toSpec(enabled = canEmptyQueue),
         NaviampAction.SleepTimer.toSpec(label = sleepTimerLabel),
     )
 
