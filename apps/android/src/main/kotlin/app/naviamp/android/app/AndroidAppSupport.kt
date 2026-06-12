@@ -33,6 +33,7 @@ import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.label
+import app.naviamp.domain.sonichome.SonicHomeDiscoveryRows
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.popular.SimilarArtistMatch
@@ -113,6 +114,7 @@ fun rememberAndroidShellModels(
     sonicSimilarityEnabled: Boolean,
     homeState: HomeContent,
     playlistTracksById: Map<String, List<Track>>,
+    sonicHomeDiscoveryRows: SonicHomeDiscoveryRows,
     searchResults: MediaSearchResults,
     libraryStatus: String?,
     isLibrarySyncing: Boolean,
@@ -139,6 +141,7 @@ fun rememberAndroidShellModels(
         sonicSimilarityEnabled,
         homeState,
         playlistTracksById,
+        sonicHomeDiscoveryRows,
         searchResults,
         libraryStatus,
         isLibrarySyncing,
@@ -165,6 +168,7 @@ fun rememberAndroidShellModels(
             sonicSimilarityEnabled = sonicSimilarityEnabled,
             homeState = homeState,
             playlistTracksById = playlistTracksById,
+            sonicHomeDiscoveryRows = sonicHomeDiscoveryRows,
             searchResults = searchResults,
             libraryStatus = libraryStatus,
             isLibrarySyncing = isLibrarySyncing,
@@ -193,6 +197,7 @@ fun androidShellModels(
     sonicSimilarityEnabled: Boolean,
     homeState: HomeContent,
     playlistTracksById: Map<String, List<Track>>,
+    sonicHomeDiscoveryRows: SonicHomeDiscoveryRows,
     searchResults: MediaSearchResults,
     libraryStatus: String?,
     isLibrarySyncing: Boolean,
@@ -224,6 +229,7 @@ fun androidShellModels(
         home = homeState.toSharedHomeUi(
             coverArtUrl = coverArtUrl,
             playlistTracksById = playlistTracksById,
+            sonicDiscoveryRows = sonicHomeDiscoveryRows,
             canFavoriteAlbums = canFavoriteAlbums,
             showSonicPathBuilder = sonicSimilarityEnabled && provider?.capabilities?.supportsSonicSimilarity == true,
             showSonicMixBuilder = sonicSimilarityEnabled && provider?.capabilities?.supportsSonicSimilarity == true,

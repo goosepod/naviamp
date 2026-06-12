@@ -26,6 +26,7 @@ internal fun androidMainShellActions(
     trackActionController: AndroidTrackActionController,
     sonicPathController: AndroidSonicPathController,
     sonicMixController: AndroidSonicMixController,
+    sonicHomeDiscoveryController: AndroidSonicHomeDiscoveryController,
     nowPlayingSidecarController: AndroidNowPlayingSidecarController,
 ): AndroidAppShellActions =
     androidAppShellActions(
@@ -125,6 +126,7 @@ internal fun androidMainShellActions(
         saveInternetRadioStation = shellMediaController::saveInternetRadioStation,
         deleteInternetRadioStation = shellMediaController::deleteInternetRadioStation,
         handleShellHomeStationSelected = shellMediaController::handleShellHomeStationSelected,
+        handleSonicDiscoveryTrackAction = sonicHomeDiscoveryController::handleAction,
         closeActiveDetail = navigationController::closeActiveDetail,
         handleShellResume = shellPlaybackController::resume,
         playAdjacentTrack = playbackAppController::playAdjacentTrack,

@@ -29,6 +29,7 @@ import app.naviamp.ui.NowPlayingSleepTimerAction
 import app.naviamp.ui.NowPlayingSleepTimerActionRequest
 import app.naviamp.ui.SharedArtistDetailUi
 import app.naviamp.ui.SharedGenreMixItemUi
+import app.naviamp.ui.SharedHomeDiscoveryTrackActionRequest
 import app.naviamp.ui.SharedHomeStationUi
 import app.naviamp.ui.SharedMediaItemAction
 import app.naviamp.ui.SharedMediaItemKind
@@ -146,6 +147,7 @@ fun androidAppShellActions(
         } ?: run { state.status = "Station not found." }
     },
     handleShellHomeStationSelected: (SharedHomeStationUi) -> Unit,
+    handleSonicDiscoveryTrackAction: (SharedHomeDiscoveryTrackActionRequest) -> Unit,
     closeActiveDetail: () -> Unit,
     handleShellResume: () -> Unit,
     playAdjacentTrack: (Int) -> Unit,
@@ -418,6 +420,7 @@ fun androidAppShellActions(
             onRadioStationSave = saveInternetRadioStation,
             onStationAction = handleStationAction,
             onHomeStationSelected = handleShellHomeStationSelected,
+            onSonicDiscoveryTrackAction = handleSonicDiscoveryTrackAction,
             onOpenNowPlaying = { nowPlayingOpen = true },
             onCloseNowPlaying = {
                 if (nowPlayingOpen) {

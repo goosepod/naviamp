@@ -32,6 +32,7 @@ import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.source.SavedMediaSource
+import app.naviamp.domain.sonichome.SonicHomeDiscoveryRows
 import app.naviamp.ui.AlbumMixBuilderContent
 import app.naviamp.ui.ArtistMixBuilderContent
 import app.naviamp.ui.GenreMixBuilderContent
@@ -40,6 +41,7 @@ import app.naviamp.ui.SharedArtistMixBuilderUi
 import app.naviamp.ui.SharedGenreMixBuilderUi
 import app.naviamp.ui.SharedGenreMixItemUi
 import app.naviamp.ui.SharedHome
+import app.naviamp.ui.SharedHomeDiscoveryTrackActionRequest
 import app.naviamp.ui.SharedMediaItemAction
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedMixBuilderUi
@@ -62,6 +64,7 @@ fun ColumnScope.DesktopAppRouteContent(
     connectionStatus: String?,
     homeStatus: String?,
     homeContent: HomeContent,
+    sonicHomeDiscoveryRows: SonicHomeDiscoveryRows,
     coverArtUrl: (String?) -> String?,
     appActions: DesktopAppActions,
     playlistsController: DesktopPlaylistsController,
@@ -182,11 +185,13 @@ fun ColumnScope.DesktopAppRouteContent(
     onClearLibrary: () -> Unit,
     onRefreshLibrary: () -> Unit,
     onResetDatabase: () -> Unit,
+    onSonicHomeDiscoveryTrackAction: (SharedHomeDiscoveryTrackActionRequest) -> Unit,
 ) {
     val contentScrollState = rememberScrollState()
     val sharedHome = homeContent.toSharedHomeUi(
         coverArtUrl = coverArtUrl,
         playlistTracksById = playlistTracksById,
+        sonicDiscoveryRows = sonicHomeDiscoveryRows,
         canFavoriteAlbums = true,
         showSonicPathBuilder = playbackSettings.sonicSimilarityEnabled && supportsSonicSimilarity,
         showSonicMixBuilder = playbackSettings.sonicSimilarityEnabled && supportsSonicSimilarity,
@@ -360,6 +365,7 @@ fun ColumnScope.DesktopAppRouteContent(
                     onInternetRadioStationSelected = { item -> appActions.playHomeInternetRadio(item.id) },
                     onMixBuilderSelected = ::openMixBuilder,
                     onHomeStationSelected = { station -> appActions.playHomeStation(station.id) },
+                    onSonicDiscoveryTrackAction = onSonicHomeDiscoveryTrackAction,
                 )
                 DesktopAppRoute.AlbumDetail -> DesktopAlbumDetailPanel(
                     appColors = appColors,

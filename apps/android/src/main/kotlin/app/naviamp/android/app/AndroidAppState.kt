@@ -34,6 +34,7 @@ import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.PlaybackSettings
+import app.naviamp.domain.sonichome.SonicHomeDiscoveryRows
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
@@ -127,6 +128,7 @@ class AndroidAppState(
     var relatedTracks by mutableStateOf<List<Track>>(emptyList())
     var relatedTracksSource by mutableStateOf(RelatedTracksSource.None)
     var relatedSimilarityByTrackId by mutableStateOf(emptyMap<TrackId, Double>())
+    var sonicHomeDiscoveryRows by mutableStateOf(SonicHomeDiscoveryRows())
     var artistPopularTracksByArtistId by mutableStateOf<Map<String, List<Track>>>(emptyMap())
     var artistPopularTracksStatusByArtistId by mutableStateOf<Map<String, String?>>(emptyMap())
     var artistSimilarArtistsByArtistId by mutableStateOf<Map<String, List<SimilarArtistMatch>>>(emptyMap())

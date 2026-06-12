@@ -21,6 +21,7 @@ internal fun AndroidMainEffects(
     navigationController: AndroidNavigationController,
     mediaAppController: AndroidMediaAppController,
     mixBuilderController: AndroidMixBuilderController,
+    sonicHomeDiscoveryController: AndroidSonicHomeDiscoveryController,
     connectionSessionController: AndroidConnectionSessionController,
     sleepTimerController: SleepTimerController,
     providerResponseCacheRepository: ProviderResponseCacheRepository,
@@ -70,6 +71,21 @@ internal fun AndroidMainEffects(
             if (provider != null && genreMixSuggestions.isEmpty()) {
                 mixBuilderController.refreshGenreSuggestions()
             }
+        }
+
+        LaunchedEffect(
+            provider,
+            activeSourceId,
+            playbackSettings.sonicSimilarityEnabled,
+            provider?.capabilities?.supportsSonicSimilarity,
+            isLibrarySyncing,
+            nowPlaying?.id,
+            playbackQueue.tracks.size,
+        ) {
+            val enabled = playbackSettings.sonicSimilarityEnabled &&
+                provider?.capabilities?.supportsSonicSimilarity == true &&
+                !isLibrarySyncing
+            sonicHomeDiscoveryController.loadIfNeeded(enabled)
         }
 
         LaunchedEffect(provider, selectedPlaylist?.id) {

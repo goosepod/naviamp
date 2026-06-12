@@ -265,6 +265,7 @@ fun NaviampSharedAppShell(
     onRadioStationSave: (InternetRadioStation) -> Unit = {},
     onStationAction: (StationRowActionRequest) -> Unit = {},
     onHomeStationSelected: (SharedHomeStationUi) -> Unit = {},
+    onSonicDiscoveryTrackAction: (SharedHomeDiscoveryTrackActionRequest) -> Unit = {},
     onOpenNowPlaying: () -> Unit,
     onCloseNowPlaying: () -> Unit,
     onNowPlayingPlaybackAction: (NowPlayingPlaybackActionRequest) -> Unit = {},
@@ -517,6 +518,7 @@ fun NaviampSharedAppShell(
                             onRadioStationSave = onRadioStationSave,
                             onStationAction = onStationAction,
                             onHomeStationSelected = onHomeStationSelected,
+                            onSonicDiscoveryTrackAction = onSonicDiscoveryTrackAction,
                             onOpenNowPlaying = onOpenNowPlaying,
                             onCloseNowPlaying = onCloseNowPlaying,
                             nowPlayingActions = nowPlayingActions,
@@ -824,6 +826,7 @@ private fun ConnectedContent(
     onRadioStationSave: (InternetRadioStation) -> Unit,
     onStationAction: (StationRowActionRequest) -> Unit,
     onHomeStationSelected: (SharedHomeStationUi) -> Unit,
+    onSonicDiscoveryTrackAction: (SharedHomeDiscoveryTrackActionRequest) -> Unit,
     onOpenNowPlaying: () -> Unit,
     onCloseNowPlaying: () -> Unit,
     nowPlayingActions: NaviampNowPlayingActions,
@@ -990,6 +993,7 @@ private fun ConnectedContent(
                     radioStations.firstOrNull { it.id == item.id }?.let(onRadioStationSelected)
                 },
                 onHomeStationSelected = onHomeStationSelected,
+                onSonicDiscoveryTrackAction = onSonicDiscoveryTrackAction,
             )
             SharedRoute.Playlists -> PlaylistsContent(
                 colors = colors,

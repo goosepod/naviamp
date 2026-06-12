@@ -64,6 +64,7 @@ fun rememberAndroidAppShellUiState(
             sonicSimilarityEnabled = playbackSettings.sonicSimilarityEnabled,
             homeState = homeState,
             playlistTracksById = playlistTracksById,
+            sonicHomeDiscoveryRows = sonicHomeDiscoveryRows,
             searchResults = searchResults,
             libraryStatus = libraryStatus,
             isLibrarySyncing = isLibrarySyncing,

@@ -27,6 +27,7 @@ import app.naviamp.ui.SharedArtistDetailUi
 import app.naviamp.ui.SharedArtistMixBuilderUi
 import app.naviamp.ui.SharedGenreMixBuilderUi
 import app.naviamp.ui.SharedGenreMixItemUi
+import app.naviamp.ui.SharedHomeDiscoveryTrackActionRequest
 import app.naviamp.ui.SharedHomeStationUi
 import app.naviamp.ui.SharedHomeUi
 import app.naviamp.ui.SharedMediaItemActionRequest
@@ -195,6 +196,7 @@ data class AndroidAppShellActions(
     val onRadioStationSave: (InternetRadioStation) -> Unit,
     val onStationAction: (StationRowActionRequest) -> Unit,
     val onHomeStationSelected: (SharedHomeStationUi) -> Unit,
+    val onSonicDiscoveryTrackAction: (SharedHomeDiscoveryTrackActionRequest) -> Unit,
     val onOpenNowPlaying: () -> Unit,
     val onCloseNowPlaying: () -> Unit,
     val onNowPlayingPlaybackAction: (NowPlayingPlaybackActionRequest) -> Unit,

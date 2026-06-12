@@ -345,6 +345,7 @@ data class SharedPlaylistDetailUi(
 
 data class SharedHomeUi(
     val mixBuilders: List<SharedMixBuilderUi> = emptyList(),
+    val sonicDiscoveryRows: List<SharedHomeDiscoveryTrackRowUi> = emptyList(),
     val recentlyAddedAlbums: List<SharedMediaItemUi> = emptyList(),
     val mixAlbums: List<SharedMediaItemUi> = emptyList(),
     val recentAlbums: List<SharedMediaItemUi> = emptyList(),
@@ -361,6 +362,7 @@ data class SharedHomeUi(
 ) {
     val isEmpty: Boolean
         get() = mixBuilders.isEmpty() &&
+            sonicDiscoveryRows.isEmpty() &&
             recentlyAddedAlbums.isEmpty() &&
             mixAlbums.isEmpty() &&
             recentAlbums.isEmpty() &&
@@ -373,6 +375,18 @@ data class SharedHomeUi(
             genreSpotlightAlbums.isEmpty() &&
             decadeAlbums.isEmpty()
 }
+
+data class SharedHomeDiscoveryTrackRowUi(
+    val id: String,
+    val title: String,
+    val tracks: List<SharedTrackRowUi>,
+)
+
+data class SharedHomeDiscoveryTrackActionRequest(
+    val rowId: String,
+    val track: SharedTrackRowUi,
+    val action: SharedTrackRowAction,
+)
 
 data class SharedMixBuilderUi(
     val id: String,

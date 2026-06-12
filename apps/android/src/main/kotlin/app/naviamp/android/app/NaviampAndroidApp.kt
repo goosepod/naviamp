@@ -361,6 +361,15 @@ fun NaviampAndroidApp(
             playTrack = { track, queue -> playbackAppController.playTrack(track, queue) },
         )
     }
+    val sonicHomeDiscoveryController = remember(appState, storage) {
+        AndroidSonicHomeDiscoveryController(
+            scope = scope,
+            state = appState,
+            storage = storage,
+            queueController = playbackQueueController,
+            playTrack = { track, queue -> playbackAppController.playTrack(track, queue) },
+        )
+    }
     val coverArtUrlForUi: (String?) -> String? = { coverArtId -> coverArtId?.let { appState.provider?.coverArtUrl(it) } }
 
     val shellUiState = rememberAndroidAppShellUiState(
@@ -432,6 +441,7 @@ fun NaviampAndroidApp(
         navigationController = navigationController,
         mediaAppController = mediaAppController,
         mixBuilderController = mixBuilderController,
+        sonicHomeDiscoveryController = sonicHomeDiscoveryController,
         connectionSessionController = connectionSessionController,
         sleepTimerController = sleepTimerController,
         providerResponseCacheRepository = storage,
@@ -461,6 +471,7 @@ fun NaviampAndroidApp(
         trackActionController = trackActionController,
         sonicPathController = sonicPathController,
         sonicMixController = sonicMixController,
+        sonicHomeDiscoveryController = sonicHomeDiscoveryController,
         nowPlayingSidecarController = nowPlayingSidecarController,
     )
 

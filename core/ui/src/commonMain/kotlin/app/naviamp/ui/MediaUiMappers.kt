@@ -27,6 +27,7 @@ import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
+import app.naviamp.domain.sonichome.SonicHomeDiscoveryRows
 import app.naviamp.domain.waveform.AudioWaveform
 import kotlin.math.absoluteValue
 
@@ -95,12 +96,20 @@ fun InternetRadioStation.defaultRadioArtworkUrl(): String =
 fun HomeContent.toSharedHomeUi(
     coverArtUrl: (String?) -> String?,
     playlistTracksById: Map<String, List<Track>> = emptyMap(),
+    sonicDiscoveryRows: SonicHomeDiscoveryRows = SonicHomeDiscoveryRows(),
     canFavoriteAlbums: Boolean = false,
     showSonicPathBuilder: Boolean = false,
     showSonicMixBuilder: Boolean = false,
 ): SharedHomeUi =
     SharedHomeUi(
         mixBuilders = sharedMixBuilders(showSonicPathBuilder, showSonicMixBuilder),
+        sonicDiscoveryRows = sonicDiscoveryRows.rows.map { row ->
+            SharedHomeDiscoveryTrackRowUi(
+                id = row.id.value,
+                title = row.title,
+                tracks = row.tracks.map { track -> track.toSharedTrackRowUi(coverArtUrl) },
+            )
+        },
         recentlyAddedAlbums = recentlyAddedAlbums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
         mixAlbums = mixAlbums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
         recentAlbums = recentAlbums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },

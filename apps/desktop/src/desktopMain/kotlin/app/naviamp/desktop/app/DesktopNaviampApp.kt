@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.NonRestartableComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -525,6 +526,42 @@ fun NaviampApp(
         )
     }
 
+    val sonicHomeDiscoveryController = remember {
+        DesktopSonicHomeDiscoveryController(
+            scope = coroutineScope,
+            storage = storage,
+            playbackEngine = playbackEngine,
+            playlistEngine = playlistEngine,
+            provider = { connectedProvider },
+            sourceId = { connectedSourceId },
+            recentTracks = {
+                listOfNotNull(nowPlayingTrack) + playlistEngine.queue.tracks
+                    .filterNot { track -> track.id == nowPlayingTrack?.id }
+            },
+            playbackSettings = { playbackSettings },
+            playlistCallbacks = { playlistCallbacksRef.value ?: error("Playlist callbacks are not ready.") },
+            stopRadioContinuation = radioController::stopContinuation,
+            clearShuffleSnapshot = playbackController::clearShuffleSnapshot,
+            setOpenPlayerOnTrackStart = { shouldOpen -> openPlayerOnTrackStart = shouldOpen },
+            setConnectionStatus = { status -> connectionStatus = status },
+        )
+    }
+
+    LaunchedEffect(
+        connectedProvider,
+        connectedSourceId,
+        playbackSettings.sonicSimilarityEnabled,
+        connectedProvider?.capabilities?.supportsSonicSimilarity,
+        libraryController.syncing,
+        nowPlayingTrack?.id,
+        playbackQueue.tracks.size,
+    ) {
+        val enabled = playbackSettings.sonicSimilarityEnabled &&
+            connectedProvider?.capabilities?.supportsSonicSimilarity == true &&
+            !libraryController.syncing
+        sonicHomeDiscoveryController.loadIfNeeded(enabled)
+    }
+
     val searchController = remember {
         DesktopSearchController(
         settingsStore = settingsStore,
@@ -898,6 +935,7 @@ fun NaviampApp(
                             connectionStatus = connectionStatus,
                             homeStatus = homeStatus,
                             homeContent = homeContent,
+                            sonicHomeDiscoveryRows = sonicHomeDiscoveryController.rows,
                             coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
                             appActions = appActions,
                             playlistsController = playlistsController,
@@ -1035,6 +1073,7 @@ fun NaviampApp(
                             onClearLibrary = { appActions.clearLibraryData() },
                             onRefreshLibrary = { libraryController.startLibrarySync(force = true) },
                             onResetDatabase = { appActions.resetDatabase() },
+                            onSonicHomeDiscoveryTrackAction = sonicHomeDiscoveryController::handleAction,
                         )
                         DesktopAppDialogs(
                             appColors = appColors,

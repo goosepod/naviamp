@@ -92,10 +92,10 @@ Outcome: superseded by Phase 3.1. Sonic similarity should behave as the preferre
 
 ### Phase 6: Home Discovery Rows
 
-- [ ] Add home rows for "More like recent plays", "Sonic deep cuts", and "Similar to starred tracks".
-- [ ] Load rows lazily after connection and library data are ready.
-- [ ] Cache generated rows for the session to avoid repeated server calls.
-- [ ] Fall back silently when capability is unavailable.
+- [x] Add home rows for "More like recent plays", "Sonic deep cuts", and "Similar to starred tracks".
+- [x] Load rows lazily after connection and library data are ready.
+- [x] Cache generated rows for the session to avoid repeated server calls.
+- [x] Fall back silently when capability is unavailable.
 
 ### Phase 7: Artist and Album Similarity
 

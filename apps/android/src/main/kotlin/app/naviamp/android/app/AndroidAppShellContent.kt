@@ -156,6 +156,7 @@ fun AndroidAppShellContent(
         onRadioStationSave = actions.onRadioStationSave,
         onStationAction = actions.onStationAction,
         onHomeStationSelected = actions.onHomeStationSelected,
+        onSonicDiscoveryTrackAction = actions.onSonicDiscoveryTrackAction,
         onOpenNowPlaying = actions.onOpenNowPlaying,
         onCloseNowPlaying = actions.onCloseNowPlaying,
         onNowPlayingPlaybackAction = actions.onNowPlayingPlaybackAction,

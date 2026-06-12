@@ -39,6 +39,7 @@ fun SharedHome(
     onInternetRadioStationSelected: (SharedMediaItemUi) -> Unit,
     onMixBuilderSelected: (SharedMixBuilderUi) -> Unit,
     onHomeStationSelected: (SharedHomeStationUi) -> Unit,
+    onSonicDiscoveryTrackAction: (SharedHomeDiscoveryTrackActionRequest) -> Unit = {},
     onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -67,6 +68,7 @@ fun SharedHome(
             emptyText = "Start a radio station to build this list.",
         )
         MixBuilderSection(home.mixBuilders, colors, onMixBuilderSelected)
+        SonicDiscoverySection(home.sonicDiscoveryRows, colors, onSonicDiscoveryTrackAction)
         HomeSection(
             "Recently Added In Music",
             home.recentlyAddedAlbums,
@@ -97,6 +99,54 @@ fun SharedHome(
             HomeSection("More In $title", home.genreSpotlightAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
         }
         HomeSection("From ${home.decadeLabel}", home.decadeAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
+    }
+}
+
+@Composable
+private fun SonicDiscoverySection(
+    rows: List<SharedHomeDiscoveryTrackRowUi>,
+    colors: NaviampColors,
+    onTrackAction: (SharedHomeDiscoveryTrackActionRequest) -> Unit,
+) {
+    rows.forEach { row ->
+        if (row.tracks.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                SectionHeader(row.title.uppercase(), colors)
+                row.tracks.forEach { track ->
+                    TrackRow(
+                        track = track,
+                        colors = colors,
+                        onTrackSelected = {
+                            onTrackAction(
+                                SharedHomeDiscoveryTrackActionRequest(
+                                    rowId = row.id,
+                                    track = track,
+                                    action = SharedTrackRowAction.Select,
+                                ),
+                            )
+                        },
+                        onAddToQueue = {
+                            onTrackAction(
+                                SharedHomeDiscoveryTrackActionRequest(
+                                    rowId = row.id,
+                                    track = track,
+                                    action = SharedTrackRowAction.AddToQueue,
+                                ),
+                            )
+                        },
+                        onTrackAction = { request ->
+                            onTrackAction(
+                                SharedHomeDiscoveryTrackActionRequest(
+                                    rowId = row.id,
+                                    track = request.track,
+                                    action = request.action,
+                                ),
+                            )
+                        },
+                    )
+                }
+            }
+        }
     }
 }
 
