@@ -1455,6 +1455,8 @@ Progress notes:
 - Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 - Added shared media-item action requests and dispatch helpers for non-track rows. `SharedMediaRow` now emits typed select/favorite actions, playlist list rows route play/shuffle/queue/download/playlist/rename/edit/delete through shared media-item requests, and artist-detail album rows route radio/download/queue/playlist/favorite through the same request path.
 - Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
+- Added typed row action requests for the remaining downloaded-track and internet-radio station row families. Download rows now route select/add-to-playlist/create-playlist/remove through `DownloadedTrackActionRequest`, and station rows route select/edit/delete through `StationRowActionRequest`.
+- Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 

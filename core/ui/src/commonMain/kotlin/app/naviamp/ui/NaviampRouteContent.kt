@@ -316,6 +316,19 @@ internal fun DownloadsContent(
     onRemoveDownload: (NaviampDownloadedTrackUi) -> Unit,
 ) {
     var downloadForPlaylist by remember { mutableStateOf<NaviampDownloadedTrackUi?>(null) }
+    val handleDownloadAction: (DownloadedTrackActionRequest) -> Unit = { request ->
+        handleDownloadedTrackAction(
+            request,
+            DownloadedTrackActionHandlers(
+                onSelect = onTrackSelected,
+                onAddToPlaylist = { download, playlist ->
+                    if (playlist == null) downloadForPlaylist = download else onAddToPlaylist(download, playlist)
+                },
+                onCreatePlaylistAndAdd = onCreatePlaylistAndAdd,
+                onRemove = onRemoveDownload,
+            ),
+        )
+    }
     val remainingBytes = (maxDownloadBytes - downloadBytes).coerceAtLeast(0L)
     val usedPercent = if (maxDownloadBytes > 0L) {
         ((downloadBytes.toDouble() / maxDownloadBytes.toDouble()) * 100.0).coerceIn(0.0, 100.0)
@@ -358,7 +371,9 @@ internal fun DownloadsContent(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onTrackSelected(download) }
+                    .clickable {
+                        handleDownloadAction(DownloadedTrackActionRequest(download, DownloadedTrackAction.Select))
+                    }
                     .padding(vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -376,13 +391,21 @@ internal fun DownloadsContent(
                             NaviampAction.AddToPlaylist -> NaviampRowMenuItem(
                                 label = action.label,
                                 icon = action.icon,
-                                onClick = { downloadForPlaylist = download },
+                                onClick = {
+                                    handleDownloadAction(
+                                        DownloadedTrackActionRequest(download, DownloadedTrackAction.AddToPlaylist),
+                                    )
+                                },
                                 enabled = action.enabled,
                             )
                             NaviampAction.RemoveDownload -> NaviampRowMenuItem(
                                 label = action.label,
                                 icon = action.icon,
-                                onClick = { onRemoveDownload(download) },
+                                onClick = {
+                                    handleDownloadAction(
+                                        DownloadedTrackActionRequest(download, DownloadedTrackAction.Remove),
+                                    )
+                                },
                                 enabled = action.enabled,
                             )
                             else -> null
@@ -402,11 +425,23 @@ internal fun DownloadsContent(
             onDismissRequest = { downloadForPlaylist = null },
             onAddToExisting = { playlist ->
                 downloadForPlaylist = null
-                onAddToPlaylist(download, playlist)
+                handleDownloadAction(
+                    DownloadedTrackActionRequest(
+                        download = download,
+                        action = DownloadedTrackAction.AddToPlaylist,
+                        playlistChoice = playlist,
+                    ),
+                )
             },
             onCreateAndAdd = { name ->
                 downloadForPlaylist = null
-                onCreatePlaylistAndAdd(download, name)
+                handleDownloadAction(
+                    DownloadedTrackActionRequest(
+                        download = download,
+                        action = DownloadedTrackAction.CreatePlaylistAndAdd,
+                        playlistName = name,
+                    ),
+                )
             },
         )
     }

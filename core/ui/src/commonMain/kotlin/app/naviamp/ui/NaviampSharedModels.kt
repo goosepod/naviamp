@@ -134,6 +134,40 @@ data class NaviampDownloadedTrackUi(
     val sizeBytes: Long,
 )
 
+enum class DownloadedTrackAction {
+    Select,
+    AddToPlaylist,
+    CreatePlaylistAndAdd,
+    Remove,
+}
+
+data class DownloadedTrackActionRequest(
+    val download: NaviampDownloadedTrackUi,
+    val action: DownloadedTrackAction,
+    val playlistChoice: NaviampPlaylistChoiceUi? = null,
+    val playlistName: String? = null,
+)
+
+data class DownloadedTrackActionHandlers(
+    val onSelect: (NaviampDownloadedTrackUi) -> Unit = {},
+    val onAddToPlaylist: (NaviampDownloadedTrackUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
+    val onCreatePlaylistAndAdd: (NaviampDownloadedTrackUi, String) -> Unit = { _, _ -> },
+    val onRemove: (NaviampDownloadedTrackUi) -> Unit = {},
+)
+
+fun handleDownloadedTrackAction(
+    request: DownloadedTrackActionRequest,
+    handlers: DownloadedTrackActionHandlers,
+) {
+    when (request.action) {
+        DownloadedTrackAction.Select -> handlers.onSelect(request.download)
+        DownloadedTrackAction.AddToPlaylist -> handlers.onAddToPlaylist(request.download, request.playlistChoice)
+        DownloadedTrackAction.CreatePlaylistAndAdd ->
+            request.playlistName?.let { name -> handlers.onCreatePlaylistAndAdd(request.download, name) }
+        DownloadedTrackAction.Remove -> handlers.onRemove(request.download)
+    }
+}
+
 data class SharedMediaItemUi(
     val id: String,
     val title: String,
@@ -284,6 +318,34 @@ data class SharedHomeStationUi(
     val title: String,
     val subtitle: String,
 )
+
+enum class StationRowAction {
+    Select,
+    Edit,
+    Delete,
+}
+
+data class StationRowActionRequest(
+    val station: SharedMediaItemUi,
+    val action: StationRowAction,
+)
+
+data class StationRowActionHandlers(
+    val onSelect: (SharedMediaItemUi) -> Unit = {},
+    val onEdit: (SharedMediaItemUi) -> Unit = {},
+    val onDelete: (SharedMediaItemUi) -> Unit = {},
+)
+
+fun handleStationRowAction(
+    request: StationRowActionRequest,
+    handlers: StationRowActionHandlers,
+) {
+    when (request.action) {
+        StationRowAction.Select -> handlers.onSelect(request.station)
+        StationRowAction.Edit -> handlers.onEdit(request.station)
+        StationRowAction.Delete -> handlers.onDelete(request.station)
+    }
+}
 
 data class SharedSearchResultsUi(
     val artists: List<SharedMediaItemUi> = emptyList(),

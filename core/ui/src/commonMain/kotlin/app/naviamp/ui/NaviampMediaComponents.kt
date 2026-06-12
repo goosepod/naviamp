@@ -834,6 +834,17 @@ fun InternetRadioContent(
     var stationBeingEdited by remember { mutableStateOf<InternetRadioStation?>(null) }
     var stationBeingDeleted by remember { mutableStateOf<InternetRadioStation?>(null) }
     var creatingStation by remember { mutableStateOf(false) }
+    val stationById = remember(stations) { stations.associateBy { station -> station.id } }
+    val handleStationAction: (StationRowActionRequest) -> Unit = { request ->
+        handleStationRowAction(
+            request,
+            StationRowActionHandlers(
+                onSelect = { item -> stationById[item.id]?.let(onStationSelected) },
+                onEdit = { item -> stationBeingEdited = stationById[item.id] },
+                onDelete = { item -> stationBeingDeleted = stationById[item.id] },
+            ),
+        )
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
@@ -853,10 +864,22 @@ fun InternetRadioContent(
             Text("Saved internet radio stations will appear here.", color = colors.secondaryText, fontSize = 12.sp)
         }
         stations.sortedBy { it.name.lowercase() }.forEach { station ->
+            val stationItem = station.toSharedMediaItemUi()
             SharedMediaRow(
-                item = station.toSharedMediaItemUi(),
+                item = stationItem,
                 colors = colors,
                 onClick = { onStationSelected(station) },
+                onItemAction = { request ->
+                    when (request.action) {
+                        SharedMediaItemAction.Select ->
+                            handleStationAction(StationRowActionRequest(stationItem, StationRowAction.Select))
+                        else ->
+                            handleSharedMediaItemAction(
+                                request,
+                                SharedMediaItemActionHandlers(onSelect = { onStationSelected(station) }),
+                            )
+                    }
+                },
                 menuItems = stationRowActions(
                     canEdit = onSaveStation != null,
                     canDelete = onDeleteStation != null,
@@ -865,13 +888,17 @@ fun InternetRadioContent(
                         NaviampAction.EditStation -> NaviampRowMenuItem(
                             label = action.label,
                             icon = action.icon,
-                            onClick = { stationBeingEdited = station },
+                            onClick = {
+                                handleStationAction(StationRowActionRequest(stationItem, StationRowAction.Edit))
+                            },
                             enabled = action.enabled,
                         )
                         NaviampAction.DeleteStation -> NaviampRowMenuItem(
                             label = action.label,
                             icon = action.icon,
-                            onClick = { stationBeingDeleted = station },
+                            onClick = {
+                                handleStationAction(StationRowActionRequest(stationItem, StationRowAction.Delete))
+                            },
                             enabled = action.enabled,
                         )
                         else -> null

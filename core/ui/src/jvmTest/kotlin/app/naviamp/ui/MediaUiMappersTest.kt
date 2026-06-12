@@ -191,6 +191,42 @@ class MediaUiMappersTest {
     }
 
     @Test
+    fun downloadedTrackActionDispatchesCreatePlaylistPayload() {
+        var received: Pair<String, String>? = null
+        val download = NaviampDownloadedTrackUi(
+            id = "/downloads/track.mp3",
+            track = SharedTrackRowUi(id = "track-1", title = "Track", subtitle = "Artist"),
+            sizeBytes = 123L,
+        )
+
+        handleDownloadedTrackAction(
+            DownloadedTrackActionRequest(
+                download = download,
+                action = DownloadedTrackAction.CreatePlaylistAndAdd,
+                playlistName = "New Mix",
+            ),
+            DownloadedTrackActionHandlers(
+                onCreatePlaylistAndAdd = { item, name -> received = item.id to name },
+            ),
+        )
+
+        assertEquals("/downloads/track.mp3" to "New Mix", received)
+    }
+
+    @Test
+    fun stationRowActionDispatchesDelete() {
+        var deletedId: String? = null
+        val station = SharedMediaItemUi(id = "station-1", title = "Station", subtitle = "Radio")
+
+        handleStationRowAction(
+            StationRowActionRequest(station, StationRowAction.Delete),
+            StationRowActionHandlers(onDelete = { item -> deletedId = item.id }),
+        )
+
+        assertEquals("station-1", deletedId)
+    }
+
+    @Test
     fun nowPlayingSectionsUseTrackIdsForTrackListSources() {
         val tracks = listOf(track("one"), track("two"), track("three"))
         val related = listOf(track("related"))
