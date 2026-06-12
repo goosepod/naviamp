@@ -688,23 +688,64 @@ Phase 8 close-out:
 
 ## Phase 9: Verification and Diff Discipline
 
-- [ ] Add a lightweight architectural checklist to feature work: one shared path first, platform adapters second.
-- [ ] Add focused tests around shared services before platform wiring.
-- [ ] Establish expected build commands for each cleanup slice.
-- [ ] Track file-count spread for representative changes.
-- [ ] Before merging each slice, record what platform duplication was removed.
-- [ ] For each slice, report how many platform-prefixed files got thinner.
-- [ ] For each slice, report which shared services were created or composed.
+- [x] Add a lightweight architectural checklist to feature work: one shared path first, platform adapters second.
+- [x] Add focused tests around shared services before platform wiring.
+- [x] Establish expected build commands for each cleanup slice.
+- [x] Track file-count spread for representative changes.
+- [x] Before merging each slice, record what platform duplication was removed.
+- [x] For each slice, report how many platform-prefixed files got thinner.
+- [x] For each slice, report which shared services were created or composed.
+
+Phase 9 discipline:
+
+- Before implementation, identify the shared user intent or shared model first. If Android and Desktop need the same decision, add or extend a shared domain/UI helper before changing platform adapters.
+- Add focused shared tests before platform wiring whenever the slice creates or changes a shared decision, result model, mapper, coordinator, or action contract. Platform-only lifecycle/UI moves can skip shared tests only when no shared behavior changes.
+- Keep platform adapters thin: platform code may resolve OS/lifecycle/storage/audio/notification/window concerns, then pass explicit inputs into shared services and apply typed results back to platform state.
+- Record the exact verification command in the progress log before committing each slice.
+- Record file-count spread for representative root/platform files with `wc -l <files>` whenever a slice claims root decomposition or platform thinning.
+- Before merging, each slice progress note must say what duplication was removed, which platform-prefixed files got thinner, which shared services/helpers were created or composed, and which platform-only boundaries remain.
+
+Phase 9 slice close-out template:
+
+```text
+- Removed duplication:
+- Shared services/helpers created or composed:
+- Platform-prefixed files thinner:
+- Platform-only boundaries remaining:
+- File-count spread:
+- Verification passed:
+```
 
 ## Verification commands
 
-Use these after meaningful slices:
+Use these after meaningful slices on macOS/Linux:
+
+```bash
+ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:domain:allTests
+ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:ui:jvmTest
+ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop
+ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin
+ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin
+```
+
+Use these after meaningful slices on Windows:
 
 ```powershell
 .\gradlew.bat :core:domain:allTests
+.\gradlew.bat :core:ui:jvmTest
 .\gradlew.bat :apps:android:assembleDebug
 .\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop
 .\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:packageReleaseDistributable
+```
+
+Use these reporting commands when a slice claims platform thinning:
+
+```bash
+wc -l apps/desktop/src/desktopMain/kotlin/app/naviamp/desktop/app/DesktopNaviampApp.kt \
+  apps/android/src/main/kotlin/app/naviamp/android/app/MainActivity.kt \
+  apps/android/src/main/kotlin/app/naviamp/android/app/NaviampAndroidApp.kt
+git diff --stat
+git diff --check
 ```
 
 ## First Implementation Slice
@@ -1569,6 +1610,9 @@ Progress notes:
 - Phase 7 close-out verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 - Finished Phase 8 by auditing the shared UI route/action contracts and removing the remaining production `SharedMediaItemActionRequest` construction from shared UI and desktop panels. `sharedMediaItemActionRequest` and `SharedMediaItemUi.actionRequest` now centralize media-item action payload creation, including shuffle, playlist choice/name, text values, and explicit item kind.
 - Phase 8 close-out verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
+- Finished Phase 9 by adding the lightweight architecture checklist, shared-test expectation, macOS/Linux and Windows verification command matrix, file-count reporting commands, and per-slice close-out template.
+- Phase 9 file-count baseline for future platform-thinning claims: `DesktopNaviampApp.kt` 1,029 lines, `MainActivity.kt` 73 lines, `NaviampAndroidApp.kt` 445 lines.
+- Phase 9 close-out verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 
