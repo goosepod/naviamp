@@ -1480,7 +1480,9 @@ Progress notes:
 - Collapsed desktop now-playing current-track actions onto `NowPlayingCurrentTrackActionRequest`. Favorite, rating, artist/album navigation, track radio, download, and add-to-playlist now leave `DesktopNowPlayingPanel` through one typed shared UI request, with `DesktopNaviampApp` acting as the thin platform adapter.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 - Collapsed the remaining `NaviampNowPlayingActions` callback surface into typed request groups. Playback controls, display/lyrics/visualizer actions, current-track actions, queue saves, sleep-timer actions, item selection, and queue-item menu actions now leave shared now-playing UI through typed dispatchers instead of individual callback fields; desktop and shared wrappers translate those requests at their platform boundary.
-- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:ui:jvmTest :apps:desktop:compileKotlinDesktop`.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
+- Threaded the now-playing typed request groups through `NaviampSharedAppShell`, `ConnectedContent`, `FullNowPlaying`, the shared mini-player, and Android shell contracts/content. The shared shell and Android boundary now pass playback, display, current-track, queue, sleep-timer, selection, and queue-item actions as grouped requests instead of re-expanding them into the old callback cluster.
+- Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 

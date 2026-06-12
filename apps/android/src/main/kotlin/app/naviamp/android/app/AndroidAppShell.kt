@@ -28,8 +28,20 @@ import app.naviamp.ui.NaviampNowPlayingItemUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampSharedAppShell
 import app.naviamp.ui.NaviampVisualizer
+import app.naviamp.ui.NowPlayingCurrentTrackAction
+import app.naviamp.ui.NowPlayingCurrentTrackUiActionRequest
+import app.naviamp.ui.NowPlayingDisplayAction
+import app.naviamp.ui.NowPlayingDisplayActionRequest
 import app.naviamp.ui.NowPlayingItemAction
 import app.naviamp.ui.NowPlayingItemActionRequest
+import app.naviamp.ui.NowPlayingPlaybackAction
+import app.naviamp.ui.NowPlayingPlaybackActionRequest
+import app.naviamp.ui.NowPlayingQueueAction
+import app.naviamp.ui.NowPlayingQueueActionRequest
+import app.naviamp.ui.NowPlayingSelectionAction
+import app.naviamp.ui.NowPlayingSelectionActionRequest
+import app.naviamp.ui.NowPlayingSleepTimerAction
+import app.naviamp.ui.NowPlayingSleepTimerActionRequest
 import app.naviamp.ui.NowPlayingUi
 import app.naviamp.ui.SharedAlbumDetailUi
 import app.naviamp.ui.SharedAlbumMixBuilderUi
@@ -557,59 +569,99 @@ fun androidAppShellActions(
                     closeActiveDetail()
                 }
             },
-            onPause = playbackEngine::pause,
-            onResume = handleShellResume,
-            onStop = playbackEngine::stop,
-            onPrevious = { playAdjacentTrack(-1) },
-            onNext = { playAdjacentTrack(1) },
-            onSeek = performSeek,
-            onVolumeChanged = { percent ->
-                val command = playbackVolumeCommand(
-                    requestedPercent = percent,
-                    supportsSoftwareVolume = playbackEngine.supportsSoftwareVolume,
-                )
-                volumePercent = command.volumePercent
-                if (command.shouldApplyToEngine) {
-                    playbackEngine.setVolume(command.volumePercent)
+            onNowPlayingPlaybackAction = { request ->
+                when (request.action) {
+                    NowPlayingPlaybackAction.Pause -> playbackEngine.pause()
+                    NowPlayingPlaybackAction.Resume -> handleShellResume()
+                    NowPlayingPlaybackAction.PlayCurrent -> handleShellResume()
+                    NowPlayingPlaybackAction.Seek -> request.seekSeconds?.let(performSeek)
+                    NowPlayingPlaybackAction.Previous -> playAdjacentTrack(-1)
+                    NowPlayingPlaybackAction.Next -> playAdjacentTrack(1)
+                    NowPlayingPlaybackAction.ToggleShuffle -> handleShellToggleShuffle()
+                    NowPlayingPlaybackAction.CycleRepeatMode -> {
+                        repeatMode = PlaybackQueueManager().cycleRepeatMode(repeatMode)
+                    }
+                    NowPlayingPlaybackAction.ChangeVolume -> request.volumePercent?.let { percent ->
+                        val command = playbackVolumeCommand(
+                            requestedPercent = percent,
+                            supportsSoftwareVolume = playbackEngine.supportsSoftwareVolume,
+                        )
+                        volumePercent = command.volumePercent
+                        if (command.shouldApplyToEngine) {
+                            playbackEngine.setVolume(command.volumePercent)
+                        }
+                    }
                 }
             },
-            onToggleShuffle = handleShellToggleShuffle,
-            onCycleRepeatMode = {
-                repeatMode = PlaybackQueueManager().cycleRepeatMode(repeatMode)
-            },
-            onToggleLyrics = {
-                lyricsVisible = !lyricsVisible
-                if (lyricsVisible) {
-                    nowPlaying?.let(loadLyrics)
+            onNowPlayingDisplayAction = { request ->
+                when (request.action) {
+                    NowPlayingDisplayAction.ToggleLyrics -> {
+                        lyricsVisible = !lyricsVisible
+                        if (lyricsVisible) {
+                            nowPlaying?.let(loadLyrics)
+                        }
+                    }
+                    NowPlayingDisplayAction.ChangeLyricsOffset ->
+                        request.lyricsOffsetMillis?.let(handleLyricsOffsetChanged)
+                    NowPlayingDisplayAction.ToggleVisualizer ->
+                        visualizerRequestedVisible = !visualizerRequestedVisible
+                    NowPlayingDisplayAction.SelectVisualizer -> request.visualizer?.let { visualizer ->
+                        selectedVisualizer = visualizer
+                        settingsStore.saveVisualizerSettings(VisualizerSettings(selectedVisualizer = visualizer.name))
+                    }
+                    NowPlayingDisplayAction.Collapse -> {
+                        if (nowPlayingOpen) {
+                            nowPlayingOpen = false
+                        } else {
+                            closeActiveDetail()
+                        }
+                    }
                 }
             },
-            onLyricsOffsetChanged = handleLyricsOffsetChanged,
-            onToggleVisualizer = { visualizerRequestedVisible = !visualizerRequestedVisible },
-            onVisualizerSelected = { visualizer ->
-                selectedVisualizer = visualizer
-                settingsStore.saveVisualizerSettings(VisualizerSettings(selectedVisualizer = visualizer.name))
+            onNowPlayingCurrentTrackAction = { request: NowPlayingCurrentTrackUiActionRequest ->
+                when (request.action) {
+                    NowPlayingCurrentTrackAction.StartRadio -> handleShellTrackRadio()
+                    NowPlayingCurrentTrackAction.AddToPlaylist ->
+                        handleNowPlayingAddToPlaylist(request.playlistChoice)
+                    NowPlayingCurrentTrackAction.CreatePlaylistAndAdd ->
+                        request.playlistName?.let(handleNowPlayingCreatePlaylistAndAdd)
+                    NowPlayingCurrentTrackAction.Download -> nowPlaying?.let(downloadTrack)
+                    NowPlayingCurrentTrackAction.GoToAlbum -> handleShellGoToAlbum()
+                    NowPlayingCurrentTrackAction.GoToArtist -> handleShellGoToArtist()
+                    NowPlayingCurrentTrackAction.ToggleFavorite -> toggleCurrentFavorite()
+                    NowPlayingCurrentTrackAction.SetRating -> handleShellRatingSelected(request.rating)
+                }
             },
-            onTrackRadio = handleShellTrackRadio,
-            onAddToPlaylist = handleNowPlayingAddToPlaylist,
-            onCreatePlaylistAndAdd = handleNowPlayingCreatePlaylistAndAdd,
-            onSaveQueueAsPlaylist = handleSaveQueueAsPlaylist,
-            onSleepTimerSelected = handleSleepTimerSelected,
-            onCancelSleepTimer = handleCancelSleepTimer,
-            onDownloadTrack = { nowPlaying?.let(downloadTrack) },
-            onGoToAlbum = handleShellGoToAlbum,
-            onGoToArtist = handleShellGoToArtist,
-            onQueueItemRadio = handleShellQueueItemRadio,
-            onQueueItemPlayNext = handleQueueItemPlayNext,
-            onQueueItemAddToQueue = handleQueueItemAddToQueue,
-            onQueueItemAddToPlaylist = { item, playlist ->
-                resolveNowPlayingItemTrack(item)?.let { addTrackToPlaylist(it, playlist, null) }
+            onNowPlayingQueueAction = { request: NowPlayingQueueActionRequest ->
+                when (request.action) {
+                    NowPlayingQueueAction.SaveQueueAsPlaylist -> handleSaveQueueAsPlaylist(request.playlistName)
+                }
             },
-            onQueueItemCreatePlaylistAndAdd = { item, name ->
-                resolveNowPlayingItemTrack(item)?.let { addTrackToPlaylist(it, null, name) }
+            onNowPlayingSleepTimerAction = { request: NowPlayingSleepTimerActionRequest ->
+                when (request.action) {
+                    NowPlayingSleepTimerAction.Select -> request.request?.let(handleSleepTimerSelected)
+                    NowPlayingSleepTimerAction.Cancel -> handleCancelSleepTimer()
+                }
             },
-            onQueueItemDownload = { item -> resolveNowPlayingItemTrack(item)?.let(downloadTrack) },
+            onNowPlayingSelectionAction = { request: NowPlayingSelectionActionRequest ->
+                when (request.action) {
+                    NowPlayingSelectionAction.SelectQueueItem,
+                    NowPlayingSelectionAction.SelectRelatedItem -> {
+                        handleShellTrackSelected(
+                            SharedTrackRowUi(
+                                id = request.item.id,
+                                title = request.item.title,
+                                subtitle = request.item.subtitle,
+                                coverArtUrl = request.item.coverArtUrl,
+                                meta = request.item.meta,
+                            ),
+                        )
+                    }
+                    NowPlayingSelectionAction.SelectRadioStation ->
+                        homeState.radioStations.firstOrNull { it.id == request.item.id }
+                            ?.let(handleRadioStationSelected)
+                }
+            },
             onQueueItemAction = handleQueueItemAction,
-            onToggleFavorite = { toggleCurrentFavorite() },
-            onRatingSelected = handleShellRatingSelected,
         )
     }

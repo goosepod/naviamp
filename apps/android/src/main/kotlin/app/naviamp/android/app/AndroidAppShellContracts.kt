@@ -4,18 +4,22 @@ import androidx.compose.ui.Modifier
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
-import app.naviamp.domain.playback.SleepTimerRequest
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.ui.NaviampDiagnosticsUi
 import app.naviamp.ui.NaviampDownloadedTrackUi
 import app.naviamp.ui.NaviampLibrarySyncStatusUi
-import app.naviamp.ui.NaviampNowPlayingItemUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.DownloadedTrackActionRequest
+import app.naviamp.ui.NowPlayingCurrentTrackUiActionRequest
+import app.naviamp.ui.NowPlayingDisplayActionRequest
 import app.naviamp.ui.NowPlayingItemActionRequest
+import app.naviamp.ui.NowPlayingPlaybackActionRequest
+import app.naviamp.ui.NowPlayingQueueActionRequest
+import app.naviamp.ui.NowPlayingSelectionActionRequest
+import app.naviamp.ui.NowPlayingSleepTimerActionRequest
 import app.naviamp.ui.NowPlayingUi
 import app.naviamp.ui.SharedAlbumDetailUi
 import app.naviamp.ui.SharedAlbumMixBuilderUi
@@ -164,35 +168,11 @@ data class AndroidAppShellActions(
     val onHomeStationSelected: (SharedHomeStationUi) -> Unit,
     val onOpenNowPlaying: () -> Unit,
     val onCloseNowPlaying: () -> Unit,
-    val onPause: () -> Unit,
-    val onResume: () -> Unit,
-    val onStop: () -> Unit,
-    val onPrevious: () -> Unit,
-    val onNext: () -> Unit,
-    val onSeek: (Double) -> Unit,
-    val onVolumeChanged: (Int) -> Unit,
-    val onToggleShuffle: () -> Unit,
-    val onCycleRepeatMode: () -> Unit,
-    val onToggleLyrics: () -> Unit,
-    val onLyricsOffsetChanged: (Int) -> Unit,
-    val onToggleVisualizer: () -> Unit,
-    val onVisualizerSelected: (NaviampVisualizer) -> Unit,
-    val onTrackRadio: () -> Unit,
-    val onAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit,
-    val onCreatePlaylistAndAdd: (String) -> Unit,
-    val onSaveQueueAsPlaylist: (String) -> Unit,
-    val onSleepTimerSelected: (SleepTimerRequest) -> Unit,
-    val onCancelSleepTimer: () -> Unit,
-    val onDownloadTrack: () -> Unit,
-    val onGoToAlbum: () -> Unit,
-    val onGoToArtist: () -> Unit,
-    val onQueueItemRadio: (NaviampNowPlayingItemUi) -> Unit,
-    val onQueueItemPlayNext: (NaviampNowPlayingItemUi) -> Unit,
-    val onQueueItemAddToQueue: (NaviampNowPlayingItemUi) -> Unit,
-    val onQueueItemAddToPlaylist: (NaviampNowPlayingItemUi, NaviampPlaylistChoiceUi?) -> Unit,
-    val onQueueItemCreatePlaylistAndAdd: (NaviampNowPlayingItemUi, String) -> Unit,
-    val onQueueItemDownload: (NaviampNowPlayingItemUi) -> Unit,
+    val onNowPlayingPlaybackAction: (NowPlayingPlaybackActionRequest) -> Unit,
+    val onNowPlayingDisplayAction: (NowPlayingDisplayActionRequest) -> Unit,
+    val onNowPlayingCurrentTrackAction: (NowPlayingCurrentTrackUiActionRequest) -> Unit,
+    val onNowPlayingQueueAction: (NowPlayingQueueActionRequest) -> Unit,
+    val onNowPlayingSleepTimerAction: (NowPlayingSleepTimerActionRequest) -> Unit,
+    val onNowPlayingSelectionAction: (NowPlayingSelectionActionRequest) -> Unit,
     val onQueueItemAction: (NowPlayingItemActionRequest) -> Unit,
-    val onToggleFavorite: () -> Unit,
-    val onRatingSelected: (Int?) -> Unit,
 )
