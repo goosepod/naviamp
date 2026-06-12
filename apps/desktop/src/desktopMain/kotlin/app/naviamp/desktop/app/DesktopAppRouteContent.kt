@@ -42,6 +42,7 @@ import app.naviamp.ui.SharedGenreMixItemUi
 import app.naviamp.ui.SharedHome
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedMixBuilderUi
+import app.naviamp.ui.SharedTrackRowAction
 import app.naviamp.ui.StationRowAction
 import app.naviamp.ui.toSharedHomeUi
 
@@ -350,11 +351,19 @@ fun ColumnScope.DesktopAppRouteContent(
                     onAlbumAddToQueue = playlistsController::addAlbumToQueue,
                     onAlbumAddToPlaylist = playlistsController::openAlbumAddToPlaylist,
                     onAlbumFavoriteToggle = appActions::toggleAlbumFavorite,
-                    onTrackSelected = appActions::playSearchTrack,
-                    onTrackRadioSelected = appActions::playSearchTrackRadio,
-                    onTrackDownloadSelected = appActions::downloadSearchTrack,
-                    onTrackAddToQueue = appActions::addSearchTrackToQueue,
-                    onTrackAddToPlaylist = appActions::openSearchTrackAddToPlaylist,
+                    onTrackAction = { request ->
+                        val index = searchResults.tracks.indexOfFirst { track -> track.id.value == request.track.id }
+                        if (index >= 0) {
+                            when (request.action) {
+                                SharedTrackRowAction.Select -> appActions.playSearchTrack(index)
+                                SharedTrackRowAction.StartRadio -> appActions.playSearchTrackRadio(index)
+                                SharedTrackRowAction.Download -> appActions.downloadSearchTrack(index)
+                                SharedTrackRowAction.AddToQueue -> appActions.addSearchTrackToQueue(index)
+                                SharedTrackRowAction.AddToPlaylist -> appActions.openSearchTrackAddToPlaylist(index)
+                                SharedTrackRowAction.CreatePlaylistAndAdd -> Unit
+                            }
+                        }
+                    },
                 )
                 DesktopAppRoute.ArtistMix -> Column(
                     modifier = Modifier.fillMaxSize(),

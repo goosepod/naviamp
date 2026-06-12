@@ -34,6 +34,8 @@ import app.naviamp.ui.NaviampRowOverflowMenu
 import app.naviamp.ui.SharedMediaItemKind
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedMediaRow
+import app.naviamp.ui.SharedTrackRowAction
+import app.naviamp.ui.SharedTrackRowActionRequest
 import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.TrackRow
 import app.naviamp.ui.albumRowActions
@@ -200,6 +202,11 @@ fun DesktopTrackRow(
     onDownload: (() -> Unit)? = null,
     onAddToQueue: (() -> Unit)? = null,
     onAddToPlaylist: (() -> Unit)? = null,
+    canStartRadio: Boolean = onStartRadio != null,
+    canDownload: Boolean = onDownload != null,
+    canAddToQueue: Boolean = onAddToQueue != null,
+    canAddToPlaylist: Boolean = onAddToPlaylist != null,
+    onTrackAction: ((SharedTrackRowActionRequest) -> Unit)? = null,
     onClick: (() -> Unit)? = null,
 ) {
     val sharedTrack = SharedTrackRowUi(
@@ -219,6 +226,36 @@ fun DesktopTrackRow(
         onDownload = onDownload?.let { download -> { _: SharedTrackRowUi -> download() } },
         onAddToQueue = onAddToQueue?.let { addToQueue -> { _: SharedTrackRowUi -> addToQueue() } },
         onAddToPlaylist = onAddToPlaylist?.let { addToPlaylist -> { _: SharedTrackRowUi -> addToPlaylist() } },
+        canSelect = onClick != null || onTrackAction != null,
+        canStartRadio = canStartRadio,
+        canDownload = canDownload,
+        canAddToQueue = canAddToQueue,
+        canAddToPlaylist = canAddToPlaylist,
+        onTrackAction = onTrackAction ?: { request ->
+            when (request.action) {
+                SharedTrackRowAction.Select -> {
+                    onClick?.invoke()
+                    Unit
+                }
+                SharedTrackRowAction.StartRadio -> {
+                    onStartRadio?.invoke()
+                    Unit
+                }
+                SharedTrackRowAction.AddToQueue -> {
+                    onAddToQueue?.invoke()
+                    Unit
+                }
+                SharedTrackRowAction.Download -> {
+                    onDownload?.invoke()
+                    Unit
+                }
+                SharedTrackRowAction.AddToPlaylist -> {
+                    onAddToPlaylist?.invoke()
+                    Unit
+                }
+                SharedTrackRowAction.CreatePlaylistAndAdd -> Unit
+            }
+        },
         modifier = modifier,
         background = background,
         horizontalPadding = horizontalPadding,

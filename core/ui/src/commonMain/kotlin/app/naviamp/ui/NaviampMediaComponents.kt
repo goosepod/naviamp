@@ -50,6 +50,11 @@ fun TrackRow(
     onAddToQueue: ((SharedTrackRowUi) -> Unit)? = null,
     onDownload: ((SharedTrackRowUi) -> Unit)? = null,
     onAddToPlaylist: ((SharedTrackRowUi) -> Unit)? = null,
+    canSelect: Boolean = onTrackSelected != null,
+    canStartRadio: Boolean = onStartRadio != null,
+    canAddToQueue: Boolean = onAddToQueue != null,
+    canDownload: Boolean = onDownload != null,
+    canAddToPlaylist: Boolean = onAddToPlaylist != null,
     onTrackAction: (SharedTrackRowActionRequest) -> Unit = { request ->
         when (request.action) {
             SharedTrackRowAction.Select -> onTrackSelected?.invoke(request.track)
@@ -90,7 +95,7 @@ fun TrackRow(
                 },
             )
             .let { rowModifier ->
-                if (onTrackSelected != null) {
+                if (canSelect) {
                     rowModifier.clickable {
                         onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.Select))
                     }
@@ -133,44 +138,52 @@ fun TrackRow(
         }
         trailingContent?.invoke(this)
         val rowActions = trackRowActions(
-            canStartRadio = onStartRadio != null,
-            canDownload = onDownload != null,
-            canAddToQueue = onAddToQueue != null,
-            canAddToPlaylist = onAddToPlaylist != null,
+            canStartRadio = canStartRadio,
+            canDownload = canDownload,
+            canAddToQueue = canAddToQueue,
+            canAddToPlaylist = canAddToPlaylist,
             canShowDetails = track.detailSections.isNotEmpty(),
         ).mapNotNull { action ->
             when (action.action) {
-                NaviampAction.StartTrackRadio -> onStartRadio?.let {
+                NaviampAction.StartTrackRadio -> if (canStartRadio) {
                     NaviampRowMenuItem(
                         action.label,
                         action.icon,
                         { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.StartRadio)) },
                         action.enabled,
                     )
+                } else {
+                    null
                 }
-                NaviampAction.DownloadTrack -> onDownload?.let {
+                NaviampAction.DownloadTrack -> if (canDownload) {
                     NaviampRowMenuItem(
                         action.label,
                         action.icon,
                         { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.Download)) },
                         action.enabled,
                     )
+                } else {
+                    null
                 }
-                NaviampAction.AddToQueue -> onAddToQueue?.let {
+                NaviampAction.AddToQueue -> if (canAddToQueue) {
                     NaviampRowMenuItem(
                         action.label,
                         action.icon,
                         { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.AddToQueue)) },
                         action.enabled,
                     )
+                } else {
+                    null
                 }
-                NaviampAction.AddToPlaylist -> onAddToPlaylist?.let {
+                NaviampAction.AddToPlaylist -> if (canAddToPlaylist) {
                     NaviampRowMenuItem(
                         action.label,
                         action.icon,
                         { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.AddToPlaylist)) },
                         action.enabled,
                     )
+                } else {
+                    null
                 }
                 NaviampAction.TrackDetails -> NaviampRowMenuItem(
                     action.label,

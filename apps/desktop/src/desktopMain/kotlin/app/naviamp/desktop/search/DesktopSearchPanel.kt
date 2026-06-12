@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.sp
 import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
 import app.naviamp.domain.provider.MediaSearchResults
+import app.naviamp.ui.SharedTrackRowActionRequest
 
 @Composable
 fun DesktopSearchPanel(
@@ -39,11 +40,7 @@ fun DesktopSearchPanel(
     onAlbumAddToQueue: (Album) -> Unit,
     onAlbumAddToPlaylist: (Album) -> Unit,
     onAlbumFavoriteToggle: (Album) -> Unit,
-    onTrackSelected: (Int) -> Unit,
-    onTrackRadioSelected: (Int) -> Unit,
-    onTrackDownloadSelected: (Int) -> Unit,
-    onTrackAddToQueue: (Int) -> Unit,
-    onTrackAddToPlaylist: (Int) -> Unit,
+    onTrackAction: (SharedTrackRowActionRequest) -> Unit,
 ) {
     val textFieldColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = appColors.primaryText,
@@ -125,17 +122,17 @@ fun DesktopSearchPanel(
 
         if (results.tracks.isNotEmpty()) {
             SearchSection(title = "Tracks", appColors = appColors) {
-                results.tracks.forEachIndexed { index, track ->
+                results.tracks.forEach { track ->
                     DesktopTrackRow(
                         appColors = appColors,
                         track = track,
                         coverArtUrl = coverArtUrl(track.coverArtId),
                         showCoverArt = true,
-                        onClick = { onTrackSelected(index) },
-                        onStartRadio = { onTrackRadioSelected(index) },
-                        onDownload = { onTrackDownloadSelected(index) },
-                        onAddToQueue = { onTrackAddToQueue(index) },
-                        onAddToPlaylist = { onTrackAddToPlaylist(index) },
+                        canStartRadio = true,
+                        canDownload = true,
+                        canAddToQueue = true,
+                        canAddToPlaylist = true,
+                        onTrackAction = onTrackAction,
                     )
                 }
             }
