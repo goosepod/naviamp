@@ -8,8 +8,6 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.media.MediaMetadataMutationController
-import app.naviamp.domain.media.MediaMetadataStateUpdater
-import app.naviamp.domain.media.MediaTrackMetadataStateUpdater
 import app.naviamp.domain.media.MediaTrackLookupSources
 import app.naviamp.domain.media.findKnownTrack
 import app.naviamp.domain.media.mediaMetadataMutationController
@@ -185,29 +183,21 @@ fun applyAndroidTrackMetadataUpdate(
     playbackEngine: AndroidPlaybackEngine,
     updatedTrack: Track,
 ) {
-    val updatedNowPlaying = androidTrackMetadataStateUpdater(state).applyTrackUpdate(updatedTrack)
-    if (updatedNowPlaying?.id == updatedTrack.id) {
-        updateAndroidNotificationFavoriteState(state, updatedNowPlaying)
-        playbackEngine.updateNotificationMetadata(
-            title = updatedNowPlaying.title,
-            subtitle = updatedNowPlaying.artistName,
-            coverArtUrl = state.provider?.let { updatedNowPlaying.coverArtUrl(it) },
-        )
-    }
+    androidMediaMetadataMutationController(state, playbackEngine).applyTrackUpdateResult(updatedTrack)
 }
 
 fun applyAndroidArtistMetadataUpdate(
     state: AndroidAppState,
     updatedArtist: Artist,
 ) {
-    androidMediaMetadataStateUpdater(state).applyArtistUpdate(updatedArtist)
+    androidMediaMetadataMutationController(state, playbackEngine = null).applyArtistUpdateResult(updatedArtist)
 }
 
 fun applyAndroidAlbumMetadataUpdate(
     state: AndroidAppState,
     updatedAlbum: Album,
 ) {
-    androidMediaMetadataStateUpdater(state).applyAlbumUpdate(updatedAlbum)
+    androidMediaMetadataMutationController(state, playbackEngine = null).applyAlbumUpdateResult(updatedAlbum)
 }
 
 fun toggleAndroidArtistFavorite(
@@ -304,42 +294,6 @@ private fun androidMediaMetadataMutationController(
                     coverArtUrl = state.provider?.let { updatedNowPlaying.coverArtUrl(it) },
                 )
             }
-        },
-    )
-
-private fun androidTrackMetadataStateUpdater(
-    state: AndroidAppState,
-): MediaTrackMetadataStateUpdater =
-    MediaTrackMetadataStateUpdater(
-        nowPlayingTrack = { state.nowPlaying },
-        setNowPlayingTrack = { track -> state.nowPlaying = track },
-        searchResults = { state.searchResults },
-        setSearchResults = { results -> state.contentState = state.contentState.copy(searchResults = results) },
-        albumDetails = { state.albumDetail },
-        setAlbumDetails = { details -> state.contentState = state.contentState.copy(albumDetail = details) },
-        tracks = { state.tracks },
-        setTracks = { tracks -> state.tracks = tracks },
-    )
-
-private fun androidMediaMetadataStateUpdater(
-    state: AndroidAppState,
-): MediaMetadataStateUpdater =
-    MediaMetadataStateUpdater(
-        homeContent = { state.homeState },
-        setHomeContent = { content -> state.homeState = content },
-        searchResults = { state.searchResults },
-        setSearchResults = { results -> state.contentState = state.contentState.copy(searchResults = results) },
-        albumDetails = { state.albumDetail },
-        setAlbumDetails = { details -> state.contentState = state.contentState.copy(albumDetail = details) },
-        artistDetails = { state.artistDetail },
-        setArtistDetails = { details -> state.contentState = state.contentState.copy(artistDetail = details) },
-        updateExtraArtistCollections = { artist ->
-            state.artistMixSelectedArtists = state.artistMixSelectedArtists.withUpdatedArtist(artist)
-            state.artistMixSuggestions = state.artistMixSuggestions.withUpdatedArtist(artist)
-        },
-        updateExtraAlbumCollections = { album ->
-            state.albumMixSelectedAlbums = state.albumMixSelectedAlbums.withUpdatedAlbum(album)
-            state.albumMixSuggestions = state.albumMixSuggestions.withUpdatedAlbum(album)
         },
     )
 

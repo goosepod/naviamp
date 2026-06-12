@@ -104,9 +104,9 @@ class MediaMetadataMutationController(
     private val knownTracks: () -> List<Track> = { emptyList() },
     private val knownArtists: () -> List<Artist> = { emptyList() },
     private val knownAlbums: () -> List<Album> = { emptyList() },
-    private val applyTrackUpdate: (Track) -> Unit,
-    private val applyArtistUpdate: (Artist) -> Unit,
-    private val applyAlbumUpdate: (Album) -> Unit,
+    private val applyTrackUpdateToState: (Track) -> Unit,
+    private val applyArtistUpdateToState: (Artist) -> Unit,
+    private val applyAlbumUpdateToState: (Album) -> Unit,
 ) {
     fun findTrack(trackId: String): Track? =
         knownTracks().firstOrNull { track -> track.id.value == trackId }
@@ -211,6 +211,15 @@ class MediaMetadataMutationController(
         )
     }
 
+    fun applyTrackUpdateResult(track: Track): MediaMetadataMutationResult =
+        applyResult(MediaMetadataMutationResult.TrackUpdated(track))
+
+    fun applyArtistUpdateResult(artist: Artist): MediaMetadataMutationResult =
+        applyResult(MediaMetadataMutationResult.ArtistUpdated(artist))
+
+    fun applyAlbumUpdateResult(album: Album): MediaMetadataMutationResult =
+        applyResult(MediaMetadataMutationResult.AlbumUpdated(album))
+
     private suspend fun <T> runMediaMutation(
         errorMessage: String,
         mutation: suspend () -> T?,
@@ -230,9 +239,9 @@ class MediaMetadataMutationController(
 
     private fun applyResult(result: MediaMetadataMutationResult): MediaMetadataMutationResult {
         when (result) {
-            is MediaMetadataMutationResult.TrackUpdated -> applyTrackUpdate(result.track)
-            is MediaMetadataMutationResult.ArtistUpdated -> applyArtistUpdate(result.artist)
-            is MediaMetadataMutationResult.AlbumUpdated -> applyAlbumUpdate(result.album)
+            is MediaMetadataMutationResult.TrackUpdated -> applyTrackUpdateToState(result.track)
+            is MediaMetadataMutationResult.ArtistUpdated -> applyArtistUpdateToState(result.artist)
+            is MediaMetadataMutationResult.AlbumUpdated -> applyAlbumUpdateToState(result.album)
             is MediaMetadataMutationResult.Failed,
             MediaMetadataMutationResult.Skipped,
             -> Unit
@@ -292,7 +301,7 @@ fun mediaMetadataMutationController(
                 extraAlbums = extraKnownAlbums(),
             )
         },
-        applyTrackUpdate = { updatedTrack ->
+        applyTrackUpdateToState = { updatedTrack ->
             val updatedNowPlaying = MediaTrackMetadataStateUpdater(
                 nowPlayingTrack = nowPlayingTrack,
                 setNowPlayingTrack = setNowPlayingTrack,
@@ -305,7 +314,7 @@ fun mediaMetadataMutationController(
             ).applyTrackUpdate(updatedTrack)
             afterTrackUpdate(updatedTrack, updatedNowPlaying)
         },
-        applyArtistUpdate = { updatedArtist ->
+        applyArtistUpdateToState = { updatedArtist ->
             MediaMetadataStateUpdater(
                 homeContent = homeContent,
                 setHomeContent = setHomeContent,
@@ -319,7 +328,7 @@ fun mediaMetadataMutationController(
                 updateExtraAlbumCollections = updateExtraAlbumCollections,
             ).applyArtistUpdate(updatedArtist)
         },
-        applyAlbumUpdate = { updatedAlbum ->
+        applyAlbumUpdateToState = { updatedAlbum ->
             MediaMetadataStateUpdater(
                 homeContent = homeContent,
                 setHomeContent = setHomeContent,

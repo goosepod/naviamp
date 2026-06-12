@@ -186,6 +186,80 @@ class MediaMetadataMutationControllerTest {
         assertEquals(nowPlaying, callbackNowPlaying)
     }
 
+    @Test
+    fun sharedFactoryAppliesExternalTrackUpdateThroughController() {
+        val track = track("track")
+        var nowPlaying: Track? = track
+        var searchResults = MediaSearchResults(tracks = listOf(track))
+        var callbackTrack: Track? = null
+        var callbackNowPlaying: Track? = null
+        val controller = mediaMetadataMutationController(
+            provider = { null },
+            favoritedAtIso8601 = { "favorite-time" },
+            setStatus = {},
+            trackLookupSources = { MediaTrackLookupSources(primaryTracks = listOf(track)) },
+            homeContent = { HomeContent() },
+            setHomeContent = {},
+            searchResults = { searchResults },
+            setSearchResults = { searchResults = it },
+            albumDetails = { null },
+            setAlbumDetails = {},
+            artistDetails = { null },
+            setArtistDetails = {},
+            nowPlayingTrack = { nowPlaying },
+            setNowPlayingTrack = { nowPlaying = it },
+            afterTrackUpdate = { updatedTrack, updatedNowPlaying ->
+                callbackTrack = updatedTrack
+                callbackNowPlaying = updatedNowPlaying
+            },
+        )
+        val updatedTrack = track.copy(userRating = 3)
+
+        val result = controller.applyTrackUpdateResult(updatedTrack)
+
+        assertEquals(MediaMetadataMutationResult.TrackUpdated(updatedTrack), result)
+        assertEquals(3, nowPlaying?.userRating)
+        assertEquals(3, searchResults.tracks.single().userRating)
+        assertEquals(updatedTrack, callbackTrack)
+        assertEquals(nowPlaying, callbackNowPlaying)
+    }
+
+    @Test
+    fun sharedFactoryAppliesExternalArtistAndAlbumUpdatesThroughController() {
+        val artist = artist("artist")
+        val album = album("album")
+        var homeContent = HomeContent(artists = listOf(artist), recentlyAddedAlbums = listOf(album))
+        var searchResults = MediaSearchResults(artists = listOf(artist), albums = listOf(album))
+        val controller = mediaMetadataMutationController(
+            provider = { null },
+            favoritedAtIso8601 = { "favorite-time" },
+            setStatus = {},
+            trackLookupSources = { MediaTrackLookupSources() },
+            homeContent = { homeContent },
+            setHomeContent = { homeContent = it },
+            searchResults = { searchResults },
+            setSearchResults = { searchResults = it },
+            albumDetails = { null },
+            setAlbumDetails = {},
+            artistDetails = { null },
+            setArtistDetails = {},
+            nowPlayingTrack = { null },
+            setNowPlayingTrack = {},
+        )
+        val updatedArtist = artist.copy(favoritedAtIso8601 = "favorite-time")
+        val updatedAlbum = album.copy(favoritedAtIso8601 = "favorite-time")
+
+        val artistResult = controller.applyArtistUpdateResult(updatedArtist)
+        val albumResult = controller.applyAlbumUpdateResult(updatedAlbum)
+
+        assertEquals(MediaMetadataMutationResult.ArtistUpdated(updatedArtist), artistResult)
+        assertEquals(MediaMetadataMutationResult.AlbumUpdated(updatedAlbum), albumResult)
+        assertEquals(updatedArtist, homeContent.artists.single())
+        assertEquals(updatedArtist, searchResults.artists.single())
+        assertEquals(updatedAlbum, homeContent.recentlyAddedAlbums.single())
+        assertEquals(updatedAlbum, searchResults.albums.single())
+    }
+
     private fun controller(
         provider: MediaProvider? = FakeMediaProvider(),
         setStatus: (String) -> Unit = {},
@@ -203,9 +277,9 @@ class MediaMetadataMutationControllerTest {
             knownTracks = { knownTracks },
             knownArtists = { knownArtists },
             knownAlbums = { knownAlbums },
-            applyTrackUpdate = applyTrackUpdate,
-            applyArtistUpdate = applyArtistUpdate,
-            applyAlbumUpdate = applyAlbumUpdate,
+            applyTrackUpdateToState = applyTrackUpdate,
+            applyArtistUpdateToState = applyArtistUpdate,
+            applyAlbumUpdateToState = applyAlbumUpdate,
         )
 
     private fun providerCapabilities(

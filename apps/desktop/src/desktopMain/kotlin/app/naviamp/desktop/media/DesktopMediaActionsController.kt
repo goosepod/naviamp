@@ -8,8 +8,6 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.cache.TrackMetadataRepository
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.media.MediaMetadataMutationController
-import app.naviamp.domain.media.MediaMetadataStateUpdater
-import app.naviamp.domain.media.MediaTrackMetadataStateUpdater
 import app.naviamp.domain.media.MediaTrackLookupSources
 import app.naviamp.domain.media.mediaMetadataMutationController
 import app.naviamp.domain.media.trackPlaybackSelection
@@ -90,17 +88,15 @@ class DesktopMediaActionsController(
     }
 
     fun applyTrackMetadataUpdate(updatedTrack: Track) {
-        trackMetadataStateUpdater().applyTrackUpdate(updatedTrack)
-        playlistEngine.updateTrack(updatedTrack)
-        trackMetadataRepository.updateTrack(updatedTrack)
+        metadataMutationController().applyTrackUpdateResult(updatedTrack)
     }
 
     fun applyArtistMetadataUpdate(updatedArtist: Artist) {
-        metadataStateUpdater().applyArtistUpdate(updatedArtist)
+        metadataMutationController().applyArtistUpdateResult(updatedArtist)
     }
 
     fun applyAlbumMetadataUpdate(updatedAlbum: Album) {
-        metadataStateUpdater().applyAlbumUpdate(updatedAlbum)
+        metadataMutationController().applyAlbumUpdateResult(updatedAlbum)
     }
 
     fun toggleTrackFavorite(track: Track) {
@@ -160,36 +156,6 @@ class DesktopMediaActionsController(
                 playlistEngine.updateTrack(updatedTrack)
                 trackMetadataRepository.updateTrack(updatedTrack)
             },
-        )
-
-    private fun metadataStateUpdater(): MediaMetadataStateUpdater =
-        MediaMetadataStateUpdater(
-            homeContent = homeContent,
-            setHomeContent = setHomeContent,
-            searchResults = searchResults,
-            setSearchResults = setSearchResults,
-            albumDetails = selectedAlbumDetails,
-            setAlbumDetails = setSelectedAlbumDetails,
-            artistDetails = selectedArtistDetails,
-            setArtistDetails = setSelectedArtistDetails,
-            updateExtraArtistCollections = { artist ->
-                setArtistMixSelectedArtists?.invoke(artist)
-                setArtistMixSuggestions?.invoke(artist)
-            },
-            updateExtraAlbumCollections = { album ->
-                setAlbumMixSelectedAlbums?.invoke(album)
-                setAlbumMixSuggestions?.invoke(album)
-            },
-        )
-
-    private fun trackMetadataStateUpdater(): MediaTrackMetadataStateUpdater =
-        MediaTrackMetadataStateUpdater(
-            nowPlayingTrack = nowPlayingTrack,
-            setNowPlayingTrack = setNowPlayingTrack,
-            searchResults = searchResults,
-            setSearchResults = setSearchResults,
-            albumDetails = selectedAlbumDetails,
-            setAlbumDetails = setSelectedAlbumDetails,
         )
 
     private fun playTracks(

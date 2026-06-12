@@ -555,11 +555,19 @@ Every implementation slice should record:
 
 ## Phase 3: Shared Metadata Actions
 
-- [ ] Move all favorite/rating/metadata mutation decision logic into shared domain services.
-- [ ] Make `MediaMetadataMutationController` the single entry point for artist, album, and track metadata updates.
-- [ ] Replace duplicated status/error handling in platform media controllers with shared result models.
-- [ ] Reduce Android/Desktop media action controllers to adapter wiring.
-- [ ] Add shared tests for mutation state transitions and provider capability handling.
+- [x] Move all favorite/rating/metadata mutation decision logic into shared domain services.
+- [x] Make `MediaMetadataMutationController` the single entry point for artist, album, and track metadata updates.
+- [x] Replace duplicated status/error handling in platform media controllers with shared result models.
+- [x] Reduce Android/Desktop media action controllers to adapter wiring.
+- [x] Add shared tests for mutation state transitions and provider capability handling.
+
+Phase 3 close-out:
+
+- `MediaMetadataMutationController` owns track/artist/album favorite mutations, track rating mutations, provider capability gating, shared failure statuses, and externally supplied metadata updates.
+- Android and desktop media action controllers now route favorite/rating requests and direct metadata refreshes through the shared controller; their remaining logic is adapter-shaped coroutine ownership plus platform side effects.
+- Android-only responsibilities that intentionally remain: optimistic notification favorite state, notification metadata refresh, and Android content-state writes.
+- Desktop-only responsibilities that intentionally remain: playlist-engine track replacement, metadata repository persistence, and desktop connection status plumbing.
+- Shared coverage lives in `MediaMetadataMutationControllerTest`, including mutation result application, missing-item failures, unsupported provider capability skips, factory state propagation, and direct external artist/album/track update propagation.
 
 ## Phase 4: Shared Playlist Mutations
 
