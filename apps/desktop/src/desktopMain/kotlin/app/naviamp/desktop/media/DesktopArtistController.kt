@@ -93,7 +93,7 @@ class DesktopArtistController(
         scope.launch {
             val update = withContext(Dispatchers.IO) {
                 loadSimilarArtistsUpdate(
-                    artistName = artist.name,
+                    artist = artist,
                     fetchLimit = ArtistDetailSimilarArtistsFetchLimit,
                     displayLimit = ArtistDetailSimilarArtistsDisplayLimit,
                     loadSimilarArtists = similarArtistsService::similarArtists,

@@ -127,7 +127,7 @@ fun findAndroidSimilarArtists(
     scope.launch {
         with(state) {
             val update = loadSimilarArtistsUpdate(
-                artistName = artistName,
+                artist = Artist(id = artistId, name = artistName),
                 fetchLimit = ArtistDetailSimilarArtistsFetchLimit,
                 displayLimit = ArtistDetailSimilarArtistsDisplayLimit,
                 loadSimilarArtists = similarArtistsService::similarArtists,

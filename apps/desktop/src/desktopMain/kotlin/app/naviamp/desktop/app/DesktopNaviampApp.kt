@@ -90,8 +90,6 @@ fun NaviampApp(
     val savedRecentInternetRadioStations = remember { settingsStore.loadRecentInternetRadioStations() }
     var cacheStats by remember { mutableStateOf(StorageCacheStats()) }
     var connectedSourceId by remember { mutableStateOf(savedMediaSource?.id) }
-    val popularTracksService = remember(dependencies) { dependencies.popularTracksService { connectedSourceId } }
-    val similarArtistsService = remember(dependencies) { dependencies.similarArtistsService { connectedSourceId } }
     val desktopPlaybackAudioAssets = dependencies.playbackAudioAssets
     val audioMetadataSidecarService = dependencies.audioMetadataSidecarService
     val lyricsSidecarService = dependencies.lyricsSidecarService
@@ -123,6 +121,18 @@ fun NaviampApp(
     var isConnecting by remember { mutableStateOf(false) }
     var connectionStatus by remember { mutableStateOf<String?>(null) }
     var connectedProvider by remember { mutableStateOf<NavidromeProvider?>(null) }
+    val popularTracksService = remember(dependencies) {
+        dependencies.popularTracksService(
+            sourceIdProvider = { connectedSourceId },
+            providerProvider = { connectedProvider },
+        )
+    }
+    val similarArtistsService = remember(dependencies) {
+        dependencies.similarArtistsService(
+            sourceIdProvider = { connectedSourceId },
+            providerProvider = { connectedProvider },
+        )
+    }
     var homeContent by remember { mutableStateOf(HomeContent()) }
     var homeStatus by remember { mutableStateOf<String?>(null) }
     var recentRadioStreams by remember { mutableStateOf(savedRecentRadioStreams) }

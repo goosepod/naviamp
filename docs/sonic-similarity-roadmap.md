@@ -97,6 +97,20 @@ Outcome: superseded by Phase 3.1. Sonic similarity should behave as the preferre
 - [x] Cache generated rows for the session to avoid repeated server calls.
 - [x] Fall back silently when capability is unavailable.
 
+### Phase 6.5: Navidrome Agent Discovery Metadata
+
+This is a related quality-of-life improvement, not a sonic-similarity API feature. Naviamp previously called Deezer directly for artist popular tracks and similar artists. Navidrome can already broker this metadata through its configured external agents (`deezer`, `lastfm`, `listenbrainz`, plugins, and the built-in `local` fallback). Naviamp now asks Navidrome so server owners control metadata sources in one place.
+
+- [x] Add provider-level methods for artist top songs and similar artists.
+- [x] Implement Navidrome `getTopSongs.view` support for artist popular tracks.
+- [x] Implement Navidrome `getArtistInfo2.view` support for similar artists by using `count` and `includeNotPresent=true`.
+- [x] Replace direct Deezer client usage in desktop and Android with a Navidrome-backed provider adapter.
+- [x] Treat `getTopSongs.view` results as already-local library tracks, avoiding external fuzzy matching for popular tracks.
+- [x] Keep local matching where needed so similar artists can open local artists when present.
+- [x] Keep current play, radio, and add-to-queue actions for popular tracks using the normal queue handlers.
+- [x] Remove or demote direct Deezer diagnostics once app code no longer calls Deezer directly.
+- [x] Add provider tests for top-song mapping, similar-artist mapping, empty agent responses, and unavailable metadata fallbacks.
+
 ### Phase 7: Artist and Album Similarity
 
 - [ ] Build artist similarity by sampling representative tracks and grouping sonic matches by artist.

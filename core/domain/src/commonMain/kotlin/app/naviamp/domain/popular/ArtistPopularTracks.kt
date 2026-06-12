@@ -19,6 +19,12 @@ data class ArtistPopularTrackMatch(
     val fetchedAtEpochMillis: Long,
 )
 
+data class ArtistPopularTracksResult(
+    val source: String,
+    val candidates: List<ArtistPopularTrackCandidate> = emptyList(),
+    val matchedTracksBySourceTrackId: Map<String, Track> = emptyMap(),
+)
+
 data class SimilarArtistCandidate(
     val source: String,
     val sourceArtistId: String,
@@ -33,18 +39,19 @@ data class SimilarArtistMatch(
 )
 
 interface ArtistPopularTracksClient {
-    suspend fun popularTracks(artistName: String, limit: Int = 10): List<ArtistPopularTrackCandidate>
+    val source: String
+    suspend fun popularTracks(artist: Artist, limit: Int = 10): ArtistPopularTracksResult
 }
 
 interface SimilarArtistsClient {
-    suspend fun similarArtists(artistName: String, limit: Int = 10): List<SimilarArtistCandidate>
+    suspend fun similarArtists(artist: Artist, limit: Int = 10): List<SimilarArtistCandidate>
 }
 
 interface ArtistPopularTracksRepository {
     fun artistPopularTracks(
         sourceId: String,
         artistId: ArtistId,
-        source: String = DeezerPopularTrackSource,
+        source: String = NavidromeAgentMetadataSource,
     ): List<ArtistPopularTrackMatch>
 
     fun replaceArtistPopularTracks(
@@ -69,23 +76,27 @@ class ArtistPopularTracksService(
         limit: Int = 10,
         forceRefresh: Boolean = false,
     ): List<ArtistPopularTrackMatch> {
-        val cached = repository.artistPopularTracks(sourceId, artist.id, DeezerPopularTrackSource)
+        val source = client.source
+        val cached = repository.artistPopularTracks(sourceId, artist.id, source)
         if (!forceRefresh && cached.isNotEmpty()) return cached.take(limit)
 
-        val candidates = client.popularTracks(artist.name, limit)
+        val result = client.popularTracks(artist, limit)
+        val candidates = result.candidates
         if (candidates.isEmpty()) return cached.take(limit)
 
-        val libraryTracks = libraryTracksForArtist(artist, 5_000)
-        val matchedTracks = matchPopularTracks(candidates, libraryTracks)
+        val matchedTracks = result.matchedTracksBySourceTrackId.ifEmpty {
+            val libraryTracks = libraryTracksForArtist(artist, 5_000)
+            matchPopularTracks(candidates, libraryTracks)
+        }
         repository.replaceArtistPopularTracks(
             sourceId = sourceId,
             artistId = artist.id,
-            source = DeezerPopularTrackSource,
+            source = result.source,
             candidates = candidates,
             matchedTracksBySourceTrackId = matchedTracks,
             fetchedAtEpochMillis = nowMillis(),
         )
-        return repository.artistPopularTracks(sourceId, artist.id, DeezerPopularTrackSource).take(limit)
+        return repository.artistPopularTracks(sourceId, artist.id, result.source).take(limit)
     }
 }
 
@@ -94,10 +105,10 @@ class SimilarArtistsService(
     private val client: SimilarArtistsClient,
 ) {
     suspend fun similarArtists(
-        artistName: String,
+        artist: Artist,
         limit: Int = 10,
     ): List<SimilarArtistMatch> {
-        val candidates = client.similarArtists(artistName, limit)
+        val candidates = client.similarArtists(artist, limit)
         if (candidates.isEmpty()) return emptyList()
 
         val localArtistsByName = candidates
@@ -111,6 +122,16 @@ class SimilarArtistsService(
                 matchedArtist = localArtistsByName[candidate.name.artistSearchText()],
             )
         }
+    }
+
+    suspend fun similarArtists(
+        artistName: String,
+        limit: Int = 10,
+    ): List<SimilarArtistMatch> {
+        val resolvedArtist = libraryArtistsSearch(artistName, 1)
+            .firstOrNull { it.name.equals(artistName, ignoreCase = true) }
+            ?: return emptyList()
+        return similarArtists(resolvedArtist, limit)
     }
 }
 
@@ -190,6 +211,6 @@ private fun String.artistSearchText(): String =
         .replace(Regex("[^a-z0-9]+"), " ")
         .trim()
 
-const val DeezerPopularTrackSource = "deezer"
+const val NavidromeAgentMetadataSource = "navidrome"
 
 internal expect fun currentTimeMillis(): Long

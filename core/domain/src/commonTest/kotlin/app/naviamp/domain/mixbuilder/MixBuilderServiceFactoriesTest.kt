@@ -19,6 +19,7 @@ import app.naviamp.domain.popular.ArtistPopularTracksRepository
 import app.naviamp.domain.popular.ArtistPopularTracksService
 import app.naviamp.domain.popular.ArtistPopularTrackCandidate
 import app.naviamp.domain.popular.ArtistPopularTrackMatch
+import app.naviamp.domain.popular.ArtistPopularTracksResult
 import app.naviamp.domain.popular.SimilarArtistCandidate
 import app.naviamp.domain.popular.SimilarArtistsClient
 import app.naviamp.domain.popular.SimilarArtistsService
@@ -326,15 +327,17 @@ class MixBuilderServiceFactoriesTest {
     }
 
     private object EmptyPopularTracksClient : ArtistPopularTracksClient {
+        override val source: String = "test"
+
         override suspend fun popularTracks(
-            artistName: String,
+            artist: Artist,
             limit: Int,
-        ): List<ArtistPopularTrackCandidate> = emptyList()
+        ): ArtistPopularTracksResult = ArtistPopularTracksResult(source = source)
     }
 
     private object EmptySimilarArtistsClient : SimilarArtistsClient {
         override suspend fun similarArtists(
-            artistName: String,
+            artist: Artist,
             limit: Int,
         ): List<SimilarArtistCandidate> = emptyList()
     }

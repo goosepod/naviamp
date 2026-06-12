@@ -176,9 +176,6 @@ fun androidApiCallRows(): List<Pair<String, String>> =
         NavidromeApiCallHistory.recent(8).forEach { call ->
             add("Navidrome ${call.method} ${call.endpoint}" to call.summary())
         }
-        AndroidPopularTracksApiCallHistory.recent(8).forEach { call ->
-            add("Deezer ${call.endpoint}" to call.summary())
-        }
         AndroidLrclibApiCallHistory.recent(8).forEach { call ->
             add("LRCLIB ${call.endpoint}" to call.summary())
         }
@@ -187,9 +184,6 @@ fun androidApiCallRows(): List<Pair<String, String>> =
     }
 
 private fun NavidromeApiCall.summary(): String =
-    buildApiCallSummary(success = success, durationMillis = durationMillis, errorMessage = errorMessage, url = sanitizedUrl)
-
-private fun AndroidPopularTracksApiCall.summary(): String =
     buildApiCallSummary(success = success, durationMillis = durationMillis, errorMessage = errorMessage, url = sanitizedUrl)
 
 private fun AndroidLrclibApiCall.summary(): String =

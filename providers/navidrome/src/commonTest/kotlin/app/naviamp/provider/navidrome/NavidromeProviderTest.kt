@@ -1,12 +1,14 @@
 package app.naviamp.provider.navidrome
 
 import app.naviamp.domain.AlbumId
+import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.AudioCodec
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.provider.AlbumListType
+import app.naviamp.domain.popular.NavidromeAgentMetadataSource
 import app.naviamp.domain.smartplaylist.SmartPlaylistCondition
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.smartplaylist.SmartPlaylistFields
@@ -543,6 +545,158 @@ class NavidromeProviderTest {
         assertEquals(921, results.tracks.first().audioInfo?.bitrateKbps)
         assertEquals("2026-05-09T13:45:00Z", results.tracks.first().favoritedAtIso8601)
         assertEquals(5, results.tracks.first().userRating)
+    }
+
+    @Test
+    fun popularTracksUsesNavidromeTopSongsAsMatchedLibraryTracks() = runTest {
+        val httpClient = RecordingResponseHttpClient(
+            """
+            {
+              "subsonic-response": {
+                "status": "ok",
+                "topSongs": {
+                  "song": [
+                    {
+                      "id": "track-1",
+                      "title": "Age of Consent",
+                      "artistId": "artist-1",
+                      "artist": "New Order",
+                      "albumId": "album-1",
+                      "album": "Power, Corruption & Lies",
+                      "duration": 315,
+                      "coverArt": "cover-1"
+                    }
+                  ]
+                }
+              }
+            }
+            """.trimIndent(),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        val result = provider.popularTracks(Artist(ArtistId("artist-1"), "New Order"), limit = 12)
+
+        assertEquals(NavidromeAgentMetadataSource, result.source)
+        assertEquals("Age of Consent", result.candidates.single().title)
+        assertEquals("track-1", result.candidates.single().sourceTrackId)
+        assertEquals("track-1", result.matchedTracksBySourceTrackId["track-1"]?.id?.value)
+        assertEquals(
+            "https://music.example.test/rest/getTopSongs.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&artist=New+Order&count=12",
+            httpClient.urls.single(),
+        )
+    }
+
+    @Test
+    fun similarArtistsUsesArtistInfoWithIncludeNotPresent() = runTest {
+        val httpClient = RecordingResponseHttpClient(
+            """
+            {
+              "subsonic-response": {
+                "status": "ok",
+                "artistInfo2": {
+                  "similarArtist": [
+                    {
+                      "id": "artist-2",
+                      "name": "Electronic",
+                      "coverArt": "artist-2-cover",
+                      "musicBrainzId": "55f1f4e6-2a97-4da6-9a7c-b451a2f22475"
+                    }
+                  ]
+                }
+              }
+            }
+            """.trimIndent(),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        val artists = provider.similarArtists(Artist(ArtistId("artist-1"), "New Order"), limit = 20)
+
+        assertEquals(NavidromeAgentMetadataSource, artists.single().source)
+        assertEquals("artist-2", artists.single().sourceArtistId)
+        assertEquals("Electronic", artists.single().name)
+        assertEquals(
+            "https://music.example.test/rest/getCoverArt.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=artist-2-cover",
+            artists.single().imageUrl,
+        )
+        assertEquals("https://musicbrainz.org/artist/55f1f4e6-2a97-4da6-9a7c-b451a2f22475", artists.single().externalUrl)
+        assertEquals(
+            "https://music.example.test/rest/getArtistInfo2.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=artist-1&count=20&includeNotPresent=true",
+            httpClient.urls.single(),
+        )
+    }
+
+    @Test
+    fun similarArtistsBuildsLastFmFallbackWhenNoExternalIdIsPresent() = runTest {
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = FakeHttpClient(
+                """
+                {
+                  "subsonic-response": {
+                    "status": "ok",
+                    "artistInfo2": {
+                      "similarArtist": [
+                        {
+                          "name": "The Postal Service"
+                        }
+                      ]
+                    }
+                  }
+                }
+                """.trimIndent(),
+            ),
+        )
+
+        val artists = provider.similarArtists(Artist(ArtistId("artist-1"), "Death Cab for Cutie"), limit = 20)
+
+        assertEquals("https://www.last.fm/music/The+Postal+Service", artists.single().externalUrl)
+    }
+
+    @Test
+    fun popularTracksHandlesEmptyTopSongsResponse() = runTest {
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = FakeHttpClient(
+                """
+                {
+                  "subsonic-response": {
+                    "status": "ok"
+                  }
+                }
+                """.trimIndent(),
+            ),
+        )
+
+        val result = provider.popularTracks(Artist(ArtistId("artist-1"), "New Order"), limit = 10)
+
+        assertEquals(emptyList(), result.candidates)
+        assertEquals(emptyMap(), result.matchedTracksBySourceTrackId)
+    }
+
+    @Test
+    fun similarArtistsHandlesUnavailableArtistInfo() = runTest {
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = FakeHttpClient(
+                """
+                {
+                  "subsonic-response": {
+                    "status": "ok"
+                  }
+                }
+                """.trimIndent(),
+            ),
+        )
+
+        val artists = provider.similarArtists(Artist(ArtistId("artist-1"), "New Order"), limit = 10)
+
+        assertEquals(emptyList(), artists)
     }
 
     @Test

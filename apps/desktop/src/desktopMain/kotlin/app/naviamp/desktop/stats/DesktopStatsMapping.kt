@@ -105,16 +105,6 @@ private fun recentDesktopApiCallStats(): List<DesktopApiCallStats> =
                 success = call.success,
                 errorMessage = call.errorMessage,
             )
-        } + DesktopPopularTracksApiCallHistory.recent(50).map { call ->
-            DesktopApiCallStats(
-                source = "Deezer",
-                endpoint = call.endpoint,
-                sanitizedUrl = call.sanitizedUrl,
-                startedAtEpochMillis = call.startedAtEpochMillis,
-                durationMillis = call.durationMillis,
-                success = call.success,
-                errorMessage = call.errorMessage,
-            )
         } + DesktopLrclibApiCallHistory.recent(50).map { call ->
             DesktopApiCallStats(
                 source = "LRCLIB",

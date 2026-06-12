@@ -202,14 +202,14 @@ fun similarArtistsUnavailableStatus(error: Throwable): String =
     "Similar artists unavailable: ${error.message ?: "unknown error"}"
 
 suspend fun loadSimilarArtistsUpdate(
-    artistName: String,
+    artist: Artist,
     fetchLimit: Int = ArtistDetailSimilarArtistsFetchLimit,
     displayLimit: Int = ArtistDetailSimilarArtistsDisplayLimit,
-    loadSimilarArtists: suspend (artistName: String, limit: Int) -> List<SimilarArtistMatch>,
+    loadSimilarArtists: suspend (artist: Artist, limit: Int) -> List<SimilarArtistMatch>,
 ): SimilarArtistsUpdate =
     runCatching {
         similarArtistsUpdate(
-            artists = loadSimilarArtists(artistName, fetchLimit),
+            artists = loadSimilarArtists(artist, fetchLimit),
             displayLimit = displayLimit,
         )
     }.getOrElse { error ->

@@ -239,7 +239,7 @@ class MediaDetailFallbacksTest {
                 status = "Similar artists unavailable: failed",
             ),
             loadSimilarArtistsUpdate(
-                artistName = "Artist",
+                artist = Artist(ArtistId("artist"), "Artist"),
                 loadSimilarArtists = { _, _ -> throw RuntimeException("failed") },
             ),
         )

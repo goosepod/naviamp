@@ -11,8 +11,8 @@ class ArtistPopularTracksTest {
         val matches = matchPopularTracks(
             candidates = listOf(
                 ArtistPopularTrackCandidate(
-                    source = DeezerPopularTrackSource,
-                    sourceTrackId = "deezer-1",
+                    source = NavidromeAgentMetadataSource,
+                    sourceTrackId = "source-1",
                     rank = 1,
                     title = "Symphony Of Destruction",
                     albumTitle = "Countdown To Extinction (Deluxe Edition)",
@@ -29,7 +29,7 @@ class ArtistPopularTracksTest {
             ),
         )
 
-        assertEquals("local-1", matches["deezer-1"]?.id?.value)
+        assertEquals("local-1", matches["source-1"]?.id?.value)
     }
 
     @Test
@@ -37,8 +37,8 @@ class ArtistPopularTracksTest {
         val matches = matchPopularTracks(
             candidates = listOf(
                 ArtistPopularTrackCandidate(
-                    source = DeezerPopularTrackSource,
-                    sourceTrackId = "deezer-2",
+                    source = NavidromeAgentMetadataSource,
+                    sourceTrackId = "source-2",
                     rank = 2,
                     title = "Holy Wars...The Punishment Due",
                     albumTitle = "Rust In Peace (2004 Remix / Expanded Edition)",
@@ -55,7 +55,7 @@ class ArtistPopularTracksTest {
             ),
         )
 
-        assertEquals("local-2", matches["deezer-2"]?.id?.value)
+        assertEquals("local-2", matches["source-2"]?.id?.value)
     }
 
     private fun track(

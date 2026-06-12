@@ -30,6 +30,12 @@ import app.naviamp.domain.provider.ProviderCapabilities
 import app.naviamp.domain.provider.SonicSimilarTrack
 import app.naviamp.domain.provider.SonicPathMatch
 import app.naviamp.domain.network.SharedHttpClient
+import app.naviamp.domain.popular.ArtistPopularTrackCandidate
+import app.naviamp.domain.popular.ArtistPopularTracksClient
+import app.naviamp.domain.popular.ArtistPopularTracksResult
+import app.naviamp.domain.popular.NavidromeAgentMetadataSource
+import app.naviamp.domain.popular.SimilarArtistCandidate
+import app.naviamp.domain.popular.SimilarArtistsClient
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -47,9 +53,12 @@ import kotlinx.serialization.json.put
 class NavidromeProvider(
     private val connection: NavidromeConnection,
     private val httpClient: NavidromeHttpClient = createDefaultNavidromeHttpClient(connection.tlsSettings),
-) : MediaProvider {
+) : MediaProvider,
+    ArtistPopularTracksClient,
+    SimilarArtistsClient {
     override val id: ProviderId = ProviderId("navidrome")
     override val displayName: String = "Navidrome"
+    override val source: String = NavidromeAgentMetadataSource
     override val cacheNamespace: String =
         "${id.value}:${connection.normalizedBaseUrl}:${connection.username}"
     private val baseCapabilities: ProviderCapabilities =
@@ -243,6 +252,70 @@ class NavidromeProvider(
             },
         )
     }
+
+    override suspend fun popularTracks(artist: Artist, limit: Int): ArtistPopularTracksResult {
+        val response = get(
+            endpoint = "getTopSongs.view",
+            params = mapOf(
+                "artist" to artist.name,
+                "count" to limit.coerceIn(1, 50).toString(),
+            ),
+        )
+        val tracks = response.subsonicResponse()["topSongs"]
+            ?.jsonObject
+            ?.arrayValue("song")
+            ?.mapNotNull { song -> (song as? JsonObject)?.toTrack() }
+            .orEmpty()
+        val candidates = tracks.mapIndexed { index, track ->
+            ArtistPopularTrackCandidate(
+                source = source,
+                sourceTrackId = track.id.value,
+                rank = index + 1,
+                title = track.title,
+                albumTitle = track.albumTitle,
+                durationSeconds = track.durationSeconds,
+            )
+        }
+        return ArtistPopularTracksResult(
+            source = source,
+            candidates = candidates,
+            matchedTracksBySourceTrackId = tracks.associateBy { it.id.value },
+        )
+    }
+
+    override suspend fun similarArtists(artist: Artist, limit: Int): List<SimilarArtistCandidate> {
+        val info = artistInfoObject(
+            artistId = artist.id,
+            count = limit.coerceIn(1, 50),
+            includeNotPresent = true,
+        ) ?: return emptyList()
+        return info.arrayValue("similarArtist")
+            .mapNotNull { item ->
+                val similarArtist = item as? JsonObject ?: return@mapNotNull null
+                val name = similarArtist.stringValue("name")?.takeIf { it.isNotBlank() }
+                    ?: return@mapNotNull null
+                SimilarArtistCandidate(
+                    source = source,
+                    sourceArtistId = similarArtist.stringValue("id") ?: name,
+                    name = name,
+                    imageUrl = similarArtist.stringValue("artistImageUrl")
+                        ?: similarArtist.stringValue("largeImageUrl")
+                        ?: similarArtist.stringValue("mediumImageUrl")
+                        ?: similarArtist.stringValue("smallImageUrl")
+                        ?: similarArtist.stringValue("coverArt")?.let(::coverArtUrl),
+                    externalUrl = similarArtist.similarArtistExternalUrl(name),
+                )
+            }
+    }
+
+    private fun JsonObject.similarArtistExternalUrl(name: String): String =
+        stringValue("lastFmUrl")
+            ?: stringValue("url")
+            ?: stringValue("artistUrl")
+            ?: stringValue("musicBrainzId")?.takeIf { it.isNotBlank() }?.let { musicBrainzId ->
+                "https://musicbrainz.org/artist/${musicBrainzId.urlEncode()}"
+            }
+            ?: "https://www.last.fm/music/${name.urlEncode()}"
 
     override suspend fun playlists(limit: Int): List<Playlist> {
         val response = get("getPlaylists.view")
@@ -750,14 +823,7 @@ class NavidromeProvider(
     }
 
     private suspend fun artistInfo(artistId: ArtistId): ArtistInfo? {
-        val response = get(
-            endpoint = "getArtistInfo2.view",
-            params = mapOf(
-                "id" to artistId.value,
-                "count" to "0",
-            ),
-        )
-        val info = response.subsonicResponse()["artistInfo2"]?.jsonObject
+        val info = artistInfoObject(artistId, count = 0, includeNotPresent = false)
             ?: return null
 
         return ArtistInfo(
@@ -766,6 +832,22 @@ class NavidromeProvider(
             mediumImageUrl = info.stringValue("mediumImageUrl"),
             largeImageUrl = info.stringValue("largeImageUrl"),
         )
+    }
+
+    private suspend fun artistInfoObject(
+        artistId: ArtistId,
+        count: Int,
+        includeNotPresent: Boolean,
+    ): JsonObject? {
+        val response = get(
+            endpoint = "getArtistInfo2.view",
+            params = mapOf(
+                "id" to artistId.value,
+                "count" to count.coerceIn(0, 50).toString(),
+                "includeNotPresent" to includeNotPresent.toString(),
+            ),
+        )
+        return response.subsonicResponse()["artistInfo2"]?.jsonObject
     }
 
     private suspend fun get(

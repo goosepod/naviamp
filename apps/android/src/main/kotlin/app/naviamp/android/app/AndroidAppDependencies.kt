@@ -12,7 +12,8 @@ import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.lyrics.LyricsSidecarService
 import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.popular.ArtistPopularTracksService
-import app.naviamp.domain.popular.DeezerPopularTracksClient
+import app.naviamp.domain.popular.ProviderArtistPopularTracksClient
+import app.naviamp.domain.popular.ProviderSimilarArtistsClient
 import app.naviamp.domain.popular.SimilarArtistsService
 import app.naviamp.domain.radio.InternetRadioStationManager
 import app.naviamp.provider.navidrome.NavidromeProvider
@@ -28,9 +29,6 @@ class AndroidAppDependencies(
     val providerResponseService: ProviderResponseService = ProviderResponseService(storage)
     val internetRadioStationManager: InternetRadioStationManager =
         InternetRadioStationManager(providerResponseService)
-
-    private val deezerDiscoveryClient: DeezerPopularTracksClient =
-        DeezerPopularTracksClient(AndroidPopularTracksHttpClient())
 
     val playbackAudioAssets: AndroidPlaybackAudioAssets =
         AndroidPlaybackAudioAssets(storage, storage)
@@ -75,7 +73,7 @@ class AndroidAppDependencies(
                         }
                 }
             },
-            client = deezerDiscoveryClient,
+            client = ProviderArtistPopularTracksClient(providerProvider),
         )
 
     fun similarArtistsService(
@@ -92,7 +90,7 @@ class AndroidAppDependencies(
                     providerProvider()?.search(artistName, limit.toInt())?.artists.orEmpty()
                 }
             },
-            client = deezerDiscoveryClient,
+            client = ProviderSimilarArtistsClient(providerProvider),
         )
 
     suspend fun cacheAudioTrack(

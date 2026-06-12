@@ -10,9 +10,11 @@ import app.naviamp.domain.lyrics.LyricsSidecarService
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackSidecarService
 import app.naviamp.domain.popular.ArtistPopularTracksService
-import app.naviamp.domain.popular.DeezerPopularTracksClient
+import app.naviamp.domain.popular.ProviderArtistPopularTracksClient
+import app.naviamp.domain.popular.ProviderSimilarArtistsClient
 import app.naviamp.domain.popular.SimilarArtistsService
 import app.naviamp.domain.waveform.AudioWaveformService
+import app.naviamp.provider.navidrome.NavidromeProvider
 import java.nio.file.Path
 
 class DesktopAppDependencies(
@@ -21,9 +23,6 @@ class DesktopAppDependencies(
     val storage: DesktopStorageDependencies = DesktopStorageDependencies(),
 ) {
     val imageCacheRepository: ImageCacheRepository = storage
-
-    private val deezerDiscoveryClient: DeezerPopularTracksClient =
-        DeezerPopularTracksClient(DesktopPopularTracksHttpClient())
 
     val playbackAudioAssets: DesktopPlaybackAudioAssets =
         DesktopPlaybackAudioAssets(storage, storage)
@@ -58,7 +57,10 @@ class DesktopAppDependencies(
             sidecarStatusRepository = storage,
         )
 
-    fun popularTracksService(sourceIdProvider: () -> String?): ArtistPopularTracksService =
+    fun popularTracksService(
+        sourceIdProvider: () -> String?,
+        providerProvider: () -> NavidromeProvider?,
+    ): ArtistPopularTracksService =
         ArtistPopularTracksService(
             repository = storage,
             libraryTracksForArtist = { artist, limit ->
@@ -66,15 +68,18 @@ class DesktopAppDependencies(
                 storage.libraryTracksForArtist(sourceId, artist.id, limit)
                     .ifEmpty { storage.libraryTracksForArtistName(sourceId, artist.name, limit) }
             },
-            client = deezerDiscoveryClient,
+            client = ProviderArtistPopularTracksClient(providerProvider),
         )
 
-    fun similarArtistsService(sourceIdProvider: () -> String?): SimilarArtistsService =
+    fun similarArtistsService(
+        sourceIdProvider: () -> String?,
+        providerProvider: () -> NavidromeProvider?,
+    ): SimilarArtistsService =
         SimilarArtistsService(
             libraryArtistsSearch = { query, limit ->
                 storage.searchLibrary(sourceIdProvider().orEmpty(), query, limit).artists
             },
-            client = deezerDiscoveryClient,
+            client = ProviderSimilarArtistsClient(providerProvider),
         )
 
     fun playlistEngine(

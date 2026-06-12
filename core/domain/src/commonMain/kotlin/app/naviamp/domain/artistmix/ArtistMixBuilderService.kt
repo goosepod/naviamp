@@ -39,7 +39,7 @@ class ArtistMixBuilderService(
     ): List<Artist> {
         val selectedIds = selectedArtists.map { it.id }.toSet()
         val similarArtists = similarArtistsService
-            .similarArtists(seedArtist.name, ArtistMixSimilarFetchLimit)
+            .similarArtists(seedArtist, ArtistMixSimilarFetchLimit)
             .mapNotNull { it.matchedArtist }
             .distinctBy { it.id }
             .filterNot { it.id in selectedIds }
