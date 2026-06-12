@@ -25,6 +25,7 @@ import app.naviamp.domain.playback.label
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.effectiveForEngine
+import app.naviamp.domain.sonicautoplay.SonicAutoplayService
 import app.naviamp.provider.navidrome.NavidromeApiCall
 import app.naviamp.provider.navidrome.NavidromeApiCallHistory
 import app.naviamp.provider.navidrome.toNavidromeConnection
@@ -189,6 +190,9 @@ fun NaviampAndroidApp(
     }
 
     var restorePlaybackSessionAction: (String) -> Boolean = { false }
+    val sonicAutoplayService = remember(appState) {
+        SonicAutoplayService(provider = { appState.provider })
+    }
 
     val playbackAppController = remember(appState, storage, settingsStore, context) {
         AndroidPlaybackAppController(
@@ -206,6 +210,7 @@ fun NaviampAndroidApp(
             activeQueue = mediaAppController::activeQueue,
             currentStreamQuality = playbackQualityController::currentStreamQuality,
             loadRelatedTracks = mediaAppController::loadRelatedTracks,
+            sonicAutoplayService = sonicAutoplayService,
         )
     }
 

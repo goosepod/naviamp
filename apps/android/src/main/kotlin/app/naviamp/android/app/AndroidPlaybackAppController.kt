@@ -19,7 +19,9 @@ import app.naviamp.domain.playback.planPlaybackSeek
 import app.naviamp.domain.playback.shouldReplayCurrentForSeek
 import app.naviamp.domain.radio.recentRadioStreamsWith
 import app.naviamp.domain.settings.RecentRadioStream
+import app.naviamp.domain.sonicautoplay.SonicAutoplayService
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 internal class AndroidPlaybackAppController(
     private val context: Context,
@@ -36,6 +38,7 @@ internal class AndroidPlaybackAppController(
     private val activeQueue: () -> List<Track>,
     private val currentStreamQuality: () -> StreamQuality,
     private val loadRelatedTracks: (Track) -> Unit,
+    private val sonicAutoplayService: SonicAutoplayService,
 ) {
     fun handlePlaybackProgressChanged(sessionToken: Long, progress: PlaybackProgress) {
         handleAndroidPlaybackProgressChanged(
@@ -147,13 +150,27 @@ internal class AndroidPlaybackAppController(
                 restartThresholdSeconds = 3.0,
             )
         ) {
-            PlaybackAdjacentAction.None -> Unit
+            PlaybackAdjacentAction.None -> {
+                if (offset > 0) appendSonicAutoplayAndAdvance()
+            }
             PlaybackAdjacentAction.RestartCurrent -> performSeek(0.0)
             is PlaybackAdjacentAction.PlayTrack -> playTrack(
                 action.track,
                 action.queue,
                 openNowPlaying = false,
             )
+        }
+    }
+
+    private fun appendSonicAutoplayAndAdvance() {
+        if (!state.playbackSettings.sonicAutoplayEnabled) return
+        if (state.provider?.capabilities?.supportsSonicSimilarity != true) return
+        scope.launch {
+            val tracks = sonicAutoplayService.continuationTracks(queueController.queue)
+            val updatedQueue = queueController.appendTracks(tracks) ?: return@launch
+            state.playbackQueue = updatedQueue
+            savePlaybackSessionThrottled(force = true)
+            playAdjacentTrack(1)
         }
     }
 

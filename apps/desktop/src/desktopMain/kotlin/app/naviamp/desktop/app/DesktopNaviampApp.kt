@@ -47,6 +47,7 @@ import app.naviamp.domain.settings.PlaybackSettingsMaintenanceController
 import app.naviamp.domain.settings.playbackSettingsChange
 import app.naviamp.domain.settings.restoredPlaybackQueue
 import app.naviamp.domain.settings.restoredTrackSession
+import app.naviamp.domain.sonicautoplay.SonicAutoplayService
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.provider.navidrome.withNativeTokenFromPassword
@@ -121,6 +122,9 @@ fun NaviampApp(
     var isConnecting by remember { mutableStateOf(false) }
     var connectionStatus by remember { mutableStateOf<String?>(null) }
     var connectedProvider by remember { mutableStateOf<NavidromeProvider?>(null) }
+    val sonicAutoplayService = remember {
+        SonicAutoplayService(provider = { connectedProvider })
+    }
     val popularTracksService = remember(dependencies) {
         dependencies.popularTracksService(
             sourceIdProvider = { connectedSourceId },
@@ -162,6 +166,15 @@ fun NaviampApp(
     var sleepTimerNowEpochMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var playbackSettings by remember {
         mutableStateOf(settingsStore.loadPlaybackSettings().effectiveForEngine(playbackEngine))
+    }
+    playlistEngine.setSonicAutoplayTracksProvider { queue ->
+        val enabled = playbackSettings.sonicAutoplayEnabled &&
+            connectedProvider?.capabilities?.supportsSonicSimilarity == true
+        if (enabled) {
+            sonicAutoplayService.continuationTracks(queue)
+        } else {
+            emptyList()
+        }
     }
     var showStatsForNerds by remember { mutableStateOf(false) }
     var statsForNerdsRefreshTick by remember { mutableIntStateOf(0) }

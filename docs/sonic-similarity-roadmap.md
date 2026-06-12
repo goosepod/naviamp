@@ -113,17 +113,18 @@ This is a related quality-of-life improvement, not a sonic-similarity API featur
 
 ### Phase 7: Artist and Album Similarity
 
-- [ ] Build artist similarity by sampling representative tracks and grouping sonic matches by artist.
-- [ ] Build album similarity by sampling album tracks and grouping matches by album.
-- [ ] Add scoring based on frequency, similarity, and local-library availability.
-- [ ] Add artist/album detail rows once shared scoring is reliable.
+Skipped. Naviamp will use Navidrome agent metadata for similar artists and popular tracks, but it will not build its own artist/album similarity layer by sampling tracks and scoring grouped sonic matches.
+
+- [x] Do not build artist similarity from sampled sonic track matches.
+- [x] Do not build album similarity from sampled sonic track matches.
+- [x] Keep artist/album discovery focused on provider metadata and normal library navigation.
 
 ### Phase 8: Sonic Autoplay
 
-- [ ] Add a separate setting for sonic autoplay at queue end.
-- [ ] Generate continuation tracks from the last few played items.
-- [ ] Avoid repeating current queue/history.
-- [ ] Keep this opt-in and independent from the Related tracks preference.
+- [x] Add a separate setting for sonic autoplay at queue end.
+- [x] Generate continuation tracks from the last few played items.
+- [x] Avoid repeating current queue/history.
+- [x] Keep this opt-in and independent from the Related tracks preference.
 
 ## Current First Slice
 

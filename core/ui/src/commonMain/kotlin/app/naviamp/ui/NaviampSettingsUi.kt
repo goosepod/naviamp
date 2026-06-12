@@ -505,6 +505,14 @@ fun NaviampPlaybackSettingsSection(
                 onPlaybackSettingsChanged(playbackSettings.copy(sonicSimilarityEnabled = enabled))
             },
         )
+        SettingsCheckboxRow(
+            colors = colors,
+            checked = playbackSettings.sonicAutoplayEnabled,
+            label = "Sonic autoplay",
+            onCheckedChange = { enabled ->
+                onPlaybackSettingsChanged(playbackSettings.copy(sonicAutoplayEnabled = enabled))
+            },
+        )
     }
     if (upNextHelpOpen) {
         AlertDialog(

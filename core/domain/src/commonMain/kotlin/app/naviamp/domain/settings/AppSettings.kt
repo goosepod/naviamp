@@ -38,6 +38,7 @@ data class PlaybackSettings(
     val debugLoggingEnabled: Boolean = false,
     val lrclibLyricsEnabled: Boolean = false,
     val sonicSimilarityEnabled: Boolean = false,
+    val sonicAutoplayEnabled: Boolean = false,
     val previousButtonBehavior: PreviousButtonBehavior = PreviousButtonBehavior.RestartThenPrevious,
     val upNextSelectionBehavior: UpNextSelectionBehavior = UpNextSelectionBehavior.MoveSelectedToCurrent,
     val wifiStreamingQuality: StreamQualityPreference = StreamQualityPreference(),

@@ -69,6 +69,7 @@ class DesktopPlaylistEngine(
     private val queueController = PlaybackQueueController()
     private var playbackSource: PlaybackSource = PlaybackSource.Unknown
     private var audioPrefetchStats = AudioPrefetchStats()
+    private var sonicAutoplayTracks: suspend (PlaybackQueue) -> List<Track> = { emptyList() }
     private val preparedNextPlaybackCoordinator = PreparedNextPlaybackCoordinator(
         provider = { provider },
         sourceId = sourceIdProvider,
@@ -208,6 +209,10 @@ class DesktopPlaylistEngine(
 
     fun setRepeatMode(mode: RepeatMode) {
         queueController.setRepeatMode(mode)
+    }
+
+    fun setSonicAutoplayTracksProvider(provider: suspend (PlaybackQueue) -> List<Track>) {
+        sonicAutoplayTracks = provider
     }
 
     fun next(scope: CoroutineScope) {
@@ -480,7 +485,7 @@ class DesktopPlaylistEngine(
         )
     }
 
-    private fun handlePlaybackState(
+    private suspend fun handlePlaybackState(
         scope: CoroutineScope,
         state: PlaybackState,
         activeSessionId: Int,
@@ -488,7 +493,18 @@ class DesktopPlaylistEngine(
         if (activeSessionId != queueController.playbackSessionId) return
 
         if (state == PlaybackState.Finished) {
-            val selection = queueController.finishedSelection()
+            var selection = queueController.finishedSelection()
+            if (selection == null) {
+                val tracks = withContext(Dispatchers.IO) {
+                    sonicAutoplayTracks(queueController.queue)
+                }
+                if (activeSessionId != queueController.playbackSessionId) return
+                if (tracks.isNotEmpty()) {
+                    queueController.appendTracks(tracks)
+                    callbacks?.onQueueChanged(queueController.queue)
+                    selection = queueController.finishedSelection()
+                }
+            }
             if (selection != null) {
                 playQueueSelection(scope, selection)
                 return
