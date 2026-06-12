@@ -40,6 +40,7 @@ import app.naviamp.ui.SharedArtistMixBuilderUi
 import app.naviamp.ui.SharedGenreMixBuilderUi
 import app.naviamp.ui.SharedGenreMixItemUi
 import app.naviamp.ui.SharedHome
+import app.naviamp.ui.SharedMediaItemAction
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedMixBuilderUi
 import app.naviamp.ui.SharedTrackRowAction
@@ -159,6 +160,50 @@ fun ColumnScope.DesktopAppRouteContent(
             "artist" -> onOpenArtistMixBuilder()
             "album" -> onOpenAlbumMixBuilder()
             "genre" -> onRouteSelected(DesktopAppRoute.GenreMix)
+        }
+    }
+    fun handleArtistMediaAction(
+        requestAction: SharedMediaItemAction,
+        artist: Artist,
+    ) {
+        when (requestAction) {
+            SharedMediaItemAction.Select -> appActions.openArtistDetails(artist)
+            SharedMediaItemAction.StartRadio -> appActions.playArtistRadio(artist)
+            SharedMediaItemAction.AddToQueue -> playlistsController.addArtistToQueue(artist)
+            SharedMediaItemAction.AddToPlaylist -> playlistsController.openArtistAddToPlaylist(artist)
+            SharedMediaItemAction.ToggleFavorite -> appActions.toggleArtistFavorite(artist)
+            SharedMediaItemAction.Play,
+            SharedMediaItemAction.Shuffle,
+            SharedMediaItemAction.Download,
+            SharedMediaItemAction.CreatePlaylistAndAdd,
+            SharedMediaItemAction.Rename,
+            SharedMediaItemAction.EditSmartPlaylist,
+            SharedMediaItemAction.Delete,
+            SharedMediaItemAction.EditStation,
+            SharedMediaItemAction.DeleteStation,
+            -> Unit
+        }
+    }
+    fun handleAlbumMediaAction(
+        requestAction: SharedMediaItemAction,
+        album: Album,
+    ) {
+        when (requestAction) {
+            SharedMediaItemAction.Select -> appActions.openAlbumDetails(album)
+            SharedMediaItemAction.StartRadio -> appActions.playAlbumRadio(album)
+            SharedMediaItemAction.Download -> appActions.downloadAlbum(album)
+            SharedMediaItemAction.AddToQueue -> playlistsController.addAlbumToQueue(album)
+            SharedMediaItemAction.AddToPlaylist -> playlistsController.openAlbumAddToPlaylist(album)
+            SharedMediaItemAction.ToggleFavorite -> appActions.toggleAlbumFavorite(album)
+            SharedMediaItemAction.Play,
+            SharedMediaItemAction.Shuffle,
+            SharedMediaItemAction.CreatePlaylistAndAdd,
+            SharedMediaItemAction.Rename,
+            SharedMediaItemAction.EditSmartPlaylist,
+            SharedMediaItemAction.Delete,
+            SharedMediaItemAction.EditStation,
+            SharedMediaItemAction.DeleteStation,
+            -> Unit
         }
     }
 
@@ -317,17 +362,14 @@ fun ColumnScope.DesktopAppRouteContent(
                         onTabSelected = libraryController::selectLibraryTab,
                         onLoadMore = libraryController::loadMoreLibraryRows,
                         onJumpToLetter = libraryController::jumpLibraryToLetter,
-                        onArtistSelected = appActions::openArtistDetails,
-                        onArtistRadioSelected = appActions::playArtistRadio,
-                        onArtistAddToQueue = playlistsController::addArtistToQueue,
-                        onArtistAddToPlaylist = playlistsController::openArtistAddToPlaylist,
-                        onArtistFavoriteToggle = appActions::toggleArtistFavorite,
-                        onAlbumSelected = appActions::openAlbumDetails,
-                        onAlbumRadioSelected = appActions::playAlbumRadio,
-                        onAlbumDownloadSelected = appActions::downloadAlbum,
-                        onAlbumAddToQueue = playlistsController::addAlbumToQueue,
-                        onAlbumAddToPlaylist = playlistsController::openAlbumAddToPlaylist,
-                        onAlbumFavoriteToggle = appActions::toggleAlbumFavorite,
+                        onMediaItemAction = { request ->
+                            librarySnapshot.artists
+                                .firstOrNull { artist -> artist.id.value == request.item.id }
+                                ?.let { artist -> handleArtistMediaAction(request.action, artist) }
+                                ?: librarySnapshot.albums
+                                    .firstOrNull { album -> album.id.value == request.item.id }
+                                    ?.let { album -> handleAlbumMediaAction(request.action, album) }
+                        },
                         onRefreshLibrary = { libraryController.startLibrarySync(force = true) },
                     )
                 }
@@ -340,17 +382,14 @@ fun ColumnScope.DesktopAppRouteContent(
                     coverArtUrl = coverArtUrl,
                     onQueryChanged = searchController::updateQuery,
                     onClearSearch = searchController::clearSearch,
-                    onArtistSelected = appActions::openArtistDetails,
-                    onArtistRadioSelected = appActions::playArtistRadio,
-                    onArtistAddToQueue = playlistsController::addArtistToQueue,
-                    onArtistAddToPlaylist = playlistsController::openArtistAddToPlaylist,
-                    onArtistFavoriteToggle = appActions::toggleArtistFavorite,
-                    onAlbumSelected = appActions::openAlbumDetails,
-                    onAlbumRadioSelected = appActions::playAlbumRadio,
-                    onAlbumDownloadSelected = appActions::downloadAlbum,
-                    onAlbumAddToQueue = playlistsController::addAlbumToQueue,
-                    onAlbumAddToPlaylist = playlistsController::openAlbumAddToPlaylist,
-                    onAlbumFavoriteToggle = appActions::toggleAlbumFavorite,
+                    onMediaItemAction = { request ->
+                        searchResults.artists
+                            .firstOrNull { artist -> artist.id.value == request.item.id }
+                            ?.let { artist -> handleArtistMediaAction(request.action, artist) }
+                            ?: searchResults.albums
+                                .firstOrNull { album -> album.id.value == request.item.id }
+                                ?.let { album -> handleAlbumMediaAction(request.action, album) }
+                    },
                     onTrackAction = { request ->
                         val index = searchResults.tracks.indexOfFirst { track -> track.id.value == request.track.id }
                         if (index >= 0) {

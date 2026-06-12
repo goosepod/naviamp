@@ -382,6 +382,8 @@ fun SharedMediaRow(
     onClick: (() -> Unit)? = null,
     menuItems: List<NaviampRowMenuItem> = emptyList(),
     onFavoriteToggled: ((SharedMediaItemUi) -> Unit)? = null,
+    canSelect: Boolean = onClick != null,
+    canToggleFavorite: Boolean = item.canFavorite && onFavoriteToggled != null,
     itemKind: SharedMediaItemKind = SharedMediaItemKind.Unknown,
     onItemAction: (SharedMediaItemActionRequest) -> Unit = { request ->
         handleSharedMediaItemAction(
@@ -403,7 +405,7 @@ fun SharedMediaRow(
             .clip(RoundedCornerShape(5.dp))
             .background(Color.Black.copy(alpha = 0.12f))
             .let { rowModifier ->
-                if (onClick != null) {
+                if (canSelect) {
                     rowModifier.clickable {
                         onItemAction(
                             SharedMediaItemActionRequest(
@@ -438,7 +440,7 @@ fun SharedMediaRow(
                 modifier = Modifier.size(15.dp),
             )
         }
-        val favoriteMenuItem = if (item.canFavorite && onFavoriteToggled != null) {
+        val favoriteMenuItem = if (canToggleFavorite) {
             NaviampRowMenuItem(
                 label = if (item.favoriteActive) "Remove favorite" else "Favorite",
                 icon = NaviampTransportIcons.Heart,

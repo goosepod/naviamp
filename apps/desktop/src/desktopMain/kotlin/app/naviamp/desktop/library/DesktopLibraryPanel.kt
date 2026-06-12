@@ -32,9 +32,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import app.naviamp.domain.Album
-import app.naviamp.domain.Artist
 import app.naviamp.domain.cache.LibrarySnapshot
+import app.naviamp.ui.SharedMediaItemActionRequest
 
 @Composable
 fun DesktopLibraryPanel(
@@ -50,17 +49,7 @@ fun DesktopLibraryPanel(
     onTabSelected: (DesktopLibraryTab) -> Unit,
     onLoadMore: () -> Unit,
     onJumpToLetter: (Char) -> Unit,
-    onArtistSelected: (Artist) -> Unit,
-    onArtistRadioSelected: (Artist) -> Unit,
-    onArtistAddToQueue: (Artist) -> Unit,
-    onArtistAddToPlaylist: (Artist) -> Unit,
-    onArtistFavoriteToggle: (Artist) -> Unit,
-    onAlbumSelected: (Album) -> Unit,
-    onAlbumRadioSelected: (Album) -> Unit,
-    onAlbumDownloadSelected: (Album) -> Unit,
-    onAlbumAddToQueue: (Album) -> Unit,
-    onAlbumAddToPlaylist: (Album) -> Unit,
-    onAlbumFavoriteToggle: (Album) -> Unit,
+    onMediaItemAction: (SharedMediaItemActionRequest) -> Unit,
     onRefreshLibrary: () -> Unit,
 ) {
     val textFieldColors = OutlinedTextFieldDefaults.colors(
@@ -169,11 +158,11 @@ fun DesktopLibraryPanel(
                             artist = artist,
                             coverArtUrl = coverArtUrl(artist.id.value),
                             showCoverArt = true,
-                            onClick = { onArtistSelected(artist) },
-                            onStartRadio = { onArtistRadioSelected(artist) },
-                            onAddToQueue = { onArtistAddToQueue(artist) },
-                            onAddToPlaylist = { onArtistAddToPlaylist(artist) },
-                            onFavoriteToggle = { onArtistFavoriteToggle(artist) },
+                            canStartRadio = true,
+                            canAddToQueue = true,
+                            canAddToPlaylist = true,
+                            canFavorite = true,
+                            onItemAction = onMediaItemAction,
                         )
                     }
                     DesktopLibraryTab.Albums -> items(snapshot.albums, key = { it.id.value }) { album ->
@@ -181,12 +170,12 @@ fun DesktopLibraryPanel(
                             appColors = appColors,
                             album = album,
                             coverArtUrl = coverArtUrl(album.coverArtId),
-                            onClick = { onAlbumSelected(album) },
-                            onStartRadio = { onAlbumRadioSelected(album) },
-                            onDownload = { onAlbumDownloadSelected(album) },
-                            onAddToQueue = { onAlbumAddToQueue(album) },
-                            onAddToPlaylist = { onAlbumAddToPlaylist(album) },
-                            onFavoriteToggle = { onAlbumFavoriteToggle(album) },
+                            canStartRadio = true,
+                            canDownload = true,
+                            canAddToQueue = true,
+                            canAddToPlaylist = true,
+                            canFavorite = true,
+                            onItemAction = onMediaItemAction,
                         )
                     }
                 }
