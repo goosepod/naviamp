@@ -345,12 +345,23 @@ fun NaviampAndroidApp(
         checkAndroidLibraryFreshness = { checkAndroidLibraryFreshness(scope, appState, storage, storage) },
     )
 
+    val sonicPathController = remember(appState) {
+        AndroidSonicPathController(
+            scope = scope,
+            state = appState,
+            queueController = playbackQueueController,
+            playTrack = { track, queue -> playbackAppController.playTrack(track, queue) },
+        )
+    }
+    val coverArtUrlForUi: (String?) -> String? = { coverArtId -> coverArtId?.let { appState.provider?.coverArtUrl(it) } }
+
     val shellUiState = rememberAndroidAppShellUiState(
         state = appState,
         modifier = modifier,
         context = context,
         bassLoadReport = bassLoadReport,
         playbackEngine = playbackEngine,
+        sonicPathBuilder = sonicPathController.ui(coverArtUrlForUi),
     )
 
     val shellPlaybackController = remember(appState) {
@@ -439,6 +450,7 @@ fun NaviampAndroidApp(
         shellPlaybackController = shellPlaybackController,
         shellMediaController = shellMediaController,
         trackActionController = trackActionController,
+        sonicPathController = sonicPathController,
         nowPlayingSidecarController = nowPlayingSidecarController,
     )
 

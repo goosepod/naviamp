@@ -447,6 +447,25 @@ data class SharedGenreMixBuilderUi(
     val loading: Boolean = false,
 )
 
+data class SharedSonicPathBuilderUi(
+    val startQuery: String = "",
+    val endQuery: String = "",
+    val startTrack: SharedTrackRowUi? = null,
+    val endTrack: SharedTrackRowUi? = null,
+    val startSuggestions: List<SharedTrackRowUi> = emptyList(),
+    val endSuggestions: List<SharedTrackRowUi> = emptyList(),
+    val pathTracks: List<SharedTrackRowUi> = emptyList(),
+    val count: Int = 25,
+    val status: String? = null,
+    val loading: Boolean = false,
+) {
+    val canBuild: Boolean
+        get() = startTrack != null && endTrack != null && startTrack.id != endTrack.id
+
+    val hasPath: Boolean
+        get() = pathTracks.isNotEmpty()
+}
+
 data class SharedGenreMixItemUi(
     val id: String,
     val title: String,
@@ -535,6 +554,7 @@ enum class SharedRoute(val label: String, val icon: ImageVector) {
     ArtistMix("Artist Mix", NaviampTransportIcons.Radio),
     AlbumMix("Album Mix", NaviampTransportIcons.Radio),
     GenreMix("Genre Mix", NaviampTransportIcons.Radio),
+    SonicPath("Sonic Path", NaviampIcons.Brain),
     Radio("Radio", NaviampIcons.InternetRadio),
     Downloads("Downloads", NaviampIcons.Downloads),
     Settings("Settings", NaviampIcons.Settings),

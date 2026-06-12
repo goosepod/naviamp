@@ -141,8 +141,8 @@ class DesktopBassJniBinding private constructor(
     companion object {
         fun load(libraryName: String = "naviamp_bass"): Result<DesktopBassJniBinding> =
             runCatching {
-                val directory = DesktopBassLibraryResolver().resolve()
-                    ?: error("Could not find BASS library directory.")
+                val directory = DesktopBassLibraryResolver().resolveWithLibraries("bass", libraryName)
+                    ?: error("Could not find BASS library directory with ${BassPlatform.current().libraryName(libraryName)}.")
                 loadFrom(directory, BassPlatform.current(), libraryName).getOrThrow()
             }
 

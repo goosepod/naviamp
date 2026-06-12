@@ -712,6 +712,182 @@ fun GenreMixBuilderContent(
 }
 
 @Composable
+fun SonicPathBuilderContent(
+    colors: NaviampColors,
+    builder: SharedSonicPathBuilderUi,
+    onStartQueryChanged: (String) -> Unit,
+    onEndQueryChanged: (String) -> Unit,
+    onStartSearch: () -> Unit,
+    onEndSearch: () -> Unit,
+    onStartTrackSelected: (SharedTrackRowUi) -> Unit,
+    onEndTrackSelected: (SharedTrackRowUi) -> Unit,
+    onStartTrackCleared: () -> Unit,
+    onEndTrackCleared: () -> Unit,
+    onCountChanged: (Int) -> Unit,
+    onBuildPath: () -> Unit,
+    onReset: () -> Unit,
+    onPlayPath: () -> Unit,
+    onAddPathToQueue: () -> Unit,
+    showPathActions: Boolean = true,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Sonic Path", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            if (
+                builder.startQuery.isNotBlank() ||
+                builder.endQuery.isNotBlank() ||
+                builder.startTrack != null ||
+                builder.endTrack != null ||
+                builder.hasPath
+            ) {
+                TextButton(onClick = onReset) {
+                    Text("Reset", fontSize = 12.sp)
+                }
+            }
+        }
+        SonicPathTrackPicker(
+            title = "Start Track",
+            query = builder.startQuery,
+            selectedTrack = builder.startTrack,
+            suggestions = builder.startSuggestions,
+            colors = colors,
+            onQueryChanged = onStartQueryChanged,
+            onSearch = onStartSearch,
+            onTrackSelected = onStartTrackSelected,
+            onTrackCleared = onStartTrackCleared,
+        )
+        SonicPathTrackPicker(
+            title = "Destination Track",
+            query = builder.endQuery,
+            selectedTrack = builder.endTrack,
+            suggestions = builder.endSuggestions,
+            colors = colors,
+            onQueryChanged = onEndQueryChanged,
+            onSearch = onEndSearch,
+            onTrackSelected = onEndTrackSelected,
+            onTrackCleared = onEndTrackCleared,
+        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Max tracks", color = colors.secondaryText, fontSize = 13.sp, modifier = Modifier.weight(1f))
+            Button(
+                enabled = builder.count > 2,
+                onClick = { onCountChanged(builder.count - 1) },
+            ) {
+                Text("-")
+            }
+            Text(builder.count.toString(), color = colors.primaryText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Button(
+                enabled = builder.count < 100,
+                onClick = { onCountChanged(builder.count + 1) },
+            ) {
+                Text("+")
+            }
+        }
+        (builder.status ?: if (builder.loading) "Finding path..." else null)?.let {
+            Text(it, color = colors.secondaryText, fontSize = 12.sp)
+        }
+        PrimaryButton(
+            label = "Find Path",
+            colors = colors,
+            enabled = builder.canBuild && !builder.loading,
+            onClick = onBuildPath,
+        )
+        if (builder.pathTracks.isNotEmpty()) {
+            Text("Path", color = colors.primaryText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                builder.pathTracks.forEachIndexed { index, track ->
+                    TrackRow(
+                        track = track,
+                        colors = colors,
+                        onTrackSelected = null,
+                        trailingContent = {
+                            Text((index + 1).toString(), color = colors.mutedText, fontSize = 11.sp)
+                        },
+                    )
+                }
+            }
+            if (showPathActions) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    Button(onClick = onPlayPath, modifier = Modifier.weight(1f)) {
+                        Text("Play Path")
+                    }
+                    Button(
+                        onClick = onAddPathToQueue,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text("Add to Queue")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SonicPathTrackPicker(
+    title: String,
+    query: String,
+    selectedTrack: SharedTrackRowUi?,
+    suggestions: List<SharedTrackRowUi>,
+    colors: NaviampColors,
+    onQueryChanged: (String) -> Unit,
+    onSearch: () -> Unit,
+    onTrackSelected: (SharedTrackRowUi) -> Unit,
+    onTrackCleared: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(title, color = colors.primaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            NaviampTextField(
+                value = query,
+                onValueChange = onQueryChanged,
+                label = "Search tracks",
+                colors = colors,
+                modifier = Modifier.weight(1f),
+                onSubmit = onSearch,
+            )
+            Button(onClick = onSearch, modifier = Modifier.height(48.dp)) {
+                Icon(NaviampIcons.Search, contentDescription = "Search tracks", modifier = Modifier.size(18.dp))
+            }
+        }
+        selectedTrack?.let { track ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                TrackRow(
+                    track = track,
+                    colors = colors,
+                    onTrackSelected = null,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onTrackCleared) {
+                    Text("Clear", fontSize = 12.sp)
+                }
+            }
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            suggestions.forEach { track ->
+                TrackRow(
+                    track = track,
+                    colors = colors,
+                    onTrackSelected = onTrackSelected,
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun ArtistMixSelectedArtist(
     artist: SharedMediaItemUi,
     colors: NaviampColors,

@@ -226,7 +226,7 @@ class DesktopBassAudioBackend(
 }
 
 fun loadDesktopBassAudioBackend(): Result<BassAudioBackend> =
-    DesktopBassLibraryResolver().resolve()
+    DesktopBassLibraryResolver().resolveWithLibraries("bass", "naviamp_bass")
         ?.let { directory -> DesktopBassJniBinding.loadFrom(directory).map(::DesktopBassAudioBackend) }
         ?: Result.failure(
             IllegalStateException(

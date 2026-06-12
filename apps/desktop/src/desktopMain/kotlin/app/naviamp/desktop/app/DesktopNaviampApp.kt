@@ -495,6 +495,21 @@ fun NaviampApp(
         similarArtistsService = similarArtistsService,
     )
 
+    val sonicPathController = remember {
+        DesktopSonicPathController(
+            scope = coroutineScope,
+            playbackEngine = playbackEngine,
+            playlistEngine = playlistEngine,
+            provider = { connectedProvider },
+            playbackSettings = { playbackSettings },
+            playlistCallbacks = { playlistCallbacksRef.value ?: error("Playlist callbacks are not ready.") },
+            stopRadioContinuation = radioController::stopContinuation,
+            clearShuffleSnapshot = playbackController::clearShuffleSnapshot,
+            setOpenPlayerOnTrackStart = { shouldOpen -> openPlayerOnTrackStart = shouldOpen },
+            setConnectionStatus = { status -> connectionStatus = status },
+        )
+    }
+
     val searchController = remember {
         DesktopSearchController(
         settingsStore = settingsStore,
@@ -941,6 +956,22 @@ fun NaviampApp(
                             onGenreMixGenreRemoved = { item -> mixBuilderController.removeGenreByItemId(item.id) },
                             onGenreMixReset = mixBuilderController::resetGenreBuilder,
                             onGenreMixPlay = { mixBuilderController.playGenreMix(radioController) },
+                            sonicPathBuilder = sonicPathController.ui(
+                                coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
+                            ),
+                            onSonicPathStartQueryChanged = sonicPathController::updateStartQuery,
+                            onSonicPathEndQueryChanged = sonicPathController::updateEndQuery,
+                            onSonicPathStartSearch = sonicPathController::searchStartTracks,
+                            onSonicPathEndSearch = sonicPathController::searchEndTracks,
+                            onSonicPathStartTrackSelected = sonicPathController::selectStartTrack,
+                            onSonicPathEndTrackSelected = sonicPathController::selectEndTrack,
+                            onSonicPathStartTrackCleared = sonicPathController::clearStartTrack,
+                            onSonicPathEndTrackCleared = sonicPathController::clearEndTrack,
+                            onSonicPathCountChanged = sonicPathController::updateCount,
+                            onSonicPathBuild = sonicPathController::buildPath,
+                            onSonicPathReset = sonicPathController::reset,
+                            onSonicPathPlay = sonicPathController::playPath,
+                            onSonicPathAddToQueue = sonicPathController::addPathToQueue,
                             internetRadioStations = internetRadioController.stations,
                             internetRadioStatus = internetRadioController.status,
                             onSaveInternetRadioStation = internetRadioController::saveStation,

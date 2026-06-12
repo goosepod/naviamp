@@ -96,9 +96,10 @@ fun HomeContent.toSharedHomeUi(
     coverArtUrl: (String?) -> String?,
     playlistTracksById: Map<String, List<Track>> = emptyMap(),
     canFavoriteAlbums: Boolean = false,
+    showSonicPathBuilder: Boolean = false,
 ): SharedHomeUi =
     SharedHomeUi(
-        mixBuilders = sharedMixBuilders(),
+        mixBuilders = sharedMixBuilders(showSonicPathBuilder),
         recentlyAddedAlbums = recentlyAddedAlbums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
         mixAlbums = mixAlbums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
         recentAlbums = recentAlbums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
@@ -130,11 +131,14 @@ fun HomeContent.toSharedHomeUi(
         decadeAlbums = decadeAlbums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
     )
 
-fun sharedMixBuilders(): List<SharedMixBuilderUi> =
-    listOf(
+fun sharedMixBuilders(showSonicPathBuilder: Boolean = false): List<SharedMixBuilderUi> =
+    listOfNotNull(
         SharedMixBuilderUi("artist", "Artist Mix", "Build a station from selected artists"),
         SharedMixBuilderUi("album", "Album Mix", "Build a station from selected albums"),
         SharedMixBuilderUi("genre", "Genre Mix", "Start a station from a genre"),
+        SharedMixBuilderUi("sonic-path", "Sonic Path", "Find a path between two tracks").takeIf {
+            showSonicPathBuilder
+        },
     )
 
 fun Track.toSharedTrackRowUi(

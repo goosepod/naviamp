@@ -9,10 +9,15 @@ class DesktopBassLibraryResolver(
     private val searchRoots: List<File> = defaultSearchRoots(),
 ) {
     fun resolve(): File? =
+        resolveWithLibraries("bass")
+
+    fun resolveWithLibraries(vararg libraryStems: String): File? =
         candidateDirectories()
             .map { it.normalizedAbsoluteFile() }
             .distinctBy { it.absolutePath }
-            .firstOrNull { File(it, platform.libraryName("bass")).isFile }
+            .firstOrNull { directory ->
+                libraryStems.all { stem -> File(directory, platform.libraryName(stem)).isFile }
+            }
 
     fun candidateDirectories(): List<File> = buildList {
         explicitDirectory
@@ -48,8 +53,12 @@ class DesktopBassLibraryResolver(
             val codeSourceRoot = codeSource?.let {
                 if (it.isFile) it.parentFile else it
             }
+            val composeResourcesRoot = System.getProperty("compose.application.resources.dir")
+                ?.takeIf { it.isNotBlank() }
+                ?.let(::File)
 
             return buildList {
+                composeResourcesRoot?.let(::add)
                 codeSourceRoot?.ancestors(limit = 8)?.let(::addAll)
                 add(File(System.getProperty("user.dir")))
             }.distinctBy { it.absolutePath }

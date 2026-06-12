@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -84,6 +85,7 @@ fun NaviampSharedAppShell(
     artistMixBuilder: SharedArtistMixBuilderUi = SharedArtistMixBuilderUi(),
     albumMixBuilder: SharedAlbumMixBuilderUi = SharedAlbumMixBuilderUi(),
     genreMixBuilder: SharedGenreMixBuilderUi = SharedGenreMixBuilderUi(),
+    sonicPathBuilder: SharedSonicPathBuilderUi = SharedSonicPathBuilderUi(),
     libraryArtists: List<SharedMediaItemUi>,
     libraryQuery: String = "",
     librarySyncStatus: NaviampLibrarySyncStatusUi = NaviampLibrarySyncStatusUi(),
@@ -133,6 +135,19 @@ fun NaviampSharedAppShell(
     onGenreMixGenreRemoved: (SharedGenreMixItemUi) -> Unit = {},
     onGenreMixReset: () -> Unit = {},
     onGenreMixPlay: () -> Unit = {},
+    onSonicPathStartQueryChanged: (String) -> Unit = {},
+    onSonicPathEndQueryChanged: (String) -> Unit = {},
+    onSonicPathStartSearch: () -> Unit = {},
+    onSonicPathEndSearch: () -> Unit = {},
+    onSonicPathStartTrackSelected: (SharedTrackRowUi) -> Unit = {},
+    onSonicPathEndTrackSelected: (SharedTrackRowUi) -> Unit = {},
+    onSonicPathStartTrackCleared: () -> Unit = {},
+    onSonicPathEndTrackCleared: () -> Unit = {},
+    onSonicPathCountChanged: (Int) -> Unit = {},
+    onSonicPathBuild: () -> Unit = {},
+    onSonicPathReset: () -> Unit = {},
+    onSonicPathPlay: () -> Unit = {},
+    onSonicPathAddToQueue: () -> Unit = {},
     onLibraryQueryChanged: (String) -> Unit = {},
     onRefreshLibrary: () -> Unit = {},
     onTrackSelected: (SharedTrackRowUi) -> Unit,
@@ -266,6 +281,7 @@ fun NaviampSharedAppShell(
                 selectedRoute == SharedRoute.ArtistMix ||
                 selectedRoute == SharedRoute.AlbumMix ||
                 selectedRoute == SharedRoute.GenreMix ||
+                selectedRoute == SharedRoute.SonicPath ||
                 selectedRoute == SharedRoute.Radio ||
                 selectedRoute == SharedRoute.Downloads
             )
@@ -349,9 +365,10 @@ fun NaviampSharedAppShell(
                             home = home,
                             query = query,
                             searchResults = searchResults,
-                            artistMixBuilder = artistMixBuilder,
-                            albumMixBuilder = albumMixBuilder,
-                            genreMixBuilder = genreMixBuilder,
+            artistMixBuilder = artistMixBuilder,
+            albumMixBuilder = albumMixBuilder,
+            genreMixBuilder = genreMixBuilder,
+            sonicPathBuilder = sonicPathBuilder,
                             libraryArtists = libraryArtists,
                             libraryQuery = libraryQuery,
                             librarySyncStatus = librarySyncStatus,
@@ -404,9 +421,22 @@ fun NaviampSharedAppShell(
                             onGenreMixQueryChanged = onGenreMixQueryChanged,
                             onGenreMixSearch = onGenreMixSearch,
                             onGenreMixGenreSelected = onGenreMixGenreSelected,
-                            onGenreMixGenreRemoved = onGenreMixGenreRemoved,
-                            onGenreMixReset = onGenreMixReset,
-                            onGenreMixPlay = onGenreMixPlay,
+            onGenreMixGenreRemoved = onGenreMixGenreRemoved,
+            onGenreMixReset = onGenreMixReset,
+            onGenreMixPlay = onGenreMixPlay,
+            onSonicPathStartQueryChanged = onSonicPathStartQueryChanged,
+            onSonicPathEndQueryChanged = onSonicPathEndQueryChanged,
+            onSonicPathStartSearch = onSonicPathStartSearch,
+            onSonicPathEndSearch = onSonicPathEndSearch,
+            onSonicPathStartTrackSelected = onSonicPathStartTrackSelected,
+            onSonicPathEndTrackSelected = onSonicPathEndTrackSelected,
+            onSonicPathStartTrackCleared = onSonicPathStartTrackCleared,
+            onSonicPathEndTrackCleared = onSonicPathEndTrackCleared,
+            onSonicPathCountChanged = onSonicPathCountChanged,
+            onSonicPathBuild = onSonicPathBuild,
+            onSonicPathReset = onSonicPathReset,
+            onSonicPathPlay = onSonicPathPlay,
+            onSonicPathAddToQueue = onSonicPathAddToQueue,
                             onLibraryQueryChanged = onLibraryQueryChanged,
                             onRefreshLibrary = onRefreshLibrary,
                             onTrackSelected = onTrackSelected,
@@ -637,6 +667,7 @@ private fun ConnectedContent(
     artistMixBuilder: SharedArtistMixBuilderUi,
     albumMixBuilder: SharedAlbumMixBuilderUi,
     genreMixBuilder: SharedGenreMixBuilderUi,
+    sonicPathBuilder: SharedSonicPathBuilderUi,
     libraryArtists: List<SharedMediaItemUi>,
     libraryQuery: String,
     librarySyncStatus: NaviampLibrarySyncStatusUi,
@@ -689,6 +720,19 @@ private fun ConnectedContent(
     onGenreMixGenreRemoved: (SharedGenreMixItemUi) -> Unit,
     onGenreMixReset: () -> Unit,
     onGenreMixPlay: () -> Unit,
+    onSonicPathStartQueryChanged: (String) -> Unit,
+    onSonicPathEndQueryChanged: (String) -> Unit,
+    onSonicPathStartSearch: () -> Unit,
+    onSonicPathEndSearch: () -> Unit,
+    onSonicPathStartTrackSelected: (SharedTrackRowUi) -> Unit,
+    onSonicPathEndTrackSelected: (SharedTrackRowUi) -> Unit,
+    onSonicPathStartTrackCleared: () -> Unit,
+    onSonicPathEndTrackCleared: () -> Unit,
+    onSonicPathCountChanged: (Int) -> Unit,
+    onSonicPathBuild: () -> Unit,
+    onSonicPathReset: () -> Unit,
+    onSonicPathPlay: () -> Unit,
+    onSonicPathAddToQueue: () -> Unit,
     onLibraryQueryChanged: (String) -> Unit,
     onRefreshLibrary: () -> Unit,
     onTrackSelected: (SharedTrackRowUi) -> Unit,
@@ -1025,6 +1069,45 @@ private fun ConnectedContent(
                 }
                 if (genreMixBuilder.selectedGenres.isNotEmpty()) {
                     PrimaryButton("Play Mix", colors, onClick = onGenreMixPlay)
+                }
+            }
+            SharedRoute.SonicPath -> Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    SonicPathBuilderContent(
+                        colors = colors,
+                        builder = sonicPathBuilder,
+                        onStartQueryChanged = onSonicPathStartQueryChanged,
+                        onEndQueryChanged = onSonicPathEndQueryChanged,
+                        onStartSearch = onSonicPathStartSearch,
+                        onEndSearch = onSonicPathEndSearch,
+                        onStartTrackSelected = onSonicPathStartTrackSelected,
+                        onEndTrackSelected = onSonicPathEndTrackSelected,
+                        onStartTrackCleared = onSonicPathStartTrackCleared,
+                        onEndTrackCleared = onSonicPathEndTrackCleared,
+                        onCountChanged = onSonicPathCountChanged,
+                        onBuildPath = onSonicPathBuild,
+                        onReset = onSonicPathReset,
+                        onPlayPath = onSonicPathPlay,
+                        onAddPathToQueue = onSonicPathAddToQueue,
+                        showPathActions = false,
+                    )
+                }
+                if (sonicPathBuilder.hasPath) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        Button(onClick = onSonicPathPlay, modifier = Modifier.weight(1f)) {
+                            Text("Play Path")
+                        }
+                        Button(onClick = onSonicPathAddToQueue, modifier = Modifier.weight(1f)) {
+                            Text("Add to Queue")
+                        }
+                    }
                 }
             }
             SharedRoute.Radio -> InternetRadioContent(

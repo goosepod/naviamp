@@ -67,14 +67,16 @@ Outcome: superseded by Phase 3.1. Sonic similarity should behave as the preferre
 
 ### Phase 4: Sonic Path
 
-- [ ] Add provider support for `findSonicPath`.
-- [ ] Create a shared "Sonic path" request model with start track, destination track, and max count.
-- [ ] Show Sonic Path on Home underneath Artist Builder, Album Builder, and Genre Builder.
-- [ ] Gate Sonic Path so it only appears when sonic similarity is enabled and available from the server.
-- [ ] Add a simple UI flow with two track search fields and a count selector for the maximum number of tracks between the start and destination tracks.
-- [ ] Filter duplicate tracks and preserve start/destination semantics.
-- [ ] Add path actions for preview, play, add to queue, and playlist save where existing patterns make that cheap.
-- [ ] Add tests for request construction, response mapping, and empty-path fallback.
+- [x] Add provider support for `findSonicPath`.
+- [x] Create a shared "Sonic path" request model with start track, destination track, and max count.
+- [x] Show Sonic Path on Home underneath Artist Builder, Album Builder, and Genre Builder.
+- [x] Gate Sonic Path so it only appears when sonic similarity is enabled and available from the server.
+- [x] Add a simple UI flow with two track search fields and a count selector for the maximum number of tracks between the start and destination tracks.
+- [x] Filter duplicate tracks and preserve start/destination semantics.
+- [x] Keep Sonic Path output as a standard track list that feeds the existing queue handler; do not introduce a distinct queue or playlist type.
+- [x] Add path actions for play and add to queue using the normal queue/playback handlers.
+- [ ] Add playlist save if an existing shared playlist creation pattern emerges.
+- [x] Add tests for request construction, response mapping, and empty-path fallback.
 
 ### Phase 5: Sonic Mix Builder
 

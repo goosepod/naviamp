@@ -96,6 +96,23 @@ class BassLibraryResolverTest {
         assertNull(resolved)
     }
 
+    @Test
+    fun resolveWithLibrariesSkipsDirectoriesMissingRequiredBridge() {
+        val root = createTempDirectory().toFile()
+        root.library("apps/desktop/vendor/bass/macos-arm64/libbass.dylib")
+        val bundled = root.library("playback/bass/macos-arm64/libbass.dylib").parentFile
+        bundled.library("libnaviamp_bass.dylib")
+
+        val resolved = DesktopBassLibraryResolver(
+            platform = BassPlatform(os = "macos", arch = "arm64"),
+            explicitDirectory = null,
+            environmentDirectory = null,
+            searchRoots = listOf(root),
+        ).resolveWithLibraries("bass", "naviamp_bass")
+
+        assertEquals(bundled.absoluteFile, resolved)
+    }
+
     private fun java.io.File.library(relativePath: String): java.io.File {
         val file = resolve(relativePath)
         file.parentFile.mkdirs()

@@ -86,6 +86,11 @@ interface MediaProvider {
     suspend fun sonicSimilarTracks(trackId: TrackId, count: Int = 50): List<Track> = emptyList()
     suspend fun sonicSimilarTrackMatches(trackId: TrackId, count: Int = 50): List<SonicSimilarTrack> =
         sonicSimilarTracks(trackId, count).map { track -> SonicSimilarTrack(track = track) }
+    suspend fun findSonicPath(
+        startTrackId: TrackId,
+        endTrackId: TrackId,
+        count: Int = 25,
+    ): List<SonicPathMatch> = emptyList()
     suspend fun lyrics(trackId: TrackId): Lyrics? = null
     suspend fun reportNowPlaying(trackId: TrackId) = Unit
     suspend fun reportPlayed(trackId: TrackId, playedAtEpochMillis: Long) = Unit
@@ -160,6 +165,11 @@ data class LibraryScanStatus(
 }
 
 data class SonicSimilarTrack(
+    val track: Track,
+    val similarity: Double? = null,
+)
+
+data class SonicPathMatch(
     val track: Track,
     val similarity: Double? = null,
 )

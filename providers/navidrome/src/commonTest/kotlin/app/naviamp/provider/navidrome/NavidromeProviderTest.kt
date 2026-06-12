@@ -1079,6 +1079,68 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun findSonicPathUsesOpenSubsonicSonicPathEntries() = runTest {
+        val httpClient = RecordingResponseHttpClient(
+            """
+            {
+              "subsonic-response": {
+                "status": "ok",
+                "sonicMatch": [
+                  {
+                    "entry": {
+                      "id": "start-track",
+                      "title": "Start",
+                      "artist": "New Order"
+                    },
+                    "similarity": 1.0
+                  },
+                  {
+                    "entry": {
+                      "id": "middle-track",
+                      "title": "The Perfect Kiss",
+                      "artistId": "artist-1",
+                      "artist": "New Order",
+                      "albumId": "album-1",
+                      "album": "Low-Life",
+                      "duration": 288,
+                      "coverArt": "cover-1"
+                    },
+                    "similarity": 0.76
+                  },
+                  {
+                    "entry": {
+                      "id": "end-track",
+                      "title": "End",
+                      "artist": "New Order"
+                    },
+                    "similarity": 1.0
+                  }
+                ]
+              }
+            }
+            """.trimIndent(),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        val matches = provider.findSonicPath(
+            startTrackId = TrackId("start-track"),
+            endTrackId = TrackId("end-track"),
+            count = 10,
+        )
+
+        assertEquals(
+            "https://music.example.test/rest/findSonicPath.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&startSongId=start-track&endSongId=end-track&count=10",
+            httpClient.urls.single(),
+        )
+        assertEquals(listOf("start-track", "middle-track", "end-track"), matches.map { it.track.id.value })
+        assertEquals("The Perfect Kiss", matches[1].track.title)
+        assertEquals(0.76, matches[1].similarity)
+    }
+
+    @Test
     fun lyricsUsesGetLyricsBySongId() = runTest {
         val httpClient = RecordingResponseHttpClient(
             """

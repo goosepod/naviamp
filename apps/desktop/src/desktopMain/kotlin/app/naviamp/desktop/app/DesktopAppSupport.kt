@@ -48,6 +48,7 @@ private fun NaviampRoute.toAppRoute(): DesktopAppRoute =
         NaviampRoute.ArtistMix -> DesktopAppRoute.ArtistMix
         NaviampRoute.AlbumMix -> DesktopAppRoute.AlbumMix
         NaviampRoute.GenreMix -> DesktopAppRoute.GenreMix
+        NaviampRoute.SonicPath -> DesktopAppRoute.SonicPath
         NaviampRoute.Radio -> DesktopAppRoute.InternetRadio
         NaviampRoute.Downloads -> DesktopAppRoute.Downloads
         NaviampRoute.Settings -> DesktopAppRoute.Settings

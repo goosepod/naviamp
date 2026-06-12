@@ -43,10 +43,13 @@ import app.naviamp.ui.SharedHome
 import app.naviamp.ui.SharedMediaItemAction
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedMixBuilderUi
+import app.naviamp.ui.SharedSonicPathBuilderUi
 import app.naviamp.ui.SharedTrackGroupAction
 import app.naviamp.ui.SharedTrackGroupActionRequest
 import app.naviamp.ui.SharedTrackRowAction
+import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.StationRowAction
+import app.naviamp.ui.SonicPathBuilderContent
 import app.naviamp.ui.toSharedHomeUi
 
 @Composable
@@ -121,6 +124,20 @@ fun ColumnScope.DesktopAppRouteContent(
     onGenreMixGenreRemoved: (SharedGenreMixItemUi) -> Unit,
     onGenreMixReset: () -> Unit,
     onGenreMixPlay: () -> Unit,
+    sonicPathBuilder: SharedSonicPathBuilderUi,
+    onSonicPathStartQueryChanged: (String) -> Unit,
+    onSonicPathEndQueryChanged: (String) -> Unit,
+    onSonicPathStartSearch: () -> Unit,
+    onSonicPathEndSearch: () -> Unit,
+    onSonicPathStartTrackSelected: (SharedTrackRowUi) -> Unit,
+    onSonicPathEndTrackSelected: (SharedTrackRowUi) -> Unit,
+    onSonicPathStartTrackCleared: () -> Unit,
+    onSonicPathEndTrackCleared: () -> Unit,
+    onSonicPathCountChanged: (Int) -> Unit,
+    onSonicPathBuild: () -> Unit,
+    onSonicPathReset: () -> Unit,
+    onSonicPathPlay: () -> Unit,
+    onSonicPathAddToQueue: () -> Unit,
     internetRadioStations: List<InternetRadioStation>,
     internetRadioStatus: String?,
     onSaveInternetRadioStation: (InternetRadioStation) -> Unit,
@@ -157,12 +174,14 @@ fun ColumnScope.DesktopAppRouteContent(
         coverArtUrl = coverArtUrl,
         playlistTracksById = playlistTracksById,
         canFavoriteAlbums = true,
+        showSonicPathBuilder = playbackSettings.sonicSimilarityEnabled && supportsSonicSimilarity,
     )
     fun openMixBuilder(builder: SharedMixBuilderUi) {
         when (builder.id) {
             "artist" -> onOpenArtistMixBuilder()
             "album" -> onOpenAlbumMixBuilder()
             "genre" -> onRouteSelected(DesktopAppRoute.GenreMix)
+            "sonic-path" -> onRouteSelected(DesktopAppRoute.SonicPath)
         }
     }
     fun handleArtistMediaAction(
@@ -296,6 +315,7 @@ fun ColumnScope.DesktopAppRouteContent(
                         appRoute == DesktopAppRoute.ArtistMix ||
                         appRoute == DesktopAppRoute.AlbumMix ||
                         appRoute == DesktopAppRoute.GenreMix ||
+                        appRoute == DesktopAppRoute.SonicPath ||
                         appRoute == DesktopAppRoute.Settings ||
                         appRoute == DesktopAppRoute.AlbumDetail ||
                         appRoute == DesktopAppRoute.ArtistDetail
@@ -604,6 +624,58 @@ fun ColumnScope.DesktopAppRouteContent(
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text("Play Mix")
+                        }
+                    }
+                }
+                DesktopAppRoute.SonicPath -> Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .verticalScroll(contentScrollState),
+                    ) {
+                        SonicPathBuilderContent(
+                            colors = appColors,
+                            builder = sonicPathBuilder,
+                            onStartQueryChanged = onSonicPathStartQueryChanged,
+                            onEndQueryChanged = onSonicPathEndQueryChanged,
+                            onStartSearch = onSonicPathStartSearch,
+                            onEndSearch = onSonicPathEndSearch,
+                            onStartTrackSelected = onSonicPathStartTrackSelected,
+                            onEndTrackSelected = onSonicPathEndTrackSelected,
+                            onStartTrackCleared = onSonicPathStartTrackCleared,
+                            onEndTrackCleared = onSonicPathEndTrackCleared,
+                            onCountChanged = onSonicPathCountChanged,
+                            onBuildPath = onSonicPathBuild,
+                            onReset = onSonicPathReset,
+                            onPlayPath = onSonicPathPlay,
+                            onAddPathToQueue = onSonicPathAddToQueue,
+                            showPathActions = false,
+                        )
+                    }
+                    if (sonicPathBuilder.hasPath) {
+                        androidx.compose.foundation.layout.Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Button(
+                                onClick = onSonicPathPlay,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = appColors.accent,
+                                    contentColor = appColors.onAccent,
+                                ),
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Text("Play Path")
+                            }
+                            Button(
+                                onClick = onSonicPathAddToQueue,
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Text("Add to Queue")
+                            }
                         }
                     }
                 }
